@@ -2,3 +2,20 @@ __pycache__/
 *.pyc
 .pytest_cache/
 dist/*.zip
+
+# Terraform local artifacts and state
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local backend and variable files
+infra/backend.hcl
+*.tfvars
+*.tfvars.json
