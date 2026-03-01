@@ -6,9 +6,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 import hashlib
 import json
+import math
 from typing import Any, Dict, Iterable
 from uuid import uuid4
 
+from .logging_utils import log_event
 from .models import CanonicalizationResult
 from .normalize import NormalizedBundle
 from .repositories import ClouderRepository, parse_iso_date, utc_now
@@ -32,6 +34,16 @@ class Canonicalizer:
 
     def process_run(self, run_id: str, bundle: NormalizedBundle) -> CanonicalizationResult:
         observed_at = utc_now()
+        log_event(
+            "INFO",
+            "canonicalization_process_started",
+            run_id=run_id,
+            tracks_total=len(bundle.tracks),
+            artists_total=len(bundle.artists),
+            labels_total=len(bundle.labels),
+            albums_total=len(bundle.albums),
+            relations_total=len(bundle.relations),
+        )
 
         label_ids: Dict[int, str] = {}
         artist_ids: Dict[int, str] = {}
@@ -50,6 +62,13 @@ class Canonicalizer:
                 observed_at=observed_at,
             )
             label_ids[label.bp_label_id] = self._resolve_label(label.bp_label_id, label.name, label.normalized_name, observed_at)
+        log_event(
+            "INFO",
+            "canonicalization_phase_completed",
+            run_id=run_id,
+            phase="labels",
+            item_count=len(label_ids),
+        )
 
         # Artists
         for artist in bundle.artists:
@@ -63,6 +82,13 @@ class Canonicalizer:
                 observed_at=observed_at,
             )
             artist_ids[artist.bp_artist_id] = self._resolve_artist(artist.bp_artist_id, artist.name, artist.normalized_name, observed_at)
+        log_event(
+            "INFO",
+            "canonicalization_phase_completed",
+            run_id=run_id,
+            phase="artists",
+            item_count=len(artist_ids),
+        )
 
         # Albums
         for album in bundle.albums:
@@ -84,6 +110,13 @@ class Canonicalizer:
                 label_id=label_id,
                 observed_at=observed_at,
             )
+        log_event(
+            "INFO",
+            "canonicalization_phase_completed",
+            run_id=run_id,
+            phase="albums",
+            item_count=len(album_ids),
+        )
 
         for relation in bundle.relations:
             self._repository.upsert_source_relation(
@@ -95,9 +128,26 @@ class Canonicalizer:
                 to_external_id=relation.to_external_id,
                 last_run_id=run_id,
             )
+        log_event(
+            "INFO",
+            "canonicalization_phase_completed",
+            run_id=run_id,
+            phase="relations",
+            item_count=len(bundle.relations),
+        )
 
         # Tracks are processed in batches to avoid long transactions on Data API.
-        for chunk in _chunks(bundle.tracks, 200):
+        chunk_count = max(1, math.ceil(len(bundle.tracks) / 200)) if bundle.tracks else 0
+        for chunk_index, chunk in enumerate(_chunks(bundle.tracks, 200), start=1):
+            log_event(
+                "INFO",
+                "canonicalization_chunk_started",
+                run_id=run_id,
+                phase="tracks",
+                chunk_index=chunk_index,
+                chunk_count=chunk_count,
+                chunk_size=len(chunk),
+            )
             with self._repository.transaction() as transaction_id:
                 for track in chunk:
                     self._upsert_source_entity(
@@ -136,8 +186,18 @@ class Canonicalizer:
                             artist_id=artist_id,
                             transaction_id=transaction_id,
                         )
+            log_event(
+                "INFO",
+                "canonicalization_chunk_completed",
+                run_id=run_id,
+                phase="tracks",
+                chunk_index=chunk_index,
+                chunk_count=chunk_count,
+                chunk_size=len(chunk),
+                tracks_processed=len(track_ids),
+            )
 
-        return CanonicalizationResult(
+        result = CanonicalizationResult(
             run_id=run_id,
             tracks_total=len(bundle.tracks),
             tracks_processed=len(track_ids),
@@ -145,6 +205,17 @@ class Canonicalizer:
             labels_total=len(bundle.labels),
             albums_total=len(bundle.albums),
         )
+        log_event(
+            "INFO",
+            "canonicalization_process_completed",
+            run_id=run_id,
+            tracks_total=result.tracks_total,
+            tracks_processed=result.tracks_processed,
+            artists_total=result.artists_total,
+            labels_total=result.labels_total,
+            albums_total=result.albums_total,
+        )
+        return result
 
     def _upsert_source_entity(
         self,

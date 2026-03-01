@@ -18,6 +18,11 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
     records = event.get("Records")
     if not isinstance(records, list):
         return {"processed": 0}
+    log_event(
+        "INFO",
+        "canonicalization_worker_invoked",
+        sqs_record_count=len(records),
+    )
 
     processed = 0
     for record in records:
@@ -36,6 +41,13 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
         correlation_id = _extract_message_attribute(record, "correlation_id")
         if not correlation_id:
             correlation_id = run_id
+        log_event(
+            "INFO",
+            "canonicalization_run_started",
+            correlation_id=correlation_id,
+            run_id=run_id,
+            s3_key=s3_key,
+        )
 
         repository = create_clouder_repository_from_env()
         if repository is None:
@@ -49,7 +61,26 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
 
         try:
             raw_tracks = storage.read_releases(s3_key)
+            log_event(
+                "INFO",
+                "canonicalization_raw_loaded",
+                correlation_id=correlation_id,
+                run_id=run_id,
+                item_count=len(raw_tracks),
+                s3_key=s3_key,
+            )
             bundle = normalize_tracks(raw_tracks)
+            log_event(
+                "INFO",
+                "canonicalization_normalized",
+                correlation_id=correlation_id,
+                run_id=run_id,
+                tracks_total=len(bundle.tracks),
+                artists_total=len(bundle.artists),
+                labels_total=len(bundle.labels),
+                albums_total=len(bundle.albums),
+                relations_total=len(bundle.relations),
+            )
             canonicalizer = Canonicalizer(repository)
             result = canonicalizer.process_run(run_id=run_id, bundle=bundle)
             repository.set_run_completed(run_id=run_id, processed_count=result.tracks_processed, finished_at=utc_now())
@@ -60,6 +91,12 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
                 correlation_id=correlation_id,
                 run_id=run_id,
                 item_count=result.tracks_processed,
+                tracks_total=result.tracks_total,
+                tracks_processed=result.tracks_processed,
+                artists_total=result.artists_total,
+                labels_total=result.labels_total,
+                albums_total=result.albums_total,
+                run_status="COMPLETED",
                 status_code=200,
             )
         except Exception as exc:
@@ -76,6 +113,8 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
                 run_id=run_id,
                 error_code="canonicalization_failed",
                 error_type=exc.__class__.__name__,
+                error_message=str(exc)[:500],
+                run_status="FAILED",
                 status_code=500,
             )
             raise
