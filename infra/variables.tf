@@ -94,6 +94,18 @@ variable "worker_lambda_memory_mb" {
   default     = 1024
 }
 
+variable "migration_lambda_timeout_seconds" {
+  description = "DB migration Lambda timeout in seconds"
+  type        = number
+  default     = 900
+}
+
+variable "migration_lambda_memory_mb" {
+  description = "DB migration Lambda memory size in MB"
+  type        = number
+  default     = 1024
+}
+
 variable "aurora_database_name" {
   description = "Initial Aurora PostgreSQL database name"
   type        = string

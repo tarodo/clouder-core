@@ -105,8 +105,10 @@ raw/bp/releases/
 - Lambda:
   - API handler: `collector.handler.lambda_handler`
   - Worker handler: `collector.worker_handler.lambda_handler`
+  - Migration handler: `collector.migration_handler.lambda_handler`
 - SQS queue + DLQ (`maxReceiveCount=5`)
 - Aurora PostgreSQL Serverless v2 + Data API (`enable_http_endpoint=true`)
+- VPC interface endpoint для Secrets Manager (нужен migration Lambda в приватных subnet)
 
 Aurora scaling сейчас:
 
@@ -164,6 +166,13 @@ awscurl --service execute-api --region us-east-1 "$API_URL/runs/$RUN_ID"
 - `AURORA_DATABASE`
 - `LOG_LEVEL`
 
+Migration Lambda использует:
+
+- `AURORA_WRITER_ENDPOINT`
+- `AURORA_PORT`
+- `AURORA_SECRET_ARN`
+- `AURORA_DATABASE`
+
 ## Миграции БД
 
 Схема БД хранится в SQLAlchemy/Alembic.
@@ -190,9 +199,9 @@ alembic upgrade head
 
 ### Deploy (`.github/workflows/deploy.yml`)
 
-- package lambda zip
+- package lambda zip (`scripts/package_lambda.sh`, внутри артефакта также `alembic/` и `alembic.ini`)
 - `terraform apply`
-- `alembic upgrade head` (только если задан `ALEMBIC_DATABASE_URL` secret)
+- invoke migration Lambda (`action=upgrade`, `revision=head`)
 
 ## Логи и диагностика
 
@@ -202,6 +211,7 @@ alembic upgrade head
 cd infra
 terraform output -raw lambda_function_name
 terraform output -raw worker_lambda_function_name
+terraform output -raw migration_lambda_function_name
 ```
 
 Смотреть логи:
@@ -209,6 +219,7 @@ terraform output -raw worker_lambda_function_name
 ```bash
 aws logs tail "/aws/lambda/$(cd infra && terraform output -raw lambda_function_name)" --follow
 aws logs tail "/aws/lambda/$(cd infra && terraform output -raw worker_lambda_function_name)" --follow
+aws logs tail "/aws/lambda/$(cd infra && terraform output -raw migration_lambda_function_name)" --follow
 ```
 
 Основные события:
@@ -220,11 +231,14 @@ aws logs tail "/aws/lambda/$(cd infra && terraform output -raw worker_lambda_fun
 - `collection_completed`
 - `canonicalization_completed`
 - `canonicalization_failed`
+- `migration_started`
+- `migration_completed`
 
 ## Известные operational notes
 
 - `processing_status=FAILED_TO_QUEUE` означает, что raw сохранен, но задача канонизации не отправлена.
 - Для надежной очереди рекомендуется держать `canonicalize_queue_visibility_timeout_seconds >= worker_lambda_timeout_seconds`, чтобы избежать повторной параллельной обработки long-running сообщений.
+- Миграции выполняются автоматически в deploy workflow через migration Lambda; отдельный `ALEMBIC_DATABASE_URL` в GitHub Secrets больше не требуется.
 
 ## Безопасность
 

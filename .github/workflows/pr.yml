@@ -66,6 +66,11 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Terraform fmt
         run: terraform fmt -check -recursive
 
@@ -83,11 +88,7 @@ jobs:
 
       - name: Package Lambda
         working-directory: .
-        run: |
-          mkdir -p dist
-          rm -f dist/collector.zip
-          cd src
-          zip -r ../dist/collector.zip collector -x "*/__pycache__/*"
+        run: scripts/package_lambda.sh
 
       - name: Terraform plan
         run: terraform plan -input=false -lock=false -var="environment=prod"

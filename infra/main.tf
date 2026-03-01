@@ -2,6 +2,7 @@ locals {
   name_prefix           = "${var.project}-${var.environment}"
   lambda_name           = "${local.name_prefix}-collector-api"
   worker_lambda_name    = "${local.name_prefix}-canonicalizer-worker"
+  migration_lambda_name = "${local.name_prefix}-db-migration"
   api_name              = "${local.name_prefix}-collector-api"
   queue_name            = "${local.name_prefix}-canonicalize"
   dlq_name              = "${local.name_prefix}-canonicalize-dlq"
