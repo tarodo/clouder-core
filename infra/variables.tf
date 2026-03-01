@@ -58,37 +58,37 @@ variable "raw_bucket_name" {
   default     = ""
 }
 
-variable "canonicalize_enabled" {
+variable "canonicalization_enabled" {
   description = "Enable enqueueing canonicalization messages from the API lambda"
   type        = bool
   default     = false
 }
 
-variable "canonicalize_queue_visibility_timeout_seconds" {
+variable "canonicalization_queue_visibility_timeout_seconds" {
   description = "Visibility timeout for canonicalization queue (effective value is max(this, worker lambda timeout))"
   type        = number
   default     = 180
 }
 
-variable "canonicalize_queue_retention_seconds" {
+variable "canonicalization_queue_retention_seconds" {
   description = "Message retention for canonicalization queue"
   type        = number
   default     = 1209600
 }
 
-variable "canonicalizer_batch_size" {
-  description = "SQS batch size for canonicalizer lambda"
+variable "canonicalization_batch_size" {
+  description = "SQS batch size for canonicalization worker lambda"
   type        = number
   default     = 1
 }
 
-variable "worker_lambda_timeout_seconds" {
+variable "canonicalization_worker_lambda_timeout_seconds" {
   description = "Canonicalization worker Lambda timeout in seconds"
   type        = number
   default     = 900
 }
 
-variable "worker_lambda_memory_mb" {
+variable "canonicalization_worker_lambda_memory_mb" {
   description = "Canonicalization worker Lambda memory size in MB"
   type        = number
   default     = 1024

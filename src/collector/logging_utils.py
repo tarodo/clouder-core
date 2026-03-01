@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from typing import Any, Dict, Mapping
 
 import structlog
+
+from .settings import get_logging_settings
 
 SENSITIVE_KEYS = {"bp_token", "authorization", "token", "access_token"}
 ALLOWED_LOG_FIELDS = {
@@ -47,10 +48,13 @@ ALLOWED_LOG_FIELDS = {
     "processed",
     "run_status",
     "processing_status",
+    "processing_outcome",
+    "processing_reason",
+    "sqs_record_index",
 }
 
 
-LOG_LEVEL = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
+LOG_LEVEL = getattr(logging, get_logging_settings().log_level.upper(), logging.INFO)
 
 structlog.configure(
     processors=[

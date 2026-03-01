@@ -13,7 +13,6 @@ from urllib.error import HTTPError, URLError
 from .errors import UpstreamAuthError, UpstreamUnavailableError
 from .logging_utils import log_event
 
-
 TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 
 
@@ -101,9 +100,13 @@ class BeatportClient:
                 beatport_page=params.get("page"),
                 beatport_attempt=attempt + 1,
             )
-            request = urllib.request.Request(url=request_url, method="GET", headers=headers)
+            request = urllib.request.Request(
+                url=request_url, method="GET", headers=headers
+            )
             try:
-                with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+                with urllib.request.urlopen(
+                    request, timeout=self.timeout_seconds
+                ) as response:
                     log_event(
                         "INFO",
                         "beatport_response",
@@ -116,7 +119,9 @@ class BeatportClient:
                     raw = response.read().decode("utf-8")
                     parsed = json.loads(raw)
                     if not isinstance(parsed, dict):
-                        raise UpstreamUnavailableError("Unexpected Beatport payload type")
+                        raise UpstreamUnavailableError(
+                            "Unexpected Beatport payload type"
+                        )
                     return parsed
             except HTTPError as exc:
                 if exc.code in (401, 403):
@@ -126,12 +131,16 @@ class BeatportClient:
                     self._sleep_backoff(attempt)
                     continue
 
-                raise UpstreamUnavailableError(f"Beatport API returned HTTP {exc.code}") from exc
+                raise UpstreamUnavailableError(
+                    f"Beatport API returned HTTP {exc.code}"
+                ) from exc
             except (URLError, TimeoutError, ValueError) as exc:
                 if attempt < self.max_retries:
                     self._sleep_backoff(attempt)
                     continue
-                raise UpstreamUnavailableError("Beatport API request failed after retries") from exc
+                raise UpstreamUnavailableError(
+                    "Beatport API request failed after retries"
+                ) from exc
 
         raise UpstreamUnavailableError("Beatport API request failed")
 

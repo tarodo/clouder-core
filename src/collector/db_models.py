@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import date as date_type, datetime
+from decimal import Decimal
+
 from sqlalchemy import (
     Date,
     DateTime,
@@ -34,11 +37,15 @@ class IngestRun(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     item_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     processed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    started_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
-    finished_at: Mapped[str | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_code: Mapped[str | None] = mapped_column(String(64))
     error_message: Mapped[str | None] = mapped_column(Text)
-    meta: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    meta: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
 
 
 class SourceEntity(Base):
@@ -55,9 +62,15 @@ class SourceEntity(Base):
     normalized_name: Mapped[str | None] = mapped_column(Text)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
     payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    first_seen_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_seen_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_run_id: Mapped[str] = mapped_column(String(36), ForeignKey("ingest_runs.run_id"), nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("ingest_runs.run_id"), nullable=False
+    )
 
 
 class SourceRelation(Base):
@@ -79,7 +92,9 @@ class SourceRelation(Base):
     relation_type: Mapped[str] = mapped_column(String(64), nullable=False)
     to_entity_type: Mapped[str] = mapped_column(String(32), nullable=False)
     to_external_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    last_run_id: Mapped[str] = mapped_column(String(36), ForeignKey("ingest_runs.run_id"), nullable=False)
+    last_run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("ingest_runs.run_id"), nullable=False
+    )
 
 
 class ClouderArtist(Base):
@@ -88,8 +103,12 @@ class ClouderArtist(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class ClouderLabel(Base):
@@ -98,8 +117,12 @@ class ClouderLabel(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class ClouderAlbum(Base):
@@ -111,10 +134,16 @@ class ClouderAlbum(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_title: Mapped[str] = mapped_column(Text, nullable=False)
-    release_date: Mapped[str | None] = mapped_column(Date)
-    label_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("clouder_labels.id"))
-    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
+    release_date: Mapped[date_type | None] = mapped_column(Date)
+    label_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("clouder_labels.id")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class ClouderTrack(Base):
@@ -130,21 +159,31 @@ class ClouderTrack(Base):
     isrc: Mapped[str | None] = mapped_column(String(64))
     bpm: Mapped[int | None] = mapped_column(Integer)
     length_ms: Mapped[int | None] = mapped_column(Integer)
-    publish_date: Mapped[str | None] = mapped_column(Date)
-    album_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("clouder_albums.id"))
-    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
+    publish_date: Mapped[date_type | None] = mapped_column(Date)
+    album_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("clouder_albums.id")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class ClouderTrackArtist(Base):
     __tablename__ = "clouder_track_artists"
-    __table_args__ = (
-        PrimaryKeyConstraint("track_id", "artist_id", "role"),
-    )
+    __table_args__ = (PrimaryKeyConstraint("track_id", "artist_id", "role"),)
 
-    track_id: Mapped[str] = mapped_column(String(36), ForeignKey("clouder_tracks.id"), nullable=False)
-    artist_id: Mapped[str] = mapped_column(String(36), ForeignKey("clouder_artists.id"), nullable=False)
-    role: Mapped[str] = mapped_column(String(32), nullable=False, server_default=text("'main'"))
+    track_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("clouder_tracks.id"), nullable=False
+    )
+    artist_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("clouder_artists.id"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default=text("'main'")
+    )
 
 
 class IdentityMap(Base):
@@ -160,6 +199,10 @@ class IdentityMap(Base):
     clouder_entity_type: Mapped[str] = mapped_column(String(32), nullable=False)
     clouder_id: Mapped[str] = mapped_column(String(36), nullable=False)
     match_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    confidence: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False)
-    first_seen_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_seen_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(4, 3), nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )

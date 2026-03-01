@@ -19,17 +19,23 @@ class AppError(Exception):
 
 class ValidationError(AppError):
     def __init__(self, message: str) -> None:
-        super().__init__(status_code=400, error_code="validation_error", message=message)
+        super().__init__(
+            status_code=400, error_code="validation_error", message=message
+        )
 
 
 class UpstreamAuthError(AppError):
     def __init__(self, message: str = "Beatport authentication failed") -> None:
-        super().__init__(status_code=403, error_code="beatport_auth_failed", message=message)
+        super().__init__(
+            status_code=403, error_code="beatport_auth_failed", message=message
+        )
 
 
 class UpstreamUnavailableError(AppError):
     def __init__(self, message: str = "Beatport API unavailable") -> None:
-        super().__init__(status_code=502, error_code="beatport_unavailable", message=message)
+        super().__init__(
+            status_code=502, error_code="beatport_unavailable", message=message
+        )
 
 
 class StorageError(AppError):

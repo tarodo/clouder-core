@@ -5,6 +5,7 @@ import pytest
 
 from collector.errors import UpstreamAuthError
 from collector.handler import lambda_handler
+from collector.settings import reset_settings_cache
 
 
 class FakeS3Client:
@@ -29,6 +30,13 @@ class FakeSQSClient:
 @pytest.fixture
 def context() -> SimpleNamespace:
     return SimpleNamespace(aws_request_id="lambda-req-1")
+
+
+@pytest.fixture(autouse=True)
+def reset_cached_settings() -> None:
+    reset_settings_cache()
+    yield
+    reset_settings_cache()
 
 
 def _event(body: dict, correlation_id: str | None = None) -> dict:
@@ -111,6 +119,8 @@ def test_happy_path_writes_snapshot_and_enqueues_canonicalization(monkeypatch, c
     assert body["s3_object_key"].endswith("/releases.json.gz")
     assert body["run_status"] == "RAW_SAVED"
     assert body["processing_status"] == "QUEUED"
+    assert body["processing_outcome"] == "ENQUEUED"
+    assert body["processing_reason"] is None
 
     keys = [call["Key"] for call in fake_s3.calls]
     assert any(key.endswith("releases.json.gz") for key in keys)
@@ -157,6 +167,8 @@ def test_rerun_same_week_overwrites_latest_snapshot_only(monkeypatch, context) -
 
     body = json.loads(response2["body"])
     assert body["processing_status"] == "FAILED_TO_QUEUE"
+    assert body["processing_outcome"] == "DISABLED"
+    assert body["processing_reason"] == "config_disabled"
 
     keys = [call["Key"] for call in fake_s3.calls]
     releases_writes = [key for key in keys if key.endswith("releases.json.gz")]
@@ -204,6 +216,57 @@ def test_beatport_auth_error_returns_sanitized_payload(monkeypatch, context) -> 
     assert body["api_request_id"] == "api-req-1"
     assert body["lambda_request_id"] == "lambda-req-1"
     assert len(fake_s3.calls) == 0
+
+
+def test_enqueue_exception_returns_failed_outcome_without_breaking_collection(monkeypatch, context) -> None:
+    fake_s3 = FakeS3Client()
+    fake_sqs = FakeSQSClient()
+    monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv("CANONICALIZE_ENABLED", "true")
+    monkeypatch.setenv("CANONICALIZE_QUEUE_URL", "https://sqs.example/queue")
+
+    def fake_s3_factory():
+        return fake_s3
+
+    def fake_sqs_factory():
+        return fake_sqs
+
+    class FakeClient:
+        def __init__(self, base_url: str) -> None:
+            self.base_url = base_url
+
+        def fetch_weekly_releases(self, bp_token, style_id, week_start, week_end, correlation_id):
+            return [{"id": 1}], 1
+
+    def broken_send_message(**kwargs):
+        del kwargs
+        raise RuntimeError("queue down")
+
+    fake_sqs.send_message = broken_send_message  # type: ignore[method-assign]
+
+    monkeypatch.setattr("collector.handler.create_default_s3_client", fake_s3_factory)
+    monkeypatch.setattr("collector.handler.create_default_sqs_client", fake_sqs_factory)
+    monkeypatch.setattr("collector.handler.BeatportClient", FakeClient)
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: None)
+
+    response = lambda_handler(
+        _event(
+            {
+                "bp_token": "secret",
+                "style_id": 5,
+                "iso_year": 2026,
+                "iso_week": 9,
+            }
+        ),
+        context,
+    )
+
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["run_status"] == "RAW_SAVED"
+    assert body["processing_status"] == "FAILED_TO_QUEUE"
+    assert body["processing_outcome"] == "ENQUEUE_FAILED"
+    assert body["processing_reason"] == "enqueue_exception"
 
 
 def test_invalid_body_returns_validation_error(monkeypatch, context) -> None:

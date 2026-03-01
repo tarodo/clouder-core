@@ -23,9 +23,9 @@ output "lambda_function_name" {
   value       = aws_lambda_function.collector.function_name
 }
 
-output "worker_lambda_function_name" {
-  description = "Canonicalizer worker Lambda function name"
-  value       = aws_lambda_function.canonicalizer_worker.function_name
+output "canonicalization_worker_lambda_function_name" {
+  description = "Canonicalization worker Lambda function name"
+  value       = aws_lambda_function.canonicalization_worker.function_name
 }
 
 output "migration_lambda_function_name" {
@@ -33,9 +33,9 @@ output "migration_lambda_function_name" {
   value       = aws_lambda_function.db_migration.function_name
 }
 
-output "canonicalize_queue_url" {
+output "canonicalization_queue_url" {
   description = "SQS queue URL for canonicalization tasks"
-  value       = aws_sqs_queue.canonicalize.url
+  value       = aws_sqs_queue.canonicalization.url
 }
 
 output "aurora_cluster_arn" {

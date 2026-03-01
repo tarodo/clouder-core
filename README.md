@@ -12,7 +12,7 @@ flowchart TD
     B --> C["Beatport API fetch + pagination"]
     C --> D["S3 raw: releases.json.gz + meta.json"]
     D --> E["ingest_runs status=RAW_SAVED (Data API)"]
-    E --> F{"CANONICALIZE_ENABLED=true\nand queue URL is set"}
+    E --> F{"CANONICALIZATION_ENABLED=true\nand queue URL is set"}
     F -- yes --> G["SQS message (run_id,s3_key,...)"]
     F -- no --> H["processing_status=FAILED_TO_QUEUE"]
     G --> I["Worker Lambda (collector.worker_handler)"]
@@ -53,6 +53,8 @@ Response body:
 - `duration_ms`
 - `run_status` (`RAW_SAVED`)
 - `processing_status` (`QUEUED` or `FAILED_TO_QUEUE`)
+- `processing_outcome` (`ENQUEUED|DISABLED|ENQUEUE_FAILED`)
+- `processing_reason` (`null|config_disabled|queue_missing|enqueue_exception`)
 
 ### `GET /runs/{run_id}`
 
@@ -159,8 +161,8 @@ Key runtime env vars:
 - `RAW_BUCKET_NAME`
 - `RAW_PREFIX`
 - `BEATPORT_API_BASE_URL`
-- `CANONICALIZE_ENABLED`
-- `CANONICALIZE_QUEUE_URL`
+- `CANONICALIZATION_ENABLED`
+- `CANONICALIZATION_QUEUE_URL`
 - `AURORA_CLUSTER_ARN`
 - `AURORA_SECRET_ARN`
 - `AURORA_DATABASE`
@@ -200,7 +202,7 @@ alembic upgrade head
 ### Deploy (`.github/workflows/deploy.yml`)
 
 - package Lambda zip (`scripts/package_lambda.sh`, artifact includes `db_migrations/` and `alembic.ini`)
-- `terraform apply` with `canonicalize_enabled=true` for prod
+- `terraform apply` with `canonicalization_enabled=true` for prod
 - invoke migration Lambda (`action=upgrade`, `revision=head`)
 
 ## Logs and Diagnostics
@@ -210,7 +212,7 @@ Get function names:
 ```bash
 cd infra
 terraform output -raw lambda_function_name
-terraform output -raw worker_lambda_function_name
+terraform output -raw canonicalization_worker_lambda_function_name
 terraform output -raw migration_lambda_function_name
 ```
 
@@ -218,7 +220,7 @@ Tail logs:
 
 ```bash
 aws logs tail "/aws/lambda/$(cd infra && terraform output -raw lambda_function_name)" --follow
-aws logs tail "/aws/lambda/$(cd infra && terraform output -raw worker_lambda_function_name)" --follow
+aws logs tail "/aws/lambda/$(cd infra && terraform output -raw canonicalization_worker_lambda_function_name)" --follow
 aws logs tail "/aws/lambda/$(cd infra && terraform output -raw migration_lambda_function_name)" --follow
 ```
 
@@ -237,7 +239,8 @@ Main events:
 ## Known Operational Notes
 
 - `processing_status=FAILED_TO_QUEUE` means raw data was saved, but canonicalization message was not enqueued.
-- For reliable queue processing, keep `canonicalize_queue_visibility_timeout_seconds >= worker_lambda_timeout_seconds` to avoid duplicate parallel processing of long-running messages.
+- Use `processing_outcome`/`processing_reason` to distinguish disabled routing vs enqueue failures.
+- For reliable queue processing, keep `canonicalization_queue_visibility_timeout_seconds >= canonicalization_worker_lambda_timeout_seconds` to avoid duplicate parallel processing of long-running messages.
 - Migrations run automatically in deploy workflow via migration Lambda; a separate `ALEMBIC_DATABASE_URL` GitHub secret is no longer required.
 
 ## Security

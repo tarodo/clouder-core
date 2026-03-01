@@ -36,14 +36,21 @@ class DataAPIClient:
             "includeResultMetadata": True,
         }
         if params:
-            request["parameters"] = [_to_parameter(name, value) for name, value in params.items()]
+            request["parameters"] = [
+                _to_parameter(name, value) for name, value in params.items()
+            ]
         if transaction_id:
             request["transactionId"] = transaction_id
 
         response = self._client.execute_statement(**request)
         return _to_rows(response)
 
-    def batch_execute(self, sql: str, parameter_sets: Iterable[Mapping[str, Any]], transaction_id: str | None = None) -> None:
+    def batch_execute(
+        self,
+        sql: str,
+        parameter_sets: Iterable[Mapping[str, Any]],
+        transaction_id: str | None = None,
+    ) -> None:
         request: Dict[str, Any] = {
             "resourceArn": self._resource_arn,
             "secretArn": self._secret_arn,
@@ -93,7 +100,9 @@ class DataAPIClient:
             raise
 
 
-def create_default_data_api_client(resource_arn: str, secret_arn: str, database: str) -> DataAPIClient:
+def create_default_data_api_client(
+    resource_arn: str, secret_arn: str, database: str
+) -> DataAPIClient:
     import boto3
 
     return DataAPIClient(
@@ -141,7 +150,9 @@ def _to_field(value: Any) -> dict[str, Any]:
     if isinstance(value, date):
         return {"stringValue": value.isoformat()}
     if isinstance(value, (dict, list)):
-        return {"stringValue": json.dumps(value, ensure_ascii=False, separators=(",", ":"))}
+        return {
+            "stringValue": json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+        }
     return {"stringValue": str(value)}
 
 

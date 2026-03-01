@@ -6,10 +6,12 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Tuple
 
 from .models import (
+    EntityType,
     NormalizedAlbum,
     NormalizedArtist,
     NormalizedLabel,
     NormalizedTrack,
+    RelationType,
     normalize_text,
 )
 
@@ -66,10 +68,10 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
             artist_ids.append(bp_artist_id)
             relations.append(
                 NormalizedRelation(
-                    from_entity_type="track",
+                    from_entity_type=EntityType.TRACK.value,
                     from_external_id=str(bp_track_id),
-                    relation_type="track_artist",
-                    to_entity_type="artist",
+                    relation_type=RelationType.TRACK_ARTIST.value,
+                    to_entity_type=EntityType.ARTIST.value,
                     to_external_id=str(bp_artist_id),
                 )
             )
@@ -80,7 +82,9 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
         if isinstance(release, dict):
             bp_release_id = _as_positive_int(release.get("id"))
             release_name = _as_non_empty_str(release.get("name"))
-            release_date = _as_date_str(item.get("publish_date") or item.get("new_release_date"))
+            release_date = _as_date_str(
+                item.get("publish_date") or item.get("new_release_date")
+            )
 
             label = release.get("label")
             if isinstance(label, dict):
@@ -108,10 +112,10 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
                 if bp_label_id is not None:
                     relations.append(
                         NormalizedRelation(
-                            from_entity_type="album",
+                            from_entity_type=EntityType.ALBUM.value,
                             from_external_id=str(bp_release_id),
-                            relation_type="album_label",
-                            to_entity_type="label",
+                            relation_type=RelationType.ALBUM_LABEL.value,
+                            to_entity_type=EntityType.LABEL.value,
                             to_external_id=str(bp_label_id),
                         )
                     )
@@ -128,7 +132,9 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
             isrc=_as_non_empty_str(item.get("isrc")),
             bpm=_as_positive_int(item.get("bpm")),
             length_ms=_as_positive_int(item.get("length_ms")),
-            publish_date=_as_date_str(item.get("publish_date") or item.get("new_release_date")),
+            publish_date=_as_date_str(
+                item.get("publish_date") or item.get("new_release_date")
+            ),
             bp_release_id=bp_release_id,
             bp_artist_ids=tuple(dict.fromkeys(artist_ids)),
             payload=item,
@@ -138,10 +144,10 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
         if bp_release_id is not None:
             relations.append(
                 NormalizedRelation(
-                    from_entity_type="track",
+                    from_entity_type=EntityType.TRACK.value,
                     from_external_id=str(bp_track_id),
-                    relation_type="track_album",
-                    to_entity_type="album",
+                    relation_type=RelationType.TRACK_ALBUM.value,
+                    to_entity_type=EntityType.ALBUM.value,
                     to_external_id=str(bp_release_id),
                 )
             )
@@ -155,7 +161,9 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
     )
 
 
-def _dedupe_relations(relations: Iterable[NormalizedRelation]) -> list[NormalizedRelation]:
+def _dedupe_relations(
+    relations: Iterable[NormalizedRelation],
+) -> list[NormalizedRelation]:
     seen = set()
     result: list[NormalizedRelation] = []
     for relation in relations:

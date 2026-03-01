@@ -1,3 +1,5 @@
 # Keep runtime dependencies minimal for MVP.
 # boto3 is available in AWS Lambda Python runtime and imported lazily.
 structlog
+pydantic>=2.7
+pydantic-settings>=2.3
