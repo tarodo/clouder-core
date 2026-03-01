@@ -65,7 +65,7 @@ variable "canonicalize_enabled" {
 }
 
 variable "canonicalize_queue_visibility_timeout_seconds" {
-  description = "Visibility timeout for canonicalization queue"
+  description = "Visibility timeout for canonicalization queue (effective value is max(this, worker lambda timeout))"
   type        = number
   default     = 180
 }

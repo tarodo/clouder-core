@@ -66,8 +66,6 @@ resource "aws_lambda_function" "db_migration" {
 
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 
-  reserved_concurrent_executions = 1
-
   vpc_config {
     subnet_ids         = [aws_subnet.db_a.id, aws_subnet.db_b.id]
     security_group_ids = [aws_security_group.migration_lambda.id]
