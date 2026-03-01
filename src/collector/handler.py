@@ -1,27 +1,38 @@
-"""AWS Lambda handler for Beatport weekly releases collection."""
+"""AWS Lambda handler for Beatport weekly releases collection API."""
 
 from __future__ import annotations
 
 import base64
+from datetime import datetime, timezone
 import json
 import os
 import time
 import uuid
-from datetime import datetime, timezone
 from typing import Any, Dict, Mapping
 
 from .beatport_client import BeatportClient
 from .errors import AppError, ValidationError
 from .logging_utils import log_event
-from .models import compute_iso_week_date_range, validate_collect_request
+from .models import RunStatus, compute_iso_week_date_range, validate_collect_request
+from .repositories import create_clouder_repository_from_env, utc_now
 from .storage import S3Storage, create_default_s3_client
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
-    started_at = time.perf_counter()
+    route_key = _extract_route_key(event)
+    if route_key == "GET /runs/{run_id}":
+        return _handle_get_run(event, context)
+    if route_key in ("POST /collect_bp_releases", ""):
+        return _handle_collect(event, context)
+    return _json_response(404, {"error_code": "not_found", "message": "Route not found"}, _extract_correlation_id(event))
+
+
+def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
+    started_at_perf = time.perf_counter()
     api_request_id = _extract_api_request_id(event)
     lambda_request_id = getattr(context, "aws_request_id", "unknown")
     correlation_id = _extract_correlation_id(event)
+
     log_event(
         "INFO",
         "request_received",
@@ -33,6 +44,9 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
     try:
         body = _parse_json_body(event)
         req = validate_collect_request(body)
+        week_start, week_end = compute_iso_week_date_range(req.iso_year, req.iso_week)
+        run_id = str(uuid.uuid4())
+
         log_event(
             "INFO",
             "request_validated",
@@ -43,8 +57,6 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             iso_year=req.iso_year,
             iso_week=req.iso_week,
         )
-        week_start, week_end = compute_iso_week_date_range(req.iso_year, req.iso_week)
-        run_id = str(uuid.uuid4())
 
         beatport_client = BeatportClient(base_url=os.getenv("BEATPORT_API_BASE_URL", "https://api.beatport.com/v4/catalog"))
         releases, api_pages_fetched = beatport_client.fetch_weekly_releases(
@@ -55,7 +67,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             correlation_id=correlation_id,
         )
 
-        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        duration_ms = int((time.perf_counter() - started_at_perf) * 1000)
         item_count = len(releases)
 
         meta = {
@@ -81,6 +93,30 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
         )
         releases_key, _ = storage.write_run_artifacts(releases=releases, meta=meta)
 
+        repository = create_clouder_repository_from_env()
+        if repository is not None:
+            repository.create_ingest_run(
+                run_id=run_id,
+                source="beatport",
+                style_id=req.style_id,
+                iso_year=req.iso_year,
+                iso_week=req.iso_week,
+                raw_s3_key=releases_key,
+                status=RunStatus.RAW_SAVED.value,
+                item_count=item_count,
+                meta=meta,
+                started_at=utc_now(),
+            )
+
+        processing_status = _enqueue_canonicalization(
+            run_id=run_id,
+            s3_key=releases_key,
+            style_id=req.style_id,
+            iso_year=req.iso_year,
+            iso_week=req.iso_week,
+            correlation_id=correlation_id,
+        )
+
         response = {
             "run_id": run_id,
             "correlation_id": correlation_id,
@@ -91,6 +127,8 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             "s3_object_key": releases_key,
             "item_count": item_count,
             "duration_ms": duration_ms,
+            "run_status": RunStatus.RAW_SAVED.value,
+            "processing_status": processing_status,
         }
 
         log_event(
@@ -156,6 +194,108 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
         )
 
 
+def _handle_get_run(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
+    del context
+    correlation_id = _extract_correlation_id(event)
+    api_request_id = _extract_api_request_id(event)
+    path_parameters = event.get("pathParameters")
+    run_id = None
+    if isinstance(path_parameters, Mapping):
+        candidate = path_parameters.get("run_id")
+        if isinstance(candidate, str) and candidate:
+            run_id = candidate
+
+    if not run_id:
+        return _json_response(400, {"error_code": "validation_error", "message": "run_id is required"}, correlation_id)
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {"error_code": "db_not_configured", "message": "Run status storage is not configured"},
+            correlation_id,
+        )
+
+    row = repository.get_run(run_id)
+    if row is None:
+        return _json_response(404, {"error_code": "not_found", "message": "Run not found"}, correlation_id)
+
+    error = None
+    if row.get("error_code"):
+        error = {
+            "code": row.get("error_code"),
+            "message": row.get("error_message"),
+        }
+
+    response = {
+        "run_id": run_id,
+        "status": row.get("status"),
+        "processed_counts": {
+            "processed": int(row.get("processed_count") or 0),
+            "total": int(row.get("item_count") or 0),
+        },
+        "error": error,
+        "started_at": row.get("started_at"),
+        "finished_at": row.get("finished_at"),
+        "api_request_id": api_request_id,
+        "correlation_id": correlation_id,
+    }
+    return _json_response(200, response, correlation_id)
+
+
+def _enqueue_canonicalization(
+    run_id: str,
+    s3_key: str,
+    style_id: int,
+    iso_year: int,
+    iso_week: int,
+    correlation_id: str,
+) -> str:
+    enabled = os.getenv("CANONICALIZE_ENABLED", "true").strip().lower() in {"1", "true", "yes"}
+    queue_url = os.getenv("CANONICALIZE_QUEUE_URL", "").strip()
+    if not enabled or not queue_url:
+        return "FAILED_TO_QUEUE"
+
+    payload = {
+        "run_id": run_id,
+        "source": "beatport",
+        "s3_key": s3_key,
+        "style_id": style_id,
+        "iso_year": iso_year,
+        "iso_week": iso_week,
+        "attempt": 1,
+    }
+
+    try:
+        client = create_default_sqs_client()
+        client.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+            MessageAttributes={
+                "correlation_id": {
+                    "DataType": "String",
+                    "StringValue": correlation_id,
+                }
+            },
+        )
+        return "QUEUED"
+    except Exception as exc:  # pragma: no cover - networked path
+        log_event(
+            "ERROR",
+            "canonicalization_enqueue_failed",
+            correlation_id=correlation_id,
+            run_id=run_id,
+            error_type=exc.__class__.__name__,
+        )
+        return "FAILED_TO_QUEUE"
+
+
+def create_default_sqs_client() -> Any:
+    import boto3
+
+    return boto3.client("sqs")
+
+
 def _parse_json_body(event: Mapping[str, Any]) -> Dict[str, Any]:
     body = event.get("body")
     if body is None:
@@ -178,6 +318,15 @@ def _parse_json_body(event: Mapping[str, Any]) -> Dict[str, Any]:
     if not isinstance(parsed, dict):
         raise ValidationError("Request body must be a JSON object")
     return parsed
+
+
+def _extract_route_key(event: Mapping[str, Any]) -> str:
+    request_context = event.get("requestContext")
+    if isinstance(request_context, Mapping):
+        route_key = request_context.get("routeKey")
+        if isinstance(route_key, str):
+            return route_key
+    return ""
 
 
 def _extract_api_request_id(event: Mapping[str, Any]) -> str:

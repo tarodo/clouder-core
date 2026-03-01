@@ -17,6 +17,13 @@ resource "aws_apigatewayv2_route" "collect_bp_releases" {
   authorization_type = "AWS_IAM"
 }
 
+resource "aws_apigatewayv2_route" "get_run" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /runs/{run_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "AWS_IAM"
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"

@@ -1,0 +1,4 @@
+pytest
+alembic
+sqlalchemy>=2.0
+psycopg[binary]
