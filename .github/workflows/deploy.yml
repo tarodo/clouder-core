@@ -34,19 +34,9 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dev deps
-        working-directory: .
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-
       - name: Package Lambda
         working-directory: .
-        run: |
-          mkdir -p dist
-          rm -f dist/collector.zip
-          cd src
-          zip -r ../dist/collector.zip collector -x "*/__pycache__/*"
+        run: scripts/package_lambda.sh
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -63,10 +53,34 @@ jobs:
       - name: Terraform apply
         run: terraform apply -auto-approve -input=false -var="environment=prod"
 
-      - name: Alembic upgrade
-        if: ${{ secrets.ALEMBIC_DATABASE_URL != '' }}
-        working-directory: .
-        env:
-          PYTHONPATH: src
-          ALEMBIC_DATABASE_URL: ${{ secrets.ALEMBIC_DATABASE_URL }}
-        run: alembic upgrade head
+      - name: Run DB migrations via Lambda
+        run: |
+          MIGRATION_FN="$(terraform output -raw migration_lambda_function_name)"
+          aws lambda invoke \
+            --function-name "$MIGRATION_FN" \
+            --payload '{"action":"upgrade","revision":"head"}' \
+            --cli-binary-format raw-in-base64-out \
+            /tmp/migration-response.json \
+            > /tmp/migration-meta.json
+
+          python - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          meta = json.loads(pathlib.Path("/tmp/migration-meta.json").read_text())
+          raw_response = pathlib.Path("/tmp/migration-response.json").read_text() or "{}"
+          try:
+              response = json.loads(raw_response)
+          except json.JSONDecodeError:
+              response = {"raw": raw_response}
+
+          print("Migration invoke meta:", json.dumps(meta, ensure_ascii=False))
+          print("Migration lambda response:", json.dumps(response, ensure_ascii=False))
+
+          if meta.get("FunctionError"):
+              sys.exit("Migration Lambda returned FunctionError")
+
+          if isinstance(response, dict) and response.get("status") != "ok":
+              sys.exit("Migration Lambda returned non-ok status")
+          PY

@@ -27,6 +27,7 @@ data "aws_iam_policy_document" "collector_lambda" {
     resources = [
       "${aws_cloudwatch_log_group.collector.arn}:*",
       "${aws_cloudwatch_log_group.canonicalizer_worker.arn}:*",
+      "${aws_cloudwatch_log_group.migration_lambda.arn}:*",
     ]
   }
 
@@ -110,6 +111,19 @@ data "aws_iam_policy_document" "collector_lambda" {
       "secretsmanager:GetSecretValue",
     ]
     resources = [try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "*")]
+  }
+
+  statement {
+    sid    = "AllowLambdaVpcNetworking"
+    effect = "Allow"
+    actions = [
+      "ec2:CreateNetworkInterface",
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DeleteNetworkInterface",
+      "ec2:AssignPrivateIpAddresses",
+      "ec2:UnassignPrivateIpAddresses",
+    ]
+    resources = ["*"]
   }
 }
 
