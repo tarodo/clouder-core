@@ -158,6 +158,7 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             error_code=exc.error_code,
             status_code=exc.status_code,
             error_type=exc.__class__.__name__,
+            error_message=exc.message,
         )
         return _json_response(
             exc.status_code,
@@ -178,6 +179,7 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             api_request_id=api_request_id,
             lambda_request_id=lambda_request_id,
             error_type=exc.__class__.__name__,
+            error_message=str(exc)[:500],
             status_code=500,
             error_code="internal_error",
         )
