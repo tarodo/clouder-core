@@ -1,5 +1,4 @@
 import json
-import os
 from types import SimpleNamespace
 
 import pytest
@@ -18,6 +17,15 @@ class FakeS3Client:
         self.objects[kwargs["Key"]] = kwargs["Body"]
 
 
+class FakeSQSClient:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def send_message(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"MessageId": "1"}
+
+
 @pytest.fixture
 def context() -> SimpleNamespace:
     return SimpleNamespace(aws_request_id="lambda-req-1")
@@ -29,18 +37,40 @@ def _event(body: dict, correlation_id: str | None = None) -> dict:
         headers["x-correlation-id"] = correlation_id
     return {
         "version": "2.0",
-        "requestContext": {"requestId": "api-req-1"},
+        "requestContext": {
+            "requestId": "api-req-1",
+            "routeKey": "POST /collect_bp_releases",
+        },
         "headers": headers,
         "body": json.dumps(body),
     }
 
 
-def test_happy_path_writes_latest_snapshot_objects_and_returns_ids(monkeypatch, context) -> None:
+def _get_run_event(run_id: str) -> dict:
+    return {
+        "version": "2.0",
+        "requestContext": {
+            "requestId": "api-req-2",
+            "routeKey": "GET /runs/{run_id}",
+        },
+        "headers": {"x-correlation-id": "cid-run"},
+        "pathParameters": {"run_id": run_id},
+        "body": None,
+    }
+
+
+def test_happy_path_writes_snapshot_and_enqueues_canonicalization(monkeypatch, context) -> None:
     fake_s3 = FakeS3Client()
+    fake_sqs = FakeSQSClient()
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv("CANONICALIZE_ENABLED", "true")
+    monkeypatch.setenv("CANONICALIZE_QUEUE_URL", "https://sqs.example/queue")
 
     def fake_s3_factory():
         return fake_s3
+
+    def fake_sqs_factory():
+        return fake_sqs
 
     class FakeClient:
         def __init__(self, base_url: str) -> None:
@@ -55,7 +85,9 @@ def test_happy_path_writes_latest_snapshot_objects_and_returns_ids(monkeypatch, 
             return [{"id": 1}, {"id": 2}], 2
 
     monkeypatch.setattr("collector.handler.create_default_s3_client", fake_s3_factory)
+    monkeypatch.setattr("collector.handler.create_default_sqs_client", fake_sqs_factory)
     monkeypatch.setattr("collector.handler.BeatportClient", FakeClient)
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: None)
 
     response = lambda_handler(
         _event(
@@ -77,6 +109,8 @@ def test_happy_path_writes_latest_snapshot_objects_and_returns_ids(monkeypatch, 
     assert body["lambda_request_id"] == "lambda-req-1"
     assert body["item_count"] == 2
     assert body["s3_object_key"].endswith("/releases.json.gz")
+    assert body["run_status"] == "RAW_SAVED"
+    assert body["processing_status"] == "QUEUED"
 
     keys = [call["Key"] for call in fake_s3.calls]
     assert any(key.endswith("releases.json.gz") for key in keys)
@@ -84,10 +118,15 @@ def test_happy_path_writes_latest_snapshot_objects_and_returns_ids(monkeypatch, 
     assert all("/runs/run_id=" not in key for key in keys)
     assert len(keys) == 2
 
+    assert len(fake_sqs.calls) == 1
+    message_body = json.loads(fake_sqs.calls[0]["MessageBody"])
+    assert message_body["source"] == "beatport"
+
 
 def test_rerun_same_week_overwrites_latest_snapshot_only(monkeypatch, context) -> None:
     fake_s3 = FakeS3Client()
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv("CANONICALIZE_ENABLED", "false")
 
     def fake_s3_factory():
         return fake_s3
@@ -101,6 +140,7 @@ def test_rerun_same_week_overwrites_latest_snapshot_only(monkeypatch, context) -
 
     monkeypatch.setattr("collector.handler.create_default_s3_client", fake_s3_factory)
     monkeypatch.setattr("collector.handler.BeatportClient", FakeClient)
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: None)
 
     payload = {
         "bp_token": "secret",
@@ -114,6 +154,9 @@ def test_rerun_same_week_overwrites_latest_snapshot_only(monkeypatch, context) -
 
     assert response1["statusCode"] == 200
     assert response2["statusCode"] == 200
+
+    body = json.loads(response2["body"])
+    assert body["processing_status"] == "FAILED_TO_QUEUE"
 
     keys = [call["Key"] for call in fake_s3.calls]
     releases_writes = [key for key in keys if key.endswith("releases.json.gz")]
@@ -168,7 +211,7 @@ def test_invalid_body_returns_validation_error(monkeypatch, context) -> None:
     response = lambda_handler(
         {
             "version": "2.0",
-            "requestContext": {"requestId": "api-req-1"},
+            "requestContext": {"requestId": "api-req-1", "routeKey": "POST /collect_bp_releases"},
             "headers": {},
             "body": "{bad-json}",
         },
@@ -178,3 +221,29 @@ def test_invalid_body_returns_validation_error(monkeypatch, context) -> None:
     assert response["statusCode"] == 400
     body = json.loads(response["body"])
     assert body["error_code"] == "validation_error"
+
+
+def test_get_run_route_returns_run_status(monkeypatch, context) -> None:
+    class FakeRepo:
+        def get_run(self, run_id: str):
+            assert run_id == "run-1"
+            return {
+                "status": "COMPLETED",
+                "processed_count": 5,
+                "item_count": 5,
+                "error_code": None,
+                "error_message": None,
+                "started_at": "2026-03-01T10:00:00Z",
+                "finished_at": "2026-03-01T10:01:00Z",
+            }
+
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: FakeRepo())
+
+    response = lambda_handler(_get_run_event("run-1"), context)
+
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["status"] == "COMPLETED"
+    assert body["processed_counts"]["processed"] == 5
+    assert body["processed_counts"]["total"] == 5
+    assert body["error"] is None

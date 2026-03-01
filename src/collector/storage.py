@@ -75,6 +75,23 @@ class S3Storage:
         )
         return releases_key, meta_key
 
+    def read_releases(self, key: str) -> List[Dict[str, Any]]:
+        try:
+            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
+            raw_bytes = response["Body"].read()
+        except Exception as exc:
+            raise StorageError(f"Failed to read object from S3: {key}") from exc
+
+        try:
+            decoded = gzip.decompress(raw_bytes).decode("utf-8")
+            parsed = json.loads(decoded)
+        except Exception as exc:
+            raise StorageError(f"Failed to decode releases payload: {key}") from exc
+
+        if not isinstance(parsed, list):
+            raise StorageError(f"Unexpected releases payload type in {key}")
+        return [item for item in parsed if isinstance(item, dict)]
+
     def _base_key(self, style_id: int, iso_year: int, iso_week: int) -> str:
         return f"{self.raw_prefix}/style_id={style_id}/year={iso_year}/week={iso_week:02d}"
 

@@ -1,9 +1,10 @@
-"""Input models and date computations for weekly collection."""
+"""Domain models and input validation helpers."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from enum import Enum
 from typing import Any, Mapping, Tuple
 
 from .errors import ValidationError
@@ -15,6 +16,63 @@ class CollectRequest:
     style_id: int
     iso_year: int
     iso_week: int
+
+
+class RunStatus(str, Enum):
+    RAW_SAVED = "RAW_SAVED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+@dataclass(frozen=True)
+class NormalizedArtist:
+    bp_artist_id: int
+    name: str
+    normalized_name: str
+    payload: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class NormalizedLabel:
+    bp_label_id: int
+    name: str
+    normalized_name: str
+    payload: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class NormalizedAlbum:
+    bp_release_id: int
+    title: str
+    normalized_title: str
+    release_date: str | None
+    bp_label_id: int | None
+    payload: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class NormalizedTrack:
+    bp_track_id: int
+    title: str
+    normalized_title: str
+    mix_name: str | None
+    isrc: str | None
+    bpm: int | None
+    length_ms: int | None
+    publish_date: str | None
+    bp_release_id: int | None
+    bp_artist_ids: tuple[int, ...]
+    payload: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class CanonicalizationResult:
+    run_id: str
+    tracks_total: int
+    tracks_processed: int
+    artists_total: int
+    labels_total: int
+    albums_total: int
 
 
 def _is_int(value: Any) -> bool:
@@ -62,3 +120,7 @@ def compute_iso_week_date_range(iso_year: int, iso_week: int) -> Tuple[str, str]
     week_start = date.fromisocalendar(iso_year, iso_week, 1)
     week_end = date.fromisocalendar(iso_year, iso_week, 7)
     return week_start.isoformat(), week_end.isoformat()
+
+
+def normalize_text(value: str) -> str:
+    return " ".join(value.strip().lower().split())
