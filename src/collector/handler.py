@@ -22,10 +22,27 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
     api_request_id = _extract_api_request_id(event)
     lambda_request_id = getattr(context, "aws_request_id", "unknown")
     correlation_id = _extract_correlation_id(event)
+    log_event(
+        "INFO",
+        "request_received",
+        correlation_id=correlation_id,
+        api_request_id=api_request_id,
+        lambda_request_id=lambda_request_id,
+    )
 
     try:
         body = _parse_json_body(event)
         req = validate_collect_request(body)
+        log_event(
+            "INFO",
+            "request_validated",
+            correlation_id=correlation_id,
+            api_request_id=api_request_id,
+            lambda_request_id=lambda_request_id,
+            style_id=req.style_id,
+            iso_year=req.iso_year,
+            iso_week=req.iso_week,
+        )
         week_start, week_end = compute_iso_week_date_range(req.iso_year, req.iso_week)
         run_id = str(uuid.uuid4())
 

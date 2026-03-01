@@ -23,6 +23,10 @@ ALLOWED_LOG_FIELDS = {
     "status_code",
     "error_code",
     "error_type",
+    "beatport_url",
+    "beatport_page",
+    "beatport_attempt",
+    "beatport_http_status",
 }
 
 
