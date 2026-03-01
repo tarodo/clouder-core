@@ -2,9 +2,9 @@
 
 Serverless ingestion + canonicalization pipeline.
 
-Сервис делает weekly сбор треков из Beatport, сохраняет raw в S3, запускает асинхронную канонизацию через SQS worker и пишет каноничные сущности в Aurora PostgreSQL через RDS Data API.
+The service performs weekly track collection from Beatport, stores raw snapshots in S3, triggers asynchronous canonicalization via an SQS worker, and writes canonical entities to Aurora PostgreSQL through RDS Data API.
 
-## Текущая схема
+## Current Architecture
 
 ```mermaid
 flowchart TD
@@ -12,7 +12,7 @@ flowchart TD
     B --> C["Beatport API fetch + pagination"]
     C --> D["S3 raw: releases.json.gz + meta.json"]
     D --> E["ingest_runs status=RAW_SAVED (Data API)"]
-    E --> F{"CANONICALIZE_ENABLED=true\nи queue url задан"}
+    E --> F{"CANONICALIZE_ENABLED=true\nand queue URL is set"}
     F -- yes --> G["SQS message (run_id,s3_key,...)"]
     F -- no --> H["processing_status=FAILED_TO_QUEUE"]
     G --> I["Worker Lambda (collector.worker_handler)"]
@@ -27,7 +27,7 @@ flowchart TD
 
 ### `POST /collect_bp_releases`
 
-Назначение: запустить сбор weekly Beatport snapshot.
+Purpose: start weekly Beatport snapshot collection.
 
 Request body:
 
@@ -52,11 +52,11 @@ Response body:
 - `item_count`
 - `duration_ms`
 - `run_status` (`RAW_SAVED`)
-- `processing_status` (`QUEUED` или `FAILED_TO_QUEUE`)
+- `processing_status` (`QUEUED` or `FAILED_TO_QUEUE`)
 
 ### `GET /runs/{run_id}`
 
-Назначение: получить статус обработки run.
+Purpose: fetch processing status for a run.
 
 Response body:
 
@@ -64,15 +64,15 @@ Response body:
 - `status` (`RAW_SAVED|COMPLETED|FAILED`)
 - `processed_counts.processed`
 - `processed_counts.total`
-- `error` (`null` или `{code,message}`)
+- `error` (`null` or `{code,message}`)
 - `started_at`
 - `finished_at`
 
-Важно: endpoint вернет `503 db_not_configured`, если для Lambda не заданы Data API env (`AURORA_*`).
+Important: this endpoint returns `503 db_not_configured` if Data API env vars (`AURORA_*`) are not configured for the Lambda.
 
-## Где хранятся данные
+## Data Storage
 
-### S3 raw
+### S3 raw data
 
 ```text
 raw/bp/releases/
@@ -83,7 +83,7 @@ raw/bp/releases/
         meta.json
 ```
 
-### Aurora PostgreSQL (через Data API)
+### Aurora PostgreSQL (via Data API)
 
 - `ingest_runs`
 - `source_entities`
@@ -95,30 +95,30 @@ raw/bp/releases/
 - `clouder_track_artists`
 - `identity_map`
 
-## Инфраструктура (Terraform)
+## Infrastructure (Terraform)
 
-Текущее состояние в `infra/`:
+Current setup in `infra/`:
 
-- HTTP API Gateway с route:
+- HTTP API Gateway routes:
   - `POST /collect_bp_releases`
   - `GET /runs/{run_id}`
-- Lambda:
+- Lambda functions:
   - API handler: `collector.handler.lambda_handler`
   - Worker handler: `collector.worker_handler.lambda_handler`
   - Migration handler: `collector.migration_handler.lambda_handler`
 - SQS queue + DLQ (`maxReceiveCount=5`)
 - Aurora PostgreSQL Serverless v2 + Data API (`enable_http_endpoint=true`)
-- VPC interface endpoint для Secrets Manager (нужен migration Lambda в приватных subnet)
+- VPC interface endpoint for Secrets Manager (required for migration Lambda in private subnets)
 
-Aurora scaling сейчас:
+Current Aurora scaling:
 
 - `aurora_serverless_min_acu = 0`
 - `aurora_serverless_max_acu = 2`
 - `aurora_auto_pause_seconds = 300`
 
-## Локальный запуск
+## Local Run
 
-### 1) Поднять infra
+### 1) Provision infra
 
 ```bash
 cd infra
@@ -126,14 +126,14 @@ terraform init
 terraform apply
 ```
 
-### 2) Получить endpoint
+### 2) Get API endpoint
 
 ```bash
 cd infra
 terraform output -raw api_endpoint
 ```
 
-### 3) Запустить сбор
+### 3) Trigger collection
 
 ```bash
 scripts/invoke_collect.sh \
@@ -144,7 +144,7 @@ scripts/invoke_collect.sh \
   --bp-token "<your_short_lived_bp_token>"
 ```
 
-### 4) Проверить статус run
+### 4) Check run status
 
 ```bash
 RUN_ID="<run_id_from_collect_response>"
@@ -152,9 +152,9 @@ API_URL="$(cd infra && terraform output -raw api_endpoint)"
 awscurl --service execute-api --region us-east-1 "$API_URL/runs/$RUN_ID"
 ```
 
-## Переменные окружения Lambda
+## Lambda Environment Variables
 
-Ключевые runtime env:
+Key runtime env vars:
 
 - `RAW_BUCKET_NAME`
 - `RAW_PREFIX`
@@ -166,21 +166,21 @@ awscurl --service execute-api --region us-east-1 "$API_URL/runs/$RUN_ID"
 - `AURORA_DATABASE`
 - `LOG_LEVEL`
 
-Migration Lambda использует:
+Migration Lambda uses:
 
 - `AURORA_WRITER_ENDPOINT`
 - `AURORA_PORT`
 - `AURORA_SECRET_ARN`
 - `AURORA_DATABASE`
 
-## Миграции БД
+## Database Migrations
 
-Схема БД хранится в SQLAlchemy/Alembic.
+Database schema is managed via SQLAlchemy/Alembic.
 
 - SQLAlchemy models: `src/collector/db_models.py`
 - Alembic: `alembic/`
 
-Локально:
+Run locally:
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -193,19 +193,19 @@ alembic upgrade head
 
 ### PR Checks (`.github/workflows/pr.yml`)
 
-- `alembic-check` job: миграции на ephemeral Postgres
+- `alembic-check` job: migrations against ephemeral Postgres
 - `terraform` job: fmt/validate/plan
 - `tests` job: `pytest -q`
 
 ### Deploy (`.github/workflows/deploy.yml`)
 
-- package lambda zip (`scripts/package_lambda.sh`, внутри артефакта также `db_migrations/` и `alembic.ini`)
-- `terraform apply`
+- package Lambda zip (`scripts/package_lambda.sh`, artifact includes `db_migrations/` and `alembic.ini`)
+- `terraform apply` with `canonicalize_enabled=true` for prod
 - invoke migration Lambda (`action=upgrade`, `revision=head`)
 
-## Логи и диагностика
+## Logs and Diagnostics
 
-Получить имена функций:
+Get function names:
 
 ```bash
 cd infra
@@ -214,7 +214,7 @@ terraform output -raw worker_lambda_function_name
 terraform output -raw migration_lambda_function_name
 ```
 
-Смотреть логи:
+Tail logs:
 
 ```bash
 aws logs tail "/aws/lambda/$(cd infra && terraform output -raw lambda_function_name)" --follow
@@ -222,7 +222,7 @@ aws logs tail "/aws/lambda/$(cd infra && terraform output -raw worker_lambda_fun
 aws logs tail "/aws/lambda/$(cd infra && terraform output -raw migration_lambda_function_name)" --follow
 ```
 
-Основные события:
+Main events:
 
 - `request_received`
 - `request_validated`
@@ -234,13 +234,13 @@ aws logs tail "/aws/lambda/$(cd infra && terraform output -raw migration_lambda_
 - `migration_started`
 - `migration_completed`
 
-## Известные operational notes
+## Known Operational Notes
 
-- `processing_status=FAILED_TO_QUEUE` означает, что raw сохранен, но задача канонизации не отправлена.
-- Для надежной очереди рекомендуется держать `canonicalize_queue_visibility_timeout_seconds >= worker_lambda_timeout_seconds`, чтобы избежать повторной параллельной обработки long-running сообщений.
-- Миграции выполняются автоматически в deploy workflow через migration Lambda; отдельный `ALEMBIC_DATABASE_URL` в GitHub Secrets больше не требуется.
+- `processing_status=FAILED_TO_QUEUE` means raw data was saved, but canonicalization message was not enqueued.
+- For reliable queue processing, keep `canonicalize_queue_visibility_timeout_seconds >= worker_lambda_timeout_seconds` to avoid duplicate parallel processing of long-running messages.
+- Migrations run automatically in deploy workflow via migration Lambda; a separate `ALEMBIC_DATABASE_URL` GitHub secret is no longer required.
 
-## Безопасность
+## Security
 
-- `bp_token` не сохраняется в S3 и не логируется открытым текстом.
-- API ошибки возвращаются в санитизированном виде.
+- `bp_token` is not stored in S3 and is not logged in plaintext.
+- API errors are returned in a sanitized form.
