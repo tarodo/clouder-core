@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timezone
 from typing import Any, Dict, Mapping
+
+import structlog
 
 SENSITIVE_KEYS = {"bp_token", "authorization", "token", "access_token"}
 ALLOWED_LOG_FIELDS = {
@@ -34,13 +35,21 @@ ALLOWED_LOG_FIELDS = {
 }
 
 
-LOGGER = logging.getLogger("collector")
-if not LOGGER.handlers:
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(message)s"))
-    LOGGER.addHandler(handler)
+LOG_LEVEL = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
 
-LOGGER.setLevel(getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO))
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp"),
+        lambda logger, method_name, event_dict: _sanitize_event(event_dict),
+        structlog.processors.EventRenamer("message"),
+        structlog.processors.JSONRenderer(serializer=json.dumps, ensure_ascii=True),
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(LOG_LEVEL),
+    logger_factory=structlog.PrintLoggerFactory(),
+    cache_logger_on_first_use=True,
+)
+
+LOGGER = structlog.get_logger("collector")
 
 
 def redact_sensitive_data(value: Any) -> Any:
@@ -67,11 +76,26 @@ def _sanitize_fields(fields: Mapping[str, Any]) -> Dict[str, Any]:
     return out
 
 
+def _sanitize_event(event_dict: Mapping[str, Any]) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {}
+
+    timestamp = event_dict.get("timestamp")
+    if isinstance(timestamp, str):
+        payload["timestamp"] = timestamp
+
+    level = event_dict.get("level")
+    if isinstance(level, str):
+        payload["level"] = level.upper()
+
+    message = event_dict.get("event")
+    if isinstance(message, str):
+        payload["event"] = message
+
+    payload.update(_sanitize_fields(event_dict))
+    return payload
+
+
 def log_event(level: str, message: str, **fields: Any) -> None:
-    payload: Dict[str, Any] = {
-        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "level": level.upper(),
-        "message": message,
-    }
-    payload.update(_sanitize_fields(fields))
-    LOGGER.log(getattr(logging, level.upper(), logging.INFO), json.dumps(payload, ensure_ascii=True))
+    method = level.lower()
+    logger_method = getattr(LOGGER, method, LOGGER.info)
+    logger_method(message, level=level.upper(), **fields)

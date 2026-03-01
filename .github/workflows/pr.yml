@@ -91,7 +91,7 @@ jobs:
         run: scripts/package_lambda.sh
 
       - name: Terraform plan
-        run: terraform plan -input=false -lock=false -var="environment=prod"
+        run: terraform plan -input=false -lock=false -var="environment=prod" -var="canonicalize_enabled=true"
 
   tests:
     runs-on: ubuntu-latest

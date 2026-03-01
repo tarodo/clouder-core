@@ -1,2 +1,3 @@
 # Keep runtime dependencies minimal for MVP.
 # boto3 is available in AWS Lambda Python runtime and imported lazily.
+structlog

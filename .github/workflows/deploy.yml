@@ -51,7 +51,7 @@ jobs:
             -backend-config="encrypt=true"
 
       - name: Terraform apply
-        run: terraform apply -auto-approve -input=false -var="environment=prod"
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalize_enabled=true"
 
       - name: Run DB migrations via Lambda
         run: |
