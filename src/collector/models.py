@@ -7,7 +7,10 @@ from datetime import date
 from enum import Enum
 from typing import Any, Mapping, Tuple
 
+from pydantic import ValidationError as PydanticValidationError
+
 from .errors import ValidationError
+from .schemas import CollectRequestIn, validation_error_message
 
 
 @dataclass(frozen=True)
@@ -22,6 +25,36 @@ class RunStatus(str, Enum):
     RAW_SAVED = "RAW_SAVED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+
+
+class ProcessingStatus(str, Enum):
+    QUEUED = "QUEUED"
+    FAILED_TO_QUEUE = "FAILED_TO_QUEUE"
+
+
+class ProcessingOutcome(str, Enum):
+    ENQUEUED = "ENQUEUED"
+    DISABLED = "DISABLED"
+    ENQUEUE_FAILED = "ENQUEUE_FAILED"
+
+
+class ProcessingReason(str, Enum):
+    CONFIG_DISABLED = "config_disabled"
+    QUEUE_MISSING = "queue_missing"
+    ENQUEUE_EXCEPTION = "enqueue_exception"
+
+
+class EntityType(str, Enum):
+    TRACK = "track"
+    ARTIST = "artist"
+    ALBUM = "album"
+    LABEL = "label"
+
+
+class RelationType(str, Enum):
+    TRACK_ARTIST = "track_artist"
+    TRACK_ALBUM = "track_album"
+    ALBUM_LABEL = "album_label"
 
 
 @dataclass(frozen=True)
@@ -75,42 +108,17 @@ class CanonicalizationResult:
     albums_total: int
 
 
-def _is_int(value: Any) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool)
-
-
 def validate_collect_request(payload: Mapping[str, Any]) -> CollectRequest:
-    if not isinstance(payload, Mapping):
-        raise ValidationError("Request body must be a JSON object")
-
-    bp_token = payload.get("bp_token")
-    style_id = payload.get("style_id")
-    iso_year = payload.get("iso_year")
-    iso_week = payload.get("iso_week")
-
-    if not isinstance(bp_token, str) or not bp_token.strip():
-        raise ValidationError("bp_token is required and must be a non-empty string")
-
-    if not _is_int(style_id) or style_id <= 0:
-        raise ValidationError("style_id must be a positive integer")
-
-    if not _is_int(iso_year) or iso_year < 2000 or iso_year > 2100:
-        raise ValidationError("iso_year must be an integer in range 2000..2100")
-
-    if not _is_int(iso_week) or iso_week < 1 or iso_week > 53:
-        raise ValidationError("iso_week must be an integer in range 1..53")
-
-    # Validates true ISO year/week combinations (e.g. rejects nonexistent week 53).
     try:
-        date.fromisocalendar(iso_year, iso_week, 1)
-    except ValueError as exc:
-        raise ValidationError("iso_year/iso_week combination is invalid") from exc
+        parsed = CollectRequestIn.model_validate(payload)
+    except PydanticValidationError as exc:
+        raise ValidationError(validation_error_message(exc)) from exc
 
     return CollectRequest(
-        bp_token=bp_token.strip(),
-        style_id=style_id,
-        iso_year=iso_year,
-        iso_week=iso_week,
+        bp_token=parsed.bp_token,
+        style_id=parsed.style_id,
+        iso_year=parsed.iso_year,
+        iso_week=parsed.iso_week,
     )
 
 

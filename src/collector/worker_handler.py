@@ -2,61 +2,74 @@
 
 from __future__ import annotations
 
-import json
-import os
-from typing import Any, Dict, Mapping
+from typing import Any, Mapping
+
+from pydantic import ValidationError as PydanticValidationError
 
 from .canonicalize import Canonicalizer
 from .logging_utils import log_event
 from .normalize import normalize_tracks
 from .repositories import create_clouder_repository_from_env, utc_now
+from .schemas import CanonicalizationMessage, validation_error_message
+from .settings import get_worker_settings
 from .storage import S3Storage, create_default_s3_client
 
 
-def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
+def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     del context
     records = event.get("Records")
     if not isinstance(records, list):
         return {"processed": 0}
+
     log_event(
         "INFO",
         "canonicalization_worker_invoked",
         sqs_record_count=len(records),
     )
 
+    settings = get_worker_settings()
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        raise RuntimeError(
+            "AURORA Data API configuration is required for canonicalization worker"
+        )
+
+    storage = S3Storage(
+        s3_client=create_default_s3_client(),
+        bucket_name=settings.raw_bucket_name,
+        raw_prefix=settings.raw_prefix,
+    )
+
     processed = 0
-    for record in records:
+    for index, record in enumerate(records):
         if not isinstance(record, Mapping):
             continue
         body = record.get("body")
         if not isinstance(body, str):
             continue
 
-        payload = json.loads(body)
-        run_id = str(payload.get("run_id", "")).strip()
-        s3_key = str(payload.get("s3_key", "")).strip()
-        if not run_id or not s3_key:
+        try:
+            payload = CanonicalizationMessage.model_validate_json(body)
+        except PydanticValidationError as exc:
+            log_event(
+                "ERROR",
+                "canonicalization_message_invalid",
+                sqs_record_index=index,
+                error_code="validation_error",
+                error_message=validation_error_message(exc),
+            )
             continue
 
-        correlation_id = _extract_message_attribute(record, "correlation_id")
-        if not correlation_id:
-            correlation_id = run_id
+        run_id = payload.run_id
+        s3_key = payload.s3_key
+        correlation_id = _extract_message_attribute(record, "correlation_id") or run_id
+
         log_event(
             "INFO",
             "canonicalization_run_started",
             correlation_id=correlation_id,
             run_id=run_id,
             s3_key=s3_key,
-        )
-
-        repository = create_clouder_repository_from_env()
-        if repository is None:
-            raise RuntimeError("AURORA Data API configuration is required for canonicalization worker")
-
-        storage = S3Storage(
-            s3_client=create_default_s3_client(),
-            bucket_name=_required_env("RAW_BUCKET_NAME"),
-            raw_prefix=_required_env("RAW_PREFIX", default="raw/bp/releases"),
         )
 
         try:
@@ -69,6 +82,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
                 item_count=len(raw_tracks),
                 s3_key=s3_key,
             )
+
             bundle = normalize_tracks(raw_tracks)
             log_event(
                 "INFO",
@@ -81,10 +95,16 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
                 albums_total=len(bundle.albums),
                 relations_total=len(bundle.relations),
             )
+
             canonicalizer = Canonicalizer(repository)
             result = canonicalizer.process_run(run_id=run_id, bundle=bundle)
-            repository.set_run_completed(run_id=run_id, processed_count=result.tracks_processed, finished_at=utc_now())
+            repository.set_run_completed(
+                run_id=run_id,
+                processed_count=result.tracks_processed,
+                finished_at=utc_now(),
+            )
             processed += 1
+
             log_event(
                 "INFO",
                 "canonicalization_completed",
@@ -132,11 +152,3 @@ def _extract_message_attribute(record: Mapping[str, Any], key: str) -> str | Non
         if isinstance(candidate, str) and candidate.strip():
             return candidate.strip()
     return None
-
-
-def _required_env(name: str, default: str | None = None) -> str:
-    value = default if default is not None else ""
-    value = str(os.getenv(name, value)).strip()
-    if not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return value

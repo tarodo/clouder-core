@@ -3,31 +3,56 @@
 from __future__ import annotations
 
 import base64
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
-import os
 import time
 import uuid
-from typing import Any, Dict, Mapping
+from typing import Any, Mapping
+
+from pydantic import ValidationError as PydanticValidationError
 
 from .beatport_client import BeatportClient
 from .errors import AppError, ValidationError
 from .logging_utils import log_event
-from .models import RunStatus, compute_iso_week_date_range, validate_collect_request
-from .repositories import create_clouder_repository_from_env, utc_now
+from .models import (
+    ProcessingOutcome,
+    ProcessingReason,
+    ProcessingStatus,
+    RunStatus,
+    compute_iso_week_date_range,
+)
+from .repositories import (
+    CreateIngestRunCmd,
+    create_clouder_repository_from_env,
+    utc_now,
+)
+from .schemas import CollectRequestIn, validation_error_message
+from .settings import ApiSettings, get_api_settings
 from .storage import S3Storage, create_default_s3_client
 
 
-def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
+@dataclass(frozen=True)
+class EnqueueResult:
+    processing_status: ProcessingStatus
+    processing_outcome: ProcessingOutcome
+    processing_reason: ProcessingReason | None = None
+
+
+def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     route_key = _extract_route_key(event)
     if route_key == "GET /runs/{run_id}":
         return _handle_get_run(event, context)
     if route_key in ("POST /collect_bp_releases", ""):
         return _handle_collect(event, context)
-    return _json_response(404, {"error_code": "not_found", "message": "Route not found"}, _extract_correlation_id(event))
+    return _json_response(
+        404,
+        {"error_code": "not_found", "message": "Route not found"},
+        _extract_correlation_id(event),
+    )
 
 
-def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
+def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     started_at_perf = time.perf_counter()
     api_request_id = _extract_api_request_id(event)
     lambda_request_id = getattr(context, "aws_request_id", "unknown")
@@ -42,9 +67,12 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
     )
 
     try:
+        settings = _load_api_settings()
         body = _parse_json_body(event)
-        req = validate_collect_request(body)
-        week_start, week_end = compute_iso_week_date_range(req.iso_year, req.iso_week)
+        request = _parse_collect_request(body)
+        week_start, week_end = compute_iso_week_date_range(
+            request.iso_year, request.iso_week
+        )
         run_id = str(uuid.uuid4())
 
         log_event(
@@ -53,15 +81,15 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             correlation_id=correlation_id,
             api_request_id=api_request_id,
             lambda_request_id=lambda_request_id,
-            style_id=req.style_id,
-            iso_year=req.iso_year,
-            iso_week=req.iso_week,
+            style_id=request.style_id,
+            iso_year=request.iso_year,
+            iso_week=request.iso_week,
         )
 
-        beatport_client = BeatportClient(base_url=os.getenv("BEATPORT_API_BASE_URL", "https://api.beatport.com/v4/catalog"))
+        beatport_client = BeatportClient(base_url=settings.beatport_api_base_url)
         releases, api_pages_fetched = beatport_client.fetch_weekly_releases(
-            bp_token=req.bp_token,
-            style_id=req.style_id,
+            bp_token=request.bp_token,
+            style_id=request.style_id,
             week_start=week_start,
             week_end=week_end,
             correlation_id=correlation_id,
@@ -69,18 +97,20 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
 
         duration_ms = int((time.perf_counter() - started_at_perf) * 1000)
         item_count = len(releases)
-
         meta = {
-            "style_id": req.style_id,
-            "iso_year": req.iso_year,
-            "iso_week": req.iso_week,
+            "style_id": request.style_id,
+            "iso_year": request.iso_year,
+            "iso_week": request.iso_week,
             "week_start": week_start,
             "week_end": week_end,
             "run_id": run_id,
             "correlation_id": correlation_id,
             "api_request_id": api_request_id,
             "lambda_request_id": lambda_request_id,
-            "collected_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "collected_at_utc": datetime.now(timezone.utc)
+            .replace(microsecond=0)
+            .isoformat()
+            .replace("+00:00", "Z"),
             "item_count": item_count,
             "api_pages_fetched": api_pages_fetched,
             "duration_ms": duration_ms,
@@ -88,33 +118,36 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
 
         storage = S3Storage(
             s3_client=create_default_s3_client(),
-            bucket_name=os.environ["RAW_BUCKET_NAME"],
-            raw_prefix=os.getenv("RAW_PREFIX", "raw/bp/releases"),
+            bucket_name=settings.raw_bucket_name,
+            raw_prefix=settings.raw_prefix,
         )
         releases_key, _ = storage.write_run_artifacts(releases=releases, meta=meta)
 
         repository = create_clouder_repository_from_env()
         if repository is not None:
             repository.create_ingest_run(
-                run_id=run_id,
-                source="beatport",
-                style_id=req.style_id,
-                iso_year=req.iso_year,
-                iso_week=req.iso_week,
-                raw_s3_key=releases_key,
-                status=RunStatus.RAW_SAVED.value,
-                item_count=item_count,
-                meta=meta,
-                started_at=utc_now(),
+                CreateIngestRunCmd(
+                    run_id=run_id,
+                    source="beatport",
+                    style_id=request.style_id,
+                    iso_year=request.iso_year,
+                    iso_week=request.iso_week,
+                    raw_s3_key=releases_key,
+                    status=RunStatus.RAW_SAVED,
+                    item_count=item_count,
+                    meta=meta,
+                    started_at=utc_now(),
+                )
             )
 
-        processing_status = _enqueue_canonicalization(
+        enqueue_result = _enqueue_canonicalization(
             run_id=run_id,
             s3_key=releases_key,
-            style_id=req.style_id,
-            iso_year=req.iso_year,
-            iso_week=req.iso_week,
+            style_id=request.style_id,
+            iso_year=request.iso_year,
+            iso_week=request.iso_week,
             correlation_id=correlation_id,
+            settings=settings,
         )
 
         response = {
@@ -122,13 +155,19 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             "correlation_id": correlation_id,
             "api_request_id": api_request_id,
             "lambda_request_id": lambda_request_id,
-            "iso_year": req.iso_year,
-            "iso_week": req.iso_week,
+            "iso_year": request.iso_year,
+            "iso_week": request.iso_week,
             "s3_object_key": releases_key,
             "item_count": item_count,
             "duration_ms": duration_ms,
             "run_status": RunStatus.RAW_SAVED.value,
-            "processing_status": processing_status,
+            "processing_status": enqueue_result.processing_status.value,
+            "processing_outcome": enqueue_result.processing_outcome.value,
+            "processing_reason": (
+                enqueue_result.processing_reason.value
+                if enqueue_result.processing_reason
+                else None
+            ),
         }
 
         log_event(
@@ -138,13 +177,20 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             api_request_id=api_request_id,
             lambda_request_id=lambda_request_id,
             run_id=run_id,
-            style_id=req.style_id,
-            iso_year=req.iso_year,
-            iso_week=req.iso_week,
+            style_id=request.style_id,
+            iso_year=request.iso_year,
+            iso_week=request.iso_week,
             item_count=item_count,
             api_pages_fetched=api_pages_fetched,
             duration_ms=duration_ms,
             status_code=200,
+            processing_status=enqueue_result.processing_status.value,
+            processing_outcome=enqueue_result.processing_outcome.value,
+            processing_reason=(
+                enqueue_result.processing_reason.value
+                if enqueue_result.processing_reason
+                else None
+            ),
         )
         return _json_response(200, response, correlation_id)
 
@@ -196,7 +242,7 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
         )
 
 
-def _handle_get_run(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
+def _handle_get_run(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     del context
     correlation_id = _extract_correlation_id(event)
     api_request_id = _extract_api_request_id(event)
@@ -208,19 +254,28 @@ def _handle_get_run(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             run_id = candidate
 
     if not run_id:
-        return _json_response(400, {"error_code": "validation_error", "message": "run_id is required"}, correlation_id)
+        return _json_response(
+            400,
+            {"error_code": "validation_error", "message": "run_id is required"},
+            correlation_id,
+        )
 
     repository = create_clouder_repository_from_env()
     if repository is None:
         return _json_response(
             503,
-            {"error_code": "db_not_configured", "message": "Run status storage is not configured"},
+            {
+                "error_code": "db_not_configured",
+                "message": "Run status storage is not configured",
+            },
             correlation_id,
         )
 
     row = repository.get_run(run_id)
     if row is None:
-        return _json_response(404, {"error_code": "not_found", "message": "Run not found"}, correlation_id)
+        return _json_response(
+            404, {"error_code": "not_found", "message": "Run not found"}, correlation_id
+        )
 
     error = None
     if row.get("error_code"):
@@ -252,17 +307,41 @@ def _enqueue_canonicalization(
     iso_year: int,
     iso_week: int,
     correlation_id: str,
-) -> str:
-    enabled = os.getenv("CANONICALIZE_ENABLED", "true").strip().lower() in {"1", "true", "yes"}
-    queue_url = os.getenv("CANONICALIZE_QUEUE_URL", "").strip()
-    if not enabled or not queue_url:
+    settings: ApiSettings,
+) -> EnqueueResult:
+    queue_url = settings.canonicalization_queue_url.strip()
+
+    if not settings.canonicalization_enabled:
+        result = EnqueueResult(
+            processing_status=ProcessingStatus.FAILED_TO_QUEUE,
+            processing_outcome=ProcessingOutcome.DISABLED,
+            processing_reason=ProcessingReason.CONFIG_DISABLED,
+        )
         log_event(
             "INFO",
             "canonicalization_enqueue_skipped",
             run_id=run_id,
-            processing_status="FAILED_TO_QUEUE",
+            processing_status=result.processing_status.value,
+            processing_outcome=result.processing_outcome.value,
+            processing_reason=result.processing_reason.value,
         )
-        return "FAILED_TO_QUEUE"
+        return result
+
+    if not queue_url:
+        result = EnqueueResult(
+            processing_status=ProcessingStatus.FAILED_TO_QUEUE,
+            processing_outcome=ProcessingOutcome.DISABLED,
+            processing_reason=ProcessingReason.QUEUE_MISSING,
+        )
+        log_event(
+            "INFO",
+            "canonicalization_enqueue_skipped",
+            run_id=run_id,
+            processing_status=result.processing_status.value,
+            processing_outcome=result.processing_outcome.value,
+            processing_reason=result.processing_reason.value,
+        )
+        return result
 
     payload = {
         "run_id": run_id,
@@ -286,16 +365,26 @@ def _enqueue_canonicalization(
                 }
             },
         )
+        result = EnqueueResult(
+            processing_status=ProcessingStatus.QUEUED,
+            processing_outcome=ProcessingOutcome.ENQUEUED,
+        )
         log_event(
             "INFO",
             "canonicalization_enqueued",
             correlation_id=correlation_id,
             run_id=run_id,
-            processing_status="QUEUED",
+            processing_status=result.processing_status.value,
+            processing_outcome=result.processing_outcome.value,
             status_code=200,
         )
-        return "QUEUED"
+        return result
     except Exception as exc:  # pragma: no cover - networked path
+        result = EnqueueResult(
+            processing_status=ProcessingStatus.FAILED_TO_QUEUE,
+            processing_outcome=ProcessingOutcome.ENQUEUE_FAILED,
+            processing_reason=ProcessingReason.ENQUEUE_EXCEPTION,
+        )
         log_event(
             "ERROR",
             "canonicalization_enqueue_failed",
@@ -303,8 +392,11 @@ def _enqueue_canonicalization(
             run_id=run_id,
             error_type=exc.__class__.__name__,
             error_message=str(exc)[:500],
+            processing_status=result.processing_status.value,
+            processing_outcome=result.processing_outcome.value,
+            processing_reason=result.processing_reason.value,
         )
-        return "FAILED_TO_QUEUE"
+        return result
 
 
 def create_default_sqs_client() -> Any:
@@ -313,7 +405,25 @@ def create_default_sqs_client() -> Any:
     return boto3.client("sqs")
 
 
-def _parse_json_body(event: Mapping[str, Any]) -> Dict[str, Any]:
+def _parse_collect_request(payload: Mapping[str, Any]) -> CollectRequestIn:
+    try:
+        return CollectRequestIn.model_validate(payload)
+    except PydanticValidationError as exc:
+        raise ValidationError(validation_error_message(exc)) from exc
+
+
+def _load_api_settings() -> ApiSettings:
+    try:
+        return get_api_settings()
+    except PydanticValidationError as exc:
+        raise AppError(
+            status_code=500,
+            error_code="config_error",
+            message=f"Collector configuration is invalid: {validation_error_message(exc)}",
+        ) from exc
+
+
+def _parse_json_body(event: Mapping[str, Any]) -> dict[str, Any]:
     body = event.get("body")
     if body is None:
         raise ValidationError("Request body is required")
@@ -359,12 +469,19 @@ def _extract_correlation_id(event: Mapping[str, Any]) -> str:
     headers = event.get("headers")
     if isinstance(headers, Mapping):
         for key, value in headers.items():
-            if isinstance(key, str) and key.lower() == "x-correlation-id" and isinstance(value, str) and value.strip():
+            if (
+                isinstance(key, str)
+                and key.lower() == "x-correlation-id"
+                and isinstance(value, str)
+                and value.strip()
+            ):
                 return value.strip()
     return str(uuid.uuid4())
 
 
-def _json_response(status_code: int, payload: Mapping[str, Any], correlation_id: str) -> Dict[str, Any]:
+def _json_response(
+    status_code: int, payload: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
     return {
         "statusCode": status_code,
         "headers": {

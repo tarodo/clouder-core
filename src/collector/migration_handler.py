@@ -11,21 +11,23 @@ from urllib.parse import quote_plus
 
 from alembic import command
 from alembic.config import Config
+from pydantic import ValidationError as PydanticValidationError
 
 from .logging_utils import log_event
+from .schemas import MigrationCommand, validation_error_message
+from .settings import get_migration_settings
 
 
 def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, Any]:
     del context
     payload = event if isinstance(event, Mapping) else {}
-    action = str(payload.get("action", "upgrade")).strip().lower()
-    revision = str(payload.get("revision", "head")).strip() or "head"
-
-    if action != "upgrade":
+    try:
+        command_payload = MigrationCommand.model_validate(payload)
+    except PydanticValidationError as exc:
         return {
             "status": "error",
-            "message": "Unsupported action. Only 'upgrade' is allowed.",
-            "action": action,
+            "message": validation_error_message(exc),
+            "action": str(payload.get("action", "")).strip().lower(),
         }
 
     alembic_url = _build_alembic_database_url()
@@ -34,7 +36,6 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
     root_dir = Path(__file__).resolve().parent.parent
     alembic_ini_path = root_dir / "alembic.ini"
     script_location = root_dir / "db_migrations"
-
     if not alembic_ini_path.exists() or not script_location.exists():
         raise RuntimeError("Alembic files are missing from Lambda artifact")
 
@@ -49,7 +50,7 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
         error_code="",
     )
 
-    command.upgrade(config, revision)
+    command.upgrade(config, command_payload.revision)
 
     finished_at = datetime.now(timezone.utc)
     duration_ms = int((finished_at - started_at).total_seconds() * 1000)
@@ -62,8 +63,8 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
 
     return {
         "status": "ok",
-        "action": action,
-        "revision": revision,
+        "action": command_payload.action,
+        "revision": command_payload.revision,
         "started_at": started_at.isoformat().replace("+00:00", "Z"),
         "finished_at": finished_at.isoformat().replace("+00:00", "Z"),
         "duration_ms": duration_ms,
@@ -71,12 +72,8 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
 
 
 def _build_alembic_database_url() -> str:
-    secret_arn = _required_env("AURORA_SECRET_ARN")
-    endpoint = _required_env("AURORA_WRITER_ENDPOINT")
-    database = _required_env("AURORA_DATABASE")
-    port = _required_env("AURORA_PORT", "5432")
-
-    secret = _read_secret(secret_arn)
+    settings = get_migration_settings()
+    secret = _read_secret(settings.aurora_secret_arn)
     username = str(secret.get("username", "")).strip()
     password = str(secret.get("password", "")).strip()
     if not username or not password:
@@ -84,7 +81,7 @@ def _build_alembic_database_url() -> str:
 
     return (
         f"postgresql+psycopg://{quote_plus(username)}:{quote_plus(password)}"
-        f"@{endpoint}:{port}/{database}?sslmode=require"
+        f"@{settings.aurora_writer_endpoint}:{settings.aurora_port}/{settings.aurora_database}?sslmode=require"
     )
 
 
@@ -105,13 +102,3 @@ def _read_secret(secret_arn: str) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise RuntimeError("Aurora secret payload must be a JSON object")
     return parsed
-
-
-def _required_env(name: str, default: str | None = None) -> str:
-    value = os.getenv(name, default if default is not None else "")
-    if value is None:
-        value = ""
-    value = value.strip()
-    if not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return value

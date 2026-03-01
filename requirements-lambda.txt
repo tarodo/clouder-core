@@ -2,3 +2,5 @@ alembic
 sqlalchemy>=2.0
 psycopg[binary]
 structlog
+pydantic>=2.7
+pydantic-settings>=2.3

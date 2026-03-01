@@ -17,7 +17,9 @@ def create_default_s3_client() -> Any:
 
 
 class S3Storage:
-    def __init__(self, s3_client: Any, bucket_name: str, raw_prefix: str = "raw/bp/releases") -> None:
+    def __init__(
+        self, s3_client: Any, bucket_name: str, raw_prefix: str = "raw/bp/releases"
+    ) -> None:
         self.s3_client = s3_client
         self.bucket_name = bucket_name
         self.raw_prefix = raw_prefix.rstrip("/")
@@ -31,12 +33,20 @@ class S3Storage:
         iso_year = int(meta["iso_year"])
         iso_week = int(meta["iso_week"])
 
-        base_key = self._base_key(style_id=style_id, iso_year=iso_year, iso_week=iso_week)
+        base_key = self._base_key(
+            style_id=style_id, iso_year=iso_year, iso_week=iso_week
+        )
         releases_key = f"{base_key}/releases.json.gz"
         meta_key = f"{base_key}/meta.json"
 
-        releases_bytes = gzip.compress(json.dumps(releases, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-        meta_bytes = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        releases_bytes = gzip.compress(
+            json.dumps(releases, ensure_ascii=False, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        )
+        meta_bytes = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode(
+            "utf-8"
+        )
 
         try:
             self._put_object(
@@ -93,9 +103,17 @@ class S3Storage:
         return [item for item in parsed if isinstance(item, dict)]
 
     def _base_key(self, style_id: int, iso_year: int, iso_week: int) -> str:
-        return f"{self.raw_prefix}/style_id={style_id}/year={iso_year}/week={iso_week:02d}"
+        return (
+            f"{self.raw_prefix}/style_id={style_id}/year={iso_year}/week={iso_week:02d}"
+        )
 
-    def _put_object(self, key: str, body: bytes, content_type: str, content_encoding: str | None = None) -> None:
+    def _put_object(
+        self,
+        key: str,
+        body: bytes,
+        content_type: str,
+        content_encoding: str | None = None,
+    ) -> None:
         kwargs: Dict[str, Any] = {
             "Bucket": self.bucket_name,
             "Key": key,

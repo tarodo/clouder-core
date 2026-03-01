@@ -11,15 +11,15 @@ resource "aws_lambda_function" "collector" {
 
   environment {
     variables = {
-      RAW_BUCKET_NAME        = aws_s3_bucket.raw.bucket
-      RAW_PREFIX             = var.raw_prefix
-      BEATPORT_API_BASE_URL  = var.beatport_api_base_url
-      CANONICALIZE_ENABLED   = var.canonicalize_enabled ? "true" : "false"
-      CANONICALIZE_QUEUE_URL = aws_sqs_queue.canonicalize.url
-      AURORA_CLUSTER_ARN     = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN      = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE        = var.aurora_database_name
-      LOG_LEVEL              = "INFO"
+      RAW_BUCKET_NAME            = aws_s3_bucket.raw.bucket
+      RAW_PREFIX                 = var.raw_prefix
+      BEATPORT_API_BASE_URL      = var.beatport_api_base_url
+      CANONICALIZATION_ENABLED   = var.canonicalization_enabled ? "true" : "false"
+      CANONICALIZATION_QUEUE_URL = aws_sqs_queue.canonicalization.url
+      AURORA_CLUSTER_ARN         = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN          = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE            = var.aurora_database_name
+      LOG_LEVEL                  = "INFO"
     }
   }
 
@@ -28,14 +28,14 @@ resource "aws_lambda_function" "collector" {
   ]
 }
 
-resource "aws_lambda_function" "canonicalizer_worker" {
-  function_name = local.worker_lambda_name
+resource "aws_lambda_function" "canonicalization_worker" {
+  function_name = local.canonicalization_worker_lambda_name
   role          = aws_iam_role.collector_lambda.arn
   runtime       = "python3.12"
   handler       = "collector.worker_handler.lambda_handler"
   filename      = local.lambda_zip_file
-  timeout       = var.worker_lambda_timeout_seconds
-  memory_size   = var.worker_lambda_memory_mb
+  timeout       = var.canonicalization_worker_lambda_timeout_seconds
+  memory_size   = var.canonicalization_worker_lambda_memory_mb
 
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 
@@ -51,7 +51,7 @@ resource "aws_lambda_function" "canonicalizer_worker" {
   }
 
   depends_on = [
-    aws_cloudwatch_log_group.canonicalizer_worker,
+    aws_cloudwatch_log_group.canonicalization_worker,
   ]
 }
 
@@ -86,8 +86,8 @@ resource "aws_lambda_function" "db_migration" {
   ]
 }
 
-resource "aws_lambda_event_source_mapping" "canonicalizer_queue" {
-  event_source_arn = aws_sqs_queue.canonicalize.arn
-  function_name    = aws_lambda_function.canonicalizer_worker.arn
-  batch_size       = var.canonicalizer_batch_size
+resource "aws_lambda_event_source_mapping" "canonicalization_queue" {
+  event_source_arn = aws_sqs_queue.canonicalization.arn
+  function_name    = aws_lambda_function.canonicalization_worker.arn
+  batch_size       = var.canonicalization_batch_size
 }

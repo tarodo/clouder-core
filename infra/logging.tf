@@ -3,8 +3,8 @@ resource "aws_cloudwatch_log_group" "collector" {
   retention_in_days = var.log_retention_days
 }
 
-resource "aws_cloudwatch_log_group" "canonicalizer_worker" {
-  name              = "/aws/lambda/${local.worker_lambda_name}"
+resource "aws_cloudwatch_log_group" "canonicalization_worker" {
+  name              = "/aws/lambda/${local.canonicalization_worker_lambda_name}"
   retention_in_days = var.log_retention_days
 }
 

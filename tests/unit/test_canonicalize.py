@@ -2,11 +2,19 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from datetime import datetime
-from decimal import Decimal
 
 from collector.canonicalize import Canonicalizer
 from collector.normalize import normalize_tracks
-from collector.repositories import IdentityMapEntry
+from collector.repositories import (
+    ConservativeUpdateTrackCmd,
+    CreateTrackCmd,
+    IdentityMapEntry,
+    UpsertIdentityCmd,
+    UpsertSourceEntityCmd,
+    UpsertSourceRelationCmd,
+    UpsertTrackArtistCmd,
+)
+
 
 class FakeRepo:
     def __init__(self) -> None:
@@ -23,47 +31,36 @@ class FakeRepo:
         self.updated_tracks: list[str] = []
         self.track_artists: set[tuple[str, str, str]] = set()
 
-    def upsert_source_entity(self, **kwargs):
-        return None
+    def upsert_source_entity(self, cmd: UpsertSourceEntityCmd, transaction_id: str | None = None) -> None:
+        del cmd, transaction_id
 
-    def batch_upsert_source_entities(self, rows, transaction_id: str | None = None):
+    def batch_upsert_source_entities(self, commands, transaction_id: str | None = None) -> None:
         del transaction_id
-        for row in rows:
-            self.upsert_source_entity(**row)
+        for cmd in commands:
+            self.upsert_source_entity(cmd)
 
-    def upsert_source_relation(self, **kwargs):
-        return None
+    def upsert_source_relation(self, cmd: UpsertSourceRelationCmd, transaction_id: str | None = None) -> None:
+        del cmd, transaction_id
 
-    def batch_upsert_source_relations(self, rows, transaction_id: str | None = None):
+    def batch_upsert_source_relations(self, commands, transaction_id: str | None = None) -> None:
         del transaction_id
-        for row in rows:
-            self.upsert_source_relation(**row)
+        for cmd in commands:
+            self.upsert_source_relation(cmd)
 
     def find_identity(self, source: str, entity_type: str, external_id: str):
         return self.identities.get((source, entity_type, external_id))
 
-    def upsert_identity(
-        self,
-        source: str,
-        entity_type: str,
-        external_id: str,
-        clouder_entity_type: str,
-        clouder_id: str,
-        match_type: str,
-        confidence: Decimal,
-        observed_at: datetime,
-        transaction_id: str | None = None,
-    ):
-        del match_type, confidence, observed_at, transaction_id
-        self.identities[(source, entity_type, external_id)] = IdentityMapEntry(
-            clouder_entity_type=clouder_entity_type,
-            clouder_id=clouder_id,
+    def upsert_identity(self, cmd: UpsertIdentityCmd, transaction_id: str | None = None) -> None:
+        del transaction_id
+        self.identities[(cmd.source, cmd.entity_type, cmd.external_id)] = IdentityMapEntry(
+            clouder_entity_type=cmd.clouder_entity_type,
+            clouder_id=cmd.clouder_id,
         )
 
-    def batch_upsert_identities(self, rows, transaction_id: str | None = None):
+    def batch_upsert_identities(self, commands, transaction_id: str | None = None) -> None:
         del transaction_id
-        for row in rows:
-            self.upsert_identity(**row)
+        for cmd in commands:
+            self.upsert_identity(cmd)
 
     def find_label_by_normalized_name(self, normalized_name: str):
         return self.labels_by_name.get(normalized_name, [])
@@ -95,49 +92,25 @@ class FakeRepo:
     def find_track_by_signature(self, normalized_title: str, album_id: str | None, length_ms: int | None):
         return self.tracks_by_sig.get((normalized_title, album_id, length_ms), [])
 
-    def create_track(
-        self,
-        track_id: str,
-        title: str,
-        normalized_title: str,
-        mix_name: str | None,
-        isrc: str | None,
-        bpm: int | None,
-        length_ms: int | None,
-        publish_date,
-        album_id: str | None,
-        at: datetime,
-        transaction_id: str | None = None,
-    ):
-        del title, mix_name, bpm, publish_date, at, transaction_id
-        self.created_tracks.append(track_id)
-        if isrc:
-            self.tracks_by_isrc[isrc] = [track_id]
-        self.tracks_by_sig[(normalized_title, album_id, length_ms)] = [track_id]
-
-    def conservative_update_track(
-        self,
-        track_id: str,
-        mix_name: str | None,
-        isrc: str | None,
-        bpm: int | None,
-        length_ms: int | None,
-        publish_date,
-        album_id: str | None,
-        at: datetime,
-        transaction_id: str | None = None,
-    ):
-        del mix_name, isrc, bpm, length_ms, publish_date, album_id, at, transaction_id
-        self.updated_tracks.append(track_id)
-
-    def upsert_track_artist(self, track_id: str, artist_id: str, role: str = "main", transaction_id: str | None = None):
+    def create_track(self, cmd: CreateTrackCmd, transaction_id: str | None = None) -> None:
         del transaction_id
-        self.track_artists.add((track_id, artist_id, role))
+        self.created_tracks.append(cmd.track_id)
+        if cmd.isrc:
+            self.tracks_by_isrc[cmd.isrc] = [cmd.track_id]
+        self.tracks_by_sig[(cmd.normalized_title, cmd.album_id, cmd.length_ms)] = [cmd.track_id]
 
-    def batch_upsert_track_artists(self, rows, transaction_id: str | None = None):
+    def conservative_update_track(self, cmd: ConservativeUpdateTrackCmd, transaction_id: str | None = None) -> None:
         del transaction_id
-        for row in rows:
-            self.upsert_track_artist(**row)
+        self.updated_tracks.append(cmd.track_id)
+
+    def upsert_track_artist(self, cmd: UpsertTrackArtistCmd, transaction_id: str | None = None):
+        del transaction_id
+        self.track_artists.add((cmd.track_id, cmd.artist_id, cmd.role))
+
+    def batch_upsert_track_artists(self, commands, transaction_id: str | None = None):
+        del transaction_id
+        for cmd in commands:
+            self.upsert_track_artist(cmd)
 
     @contextmanager
     def transaction(self):

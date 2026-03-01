@@ -5,10 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
-import os
 from typing import Any, Mapping
 
 from .data_api import DataAPIClient, create_default_data_api_client
+from .models import RunStatus
+from .settings import get_data_api_settings
 
 
 @dataclass(frozen=True)
@@ -17,23 +18,94 @@ class IdentityMapEntry:
     clouder_id: str
 
 
+@dataclass(frozen=True)
+class CreateIngestRunCmd:
+    run_id: str
+    source: str
+    style_id: int
+    iso_year: int
+    iso_week: int
+    raw_s3_key: str
+    status: RunStatus
+    item_count: int
+    meta: Mapping[str, Any]
+    started_at: datetime
+
+
+@dataclass(frozen=True)
+class UpsertSourceEntityCmd:
+    source: str
+    entity_type: str
+    external_id: str
+    name: str | None
+    normalized_name: str | None
+    payload: Mapping[str, Any]
+    payload_hash: str
+    last_run_id: str
+    observed_at: datetime
+
+
+@dataclass(frozen=True)
+class UpsertSourceRelationCmd:
+    source: str
+    from_entity_type: str
+    from_external_id: str
+    relation_type: str
+    to_entity_type: str
+    to_external_id: str
+    last_run_id: str
+
+
+@dataclass(frozen=True)
+class UpsertIdentityCmd:
+    source: str
+    entity_type: str
+    external_id: str
+    clouder_entity_type: str
+    clouder_id: str
+    match_type: str
+    confidence: Decimal
+    observed_at: datetime
+
+
+@dataclass(frozen=True)
+class CreateTrackCmd:
+    track_id: str
+    title: str
+    normalized_title: str
+    mix_name: str | None
+    isrc: str | None
+    bpm: int | None
+    length_ms: int | None
+    publish_date: date | None
+    album_id: str | None
+    at: datetime
+
+
+@dataclass(frozen=True)
+class ConservativeUpdateTrackCmd:
+    track_id: str
+    mix_name: str | None
+    isrc: str | None
+    bpm: int | None
+    length_ms: int | None
+    publish_date: date | None
+    album_id: str | None
+    at: datetime
+
+
+@dataclass(frozen=True)
+class UpsertTrackArtistCmd:
+    track_id: str
+    artist_id: str
+    role: str = "main"
+
+
 class ClouderRepository:
     def __init__(self, data_api: DataAPIClient) -> None:
         self._data_api = data_api
 
-    def create_ingest_run(
-        self,
-        run_id: str,
-        source: str,
-        style_id: int,
-        iso_year: int,
-        iso_week: int,
-        raw_s3_key: str,
-        status: str,
-        item_count: int,
-        meta: Mapping[str, Any],
-        started_at: datetime,
-    ) -> None:
+    def create_ingest_run(self, cmd: CreateIngestRunCmd) -> None:
         self._data_api.execute(
             """
             INSERT INTO ingest_runs (
@@ -57,20 +129,22 @@ class ClouderRepository:
                 finished_at = NULL
             """,
             {
-                "run_id": run_id,
-                "source": source,
-                "style_id": style_id,
-                "iso_year": iso_year,
-                "iso_week": iso_week,
-                "raw_s3_key": raw_s3_key,
-                "status": status,
-                "item_count": item_count,
-                "started_at": started_at,
-                "meta": dict(meta),
+                "run_id": cmd.run_id,
+                "source": cmd.source,
+                "style_id": cmd.style_id,
+                "iso_year": cmd.iso_year,
+                "iso_week": cmd.iso_week,
+                "raw_s3_key": cmd.raw_s3_key,
+                "status": cmd.status.value,
+                "item_count": cmd.item_count,
+                "started_at": cmd.started_at,
+                "meta": dict(cmd.meta),
             },
         )
 
-    def set_run_completed(self, run_id: str, processed_count: int, finished_at: datetime) -> None:
+    def set_run_completed(
+        self, run_id: str, processed_count: int, finished_at: datetime
+    ) -> None:
         self._data_api.execute(
             """
             UPDATE ingest_runs
@@ -83,13 +157,15 @@ class ClouderRepository:
             """,
             {
                 "run_id": run_id,
-                "status": "COMPLETED",
+                "status": RunStatus.COMPLETED.value,
                 "processed_count": processed_count,
                 "finished_at": finished_at,
             },
         )
 
-    def set_run_failed(self, run_id: str, error_code: str, error_message: str, finished_at: datetime) -> None:
+    def set_run_failed(
+        self, run_id: str, error_code: str, error_message: str, finished_at: datetime
+    ) -> None:
         self._data_api.execute(
             """
             UPDATE ingest_runs
@@ -101,7 +177,7 @@ class ClouderRepository:
             """,
             {
                 "run_id": run_id,
-                "status": "FAILED",
+                "status": RunStatus.FAILED.value,
                 "finished_at": finished_at,
                 "error_code": error_code,
                 "error_message": error_message[:2000],
@@ -121,17 +197,7 @@ class ClouderRepository:
         return rows[0] if rows else None
 
     def upsert_source_entity(
-        self,
-        source: str,
-        entity_type: str,
-        external_id: str,
-        name: str | None,
-        normalized_name: str | None,
-        payload: Mapping[str, Any],
-        payload_hash: str,
-        last_run_id: str,
-        observed_at: datetime,
-        transaction_id: str | None = None,
+        self, cmd: UpsertSourceEntityCmd, transaction_id: str | None = None
     ) -> None:
         self._data_api.execute(
             """
@@ -151,25 +217,25 @@ class ClouderRepository:
                 last_run_id = EXCLUDED.last_run_id
             """,
             {
-                "source": source,
-                "entity_type": entity_type,
-                "external_id": external_id,
-                "name": name,
-                "normalized_name": normalized_name,
-                "payload": dict(payload),
-                "payload_hash": payload_hash,
-                "observed_at": observed_at,
-                "last_run_id": last_run_id,
+                "source": cmd.source,
+                "entity_type": cmd.entity_type,
+                "external_id": cmd.external_id,
+                "name": cmd.name,
+                "normalized_name": cmd.normalized_name,
+                "payload": dict(cmd.payload),
+                "payload_hash": cmd.payload_hash,
+                "observed_at": cmd.observed_at,
+                "last_run_id": cmd.last_run_id,
             },
             transaction_id=transaction_id,
         )
 
     def batch_upsert_source_entities(
         self,
-        rows: list[Mapping[str, Any]],
+        commands: list[UpsertSourceEntityCmd],
         transaction_id: str | None = None,
     ) -> None:
-        if not rows:
+        if not commands:
             return
         self._data_api.batch_execute(
             """
@@ -188,20 +254,25 @@ class ClouderRepository:
                 last_seen_at = EXCLUDED.last_seen_at,
                 last_run_id = EXCLUDED.last_run_id
             """,
-            rows,
+            [
+                {
+                    "source": cmd.source,
+                    "entity_type": cmd.entity_type,
+                    "external_id": cmd.external_id,
+                    "name": cmd.name,
+                    "normalized_name": cmd.normalized_name,
+                    "payload": dict(cmd.payload),
+                    "payload_hash": cmd.payload_hash,
+                    "observed_at": cmd.observed_at,
+                    "last_run_id": cmd.last_run_id,
+                }
+                for cmd in commands
+            ],
             transaction_id=transaction_id,
         )
 
     def upsert_source_relation(
-        self,
-        source: str,
-        from_entity_type: str,
-        from_external_id: str,
-        relation_type: str,
-        to_entity_type: str,
-        to_external_id: str,
-        last_run_id: str,
-        transaction_id: str | None = None,
+        self, cmd: UpsertSourceRelationCmd, transaction_id: str | None = None
     ) -> None:
         self._data_api.execute(
             """
@@ -219,23 +290,23 @@ class ClouderRepository:
                 last_run_id = EXCLUDED.last_run_id
             """,
             {
-                "source": source,
-                "from_entity_type": from_entity_type,
-                "from_external_id": from_external_id,
-                "relation_type": relation_type,
-                "to_entity_type": to_entity_type,
-                "to_external_id": to_external_id,
-                "last_run_id": last_run_id,
+                "source": cmd.source,
+                "from_entity_type": cmd.from_entity_type,
+                "from_external_id": cmd.from_external_id,
+                "relation_type": cmd.relation_type,
+                "to_entity_type": cmd.to_entity_type,
+                "to_external_id": cmd.to_external_id,
+                "last_run_id": cmd.last_run_id,
             },
             transaction_id=transaction_id,
         )
 
     def batch_upsert_source_relations(
         self,
-        rows: list[Mapping[str, Any]],
+        commands: list[UpsertSourceRelationCmd],
         transaction_id: str | None = None,
     ) -> None:
-        if not rows:
+        if not commands:
             return
         self._data_api.batch_execute(
             """
@@ -252,11 +323,24 @@ class ClouderRepository:
             ) DO UPDATE SET
                 last_run_id = EXCLUDED.last_run_id
             """,
-            rows,
+            [
+                {
+                    "source": cmd.source,
+                    "from_entity_type": cmd.from_entity_type,
+                    "from_external_id": cmd.from_external_id,
+                    "relation_type": cmd.relation_type,
+                    "to_entity_type": cmd.to_entity_type,
+                    "to_external_id": cmd.to_external_id,
+                    "last_run_id": cmd.last_run_id,
+                }
+                for cmd in commands
+            ],
             transaction_id=transaction_id,
         )
 
-    def find_identity(self, source: str, entity_type: str, external_id: str) -> IdentityMapEntry | None:
+    def find_identity(
+        self, source: str, entity_type: str, external_id: str
+    ) -> IdentityMapEntry | None:
         rows = self._data_api.execute(
             """
             SELECT clouder_entity_type, clouder_id
@@ -280,16 +364,7 @@ class ClouderRepository:
         )
 
     def upsert_identity(
-        self,
-        source: str,
-        entity_type: str,
-        external_id: str,
-        clouder_entity_type: str,
-        clouder_id: str,
-        match_type: str,
-        confidence: Decimal,
-        observed_at: datetime,
-        transaction_id: str | None = None,
+        self, cmd: UpsertIdentityCmd, transaction_id: str | None = None
     ) -> None:
         self._data_api.execute(
             """
@@ -308,24 +383,24 @@ class ClouderRepository:
                 last_seen_at = EXCLUDED.last_seen_at
             """,
             {
-                "source": source,
-                "entity_type": entity_type,
-                "external_id": external_id,
-                "clouder_entity_type": clouder_entity_type,
-                "clouder_id": clouder_id,
-                "match_type": match_type,
-                "confidence": confidence,
-                "observed_at": observed_at,
+                "source": cmd.source,
+                "entity_type": cmd.entity_type,
+                "external_id": cmd.external_id,
+                "clouder_entity_type": cmd.clouder_entity_type,
+                "clouder_id": cmd.clouder_id,
+                "match_type": cmd.match_type,
+                "confidence": cmd.confidence,
+                "observed_at": cmd.observed_at,
             },
             transaction_id=transaction_id,
         )
 
     def batch_upsert_identities(
         self,
-        rows: list[Mapping[str, Any]],
+        commands: list[UpsertIdentityCmd],
         transaction_id: str | None = None,
     ) -> None:
-        if not rows:
+        if not commands:
             return
         self._data_api.batch_execute(
             """
@@ -343,7 +418,19 @@ class ClouderRepository:
                 confidence = EXCLUDED.confidence,
                 last_seen_at = EXCLUDED.last_seen_at
             """,
-            rows,
+            [
+                {
+                    "source": cmd.source,
+                    "entity_type": cmd.entity_type,
+                    "external_id": cmd.external_id,
+                    "clouder_entity_type": cmd.clouder_entity_type,
+                    "clouder_id": cmd.clouder_id,
+                    "match_type": cmd.match_type,
+                    "confidence": cmd.confidence,
+                    "observed_at": cmd.observed_at,
+                }
+                for cmd in commands
+            ],
             transaction_id=transaction_id,
         )
 
@@ -358,7 +445,14 @@ class ClouderRepository:
         )
         return [str(row["id"]) for row in rows]
 
-    def create_artist(self, artist_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None) -> None:
+    def create_artist(
+        self,
+        artist_id: str,
+        name: str,
+        normalized_name: str,
+        at: datetime,
+        transaction_id: str | None = None,
+    ) -> None:
         self._data_api.execute(
             """
             INSERT INTO clouder_artists (id, name, normalized_name, created_at, updated_at)
@@ -385,7 +479,14 @@ class ClouderRepository:
         )
         return [str(row["id"]) for row in rows]
 
-    def create_label(self, label_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None) -> None:
+    def create_label(
+        self,
+        label_id: str,
+        name: str,
+        normalized_name: str,
+        at: datetime,
+        transaction_id: str | None = None,
+    ) -> None:
         self._data_api.execute(
             """
             INSERT INTO clouder_labels (id, name, normalized_name, created_at, updated_at)
@@ -464,7 +565,9 @@ class ClouderRepository:
         )
         return [str(row["id"]) for row in rows]
 
-    def find_track_by_signature(self, normalized_title: str, album_id: str | None, length_ms: int | None) -> list[str]:
+    def find_track_by_signature(
+        self, normalized_title: str, album_id: str | None, length_ms: int | None
+    ) -> list[str]:
         rows = self._data_api.execute(
             """
             SELECT id
@@ -482,18 +585,7 @@ class ClouderRepository:
         return [str(row["id"]) for row in rows]
 
     def create_track(
-        self,
-        track_id: str,
-        title: str,
-        normalized_title: str,
-        mix_name: str | None,
-        isrc: str | None,
-        bpm: int | None,
-        length_ms: int | None,
-        publish_date: date | None,
-        album_id: str | None,
-        at: datetime,
-        transaction_id: str | None = None,
+        self, cmd: CreateTrackCmd, transaction_id: str | None = None
     ) -> None:
         self._data_api.execute(
             """
@@ -507,31 +599,22 @@ class ClouderRepository:
             ON CONFLICT (id) DO NOTHING
             """,
             {
-                "id": track_id,
-                "title": title,
-                "normalized_title": normalized_title,
-                "mix_name": mix_name,
-                "isrc": isrc,
-                "bpm": bpm,
-                "length_ms": length_ms,
-                "publish_date": publish_date,
-                "album_id": album_id,
-                "at": at,
+                "id": cmd.track_id,
+                "title": cmd.title,
+                "normalized_title": cmd.normalized_title,
+                "mix_name": cmd.mix_name,
+                "isrc": cmd.isrc,
+                "bpm": cmd.bpm,
+                "length_ms": cmd.length_ms,
+                "publish_date": cmd.publish_date,
+                "album_id": cmd.album_id,
+                "at": cmd.at,
             },
             transaction_id=transaction_id,
         )
 
     def conservative_update_track(
-        self,
-        track_id: str,
-        mix_name: str | None,
-        isrc: str | None,
-        bpm: int | None,
-        length_ms: int | None,
-        publish_date: date | None,
-        album_id: str | None,
-        at: datetime,
-        transaction_id: str | None = None,
+        self, cmd: ConservativeUpdateTrackCmd, transaction_id: str | None = None
     ) -> None:
         self._data_api.execute(
             """
@@ -561,19 +644,21 @@ class ClouderRepository:
             WHERE id = :track_id
             """,
             {
-                "track_id": track_id,
-                "mix_name": mix_name,
-                "isrc": isrc,
-                "bpm": bpm,
-                "length_ms": length_ms,
-                "publish_date": publish_date,
-                "album_id": album_id,
-                "at": at,
+                "track_id": cmd.track_id,
+                "mix_name": cmd.mix_name,
+                "isrc": cmd.isrc,
+                "bpm": cmd.bpm,
+                "length_ms": cmd.length_ms,
+                "publish_date": cmd.publish_date,
+                "album_id": cmd.album_id,
+                "at": cmd.at,
             },
             transaction_id=transaction_id,
         )
 
-    def upsert_track_artist(self, track_id: str, artist_id: str, role: str = "main", transaction_id: str | None = None) -> None:
+    def upsert_track_artist(
+        self, cmd: UpsertTrackArtistCmd, transaction_id: str | None = None
+    ) -> None:
         self._data_api.execute(
             """
             INSERT INTO clouder_track_artists (track_id, artist_id, role)
@@ -581,19 +666,19 @@ class ClouderRepository:
             ON CONFLICT (track_id, artist_id, role) DO NOTHING
             """,
             {
-                "track_id": track_id,
-                "artist_id": artist_id,
-                "role": role,
+                "track_id": cmd.track_id,
+                "artist_id": cmd.artist_id,
+                "role": cmd.role,
             },
             transaction_id=transaction_id,
         )
 
     def batch_upsert_track_artists(
         self,
-        rows: list[Mapping[str, Any]],
+        commands: list[UpsertTrackArtistCmd],
         transaction_id: str | None = None,
     ) -> None:
-        if not rows:
+        if not commands:
             return
         self._data_api.batch_execute(
             """
@@ -601,7 +686,14 @@ class ClouderRepository:
             VALUES (:track_id, :artist_id, :role)
             ON CONFLICT (track_id, artist_id, role) DO NOTHING
             """,
-            rows,
+            [
+                {
+                    "track_id": cmd.track_id,
+                    "artist_id": cmd.artist_id,
+                    "role": cmd.role,
+                }
+                for cmd in commands
+            ],
             transaction_id=transaction_id,
         )
 
@@ -623,15 +715,13 @@ def utc_now() -> datetime:
 
 
 def create_clouder_repository_from_env() -> ClouderRepository | None:
-    resource_arn = os.getenv("AURORA_CLUSTER_ARN")
-    secret_arn = os.getenv("AURORA_SECRET_ARN")
-    database = os.getenv("AURORA_DATABASE", "postgres")
-    if not resource_arn or not secret_arn:
+    settings = get_data_api_settings()
+    if not settings.is_configured:
         return None
 
     data_api = create_default_data_api_client(
-        resource_arn=resource_arn,
-        secret_arn=secret_arn,
-        database=database,
+        resource_arn=str(settings.aurora_cluster_arn),
+        secret_arn=str(settings.aurora_secret_arn),
+        database=settings.aurora_database,
     )
     return ClouderRepository(data_api)
