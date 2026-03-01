@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 import json
 from typing import Any, Dict, Iterable, Iterator, Mapping
@@ -134,7 +134,10 @@ def _to_field(value: Any) -> dict[str, Any]:
     if isinstance(value, Decimal):
         return {"stringValue": str(value)}
     if isinstance(value, datetime):
-        return {"stringValue": value.isoformat()}
+        # RDS Data API TIMESTAMP parser expects SQL-like datetime without timezone suffix.
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return {"stringValue": value.strftime("%Y-%m-%d %H:%M:%S.%f")}
     if isinstance(value, date):
         return {"stringValue": value.isoformat()}
     if isinstance(value, (dict, list)):
