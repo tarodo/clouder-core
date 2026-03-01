@@ -164,6 +164,34 @@ class ClouderRepository:
             transaction_id=transaction_id,
         )
 
+    def batch_upsert_source_entities(
+        self,
+        rows: list[Mapping[str, Any]],
+        transaction_id: str | None = None,
+    ) -> None:
+        if not rows:
+            return
+        self._data_api.batch_execute(
+            """
+            INSERT INTO source_entities (
+                source, entity_type, external_id, name, normalized_name,
+                payload, payload_hash, first_seen_at, last_seen_at, last_run_id
+            ) VALUES (
+                :source, :entity_type, :external_id, :name, :normalized_name,
+                :payload, :payload_hash, :observed_at, :observed_at, :last_run_id
+            )
+            ON CONFLICT (source, entity_type, external_id) DO UPDATE SET
+                name = EXCLUDED.name,
+                normalized_name = EXCLUDED.normalized_name,
+                payload = EXCLUDED.payload,
+                payload_hash = EXCLUDED.payload_hash,
+                last_seen_at = EXCLUDED.last_seen_at,
+                last_run_id = EXCLUDED.last_run_id
+            """,
+            rows,
+            transaction_id=transaction_id,
+        )
+
     def upsert_source_relation(
         self,
         source: str,
@@ -199,6 +227,32 @@ class ClouderRepository:
                 "to_external_id": to_external_id,
                 "last_run_id": last_run_id,
             },
+            transaction_id=transaction_id,
+        )
+
+    def batch_upsert_source_relations(
+        self,
+        rows: list[Mapping[str, Any]],
+        transaction_id: str | None = None,
+    ) -> None:
+        if not rows:
+            return
+        self._data_api.batch_execute(
+            """
+            INSERT INTO source_relations (
+                source, from_entity_type, from_external_id, relation_type,
+                to_entity_type, to_external_id, last_run_id
+            ) VALUES (
+                :source, :from_entity_type, :from_external_id, :relation_type,
+                :to_entity_type, :to_external_id, :last_run_id
+            )
+            ON CONFLICT (
+                source, from_entity_type, from_external_id,
+                relation_type, to_entity_type, to_external_id
+            ) DO UPDATE SET
+                last_run_id = EXCLUDED.last_run_id
+            """,
+            rows,
             transaction_id=transaction_id,
         )
 
@@ -263,6 +317,33 @@ class ClouderRepository:
                 "confidence": confidence,
                 "observed_at": observed_at,
             },
+            transaction_id=transaction_id,
+        )
+
+    def batch_upsert_identities(
+        self,
+        rows: list[Mapping[str, Any]],
+        transaction_id: str | None = None,
+    ) -> None:
+        if not rows:
+            return
+        self._data_api.batch_execute(
+            """
+            INSERT INTO identity_map (
+                source, entity_type, external_id, clouder_entity_type, clouder_id,
+                match_type, confidence, first_seen_at, last_seen_at
+            ) VALUES (
+                :source, :entity_type, :external_id, :clouder_entity_type, :clouder_id,
+                :match_type, :confidence, :observed_at, :observed_at
+            )
+            ON CONFLICT (source, entity_type, external_id) DO UPDATE SET
+                clouder_entity_type = EXCLUDED.clouder_entity_type,
+                clouder_id = EXCLUDED.clouder_id,
+                match_type = EXCLUDED.match_type,
+                confidence = EXCLUDED.confidence,
+                last_seen_at = EXCLUDED.last_seen_at
+            """,
+            rows,
             transaction_id=transaction_id,
         )
 
@@ -504,6 +585,23 @@ class ClouderRepository:
                 "artist_id": artist_id,
                 "role": role,
             },
+            transaction_id=transaction_id,
+        )
+
+    def batch_upsert_track_artists(
+        self,
+        rows: list[Mapping[str, Any]],
+        transaction_id: str | None = None,
+    ) -> None:
+        if not rows:
+            return
+        self._data_api.batch_execute(
+            """
+            INSERT INTO clouder_track_artists (track_id, artist_id, role)
+            VALUES (:track_id, :artist_id, :role)
+            ON CONFLICT (track_id, artist_id, role) DO NOTHING
+            """,
+            rows,
             transaction_id=transaction_id,
         )
 

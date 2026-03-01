@@ -51,17 +51,27 @@ class Canonicalizer:
         track_ids: Dict[int, str] = {}
 
         # Labels
+        self._repository.batch_upsert_source_entities(
+            [
+                _source_entity_row(
+                    run_id=run_id,
+                    entity_type="label",
+                    external_id=str(label.bp_label_id),
+                    name=label.name,
+                    normalized_name=label.normalized_name,
+                    payload=label.payload,
+                    observed_at=observed_at,
+                )
+                for label in bundle.labels
+            ]
+        )
+        label_identity_rows: list[dict[str, Any]] = []
         for label in bundle.labels:
-            self._upsert_source_entity(
-                run_id=run_id,
-                entity_type="label",
-                external_id=str(label.bp_label_id),
-                name=label.name,
-                normalized_name=label.normalized_name,
-                payload=label.payload,
-                observed_at=observed_at,
-            )
-            label_ids[label.bp_label_id] = self._resolve_label(label.bp_label_id, label.name, label.normalized_name, observed_at)
+            clouder_label_id, identity_row = self._resolve_label(label.bp_label_id, label.name, label.normalized_name, observed_at)
+            label_ids[label.bp_label_id] = clouder_label_id
+            if identity_row:
+                label_identity_rows.append(identity_row)
+        self._repository.batch_upsert_identities(label_identity_rows)
         log_event(
             "INFO",
             "canonicalization_phase_completed",
@@ -71,17 +81,27 @@ class Canonicalizer:
         )
 
         # Artists
+        self._repository.batch_upsert_source_entities(
+            [
+                _source_entity_row(
+                    run_id=run_id,
+                    entity_type="artist",
+                    external_id=str(artist.bp_artist_id),
+                    name=artist.name,
+                    normalized_name=artist.normalized_name,
+                    payload=artist.payload,
+                    observed_at=observed_at,
+                )
+                for artist in bundle.artists
+            ]
+        )
+        artist_identity_rows: list[dict[str, Any]] = []
         for artist in bundle.artists:
-            self._upsert_source_entity(
-                run_id=run_id,
-                entity_type="artist",
-                external_id=str(artist.bp_artist_id),
-                name=artist.name,
-                normalized_name=artist.normalized_name,
-                payload=artist.payload,
-                observed_at=observed_at,
-            )
-            artist_ids[artist.bp_artist_id] = self._resolve_artist(artist.bp_artist_id, artist.name, artist.normalized_name, observed_at)
+            clouder_artist_id, identity_row = self._resolve_artist(artist.bp_artist_id, artist.name, artist.normalized_name, observed_at)
+            artist_ids[artist.bp_artist_id] = clouder_artist_id
+            if identity_row:
+                artist_identity_rows.append(identity_row)
+        self._repository.batch_upsert_identities(artist_identity_rows)
         log_event(
             "INFO",
             "canonicalization_phase_completed",
@@ -91,18 +111,24 @@ class Canonicalizer:
         )
 
         # Albums
+        self._repository.batch_upsert_source_entities(
+            [
+                _source_entity_row(
+                    run_id=run_id,
+                    entity_type="album",
+                    external_id=str(album.bp_release_id),
+                    name=album.title,
+                    normalized_name=album.normalized_title,
+                    payload=album.payload,
+                    observed_at=observed_at,
+                )
+                for album in bundle.albums
+            ]
+        )
+        album_identity_rows: list[dict[str, Any]] = []
         for album in bundle.albums:
-            self._upsert_source_entity(
-                run_id=run_id,
-                entity_type="album",
-                external_id=str(album.bp_release_id),
-                name=album.title,
-                normalized_name=album.normalized_title,
-                payload=album.payload,
-                observed_at=observed_at,
-            )
             label_id = label_ids.get(album.bp_label_id) if album.bp_label_id is not None else None
-            album_ids[album.bp_release_id] = self._resolve_album(
+            clouder_album_id, identity_row = self._resolve_album(
                 bp_release_id=album.bp_release_id,
                 title=album.title,
                 normalized_title=album.normalized_title,
@@ -110,6 +136,10 @@ class Canonicalizer:
                 label_id=label_id,
                 observed_at=observed_at,
             )
+            album_ids[album.bp_release_id] = clouder_album_id
+            if identity_row:
+                album_identity_rows.append(identity_row)
+        self._repository.batch_upsert_identities(album_identity_rows)
         log_event(
             "INFO",
             "canonicalization_phase_completed",
@@ -118,16 +148,20 @@ class Canonicalizer:
             item_count=len(album_ids),
         )
 
-        for relation in bundle.relations:
-            self._repository.upsert_source_relation(
-                source="beatport",
-                from_entity_type=relation.from_entity_type,
-                from_external_id=relation.from_external_id,
-                relation_type=relation.relation_type,
-                to_entity_type=relation.to_entity_type,
-                to_external_id=relation.to_external_id,
-                last_run_id=run_id,
-            )
+        self._repository.batch_upsert_source_relations(
+            [
+                {
+                    "source": "beatport",
+                    "from_entity_type": relation.from_entity_type,
+                    "from_external_id": relation.from_external_id,
+                    "relation_type": relation.relation_type,
+                    "to_entity_type": relation.to_entity_type,
+                    "to_external_id": relation.to_external_id,
+                    "last_run_id": run_id,
+                }
+                for relation in bundle.relations
+            ]
+        )
         log_event(
             "INFO",
             "canonicalization_phase_completed",
@@ -149,20 +183,26 @@ class Canonicalizer:
                 chunk_size=len(chunk),
             )
             with self._repository.transaction() as transaction_id:
+                self._repository.batch_upsert_source_entities(
+                    [
+                        _source_entity_row(
+                            run_id=run_id,
+                            entity_type="track",
+                            external_id=str(track.bp_track_id),
+                            name=track.title,
+                            normalized_name=track.normalized_title,
+                            payload=track.payload,
+                            observed_at=observed_at,
+                        )
+                        for track in chunk
+                    ],
+                    transaction_id=transaction_id,
+                )
+                track_artist_rows: set[tuple[str, str, str]] = set()
+                track_identity_rows: list[dict[str, Any]] = []
                 for track in chunk:
-                    self._upsert_source_entity(
-                        run_id=run_id,
-                        entity_type="track",
-                        external_id=str(track.bp_track_id),
-                        name=track.title,
-                        normalized_name=track.normalized_title,
-                        payload=track.payload,
-                        observed_at=observed_at,
-                        transaction_id=transaction_id,
-                    )
-
                     album_id = album_ids.get(track.bp_release_id) if track.bp_release_id is not None else None
-                    clouder_track_id = self._resolve_track(
+                    clouder_track_id, identity_row = self._resolve_track(
                         bp_track_id=track.bp_track_id,
                         title=track.title,
                         normalized_title=track.normalized_title,
@@ -176,16 +216,26 @@ class Canonicalizer:
                         transaction_id=transaction_id,
                     )
                     track_ids[track.bp_track_id] = clouder_track_id
+                    if identity_row:
+                        track_identity_rows.append(identity_row)
 
                     for bp_artist_id in track.bp_artist_ids:
                         artist_id = artist_ids.get(bp_artist_id)
                         if not artist_id:
                             continue
-                        self._repository.upsert_track_artist(
-                            track_id=clouder_track_id,
-                            artist_id=artist_id,
-                            transaction_id=transaction_id,
-                        )
+                        track_artist_rows.add((clouder_track_id, artist_id, "main"))
+                if track_artist_rows:
+                    self._repository.batch_upsert_track_artists(
+                        [
+                            {"track_id": track_id, "artist_id": artist_id, "role": role}
+                            for track_id, artist_id, role in track_artist_rows
+                        ],
+                        transaction_id=transaction_id,
+                    )
+                self._repository.batch_upsert_identities(
+                    track_identity_rows,
+                    transaction_id=transaction_id,
+                )
             log_event(
                 "INFO",
                 "canonicalization_chunk_completed",
@@ -217,40 +267,21 @@ class Canonicalizer:
         )
         return result
 
-    def _upsert_source_entity(
+    def _resolve_label(
         self,
-        run_id: str,
-        entity_type: str,
-        external_id: str,
-        name: str | None,
-        normalized_name: str | None,
-        payload: dict[str, Any],
+        bp_label_id: int,
+        name: str,
+        normalized_name: str,
         observed_at,
-        transaction_id: str | None = None,
-    ) -> None:
-        self._repository.upsert_source_entity(
-            source="beatport",
-            entity_type=entity_type,
-            external_id=external_id,
-            name=name,
-            normalized_name=normalized_name,
-            payload=payload,
-            payload_hash=_payload_hash(payload),
-            last_run_id=run_id,
-            observed_at=observed_at,
-            transaction_id=transaction_id,
-        )
-
-    def _resolve_label(self, bp_label_id: int, name: str, normalized_name: str, observed_at) -> str:
+    ) -> tuple[str, dict[str, Any] | None]:
         identity = self._repository.find_identity("beatport", "label", str(bp_label_id))
         if identity:
-            return identity.clouder_id
+            return identity.clouder_id, None
 
         candidates = self._repository.find_label_by_normalized_name(normalized_name)
         if len(candidates) == 1:
             clouder_id = candidates[0]
-            self._repository.upsert_identity(
-                source="beatport",
+            return clouder_id, _identity_row(
                 entity_type="label",
                 external_id=str(bp_label_id),
                 clouder_entity_type="label",
@@ -259,12 +290,10 @@ class Canonicalizer:
                 confidence=MATCH_HEURISTIC,
                 observed_at=observed_at,
             )
-            return clouder_id
 
         clouder_id = str(uuid4())
         self._repository.create_label(clouder_id, name, normalized_name, observed_at)
-        self._repository.upsert_identity(
-            source="beatport",
+        return clouder_id, _identity_row(
             entity_type="label",
             external_id=str(bp_label_id),
             clouder_entity_type="label",
@@ -273,18 +302,22 @@ class Canonicalizer:
             confidence=MATCH_AUTO_CREATE,
             observed_at=observed_at,
         )
-        return clouder_id
 
-    def _resolve_artist(self, bp_artist_id: int, name: str, normalized_name: str, observed_at) -> str:
+    def _resolve_artist(
+        self,
+        bp_artist_id: int,
+        name: str,
+        normalized_name: str,
+        observed_at,
+    ) -> tuple[str, dict[str, Any] | None]:
         identity = self._repository.find_identity("beatport", "artist", str(bp_artist_id))
         if identity:
-            return identity.clouder_id
+            return identity.clouder_id, None
 
         candidates = self._repository.find_artist_by_normalized_name(normalized_name)
         if len(candidates) == 1:
             clouder_id = candidates[0]
-            self._repository.upsert_identity(
-                source="beatport",
+            return clouder_id, _identity_row(
                 entity_type="artist",
                 external_id=str(bp_artist_id),
                 clouder_entity_type="artist",
@@ -293,12 +326,10 @@ class Canonicalizer:
                 confidence=MATCH_HEURISTIC,
                 observed_at=observed_at,
             )
-            return clouder_id
 
         clouder_id = str(uuid4())
         self._repository.create_artist(clouder_id, name, normalized_name, observed_at)
-        self._repository.upsert_identity(
-            source="beatport",
+        return clouder_id, _identity_row(
             entity_type="artist",
             external_id=str(bp_artist_id),
             clouder_entity_type="artist",
@@ -307,7 +338,6 @@ class Canonicalizer:
             confidence=MATCH_AUTO_CREATE,
             observed_at=observed_at,
         )
-        return clouder_id
 
     def _resolve_album(
         self,
@@ -317,10 +347,10 @@ class Canonicalizer:
         release_date: str | None,
         label_id: str | None,
         observed_at,
-    ) -> str:
+    ) -> tuple[str, dict[str, Any] | None]:
         identity = self._repository.find_identity("beatport", "album", str(bp_release_id))
         if identity:
-            return identity.clouder_id
+            return identity.clouder_id, None
 
         candidates = self._repository.find_album_by_signature(
             normalized_title=normalized_title,
@@ -330,8 +360,7 @@ class Canonicalizer:
 
         if len(candidates) == 1:
             clouder_id = candidates[0]
-            self._repository.upsert_identity(
-                source="beatport",
+            return clouder_id, _identity_row(
                 entity_type="album",
                 external_id=str(bp_release_id),
                 clouder_entity_type="album",
@@ -340,7 +369,6 @@ class Canonicalizer:
                 confidence=MATCH_HEURISTIC,
                 observed_at=observed_at,
             )
-            return clouder_id
 
         clouder_id = str(uuid4())
         self._repository.create_album(
@@ -351,8 +379,7 @@ class Canonicalizer:
             label_id=label_id,
             at=observed_at,
         )
-        self._repository.upsert_identity(
-            source="beatport",
+        return clouder_id, _identity_row(
             entity_type="album",
             external_id=str(bp_release_id),
             clouder_entity_type="album",
@@ -361,7 +388,6 @@ class Canonicalizer:
             confidence=MATCH_AUTO_CREATE,
             observed_at=observed_at,
         )
-        return clouder_id
 
     def _resolve_track(
         self,
@@ -376,7 +402,7 @@ class Canonicalizer:
         album_id: str | None,
         observed_at,
         transaction_id: str | None,
-    ) -> str:
+    ) -> tuple[str, dict[str, Any] | None]:
         identity = self._repository.find_identity("beatport", "track", str(bp_track_id))
         if identity:
             self._repository.conservative_update_track(
@@ -390,7 +416,7 @@ class Canonicalizer:
                 at=observed_at,
                 transaction_id=transaction_id,
             )
-            return identity.clouder_id
+            return identity.clouder_id, None
 
         candidates: list[str]
         if isrc:
@@ -415,8 +441,7 @@ class Canonicalizer:
                 at=observed_at,
                 transaction_id=transaction_id,
             )
-            self._repository.upsert_identity(
-                source="beatport",
+            return clouder_id, _identity_row(
                 entity_type="track",
                 external_id=str(bp_track_id),
                 clouder_entity_type="track",
@@ -424,9 +449,7 @@ class Canonicalizer:
                 match_type="heuristic",
                 confidence=MATCH_HEURISTIC,
                 observed_at=observed_at,
-                transaction_id=transaction_id,
             )
-            return clouder_id
 
         clouder_id = str(uuid4())
         self._repository.create_track(
@@ -442,8 +465,7 @@ class Canonicalizer:
             at=observed_at,
             transaction_id=transaction_id,
         )
-        self._repository.upsert_identity(
-            source="beatport",
+        return clouder_id, _identity_row(
             entity_type="track",
             external_id=str(bp_track_id),
             clouder_entity_type="track",
@@ -451,14 +473,55 @@ class Canonicalizer:
             match_type="auto_create",
             confidence=MATCH_AUTO_CREATE,
             observed_at=observed_at,
-            transaction_id=transaction_id,
         )
-        return clouder_id
 
 
 def _payload_hash(payload: dict[str, Any]) -> str:
     canonical_payload = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical_payload.encode("utf-8")).hexdigest()
+
+
+def _source_entity_row(
+    run_id: str,
+    entity_type: str,
+    external_id: str,
+    name: str | None,
+    normalized_name: str | None,
+    payload: dict[str, Any],
+    observed_at,
+) -> dict[str, Any]:
+    return {
+        "source": "beatport",
+        "entity_type": entity_type,
+        "external_id": external_id,
+        "name": name,
+        "normalized_name": normalized_name,
+        "payload": payload,
+        "payload_hash": _payload_hash(payload),
+        "last_run_id": run_id,
+        "observed_at": observed_at,
+    }
+
+
+def _identity_row(
+    entity_type: str,
+    external_id: str,
+    clouder_entity_type: str,
+    clouder_id: str,
+    match_type: str,
+    confidence: Decimal,
+    observed_at,
+) -> dict[str, Any]:
+    return {
+        "source": "beatport",
+        "entity_type": entity_type,
+        "external_id": external_id,
+        "clouder_entity_type": clouder_entity_type,
+        "clouder_id": clouder_id,
+        "match_type": match_type,
+        "confidence": confidence,
+        "observed_at": observed_at,
+    }
 
 
 def _chunks(items: Iterable[Any], chunk_size: int):

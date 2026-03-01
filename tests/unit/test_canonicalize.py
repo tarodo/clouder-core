@@ -26,8 +26,18 @@ class FakeRepo:
     def upsert_source_entity(self, **kwargs):
         return None
 
+    def batch_upsert_source_entities(self, rows, transaction_id: str | None = None):
+        del transaction_id
+        for row in rows:
+            self.upsert_source_entity(**row)
+
     def upsert_source_relation(self, **kwargs):
         return None
+
+    def batch_upsert_source_relations(self, rows, transaction_id: str | None = None):
+        del transaction_id
+        for row in rows:
+            self.upsert_source_relation(**row)
 
     def find_identity(self, source: str, entity_type: str, external_id: str):
         return self.identities.get((source, entity_type, external_id))
@@ -49,6 +59,11 @@ class FakeRepo:
             clouder_entity_type=clouder_entity_type,
             clouder_id=clouder_id,
         )
+
+    def batch_upsert_identities(self, rows, transaction_id: str | None = None):
+        del transaction_id
+        for row in rows:
+            self.upsert_identity(**row)
 
     def find_label_by_normalized_name(self, normalized_name: str):
         return self.labels_by_name.get(normalized_name, [])
@@ -118,6 +133,11 @@ class FakeRepo:
     def upsert_track_artist(self, track_id: str, artist_id: str, role: str = "main", transaction_id: str | None = None):
         del transaction_id
         self.track_artists.add((track_id, artist_id, role))
+
+    def batch_upsert_track_artists(self, rows, transaction_id: str | None = None):
+        del transaction_id
+        for row in rows:
+            self.upsert_track_artist(**row)
 
     @contextmanager
     def transaction(self):
