@@ -1,4 +1,4 @@
-"""S3 persistence for weekly snapshots and run archives."""
+"""S3 persistence for weekly snapshots."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import json
 from typing import Any, Dict, List, Tuple
 
 from .errors import StorageError
+from .logging_utils import log_event
 
 
 def create_default_s3_client() -> Any:
@@ -25,18 +26,17 @@ class S3Storage:
         self,
         releases: List[Dict[str, Any]],
         meta: Dict[str, Any],
-    ) -> Tuple[str, str, str]:
+    ) -> Tuple[str, str]:
         style_id = int(meta["style_id"])
         iso_year = int(meta["iso_year"])
         iso_week = int(meta["iso_week"])
-        run_id = str(meta["run_id"])
 
         base_key = self._base_key(style_id=style_id, iso_year=iso_year, iso_week=iso_week)
         releases_key = f"{base_key}/releases.json.gz"
         meta_key = f"{base_key}/meta.json"
-        run_key = f"{base_key}/runs/run_id={run_id}.json.gz"
 
         releases_bytes = gzip.compress(json.dumps(releases, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+        meta_bytes = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
         try:
             self._put_object(
@@ -45,21 +45,35 @@ class S3Storage:
                 content_type="application/json",
                 content_encoding="gzip",
             )
-            self._put_object(
-                key=meta_key,
-                body=json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
-                content_type="application/json",
+            log_event(
+                "INFO",
+                "s3_object_written",
+                s3_bucket=self.bucket_name,
+                s3_key=releases_key,
+                s3_size_bytes=len(releases_bytes),
             )
             self._put_object(
-                key=run_key,
-                body=releases_bytes,
+                key=meta_key,
+                body=meta_bytes,
                 content_type="application/json",
-                content_encoding="gzip",
+            )
+            log_event(
+                "INFO",
+                "s3_object_written",
+                s3_bucket=self.bucket_name,
+                s3_key=meta_key,
+                s3_size_bytes=len(meta_bytes),
             )
         except Exception as exc:
             raise StorageError() from exc
 
-        return releases_key, meta_key, run_key
+        log_event(
+            "INFO",
+            "s3_write_completed",
+            s3_bucket=self.bucket_name,
+            s3_key=releases_key,
+        )
+        return releases_key, meta_key
 
     def _base_key(self, style_id: int, iso_year: int, iso_week: int) -> str:
         return f"{self.raw_prefix}/style_id={style_id}/year={iso_year}/week={iso_week:02d}"

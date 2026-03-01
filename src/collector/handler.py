@@ -79,7 +79,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> Dict[str, Any]:
             bucket_name=os.environ["RAW_BUCKET_NAME"],
             raw_prefix=os.getenv("RAW_PREFIX", "raw/bp/releases"),
         )
-        releases_key, _, _ = storage.write_run_artifacts(releases=releases, meta=meta)
+        releases_key, _ = storage.write_run_artifacts(releases=releases, meta=meta)
 
         response = {
             "run_id": run_id,

@@ -43,6 +43,14 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
+      - name: Package Lambda
+        working-directory: .
+        run: |
+          mkdir -p dist
+          rm -f dist/collector.zip
+          cd src
+          zip -r ../dist/collector.zip collector -x "*/__pycache__/*"
+
       - name: Terraform plan
         run: terraform plan -input=false -lock=false -var="environment=prod"
 
