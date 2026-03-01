@@ -256,6 +256,12 @@ def _enqueue_canonicalization(
     enabled = os.getenv("CANONICALIZE_ENABLED", "true").strip().lower() in {"1", "true", "yes"}
     queue_url = os.getenv("CANONICALIZE_QUEUE_URL", "").strip()
     if not enabled or not queue_url:
+        log_event(
+            "INFO",
+            "canonicalization_enqueue_skipped",
+            run_id=run_id,
+            processing_status="FAILED_TO_QUEUE",
+        )
         return "FAILED_TO_QUEUE"
 
     payload = {
@@ -280,6 +286,14 @@ def _enqueue_canonicalization(
                 }
             },
         )
+        log_event(
+            "INFO",
+            "canonicalization_enqueued",
+            correlation_id=correlation_id,
+            run_id=run_id,
+            processing_status="QUEUED",
+            status_code=200,
+        )
         return "QUEUED"
     except Exception as exc:  # pragma: no cover - networked path
         log_event(
@@ -288,6 +302,7 @@ def _enqueue_canonicalization(
             correlation_id=correlation_id,
             run_id=run_id,
             error_type=exc.__class__.__name__,
+            error_message=str(exc)[:500],
         )
         return "FAILED_TO_QUEUE"
 

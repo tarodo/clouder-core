@@ -32,6 +32,21 @@ ALLOWED_LOG_FIELDS = {
     "s3_bucket",
     "s3_key",
     "s3_size_bytes",
+    "sqs_record_count",
+    "phase",
+    "entity_type",
+    "relations_total",
+    "tracks_total",
+    "tracks_processed",
+    "artists_total",
+    "labels_total",
+    "albums_total",
+    "chunk_index",
+    "chunk_count",
+    "chunk_size",
+    "processed",
+    "run_status",
+    "processing_status",
 }
 
 
