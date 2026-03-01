@@ -15,7 +15,7 @@ pip install -r "$ROOT_DIR/requirements-lambda.txt" -t "$BUILD_DIR"
 
 cp -R "$ROOT_DIR/src/collector" "$BUILD_DIR/collector"
 cp "$ROOT_DIR/alembic.ini" "$BUILD_DIR/alembic.ini"
-cp -R "$ROOT_DIR/alembic" "$BUILD_DIR/alembic"
+cp -R "$ROOT_DIR/alembic" "$BUILD_DIR/db_migrations"
 
 find "$BUILD_DIR" -type d -name "__pycache__" -prune -exec rm -rf {} +
 find "$BUILD_DIR" -type f -name "*.pyc" -delete

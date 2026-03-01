@@ -33,7 +33,7 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
 
     root_dir = Path(__file__).resolve().parent.parent
     alembic_ini_path = root_dir / "alembic.ini"
-    script_location = root_dir / "alembic"
+    script_location = root_dir / "db_migrations"
 
     if not alembic_ini_path.exists() or not script_location.exists():
         raise RuntimeError("Alembic files are missing from Lambda artifact")
