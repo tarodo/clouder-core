@@ -12,6 +12,11 @@ Usage:
     --bp-token <token> \
     [--correlation-id <id>] \
     [--region us-east-1]
+
+Notes:
+  - By default script uses 'awscurl' if installed.
+  - Set FORCE_CURL=1 to skip awscurl and use curl SigV4.
+  - Otherwise it falls back to 'curl --aws-sigv4'.
 USAGE
 }
 
@@ -20,6 +25,10 @@ require_bin() {
     echo "Missing required command: $1" >&2
     exit 1
   fi
+}
+
+has_bin() {
+  command -v "$1" >/dev/null 2>&1
 }
 
 API_URL=""
@@ -77,6 +86,8 @@ if [[ -z "$API_URL" || -z "$STYLE_ID" || -z "$ISO_YEAR" || -z "$ISO_WEEK" ]]; th
   exit 1
 fi
 
+API_URL="${API_URL%/}"
+
 if [[ -z "$BP_TOKEN" ]]; then
   read -r -s -p "Enter bp_token: " BP_TOKEN
   echo
@@ -87,7 +98,6 @@ if [[ -z "$CORRELATION_ID" ]]; then
   CORRELATION_ID="$(uuidgen)"
 fi
 
-require_bin awscurl
 require_bin python3
 
 PAYLOAD="$({
@@ -104,11 +114,53 @@ print(json.dumps({
 PY
 })"
 
-awscurl \
-  --service execute-api \
-  --region "$AWS_REGION" \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -H "x-correlation-id: $CORRELATION_ID" \
-  -d "$PAYLOAD" \
+if [[ "${FORCE_CURL:-0}" != "1" ]] && has_bin awscurl; then
+  awscurl \
+    --service execute-api \
+    --region "$AWS_REGION" \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -H "x-correlation-id: $CORRELATION_ID" \
+    -d "$PAYLOAD" \
+    "$API_URL/collect_bp_releases"
+  exit 0
+fi
+
+require_bin curl
+require_bin aws
+
+if [[ -z "${AWS_ACCESS_KEY_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+  PROFILE_TO_USE="${AWS_PROFILE:-default}"
+  CREDS_ENV="$(aws configure export-credentials --profile "$PROFILE_TO_USE" --format env 2>/dev/null || true)"
+  if [[ -n "$CREDS_ENV" ]]; then
+    # Export creds resolved from AWS profile for curl SigV4 fallback.
+    eval "$CREDS_ENV"
+    export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+  fi
+fi
+
+if [[ -z "${AWS_ACCESS_KEY_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+  echo "Missing AWS credentials for curl SigV4 fallback." >&2
+  echo "Set AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY (and AWS_SESSION_TOKEN for temporary creds)," >&2
+  echo "or install awscurl." >&2
+  exit 1
+fi
+
+CURL_ARGS=(
+  --silent
+  --show-error
+  --fail-with-body
+  --aws-sigv4 "aws:amz:${AWS_REGION}:execute-api"
+  --user "${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}"
+  -X POST
+  -H "Content-Type: application/json"
+  -H "x-correlation-id: $CORRELATION_ID"
+  -d "$PAYLOAD"
   "$API_URL/collect_bp_releases"
+)
+
+if [[ -n "${AWS_SESSION_TOKEN:-}" ]]; then
+  CURL_ARGS+=(-H "x-amz-security-token: ${AWS_SESSION_TOKEN}")
+fi
+
+curl "${CURL_ARGS[@]}"

@@ -35,7 +35,7 @@ def _event(body: dict, correlation_id: str | None = None) -> dict:
     }
 
 
-def test_happy_path_writes_three_objects_and_returns_ids(monkeypatch, context) -> None:
+def test_happy_path_writes_latest_snapshot_objects_and_returns_ids(monkeypatch, context) -> None:
     fake_s3 = FakeS3Client()
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
 
@@ -81,10 +81,11 @@ def test_happy_path_writes_three_objects_and_returns_ids(monkeypatch, context) -
     keys = [call["Key"] for call in fake_s3.calls]
     assert any(key.endswith("releases.json.gz") for key in keys)
     assert any(key.endswith("meta.json") for key in keys)
-    assert any("/runs/run_id=" in key for key in keys)
+    assert all("/runs/run_id=" not in key for key in keys)
+    assert len(keys) == 2
 
 
-def test_rerun_same_week_overwrites_latest_and_keeps_archives(monkeypatch, context) -> None:
+def test_rerun_same_week_overwrites_latest_snapshot_only(monkeypatch, context) -> None:
     fake_s3 = FakeS3Client()
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
 
@@ -121,8 +122,7 @@ def test_rerun_same_week_overwrites_latest_and_keeps_archives(monkeypatch, conte
 
     assert len(releases_writes) == 2
     assert len(meta_writes) == 2
-    assert len(run_writes) == 2
-    assert len(set(run_writes)) == 2
+    assert len(run_writes) == 0
 
 
 def test_beatport_auth_error_returns_sanitized_payload(monkeypatch, context) -> None:

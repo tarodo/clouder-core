@@ -27,6 +27,9 @@ ALLOWED_LOG_FIELDS = {
     "beatport_page",
     "beatport_attempt",
     "beatport_http_status",
+    "s3_bucket",
+    "s3_key",
+    "s3_size_bytes",
 }
 
 
