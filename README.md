@@ -199,7 +199,7 @@ alembic upgrade head
 
 ### Deploy (`.github/workflows/deploy.yml`)
 
-- package lambda zip (`scripts/package_lambda.sh`, внутри артефакта также `alembic/` и `alembic.ini`)
+- package lambda zip (`scripts/package_lambda.sh`, внутри артефакта также `db_migrations/` и `alembic.ini`)
 - `terraform apply`
 - invoke migration Lambda (`action=upgrade`, `revision=head`)
 
