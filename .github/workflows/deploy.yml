@@ -50,8 +50,11 @@ jobs:
             -backend-config="dynamodb_table=${{ vars.TF_LOCK_TABLE }}" \
             -backend-config="encrypt=true"
 
-      - name: Terraform apply
-        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true"
+      - name: Terraform apply (base infra)
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="enable_secretsmanager_vpc_endpoint=false"
+
+      - name: Enable temporary Secrets Manager VPC endpoint
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="enable_secretsmanager_vpc_endpoint=true"
 
       - name: Run DB migrations via Lambda
         run: |
@@ -84,3 +87,7 @@ jobs:
           if isinstance(response, dict) and response.get("status") != "ok":
               sys.exit("Migration Lambda returned non-ok status")
           PY
+
+      - name: Disable temporary Secrets Manager VPC endpoint
+        if: always()
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="enable_secretsmanager_vpc_endpoint=false"

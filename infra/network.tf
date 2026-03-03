@@ -62,6 +62,7 @@ resource "aws_vpc_security_group_ingress_rule" "aurora_from_migration_lambda" {
 }
 
 resource "aws_security_group" "vpc_endpoints" {
+  count       = var.enable_secretsmanager_vpc_endpoint ? 1 : 0
   name        = "${local.name_prefix}-vpc-endpoints-sg"
   description = "Security group for VPC interface endpoints"
   vpc_id      = aws_vpc.main.id
@@ -82,10 +83,11 @@ resource "aws_security_group" "vpc_endpoints" {
 }
 
 resource "aws_vpc_endpoint" "secretsmanager" {
+  count               = var.enable_secretsmanager_vpc_endpoint ? 1 : 0
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
   vpc_endpoint_type   = "Interface"
   private_dns_enabled = true
   subnet_ids          = [aws_subnet.db_a.id, aws_subnet.db_b.id]
-  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  security_group_ids  = [aws_security_group.vpc_endpoints[0].id]
 }
