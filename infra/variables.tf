@@ -159,3 +159,9 @@ variable "private_subnet_b_cidr" {
   type        = string
   default     = "10.60.2.0/24"
 }
+
+variable "enable_secretsmanager_vpc_endpoint" {
+  description = "Create a temporary VPC interface endpoint for Secrets Manager (needed only during DB migrations in private subnets)"
+  type        = bool
+  default     = false
+}

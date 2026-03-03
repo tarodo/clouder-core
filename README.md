@@ -110,7 +110,7 @@ Current setup in `infra/`:
   - Migration handler: `collector.migration_handler.lambda_handler`
 - SQS queue + DLQ (`maxReceiveCount=5`)
 - Aurora PostgreSQL Serverless v2 + Data API (`enable_http_endpoint=true`)
-- VPC interface endpoint for Secrets Manager (required for migration Lambda in private subnets)
+- Optional VPC interface endpoint for Secrets Manager (`enable_secretsmanager_vpc_endpoint`) used temporarily for migration Lambda in private subnets
 
 Current Aurora scaling:
 
