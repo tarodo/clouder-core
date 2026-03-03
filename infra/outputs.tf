@@ -43,6 +43,11 @@ output "aurora_cluster_arn" {
   value       = aws_rds_cluster.aurora.arn
 }
 
+output "aurora_cluster_identifier" {
+  description = "Aurora cluster identifier"
+  value       = aws_rds_cluster.aurora.cluster_identifier
+}
+
 output "aurora_database_name" {
   description = "Aurora database name"
   value       = var.aurora_database_name
