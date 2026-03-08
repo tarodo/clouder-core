@@ -25,7 +25,7 @@ from .repositories import (
     utc_now,
 )
 
-MATCH_HEURISTIC = Decimal("0.850")
+MATCH_IDENTITY = Decimal("1.000")
 MATCH_AUTO_CREATE = Decimal("0.600")
 
 
@@ -352,19 +352,6 @@ class Canonicalizer:
         if identity:
             return identity.clouder_id, None
 
-        candidates = self._repository.find_label_by_normalized_name(normalized_name)
-        if len(candidates) == 1:
-            clouder_id = candidates[0]
-            return clouder_id, _identity_cmd(
-                entity_type=EntityType.LABEL.value,
-                external_id=str(bp_label_id),
-                clouder_entity_type=EntityType.LABEL.value,
-                clouder_id=clouder_id,
-                match_type="heuristic",
-                confidence=MATCH_HEURISTIC,
-                observed_at=observed_at,
-            )
-
         clouder_id = str(uuid4())
         self._repository.create_label(clouder_id, name, normalized_name, observed_at)
         return clouder_id, _identity_cmd(
@@ -389,19 +376,6 @@ class Canonicalizer:
         )
         if identity:
             return identity.clouder_id, None
-
-        candidates = self._repository.find_artist_by_normalized_name(normalized_name)
-        if len(candidates) == 1:
-            clouder_id = candidates[0]
-            return clouder_id, _identity_cmd(
-                entity_type=EntityType.ARTIST.value,
-                external_id=str(bp_artist_id),
-                clouder_entity_type=EntityType.ARTIST.value,
-                clouder_id=clouder_id,
-                match_type="heuristic",
-                confidence=MATCH_HEURISTIC,
-                observed_at=observed_at,
-            )
 
         clouder_id = str(uuid4())
         self._repository.create_artist(clouder_id, name, normalized_name, observed_at)
@@ -429,23 +403,6 @@ class Canonicalizer:
         )
         if identity:
             return identity.clouder_id, None
-
-        candidates = self._repository.find_album_by_signature(
-            normalized_title=normalized_title,
-            release_date=parse_iso_date(release_date),
-            label_id=label_id,
-        )
-        if len(candidates) == 1:
-            clouder_id = candidates[0]
-            return clouder_id, _identity_cmd(
-                entity_type=EntityType.ALBUM.value,
-                external_id=str(bp_release_id),
-                clouder_entity_type=EntityType.ALBUM.value,
-                clouder_id=clouder_id,
-                match_type="heuristic",
-                confidence=MATCH_HEURISTIC,
-                observed_at=observed_at,
-            )
 
         clouder_id = str(uuid4())
         self._repository.create_album(
@@ -498,41 +455,6 @@ class Canonicalizer:
                 transaction_id=transaction_id,
             )
             return identity.clouder_id, None
-
-        candidates: list[str]
-        if isrc:
-            candidates = self._repository.find_track_by_isrc(isrc)
-        else:
-            candidates = self._repository.find_track_by_signature(
-                normalized_title=normalized_title,
-                album_id=album_id,
-                length_ms=length_ms,
-            )
-
-        if len(candidates) == 1:
-            clouder_id = candidates[0]
-            self._repository.conservative_update_track(
-                ConservativeUpdateTrackCmd(
-                    track_id=clouder_id,
-                    mix_name=mix_name,
-                    isrc=isrc,
-                    bpm=bpm,
-                    length_ms=length_ms,
-                    publish_date=parse_iso_date(publish_date),
-                    album_id=album_id,
-                    at=observed_at,
-                ),
-                transaction_id=transaction_id,
-            )
-            return clouder_id, _identity_cmd(
-                entity_type=EntityType.TRACK.value,
-                external_id=str(bp_track_id),
-                clouder_entity_type=EntityType.TRACK.value,
-                clouder_id=clouder_id,
-                match_type="heuristic",
-                confidence=MATCH_HEURISTIC,
-                observed_at=observed_at,
-            )
 
         clouder_id = str(uuid4())
         self._repository.create_track(

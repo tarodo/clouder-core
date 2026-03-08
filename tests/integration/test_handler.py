@@ -286,6 +286,135 @@ def test_invalid_body_returns_validation_error(monkeypatch, context) -> None:
     assert body["error_code"] == "validation_error"
 
 
+def _list_event(route_key: str, query_params: dict | None = None) -> dict:
+    return {
+        "version": "2.0",
+        "requestContext": {
+            "requestId": "api-req-list",
+            "routeKey": route_key,
+        },
+        "headers": {"x-correlation-id": "cid-list"},
+        "queryStringParameters": query_params,
+        "body": None,
+    }
+
+
+def test_list_tracks_returns_paginated_results(monkeypatch, context) -> None:
+    class FakeRepo:
+        def list_tracks(self, limit, offset, search):
+            assert limit == 10
+            assert offset == 5
+            assert search is None
+            return [
+                {
+                    "id": "t-1",
+                    "title": "Track One",
+                    "mix_name": "Original Mix",
+                    "isrc": "ISRC001",
+                    "bpm": 128,
+                    "length_ms": 300000,
+                    "publish_date": "2026-01-01",
+                    "album_id": "a-1",
+                    "created_at": "2026-03-01T10:00:00Z",
+                    "updated_at": "2026-03-01T10:00:00Z",
+                    "album_title": "Album One",
+                    "label_name": "Label One",
+                    "artist_names": "Artist A, Artist B",
+                },
+            ]
+
+        def count_tracks(self, search):
+            assert search is None
+            return 42
+
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: FakeRepo())
+
+    response = lambda_handler(
+        _list_event("GET /tracks", {"limit": "10", "offset": "5"}), context
+    )
+
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["total"] == 42
+    assert body["limit"] == 10
+    assert body["offset"] == 5
+    assert len(body["items"]) == 1
+    item = body["items"][0]
+    assert item["title"] == "Track One"
+    assert item["artists"] == ["Artist A", "Artist B"]
+    assert "artist_names" not in item
+
+
+def test_list_artists_returns_results(monkeypatch, context) -> None:
+    class FakeRepo:
+        def list_artists(self, limit, offset, search):
+            return [
+                {
+                    "id": "art-1",
+                    "name": "Test Artist",
+                    "normalized_name": "test artist",
+                    "created_at": "2026-03-01T10:00:00Z",
+                    "updated_at": "2026-03-01T10:00:00Z",
+                },
+            ]
+
+        def count_artists(self, search):
+            return 1
+
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: FakeRepo())
+
+    response = lambda_handler(_list_event("GET /artists"), context)
+
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["total"] == 1
+    assert body["items"][0]["name"] == "Test Artist"
+
+
+def test_list_with_search_param(monkeypatch, context) -> None:
+    class FakeRepo:
+        def list_labels(self, limit, offset, search):
+            assert search == "deep"
+            return []
+
+        def count_labels(self, search):
+            assert search == "deep"
+            return 0
+
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: FakeRepo())
+
+    response = lambda_handler(
+        _list_event("GET /labels", {"search": "deep"}), context
+    )
+
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["total"] == 0
+    assert body["items"] == []
+
+
+def test_list_invalid_limit_returns_validation_error(monkeypatch, context) -> None:
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: object())
+
+    response = lambda_handler(
+        _list_event("GET /tracks", {"limit": "999"}), context
+    )
+
+    assert response["statusCode"] == 400
+    body = json.loads(response["body"])
+    assert body["error_code"] == "validation_error"
+
+
+def test_list_db_not_configured_returns_503(monkeypatch, context) -> None:
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: None)
+
+    response = lambda_handler(_list_event("GET /albums"), context)
+
+    assert response["statusCode"] == 503
+    body = json.loads(response["body"])
+    assert body["error_code"] == "db_not_configured"
+
+
 def test_get_run_route_returns_run_status(monkeypatch, context) -> None:
     class FakeRepo:
         def get_run(self, run_id: str):

@@ -434,17 +434,6 @@ class ClouderRepository:
             transaction_id=transaction_id,
         )
 
-    def find_artist_by_normalized_name(self, normalized_name: str) -> list[str]:
-        rows = self._data_api.execute(
-            """
-            SELECT id
-            FROM clouder_artists
-            WHERE normalized_name = :normalized_name
-            """,
-            {"normalized_name": normalized_name},
-        )
-        return [str(row["id"]) for row in rows]
-
     def create_artist(
         self,
         artist_id: str,
@@ -468,17 +457,6 @@ class ClouderRepository:
             transaction_id=transaction_id,
         )
 
-    def find_label_by_normalized_name(self, normalized_name: str) -> list[str]:
-        rows = self._data_api.execute(
-            """
-            SELECT id
-            FROM clouder_labels
-            WHERE normalized_name = :normalized_name
-            """,
-            {"normalized_name": normalized_name},
-        )
-        return [str(row["id"]) for row in rows]
-
     def create_label(
         self,
         label_id: str,
@@ -501,28 +479,6 @@ class ClouderRepository:
             },
             transaction_id=transaction_id,
         )
-
-    def find_album_by_signature(
-        self,
-        normalized_title: str,
-        release_date: date | None,
-        label_id: str | None,
-    ) -> list[str]:
-        rows = self._data_api.execute(
-            """
-            SELECT id
-            FROM clouder_albums
-            WHERE normalized_title = :normalized_title
-              AND release_date IS NOT DISTINCT FROM :release_date
-              AND label_id IS NOT DISTINCT FROM :label_id
-            """,
-            {
-                "normalized_title": normalized_title,
-                "release_date": release_date,
-                "label_id": label_id,
-            },
-        )
-        return [str(row["id"]) for row in rows]
 
     def create_album(
         self,
@@ -553,36 +509,6 @@ class ClouderRepository:
             },
             transaction_id=transaction_id,
         )
-
-    def find_track_by_isrc(self, isrc: str) -> list[str]:
-        rows = self._data_api.execute(
-            """
-            SELECT id
-            FROM clouder_tracks
-            WHERE isrc = :isrc
-            """,
-            {"isrc": isrc},
-        )
-        return [str(row["id"]) for row in rows]
-
-    def find_track_by_signature(
-        self, normalized_title: str, album_id: str | None, length_ms: int | None
-    ) -> list[str]:
-        rows = self._data_api.execute(
-            """
-            SELECT id
-            FROM clouder_tracks
-            WHERE normalized_title = :normalized_title
-              AND album_id IS NOT DISTINCT FROM :album_id
-              AND length_ms IS NOT DISTINCT FROM :length_ms
-            """,
-            {
-                "normalized_title": normalized_title,
-                "album_id": album_id,
-                "length_ms": length_ms,
-            },
-        )
-        return [str(row["id"]) for row in rows]
 
     def create_track(
         self, cmd: CreateTrackCmd, transaction_id: str | None = None
@@ -696,6 +622,140 @@ class ClouderRepository:
             ],
             transaction_id=transaction_id,
         )
+
+    # ── Read API methods ──────────────────────────────────────────────
+
+    def list_tracks(
+        self, limit: int, offset: int, search: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        where = ""
+        if search:
+            where = "WHERE t.normalized_title LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        return self._data_api.execute(
+            f"""
+            SELECT t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
+                   t.publish_date, t.album_id, t.created_at, t.updated_at,
+                   a.title AS album_title,
+                   l.name AS label_name,
+                   string_agg(DISTINCT art.name, ', ' ORDER BY art.name) AS artist_names
+            FROM clouder_tracks t
+            LEFT JOIN clouder_albums a ON t.album_id = a.id
+            LEFT JOIN clouder_labels l ON a.label_id = l.id
+            LEFT JOIN clouder_track_artists ta ON ta.track_id = t.id
+            LEFT JOIN clouder_artists art ON ta.artist_id = art.id
+            {where}
+            GROUP BY t.id, a.title, l.name
+            ORDER BY t.created_at DESC
+            LIMIT :limit OFFSET :offset
+            """,
+            params,
+        )
+
+    def count_tracks(self, search: str | None = None) -> int:
+        params: dict[str, Any] = {}
+        where = ""
+        if search:
+            where = "WHERE normalized_title LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        rows = self._data_api.execute(
+            f"SELECT count(*) AS cnt FROM clouder_tracks {where}", params
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def list_artists(
+        self, limit: int, offset: int, search: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        where = ""
+        if search:
+            where = "WHERE normalized_name LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        return self._data_api.execute(
+            f"""
+            SELECT id, name, normalized_name, created_at, updated_at
+            FROM clouder_artists
+            {where}
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+            """,
+            params,
+        )
+
+    def count_artists(self, search: str | None = None) -> int:
+        params: dict[str, Any] = {}
+        where = ""
+        if search:
+            where = "WHERE normalized_name LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        rows = self._data_api.execute(
+            f"SELECT count(*) AS cnt FROM clouder_artists {where}", params
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def list_albums(
+        self, limit: int, offset: int, search: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        where = ""
+        if search:
+            where = "WHERE a.normalized_title LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        return self._data_api.execute(
+            f"""
+            SELECT a.id, a.title, a.normalized_title, a.release_date,
+                   a.label_id, a.created_at, a.updated_at,
+                   l.name AS label_name
+            FROM clouder_albums a
+            LEFT JOIN clouder_labels l ON a.label_id = l.id
+            {where}
+            ORDER BY a.created_at DESC
+            LIMIT :limit OFFSET :offset
+            """,
+            params,
+        )
+
+    def count_albums(self, search: str | None = None) -> int:
+        params: dict[str, Any] = {}
+        where = ""
+        if search:
+            where = "WHERE normalized_title LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        rows = self._data_api.execute(
+            f"SELECT count(*) AS cnt FROM clouder_albums {where}", params
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def list_labels(
+        self, limit: int, offset: int, search: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        where = ""
+        if search:
+            where = "WHERE normalized_name LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        return self._data_api.execute(
+            f"""
+            SELECT id, name, normalized_name, created_at, updated_at
+            FROM clouder_labels
+            {where}
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+            """,
+            params,
+        )
+
+    def count_labels(self, search: str | None = None) -> int:
+        params: dict[str, Any] = {}
+        where = ""
+        if search:
+            where = "WHERE normalized_name LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        rows = self._data_api.execute(
+            f"SELECT count(*) AS cnt FROM clouder_labels {where}", params
+        )
+        return int(rows[0]["cnt"]) if rows else 0
 
     def transaction(self):
         return self._data_api.transaction()
