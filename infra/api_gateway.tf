@@ -24,6 +24,34 @@ resource "aws_apigatewayv2_route" "get_run" {
   authorization_type = "AWS_IAM"
 }
 
+resource "aws_apigatewayv2_route" "list_tracks" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /tracks"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "AWS_IAM"
+}
+
+resource "aws_apigatewayv2_route" "list_artists" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /artists"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "AWS_IAM"
+}
+
+resource "aws_apigatewayv2_route" "list_albums" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /albums"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "AWS_IAM"
+}
+
+resource "aws_apigatewayv2_route" "list_labels" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /labels"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "AWS_IAM"
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"

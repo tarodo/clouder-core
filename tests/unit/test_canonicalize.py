@@ -19,11 +19,6 @@ from collector.repositories import (
 class FakeRepo:
     def __init__(self) -> None:
         self.identities: dict[tuple[str, str, str], IdentityMapEntry] = {}
-        self.labels_by_name: dict[str, list[str]] = {}
-        self.artists_by_name: dict[str, list[str]] = {}
-        self.albums_by_sig: dict[tuple[str, str | None, str | None], list[str]] = {}
-        self.tracks_by_isrc: dict[str, list[str]] = {}
-        self.tracks_by_sig: dict[tuple[str, str | None, int | None], list[str]] = {}
         self.created_labels: list[str] = []
         self.created_artists: list[str] = []
         self.created_albums: list[str] = []
@@ -62,42 +57,21 @@ class FakeRepo:
         for cmd in commands:
             self.upsert_identity(cmd)
 
-    def find_label_by_normalized_name(self, normalized_name: str):
-        return self.labels_by_name.get(normalized_name, [])
-
     def create_label(self, label_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None):
         del name, normalized_name, at, transaction_id
         self.created_labels.append(label_id)
-
-    def find_artist_by_normalized_name(self, normalized_name: str):
-        return self.artists_by_name.get(normalized_name, [])
 
     def create_artist(self, artist_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None):
         del name, normalized_name, at, transaction_id
         self.created_artists.append(artist_id)
 
-    def find_album_by_signature(self, normalized_title: str, release_date, label_id: str | None):
-        release_key = release_date.isoformat() if release_date else None
-        return self.albums_by_sig.get((normalized_title, release_key, label_id), [])
-
     def create_album(self, album_id: str, title: str, normalized_title: str, release_date, label_id: str | None, at: datetime, transaction_id: str | None = None):
-        del title, at, transaction_id
-        release_key = release_date.isoformat() if release_date else None
+        del title, at, transaction_id, normalized_title, release_date, label_id
         self.created_albums.append(album_id)
-        self.albums_by_sig[(normalized_title, release_key, label_id)] = [album_id]
-
-    def find_track_by_isrc(self, isrc: str):
-        return self.tracks_by_isrc.get(isrc, [])
-
-    def find_track_by_signature(self, normalized_title: str, album_id: str | None, length_ms: int | None):
-        return self.tracks_by_sig.get((normalized_title, album_id, length_ms), [])
 
     def create_track(self, cmd: CreateTrackCmd, transaction_id: str | None = None) -> None:
         del transaction_id
         self.created_tracks.append(cmd.track_id)
-        if cmd.isrc:
-            self.tracks_by_isrc[cmd.isrc] = [cmd.track_id]
-        self.tracks_by_sig[(cmd.normalized_title, cmd.album_id, cmd.length_ms)] = [cmd.track_id]
 
     def conservative_update_track(self, cmd: ConservativeUpdateTrackCmd, transaction_id: str | None = None) -> None:
         del transaction_id
@@ -117,7 +91,7 @@ class FakeRepo:
         yield "tx"
 
 
-def _raw_track(track_id: int = 1):
+def _raw_track(track_id: int = 1, artist_id: int = 713053, artist_name: str = "Nick The Lot"):
     return [
         {
             "id": track_id,
@@ -129,8 +103,8 @@ def _raw_track(track_id: int = 1):
             "publish_date": "2026-01-02",
             "artists": [
                 {
-                    "id": 713053,
-                    "name": "Nick The Lot",
+                    "id": artist_id,
+                    "name": artist_name,
                 }
             ],
             "release": {
@@ -180,3 +154,55 @@ def test_canonicalizer_reuses_existing_identity_and_updates_track() -> None:
     assert repo.created_tracks == []
     assert repo.updated_tracks == ["track-1"]
     assert ("track-1", "artist-1", "main") in repo.track_artists
+
+
+def test_same_name_different_beatport_ids_create_separate_entities() -> None:
+    """Two artists with the same name but different beatport_ids must create
+    two separate canonical artists (not merge into one)."""
+    repo = FakeRepo()
+    canonicalizer = Canonicalizer(repo)
+
+    raw_tracks = [
+        {
+            "id": 1,
+            "name": "Track A",
+            "mix_name": "Original Mix",
+            "isrc": "ISRC001",
+            "bpm": 128,
+            "length_ms": 300000,
+            "publish_date": "2026-01-01",
+            "artists": [{"id": 100, "name": "John Smith"}],
+            "release": {
+                "id": 9001,
+                "name": "Album A",
+                "label": {"id": 500, "name": "Same Label"},
+            },
+        },
+        {
+            "id": 2,
+            "name": "Track B",
+            "mix_name": "Original Mix",
+            "isrc": "ISRC002",
+            "bpm": 130,
+            "length_ms": 310000,
+            "publish_date": "2026-01-02",
+            "artists": [{"id": 200, "name": "John Smith"}],
+            "release": {
+                "id": 9002,
+                "name": "Album B",
+                "label": {"id": 500, "name": "Same Label"},
+            },
+        },
+    ]
+    bundle = normalize_tracks(raw_tracks)
+
+    canonicalizer.process_run(run_id="run-1", bundle=bundle)
+
+    assert len(repo.created_artists) == 2
+
+    identity_100 = repo.identities[("beatport", "artist", "100")]
+    identity_200 = repo.identities[("beatport", "artist", "200")]
+    assert identity_100.clouder_id != identity_200.clouder_id
+
+    assert len(repo.created_labels) == 1
+    assert len(repo.created_tracks) == 2

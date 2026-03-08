@@ -51,6 +51,12 @@ ALLOWED_LOG_FIELDS = {
     "processing_outcome",
     "processing_reason",
     "sqs_record_index",
+    "limit",
+    "offset",
+    "search",
+    "total_count",
+    "result_count",
+    "entity",
 }
 
 

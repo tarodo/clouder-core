@@ -39,12 +39,22 @@ class EnqueueResult:
     processing_reason: ProcessingReason | None = None
 
 
+_LIST_ROUTES = {
+    "GET /tracks": ("tracks", "list_tracks", "count_tracks"),
+    "GET /artists": ("artists", "list_artists", "count_artists"),
+    "GET /albums": ("albums", "list_albums", "count_albums"),
+    "GET /labels": ("labels", "list_labels", "count_labels"),
+}
+
+
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     route_key = _extract_route_key(event)
     if route_key == "GET /runs/{run_id}":
         return _handle_get_run(event, context)
     if route_key in ("POST /collect_bp_releases", ""):
         return _handle_collect(event, context)
+    if route_key in _LIST_ROUTES:
+        return _handle_list(event, route_key)
     return _json_response(
         404,
         {"error_code": "not_found", "message": "Route not found"},
@@ -298,6 +308,97 @@ def _handle_get_run(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         "correlation_id": correlation_id,
     }
     return _json_response(200, response, correlation_id)
+
+
+def _handle_list(event: Mapping[str, Any], route_key: str) -> dict[str, Any]:
+    correlation_id = _extract_correlation_id(event)
+    entity, list_method, count_method = _LIST_ROUTES[route_key]
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {
+                "error_code": "db_not_configured",
+                "message": "Database is not configured",
+            },
+            correlation_id,
+        )
+
+    try:
+        limit, offset, search = _parse_pagination_params(event)
+    except ValidationError as exc:
+        return _json_response(
+            400,
+            {"error_code": "validation_error", "message": exc.message},
+            correlation_id,
+        )
+
+    rows = getattr(repository, list_method)(limit, offset, search)
+    total = getattr(repository, count_method)(search)
+
+    items = []
+    for row in rows:
+        item: dict[str, Any] = {}
+        for key, value in row.items():
+            item[key] = value
+        if "artist_names" in item:
+            raw = item.pop("artist_names")
+            item["artists"] = [n.strip() for n in raw.split(",")] if raw else []
+        items.append(item)
+
+    log_event(
+        "INFO",
+        "list_completed",
+        correlation_id=correlation_id,
+        entity=entity,
+        result_count=len(items),
+        total_count=total,
+        limit=limit,
+        offset=offset,
+    )
+
+    return _json_response(
+        200,
+        {
+            "items": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _parse_pagination_params(
+    event: Mapping[str, Any],
+) -> tuple[int, int, str | None]:
+    query_params = event.get("queryStringParameters") or {}
+    raw_limit = query_params.get("limit", "50")
+    raw_offset = query_params.get("offset", "0")
+    search = query_params.get("search")
+
+    try:
+        limit = int(raw_limit)
+    except (ValueError, TypeError):
+        raise ValidationError("limit must be an integer")
+    try:
+        offset = int(raw_offset)
+    except (ValueError, TypeError):
+        raise ValidationError("offset must be an integer")
+
+    if limit < 1 or limit > 200:
+        raise ValidationError("limit must be between 1 and 200")
+    if offset < 0:
+        raise ValidationError("offset must be non-negative")
+
+    if search is not None:
+        search = search.strip()
+        if not search:
+            search = None
+
+    return limit, offset, search
 
 
 def _enqueue_canonicalization(
