@@ -58,35 +58,58 @@ jobs:
 
       - name: Run DB migrations via Lambda
         run: |
+          AURORA_CLUSTER_ID="$(terraform output -raw aurora_cluster_identifier)"
+          aws rds wait db-cluster-available --db-cluster-identifier "$AURORA_CLUSTER_ID"
+
           MIGRATION_FN="$(terraform output -raw migration_lambda_function_name)"
-          aws lambda invoke \
-            --function-name "$MIGRATION_FN" \
-            --payload '{"action":"upgrade","revision":"head"}' \
-            --cli-binary-format raw-in-base64-out \
-            /tmp/migration-response.json \
-            > /tmp/migration-meta.json
+          MAX_ATTEMPTS=5
+          SLEEP_SECONDS=30
 
-          python - <<'PY'
-          import json
-          import pathlib
-          import sys
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            echo "Migration attempt ${attempt}/${MAX_ATTEMPTS}"
+            aws lambda invoke \
+              --function-name "$MIGRATION_FN" \
+              --payload '{"action":"upgrade","revision":"head"}' \
+              --cli-binary-format raw-in-base64-out \
+              /tmp/migration-response.json \
+              > /tmp/migration-meta.json
 
-          meta = json.loads(pathlib.Path("/tmp/migration-meta.json").read_text())
-          raw_response = pathlib.Path("/tmp/migration-response.json").read_text() or "{}"
-          try:
-              response = json.loads(raw_response)
-          except json.JSONDecodeError:
-              response = {"raw": raw_response}
+            if python - <<'PY'
+            import json
+            import pathlib
+            import sys
 
-          print("Migration invoke meta:", json.dumps(meta, ensure_ascii=False))
-          print("Migration lambda response:", json.dumps(response, ensure_ascii=False))
+            meta = json.loads(pathlib.Path("/tmp/migration-meta.json").read_text())
+            raw_response = pathlib.Path("/tmp/migration-response.json").read_text() or "{}"
+            try:
+                response = json.loads(raw_response)
+            except json.JSONDecodeError:
+                response = {"raw": raw_response}
 
-          if meta.get("FunctionError"):
-              sys.exit("Migration Lambda returned FunctionError")
+            print("Migration invoke meta:", json.dumps(meta, ensure_ascii=False))
+            print("Migration lambda response:", json.dumps(response, ensure_ascii=False))
 
-          if isinstance(response, dict) and response.get("status") != "ok":
-              sys.exit("Migration Lambda returned non-ok status")
-          PY
+            if meta.get("FunctionError"):
+                sys.exit(1)
+
+            if isinstance(response, dict) and response.get("status") != "ok":
+                sys.exit(1)
+
+            sys.exit(0)
+            PY
+            then
+              echo "Migration succeeded."
+              break
+            fi
+
+            if [ "$attempt" -eq "$MAX_ATTEMPTS" ]; then
+              echo "Migration failed after ${MAX_ATTEMPTS} attempts."
+              exit 1
+            fi
+
+            echo "Migration failed, retrying in ${SLEEP_SECONDS}s..."
+            sleep "$SLEEP_SECONDS"
+          done
 
       - name: Disable temporary Secrets Manager VPC endpoint
         if: always()
