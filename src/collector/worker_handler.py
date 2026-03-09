@@ -7,12 +7,17 @@ from typing import Any, Mapping
 from pydantic import ValidationError as PydanticValidationError
 
 from .canonicalize import Canonicalizer
+from .errors import StorageError
 from .logging_utils import log_event
 from .normalize import normalize_tracks
 from .repositories import create_clouder_repository_from_env, utc_now
 from .schemas import CanonicalizationMessage, validation_error_message
 from .settings import get_worker_settings
 from .storage import S3Storage, create_default_s3_client
+
+# Permanent errors: data is corrupted / malformed — retrying is pointless.
+# Message is deleted from queue (not re-raised) so it won't cycle to DLQ.
+_PERMANENT_ERRORS = (ValueError, TypeError, KeyError, StorageError)
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
@@ -120,9 +125,15 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 status_code=200,
             )
         except Exception as exc:
+            is_permanent = isinstance(exc, _PERMANENT_ERRORS)
+            error_code = (
+                "canonicalization_permanent_failure"
+                if is_permanent
+                else "canonicalization_transient_failure"
+            )
             repository.set_run_failed(
                 run_id=run_id,
-                error_code="canonicalization_failed",
+                error_code=error_code,
                 error_message=str(exc),
                 finished_at=utc_now(),
             )
@@ -131,12 +142,16 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 "canonicalization_failed",
                 correlation_id=correlation_id,
                 run_id=run_id,
-                error_code="canonicalization_failed",
+                error_code=error_code,
                 error_type=exc.__class__.__name__,
                 error_message=str(exc)[:500],
                 run_status="FAILED",
                 status_code=500,
             )
+            if is_permanent:
+                # Permanent errors: don't re-raise → SQS deletes the message.
+                # Avoids 5 pointless retries for corrupted/malformed data.
+                continue
             raise
 
     return {"processed": processed}

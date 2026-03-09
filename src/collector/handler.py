@@ -48,166 +48,15 @@ _LIST_ROUTES = {
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
-    route_key = _extract_route_key(event)
-    if route_key == "GET /runs/{run_id}":
-        return _handle_get_run(event, context)
-    if route_key in ("POST /collect_bp_releases", ""):
-        return _handle_collect(event, context)
-    if route_key in _LIST_ROUTES:
-        return _handle_list(event, route_key)
-    return _json_response(
-        404,
-        {"error_code": "not_found", "message": "Route not found"},
-        _extract_correlation_id(event),
-    )
-
-
-def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
-    started_at_perf = time.perf_counter()
+    correlation_id = _extract_correlation_id(event)
     api_request_id = _extract_api_request_id(event)
     lambda_request_id = getattr(context, "aws_request_id", "unknown")
-    correlation_id = _extract_correlation_id(event)
-
-    log_event(
-        "INFO",
-        "request_received",
-        correlation_id=correlation_id,
-        api_request_id=api_request_id,
-        lambda_request_id=lambda_request_id,
-    )
-
     try:
-        settings = _load_api_settings()
-        body = _parse_json_body(event)
-        request = _parse_collect_request(body)
-        week_start, week_end = compute_iso_week_date_range(
-            request.iso_year, request.iso_week
-        )
-        run_id = str(uuid.uuid4())
-
-        log_event(
-            "INFO",
-            "request_validated",
-            correlation_id=correlation_id,
-            api_request_id=api_request_id,
-            lambda_request_id=lambda_request_id,
-            style_id=request.style_id,
-            iso_year=request.iso_year,
-            iso_week=request.iso_week,
-        )
-
-        beatport_client = BeatportClient(base_url=settings.beatport_api_base_url)
-        releases, api_pages_fetched = beatport_client.fetch_weekly_releases(
-            bp_token=request.bp_token,
-            style_id=request.style_id,
-            week_start=week_start,
-            week_end=week_end,
-            correlation_id=correlation_id,
-        )
-
-        duration_ms = int((time.perf_counter() - started_at_perf) * 1000)
-        item_count = len(releases)
-        meta = {
-            "style_id": request.style_id,
-            "iso_year": request.iso_year,
-            "iso_week": request.iso_week,
-            "week_start": week_start,
-            "week_end": week_end,
-            "run_id": run_id,
-            "correlation_id": correlation_id,
-            "api_request_id": api_request_id,
-            "lambda_request_id": lambda_request_id,
-            "collected_at_utc": datetime.now(timezone.utc)
-            .replace(microsecond=0)
-            .isoformat()
-            .replace("+00:00", "Z"),
-            "item_count": item_count,
-            "api_pages_fetched": api_pages_fetched,
-            "duration_ms": duration_ms,
-        }
-
-        storage = S3Storage(
-            s3_client=create_default_s3_client(),
-            bucket_name=settings.raw_bucket_name,
-            raw_prefix=settings.raw_prefix,
-        )
-        releases_key, _ = storage.write_run_artifacts(releases=releases, meta=meta)
-
-        repository = create_clouder_repository_from_env()
-        if repository is not None:
-            repository.create_ingest_run(
-                CreateIngestRunCmd(
-                    run_id=run_id,
-                    source="beatport",
-                    style_id=request.style_id,
-                    iso_year=request.iso_year,
-                    iso_week=request.iso_week,
-                    raw_s3_key=releases_key,
-                    status=RunStatus.RAW_SAVED,
-                    item_count=item_count,
-                    meta=meta,
-                    started_at=utc_now(),
-                )
-            )
-
-        enqueue_result = _enqueue_canonicalization(
-            run_id=run_id,
-            s3_key=releases_key,
-            style_id=request.style_id,
-            iso_year=request.iso_year,
-            iso_week=request.iso_week,
-            correlation_id=correlation_id,
-            settings=settings,
-        )
-
-        response = {
-            "run_id": run_id,
-            "correlation_id": correlation_id,
-            "api_request_id": api_request_id,
-            "lambda_request_id": lambda_request_id,
-            "iso_year": request.iso_year,
-            "iso_week": request.iso_week,
-            "s3_object_key": releases_key,
-            "item_count": item_count,
-            "duration_ms": duration_ms,
-            "run_status": RunStatus.RAW_SAVED.value,
-            "processing_status": enqueue_result.processing_status.value,
-            "processing_outcome": enqueue_result.processing_outcome.value,
-            "processing_reason": (
-                enqueue_result.processing_reason.value
-                if enqueue_result.processing_reason
-                else None
-            ),
-        }
-
-        log_event(
-            "INFO",
-            "collection_completed",
-            correlation_id=correlation_id,
-            api_request_id=api_request_id,
-            lambda_request_id=lambda_request_id,
-            run_id=run_id,
-            style_id=request.style_id,
-            iso_year=request.iso_year,
-            iso_week=request.iso_week,
-            item_count=item_count,
-            api_pages_fetched=api_pages_fetched,
-            duration_ms=duration_ms,
-            status_code=200,
-            processing_status=enqueue_result.processing_status.value,
-            processing_outcome=enqueue_result.processing_outcome.value,
-            processing_reason=(
-                enqueue_result.processing_reason.value
-                if enqueue_result.processing_reason
-                else None
-            ),
-        )
-        return _json_response(200, response, correlation_id)
-
+        return _route(event, context, correlation_id)
     except AppError as exc:
         log_event(
             "ERROR",
-            "collection_failed",
+            "request_failed",
             correlation_id=correlation_id,
             api_request_id=api_request_id,
             lambda_request_id=lambda_request_id,
@@ -227,10 +76,10 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             },
             correlation_id,
         )
-    except Exception as exc:  # pragma: no cover - safety net path
+    except Exception as exc:  # pragma: no cover - safety net
         log_event(
             "ERROR",
-            "collection_failed_unexpected",
+            "request_failed_unexpected",
             correlation_id=correlation_id,
             api_request_id=api_request_id,
             lambda_request_id=lambda_request_id,
@@ -250,6 +99,165 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             },
             correlation_id,
         )
+
+
+def _route(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
+    route_key = _extract_route_key(event)
+    if route_key == "GET /runs/{run_id}":
+        return _handle_get_run(event, context)
+    if route_key in ("POST /collect_bp_releases", ""):
+        return _handle_collect(event, context)
+    if route_key in _LIST_ROUTES:
+        return _handle_list(event, route_key)
+    return _json_response(
+        404,
+        {"error_code": "not_found", "message": "Route not found"},
+        correlation_id,
+    )
+
+
+def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
+    started_at_perf = time.perf_counter()
+    api_request_id = _extract_api_request_id(event)
+    lambda_request_id = getattr(context, "aws_request_id", "unknown")
+    correlation_id = _extract_correlation_id(event)
+
+    log_event(
+        "INFO",
+        "request_received",
+        correlation_id=correlation_id,
+        api_request_id=api_request_id,
+        lambda_request_id=lambda_request_id,
+    )
+
+    settings = _load_api_settings()
+    body = _parse_json_body(event)
+    request = _parse_collect_request(body)
+    week_start, week_end = compute_iso_week_date_range(
+        request.iso_year, request.iso_week
+    )
+    run_id = str(uuid.uuid4())
+
+    log_event(
+        "INFO",
+        "request_validated",
+        correlation_id=correlation_id,
+        api_request_id=api_request_id,
+        lambda_request_id=lambda_request_id,
+        style_id=request.style_id,
+        iso_year=request.iso_year,
+        iso_week=request.iso_week,
+    )
+
+    beatport_client = BeatportClient(base_url=settings.beatport_api_base_url)
+    releases, api_pages_fetched = beatport_client.fetch_weekly_releases(
+        bp_token=request.bp_token,
+        style_id=request.style_id,
+        week_start=week_start,
+        week_end=week_end,
+        correlation_id=correlation_id,
+    )
+
+    duration_ms = int((time.perf_counter() - started_at_perf) * 1000)
+    item_count = len(releases)
+    meta = {
+        "style_id": request.style_id,
+        "iso_year": request.iso_year,
+        "iso_week": request.iso_week,
+        "week_start": week_start,
+        "week_end": week_end,
+        "run_id": run_id,
+        "correlation_id": correlation_id,
+        "api_request_id": api_request_id,
+        "lambda_request_id": lambda_request_id,
+        "collected_at_utc": datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "item_count": item_count,
+        "api_pages_fetched": api_pages_fetched,
+        "duration_ms": duration_ms,
+    }
+
+    storage = S3Storage(
+        s3_client=create_default_s3_client(),
+        bucket_name=settings.raw_bucket_name,
+        raw_prefix=settings.raw_prefix,
+    )
+    releases_key, _ = storage.write_run_artifacts(releases=releases, meta=meta)
+
+    repository = create_clouder_repository_from_env()
+    if repository is not None:
+        repository.create_ingest_run(
+            CreateIngestRunCmd(
+                run_id=run_id,
+                source="beatport",
+                style_id=request.style_id,
+                iso_year=request.iso_year,
+                iso_week=request.iso_week,
+                raw_s3_key=releases_key,
+                status=RunStatus.RAW_SAVED,
+                item_count=item_count,
+                meta=meta,
+                started_at=utc_now(),
+            )
+        )
+
+    enqueue_result = _enqueue_canonicalization(
+        run_id=run_id,
+        s3_key=releases_key,
+        style_id=request.style_id,
+        iso_year=request.iso_year,
+        iso_week=request.iso_week,
+        correlation_id=correlation_id,
+        settings=settings,
+    )
+
+    response = {
+        "run_id": run_id,
+        "correlation_id": correlation_id,
+        "api_request_id": api_request_id,
+        "lambda_request_id": lambda_request_id,
+        "iso_year": request.iso_year,
+        "iso_week": request.iso_week,
+        "s3_object_key": releases_key,
+        "item_count": item_count,
+        "duration_ms": duration_ms,
+        "run_status": RunStatus.RAW_SAVED.value,
+        "processing_status": enqueue_result.processing_status.value,
+        "processing_outcome": enqueue_result.processing_outcome.value,
+        "processing_reason": (
+            enqueue_result.processing_reason.value
+            if enqueue_result.processing_reason
+            else None
+        ),
+    }
+
+    log_event(
+        "INFO",
+        "collection_completed",
+        correlation_id=correlation_id,
+        api_request_id=api_request_id,
+        lambda_request_id=lambda_request_id,
+        run_id=run_id,
+        style_id=request.style_id,
+        iso_year=request.iso_year,
+        iso_week=request.iso_week,
+        item_count=item_count,
+        api_pages_fetched=api_pages_fetched,
+        duration_ms=duration_ms,
+        status_code=200,
+        processing_status=enqueue_result.processing_status.value,
+        processing_outcome=enqueue_result.processing_outcome.value,
+        processing_reason=(
+            enqueue_result.processing_reason.value
+            if enqueue_result.processing_reason
+            else None
+        ),
+    )
+    return _json_response(200, response, correlation_id)
 
 
 def _handle_get_run(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
