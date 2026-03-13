@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Mapping
 
 from pydantic import ValidationError as PydanticValidationError
@@ -10,8 +11,9 @@ from .canonicalize import Canonicalizer
 from .errors import StorageError
 from .logging_utils import log_event
 from .normalize import normalize_tracks
-from .repositories import create_clouder_repository_from_env, utc_now
+from .repositories import ClouderRepository, create_clouder_repository_from_env, utc_now
 from .schemas import CanonicalizationMessage, validation_error_message
+from .search.prompts import get_latest as get_latest_prompt
 from .settings import get_worker_settings
 from .storage import S3Storage, create_default_s3_client
 
@@ -124,6 +126,12 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 run_status="COMPLETED",
                 status_code=200,
             )
+
+            _enqueue_label_search_after_canonicalization(
+                repository=repository,
+                settings=settings,
+                correlation_id=correlation_id,
+            )
         except Exception as exc:
             is_permanent = isinstance(exc, _PERMANENT_ERRORS)
             error_code = (
@@ -155,6 +163,78 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             raise
 
     return {"processed": processed}
+
+
+def _enqueue_label_search_after_canonicalization(
+    repository: ClouderRepository,
+    settings: Any,
+    correlation_id: str,
+) -> None:
+    """Enqueue labels for AI search after canonicalization completes."""
+    queue_url = settings.ai_search_queue_url.strip()
+    if not queue_url:
+        return
+
+    try:
+        prompt = get_latest_prompt("label_info")
+    except KeyError:
+        return
+
+    labels = repository.find_labels_needing_search(
+        prompt_slug=prompt.slug,
+        prompt_version=prompt.version,
+        limit=500,
+    )
+
+    if not labels:
+        return
+
+    import boto3
+
+    sqs = boto3.client("sqs")
+    enqueued = 0
+    for label in labels:
+        payload = {
+            "label_id": str(label["id"]),
+            "label_name": str(label["name"]),
+            "styles": str(label.get("styles") or ""),
+            "prompt_slug": prompt.slug,
+            "prompt_version": prompt.version,
+        }
+        try:
+            sqs.send_message(
+                QueueUrl=queue_url,
+                MessageBody=json.dumps(
+                    payload, ensure_ascii=False, separators=(",", ":")
+                ),
+                MessageAttributes={
+                    "correlation_id": {
+                        "DataType": "String",
+                        "StringValue": correlation_id,
+                    }
+                },
+            )
+            enqueued += 1
+        except Exception as exc:  # pragma: no cover
+            log_event(
+                "ERROR",
+                "label_search_enqueue_message_failed",
+                correlation_id=correlation_id,
+                label_id=str(label["id"]),
+                error_type=exc.__class__.__name__,
+                error_message=str(exc)[:500],
+            )
+
+    if enqueued:
+        log_event(
+            "INFO",
+            "label_search_enqueued_after_canonicalization",
+            correlation_id=correlation_id,
+            labels_found=len(labels),
+            labels_enqueued=enqueued,
+            prompt_slug=prompt.slug,
+            prompt_version=prompt.version,
+        )
 
 
 def _extract_message_attribute(record: Mapping[str, Any], key: str) -> str | None:

@@ -165,3 +165,48 @@ variable "enable_secretsmanager_vpc_endpoint" {
   type        = bool
   default     = false
 }
+
+# ── AI Search ──────────────────────────────────────────────────────
+
+variable "ai_search_enabled" {
+  description = "Enable AI-powered label search via Perplexity"
+  type        = bool
+  default     = false
+}
+
+variable "ai_search_worker_lambda_timeout_seconds" {
+  description = "AI search worker Lambda timeout in seconds"
+  type        = number
+  default     = 60
+}
+
+variable "ai_search_worker_lambda_memory_mb" {
+  description = "AI search worker Lambda memory size in MB"
+  type        = number
+  default     = 256
+}
+
+variable "ai_search_batch_size" {
+  description = "SQS batch size for AI search worker lambda"
+  type        = number
+  default     = 1
+}
+
+variable "ai_search_queue_visibility_timeout_seconds" {
+  description = "Visibility timeout for AI search queue"
+  type        = number
+  default     = 90
+}
+
+variable "ai_search_queue_retention_seconds" {
+  description = "Message retention for AI search queue"
+  type        = number
+  default     = 1209600
+}
+
+variable "perplexity_api_key" {
+  description = "Perplexity API key for AI search"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

@@ -28,6 +28,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       "${aws_cloudwatch_log_group.collector.arn}:*",
       "${aws_cloudwatch_log_group.canonicalization_worker.arn}:*",
       "${aws_cloudwatch_log_group.migration_lambda.arn}:*",
+      "${aws_cloudwatch_log_group.ai_search_worker.arn}:*",
     ]
   }
 
@@ -75,7 +76,10 @@ data "aws_iam_policy_document" "collector_lambda" {
       "sqs:GetQueueAttributes",
       "sqs:GetQueueUrl",
     ]
-    resources = [aws_sqs_queue.canonicalization.arn]
+    resources = [
+      aws_sqs_queue.canonicalization.arn,
+      aws_sqs_queue.ai_search.arn,
+    ]
   }
 
   statement {
@@ -88,7 +92,10 @@ data "aws_iam_policy_document" "collector_lambda" {
       "sqs:GetQueueAttributes",
       "sqs:GetQueueUrl",
     ]
-    resources = [aws_sqs_queue.canonicalization.arn]
+    resources = [
+      aws_sqs_queue.canonicalization.arn,
+      aws_sqs_queue.ai_search.arn,
+    ]
   }
 
   statement {

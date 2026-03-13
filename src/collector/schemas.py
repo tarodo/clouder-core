@@ -22,6 +22,7 @@ class CollectRequestIn(BaseModel):
     style_id: StrictInt = Field(gt=0)
     iso_year: StrictInt = Field(ge=2000, le=2100)
     iso_week: StrictInt = Field(ge=1, le=53)
+    search_label_count: StrictInt | None = Field(default=None, ge=1, le=200)
 
     @field_validator("bp_token")
     @classmethod
@@ -79,6 +80,24 @@ class MigrationCommand(BaseModel):
     def _normalize_revision(cls, value: str) -> str:
         normalized = value.strip()
         return normalized or "head"
+
+
+class LabelSearchMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    label_id: str
+    label_name: str
+    styles: str
+    prompt_slug: str = "label_info"
+    prompt_version: str = "v1"
+
+    @field_validator("label_id", "label_name", "styles")
+    @classmethod
+    def _validate_non_empty(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("field must be a non-empty string")
+        return normalized
 
 
 def validation_error_message(exc: PydanticValidationError) -> str:

@@ -28,6 +28,7 @@ from .repositories import (
     utc_now,
 )
 from .schemas import CollectRequestIn, validation_error_message
+from .search.prompts import get_latest as get_latest_prompt
 from .settings import ApiSettings, get_api_settings
 from .storage import S3Storage, create_default_s3_client
 
@@ -215,6 +216,14 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         settings=settings,
     )
 
+    search_enqueued = 0
+    if request.search_label_count and settings.ai_search_enabled:
+        search_enqueued = _enqueue_label_search(
+            limit=request.search_label_count,
+            settings=settings,
+            correlation_id=correlation_id,
+        )
+
     response = {
         "run_id": run_id,
         "correlation_id": correlation_id,
@@ -233,6 +242,7 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             if enqueue_result.processing_reason
             else None
         ),
+        "search_labels_enqueued": search_enqueued,
     }
 
     log_event(
@@ -506,6 +516,104 @@ def _enqueue_canonicalization(
             processing_reason=result.processing_reason.value,
         )
         return result
+
+
+def _enqueue_label_search(
+    limit: int,
+    settings: ApiSettings,
+    correlation_id: str,
+) -> int:
+    """Find labels needing AI search and enqueue them to SQS."""
+    queue_url = settings.ai_search_queue_url.strip()
+    if not queue_url:
+        log_event(
+            "INFO",
+            "label_search_enqueue_skipped",
+            correlation_id=correlation_id,
+            reason="queue_url_missing",
+        )
+        return 0
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        log_event(
+            "INFO",
+            "label_search_enqueue_skipped",
+            correlation_id=correlation_id,
+            reason="db_not_configured",
+        )
+        return 0
+
+    try:
+        prompt = get_latest_prompt("label_info")
+    except KeyError:
+        log_event(
+            "ERROR",
+            "label_search_enqueue_failed",
+            correlation_id=correlation_id,
+            reason="no_prompt_found",
+        )
+        return 0
+
+    labels = repository.find_labels_needing_search(
+        prompt_slug=prompt.slug,
+        prompt_version=prompt.version,
+        limit=limit,
+    )
+
+    if not labels:
+        log_event(
+            "INFO",
+            "label_search_enqueue_skipped",
+            correlation_id=correlation_id,
+            reason="no_labels_need_search",
+        )
+        return 0
+
+    sqs = create_default_sqs_client()
+    enqueued = 0
+    for label in labels:
+        payload = {
+            "label_id": str(label["id"]),
+            "label_name": str(label["name"]),
+            "styles": str(label.get("styles") or ""),
+            "prompt_slug": prompt.slug,
+            "prompt_version": prompt.version,
+        }
+        try:
+            sqs.send_message(
+                QueueUrl=queue_url,
+                MessageBody=json.dumps(
+                    payload, ensure_ascii=False, separators=(",", ":")
+                ),
+                MessageAttributes={
+                    "correlation_id": {
+                        "DataType": "String",
+                        "StringValue": correlation_id,
+                    }
+                },
+            )
+            enqueued += 1
+        except Exception as exc:  # pragma: no cover
+            log_event(
+                "ERROR",
+                "label_search_enqueue_message_failed",
+                correlation_id=correlation_id,
+                label_id=str(label["id"]),
+                error_type=exc.__class__.__name__,
+                error_message=str(exc)[:500],
+            )
+
+    log_event(
+        "INFO",
+        "label_search_enqueued",
+        correlation_id=correlation_id,
+        labels_found=len(labels),
+        labels_enqueued=enqueued,
+        prompt_slug=prompt.slug,
+        prompt_version=prompt.version,
+    )
+    return enqueued
 
 
 def create_default_sqs_client() -> Any:
