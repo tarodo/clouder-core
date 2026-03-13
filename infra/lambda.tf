@@ -16,6 +16,8 @@ resource "aws_lambda_function" "collector" {
       BEATPORT_API_BASE_URL      = var.beatport_api_base_url
       CANONICALIZATION_ENABLED   = var.canonicalization_enabled ? "true" : "false"
       CANONICALIZATION_QUEUE_URL = aws_sqs_queue.canonicalization.url
+      AI_SEARCH_ENABLED          = var.ai_search_enabled ? "true" : "false"
+      AI_SEARCH_QUEUE_URL        = aws_sqs_queue.ai_search.url
       AURORA_CLUSTER_ARN         = aws_rds_cluster.aurora.arn
       AURORA_SECRET_ARN          = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
       AURORA_DATABASE            = var.aurora_database_name
@@ -41,12 +43,13 @@ resource "aws_lambda_function" "canonicalization_worker" {
 
   environment {
     variables = {
-      RAW_BUCKET_NAME    = aws_s3_bucket.raw.bucket
-      RAW_PREFIX         = var.raw_prefix
-      AURORA_CLUSTER_ARN = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN  = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE    = var.aurora_database_name
-      LOG_LEVEL          = "INFO"
+      RAW_BUCKET_NAME     = aws_s3_bucket.raw.bucket
+      RAW_PREFIX          = var.raw_prefix
+      AI_SEARCH_QUEUE_URL = aws_sqs_queue.ai_search.url
+      AURORA_CLUSTER_ARN  = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN   = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE     = var.aurora_database_name
+      LOG_LEVEL           = "INFO"
     }
   }
 
@@ -90,4 +93,38 @@ resource "aws_lambda_event_source_mapping" "canonicalization_queue" {
   event_source_arn = aws_sqs_queue.canonicalization.arn
   function_name    = aws_lambda_function.canonicalization_worker.arn
   batch_size       = var.canonicalization_batch_size
+}
+
+# ── AI Search worker ─────────────────────────────────────────────
+
+resource "aws_lambda_function" "ai_search_worker" {
+  function_name = local.ai_search_worker_lambda_name
+  role          = aws_iam_role.collector_lambda.arn
+  runtime       = "python3.12"
+  handler       = "collector.search_handler.lambda_handler"
+  filename      = local.lambda_zip_file
+  timeout       = var.ai_search_worker_lambda_timeout_seconds
+  memory_size   = var.ai_search_worker_lambda_memory_mb
+
+  source_code_hash = filebase64sha256(local.lambda_zip_file)
+
+  environment {
+    variables = {
+      PERPLEXITY_API_KEY = var.perplexity_api_key
+      AURORA_CLUSTER_ARN = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN  = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE    = var.aurora_database_name
+      LOG_LEVEL          = "INFO"
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.ai_search_worker,
+  ]
+}
+
+resource "aws_lambda_event_source_mapping" "ai_search_queue" {
+  event_source_arn = aws_sqs_queue.ai_search.arn
+  function_name    = aws_lambda_function.ai_search_worker.arn
+  batch_size       = var.ai_search_batch_size
 }

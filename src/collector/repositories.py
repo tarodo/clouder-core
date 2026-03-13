@@ -623,6 +623,78 @@ class ClouderRepository:
             transaction_id=transaction_id,
         )
 
+    # ── AI Search methods ───────────────────────────────────────────
+
+    def find_labels_needing_search(
+        self,
+        prompt_slug: str,
+        prompt_version: str,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        return self._data_api.execute(
+            """
+            SELECT cl.id, cl.name,
+                   string_agg(DISTINCT se.payload->'genre'->>'name', ', '
+                              ORDER BY se.payload->'genre'->>'name') AS styles
+            FROM clouder_labels cl
+            JOIN clouder_albums ca ON ca.label_id = cl.id
+            JOIN clouder_tracks ct ON ct.album_id = ca.id
+            JOIN identity_map im ON im.clouder_id = ct.id
+                AND im.clouder_entity_type = 'track'
+            JOIN source_entities se ON se.source = im.source
+                AND se.entity_type = im.entity_type
+                AND se.external_id = im.external_id
+            LEFT JOIN ai_search_results asr ON asr.entity_id = cl.id
+                AND asr.entity_type = 'label'
+                AND asr.prompt_slug = :prompt_slug
+                AND asr.prompt_version = :prompt_version
+            WHERE asr.id IS NULL
+                AND se.payload->'genre'->>'name' IS NOT NULL
+            GROUP BY cl.id, cl.name
+            ORDER BY cl.name
+            LIMIT :limit
+            """,
+            {
+                "prompt_slug": prompt_slug,
+                "prompt_version": prompt_version,
+                "limit": limit,
+            },
+        )
+
+    def save_search_result(
+        self,
+        result_id: str,
+        entity_type: str,
+        entity_id: str,
+        prompt_slug: str,
+        prompt_version: str,
+        result: dict[str, Any],
+        searched_at: datetime,
+    ) -> None:
+        self._data_api.execute(
+            """
+            INSERT INTO ai_search_results (
+                id, entity_type, entity_id, prompt_slug, prompt_version,
+                result, searched_at
+            ) VALUES (
+                :id, :entity_type, :entity_id, :prompt_slug, :prompt_version,
+                :result, :searched_at
+            )
+            ON CONFLICT (entity_type, entity_id, prompt_slug, prompt_version) DO UPDATE SET
+                result = EXCLUDED.result,
+                searched_at = EXCLUDED.searched_at
+            """,
+            {
+                "id": result_id,
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "prompt_slug": prompt_slug,
+                "prompt_version": prompt_version,
+                "result": result,
+                "searched_at": searched_at,
+            },
+        )
+
     # ── Read API methods ──────────────────────────────────────────────
 
     def list_tracks(

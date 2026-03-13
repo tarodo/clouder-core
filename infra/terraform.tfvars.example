@@ -1,0 +1,6 @@
+# Copy this file to terraform.tfvars and fill in the values.
+# terraform.tfvars is in .gitignore and will NOT be committed.
+
+# ── AI Search (Perplexity) ────────────────────────────────────────
+ai_search_enabled  = false
+perplexity_api_key = "pplx-..."

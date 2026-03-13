@@ -186,6 +186,30 @@ class ClouderTrackArtist(Base):
     )
 
 
+class AISearchResult(Base):
+    __tablename__ = "ai_search_results"
+    __table_args__ = (
+        Index(
+            "uq_search_result",
+            "entity_type",
+            "entity_id",
+            "prompt_slug",
+            "prompt_version",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    prompt_slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    result: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    searched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
 class IdentityMap(Base):
     __tablename__ = "identity_map"
     __table_args__ = (

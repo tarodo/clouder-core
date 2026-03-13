@@ -43,11 +43,18 @@ class ApiSettings(_SettingsBase):
             "CANONICALIZATION_QUEUE_URL", "CANONICALIZE_QUEUE_URL"
         ),
     )
+    ai_search_enabled: bool = Field(default=False, alias="AI_SEARCH_ENABLED")
+    ai_search_queue_url: str = Field(default="", alias="AI_SEARCH_QUEUE_URL")
 
 
 class WorkerSettings(_SettingsBase):
     raw_bucket_name: str = Field(alias="RAW_BUCKET_NAME")
     raw_prefix: str = Field(default="raw/bp/releases", alias="RAW_PREFIX")
+    ai_search_queue_url: str = Field(default="", alias="AI_SEARCH_QUEUE_URL")
+
+
+class SearchWorkerSettings(_SettingsBase):
+    perplexity_api_key: str = Field(alias="PERPLEXITY_API_KEY")
 
 
 class MigrationSettings(_SettingsBase):
@@ -86,9 +93,15 @@ def get_logging_settings() -> LoggingSettings:
     return LoggingSettings()
 
 
+@lru_cache
+def get_search_worker_settings() -> SearchWorkerSettings:
+    return SearchWorkerSettings()
+
+
 def reset_settings_cache() -> None:
     get_api_settings.cache_clear()
     get_worker_settings.cache_clear()
     get_migration_settings.cache_clear()
     get_data_api_settings.cache_clear()
     get_logging_settings.cache_clear()
+    get_search_worker_settings.cache_clear()
