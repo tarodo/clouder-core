@@ -43,13 +43,13 @@ resource "aws_lambda_function" "canonicalization_worker" {
 
   environment {
     variables = {
-      RAW_BUCKET_NAME      = aws_s3_bucket.raw.bucket
-      RAW_PREFIX           = var.raw_prefix
-      AI_SEARCH_QUEUE_URL  = aws_sqs_queue.ai_search.url
-      AURORA_CLUSTER_ARN   = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN    = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE      = var.aurora_database_name
-      LOG_LEVEL            = "INFO"
+      RAW_BUCKET_NAME     = aws_s3_bucket.raw.bucket
+      RAW_PREFIX          = var.raw_prefix
+      AI_SEARCH_QUEUE_URL = aws_sqs_queue.ai_search.url
+      AURORA_CLUSTER_ARN  = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN   = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE     = var.aurora_database_name
+      LOG_LEVEL           = "INFO"
     }
   }
 
