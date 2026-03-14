@@ -393,6 +393,32 @@ def test_list_with_search_param(monkeypatch, context) -> None:
     assert body["items"] == []
 
 
+def test_list_styles_returns_results(monkeypatch, context) -> None:
+    class FakeRepo:
+        def list_styles(self, limit, offset, search):
+            return [
+                {
+                    "id": "sty-1",
+                    "name": "House",
+                    "normalized_name": "house",
+                    "created_at": "2026-03-01T10:00:00Z",
+                    "updated_at": "2026-03-01T10:00:00Z",
+                },
+            ]
+
+        def count_styles(self, search):
+            return 1
+
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: FakeRepo())
+
+    response = lambda_handler(_list_event("GET /styles"), context)
+
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["total"] == 1
+    assert body["items"][0]["name"] == "House"
+
+
 def test_list_invalid_limit_returns_validation_error(monkeypatch, context) -> None:
     monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: object())
 

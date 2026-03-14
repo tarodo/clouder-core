@@ -20,6 +20,7 @@ class FakeRepo:
     def __init__(self) -> None:
         self.identities: dict[tuple[str, str, str], IdentityMapEntry] = {}
         self.created_labels: list[str] = []
+        self.created_styles: list[str] = []
         self.created_artists: list[str] = []
         self.created_albums: list[str] = []
         self.created_tracks: list[str] = []
@@ -60,6 +61,10 @@ class FakeRepo:
     def create_label(self, label_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None):
         del name, normalized_name, at, transaction_id
         self.created_labels.append(label_id)
+
+    def create_style(self, style_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None):
+        del name, normalized_name, at, transaction_id
+        self.created_styles.append(style_id)
 
     def create_artist(self, artist_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None):
         del name, normalized_name, at, transaction_id
@@ -107,6 +112,10 @@ def _raw_track(track_id: int = 1, artist_id: int = 713053, artist_name: str = "N
                     "name": artist_name,
                 }
             ],
+            "genre": {
+                "id": 1,
+                "name": "Drum & Bass",
+            },
             "release": {
                 "id": 5654120,
                 "name": "Low Down Deep Best Of 2025",
@@ -127,7 +136,9 @@ def test_canonicalizer_auto_creates_entities_when_no_matches() -> None:
     result = canonicalizer.process_run(run_id="run-1", bundle=bundle)
 
     assert result.tracks_processed == 1
+    assert result.styles_total == 1
     assert len(repo.created_labels) == 1
+    assert len(repo.created_styles) == 1
     assert len(repo.created_artists) == 1
     assert len(repo.created_albums) == 1
     assert len(repo.created_tracks) == 1
@@ -136,11 +147,13 @@ def test_canonicalizer_auto_creates_entities_when_no_matches() -> None:
     assert ("beatport", "artist", "713053") in repo.identities
     assert ("beatport", "label", "40187") in repo.identities
     assert ("beatport", "album", "5654120") in repo.identities
+    assert ("beatport", "style", "1") in repo.identities
 
 
 def test_canonicalizer_reuses_existing_identity_and_updates_track() -> None:
     repo = FakeRepo()
     repo.identities[("beatport", "label", "40187")] = IdentityMapEntry("label", "label-1")
+    repo.identities[("beatport", "style", "1")] = IdentityMapEntry("style", "style-1")
     repo.identities[("beatport", "artist", "713053")] = IdentityMapEntry("artist", "artist-1")
     repo.identities[("beatport", "album", "5654120")] = IdentityMapEntry("album", "album-1")
     repo.identities[("beatport", "track", "1")] = IdentityMapEntry("track", "track-1")
@@ -152,6 +165,7 @@ def test_canonicalizer_reuses_existing_identity_and_updates_track() -> None:
 
     assert result.tracks_processed == 1
     assert repo.created_tracks == []
+    assert repo.created_styles == []
     assert repo.updated_tracks == ["track-1"]
     assert ("track-1", "artist-1", "main") in repo.track_artists
 

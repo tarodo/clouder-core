@@ -49,6 +49,9 @@ class FakeRepo:
     def create_label(self, label_id, name, normalized_name, at, transaction_id=None):
         pass
 
+    def create_style(self, style_id, name, normalized_name, at, transaction_id=None):
+        pass
+
     def create_artist(self, artist_id, name, normalized_name, at, transaction_id=None):
         pass
 
@@ -159,6 +162,7 @@ def test_happy_path_processes_tracks(monkeypatch) -> None:
             "length_ms": 300000,
             "publish_date": "2026-01-01",
             "artists": [{"id": 100, "name": "Artist A"}],
+            "genre": {"id": 1, "name": "House"},
             "release": {
                 "id": 9001,
                 "name": "Album A",

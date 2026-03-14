@@ -79,6 +79,7 @@ class CreateTrackCmd:
     length_ms: int | None
     publish_date: date | None
     album_id: str | None
+    style_id: str | None
     at: datetime
 
 
@@ -91,6 +92,7 @@ class ConservativeUpdateTrackCmd:
     length_ms: int | None
     publish_date: date | None
     album_id: str | None
+    style_id: str | None
     at: datetime
 
 
@@ -480,6 +482,29 @@ class ClouderRepository:
             transaction_id=transaction_id,
         )
 
+    def create_style(
+        self,
+        style_id: str,
+        name: str,
+        normalized_name: str,
+        at: datetime,
+        transaction_id: str | None = None,
+    ) -> None:
+        self._data_api.execute(
+            """
+            INSERT INTO clouder_styles (id, name, normalized_name, created_at, updated_at)
+            VALUES (:id, :name, :normalized_name, :at, :at)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            {
+                "id": style_id,
+                "name": name,
+                "normalized_name": normalized_name,
+                "at": at,
+            },
+            transaction_id=transaction_id,
+        )
+
     def create_album(
         self,
         album_id: str,
@@ -517,10 +542,10 @@ class ClouderRepository:
             """
             INSERT INTO clouder_tracks (
                 id, title, normalized_title, mix_name, isrc, bpm, length_ms,
-                publish_date, album_id, created_at, updated_at
+                publish_date, album_id, style_id, created_at, updated_at
             ) VALUES (
                 :id, :title, :normalized_title, :mix_name, :isrc, :bpm, :length_ms,
-                :publish_date, :album_id, :at, :at
+                :publish_date, :album_id, :style_id, :at, :at
             )
             ON CONFLICT (id) DO NOTHING
             """,
@@ -534,6 +559,7 @@ class ClouderRepository:
                 "length_ms": cmd.length_ms,
                 "publish_date": cmd.publish_date,
                 "album_id": cmd.album_id,
+                "style_id": cmd.style_id,
                 "at": cmd.at,
             },
             transaction_id=transaction_id,
@@ -566,6 +592,7 @@ class ClouderRepository:
                 END,
                 publish_date = COALESCE(:publish_date, publish_date),
                 album_id = COALESCE(:album_id, album_id),
+                style_id = COALESCE(:style_id, style_id),
                 updated_at = :at
             WHERE id = :track_id
             """,
@@ -577,6 +604,7 @@ class ClouderRepository:
                 "length_ms": cmd.length_ms,
                 "publish_date": cmd.publish_date,
                 "album_id": cmd.album_id,
+                "style_id": cmd.style_id,
                 "at": cmd.at,
             },
             transaction_id=transaction_id,
@@ -708,17 +736,19 @@ class ClouderRepository:
         return self._data_api.execute(
             f"""
             SELECT t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
-                   t.publish_date, t.album_id, t.created_at, t.updated_at,
+                   t.publish_date, t.album_id, t.style_id, t.created_at, t.updated_at,
                    a.title AS album_title,
                    l.name AS label_name,
+                   s.name AS style_name,
                    string_agg(DISTINCT art.name, ', ' ORDER BY art.name) AS artist_names
             FROM clouder_tracks t
             LEFT JOIN clouder_albums a ON t.album_id = a.id
             LEFT JOIN clouder_labels l ON a.label_id = l.id
+            LEFT JOIN clouder_styles s ON t.style_id = s.id
             LEFT JOIN clouder_track_artists ta ON ta.track_id = t.id
             LEFT JOIN clouder_artists art ON ta.artist_id = art.id
             {where}
-            GROUP BY t.id, a.title, l.name
+            GROUP BY t.id, a.title, l.name, s.name
             ORDER BY t.created_at DESC
             LIMIT :limit OFFSET :offset
             """,
@@ -826,6 +856,36 @@ class ClouderRepository:
             params["search"] = f"%{search.lower()}%"
         rows = self._data_api.execute(
             f"SELECT count(*) AS cnt FROM clouder_labels {where}", params
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def list_styles(
+        self, limit: int, offset: int, search: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        where = ""
+        if search:
+            where = "WHERE normalized_name LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        return self._data_api.execute(
+            f"""
+            SELECT id, name, normalized_name, created_at, updated_at
+            FROM clouder_styles
+            {where}
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+            """,
+            params,
+        )
+
+    def count_styles(self, search: str | None = None) -> int:
+        params: dict[str, Any] = {}
+        where = ""
+        if search:
+            where = "WHERE normalized_name LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        rows = self._data_api.execute(
+            f"SELECT count(*) AS cnt FROM clouder_styles {where}", params
         )
         return int(rows[0]["cnt"]) if rows else 0
 
