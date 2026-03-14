@@ -102,6 +102,76 @@ class S3Storage:
             raise StorageError(f"Unexpected releases payload type in {key}")
         return [item for item in parsed if isinstance(item, dict)]
 
+    def write_spotify_results(
+        self,
+        results: List[Dict[str, Any]],
+        meta: Dict[str, Any],
+        spotify_prefix: str,
+    ) -> Tuple[str, str]:
+        correlation_id = meta.get("correlation_id", "unknown")
+        searched_date = meta.get("searched_at_utc", "")[:10] or "unknown"
+
+        base_key = f"{spotify_prefix}/date={searched_date}/{correlation_id}"
+        results_key = f"{base_key}/results.json.gz"
+        meta_key = f"{base_key}/meta.json"
+
+        results_bytes = gzip.compress(
+            json.dumps(results, ensure_ascii=False, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        )
+        meta_bytes = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode(
+            "utf-8"
+        )
+
+        try:
+            self._put_object(
+                key=results_key,
+                body=results_bytes,
+                content_type="application/json",
+                content_encoding="gzip",
+            )
+            log_event(
+                "INFO",
+                "s3_object_written",
+                s3_bucket=self.bucket_name,
+                s3_key=results_key,
+                s3_size_bytes=len(results_bytes),
+            )
+            self._put_object(
+                key=meta_key,
+                body=meta_bytes,
+                content_type="application/json",
+            )
+            log_event(
+                "INFO",
+                "s3_object_written",
+                s3_bucket=self.bucket_name,
+                s3_key=meta_key,
+                s3_size_bytes=len(meta_bytes),
+            )
+        except Exception as exc:
+            raise StorageError() from exc
+
+        return results_key, meta_key
+
+    def read_spotify_results(self, key: str) -> List[Dict[str, Any]]:
+        try:
+            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
+            raw_bytes = response["Body"].read()
+        except Exception as exc:
+            raise StorageError(f"Failed to read object from S3: {key}") from exc
+
+        try:
+            decoded = gzip.decompress(raw_bytes).decode("utf-8")
+            parsed = json.loads(decoded)
+        except Exception as exc:
+            raise StorageError(f"Failed to decode spotify results payload: {key}") from exc
+
+        if not isinstance(parsed, list):
+            raise StorageError(f"Unexpected spotify results payload type in {key}")
+        return [item for item in parsed if isinstance(item, dict)]
+
     def _base_key(self, style_id: int, iso_year: int, iso_week: int) -> str:
         return (
             f"{self.raw_prefix}/style_id={style_id}/year={iso_year}/week={iso_week:02d}"

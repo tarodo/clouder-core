@@ -41,3 +41,17 @@ class UpstreamUnavailableError(AppError):
 class StorageError(AppError):
     def __init__(self, message: str = "Failed to persist artifacts") -> None:
         super().__init__(status_code=500, error_code="storage_error", message=message)
+
+
+class SpotifyAuthError(AppError):
+    def __init__(self, message: str = "Spotify authentication failed") -> None:
+        super().__init__(
+            status_code=403, error_code="spotify_auth_failed", message=message
+        )
+
+
+class SpotifyUnavailableError(AppError):
+    def __init__(self, message: str = "Spotify API unavailable") -> None:
+        super().__init__(
+            status_code=502, error_code="spotify_unavailable", message=message
+        )

@@ -132,6 +132,10 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 settings=settings,
                 correlation_id=correlation_id,
             )
+            _enqueue_spotify_search_after_canonicalization(
+                settings=settings,
+                correlation_id=correlation_id,
+            )
         except Exception as exc:
             is_permanent = isinstance(exc, _PERMANENT_ERRORS)
             error_code = (
@@ -234,6 +238,45 @@ def _enqueue_label_search_after_canonicalization(
             labels_enqueued=enqueued,
             prompt_slug=prompt.slug,
             prompt_version=prompt.version,
+        )
+
+
+def _enqueue_spotify_search_after_canonicalization(
+    settings: Any,
+    correlation_id: str,
+) -> None:
+    """Enqueue Spotify ISRC search after canonicalization completes."""
+    queue_url = settings.spotify_search_queue_url.strip()
+    if not queue_url:
+        return
+
+    import boto3
+
+    sqs = boto3.client("sqs")
+    message = {"batch_size": 2000}
+    try:
+        sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(message, ensure_ascii=False, separators=(",", ":")),
+            MessageAttributes={
+                "correlation_id": {
+                    "DataType": "String",
+                    "StringValue": correlation_id,
+                }
+            },
+        )
+        log_event(
+            "INFO",
+            "spotify_search_enqueued_after_canonicalization",
+            correlation_id=correlation_id,
+        )
+    except Exception as exc:  # pragma: no cover
+        log_event(
+            "ERROR",
+            "spotify_search_enqueue_failed",
+            correlation_id=correlation_id,
+            error_type=exc.__class__.__name__,
+            error_message=str(exc)[:500],
         )
 
 

@@ -100,6 +100,13 @@ class LabelSearchMessage(BaseModel):
         return normalized
 
 
+class SpotifySearchMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    batch_size: StrictInt = Field(default=2000, ge=1, le=5000)
+    auto_continue: bool = Field(default=True)
+
+
 def validation_error_message(exc: PydanticValidationError) -> str:
     if not exc.errors():
         return "Validation failed"

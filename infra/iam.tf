@@ -29,6 +29,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       "${aws_cloudwatch_log_group.canonicalization_worker.arn}:*",
       "${aws_cloudwatch_log_group.migration_lambda.arn}:*",
       "${aws_cloudwatch_log_group.ai_search_worker.arn}:*",
+      "${aws_cloudwatch_log_group.spotify_search_worker.arn}:*",
     ]
   }
 
@@ -40,6 +41,7 @@ data "aws_iam_policy_document" "collector_lambda" {
     ]
     resources = [
       "${aws_s3_bucket.raw.arn}/${var.raw_prefix}/*",
+      "${aws_s3_bucket.raw.arn}/${var.spotify_raw_prefix}/*",
     ]
   }
 
@@ -51,6 +53,7 @@ data "aws_iam_policy_document" "collector_lambda" {
     ]
     resources = [
       "${aws_s3_bucket.raw.arn}/${var.raw_prefix}/*",
+      "${aws_s3_bucket.raw.arn}/${var.spotify_raw_prefix}/*",
     ]
   }
 
@@ -64,7 +67,7 @@ data "aws_iam_policy_document" "collector_lambda" {
     condition {
       test     = "StringLike"
       variable = "s3:prefix"
-      values   = ["${var.raw_prefix}/*"]
+      values   = ["${var.raw_prefix}/*", "${var.spotify_raw_prefix}/*"]
     }
   }
 
@@ -79,6 +82,7 @@ data "aws_iam_policy_document" "collector_lambda" {
     resources = [
       aws_sqs_queue.canonicalization.arn,
       aws_sqs_queue.ai_search.arn,
+      aws_sqs_queue.spotify_search.arn,
     ]
   }
 
@@ -95,6 +99,7 @@ data "aws_iam_policy_document" "collector_lambda" {
     resources = [
       aws_sqs_queue.canonicalization.arn,
       aws_sqs_queue.ai_search.arn,
+      aws_sqs_queue.spotify_search.arn,
     ]
   }
 

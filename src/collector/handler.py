@@ -111,6 +111,8 @@ def _route(
         return _handle_get_run(event, context)
     if route_key in ("POST /collect_bp_releases", ""):
         return _handle_collect(event, context)
+    if route_key == "GET /tracks/spotify-not-found":
+        return _handle_spotify_not_found(event)
     if route_key in _LIST_ROUTES:
         return _handle_list(event, route_key)
     return _json_response(
@@ -371,6 +373,65 @@ def _handle_list(event: Mapping[str, Any], route_key: str) -> dict[str, Any]:
         "list_completed",
         correlation_id=correlation_id,
         entity=entity,
+        result_count=len(items),
+        total_count=total,
+        limit=limit,
+        offset=offset,
+    )
+
+    return _json_response(
+        200,
+        {
+            "items": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
+    correlation_id = _extract_correlation_id(event)
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {
+                "error_code": "db_not_configured",
+                "message": "Database is not configured",
+            },
+            correlation_id,
+        )
+
+    try:
+        limit, offset, search = _parse_pagination_params(event)
+    except ValidationError as exc:
+        return _json_response(
+            400,
+            {"error_code": "validation_error", "message": exc.message},
+            correlation_id,
+        )
+
+    rows = repository.find_tracks_not_found_on_spotify(limit, offset, search)
+    total = repository.count_tracks_not_found_on_spotify(search)
+
+    items = []
+    for row in rows:
+        item: dict[str, Any] = {}
+        for key, value in row.items():
+            item[key] = value
+        if "artist_names" in item:
+            raw = item.pop("artist_names")
+            item["artists"] = [n.strip() for n in raw.split(",")] if raw else []
+        items.append(item)
+
+    log_event(
+        "INFO",
+        "spotify_not_found_list_completed",
+        correlation_id=correlation_id,
         result_count=len(items),
         total_count=total,
         limit=limit,

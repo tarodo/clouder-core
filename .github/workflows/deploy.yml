@@ -51,10 +51,10 @@ jobs:
             -backend-config="encrypt=true"
 
       - name: Terraform apply (base infra)
-        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="perplexity_api_key=${{ secrets.PERPLEXITY_API_KEY }}" -var="enable_secretsmanager_vpc_endpoint=false"
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="perplexity_api_key=${{ secrets.PERPLEXITY_API_KEY }}" -var="spotify_search_enabled=true" -var="spotify_client_id=${{ secrets.SPOTIFY_CLIENT_ID }}" -var="spotify_client_secret=${{ secrets.SPOTIFY_CLIENT_SECRET }}" -var="enable_secretsmanager_vpc_endpoint=false"
 
       - name: Enable temporary Secrets Manager VPC endpoint
-        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="perplexity_api_key=${{ secrets.PERPLEXITY_API_KEY }}" -var="enable_secretsmanager_vpc_endpoint=true"
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="perplexity_api_key=${{ secrets.PERPLEXITY_API_KEY }}" -var="spotify_search_enabled=true" -var="spotify_client_id=${{ secrets.SPOTIFY_CLIENT_ID }}" -var="spotify_client_secret=${{ secrets.SPOTIFY_CLIENT_SECRET }}" -var="enable_secretsmanager_vpc_endpoint=true"
 
       - name: Run DB migrations via Lambda
         run: |
@@ -90,4 +90,4 @@ jobs:
 
       - name: Disable temporary Secrets Manager VPC endpoint
         if: always()
-        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="perplexity_api_key=${{ secrets.PERPLEXITY_API_KEY }}" -var="enable_secretsmanager_vpc_endpoint=false"
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="perplexity_api_key=${{ secrets.PERPLEXITY_API_KEY }}" -var="spotify_search_enabled=true" -var="spotify_client_id=${{ secrets.SPOTIFY_CLIENT_ID }}" -var="spotify_client_secret=${{ secrets.SPOTIFY_CLIENT_SECRET }}" -var="enable_secretsmanager_vpc_endpoint=false"
