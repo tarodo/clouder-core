@@ -125,6 +125,20 @@ class ClouderLabel(Base):
     )
 
 
+class ClouderStyle(Base):
+    __tablename__ = "clouder_styles"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
 class ClouderAlbum(Base):
     __tablename__ = "clouder_albums"
     __table_args__ = (
@@ -162,6 +176,9 @@ class ClouderTrack(Base):
     publish_date: Mapped[date_type | None] = mapped_column(Date)
     album_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("clouder_albums.id")
+    )
+    style_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("clouder_styles.id")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

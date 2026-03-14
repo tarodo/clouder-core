@@ -10,6 +10,7 @@ from .models import (
     NormalizedAlbum,
     NormalizedArtist,
     NormalizedLabel,
+    NormalizedStyle,
     NormalizedTrack,
     RelationType,
     normalize_text,
@@ -29,6 +30,7 @@ class NormalizedRelation:
 class NormalizedBundle:
     artists: tuple[NormalizedArtist, ...]
     labels: tuple[NormalizedLabel, ...]
+    styles: tuple[NormalizedStyle, ...]
     albums: tuple[NormalizedAlbum, ...]
     tracks: tuple[NormalizedTrack, ...]
     relations: tuple[NormalizedRelation, ...]
@@ -37,6 +39,7 @@ class NormalizedBundle:
 def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
     artists_by_id: Dict[int, NormalizedArtist] = {}
     labels_by_id: Dict[int, NormalizedLabel] = {}
+    styles_by_id: Dict[int, NormalizedStyle] = {}
     albums_by_id: Dict[int, NormalizedAlbum] = {}
     tracks_by_id: Dict[int, NormalizedTrack] = {}
     relations: List[NormalizedRelation] = []
@@ -120,6 +123,20 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
                         )
                     )
 
+        genre = item.get("genre")
+        bp_genre_id: int | None = None
+        if isinstance(genre, dict):
+            bp_genre_id = _as_positive_int(genre.get("id"))
+            genre_name = _as_non_empty_str(genre.get("name"))
+            if bp_genre_id is not None and genre_name:
+                if bp_genre_id not in styles_by_id:
+                    styles_by_id[bp_genre_id] = NormalizedStyle(
+                        bp_genre_id=bp_genre_id,
+                        name=genre_name,
+                        normalized_name=normalize_text(genre_name),
+                        payload=genre,
+                    )
+
         title = _as_non_empty_str(item.get("name"))
         if not title:
             continue
@@ -136,6 +153,7 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
                 item.get("publish_date") or item.get("new_release_date")
             ),
             bp_release_id=bp_release_id,
+            bp_genre_id=bp_genre_id,
             bp_artist_ids=tuple(dict.fromkeys(artist_ids)),
             payload=item,
         )
@@ -152,9 +170,21 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
                 )
             )
 
+        if bp_genre_id is not None:
+            relations.append(
+                NormalizedRelation(
+                    from_entity_type=EntityType.TRACK.value,
+                    from_external_id=str(bp_track_id),
+                    relation_type=RelationType.TRACK_STYLE.value,
+                    to_entity_type=EntityType.STYLE.value,
+                    to_external_id=str(bp_genre_id),
+                )
+            )
+
     return NormalizedBundle(
         artists=tuple(artists_by_id.values()),
         labels=tuple(labels_by_id.values()),
+        styles=tuple(styles_by_id.values()),
         albums=tuple(albums_by_id.values()),
         tracks=tuple(tracks_by_id.values()),
         relations=tuple(_dedupe_relations(relations)),

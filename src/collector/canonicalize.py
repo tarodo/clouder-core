@@ -44,11 +44,15 @@ class Canonicalizer:
             tracks_total=len(bundle.tracks),
             artists_total=len(bundle.artists),
             labels_total=len(bundle.labels),
+            styles_total=len(bundle.styles),
             albums_total=len(bundle.albums),
             relations_total=len(bundle.relations),
         )
 
         label_ids = self._process_labels(
+            run_id=run_id, bundle=bundle, observed_at=observed_at
+        )
+        style_ids = self._process_styles(
             run_id=run_id, bundle=bundle, observed_at=observed_at
         )
         artist_ids = self._process_artists(
@@ -64,6 +68,7 @@ class Canonicalizer:
             observed_at=observed_at,
             artist_ids=artist_ids,
             album_ids=album_ids,
+            style_ids=style_ids,
         )
 
         result = CanonicalizationResult(
@@ -73,6 +78,7 @@ class Canonicalizer:
             artists_total=len(bundle.artists),
             labels_total=len(bundle.labels),
             albums_total=len(bundle.albums),
+            styles_total=len(bundle.styles),
         )
         log_event(
             "INFO",
@@ -83,6 +89,7 @@ class Canonicalizer:
             artists_total=result.artists_total,
             labels_total=result.labels_total,
             albums_total=result.albums_total,
+            styles_total=result.styles_total,
         )
         return result
 
@@ -125,6 +132,46 @@ class Canonicalizer:
             item_count=len(label_ids),
         )
         return label_ids
+
+    def _process_styles(
+        self, run_id: str, bundle: NormalizedBundle, observed_at: datetime
+    ) -> dict[int, str]:
+        self._repository.batch_upsert_source_entities(
+            [
+                _source_entity_cmd(
+                    run_id=run_id,
+                    entity_type=EntityType.STYLE.value,
+                    external_id=str(style.bp_genre_id),
+                    name=style.name,
+                    normalized_name=style.normalized_name,
+                    payload=style.payload,
+                    observed_at=observed_at,
+                )
+                for style in bundle.styles
+            ]
+        )
+
+        style_ids: dict[int, str] = {}
+        identity_commands: list[UpsertIdentityCmd] = []
+        for style in bundle.styles:
+            clouder_style_id, identity_cmd = self._resolve_style(
+                bp_genre_id=style.bp_genre_id,
+                name=style.name,
+                normalized_name=style.normalized_name,
+                observed_at=observed_at,
+            )
+            style_ids[style.bp_genre_id] = clouder_style_id
+            if identity_cmd:
+                identity_commands.append(identity_cmd)
+        self._repository.batch_upsert_identities(identity_commands)
+        log_event(
+            "INFO",
+            "canonicalization_phase_completed",
+            run_id=run_id,
+            phase="styles",
+            item_count=len(style_ids),
+        )
+        return style_ids
 
     def _process_artists(
         self, run_id: str, bundle: NormalizedBundle, observed_at: datetime
@@ -247,6 +294,7 @@ class Canonicalizer:
         observed_at: datetime,
         artist_ids: dict[int, str],
         album_ids: dict[int, str],
+        style_ids: dict[int, str],
     ) -> dict[int, str]:
         track_ids: dict[int, str] = {}
         chunk_count = (
@@ -288,6 +336,11 @@ class Canonicalizer:
                         if track.bp_release_id is not None
                         else None
                     )
+                    style_id = (
+                        style_ids.get(track.bp_genre_id)
+                        if track.bp_genre_id is not None
+                        else None
+                    )
                     clouder_track_id, identity_cmd = self._resolve_track(
                         bp_track_id=track.bp_track_id,
                         title=track.title,
@@ -298,6 +351,7 @@ class Canonicalizer:
                         length_ms=track.length_ms,
                         publish_date=track.publish_date,
                         album_id=album_id,
+                        style_id=style_id,
                         observed_at=observed_at,
                         transaction_id=transaction_id,
                     )
@@ -358,6 +412,31 @@ class Canonicalizer:
             entity_type=EntityType.LABEL.value,
             external_id=str(bp_label_id),
             clouder_entity_type=EntityType.LABEL.value,
+            clouder_id=clouder_id,
+            match_type="auto_create",
+            confidence=MATCH_AUTO_CREATE,
+            observed_at=observed_at,
+        )
+
+    def _resolve_style(
+        self,
+        bp_genre_id: int,
+        name: str,
+        normalized_name: str,
+        observed_at: datetime,
+    ) -> tuple[str, UpsertIdentityCmd | None]:
+        identity = self._repository.find_identity(
+            "beatport", EntityType.STYLE.value, str(bp_genre_id)
+        )
+        if identity:
+            return identity.clouder_id, None
+
+        clouder_id = str(uuid4())
+        self._repository.create_style(clouder_id, name, normalized_name, observed_at)
+        return clouder_id, _identity_cmd(
+            entity_type=EntityType.STYLE.value,
+            external_id=str(bp_genre_id),
+            clouder_entity_type=EntityType.STYLE.value,
             clouder_id=clouder_id,
             match_type="auto_create",
             confidence=MATCH_AUTO_CREATE,
@@ -434,6 +513,7 @@ class Canonicalizer:
         length_ms: int | None,
         publish_date: str | None,
         album_id: str | None,
+        style_id: str | None,
         observed_at: datetime,
         transaction_id: str | None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
@@ -450,6 +530,7 @@ class Canonicalizer:
                     length_ms=length_ms,
                     publish_date=parse_iso_date(publish_date),
                     album_id=album_id,
+                    style_id=style_id,
                     at=observed_at,
                 ),
                 transaction_id=transaction_id,
@@ -468,6 +549,7 @@ class Canonicalizer:
                 length_ms=length_ms,
                 publish_date=parse_iso_date(publish_date),
                 album_id=album_id,
+                style_id=style_id,
                 at=observed_at,
             ),
             transaction_id=transaction_id,

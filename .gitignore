@@ -19,3 +19,8 @@ override.tf.json
 infra/backend.hcl
 *.tfvars
 *.tfvars.json
+
+# AI Artifacts
+.claude/
+.cursor/
+.vscode/

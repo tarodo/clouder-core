@@ -49,12 +49,14 @@ class EntityType(str, Enum):
     ARTIST = "artist"
     ALBUM = "album"
     LABEL = "label"
+    STYLE = "style"
 
 
 class RelationType(str, Enum):
     TRACK_ARTIST = "track_artist"
     TRACK_ALBUM = "track_album"
     ALBUM_LABEL = "album_label"
+    TRACK_STYLE = "track_style"
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,14 @@ class NormalizedArtist:
 @dataclass(frozen=True)
 class NormalizedLabel:
     bp_label_id: int
+    name: str
+    normalized_name: str
+    payload: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class NormalizedStyle:
+    bp_genre_id: int
     name: str
     normalized_name: str
     payload: Mapping[str, Any]
@@ -94,6 +104,7 @@ class NormalizedTrack:
     length_ms: int | None
     publish_date: str | None
     bp_release_id: int | None
+    bp_genre_id: int | None
     bp_artist_ids: tuple[int, ...]
     payload: Mapping[str, Any]
 
@@ -106,6 +117,7 @@ class CanonicalizationResult:
     artists_total: int
     labels_total: int
     albums_total: int
+    styles_total: int
 
 
 def validate_collect_request(payload: Mapping[str, Any]) -> CollectRequest:
