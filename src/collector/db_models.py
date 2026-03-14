@@ -68,8 +68,8 @@ class SourceEntity(Base):
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
-    last_run_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("ingest_runs.run_id"), nullable=False
+    last_run_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("ingest_runs.run_id"), nullable=True
     )
 
 

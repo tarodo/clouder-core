@@ -41,7 +41,7 @@ class UpsertSourceEntityCmd:
     normalized_name: str | None
     payload: Mapping[str, Any]
     payload_hash: str
-    last_run_id: str
+    last_run_id: str | None
     observed_at: datetime
 
 

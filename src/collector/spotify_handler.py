@@ -243,7 +243,7 @@ def _process_results_chunk(
                     normalized_name=name.lower().strip() if name else None,
                     payload=payload,
                     payload_hash=payload_hash,
-                    last_run_id=r.clouder_track_id,
+                    last_run_id=None,
                     observed_at=now,
                 )
             )
