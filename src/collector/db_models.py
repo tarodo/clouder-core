@@ -164,6 +164,11 @@ class ClouderTrack(Base):
     __tablename__ = "clouder_tracks"
     __table_args__ = (
         Index("idx_tracks_isrc", "isrc", postgresql_where=text("isrc IS NOT NULL")),
+        Index(
+            "idx_tracks_spotify_id",
+            "spotify_id",
+            postgresql_where=text("spotify_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -179,6 +184,10 @@ class ClouderTrack(Base):
     )
     style_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("clouder_styles.id")
+    )
+    spotify_id: Mapped[str | None] = mapped_column(String(64))
+    spotify_searched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

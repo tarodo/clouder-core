@@ -45,16 +45,27 @@ class ApiSettings(_SettingsBase):
     )
     ai_search_enabled: bool = Field(default=False, alias="AI_SEARCH_ENABLED")
     ai_search_queue_url: str = Field(default="", alias="AI_SEARCH_QUEUE_URL")
+    spotify_search_enabled: bool = Field(default=False, alias="SPOTIFY_SEARCH_ENABLED")
+    spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
 
 
 class WorkerSettings(_SettingsBase):
     raw_bucket_name: str = Field(alias="RAW_BUCKET_NAME")
     raw_prefix: str = Field(default="raw/bp/releases", alias="RAW_PREFIX")
     ai_search_queue_url: str = Field(default="", alias="AI_SEARCH_QUEUE_URL")
+    spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
 
 
 class SearchWorkerSettings(_SettingsBase):
     perplexity_api_key: str = Field(alias="PERPLEXITY_API_KEY")
+
+
+class SpotifyWorkerSettings(_SettingsBase):
+    spotify_client_id: str = Field(alias="SPOTIFY_CLIENT_ID")
+    spotify_client_secret: str = Field(alias="SPOTIFY_CLIENT_SECRET")
+    raw_bucket_name: str = Field(alias="RAW_BUCKET_NAME")
+    spotify_raw_prefix: str = Field(default="raw/sp/tracks", alias="SPOTIFY_RAW_PREFIX")
+    spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
 
 
 class MigrationSettings(_SettingsBase):
@@ -98,6 +109,11 @@ def get_search_worker_settings() -> SearchWorkerSettings:
     return SearchWorkerSettings()
 
 
+@lru_cache
+def get_spotify_worker_settings() -> SpotifyWorkerSettings:
+    return SpotifyWorkerSettings()
+
+
 def reset_settings_cache() -> None:
     get_api_settings.cache_clear()
     get_worker_settings.cache_clear()
@@ -105,3 +121,4 @@ def reset_settings_cache() -> None:
     get_data_api_settings.cache_clear()
     get_logging_settings.cache_clear()
     get_search_worker_settings.cache_clear()
+    get_spotify_worker_settings.cache_clear()

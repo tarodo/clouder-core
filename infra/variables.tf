@@ -210,3 +210,61 @@ variable "perplexity_api_key" {
   default     = ""
   sensitive   = true
 }
+
+# ── Spotify Search ────────────────────────────────────────────────
+
+variable "spotify_search_enabled" {
+  description = "Enable Spotify ISRC search after canonicalization"
+  type        = bool
+  default     = false
+}
+
+variable "spotify_client_id" {
+  description = "Spotify API client ID"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "spotify_client_secret" {
+  description = "Spotify API client secret"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "spotify_raw_prefix" {
+  description = "S3 key prefix for raw Spotify search results"
+  type        = string
+  default     = "raw/sp/tracks"
+}
+
+variable "spotify_search_worker_lambda_timeout_seconds" {
+  description = "Spotify search worker Lambda timeout in seconds"
+  type        = number
+  default     = 900
+}
+
+variable "spotify_search_worker_lambda_memory_mb" {
+  description = "Spotify search worker Lambda memory size in MB"
+  type        = number
+  default     = 512
+}
+
+variable "spotify_search_batch_size" {
+  description = "SQS batch size for Spotify search worker lambda"
+  type        = number
+  default     = 1
+}
+
+variable "spotify_search_queue_visibility_timeout_seconds" {
+  description = "Visibility timeout for Spotify search queue"
+  type        = number
+  default     = 960
+}
+
+variable "spotify_search_queue_retention_seconds" {
+  description = "Message retention for Spotify search queue"
+  type        = number
+  default     = 1209600
+}

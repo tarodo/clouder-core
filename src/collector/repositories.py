@@ -97,6 +97,13 @@ class ConservativeUpdateTrackCmd:
 
 
 @dataclass(frozen=True)
+class UpdateSpotifyResultCmd:
+    track_id: str
+    spotify_id: str | None
+    searched_at: datetime
+
+
+@dataclass(frozen=True)
 class UpsertTrackArtistCmd:
     track_id: str
     artist_id: str
@@ -645,6 +652,96 @@ class ClouderRepository:
                     "track_id": cmd.track_id,
                     "artist_id": cmd.artist_id,
                     "role": cmd.role,
+                }
+                for cmd in commands
+            ],
+            transaction_id=transaction_id,
+        )
+
+    # ── Spotify search methods ─────────────────────────────────────
+
+    def find_tracks_needing_spotify_search(
+        self, limit: int
+    ) -> list[dict[str, Any]]:
+        return self._data_api.execute(
+            """
+            SELECT id, isrc, title, normalized_title
+            FROM clouder_tracks
+            WHERE isrc IS NOT NULL
+              AND spotify_searched_at IS NULL
+            ORDER BY created_at DESC
+            LIMIT :limit
+            """,
+            {"limit": limit},
+        )
+
+    def find_tracks_not_found_on_spotify(
+        self, limit: int, offset: int, search: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        where_extra = ""
+        if search:
+            where_extra = "AND t.normalized_title LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        return self._data_api.execute(
+            f"""
+            SELECT t.id, t.title, t.isrc, t.bpm, t.publish_date,
+                   string_agg(DISTINCT a.name, ', ' ORDER BY a.name) AS artist_names
+            FROM clouder_tracks t
+            LEFT JOIN clouder_track_artists ta ON ta.track_id = t.id
+            LEFT JOIN clouder_artists a ON ta.artist_id = a.id
+            WHERE t.isrc IS NOT NULL
+              AND t.spotify_searched_at IS NOT NULL
+              AND t.spotify_id IS NULL
+              {where_extra}
+            GROUP BY t.id
+            ORDER BY t.publish_date DESC NULLS LAST
+            LIMIT :limit OFFSET :offset
+            """,
+            params,
+        )
+
+    def count_tracks_not_found_on_spotify(
+        self, search: str | None = None
+    ) -> int:
+        params: dict[str, Any] = {}
+        where_extra = ""
+        if search:
+            where_extra = "AND normalized_title LIKE :search"
+            params["search"] = f"%{search.lower()}%"
+        rows = self._data_api.execute(
+            f"""
+            SELECT count(*) AS cnt
+            FROM clouder_tracks
+            WHERE isrc IS NOT NULL
+              AND spotify_searched_at IS NOT NULL
+              AND spotify_id IS NULL
+              {where_extra}
+            """,
+            params,
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def batch_update_spotify_results(
+        self,
+        commands: list[UpdateSpotifyResultCmd],
+        transaction_id: str | None = None,
+    ) -> None:
+        if not commands:
+            return
+        self._data_api.batch_execute(
+            """
+            UPDATE clouder_tracks
+            SET spotify_id = :spotify_id,
+                spotify_searched_at = :searched_at,
+                updated_at = :searched_at
+            WHERE id = :track_id
+            """,
+            [
+                {
+                    "track_id": cmd.track_id,
+                    "spotify_id": cmd.spotify_id,
+                    "searched_at": cmd.searched_at,
                 }
                 for cmd in commands
             ],

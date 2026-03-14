@@ -127,22 +127,24 @@ Canonicalized albums/releases.
 
 Canonicalized tracks.
 
-| Column           | Type              | Constraints              |
-|------------------|-------------------|--------------------------|
-| id               | String(36)        | PK (UUID)                |
-| title            | Text              | NOT NULL                 |
-| normalized_title | Text              | NOT NULL                 |
-| mix_name         | Text              | nullable                 |
-| isrc             | String(64)        | nullable                 |
-| bpm              | Integer           | nullable                 |
-| length_ms        | Integer           | nullable                 |
-| publish_date     | Date              | nullable                 |
-| album_id         | String(36)        | nullable, FK -> clouder_albums.id |
-| style_id         | String(36)        | nullable, FK -> clouder_styles.id |
-| created_at       | DateTime(tz)      | NOT NULL                 |
-| updated_at       | DateTime(tz)      | NOT NULL                 |
+| Column              | Type              | Constraints              |
+|---------------------|-------------------|--------------------------|
+| id                  | String(36)        | PK (UUID)                |
+| title               | Text              | NOT NULL                 |
+| normalized_title    | Text              | NOT NULL                 |
+| mix_name            | Text              | nullable                 |
+| isrc                | String(64)        | nullable                 |
+| bpm                 | Integer           | nullable                 |
+| length_ms           | Integer           | nullable                 |
+| publish_date        | Date              | nullable                 |
+| album_id            | String(36)        | nullable, FK -> clouder_albums.id |
+| style_id            | String(36)        | nullable, FK -> clouder_styles.id |
+| spotify_id          | String(64)        | nullable                 |
+| spotify_searched_at | DateTime(tz)      | nullable                 |
+| created_at          | DateTime(tz)      | NOT NULL                 |
+| updated_at          | DateTime(tz)      | NOT NULL                 |
 
-**Indexes:** idx_tracks_isrc (isrc) WHERE isrc IS NOT NULL
+**Indexes:** idx_tracks_isrc (isrc) WHERE isrc IS NOT NULL, idx_tracks_spotify_id (spotify_id) WHERE spotify_id IS NOT NULL
 
 ### 1.10 clouder_track_artists
 
@@ -318,6 +320,12 @@ Source: `src/collector/schemas.py`
 | prompt_slug    | str  | "label_info" |
 | prompt_version | str  | "v1"         |
 
+### SpotifySearchMessage (SQS)
+
+| Field      | Type | Default |
+|------------|------|---------|
+| batch_size | int  | 2000    |
+
 ---
 
 ## 5. AI Search Schemas
@@ -367,6 +375,7 @@ Source: `src/collector/repositories.py`
 | CreateTrackCmd              | track_id, title, normalized_title, mix_name, isrc, bpm, length_ms, publish_date, album_id, style_id, at |
 | ConservativeUpdateTrackCmd  | track_id, mix_name, isrc, bpm, length_ms, publish_date, album_id, style_id, at |
 | UpsertTrackArtistCmd        | track_id, artist_id, role="main" |
+| UpdateSpotifyResultCmd      | track_id, spotify_id (nullable), searched_at |
 | IdentityMapEntry (read)     | clouder_entity_type, clouder_id |
 
 ### EnqueueResult
@@ -385,13 +394,15 @@ Source: `src/collector/handler.py`
 
 Source: `src/collector/errors.py`
 
-| Error class            | status_code | error_code            |
-|------------------------|-------------|-----------------------|
-| AppError (base)        | variable    | variable              |
-| ValidationError        | 400         | validation_error      |
-| UpstreamAuthError      | 403         | beatport_auth_failed  |
-| UpstreamUnavailableError | 502       | beatport_unavailable  |
-| StorageError           | 500         | storage_error         |
+| Error class              | status_code | error_code            |
+|--------------------------|-------------|-----------------------|
+| AppError (base)          | variable    | variable              |
+| ValidationError          | 400         | validation_error      |
+| UpstreamAuthError        | 403         | beatport_auth_failed  |
+| UpstreamUnavailableError | 502        | beatport_unavailable  |
+| SpotifyAuthError         | 403         | spotify_auth_failed   |
+| SpotifyUnavailableError  | 502         | spotify_unavailable   |
+| StorageError             | 500         | storage_error         |
 
 ---
 
@@ -416,15 +427,23 @@ Beatport API
     - Creates identity_map entries
     - Updates IngestRun (status=COMPLETED)
     - Sends LabelSearchMessage to SQS (optional)
+    - Sends SpotifySearchMessage to SQS (optional)
+    |
+    +---> [3] AI Search Worker (SQS consumer)
+    |         - Searches for label information via Perplexity API
+    |         - Saves LabelSearchResult into ai_search_results
+    |
+    +---> [4] Spotify Search Worker (SQS consumer)
+              - Loads tracks with ISRC but without spotify_searched_at
+              - Searches Spotify Web API by ISRC
+              - Saves batch results to S3 (raw/sp/tracks/)
+              - Upserts source_entities (source=spotify) + identity_map
+              - Updates clouder_tracks: spotify_id + spotify_searched_at
     |
     v
-[3] AI Search Worker (SQS consumer)
-    - Searches for label information via Perplexity API
-    - Saves LabelSearchResult into ai_search_results
-    |
-    v
-[4] Read API (GET /tracks, /artists, /albums, /labels, /styles)
-    - Reads canonicalized data with joins
+[5] Read API
+    - GET /tracks, /artists, /albums, /labels, /styles
+    - GET /tracks/spotify-not-found (tracks searched but not matched)
 ```
 
 ---
@@ -432,8 +451,8 @@ Beatport API
 ## 9. Infrastructure
 
 - **DB:** Aurora PostgreSQL 16.6 Serverless v2 (0-2 ACU), database: "clouder"
-- **Storage:** S3 bucket, prefix: raw/bp/releases
-- **Compute:** AWS Lambda (collector, worker, migration, search)
-- **Queues:** SQS (canonicalization, ai_search)
+- **Storage:** S3 bucket, prefixes: raw/bp/releases, raw/sp/tracks
+- **Compute:** AWS Lambda (collector, worker, migration, ai_search, spotify_search)
+- **Queues:** SQS (canonicalization, ai_search, spotify_search)
 - **API:** HTTP API Gateway
 - **Migrations:** Alembic

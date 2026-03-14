@@ -59,6 +59,13 @@ resource "aws_apigatewayv2_route" "list_styles" {
   authorization_type = "AWS_IAM"
 }
 
+resource "aws_apigatewayv2_route" "spotify_not_found" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /tracks/spotify-not-found"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "AWS_IAM"
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"
