@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import time
@@ -12,6 +13,11 @@ from urllib.error import HTTPError, URLError
 
 from .errors import UpstreamAuthError, UpstreamUnavailableError
 from .logging_utils import log_event
+
+
+def _url_hash(url: str) -> str:
+    return hashlib.sha256(url.encode("utf-8")).hexdigest()[:16]
+
 
 TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 
@@ -96,7 +102,7 @@ class BeatportClient:
                 "INFO",
                 "beatport_request",
                 correlation_id=correlation_id,
-                beatport_url=request_url,
+                beatport_url_hash=_url_hash(request_url),
                 beatport_page=params.get("page"),
                 beatport_attempt=attempt + 1,
             )
@@ -111,7 +117,7 @@ class BeatportClient:
                         "INFO",
                         "beatport_response",
                         correlation_id=correlation_id,
-                        beatport_url=request_url,
+                        beatport_url_hash=_url_hash(request_url),
                         beatport_page=params.get("page"),
                         beatport_attempt=attempt + 1,
                         beatport_http_status=getattr(response, "status", 200),

@@ -26,7 +26,7 @@ ALLOWED_LOG_FIELDS = {
     "error_code",
     "error_type",
     "error_message",
-    "beatport_url",
+    "beatport_url_hash",
     "beatport_page",
     "beatport_attempt",
     "beatport_http_status",
