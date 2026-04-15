@@ -207,6 +207,10 @@ variable "ai_search_queue_retention_seconds" {
 variable "perplexity_api_key_secret_arn" {
   description = "Secrets Manager ARN for Perplexity API key (SecretString is the plain key)."
   type        = string
+  validation {
+    condition     = can(regex("^arn:aws:secretsmanager:", var.perplexity_api_key_secret_arn))
+    error_message = "perplexity_api_key_secret_arn must be a valid Secrets Manager ARN."
+  }
 }
 
 # ── Spotify Search ────────────────────────────────────────────────
@@ -220,6 +224,10 @@ variable "spotify_search_enabled" {
 variable "spotify_credentials_secret_arn" {
   description = "Secrets Manager ARN for Spotify credentials (SecretString is JSON: {client_id, client_secret})."
   type        = string
+  validation {
+    condition     = can(regex("^arn:aws:secretsmanager:", var.spotify_credentials_secret_arn))
+    error_message = "spotify_credentials_secret_arn must be a valid Secrets Manager ARN."
+  }
 }
 
 variable "spotify_raw_prefix" {

@@ -12,14 +12,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 @functools.lru_cache(maxsize=32)
 def _fetch_secret_string(secret_arn: str) -> str:
-    """Fetch a SecretString from AWS Secrets Manager. Cached per ARN."""
+    """Fetch SecretString from AWS Secrets Manager.
+
+    Cached per ARN for the container lifetime — efficient, but secrets
+    rotated via AWS are not picked up until container recycles. Acceptable
+    for our use case where Perplexity/Spotify keys are long-lived.
+    """
     import boto3
 
     client = boto3.client("secretsmanager")
     resp = client.get_secret_value(SecretId=secret_arn)
     value = resp.get("SecretString")
     if not isinstance(value, str) or not value:
-        raise RuntimeError(f"secret {secret_arn} is empty or not a string")
+        if resp.get("SecretBinary"):
+            raise RuntimeError(
+                f"secret is SecretBinary, expected SecretString (arn={secret_arn})"
+            )
+        raise RuntimeError(f"secret is empty or not a string (arn={secret_arn})")
     return value
 
 
@@ -43,7 +52,16 @@ def _resolve_spotify_credentials() -> tuple[str, str]:
     arn = os.environ.get("SPOTIFY_CREDENTIALS_SECRET_ARN", "").strip()
     if arn:
         raw = _fetch_secret_string(arn)
-        data = json.loads(raw)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"spotify credentials secret is not valid JSON (arn={arn}): {exc}"
+            ) from exc
+        if not isinstance(data, dict):
+            raise RuntimeError(
+                f"spotify credentials secret JSON must be an object (arn={arn})"
+            )
         client_id = client_id or str(data.get("client_id", ""))
         client_secret = client_secret or str(data.get("client_secret", ""))
     return client_id, client_secret

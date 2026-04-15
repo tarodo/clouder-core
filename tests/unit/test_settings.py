@@ -102,3 +102,45 @@ def test_spotify_credentials_resolved_from_secret_arn(monkeypatch):
     assert settings.spotify_client_secret == "csecret"
 
     s.reset_settings_cache()
+
+
+def test_spotify_malformed_json_raises_clear_error(monkeypatch):
+    from collector import settings as s
+
+    monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
+    monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
+    monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv(
+        "SPOTIFY_CREDENTIALS_SECRET_ARN",
+        "arn:aws:secretsmanager:us-east-1:123:secret:SpotifyCreds-xyz",
+    )
+    monkeypatch.setattr(s, "_fetch_secret_string", lambda _arn: "not json at all")
+    if hasattr(s, "reset_settings_cache"):
+        s.reset_settings_cache()
+
+    with pytest.raises(RuntimeError, match="not valid JSON"):
+        s.get_spotify_worker_settings()
+
+    s.reset_settings_cache()
+
+
+def test_spotify_json_must_be_object(monkeypatch):
+    from collector import settings as s
+
+    monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
+    monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
+    monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv(
+        "SPOTIFY_CREDENTIALS_SECRET_ARN",
+        "arn:aws:secretsmanager:us-east-1:123:secret:SpotifyCreds-xyz",
+    )
+    monkeypatch.setattr(
+        s, "_fetch_secret_string", lambda _arn: '["not", "an", "object"]'
+    )
+    if hasattr(s, "reset_settings_cache"):
+        s.reset_settings_cache()
+
+    with pytest.raises(RuntimeError, match="must be an object"):
+        s.get_spotify_worker_settings()
+
+    s.reset_settings_cache()
