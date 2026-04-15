@@ -268,3 +268,9 @@ variable "spotify_search_queue_retention_seconds" {
   type        = number
   default     = 1209600
 }
+
+variable "alarm_sns_topic_arn" {
+  description = "SNS topic ARN to send DLQ depth alarms to. Empty string disables alarm actions."
+  type        = string
+  default     = ""
+}

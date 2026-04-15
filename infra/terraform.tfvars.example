@@ -4,3 +4,6 @@
 # ── AI Search (Perplexity) ────────────────────────────────────────
 ai_search_enabled  = false
 perplexity_api_key = "pplx-..."
+
+# Optional: SNS topic for DLQ depth alarms. Empty disables notifications.
+alarm_sns_topic_arn = ""
