@@ -2,5 +2,11 @@
 # terraform.tfvars is in .gitignore and will NOT be committed.
 
 # ── AI Search (Perplexity) ────────────────────────────────────────
-ai_search_enabled  = false
-perplexity_api_key = "pplx-..."
+ai_search_enabled             = false
+perplexity_api_key_secret_arn = "arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:perplexity-XXX"
+
+# ── Spotify Search ────────────────────────────────────────────────
+spotify_credentials_secret_arn = "arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:spotify-XXX"
+
+# Optional: SNS topic for DLQ depth alarms. Empty disables notifications.
+alarm_sns_topic_arn = ""

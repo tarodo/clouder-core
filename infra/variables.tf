@@ -204,11 +204,13 @@ variable "ai_search_queue_retention_seconds" {
   default     = 1209600
 }
 
-variable "perplexity_api_key" {
-  description = "Perplexity API key for AI search"
+variable "perplexity_api_key_secret_arn" {
+  description = "Secrets Manager ARN for Perplexity API key (SecretString is the plain key)."
   type        = string
-  default     = ""
-  sensitive   = true
+  validation {
+    condition     = can(regex("^arn:aws:secretsmanager:", var.perplexity_api_key_secret_arn))
+    error_message = "perplexity_api_key_secret_arn must be a valid Secrets Manager ARN."
+  }
 }
 
 # ── Spotify Search ────────────────────────────────────────────────
@@ -219,18 +221,13 @@ variable "spotify_search_enabled" {
   default     = false
 }
 
-variable "spotify_client_id" {
-  description = "Spotify API client ID"
+variable "spotify_credentials_secret_arn" {
+  description = "Secrets Manager ARN for Spotify credentials (SecretString is JSON: {client_id, client_secret})."
   type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "spotify_client_secret" {
-  description = "Spotify API client secret"
-  type        = string
-  default     = ""
-  sensitive   = true
+  validation {
+    condition     = can(regex("^arn:aws:secretsmanager:", var.spotify_credentials_secret_arn))
+    error_message = "spotify_credentials_secret_arn must be a valid Secrets Manager ARN."
+  }
 }
 
 variable "spotify_raw_prefix" {
@@ -267,4 +264,10 @@ variable "spotify_search_queue_retention_seconds" {
   description = "Message retention for Spotify search queue"
   type        = number
   default     = 1209600
+}
+
+variable "alarm_sns_topic_arn" {
+  description = "SNS topic ARN to send DLQ depth alarms to. Empty string disables alarm actions."
+  type        = string
+  default     = ""
 }

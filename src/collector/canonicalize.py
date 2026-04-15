@@ -49,27 +49,48 @@ class Canonicalizer:
             relations_total=len(bundle.relations),
         )
 
-        label_ids = self._process_labels(
-            run_id=run_id, bundle=bundle, observed_at=observed_at
-        )
-        style_ids = self._process_styles(
-            run_id=run_id, bundle=bundle, observed_at=observed_at
-        )
-        artist_ids = self._process_artists(
-            run_id=run_id, bundle=bundle, observed_at=observed_at
-        )
-        album_ids = self._process_albums(
-            run_id=run_id, bundle=bundle, observed_at=observed_at, label_ids=label_ids
-        )
-        self._process_relations(run_id=run_id, bundle=bundle)
-        track_ids = self._process_tracks(
-            run_id=run_id,
-            bundle=bundle,
-            observed_at=observed_at,
-            artist_ids=artist_ids,
-            album_ids=album_ids,
-            style_ids=style_ids,
-        )
+        completed_phases: list[str] = []
+        try:
+            label_ids = self._process_labels(
+                run_id=run_id, bundle=bundle, observed_at=observed_at
+            )
+            completed_phases.append("labels")
+            style_ids = self._process_styles(
+                run_id=run_id, bundle=bundle, observed_at=observed_at
+            )
+            completed_phases.append("styles")
+            artist_ids = self._process_artists(
+                run_id=run_id, bundle=bundle, observed_at=observed_at
+            )
+            completed_phases.append("artists")
+            album_ids = self._process_albums(
+                run_id=run_id,
+                bundle=bundle,
+                observed_at=observed_at,
+                label_ids=label_ids,
+            )
+            completed_phases.append("albums")
+            self._process_relations(run_id=run_id, bundle=bundle)
+            completed_phases.append("relations")
+            track_ids = self._process_tracks(
+                run_id=run_id,
+                bundle=bundle,
+                observed_at=observed_at,
+                artist_ids=artist_ids,
+                album_ids=album_ids,
+                style_ids=style_ids,
+            )
+            completed_phases.append("tracks")
+        except Exception as exc:
+            log_event(
+                "ERROR",
+                "canonicalization_phase_failed",
+                run_id=run_id,
+                completed_phases=",".join(completed_phases),
+                failed_after=completed_phases[-1] if completed_phases else "none",
+                error_type=exc.__class__.__name__,
+            )
+            raise
 
         result = CanonicalizationResult(
             run_id=run_id,
@@ -96,34 +117,39 @@ class Canonicalizer:
     def _process_labels(
         self, run_id: str, bundle: NormalizedBundle, observed_at: datetime
     ) -> dict[int, str]:
-        self._repository.batch_upsert_source_entities(
-            [
-                _source_entity_cmd(
-                    run_id=run_id,
-                    entity_type=EntityType.LABEL.value,
-                    external_id=str(label.bp_label_id),
+        label_ids: dict[int, str] = {}
+        with self._repository.transaction() as transaction_id:
+            self._repository.batch_upsert_source_entities(
+                [
+                    _source_entity_cmd(
+                        run_id=run_id,
+                        entity_type=EntityType.LABEL.value,
+                        external_id=str(label.bp_label_id),
+                        name=label.name,
+                        normalized_name=label.normalized_name,
+                        payload=label.payload,
+                        observed_at=observed_at,
+                    )
+                    for label in bundle.labels
+                ],
+                transaction_id=transaction_id,
+            )
+
+            identity_commands: list[UpsertIdentityCmd] = []
+            for label in bundle.labels:
+                clouder_label_id, identity_cmd = self._resolve_label(
+                    bp_label_id=label.bp_label_id,
                     name=label.name,
                     normalized_name=label.normalized_name,
-                    payload=label.payload,
                     observed_at=observed_at,
+                    transaction_id=transaction_id,
                 )
-                for label in bundle.labels
-            ]
-        )
-
-        label_ids: dict[int, str] = {}
-        identity_commands: list[UpsertIdentityCmd] = []
-        for label in bundle.labels:
-            clouder_label_id, identity_cmd = self._resolve_label(
-                bp_label_id=label.bp_label_id,
-                name=label.name,
-                normalized_name=label.normalized_name,
-                observed_at=observed_at,
+                label_ids[label.bp_label_id] = clouder_label_id
+                if identity_cmd:
+                    identity_commands.append(identity_cmd)
+            self._repository.batch_upsert_identities(
+                identity_commands, transaction_id=transaction_id
             )
-            label_ids[label.bp_label_id] = clouder_label_id
-            if identity_cmd:
-                identity_commands.append(identity_cmd)
-        self._repository.batch_upsert_identities(identity_commands)
         log_event(
             "INFO",
             "canonicalization_phase_completed",
@@ -136,34 +162,39 @@ class Canonicalizer:
     def _process_styles(
         self, run_id: str, bundle: NormalizedBundle, observed_at: datetime
     ) -> dict[int, str]:
-        self._repository.batch_upsert_source_entities(
-            [
-                _source_entity_cmd(
-                    run_id=run_id,
-                    entity_type=EntityType.STYLE.value,
-                    external_id=str(style.bp_genre_id),
+        style_ids: dict[int, str] = {}
+        with self._repository.transaction() as transaction_id:
+            self._repository.batch_upsert_source_entities(
+                [
+                    _source_entity_cmd(
+                        run_id=run_id,
+                        entity_type=EntityType.STYLE.value,
+                        external_id=str(style.bp_genre_id),
+                        name=style.name,
+                        normalized_name=style.normalized_name,
+                        payload=style.payload,
+                        observed_at=observed_at,
+                    )
+                    for style in bundle.styles
+                ],
+                transaction_id=transaction_id,
+            )
+
+            identity_commands: list[UpsertIdentityCmd] = []
+            for style in bundle.styles:
+                clouder_style_id, identity_cmd = self._resolve_style(
+                    bp_genre_id=style.bp_genre_id,
                     name=style.name,
                     normalized_name=style.normalized_name,
-                    payload=style.payload,
                     observed_at=observed_at,
+                    transaction_id=transaction_id,
                 )
-                for style in bundle.styles
-            ]
-        )
-
-        style_ids: dict[int, str] = {}
-        identity_commands: list[UpsertIdentityCmd] = []
-        for style in bundle.styles:
-            clouder_style_id, identity_cmd = self._resolve_style(
-                bp_genre_id=style.bp_genre_id,
-                name=style.name,
-                normalized_name=style.normalized_name,
-                observed_at=observed_at,
+                style_ids[style.bp_genre_id] = clouder_style_id
+                if identity_cmd:
+                    identity_commands.append(identity_cmd)
+            self._repository.batch_upsert_identities(
+                identity_commands, transaction_id=transaction_id
             )
-            style_ids[style.bp_genre_id] = clouder_style_id
-            if identity_cmd:
-                identity_commands.append(identity_cmd)
-        self._repository.batch_upsert_identities(identity_commands)
         log_event(
             "INFO",
             "canonicalization_phase_completed",
@@ -176,34 +207,39 @@ class Canonicalizer:
     def _process_artists(
         self, run_id: str, bundle: NormalizedBundle, observed_at: datetime
     ) -> dict[int, str]:
-        self._repository.batch_upsert_source_entities(
-            [
-                _source_entity_cmd(
-                    run_id=run_id,
-                    entity_type=EntityType.ARTIST.value,
-                    external_id=str(artist.bp_artist_id),
+        artist_ids: dict[int, str] = {}
+        with self._repository.transaction() as transaction_id:
+            self._repository.batch_upsert_source_entities(
+                [
+                    _source_entity_cmd(
+                        run_id=run_id,
+                        entity_type=EntityType.ARTIST.value,
+                        external_id=str(artist.bp_artist_id),
+                        name=artist.name,
+                        normalized_name=artist.normalized_name,
+                        payload=artist.payload,
+                        observed_at=observed_at,
+                    )
+                    for artist in bundle.artists
+                ],
+                transaction_id=transaction_id,
+            )
+
+            identity_commands: list[UpsertIdentityCmd] = []
+            for artist in bundle.artists:
+                clouder_artist_id, identity_cmd = self._resolve_artist(
+                    bp_artist_id=artist.bp_artist_id,
                     name=artist.name,
                     normalized_name=artist.normalized_name,
-                    payload=artist.payload,
                     observed_at=observed_at,
+                    transaction_id=transaction_id,
                 )
-                for artist in bundle.artists
-            ]
-        )
-
-        artist_ids: dict[int, str] = {}
-        identity_commands: list[UpsertIdentityCmd] = []
-        for artist in bundle.artists:
-            clouder_artist_id, identity_cmd = self._resolve_artist(
-                bp_artist_id=artist.bp_artist_id,
-                name=artist.name,
-                normalized_name=artist.normalized_name,
-                observed_at=observed_at,
+                artist_ids[artist.bp_artist_id] = clouder_artist_id
+                if identity_cmd:
+                    identity_commands.append(identity_cmd)
+            self._repository.batch_upsert_identities(
+                identity_commands, transaction_id=transaction_id
             )
-            artist_ids[artist.bp_artist_id] = clouder_artist_id
-            if identity_cmd:
-                identity_commands.append(identity_cmd)
-        self._repository.batch_upsert_identities(identity_commands)
         log_event(
             "INFO",
             "canonicalization_phase_completed",
@@ -220,41 +256,46 @@ class Canonicalizer:
         observed_at: datetime,
         label_ids: dict[int, str],
     ) -> dict[int, str]:
-        self._repository.batch_upsert_source_entities(
-            [
-                _source_entity_cmd(
-                    run_id=run_id,
-                    entity_type=EntityType.ALBUM.value,
-                    external_id=str(album.bp_release_id),
-                    name=album.title,
-                    normalized_name=album.normalized_title,
-                    payload=album.payload,
-                    observed_at=observed_at,
-                )
-                for album in bundle.albums
-            ]
-        )
-
         album_ids: dict[int, str] = {}
-        identity_commands: list[UpsertIdentityCmd] = []
-        for album in bundle.albums:
-            label_id = (
-                label_ids.get(album.bp_label_id)
-                if album.bp_label_id is not None
-                else None
+        with self._repository.transaction() as transaction_id:
+            self._repository.batch_upsert_source_entities(
+                [
+                    _source_entity_cmd(
+                        run_id=run_id,
+                        entity_type=EntityType.ALBUM.value,
+                        external_id=str(album.bp_release_id),
+                        name=album.title,
+                        normalized_name=album.normalized_title,
+                        payload=album.payload,
+                        observed_at=observed_at,
+                    )
+                    for album in bundle.albums
+                ],
+                transaction_id=transaction_id,
             )
-            clouder_album_id, identity_cmd = self._resolve_album(
-                bp_release_id=album.bp_release_id,
-                title=album.title,
-                normalized_title=album.normalized_title,
-                release_date=album.release_date,
-                label_id=label_id,
-                observed_at=observed_at,
+
+            identity_commands: list[UpsertIdentityCmd] = []
+            for album in bundle.albums:
+                label_id = (
+                    label_ids.get(album.bp_label_id)
+                    if album.bp_label_id is not None
+                    else None
+                )
+                clouder_album_id, identity_cmd = self._resolve_album(
+                    bp_release_id=album.bp_release_id,
+                    title=album.title,
+                    normalized_title=album.normalized_title,
+                    release_date=album.release_date,
+                    label_id=label_id,
+                    observed_at=observed_at,
+                    transaction_id=transaction_id,
+                )
+                album_ids[album.bp_release_id] = clouder_album_id
+                if identity_cmd:
+                    identity_commands.append(identity_cmd)
+            self._repository.batch_upsert_identities(
+                identity_commands, transaction_id=transaction_id
             )
-            album_ids[album.bp_release_id] = clouder_album_id
-            if identity_cmd:
-                identity_commands.append(identity_cmd)
-        self._repository.batch_upsert_identities(identity_commands)
         log_event(
             "INFO",
             "canonicalization_phase_completed",
@@ -265,20 +306,24 @@ class Canonicalizer:
         return album_ids
 
     def _process_relations(self, run_id: str, bundle: NormalizedBundle) -> None:
-        self._repository.batch_upsert_source_relations(
-            [
-                UpsertSourceRelationCmd(
-                    source="beatport",
-                    from_entity_type=relation.from_entity_type,
-                    from_external_id=relation.from_external_id,
-                    relation_type=relation.relation_type,
-                    to_entity_type=relation.to_entity_type,
-                    to_external_id=relation.to_external_id,
-                    last_run_id=run_id,
-                )
-                for relation in bundle.relations
-            ]
-        )
+        # Kept in a transaction for symmetry with other phases; atomicity
+        # would hold without it since this is a single batch call.
+        with self._repository.transaction() as transaction_id:
+            self._repository.batch_upsert_source_relations(
+                [
+                    UpsertSourceRelationCmd(
+                        source="beatport",
+                        from_entity_type=relation.from_entity_type,
+                        from_external_id=relation.from_external_id,
+                        relation_type=relation.relation_type,
+                        to_entity_type=relation.to_entity_type,
+                        to_external_id=relation.to_external_id,
+                        last_run_id=run_id,
+                    )
+                    for relation in bundle.relations
+                ],
+                transaction_id=transaction_id,
+            )
         log_event(
             "INFO",
             "canonicalization_phase_completed",
@@ -399,15 +444,25 @@ class Canonicalizer:
         name: str,
         normalized_name: str,
         observed_at: datetime,
+        transaction_id: str | None = None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.LABEL.value, str(bp_label_id)
+            "beatport",
+            EntityType.LABEL.value,
+            str(bp_label_id),
+            transaction_id=transaction_id,
         )
         if identity:
             return identity.clouder_id, None
 
         clouder_id = str(uuid4())
-        self._repository.create_label(clouder_id, name, normalized_name, observed_at)
+        self._repository.create_label(
+            clouder_id,
+            name,
+            normalized_name,
+            observed_at,
+            transaction_id=transaction_id,
+        )
         return clouder_id, _identity_cmd(
             entity_type=EntityType.LABEL.value,
             external_id=str(bp_label_id),
@@ -424,15 +479,25 @@ class Canonicalizer:
         name: str,
         normalized_name: str,
         observed_at: datetime,
+        transaction_id: str | None = None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.STYLE.value, str(bp_genre_id)
+            "beatport",
+            EntityType.STYLE.value,
+            str(bp_genre_id),
+            transaction_id=transaction_id,
         )
         if identity:
             return identity.clouder_id, None
 
         clouder_id = str(uuid4())
-        self._repository.create_style(clouder_id, name, normalized_name, observed_at)
+        self._repository.create_style(
+            clouder_id,
+            name,
+            normalized_name,
+            observed_at,
+            transaction_id=transaction_id,
+        )
         return clouder_id, _identity_cmd(
             entity_type=EntityType.STYLE.value,
             external_id=str(bp_genre_id),
@@ -449,15 +514,25 @@ class Canonicalizer:
         name: str,
         normalized_name: str,
         observed_at: datetime,
+        transaction_id: str | None = None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.ARTIST.value, str(bp_artist_id)
+            "beatport",
+            EntityType.ARTIST.value,
+            str(bp_artist_id),
+            transaction_id=transaction_id,
         )
         if identity:
             return identity.clouder_id, None
 
         clouder_id = str(uuid4())
-        self._repository.create_artist(clouder_id, name, normalized_name, observed_at)
+        self._repository.create_artist(
+            clouder_id,
+            name,
+            normalized_name,
+            observed_at,
+            transaction_id=transaction_id,
+        )
         return clouder_id, _identity_cmd(
             entity_type=EntityType.ARTIST.value,
             external_id=str(bp_artist_id),
@@ -476,9 +551,13 @@ class Canonicalizer:
         release_date: str | None,
         label_id: str | None,
         observed_at: datetime,
+        transaction_id: str | None = None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.ALBUM.value, str(bp_release_id)
+            "beatport",
+            EntityType.ALBUM.value,
+            str(bp_release_id),
+            transaction_id=transaction_id,
         )
         if identity:
             return identity.clouder_id, None
@@ -491,6 +570,7 @@ class Canonicalizer:
             release_date=parse_iso_date(release_date),
             label_id=label_id,
             at=observed_at,
+            transaction_id=transaction_id,
         )
         return clouder_id, _identity_cmd(
             entity_type=EntityType.ALBUM.value,
@@ -518,7 +598,10 @@ class Canonicalizer:
         transaction_id: str | None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.TRACK.value, str(bp_track_id)
+            "beatport",
+            EntityType.TRACK.value,
+            str(bp_track_id),
+            transaction_id=transaction_id,
         )
         if identity:
             self._repository.conservative_update_track(

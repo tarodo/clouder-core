@@ -26,7 +26,7 @@ ALLOWED_LOG_FIELDS = {
     "error_code",
     "error_type",
     "error_message",
-    "beatport_url",
+    "beatport_url_hash",
     "beatport_page",
     "beatport_attempt",
     "beatport_http_status",
@@ -35,6 +35,8 @@ ALLOWED_LOG_FIELDS = {
     "s3_size_bytes",
     "sqs_record_count",
     "phase",
+    "completed_phases",
+    "failed_after",
     "entity_type",
     "relations_total",
     "tracks_total",
@@ -57,6 +59,8 @@ ALLOWED_LOG_FIELDS = {
     "total_count",
     "result_count",
     "entity",
+    "attempt",
+    "sleep_seconds",
 }
 
 

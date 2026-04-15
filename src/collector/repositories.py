@@ -173,8 +173,19 @@ class ClouderRepository:
         )
 
     def set_run_failed(
-        self, run_id: str, error_code: str, error_message: str, finished_at: datetime
+        self,
+        run_id: str,
+        error_code: str,
+        error_message: str,
+        finished_at: datetime,
+        phase: str | None = None,
     ) -> None:
+        if phase:
+            prefix = f"[phase={phase}] "
+            truncated = error_message[: 2000 - len(prefix)]
+            final_error_message = f"{prefix}{truncated}"
+        else:
+            final_error_message = error_message[:2000]
         self._data_api.execute(
             """
             UPDATE ingest_runs
@@ -189,7 +200,7 @@ class ClouderRepository:
                 "status": RunStatus.FAILED.value,
                 "finished_at": finished_at,
                 "error_code": error_code,
-                "error_message": error_message[:2000],
+                "error_message": final_error_message,
             },
         )
 
@@ -348,7 +359,11 @@ class ClouderRepository:
         )
 
     def find_identity(
-        self, source: str, entity_type: str, external_id: str
+        self,
+        source: str,
+        entity_type: str,
+        external_id: str,
+        transaction_id: str | None = None,
     ) -> IdentityMapEntry | None:
         rows = self._data_api.execute(
             """
@@ -363,6 +378,7 @@ class ClouderRepository:
                 "entity_type": entity_type,
                 "external_id": external_id,
             },
+            transaction_id=transaction_id,
         )
         if not rows:
             return None
@@ -660,9 +676,7 @@ class ClouderRepository:
 
     # ── Spotify search methods ─────────────────────────────────────
 
-    def find_tracks_needing_spotify_search(
-        self, limit: int
-    ) -> list[dict[str, Any]]:
+    def find_tracks_needing_spotify_search(self, limit: int) -> list[dict[str, Any]]:
         return self._data_api.execute(
             """
             SELECT id, isrc, title, normalized_title
@@ -701,9 +715,7 @@ class ClouderRepository:
             params,
         )
 
-    def count_tracks_not_found_on_spotify(
-        self, search: str | None = None
-    ) -> int:
+    def count_tracks_not_found_on_spotify(self, search: str | None = None) -> int:
         params: dict[str, Any] = {}
         where_extra = ""
         if search:

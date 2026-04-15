@@ -8,6 +8,8 @@ from decimal import Decimal
 import json
 from typing import Any, Dict, Iterable, Iterator, Mapping
 
+from .data_api_retry import retry_data_api, retry_data_api_pre_execution
+
 
 class DataAPIClient:
     def __init__(
@@ -22,6 +24,7 @@ class DataAPIClient:
         self._secret_arn = secret_arn
         self._database = database
 
+    @retry_data_api()
     def execute(
         self,
         sql: str,
@@ -45,6 +48,7 @@ class DataAPIClient:
         response = self._client.execute_statement(**request)
         return _to_rows(response)
 
+    @retry_data_api()
     def batch_execute(
         self,
         sql: str,
@@ -67,6 +71,7 @@ class DataAPIClient:
         if request["parameterSets"]:
             self._client.batch_execute_statement(**request)
 
+    @retry_data_api()
     def begin_transaction(self) -> str:
         response = self._client.begin_transaction(
             resourceArn=self._resource_arn,
@@ -75,6 +80,7 @@ class DataAPIClient:
         )
         return response["transactionId"]
 
+    @retry_data_api_pre_execution()
     def commit_transaction(self, transaction_id: str) -> None:
         self._client.commit_transaction(
             resourceArn=self._resource_arn,
@@ -82,6 +88,7 @@ class DataAPIClient:
             transactionId=transaction_id,
         )
 
+    @retry_data_api_pre_execution()
     def rollback_transaction(self, transaction_id: str) -> None:
         self._client.rollback_transaction(
             resourceArn=self._resource_arn,
