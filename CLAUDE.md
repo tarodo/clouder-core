@@ -48,11 +48,17 @@ cd infra && terraform init && terraform apply
 - **`GET /runs/{run_id}` returns 503 `db_not_configured`** if `AURORA_*` env vars are missing — not a bug.
 - **Queue visibility vs worker timeout:** keep `canonicalization_queue_visibility_timeout_seconds >= canonicalization_worker_lambda_timeout_seconds`, else duplicate processing.
 - **`bp_token` must never be logged or stored in S3.** Sanitize before structlog.
-- **Aurora auto-pause** after 300s (`min_acu=0`) — first request after idle is slow.
+- **Aurora auto-pause** after 300s (`min_acu=0`) — first request after idle is slow. `data_api.DataAPIClient` methods are wrapped by `data_api_retry.retry_data_api` (exp backoff + full jitter) to survive `DatabaseResumingException`. Non-idempotent writes must use transactions or UPSERT — see docstring.
+- **`find_identity` must receive `transaction_id`** when called inside a `repository.transaction()` block, otherwise reads miss in-flight writes.
+- **Secrets cached per container.** `settings._fetch_secret_string` uses `lru_cache` — rotated Perplexity/Spotify keys require Lambda recycle to pick up.
 
 ## Env Vars (runtime)
 
 API/Worker Lambda: `RAW_BUCKET_NAME`, `RAW_PREFIX`, `BEATPORT_API_BASE_URL`, `CANONICALIZATION_ENABLED`, `CANONICALIZATION_QUEUE_URL`, `AURORA_CLUSTER_ARN`, `AURORA_SECRET_ARN`, `AURORA_DATABASE`, `LOG_LEVEL`.
+
+AI Search Worker: `PERPLEXITY_API_KEY` OR `PERPLEXITY_API_KEY_SECRET_ARN` (Secrets Manager SecretString = plain key). Direct env wins.
+
+Spotify Worker: `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` OR `SPOTIFY_CREDENTIALS_SECRET_ARN` (Secrets Manager SecretString = JSON `{client_id, client_secret}`). Direct env wins.
 
 Migration Lambda: `AURORA_WRITER_ENDPOINT`, `AURORA_PORT`, `AURORA_SECRET_ARN`, `AURORA_DATABASE`.
 
