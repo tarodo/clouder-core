@@ -4,7 +4,12 @@ from __future__ import annotations
 import pytest
 from botocore.exceptions import ClientError
 
-from collector.data_api_retry import retry_data_api, TRANSIENT_ERROR_CODES
+from collector.data_api_retry import (
+    retry_data_api,
+    retry_data_api_pre_execution,
+    PRE_EXECUTION_ERROR_CODES,
+    TRANSIENT_ERROR_CODES,
+)
 
 
 def _client_error(code: str) -> ClientError:
@@ -107,3 +112,57 @@ def test_retry_skips_permanent_errors(monkeypatch):
 def test_transient_codes_include_resuming_and_statement_timeout():
     assert "DatabaseResumingException" in TRANSIENT_ERROR_CODES
     assert "StatementTimeoutException" in TRANSIENT_ERROR_CODES
+
+
+def test_pre_execution_retry_skips_statement_timeout(monkeypatch):
+    """commit/rollback should not retry on post-execution codes."""
+    monkeypatch.setattr("collector.data_api_retry.time.sleep", lambda s: None)
+    calls = {"n": 0}
+
+    @retry_data_api_pre_execution(max_attempts=3, base_delay=0.01)
+    def op() -> None:
+        calls["n"] += 1
+        raise _client_error("StatementTimeoutException")
+
+    with pytest.raises(ClientError):
+        op()
+    assert calls["n"] == 1  # no retry — post-execution code
+
+
+def test_pre_execution_retry_still_retries_database_resuming(monkeypatch):
+    monkeypatch.setattr("collector.data_api_retry.time.sleep", lambda s: None)
+    calls = {"n": 0}
+
+    @retry_data_api_pre_execution(max_attempts=3, base_delay=0.01)
+    def op() -> str:
+        calls["n"] += 1
+        if calls["n"] < 2:
+            raise _client_error("DatabaseResumingException")
+        return "ok"
+
+    assert op() == "ok"
+    assert calls["n"] == 2
+
+
+def test_pre_execution_codes_are_subset_of_transient():
+    assert PRE_EXECUTION_ERROR_CODES <= TRANSIENT_ERROR_CODES
+    # Specifically excludes post-execution codes
+    assert "StatementTimeoutException" not in PRE_EXECUTION_ERROR_CODES
+    assert "InternalServerErrorException" not in PRE_EXECUTION_ERROR_CODES
+
+
+def test_retry_log_includes_attempt_and_sleep(monkeypatch, capsys):
+    monkeypatch.setattr("collector.data_api_retry.time.sleep", lambda s: None)
+    calls = {"n": 0}
+
+    @retry_data_api(max_attempts=3, base_delay=0.01)
+    def op() -> str:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _client_error("DatabaseResumingException")
+        return "ok"
+
+    op()
+    out = capsys.readouterr().out
+    assert "attempt" in out
+    assert "sleep_seconds" in out

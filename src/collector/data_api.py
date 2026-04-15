@@ -8,7 +8,7 @@ from decimal import Decimal
 import json
 from typing import Any, Dict, Iterable, Iterator, Mapping
 
-from .data_api_retry import retry_data_api
+from .data_api_retry import retry_data_api, retry_data_api_pre_execution
 
 
 class DataAPIClient:
@@ -80,7 +80,7 @@ class DataAPIClient:
         )
         return response["transactionId"]
 
-    @retry_data_api()
+    @retry_data_api_pre_execution()
     def commit_transaction(self, transaction_id: str) -> None:
         self._client.commit_transaction(
             resourceArn=self._resource_arn,
@@ -88,7 +88,7 @@ class DataAPIClient:
             transactionId=transaction_id,
         )
 
-    @retry_data_api()
+    @retry_data_api_pre_execution()
     def rollback_transaction(self, transaction_id: str) -> None:
         self._client.rollback_transaction(
             resourceArn=self._resource_arn,

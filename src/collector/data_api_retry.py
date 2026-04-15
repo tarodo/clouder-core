@@ -24,6 +24,14 @@ TRANSIENT_ERROR_CODES = frozenset(
     }
 )
 
+PRE_EXECUTION_ERROR_CODES = frozenset(
+    {
+        "DatabaseResumingException",
+        "ServiceUnavailableError",
+        "ThrottlingException",
+    }
+)
+
 F = TypeVar("F", bound=Callable[..., Any])
 
 
@@ -46,6 +54,32 @@ def retry_data_api(
     Pre-execution codes (``DatabaseResumingException``, ``ServiceUnavailableError``,
     ``ThrottlingException``) are always safe to retry.
     """
+    return _retry(TRANSIENT_ERROR_CODES, max_attempts, base_delay, max_delay)
+
+
+def retry_data_api_pre_execution(
+    max_attempts: int = 5,
+    base_delay: float = 1.0,
+    max_delay: float = 30.0,
+) -> Callable[[F], F]:
+    """Retry decorator for RDS Data API calls where the operation must
+    not be re-executed if it may have already succeeded server-side.
+
+    Narrower than ``retry_data_api``: only retries codes that signal the
+    request never reached the engine (Aurora resuming, throttling,
+    service unavailable). Use for ``commit_transaction`` /
+    ``rollback_transaction`` where a retry after partial completion
+    would corrupt state.
+    """
+    return _retry(PRE_EXECUTION_ERROR_CODES, max_attempts, base_delay, max_delay)
+
+
+def _retry(
+    codes: frozenset[str],
+    max_attempts: int,
+    base_delay: float,
+    max_delay: float,
+) -> Callable[[F], F]:
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -56,7 +90,7 @@ def retry_data_api(
                     return func(*args, **kwargs)
                 except ClientError as exc:
                     code = exc.response.get("Error", {}).get("Code", "")
-                    if code not in TRANSIENT_ERROR_CODES or attempt >= max_attempts:
+                    if code not in codes or attempt >= max_attempts:
                         raise
                     cap = min(max_delay, base_delay * (2 ** (attempt - 1)))
                     # Full jitter (AWS recommendation) — spreads retries
@@ -67,6 +101,8 @@ def retry_data_api(
                         "data_api_retry",
                         error_code=code,
                         error_type=exc.__class__.__name__,
+                        attempt=attempt,
+                        sleep_seconds=round(sleep_seconds, 3),
                     )
                     time.sleep(sleep_seconds)
 

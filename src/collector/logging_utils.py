@@ -59,6 +59,8 @@ ALLOWED_LOG_FIELDS = {
     "total_count",
     "result_count",
     "entity",
+    "attempt",
+    "sleep_seconds",
 }
 
 

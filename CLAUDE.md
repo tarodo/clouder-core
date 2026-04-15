@@ -48,7 +48,7 @@ cd infra && terraform init && terraform apply
 - **`GET /runs/{run_id}` returns 503 `db_not_configured`** if `AURORA_*` env vars are missing — not a bug.
 - **Queue visibility vs worker timeout:** keep `canonicalization_queue_visibility_timeout_seconds >= canonicalization_worker_lambda_timeout_seconds`, else duplicate processing.
 - **`bp_token` must never be logged or stored in S3.** Sanitize before structlog.
-- **Aurora auto-pause** after 300s (`min_acu=0`) — first request after idle is slow. `data_api.DataAPIClient` methods are wrapped by `data_api_retry.retry_data_api` (exp backoff + full jitter) to survive `DatabaseResumingException`. Non-idempotent writes must use transactions or UPSERT — see docstring.
+- **Aurora auto-pause** after 300s (`min_acu=0`) — first request after idle is slow. `data_api.DataAPIClient` uses two retry decorators: `retry_data_api` (all transient codes) on read/write statements, and `retry_data_api_pre_execution` (only pre-execution codes) on `commit_transaction` / `rollback_transaction` to avoid retrying after partial commit. Non-idempotent writes must be inside a transaction or use UPSERT.
 - **`find_identity` must receive `transaction_id`** when called inside a `repository.transaction()` block, otherwise reads miss in-flight writes.
 - **Secrets cached per container.** `settings._fetch_secret_string` uses `lru_cache` — rotated Perplexity/Spotify keys require Lambda recycle to pick up.
 
