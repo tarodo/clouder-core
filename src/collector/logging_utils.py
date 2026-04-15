@@ -35,6 +35,8 @@ ALLOWED_LOG_FIELDS = {
     "s3_size_bytes",
     "sqs_record_count",
     "phase",
+    "completed_phases",
+    "failed_after",
     "entity_type",
     "relations_total",
     "tracks_total",

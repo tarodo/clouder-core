@@ -28,7 +28,9 @@ class FakeRepo:
         del processed_count, finished_at
         self.completed_runs.append(run_id)
 
-    def set_run_failed(self, run_id: str, error_code: str, error_message: str, finished_at) -> None:
+    def set_run_failed(
+        self, run_id: str, error_code: str, error_message: str, finished_at
+    ) -> None:
         del error_message, finished_at
         self.failed_runs.append((run_id, error_code))
 
@@ -40,7 +42,7 @@ class FakeRepo:
     def batch_upsert_source_relations(self, commands, transaction_id=None):
         pass
 
-    def find_identity(self, source, entity_type, external_id):
+    def find_identity(self, source, entity_type, external_id, transaction_id=None):
         return self.identities.get((source, entity_type, external_id))
 
     def batch_upsert_identities(self, commands, transaction_id=None):
@@ -55,7 +57,16 @@ class FakeRepo:
     def create_artist(self, artist_id, name, normalized_name, at, transaction_id=None):
         pass
 
-    def create_album(self, album_id, title, normalized_title, release_date, label_id, at, transaction_id=None):
+    def create_album(
+        self,
+        album_id,
+        title,
+        normalized_title,
+        release_date,
+        label_id,
+        at,
+        transaction_id=None,
+    ):
         pass
 
     def create_track(self, cmd, transaction_id=None):
@@ -70,6 +81,7 @@ class FakeRepo:
     class _FakeTransaction:
         def __enter__(self):
             return "tx"
+
         def __exit__(self, *args):
             pass
 
@@ -78,7 +90,9 @@ class FakeRepo:
 
 
 class FakeS3Client:
-    def __init__(self, data: list[dict[str, Any]] | None = None, fail: bool = False) -> None:
+    def __init__(
+        self, data: list[dict[str, Any]] | None = None, fail: bool = False
+    ) -> None:
         self._data = data or []
         self._fail = fail
 
@@ -110,7 +124,9 @@ def _setup_worker(monkeypatch, repo=None, s3_data=None, s3_fail=False):
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     monkeypatch.setenv("RAW_PREFIX", "raw/bp/releases")
     repo = repo or FakeRepo()
-    monkeypatch.setattr("collector.worker_handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(
+        "collector.worker_handler.create_clouder_repository_from_env", lambda: repo
+    )
     monkeypatch.setattr(
         "collector.worker_handler.create_default_s3_client",
         lambda: FakeS3Client(data=s3_data, fail=s3_fail),
@@ -172,11 +188,13 @@ def test_happy_path_processes_tracks(monkeypatch) -> None:
     ]
     repo = _setup_worker(monkeypatch, s3_data=raw_tracks)
 
-    event = _sqs_event({
-        "run_id": "run-42",
-        "source": "beatport",
-        "s3_key": "raw/bp/releases/style_id=5/year=2026/week=09/releases.json.gz",
-    })
+    event = _sqs_event(
+        {
+            "run_id": "run-42",
+            "source": "beatport",
+            "s3_key": "raw/bp/releases/style_id=5/year=2026/week=09/releases.json.gz",
+        }
+    )
     response = lambda_handler(event, context=None)
 
     assert response == {"processed": 1}
@@ -188,11 +206,13 @@ def test_permanent_error_does_not_reraise(monkeypatch) -> None:
     """StorageError (permanent) should NOT re-raise → SQS deletes the message."""
     repo = _setup_worker(monkeypatch, s3_fail=True)
 
-    event = _sqs_event({
-        "run_id": "run-fail",
-        "source": "beatport",
-        "s3_key": "raw/missing-key",
-    })
+    event = _sqs_event(
+        {
+            "run_id": "run-fail",
+            "source": "beatport",
+            "s3_key": "raw/missing-key",
+        }
+    )
 
     # Should NOT raise — permanent errors are swallowed
     response = lambda_handler(event, context=None)
@@ -207,8 +227,14 @@ def test_permanent_error_does_not_reraise(monkeypatch) -> None:
 
 def test_transient_error_reraises_for_sqs_retry(monkeypatch) -> None:
     """RuntimeError (transient) should re-raise → SQS retries the message."""
-    raw_tracks = [{"id": 1, "name": "T", "artists": [{"id": 1, "name": "A"}],
-                   "release": {"id": 1, "name": "R", "label": {"id": 1, "name": "L"}}}]
+    raw_tracks = [
+        {
+            "id": 1,
+            "name": "T",
+            "artists": [{"id": 1, "name": "A"}],
+            "release": {"id": 1, "name": "R", "label": {"id": 1, "name": "L"}},
+        }
+    ]
     repo = _setup_worker(monkeypatch, s3_data=raw_tracks)
 
     # Make the canonicalizer's DB call fail with a transient error
@@ -217,11 +243,13 @@ def test_transient_error_reraises_for_sqs_retry(monkeypatch) -> None:
 
     repo.set_run_completed = exploding_set_run_completed
 
-    event = _sqs_event({
-        "run_id": "run-transient",
-        "source": "beatport",
-        "s3_key": "raw/key",
-    })
+    event = _sqs_event(
+        {
+            "run_id": "run-transient",
+            "source": "beatport",
+            "s3_key": "raw/key",
+        }
+    )
 
     with pytest.raises(RuntimeError, match="DB connection lost"):
         lambda_handler(event, context=None)
@@ -233,8 +261,12 @@ def test_missing_aurora_config_raises(monkeypatch) -> None:
     reset_settings_cache()
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     monkeypatch.setenv("RAW_PREFIX", "raw/bp/releases")
-    monkeypatch.setattr("collector.worker_handler.create_clouder_repository_from_env", lambda: None)
-    monkeypatch.setattr("collector.worker_handler.create_default_s3_client", lambda: object())
+    monkeypatch.setattr(
+        "collector.worker_handler.create_clouder_repository_from_env", lambda: None
+    )
+    monkeypatch.setattr(
+        "collector.worker_handler.create_default_s3_client", lambda: object()
+    )
 
     with pytest.raises(RuntimeError, match="AURORA Data API"):
         lambda_handler({"Records": [{"body": "{}"}]}, context=None)

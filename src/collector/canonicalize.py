@@ -49,27 +49,48 @@ class Canonicalizer:
             relations_total=len(bundle.relations),
         )
 
-        label_ids = self._process_labels(
-            run_id=run_id, bundle=bundle, observed_at=observed_at
-        )
-        style_ids = self._process_styles(
-            run_id=run_id, bundle=bundle, observed_at=observed_at
-        )
-        artist_ids = self._process_artists(
-            run_id=run_id, bundle=bundle, observed_at=observed_at
-        )
-        album_ids = self._process_albums(
-            run_id=run_id, bundle=bundle, observed_at=observed_at, label_ids=label_ids
-        )
-        self._process_relations(run_id=run_id, bundle=bundle)
-        track_ids = self._process_tracks(
-            run_id=run_id,
-            bundle=bundle,
-            observed_at=observed_at,
-            artist_ids=artist_ids,
-            album_ids=album_ids,
-            style_ids=style_ids,
-        )
+        completed_phases: list[str] = []
+        try:
+            label_ids = self._process_labels(
+                run_id=run_id, bundle=bundle, observed_at=observed_at
+            )
+            completed_phases.append("labels")
+            style_ids = self._process_styles(
+                run_id=run_id, bundle=bundle, observed_at=observed_at
+            )
+            completed_phases.append("styles")
+            artist_ids = self._process_artists(
+                run_id=run_id, bundle=bundle, observed_at=observed_at
+            )
+            completed_phases.append("artists")
+            album_ids = self._process_albums(
+                run_id=run_id,
+                bundle=bundle,
+                observed_at=observed_at,
+                label_ids=label_ids,
+            )
+            completed_phases.append("albums")
+            self._process_relations(run_id=run_id, bundle=bundle)
+            completed_phases.append("relations")
+            track_ids = self._process_tracks(
+                run_id=run_id,
+                bundle=bundle,
+                observed_at=observed_at,
+                artist_ids=artist_ids,
+                album_ids=album_ids,
+                style_ids=style_ids,
+            )
+            completed_phases.append("tracks")
+        except Exception as exc:
+            log_event(
+                "ERROR",
+                "canonicalization_phase_failed",
+                run_id=run_id,
+                completed_phases=",".join(completed_phases),
+                failed_after=completed_phases[-1] if completed_phases else "none",
+                error_type=exc.__class__.__name__,
+            )
+            raise
 
         result = CanonicalizationResult(
             run_id=run_id,
@@ -285,6 +306,8 @@ class Canonicalizer:
         return album_ids
 
     def _process_relations(self, run_id: str, bundle: NormalizedBundle) -> None:
+        # Kept in a transaction for symmetry with other phases; atomicity
+        # would hold without it since this is a single batch call.
         with self._repository.transaction() as transaction_id:
             self._repository.batch_upsert_source_relations(
                 [
@@ -424,14 +447,20 @@ class Canonicalizer:
         transaction_id: str | None = None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.LABEL.value, str(bp_label_id)
+            "beatport",
+            EntityType.LABEL.value,
+            str(bp_label_id),
+            transaction_id=transaction_id,
         )
         if identity:
             return identity.clouder_id, None
 
         clouder_id = str(uuid4())
         self._repository.create_label(
-            clouder_id, name, normalized_name, observed_at,
+            clouder_id,
+            name,
+            normalized_name,
+            observed_at,
             transaction_id=transaction_id,
         )
         return clouder_id, _identity_cmd(
@@ -453,14 +482,20 @@ class Canonicalizer:
         transaction_id: str | None = None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.STYLE.value, str(bp_genre_id)
+            "beatport",
+            EntityType.STYLE.value,
+            str(bp_genre_id),
+            transaction_id=transaction_id,
         )
         if identity:
             return identity.clouder_id, None
 
         clouder_id = str(uuid4())
         self._repository.create_style(
-            clouder_id, name, normalized_name, observed_at,
+            clouder_id,
+            name,
+            normalized_name,
+            observed_at,
             transaction_id=transaction_id,
         )
         return clouder_id, _identity_cmd(
@@ -482,14 +517,20 @@ class Canonicalizer:
         transaction_id: str | None = None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.ARTIST.value, str(bp_artist_id)
+            "beatport",
+            EntityType.ARTIST.value,
+            str(bp_artist_id),
+            transaction_id=transaction_id,
         )
         if identity:
             return identity.clouder_id, None
 
         clouder_id = str(uuid4())
         self._repository.create_artist(
-            clouder_id, name, normalized_name, observed_at,
+            clouder_id,
+            name,
+            normalized_name,
+            observed_at,
             transaction_id=transaction_id,
         )
         return clouder_id, _identity_cmd(
@@ -513,7 +554,10 @@ class Canonicalizer:
         transaction_id: str | None = None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.ALBUM.value, str(bp_release_id)
+            "beatport",
+            EntityType.ALBUM.value,
+            str(bp_release_id),
+            transaction_id=transaction_id,
         )
         if identity:
             return identity.clouder_id, None
@@ -554,7 +598,10 @@ class Canonicalizer:
         transaction_id: str | None,
     ) -> tuple[str, UpsertIdentityCmd | None]:
         identity = self._repository.find_identity(
-            "beatport", EntityType.TRACK.value, str(bp_track_id)
+            "beatport",
+            EntityType.TRACK.value,
+            str(bp_track_id),
+            transaction_id=transaction_id,
         )
         if identity:
             self._repository.conservative_update_track(
