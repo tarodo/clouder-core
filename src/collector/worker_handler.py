@@ -79,7 +79,6 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             s3_key=s3_key,
         )
 
-        phase = "init"
         try:
             phase = "read_s3"
             raw_tracks = storage.read_releases(s3_key)

@@ -180,9 +180,12 @@ class ClouderRepository:
         finished_at: datetime,
         phase: str | None = None,
     ) -> None:
-        final_error_message = (
-            f"[phase={phase}] {error_message}" if phase else error_message
-        )
+        if phase:
+            prefix = f"[phase={phase}] "
+            truncated = error_message[: 2000 - len(prefix)]
+            final_error_message = f"{prefix}{truncated}"
+        else:
+            final_error_message = error_message[:2000]
         self._data_api.execute(
             """
             UPDATE ingest_runs
@@ -197,7 +200,7 @@ class ClouderRepository:
                 "status": RunStatus.FAILED.value,
                 "finished_at": finished_at,
                 "error_code": error_code,
-                "error_message": final_error_message[:2000],
+                "error_message": final_error_message,
             },
         )
 

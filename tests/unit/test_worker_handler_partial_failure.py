@@ -121,3 +121,43 @@ def test_read_s3_phase_failure_records_phase(sqs_event, monkeypatch):
 
     kwargs = repo.set_run_failed.call_args.kwargs
     assert kwargs.get("phase") == "read_s3"
+
+
+def test_message_truncated_but_phase_preserved(sqs_event, monkeypatch):
+    long_msg = "x" * 5000
+
+    def boom(_):
+        raise ValueError(long_msg)
+
+    repo = _patch_worker_deps(monkeypatch, normalize_side_effect=boom)
+
+    from collector import worker_handler
+
+    worker_handler.lambda_handler(sqs_event, None)
+
+    kwargs = repo.set_run_failed.call_args.kwargs
+    assert kwargs["phase"] == "normalize"
+
+
+def test_phase_prefix_stripped_from_api_response():
+    from collector.handler import _split_phase_prefix
+
+    phase, msg = _split_phase_prefix("[phase=normalize] boom")
+    assert phase == "normalize"
+    assert msg == "boom"
+
+
+def test_no_phase_prefix_returns_none():
+    from collector.handler import _split_phase_prefix
+
+    phase, msg = _split_phase_prefix("boom")
+    assert phase is None
+    assert msg == "boom"
+
+
+def test_empty_message_returns_none():
+    from collector.handler import _split_phase_prefix
+
+    phase, msg = _split_phase_prefix(None)
+    assert phase is None
+    assert msg is None
