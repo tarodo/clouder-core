@@ -204,11 +204,9 @@ variable "ai_search_queue_retention_seconds" {
   default     = 1209600
 }
 
-variable "perplexity_api_key" {
-  description = "Perplexity API key for AI search"
+variable "perplexity_api_key_secret_arn" {
+  description = "Secrets Manager ARN for Perplexity API key (SecretString is the plain key)."
   type        = string
-  default     = ""
-  sensitive   = true
 }
 
 # ── Spotify Search ────────────────────────────────────────────────
@@ -219,18 +217,9 @@ variable "spotify_search_enabled" {
   default     = false
 }
 
-variable "spotify_client_id" {
-  description = "Spotify API client ID"
+variable "spotify_credentials_secret_arn" {
+  description = "Secrets Manager ARN for Spotify credentials (SecretString is JSON: {client_id, client_secret})."
   type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "spotify_client_secret" {
-  description = "Spotify API client secret"
-  type        = string
-  default     = ""
-  sensitive   = true
 }
 
 variable "spotify_raw_prefix" {

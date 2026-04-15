@@ -126,6 +126,16 @@ data "aws_iam_policy_document" "collector_lambda" {
   }
 
   statement {
+    sid     = "ReadExternalApiSecrets"
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = [
+      var.perplexity_api_key_secret_arn,
+      var.spotify_credentials_secret_arn,
+    ]
+  }
+
+  statement {
     sid    = "AllowLambdaVpcNetworking"
     effect = "Allow"
     actions = [
