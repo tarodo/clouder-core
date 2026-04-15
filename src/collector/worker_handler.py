@@ -79,7 +79,9 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             s3_key=s3_key,
         )
 
+        phase = "init"
         try:
+            phase = "read_s3"
             raw_tracks = storage.read_releases(s3_key)
             log_event(
                 "INFO",
@@ -90,6 +92,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 s3_key=s3_key,
             )
 
+            phase = "normalize"
             bundle = normalize_tracks(raw_tracks)
             log_event(
                 "INFO",
@@ -103,8 +106,11 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 relations_total=len(bundle.relations),
             )
 
+            phase = "canonicalize"
             canonicalizer = Canonicalizer(repository)
             result = canonicalizer.process_run(run_id=run_id, bundle=bundle)
+
+            phase = "mark_completed"
             repository.set_run_completed(
                 run_id=run_id,
                 processed_count=result.tracks_processed,
@@ -127,6 +133,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 status_code=200,
             )
 
+            phase = "enqueue_followups"
             _enqueue_label_search_after_canonicalization(
                 repository=repository,
                 settings=settings,
@@ -143,17 +150,30 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 if is_permanent
                 else "canonicalization_transient_failure"
             )
-            repository.set_run_failed(
-                run_id=run_id,
-                error_code=error_code,
-                error_message=str(exc),
-                finished_at=utc_now(),
-            )
+            try:
+                repository.set_run_failed(
+                    run_id=run_id,
+                    error_code=error_code,
+                    error_message=str(exc),
+                    finished_at=utc_now(),
+                    phase=phase,
+                )
+            except Exception as mark_exc:
+                log_event(
+                    "ERROR",
+                    "set_run_failed_itself_failed",
+                    correlation_id=correlation_id,
+                    run_id=run_id,
+                    phase=phase,
+                    error_type=mark_exc.__class__.__name__,
+                    error_message=str(mark_exc)[:500],
+                )
             log_event(
                 "ERROR",
                 "canonicalization_failed",
                 correlation_id=correlation_id,
                 run_id=run_id,
+                phase=phase,
                 error_code=error_code,
                 error_type=exc.__class__.__name__,
                 error_message=str(exc)[:500],

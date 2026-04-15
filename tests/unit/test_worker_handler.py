@@ -29,9 +29,10 @@ class FakeRepo:
         self.completed_runs.append(run_id)
 
     def set_run_failed(
-        self, run_id: str, error_code: str, error_message: str, finished_at
+        self, run_id: str, error_code: str, error_message: str, finished_at,
+        phase: str | None = None,
     ) -> None:
-        del error_message, finished_at
+        del error_message, finished_at, phase
         self.failed_runs.append((run_id, error_code))
 
     # ── canonicalization stubs ──

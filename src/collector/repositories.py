@@ -173,8 +173,16 @@ class ClouderRepository:
         )
 
     def set_run_failed(
-        self, run_id: str, error_code: str, error_message: str, finished_at: datetime
+        self,
+        run_id: str,
+        error_code: str,
+        error_message: str,
+        finished_at: datetime,
+        phase: str | None = None,
     ) -> None:
+        final_error_message = (
+            f"[phase={phase}] {error_message}" if phase else error_message
+        )
         self._data_api.execute(
             """
             UPDATE ingest_runs
@@ -189,7 +197,7 @@ class ClouderRepository:
                 "status": RunStatus.FAILED.value,
                 "finished_at": finished_at,
                 "error_code": error_code,
-                "error_message": error_message[:2000],
+                "error_message": final_error_message[:2000],
             },
         )
 
