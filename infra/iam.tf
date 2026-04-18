@@ -125,14 +125,44 @@ data "aws_iam_policy_document" "collector_lambda" {
     resources = [try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "*")]
   }
 
-  statement {
-    sid     = "ReadExternalApiSecrets"
-    effect  = "Allow"
-    actions = ["secretsmanager:GetSecretValue"]
-    resources = [
-      var.perplexity_api_key_secret_arn,
-      var.spotify_credentials_secret_arn,
-    ]
+  dynamic "statement" {
+    for_each = length(compact([var.perplexity_api_key_secret_arn, var.spotify_credentials_secret_arn])) > 0 ? [1] : []
+    content {
+      sid     = "ReadExternalApiSecrets"
+      effect  = "Allow"
+      actions = ["secretsmanager:GetSecretValue"]
+      resources = compact([
+        var.perplexity_api_key_secret_arn,
+        var.spotify_credentials_secret_arn,
+      ])
+    }
+  }
+
+  dynamic "statement" {
+    for_each = length(compact([var.perplexity_api_key_ssm_parameter, var.spotify_client_id_ssm_parameter, var.spotify_client_secret_ssm_parameter])) > 0 ? [1] : []
+    content {
+      sid    = "AllowReadWorkerSsmParameters"
+      effect = "Allow"
+      actions = [
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+      ]
+      resources = compact([
+        var.perplexity_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.perplexity_api_key_ssm_parameter}" : "",
+        var.spotify_client_id_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_client_id_ssm_parameter}" : "",
+        var.spotify_client_secret_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_client_secret_ssm_parameter}" : "",
+      ])
+    }
+  }
+
+  dynamic "statement" {
+    for_each = length(compact([var.perplexity_api_key_ssm_parameter, var.spotify_client_id_ssm_parameter, var.spotify_client_secret_ssm_parameter])) > 0 ? [1] : []
+    content {
+      sid       = "AllowWorkerSsmKmsDecrypt"
+      effect    = "Allow"
+      actions   = ["kms:Decrypt"]
+      resources = ["arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:alias/aws/ssm"]
+    }
   }
 
   statement {

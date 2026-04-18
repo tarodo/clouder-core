@@ -113,11 +113,12 @@ resource "aws_lambda_function" "ai_search_worker" {
 
   environment {
     variables = {
-      PERPLEXITY_API_KEY_SECRET_ARN = var.perplexity_api_key_secret_arn
-      AURORA_CLUSTER_ARN            = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN             = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE               = var.aurora_database_name
-      LOG_LEVEL                     = "INFO"
+      PERPLEXITY_API_KEY_SECRET_ARN    = var.perplexity_api_key_secret_arn
+      PERPLEXITY_API_KEY_SSM_PARAMETER = var.perplexity_api_key_ssm_parameter
+      AURORA_CLUSTER_ARN               = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN                = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE                  = var.aurora_database_name
+      LOG_LEVEL                        = "INFO"
     }
   }
 
@@ -147,14 +148,16 @@ resource "aws_lambda_function" "spotify_search_worker" {
 
   environment {
     variables = {
-      SPOTIFY_CREDENTIALS_SECRET_ARN = var.spotify_credentials_secret_arn
-      RAW_BUCKET_NAME                = aws_s3_bucket.raw.bucket
-      SPOTIFY_RAW_PREFIX             = var.spotify_raw_prefix
-      SPOTIFY_SEARCH_QUEUE_URL       = aws_sqs_queue.spotify_search.url
-      AURORA_CLUSTER_ARN             = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN              = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE                = var.aurora_database_name
-      LOG_LEVEL                      = "INFO"
+      SPOTIFY_CREDENTIALS_SECRET_ARN      = var.spotify_credentials_secret_arn
+      SPOTIFY_CLIENT_ID_SSM_PARAMETER     = var.spotify_client_id_ssm_parameter
+      SPOTIFY_CLIENT_SECRET_SSM_PARAMETER = var.spotify_client_secret_ssm_parameter
+      RAW_BUCKET_NAME                     = aws_s3_bucket.raw.bucket
+      SPOTIFY_RAW_PREFIX                  = var.spotify_raw_prefix
+      SPOTIFY_SEARCH_QUEUE_URL            = aws_sqs_queue.spotify_search.url
+      AURORA_CLUSTER_ARN                  = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN                   = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE                     = var.aurora_database_name
+      LOG_LEVEL                           = "INFO"
     }
   }
 

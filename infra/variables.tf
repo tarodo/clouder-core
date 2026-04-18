@@ -205,11 +205,13 @@ variable "ai_search_queue_retention_seconds" {
 }
 
 variable "perplexity_api_key_secret_arn" {
-  description = "Secrets Manager ARN for Perplexity API key (SecretString is the plain key)."
+  description = "Legacy Secrets Manager ARN for the Perplexity API key. Empty when SSM is used."
   type        = string
+  default     = ""
+
   validation {
-    condition     = can(regex("^arn:aws:secretsmanager:", var.perplexity_api_key_secret_arn))
-    error_message = "perplexity_api_key_secret_arn must be a valid Secrets Manager ARN."
+    condition     = var.perplexity_api_key_secret_arn == "" || can(regex("^arn:aws:secretsmanager:", var.perplexity_api_key_secret_arn))
+    error_message = "perplexity_api_key_secret_arn must be empty or a valid Secrets Manager ARN."
   }
 }
 
@@ -222,11 +224,13 @@ variable "spotify_search_enabled" {
 }
 
 variable "spotify_credentials_secret_arn" {
-  description = "Secrets Manager ARN for Spotify credentials (SecretString is JSON: {client_id, client_secret})."
+  description = "Secrets Manager ARN for Spotify credentials (SecretString is JSON: {client_id, client_secret}). Empty when SSM is used."
   type        = string
+  default     = ""
+
   validation {
-    condition     = can(regex("^arn:aws:secretsmanager:", var.spotify_credentials_secret_arn))
-    error_message = "spotify_credentials_secret_arn must be a valid Secrets Manager ARN."
+    condition     = var.spotify_credentials_secret_arn == "" || can(regex("^arn:aws:secretsmanager:", var.spotify_credentials_secret_arn))
+    error_message = "spotify_credentials_secret_arn must be empty or a valid Secrets Manager ARN."
   }
 }
 
@@ -268,6 +272,24 @@ variable "spotify_search_queue_retention_seconds" {
 
 variable "alarm_sns_topic_arn" {
   description = "SNS topic ARN to send DLQ depth alarms to. Empty string disables alarm actions."
+  type        = string
+  default     = ""
+}
+
+variable "perplexity_api_key_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) holding the Perplexity API key. Takes precedence over perplexity_api_key_secret_arn."
+  type        = string
+  default     = ""
+}
+
+variable "spotify_client_id_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) holding the Spotify client_id."
+  type        = string
+  default     = ""
+}
+
+variable "spotify_client_secret_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) holding the Spotify client_secret."
   type        = string
   default     = ""
 }

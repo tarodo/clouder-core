@@ -10,3 +10,9 @@ spotify_credentials_secret_arn = "arn:aws:secretsmanager:us-east-1:ACCOUNT:secre
 
 # Optional: SNS topic for DLQ depth alarms. Empty disables notifications.
 alarm_sns_topic_arn = ""
+
+# --- New preferred path (SSM Parameter Store SecureString) ---
+# When these are set, the legacy _secret_arn variables can be empty.
+perplexity_api_key_ssm_parameter    = "/clouder/perplexity/api_key"
+spotify_client_id_ssm_parameter     = "/clouder/spotify/client_id"
+spotify_client_secret_ssm_parameter = "/clouder/spotify/client_secret"
