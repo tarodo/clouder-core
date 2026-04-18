@@ -248,3 +248,22 @@ def test_unknown_entity_type_is_skipped(monkeypatch) -> None:
     assert response == {"processed": 0}
     assert repo.saved_results == []
     reset_settings_cache()
+
+
+def test_label_search_skipped_when_context_missing_keys(monkeypatch) -> None:
+    repo = _setup_search_worker(monkeypatch)
+
+    event = _sqs_event(
+        {
+            "entity_type": "label",
+            "entity_id": "label-789",
+            "prompt_slug": "label_info",
+            "prompt_version": "v1",
+            "context": {},
+        }
+    )
+    response = lambda_handler(event, context=None)
+
+    assert response == {"processed": 0}
+    assert repo.saved_results == []
+    reset_settings_cache()

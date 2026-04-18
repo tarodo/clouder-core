@@ -50,7 +50,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         try:
             payload = json.loads(body)
             message = coerce_search_message(payload)
-        except (ValueError, PydanticValidationError) as exc:
+        except (json.JSONDecodeError, PydanticValidationError) as exc:
             log_event(
                 "ERROR",
                 "search_message_invalid",
