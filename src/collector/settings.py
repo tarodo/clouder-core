@@ -160,10 +160,12 @@ class SpotifyWorkerSettings(_SettingsBase):
 
 
 class MigrationSettings(_SettingsBase):
-    aurora_secret_arn: str = Field(alias="AURORA_SECRET_ARN")
+    aurora_secret_arn: str = Field(default="", alias="AURORA_SECRET_ARN")
     aurora_writer_endpoint: str = Field(alias="AURORA_WRITER_ENDPOINT")
     aurora_database: str = Field(alias="AURORA_DATABASE")
     aurora_port: int = Field(default=5432, alias="AURORA_PORT")
+    aurora_auth_mode: str = Field(default="password", alias="AURORA_AUTH_MODE")
+    aurora_db_user: str = Field(default="", alias="AURORA_DB_USER")
 
 
 class LoggingSettings(_SettingsBase):

@@ -71,8 +71,38 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
     }
 
 
+def _rds_client():
+    import boto3
+
+    return boto3.client("rds")
+
+
 def _build_alembic_database_url() -> str:
     settings = get_migration_settings()
+    mode = settings.aurora_auth_mode.strip().lower()
+
+    if mode == "iam":
+        username = settings.aurora_db_user.strip()
+        if not username:
+            raise RuntimeError(
+                "AURORA_DB_USER is required when AURORA_AUTH_MODE=iam"
+            )
+        token = _rds_client().generate_db_auth_token(
+            DBHostname=settings.aurora_writer_endpoint,
+            Port=settings.aurora_port,
+            DBUsername=username,
+        )
+        return (
+            f"postgresql+psycopg://{quote_plus(username)}:{quote_plus(token)}"
+            f"@{settings.aurora_writer_endpoint}:{settings.aurora_port}"
+            f"/{settings.aurora_database}?sslmode=require"
+        )
+
+    if not settings.aurora_secret_arn.strip():
+        raise RuntimeError(
+            "AURORA_SECRET_ARN is required when AURORA_AUTH_MODE=password"
+        )
+
     secret = _read_secret(settings.aurora_secret_arn)
     username = str(secret.get("username", "")).strip()
     password = str(secret.get("password", "")).strip()
