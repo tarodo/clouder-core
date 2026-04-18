@@ -293,3 +293,20 @@ variable "spotify_client_secret_ssm_parameter" {
   type        = string
   default     = ""
 }
+
+variable "migration_db_user" {
+  description = "PostgreSQL role name used by the migration Lambda when AURORA_AUTH_MODE=iam. Must have rds_iam granted."
+  type        = string
+  default     = "clouder_migrator"
+}
+
+variable "migration_aurora_auth_mode" {
+  description = "Auth mode for the migration Lambda: 'password' (default, reads AURORA_SECRET_ARN from Secrets Manager) or 'iam' (generates an RDS IAM token)."
+  type        = string
+  default     = "password"
+
+  validation {
+    condition     = contains(["password", "iam"], var.migration_aurora_auth_mode)
+    error_message = "migration_aurora_auth_mode must be either 'password' or 'iam'."
+  }
+}

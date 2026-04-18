@@ -166,6 +166,15 @@ data "aws_iam_policy_document" "collector_lambda" {
   }
 
   statement {
+    sid     = "AllowRdsDbConnectForMigration"
+    effect  = "Allow"
+    actions = ["rds-db:connect"]
+    resources = [
+      "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${aws_rds_cluster.aurora.cluster_resource_id}/${var.migration_db_user}"
+    ]
+  }
+
+  statement {
     sid    = "AllowLambdaVpcNetworking"
     effect = "Allow"
     actions = [

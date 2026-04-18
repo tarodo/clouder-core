@@ -83,6 +83,8 @@ resource "aws_lambda_function" "db_migration" {
       AURORA_DATABASE        = var.aurora_database_name
       AURORA_PORT            = "5432"
       AURORA_SECRET_ARN      = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_AUTH_MODE       = var.migration_aurora_auth_mode
+      AURORA_DB_USER         = var.migration_db_user
       LOG_LEVEL              = "INFO"
     }
   }
