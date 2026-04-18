@@ -101,10 +101,7 @@ def test_coerce_passes_through_entity_search_message() -> None:
 
 
 def test_coerce_raises_on_unknown_shape() -> None:
-    import pytest as _pytest
-    from pydantic import ValidationError
-
     from collector.schemas import coerce_search_message
 
-    with _pytest.raises(ValidationError):
+    with pytest.raises(ValidationError):
         coerce_search_message({"unknown": "payload"})
