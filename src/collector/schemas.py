@@ -100,6 +100,24 @@ class LabelSearchMessage(BaseModel):
         return normalized
 
 
+class EntitySearchMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    entity_type: str
+    entity_id: str
+    prompt_slug: str
+    prompt_version: str
+    context: dict[str, object] = Field(default_factory=dict)
+
+    @field_validator("entity_type", "entity_id", "prompt_slug", "prompt_version")
+    @classmethod
+    def _strip_non_empty(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("field must be a non-empty string")
+        return normalized
+
+
 class SpotifySearchMessage(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
