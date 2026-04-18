@@ -50,11 +50,24 @@ jobs:
             -backend-config="dynamodb_table=${{ vars.TF_LOCK_TABLE }}" \
             -backend-config="encrypt=true"
 
+      - name: Sync GitHub secrets to SSM Parameter Store
+        working-directory: .
+        run: |
+          aws ssm put-parameter --name /clouder/perplexity/api_key \
+            --value "${{ secrets.PERPLEXITY_API_KEY }}" \
+            --type SecureString --overwrite
+          aws ssm put-parameter --name /clouder/spotify/client_id \
+            --value "${{ secrets.SPOTIFY_CLIENT_ID }}" \
+            --type SecureString --overwrite
+          aws ssm put-parameter --name /clouder/spotify/client_secret \
+            --value "${{ secrets.SPOTIFY_CLIENT_SECRET }}" \
+            --type SecureString --overwrite
+
       - name: Terraform apply (base infra)
-        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="perplexity_api_key=${{ secrets.PERPLEXITY_API_KEY }}" -var="spotify_search_enabled=true" -var="spotify_client_id=${{ secrets.SPOTIFY_CLIENT_ID }}" -var="spotify_client_secret=${{ secrets.SPOTIFY_CLIENT_SECRET }}" -var="enable_secretsmanager_vpc_endpoint=false"
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="spotify_search_enabled=true" -var="perplexity_api_key_ssm_parameter=/clouder/perplexity/api_key" -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" -var="enable_secretsmanager_vpc_endpoint=false"
 
       - name: Enable temporary Secrets Manager VPC endpoint
-        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="perplexity_api_key=${{ secrets.PERPLEXITY_API_KEY }}" -var="spotify_search_enabled=true" -var="spotify_client_id=${{ secrets.SPOTIFY_CLIENT_ID }}" -var="spotify_client_secret=${{ secrets.SPOTIFY_CLIENT_SECRET }}" -var="enable_secretsmanager_vpc_endpoint=true"
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="spotify_search_enabled=true" -var="perplexity_api_key_ssm_parameter=/clouder/perplexity/api_key" -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" -var="enable_secretsmanager_vpc_endpoint=true"
 
       - name: Run DB migrations via Lambda
         run: |
@@ -90,4 +103,4 @@ jobs:
 
       - name: Disable temporary Secrets Manager VPC endpoint
         if: always()
-        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="perplexity_api_key=${{ secrets.PERPLEXITY_API_KEY }}" -var="spotify_search_enabled=true" -var="spotify_client_id=${{ secrets.SPOTIFY_CLIENT_ID }}" -var="spotify_client_secret=${{ secrets.SPOTIFY_CLIENT_SECRET }}" -var="enable_secretsmanager_vpc_endpoint=false"
+        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="spotify_search_enabled=true" -var="perplexity_api_key_ssm_parameter=/clouder/perplexity/api_key" -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" -var="enable_secretsmanager_vpc_endpoint=false"
