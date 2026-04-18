@@ -125,6 +125,26 @@ class SpotifySearchMessage(BaseModel):
     auto_continue: bool = Field(default=True)
 
 
+def coerce_search_message(payload: dict[str, object]) -> EntitySearchMessage:
+    """Accept both EntitySearchMessage and LabelSearchMessage shapes.
+
+    LabelSearchMessage is the legacy on-wire shape for in-flight SQS messages.
+    It translates into EntitySearchMessage with entity_type='label' and
+    context={label_name, styles}.
+    """
+    if "entity_type" in payload:
+        return EntitySearchMessage.model_validate(payload)
+
+    legacy = LabelSearchMessage.model_validate(payload)
+    return EntitySearchMessage(
+        entity_type="label",
+        entity_id=legacy.label_id,
+        prompt_slug=legacy.prompt_slug,
+        prompt_version=legacy.prompt_version,
+        context={"label_name": legacy.label_name, "styles": legacy.styles},
+    )
+
+
 def validation_error_message(exc: PydanticValidationError) -> str:
     if not exc.errors():
         return "Validation failed"

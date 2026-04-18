@@ -62,3 +62,49 @@ def test_entity_search_message_defaults_empty_context() -> None:
         }
     )
     assert msg.context == {}
+
+
+def test_coerce_label_search_message_payload() -> None:
+    from collector.schemas import coerce_search_message
+
+    coerced = coerce_search_message(
+        {
+            "label_id": "label-123",
+            "label_name": "Test",
+            "styles": "Techno",
+            "prompt_slug": "label_info",
+            "prompt_version": "v1",
+        }
+    )
+
+    assert coerced.entity_type == "label"
+    assert coerced.entity_id == "label-123"
+    assert coerced.prompt_slug == "label_info"
+    assert coerced.prompt_version == "v1"
+    assert coerced.context == {"label_name": "Test", "styles": "Techno"}
+
+
+def test_coerce_passes_through_entity_search_message() -> None:
+    from collector.schemas import coerce_search_message
+
+    payload = {
+        "entity_type": "label",
+        "entity_id": "x",
+        "prompt_slug": "label_info",
+        "prompt_version": "v1",
+        "context": {"label_name": "Test", "styles": "Techno"},
+    }
+    coerced = coerce_search_message(payload)
+
+    assert coerced.entity_type == "label"
+    assert coerced.context == {"label_name": "Test", "styles": "Techno"}
+
+
+def test_coerce_raises_on_unknown_shape() -> None:
+    import pytest as _pytest
+    from pydantic import ValidationError
+
+    from collector.schemas import coerce_search_message
+
+    with _pytest.raises(ValidationError):
+        coerce_search_message({"unknown": "payload"})
