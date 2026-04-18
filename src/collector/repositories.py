@@ -831,6 +831,33 @@ class ClouderRepository:
             },
         )
 
+    _AI_SUSPECTED_TABLES: Mapping[str, str] = {
+        "label": "clouder_labels",
+        "artist": "clouder_artists",
+        "track": "clouder_tracks",
+    }
+
+    def update_entity_is_ai_suspected(
+        self,
+        entity_type: str,
+        entity_id: str,
+        value: bool,
+        transaction_id: str | None = None,
+    ) -> None:
+        table = self._AI_SUSPECTED_TABLES.get(entity_type)
+        if table is None:
+            raise ValueError(f"unsupported entity_type: {entity_type}")
+        self._data_api.execute(
+            f"UPDATE {table} SET is_ai_suspected = :value, "
+            "updated_at = :updated_at WHERE id = :id",
+            {
+                "value": value,
+                "updated_at": utc_now(),
+                "id": entity_id,
+            },
+            transaction_id=transaction_id,
+        )
+
     def save_search_result(
         self,
         result_id: str,

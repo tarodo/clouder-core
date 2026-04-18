@@ -17,7 +17,33 @@ from .schemas import (
 )
 from .search.perplexity_client import search_label
 from .search.prompts import get_prompt
+from .search.schemas import AIContentStatus, LabelSearchResult
 from .settings import get_search_worker_settings
+
+
+def propagate_ai_flag(
+    repository: Any,
+    *,
+    entity_type: str,
+    entity_id: str,
+    result: LabelSearchResult,
+    threshold: float,
+) -> None:
+    """Set/clear is_ai_suspected on the canonical row based on an AI search result.
+
+    Rules:
+      - confidence < threshold → no-op (result too weak to act on).
+      - ai_content in {suspected, confirmed} → set True.
+      - ai_content == none_detected → set False (explicit clear).
+      - ai_content == unknown → no-op (no signal).
+    """
+    if result.confidence < threshold:
+        return
+    status = result.ai_content
+    if status in (AIContentStatus.SUSPECTED, AIContentStatus.CONFIRMED):
+        repository.update_entity_is_ai_suspected(entity_type, entity_id, True)
+    elif status == AIContentStatus.NONE_DETECTED:
+        repository.update_entity_is_ai_suspected(entity_type, entity_id, False)
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
@@ -141,6 +167,13 @@ def _run_label_search(
             prompt_version=message.prompt_version,
             result=result.model_dump(),
             searched_at=utc_now(),
+        )
+        propagate_ai_flag(
+            repository,
+            entity_type="label",
+            entity_id=message.entity_id,
+            result=result,
+            threshold=settings.ai_flag_confidence_threshold,
         )
         log_event(
             "INFO",
