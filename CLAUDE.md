@@ -55,12 +55,14 @@ cd infra && terraform init && terraform apply
 - **Master RDS secret `rds!cluster-...` is required at runtime.** Runtime Lambdas pass it to Data API (`rds-data:ExecuteStatement`). Do NOT delete even after Aurora IAM auth cutover — only migration Lambda stopped using it.
 - **Aurora IAM auth flag may not stick via Terraform.** If `aws rds describe-db-clusters --query '[0].IAMDatabaseAuthenticationEnabled'` returns `false` after `terraform apply` set it true, force via `aws rds modify-db-cluster --db-cluster-identifier <id> --enable-iam-database-authentication --apply-immediately`. Known AWS quirk on Serverless v2.
 - **`clouder_migrator` DB role cannot self-grant `rds_iam` in IAM mode.** Must run GRANT as master user (RDS Query Editor → Connect with Secrets Manager ARN, or Data API `rds-data:ExecuteStatement`).
+- **`release_type` is Spotify-only.** Beatport payload does not expose a release-type field — only nested `release.{id,name,label,slug}`. Values (`album`/`single`/`compilation`) come from Spotify `album.album_type` during ISRC enrichment and are then propagated from `clouder_tracks` onto the parent `clouder_albums` via `propagate_release_type_to_albums`. A track's `release_type` is therefore NULL until its ISRC lookup succeeds.
+- **`is_ai_suspected` is propagated, not stored standalone.** After `save_search_result`, `propagate_ai_flag` sets/clears the flag on `clouder_labels/artists/tracks` only when `confidence >= AI_FLAG_CONFIDENCE_THRESHOLD` (default 0.6). `ai_content=unknown` is a no-op; `none_detected` explicitly clears. The flag is a soft filter — the authoritative finding lives in `ai_search_results`.
 
 ## Env Vars (runtime)
 
 API/Worker Lambda: `RAW_BUCKET_NAME`, `RAW_PREFIX`, `BEATPORT_API_BASE_URL`, `CANONICALIZATION_ENABLED`, `CANONICALIZATION_QUEUE_URL`, `AURORA_CLUSTER_ARN`, `AURORA_SECRET_ARN`, `AURORA_DATABASE`, `LOG_LEVEL`.
 
-AI Search Worker: credential resolution precedence — `PERPLEXITY_API_KEY` (direct) > `PERPLEXITY_API_KEY_SSM_PARAMETER` (SSM SecureString name) > `PERPLEXITY_API_KEY_SECRET_ARN` (legacy Secrets Manager).
+AI Search Worker: credential resolution precedence — `PERPLEXITY_API_KEY` (direct) > `PERPLEXITY_API_KEY_SSM_PARAMETER` (SSM SecureString name) > `PERPLEXITY_API_KEY_SECRET_ARN` (legacy Secrets Manager). Tuning: `AI_FLAG_CONFIDENCE_THRESHOLD` (float 0..1, default `0.6`) — minimum `confidence` from a label search below which the `is_ai_suspected` flag will not be set or cleared.
 
 Spotify Worker: credential resolution precedence — `SPOTIFY_CLIENT_ID`+`SPOTIFY_CLIENT_SECRET` (direct) > `SPOTIFY_CLIENT_ID_SSM_PARAMETER`+`SPOTIFY_CLIENT_SECRET_SSM_PARAMETER` (both must be set, else falls through) > `SPOTIFY_CREDENTIALS_SECRET_ARN` (legacy SM JSON `{client_id, client_secret}`).
 

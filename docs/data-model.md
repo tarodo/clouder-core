@@ -1,6 +1,6 @@
 # Clouder Core - Data Model
 
-> Current project data model. Date: 2026-03-14
+> Current project data model. Date: 2026-04-18
 
 ## Overview
 
@@ -80,6 +80,7 @@ Canonicalized artists.
 | id              | String(36)         | PK (UUID)                |
 | name            | Text               | NOT NULL                 |
 | normalized_name | Text               | NOT NULL                 |
+| is_ai_suspected | Boolean            | NOT NULL, default=false  |
 | created_at      | DateTime(tz)       | NOT NULL                 |
 | updated_at      | DateTime(tz)       | NOT NULL                 |
 
@@ -92,6 +93,7 @@ Canonicalized record labels.
 | id              | String(36)         | PK (UUID)                |
 | name            | Text               | NOT NULL                 |
 | normalized_name | Text               | NOT NULL                 |
+| is_ai_suspected | Boolean            | NOT NULL, default=false  |
 | created_at      | DateTime(tz)       | NOT NULL                 |
 | updated_at      | DateTime(tz)       | NOT NULL                 |
 
@@ -118,10 +120,13 @@ Canonicalized albums/releases.
 | normalized_title | Text              | NOT NULL                 |
 | release_date     | Date              | nullable                 |
 | label_id         | String(36)        | nullable, FK -> clouder_labels.id |
+| release_type     | String(16)        | nullable                 |
 | created_at       | DateTime(tz)      | NOT NULL                 |
 | updated_at       | DateTime(tz)      | NOT NULL                 |
 
 **Indexes:** idx_album_match (normalized_title, release_date, label_id)
+
+`release_type` values: `album`, `single`, `compilation` (sourced from Spotify `album.album_type`; Beatport does not expose this).
 
 ### 1.9 clouder_tracks
 
@@ -141,10 +146,14 @@ Canonicalized tracks.
 | style_id            | String(36)        | nullable, FK -> clouder_styles.id |
 | spotify_id          | String(64)        | nullable                 |
 | spotify_searched_at | DateTime(tz)      | nullable                 |
+| release_type        | String(16)        | nullable                 |
+| is_ai_suspected     | Boolean           | NOT NULL, default=false  |
 | created_at          | DateTime(tz)      | NOT NULL                 |
 | updated_at          | DateTime(tz)      | NOT NULL                 |
 
 **Indexes:** idx_tracks_isrc (isrc) WHERE isrc IS NOT NULL, idx_tracks_spotify_id (spotify_id) WHERE spotify_id IS NOT NULL
+
+`release_type` mirrors `clouder_albums.release_type` of the track's parent album (copied on Spotify enrichment). `is_ai_suspected` set via `ai_search_results` propagation.
 
 ### 1.10 clouder_track_artists
 
@@ -375,7 +384,7 @@ Source: `src/collector/repositories.py`
 | CreateTrackCmd              | track_id, title, normalized_title, mix_name, isrc, bpm, length_ms, publish_date, album_id, style_id, at |
 | ConservativeUpdateTrackCmd  | track_id, mix_name, isrc, bpm, length_ms, publish_date, album_id, style_id, at |
 | UpsertTrackArtistCmd        | track_id, artist_id, role="main" |
-| UpdateSpotifyResultCmd      | track_id, spotify_id (nullable), searched_at |
+| UpdateSpotifyResultCmd      | track_id, spotify_id (nullable), searched_at, release_type (nullable) |
 | IdentityMapEntry (read)     | clouder_entity_type, clouder_id |
 
 ### EnqueueResult
@@ -432,6 +441,8 @@ Beatport API
     +---> [3] AI Search Worker (SQS consumer)
     |         - Searches for label information via Perplexity API
     |         - Saves LabelSearchResult into ai_search_results
+    |         - Propagates ai_content → clouder_<entity>.is_ai_suspected
+    |           (only when confidence ≥ AI_FLAG_CONFIDENCE_THRESHOLD)
     |
     +---> [4] Spotify Search Worker (SQS consumer)
               - Loads tracks with ISRC but without spotify_searched_at
@@ -439,6 +450,8 @@ Beatport API
               - Saves batch results to S3 (raw/sp/tracks/)
               - Upserts source_entities (source=spotify) + identity_map
               - Updates clouder_tracks: spotify_id + spotify_searched_at
+                + release_type (from album.album_type)
+              - Propagates release_type onto parent clouder_albums
     |
     v
 [5] Read API
