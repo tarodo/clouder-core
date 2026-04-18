@@ -6,6 +6,7 @@ from datetime import date as date_type, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     Date,
     DateTime,
     ForeignKey,
@@ -103,6 +104,9 @@ class ClouderArtist(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
+    is_ai_suspected: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -117,6 +121,9 @@ class ClouderLabel(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
+    is_ai_suspected: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -152,6 +159,7 @@ class ClouderAlbum(Base):
     label_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("clouder_labels.id")
     )
+    release_type: Mapped[str | None] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -188,6 +196,10 @@ class ClouderTrack(Base):
     spotify_id: Mapped[str | None] = mapped_column(String(64))
     spotify_searched_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
+    )
+    release_type: Mapped[str | None] = mapped_column(String(16))
+    is_ai_suspected: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
