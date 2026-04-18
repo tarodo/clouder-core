@@ -33,4 +33,5 @@ def _fetch_ssm_parameter(name: str) -> str:
 
 
 def reset_cache() -> None:
-    _fetch_ssm_parameter.cache_clear()
+    if hasattr(_fetch_ssm_parameter, "cache_clear"):
+        _fetch_ssm_parameter.cache_clear()
