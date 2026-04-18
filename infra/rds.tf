@@ -3,9 +3,10 @@ resource "aws_rds_cluster" "aurora" {
   engine             = "aurora-postgresql"
   engine_version     = var.aurora_engine_version
 
-  database_name               = var.aurora_database_name
-  master_username             = var.aurora_master_username
-  manage_master_user_password = true
+  database_name                       = var.aurora_database_name
+  master_username                     = var.aurora_master_username
+  manage_master_user_password         = true
+  iam_database_authentication_enabled = true
 
   db_subnet_group_name   = aws_db_subnet_group.aurora.name
   vpc_security_group_ids = [aws_security_group.aurora.id]
