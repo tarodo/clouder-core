@@ -24,7 +24,8 @@ UPGRADE_SQL = """
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rds_iam')
-       AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'clouder_migrator') THEN
+       AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'clouder_migrator')
+       AND NOT pg_has_role('clouder_migrator', 'rds_iam', 'MEMBER') THEN
         GRANT rds_iam TO clouder_migrator;
     END IF;
 END
