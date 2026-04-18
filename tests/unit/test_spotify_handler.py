@@ -23,6 +23,7 @@ class FakeRepo:
         self.updated_spotify: list[dict] = []
         self.source_entity_cmds: list = []
         self.identity_cmds: list = []
+        self.album_propagation_calls: list[list[str]] = []
         self._search_call_count = 0
 
     def find_tracks_needing_spotify_search(self, limit: int) -> list[dict[str, Any]]:
@@ -43,7 +44,11 @@ class FakeRepo:
             self.updated_spotify.append({
                 "track_id": cmd.track_id,
                 "spotify_id": cmd.spotify_id,
+                "release_type": cmd.release_type,
             })
+
+    def propagate_release_type_to_albums(self, track_ids, transaction_id=None):
+        self.album_propagation_calls.append(list(track_ids))
 
 
 class FakeRepoWithRemaining:
@@ -54,6 +59,7 @@ class FakeRepoWithRemaining:
         self.updated_spotify: list[dict] = []
         self.source_entity_cmds: list = []
         self.identity_cmds: list = []
+        self.album_propagation_calls: list[list[str]] = []
         self._search_call_count = 0
 
     def find_tracks_needing_spotify_search(self, limit: int) -> list[dict[str, Any]]:
@@ -74,7 +80,11 @@ class FakeRepoWithRemaining:
             self.updated_spotify.append({
                 "track_id": cmd.track_id,
                 "spotify_id": cmd.spotify_id,
+                "release_type": cmd.release_type,
             })
+
+    def propagate_release_type_to_albums(self, track_ids, transaction_id=None):
+        self.album_propagation_calls.append(list(track_ids))
 
 
 class FakeS3Client:
@@ -179,13 +189,18 @@ def test_happy_path_found_and_not_found(monkeypatch) -> None:
     assert response == {"processed": 1}
     assert len(repo.updated_spotify) == 2
 
-    # First track found
+    # First track found (fake result has no album → release_type None)
     assert repo.updated_spotify[0]["track_id"] == "ct1"
     assert repo.updated_spotify[0]["spotify_id"] == "sp1"
+    assert repo.updated_spotify[0]["release_type"] is None
 
     # Second track not found
     assert repo.updated_spotify[1]["track_id"] == "ct2"
     assert repo.updated_spotify[1]["spotify_id"] is None
+    assert repo.updated_spotify[1]["release_type"] is None
+
+    # No album propagation call expected when no release_type present.
+    assert repo.album_propagation_calls == []
 
     # Source entity and identity only for found track
     assert len(repo.source_entity_cmds) == 1
@@ -201,6 +216,59 @@ def test_happy_path_found_and_not_found(monkeypatch) -> None:
     assert any("results.json.gz" in k for k in s3_keys)
     assert any("meta.json" in k for k in s3_keys)
     assert all("iso_year" not in k and "iso_week" not in k for k in s3_keys)
+
+    reset_settings_cache()
+
+
+def test_captures_album_type_and_propagates_to_albums(monkeypatch) -> None:
+    tracks = [
+        {"id": "ct1", "isrc": "ISRC001", "title": "T1", "normalized_title": "t1"},
+        {"id": "ct2", "isrc": "ISRC002", "title": "T2", "normalized_title": "t2"},
+        {"id": "ct3", "isrc": "ISRC003", "title": "T3", "normalized_title": "t3"},
+    ]
+    repo, _ = _setup(monkeypatch, tracks=tracks)
+
+    def fake_search(self, tracks, correlation_id):
+        mapping = {
+            "ISRC001": ("sp1", "compilation"),
+            "ISRC002": ("sp2", "single"),
+            "ISRC003": (None, None),  # not found
+        }
+        out = []
+        for t in tracks:
+            sid, atype = mapping[t["isrc"]]
+            spotify_track = None
+            if sid:
+                spotify_track = {"id": sid, "name": f"Track {sid}"}
+                if atype:
+                    spotify_track["album"] = {"id": f"alb-{sid}", "album_type": atype}
+            out.append(
+                SpotifySearchResult(
+                    isrc=t["isrc"],
+                    clouder_track_id=t["clouder_track_id"],
+                    spotify_track=spotify_track,
+                    spotify_id=sid,
+                )
+            )
+        return out
+
+    monkeypatch.setattr(
+        "collector.spotify_handler.SpotifyClient.search_tracks_by_isrc",
+        fake_search,
+    )
+
+    event = _sqs_event({"batch_size": 2000})
+    response = lambda_handler(event, context=None)
+    assert response == {"processed": 1}
+
+    by_id = {u["track_id"]: u for u in repo.updated_spotify}
+    assert by_id["ct1"]["release_type"] == "compilation"
+    assert by_id["ct2"]["release_type"] == "single"
+    assert by_id["ct3"]["release_type"] is None
+
+    # Only tracks with a release_type are propagated to albums.
+    assert len(repo.album_propagation_calls) == 1
+    assert sorted(repo.album_propagation_calls[0]) == ["ct1", "ct2"]
 
     reset_settings_cache()
 

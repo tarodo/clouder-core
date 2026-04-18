@@ -30,6 +30,20 @@ _PERMANENT_ERRORS = (ValueError, TypeError, KeyError, StorageError)
 _CHUNK_SIZE = 200
 
 
+def _extract_album_type(spotify_track: Mapping[str, Any] | None) -> str | None:
+    """Pull `album.album_type` from a Spotify track payload (values:
+    album | single | compilation). Returns None if missing or non-string."""
+    if not isinstance(spotify_track, Mapping):
+        return None
+    album = spotify_track.get("album")
+    if not isinstance(album, Mapping):
+        return None
+    value = album.get("album_type")
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return value
+
+
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     del context
     records = event.get("Records")
@@ -265,16 +279,24 @@ def _process_results_chunk(
     if identity_cmds:
         repository.batch_upsert_identities(identity_cmds)
 
-    # 2. Batch update clouder_tracks with spotify_id and searched_at.
+    # 2. Batch update clouder_tracks with spotify_id, searched_at, release_type.
     update_cmds = [
         UpdateSpotifyResultCmd(
             track_id=r.clouder_track_id,
             spotify_id=r.spotify_id,
             searched_at=now,
+            release_type=_extract_album_type(r.spotify_track),
         )
         for r in chunk
     ]
     repository.batch_update_spotify_results(update_cmds)
+
+    # 3. Propagate release_type from the just-updated tracks onto their albums.
+    track_ids_with_type = [
+        cmd.track_id for cmd in update_cmds if cmd.release_type is not None
+    ]
+    if track_ids_with_type:
+        repository.propagate_release_type_to_albums(track_ids_with_type)
 
 
 def _enqueue_follow_up_if_needed(
