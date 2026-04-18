@@ -38,11 +38,11 @@ Plan 2 and Plan 3 can run in parallel after Plan 1. Plans 4 and 5 must wait for 
 
 ### Plan 2 — Ingestion enrichment
 
-**File:** `2026-04-18-vendor-sync-02-ingestion-enrichment.md` (to be written after Plan 1)
+**File:** `2026-04-18-vendor-sync-02-ingestion-enrichment.md` ✅ written
 
 **Covers spec §5.2 partial, §6.1, §6.2, §6.3.**
 
-- Alembic migration 07: `clouder_tracks.is_ai_suspected`, `clouder_tracks.release_type`, `clouder_albums.release_type`, `clouder_labels.is_ai_suspected`, `clouder_artists.is_ai_suspected`.
+- Alembic migration 09: `clouder_tracks.is_ai_suspected`, `clouder_tracks.release_type`, `clouder_albums.release_type`, `clouder_labels.is_ai_suspected`, `clouder_artists.is_ai_suspected`. (07 = IAM bootstrap, 08 = rds_iam idempotent grant, both landed with Plan 1.)
 - `scripts/inspect_raw_sample.py` — pulls one `releases.json.gz` from S3 and prints compilation-marker candidates (Beatport key inventory). Run before coding mapping rules.
 - `NormalizedAlbum.release_type` + canonicalize mapping rules (single / ep / album / compilation, with VA heuristic).
 - Spotify enrich path extracts `album.album_type`; new `reconcile_release_type` step resolves Beatport × Spotify conflicts.
@@ -52,7 +52,7 @@ Plan 2 and Plan 3 can run in parallel after Plan 1. Plans 4 and 5 must wait for 
 
 ### Plan 3 — Provider abstraction
 
-**File:** `2026-04-18-vendor-sync-03-provider-abstraction.md` (to be written after Plan 1)
+**File:** `2026-04-18-vendor-sync-03-provider-abstraction.md` ✅ written
 
 **Covers spec §4, §7.4 partial (ExportProvider signature only).**
 
@@ -72,7 +72,7 @@ Plan 2 and Plan 3 can run in parallel after Plan 1. Plans 4 and 5 must wait for 
 
 **Covers spec §5.1 (vendor_track_map, match_review_queue), §7.1, §8.4 partial.**
 
-- Alembic migration 08: `vendor_track_map` + `match_review_queue` tables.
+- Alembic migration 10: `vendor_track_map` + `match_review_queue` tables.
 - Fuzzy scorer: normalized Levenshtein on artist+title, duration tolerance, album bonus, configurable weights.
 - `vendor_match_worker` Lambda: SQS-triggered, cache-first, ISRC-first, fuzzy fallback, review-queue routing.
 - Error classes: `VendorUnavailableError`, `VendorAuthError`, `VendorQuotaError`, `VendorDisabledError`, `MatchFailedError`, `UserTokenMissingError`.
@@ -88,7 +88,7 @@ Plan 2 and Plan 3 can run in parallel after Plan 1. Plans 4 and 5 must wait for 
 
 **Covers spec §5.1 (user_vendor_tokens, release_mirror_runs), §7.2, §7.3, §7.4, §8.3, §8.5 partial.**
 
-- Alembic migration 09: `user_vendor_tokens` + `release_mirror_runs`.
+- Alembic migration 11: `user_vendor_tokens` + `release_mirror_runs`.
 - KMS CMK `alias/clouder-user-tokens` (Terraform).
 - `src/collector/crypto.py` — envelope encrypt/decrypt via `kms.generate_data_key` + AES-GCM.
 - `scripts/store_user_token.py` — seed tokens for manual testing.
