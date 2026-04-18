@@ -94,3 +94,20 @@ def test_iam_mode_missing_db_user_raises(monkeypatch) -> None:
         mh._build_alembic_database_url()
 
     s.reset_settings_cache()
+
+
+def test_password_mode_missing_secret_arn_raises(monkeypatch) -> None:
+    from collector import migration_handler as mh
+    from collector import settings as s
+
+    monkeypatch.setenv("AURORA_AUTH_MODE", "password")
+    monkeypatch.setenv("AURORA_WRITER_ENDPOINT", "writer.example")
+    monkeypatch.setenv("AURORA_PORT", "5432")
+    monkeypatch.setenv("AURORA_DATABASE", "clouder")
+    monkeypatch.delenv("AURORA_SECRET_ARN", raising=False)
+    s.reset_settings_cache()
+
+    with pytest.raises(RuntimeError, match="AURORA_SECRET_ARN"):
+        mh._build_alembic_database_url()
+
+    s.reset_settings_cache()

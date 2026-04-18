@@ -16,3 +16,9 @@ alarm_sns_topic_arn = ""
 perplexity_api_key_ssm_parameter    = "/clouder/perplexity/api_key"
 spotify_client_id_ssm_parameter     = "/clouder/spotify/client_id"
 spotify_client_secret_ssm_parameter = "/clouder/spotify/client_secret"
+
+# --- Aurora IAM auth for migration Lambda (optional) ---
+# Flip to "iam" only after alembic migration 20260419_07 applied
+# and the clouder_migrator role exists with rds_iam grant.
+# migration_aurora_auth_mode = "iam"   # default: "password"
+# migration_db_user          = "clouder_migrator"

@@ -75,6 +75,8 @@ def _resolve_spotify_credentials() -> tuple[str, str]:
 
     ssm_id_name = os.environ.get("SPOTIFY_CLIENT_ID_SSM_PARAMETER", "").strip()
     ssm_secret_name = os.environ.get("SPOTIFY_CLIENT_SECRET_SSM_PARAMETER", "").strip()
+    # All-or-nothing: if only one SSM name is set, fall through to SM to avoid
+    # silently returning a half-resolved credential pair.
     if ssm_id_name and ssm_secret_name:
         client_id = client_id or secrets._fetch_ssm_parameter(ssm_id_name)
         client_secret = client_secret or secrets._fetch_ssm_parameter(ssm_secret_name)

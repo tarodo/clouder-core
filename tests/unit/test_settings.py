@@ -250,3 +250,76 @@ def test_spotify_creds_from_ssm(monkeypatch):
     assert settings.spotify_client_secret == "csecret-ssm"
 
     s.reset_settings_cache()
+
+
+def test_spotify_ssm_wins_over_secrets_manager(monkeypatch):
+    from collector import settings as s
+    from collector import secrets
+
+    monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
+    monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
+    monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv(
+        "SPOTIFY_CLIENT_ID_SSM_PARAMETER", "/clouder/spotify/client_id"
+    )
+    monkeypatch.setenv(
+        "SPOTIFY_CLIENT_SECRET_SSM_PARAMETER", "/clouder/spotify/client_secret"
+    )
+    monkeypatch.setenv(
+        "SPOTIFY_CREDENTIALS_SECRET_ARN",
+        "arn:aws:secretsmanager:us-east-1:123:secret:s-abc",
+    )
+
+    def fake_ssm(name: str) -> str:
+        return {
+            "/clouder/spotify/client_id": "cid-ssm",
+            "/clouder/spotify/client_secret": "csecret-ssm",
+        }[name]
+
+    def must_not_call(_arn: str) -> str:
+        raise AssertionError("should not fall back to Secrets Manager when SSM set")
+
+    monkeypatch.setattr(secrets, "_fetch_ssm_parameter", fake_ssm)
+    monkeypatch.setattr(s, "_fetch_secret_string", must_not_call)
+    s.reset_settings_cache()
+
+    settings = s.get_spotify_worker_settings()
+    assert settings.spotify_client_id == "cid-ssm"
+    assert settings.spotify_client_secret == "csecret-ssm"
+
+    s.reset_settings_cache()
+
+
+def test_spotify_partial_ssm_falls_through_to_secrets_manager(monkeypatch):
+    """Only one SSM env set → SSM branch is skipped, SM JSON path runs."""
+    import json as _json
+    from collector import settings as s
+    from collector import secrets
+
+    monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
+    monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
+    monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv(
+        "SPOTIFY_CLIENT_ID_SSM_PARAMETER", "/clouder/spotify/client_id"
+    )
+    monkeypatch.delenv("SPOTIFY_CLIENT_SECRET_SSM_PARAMETER", raising=False)
+    monkeypatch.setenv(
+        "SPOTIFY_CREDENTIALS_SECRET_ARN",
+        "arn:aws:secretsmanager:us-east-1:123:secret:s-abc",
+    )
+
+    def must_not_call_ssm(_name: str) -> str:
+        raise AssertionError("should not fetch SSM when only one name is set")
+
+    def fake_sm(_arn: str) -> str:
+        return _json.dumps({"client_id": "cid-sm", "client_secret": "csecret-sm"})
+
+    monkeypatch.setattr(secrets, "_fetch_ssm_parameter", must_not_call_ssm)
+    monkeypatch.setattr(s, "_fetch_secret_string", fake_sm)
+    s.reset_settings_cache()
+
+    settings = s.get_spotify_worker_settings()
+    assert settings.spotify_client_id == "cid-sm"
+    assert settings.spotify_client_secret == "csecret-sm"
+
+    s.reset_settings_cache()

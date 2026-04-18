@@ -141,12 +141,9 @@ data "aws_iam_policy_document" "collector_lambda" {
   dynamic "statement" {
     for_each = length(compact([var.perplexity_api_key_ssm_parameter, var.spotify_client_id_ssm_parameter, var.spotify_client_secret_ssm_parameter])) > 0 ? [1] : []
     content {
-      sid    = "AllowReadWorkerSsmParameters"
-      effect = "Allow"
-      actions = [
-        "ssm:GetParameter",
-        "ssm:GetParameters",
-      ]
+      sid     = "AllowReadWorkerSsmParameters"
+      effect  = "Allow"
+      actions = ["ssm:GetParameter"]
       resources = compact([
         var.perplexity_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.perplexity_api_key_ssm_parameter}" : "",
         var.spotify_client_id_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_client_id_ssm_parameter}" : "",

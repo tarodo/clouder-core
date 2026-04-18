@@ -56,11 +56,11 @@ cd infra && terraform init && terraform apply
 
 API/Worker Lambda: `RAW_BUCKET_NAME`, `RAW_PREFIX`, `BEATPORT_API_BASE_URL`, `CANONICALIZATION_ENABLED`, `CANONICALIZATION_QUEUE_URL`, `AURORA_CLUSTER_ARN`, `AURORA_SECRET_ARN`, `AURORA_DATABASE`, `LOG_LEVEL`.
 
-AI Search Worker: `PERPLEXITY_API_KEY` OR `PERPLEXITY_API_KEY_SECRET_ARN` (Secrets Manager SecretString = plain key). Direct env wins.
+AI Search Worker: credential resolution precedence — `PERPLEXITY_API_KEY` (direct) > `PERPLEXITY_API_KEY_SSM_PARAMETER` (SSM SecureString name) > `PERPLEXITY_API_KEY_SECRET_ARN` (legacy Secrets Manager).
 
-Spotify Worker: `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` OR `SPOTIFY_CREDENTIALS_SECRET_ARN` (Secrets Manager SecretString = JSON `{client_id, client_secret}`). Direct env wins.
+Spotify Worker: credential resolution precedence — `SPOTIFY_CLIENT_ID`+`SPOTIFY_CLIENT_SECRET` (direct) > `SPOTIFY_CLIENT_ID_SSM_PARAMETER`+`SPOTIFY_CLIENT_SECRET_SSM_PARAMETER` (both must be set, else falls through) > `SPOTIFY_CREDENTIALS_SECRET_ARN` (legacy SM JSON `{client_id, client_secret}`).
 
-Migration Lambda: `AURORA_WRITER_ENDPOINT`, `AURORA_PORT`, `AURORA_SECRET_ARN`, `AURORA_DATABASE`.
+Migration Lambda: `AURORA_WRITER_ENDPOINT`, `AURORA_PORT`, `AURORA_DATABASE`. Plus auth: `AURORA_AUTH_MODE=password` (default, requires `AURORA_SECRET_ARN`) or `AURORA_AUTH_MODE=iam` (requires `AURORA_DB_USER`, no secret needed — uses RDS IAM token).
 
 ## CI
 
