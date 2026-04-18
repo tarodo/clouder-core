@@ -33,22 +33,53 @@ def _fetch_secret_string(secret_arn: str) -> str:
 
 
 def _resolve_simple_secret(env_key: str, arn_env_key: str) -> str:
-    """Return env_key value if set, else fetch from Secrets Manager via arn_env_key."""
+    """Resolve a scalar secret with precedence: direct env > SSM > Secrets Manager.
+
+    For a given env_key "PERPLEXITY_API_KEY" the helper checks:
+        1. env var PERPLEXITY_API_KEY (direct value)
+        2. env var PERPLEXITY_API_KEY_SSM_PARAMETER (SSM param name)
+        3. env var PERPLEXITY_API_KEY_SECRET_ARN (legacy Secrets Manager)
+
+    Returns "" when none of them resolve.
+    """
+    from collector import secrets
+
     direct = os.environ.get(env_key, "").strip()
     if direct:
         return direct
+
+    ssm_env_key = f"{env_key}_SSM_PARAMETER"
+    ssm_name = os.environ.get(ssm_env_key, "").strip()
+    if ssm_name:
+        return secrets._fetch_ssm_parameter(ssm_name)
+
     arn = os.environ.get(arn_env_key, "").strip()
     if arn:
         return _fetch_secret_string(arn)
+
     return ""
 
 
 def _resolve_spotify_credentials() -> tuple[str, str]:
-    """Return (client_id, client_secret), preferring direct env vars over SM JSON."""
+    """Resolve (client_id, client_secret) with precedence: direct env > SSM > SM.
+
+    SSM layout stores client_id and client_secret as TWO SecureString parameters
+    to avoid JSON marshalling issues and to allow per-field rotation.
+    """
+    from collector import secrets
+
     client_id = os.environ.get("SPOTIFY_CLIENT_ID", "").strip()
     client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET", "").strip()
     if client_id and client_secret:
         return client_id, client_secret
+
+    ssm_id_name = os.environ.get("SPOTIFY_CLIENT_ID_SSM_PARAMETER", "").strip()
+    ssm_secret_name = os.environ.get("SPOTIFY_CLIENT_SECRET_SSM_PARAMETER", "").strip()
+    if ssm_id_name and ssm_secret_name:
+        client_id = client_id or secrets._fetch_ssm_parameter(ssm_id_name)
+        client_secret = client_secret or secrets._fetch_ssm_parameter(ssm_secret_name)
+        return client_id, client_secret
+
     arn = os.environ.get("SPOTIFY_CREDENTIALS_SECRET_ARN", "").strip()
     if arn:
         raw = _fetch_secret_string(arn)
@@ -64,6 +95,7 @@ def _resolve_spotify_credentials() -> tuple[str, str]:
             )
         client_id = client_id or str(data.get("client_id", ""))
         client_secret = client_secret or str(data.get("client_secret", ""))
+
     return client_id, client_secret
 
 
@@ -190,3 +222,7 @@ def reset_settings_cache() -> None:
     get_spotify_worker_settings.cache_clear()
     if hasattr(_fetch_secret_string, "cache_clear"):
         _fetch_secret_string.cache_clear()
+
+    from collector import secrets as _secrets_module
+
+    _secrets_module.reset_cache()
