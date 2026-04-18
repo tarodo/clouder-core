@@ -204,11 +204,15 @@ variable "ai_search_queue_retention_seconds" {
   default     = 1209600
 }
 
-variable "perplexity_api_key" {
-  description = "Perplexity API key for AI search"
+variable "perplexity_api_key_secret_arn" {
+  description = "Legacy Secrets Manager ARN for the Perplexity API key. Empty when SSM is used."
   type        = string
   default     = ""
-  sensitive   = true
+
+  validation {
+    condition     = var.perplexity_api_key_secret_arn == "" || can(regex("^arn:aws:secretsmanager:", var.perplexity_api_key_secret_arn))
+    error_message = "perplexity_api_key_secret_arn must be empty or a valid Secrets Manager ARN."
+  }
 }
 
 # ── Spotify Search ────────────────────────────────────────────────
@@ -219,18 +223,15 @@ variable "spotify_search_enabled" {
   default     = false
 }
 
-variable "spotify_client_id" {
-  description = "Spotify API client ID"
+variable "spotify_credentials_secret_arn" {
+  description = "Secrets Manager ARN for Spotify credentials (SecretString is JSON: {client_id, client_secret}). Empty when SSM is used."
   type        = string
   default     = ""
-  sensitive   = true
-}
 
-variable "spotify_client_secret" {
-  description = "Spotify API client secret"
-  type        = string
-  default     = ""
-  sensitive   = true
+  validation {
+    condition     = var.spotify_credentials_secret_arn == "" || can(regex("^arn:aws:secretsmanager:", var.spotify_credentials_secret_arn))
+    error_message = "spotify_credentials_secret_arn must be empty or a valid Secrets Manager ARN."
+  }
 }
 
 variable "spotify_raw_prefix" {
@@ -267,4 +268,45 @@ variable "spotify_search_queue_retention_seconds" {
   description = "Message retention for Spotify search queue"
   type        = number
   default     = 1209600
+}
+
+variable "alarm_sns_topic_arn" {
+  description = "SNS topic ARN to send DLQ depth alarms to. Empty string disables alarm actions."
+  type        = string
+  default     = ""
+}
+
+variable "perplexity_api_key_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) holding the Perplexity API key. Takes precedence over perplexity_api_key_secret_arn."
+  type        = string
+  default     = ""
+}
+
+variable "spotify_client_id_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) holding the Spotify client_id."
+  type        = string
+  default     = ""
+}
+
+variable "spotify_client_secret_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) holding the Spotify client_secret."
+  type        = string
+  default     = ""
+}
+
+variable "migration_db_user" {
+  description = "PostgreSQL role name used by the migration Lambda when AURORA_AUTH_MODE=iam. Must have rds_iam granted."
+  type        = string
+  default     = "clouder_migrator"
+}
+
+variable "migration_aurora_auth_mode" {
+  description = "Auth mode for the migration Lambda: 'password' (default, reads AURORA_SECRET_ARN from Secrets Manager) or 'iam' (generates an RDS IAM token)."
+  type        = string
+  default     = "password"
+
+  validation {
+    condition     = contains(["password", "iam"], var.migration_aurora_auth_mode)
+    error_message = "migration_aurora_auth_mode must be either 'password' or 'iam'."
+  }
 }

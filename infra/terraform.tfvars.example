@@ -2,5 +2,23 @@
 # terraform.tfvars is in .gitignore and will NOT be committed.
 
 # ── AI Search (Perplexity) ────────────────────────────────────────
-ai_search_enabled  = false
-perplexity_api_key = "pplx-..."
+ai_search_enabled             = false
+perplexity_api_key_secret_arn = "arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:perplexity-XXX"
+
+# ── Spotify Search ────────────────────────────────────────────────
+spotify_credentials_secret_arn = "arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:spotify-XXX"
+
+# Optional: SNS topic for DLQ depth alarms. Empty disables notifications.
+alarm_sns_topic_arn = ""
+
+# --- New preferred path (SSM Parameter Store SecureString) ---
+# When these are set, the legacy _secret_arn variables can be empty.
+perplexity_api_key_ssm_parameter    = "/clouder/perplexity/api_key"
+spotify_client_id_ssm_parameter     = "/clouder/spotify/client_id"
+spotify_client_secret_ssm_parameter = "/clouder/spotify/client_secret"
+
+# --- Aurora IAM auth for migration Lambda (optional) ---
+# Flip to "iam" only after alembic migration 20260419_07 applied
+# and the clouder_migrator role exists with rds_iam grant.
+# migration_aurora_auth_mode = "iam"   # default: "password"
+# migration_db_user          = "clouder_migrator"

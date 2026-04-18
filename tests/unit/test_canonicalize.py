@@ -27,62 +27,118 @@ class FakeRepo:
         self.updated_tracks: list[str] = []
         self.track_artists: set[tuple[str, str, str]] = set()
 
-    def upsert_source_entity(self, cmd: UpsertSourceEntityCmd, transaction_id: str | None = None) -> None:
+    def upsert_source_entity(
+        self, cmd: UpsertSourceEntityCmd, transaction_id: str | None = None
+    ) -> None:
         del cmd, transaction_id
 
-    def batch_upsert_source_entities(self, commands, transaction_id: str | None = None) -> None:
+    def batch_upsert_source_entities(
+        self, commands, transaction_id: str | None = None
+    ) -> None:
         del transaction_id
         for cmd in commands:
             self.upsert_source_entity(cmd)
 
-    def upsert_source_relation(self, cmd: UpsertSourceRelationCmd, transaction_id: str | None = None) -> None:
+    def upsert_source_relation(
+        self, cmd: UpsertSourceRelationCmd, transaction_id: str | None = None
+    ) -> None:
         del cmd, transaction_id
 
-    def batch_upsert_source_relations(self, commands, transaction_id: str | None = None) -> None:
+    def batch_upsert_source_relations(
+        self, commands, transaction_id: str | None = None
+    ) -> None:
         del transaction_id
         for cmd in commands:
             self.upsert_source_relation(cmd)
 
-    def find_identity(self, source: str, entity_type: str, external_id: str):
+    def find_identity(
+        self,
+        source: str,
+        entity_type: str,
+        external_id: str,
+        transaction_id: str | None = None,
+    ):
         return self.identities.get((source, entity_type, external_id))
 
-    def upsert_identity(self, cmd: UpsertIdentityCmd, transaction_id: str | None = None) -> None:
+    def upsert_identity(
+        self, cmd: UpsertIdentityCmd, transaction_id: str | None = None
+    ) -> None:
         del transaction_id
-        self.identities[(cmd.source, cmd.entity_type, cmd.external_id)] = IdentityMapEntry(
-            clouder_entity_type=cmd.clouder_entity_type,
-            clouder_id=cmd.clouder_id,
+        self.identities[(cmd.source, cmd.entity_type, cmd.external_id)] = (
+            IdentityMapEntry(
+                clouder_entity_type=cmd.clouder_entity_type,
+                clouder_id=cmd.clouder_id,
+            )
         )
 
-    def batch_upsert_identities(self, commands, transaction_id: str | None = None) -> None:
+    def batch_upsert_identities(
+        self, commands, transaction_id: str | None = None
+    ) -> None:
         del transaction_id
         for cmd in commands:
             self.upsert_identity(cmd)
 
-    def create_label(self, label_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None):
+    def create_label(
+        self,
+        label_id: str,
+        name: str,
+        normalized_name: str,
+        at: datetime,
+        transaction_id: str | None = None,
+    ):
         del name, normalized_name, at, transaction_id
         self.created_labels.append(label_id)
 
-    def create_style(self, style_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None):
+    def create_style(
+        self,
+        style_id: str,
+        name: str,
+        normalized_name: str,
+        at: datetime,
+        transaction_id: str | None = None,
+    ):
         del name, normalized_name, at, transaction_id
         self.created_styles.append(style_id)
 
-    def create_artist(self, artist_id: str, name: str, normalized_name: str, at: datetime, transaction_id: str | None = None):
+    def create_artist(
+        self,
+        artist_id: str,
+        name: str,
+        normalized_name: str,
+        at: datetime,
+        transaction_id: str | None = None,
+    ):
         del name, normalized_name, at, transaction_id
         self.created_artists.append(artist_id)
 
-    def create_album(self, album_id: str, title: str, normalized_title: str, release_date, label_id: str | None, at: datetime, transaction_id: str | None = None):
+    def create_album(
+        self,
+        album_id: str,
+        title: str,
+        normalized_title: str,
+        release_date,
+        label_id: str | None,
+        at: datetime,
+        transaction_id: str | None = None,
+    ):
         del title, at, transaction_id, normalized_title, release_date, label_id
         self.created_albums.append(album_id)
 
-    def create_track(self, cmd: CreateTrackCmd, transaction_id: str | None = None) -> None:
+    def create_track(
+        self, cmd: CreateTrackCmd, transaction_id: str | None = None
+    ) -> None:
         del transaction_id
         self.created_tracks.append(cmd.track_id)
 
-    def conservative_update_track(self, cmd: ConservativeUpdateTrackCmd, transaction_id: str | None = None) -> None:
+    def conservative_update_track(
+        self, cmd: ConservativeUpdateTrackCmd, transaction_id: str | None = None
+    ) -> None:
         del transaction_id
         self.updated_tracks.append(cmd.track_id)
 
-    def upsert_track_artist(self, cmd: UpsertTrackArtistCmd, transaction_id: str | None = None):
+    def upsert_track_artist(
+        self, cmd: UpsertTrackArtistCmd, transaction_id: str | None = None
+    ):
         del transaction_id
         self.track_artists.add((cmd.track_id, cmd.artist_id, cmd.role))
 
@@ -96,7 +152,9 @@ class FakeRepo:
         yield "tx"
 
 
-def _raw_track(track_id: int = 1, artist_id: int = 713053, artist_name: str = "Nick The Lot"):
+def _raw_track(
+    track_id: int = 1, artist_id: int = 713053, artist_name: str = "Nick The Lot"
+):
     return [
         {
             "id": track_id,
@@ -152,10 +210,16 @@ def test_canonicalizer_auto_creates_entities_when_no_matches() -> None:
 
 def test_canonicalizer_reuses_existing_identity_and_updates_track() -> None:
     repo = FakeRepo()
-    repo.identities[("beatport", "label", "40187")] = IdentityMapEntry("label", "label-1")
+    repo.identities[("beatport", "label", "40187")] = IdentityMapEntry(
+        "label", "label-1"
+    )
     repo.identities[("beatport", "style", "1")] = IdentityMapEntry("style", "style-1")
-    repo.identities[("beatport", "artist", "713053")] = IdentityMapEntry("artist", "artist-1")
-    repo.identities[("beatport", "album", "5654120")] = IdentityMapEntry("album", "album-1")
+    repo.identities[("beatport", "artist", "713053")] = IdentityMapEntry(
+        "artist", "artist-1"
+    )
+    repo.identities[("beatport", "album", "5654120")] = IdentityMapEntry(
+        "album", "album-1"
+    )
     repo.identities[("beatport", "track", "1")] = IdentityMapEntry("track", "track-1")
 
     canonicalizer = Canonicalizer(repo)

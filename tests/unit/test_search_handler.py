@@ -206,3 +206,64 @@ def test_missing_aurora_config_raises(monkeypatch) -> None:
         lambda_handler({"Records": [{"body": "{}"}]}, context=None)
 
     reset_settings_cache()
+
+
+def test_happy_path_accepts_entity_search_message(monkeypatch) -> None:
+    repo = _setup_search_worker(monkeypatch)
+
+    event = _sqs_event(
+        {
+            "entity_type": "label",
+            "entity_id": "label-456",
+            "prompt_slug": "label_info",
+            "prompt_version": "v1",
+            "context": {"label_name": "Entity Label", "styles": "House"},
+        }
+    )
+    response = lambda_handler(event, context=None)
+
+    assert response == {"processed": 1}
+    assert len(repo.saved_results) == 1
+    saved = repo.saved_results[0]
+    assert saved["entity_type"] == "label"
+    assert saved["entity_id"] == "label-456"
+    assert saved["result"]["label_name"] == "Test Label"
+    reset_settings_cache()
+
+
+def test_unknown_entity_type_is_skipped(monkeypatch) -> None:
+    repo = _setup_search_worker(monkeypatch)
+
+    event = _sqs_event(
+        {
+            "entity_type": "artist",
+            "entity_id": "artist-1",
+            "prompt_slug": "artist_info",
+            "prompt_version": "v1",
+            "context": {},
+        }
+    )
+    response = lambda_handler(event, context=None)
+
+    assert response == {"processed": 0}
+    assert repo.saved_results == []
+    reset_settings_cache()
+
+
+def test_label_search_skipped_when_context_missing_keys(monkeypatch) -> None:
+    repo = _setup_search_worker(monkeypatch)
+
+    event = _sqs_event(
+        {
+            "entity_type": "label",
+            "entity_id": "label-789",
+            "prompt_slug": "label_info",
+            "prompt_version": "v1",
+            "context": {},
+        }
+    )
+    response = lambda_handler(event, context=None)
+
+    assert response == {"processed": 0}
+    assert repo.saved_results == []
+    reset_settings_cache()

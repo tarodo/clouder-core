@@ -100,11 +100,49 @@ class LabelSearchMessage(BaseModel):
         return normalized
 
 
+class EntitySearchMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    entity_type: str
+    entity_id: str
+    prompt_slug: str
+    prompt_version: str
+    context: dict[str, object] = Field(default_factory=dict)
+
+    @field_validator("entity_type", "entity_id", "prompt_slug", "prompt_version")
+    @classmethod
+    def _strip_non_empty(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("field must be a non-empty string")
+        return normalized
+
+
 class SpotifySearchMessage(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     batch_size: StrictInt = Field(default=2000, ge=1, le=5000)
     auto_continue: bool = Field(default=True)
+
+
+def coerce_search_message(payload: dict[str, object]) -> EntitySearchMessage:
+    """Accept both EntitySearchMessage and LabelSearchMessage shapes.
+
+    LabelSearchMessage is the legacy on-wire shape for in-flight SQS messages.
+    It translates into EntitySearchMessage with entity_type='label' and
+    context={label_name, styles}.
+    """
+    if "entity_type" in payload:
+        return EntitySearchMessage.model_validate(payload)
+
+    legacy = LabelSearchMessage.model_validate(payload)
+    return EntitySearchMessage(
+        entity_type="label",
+        entity_id=legacy.label_id,
+        prompt_slug=legacy.prompt_slug,
+        prompt_version=legacy.prompt_version,
+        context={"label_name": legacy.label_name, "styles": legacy.styles},
+    )
 
 
 def validation_error_message(exc: PydanticValidationError) -> str:

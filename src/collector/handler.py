@@ -6,9 +6,21 @@ import base64
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import re
 import time
 import uuid
 from typing import Any, Mapping
+
+_PHASE_PREFIX = re.compile(r"^\[phase=([^\]]+)\] ")
+
+
+def _split_phase_prefix(msg: str | None) -> tuple[str | None, str | None]:
+    if not msg:
+        return None, msg
+    m = _PHASE_PREFIX.match(msg)
+    if not m:
+        return None, msg
+    return m.group(1), msg[m.end():]
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -310,10 +322,13 @@ def _handle_get_run(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
 
     error = None
     if row.get("error_code"):
+        phase, clean_msg = _split_phase_prefix(row.get("error_message"))
         error = {
             "code": row.get("error_code"),
-            "message": row.get("error_message"),
+            "message": clean_msg,
         }
+        if phase is not None:
+            error["phase"] = phase
 
     response = {
         "run_id": run_id,
