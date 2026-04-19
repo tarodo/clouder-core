@@ -31,7 +31,8 @@ cd infra && terraform init && terraform apply
   - `handler.py` — API Lambda (POST /collect_bp_releases, GET /runs/{run_id})
   - `worker_handler.py` — SQS-triggered canonicalization worker
   - `migration_handler.py` — invoked post-deploy to run alembic
-  - `search_handler.py`, `spotify_handler.py` — separate Lambdas
+  - `search_handler.py`, `spotify_handler.py`, `vendor_match_handler.py` — separate Lambdas
+  - `vendor_match/` — `retry_vendor` decorator + fuzzy scorer used by the vendor_match Lambda
   - `data_api.py` — RDS Data API client (not psycopg at runtime)
   - `db_models.py` — SQLAlchemy models (used for alembic autogen only)
   - `normalize.py` / `canonicalize.py` — raw → canonical entity transform
@@ -62,7 +63,9 @@ cd infra && terraform init && terraform apply
 - **`release_type` is Spotify-only.** Beatport payload does not expose a release-type field — only nested `release.{id,name,label,slug}`. Values (`album`/`single`/`compilation`) come from Spotify `album.album_type` during ISRC enrichment and are then propagated from `clouder_tracks` onto the parent `clouder_albums` via `propagate_release_type_to_albums`. A track's `release_type` is therefore NULL until its ISRC lookup succeeds.
 - **`is_ai_suspected` is propagated, not stored standalone.** After `save_search_result`, `propagate_ai_flag` sets/clears the flag on `clouder_labels/artists/tracks` only when `confidence >= AI_FLAG_CONFIDENCE_THRESHOLD` (default 0.6). `ai_content=unknown` is a no-op; `none_detected` explicitly clears. The flag is a soft filter — the authoritative finding lives in `ai_search_results`.
 - **Adding a new vendor** = create `providers/<vendor>/<role>.py` with a class implementing the relevant Protocol, register a `_build_<vendor>` builder in `providers/registry.py:_BUILDERS`, and add the vendor name to `VENDORS_ENABLED`. Three steps, no handler changes. Vendor names not listed in `VENDORS_ENABLED` raise `VendorDisabledError` from registry accessors.
-- **Provider classes are thin adapters.** Existing clients (`BeatportClient`, `SpotifyClient`, `search_label`) live in their original modules and are wrapped — do not duplicate vendor logic into `providers/`. Adapter signatures match handler call sites (batch + `correlation_id`), not the long-term per-track Protocol ideal. Per-track lookup methods will be added when first consumed (e.g. playlist export in Plan 4).
+- **Provider classes are thin adapters.** Existing clients (`BeatportClient`, `SpotifyClient`, `search_label`) live in their original modules and are wrapped — do not duplicate vendor logic into `providers/`. Adapter signatures match handler call sites (batch + `correlation_id`), not the long-term per-track Protocol ideal.
+- **`LookupProvider` gained per-track methods in Plan 4.** `lookup_by_isrc(isrc) -> VendorTrackRef | None` and `lookup_by_metadata(artist, title, duration_ms, album) -> list[VendorTrackRef]`. Spotify implements ISRC; metadata search returns `[]` until a follow-up fills it in (Beatport always carries ISRC so fuzzy fallback is rare). All other vendors still raise `VendorDisabledError(reason="not_implemented")`.
+- **Vendor match cache is PK `(clouder_track_id, vendor)` — idempotent on retry.** `vendor_match_handler` upserts on hit; low-confidence candidates go to `match_review_queue` with a partial unique index on `status='pending'` so repeated sends do not duplicate review rows.
 
 ## Env Vars (runtime)
 
@@ -73,6 +76,8 @@ API/Worker Lambda: `RAW_BUCKET_NAME`, `RAW_PREFIX`, `BEATPORT_API_BASE_URL`, `CA
 AI Search Worker: credential resolution precedence — `PERPLEXITY_API_KEY` (direct) > `PERPLEXITY_API_KEY_SSM_PARAMETER` (SSM SecureString name) > `PERPLEXITY_API_KEY_SECRET_ARN` (legacy Secrets Manager). Tuning: `AI_FLAG_CONFIDENCE_THRESHOLD` (float 0..1, default `0.6`) — minimum `confidence` from a label search below which the `is_ai_suspected` flag will not be set or cleared.
 
 Spotify Worker: credential resolution precedence — `SPOTIFY_CLIENT_ID`+`SPOTIFY_CLIENT_SECRET` (direct) > `SPOTIFY_CLIENT_ID_SSM_PARAMETER`+`SPOTIFY_CLIENT_SECRET_SSM_PARAMETER` (both must be set, else falls through) > `SPOTIFY_CREDENTIALS_SECRET_ARN` (legacy SM JSON `{client_id, client_secret}`).
+
+Vendor Match Worker: `VENDORS_ENABLED` (comma-separated list, e.g. `"spotify"`), plus the Spotify credential envs above. Tuning: `FUZZY_MATCH_THRESHOLD` (float 0..1, default `0.92`) — minimum fuzzy score to cache a match, anything below routes to `match_review_queue`; `FUZZY_DURATION_TOLERANCE_MS` (int, default `3000`) — duration match window for the `duration_ok` scoring component.
 
 Migration Lambda: `AURORA_WRITER_ENDPOINT`, `AURORA_PORT`, `AURORA_DATABASE`. Plus auth: `AURORA_AUTH_MODE=password` (default, requires `AURORA_SECRET_ARN`) or `AURORA_AUTH_MODE=iam` (requires `AURORA_DB_USER`, no secret needed — uses RDS IAM token).
 
