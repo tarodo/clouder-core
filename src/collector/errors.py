@@ -55,3 +55,13 @@ class SpotifyUnavailableError(AppError):
         super().__init__(
             status_code=502, error_code="spotify_unavailable", message=message
         )
+
+
+class VendorDisabledError(AppError):
+    def __init__(self, vendor: str) -> None:
+        super().__init__(
+            status_code=400,
+            error_code="vendor_disabled",
+            message=f"vendor is disabled or not implemented: {vendor}",
+        )
+        self.vendor = vendor
