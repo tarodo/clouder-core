@@ -179,7 +179,7 @@ def test_happy_path_found_and_not_found(monkeypatch) -> None:
     repo, s3 = _setup(monkeypatch, tracks=tracks)
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyClient.search_tracks_by_isrc",
+        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
         _fake_search_results(("ISRC001", "ct1", "sp1"), ("ISRC002", "ct2", None)),
     )
 
@@ -253,7 +253,7 @@ def test_captures_album_type_and_propagates_to_albums(monkeypatch) -> None:
         return out
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyClient.search_tracks_by_isrc",
+        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
         fake_search,
     )
 
@@ -289,7 +289,7 @@ def test_follow_up_enqueued_when_more_tracks_remain(monkeypatch) -> None:
     monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: s3)
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyClient.search_tracks_by_isrc",
+        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
         _fake_search_results(("ISRC001", "ct1", "sp1")),
     )
 
@@ -321,7 +321,7 @@ def test_no_follow_up_when_all_tracks_processed(monkeypatch) -> None:
     monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123/spotify-q")
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyClient.search_tracks_by_isrc",
+        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
         _fake_search_results(("ISRC001", "ct1", "sp1")),
     )
 
@@ -366,7 +366,7 @@ def test_no_follow_up_when_auto_continue_false(monkeypatch) -> None:
     monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: s3)
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyClient.search_tracks_by_isrc",
+        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
         _fake_search_results(("ISRC001", "ct1", "sp1")),
     )
 

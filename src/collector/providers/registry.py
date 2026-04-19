@@ -38,8 +38,23 @@ def _build_beatport() -> ProviderBundle:
     )
 
 
+def _build_spotify() -> ProviderBundle:
+    """Construct the Spotify bundle. Imports inlined to avoid import cycles."""
+    from .spotify.lookup import SpotifyLookup
+    from ..settings import get_spotify_worker_settings
+
+    sp_settings = get_spotify_worker_settings()
+    return ProviderBundle(
+        lookup=SpotifyLookup(
+            client_id=sp_settings.spotify_client_id,
+            client_secret=sp_settings.spotify_client_secret,
+        ),
+    )
+
+
 _BUILDERS: dict[str, Callable[[], ProviderBundle]] = {
     "beatport": _build_beatport,
+    "spotify": _build_spotify,
 }
 
 _BUNDLE_CACHE: dict[str, ProviderBundle] = {}

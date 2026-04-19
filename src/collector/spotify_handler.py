@@ -23,7 +23,8 @@ from .repositories import (
 )
 from .schemas import SpotifySearchMessage, validation_error_message
 from .settings import get_spotify_worker_settings
-from .spotify_client import SpotifyClient, SpotifySearchResult
+from .providers.spotify.lookup import SpotifyLookup
+from .spotify_client import SpotifySearchResult  # type still needed in _process_results_chunk
 from .storage import S3Storage, create_default_s3_client
 
 _PERMANENT_ERRORS = (ValueError, TypeError, KeyError, StorageError)
@@ -155,7 +156,7 @@ def _process_spotify_search(
         track_count=len(tracks),
     )
 
-    client = SpotifyClient(
+    client = SpotifyLookup(
         client_id=settings.spotify_client_id,
         client_secret=settings.spotify_client_secret,
     )
@@ -165,7 +166,7 @@ def _process_spotify_search(
         for t in tracks
     ]
 
-    results = client.search_tracks_by_isrc(
+    results = client.lookup_batch_by_isrc(
         tracks=search_input,
         correlation_id=correlation_id,
     )
