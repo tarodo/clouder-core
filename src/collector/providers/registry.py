@@ -81,11 +81,43 @@ def _build_perplexity_artist() -> ProviderBundle:
     )
 
 
+def _build_ytmusic() -> ProviderBundle:
+    from .ytmusic.lookup import YTMusicLookup
+    from .ytmusic.export import YTMusicExporter
+
+    return ProviderBundle(lookup=YTMusicLookup(), export=YTMusicExporter())
+
+
+def _build_deezer() -> ProviderBundle:
+    from .deezer.lookup import DeezerLookup
+    from .deezer.export import DeezerExporter
+
+    return ProviderBundle(lookup=DeezerLookup(), export=DeezerExporter())
+
+
+def _build_apple() -> ProviderBundle:
+    from .apple.lookup import AppleLookup
+    from .apple.export import AppleExporter
+
+    return ProviderBundle(lookup=AppleLookup(), export=AppleExporter())
+
+
+def _build_tidal() -> ProviderBundle:
+    from .tidal.lookup import TidalLookup
+    from .tidal.export import TidalExporter
+
+    return ProviderBundle(lookup=TidalLookup(), export=TidalExporter())
+
+
 _BUILDERS: dict[str, Callable[[], ProviderBundle]] = {
     "beatport": _build_beatport,
     "spotify": _build_spotify,
     "perplexity_label": _build_perplexity_label,
     "perplexity_artist": _build_perplexity_artist,
+    "ytmusic": _build_ytmusic,
+    "deezer": _build_deezer,
+    "apple": _build_apple,
+    "tidal": _build_tidal,
 }
 
 _BUNDLE_CACHE: dict[str, ProviderBundle] = {}

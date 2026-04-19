@@ -50,7 +50,6 @@ def test_disabled_vendor_does_not_build_bundle(monkeypatch: pytest.MonkeyPatch) 
         registry.get_ingest("beatport")
 
 
-@pytest.mark.skip(reason="enabled in Task 7 (stub vendors)")
 def test_list_enabled_exporters_filters(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VENDORS_ENABLED", "ytmusic,deezer")
     names = sorted(p.vendor_name for p in registry.list_enabled_exporters())
