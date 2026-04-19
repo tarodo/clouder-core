@@ -176,3 +176,43 @@ resource "aws_lambda_event_source_mapping" "spotify_search_queue" {
   function_name    = aws_lambda_function.spotify_search_worker.arn
   batch_size       = var.spotify_search_batch_size
 }
+
+# ── Vendor Match worker ──────────────────────────────────────────
+
+resource "aws_lambda_function" "vendor_match_worker" {
+  function_name = local.vendor_match_worker_lambda_name
+  role          = aws_iam_role.collector_lambda.arn
+  runtime       = "python3.12"
+  handler       = "collector.vendor_match_handler.lambda_handler"
+  filename      = local.lambda_zip_file
+  timeout       = var.vendor_match_worker_lambda_timeout_seconds
+  memory_size   = var.vendor_match_worker_lambda_memory_mb
+
+  source_code_hash = filebase64sha256(local.lambda_zip_file)
+
+  environment {
+    variables = {
+      SPOTIFY_CREDENTIALS_SECRET_ARN      = var.spotify_credentials_secret_arn
+      SPOTIFY_CLIENT_ID_SSM_PARAMETER     = var.spotify_client_id_ssm_parameter
+      SPOTIFY_CLIENT_SECRET_SSM_PARAMETER = var.spotify_client_secret_ssm_parameter
+      AURORA_CLUSTER_ARN                  = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN                   = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE                     = var.aurora_database_name
+      LOG_LEVEL                           = "INFO"
+      VENDORS_ENABLED                     = var.vendor_match_vendors_enabled
+      FUZZY_MATCH_THRESHOLD               = tostring(var.fuzzy_match_threshold)
+      FUZZY_DURATION_TOLERANCE_MS         = tostring(var.fuzzy_duration_tolerance_ms)
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.vendor_match_worker,
+  ]
+}
+
+resource "aws_lambda_event_source_mapping" "vendor_match_queue" {
+  event_source_arn = aws_sqs_queue.vendor_match.arn
+  function_name    = aws_lambda_function.vendor_match_worker.arn
+  batch_size       = var.vendor_match_batch_size
+  enabled          = var.vendor_match_enabled
+}

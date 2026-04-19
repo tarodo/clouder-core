@@ -30,6 +30,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       "${aws_cloudwatch_log_group.migration_lambda.arn}:*",
       "${aws_cloudwatch_log_group.ai_search_worker.arn}:*",
       "${aws_cloudwatch_log_group.spotify_search_worker.arn}:*",
+      "${aws_cloudwatch_log_group.vendor_match_worker.arn}:*",
     ]
   }
 
@@ -83,6 +84,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.canonicalization.arn,
       aws_sqs_queue.ai_search.arn,
       aws_sqs_queue.spotify_search.arn,
+      aws_sqs_queue.vendor_match.arn,
     ]
   }
 
@@ -100,6 +102,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.canonicalization.arn,
       aws_sqs_queue.ai_search.arn,
       aws_sqs_queue.spotify_search.arn,
+      aws_sqs_queue.vendor_match.arn,
     ]
   }
 
