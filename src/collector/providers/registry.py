@@ -40,15 +40,20 @@ def _build_beatport() -> ProviderBundle:
 
 def _build_spotify() -> ProviderBundle:
     """Construct the Spotify bundle. Imports inlined to avoid import cycles."""
+    from .spotify.enrich import SpotifyEnricher
+    from .spotify.export import SpotifyExporter
     from .spotify.lookup import SpotifyLookup
     from ..settings import get_spotify_worker_settings
 
     sp_settings = get_spotify_worker_settings()
+    spotify_lookup = SpotifyLookup(
+        client_id=sp_settings.spotify_client_id,
+        client_secret=sp_settings.spotify_client_secret,
+    )
     return ProviderBundle(
-        lookup=SpotifyLookup(
-            client_id=sp_settings.spotify_client_id,
-            client_secret=sp_settings.spotify_client_secret,
-        ),
+        lookup=spotify_lookup,
+        enrich=SpotifyEnricher(lookup=spotify_lookup),
+        export=SpotifyExporter(),
     )
 
 
