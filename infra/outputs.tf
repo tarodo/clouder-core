@@ -43,6 +43,16 @@ output "spotify_search_worker_lambda_function_name" {
   value       = aws_lambda_function.spotify_search_worker.function_name
 }
 
+output "vendor_match_worker_lambda_function_name" {
+  description = "Vendor match worker Lambda function name"
+  value       = aws_lambda_function.vendor_match_worker.function_name
+}
+
+output "vendor_match_queue_url" {
+  description = "SQS queue URL for vendor match tasks"
+  value       = aws_sqs_queue.vendor_match.url
+}
+
 output "canonicalization_queue_url" {
   description = "SQS queue URL for canonicalization tasks"
   value       = aws_sqs_queue.canonicalization.url

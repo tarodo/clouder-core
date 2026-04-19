@@ -294,6 +294,68 @@ variable "spotify_client_secret_ssm_parameter" {
   default     = ""
 }
 
+# ── Vendor Match ──────────────────────────────────────────────────
+
+variable "vendor_match_enabled" {
+  description = "Enable the vendor match worker (per-track Spotify/YTM/Deezer/Apple/Tidal resolution)"
+  type        = bool
+  default     = false
+}
+
+variable "vendor_match_worker_lambda_timeout_seconds" {
+  description = "Vendor match worker Lambda timeout in seconds"
+  type        = number
+  default     = 120
+}
+
+variable "vendor_match_worker_lambda_memory_mb" {
+  description = "Vendor match worker Lambda memory size in MB"
+  type        = number
+  default     = 512
+}
+
+variable "vendor_match_batch_size" {
+  description = "SQS batch size for vendor match worker lambda"
+  type        = number
+  default     = 1
+}
+
+variable "vendor_match_queue_visibility_timeout_seconds" {
+  description = "Visibility timeout for vendor match queue (effective value is max(this, worker lambda timeout))"
+  type        = number
+  default     = 180
+}
+
+variable "vendor_match_queue_retention_seconds" {
+  description = "Message retention for vendor match queue"
+  type        = number
+  default     = 1209600
+}
+
+variable "vendor_match_max_receive_count" {
+  description = "Max receive count before a vendor match message goes to DLQ"
+  type        = number
+  default     = 5
+}
+
+variable "vendor_match_vendors_enabled" {
+  description = "Comma-separated list of vendors enabled for the vendor_match worker"
+  type        = string
+  default     = ""
+}
+
+variable "fuzzy_match_threshold" {
+  description = "Minimum fuzzy score to accept a metadata match (0..1)"
+  type        = number
+  default     = 0.92
+}
+
+variable "fuzzy_duration_tolerance_ms" {
+  description = "Duration mismatch tolerance in ms for fuzzy match duration_ok flag"
+  type        = number
+  default     = 3000
+}
+
 variable "migration_db_user" {
   description = "PostgreSQL role name used by the migration Lambda when AURORA_AUTH_MODE=iam. Must have rds_iam granted."
   type        = string

@@ -58,3 +58,24 @@ resource "aws_sqs_queue" "spotify_search" {
     maxReceiveCount     = 3
   })
 }
+
+# ── Vendor Match queue ───────────────────────────────────────────
+
+resource "aws_sqs_queue" "vendor_match_dlq" {
+  name                      = local.vendor_match_dlq_name
+  message_retention_seconds = var.vendor_match_queue_retention_seconds
+}
+
+resource "aws_sqs_queue" "vendor_match" {
+  name = local.vendor_match_queue_name
+  visibility_timeout_seconds = max(
+    var.vendor_match_queue_visibility_timeout_seconds,
+    var.vendor_match_worker_lambda_timeout_seconds
+  )
+  message_retention_seconds = var.vendor_match_queue_retention_seconds
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.vendor_match_dlq.arn
+    maxReceiveCount     = var.vendor_match_max_receive_count
+  })
+}

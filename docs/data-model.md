@@ -202,6 +202,39 @@ AI-powered search results for entities.
 
 **Indexes:** uq_search_result (entity_type, entity_id, prompt_slug, prompt_version) UNIQUE
 
+### 1.13 vendor_track_map
+
+Per-vendor match cache for canonical tracks.
+
+| Column           | Type         | Constraints                                |
+|------------------|--------------|--------------------------------------------|
+| clouder_track_id | String(36)   | PK (composite), FK `clouder_tracks.id`     |
+| vendor           | String(32)   | PK (composite)                             |
+| vendor_track_id  | String(128)  | NOT NULL                                   |
+| match_type       | String(32)   | NOT NULL (`isrc` / `fuzzy` / `manual`)     |
+| confidence       | Numeric(4,3) | NOT NULL                                   |
+| matched_at       | DateTime(tz) | NOT NULL                                   |
+| payload          | JSONB        | NOT NULL                                   |
+
+**PK:** (clouder_track_id, vendor)
+**Indexes:** idx_vtm_vendor_track (vendor, clouder_track_id)
+
+### 1.14 match_review_queue
+
+Low-confidence matches parked for manual approval.
+
+| Column           | Type         | Constraints                                      |
+|------------------|--------------|--------------------------------------------------|
+| id               | String(36)   | PK (UUID)                                        |
+| clouder_track_id | String(36)   | NOT NULL, FK `clouder_tracks.id`                 |
+| vendor           | String(32)   | NOT NULL                                         |
+| candidates       | JSONB        | NOT NULL                                         |
+| status           | String(32)   | NOT NULL (`pending` / `approved` / `rejected`)   |
+| created_at       | DateTime(tz) | NOT NULL                                         |
+| resolved_at      | DateTime(tz) | nullable                                         |
+
+**Indexes:** uq_review_pending (clouder_track_id, vendor) UNIQUE WHERE status='pending'
+
 ---
 
 ## 2. Entity Relationships (ER)

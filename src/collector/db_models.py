@@ -268,3 +268,39 @@ class IdentityMap(Base):
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+
+
+class VendorTrackMap(Base):
+    __tablename__ = "vendor_track_map"
+    __table_args__ = (
+        PrimaryKeyConstraint("clouder_track_id", "vendor", name="pk_vendor_track_map"),
+        Index("idx_vtm_vendor_track", "vendor", "clouder_track_id"),
+    )
+
+    clouder_track_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("clouder_tracks.id"), nullable=False
+    )
+    vendor: Mapped[str] = mapped_column(String(32), nullable=False)
+    vendor_track_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    match_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(4, 3), nullable=False)
+    matched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class MatchReviewQueue(Base):
+    __tablename__ = "match_review_queue"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    clouder_track_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("clouder_tracks.id"), nullable=False
+    )
+    vendor: Mapped[str] = mapped_column(String(32), nullable=False)
+    candidates: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
