@@ -151,6 +151,9 @@ class WorkerSettings(_SettingsBase):
 
 class SearchWorkerSettings(_SettingsBase):
     perplexity_api_key: str = Field(default="")
+    ai_flag_confidence_threshold: float = Field(
+        default=0.6, alias="AI_FLAG_CONFIDENCE_THRESHOLD"
+    )
 
 
 class SpotifyWorkerSettings(_SettingsBase):

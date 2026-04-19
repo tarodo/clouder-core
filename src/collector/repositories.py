@@ -101,6 +101,7 @@ class UpdateSpotifyResultCmd:
     track_id: str
     spotify_id: str | None
     searched_at: datetime
+    release_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -746,6 +747,7 @@ class ClouderRepository:
             UPDATE clouder_tracks
             SET spotify_id = :spotify_id,
                 spotify_searched_at = :searched_at,
+                release_type = COALESCE(:release_type, release_type),
                 updated_at = :searched_at
             WHERE id = :track_id
             """,
@@ -754,9 +756,40 @@ class ClouderRepository:
                     "track_id": cmd.track_id,
                     "spotify_id": cmd.spotify_id,
                     "searched_at": cmd.searched_at,
+                    "release_type": cmd.release_type,
                 }
                 for cmd in commands
             ],
+            transaction_id=transaction_id,
+        )
+
+    def propagate_release_type_to_albums(
+        self,
+        track_ids: list[str],
+        transaction_id: str | None = None,
+    ) -> None:
+        """Copy release_type from tracks onto their parent albums.
+
+        Runs a single UPDATE that joins clouder_tracks → clouder_albums via
+        album_id, for each track in *track_ids* whose release_type is set.
+        """
+        if not track_ids:
+            return
+        placeholders = ", ".join(f":id_{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {
+            f"id_{i}": tid for i, tid in enumerate(track_ids)
+        }
+        self._data_api.execute(
+            f"""
+            UPDATE clouder_albums a
+            SET release_type = t.release_type,
+                updated_at = t.updated_at
+            FROM clouder_tracks t
+            WHERE t.album_id = a.id
+              AND t.release_type IS NOT NULL
+              AND t.id IN ({placeholders})
+            """,
+            params,
             transaction_id=transaction_id,
         )
 
@@ -796,6 +829,33 @@ class ClouderRepository:
                 "prompt_version": prompt_version,
                 "limit": limit,
             },
+        )
+
+    _AI_SUSPECTED_TABLES: Mapping[str, str] = {
+        "label": "clouder_labels",
+        "artist": "clouder_artists",
+        "track": "clouder_tracks",
+    }
+
+    def update_entity_is_ai_suspected(
+        self,
+        entity_type: str,
+        entity_id: str,
+        value: bool,
+        transaction_id: str | None = None,
+    ) -> None:
+        table = self._AI_SUSPECTED_TABLES.get(entity_type)
+        if table is None:
+            raise ValueError(f"unsupported entity_type: {entity_type}")
+        self._data_api.execute(
+            f"UPDATE {table} SET is_ai_suspected = :value, "
+            "updated_at = :updated_at WHERE id = :id",
+            {
+                "value": value,
+                "updated_at": utc_now(),
+                "id": entity_id,
+            },
+            transaction_id=transaction_id,
         )
 
     def save_search_result(

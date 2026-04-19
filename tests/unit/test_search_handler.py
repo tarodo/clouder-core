@@ -17,6 +17,7 @@ class FakeSearchRepo:
 
     def __init__(self) -> None:
         self.saved_results: list[dict[str, Any]] = []
+        self.ai_suspected_updates: list[tuple[str, str, bool]] = []
 
     def save_search_result(
         self,
@@ -38,6 +39,15 @@ class FakeSearchRepo:
                 "result": result,
             }
         )
+
+    def update_entity_is_ai_suspected(
+        self,
+        entity_type: str,
+        entity_id: str,
+        value: bool,
+        transaction_id: str | None = None,
+    ) -> None:
+        self.ai_suspected_updates.append((entity_type, entity_id, value))
 
 
 def _sqs_event(body: dict[str, Any]) -> dict[str, Any]:
