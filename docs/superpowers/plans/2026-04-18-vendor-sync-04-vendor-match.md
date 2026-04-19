@@ -18,29 +18,131 @@
 
 New files:
 - `alembic/versions/20260421_10_vendor_match_tables.py` — `vendor_track_map`, `match_review_queue` tables.
-- `src/collector/providers/vendor_errors.py` — `VendorUnavailableError`, `VendorAuthError`, `VendorQuotaError`, `MatchFailedError`, `UserTokenMissingError` (OR inline in `errors.py`; see decision).
 - `src/collector/vendor_match/__init__.py`
 - `src/collector/vendor_match/scorer.py` — fuzzy scoring functions.
 - `src/collector/vendor_match/retry.py` — `retry_vendor` decorator (jitter, 3 retries on transient).
 - `src/collector/vendor_match_handler.py` — Lambda handler.
-- `src/collector/schemas.py` — add `VendorMatchMessage` pydantic model.
 - `tests/unit/test_migration_10_sql.py`
+- `tests/unit/test_vendor_errors.py`
 - `tests/unit/test_vendor_match_scorer.py`
 - `tests/unit/test_vendor_match_retry.py`
+- `tests/unit/test_vendor_match_schema.py`
+- `tests/unit/test_repositories_vendor_match.py`
 - `tests/unit/test_vendor_match_handler.py`
 - `tests/integration/test_vendor_match_flow.py`
 
 Modified files:
+- `src/collector/providers/base.py` — extend `LookupProvider` Protocol with `lookup_by_isrc` + `lookup_by_metadata`.
+- `src/collector/providers/spotify/lookup.py` — implement new methods (single-ISRC wrapper around batch; metadata search via SpotifyClient).
+- `src/collector/providers/{ytmusic,deezer,apple,tidal}/lookup.py` — add stub methods raising `VendorDisabledError`.
 - `src/collector/db_models.py` — SQLAlchemy models for new tables.
-- `src/collector/repositories.py` — methods `get_vendor_match`, `upsert_vendor_match`, `insert_review_candidate`.
-- `src/collector/errors.py` — add 5 new error classes (decision: put here, not in separate file).
+- `src/collector/repositories.py` — methods `get_vendor_match`, `upsert_vendor_match`, `insert_review_candidate` (use `self._data_api.execute(sql, {kv}, transaction_id=...)` pattern like existing methods).
+- `src/collector/errors.py` — add 5 new error classes following existing `AppError` dataclass pattern (`super().__init__(status_code=..., error_code=..., message=...)`).
+- `src/collector/schemas.py` — add `VendorMatchMessage` pydantic model.
+- `src/collector/logging_utils.py` — extend `ALLOWED_LOG_FIELDS` with `track_id`, `vendor`, `match_type`, `confidence`, `candidate_count`, `title_sim`, `artist_sim`.
 - `infra/sqs.tf` — new queue + DLQ.
 - `infra/iam.tf` — extend Lambda role with new SQS permissions.
 - `infra/lambda.tf` — new `aws_lambda_function.vendor_match_worker` + event source mapping.
 - `infra/outputs.tf` — add function name output.
 - `infra/variables.tf` — queue visibility / worker timeout / max receive count.
 - `infra/logging.tf` — CloudWatch log group + DLQ alarm.
-- `src/collector/settings.py` — `FUZZY_MATCH_THRESHOLD` (default 0.92), `FUZZY_DURATION_TOLERANCE_MS` (default 3000).
+- `src/collector/settings.py` — add `VendorMatchSettings` with `fuzzy_match_threshold` (default 0.92) and `fuzzy_duration_tolerance_ms` (default 3000), plus `get_vendor_match_settings()` accessor.
+
+---
+
+## Task 0a: Extend `LookupProvider` Protocol + stubs
+
+**Problem:** Current `LookupProvider` only declares `lookup_batch_by_isrc`. The new worker needs per-track `lookup_by_isrc` and `lookup_by_metadata`.
+
+**Files:**
+- Modify: `src/collector/providers/base.py` — add methods to Protocol.
+- Modify: `src/collector/providers/spotify/lookup.py` — implement both.
+- Modify: `src/collector/providers/{ytmusic,deezer,apple,tidal}/lookup.py` — stub both raising `VendorDisabledError(..., reason="not_implemented")`.
+- Test: `tests/unit/test_providers_lookup_api.py`
+
+- [ ] **Step 1: Extend Protocol**
+
+```python
+# providers/base.py
+@runtime_checkable
+class LookupProvider(Protocol):
+    vendor_name: str
+
+    def lookup_batch_by_isrc(
+        self, tracks: list[dict[str, str]], correlation_id: str,
+    ) -> list[Any]: ...
+
+    def lookup_by_isrc(self, isrc: str) -> VendorTrackRef | None:
+        """Single-ISRC lookup. Returns None on miss."""
+        ...
+
+    def lookup_by_metadata(
+        self,
+        artist: str,
+        title: str,
+        duration_ms: int | None,
+        album: str | None,
+    ) -> list[VendorTrackRef]:
+        """Fuzzy metadata search. Returns up to ~10 candidates."""
+        ...
+```
+
+- [ ] **Step 2: Spotify implementation**
+
+`lookup_by_isrc` wraps `self._client.search_tracks_by_isrc` with a synthetic single-track batch. `lookup_by_metadata` calls `SpotifyClient.search_tracks(q="artist:... track:...")` if such API exists; otherwise raise `NotImplementedError` temporarily and mark follow-up. Verify `SpotifyClient` surface before implementing — don't duplicate vendor logic.
+
+Return value is `VendorTrackRef` built from the client's search result.
+
+- [ ] **Step 3: Stubs for ytmusic/deezer/apple/tidal**
+
+Both methods raise `VendorDisabledError(self.vendor_name, reason="not_implemented")`. Matches existing `lookup_batch_by_isrc` stub style.
+
+- [ ] **Step 4: Tests**
+
+```python
+# tests/unit/test_providers_lookup_api.py
+def test_spotify_lookup_by_isrc_miss_returns_none(...): ...
+def test_ytmusic_stub_raises_vendor_disabled(...): ...
+# etc.
+```
+
+- [ ] **Step 5: Commit**
+
+---
+
+## Task 0b: `VendorMatchSettings` in `settings.py`
+
+**Files:**
+- Modify: `src/collector/settings.py`
+- Test: inline in Task 4 tests (scorer pulls settings via accessor — easy to override via env in tests with `reset_settings_cache`).
+
+- [ ] Follow existing `_SettingsBase` pattern ([settings.py:104](../../../src/collector/settings.py:104)):
+
+```python
+class VendorMatchSettings(_SettingsBase):
+    fuzzy_match_threshold: float = Field(
+        default=0.92, alias="FUZZY_MATCH_THRESHOLD", ge=0.0, le=1.0,
+    )
+    fuzzy_duration_tolerance_ms: int = Field(
+        default=3000, alias="FUZZY_DURATION_TOLERANCE_MS", ge=0,
+    )
+
+
+@functools.lru_cache
+def get_vendor_match_settings() -> VendorMatchSettings:
+    return VendorMatchSettings()
+```
+
+Add `get_vendor_match_settings.cache_clear()` to `reset_settings_cache()` ([settings.py:222](../../../src/collector/settings.py:222)). Commit.
+
+---
+
+## Task 0c: Extend `ALLOWED_LOG_FIELDS`
+
+**Files:**
+- Modify: `src/collector/logging_utils.py`
+
+- [ ] Add to `ALLOWED_LOG_FIELDS`: `track_id`, `vendor`, `match_type`, `confidence`, `candidate_count`, `title_sim`, `artist_sim`, `reason`. Without this, structlog silently drops these fields and new `vendor_match_*` events become useless. Commit.
 
 ---
 
@@ -243,53 +345,59 @@ def test_user_token_missing_error() -> None:
 
 - [ ] **Step 3: Implementation in `src/collector/errors.py`**
 
+`AppError` is a dataclass with required `__init__(status_code, error_code, message)` (see [errors.py:8](../../../src/collector/errors.py:8)). Subclasses MUST call `super().__init__(status_code=..., error_code=..., message=...)` — class-level attrs do not satisfy the dataclass init. Extra attributes (`vendor`, `retry_after`) are set after `super().__init__`.
+
 ```python
 class VendorUnavailableError(AppError):
-    status_code = 502
-    error_code = "vendor_unavailable"
-
-    def __init__(self, vendor: str, reason: str = ""):
-        super().__init__(f"vendor {vendor} unavailable: {reason}")
+    def __init__(self, vendor: str, reason: str = "") -> None:
+        super().__init__(
+            status_code=502,
+            error_code="vendor_unavailable",
+            message=f"vendor {vendor} unavailable: {reason}",
+        )
         self.vendor = vendor
         self.reason = reason
 
 
 class VendorAuthError(AppError):
-    status_code = 403
-    error_code = "vendor_auth_failed"
-
-    def __init__(self, vendor: str):
-        super().__init__(f"vendor {vendor} auth failed")
+    def __init__(self, vendor: str) -> None:
+        super().__init__(
+            status_code=403,
+            error_code="vendor_auth_failed",
+            message=f"vendor {vendor} auth failed",
+        )
         self.vendor = vendor
 
 
 class VendorQuotaError(AppError):
-    status_code = 429
-    error_code = "vendor_quota"
-
-    def __init__(self, vendor: str, retry_after: int | None = None):
-        super().__init__(f"vendor {vendor} quota exceeded")
+    def __init__(self, vendor: str, retry_after: int | None = None) -> None:
+        super().__init__(
+            status_code=429,
+            error_code="vendor_quota",
+            message=f"vendor {vendor} quota exceeded",
+        )
         self.vendor = vendor
         self.retry_after = retry_after
 
 
 class MatchFailedError(Exception):
-    """Worker-internal non-fatal: trigger review queue routing."""
+    """Worker-internal non-fatal: trigger review queue routing. Not an AppError."""
 
     error_code = "match_failed"
 
-    def __init__(self, vendor: str, reason: str):
+    def __init__(self, vendor: str, reason: str) -> None:
         super().__init__(f"match failed for {vendor}: {reason}")
         self.vendor = vendor
         self.reason = reason
 
 
 class UserTokenMissingError(AppError):
-    status_code = 400
-    error_code = "user_token_missing"
-
-    def __init__(self, user_id: str, vendor: str):
-        super().__init__(f"user {user_id} has no token for vendor {vendor}")
+    def __init__(self, user_id: str, vendor: str) -> None:
+        super().__init__(
+            status_code=400,
+            error_code="user_token_missing",
+            message=f"user {user_id} has no token for vendor {vendor}",
+        )
         self.user_id = user_id
         self.vendor = vendor
 ```
@@ -511,7 +619,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 
 from ..providers.base import VendorTrackRef
-from ..settings import get_ingestion_settings  # re-use or add fuzzy settings
+from ..settings import get_vendor_match_settings
 
 
 @dataclass(frozen=True)
@@ -534,7 +642,6 @@ def _string_sim(a: str, b: str) -> float:
 def _best_artist_sim(candidate_artists: tuple[str, ...], query_artist: str) -> float:
     if not candidate_artists:
         return 0.0
-    # Split query by " & " or "," to handle "Artist1 & Artist2"
     parts = [p.strip() for p in query_artist.replace("&", ",").split(",") if p.strip()]
     if not parts:
         parts = [query_artist]
@@ -556,7 +663,7 @@ def score_candidate(
     title_sim = _string_sim(candidate.title, title)
     artist_sim = _best_artist_sim(candidate.artist_names, artist)
 
-    tolerance = 3000  # default; override via settings
+    tolerance = get_vendor_match_settings().fuzzy_duration_tolerance_ms
     duration_ok = False
     if duration_ms is not None and candidate.duration_ms is not None:
         duration_ok = abs(candidate.duration_ms - duration_ms) <= tolerance
@@ -567,13 +674,10 @@ def score_candidate(
             album_bonus = 0.05
 
     duration_contribution = 0.05 if duration_ok else 0.0
-    total = (
-        0.5 * title_sim
-        + 0.4 * artist_sim
-        + duration_contribution
-        + album_bonus
+    total = min(
+        1.0,
+        0.5 * title_sim + 0.4 * artist_sim + duration_contribution + album_bonus,
     )
-    total = min(1.0, total)
 
     return FuzzyScore(
         title_sim=title_sim,
@@ -606,7 +710,9 @@ def score_candidate(
 
 - [ ] **Step 2: Implementation**
 
-In `repositories.py`:
+Use the existing repository pattern: `self._data_api.execute(sql, {kv_dict}, transaction_id=...)`. The `_to_parameter` marshaller in `data_api.py` handles dict→JSONB, datetime→timestamp, Decimal→numeric. See [repositories.py:118](../../../src/collector/repositories.py:118) for reference.
+
+`matched_at` comes back from Data API as an ISO string — wrap with `datetime.fromisoformat(...)`.
 
 ```python
 @dataclass(frozen=True)
@@ -617,7 +723,7 @@ class VendorTrackMatch:
     match_type: str
     confidence: Decimal
     matched_at: datetime
-    payload: dict
+    payload: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -628,91 +734,109 @@ class UpsertVendorMatchCmd:
     match_type: str          # "isrc" | "fuzzy" | "manual"
     confidence: Decimal
     matched_at: datetime
-    payload: dict
+    payload: Mapping[str, Any]
 
 
 class ClouderRepository:
     # ... existing methods ...
 
     def get_vendor_match(
-        self, clouder_track_id: str, vendor: str, tx_id: str | None = None
+        self,
+        clouder_track_id: str,
+        vendor: str,
+        transaction_id: str | None = None,
     ) -> VendorTrackMatch | None:
-        rows = self._execute(
+        rows = self._data_api.execute(
             """
             SELECT vendor_track_id, match_type, confidence, matched_at, payload
             FROM vendor_track_map
-            WHERE clouder_track_id = :tid AND vendor = :v
+            WHERE clouder_track_id = :clouder_track_id AND vendor = :vendor
             """,
-            [
-                {"name": "tid", "value": {"stringValue": clouder_track_id}},
-                {"name": "v", "value": {"stringValue": vendor}},
-            ],
-            tx_id=tx_id,
+            {"clouder_track_id": clouder_track_id, "vendor": vendor},
+            transaction_id=transaction_id,
         )
         if not rows:
             return None
         r = rows[0]
+        matched_at = r["matched_at"]
+        if isinstance(matched_at, str):
+            matched_at = datetime.fromisoformat(matched_at)
         return VendorTrackMatch(
             clouder_track_id=clouder_track_id,
             vendor=vendor,
             vendor_track_id=r["vendor_track_id"],
             match_type=r["match_type"],
-            confidence=Decimal(r["confidence"]),
-            matched_at=r["matched_at"],
-            payload=r["payload"],
+            confidence=Decimal(str(r["confidence"])),
+            matched_at=matched_at,
+            payload=r["payload"] if isinstance(r["payload"], dict) else {},
         )
 
-    def upsert_vendor_match(self, cmd: UpsertVendorMatchCmd, tx_id: str | None = None) -> None:
-        self._execute(
+    def upsert_vendor_match(
+        self,
+        cmd: UpsertVendorMatchCmd,
+        transaction_id: str | None = None,
+    ) -> None:
+        self._data_api.execute(
             """
             INSERT INTO vendor_track_map (
-              clouder_track_id, vendor, vendor_track_id, match_type,
-              confidence, matched_at, payload
-            ) VALUES (:tid, :v, :vtid, :mt, :conf, :at, :payload::jsonb)
+                clouder_track_id, vendor, vendor_track_id, match_type,
+                confidence, matched_at, payload
+            ) VALUES (
+                :clouder_track_id, :vendor, :vendor_track_id, :match_type,
+                :confidence, :matched_at, :payload
+            )
             ON CONFLICT (clouder_track_id, vendor) DO UPDATE SET
-              vendor_track_id = EXCLUDED.vendor_track_id,
-              match_type      = EXCLUDED.match_type,
-              confidence      = EXCLUDED.confidence,
-              matched_at      = EXCLUDED.matched_at,
-              payload         = EXCLUDED.payload
+                vendor_track_id = EXCLUDED.vendor_track_id,
+                match_type      = EXCLUDED.match_type,
+                confidence      = EXCLUDED.confidence,
+                matched_at      = EXCLUDED.matched_at,
+                payload         = EXCLUDED.payload
             """,
-            [
-                {"name": "tid", "value": {"stringValue": cmd.clouder_track_id}},
-                {"name": "v",   "value": {"stringValue": cmd.vendor}},
-                {"name": "vtid", "value": {"stringValue": cmd.vendor_track_id}},
-                {"name": "mt",  "value": {"stringValue": cmd.match_type}},
-                {"name": "conf", "value": {"doubleValue": float(cmd.confidence)}},
-                {"name": "at",  "value": {"stringValue": cmd.matched_at.isoformat()}},
-                {"name": "payload", "value": {"stringValue": json.dumps(cmd.payload)}},
-            ],
-            tx_id=tx_id,
+            {
+                "clouder_track_id": cmd.clouder_track_id,
+                "vendor": cmd.vendor,
+                "vendor_track_id": cmd.vendor_track_id,
+                "match_type": cmd.match_type,
+                "confidence": cmd.confidence,
+                "matched_at": cmd.matched_at,
+                "payload": dict(cmd.payload),
+            },
+            transaction_id=transaction_id,
         )
 
     def insert_review_candidate(
-        self, *, review_id: str, clouder_track_id: str, vendor: str,
-        candidates: list[dict], created_at: datetime, tx_id: str | None = None,
+        self,
+        *,
+        review_id: str,
+        clouder_track_id: str,
+        vendor: str,
+        candidates: list[dict[str, Any]],
+        created_at: datetime,
+        transaction_id: str | None = None,
     ) -> None:
-        self._execute(
+        self._data_api.execute(
             """
             INSERT INTO match_review_queue (
-              id, clouder_track_id, vendor, candidates, status, created_at
-            ) VALUES (:id, :tid, :v, :cands::jsonb, 'pending', :at)
+                id, clouder_track_id, vendor, candidates, status, created_at
+            ) VALUES (
+                :id, :clouder_track_id, :vendor, :candidates, 'pending', :created_at
+            )
             ON CONFLICT (clouder_track_id, vendor)
               WHERE status = 'pending'
               DO NOTHING
             """,
-            [
-                {"name": "id", "value": {"stringValue": review_id}},
-                {"name": "tid", "value": {"stringValue": clouder_track_id}},
-                {"name": "v", "value": {"stringValue": vendor}},
-                {"name": "cands", "value": {"stringValue": json.dumps(candidates)}},
-                {"name": "at", "value": {"stringValue": created_at.isoformat()}},
-            ],
-            tx_id=tx_id,
+            {
+                "id": review_id,
+                "clouder_track_id": clouder_track_id,
+                "vendor": vendor,
+                "candidates": candidates,
+                "created_at": created_at,
+            },
+            transaction_id=transaction_id,
         )
 ```
 
-Adjust parameter handling to existing Data API client conventions.
+Verify `_to_parameter` marshaller in [data_api.py](../../../src/collector/data_api.py) handles `list[dict]` for `candidates` — if not, wrap with `json.dumps` and cast `::jsonb` in SQL.
 
 - [ ] **Step 3: PASS**
 
@@ -799,9 +923,7 @@ from .settings import get_ingestion_settings
 from .vendor_match.retry import retry_vendor
 from .vendor_match.scorer import score_candidate
 from .errors import VendorDisabledError
-
-
-FUZZY_THRESHOLD = 0.92
+from .settings import get_vendor_match_settings
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
@@ -886,7 +1008,8 @@ def _process_one(message: VendorMatchMessage, repository) -> bool:
     ]
     scored.sort(key=lambda t: t[1].total, reverse=True)
 
-    if scored and scored[0][1].total >= FUZZY_THRESHOLD:
+    threshold = get_vendor_match_settings().fuzzy_match_threshold
+    if scored and scored[0][1].total >= threshold:
         best_cand, best_score = scored[0]
         repository.upsert_vendor_match(UpsertVendorMatchCmd(
             clouder_track_id=message.clouder_track_id,
@@ -954,19 +1077,23 @@ Follow existing canonicalization worker pattern closely — same structure for e
 
 ---
 
-## Task 9: Integration test — end-to-end flow
+## Task 9: Integration test — end-to-end flow (fakes)
 
 **Files:**
 - Create: `tests/integration/test_vendor_match_flow.py`
 
-Test scenarios using ephemeral Postgres (via `conftest.py` fixtures) and `FakeLookupProvider`:
+Existing `tests/integration/` uses fake AWS clients + fake repositories (no ephemeral Postgres harness exists). Follow the same pattern: `FakeLookupProvider`, `FakeRepository` with in-memory maps, `FakeSQSClient`.
 
-1. ISRC match — cache hit after first call.
-2. Fuzzy match ≥ 0.92 — writes cache.
-3. Low confidence — writes to review queue, top 5 candidates present.
-4. Cache-hit skip — second invocation with same `(track_id, vendor)` does not call provider.
-5. `VendorDisabledError` → skip and log.
-6. Permanent error from provider → review queue empty (if scorer returns no candidates).
+Test scenarios:
+
+1. ISRC match → cache hit after first call.
+2. Fuzzy match ≥ threshold → writes cache.
+3. Low confidence → writes to review queue, top 5 candidates present.
+4. Cache-hit skip → second invocation with same `(track_id, vendor)` does not call provider.
+5. `VendorDisabledError` from registry → skip and log `vendor_match_vendor_disabled`.
+6. Lookup returns no candidates → log `vendor_match_no_candidates`, no review row written.
+
+(Ephemeral-pg harness is a separate infra task; not blocking this plan.)
 
 - [ ] Implement each scenario.
 - [ ] Commit.
@@ -986,15 +1113,18 @@ Test scenarios using ephemeral Postgres (via `conftest.py` fixtures) and `FakeLo
 
 ## Execution Order
 
-1. Migration (Task 1)
-2. Error classes (Task 2)
-3. Retry decorator (Task 3)
-4. Scorer (Task 4)
-5. Repository methods (Task 5)
-6. Schema (Task 6)
-7. Handler (Task 7)
-8. Terraform (Task 8)
-9. Integration (Task 9)
-10. Docs (Task 10)
+1. LookupProvider Protocol + stubs (Task 0a)
+2. VendorMatchSettings (Task 0b)
+3. ALLOWED_LOG_FIELDS (Task 0c)
+4. Migration (Task 1)
+5. Error classes (Task 2)
+6. Retry decorator (Task 3)
+7. Scorer (Task 4)
+8. Repository methods (Task 5)
+9. Schema (Task 6)
+10. Handler (Task 7)
+11. Terraform (Task 8)
+12. Integration (Task 9)
+13. Docs (Task 10)
 
 After landing: Plan 5 can call `vendor_match_worker` via SQS (fan-out) OR reuse its matching logic inline from `release_mirror_worker`. Spec currently chooses inline with bounded concurrency — see Plan 5 Task 4.

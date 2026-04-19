@@ -75,6 +75,20 @@ class LookupProvider(Protocol):
         """Batch ISRC search. Returns provider-specific result objects."""
         ...
 
+    def lookup_by_isrc(self, isrc: str) -> "VendorTrackRef | None":
+        """Single-ISRC lookup. Returns None on miss."""
+        ...
+
+    def lookup_by_metadata(
+        self,
+        artist: str,
+        title: str,
+        duration_ms: int | None,
+        album: str | None,
+    ) -> list["VendorTrackRef"]:
+        """Fuzzy metadata search. Returns up to ~10 candidates."""
+        ...
+
 
 @runtime_checkable
 class EnrichProvider(Protocol):
