@@ -38,6 +38,18 @@ def test_get_unknown_vendor_raises(monkeypatch: pytest.MonkeyPatch) -> None:
         registry.get_lookup("nonexistent")
 
 
+def test_disabled_vendor_does_not_build_bundle(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disabled vendor must not instantiate its provider — important so
+    that unrelated tests don't need to set every vendor's env vars.
+    """
+    monkeypatch.setenv("VENDORS_ENABLED", "")
+    monkeypatch.delenv("RAW_BUCKET_NAME", raising=False)
+    # If we eagerly built beatport, this would fail with pydantic.ValidationError
+    # because RAW_BUCKET_NAME is a required field on ApiSettings.
+    with pytest.raises(VendorDisabledError):
+        registry.get_ingest("beatport")
+
+
 @pytest.mark.skip(reason="enabled in Task 7 (stub vendors)")
 def test_list_enabled_exporters_filters(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VENDORS_ENABLED", "ytmusic,deezer")
@@ -54,13 +66,11 @@ def test_get_enricher_for_prompt_known(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_get_enricher_for_prompt_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VENDORS_ENABLED", "")
-    monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     with pytest.raises(VendorDisabledError):
         registry.get_enricher_for_prompt("label_info")
 
 
 def test_get_enricher_for_prompt_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VENDORS_ENABLED", "perplexity_label")
-    monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     with pytest.raises(VendorDisabledError):
         registry.get_enricher_for_prompt("totally_unknown_slug")

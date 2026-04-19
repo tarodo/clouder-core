@@ -3,15 +3,20 @@
 VENDORS_ENABLED env var controls which vendors can be resolved:
   VENDORS_ENABLED="beatport,spotify,perplexity_label"
 
-Vendors not in the list raise VendorDisabledError on access. The set is
-re-read on every call, but the underlying provider instances are cached
-via _registry() lru_cache. Use reset_cache() in tests after setenv.
+Vendors not in the list raise VendorDisabledError on access. Provider
+instances are constructed lazily — a vendor's bundle is only built when
+that vendor is first needed, NOT eagerly at module load. Disabled
+vendors are never instantiated, which keeps tests independent of
+unrelated vendors' settings (e.g. a registry test that only checks
+disabled-vendor handling does not need RAW_BUCKET_NAME to be set).
+
+Use reset_cache() in tests after VENDORS_ENABLED setenv.
 """
 
 from __future__ import annotations
 
-import functools
 import os
+from collections.abc import Callable
 
 from ..errors import VendorDisabledError
 from .base import (
@@ -23,27 +28,25 @@ from .base import (
 )
 
 
-def _build_registry() -> dict[str, ProviderBundle]:
-    """Construct provider bundles. Imports inlined to avoid import cycles."""
+def _build_beatport() -> ProviderBundle:
+    """Construct the Beatport bundle. Imports inlined to avoid import cycles."""
     from .beatport import BeatportProvider
     from ..settings import get_api_settings
 
-    api_settings = get_api_settings()
-
-    return {
-        "beatport": ProviderBundle(
-            ingest=BeatportProvider(base_url=api_settings.beatport_api_base_url),
-        ),
-    }
+    return ProviderBundle(
+        ingest=BeatportProvider(base_url=get_api_settings().beatport_api_base_url),
+    )
 
 
-@functools.lru_cache(maxsize=1)
-def _registry() -> dict[str, ProviderBundle]:
-    return _build_registry()
+_BUILDERS: dict[str, Callable[[], ProviderBundle]] = {
+    "beatport": _build_beatport,
+}
+
+_BUNDLE_CACHE: dict[str, ProviderBundle] = {}
 
 
 def reset_cache() -> None:
-    _registry.cache_clear()
+    _BUNDLE_CACHE.clear()
 
 
 def _enabled_vendors() -> set[str]:
@@ -53,10 +56,25 @@ def _enabled_vendors() -> set[str]:
     return {part.strip() for part in raw.split(",") if part.strip()}
 
 
+def _get_bundle(name: str) -> ProviderBundle | None:
+    """Look up the builder for `name`, build (and cache) the bundle on first use.
+
+    Returns None if no builder is registered for `name`.
+    """
+    if name in _BUNDLE_CACHE:
+        return _BUNDLE_CACHE[name]
+    builder = _BUILDERS.get(name)
+    if builder is None:
+        return None
+    bundle = builder()
+    _BUNDLE_CACHE[name] = bundle
+    return bundle
+
+
 def _require_enabled_bundle(name: str) -> ProviderBundle:
     if name not in _enabled_vendors():
         raise VendorDisabledError(name)
-    bundle = _registry().get(name)
+    bundle = _get_bundle(name)
     if bundle is None:
         raise VendorDisabledError(name)
     return bundle
@@ -86,17 +104,16 @@ def get_enricher(name: str) -> EnrichProvider:
 def get_enricher_for_prompt(prompt_slug: str) -> EnrichProvider:
     """Find an enabled enricher that handles the given prompt_slug.
 
-    Raises VendorDisabledError if no enabled vendor exposes this slug.
+    Only builds bundles for enabled vendors — disabled vendors are skipped
+    without instantiation. Raises VendorDisabledError if no enabled vendor
+    exposes this slug.
     """
-    enabled = _enabled_vendors()
-    for name, bundle in _registry().items():
-        if bundle.enrich is None:
+    for name in _enabled_vendors():
+        bundle = _get_bundle(name)
+        if bundle is None or bundle.enrich is None:
             continue
-        if bundle.enrich.prompt_slug != prompt_slug:
-            continue
-        if name not in enabled:
-            continue
-        return bundle.enrich
+        if bundle.enrich.prompt_slug == prompt_slug:
+            return bundle.enrich
     raise VendorDisabledError(prompt_slug)
 
 
@@ -108,9 +125,9 @@ def get_exporter(name: str) -> ExportProvider:
 
 
 def list_enabled_exporters() -> list[ExportProvider]:
-    enabled = _enabled_vendors()
-    return [
-        bundle.export
-        for name, bundle in _registry().items()
-        if name in enabled and bundle.export is not None
-    ]
+    result: list[ExportProvider] = []
+    for name in _enabled_vendors():
+        bundle = _get_bundle(name)
+        if bundle is not None and bundle.export is not None:
+            result.append(bundle.export)
+    return result
