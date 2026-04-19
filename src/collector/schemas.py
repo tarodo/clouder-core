@@ -118,6 +118,27 @@ class EntitySearchMessage(BaseModel):
         return normalized
 
 
+class VendorMatchMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    clouder_track_id: str
+    vendor: str
+    isrc: str | None = None
+    artist: str
+    title: str
+    duration_ms: int | None = None
+    album: str | None = None
+    attempt: StrictInt = Field(default=1, ge=1)
+
+    @field_validator("clouder_track_id", "vendor", "artist", "title")
+    @classmethod
+    def _strip_non_empty(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("field must be a non-empty string")
+        return normalized
+
+
 class SpotifySearchMessage(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
