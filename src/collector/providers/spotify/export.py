@@ -15,4 +15,4 @@ class SpotifyExporter:
         name: str,
         track_refs: list[VendorTrackRef],
     ) -> VendorPlaylistRef:
-        raise VendorDisabledError("spotify")
+        raise VendorDisabledError("spotify", reason="not_implemented")

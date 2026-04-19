@@ -30,11 +30,12 @@ def test_stub_lookup_satisfies_protocol(name: str) -> None:
 @pytest.mark.parametrize("name", _STUB_VENDORS)
 def test_stub_lookup_raises(name: str) -> None:
     lookup = registry.get_lookup(name)
-    with pytest.raises(VendorDisabledError):
+    with pytest.raises(VendorDisabledError) as exc_info:
         lookup.lookup_batch_by_isrc(
             tracks=[{"clouder_track_id": "x", "isrc": "USRC00000001"}],
             correlation_id="c",
         )
+    assert exc_info.value.reason == "not_implemented"
 
 
 @pytest.mark.parametrize("name", _STUB_VENDORS)
@@ -47,5 +48,6 @@ def test_stub_export_satisfies_protocol(name: str) -> None:
 @pytest.mark.parametrize("name", _STUB_VENDORS)
 def test_stub_export_raises(name: str) -> None:
     exporter = registry.get_exporter(name)
-    with pytest.raises(VendorDisabledError):
+    with pytest.raises(VendorDisabledError) as exc_info:
         exporter.create_playlist(user_token="t", name="n", track_refs=[])
+    assert exc_info.value.reason == "not_implemented"

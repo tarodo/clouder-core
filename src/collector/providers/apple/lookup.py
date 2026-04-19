@@ -15,4 +15,4 @@ class AppleLookup:
         tracks: list[dict[str, str]],
         correlation_id: str,
     ) -> list[Any]:
-        raise VendorDisabledError(self.vendor_name)
+        raise VendorDisabledError(self.vendor_name, reason="not_implemented")

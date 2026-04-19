@@ -15,4 +15,4 @@ class AppleExporter:
         name: str,
         track_refs: list[VendorTrackRef],
     ) -> VendorPlaylistRef:
-        raise VendorDisabledError(self.vendor_name)
+        raise VendorDisabledError(self.vendor_name, reason="not_implemented")

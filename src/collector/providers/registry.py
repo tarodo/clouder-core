@@ -151,31 +151,31 @@ def _get_bundle(name: str) -> ProviderBundle | None:
 
 def _require_enabled_bundle(name: str) -> ProviderBundle:
     if name not in _enabled_vendors():
-        raise VendorDisabledError(name)
+        raise VendorDisabledError(name, reason="disabled")
     bundle = _get_bundle(name)
     if bundle is None:
-        raise VendorDisabledError(name)
+        raise VendorDisabledError(name, reason="disabled")
     return bundle
 
 
 def get_ingest(name: str) -> IngestProvider:
     bundle = _require_enabled_bundle(name)
     if bundle.ingest is None:
-        raise VendorDisabledError(name)
+        raise VendorDisabledError(name, reason="not_implemented")
     return bundle.ingest
 
 
 def get_lookup(name: str) -> LookupProvider:
     bundle = _require_enabled_bundle(name)
     if bundle.lookup is None:
-        raise VendorDisabledError(name)
+        raise VendorDisabledError(name, reason="not_implemented")
     return bundle.lookup
 
 
 def get_enricher(name: str) -> EnrichProvider:
     bundle = _require_enabled_bundle(name)
     if bundle.enrich is None:
-        raise VendorDisabledError(name)
+        raise VendorDisabledError(name, reason="not_implemented")
     return bundle.enrich
 
 
@@ -183,22 +183,25 @@ def get_enricher_for_prompt(prompt_slug: str) -> EnrichProvider:
     """Find an enabled enricher that handles the given prompt_slug.
 
     Only builds bundles for enabled vendors — disabled vendors are skipped
-    without instantiation. Raises VendorDisabledError if no enabled vendor
-    exposes this slug.
+    without instantiation. Iteration order is deterministic (sorted by
+    vendor name) so that if two enabled enrichers ever expose the same
+    slug, resolution is reproducible across container restarts. Raises
+    VendorDisabledError(reason="unrouted") if no enabled vendor exposes
+    this slug.
     """
-    for name in _enabled_vendors():
+    for name in sorted(_enabled_vendors()):
         bundle = _get_bundle(name)
         if bundle is None or bundle.enrich is None:
             continue
         if bundle.enrich.prompt_slug == prompt_slug:
             return bundle.enrich
-    raise VendorDisabledError(prompt_slug)
+    raise VendorDisabledError(prompt_slug, reason="unrouted")
 
 
 def get_exporter(name: str) -> ExportProvider:
     bundle = _require_enabled_bundle(name)
     if bundle.export is None:
-        raise VendorDisabledError(name)
+        raise VendorDisabledError(name, reason="not_implemented")
     return bundle.export
 
 

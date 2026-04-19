@@ -80,6 +80,19 @@ def test_vendor_disabled_error_is_app_error() -> None:
     assert "ytmusic" in str(err)
 
 
+def test_vendor_disabled_error_reason_field() -> None:
+    # Default reason is "disabled" for backwards compat.
+    assert VendorDisabledError("ytmusic").reason == "disabled"
+
+    # All three documented reasons round-trip through the field.
+    for reason in ("disabled", "unrouted", "not_implemented"):
+        err = VendorDisabledError("spotify", reason=reason)
+        assert err.vendor == "spotify"
+        assert err.reason == reason
+        assert reason in err.message
+        assert "spotify" in err.message
+
+
 def test_protocol_classes_are_runtime_checkable() -> None:
     # Negative check — random object isn't a provider.
     assert not isinstance(object(), IngestProvider)
