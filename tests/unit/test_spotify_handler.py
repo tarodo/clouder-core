@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from collector.providers import registry
 from collector.settings import reset_settings_cache
 from collector.spotify_client import SpotifySearchResult
 from collector.spotify_handler import lambda_handler
@@ -120,6 +121,8 @@ def _sqs_event(body: dict[str, Any]) -> dict[str, Any]:
 
 def _setup(monkeypatch, repo=None, tracks=None):
     reset_settings_cache()
+    registry.reset_cache()
+    monkeypatch.setenv("VENDORS_ENABLED", "spotify")
     monkeypatch.setenv("SPOTIFY_CLIENT_ID", "test_id")
     monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "test_secret")
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
@@ -179,7 +182,7 @@ def test_happy_path_found_and_not_found(monkeypatch) -> None:
     repo, s3 = _setup(monkeypatch, tracks=tracks)
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
         _fake_search_results(("ISRC001", "ct1", "sp1"), ("ISRC002", "ct2", None)),
     )
 
@@ -253,7 +256,7 @@ def test_captures_album_type_and_propagates_to_albums(monkeypatch) -> None:
         return out
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
         fake_search,
     )
 
@@ -279,6 +282,8 @@ def test_follow_up_enqueued_when_more_tracks_remain(monkeypatch) -> None:
     ]
     repo = FakeRepoWithRemaining(tracks=tracks)
     reset_settings_cache()
+    registry.reset_cache()
+    monkeypatch.setenv("VENDORS_ENABLED", "spotify")
     monkeypatch.setenv("SPOTIFY_CLIENT_ID", "test_id")
     monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "test_secret")
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
@@ -289,7 +294,7 @@ def test_follow_up_enqueued_when_more_tracks_remain(monkeypatch) -> None:
     monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: s3)
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
         _fake_search_results(("ISRC001", "ct1", "sp1")),
     )
 
@@ -321,7 +326,7 @@ def test_no_follow_up_when_all_tracks_processed(monkeypatch) -> None:
     monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123/spotify-q")
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
         _fake_search_results(("ISRC001", "ct1", "sp1")),
     )
 
@@ -356,6 +361,8 @@ def test_no_follow_up_when_auto_continue_false(monkeypatch) -> None:
     ]
     repo = FakeRepoWithRemaining(tracks=tracks)
     reset_settings_cache()
+    registry.reset_cache()
+    monkeypatch.setenv("VENDORS_ENABLED", "spotify")
     monkeypatch.setenv("SPOTIFY_CLIENT_ID", "test_id")
     monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "test_secret")
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
@@ -366,7 +373,7 @@ def test_no_follow_up_when_auto_continue_false(monkeypatch) -> None:
     monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: s3)
 
     monkeypatch.setattr(
-        "collector.spotify_handler.SpotifyLookup.lookup_batch_by_isrc",
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
         _fake_search_results(("ISRC001", "ct1", "sp1")),
     )
 

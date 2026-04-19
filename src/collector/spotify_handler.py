@@ -23,7 +23,7 @@ from .repositories import (
 )
 from .schemas import SpotifySearchMessage, validation_error_message
 from .settings import get_spotify_worker_settings
-from .providers.spotify.lookup import SpotifyLookup
+from .providers import registry
 from .spotify_client import SpotifySearchResult  # type still needed in _process_results_chunk
 from .storage import S3Storage, create_default_s3_client
 
@@ -156,10 +156,7 @@ def _process_spotify_search(
         track_count=len(tracks),
     )
 
-    client = SpotifyLookup(
-        client_id=settings.spotify_client_id,
-        client_secret=settings.spotify_client_secret,
-    )
+    client = registry.get_lookup("spotify")
 
     search_input = [
         {"clouder_track_id": str(t["id"]), "isrc": str(t["isrc"])}
