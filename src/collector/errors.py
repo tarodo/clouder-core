@@ -57,6 +57,60 @@ class SpotifyUnavailableError(AppError):
         )
 
 
+class VendorUnavailableError(AppError):
+    def __init__(self, vendor: str, reason: str = "") -> None:
+        super().__init__(
+            status_code=502,
+            error_code="vendor_unavailable",
+            message=f"vendor {vendor} unavailable: {reason}",
+        )
+        self.vendor = vendor
+        self.reason = reason
+
+
+class VendorAuthError(AppError):
+    def __init__(self, vendor: str) -> None:
+        super().__init__(
+            status_code=403,
+            error_code="vendor_auth_failed",
+            message=f"vendor {vendor} auth failed",
+        )
+        self.vendor = vendor
+
+
+class VendorQuotaError(AppError):
+    def __init__(self, vendor: str, retry_after: int | None = None) -> None:
+        super().__init__(
+            status_code=429,
+            error_code="vendor_quota",
+            message=f"vendor {vendor} quota exceeded",
+        )
+        self.vendor = vendor
+        self.retry_after = retry_after
+
+
+class MatchFailedError(Exception):
+    """Worker-internal non-fatal: trigger review queue routing. Not an AppError."""
+
+    error_code = "match_failed"
+
+    def __init__(self, vendor: str, reason: str) -> None:
+        super().__init__(f"match failed for {vendor}: {reason}")
+        self.vendor = vendor
+        self.reason = reason
+
+
+class UserTokenMissingError(AppError):
+    def __init__(self, user_id: str, vendor: str) -> None:
+        super().__init__(
+            status_code=400,
+            error_code="user_token_missing",
+            message=f"user {user_id} has no token for vendor {vendor}",
+        )
+        self.user_id = user_id
+        self.vendor = vendor
+
+
 class VendorDisabledError(AppError):
     """Raised when a registry lookup cannot be served. The .reason attribute
     discriminates: 'disabled' (env flag), 'unrouted' (no enricher for prompt),
