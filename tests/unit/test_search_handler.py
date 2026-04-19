@@ -69,6 +69,10 @@ def _sqs_event(body: dict[str, Any]) -> dict[str, Any]:
 def _setup_search_worker(monkeypatch, repo=None, search_result=None):
     reset_settings_cache()
     monkeypatch.setenv("PERPLEXITY_API_KEY", "test-key")
+    monkeypatch.setenv("VENDORS_ENABLED", "perplexity_label,perplexity_artist")
+    from collector.providers import registry
+
+    registry.reset_cache()
     repo = repo or FakeSearchRepo()
     monkeypatch.setattr(
         "collector.search_handler.create_clouder_repository_from_env", lambda: repo
@@ -91,7 +95,7 @@ def _setup_search_worker(monkeypatch, repo=None, search_result=None):
         )
 
     monkeypatch.setattr(
-        "collector.search_handler.search_label",
+        "collector.providers.perplexity.label.search_label",
         lambda label_name, style, config, api_key: search_result,
     )
     return repo
@@ -158,7 +162,7 @@ def test_permanent_error_does_not_reraise(monkeypatch) -> None:
     """ValueError (permanent) should NOT re-raise."""
     _setup_search_worker(monkeypatch)
     monkeypatch.setattr(
-        "collector.search_handler.search_label",
+        "collector.providers.perplexity.label.search_label",
         lambda label_name, style, config, api_key: (_ for _ in ()).throw(
             ValueError("bad data")
         ),
@@ -183,7 +187,7 @@ def test_transient_error_reraises_for_sqs_retry(monkeypatch) -> None:
     """RuntimeError (transient) should re-raise."""
     _setup_search_worker(monkeypatch)
     monkeypatch.setattr(
-        "collector.search_handler.search_label",
+        "collector.providers.perplexity.label.search_label",
         lambda label_name, style, config, api_key: (_ for _ in ()).throw(
             RuntimeError("API timeout")
         ),

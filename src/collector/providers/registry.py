@@ -57,9 +57,35 @@ def _build_spotify() -> ProviderBundle:
     )
 
 
+def _build_perplexity_label() -> ProviderBundle:
+    """Construct the Perplexity label bundle. Imports inlined to avoid import cycles."""
+    from .perplexity.label import PerplexityLabelEnricher
+    from ..settings import get_search_worker_settings
+
+    return ProviderBundle(
+        enrich=PerplexityLabelEnricher(
+            api_key=get_search_worker_settings().perplexity_api_key,
+        ),
+    )
+
+
+def _build_perplexity_artist() -> ProviderBundle:
+    """Construct the Perplexity artist bundle. Imports inlined to avoid import cycles."""
+    from .perplexity.artist import PerplexityArtistEnricher
+    from ..settings import get_search_worker_settings
+
+    return ProviderBundle(
+        enrich=PerplexityArtistEnricher(
+            api_key=get_search_worker_settings().perplexity_api_key,
+        ),
+    )
+
+
 _BUILDERS: dict[str, Callable[[], ProviderBundle]] = {
     "beatport": _build_beatport,
     "spotify": _build_spotify,
+    "perplexity_label": _build_perplexity_label,
+    "perplexity_artist": _build_perplexity_artist,
 }
 
 _BUNDLE_CACHE: dict[str, ProviderBundle] = {}

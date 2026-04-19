@@ -57,7 +57,6 @@ def test_list_enabled_exporters_filters(monkeypatch: pytest.MonkeyPatch) -> None
     assert names == ["deezer", "ytmusic"]
 
 
-@pytest.mark.skip(reason="enabled in Task 6 (perplexity)")
 def test_get_enricher_for_prompt_known(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VENDORS_ENABLED", "perplexity_label")
     enricher = registry.get_enricher_for_prompt("label_info")
