@@ -177,6 +177,15 @@ class LoggingSettings(_SettingsBase):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
 
+class VendorMatchSettings(_SettingsBase):
+    fuzzy_match_threshold: float = Field(
+        default=0.92, alias="FUZZY_MATCH_THRESHOLD", ge=0.0, le=1.0,
+    )
+    fuzzy_duration_tolerance_ms: int = Field(
+        default=3000, alias="FUZZY_DURATION_TOLERANCE_MS", ge=0,
+    )
+
+
 @functools.lru_cache
 def get_api_settings() -> ApiSettings:
     return ApiSettings()
@@ -211,6 +220,11 @@ def get_search_worker_settings() -> SearchWorkerSettings:
 
 
 @functools.lru_cache
+def get_vendor_match_settings() -> VendorMatchSettings:
+    return VendorMatchSettings()
+
+
+@functools.lru_cache
 def get_spotify_worker_settings() -> SpotifyWorkerSettings:
     client_id, client_secret = _resolve_spotify_credentials()
     return SpotifyWorkerSettings(
@@ -227,6 +241,7 @@ def reset_settings_cache() -> None:
     get_logging_settings.cache_clear()
     get_search_worker_settings.cache_clear()
     get_spotify_worker_settings.cache_clear()
+    get_vendor_match_settings.cache_clear()
     if hasattr(_fetch_secret_string, "cache_clear"):
         _fetch_secret_string.cache_clear()
 
