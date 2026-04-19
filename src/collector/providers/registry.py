@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import functools
 import os
-from typing import Iterable
 
 from ..errors import VendorDisabledError
 from .base import (
@@ -100,8 +99,10 @@ def get_exporter(name: str) -> ExportProvider:
     return bundle.export
 
 
-def list_enabled_exporters() -> Iterable[ExportProvider]:
+def list_enabled_exporters() -> list[ExportProvider]:
     enabled = _enabled_vendors()
-    for name, bundle in _registry().items():
-        if name in enabled and bundle.export is not None:
-            yield bundle.export
+    return [
+        bundle.export
+        for name, bundle in _registry().items()
+        if name in enabled and bundle.export is not None
+    ]

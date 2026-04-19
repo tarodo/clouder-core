@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import pytest
+from collections.abc import Iterator
 
 from collector.errors import VendorDisabledError
 from collector.providers import registry
 
 
 @pytest.fixture(autouse=True)
-def _reset_cache() -> None:
+def _reset_cache() -> Iterator[None]:
     registry.reset_cache()
     yield
     registry.reset_cache()
