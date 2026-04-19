@@ -54,11 +54,13 @@ def test_get_enricher_for_prompt_known(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_get_enricher_for_prompt_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VENDORS_ENABLED", "")
+    monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     with pytest.raises(VendorDisabledError):
         registry.get_enricher_for_prompt("label_info")
 
 
 def test_get_enricher_for_prompt_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VENDORS_ENABLED", "perplexity_label")
+    monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     with pytest.raises(VendorDisabledError):
         registry.get_enricher_for_prompt("totally_unknown_slug")

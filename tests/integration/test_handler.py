@@ -94,7 +94,7 @@ def test_happy_path_writes_snapshot_and_enqueues_canonicalization(monkeypatch, c
 
     monkeypatch.setattr("collector.handler.create_default_s3_client", fake_s3_factory)
     monkeypatch.setattr("collector.handler.create_default_sqs_client", fake_sqs_factory)
-    monkeypatch.setattr("collector.handler.BeatportClient", FakeClient)
+    monkeypatch.setattr("collector.handler.BeatportProvider", FakeClient)
     monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: None)
 
     response = lambda_handler(
@@ -149,7 +149,7 @@ def test_rerun_same_week_overwrites_latest_snapshot_only(monkeypatch, context) -
             return [{"id": 1}], 1
 
     monkeypatch.setattr("collector.handler.create_default_s3_client", fake_s3_factory)
-    monkeypatch.setattr("collector.handler.BeatportClient", FakeClient)
+    monkeypatch.setattr("collector.handler.BeatportProvider", FakeClient)
     monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: None)
 
     payload = {
@@ -195,7 +195,7 @@ def test_beatport_auth_error_returns_sanitized_payload(monkeypatch, context) -> 
             raise UpstreamAuthError()
 
     monkeypatch.setattr("collector.handler.create_default_s3_client", fake_s3_factory)
-    monkeypatch.setattr("collector.handler.BeatportClient", FakeClient)
+    monkeypatch.setattr("collector.handler.BeatportProvider", FakeClient)
 
     response = lambda_handler(
         _event(
@@ -246,7 +246,7 @@ def test_enqueue_exception_returns_failed_outcome_without_breaking_collection(mo
 
     monkeypatch.setattr("collector.handler.create_default_s3_client", fake_s3_factory)
     monkeypatch.setattr("collector.handler.create_default_sqs_client", fake_sqs_factory)
-    monkeypatch.setattr("collector.handler.BeatportClient", FakeClient)
+    monkeypatch.setattr("collector.handler.BeatportProvider", FakeClient)
     monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: None)
 
     response = lambda_handler(

@@ -25,8 +25,16 @@ from .base import (
 
 def _build_registry() -> dict[str, ProviderBundle]:
     """Construct provider bundles. Imports inlined to avoid import cycles."""
-    # Task 2 placeholder — Task 3+ replace these with real providers.
-    return {}
+    from .beatport import BeatportProvider
+    from ..settings import get_api_settings
+
+    api_settings = get_api_settings()
+
+    return {
+        "beatport": ProviderBundle(
+            ingest=BeatportProvider(base_url=api_settings.beatport_api_base_url),
+        ),
+    }
 
 
 @functools.lru_cache(maxsize=1)
