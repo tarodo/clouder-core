@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import EnrichResult
-from .lookup import SpotifyLookup
+from ..base import EnrichResult, LookupProvider
 
 
 class SpotifyEnricher:
@@ -19,7 +18,7 @@ class SpotifyEnricher:
     prompt_slug = "spotify_release_type"
     prompt_version = "v1"
 
-    def __init__(self, lookup: SpotifyLookup) -> None:
+    def __init__(self, lookup: LookupProvider) -> None:
         self._lookup = lookup
 
     def enrich(
