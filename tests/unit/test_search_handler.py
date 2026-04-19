@@ -267,6 +267,28 @@ def test_unknown_entity_type_is_skipped(monkeypatch) -> None:
 def test_label_search_skipped_when_context_missing_keys(monkeypatch) -> None:
     repo = _setup_search_worker(monkeypatch)
 
+    log_calls: list[tuple[str, str, dict[str, Any]]] = []
+
+    def capture_log_event(level: str, message: str, **fields: Any) -> None:
+        log_calls.append((level, message, fields))
+
+    monkeypatch.setattr(
+        "collector.search_handler.log_event", capture_log_event
+    )
+
+    enrich_calls: list[tuple[tuple, dict]] = []
+
+    def fake_enrich(*args, **kwargs):
+        enrich_calls.append((args, kwargs))
+        raise AssertionError(
+            "enricher should not be called when label context is missing"
+        )
+
+    monkeypatch.setattr(
+        "collector.providers.perplexity.label.PerplexityLabelEnricher.enrich",
+        fake_enrich,
+    )
+
     event = _sqs_event(
         {
             "entity_type": "label",
@@ -280,4 +302,21 @@ def test_label_search_skipped_when_context_missing_keys(monkeypatch) -> None:
 
     assert response == {"processed": 0}
     assert repo.saved_results == []
+    assert enrich_calls == []
+
+    event_names = [(level, msg) for level, msg, _ in log_calls]
+    assert ("ERROR", "search_label_context_missing") in event_names
+    assert ("INFO", "label_search_started") not in event_names
+    assert ("ERROR", "label_search_failed") not in event_names
+
+    missing = next(
+        fields
+        for level, msg, fields in log_calls
+        if msg == "search_label_context_missing"
+    )
+    assert missing["entity_id"] == "label-789"
+    assert missing["prompt_slug"] == "label_info"
+    assert missing["prompt_version"] == "v1"
+    assert missing["correlation_id"] == "test-cid"
+
     reset_settings_cache()

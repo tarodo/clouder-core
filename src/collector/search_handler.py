@@ -122,11 +122,23 @@ def _dispatch_entity_search(
         )
         return False
 
-    log_extra: dict[str, Any] = {}
-    log_extra_started: dict[str, Any] = {}
     if message.entity_type == "label":
         label_name = str(message.context.get("label_name", "")).strip()
         styles = str(message.context.get("styles", "")).strip()
+        if not label_name or not styles:
+            log_event(
+                "ERROR",
+                "search_label_context_missing",
+                correlation_id=correlation_id,
+                entity_id=message.entity_id,
+                prompt_slug=message.prompt_slug,
+                prompt_version=message.prompt_version,
+            )
+            return False
+
+    log_extra: dict[str, Any] = {}
+    log_extra_started: dict[str, Any] = {}
+    if message.entity_type == "label":
         log_extra["label_name"] = label_name
         log_extra_started = {"label_name": label_name, "styles": styles}
 
