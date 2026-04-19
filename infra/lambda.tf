@@ -24,6 +24,7 @@ resource "aws_lambda_function" "collector" {
       AURORA_SECRET_ARN          = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
       AURORA_DATABASE            = var.aurora_database_name
       LOG_LEVEL                  = "INFO"
+      VENDORS_ENABLED            = "beatport"
     }
   }
 
@@ -121,6 +122,7 @@ resource "aws_lambda_function" "ai_search_worker" {
       AURORA_SECRET_ARN                = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
       AURORA_DATABASE                  = var.aurora_database_name
       LOG_LEVEL                        = "INFO"
+      VENDORS_ENABLED                  = "perplexity_label,perplexity_artist"
     }
   }
 
@@ -160,6 +162,7 @@ resource "aws_lambda_function" "spotify_search_worker" {
       AURORA_SECRET_ARN                   = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
       AURORA_DATABASE                     = var.aurora_database_name
       LOG_LEVEL                           = "INFO"
+      VENDORS_ENABLED                     = "spotify"
     }
   }
 

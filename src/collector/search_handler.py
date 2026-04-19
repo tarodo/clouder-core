@@ -8,15 +8,16 @@ from uuid import uuid4
 
 from pydantic import ValidationError as PydanticValidationError
 
+from .errors import VendorDisabledError
 from .logging_utils import log_event
+from .providers import registry
+from .providers.base import EnrichResult
 from .repositories import create_clouder_repository_from_env, utc_now
 from .schemas import (
     EntitySearchMessage,
     coerce_search_message,
     validation_error_message,
 )
-from .search.perplexity_client import search_label
-from .search.prompts import get_prompt
 from .search.schemas import AIContentStatus, LabelSearchResult
 from .settings import get_search_worker_settings
 
@@ -108,86 +109,93 @@ def _dispatch_entity_search(
     repository: Any,
     correlation_id: str,
 ) -> bool:
-    if message.entity_type == "label":
-        return _run_label_search(message, settings, repository, correlation_id)
-
-    log_event(
-        "WARNING",
-        "search_entity_type_unsupported",
-        correlation_id=correlation_id,
-        entity_type=message.entity_type,
-        entity_id=message.entity_id,
-        prompt_slug=message.prompt_slug,
-    )
-    return False
-
-
-def _run_label_search(
-    message: EntitySearchMessage,
-    settings: Any,
-    repository: Any,
-    correlation_id: str,
-) -> bool:
-    label_name = str(message.context.get("label_name", "")).strip()
-    styles = str(message.context.get("styles", "")).strip()
-    if not label_name or not styles:
+    try:
+        enricher = registry.get_enricher_for_prompt(message.prompt_slug)
+    except VendorDisabledError:
         log_event(
-            "ERROR",
-            "search_label_context_missing",
+            "WARNING",
+            "search_entity_type_unsupported",
             correlation_id=correlation_id,
+            entity_type=message.entity_type,
             entity_id=message.entity_id,
             prompt_slug=message.prompt_slug,
         )
         return False
 
+    if message.entity_type == "label":
+        label_name = str(message.context.get("label_name", "")).strip()
+        styles = str(message.context.get("styles", "")).strip()
+        if not label_name or not styles:
+            log_event(
+                "ERROR",
+                "search_label_context_missing",
+                correlation_id=correlation_id,
+                entity_id=message.entity_id,
+                prompt_slug=message.prompt_slug,
+                prompt_version=message.prompt_version,
+            )
+            return False
+
+    log_extra: dict[str, Any] = {}
+    log_extra_started: dict[str, Any] = {}
+    if message.entity_type == "label":
+        log_extra["label_name"] = label_name
+        log_extra_started = {"label_name": label_name, "styles": styles}
+
     log_event(
         "INFO",
-        "label_search_started",
+        "label_search_started"
+        if message.entity_type == "label"
+        else "entity_search_started",
         correlation_id=correlation_id,
         entity_id=message.entity_id,
-        label_name=label_name,
-        styles=styles,
+        entity_type=message.entity_type,
         prompt_slug=message.prompt_slug,
         prompt_version=message.prompt_version,
+        **log_extra_started,
     )
 
     try:
-        prompt_config = get_prompt(message.prompt_slug, message.prompt_version)
-        result = search_label(
-            label_name=label_name,
-            style=styles,
-            config=prompt_config,
-            api_key=settings.perplexity_api_key,
+        result: EnrichResult = enricher.enrich(
+            entity_type=message.entity_type,
+            entity_id=message.entity_id,
+            context=dict(message.context),
+            correlation_id=correlation_id,
         )
         repository.save_search_result(
             result_id=str(uuid4()),
-            entity_type="label",
+            entity_type=message.entity_type,
             entity_id=message.entity_id,
             prompt_slug=message.prompt_slug,
             prompt_version=message.prompt_version,
-            result=result.model_dump(),
+            result=result.payload,
             searched_at=utc_now(),
         )
-        propagate_ai_flag(
-            repository,
-            entity_type="label",
-            entity_id=message.entity_id,
-            result=result,
-            threshold=settings.ai_flag_confidence_threshold,
-        )
+        if message.entity_type == "label":
+            propagate_ai_flag(
+                repository,
+                entity_type="label",
+                entity_id=message.entity_id,
+                result=LabelSearchResult.model_validate(result.payload),
+                threshold=settings.ai_flag_confidence_threshold,
+            )
         log_event(
             "INFO",
-            "label_search_completed",
+            "label_search_completed"
+            if message.entity_type == "label"
+            else "entity_search_completed",
             correlation_id=correlation_id,
             entity_id=message.entity_id,
-            label_name=label_name,
             prompt_slug=message.prompt_slug,
             prompt_version=message.prompt_version,
             status_code=200,
+            **log_extra,
         )
         return True
     except Exception as exc:
-        is_permanent = isinstance(exc, (ValueError, TypeError, KeyError))
+        is_permanent = isinstance(
+            exc, (ValueError, TypeError, KeyError, NotImplementedError)
+        )
         error_code = (
             "search_permanent_failure"
             if is_permanent
@@ -195,14 +203,16 @@ def _run_label_search(
         )
         log_event(
             "ERROR",
-            "label_search_failed",
+            "label_search_failed"
+            if message.entity_type == "label"
+            else "entity_search_failed",
             correlation_id=correlation_id,
             entity_id=message.entity_id,
-            label_name=label_name,
             error_code=error_code,
             error_type=exc.__class__.__name__,
             error_message=str(exc)[:500],
             status_code=500,
+            **log_extra,
         )
         if is_permanent:
             return False

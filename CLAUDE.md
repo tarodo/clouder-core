@@ -36,6 +36,10 @@ cd infra && terraform init && terraform apply
   - `db_models.py` — SQLAlchemy models (used for alembic autogen only)
   - `normalize.py` / `canonicalize.py` — raw → canonical entity transform
   - `search/` — search subpackage
+  - `providers/` — vendor abstraction layer
+    - `base.py` — Protocols (`IngestProvider`, `LookupProvider`, `EnrichProvider`, `ExportProvider`) + dataclasses (`VendorTrackRef`, `EnrichResult`, `ProviderBundle`, ...)
+    - `registry.py` — `get_lookup`/`get_enricher_for_prompt`/`get_exporter`/`list_enabled_exporters` accessors gated by `VENDORS_ENABLED`. Lazy per-vendor builders in `_BUILDERS` — disabled vendors are never instantiated.
+    - `<vendor>/` — adapters wrapping existing clients (`beatport`, `spotify`, `perplexity`) or stubs (`ytmusic`, `deezer`, `apple`, `tidal`)
 - `alembic/versions/` — migrations (packaged as `db_migrations/` in zip)
 - `infra/` — Terraform (HTTP API Gateway, Lambdas, SQS+DLQ, Aurora v2 Serverless, VPC endpoints)
 - `tests/unit/` + `tests/integration/`
@@ -57,10 +61,14 @@ cd infra && terraform init && terraform apply
 - **`clouder_migrator` DB role cannot self-grant `rds_iam` in IAM mode.** Must run GRANT as master user (RDS Query Editor → Connect with Secrets Manager ARN, or Data API `rds-data:ExecuteStatement`).
 - **`release_type` is Spotify-only.** Beatport payload does not expose a release-type field — only nested `release.{id,name,label,slug}`. Values (`album`/`single`/`compilation`) come from Spotify `album.album_type` during ISRC enrichment and are then propagated from `clouder_tracks` onto the parent `clouder_albums` via `propagate_release_type_to_albums`. A track's `release_type` is therefore NULL until its ISRC lookup succeeds.
 - **`is_ai_suspected` is propagated, not stored standalone.** After `save_search_result`, `propagate_ai_flag` sets/clears the flag on `clouder_labels/artists/tracks` only when `confidence >= AI_FLAG_CONFIDENCE_THRESHOLD` (default 0.6). `ai_content=unknown` is a no-op; `none_detected` explicitly clears. The flag is a soft filter — the authoritative finding lives in `ai_search_results`.
+- **Adding a new vendor** = create `providers/<vendor>/<role>.py` with a class implementing the relevant Protocol, register a `_build_<vendor>` builder in `providers/registry.py:_BUILDERS`, and add the vendor name to `VENDORS_ENABLED`. Three steps, no handler changes. Vendor names not listed in `VENDORS_ENABLED` raise `VendorDisabledError` from registry accessors.
+- **Provider classes are thin adapters.** Existing clients (`BeatportClient`, `SpotifyClient`, `search_label`) live in their original modules and are wrapped — do not duplicate vendor logic into `providers/`. Adapter signatures match handler call sites (batch + `correlation_id`), not the long-term per-track Protocol ideal. Per-track lookup methods will be added when first consumed (e.g. playlist export in Plan 4).
 
 ## Env Vars (runtime)
 
 API/Worker Lambda: `RAW_BUCKET_NAME`, `RAW_PREFIX`, `BEATPORT_API_BASE_URL`, `CANONICALIZATION_ENABLED`, `CANONICALIZATION_QUEUE_URL`, `AURORA_CLUSTER_ARN`, `AURORA_SECRET_ARN`, `AURORA_DATABASE`, `LOG_LEVEL`.
+
+`VENDORS_ENABLED`: comma-separated list of vendor names allowed at runtime (e.g. `"beatport,spotify,perplexity_label"`). Vendors not listed raise `VendorDisabledError` from `providers.registry` accessors. Default: empty (all vendors disabled). Known names: `beatport`, `spotify`, `perplexity_label`, `perplexity_artist`, `ytmusic`, `deezer`, `apple`, `tidal`. The artist + non-spotify vendors are stubs today — enabling them resolves the bundle but every method raises `VendorDisabledError` on use.
 
 AI Search Worker: credential resolution precedence — `PERPLEXITY_API_KEY` (direct) > `PERPLEXITY_API_KEY_SSM_PARAMETER` (SSM SecureString name) > `PERPLEXITY_API_KEY_SECRET_ARN` (legacy Secrets Manager). Tuning: `AI_FLAG_CONFIDENCE_THRESHOLD` (float 0..1, default `0.6`) — minimum `confidence` from a label search below which the `is_ai_suspected` flag will not be set or cleared.
 

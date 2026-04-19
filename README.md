@@ -167,6 +167,7 @@ Key runtime env vars:
 - `AURORA_SECRET_ARN`
 - `AURORA_DATABASE`
 - `LOG_LEVEL`
+- `VENDORS_ENABLED` — comma-separated list of allowed vendor names (see _Vendor providers_ below)
 
 Migration Lambda uses:
 
@@ -174,6 +175,25 @@ Migration Lambda uses:
 - `AURORA_PORT`
 - `AURORA_SECRET_ARN`
 - `AURORA_DATABASE`
+
+### Vendor providers
+
+The `src/collector/providers/` package abstracts third-party music services behind role Protocols (`IngestProvider`, `LookupProvider`, `EnrichProvider`, `ExportProvider`). Currently wrapped: Beatport (ingest), Spotify (lookup, enrich, export-stub), Perplexity (label enrich, artist stub). Stubbed: YT Music, Deezer, Apple Music, Tidal — they satisfy the Protocols but raise `VendorDisabledError` on use.
+
+Activation is controlled by the `VENDORS_ENABLED` env var:
+
+```
+VENDORS_ENABLED=beatport,spotify,perplexity_label
+```
+
+Vendors not listed cannot be resolved via `registry.get_*()`. Provider instances are constructed lazily — disabled vendors never instantiate, which keeps unrelated tests independent of their settings.
+
+Adding a new vendor:
+1. Create `src/collector/providers/<vendor>/<role>.py` with a class implementing the relevant Protocol.
+2. Register a `_build_<vendor>` builder in `src/collector/providers/registry.py:_BUILDERS`.
+3. Add the vendor name to `VENDORS_ENABLED`.
+
+No handler changes required.
 
 ## Database Migrations
 

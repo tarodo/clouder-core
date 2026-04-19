@@ -55,3 +55,19 @@ class SpotifyUnavailableError(AppError):
         super().__init__(
             status_code=502, error_code="spotify_unavailable", message=message
         )
+
+
+class VendorDisabledError(AppError):
+    """Raised when a registry lookup cannot be served. The .reason attribute
+    discriminates: 'disabled' (env flag), 'unrouted' (no enricher for prompt),
+    'not_implemented' (stub or missing role on bundle).
+    """
+
+    def __init__(self, vendor: str, reason: str = "disabled") -> None:
+        super().__init__(
+            status_code=400,
+            error_code="vendor_disabled",
+            message=f"vendor is disabled or not implemented: {vendor} (reason={reason})",
+        )
+        self.vendor = vendor
+        self.reason = reason

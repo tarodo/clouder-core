@@ -24,7 +24,7 @@ def _split_phase_prefix(msg: str | None) -> tuple[str | None, str | None]:
 
 from pydantic import ValidationError as PydanticValidationError
 
-from .beatport_client import BeatportClient
+from .providers import registry
 from .errors import AppError, ValidationError
 from .logging_utils import log_event
 from .models import (
@@ -167,7 +167,7 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         iso_week=request.iso_week,
     )
 
-    beatport_client = BeatportClient(base_url=settings.beatport_api_base_url)
+    beatport_client = registry.get_ingest("beatport")
     releases, api_pages_fetched = beatport_client.fetch_weekly_releases(
         bp_token=request.bp_token,
         style_id=request.style_id,
