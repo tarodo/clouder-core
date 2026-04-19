@@ -122,6 +122,14 @@ def _dispatch_entity_search(
         )
         return False
 
+    log_extra: dict[str, Any] = {}
+    log_extra_started: dict[str, Any] = {}
+    if message.entity_type == "label":
+        label_name = str(message.context.get("label_name", "")).strip()
+        styles = str(message.context.get("styles", "")).strip()
+        log_extra["label_name"] = label_name
+        log_extra_started = {"label_name": label_name, "styles": styles}
+
     log_event(
         "INFO",
         "label_search_started"
@@ -132,6 +140,7 @@ def _dispatch_entity_search(
         entity_type=message.entity_type,
         prompt_slug=message.prompt_slug,
         prompt_version=message.prompt_version,
+        **log_extra_started,
     )
 
     try:
@@ -168,6 +177,7 @@ def _dispatch_entity_search(
             prompt_slug=message.prompt_slug,
             prompt_version=message.prompt_version,
             status_code=200,
+            **log_extra,
         )
         return True
     except Exception as exc:
@@ -190,6 +200,7 @@ def _dispatch_entity_search(
             error_type=exc.__class__.__name__,
             error_message=str(exc)[:500],
             status_code=500,
+            **log_extra,
         )
         if is_permanent:
             return False
