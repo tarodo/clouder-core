@@ -61,6 +61,14 @@ ALLOWED_LOG_FIELDS = {
     "entity",
     "attempt",
     "sleep_seconds",
+    "track_id",
+    "vendor",
+    "match_type",
+    "confidence",
+    "candidate_count",
+    "title_sim",
+    "artist_sim",
+    "reason",
 }
 
 
