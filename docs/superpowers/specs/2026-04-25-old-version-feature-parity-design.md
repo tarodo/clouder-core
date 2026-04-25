@@ -251,8 +251,141 @@ Once approved, each `spec-*` row in §6 becomes its own brainstorm cycle with it
 
 ## 9. References
 
-- Old project Repomix dump: `docs/clouder_dj_old.xml`
 - New project README: `README.md`
 - New data model: `docs/data-model.md`
 - Vendor-sync readiness spec (related, partial coverage of spec-E): `docs/superpowers/specs/2026-04-18-vendor-sync-readiness-design.md`
 - New project CLAUDE.md (gotchas + env vars): root `CLAUDE.md`
+- Old project Repomix dump: previously at `docs/clouder_dj_old.xml`. **Removed after extraction** — operational knowledge captured in §10 below.
+
+## 10. Knowledge Dump From Old Code
+
+This section preserves every operationally relevant value, edge case, and ordering decision extracted from the old codebase before it was deleted from this repository. File paths refer to the old project layout (FastAPI monolith) — they exist only as historical context, not as something to read in this repo.
+
+### 10.1 Spotify API integration
+
+| # | Item | Old file | Value / Pattern |
+|---|------|----------|------------------|
+| K1.1 | OAuth scopes | `backend/app/core/settings.py` | `"user-read-email user-read-private playlist-modify-public playlist-modify-private"` — the exact 4 scopes that make the curation flow work. |
+| K1.2 | Access-token TTL | settings | `30` minutes. |
+| K1.3 | Refresh-token TTL | settings | `7` days (much shorter than Spotify's own 60-day refresh window — intentional). |
+| K1.4 | OAuth state cookie | `backend/app/api/auth.py` | `max_age=600` (10 min), `httponly=True`, `secure=settings.SECURE_COOKIES`. Same TTL as the code-verifier cookie. |
+| K1.5 | PKCE config | `backend/app/core/security.py` | code_verifier = `base64.urlsafe_b64encode(os.urandom(32))` (256-bit entropy). challenge_method = `S256`. |
+| K1.6 | Spotify propagation delay after `create_playlist` | `backend/app/services/raw_layer.py` | `await asyncio.sleep(0.5)` between create and add-items. Without this, add-items can 404 on a freshly-created playlist. |
+| K1.7 | Add-items batch size | `backend/app/clients/spotify.py` | Hard limit `100` items per `POST /v1/playlists/{id}/tracks`. Loop in chunks of 100. |
+| K1.8 | Search-by-ISRC query format | spotify client | `{"q": f"isrc:{isrc}", "type": "track"}`. `type=track` is mandatory. |
+| K1.9 | ISRC enrichment batch size | settings | `SPOTIFY_SEARCH_BATCH_SIZE = 50`. |
+| K1.10 | Get-playlist-items pagination | spotify client | `limit=50` per page; field filter `items(track(uri)),next` to minimize payload; loop while response has `next` URL. |
+| K1.11 | Unfollow vs delete | spotify client | Spotify exposes only `DELETE /v1/playlists/{id}/followers` — there is no true delete. Catch 404 silently (already gone). |
+| K1.12 | Update-playlist 404 = orphan | `backend/app/services/category.py` | If `update_playlist_details()` raises `SpotifyNotFoundError`, soft-delete the local category. The user deleted the playlist directly on Spotify. |
+| K1.13 | Add-track dedup | category service | Always call `get_playlist_items()` first; return success if `track_uri` already present (no second add). |
+| K1.14 | Token-revocation signature | spotify client | `status_code == 400 and error_data.get("error") == "invalid_grant"`. Delete the stored token and force re-OAuth. |
+| K1.15 | Server-error retry | spotify client | Up to 3 retries on `502/503/504`. Exponential `delay = 1.0 * 2**attempt`. 429 (rate-limit) is not retried in code; relies on httpx + Spotify `Retry-After`. |
+
+### 10.2 Raw-layer block creation (most subtle flow in the product)
+
+Step ordering inside `RawLayerService.create_raw_layer_block()` (`backend/app/services/raw_layer.py`):
+
+1. Validate style exists; validate `(user_id, style_id, block_name)` unique.
+2. Fetch matching tracks from DB (style + date range).
+3. `asyncio.gather()` create 4 fixed playlists (`INBOX_NEW`, `INBOX_OLD`, `INBOX_NOT`, `TRASH`) + N category-target playlists in parallel on Spotify.
+4. Flush block + playlist rows to DB.
+5. `await asyncio.sleep(0.5)` (Spotify propagation, see K1.6).
+6. Categorize tracks in memory.
+7. `asyncio.gather()` add-items to each playlist in parallel (per-playlist chunked at 100, see K1.7).
+
+**Track classification rules** (`_categorize_tracks()`):
+
+- `INBOX_NEW`: `release_date >= start_date` AND `album_type ∈ VALID_SPOTIFY_ALBUM_TYPES`.
+- `INBOX_OLD`: `release_date < start_date` AND `album_type ∈ VALID_SPOTIFY_ALBUM_TYPES`.
+- `INBOX_NOT`: `album_type ∉ VALID_SPOTIFY_ALBUM_TYPES`.
+- `VALID_SPOTIFY_ALBUM_TYPES = ("album", "single")` — compilations excluded by design.
+- `TRASH` and `TARGET` playlists: created empty; populated later by manual curation.
+- Tracks with no `release_date`: silently skipped (do not classify into NEW/OLD).
+
+**Playlist-name format:** `f"{style.name} :: {block_name} :: {TYPE}"` where TYPE is `NEW`/`OLD`/`NOT`/`TRASH`/uppercased category name. Example: `"Techno :: Q1-2024 :: NEW"`.
+
+**Transactional weakness in old code:** if Spotify create succeeds for some playlists then DB flush fails, orphan playlists accumulate on Spotify. New arch must add a compensating-delete step or split the flow into "reserve DB row → create Spotify → confirm DB row" with idempotency.
+
+### 10.3 ISRC enrichment match logic
+
+`EnrichmentService._validate_spotify_search_result()` (`backend/app/services/enrichment.py`):
+
+- ISRC match alone is **not sufficient.** Both required:
+  1. Spotify returned at least one track for the ISRC.
+  2. Local artist names fuzzy-match a Spotify artist name above threshold.
+- Library: `rapidfuzz`, scorer `fuzz.ratio` (NOT `token_set_ratio`), via `process.extractOne(...)`.
+- Threshold constant: `ARTIST_FUZZY_MATCH_THRESHOLD = 85` in `backend/app/core/constants.py`. Endpoint accepts `similarity_threshold: int = 80` override (default 80 in the API surface, 85 in the constants — pick one when re-implementing; the old code is inconsistent).
+
+**Reason codes stored in `external_data.raw_data` for non-matches:**
+
+- `{"status": "missing_isrc"}` — local track has no ISRC.
+- `{"status": "not_found_by_isrc"}` — Spotify returned no result.
+- `{"status": "duplicate_spotify_track_existing_link", "spotify_id": ..., "linked_track_id": ...}` — Spotify ID already linked to a different local track from a previous run.
+- `{"status": "duplicate_spotify_track_in_batch", "spotify_id": ...}` — same Spotify ID matched twice within one enrichment batch (in-memory `batch_assigned_ids: set[str]`).
+
+**External-id collision-avoidance for not-found records:** `external_id = f"NOT_FOUND_{track.id}_{uuid.uuid4()}"` (constant: `SPOTIFY_NOT_FOUND_PREFIX = "NOT_FOUND_"`). Allows storing multiple "not found" attempts without unique-constraint violations.
+
+### 10.4 Release-playlist import (Spotify → local)
+
+`ReleasePlaylistService.import_from_spotify()` (`backend/app/services/release_playlist.py`):
+
+- URL parsing regex: `re.compile(r"(?<=playlist\/)([a-zA-Z0-9]+)")`. Fallback: if the input has no `/` and no whitespace, treat the whole string as a raw playlist ID.
+- Orphan items (Spotify URI with no matching local track) are **silently skipped**, not error.
+- Order preservation: build `uri_to_position = {uri: i for i, uri in enumerate(spotify_uris)}` and persist `(track_id, position)` rows.
+
+### 10.5 Auth + token storage
+
+| Item | Old file | Value |
+|------|----------|-------|
+| JWT algorithm | `backend/app/core/security.py` | `HS256` (configurable via `JWT_ALGO`). |
+| Refresh-token encryption | security | `cryptography.fernet.Fernet` with key from `ENCRYPTION_KEY` env. Stored in `spotify_tokens.encrypted_refresh_token`. (New arch: replace with KMS envelope per 2026-04-18 spec.) |
+| `users` table key | `backend/app/db/models/user.py` | `spotify_id` is the unique business key (not email). |
+| `spotify_tokens.user_id` | model | UNIQUE — one Spotify token per user. |
+
+### 10.6 Frontend token-refresh details (worth re-using when frontend ships)
+
+`frontend/src/lib/api.ts`:
+
+- `refreshPromise: Promise<string> | null` deduplication: many concurrent 401s during a token expiry window must hit `POST /auth/refresh` exactly once. Reset to `null` in `finally`.
+- 401 retry: max **1** retry after refresh (no exponential backoff — refresh either fixes it or kicks the user to login).
+- Token storage: refresh-token in `localStorage` (survives reload), access-token in memory or `sessionStorage`.
+
+### 10.7 Background processing
+
+| Item | Old file | Value |
+|------|----------|-------|
+| Beatport raw-batch processing chunk | `backend/app/services/data_processing.py` | `BATCH_SIZE = 500` records per processing chunk. |
+| Progress-callback signature | data_processing / enrichment | `Callable[[Dict[str, Any]], Awaitable[None]]` — payload typically `{"processed": int, "failed": int, "total": int}`. |
+| Concurrency model | services | `asyncio.gather()` for parallelism within a worker; no distributed lock — relies on DB unique constraints to win races. New arch (SQS workers) must add idempotent upserts since multiple Lambdas can race. |
+
+### 10.8 Schema & migration gotchas worth porting
+
+- Track uniqueness: `UniqueConstraint("name", "release_id", "isrc", name="uq_track_name_release_id_isrc")` — the trio is the natural key. New arch already has UUID PKs but should keep the equivalent unique index.
+- Artist/label `name` was UNIQUE globally. Re-evaluate in new arch: with multi-vendor sources, the same name can be two different entities (handled today via `identity_map`).
+- The `1a2b3c4d5e6f_standardize_enum_casing.py` migration exists because Postgres ENUMs were stored mixed-case originally — the migration normalized to UPPER. **Lesson:** in new arch, store enum-like fields as `String(N)` (already done) instead of Postgres ENUM types — avoids this whole class of migration pain.
+
+### 10.9 Constants and magic strings to preserve
+
+```
+VALID_SPOTIFY_ALBUM_TYPES   = ("album", "single")
+SPOTIFY_NOT_FOUND_PREFIX    = "NOT_FOUND_"
+ARTIST_FUZZY_MATCH_THRESHOLD = 85   # default, overridable per-call
+SPOTIFY_SEARCH_BATCH_SIZE   = 50
+SPOTIFY_ADD_ITEMS_BATCH     = 100   # Spotify hard limit
+SPOTIFY_PROPAGATION_DELAY_S = 0.5
+ACCESS_TOKEN_EXPIRE_MIN     = 30
+REFRESH_TOKEN_EXPIRE_DAYS   = 7
+OAUTH_COOKIE_TTL_S          = 600
+PKCE_VERIFIER_BYTES         = 32
+PKCE_CHALLENGE_METHOD       = "S256"
+SPOTIFY_SCOPES              = "user-read-email user-read-private playlist-modify-public playlist-modify-private"
+PROCESS_BATCH_SIZE          = 500   # Beatport raw rows per chunk
+```
+
+### 10.10 Anti-patterns from old code worth NOT repeating
+
+- **Implicit transactions across Spotify + DB.** Old code relies on SQLAlchemy session rollback; if Spotify partially succeeds and DB rolls back, orphan playlists remain. New arch must make the compensating delete explicit.
+- **Sync-style `asyncio.gather` with shared DB session.** Caused subtle session-leak bugs in the old code. New arch (SQS workers) sidesteps this by isolating each worker invocation.
+- **Two `similarity_threshold` defaults** (80 in API surface, 85 in constants). Pick one source of truth in new arch.
+- **`external_data` table mixing "raw response cache" and "process status"** (`processed=false`). New arch separates this cleanly: `source_entities` for raw, `identity_map` for resolution status. Don't re-merge them.
+- **Frontend storing both app refresh-token and Spotify access-token in localStorage.** Spotify access-token is short-lived and should be re-fetched via app refresh; keeping it in localStorage adds attack surface for no benefit.
