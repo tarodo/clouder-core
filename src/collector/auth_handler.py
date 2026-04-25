@@ -19,8 +19,13 @@ from .auth.auth_settings import (
     resolve_jwt_signing_key,
     resolve_oauth_client_credentials,
 )
-from .auth.jwt_utils import issue_access_token, issue_refresh_token
-from .auth.kms_envelope import KmsEnvelope
+from .auth.jwt_utils import (
+    InvalidTokenError,
+    issue_access_token,
+    issue_refresh_token,
+    verify_refresh_token,
+)
+from .auth.kms_envelope import EnvelopePayload, KmsEnvelope
 from .auth.pkce import derive_code_challenge, generate_code_verifier
 from .auth.spotify_oauth import (
     SpotifyOAuthClient,
@@ -33,6 +38,9 @@ from .errors import (
     CsrfStateMismatchError,
     OAuthExchangeFailedError,
     PremiumRequiredError,
+    RefreshInvalidError,
+    RefreshReplayDetectedError,
+    SpotifyRevokedError,
     ValidationError,
 )
 from .logging_utils import log_event
@@ -121,6 +129,8 @@ def _route(
         return _handle_login(event, correlation_id)
     if route == "GET /auth/callback":
         return _handle_callback(event, correlation_id)
+    if route == "POST /auth/refresh":
+        return _handle_refresh(event, correlation_id)
     return _json_response(
         404,
         {"error_code": "not_found", "message": "Route not found",
@@ -357,6 +367,119 @@ def _handle_callback(
             _short_cookie("oauth_verifier", "", max_age=0),
         ],
         "body": json.dumps(response_body, ensure_ascii=False),
+    }
+
+
+def _handle_refresh(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    cookies = _parse_cookies(event)
+    refresh_token = cookies.get("refresh_token")
+    if not refresh_token:
+        raise RefreshInvalidError()
+
+    secret = resolve_jwt_signing_key()
+    now = _now()
+    try:
+        claims = verify_refresh_token(token=refresh_token, secret=secret, now=now)
+    except InvalidTokenError as exc:
+        raise RefreshInvalidError() from exc
+
+    repo = _build_auth_repository()
+    session = repo.get_active_session(claims.session_id, now=now)
+    if session is None or session.user_id != claims.user_id:
+        raise RefreshInvalidError()
+
+    inbound_hash = _sha256_hex(refresh_token)
+    if session.refresh_token_hash != inbound_hash:
+        repo.revoke_all_user_sessions(claims.user_id, revoked_at=now)
+        raise RefreshReplayDetectedError()
+
+    vendor_token = repo.get_vendor_token(user_id=claims.user_id, vendor="spotify")
+    if vendor_token is None or vendor_token.refresh_token_enc is None:
+        repo.revoke_session(claims.session_id, revoked_at=now)
+        raise SpotifyRevokedError()
+
+    envelope = _build_kms_envelope()
+    refresh_payload = EnvelopePayload.deserialize(vendor_token.refresh_token_enc)
+    spotify_refresh_token = envelope.decrypt(refresh_payload).decode("utf-8")
+
+    oauth = _build_oauth_client()
+    settings = get_auth_settings()
+    try:
+        new_tokens = oauth.refresh(refresh_token=spotify_refresh_token)
+    except SpotifyTokenRevokedError as exc:
+        repo.revoke_session(claims.session_id, revoked_at=now)
+        repo.delete_vendor_token(user_id=claims.user_id, vendor="spotify")
+        raise SpotifyRevokedError() from exc
+    except SpotifyOAuthError as exc:
+        raise OAuthExchangeFailedError(str(exc)) from exc
+
+    user = repo.get_user_by_id(claims.user_id)
+    is_admin = bool(user.is_admin) if user is not None else False
+
+    new_access_payload = envelope.encrypt(new_tokens.access_token.encode("utf-8"))
+    new_refresh_payload = envelope.encrypt(new_tokens.refresh_token.encode("utf-8"))
+    repo.upsert_vendor_token(
+        UpsertVendorTokenCmd(
+            user_id=claims.user_id,
+            vendor="spotify",
+            access_token_enc=new_access_payload.serialize(),
+            refresh_token_enc=new_refresh_payload.serialize(),
+            data_key_enc=new_access_payload.data_key_enc,
+            scope=new_tokens.scope or vendor_token.scope,
+            expires_at=now + timedelta(seconds=new_tokens.expires_in),
+            updated_at=now,
+        )
+    )
+
+    new_refresh_jwt = issue_refresh_token(
+        secret=secret,
+        user_id=claims.user_id,
+        session_id=claims.session_id,
+        ttl_seconds=settings.refresh_token_ttl_seconds,
+        now=now,
+    )
+    repo.rotate_session(
+        session_id=claims.session_id,
+        new_hash=_sha256_hex(new_refresh_jwt),
+        last_used_at=now,
+    )
+
+    new_access_jwt = issue_access_token(
+        secret=secret,
+        user_id=claims.user_id,
+        session_id=claims.session_id,
+        is_admin=is_admin,
+        ttl_seconds=settings.access_token_ttl_seconds,
+        now=now,
+    )
+
+    log_event(
+        "INFO",
+        "auth_refresh_success",
+        correlation_id=correlation_id,
+        user_id=claims.user_id,
+    )
+
+    return {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json",
+            "x-correlation-id": correlation_id,
+        },
+        "cookies": [
+            _refresh_cookie(new_refresh_jwt, max_age=settings.refresh_token_ttl_seconds),
+        ],
+        "body": json.dumps(
+            {
+                "access_token": new_access_jwt,
+                "spotify_access_token": new_tokens.access_token,
+                "expires_in": settings.access_token_ttl_seconds,
+                "correlation_id": correlation_id,
+            },
+            ensure_ascii=False,
+        ),
     }
 
 
