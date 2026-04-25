@@ -161,7 +161,7 @@ Per §7.4: Aurora-only — no Spotify playlist per category.
 
 Triage is a **working session** for sorting newly-ingested releases of a style within a date range. Each triage block has buckets:
 
-- **Technical:** `NEW`, `OLD`, `NOT`, `TRASH`.
+- **Technical:** `NEW`, `OLD`, `NOT`, `SKIP` (renamed from old `TRASH` — see §10.2 historical note; new tone is neutral "не сейчас", not "выкинуть").
 - **Staging buckets, one per existing category in this style** — "where I plan to put this track when I finish".
 
 User drags tracks between buckets. Triage lives only in its `(style, date_range)` scope; it is a workspace, not a library. Per §7.4: Aurora-only — no Spotify playlists. Renamed from old `raw_layer_*` (collision with ingest's "raw" S3 data, see §7.2).
@@ -173,11 +173,11 @@ Tables: `triage_blocks(id, user_id, style_id, name, date_from, date_to, status)`
 | R1 | Create triage block (4 technical buckets + N staging-per-existing-category) | `POST /curation/styles/{style_id}/raw-blocks` (old) → `POST /triage/blocks` (new) | missing | Aurora-only. Snapshots the user's current categories in this style — staging buckets are created for each existing category. **Open:** if user adds a new category later (during the triage session), does a new staging bucket appear retroactively? Decide in spec-D. |
 | R2 | List triage blocks (paginated, all / by style) | `GET /curation/raw-blocks`, `GET /curation/styles/{style_id}/raw-blocks` | missing | Trivial. |
 | R3 | Get single triage block          | `GET /curation/raw-blocks/{block_id}` | missing | Returns block + per-bucket counts. |
-| R4 | Auto-classification of fetched tracks into NEW/OLD/NOT/TRASH at create-time | service-internal during R1 | missing | Rules per §10.2: `release_date >= date_from` → NEW; `< date_from` → OLD; `album_type ∉ ("album","single")` → NOT. Tracks with no `release_date` are skipped. TRASH starts empty. Staging buckets start empty. |
+| R4 | Auto-classification of fetched tracks at create-time | service-internal during R1 | missing | **Corrected semantics (replaces §10.2 rules):** **NEW** = ISRC first seen in canonical core (no prior `clouder_tracks` row with the same ISRC outside this triage's date range); **OLD** = re-release (same ISRC already exists in canonical core with an earlier `publish_date` — this is a re-issue, often relevant for DJs because the audio is identical); **NOT** = `release_type=compilation` (track from a sampler/compilation, not the primary album/EP/single release). The discard-bucket starts empty (filled by user during triage). Staging buckets start empty. **Detection logic** (especially "first ISRC sighting") is non-trivial and is to be designed in spec-D. |
 | R5 | Move track between buckets       | (was implicit via Spotify-client drag in old) | missing | `POST /triage/blocks/{id}/move` with `{track_id, from_bucket_id, to_bucket_id}`. |
 | R6 | Finalize triage (promotion step) | (was R4 "process" in old, but had no promotion semantics) | missing | **Key new feature.** `POST /triage/blocks/{id}/finalize` INSERTs all tracks from staging buckets into the corresponding `category_tracks`, sets `source_triage_block_id` for audit, marks triage `status=FINALIZED`. Open: behaviour when NEW/OLD still have un-sorted tracks — block / allow / auto-trash. Decide in spec-D (§7.6). |
 | R7 | Delete triage block              | `DELETE /curation/raw-blocks/{block_id}` | missing | Soft-delete in Aurora. **Does NOT** un-promote already-promoted tracks if triage was finalized. |
-| R8 | Re-open finalized triage         | not in old | missing | Optional: allow `POST /triage/blocks/{id}/reopen` to put it back to `IN_PROGRESS`. Trade-off: idempotency of promotion vs. user flexibility. Defer decision to spec-D. |
+| R8 | Spillover: new triage from leftovers | not in old | missing | **Replaces the earlier "re-open" idea.** `POST /triage/blocks/{id}/spillover` creates a new `IN_PROGRESS` triage block prefilled with the previous block's unsorted tracks (still in NEW/OLD buckets at finalize time). Avoids the idempotency hazard of un-freezing an already-promoted triage. |
 
 ### 4.6 Layer 3 — Release Playlists (ad-hoc, the only layer that syncs to Spotify)
 
@@ -188,10 +188,10 @@ Per §7.4: Aurora is source of truth; we push to Spotify, never read back.
 | # | Feature                          | Old endpoint              | Status   | Notes |
 |---|----------------------------------|---------------------------|----------|-------|
 | P1 | Create empty release playlist    | `POST /release-playlists` | partial | Aurora-create + Spotify-create (user OAuth, Mode 1). Reuse 2026-04-18 `release_mirror_worker` plumbing as the primary write path, not a stub. |
-| P2 | Import existing Spotify playlist | `POST /release-playlists/import` | open (§7.6) | Read-only direction (Spotify → Aurora). Decide in spec-E. |
+| ~~P2~~ | ~~Import existing Spotify playlist~~ | ~~`POST /release-playlists/import`~~ | **dropped 2026-04-25** | Onboarding-only convenience; ad-hoc import has small return. The deeper issue it surfaces — how to put a track into a release-playlist when it has no entry in the canonical core — is captured as `FUTURE-1` below for separate consideration. |
 | P3 | List release playlists           | `GET /release-playlists`  | missing | |
 | P4 | Get single release playlist + tracks | `GET /release-playlists/{playlist_id}` | missing | |
-| P5 | Add tracks (from categories)     | `POST /release-playlists/{id}/tracks` | missing | Track must exist in one of the user's categories (enforced) — release playlist is assembled from categories, not directly from canonical core. Push delta to Spotify. |
+| P5 | Add tracks                       | `POST /release-playlists/{id}/tracks` | missing | Source is **flexible**: tracks may come from the user's categories OR from the canonical core directly (search/browse → add). The "how" (single endpoint with source param, separate endpoints per source, or batch) is deferred to spec-E. Push delta to Spotify. |
 | P6 | Remove / reorder tracks          | not explicit in old       | missing | Aurora write + Spotify Mode-1 delta. |
 | P7 | Trigger multi-vendor mirror      | new (per 2026-04-18 spec) | missing | Per-vendor playlist create on YT Music / Deezer / Apple / Tidal. |
 
@@ -236,7 +236,7 @@ Re-shaped after §7 decisions. The Spotify-Export adapter (spec-B) is now needed
 2. **`spec-C: Categories (Layer 1)`** — covers C1–C7. Aurora-only. Permanent per-(user, style) accumulators of curated tracks. Must ship before spec-D — triage's staging buckets are 1:1 with existing categories. Open mini-questions inside spec-C: C4 delete cascade, C6 direct-add bypass.
 3. **`spec-D: Triage (Layer 2 + promotion)`** — covers R1–R8. Aurora-only. Workspace for sorting newly-ingested releases within a date range; on `finalize`, staging buckets are promoted into `category_tracks` (the layer-1 store). Depends on spec-A and spec-C. Open mini-questions inside spec-D: R6 finalize-with-unsorted behaviour, R8 re-open semantics, late-added category snapshotting.
 4. **`spec-B: Spotify Playlist Export adapter`** — only `ExportProvider` real implementation for Spotify (Mode 1 write). Used **only** by spec-E.
-5. **`spec-E: Release Playlists (Layer 3) + multi-vendor mirror`** — covers P1–P7. Depends on spec-A, spec-B, **spec-C** (release-playlists assemble FROM categories, P5 enforces this). Reconciles with 2026-04-18 `release_mirror_worker` — that worker becomes the primary write path here. Includes Spotify Mode 1 write + multi-vendor mirror.
+5. **`spec-E: Release Playlists (Layer 3) + multi-vendor mirror`** — covers P1–P7. Depends on spec-A, spec-B. Tracks can be added from categories OR directly from canonical core (P5) — so spec-E is not strictly blocked by spec-C, only weakly preferred (categories are the natural picker source). Order is still spec-C first because spec-D blocks on spec-C anyway. Reconciles with 2026-04-18 `release_mirror_worker` — that worker becomes the primary write path here. Includes Spotify Mode 1 write + multi-vendor mirror.
 6. **`spec-F: Spotify Artist Enrichment`** — S4. Independent ingest-side concern; admin-triggered. Can ship in parallel.
 7. **`spec-G: Frontend (Web Playback SDK + curation UI)`** — separate spec, frontend-only. Depends on spec-A (auth) and on spec-C/D for the curation surface. Web Playback SDK setup (Mode 2 Premium streaming).
 8. **`spec-H (optional): Read API polish`** — Br4 single-entity detail endpoints, B3 stats roll-up, S3 duplicate-Spotify-id audit. JWT-gated per §7.5.
@@ -304,15 +304,21 @@ Combined user OAuth scope string:
 - Canonical data (`/tracks`, `/artists`, `/albums`, `/labels`, `/styles`) is shared across all users — but only logged-in users can read it.
 - Admin-only endpoints (ingest, `match_review_queue`, run status) live behind an `is_admin` flag on the `users` table. No separate admin API surface.
 
-### 7.6 Still-open mini-questions (deferred to individual specs)
+### 7.6 Mini-questions log (resolved 2026-04-25 + future flags)
 
-- **C4 — category delete cascade.** When user deletes a non-empty category: orphan-skip the `category_tracks`, cascade-delete them, or forbid delete while non-empty? Also: what happens to triage staging buckets that reference a deleted category mid-session? Decide in spec-C.
-- **C6 — direct add to category outside triage.** Old code allowed `POST /categories/{id}/tracks` (it pushed to Spotify). With Aurora-only categories, the question is purely UX: do we expose ad-hoc add, or force every track to enter via triage promotion? Decide in spec-C.
-- **R1 — late category snapshotting in triage.** Triage block creates one staging bucket per existing category at creation time. If the user adds a new category during an active triage session, do we (a) retroactively add a staging bucket, (b) leave the triage frozen with the categories it had at creation, (c) let the user manually request a re-sync? Decide in spec-D.
-- **R6 — finalize-with-unsorted behaviour.** When user calls `finalize` but tracks remain in NEW/OLD/staging-not-yet-decided: block (require everything sorted), allow (leave unsorted in triage as historical), or auto-trash (move remaining to TRASH on finalize)? Decide in spec-D.
-- **R8 — re-open finalized triage.** Allow user to set a finalized triage back to `IN_PROGRESS`? Trade-off: idempotency of promotion (already-promoted tracks may double-insert) vs. user flexibility. Decide in spec-D.
-- **P2 — release-playlist import from Spotify.** Old version supports importing an existing Spotify playlist URL into a local release-playlist (read-only direction, doesn't violate the no-Spotify-sync rule). Decide in spec-E.
-- **Premium fallback UX.** What does the login screen show to a non-Premium user who tries to log in? Plain block, or CTA explaining the requirement? Decide in spec-A.
+All mini-questions raised during the brainstorming session are recorded here. Resolved items keep their full text struck through so the decision context is auditable; specs A–E carry the decisions forward into implementation specs.
+
+- ~~**C4 — category delete cascade.**~~ **Resolved:** soft-delete only. Empty or non-empty doesn't matter — single path. Category gets `deleted_at`, its `category_tracks` and triage staging buckets are filtered out of UI but rows remain. A future cleanup cron can hard-purge after a retention window (decide in spec-C).
+- ~~**C6 — direct add to category outside triage.**~~ **Resolved:** allowed. `POST /categories/{id}/tracks` exists as a first-class operation. `category_tracks.source_triage_block_id` is NULL for direct adds and serves as an audit hint, not an enforcement. Consistent with P5 (release-playlists also accept tracks from any source).
+- ~~**R1 — late category snapshotting in triage.**~~ **Resolved:** retro-snapshot. Creating a new category in a style with active triage blocks automatically inserts a staging bucket into each. Soft-deleting a category marks its staging buckets `inactive` (tracks still there, finalize warns the user). Renames are read-through (staging buckets reference `category_id`, no denormalized name).
+- ~~**R6 — finalize-with-unsorted behaviour.**~~ **Resolved:** allow finalize regardless. Unsorted NEW/OLD tracks remain in the now-read-only triage as historical record. Spec-D ships R8 spillover for pulling leftovers into a fresh triage.
+- ~~**R8 — re-open finalized triage.**~~ **Resolved:** replaced by R8 spillover (create new triage prefilled with leftovers). Re-open rejected because already-promoted tracks would double-insert into `category_tracks` on a second finalize.
+- ~~**P2 — release-playlist import from Spotify.**~~ **Resolved:** dropped. See `FUTURE-1` below.
+- ~~**Premium fallback UX.**~~ **Resolved:** small "Spotify Premium required" hint on the login screen next to the OAuth button + on detect-non-Premium at OAuth callback show an informative page explaining the requirement with a deep-link to Spotify Premium upgrade. No silent failures. Decide exact copy in spec-A.
+
+### 7.7 Future flags (out of scope for the rebuild, captured for later brainstorming)
+
+- **`FUTURE-1` — non-canonical tracks in release-playlists.** Today every track in `clouder_tracks` arrives via admin Beatport ingest. A user may want to put a Spotify track in their release-playlist that has no canonical entry (e.g., from a friend's Spotify share, or a track outside the Beatport catalogue). Open: extend the model with a "user-only" track flag, bypass canonical entirely for such items (`release_playlist_tracks` referencing raw Spotify URIs), or lazily ingest on-demand. Needs its own brainstorm.
 
 ## 8. Acceptance Criteria for This Spec
 
@@ -373,7 +379,7 @@ Step ordering inside `RawLayerService.create_raw_layer_block()` (`backend/app/se
 6. Categorize tracks in memory.
 7. `asyncio.gather()` add-items to each playlist in parallel (per-playlist chunked at 100, see K1.7).
 
-**Track classification rules** (`_categorize_tracks()`):
+**Track classification rules in OLD code** (`_categorize_tracks()`) — these are what the old system did. **The new system has different semantics; see §4.5 R4 for the corrected rules.** Old rules below are kept as historical reference only:
 
 - `INBOX_NEW`: `release_date >= start_date` AND `album_type ∈ VALID_SPOTIFY_ALBUM_TYPES`.
 - `INBOX_OLD`: `release_date < start_date` AND `album_type ∈ VALID_SPOTIFY_ALBUM_TYPES`.
@@ -381,6 +387,8 @@ Step ordering inside `RawLayerService.create_raw_layer_block()` (`backend/app/se
 - `VALID_SPOTIFY_ALBUM_TYPES = ("album", "single")` — compilations excluded by design.
 - `TRASH` and `TARGET` playlists: created empty; populated later by manual curation.
 - Tracks with no `release_date`: silently skipped (do not classify into NEW/OLD).
+
+**Why the rules changed for the new system:** the old `INBOX_OLD` was a date-window classifier (everything before the triage start_date). The user's actual intent — confirmed 2026-04-25 — is that `OLD` means a *re-release*: same ISRC already known to the canonical core from an earlier release. That is a much more useful signal for a DJ (re-releases often have identical audio and thus duplicate effort). The new rule needs canonical-core lookup at triage-creation time; old code had no such mechanism.
 
 **Playlist-name format:** `f"{style.name} :: {block_name} :: {TYPE}"` where TYPE is `NEW`/`OLD`/`NOT`/`TRASH`/uppercased category name. Example: `"Techno :: Q1-2024 :: NEW"`.
 
