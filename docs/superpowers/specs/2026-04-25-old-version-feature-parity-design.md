@@ -84,16 +84,17 @@ Deployment model: serverless, **no users, no auth, no playlists** — pure data 
 
 | Layer                     | Old | New | Delta                                                            |
 |---------------------------|-----|-----|------------------------------------------------------------------|
-| Auth (Spotify OAuth)      | Yes | No  | Whole layer missing                                              |
-| Multi-user / multi-tenant | Implicit | No (single-tenant pipeline) | Schema-level rework needed before any user feature |
+| Auth (Spotify OAuth)      | Yes (Mode 1 only) | No | Per §7.3: required scopes expand (Mode 1 + Mode 2 + Premium gate). Whole layer missing. |
+| Multi-user / multi-tenant | Implicit | No (single-tenant pipeline) | Per §7.1: multi-tenant from day one, three-layer (admin ingest / shared core / per-user overlay). |
 | Beatport ingest           | Date-range, on-demand | Iso-week + style, on-demand | Param shape differs; new is narrower |
 | Canonical entities        | Flat (track/release/artist/label) | UUID-keyed `clouder_*` + identity_map | New is stricter and richer |
 | Spotify track enrichment  | Batch ISRC search via Taskiq | Per-track via SQS worker | Equivalent, async-by-design |
 | Spotify artist enrichment | Yes | No | Missing |
-| Raw layer (5-playlist curation)| Yes | No | Whole feature missing |
-| Categories (silver)       | Yes | No | Missing |
-| Release playlists (gold)  | Yes | Stub (`release_mirror` planned in 2026-04-18 spec) | Partial |
-| Spotify playlist CRUD     | Yes | No (export-stub only) | Missing |
+| Triage (was "raw layer", 5-playlist curation) | Yes (Spotify-backed) | No | Re-scoped per §7.4: **Aurora-only**, no Spotify playlists. Missing. |
+| Categories (silver)       | Yes (Spotify-backed) | No | Re-scoped per §7.4: **Aurora-only**. Missing. |
+| Release playlists (gold)  | Yes (Spotify-backed) | Stub (`release_mirror` planned in 2026-04-18 spec) | Partial. Per §7.4: keeps Spotify sync (Mode 1 write) + multi-vendor mirror. |
+| Spotify playlist CRUD     | Yes | No (export-stub only) | Needed only for release-playlist sync (§7.4). Not needed for triage/categories. |
+| Spotify Web Playback SDK | Frontend-only, Premium | None | Required (§7.3 Mode 2) so frontend can play tracks during triage. |
 | AI label search           | No  | Yes | New feature, no parity needed |
 | Vendor match cache        | No  | Yes | New feature, no parity needed |
 | Frontend                  | React SPA | None | Missing |
@@ -140,35 +141,44 @@ Status legend:
 | S4 | Artist enrichment                | `POST /collect/spotify/enrich-artists` | missing | Need a `spotify_artist_search` flow analogous to label-search. |
 | S5 | Read tracks not found on Spotify | `GET /tracks/spotify-not-found` | covered | Already in `handler.py:_handle_spotify_not_found`. |
 
-### 4.4 Raw Layer Curation (Bronze)
+### 4.4 Triage Curation (was "Raw Layer Bronze" in old code)
+
+Per §7.2 + §7.4: triage lives entirely in Aurora — no Spotify playlists are created. The 5-bucket model survives as logical buckets, not Spotify playlists.
 
 | # | Feature                          | Old endpoint              | Status   | Notes |
 |---|----------------------------------|---------------------------|----------|-------|
-| R1 | Create raw layer block (5 playlists + N category targets) | `POST /curation/styles/{style_id}/raw-blocks` | missing | Core curation primitive. Requires: user table, `raw_layer_block` + `raw_layer_playlist` tables, Spotify playlist-create API, transaction over Spotify+DB writes. |
+| R1 | Create triage block (5 buckets + N category targets) | `POST /curation/styles/{style_id}/raw-blocks` (old) → `POST /triage/blocks` (new) | missing | Aurora-only. Requires: `users`, `triage_blocks`, `triage_playlists`, `triage_block_tracks`, `triage_playlists_tracks`. **No Spotify calls** for create. |
 | R2 | List blocks (paginated, all / by style) | `GET /curation/raw-blocks`, `GET /curation/styles/{style_id}/raw-blocks` | missing | Trivial once R1 exists. |
-| R3 | Get single block                 | `GET /curation/raw-blocks/{block_id}` | missing | |
+| R3 | Get single block                 | `GET /curation/raw-blocks/{block_id}` | missing | Returns block + bucket counts. |
 | R4 | Mark block processed             | `POST /curation/raw-blocks/{block_id}/process` | missing | |
-| R5 | Delete block (+ unfollow Spotify playlists) | `DELETE /curation/raw-blocks/{block_id}` | missing | Soft-delete + Spotify cleanup. |
-| R6 | Track classification into INBOX_NEW/OLD/NOT/TRASH/TARGET | service-internal during R1 | missing | Logic depends on `release_type` (album_type) which new schema does store on `clouder_tracks` after Spotify enrichment — good. |
+| R5 | Delete block                     | `DELETE /curation/raw-blocks/{block_id}` | missing | Just soft-delete in Aurora. No Spotify cleanup needed. |
+| R6 | Track classification into NEW/OLD/NOT/TRASH/TARGET buckets | service-internal during R1 | missing | Logic depends on `release_type` (album_type) which new schema stores on `clouder_tracks` after Spotify enrichment. The old §10.2 ordering simplifies dramatically: no `asyncio.gather()` of Spotify creates, no 0.5s propagation delay, no transactional Spotify-rollback risk. |
+| R7 | Move track between buckets       | (was implicit via Spotify-client drag in old) | missing | New: explicit endpoint, e.g. `POST /triage/blocks/{id}/move` with `{track_id, from_bucket, to_bucket}`. |
 
 ### 4.5 Categories (Silver)
 
+Per §7.4: categories live entirely in Aurora — no Spotify playlist per category.
+
 | # | Feature                          | Old endpoint              | Status   | Notes |
 |---|----------------------------------|---------------------------|----------|-------|
-| C1 | Create categories (batch)        | `POST /curation/styles/{style_id}/categories` | missing | One Spotify playlist per category. |
+| C1 | Create categories (batch)        | `POST /curation/styles/{style_id}/categories` | missing | Just Aurora rows. **No Spotify playlist per category.** Drops the entire Mode-1 transactional pitfall. |
 | C2 | List categories (all / by style) | `GET /curation/categories`, `GET /curation/styles/{style_id}/categories` | missing | |
-| C3 | Update category (rename Spotify playlist) | `PATCH /curation/categories/{category_id}` | missing | Detect orphaned playlist (Spotify 404) → soft-delete. |
-| C4 | Delete category (optional Spotify unfollow) | `DELETE /curation/categories/{category_id}` | missing | |
-| C5 | Add track to category playlist   | `POST /curation/categories/{category_id}/tracks` | missing | Idempotent (skip if already in playlist). |
+| C3 | Update category (rename)         | `PATCH /curation/categories/{category_id}` | missing | Aurora-only rename. No Spotify orphan-detection needed. |
+| C4 | Delete category                  | `DELETE /curation/categories/{category_id}` | missing | Soft-delete in Aurora. |
+| C5 | Add track to category            | `POST /curation/categories/{category_id}/tracks` | missing | Aurora INSERT, idempotent on `(category_id, track_id)`. No Spotify call. |
 
-### 4.6 Release Playlists (Gold)
+### 4.6 Release Playlists (Gold) — the only layer that syncs to Spotify
+
+Per §7.4: release-playlist is the assembly point. Aurora is source of truth, but each release-playlist is mirrored to Spotify (Mode 1 write) and optionally to other vendors via `release_mirror_worker`.
 
 | # | Feature                          | Old endpoint              | Status   | Notes |
 |---|----------------------------------|---------------------------|----------|-------|
-| P1 | Create empty release playlist    | `POST /release-playlists` | partial | The 2026-04-18 spec proposes `release_mirror_worker` for cross-vendor mirroring; old version is Spotify-only and synchronous. Different scope. |
-| P2 | Import existing Spotify playlist as release playlist | `POST /release-playlists/import` | missing | Pull playlist items, map to `clouder_tracks` via `identity_map`. |
+| P1 | Create empty release playlist    | `POST /release-playlists` | partial | Aurora-create + Spotify-create (user OAuth). Reuse the 2026-04-18 `release_mirror_worker` flow but as the primary write path, not a stub. |
+| P2 | Import existing Spotify playlist | `POST /release-playlists/import` | open (§7.6) | Read-only direction (Spotify → Aurora), doesn't violate §7.4. Decide in spec-E whether to keep. |
 | P3 | List release playlists           | `GET /release-playlists`  | missing | |
 | P4 | Get single release playlist + tracks | `GET /release-playlists/{playlist_id}` | missing | |
+| P5 | Add/remove tracks                | (implicit in old)         | missing | Aurora write + push delta to Spotify (Mode 1 add/remove items). |
+| P6 | Trigger multi-vendor mirror      | new (per 2026-04-18 spec) | missing | Per-vendor playlist create on YT Music / Deezer / Apple / Tidal. |
 
 ### 4.7 Browse / Read API
 
@@ -205,49 +215,91 @@ These are deliberately NOT ported. Each gets a sentence on why.
 
 ## 6. Decomposition Into Follow-Up Specs
 
-The user's directive — _"я не хочу переписывать — а сначала собрать процессы и переписать их заново"_ — argues for one spec per coherent chunk, in dependency order. Proposed ordering:
+Re-shaped after §7 decisions. The Spotify-Export adapter (spec-B) is now needed only for the release-playlist layer — triage and categories live entirely in Aurora and don't depend on it. This collapses the dependency graph significantly.
 
-1. **`spec-A: User & Auth Foundation`** — covers A1–A5. Depends on: 2026-04-18 spec's `user_vendor_tokens` (storage half). Adds: `users` table, OAuth login/callback Lambda, `spotify_tokens` rebuild on KMS, JWT issue/refresh, `GET /me`. **Hard dependency for everything else in §4.4–4.6.**
-2. **`spec-B: Spotify Playlist Provider`** — `ExportProvider` real implementation for Spotify (today is a stub per CLAUDE.md). Encapsulates: create/update/delete playlist, add/remove items, fetch playlist + items. Reused by raw-layer, categories, release-playlists. Depends on spec-A (user OAuth tokens).
-3. **`spec-C: Categories`** — covers C1–C5. Smaller surface than raw-layer, fewer transactional pitfalls; good first user feature.
-4. **`spec-D: Raw Layer Curation`** — covers R1–R6. Largest single feature. Depends on spec-A, spec-B, spec-C (target playlists are categories).
-5. **`spec-E: Release Playlists`** — covers P1–P4. Depends on spec-A, spec-B. Reconcile with the existing `release_mirror_worker` design from 2026-04-18 — likely the same flow, just user-bound.
-6. **`spec-F: Spotify Artist Enrichment`** — S4. Independent, can run in parallel with spec-A onwards. Mirrors `ai_search` worker shape.
-7. **`spec-G: Generic Job Status API`** — T1, T2. Only if any curation feature ends up async (R1 might, since it batches Spotify writes). Defer until needed.
-8. **`spec-H (optional): Read API polish`** — Br4 single-entity detail endpoints, B3 stats roll-up, S3 duplicate-Spotify-id audit. Low priority.
+1. **`spec-A: User & Auth Foundation`** — covers A1–A5 + Premium-gate from §7.3. Adds: `users` table (with `is_admin` flag), Spotify OAuth login/callback Lambda with combined Mode 1 + Mode 2 scope (§7.3), Premium check at callback, KMS-encrypted user OAuth token (per 2026-04-18 `user_vendor_tokens`), JWT issue/refresh, `GET /me`, `is_admin` middleware for ingest endpoints. **Hard dependency for everything below.**
+2. **`spec-C: Categories`** — covers C1–C5. **Aurora-only** (no Spotify per §7.4). Trivial surface — good first user feature post spec-A. Independent of spec-B.
+3. **`spec-D: Triage Curation`** — covers R1–R7 (renamed per §7.2). **Aurora-only** (no Spotify per §7.4). Largest user feature by surface area but architecturally simpler than the old code (no Spotify transactional risk). Depends on spec-A and spec-C (target buckets reference categories).
+4. **`spec-B: Spotify Playlist Export adapter`** — only `ExportProvider` real implementation for Spotify (Mode 1 write). Used **only** by spec-E. Reduced scope vs. original plan: triage and categories no longer call it.
+5. **`spec-E: Release Playlists + multi-vendor mirror`** — covers P1–P6. Depends on spec-A, spec-B. Reconciles with 2026-04-18 `release_mirror_worker`: that worker becomes the primary write path for release-playlists, not a stub. Includes Spotify Mode 1 write + multi-vendor mirror (YT/Deezer/Apple/Tidal stubs from 2026-04-18 spec).
+6. **`spec-F: Spotify Artist Enrichment`** — S4. Independent ingest-side concern; admin-triggered. Can ship in parallel with any user-side spec.
+7. **`spec-G: Frontend (Web Playback SDK + curation UI)`** — separate spec, frontend-only. Depends on spec-A (auth) and on spec-D (triage API surface). Web Playback SDK setup (Mode 2 Premium streaming).
+8. **`spec-H (optional): Read API polish`** — Br4 single-entity detail endpoints, B3 stats roll-up, S3 duplicate-Spotify-id audit. Low priority. JWT-gated per §7.5.
+9. **`spec-I (optional): Generic Job Status API`** — only if release-playlist mirror becomes async-heavy. Defer until needed.
 
-Dependency graph:
+Dependency graph (post §7):
 
 ```
-spec-A (User/Auth) ───┬──► spec-B (Spotify Export) ──┬──► spec-C (Categories) ──► spec-D (Raw Layer)
-                     │                               └──► spec-E (Release Playlists)
-                     │
-                     └──► spec-G (Job Status, if needed)
+spec-A (User/Auth/Premium) ──┬──► spec-C (Categories, Aurora-only)
+                             │       │
+                             │       ▼
+                             ├──► spec-D (Triage, Aurora-only) ──► spec-G (Frontend)
+                             │
+                             └──► spec-B (Spotify Export) ──► spec-E (Release Playlists + mirror)
 
-spec-F (Artist Enrichment) — independent
-spec-H — independent, low priority
+spec-F (Artist Enrichment) — independent (ingest)
+spec-H, spec-I — independent, low priority
 ```
 
-## 7. Open Questions for the User
+The critical path is shorter: spec-A → spec-C → spec-D unlocks the entire user-facing curation flow without ever touching spec-B. Release-playlist sync is a deliberate later milestone.
 
-Brainstorm-stage flags. Each becomes a clarifying question when its target spec begins, not now.
+## 7. Architectural Decisions (resolved 2026-04-25)
 
-1. **Tenancy.** New arch is single-tenant. Should spec-A make it true multi-tenant from day one (one Lambda set serves N users), or keep "one deployment per user" like the old app and just add an auth gate? Cost vs. complexity.
-2. **Spotify export adapter.** The 2026-04-18 spec lists Spotify as `LOOKUP + ENRICH + EXPORT-stub`. Is the export half meant to be the user's Spotify (user OAuth token, mutates their playlists) or a service Spotify (client-credentials, read-only)? Old app = user's. Confirm same intent here.
-3. **Curation persistence.** Old version owns the curation state in Postgres (raw blocks, categories, release_playlists). Should new arch own it, or treat Spotify playlists as the source of truth and only cache references in Aurora? Affects `release_playlist_tracks`-style join tables.
-4. **Browse-API auth.** Old version requires JWT for `/tracks`, `/releases`, etc. New version is open. Once spec-A lands, do existing read endpoints become user-scoped (filter by user's blocks) or stay global?
-5. **Drop release-mirror multi-vendor?** The 2026-04-18 spec mirrors a Spotify playlist to YT/Deezer/Apple/Tidal on release. Old version had no such concept. Clarify whether spec-E inherits the multi-vendor mirror or is Spotify-only.
+The five questions originally listed here have been resolved during the brainstorming session. The product shape that all subsequent specs MUST honour:
+
+### 7.1 Tenancy — multi-tenant SaaS
+
+- One Aurora DB serves all users. Multi-tenant from day one.
+- Three layers: **ingest** (admin/cron only), **canonical core** (shared), **user overlay** (per-user).
+- Frontend is the only entry point for user surface. Public ingest endpoints stay admin-protected.
+- Every user-layer table carries `user_id NOT NULL FK → users.id`. Every user query filters by current `user_id`.
+
+### 7.2 Curation layers (renamed from old "raw layer")
+
+- **Triage** — first curation layer (was `raw_layer_*` in old code; renamed because the new ingest pipeline already uses "raw" for S3 source data). Tables: `triage_blocks`, `triage_playlists`, `triage_block_tracks`, `triage_playlists_tracks`. API: `POST /triage/blocks`, etc. Section 4.4 below uses the new name.
+- **Categories** — second curation layer. Unchanged name.
+- **Release playlists** — final curation layer. Unchanged name.
+
+### 7.3 Spotify integration — three distinct roles
+
+| Role | Auth | Scope | Premium needed | Used by |
+|------|------|-------|----------------|---------|
+| Lookup / Enrich | service client_credentials | none (app-level) | no | admin ingest (ISRC search, release_type) |
+| Web API playlist write (Mode 1) | user OAuth | `playlist-modify-public`, `playlist-modify-private` | no | **release-playlist sync only** |
+| Web Playback SDK (Mode 2) | user OAuth | `streaming`, `user-read-playback-state`, `user-modify-playback-state` | **yes** | frontend playback (browser as Spotify Connect device) |
+
+Combined user OAuth scope string:
+`user-read-email user-read-private playlist-modify-public playlist-modify-private streaming user-read-playback-state user-modify-playback-state`
+
+**Premium-only access.** Login-gate blocks non-Premium Spotify users at OAuth callback. Acceptable because target user (DJ) is always Premium.
+
+### 7.4 Source of truth
+
+- **Triage and categories** live **only in Aurora**. No Spotify playlists are created or written for these layers. User listens via our frontend (Web Playback SDK plays Spotify-URI tracks directly). User cannot edit triage/categories via Spotify-client.
+- **Release playlists** are pushed to Spotify via user OAuth (Mode 1 write). Aurora remains source of truth — we do NOT read back from Spotify. If the user edits the Spotify-side copy directly, those edits are invisible to us.
+- **Multi-vendor mirror** (YT Music, Deezer, Apple Music, Tidal) stays in scope per 2026-04-18 spec. Triggered on demand from a finished release-playlist.
+
+### 7.5 Browse-API auth
+
+- Every endpoint requires JWT. No public read access, even for canonical core listing.
+- Canonical data (`/tracks`, `/artists`, `/albums`, `/labels`, `/styles`) is shared across all users — but only logged-in users can read it.
+- Admin-only endpoints (ingest, `match_review_queue`, run status) live behind an `is_admin` flag on the `users` table. No separate admin API surface.
+
+### 7.6 Still-open mini-questions (deferred to individual specs)
+
+- **P2 — release-playlist import from Spotify.** Old version supports importing an existing Spotify playlist URL into a local release-playlist (read-only direction, doesn't violate the no-Spotify-sync rule). Decide in spec-E whether to keep or drop this convenience.
+- **Premium fallback UX** — what does the login screen show to a non-Premium user who tries to log in? Plain block, or a CTA explaining the requirement? Decide in spec-A.
 
 ## 8. Acceptance Criteria for This Spec
 
-This document is "done" when:
+Status: §7 decisions have been resolved during the brainstorming session (2026-04-25). The spec is ready for implementation-spec breakouts.
 
-- §4 inventory has been reviewed by the user and any miscategorized rows are fixed (e.g., something marked `missing` that the user intends to drop).
-- §5 drop list is confirmed.
-- §6 decomposition order is approved (or reordered by the user).
-- §7 open questions have first-pass answers, even if "decide later".
+Outstanding for the user:
+- Spot-check §4 inventory after the §7-driven re-shape (esp. §4.4 triage, §4.5 categories, §4.6 release-playlists).
+- Confirm §6 ordering (proposed: spec-A → spec-C → spec-D unblocks the user-curation flow without spec-B/spec-E).
+- Decide the §7.6 mini-questions when their target spec begins (P2 import, Premium fallback UX).
 
-Once approved, each `spec-*` row in §6 becomes its own brainstorm cycle with its own design doc. No code is written off this spec.
+Once §6 ordering is confirmed, each `spec-*` row becomes its own brainstorm cycle with its own design doc. No code is written off this spec.
 
 ## 9. References
 
@@ -261,27 +313,31 @@ Once approved, each `spec-*` row in §6 becomes its own brainstorm cycle with it
 
 This section preserves every operationally relevant value, edge case, and ordering decision extracted from the old codebase before it was deleted from this repository. File paths refer to the old project layout (FastAPI monolith) — they exist only as historical context, not as something to read in this repo.
 
+**Applicability after §7 decisions.** Several items below describe Spotify playlist mutations that were used for triage and categories in the old code. After §7.4 (Aurora-only triage + categories), those items apply **only to spec-E (Release Playlists)** — the only layer that still writes to Spotify. They are explicitly tagged `[release-playlist only]` where relevant. Items marked `[obsolete]` describe behaviour the new architecture deliberately does NOT reproduce.
+
 ### 10.1 Spotify API integration
 
 | # | Item | Old file | Value / Pattern |
 |---|------|----------|------------------|
-| K1.1 | OAuth scopes | `backend/app/core/settings.py` | `"user-read-email user-read-private playlist-modify-public playlist-modify-private"` — the exact 4 scopes that make the curation flow work. |
+| K1.1 | OAuth scopes | `backend/app/core/settings.py` | Old: `"user-read-email user-read-private playlist-modify-public playlist-modify-private"`. **New (per §7.3, Mode 1 + Mode 2):** `"user-read-email user-read-private playlist-modify-public playlist-modify-private streaming user-read-playback-state user-modify-playback-state"`. Premium-only. |
 | K1.2 | Access-token TTL | settings | `30` minutes. |
 | K1.3 | Refresh-token TTL | settings | `7` days (much shorter than Spotify's own 60-day refresh window — intentional). |
 | K1.4 | OAuth state cookie | `backend/app/api/auth.py` | `max_age=600` (10 min), `httponly=True`, `secure=settings.SECURE_COOKIES`. Same TTL as the code-verifier cookie. |
 | K1.5 | PKCE config | `backend/app/core/security.py` | code_verifier = `base64.urlsafe_b64encode(os.urandom(32))` (256-bit entropy). challenge_method = `S256`. |
-| K1.6 | Spotify propagation delay after `create_playlist` | `backend/app/services/raw_layer.py` | `await asyncio.sleep(0.5)` between create and add-items. Without this, add-items can 404 on a freshly-created playlist. |
-| K1.7 | Add-items batch size | `backend/app/clients/spotify.py` | Hard limit `100` items per `POST /v1/playlists/{id}/tracks`. Loop in chunks of 100. |
+| K1.6 | Spotify propagation delay after `create_playlist` | `backend/app/services/raw_layer.py` | `await asyncio.sleep(0.5)` between create and add-items. Without this, add-items can 404 on a freshly-created playlist. **[release-playlist only]** — triage/categories don't create Spotify playlists. |
+| K1.7 | Add-items batch size | `backend/app/clients/spotify.py` | Hard limit `100` items per `POST /v1/playlists/{id}/tracks`. Loop in chunks of 100. **[release-playlist only]** |
 | K1.8 | Search-by-ISRC query format | spotify client | `{"q": f"isrc:{isrc}", "type": "track"}`. `type=track` is mandatory. |
 | K1.9 | ISRC enrichment batch size | settings | `SPOTIFY_SEARCH_BATCH_SIZE = 50`. |
 | K1.10 | Get-playlist-items pagination | spotify client | `limit=50` per page; field filter `items(track(uri)),next` to minimize payload; loop while response has `next` URL. |
-| K1.11 | Unfollow vs delete | spotify client | Spotify exposes only `DELETE /v1/playlists/{id}/followers` — there is no true delete. Catch 404 silently (already gone). |
-| K1.12 | Update-playlist 404 = orphan | `backend/app/services/category.py` | If `update_playlist_details()` raises `SpotifyNotFoundError`, soft-delete the local category. The user deleted the playlist directly on Spotify. |
-| K1.13 | Add-track dedup | category service | Always call `get_playlist_items()` first; return success if `track_uri` already present (no second add). |
+| K1.11 | Unfollow vs delete | spotify client | Spotify exposes only `DELETE /v1/playlists/{id}/followers` — there is no true delete. Catch 404 silently (already gone). **[release-playlist only]** |
+| K1.12 | Update-playlist 404 = orphan | `backend/app/services/category.py` | If `update_playlist_details()` raises `SpotifyNotFoundError`, soft-delete the local category. **[obsolete]** — categories no longer have Spotify playlists. Pattern still useful for spec-E (release-playlist orphan detection on user-side delete). |
+| K1.13 | Add-track dedup | category service | Always call `get_playlist_items()` first; return success if `track_uri` already present. **[release-playlist only]** — add-track to category is now an Aurora INSERT with unique constraint, not a Spotify call. |
 | K1.14 | Token-revocation signature | spotify client | `status_code == 400 and error_data.get("error") == "invalid_grant"`. Delete the stored token and force re-OAuth. |
 | K1.15 | Server-error retry | spotify client | Up to 3 retries on `502/503/504`. Exponential `delay = 1.0 * 2**attempt`. 429 (rate-limit) is not retried in code; relies on httpx + Spotify `Retry-After`. |
 
-### 10.2 Raw-layer block creation (most subtle flow in the product)
+### 10.2 Raw-layer block creation (most subtle flow in the OLD product)
+
+**[obsolete for triage]** — per §7.4, the new triage layer lives only in Aurora and creates no Spotify playlists. The Spotify-orchestration parts of this section are dead. The **classification rules** (which tracks land in which bucket) survive as pure Aurora logic and are still authoritative for spec-D.
 
 Step ordering inside `RawLayerService.create_raw_layer_block()` (`backend/app/services/raw_layer.py`):
 
