@@ -1127,4 +1127,4 @@ Test scenarios:
 12. Integration (Task 9)
 13. Docs (Task 10)
 
-After landing: Plan 5 can call `vendor_match_worker` via SQS (fan-out) OR reuse its matching logic inline from `release_mirror_worker`. Spec currently chooses inline with bounded concurrency — see Plan 5 Task 4.
+After landing: this worker is in place but not yet triggered by anything. Plan 5 (release mirror) was cancelled 2026-04-25 — the eventual consumer of this matcher will be decided by the next roadmap.

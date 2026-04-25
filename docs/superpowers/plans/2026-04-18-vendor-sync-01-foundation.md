@@ -1682,7 +1682,7 @@ Not covered (intentionally — belongs to later plans):
 
 - Any `clouder_*` column additions (Plan 2).
 - `providers/` package and registry (Plan 3).
-- `vendor_track_map`, `match_review_queue`, `user_vendor_tokens`, `release_mirror_runs` tables (Plans 4-5).
+- `vendor_track_map`, `match_review_queue` tables (Plan 4). (`user_vendor_tokens` / `release_mirror_runs` were Plan 5 — cancelled.)
 
 Sanity checks performed:
 

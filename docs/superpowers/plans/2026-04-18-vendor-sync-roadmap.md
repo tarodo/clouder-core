@@ -2,24 +2,24 @@
 
 **Spec:** [docs/superpowers/specs/2026-04-18-vendor-sync-readiness-design.md](../specs/2026-04-18-vendor-sync-readiness-design.md)
 
-**Approach:** Five sequential plans. Each ships independently, has its own tests and (where needed) its own alembic migration. Plans are written one at a time — after each plan lands in main, we revisit the spec and write the next plan with whatever is learned from the previous one.
+**Approach:** Sequential plans. Each ships independently, has its own tests and (where needed) its own alembic migration. Plans are written one at a time — after each plan lands in main, we revisit the spec and write the next plan with whatever is learned from the previous one.
+
+**Status (2026-04-25):** Plans 1–4 merged. **Plan 5 (Release mirror) cancelled** — copying a playlist to vendors is the *last* user action, not the next one. Earlier user-layer steps (auth, playlist management, library/tagging) must come first. A new roadmap will be written when those are scoped.
 
 ## Dependency Graph
 
 ```
-Plan 1 (Foundation)
+Plan 1 (Foundation)                       ✅
     │
-    ├──► Plan 2 (Ingestion enrichment) ──┐
-    │                                     │
-    └──► Plan 3 (Provider abstraction) ───┤
-                                          ▼
-                                      Plan 4 (Vendor match worker)
+    ├──► Plan 2 (Ingestion enrichment)    ✅
+    │
+    └──► Plan 3 (Provider abstraction)    ✅
                                           │
                                           ▼
-                                      Plan 5 (Release mirror)
+                                      Plan 4 (Vendor match worker)  ✅
 ```
 
-Plan 2 and Plan 3 can run in parallel after Plan 1. Plans 4 and 5 must wait for Plan 3.
+Plan 2 and Plan 3 ran in parallel after Plan 1. Plan 4 waited for Plan 3.
 
 ## The Plans
 
@@ -80,32 +80,18 @@ Plan 2 and Plan 3 can run in parallel after Plan 1. Plans 4 and 5 must wait for 
 - SQS queue + DLQ + CloudWatch alarm.
 - Integration test with `FakeVendorProvider`.
 
-**Deliverable:** cache-backed, idempotent vendor matching with review-queue escape hatch. Not yet triggered by anything — ready for Plan 5.
+**Deliverable:** cache-backed, idempotent vendor matching with review-queue escape hatch. Not yet triggered by anything — consumer to be defined by the next roadmap.
 
-### Plan 5 — Release mirror + KMS + API
+### Plan 5 — Release mirror (cancelled 2026-04-25)
 
-**File:** `2026-04-18-vendor-sync-05-release-mirror.md` (to be written after Plan 4)
-
-**Covers spec §5.1 (user_vendor_tokens, release_mirror_runs), §7.2, §7.3, §7.4, §8.3, §8.5 partial.**
-
-- Alembic migration 11: `user_vendor_tokens` + `release_mirror_runs`.
-- KMS CMK `alias/clouder-user-tokens` (Terraform).
-- `src/collector/crypto.py` — envelope encrypt/decrypt via `kms.generate_data_key` + AES-GCM.
-- `scripts/store_user_token.py` — seed tokens for manual testing.
-- `release_mirror_worker` Lambda: fetch Spotify playlist, map to clouder tracks, match per-vendor (inline, asyncio, N=10), export via vendors.
-- `POST /release_mirror` + `GET /release_mirror/{run_id}` endpoints.
-- Refresh-fn plumbing on `ExportProvider` (parameter exists, no-op today).
-- SQS queue + DLQ + CloudWatch alarm.
-- Integration test: fake Spotify source + fake vendor exporters, end-to-end mirror.
-- README + data-model docs update.
-
-**Deliverable:** end-to-end release mirror flow, testable with fake vendors, production-ready architecture. Real vendor bodies are follow-up work outside this roadmap.
+Originally scoped to add `POST /release_mirror`, KMS-encrypted user OAuth tokens, and a `release_mirror_worker` Lambda that copies a Spotify playlist to other vendors. **Cancelled**: copying a playlist is the *last* user action in the vendor-sync product, not the next. Without earlier user-layer work (auth, playlist management, library/tagging) it has no surface to plug into. The plan file (`2026-04-18-vendor-sync-05-release-mirror.md`) has been deleted; spec §5.1 / §7.2 / §7.3 / §7.4 / §8.3 still describe the eventual design and can be revisited when a new roadmap is written.
 
 ## Out of Roadmap
 
 - Real bodies for YT Music / Deezer / Apple / Tidal (each is its own mini-plan later).
 - OAuth authorize/callback flow (user-layer).
-- `users` table + FK hookup on `user_vendor_tokens.user_id`.
+- `users` table.
 - Spotify as ingestion source.
 - Artist-level AI enricher (Perplexity body).
 - Read API beyond existing endpoints.
+- Release mirror flow (was Plan 5, cancelled — see above).
