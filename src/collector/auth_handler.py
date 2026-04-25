@@ -131,6 +131,8 @@ def _route(
         return _handle_callback(event, correlation_id)
     if route == "POST /auth/refresh":
         return _handle_refresh(event, correlation_id)
+    if route == "POST /auth/logout":
+        return _handle_logout(event, correlation_id)
     return _json_response(
         404,
         {"error_code": "not_found", "message": "Route not found",
@@ -480,6 +482,36 @@ def _handle_refresh(
             },
             ensure_ascii=False,
         ),
+    }
+
+
+def _handle_logout(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    cookies = _parse_cookies(event)
+    token = cookies.get("refresh_token")
+    if token:
+        try:
+            claims = verify_refresh_token(
+                token=token, secret=resolve_jwt_signing_key(), now=_now()
+            )
+        except InvalidTokenError:
+            claims = None
+        if claims is not None:
+            repo = _build_auth_repository()
+            repo.revoke_session(claims.session_id, revoked_at=_now())
+            log_event(
+                "INFO",
+                "auth_logout",
+                correlation_id=correlation_id,
+                user_id=claims.user_id,
+            )
+
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "cookies": [_refresh_cookie("", max_age=0)],
+        "body": "",
     }
 
 
