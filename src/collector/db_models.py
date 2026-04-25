@@ -304,3 +304,24 @@ class MatchReviewQueue(Base):
         DateTime(timezone=True), nullable=False
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = (
+        Index("idx_users_spotify_id", "spotify_id", unique=True),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    spotify_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(Text)
+    email: Mapped[str | None] = mapped_column(Text)
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
