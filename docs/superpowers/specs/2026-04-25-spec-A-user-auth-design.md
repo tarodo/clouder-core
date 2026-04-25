@@ -49,7 +49,7 @@ Recap of decisions resolved during the brainstorming session for this spec. Each
 | D2 | API Gateway **Lambda Authorizer** for all non-`/auth/*` routes. | Clean separation, single source of validation truth, 5-min cache on token TTL means near-zero overhead per request. |
 | D3 | **Single-origin** via CloudFront (frontend + API behind one host). Frontend deploy is spec-G. | Allows clean cookie-based refresh-token without `SameSite=None` cross-site complexity. |
 | D4 | **Hybrid token transport.** Refresh token in `HttpOnly Secure SameSite=Strict` cookie; access token (our JWT) in JSON response body, frontend keeps it in memory only. Spotify access token (for Web Playback SDK) returned in JSON, frontend hands it to the SDK. | Refresh-token survives XSS; access-token short TTL bounds replay window. |
-| D5 | Admin via env var `ADMIN_SPOTIFY_IDS=spotify_id1,spotify_id2`. Re-evaluated on every login (idempotent). | Declarative, audit-friendly, no DB-bootstrap hack, easy to demote (drop from list + redeploy). |
+| D5 | Admin via env var `ADMIN_SPOTIFY_IDS=spotify_id1,spotify_id2`. The env var is the **source of truth**; on every OAuth callback the value is recomputed and written to `users.is_admin` (cached projection). Authorizer reads the cached column via JWT claim issued at login, so demotion latency = up to one access-token TTL (30 min). | Declarative, audit-friendly, no DB-bootstrap hack, easy to demote (drop from list + redeploy). The DB column exists so `/me` and audit logs can show admin state directly without re-evaluating the env var. |
 | D6 | Stateful session model via `user_sessions` table. Logout = delete row, refresh = check row. JWT contains `session_id`; authorizer trusts signature + expiry, refresh path checks DB. | Instant logout, multi-device visibility, refresh-token-replay detection — all for one extra Aurora row per login. |
 | D7 | Premium check at OAuth callback. Non-Premium → return informative response with deep-link to Spotify Premium upgrade, no DB write. Premium hint shown on login screen. | Prevents Web Playback SDK init failure; matches §7.3 + §7.6 resolution. |
 
@@ -246,9 +246,13 @@ Manual rotation procedure for HS256 key: change SSM param value, redeploy. All i
 - `/clouder/spotify/oauth_client_id` — SecureString.
 - `/clouder/spotify/oauth_client_secret` — SecureString.
 
-### 8.3 Existing service-creds
+### 8.3 Single Spotify app for both modes
 
-`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` (used by spotify_handler for ISRC lookup, service-mode) stay separate from the OAuth client. Different Spotify app, different scopes set ("Web API only" vs "Web Playback SDK + Web API"). Two app-registrations on Spotify Developer Dashboard.
+`SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` are shared between service-mode (existing `spotify_handler` ISRC lookup via `client_credentials` grant) and user-mode (new `auth_handler` OAuth via `authorization_code + PKCE`). One Spotify Developer app registration covers both flows — `client_credentials` ignores scopes, `authorization_code` requests scopes per-user.
+
+The new var `SPOTIFY_OAUTH_REDIRECT_URI` is added to that single app's Redirect URI allow-list in the Spotify Dashboard.
+
+Rate-limit pool is shared between service and user modes; at expected scale (≲200 ISRC-lookups/day + per-user activity) this is comfortably below Spotify limits. If service-ingest grows aggressively, splitting into two apps becomes a follow-up — schema and Lambdas don't need changes.
 
 ## 9. Infra Deltas (Terraform)
 
@@ -321,7 +325,7 @@ Spec-A is "done" (= ready for spec-B/C/D/E to start) when:
 
 - **Premium message copy.** Exact text + upgrade-CTA for the `403 premium_required` response. Decide during implementation by trying a few options on the actual login page (will be in spec-G frontend, but copy is owned here).
 - **Cookie domain in dev.** Locally (no CloudFront) the frontend runs on `localhost:5173` and API on `localhost:3000` — different origins, so `SameSite=Strict` blocks cookie. Mitigation: dev override via env var (`COOKIE_SAMESITE=Lax`) or run both on the same dev port via Vite proxy. Decide during implementation.
-- **Two Spotify apps registration.** This spec assumes two separate Spotify developer apps: one for service-creds (existing, ISRC lookup), one for user OAuth (new, with Web Playback SDK and playlist-modify scopes). Confirmed during implementation by looking at Spotify dashboard restrictions on scope mixing.
+- ~~Two Spotify apps registration.~~ **Resolved 2026-04-25:** single Spotify Developer app for both service-mode and user-mode flows. See §8.3.
 
 ## 14. References
 
