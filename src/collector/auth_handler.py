@@ -35,6 +35,7 @@ from .auth.spotify_oauth import (
 from .data_api import create_default_data_api_client
 from .errors import (
     AppError,
+    CannotRevokeCurrentSessionError,
     CsrfStateMismatchError,
     OAuthExchangeFailedError,
     PremiumRequiredError,
@@ -133,6 +134,10 @@ def _route(
         return _handle_refresh(event, correlation_id)
     if route == "POST /auth/logout":
         return _handle_logout(event, correlation_id)
+    if route == "GET /me":
+        return _handle_me(event, correlation_id)
+    if route == "DELETE /me/sessions/{session_id}":
+        return _handle_revoke_session(event, correlation_id)
     return _json_response(
         404,
         {"error_code": "not_found", "message": "Route not found",
@@ -511,6 +516,98 @@ def _handle_logout(
         "statusCode": 204,
         "headers": {"x-correlation-id": correlation_id},
         "cookies": [_refresh_cookie("", max_age=0)],
+        "body": "",
+    }
+
+
+def _authorizer_context(event: Mapping[str, Any]) -> dict[str, Any]:
+    rc = event.get("requestContext")
+    if isinstance(rc, Mapping):
+        authorizer = rc.get("authorizer")
+        if isinstance(authorizer, Mapping):
+            ctx = authorizer.get("lambda")
+            if isinstance(ctx, Mapping):
+                return dict(ctx)
+    return {}
+
+
+def _handle_me(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    ctx = _authorizer_context(event)
+    user_id = ctx.get("user_id")
+    current_session_id = ctx.get("session_id")
+    if not user_id:
+        raise RefreshInvalidError("authorizer context missing user_id")
+
+    repo = _build_auth_repository()
+    user = repo.get_user_by_id(str(user_id))
+    if user is None:
+        raise RefreshInvalidError("user not found")
+
+    sessions = repo.list_active_sessions(user_id=str(user_id), now=_now())
+    return _json_response(
+        200,
+        {
+            "id": user.id,
+            "spotify_id": user.spotify_id,
+            "display_name": user.display_name,
+            "email": user.email,
+            "is_admin": user.is_admin,
+            "sessions": [
+                {
+                    "id": s.id,
+                    "created_at": s.created_at,
+                    "last_used_at": s.last_used_at,
+                    "user_agent": s.user_agent,
+                    "current": s.id == current_session_id,
+                }
+                for s in sessions
+            ],
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_revoke_session(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    ctx = _authorizer_context(event)
+    user_id = ctx.get("user_id")
+    current_session_id = ctx.get("session_id")
+    if not user_id:
+        raise RefreshInvalidError("authorizer context missing user_id")
+
+    path = event.get("pathParameters") or {}
+    target_id = path.get("session_id") if isinstance(path, Mapping) else None
+    if not target_id:
+        raise ValidationError("session_id is required")
+
+    if target_id == current_session_id:
+        raise CannotRevokeCurrentSessionError()
+
+    repo = _build_auth_repository()
+    target = repo.get_active_session(str(target_id), now=_now())
+    if target is None or target.user_id != str(user_id):
+        return _json_response(
+            404,
+            {"error_code": "not_found", "message": "Session not found",
+             "correlation_id": correlation_id},
+            correlation_id,
+        )
+
+    repo.revoke_session(str(target_id), revoked_at=_now())
+    log_event(
+        "INFO",
+        "auth_session_revoked",
+        correlation_id=correlation_id,
+        user_id=str(user_id),
+        revoked_session_id=str(target_id),
+    )
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
         "body": "",
     }
 
