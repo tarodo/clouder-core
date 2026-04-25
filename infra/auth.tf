@@ -146,3 +146,81 @@ resource "aws_lambda_function" "auth_authorizer" {
 
   depends_on = [aws_cloudwatch_log_group.auth_authorizer]
 }
+
+resource "aws_lambda_permission" "auth_handler_apigw" {
+  statement_id  = "AllowExecutionFromApiGatewayAuth"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.auth_handler.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.collector.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "auth_authorizer_apigw" {
+  statement_id  = "AllowExecutionFromApiGatewayAuthorizer"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.auth_authorizer.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.collector.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "auth_lambda" {
+  api_id                 = aws_apigatewayv2_api.collector.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.auth_handler.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_authorizer" "jwt" {
+  api_id                            = aws_apigatewayv2_api.collector.id
+  authorizer_type                   = "REQUEST"
+  authorizer_uri                    = aws_lambda_function.auth_authorizer.invoke_arn
+  authorizer_payload_format_version = "2.0"
+  enable_simple_responses           = true
+  identity_sources                  = ["$request.header.Authorization"]
+  authorizer_result_ttl_in_seconds  = var.auth_authorizer_cache_ttl_seconds
+  name                              = "${local.name_prefix}-jwt-authorizer"
+}
+
+# Public routes (no authorizer)
+
+resource "aws_apigatewayv2_route" "auth_login" {
+  api_id    = aws_apigatewayv2_api.collector.id
+  route_key = "GET /auth/login"
+  target    = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "auth_callback" {
+  api_id    = aws_apigatewayv2_api.collector.id
+  route_key = "GET /auth/callback"
+  target    = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "auth_refresh" {
+  api_id    = aws_apigatewayv2_api.collector.id
+  route_key = "POST /auth/refresh"
+  target    = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "auth_logout" {
+  api_id    = aws_apigatewayv2_api.collector.id
+  route_key = "POST /auth/logout"
+  target    = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
+}
+
+# Authorizer-protected routes that target auth_handler
+
+resource "aws_apigatewayv2_route" "me" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /me"
+  target             = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "me_session_revoke" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "DELETE /me/sessions/{session_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}

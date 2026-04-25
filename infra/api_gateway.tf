@@ -14,56 +14,64 @@ resource "aws_apigatewayv2_route" "collect_bp_releases" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "POST /collect_bp_releases"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
-  authorization_type = "AWS_IAM"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_apigatewayv2_route" "get_run" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /runs/{run_id}"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
-  authorization_type = "AWS_IAM"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_apigatewayv2_route" "list_tracks" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /tracks"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
-  authorization_type = "AWS_IAM"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_apigatewayv2_route" "list_artists" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /artists"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
-  authorization_type = "AWS_IAM"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_apigatewayv2_route" "list_albums" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /albums"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
-  authorization_type = "AWS_IAM"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_apigatewayv2_route" "list_labels" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /labels"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
-  authorization_type = "AWS_IAM"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_apigatewayv2_route" "list_styles" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /styles"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
-  authorization_type = "AWS_IAM"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_apigatewayv2_route" "spotify_not_found" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /tracks/spotify-not-found"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
-  authorization_type = "AWS_IAM"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_apigatewayv2_stage" "default" {
