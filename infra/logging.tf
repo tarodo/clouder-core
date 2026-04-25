@@ -28,6 +28,16 @@ resource "aws_cloudwatch_log_group" "vendor_match_worker" {
   retention_in_days = var.log_retention_days
 }
 
+resource "aws_cloudwatch_log_group" "auth_handler" {
+  name              = "/aws/lambda/${local.auth_handler_lambda_name}"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_cloudwatch_log_group" "auth_authorizer" {
+  name              = "/aws/lambda/${local.auth_authorizer_lambda_name}"
+  retention_in_days = var.log_retention_days
+}
+
 # ── DLQ depth alarms ─────────────────────────────────────────────
 
 locals {

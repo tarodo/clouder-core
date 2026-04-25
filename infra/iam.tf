@@ -31,6 +31,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       "${aws_cloudwatch_log_group.ai_search_worker.arn}:*",
       "${aws_cloudwatch_log_group.spotify_search_worker.arn}:*",
       "${aws_cloudwatch_log_group.vendor_match_worker.arn}:*",
+      "${aws_cloudwatch_log_group.auth_handler.arn}:*",
     ]
   }
 
@@ -163,6 +164,27 @@ data "aws_iam_policy_document" "collector_lambda" {
       actions   = ["kms:Decrypt"]
       resources = ["arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:alias/aws/ssm"]
     }
+  }
+
+  statement {
+    sid    = "AllowKmsUserTokens"
+    effect = "Allow"
+    actions = [
+      "kms:GenerateDataKey",
+      "kms:Decrypt",
+    ]
+    resources = [aws_kms_key.user_tokens.arn]
+  }
+
+  statement {
+    sid     = "AllowReadAuthSsmParameters"
+    effect  = "Allow"
+    actions = ["ssm:GetParameter"]
+    resources = [
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.jwt_signing_key_ssm_parameter}",
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_oauth_client_id_ssm_parameter}",
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_oauth_client_secret_ssm_parameter}",
+    ]
   }
 
   statement {
