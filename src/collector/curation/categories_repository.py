@@ -7,6 +7,7 @@ Cross-user access yields zero rows (mapped to 404 by the handler).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Mapping, Sequence
 
 from collector.data_api import DataAPIClient
@@ -54,7 +55,7 @@ class CategoriesRepository:
         category_id: str,
         name: str,
         normalized_name: str,
-        now: Any,  # datetime
+        now: datetime,
     ) -> CategoryRow:
         with self._data_api.transaction() as tx_id:
             style_rows = self._data_api.execute(

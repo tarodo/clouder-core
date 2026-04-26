@@ -108,6 +108,9 @@ def test_create_starts_transaction_and_inserts() -> None:
     insert_sql = data_api.execute.call_args_list[2].args[0]
     assert "INSERT INTO categories" in insert_sql
     assert "RETURNING" in insert_sql
+    # All three calls must run inside the same transaction
+    for call in data_api.execute.call_args_list:
+        assert call.kwargs.get("transaction_id") == "tx-1"
 
 
 def test_create_raises_style_not_found() -> None:
