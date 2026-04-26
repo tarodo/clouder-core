@@ -9,3 +9,4 @@ boto3
 pyjwt>=2.10
 cryptography>=44
 moto[kms,ssm,secretsmanager]>=5
+pyyaml
