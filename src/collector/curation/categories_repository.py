@@ -46,7 +46,91 @@ class CategoriesRepository:
     def __init__(self, data_api: DataAPIClient) -> None:
         self._data_api = data_api
 
-    # Methods filled in by Tasks 6–13.
+    def create(
+        self,
+        *,
+        user_id: str,
+        style_id: str,
+        category_id: str,
+        name: str,
+        normalized_name: str,
+        now: Any,  # datetime
+    ) -> CategoryRow:
+        with self._data_api.transaction() as tx_id:
+            style_rows = self._data_api.execute(
+                "SELECT id, name FROM clouder_styles WHERE id = :style_id",
+                {"style_id": style_id},
+                transaction_id=tx_id,
+            )
+            if not style_rows:
+                raise NotFoundError("style_not_found", "Style not found")
+            style_name = style_rows[0]["name"]
+
+            max_rows = self._data_api.execute(
+                """
+                SELECT COALESCE(MAX(position), -1) AS max_pos
+                FROM categories
+                WHERE user_id = :user_id
+                  AND style_id = :style_id
+                  AND deleted_at IS NULL
+                """,
+                {"user_id": user_id, "style_id": style_id},
+                transaction_id=tx_id,
+            )
+            position = int(max_rows[0]["max_pos"]) + 1
+
+            try:
+                rows = self._data_api.execute(
+                    """
+                    INSERT INTO categories (
+                        id, user_id, style_id, name, normalized_name,
+                        position, created_at, updated_at, deleted_at
+                    ) VALUES (
+                        :id, :user_id, :style_id, :name, :normalized_name,
+                        :position, :created_at, :updated_at, NULL
+                    )
+                    RETURNING id, user_id, style_id, name, normalized_name,
+                              position,
+                              :style_name AS style_name,
+                              0 AS track_count,
+                              created_at, updated_at
+                    """,
+                    {
+                        "id": category_id,
+                        "user_id": user_id,
+                        "style_id": style_id,
+                        "name": name,
+                        "normalized_name": normalized_name,
+                        "position": position,
+                        "style_name": style_name,
+                        "created_at": now,
+                        "updated_at": now,
+                    },
+                    transaction_id=tx_id,
+                )
+            except Exception as exc:
+                msg = str(exc)
+                if "uq_categories_user_style_normname" in msg:
+                    raise NameConflictError(
+                        "Category name already exists in this style"
+                    ) from exc
+                raise
+
+            row = rows[0]
+            return CategoryRow(
+                id=row["id"],
+                user_id=row["user_id"],
+                style_id=row["style_id"],
+                style_name=row["style_name"],
+                name=row["name"],
+                normalized_name=row["normalized_name"],
+                position=int(row["position"]),
+                track_count=int(row["track_count"]),
+                created_at=str(row["created_at"]),
+                updated_at=str(row["updated_at"]),
+            )
+
+    # Remaining methods filled in by Tasks 7–13.
 
 
 def create_default_categories_repository() -> CategoriesRepository | None:
