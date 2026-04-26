@@ -386,18 +386,6 @@ variable "spotify_oauth_redirect_uri" {
   type        = string
 }
 
-variable "spotify_oauth_client_id_ssm_parameter" {
-  description = "SSM Parameter Store name (SecureString) holding the Spotify OAuth client_id used for user login"
-  type        = string
-  default     = "/clouder/spotify/oauth_client_id"
-}
-
-variable "spotify_oauth_client_secret_ssm_parameter" {
-  description = "SSM Parameter Store name (SecureString) holding the Spotify OAuth client_secret used for user login"
-  type        = string
-  default     = "/clouder/spotify/oauth_client_secret"
-}
-
 variable "jwt_signing_key_ssm_parameter" {
   description = "SSM Parameter Store name (SecureString) holding the HS256 secret for JWTs"
   type        = string

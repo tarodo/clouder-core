@@ -182,8 +182,6 @@ data "aws_iam_policy_document" "collector_lambda" {
     actions = ["ssm:GetParameter"]
     resources = [
       "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.jwt_signing_key_ssm_parameter}",
-      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_oauth_client_id_ssm_parameter}",
-      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_oauth_client_secret_ssm_parameter}",
     ]
   }
 

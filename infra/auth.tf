@@ -29,32 +29,13 @@ resource "aws_ssm_parameter" "jwt_signing_key" {
   }
 }
 
-# Client_id and client_secret are uploaded out of band (terraform creates
-# the parameter shells as empty SecureStrings; operator sets the value
-# via `aws ssm put-parameter`). lifecycle.ignore_changes makes terraform
-# tolerate the externally-managed value.
-
-resource "aws_ssm_parameter" "spotify_oauth_client_id" {
-  name        = var.spotify_oauth_client_id_ssm_parameter
-  description = "Spotify OAuth client_id for user login (spec-A)"
-  type        = "SecureString"
-  value       = "REPLACE_AFTER_APPLY"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}
-
-resource "aws_ssm_parameter" "spotify_oauth_client_secret" {
-  name        = var.spotify_oauth_client_secret_ssm_parameter
-  description = "Spotify OAuth client_secret for user login (spec-A)"
-  type        = "SecureString"
-  value       = "REPLACE_AFTER_APPLY"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}
+# Spotify client_id / client_secret are NOT created here.
+# Per spec §8.3 a single Spotify Developer app serves both service-mode
+# (existing client_credentials grant for ISRC search) and user-mode
+# (authorization_code + PKCE for login). The deploy workflow pushes the
+# values from GitHub environment secrets into the existing SSM params at
+# `var.spotify_client_id_ssm_parameter` / `var.spotify_client_secret_ssm_parameter`,
+# and the auth_handler reads from those same names.
 
 # ── auth_handler Lambda (reuses collector_lambda role) ──────────────
 
@@ -76,8 +57,8 @@ resource "aws_lambda_function" "auth_handler" {
       AURORA_DATABASE                           = var.aurora_database_name
       KMS_USER_TOKENS_KEY_ARN                   = aws_kms_key.user_tokens.arn
       JWT_SIGNING_KEY_SSM_PARAMETER             = var.jwt_signing_key_ssm_parameter
-      SPOTIFY_OAUTH_CLIENT_ID_SSM_PARAMETER     = var.spotify_oauth_client_id_ssm_parameter
-      SPOTIFY_OAUTH_CLIENT_SECRET_SSM_PARAMETER = var.spotify_oauth_client_secret_ssm_parameter
+      SPOTIFY_OAUTH_CLIENT_ID_SSM_PARAMETER     = var.spotify_client_id_ssm_parameter
+      SPOTIFY_OAUTH_CLIENT_SECRET_SSM_PARAMETER = var.spotify_client_secret_ssm_parameter
       SPOTIFY_OAUTH_REDIRECT_URI                = var.spotify_oauth_redirect_uri
       ALLOWED_FRONTEND_REDIRECTS                = var.allowed_frontend_redirects
       ADMIN_SPOTIFY_IDS                         = var.admin_spotify_ids
