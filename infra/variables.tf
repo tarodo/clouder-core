@@ -372,3 +372,70 @@ variable "migration_aurora_auth_mode" {
     error_message = "migration_aurora_auth_mode must be either 'password' or 'iam'."
   }
 }
+
+# ── Spec-A user auth ───────────────────────────────────────────────
+
+variable "admin_spotify_ids" {
+  description = "Comma-separated list of Spotify user IDs that get is_admin=true on login"
+  type        = string
+  default     = ""
+}
+
+variable "spotify_oauth_redirect_uri" {
+  description = "Full URL Spotify redirects to after consent (must be registered in the Spotify Developer Dashboard)"
+  type        = string
+}
+
+variable "jwt_signing_key_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) holding the HS256 secret for JWTs"
+  type        = string
+  default     = "/clouder/auth/jwt_signing_key"
+}
+
+variable "allowed_frontend_redirects" {
+  description = "Comma-separated allow-list of relative redirect_uri paths accepted by /auth/login"
+  type        = string
+  default     = "/"
+}
+
+variable "jwt_access_token_ttl_seconds" {
+  description = "Access-token TTL"
+  type        = number
+  default     = 1800
+}
+
+variable "jwt_refresh_token_ttl_seconds" {
+  description = "Refresh-token TTL"
+  type        = number
+  default     = 604800
+}
+
+variable "auth_handler_lambda_timeout_seconds" {
+  description = "Auth Lambda timeout (seconds)"
+  type        = number
+  default     = 30
+}
+
+variable "auth_handler_lambda_memory_mb" {
+  description = "Auth Lambda memory size in MB"
+  type        = number
+  default     = 512
+}
+
+variable "auth_authorizer_lambda_timeout_seconds" {
+  description = "Authorizer Lambda timeout (seconds)"
+  type        = number
+  default     = 5
+}
+
+variable "auth_authorizer_lambda_memory_mb" {
+  description = "Authorizer Lambda memory size in MB"
+  type        = number
+  default     = 256
+}
+
+variable "auth_authorizer_cache_ttl_seconds" {
+  description = "API Gateway authorizer result-cache TTL (seconds)"
+  type        = number
+  default     = 300
+}

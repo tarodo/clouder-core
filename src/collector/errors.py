@@ -125,3 +125,75 @@ class VendorDisabledError(AppError):
         )
         self.vendor = vendor
         self.reason = reason
+
+
+class PremiumRequiredError(AppError):
+    def __init__(
+        self,
+        *,
+        upgrade_url: str = "https://www.spotify.com/premium/",
+        message: str = "Spotify Premium required",
+    ) -> None:
+        super().__init__(
+            status_code=403, error_code="premium_required", message=message
+        )
+        self.upgrade_url = upgrade_url
+
+
+class CsrfStateMismatchError(AppError):
+    def __init__(self, message: str = "OAuth state mismatch") -> None:
+        super().__init__(
+            status_code=400, error_code="csrf_state_mismatch", message=message
+        )
+
+
+class OAuthExchangeFailedError(AppError):
+    def __init__(self, message: str = "OAuth code exchange failed") -> None:
+        super().__init__(
+            status_code=502, error_code="oauth_exchange_failed", message=message
+        )
+
+
+class SpotifyRevokedError(AppError):
+    def __init__(
+        self, message: str = "Spotify refresh token revoked, re-authentication required"
+    ) -> None:
+        super().__init__(
+            status_code=401, error_code="spotify_revoked", message=message
+        )
+
+
+class RefreshInvalidError(AppError):
+    def __init__(self, message: str = "Refresh token missing or invalid") -> None:
+        super().__init__(
+            status_code=401, error_code="refresh_invalid", message=message
+        )
+
+
+class RefreshReplayDetectedError(AppError):
+    def __init__(
+        self, message: str = "Refresh-token replay detected, session revoked"
+    ) -> None:
+        super().__init__(
+            status_code=401,
+            error_code="refresh_replay_detected",
+            message=message,
+        )
+
+
+class AdminRequiredError(AppError):
+    def __init__(self, message: str = "Admin privileges required") -> None:
+        super().__init__(
+            status_code=403, error_code="admin_required", message=message
+        )
+
+
+class CannotRevokeCurrentSessionError(AppError):
+    def __init__(
+        self, message: str = "Cannot revoke the current session — use logout"
+    ) -> None:
+        super().__init__(
+            status_code=400,
+            error_code="cannot_revoke_current",
+            message=message,
+        )

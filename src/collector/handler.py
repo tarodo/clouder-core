@@ -25,7 +25,7 @@ def _split_phase_prefix(msg: str | None) -> tuple[str | None, str | None]:
 from pydantic import ValidationError as PydanticValidationError
 
 from .providers import registry
-from .errors import AppError, ValidationError
+from .errors import AdminRequiredError, AppError, ValidationError
 from .logging_utils import log_event
 from .models import (
     ProcessingOutcome,
@@ -59,6 +59,22 @@ _LIST_ROUTES = {
     "GET /labels": ("labels", "list_labels", "count_labels"),
     "GET /styles": ("styles", "list_styles", "count_styles"),
 }
+
+_ADMIN_ROUTES = frozenset({
+    "POST /collect_bp_releases",
+    "GET /tracks/spotify-not-found",
+})
+
+
+def _require_admin(event: Mapping[str, Any]) -> None:
+    rc = event.get("requestContext")
+    if isinstance(rc, Mapping):
+        authorizer = rc.get("authorizer")
+        if isinstance(authorizer, Mapping):
+            ctx = authorizer.get("lambda")
+            if isinstance(ctx, Mapping) and bool(ctx.get("is_admin")):
+                return
+    raise AdminRequiredError()
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
@@ -119,6 +135,8 @@ def _route(
     event: Mapping[str, Any], context: Any, correlation_id: str
 ) -> dict[str, Any]:
     route_key = _extract_route_key(event)
+    if route_key in _ADMIN_ROUTES:
+        _require_admin(event)
     if route_key == "GET /runs/{run_id}":
         return _handle_get_run(event, context)
     if route_key in ("POST /collect_bp_releases", ""):

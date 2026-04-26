@@ -52,6 +52,9 @@ def _event(body: dict, correlation_id: str | None = None) -> dict:
         "requestContext": {
             "requestId": "api-req-1",
             "routeKey": "POST /collect_bp_releases",
+            "authorizer": {
+                "lambda": {"user_id": "admin", "session_id": "s", "is_admin": True}
+            },
         },
         "headers": headers,
         "body": json.dumps(body),
@@ -64,6 +67,9 @@ def _get_run_event(run_id: str) -> dict:
         "requestContext": {
             "requestId": "api-req-2",
             "routeKey": "GET /runs/{run_id}",
+            "authorizer": {
+                "lambda": {"user_id": "u", "session_id": "s", "is_admin": False}
+            },
         },
         "headers": {"x-correlation-id": "cid-run"},
         "pathParameters": {"run_id": run_id},
@@ -278,7 +284,13 @@ def test_invalid_body_returns_validation_error(monkeypatch, context) -> None:
     response = lambda_handler(
         {
             "version": "2.0",
-            "requestContext": {"requestId": "api-req-1", "routeKey": "POST /collect_bp_releases"},
+            "requestContext": {
+                "requestId": "api-req-1",
+                "routeKey": "POST /collect_bp_releases",
+                "authorizer": {
+                    "lambda": {"user_id": "admin", "session_id": "s", "is_admin": True}
+                },
+            },
             "headers": {},
             "body": "{bad-json}",
         },
@@ -296,6 +308,9 @@ def _list_event(route_key: str, query_params: dict | None = None) -> dict:
         "requestContext": {
             "requestId": "api-req-list",
             "routeKey": route_key,
+            "authorizer": {
+                "lambda": {"user_id": "u", "session_id": "s", "is_admin": False}
+            },
         },
         "headers": {"x-correlation-id": "cid-list"},
         "queryStringParameters": query_params,

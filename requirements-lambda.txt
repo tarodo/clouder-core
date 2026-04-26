@@ -4,3 +4,5 @@ psycopg[binary]
 structlog
 pydantic>=2.7
 pydantic-settings>=2.3
+pyjwt>=2.10
+cryptography>=44

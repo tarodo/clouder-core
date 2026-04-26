@@ -64,7 +64,20 @@ jobs:
             --type SecureString --overwrite
 
       - name: Terraform apply
-        run: terraform apply -auto-approve -input=false -var="environment=prod" -var="canonicalization_enabled=true" -var="ai_search_enabled=true" -var="spotify_search_enabled=true" -var="perplexity_api_key_ssm_parameter=/clouder/perplexity/api_key" -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" -var="migration_aurora_auth_mode=iam" -var="enable_secretsmanager_vpc_endpoint=false"
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var="environment=prod" \
+            -var="canonicalization_enabled=true" \
+            -var="ai_search_enabled=true" \
+            -var="spotify_search_enabled=true" \
+            -var="perplexity_api_key_ssm_parameter=/clouder/perplexity/api_key" \
+            -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" \
+            -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" \
+            -var="migration_aurora_auth_mode=iam" \
+            -var="enable_secretsmanager_vpc_endpoint=false" \
+            -var="spotify_oauth_redirect_uri=${{ vars.SPOTIFY_OAUTH_REDIRECT_URI }}" \
+            -var="admin_spotify_ids=${{ vars.ADMIN_SPOTIFY_IDS }}" \
+            -var="allowed_frontend_redirects=${{ vars.ALLOWED_FRONTEND_REDIRECTS }}"
 
       - name: Run DB migrations via Lambda
         run: |
