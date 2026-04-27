@@ -132,6 +132,22 @@ def _category_response(row) -> dict[str, Any]:
     }
 
 
+def _paginated_response(
+    result, mapper, correlation_id: str
+) -> dict[str, Any]:
+    return _json_response(
+        200,
+        {
+            "items": [mapper(r) for r in result.items],
+            "total": result.total,
+            "limit": result.limit,
+            "offset": result.offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
 # ---------- Routing ---------------------------------------------------------
 
 def lambda_handler(
@@ -226,33 +242,13 @@ def _handle_list_by_style(event, repo, user_id, correlation_id):
     result = repo.list_by_style(
         user_id=user_id, style_id=style_id, limit=limit, offset=offset,
     )
-    return _json_response(
-        200,
-        {
-            "items": [_category_response(r) for r in result.items],
-            "total": result.total,
-            "limit": result.limit,
-            "offset": result.offset,
-            "correlation_id": correlation_id,
-        },
-        correlation_id,
-    )
+    return _paginated_response(result, _category_response, correlation_id)
 
 
 def _handle_list_all(event, repo, user_id, correlation_id):
     limit, offset = _parse_pagination(event)
     result = repo.list_all(user_id=user_id, limit=limit, offset=offset)
-    return _json_response(
-        200,
-        {
-            "items": [_category_response(r) for r in result.items],
-            "total": result.total,
-            "limit": result.limit,
-            "offset": result.offset,
-            "correlation_id": correlation_id,
-        },
-        correlation_id,
-    )
+    return _paginated_response(result, _category_response, correlation_id)
 
 
 def _handle_get_detail(event, repo, user_id, correlation_id):
@@ -365,16 +361,8 @@ def _handle_list_tracks(event, repo, user_id, correlation_id):
         user_id=user_id, category_id=cid,
         limit=limit, offset=offset, search=search,
     )
-    return _json_response(
-        200,
-        {
-            "items": [_track_in_category_response(it) for it in result.items],
-            "total": result.total,
-            "limit": result.limit,
-            "offset": result.offset,
-            "correlation_id": correlation_id,
-        },
-        correlation_id,
+    return _paginated_response(
+        result, _track_in_category_response, correlation_id
     )
 
 
