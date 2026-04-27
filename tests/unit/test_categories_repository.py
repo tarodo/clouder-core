@@ -374,6 +374,12 @@ def test_reorder_validates_set_and_updates_positions() -> None:
     update_sql = data_api.execute.call_args_list[2].args[0]
     assert "UPDATE categories" in update_sql
     assert "SET position = :position" in update_sql
+    assert "user_id = :user_id" in update_sql
+    assert "style_id = :style_id" in update_sql
+    assert "deleted_at IS NULL" in update_sql
+    # All 6 execute calls (style + alive ids + 3 updates + final select) inside same TX
+    for call in data_api.execute.call_args_list:
+        assert call.kwargs.get("transaction_id") == "tx-1"
 
 
 def test_reorder_raises_when_style_missing() -> None:
