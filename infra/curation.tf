@@ -40,3 +40,31 @@ resource "aws_apigatewayv2_integration" "curation" {
   integration_uri        = aws_lambda_function.curation.invoke_arn
   payload_format_version = "2.0"
 }
+
+# ── Routes (all JWT-gated) ──────────────────────────────────────────
+
+locals {
+  curation_routes = [
+    "POST /styles/{style_id}/categories",
+    "GET /styles/{style_id}/categories",
+    "PUT /styles/{style_id}/categories/order",
+    "GET /categories",
+    "GET /categories/{id}",
+    "PATCH /categories/{id}",
+    "DELETE /categories/{id}",
+    "GET /categories/{id}/tracks",
+    "POST /categories/{id}/tracks",
+    "DELETE /categories/{id}/tracks/{track_id}",
+  ]
+}
+
+resource "aws_apigatewayv2_route" "curation" {
+  for_each = toset(local.curation_routes)
+
+  api_id    = aws_apigatewayv2_api.collector.id
+  route_key = each.key
+  target    = "integrations/${aws_apigatewayv2_integration.curation.id}"
+
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
