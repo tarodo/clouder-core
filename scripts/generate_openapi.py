@@ -71,6 +71,95 @@ LIST_RESPONSE_TEMPLATE = {
     },
 }
 
+CATEGORY_RESPONSE = {
+    "type": "object",
+    "required": [
+        "id", "style_id", "style_name", "name",
+        "position", "track_count", "created_at", "updated_at",
+    ],
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "style_id": {"type": "string", "format": "uuid"},
+        "style_name": {"type": "string"},
+        "name": {"type": "string"},
+        "position": {"type": "integer"},
+        "track_count": {"type": "integer"},
+        "created_at": {"type": "string"},
+        "updated_at": {"type": "string"},
+        "correlation_id": {"type": "string"},
+    },
+}
+
+CATEGORY_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total", "limit", "offset"],
+    "properties": {
+        "items": {"type": "array", "items": CATEGORY_RESPONSE},
+        "total": {"type": "integer"},
+        "limit": {"type": "integer"},
+        "offset": {"type": "integer"},
+        "correlation_id": {"type": "string"},
+    },
+}
+
+CATEGORY_TRACK_RESPONSE = {
+    "type": "object",
+    "description": (
+        "Full clouder_tracks row plus added_at and source_triage_block_id "
+        "(NULL for direct adds, set by spec-D triage finalize)."
+    ),
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "title": {"type": "string"},
+        "mix_name": {"type": ["string", "null"]},
+        "isrc": {"type": ["string", "null"]},
+        "bpm": {"type": ["integer", "null"]},
+        "length_ms": {"type": ["integer", "null"]},
+        "publish_date": {"type": ["string", "null"]},
+        "spotify_id": {"type": ["string", "null"]},
+        "release_type": {"type": ["string", "null"]},
+        "is_ai_suspected": {"type": "boolean"},
+        "artists": {"type": "array", "items": {"type": "string"}},
+        "added_at": {"type": "string"},
+        "source_triage_block_id": {"type": ["string", "null"]},
+    },
+}
+
+CATEGORY_TRACKS_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total", "limit", "offset"],
+    "properties": {
+        "items": {"type": "array", "items": CATEGORY_TRACK_RESPONSE},
+        "total": {"type": "integer"},
+        "limit": {"type": "integer"},
+        "offset": {"type": "integer"},
+        "correlation_id": {"type": "string"},
+    },
+}
+
+ADD_TRACK_RESPONSE = {
+    "type": "object",
+    "required": ["result", "added_at"],
+    "properties": {
+        "result": {
+            "type": "string",
+            "enum": ["added", "already_present"],
+        },
+        "added_at": {"type": "string"},
+        "source_triage_block_id": {"type": ["string", "null"]},
+        "correlation_id": {"type": "string"},
+    },
+}
+
+REORDER_RESPONSE = {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+        "items": {"type": "array", "items": CATEGORY_RESPONSE},
+        "correlation_id": {"type": "string"},
+    },
+}
+
 USER_PROFILE = {
     "type": "object",
     "required": ["id", "spotify_id", "is_admin"],
@@ -450,6 +539,211 @@ ROUTES: list[dict[str, Any]] = [
             "200": _make_response(200, "Paginated items.", LIST_RESPONSE_TEMPLATE),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
+        },
+    },
+    # ── curation: categories (spec-C) ──────────────────────────────
+    {
+        "method": "post",
+        "path": "/styles/{style_id}/categories",
+        "auth": AUTH,
+        "summary": "Create a category in a style (spec-C Layer 1).",
+        "description": (
+            "Aurora-only. UUID issued server-side. position assigned at MAX(position)+1 "
+            "within (user_id, style_id, deleted_at IS NULL)."
+        ),
+        "parameters": [
+            {"name": "style_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 64}},
+                "additionalProperties": False,
+            }}},
+        },
+        "responses": {
+            "201": _make_response(201, "Category created.", CATEGORY_RESPONSE),
+            "404": _error(404, "style_not_found."),
+            "409": _error(409, "name_conflict (normalized name already exists in style)."),
+            "422": _error(422, "validation_error (empty/whitespace/>64/control chars)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/styles/{style_id}/categories",
+        "auth": AUTH,
+        "summary": "List categories of a style (paginated, ordered by position).",
+        "parameters": [
+            {"name": "style_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            *PAGINATION_PARAMS,
+        ],
+        "responses": {
+            "200": _make_response(200, "Paginated categories.", CATEGORY_LIST_RESPONSE),
+            "404": _error(404, "style_not_found."),
+            "422": _error(422, "validation_error (limit/offset out of range)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "put",
+        "path": "/styles/{style_id}/categories/order",
+        "auth": AUTH,
+        "summary": "Replace category order in a style (full-list).",
+        "description": (
+            "Body must be the exact set of non-deleted categories in this style. "
+            "422 order_mismatch on extra/missing/duplicate ids."
+        ),
+        "parameters": [
+            {"name": "style_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["category_ids"],
+                "properties": {"category_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}}},
+                "additionalProperties": False,
+            }}},
+        },
+        "responses": {
+            "200": _make_response(200, "Reordered categories in their new order.", REORDER_RESPONSE),
+            "404": _error(404, "style_not_found."),
+            "422": _error(422, "order_mismatch (set of ids does not equal the alive set)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/categories",
+        "auth": AUTH,
+        "summary": "List all of the user's categories across styles.",
+        "parameters": PAGINATION_PARAMS,
+        "responses": {
+            "200": _make_response(200, "Paginated categories.", CATEGORY_LIST_RESPONSE),
+            "422": _error(422, "validation_error (limit/offset out of range)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/categories/{id}",
+        "auth": AUTH,
+        "summary": "Get one category.",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Category.", CATEGORY_RESPONSE),
+            "404": _error(404, "category_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "patch",
+        "path": "/categories/{id}",
+        "auth": AUTH,
+        "summary": "Rename category. style_id is immutable.",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 64}},
+                "additionalProperties": False,
+            }}},
+        },
+        "responses": {
+            "200": _make_response(200, "Renamed category.", CATEGORY_RESPONSE),
+            "404": _error(404, "category_not_found."),
+            "409": _error(409, "name_conflict."),
+            "422": _error(422, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "delete",
+        "path": "/categories/{id}",
+        "auth": AUTH,
+        "summary": "Soft-delete category. Tracks remain in category_tracks but are filtered.",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "204": {"description": "Soft-deleted."},
+            "404": _error(404, "category_not_found (or already deleted)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/categories/{id}/tracks",
+        "auth": AUTH,
+        "summary": "List tracks in a category.",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            *PAGINATION_PARAMS,
+            {
+                "name": "search",
+                "in": "query",
+                "schema": {"type": "string"},
+                "description": "Lowercased + trimmed before matching against clouder_tracks.normalized_title (ILIKE %term%).",
+            },
+        ],
+        "responses": {
+            "200": _make_response(200, "Paginated tracks.", CATEGORY_TRACKS_LIST_RESPONSE),
+            "404": _error(404, "category_not_found."),
+            "422": _error(422, "validation_error (limit/offset out of range)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/categories/{id}/tracks",
+        "auth": AUTH,
+        "summary": "Add a track to a category. Idempotent on (category_id, track_id).",
+        "description": (
+            "201 with result='added' if newly inserted; 200 with result='already_present' "
+            "if the (category, track) pair already exists. First-write-wins on added_at + source."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["track_id"],
+                "properties": {"track_id": {"type": "string", "format": "uuid"}},
+                "additionalProperties": False,
+            }}},
+        },
+        "responses": {
+            "201": _make_response(201, "Track added.", ADD_TRACK_RESPONSE),
+            "200": _make_response(200, "Track already in category (no change).", ADD_TRACK_RESPONSE),
+            "404": _error(404, "category_not_found or track_not_found."),
+            "422": _error(422, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "delete",
+        "path": "/categories/{id}/tracks/{track_id}",
+        "auth": AUTH,
+        "summary": "Remove a track from a category (hard delete of the membership row).",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "204": {"description": "Track removed."},
+            "404": _error(404, "category_not_found or track_not_in_category."),
+            **COMMON_AUTH_ERRORS,
         },
     },
 ]

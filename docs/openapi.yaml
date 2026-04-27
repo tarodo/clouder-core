@@ -319,20 +319,23 @@ paths:
         '401': *id001
         '403': *id002
       parameters: &id004
-      - name: limit
+      - &id006
+        name: limit
         in: query
         schema:
           type: integer
           minimum: 1
           maximum: 200
           default: 50
-      - name: offset
+      - &id007
+        name: offset
         in: query
         schema:
           type: integer
           minimum: 0
           default: 0
-      - name: search
+      - &id008
+        name: search
         in: query
         schema:
           type: string
@@ -474,6 +477,547 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /styles/{style_id}/categories:
+    post:
+      summary: Create a category in a style (spec-C Layer 1).
+      responses:
+        '201':
+          description: Category created.
+          content:
+            application/json:
+              schema: &id005
+                type: object
+                required:
+                - id
+                - style_id
+                - style_name
+                - name
+                - position
+                - track_count
+                - created_at
+                - updated_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  style_id:
+                    type: string
+                    format: uuid
+                  style_name:
+                    type: string
+                  name:
+                    type: string
+                  position:
+                    type: integer
+                  track_count:
+                    type: integer
+                  created_at:
+                    type: string
+                  updated_at:
+                    type: string
+                  correlation_id:
+                    type: string
+        '404':
+          description: style_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: name_conflict (normalized name already exists in style).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error (empty/whitespace/>64/control chars).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Aurora-only. UUID issued server-side. position assigned at MAX(position)+1
+        within (user_id, style_id, deleted_at IS NULL).
+      parameters:
+      - name: style_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+              additionalProperties: false
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    get:
+      summary: List categories of a style (paginated, ordered by position).
+      responses:
+        '200':
+          description: Paginated categories.
+          content:
+            application/json:
+              schema: &id009
+                type: object
+                required:
+                - items
+                - total
+                - limit
+                - offset
+                properties:
+                  items:
+                    type: array
+                    items: *id005
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  correlation_id:
+                    type: string
+        '404':
+          description: style_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error (limit/offset out of range).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: style_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id006
+      - *id007
+      - *id008
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /styles/{style_id}/categories/order:
+    put:
+      summary: Replace category order in a style (full-list).
+      responses:
+        '200':
+          description: Reordered categories in their new order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items: *id005
+                  correlation_id:
+                    type: string
+        '404':
+          description: style_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: order_mismatch (set of ids does not equal the alive set).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Body must be the exact set of non-deleted categories in this style.
+        422 order_mismatch on extra/missing/duplicate ids.
+      parameters:
+      - name: style_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - category_ids
+              properties:
+                category_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+              additionalProperties: false
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /categories:
+    get:
+      summary: List all of the user's categories across styles.
+      responses:
+        '200':
+          description: Paginated categories.
+          content:
+            application/json:
+              schema: *id009
+        '422':
+          description: validation_error (limit/offset out of range).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters: *id004
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /categories/{id}:
+    get:
+      summary: Get one category.
+      responses:
+        '200':
+          description: Category.
+          content:
+            application/json:
+              schema: *id005
+        '404':
+          description: category_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    patch:
+      summary: Rename category. style_id is immutable.
+      responses:
+        '200':
+          description: Renamed category.
+          content:
+            application/json:
+              schema: *id005
+        '404':
+          description: category_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: name_conflict.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+              additionalProperties: false
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    delete:
+      summary: Soft-delete category. Tracks remain in category_tracks but are filtered.
+      responses:
+        '204':
+          description: Soft-deleted.
+        '404':
+          description: category_not_found (or already deleted).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /categories/{id}/tracks:
+    get:
+      summary: List tracks in a category.
+      responses:
+        '200':
+          description: Paginated tracks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - total
+                - limit
+                - offset
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      description: Full clouder_tracks row plus added_at and source_triage_block_id
+                        (NULL for direct adds, set by spec-D triage finalize).
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        mix_name:
+                          type:
+                          - string
+                          - 'null'
+                        isrc:
+                          type:
+                          - string
+                          - 'null'
+                        bpm:
+                          type:
+                          - integer
+                          - 'null'
+                        length_ms:
+                          type:
+                          - integer
+                          - 'null'
+                        publish_date:
+                          type:
+                          - string
+                          - 'null'
+                        spotify_id:
+                          type:
+                          - string
+                          - 'null'
+                        release_type:
+                          type:
+                          - string
+                          - 'null'
+                        is_ai_suspected:
+                          type: boolean
+                        artists:
+                          type: array
+                          items:
+                            type: string
+                        added_at:
+                          type: string
+                        source_triage_block_id:
+                          type:
+                          - string
+                          - 'null'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  correlation_id:
+                    type: string
+        '404':
+          description: category_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error (limit/offset out of range).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id006
+      - *id007
+      - *id008
+      - name: search
+        in: query
+        schema:
+          type: string
+        description: Lowercased + trimmed before matching against clouder_tracks.normalized_title
+          (ILIKE %term%).
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    post:
+      summary: Add a track to a category. Idempotent on (category_id, track_id).
+      responses:
+        '201':
+          description: Track added.
+          content:
+            application/json:
+              schema: &id010
+                type: object
+                required:
+                - result
+                - added_at
+                properties:
+                  result:
+                    type: string
+                    enum:
+                    - added
+                    - already_present
+                  added_at:
+                    type: string
+                  source_triage_block_id:
+                    type:
+                    - string
+                    - 'null'
+                  correlation_id:
+                    type: string
+        '200':
+          description: Track already in category (no change).
+          content:
+            application/json:
+              schema: *id010
+        '404':
+          description: category_not_found or track_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: 201 with result='added' if newly inserted; 200 with result='already_present'
+        if the (category, track) pair already exists. First-write-wins on added_at
+        + source.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - track_id
+              properties:
+                track_id:
+                  type: string
+                  format: uuid
+              additionalProperties: false
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /categories/{id}/tracks/{track_id}:
+    delete:
+      summary: Remove a track from a category (hard delete of the membership row).
+      responses:
+        '204':
+          description: Track removed.
+        '404':
+          description: category_not_found or track_not_in_category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: track_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
 components:
   securitySchemes:
     BearerAuth:
