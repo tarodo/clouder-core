@@ -524,6 +524,12 @@ def test_add_track_returns_added_when_newly_inserted() -> None:
         [{"id": "c1"}],            # category lookup (inside add_tracks_bulk)
         [{"id": "t1"}],            # track lookup
         [{"track_id": "t1"}],       # INSERT returning -> newly inserted
+        [
+            {
+                "added_at": "2026-04-27T12:00:00+00:00",
+                "source_triage_block_id": None,
+            }
+        ],                          # post-insert SELECT for canonical shape
     ]
     result, was_new = repo.add_track(
         user_id="u1",
@@ -533,8 +539,34 @@ def test_add_track_returns_added_when_newly_inserted() -> None:
         now=_now(),
     )
     assert was_new is True
-    assert result["added_at"] is not None
+    assert result["added_at"] == "2026-04-27T12:00:00+00:00"
     assert result["source_triage_block_id"] is None
+
+
+def test_add_track_with_source_block_round_trips() -> None:
+    """source_triage_block_id round-trips correctly on newly-added path
+    (used by spec-D's triage finalize)."""
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [{"id": "t1"}],
+        [{"track_id": "t1"}],
+        [
+            {
+                "added_at": "2026-04-27T12:00:00+00:00",
+                "source_triage_block_id": "block-d-7",
+            }
+        ],
+    ]
+    result, was_new = repo.add_track(
+        user_id="u1",
+        category_id="c1",
+        track_id="t1",
+        source_triage_block_id="block-d-7",
+        now=_now(),
+    )
+    assert was_new is True
+    assert result["source_triage_block_id"] == "block-d-7"
 
 
 def test_add_track_returns_existing_when_already_present() -> None:
@@ -573,6 +605,11 @@ def test_remove_track_returns_true_on_delete() -> None:
         user_id="u1", category_id="c1", track_id="t1"
     )
     assert deleted is True
+    cat_sql = data_api.execute.call_args_list[0].args[0]
+    cat_params = data_api.execute.call_args_list[0].args[1]
+    assert "user_id = :user_id" in cat_sql
+    assert "deleted_at IS NULL" in cat_sql
+    assert cat_params["user_id"] == "u1"
     delete_sql = data_api.execute.call_args_list[1].args[0]
     assert "DELETE FROM category_tracks" in delete_sql
 
@@ -585,6 +622,10 @@ def test_remove_track_raises_category_not_found() -> None:
             user_id="u1", category_id="missing", track_id="t1"
         )
     assert exc.value.error_code == "category_not_found"
+    cat_sql = data_api.execute.call_args_list[0].args[0]
+    cat_params = data_api.execute.call_args_list[0].args[1]
+    assert "user_id = :user_id" in cat_sql
+    assert cat_params["user_id"] == "u1"
 
 
 def test_remove_track_returns_false_when_not_in_category() -> None:

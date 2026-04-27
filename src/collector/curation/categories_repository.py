@@ -485,6 +485,11 @@ class CategoriesRepository:
         """Add one track to a category. Idempotent on (category_id, track_id).
 
         Returns ({added_at, source_triage_block_id}, was_newly_added).
+
+        Always re-SELECTs after the bulk insert so both branches return the
+        canonical stored values in the same Data API string format. (Without
+        this, the newly-added branch returned `now.isoformat()` while the
+        already-present branch returned the Data API's own format — inconsistent.)
         """
         inserted = self.add_tracks_bulk(
             user_id=user_id,
@@ -492,14 +497,6 @@ class CategoriesRepository:
             items=[(track_id, source_triage_block_id)],
             now=now,
         )
-        if inserted:
-            return (
-                {
-                    "added_at": now.isoformat(),
-                    "source_triage_block_id": source_triage_block_id,
-                },
-                True,
-            )
 
         rows = self._data_api.execute(
             """
@@ -510,13 +507,20 @@ class CategoriesRepository:
             """,
             {"category_id": category_id, "track_id": track_id},
         )
+        if not rows:
+            # Race: track was removed between INSERT and SELECT. Treat as
+            # not present any more — the caller's add was effectively a no-op.
+            raise NotFoundError(
+                "track_not_in_category",
+                "Track was not in category after insert (race)",
+            )
         row = rows[0]
         return (
             {
                 "added_at": str(row["added_at"]),
                 "source_triage_block_id": row["source_triage_block_id"],
             },
-            False,
+            bool(inserted),
         )
 
     def remove_track(
