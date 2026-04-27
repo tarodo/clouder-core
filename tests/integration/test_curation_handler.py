@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Any, Mapping
 
@@ -319,3 +320,71 @@ def test_missing_authorizer_returns_401(fake_repo, context):
     status, body = _read(resp)
     assert status == 401
     assert body["error_code"] == "unauthorized"
+
+
+def test_create_category_201(fake_repo, context):
+    resp = lambda_handler(
+        _event(
+            method="POST",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s1"},
+            body={"name": "Tech House"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 201
+    assert body["name"] == "Tech House"
+    assert body["style_name"] == "House"
+    assert body["position"] == 0
+    assert body["track_count"] == 0
+
+
+def test_create_category_409_on_duplicate(fake_repo, context):
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+    )
+    resp = lambda_handler(
+        _event(
+            method="POST",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s1"},
+            body={"name": "tech"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 409
+    assert body["error_code"] == "name_conflict"
+
+
+def test_create_category_404_style(fake_repo, context):
+    resp = lambda_handler(
+        _event(
+            method="POST",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "missing"},
+            body={"name": "Tech"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404
+    assert body["error_code"] == "style_not_found"
+
+
+def test_create_category_422_empty_name(fake_repo, context):
+    resp = lambda_handler(
+        _event(
+            method="POST",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s1"},
+            body={"name": "   "},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 422
+    assert body["error_code"] == "validation_error"

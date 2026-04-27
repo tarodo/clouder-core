@@ -26,6 +26,11 @@ from .curation.categories_repository import (
     CategoriesRepository,
     create_default_categories_repository,
 )
+from .curation.categories_service import (
+    normalize_category_name,
+    validate_category_name,
+)
+from .curation.schemas import CreateCategoryIn
 from .logging_utils import log_event
 
 
@@ -177,4 +182,42 @@ def lambda_handler(
 # ---------- Route handlers (Tasks 14–22 fill in) ----------------------------
 
 # Each takes (event, repo, user_id, correlation_id) and returns a Lambda response dict.
-_ROUTE_TABLE: dict[str, Callable[..., dict[str, Any]]] = {}
+
+
+def _handle_create_category(
+    event, repo: CategoriesRepository, user_id: str, correlation_id: str
+):
+    style_id = (event.get("pathParameters") or {}).get("style_id")
+    if not style_id:
+        raise ValidationError("style_id is required in path")
+    body = CreateCategoryIn.model_validate(_parse_body(event))
+    validate_category_name(body.name)
+    normalized = normalize_category_name(body.name)
+    if not normalized:
+        raise ValidationError("Name must be non-empty")
+    category_id = str(uuid.uuid4())
+    now = utc_now()
+    row = repo.create(
+        user_id=user_id,
+        style_id=style_id,
+        category_id=category_id,
+        name=body.name.strip(),
+        normalized_name=normalized,
+        now=now,
+    )
+    log_event(
+        "INFO",
+        "category_created",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        category_id=row.id,
+        style_id=row.style_id,
+    )
+    payload = _category_response(row)
+    payload["correlation_id"] = correlation_id
+    return _json_response(201, payload, correlation_id)
+
+
+_ROUTE_TABLE: dict[str, Callable[..., dict[str, Any]]] = {
+    "POST /styles/{style_id}/categories": _handle_create_category,
+}
