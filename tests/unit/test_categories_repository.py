@@ -649,6 +649,36 @@ def test_list_tracks_validates_category() -> None:
             limit=50, offset=0, search=None,
         )
     assert exc.value.error_code == "category_not_found"
+    cat_sql = data_api.execute.call_args_list[0].args[0]
+    cat_params = data_api.execute.call_args_list[0].args[1]
+    assert "user_id = :user_id" in cat_sql
+    assert "deleted_at IS NULL" in cat_sql
+    assert cat_params["user_id"] == "u1"
+
+
+def test_list_tracks_handles_empty_artists() -> None:
+    """LEFT JOIN with no matching artists yields artist_names=NULL → []."""
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [
+            {
+                "id": "t1", "title": "Song", "mix_name": None,
+                "isrc": None, "bpm": None, "length_ms": None,
+                "publish_date": None, "spotify_id": None,
+                "release_type": None, "is_ai_suspected": False,
+                "artist_names": None,
+                "added_at": "2026-04-27T12:00:00Z",
+                "source_triage_block_id": None,
+            }
+        ],
+        [{"total": 1}],
+    ]
+    result = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=50, offset=0, search=None,
+    )
+    assert result.items[0].track["artists"] == []
 
 
 def test_list_tracks_returns_rows_and_total() -> None:
