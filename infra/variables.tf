@@ -439,3 +439,15 @@ variable "auth_authorizer_cache_ttl_seconds" {
   type        = number
   default     = 300
 }
+
+variable "curation_lambda_timeout_seconds" {
+  type        = number
+  default     = 30
+  description = "Curation Lambda timeout (seconds)"
+}
+
+variable "curation_lambda_memory_mb" {
+  type        = number
+  default     = 512
+  description = "Curation Lambda memory size (MB)"
+}

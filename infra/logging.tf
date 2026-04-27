@@ -38,6 +38,11 @@ resource "aws_cloudwatch_log_group" "auth_authorizer" {
   retention_in_days = var.log_retention_days
 }
 
+resource "aws_cloudwatch_log_group" "curation" {
+  name              = "/aws/lambda/${local.curation_lambda_name}"
+  retention_in_days = var.log_retention_days
+}
+
 # ── DLQ depth alarms ─────────────────────────────────────────────
 
 locals {
