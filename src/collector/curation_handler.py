@@ -154,7 +154,14 @@ def lambda_handler(
     try:
         return handler(event, repo, user_id, correlation_id)
     except PydanticValidationError as exc:
-        return _error(422, "validation_error", str(exc.errors()[0]["msg"]), correlation_id)
+        first = exc.errors()[0]
+        loc = ".".join(str(p) for p in first.get("loc", ())) or "body"
+        return _error(
+            422,
+            "validation_error",
+            f"{loc}: {first['msg']}",
+            correlation_id,
+        )
     except CurationError as exc:
         return _error(exc.http_status, exc.error_code, exc.message, correlation_id)
     except Exception as exc:  # noqa: BLE001
