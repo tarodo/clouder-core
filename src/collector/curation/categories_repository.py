@@ -249,7 +249,77 @@ class CategoriesRepository:
             offset=offset,
         )
 
-    # Remaining methods filled in by Tasks 8–13.
+    def rename(
+        self,
+        *,
+        user_id: str,
+        category_id: str,
+        name: str,
+        normalized_name: str,
+        now: datetime,
+    ) -> CategoryRow:
+        try:
+            updated = self._data_api.execute(
+                """
+                UPDATE categories
+                SET name = :name,
+                    normalized_name = :normalized_name,
+                    updated_at = :now
+                WHERE id = :category_id
+                  AND user_id = :user_id
+                  AND deleted_at IS NULL
+                RETURNING id
+                """,
+                {
+                    "category_id": category_id,
+                    "user_id": user_id,
+                    "name": name,
+                    "normalized_name": normalized_name,
+                    "now": now,
+                },
+            )
+        except Exception as exc:
+            if "uq_categories_user_style_normname" in str(exc):
+                raise NameConflictError(
+                    "Category name already exists in this style"
+                ) from exc
+            raise
+
+        if not updated:
+            raise NotFoundError(
+                "category_not_found", "Category not found"
+            )
+
+        row = self.get(user_id=user_id, category_id=category_id)
+        if row is None:
+            # Race: another caller deleted it between UPDATE and SELECT.
+            raise NotFoundError(
+                "category_not_found", "Category not found"
+            )
+        return row
+
+    def soft_delete(
+        self, *, user_id: str, category_id: str, now: datetime
+    ) -> bool:
+        rows = self._data_api.execute(
+            """
+            UPDATE categories
+            SET deleted_at = :now,
+                updated_at = :now
+            WHERE id = :category_id
+              AND user_id = :user_id
+              AND deleted_at IS NULL
+            RETURNING id
+            """,
+            {
+                "category_id": category_id,
+                "user_id": user_id,
+                "now": now,
+            },
+        )
+        return bool(rows)
+
+    # Remaining methods filled in by Tasks 9–13.
 
 
 def create_default_categories_repository() -> CategoriesRepository | None:

@@ -241,3 +241,82 @@ def test_list_all_returns_rows_and_total() -> None:
     assert "COUNT(*)" in count_sql
     assert "deleted_at IS NULL" in count_sql
     assert "style_id" not in count_sql
+
+
+def test_rename_updates_and_returns_row() -> None:
+    repo, data_api = _make()
+    # First execute is the UPDATE ... RETURNING; second is the SELECT for shape.
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],  # UPDATE returning at least one row -> success
+        [
+            {
+                "id": "c1", "user_id": "u1", "style_id": "s1",
+                "style_name": "House", "name": "Deep",
+                "normalized_name": "deep", "position": 0,
+                "track_count": 0,
+                "created_at": "x", "updated_at": "x",
+            }
+        ],
+    ]
+    row = repo.rename(
+        user_id="u1",
+        category_id="c1",
+        name="Deep",
+        normalized_name="deep",
+        now=_now(),
+    )
+    assert row.name == "Deep"
+    update_sql = data_api.execute.call_args_list[0].args[0]
+    assert "UPDATE categories" in update_sql
+    assert "deleted_at IS NULL" in update_sql
+
+
+def test_rename_raises_not_found_when_no_row() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [[]]
+    with pytest.raises(NotFoundError) as exc:
+        repo.rename(
+            user_id="u1", category_id="missing",
+            name="x", normalized_name="x", now=_now(),
+        )
+    assert exc.value.error_code == "category_not_found"
+
+
+def test_rename_maps_unique_violation_to_name_conflict() -> None:
+    repo, data_api = _make()
+
+    class FakeUniqueViolation(Exception):
+        def __str__(self) -> str:
+            return (
+                "duplicate key value violates unique constraint "
+                "\"uq_categories_user_style_normname\""
+            )
+
+    data_api.execute.side_effect = [FakeUniqueViolation()]
+    with pytest.raises(NameConflictError):
+        repo.rename(
+            user_id="u1", category_id="c1",
+            name="x", normalized_name="x", now=_now(),
+        )
+
+
+def test_soft_delete_updates_deleted_at() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = [{"id": "c1"}]
+    deleted = repo.soft_delete(
+        user_id="u1", category_id="c1", now=_now()
+    )
+    assert deleted is True
+    sql = data_api.execute.call_args.args[0]
+    assert "UPDATE categories" in sql
+    assert "deleted_at = :now" in sql
+    assert "deleted_at IS NULL" in sql
+
+
+def test_soft_delete_returns_false_when_no_row() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = []
+    deleted = repo.soft_delete(
+        user_id="u1", category_id="missing", now=_now()
+    )
+    assert deleted is False
