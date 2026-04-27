@@ -816,3 +816,87 @@ def test_remove_track_404_when_not_in_category(fake_repo, context):
     status, body = _read(resp)
     assert status == 404
     assert body["error_code"] == "track_not_in_category"
+
+
+# ---------- Tenancy isolation tests ------------------------------------------
+
+def test_user_b_cannot_see_user_a_category(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="user-a", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    # User B requests detail
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/categories/{id}",
+            path_params={"id": "c1"},
+            user_id="user-b",
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404
+
+
+def test_user_b_cannot_rename_user_a_category(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="user-a", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="PATCH",
+            route="/categories/{id}",
+            path_params={"id": "c1"},
+            user_id="user-b",
+            body={"name": "Hijack"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404
+
+
+def test_user_b_cannot_delete_user_a_category(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="user-a", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="DELETE",
+            route="/categories/{id}",
+            path_params={"id": "c1"},
+            user_id="user-b",
+        ),
+        context,
+    )
+    assert resp["statusCode"] == 404
+
+
+def test_list_by_style_filters_by_user(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="user-a", style_id="s1", category_id="c1",
+        name="A", normalized_name="a", now=now,
+    )
+    fake_repo.create(
+        user_id="user-b", style_id="s1", category_id="c2",
+        name="B", normalized_name="b", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s1"},
+            user_id="user-a",
+        ),
+        context,
+    )
+    _, body = _read(resp)
+    assert body["total"] == 1
+    assert body["items"][0]["id"] == "c1"
