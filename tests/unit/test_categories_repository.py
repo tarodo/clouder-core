@@ -210,8 +210,18 @@ def test_list_by_style_returns_rows_and_total() -> None:
     assert result.total == 1
     assert len(result.items) == 1
     list_sql = data_api.execute.call_args_list[0].args[0]
-    assert "ORDER BY c.position ASC" in list_sql
+    list_params = data_api.execute.call_args_list[0].args[1]
+    assert "ORDER BY c.position ASC, c.created_at DESC, c.id ASC" in list_sql
     assert "c.deleted_at IS NULL" in list_sql
+    assert "c.style_id = :style_id" in list_sql
+    assert "LIMIT :limit OFFSET :offset" in list_sql
+    assert list_params == {
+        "user_id": "u1", "style_id": "s1", "limit": 50, "offset": 0,
+    }
+    count_sql = data_api.execute.call_args_list[1].args[0]
+    assert "COUNT(*)" in count_sql
+    assert "deleted_at IS NULL" in count_sql
+    assert "style_id = :style_id" in count_sql
 
 
 def test_list_all_returns_rows_and_total() -> None:
@@ -220,5 +230,14 @@ def test_list_all_returns_rows_and_total() -> None:
     result = repo.list_all(user_id="u1", limit=50, offset=0)
     assert result.total == 0
     list_sql = data_api.execute.call_args_list[0].args[0]
-    assert "ORDER BY c.created_at DESC" in list_sql
+    list_params = data_api.execute.call_args_list[0].args[1]
+    assert "ORDER BY c.created_at DESC, c.id ASC" in list_sql
+    assert "c.deleted_at IS NULL" in list_sql
+    assert "LIMIT :limit OFFSET :offset" in list_sql
+    # No style_id filter in cross-style list
     assert "c.style_id" not in list_sql.split("WHERE")[1].split("ORDER BY")[0]
+    assert list_params == {"user_id": "u1", "limit": 50, "offset": 0}
+    count_sql = data_api.execute.call_args_list[1].args[0]
+    assert "COUNT(*)" in count_sql
+    assert "deleted_at IS NULL" in count_sql
+    assert "style_id" not in count_sql
