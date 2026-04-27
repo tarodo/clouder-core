@@ -478,6 +478,30 @@ def test_add_tracks_bulk_passes_transaction_id() -> None:
         assert call.kwargs.get("transaction_id") == "external-tx"
 
 
+def test_add_tracks_bulk_dedups_duplicate_track_ids_in_items() -> None:
+    """Same track_id twice with different source_triage_block_id must not
+    abort the INSERT. First-src-wins."""
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],            # category exists
+        [{"id": "t1"}],            # only one unique track to check
+        [{"track_id": "t1"}],       # one INSERT row returned
+    ]
+    inserted = repo.add_tracks_bulk(
+        user_id="u1",
+        category_id="c1",
+        items=[("t1", "first-block"), ("t1", "second-block")],
+        now=_now(),
+    )
+    assert inserted == 1
+    insert_sql = data_api.execute.call_args_list[2].args[0]
+    insert_params = data_api.execute.call_args_list[2].args[1]
+    # Only one VALUES tuple, with first-src-wins
+    assert insert_sql.count("(:category_id, :tid_") == 1
+    assert insert_params["tid_0"] == "t1"
+    assert insert_params["src_0"] == "first-block"
+
+
 def test_add_tracks_bulk_idempotent_returns_zero_when_all_existing() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = [

@@ -437,18 +437,30 @@ class CategoriesRepository:
                 "track_not_found", f"Track(s) not found: {missing[0]}"
             )
 
+        # Dedup items by track_id (first-src-wins). Postgres aborts an
+        # ON CONFLICT DO NOTHING statement if the same target row appears
+        # twice in VALUES — happens if the caller passes the same track_id
+        # twice with different source_triage_block_id.
+        seen: set[str] = set()
+        unique_items: list[tuple[str, str | None]] = []
+        for tid, src in items:
+            if tid in seen:
+                continue
+            seen.add(tid)
+            unique_items.append((tid, src))
+
         # Build a multi-row INSERT.
         value_rows = []
-        params = {
+        insert_params: dict[str, Any] = {
             "category_id": category_id,
             "now": now,
         }
-        for i, (tid, src) in enumerate(items):
+        for i, (tid, src) in enumerate(unique_items):
             value_rows.append(
                 f"(:category_id, :tid_{i}, :now, :src_{i})"
             )
-            params[f"tid_{i}"] = tid
-            params[f"src_{i}"] = src
+            insert_params[f"tid_{i}"] = tid
+            insert_params[f"src_{i}"] = src
         sql = f"""
             INSERT INTO category_tracks (
                 category_id, track_id, added_at, source_triage_block_id
@@ -457,7 +469,7 @@ class CategoriesRepository:
             RETURNING track_id
         """
         rows = self._data_api.execute(
-            sql, params, transaction_id=transaction_id
+            sql, insert_params, transaction_id=transaction_id
         )
         return len(rows)
 
