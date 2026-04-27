@@ -516,3 +516,84 @@ def test_add_tracks_bulk_idempotent_returns_zero_when_all_existing() -> None:
         now=_now(),
     )
     assert inserted == 0
+
+
+def test_add_track_returns_added_when_newly_inserted() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],            # category lookup (inside add_tracks_bulk)
+        [{"id": "t1"}],            # track lookup
+        [{"track_id": "t1"}],       # INSERT returning -> newly inserted
+    ]
+    result, was_new = repo.add_track(
+        user_id="u1",
+        category_id="c1",
+        track_id="t1",
+        source_triage_block_id=None,
+        now=_now(),
+    )
+    assert was_new is True
+    assert result["added_at"] is not None
+    assert result["source_triage_block_id"] is None
+
+
+def test_add_track_returns_existing_when_already_present() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [{"id": "t1"}],
+        [],   # ON CONFLICT DO NOTHING -> empty
+        [
+            {
+                "added_at": "2026-04-01T00:00:00Z",
+                "source_triage_block_id": "tb-1",
+            }
+        ],
+    ]
+    result, was_new = repo.add_track(
+        user_id="u1",
+        category_id="c1",
+        track_id="t1",
+        source_triage_block_id=None,
+        now=_now(),
+    )
+    assert was_new is False
+    assert result["added_at"] == "2026-04-01T00:00:00Z"
+    assert result["source_triage_block_id"] == "tb-1"
+
+
+def test_remove_track_returns_true_on_delete() -> None:
+    repo, data_api = _make()
+    # Validate category ownership first (one execute), then delete
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [{"track_id": "t1"}],   # DELETE RETURNING
+    ]
+    deleted = repo.remove_track(
+        user_id="u1", category_id="c1", track_id="t1"
+    )
+    assert deleted is True
+    delete_sql = data_api.execute.call_args_list[1].args[0]
+    assert "DELETE FROM category_tracks" in delete_sql
+
+
+def test_remove_track_raises_category_not_found() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [[]]
+    with pytest.raises(NotFoundError) as exc:
+        repo.remove_track(
+            user_id="u1", category_id="missing", track_id="t1"
+        )
+    assert exc.value.error_code == "category_not_found"
+
+
+def test_remove_track_returns_false_when_not_in_category() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [],   # DELETE RETURNING -> empty
+    ]
+    deleted = repo.remove_track(
+        user_id="u1", category_id="c1", track_id="t-missing"
+    )
+    assert deleted is False

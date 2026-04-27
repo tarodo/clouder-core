@@ -473,7 +473,79 @@ class CategoriesRepository:
         )
         return len(rows)
 
-    # Remaining methods filled in by Tasks 11–13.
+    def add_track(
+        self,
+        *,
+        user_id: str,
+        category_id: str,
+        track_id: str,
+        source_triage_block_id: str | None,
+        now: datetime,
+    ) -> tuple[Mapping[str, Any], bool]:
+        """Add one track to a category. Idempotent on (category_id, track_id).
+
+        Returns ({added_at, source_triage_block_id}, was_newly_added).
+        """
+        inserted = self.add_tracks_bulk(
+            user_id=user_id,
+            category_id=category_id,
+            items=[(track_id, source_triage_block_id)],
+            now=now,
+        )
+        if inserted:
+            return (
+                {
+                    "added_at": now.isoformat(),
+                    "source_triage_block_id": source_triage_block_id,
+                },
+                True,
+            )
+
+        rows = self._data_api.execute(
+            """
+            SELECT added_at, source_triage_block_id
+            FROM category_tracks
+            WHERE category_id = :category_id
+              AND track_id = :track_id
+            """,
+            {"category_id": category_id, "track_id": track_id},
+        )
+        row = rows[0]
+        return (
+            {
+                "added_at": str(row["added_at"]),
+                "source_triage_block_id": row["source_triage_block_id"],
+            },
+            False,
+        )
+
+    def remove_track(
+        self, *, user_id: str, category_id: str, track_id: str
+    ) -> bool:
+        cat_rows = self._data_api.execute(
+            """
+            SELECT id FROM categories
+            WHERE id = :category_id
+              AND user_id = :user_id
+              AND deleted_at IS NULL
+            """,
+            {"category_id": category_id, "user_id": user_id},
+        )
+        if not cat_rows:
+            raise NotFoundError("category_not_found", "Category not found")
+
+        rows = self._data_api.execute(
+            """
+            DELETE FROM category_tracks
+            WHERE category_id = :category_id
+              AND track_id = :track_id
+            RETURNING track_id
+            """,
+            {"category_id": category_id, "track_id": track_id},
+        )
+        return bool(rows)
+
+    # Remaining methods filled in by Tasks 12–13.
 
 
 def create_default_categories_repository() -> CategoriesRepository | None:
