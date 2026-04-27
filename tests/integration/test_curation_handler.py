@@ -410,6 +410,58 @@ def test_list_by_style_returns_paginated(fake_repo, context):
     assert body["total"] == 3
     assert [it["name"] for it in body["items"]] == ["A", "B", "C"]
     assert [it["position"] for it in body["items"]] == [0, 1, 2]
+    assert body["limit"] == 50
+    assert body["offset"] == 0
+    assert body["correlation_id"] == "cid-1"
+
+
+def test_list_by_style_paginates_with_limit_offset(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    for i, name in enumerate(["A", "B", "C", "D"]):
+        fake_repo.create(
+            user_id="u1", style_id="s1", category_id=f"c{i}",
+            name=name, normalized_name=name.lower(), now=now,
+        )
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s1"},
+            query={"limit": "2", "offset": "1"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["total"] == 4
+    assert body["limit"] == 2
+    assert body["offset"] == 1
+    assert [it["name"] for it in body["items"]] == ["B", "C"]
+
+
+def test_list_invalid_limit_returns_422(fake_repo, context):
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/categories",
+            query={"limit": "abc"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 422
+    assert body["error_code"] == "validation_error"
+
+
+def test_list_all_empty_returns_empty_envelope(fake_repo, context):
+    resp = lambda_handler(
+        _event(method="GET", route="/categories"),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["total"] == 0
+    assert body["items"] == []
 
 
 def test_list_by_style_404_style_missing(fake_repo, context):
