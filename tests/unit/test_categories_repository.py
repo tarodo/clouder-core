@@ -267,8 +267,14 @@ def test_rename_updates_and_returns_row() -> None:
     )
     assert row.name == "Deep"
     update_sql = data_api.execute.call_args_list[0].args[0]
+    update_params = data_api.execute.call_args_list[0].args[1]
     assert "UPDATE categories" in update_sql
+    assert "user_id = :user_id" in update_sql
     assert "deleted_at IS NULL" in update_sql
+    assert "SET name = :name" in update_sql
+    assert "normalized_name = :normalized_name" in update_sql
+    assert update_params["user_id"] == "u1"
+    assert update_params["category_id"] == "c1"
 
 
 def test_rename_raises_not_found_when_no_row() -> None:
@@ -308,9 +314,13 @@ def test_soft_delete_updates_deleted_at() -> None:
     )
     assert deleted is True
     sql = data_api.execute.call_args.args[0]
+    params = data_api.execute.call_args.args[1]
     assert "UPDATE categories" in sql
+    assert "user_id = :user_id" in sql
     assert "deleted_at = :now" in sql
     assert "deleted_at IS NULL" in sql
+    assert params["user_id"] == "u1"
+    assert params["category_id"] == "c1"
 
 
 def test_soft_delete_returns_false_when_no_row() -> None:
