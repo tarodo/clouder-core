@@ -218,6 +218,46 @@ def _handle_create_category(
     return _json_response(201, payload, correlation_id)
 
 
+def _handle_list_by_style(event, repo, user_id, correlation_id):
+    style_id = (event.get("pathParameters") or {}).get("style_id")
+    if not style_id:
+        raise ValidationError("style_id is required in path")
+    limit, offset = _parse_pagination(event)
+    result = repo.list_by_style(
+        user_id=user_id, style_id=style_id, limit=limit, offset=offset,
+    )
+    return _json_response(
+        200,
+        {
+            "items": [_category_response(r) for r in result.items],
+            "total": result.total,
+            "limit": result.limit,
+            "offset": result.offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_list_all(event, repo, user_id, correlation_id):
+    limit, offset = _parse_pagination(event)
+    result = repo.list_all(user_id=user_id, limit=limit, offset=offset)
+    return _json_response(
+        200,
+        {
+            "items": [_category_response(r) for r in result.items],
+            "total": result.total,
+            "limit": result.limit,
+            "offset": result.offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
 _ROUTE_TABLE: dict[str, Callable[..., dict[str, Any]]] = {
     "POST /styles/{style_id}/categories": _handle_create_category,
 }
+
+_ROUTE_TABLE["GET /styles/{style_id}/categories"] = _handle_list_by_style
+_ROUTE_TABLE["GET /categories"] = _handle_list_all

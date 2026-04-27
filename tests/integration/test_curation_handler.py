@@ -388,3 +388,58 @@ def test_create_category_422_empty_name(fake_repo, context):
     status, body = _read(resp)
     assert status == 422
     assert body["error_code"] == "validation_error"
+
+
+def test_list_by_style_returns_paginated(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    for i, name in enumerate(["A", "B", "C"]):
+        fake_repo.create(
+            user_id="u1", style_id="s1", category_id=f"c{i}",
+            name=name, normalized_name=name.lower(), now=now,
+        )
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s1"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["total"] == 3
+    assert [it["name"] for it in body["items"]] == ["A", "B", "C"]
+    assert [it["position"] for it in body["items"]] == [0, 1, 2]
+
+
+def test_list_by_style_404_style_missing(fake_repo, context):
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "missing"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404
+    assert body["error_code"] == "style_not_found"
+
+
+def test_list_all_returns_cross_style(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="A", normalized_name="a", now=now,
+    )
+    fake_repo.create(
+        user_id="u1", style_id="s2", category_id="c2",
+        name="B", normalized_name="b", now=now,
+    )
+    resp = lambda_handler(
+        _event(method="GET", route="/categories"),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["total"] == 2
