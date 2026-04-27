@@ -622,3 +622,59 @@ def test_delete_404_already_gone(fake_repo, context):
     status, body = _read(resp)
     assert status == 404
     assert body["error_code"] == "category_not_found"
+
+
+def test_reorder_200(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    for i, name in enumerate(["A", "B", "C"]):
+        fake_repo.create(
+            user_id="u1", style_id="s1", category_id=f"c{i}",
+            name=name, normalized_name=name.lower(), now=now,
+        )
+    resp = lambda_handler(
+        _event(
+            method="PUT",
+            route="/styles/{style_id}/categories/order",
+            path_params={"style_id": "s1"},
+            body={"category_ids": ["c2", "c0", "c1"]},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert [it["id"] for it in body["items"]] == ["c2", "c0", "c1"]
+    assert [it["position"] for it in body["items"]] == [0, 1, 2]
+
+
+def test_reorder_422_on_extra_id(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="A", normalized_name="a", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="PUT",
+            route="/styles/{style_id}/categories/order",
+            path_params={"style_id": "s1"},
+            body={"category_ids": ["c1", "ghost"]},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 422
+    assert body["error_code"] == "order_mismatch"
+
+
+def test_reorder_404_style_missing(fake_repo, context):
+    resp = lambda_handler(
+        _event(
+            method="PUT",
+            route="/styles/{style_id}/categories/order",
+            path_params={"style_id": "missing"},
+            body={"category_ids": []},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404

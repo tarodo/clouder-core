@@ -30,7 +30,7 @@ from .curation.categories_service import (
     normalize_category_name,
     validate_category_name,
 )
-from .curation.schemas import CreateCategoryIn, RenameCategoryIn
+from .curation.schemas import CreateCategoryIn, RenameCategoryIn, ReorderCategoriesIn
 from .logging_utils import log_event
 
 
@@ -318,6 +318,35 @@ def _handle_soft_delete(event, repo, user_id, correlation_id):
     }
 
 
+def _handle_reorder(event, repo, user_id, correlation_id):
+    style_id = (event.get("pathParameters") or {}).get("style_id")
+    if not style_id:
+        raise ValidationError("style_id is required in path")
+    body = ReorderCategoriesIn.model_validate(_parse_body(event))
+    rows = repo.reorder(
+        user_id=user_id,
+        style_id=style_id,
+        ordered_ids=body.category_ids,
+        now=utc_now(),
+    )
+    log_event(
+        "INFO",
+        "category_order_updated",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        style_id=style_id,
+        size=len(rows),
+    )
+    return _json_response(
+        200,
+        {
+            "items": [_category_response(r) for r in rows],
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
 _ROUTE_TABLE: dict[str, Callable[..., dict[str, Any]]] = {
     "POST /styles/{style_id}/categories": _handle_create_category,
 }
@@ -327,3 +356,4 @@ _ROUTE_TABLE["GET /categories"] = _handle_list_all
 _ROUTE_TABLE["GET /categories/{id}"] = _handle_get_detail
 _ROUTE_TABLE["PATCH /categories/{id}"] = _handle_rename
 _ROUTE_TABLE["DELETE /categories/{id}"] = _handle_soft_delete
+_ROUTE_TABLE["PUT /styles/{style_id}/categories/order"] = _handle_reorder
