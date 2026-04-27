@@ -678,3 +678,141 @@ def test_reorder_404_style_missing(fake_repo, context):
     )
     status, body = _read(resp)
     assert status == 404
+
+
+def test_list_tracks_200(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    fake_repo.track_meta["t1"] = {
+        "id": "t1", "title": "Song", "normalized_title": "song",
+        "artists": ["A"],
+    }
+    fake_repo.add_track(
+        user_id="u1", category_id="c1", track_id="t1",
+        source_triage_block_id=None, now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["total"] == 1
+    assert body["items"][0]["id"] == "t1"
+    assert body["items"][0]["added_at"] is not None
+    assert body["items"][0]["source_triage_block_id"] is None
+
+
+def test_add_track_201(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    fake_repo.track_meta["t1"] = {"id": "t1", "title": "X"}
+    resp = lambda_handler(
+        _event(
+            method="POST",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+            body={"track_id": "t1"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 201
+    assert body["result"] == "added"
+    assert body["source_triage_block_id"] is None
+
+
+def test_add_track_200_already_present(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    fake_repo.track_meta["t1"] = {"id": "t1"}
+    fake_repo.add_track(
+        user_id="u1", category_id="c1", track_id="t1",
+        source_triage_block_id=None, now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="POST",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+            body={"track_id": "t1"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["result"] == "already_present"
+
+
+def test_add_track_404_track_missing(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="POST",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+            body={"track_id": "ghost"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404
+    assert body["error_code"] == "track_not_found"
+
+
+def test_remove_track_204(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    fake_repo.track_meta["t1"] = {"id": "t1"}
+    fake_repo.add_track(
+        user_id="u1", category_id="c1", track_id="t1",
+        source_triage_block_id=None, now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="DELETE",
+            route="/categories/{id}/tracks/{track_id}",
+            path_params={"id": "c1", "track_id": "t1"},
+        ),
+        context,
+    )
+    assert resp["statusCode"] == 204
+
+
+def test_remove_track_404_when_not_in_category(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="DELETE",
+            route="/categories/{id}/tracks/{track_id}",
+            path_params={"id": "c1", "track_id": "ghost"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404
+    assert body["error_code"] == "track_not_in_category"

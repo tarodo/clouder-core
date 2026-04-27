@@ -30,7 +30,7 @@ from .curation.categories_service import (
     normalize_category_name,
     validate_category_name,
 )
-from .curation.schemas import CreateCategoryIn, RenameCategoryIn, ReorderCategoriesIn
+from .curation.schemas import AddTrackIn, CreateCategoryIn, RenameCategoryIn, ReorderCategoriesIn
 from .logging_utils import log_event
 
 
@@ -347,6 +347,90 @@ def _handle_reorder(event, repo, user_id, correlation_id):
     )
 
 
+def _track_in_category_response(item) -> dict[str, Any]:
+    track = dict(item.track)
+    track["added_at"] = item.added_at
+    track["source_triage_block_id"] = item.source_triage_block_id
+    return track
+
+
+def _handle_list_tracks(event, repo, user_id, correlation_id):
+    cid = (event.get("pathParameters") or {}).get("id")
+    if not cid:
+        raise ValidationError("id is required in path")
+    limit, offset = _parse_pagination(event)
+    qp = event.get("queryStringParameters") or {}
+    search = qp.get("search")
+    result = repo.list_tracks(
+        user_id=user_id, category_id=cid,
+        limit=limit, offset=offset, search=search,
+    )
+    return _json_response(
+        200,
+        {
+            "items": [_track_in_category_response(it) for it in result.items],
+            "total": result.total,
+            "limit": result.limit,
+            "offset": result.offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_add_track(event, repo, user_id, correlation_id):
+    cid = (event.get("pathParameters") or {}).get("id")
+    if not cid:
+        raise ValidationError("id is required in path")
+    body = AddTrackIn.model_validate(_parse_body(event))
+    result, was_new = repo.add_track(
+        user_id=user_id, category_id=cid, track_id=body.track_id,
+        source_triage_block_id=None, now=utc_now(),
+    )
+    log_event(
+        "INFO",
+        "category_track_added",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        category_id=cid,
+        track_id=body.track_id,
+        result="added" if was_new else "already_present",
+    )
+    payload = {
+        "result": "added" if was_new else "already_present",
+        "added_at": result["added_at"],
+        "source_triage_block_id": result["source_triage_block_id"],
+        "correlation_id": correlation_id,
+    }
+    return _json_response(201 if was_new else 200, payload, correlation_id)
+
+
+def _handle_remove_track(event, repo, user_id, correlation_id):
+    pp = event.get("pathParameters") or {}
+    cid = pp.get("id")
+    tid = pp.get("track_id")
+    if not cid or not tid:
+        raise ValidationError("id and track_id are required in path")
+    deleted = repo.remove_track(
+        user_id=user_id, category_id=cid, track_id=tid,
+    )
+    if not deleted:
+        raise NotFoundError("track_not_in_category", "Track not in category")
+    log_event(
+        "INFO",
+        "category_track_removed",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        category_id=cid,
+        track_id=tid,
+    )
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
+    }
+
+
 _ROUTE_TABLE: dict[str, Callable[..., dict[str, Any]]] = {
     "POST /styles/{style_id}/categories": _handle_create_category,
 }
@@ -357,3 +441,6 @@ _ROUTE_TABLE["GET /categories/{id}"] = _handle_get_detail
 _ROUTE_TABLE["PATCH /categories/{id}"] = _handle_rename
 _ROUTE_TABLE["DELETE /categories/{id}"] = _handle_soft_delete
 _ROUTE_TABLE["PUT /styles/{style_id}/categories/order"] = _handle_reorder
+_ROUTE_TABLE["GET /categories/{id}/tracks"] = _handle_list_tracks
+_ROUTE_TABLE["POST /categories/{id}/tracks"] = _handle_add_track
+_ROUTE_TABLE["DELETE /categories/{id}/tracks/{track_id}"] = _handle_remove_track
