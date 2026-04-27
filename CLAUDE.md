@@ -21,6 +21,9 @@ alembic upgrade head
 # Package Lambda zip → dist/collector.zip
 scripts/package_lambda.sh
 
+# Regenerate docs/openapi.yaml after editing scripts/generate_openapi.py:ROUTES
+PYTHONPATH=src .venv/bin/python scripts/generate_openapi.py
+
 # Terraform
 cd infra && terraform init && terraform apply
 ```
@@ -66,6 +69,12 @@ cd infra && terraform init && terraform apply
 - **Provider classes are thin adapters.** Existing clients (`BeatportClient`, `SpotifyClient`, `search_label`) live in their original modules and are wrapped — do not duplicate vendor logic into `providers/`. Adapter signatures match handler call sites (batch + `correlation_id`), not the long-term per-track Protocol ideal.
 - **`LookupProvider` gained per-track methods in Plan 4.** `lookup_by_isrc(isrc) -> VendorTrackRef | None` and `lookup_by_metadata(artist, title, duration_ms, album) -> list[VendorTrackRef]`. Spotify implements ISRC; metadata search returns `[]` until a follow-up fills it in (Beatport always carries ISRC so fuzzy fallback is rare). All other vendors still raise `VendorDisabledError(reason="not_implemented")`.
 - **Vendor match cache is PK `(clouder_track_id, vendor)` — idempotent on retry.** `vendor_match_handler` upserts on hit; low-confidence candidates go to `match_review_queue` with a partial unique index on `status='pending'` so repeated sends do not duplicate review rows.
+- **API Gateway has a 29s hard timeout.** Combined with Aurora `min_acu=0` cold-start, the first request after idle often exceeds it: client gets `{"message":"Service Unavailable"}` (API GW format with capital S/U, NOT our `{error_code, message, correlation_id}` envelope) but the Lambda usually completes the work in background. Retry hits warm Aurora.
+- **AI search worker has no concurrency throttle.** Bulk label searches (one full week's ingest = ~1000 labels) hit Perplexity rate limits and produce HTTP 429 → SQS retry → DLQ. Add `reserved_concurrent_executions = 1..2` on `aws_lambda_function.ai_search_worker` if this becomes recurring.
+- **`ai_search_results.result` is JSONB, not flat columns.** Columns are `id, entity_type, entity_id, prompt_slug, prompt_version, result, searched_at`. Query inner fields via `result->>'ai_content'`, `(result->>'confidence')::float`.
+- **`/labels` API does not project `is_ai_suspected`.** The column exists on `clouder_labels` and is set by `propagate_ai_flag`, but `list_labels` SQL doesn't `SELECT` it. To verify the flag, query Aurora Data API directly: `SELECT COUNT(*) FROM clouder_labels WHERE is_ai_suspected = true`. Same gap likely on `/artists` and `/tracks`.
+- **`scripts/generate_openapi.py:ROUTES` is a manual table.** Update it whenever API Gateway routes change (`infra/api_gateway.tf`, `infra/auth.tf`, `infra/curation.tf`). Without sync, `docs/openapi.yaml` (used as Postman import) goes stale silently.
+- **macOS `python` is unavailable.** Use `python3` for stdlib-only scripts; for project scripts that import `yaml`/`pydantic`/etc., use `.venv/bin/python` (Homebrew `python3.14` lacks repo deps).
 
 ## Env Vars (runtime)
 
