@@ -565,6 +565,41 @@ def test_rename_409_on_conflict(fake_repo, context):
     assert status == 409
 
 
+def test_rename_404_missing_category(fake_repo, context):
+    resp = lambda_handler(
+        _event(
+            method="PATCH",
+            route="/categories/{id}",
+            path_params={"id": "missing"},
+            body={"name": "X"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404
+    assert body["error_code"] == "category_not_found"
+
+
+def test_rename_422_whitespace_name(fake_repo, context):
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+    )
+    resp = lambda_handler(
+        _event(
+            method="PATCH",
+            route="/categories/{id}",
+            path_params={"id": "c1"},
+            body={"name": "   "},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 422
+    assert body["error_code"] == "validation_error"
+
+
 def test_delete_204(fake_repo, context):
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
