@@ -156,3 +156,69 @@ def test_create_maps_unique_violation_to_name_conflict() -> None:
             normalized_name="tech",
             now=_now(),
         )
+
+
+def test_get_returns_row() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = [
+        {
+            "id": "c1",
+            "user_id": "u1",
+            "style_id": "s1",
+            "style_name": "House",
+            "name": "Tech",
+            "normalized_name": "tech",
+            "position": 0,
+            "track_count": 4,
+            "created_at": "2026-04-27T12:00:00Z",
+            "updated_at": "2026-04-27T12:00:00Z",
+        }
+    ]
+    row = repo.get(user_id="u1", category_id="c1")
+    assert row is not None
+    assert row.track_count == 4
+    sql = data_api.execute.call_args.args[0]
+    assert "WHERE c.id = :category_id" in sql
+    assert "c.user_id = :user_id" in sql
+    assert "c.deleted_at IS NULL" in sql
+
+
+def test_get_returns_none_when_missing() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = []
+    row = repo.get(user_id="u1", category_id="missing")
+    assert row is None
+
+
+def test_list_by_style_returns_rows_and_total() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [
+            {
+                "id": "c1", "user_id": "u1", "style_id": "s1",
+                "style_name": "House", "name": "Tech",
+                "normalized_name": "tech", "position": 0,
+                "track_count": 0,
+                "created_at": "x", "updated_at": "x",
+            }
+        ],
+        [{"total": 1}],
+    ]
+    result = repo.list_by_style(
+        user_id="u1", style_id="s1", limit=50, offset=0
+    )
+    assert result.total == 1
+    assert len(result.items) == 1
+    list_sql = data_api.execute.call_args_list[0].args[0]
+    assert "ORDER BY c.position ASC" in list_sql
+    assert "c.deleted_at IS NULL" in list_sql
+
+
+def test_list_all_returns_rows_and_total() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [[], [{"total": 0}]]
+    result = repo.list_all(user_id="u1", limit=50, offset=0)
+    assert result.total == 0
+    list_sql = data_api.execute.call_args_list[0].args[0]
+    assert "ORDER BY c.created_at DESC" in list_sql
+    assert "c.style_id" not in list_sql.split("WHERE")[1].split("ORDER BY")[0]
