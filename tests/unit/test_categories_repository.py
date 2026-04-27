@@ -330,3 +330,78 @@ def test_soft_delete_returns_false_when_no_row() -> None:
         user_id="u1", category_id="missing", now=_now()
     )
     assert deleted is False
+
+
+def test_reorder_validates_set_and_updates_positions() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    # First execute: style existence check
+    # Second execute: SELECT current alive ids -> three rows
+    # N execute calls: UPDATE per id (3 here)
+    # Last call: SELECT updated rows with full shape (list_by_style equivalent)
+    data_api.execute.side_effect = [
+        [{"id": "s1", "name": "House"}],
+        [{"id": "a"}, {"id": "b"}, {"id": "c"}],
+        [{"id": "c"}],
+        [{"id": "a"}],
+        [{"id": "b"}],
+        [
+            {"id": "c", "user_id": "u1", "style_id": "s1",
+             "style_name": "House", "name": "C", "normalized_name": "c",
+             "position": 0, "track_count": 0,
+             "created_at": "x", "updated_at": "x"},
+            {"id": "a", "user_id": "u1", "style_id": "s1",
+             "style_name": "House", "name": "A", "normalized_name": "a",
+             "position": 1, "track_count": 0,
+             "created_at": "x", "updated_at": "x"},
+            {"id": "b", "user_id": "u1", "style_id": "s1",
+             "style_name": "House", "name": "B", "normalized_name": "b",
+             "position": 2, "track_count": 0,
+             "created_at": "x", "updated_at": "x"},
+        ],
+    ]
+    result = repo.reorder(
+        user_id="u1",
+        style_id="s1",
+        ordered_ids=["c", "a", "b"],
+        now=_now(),
+    )
+    assert [r.id for r in result] == ["c", "a", "b"]
+    select_sql = data_api.execute.call_args_list[1].args[0]
+    assert "SELECT id FROM categories" in select_sql
+    assert "deleted_at IS NULL" in select_sql
+    update_sql = data_api.execute.call_args_list[2].args[0]
+    assert "UPDATE categories" in update_sql
+    assert "SET position = :position" in update_sql
+
+
+def test_reorder_raises_when_style_missing() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    # First call: style lookup -> empty
+    data_api.execute.side_effect = [[]]
+    with pytest.raises(NotFoundError) as exc:
+        repo.reorder(
+            user_id="u1",
+            style_id="missing",
+            ordered_ids=[],
+            now=_now(),
+        )
+    assert exc.value.error_code == "style_not_found"
+
+
+def test_reorder_raises_order_mismatch_on_extra_id() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [{"id": "s1", "name": "House"}],   # style lookup
+        [{"id": "a"}, {"id": "b"}],         # current set
+    ]
+    with pytest.raises(OrderMismatchError):
+        repo.reorder(
+            user_id="u1", style_id="s1",
+            ordered_ids=["a", "b", "c"], now=_now(),
+        )

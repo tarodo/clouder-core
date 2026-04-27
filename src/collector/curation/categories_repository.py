@@ -20,6 +20,7 @@ from . import (
     PaginatedResult,
     utc_now,
 )
+from .categories_service import validate_reorder_set
 
 
 @dataclass(frozen=True)
@@ -319,7 +320,74 @@ class CategoriesRepository:
         )
         return bool(rows)
 
-    # Remaining methods filled in by Tasks 9–13.
+    def reorder(
+        self,
+        *,
+        user_id: str,
+        style_id: str,
+        ordered_ids: Sequence[str],
+        now: datetime,
+    ) -> list[CategoryRow]:
+        with self._data_api.transaction() as tx_id:
+            style_rows = self._data_api.execute(
+                "SELECT id FROM clouder_styles WHERE id = :style_id",
+                {"style_id": style_id},
+                transaction_id=tx_id,
+            )
+            if not style_rows:
+                raise NotFoundError("style_not_found", "Style not found")
+
+            current_rows = self._data_api.execute(
+                """
+                SELECT id FROM categories
+                WHERE user_id = :user_id
+                  AND style_id = :style_id
+                  AND deleted_at IS NULL
+                """,
+                {"user_id": user_id, "style_id": style_id},
+                transaction_id=tx_id,
+            )
+            actual_ids = {r["id"] for r in current_rows}
+            validate_reorder_set(actual=actual_ids, requested=ordered_ids)
+
+            for idx, cid in enumerate(ordered_ids):
+                self._data_api.execute(
+                    """
+                    UPDATE categories
+                    SET position = :position,
+                        updated_at = :now
+                    WHERE id = :category_id
+                      AND user_id = :user_id
+                      AND style_id = :style_id
+                      AND deleted_at IS NULL
+                    RETURNING id
+                    """,
+                    {
+                        "position": idx,
+                        "now": now,
+                        "category_id": cid,
+                        "user_id": user_id,
+                        "style_id": style_id,
+                    },
+                    transaction_id=tx_id,
+                )
+
+            # Re-select with full shape, ordered.
+            sql = (
+                self._CATEGORY_SELECT
+                + " WHERE c.user_id = :user_id"
+                  " AND c.style_id = :style_id"
+                  " AND c.deleted_at IS NULL"
+                  " ORDER BY c.position ASC, c.created_at DESC, c.id ASC"
+            )
+            rows = self._data_api.execute(
+                sql,
+                {"user_id": user_id, "style_id": style_id},
+                transaction_id=tx_id,
+            )
+            return [self._row(r) for r in rows]
+
+    # Remaining methods filled in by Tasks 10–13.
 
 
 def create_default_categories_repository() -> CategoriesRepository | None:
