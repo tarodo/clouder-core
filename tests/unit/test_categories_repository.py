@@ -638,3 +638,60 @@ def test_remove_track_returns_false_when_not_in_category() -> None:
         user_id="u1", category_id="c1", track_id="t-missing"
     )
     assert deleted is False
+
+
+def test_list_tracks_validates_category() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [[]]
+    with pytest.raises(NotFoundError) as exc:
+        repo.list_tracks(
+            user_id="u1", category_id="missing",
+            limit=50, offset=0, search=None,
+        )
+    assert exc.value.error_code == "category_not_found"
+
+
+def test_list_tracks_returns_rows_and_total() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [
+            {
+                "id": "t1", "title": "Song", "mix_name": None,
+                "isrc": "X", "bpm": 124, "length_ms": 360000,
+                "publish_date": None, "spotify_id": None,
+                "release_type": "single", "is_ai_suspected": False,
+                "artist_names": "Artist A,Artist B",
+                "added_at": "2026-04-27T12:00:00Z",
+                "source_triage_block_id": None,
+            }
+        ],
+        [{"total": 1}],
+    ]
+    result = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=50, offset=0, search=None,
+    )
+    assert result.total == 1
+    item = result.items[0]
+    assert item.track["id"] == "t1"
+    assert item.track["artists"] == ["Artist A", "Artist B"]
+    assert item.added_at == "2026-04-27T12:00:00Z"
+    assert item.source_triage_block_id is None
+
+
+def test_list_tracks_applies_search_lowercased() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [],
+        [{"total": 0}],
+    ]
+    repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=50, offset=0, search="  Tech  ",
+    )
+    list_sql = data_api.execute.call_args_list[1].args[0]
+    list_params = data_api.execute.call_args_list[1].args[1]
+    assert "ILIKE" in list_sql
+    assert list_params["search"] == "%tech%"

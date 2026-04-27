@@ -549,7 +549,91 @@ class CategoriesRepository:
         )
         return bool(rows)
 
-    # Remaining methods filled in by Tasks 12–13.
+    def list_tracks(
+        self,
+        *,
+        user_id: str,
+        category_id: str,
+        limit: int,
+        offset: int,
+        search: str | None,
+    ) -> PaginatedResult[TrackInCategoryRow]:
+        cat_rows = self._data_api.execute(
+            """
+            SELECT id FROM categories
+            WHERE id = :category_id
+              AND user_id = :user_id
+              AND deleted_at IS NULL
+            """,
+            {"category_id": category_id, "user_id": user_id},
+        )
+        if not cat_rows:
+            raise NotFoundError("category_not_found", "Category not found")
+
+        params: dict[str, Any] = {
+            "category_id": category_id,
+            "limit": limit,
+            "offset": offset,
+        }
+        search_clause = ""
+        if search and search.strip():
+            search_clause = " AND t.normalized_title ILIKE :search "
+            params["search"] = f"%{search.strip().lower()}%"
+
+        sql = f"""
+            SELECT
+                t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
+                t.publish_date, t.spotify_id, t.release_type, t.is_ai_suspected,
+                STRING_AGG(a.name, ',' ORDER BY cta.role, a.name) AS artist_names,
+                ct.added_at, ct.source_triage_block_id
+            FROM category_tracks ct
+            JOIN clouder_tracks t ON t.id = ct.track_id
+            LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
+            LEFT JOIN clouder_artists a ON a.id = cta.artist_id
+            WHERE ct.category_id = :category_id
+              {search_clause}
+            GROUP BY t.id, ct.added_at, ct.source_triage_block_id
+            ORDER BY ct.added_at DESC, t.id ASC
+            LIMIT :limit OFFSET :offset
+        """
+        rows = self._data_api.execute(sql, params)
+
+        count_params: dict[str, Any] = {"category_id": category_id}
+        count_clause = ""
+        if "search" in params:
+            count_clause = " AND t.normalized_title ILIKE :search "
+            count_params["search"] = params["search"]
+        total_rows = self._data_api.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM category_tracks ct
+            JOIN clouder_tracks t ON t.id = ct.track_id
+            WHERE ct.category_id = :category_id
+              {count_clause}
+            """,
+            count_params,
+        )
+        total = int(total_rows[0]["total"]) if total_rows else 0
+
+        items = []
+        for r in rows:
+            artists_raw = r.pop("artist_names")
+            track = dict(r)
+            track["artists"] = (
+                [n.strip() for n in artists_raw.split(",")] if artists_raw else []
+            )
+            added_at = track.pop("added_at")
+            source_id = track.pop("source_triage_block_id")
+            items.append(
+                TrackInCategoryRow(
+                    track=track,
+                    added_at=str(added_at),
+                    source_triage_block_id=source_id,
+                )
+            )
+        return PaginatedResult(items=items, total=total, limit=limit, offset=offset)
+
+    # Remaining methods filled in by Task 13.
 
 
 def create_default_categories_repository() -> CategoriesRepository | None:
