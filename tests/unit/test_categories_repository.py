@@ -411,3 +411,84 @@ def test_reorder_raises_order_mismatch_on_extra_id() -> None:
             user_id="u1", style_id="s1",
             ordered_ids=["a", "b", "c"], now=_now(),
         )
+
+
+def test_add_tracks_bulk_validates_category_ownership() -> None:
+    repo, data_api = _make()
+    # Category lookup returns empty -> not_found
+    data_api.execute.side_effect = [[]]
+    with pytest.raises(NotFoundError) as exc:
+        repo.add_tracks_bulk(
+            user_id="u1",
+            category_id="c1",
+            items=[("t1", None)],
+            now=_now(),
+        )
+    assert exc.value.error_code == "category_not_found"
+
+
+def test_add_tracks_bulk_inserts_and_returns_count() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],            # category exists
+        [{"id": "t1"}, {"id": "t2"}],  # track existence
+        [{"track_id": "t1"}, {"track_id": "t2"}],  # INSERT ON CONFLICT RETURNING
+    ]
+    inserted = repo.add_tracks_bulk(
+        user_id="u1",
+        category_id="c1",
+        items=[("t1", None), ("t2", "block-1")],
+        now=_now(),
+    )
+    assert inserted == 2
+    insert_sql = data_api.execute.call_args_list[2].args[0]
+    assert "INSERT INTO category_tracks" in insert_sql
+    assert "ON CONFLICT (category_id, track_id) DO NOTHING" in insert_sql
+
+
+def test_add_tracks_bulk_raises_track_not_found() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],       # category exists
+        [{"id": "t1"}],       # only one of the requested tracks exists
+    ]
+    with pytest.raises(NotFoundError) as exc:
+        repo.add_tracks_bulk(
+            user_id="u1", category_id="c1",
+            items=[("t1", None), ("t-missing", None)], now=_now(),
+        )
+    assert exc.value.error_code == "track_not_found"
+
+
+def test_add_tracks_bulk_passes_transaction_id() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [{"id": "t1"}],
+        [{"track_id": "t1"}],
+    ]
+    repo.add_tracks_bulk(
+        user_id="u1",
+        category_id="c1",
+        items=[("t1", "block-1")],
+        now=_now(),
+        transaction_id="external-tx",
+    )
+    for call in data_api.execute.call_args_list:
+        assert call.kwargs.get("transaction_id") == "external-tx"
+
+
+def test_add_tracks_bulk_idempotent_returns_zero_when_all_existing() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [{"id": "t1"}],
+        [],  # ON CONFLICT DO NOTHING -> RETURNING is empty
+    ]
+    inserted = repo.add_tracks_bulk(
+        user_id="u1",
+        category_id="c1",
+        items=[("t1", None)],
+        now=_now(),
+    )
+    assert inserted == 0

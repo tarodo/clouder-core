@@ -387,7 +387,81 @@ class CategoriesRepository:
             )
             return [self._row(r) for r in rows]
 
-    # Remaining methods filled in by Tasks 10–13.
+    def add_tracks_bulk(
+        self,
+        *,
+        user_id: str,
+        category_id: str,
+        items: Sequence[tuple[str, str | None]],
+        now: datetime,
+        transaction_id: str | None = None,
+    ) -> int:
+        """Insert (track, source_triage_block_id) pairs idempotently.
+
+        Used by both the single-track HTTP path and spec-D's triage finalize.
+        When called inside an existing transaction (spec-D), pass `transaction_id`
+        so reads see in-flight writes (CLAUDE.md note on Aurora Data API).
+
+        Returns the count of rows actually inserted (excludes existing).
+        Raises NotFoundError("category_not_found" or "track_not_found").
+        """
+        cat_rows = self._data_api.execute(
+            """
+            SELECT id FROM categories
+            WHERE id = :category_id
+              AND user_id = :user_id
+              AND deleted_at IS NULL
+            """,
+            {"category_id": category_id, "user_id": user_id},
+            transaction_id=transaction_id,
+        )
+        if not cat_rows:
+            raise NotFoundError("category_not_found", "Category not found")
+
+        if not items:
+            return 0
+
+        track_ids = list({tid for tid, _ in items})
+        # Build an IN-list parametrically (Data API forbids ANY/array on plain strings).
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {f"t{i}": tid for i, tid in enumerate(track_ids)}
+        existing = self._data_api.execute(
+            f"SELECT id FROM clouder_tracks WHERE id IN ({placeholders})",
+            params,
+            transaction_id=transaction_id,
+        )
+        existing_ids = {r["id"] for r in existing}
+        missing = [tid for tid in track_ids if tid not in existing_ids]
+        if missing:
+            raise NotFoundError(
+                "track_not_found", f"Track(s) not found: {missing[0]}"
+            )
+
+        # Build a multi-row INSERT.
+        value_rows = []
+        params = {
+            "category_id": category_id,
+            "now": now,
+        }
+        for i, (tid, src) in enumerate(items):
+            value_rows.append(
+                f"(:category_id, :tid_{i}, :now, :src_{i})"
+            )
+            params[f"tid_{i}"] = tid
+            params[f"src_{i}"] = src
+        sql = f"""
+            INSERT INTO category_tracks (
+                category_id, track_id, added_at, source_triage_block_id
+            ) VALUES {", ".join(value_rows)}
+            ON CONFLICT (category_id, track_id) DO NOTHING
+            RETURNING track_id
+        """
+        rows = self._data_api.execute(
+            sql, params, transaction_id=transaction_id
+        )
+        return len(rows)
+
+    # Remaining methods filled in by Tasks 11–13.
 
 
 def create_default_categories_repository() -> CategoriesRepository | None:
