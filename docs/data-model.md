@@ -235,6 +235,47 @@ Low-confidence matches parked for manual approval.
 
 **Indexes:** uq_review_pending (clouder_track_id, vendor) UNIQUE WHERE status='pending'
 
+### 1.15 categories
+
+User-curation Layer 1 — permanent per-(user, style) track libraries (spec-C).
+
+| Column          | Type           | Constraints                                                |
+|-----------------|----------------|------------------------------------------------------------|
+| id              | String(36)     | PK (UUID)                                                  |
+| user_id         | String(36)     | NOT NULL, FK -> users.id                                   |
+| style_id        | String(36)     | NOT NULL, FK -> clouder_styles.id                          |
+| name            | Text           | NOT NULL (display)                                         |
+| normalized_name | Text           | NOT NULL (lower + trim + collapsed whitespace)             |
+| position        | Integer        | NOT NULL, default=0                                        |
+| created_at      | DateTime(tz)   | NOT NULL                                                   |
+| updated_at      | DateTime(tz)   | NOT NULL                                                   |
+| deleted_at      | DateTime(tz)   | nullable (soft-delete)                                     |
+
+**Indexes:**
+- `uq_categories_user_style_normname` UNIQUE (user_id, style_id, normalized_name) WHERE deleted_at IS NULL
+- `idx_categories_user_style_position` (user_id, style_id, position) WHERE deleted_at IS NULL
+- `idx_categories_user_created` (user_id, created_at DESC) WHERE deleted_at IS NULL
+
+`position` is user-controlled via `PUT /styles/{style_id}/categories/order` (full-list replace). New categories are appended at `MAX(position) + 1` within `(user_id, style_id, deleted_at IS NULL)`.
+
+### 1.16 category_tracks
+
+Membership of canonical tracks in user categories.
+
+| Column                  | Type         | Constraints                                                |
+|-------------------------|--------------|------------------------------------------------------------|
+| category_id             | String(36)   | PK (composite), FK -> categories.id                        |
+| track_id                | String(36)   | PK (composite), FK -> clouder_tracks.id                    |
+| added_at                | DateTime(tz) | NOT NULL                                                   |
+| source_triage_block_id  | String(36)   | nullable; FK added by spec-D (ON DELETE SET NULL)          |
+
+**PK:** (category_id, track_id) — UNIQUE makes add idempotent (`ON CONFLICT DO NOTHING`).
+
+**Indexes:**
+- `idx_category_tracks_category_added` (category_id, added_at DESC, track_id)
+
+`source_triage_block_id` is NULL for direct adds via `POST /categories/{id}/tracks` and set by spec-D's triage finalize. The FK to `triage_blocks(id)` is intentionally deferred to spec-D's migration so spec-C ships without forward references.
+
 ---
 
 ## 2. Entity Relationships (ER)
