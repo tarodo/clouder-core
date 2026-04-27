@@ -900,3 +900,196 @@ def test_list_by_style_filters_by_user(fake_repo, context):
     _, body = _read(resp)
     assert body["total"] == 1
     assert body["items"][0]["id"] == "c1"
+
+
+# ---------- Task 20: name-conflict, recreate-after-soft-delete, cross-style namesakes ---
+
+
+def test_recreate_after_soft_delete(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    # soft-delete
+    fake_repo.soft_delete(user_id="u1", category_id="c1", now=now)
+    # recreate same name -> should succeed
+    resp = lambda_handler(
+        _event(
+            method="POST",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s1"},
+            body={"name": "Tech"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 201
+    assert body["track_count"] == 0
+    assert body["id"] != "c1"
+
+
+def test_cross_style_namesakes_coexist(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    r1 = lambda_handler(
+        _event(
+            method="POST",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s1"},
+            body={"name": "Deep"},
+        ),
+        context,
+    )
+    r2 = lambda_handler(
+        _event(
+            method="POST",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s2"},
+            body={"name": "Deep"},
+        ),
+        context,
+    )
+    assert r1["statusCode"] == 201
+    assert r2["statusCode"] == 201
+
+
+# ---------- Task 21: spec-D contract smoke -------------------------------------------
+
+
+def test_spec_d_contract_add_tracks_bulk_round_trip(fake_repo, context):
+    """spec-D will reuse add_tracks_bulk inside its triage finalize TX."""
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    fake_repo.track_meta["t1"] = {
+        "id": "t1", "title": "X", "normalized_title": "x",
+    }
+    inserted = fake_repo.add_tracks_bulk(
+        user_id="u1",
+        category_id="c1",
+        items=[("t1", "block-d-1")],
+        now=now,
+        transaction_id="tx-from-spec-d",
+    )
+    assert inserted == 1
+    # source_triage_block_id round-trips
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+        ),
+        context,
+    )
+    _, body = _read(resp)
+    assert body["items"][0]["source_triage_block_id"] == "block-d-1"
+
+
+# ---------- Task 22: pagination, search, count rollup --------------------------------
+
+
+def test_tracks_pagination_limits(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    for i in range(120):
+        tid = f"t{i:03}"
+        fake_repo.track_meta[tid] = {
+            "id": tid, "title": f"S{i}", "normalized_title": f"s{i}",
+        }
+        fake_repo.add_track(
+            user_id="u1", category_id="c1", track_id=tid,
+            source_triage_block_id=None, now=now,
+        )
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+            query={"limit": "50", "offset": "100"},
+        ),
+        context,
+    )
+    _, body = _read(resp)
+    assert body["total"] == 120
+    assert len(body["items"]) == 20  # 120 - 100
+
+
+def test_tracks_search(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    for tid, title in [("t1", "Acid Rain"), ("t2", "Deep Ocean"), ("t3", "Acid Wave")]:
+        fake_repo.track_meta[tid] = {
+            "id": tid, "title": title,
+            "normalized_title": title.lower(),
+        }
+        fake_repo.add_track(
+            user_id="u1", category_id="c1", track_id=tid,
+            source_triage_block_id=None, now=now,
+        )
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+            query={"search": "acid"},
+        ),
+        context,
+    )
+    _, body = _read(resp)
+    assert body["total"] == 2
+
+
+def test_track_count_rollup_on_list_and_detail(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    for tid in ["t1", "t2", "t3"]:
+        fake_repo.track_meta[tid] = {"id": tid}
+        fake_repo.add_track(
+            user_id="u1", category_id="c1", track_id=tid,
+            source_triage_block_id=None, now=now,
+        )
+
+    detail = lambda_handler(
+        _event(method="GET", route="/categories/{id}", path_params={"id": "c1"}),
+        context,
+    )
+    _, body = _read(detail)
+    assert body["track_count"] == 3
+
+    listing = lambda_handler(
+        _event(
+            method="GET",
+            route="/styles/{style_id}/categories",
+            path_params={"style_id": "s1"},
+        ),
+        context,
+    )
+    _, body = _read(listing)
+    assert body["items"][0]["track_count"] == 3
+
+    # Remove one -> count decrements
+    lambda_handler(
+        _event(
+            method="DELETE",
+            route="/categories/{id}/tracks/{track_id}",
+            path_params={"id": "c1", "track_id": "t1"},
+        ),
+        context,
+    )
+    detail2 = lambda_handler(
+        _event(method="GET", route="/categories/{id}", path_params={"id": "c1"}),
+        context,
+    )
+    _, body = _read(detail2)
+    assert body["track_count"] == 2
