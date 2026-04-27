@@ -30,7 +30,7 @@ from .curation.categories_service import (
     normalize_category_name,
     validate_category_name,
 )
-from .curation.schemas import CreateCategoryIn
+from .curation.schemas import CreateCategoryIn, RenameCategoryIn
 from .logging_utils import log_event
 
 
@@ -255,9 +255,75 @@ def _handle_list_all(event, repo, user_id, correlation_id):
     )
 
 
+def _handle_get_detail(event, repo, user_id, correlation_id):
+    cid = (event.get("pathParameters") or {}).get("id")
+    if not cid:
+        raise ValidationError("id is required in path")
+    row = repo.get(user_id=user_id, category_id=cid)
+    if row is None:
+        raise NotFoundError("category_not_found", "Category not found")
+    payload = _category_response(row)
+    payload["correlation_id"] = correlation_id
+    return _json_response(200, payload, correlation_id)
+
+
+def _handle_rename(event, repo, user_id, correlation_id):
+    cid = (event.get("pathParameters") or {}).get("id")
+    if not cid:
+        raise ValidationError("id is required in path")
+    body = RenameCategoryIn.model_validate(_parse_body(event))
+    validate_category_name(body.name)
+    normalized = normalize_category_name(body.name)
+    if not normalized:
+        raise ValidationError("Name must be non-empty")
+    row = repo.rename(
+        user_id=user_id,
+        category_id=cid,
+        name=body.name.strip(),
+        normalized_name=normalized,
+        now=utc_now(),
+    )
+    log_event(
+        "INFO",
+        "category_renamed",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        category_id=row.id,
+    )
+    payload = _category_response(row)
+    payload["correlation_id"] = correlation_id
+    return _json_response(200, payload, correlation_id)
+
+
+def _handle_soft_delete(event, repo, user_id, correlation_id):
+    cid = (event.get("pathParameters") or {}).get("id")
+    if not cid:
+        raise ValidationError("id is required in path")
+    deleted = repo.soft_delete(
+        user_id=user_id, category_id=cid, now=utc_now()
+    )
+    if not deleted:
+        raise NotFoundError("category_not_found", "Category not found")
+    log_event(
+        "INFO",
+        "category_soft_deleted",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        category_id=cid,
+    )
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
+    }
+
+
 _ROUTE_TABLE: dict[str, Callable[..., dict[str, Any]]] = {
     "POST /styles/{style_id}/categories": _handle_create_category,
 }
 
 _ROUTE_TABLE["GET /styles/{style_id}/categories"] = _handle_list_by_style
 _ROUTE_TABLE["GET /categories"] = _handle_list_all
+_ROUTE_TABLE["GET /categories/{id}"] = _handle_get_detail
+_ROUTE_TABLE["PATCH /categories/{id}"] = _handle_rename
+_ROUTE_TABLE["DELETE /categories/{id}"] = _handle_soft_delete

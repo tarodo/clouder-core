@@ -495,3 +495,95 @@ def test_list_all_returns_cross_style(fake_repo, context):
     status, body = _read(resp)
     assert status == 200
     assert body["total"] == 2
+
+
+def test_get_detail_200(fake_repo, context):
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+    )
+    resp = lambda_handler(
+        _event(method="GET", route="/categories/{id}", path_params={"id": "c1"}),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["id"] == "c1"
+
+
+def test_get_detail_404(fake_repo, context):
+    resp = lambda_handler(
+        _event(method="GET", route="/categories/{id}", path_params={"id": "missing"}),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404
+    assert body["error_code"] == "category_not_found"
+
+
+def test_rename_200(fake_repo, context):
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+    )
+    resp = lambda_handler(
+        _event(
+            method="PATCH",
+            route="/categories/{id}",
+            path_params={"id": "c1"},
+            body={"name": "Deep"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["name"] == "Deep"
+
+
+def test_rename_409_on_conflict(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c2",
+        name="Deep", normalized_name="deep", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="PATCH",
+            route="/categories/{id}",
+            path_params={"id": "c1"},
+            body={"name": "Deep"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 409
+
+
+def test_delete_204(fake_repo, context):
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+    )
+    resp = lambda_handler(
+        _event(method="DELETE", route="/categories/{id}", path_params={"id": "c1"}),
+        context,
+    )
+    assert resp["statusCode"] == 204
+    assert resp["body"] in ("", "null")
+
+
+def test_delete_404_already_gone(fake_repo, context):
+    resp = lambda_handler(
+        _event(method="DELETE", route="/categories/{id}", path_params={"id": "missing"}),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 404
+    assert body["error_code"] == "category_not_found"
