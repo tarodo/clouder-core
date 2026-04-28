@@ -4,6 +4,13 @@ Serverless ingestion + canonicalization pipeline.
 
 The service performs weekly track collection from Beatport, stores raw snapshots in S3, triggers asynchronous canonicalization via an SQS worker, and writes canonical entities to Aurora PostgreSQL through RDS Data API.
 
+## Documentation
+
+- [Frontend integration guide](docs/frontend.md) — auth flow, user flows, quirks for frontend devs
+- [OpenAPI spec](docs/openapi.yaml) — import into Postman / Swagger UI / Insomnia
+- [Data model](docs/data-model.md) — canonical entities + triage tables
+- [Spotify search](docs/spotify-search.md) — vendor match details
+
 ## Current Architecture
 
 ```mermaid
