@@ -740,3 +740,62 @@ def test_soft_delete_block_returns_false_when_not_found() -> None:
     assert (
         repo.soft_delete_block(user_id="u-1", block_id="missing") is False
     )
+
+
+def test_snapshot_inserts_one_staging_per_active_block() -> None:
+    api = _api_with_responses(
+        [
+            [{"id": "b-1"}, {"id": "b-2"}],
+            [{"id": "bk-new-1"}],
+            [{"id": "bk-new-2"}],
+        ]
+    )
+    repo = TriageRepository(api)
+    out = repo.snapshot_category_into_active_blocks(
+        user_id="u-1",
+        style_id="s-1",
+        category_id="c-1",
+        transaction_id="tx-1",
+    )
+    assert out == 2
+    inserts = [
+        c
+        for c in api.execute.call_args_list
+        if "INSERT INTO triage_buckets" in c.args[0]
+    ]
+    assert len(inserts) == 2
+    for c in inserts:
+        assert "ON CONFLICT" in c.args[0]
+        assert c.args[1]["category_id"] == "c-1"
+
+
+def test_snapshot_no_active_blocks_is_zero() -> None:
+    api = _api_with_responses([[]])
+    repo = TriageRepository(api)
+    assert (
+        repo.snapshot_category_into_active_blocks(
+            user_id="u-1",
+            style_id="s-1",
+            category_id="c-1",
+            transaction_id="tx-1",
+        )
+        == 0
+    )
+
+
+def test_mark_staging_inactive_updates_only_staging() -> None:
+    api = _api_with_responses(
+        [[{"id": "bk-stg-1"}, {"id": "bk-stg-2"}]]
+    )
+    repo = TriageRepository(api)
+    out = repo.mark_staging_inactive_for_category(
+        user_id="u-1",
+        category_id="c-1",
+        transaction_id="tx-1",
+    )
+    assert out == 2
+    update_call = api.execute.call_args_list[0]
+    sql = update_call.args[0]
+    assert "UPDATE triage_buckets" in sql
+    assert "SET inactive = TRUE" in sql
+    assert "bucket_type = 'STAGING'" in sql

@@ -647,7 +647,47 @@ class TriageRepository:
         category_id: str,
         transaction_id: str | None = None,
     ) -> int:
-        raise NotImplementedError
+        block_rows = self._data_api.execute(
+            """
+            SELECT id FROM triage_blocks
+            WHERE user_id = :user_id
+              AND style_id = :style_id
+              AND status = 'IN_PROGRESS'
+              AND deleted_at IS NULL
+            """,
+            {"user_id": user_id, "style_id": style_id},
+            transaction_id=transaction_id,
+        )
+
+        inserted = 0
+        now = utc_now()
+        for br in block_rows:
+            bid = str(uuid4())
+            res = self._data_api.execute(
+                """
+                INSERT INTO triage_buckets (
+                    id, triage_block_id, bucket_type, category_id,
+                    inactive, created_at
+                ) VALUES (
+                    :id, :block_id, 'STAGING', :category_id,
+                    FALSE, :now
+                )
+                ON CONFLICT (triage_block_id, category_id)
+                  WHERE category_id IS NOT NULL
+                  DO NOTHING
+                RETURNING id
+                """,
+                {
+                    "id": bid,
+                    "block_id": br["id"],
+                    "category_id": category_id,
+                    "now": now,
+                },
+                transaction_id=transaction_id,
+            )
+            if res:
+                inserted += 1
+        return inserted
 
     def mark_staging_inactive_for_category(
         self,
@@ -656,7 +696,22 @@ class TriageRepository:
         category_id: str,
         transaction_id: str | None = None,
     ) -> int:
-        raise NotImplementedError
+        rows = self._data_api.execute(
+            """
+            UPDATE triage_buckets tbk
+            SET inactive = TRUE
+            FROM triage_blocks tb
+            WHERE tbk.triage_block_id = tb.id
+              AND tb.user_id = :user_id
+              AND tbk.category_id = :category_id
+              AND tbk.bucket_type = 'STAGING'
+              AND tbk.inactive = FALSE
+            RETURNING tbk.id
+            """,
+            {"user_id": user_id, "category_id": category_id},
+            transaction_id=transaction_id,
+        )
+        return len(rows)
 
     # --- reads --------------------------------------------------------
 
