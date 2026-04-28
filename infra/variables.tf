@@ -125,9 +125,9 @@ variable "aurora_master_username" {
 }
 
 variable "aurora_serverless_min_acu" {
-  description = "Aurora Serverless v2 min ACU"
+  description = "Aurora Serverless v2 min ACU. 0 = auto-pause после aurora_auto_pause_seconds (риск 503 cold-start через API GW). 0.5 = всегда warm."
   type        = number
-  default     = 0
+  default     = 0.5
 }
 
 variable "aurora_serverless_max_acu" {
