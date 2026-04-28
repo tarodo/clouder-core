@@ -484,6 +484,8 @@ class TriageRepository:
         )
         return TransferResult(transferred=len(inserted_rows))
 
+    _FINALIZE_CHUNK_SIZE = 500
+
     def finalize_block(
         self,
         *,
@@ -491,7 +493,130 @@ class TriageRepository:
         block_id: str,
         categories_repository: Any,
     ) -> FinalizeResult:
-        raise NotImplementedError
+        now = utc_now()
+
+        with self._data_api.transaction() as tx_id:
+            # 1. Validate block status.
+            block_rows = self._data_api.execute(
+                """
+                SELECT id, status FROM triage_blocks
+                WHERE id = :id
+                  AND user_id = :user_id
+                  AND deleted_at IS NULL
+                """,
+                {"id": block_id, "user_id": user_id},
+                transaction_id=tx_id,
+            )
+            if not block_rows:
+                raise NotFoundError(
+                    "triage_block_not_found",
+                    f"triage block not found: {block_id}",
+                )
+            if block_rows[0]["status"] != "IN_PROGRESS":
+                raise InvalidStateError(
+                    "triage block is not editable (status != IN_PROGRESS)"
+                )
+
+            # 2. Reject if any inactive staging bucket has tracks.
+            inactive_with_tracks = self._data_api.execute(
+                """
+                SELECT
+                    tbk.id, tbk.category_id,
+                    COUNT(tbt.track_id) AS track_count
+                FROM triage_buckets tbk
+                LEFT JOIN triage_bucket_tracks tbt
+                  ON tbt.triage_bucket_id = tbk.id
+                WHERE tbk.triage_block_id = :block_id
+                  AND tbk.bucket_type = 'STAGING'
+                  AND tbk.inactive = TRUE
+                GROUP BY tbk.id, tbk.category_id
+                HAVING COUNT(tbt.track_id) > 0
+                """,
+                {"block_id": block_id},
+                transaction_id=tx_id,
+            )
+            if inactive_with_tracks:
+                payload = [
+                    {
+                        "id": r["id"],
+                        "category_id": r["category_id"],
+                        "track_count": int(r["track_count"]),
+                    }
+                    for r in inactive_with_tracks
+                ]
+                raise InactiveStagingFinalizeError(
+                    f"{len(payload)} inactive staging bucket(s) hold tracks",
+                    payload,
+                )
+
+            # 3. Iterate active staging buckets; for each, fetch tracks
+            #    and call add_tracks_bulk in chunks of 500.
+            staging_rows = self._data_api.execute(
+                """
+                SELECT id, category_id
+                FROM triage_buckets
+                WHERE triage_block_id = :block_id
+                  AND bucket_type = 'STAGING'
+                  AND inactive = FALSE
+                """,
+                {"block_id": block_id},
+                transaction_id=tx_id,
+            )
+
+            promoted: dict[str, int] = {}
+            for sb in staging_rows:
+                bucket_id = sb["id"]
+                category_id = sb["category_id"]
+                track_rows = self._data_api.execute(
+                    """
+                    SELECT track_id
+                    FROM triage_bucket_tracks
+                    WHERE triage_bucket_id = :bucket_id
+                    ORDER BY added_at ASC, track_id ASC
+                    """,
+                    {"bucket_id": bucket_id},
+                    transaction_id=tx_id,
+                )
+                track_ids = [r["track_id"] for r in track_rows]
+                promoted[category_id] = len(track_ids)
+                for start in range(
+                    0, len(track_ids), self._FINALIZE_CHUNK_SIZE
+                ):
+                    chunk = track_ids[
+                        start : start + self._FINALIZE_CHUNK_SIZE
+                    ]
+                    items = [(t, block_id) for t in chunk]
+                    categories_repository.add_tracks_bulk(
+                        user_id=user_id,
+                        category_id=category_id,
+                        items=items,
+                        now=now,
+                        transaction_id=tx_id,
+                    )
+
+            # 4. Flip status to FINALIZED.
+            self._data_api.execute(
+                """
+                UPDATE triage_blocks
+                SET status = 'FINALIZED',
+                    finalized_at = :now,
+                    updated_at = :now
+                WHERE id = :id
+                """,
+                {"id": block_id, "now": now},
+                transaction_id=tx_id,
+            )
+
+            # 5. Re-fetch detail inside the same TX.
+            block = self._fetch_block_detail(
+                user_id=user_id, block_id=block_id, transaction_id=tx_id
+            )
+
+        if block is None:  # pragma: no cover
+            raise RuntimeError(
+                "finalize_block: post-update fetch returned None"
+            )
+        return FinalizeResult(block=block, promoted=promoted)
 
     def soft_delete_block(
         self, *, user_id: str, block_id: str

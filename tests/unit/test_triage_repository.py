@@ -56,6 +56,7 @@ import pytest
 
 from collector.curation import (
     InactiveBucketError,
+    InactiveStagingFinalizeError,
     InvalidStateError,
     NotFoundError,
     StyleMismatchError,
@@ -592,3 +593,134 @@ def test_transfer_tracks_happy_path() -> None:
     insert_call = api.execute.call_args_list[3]
     assert "INSERT INTO triage_bucket_tracks" in insert_call.args[0]
     assert "ON CONFLICT" in insert_call.args[0]
+
+
+def test_finalize_block_inactive_staging_with_tracks_returns_409() -> None:
+    api = _api_with_responses(
+        [
+            [
+                {
+                    "id": "b-1",
+                    "status": "IN_PROGRESS",
+                }
+            ],
+            [
+                {
+                    "id": "bk-stg",
+                    "category_id": "c-1",
+                    "track_count": 3,
+                }
+            ],
+        ]
+    )
+    repo = TriageRepository(api)
+    fake_categories_repo = MagicMock()
+    with pytest.raises(InactiveStagingFinalizeError) as ei:
+        repo.finalize_block(
+            user_id="u-1",
+            block_id="b-1",
+            categories_repository=fake_categories_repo,
+        )
+    assert ei.value.inactive_buckets[0]["id"] == "bk-stg"
+    assert ei.value.inactive_buckets[0]["track_count"] == 3
+    fake_categories_repo.add_tracks_bulk.assert_not_called()
+
+
+def test_finalize_block_calls_add_tracks_bulk_per_staging() -> None:
+    """Active staging buckets each call add_tracks_bulk inside the same TX."""
+    track_rows_per_bucket = {
+        "bk-cat1": [
+            {"track_id": f"00000000-0000-0000-0000-{n:012d}"}
+            for n in range(3)
+        ],
+        "bk-cat2": [
+            {"track_id": f"00000000-0000-0000-0000-{n + 100:012d}"}
+            for n in range(2)
+        ],
+    }
+    api = _api_with_responses(
+        [
+            [{"id": "b-1", "status": "IN_PROGRESS"}],
+            [],  # no inactive staging with tracks
+            [
+                {"id": "bk-cat1", "category_id": "c-1"},
+                {"id": "bk-cat2", "category_id": "c-2"},
+            ],
+            track_rows_per_bucket["bk-cat1"],
+            track_rows_per_bucket["bk-cat2"],
+            [],  # UPDATE block status
+            [
+                {
+                    "id": "b-1",
+                    "user_id": "u-1",
+                    "style_id": "s-1",
+                    "style_name": "House",
+                    "name": "X",
+                    "date_from": "2026-04-20",
+                    "date_to": "2026-04-26",
+                    "status": "FINALIZED",
+                    "created_at": "2026-04-28T00:00:00+00:00",
+                    "updated_at": "2026-04-28T01:00:00+00:00",
+                    "finalized_at": "2026-04-28T01:00:00+00:00",
+                }
+            ],
+            [],  # buckets-with-counts
+        ]
+    )
+    fake_categories_repo = MagicMock()
+    fake_categories_repo.add_tracks_bulk.return_value = 0
+    repo = TriageRepository(api)
+    out = repo.finalize_block(
+        user_id="u-1",
+        block_id="b-1",
+        categories_repository=fake_categories_repo,
+    )
+    assert out.block.status == "FINALIZED"
+    assert out.promoted == {"c-1": 3, "c-2": 2}
+    assert fake_categories_repo.add_tracks_bulk.call_count == 2
+
+
+def test_finalize_block_chunks_above_500() -> None:
+    track_rows = [
+        {"track_id": f"00000000-0000-0000-0000-{n:012d}"}
+        for n in range(1100)
+    ]
+    api = _api_with_responses(
+        [
+            [{"id": "b-1", "status": "IN_PROGRESS"}],
+            [],
+            [{"id": "bk-cat1", "category_id": "c-1"}],
+            track_rows,
+            [],
+            [
+                {
+                    "id": "b-1",
+                    "user_id": "u-1",
+                    "style_id": "s-1",
+                    "style_name": "House",
+                    "name": "X",
+                    "date_from": "2026-04-20",
+                    "date_to": "2026-04-26",
+                    "status": "FINALIZED",
+                    "created_at": "2026-04-28T00:00:00+00:00",
+                    "updated_at": "2026-04-28T01:00:00+00:00",
+                    "finalized_at": "2026-04-28T01:00:00+00:00",
+                }
+            ],
+            [],
+        ]
+    )
+    fake_categories_repo = MagicMock()
+    fake_categories_repo.add_tracks_bulk.return_value = 0
+    repo = TriageRepository(api)
+    repo.finalize_block(
+        user_id="u-1",
+        block_id="b-1",
+        categories_repository=fake_categories_repo,
+    )
+    assert fake_categories_repo.add_tracks_bulk.call_count == 3
+    chunk_sizes = [
+        len(call.kwargs["items"])
+        for call in fake_categories_repo.add_tracks_bulk.call_args_list
+    ]
+    assert chunk_sizes == [500, 500, 100]
