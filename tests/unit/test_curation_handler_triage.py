@@ -72,14 +72,11 @@ def context() -> SimpleNamespace:
 
 def test_create_triage_block_route_registered() -> None:
     assert "POST /triage/blocks" in curation_handler._ROUTE_TABLE
-    assert (
-        curation_handler._ROUTE_TABLE["POST /triage/blocks"]
-        is curation_handler._create_triage_block
-    )
-    assert (
-        curation_handler._REPO_FACTORY["POST /triage/blocks"]
-        is curation_handler.create_default_triage_repository
-    )
+    handler, factory = curation_handler._ROUTE_TABLE["POST /triage/blocks"]
+    assert handler is curation_handler._create_triage_block
+    # The factory wraps `create_default_triage_repository`; calling it must
+    # delegate so monkeypatching the module attribute swaps the repo source.
+    assert factory is curation_handler._triage_factory
 
 
 # ---------- Handler invocation ---------------------------------------------
@@ -142,10 +139,6 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
         "create_default_triage_repository",
         lambda: FakeTriageRepo(),
     )
-    # Also patch the lookup in _REPO_FACTORY (it captured the original ref).
-    curation_handler._REPO_FACTORY["POST /triage/blocks"] = (
-        lambda: FakeTriageRepo()
-    )
 
     style_id = "22222222-2222-2222-2222-222222222222"
     body = {
@@ -191,9 +184,9 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
 def test_create_triage_block_returns_503_when_db_not_configured(
     monkeypatch, context
 ) -> None:
-    monkeypatch.setitem(
-        curation_handler._REPO_FACTORY,
-        "POST /triage/blocks",
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
         lambda: None,
     )
     resp = curation_handler.lambda_handler(
@@ -218,9 +211,9 @@ def test_create_triage_block_validation_error_on_bad_dates(
     monkeypatch, context
 ) -> None:
     # Don't even hit the repo; pydantic should reject date_to < date_from.
-    monkeypatch.setitem(
-        curation_handler._REPO_FACTORY,
-        "POST /triage/blocks",
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
         lambda: object(),  # repo never invoked
     )
     resp = curation_handler.lambda_handler(
@@ -258,9 +251,9 @@ def test_inactive_staging_error_attaches_inactive_buckets(
                 "2 inactive staging bucket(s) hold tracks", inactive
             )
 
-    monkeypatch.setitem(
-        curation_handler._REPO_FACTORY,
-        "POST /triage/blocks",
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
         lambda: RaisingRepo(),
     )
     resp = curation_handler.lambda_handler(
@@ -294,9 +287,9 @@ def test_tracks_not_in_source_error_attaches_payload(
                 "2 track(s) not present in source bucket", missing
             )
 
-    monkeypatch.setitem(
-        curation_handler._REPO_FACTORY,
-        "POST /triage/blocks",
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
         lambda: RaisingRepo(),
     )
     resp = curation_handler.lambda_handler(

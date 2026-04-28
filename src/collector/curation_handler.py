@@ -1,9 +1,9 @@
 """Lambda handler for the user-curation surface (spec-C/D/E).
 
-Routes for spec-C only at this revision. spec-D and spec-E will append
-to `_ROUTE_TABLE`. Every route is JWT-gated by the API Gateway Lambda
-Authorizer (spec-A); `user_id` is read from
-`event.requestContext.authorizer.lambda.user_id`.
+`_ROUTE_TABLE` is the single source of truth: each `routeKey` maps to a
+`(handler, repo_factory)` tuple. spec-D and spec-E will append entries.
+Every route is JWT-gated by the API Gateway Lambda Authorizer (spec-A);
+`user_id` is read from `event.requestContext.authorizer.lambda.user_id`.
 """
 
 from __future__ import annotations
@@ -195,11 +195,11 @@ def lambda_handler(
     if not isinstance(route_key, str):
         return _error(404, "not_found", "Unknown route", correlation_id)
 
-    handler = _ROUTE_TABLE.get(route_key)
-    if handler is None:
+    entry = _ROUTE_TABLE.get(route_key)
+    if entry is None:
         return _error(404, "not_found", "Unknown route", correlation_id)
 
-    factory = _REPO_FACTORY.get(route_key, create_default_categories_repository)
+    handler, factory = entry
     repo = factory()
     if repo is None:
         return _error(503, "db_not_configured", "Database not configured", correlation_id)
@@ -511,25 +511,29 @@ def _create_triage_block(
     )
 
 
-_ROUTE_TABLE: dict[str, Callable[..., dict[str, Any]]] = {
-    "POST /styles/{style_id}/categories": _handle_create_category,
-}
-
-_ROUTE_TABLE["GET /styles/{style_id}/categories"] = _handle_list_by_style
-_ROUTE_TABLE["GET /categories"] = _handle_list_all
-_ROUTE_TABLE["GET /categories/{id}"] = _handle_get_detail
-_ROUTE_TABLE["PATCH /categories/{id}"] = _handle_rename
-_ROUTE_TABLE["DELETE /categories/{id}"] = _handle_soft_delete
-_ROUTE_TABLE["PUT /styles/{style_id}/categories/order"] = _handle_reorder
-_ROUTE_TABLE["GET /categories/{id}/tracks"] = _handle_list_tracks
-_ROUTE_TABLE["POST /categories/{id}/tracks"] = _handle_add_track
-_ROUTE_TABLE["DELETE /categories/{id}/tracks/{track_id}"] = _handle_remove_track
-_ROUTE_TABLE["POST /triage/blocks"] = _create_triage_block
+# Single source of truth for routing: each route maps to a
+# `(handler, repo_factory)` tuple. Adding a new route requires picking the
+# right factory explicitly — there is no silent fallback. spec-C routes use
+# `create_default_categories_repository`; spec-D triage routes use
+# `create_default_triage_repository`.
+def _categories_factory() -> Any:
+    return create_default_categories_repository()
 
 
-# Per-route repository factories. Routes not listed here default to
-# `create_default_categories_repository` (spec-C). spec-D routes use the
-# triage repository factory.
-_REPO_FACTORY: dict[str, Callable[[], Any]] = {
-    "POST /triage/blocks": create_default_triage_repository,
+def _triage_factory() -> Any:
+    return create_default_triage_repository()
+
+
+_ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]] = {
+    "POST /styles/{style_id}/categories": (_handle_create_category, _categories_factory),
+    "GET /styles/{style_id}/categories": (_handle_list_by_style, _categories_factory),
+    "GET /categories": (_handle_list_all, _categories_factory),
+    "GET /categories/{id}": (_handle_get_detail, _categories_factory),
+    "PATCH /categories/{id}": (_handle_rename, _categories_factory),
+    "DELETE /categories/{id}": (_handle_soft_delete, _categories_factory),
+    "PUT /styles/{style_id}/categories/order": (_handle_reorder, _categories_factory),
+    "GET /categories/{id}/tracks": (_handle_list_tracks, _categories_factory),
+    "POST /categories/{id}/tracks": (_handle_add_track, _categories_factory),
+    "DELETE /categories/{id}/tracks/{track_id}": (_handle_remove_track, _categories_factory),
+    "POST /triage/blocks": (_create_triage_block, _triage_factory),
 }
