@@ -114,9 +114,9 @@ Current setup in `infra/`:
 
 Current Aurora scaling:
 
-- `aurora_serverless_min_acu = 0`
+- `aurora_serverless_min_acu = 0.5` (warm floor; set to `0` to enable auto-pause)
 - `aurora_serverless_max_acu = 2`
-- `aurora_auto_pause_seconds = 300`
+- `aurora_auto_pause_seconds = 300` (only effective when `aurora_serverless_min_acu = 0`)
 
 ## Local Run
 

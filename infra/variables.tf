@@ -137,7 +137,7 @@ variable "aurora_serverless_max_acu" {
 }
 
 variable "aurora_auto_pause_seconds" {
-  description = "Aurora Serverless v2 seconds until auto pause"
+  description = "Aurora Serverless v2 seconds until auto pause. Only effective when aurora_serverless_min_acu = 0; ignored otherwise."
   type        = number
   default     = 300
 }
