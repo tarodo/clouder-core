@@ -146,14 +146,21 @@ Canonicalized tracks.
 | style_id            | String(36)        | nullable, FK -> clouder_styles.id |
 | spotify_id          | String(64)        | nullable                 |
 | spotify_searched_at | DateTime(tz)      | nullable                 |
+| spotify_release_date | Date             | nullable; populated by Spotify enrichment from `album.release_date` per `release_date_precision` |
 | release_type        | String(16)        | nullable                 |
 | is_ai_suspected     | Boolean           | NOT NULL, default=false  |
 | created_at          | DateTime(tz)      | NOT NULL                 |
 | updated_at          | DateTime(tz)      | NOT NULL                 |
 
-**Indexes:** idx_tracks_isrc (isrc) WHERE isrc IS NOT NULL, idx_tracks_spotify_id (spotify_id) WHERE spotify_id IS NOT NULL
+**Indexes:** idx_tracks_isrc (isrc) WHERE isrc IS NOT NULL, idx_tracks_spotify_id (spotify_id) WHERE spotify_id IS NOT NULL, idx_tracks_spotify_release_date (spotify_release_date) WHERE spotify_release_date IS NOT NULL
 
 `release_type` mirrors `clouder_albums.release_type` of the track's parent album (copied on Spotify enrichment). `is_ai_suspected` set via `ai_search_results` propagation.
+
+`spotify_release_date` is added in `20260428_15_triage` and used by spec-D R4 classification at `POST /triage/blocks` time:
+- NULL → UNCLASSIFIED
+- < `date_from` → OLD
+- otherwise + `release_type = 'compilation'` → NOT
+- else → NEW
 
 ### 1.10 clouder_track_artists
 
@@ -274,7 +281,75 @@ Membership of canonical tracks in user categories.
 **Indexes:**
 - `idx_category_tracks_category_added` (category_id, added_at DESC, track_id)
 
-`source_triage_block_id` is NULL for direct adds via `POST /categories/{id}/tracks` and set by spec-D's triage finalize. The FK to `triage_blocks(id)` is intentionally deferred to spec-D's migration so spec-C ships without forward references.
+`source_triage_block_id` is NULL for direct adds via `POST /categories/{id}/tracks` and set by spec-D's triage finalize. The FK to `triage_blocks(id)` is added in spec-D's migration `20260428_15_triage` with `ON DELETE SET NULL`.
+
+### 1.17 triage_blocks
+
+User triage sessions. Per-(user, style, date-range) working space for
+sorting newly-ingested releases before promoting them into categories.
+
+| Column        | Type           | Constraints                                  |
+|---------------|----------------|----------------------------------------------|
+| id            | String(36)     | PK (UUID)                                    |
+| user_id       | String(36)     | NOT NULL, FK -> users.id                     |
+| style_id      | String(36)     | NOT NULL, FK -> clouder_styles.id            |
+| name          | Text           | NOT NULL                                     |
+| date_from     | Date           | NOT NULL                                     |
+| date_to       | Date           | NOT NULL, CHECK date_to >= date_from         |
+| status        | String(16)     | NOT NULL, default 'IN_PROGRESS', CHECK in (...)|
+| created_at    | DateTime(tz)   | NOT NULL                                     |
+| updated_at    | DateTime(tz)   | NOT NULL                                     |
+| finalized_at  | DateTime(tz)   | nullable; set on flip to FINALIZED           |
+| deleted_at    | DateTime(tz)   | nullable                                     |
+
+**Indexes:**
+- `idx_triage_blocks_user_style_status` (user_id, style_id, status) WHERE deleted_at IS NULL
+- `idx_triage_blocks_user_created` (user_id, created_at DESC) WHERE deleted_at IS NULL
+
+State: only `IN_PROGRESS → FINALIZED`. No re-open. Soft-delete via `deleted_at`
+column orthogonal to status. Overlapping date windows allowed for the same
+(user_id, style_id, IN_PROGRESS); no EXCLUSION constraint.
+
+### 1.18 triage_buckets
+
+Buckets within a triage block. Five technical bucket types per block plus
+N staging buckets (one per alive category in the style at create time).
+
+| Column           | Type        | Constraints                                                |
+|------------------|-------------|------------------------------------------------------------|
+| id               | String(36)  | PK (UUID)                                                  |
+| triage_block_id  | String(36)  | NOT NULL, FK -> triage_blocks.id ON DELETE CASCADE         |
+| bucket_type      | String(16)  | NOT NULL, CHECK in ('NEW','OLD','NOT','DISCARD','UNCLASSIFIED','STAGING') |
+| category_id      | String(36)  | nullable, FK -> categories.id ON DELETE RESTRICT           |
+| inactive         | Boolean     | NOT NULL, default FALSE                                    |
+| created_at       | DateTime(tz)| NOT NULL                                                   |
+
+**Indexes / constraints:**
+- CHECK `(bucket_type = 'STAGING') = (category_id IS NOT NULL)`
+- `uq_triage_buckets_block_category` UNIQUE (triage_block_id, category_id) WHERE category_id IS NOT NULL
+- `uq_triage_buckets_block_type_tech` UNIQUE (triage_block_id, bucket_type) WHERE bucket_type <> 'STAGING'
+- `idx_triage_buckets_block` (triage_block_id)
+- `idx_triage_buckets_category` (category_id) WHERE category_id IS NOT NULL
+
+`inactive=true` is set by spec-D D8 when the linked category is soft-deleted;
+finalize blocks if any inactive STAGING bucket holds tracks. FK to categories
+uses `ON DELETE RESTRICT` rather than `SET NULL` because nulling
+`category_id` on a STAGING bucket would violate the staging-coupling CHECK.
+
+### 1.19 triage_bucket_tracks
+
+Track membership inside a triage bucket. Idempotent on conflict.
+
+| Column            | Type        | Constraints                                            |
+|-------------------|-------------|--------------------------------------------------------|
+| triage_bucket_id  | String(36)  | PK (composite), FK -> triage_buckets.id ON DELETE CASCADE |
+| track_id          | String(36)  | PK (composite), FK -> clouder_tracks.id                |
+| added_at          | DateTime(tz)| NOT NULL                                               |
+
+**PK:** (triage_bucket_id, track_id) — UNIQUE makes move/transfer idempotent.
+
+**Indexes:**
+- `idx_triage_bucket_tracks_bucket_added` (triage_bucket_id, added_at DESC, track_id)
 
 ---
 
