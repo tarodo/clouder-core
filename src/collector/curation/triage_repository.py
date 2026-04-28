@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date as date_type, datetime
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Sequence
 from uuid import uuid4
 
 from collector.curation import (
@@ -22,9 +22,7 @@ from collector.curation.triage_service import (
     BUCKET_TYPE_NEW,
     BUCKET_TYPE_NOT,
     BUCKET_TYPE_OLD,
-    BUCKET_TYPE_STAGING,
     BUCKET_TYPE_UNCLASSIFIED,
-    TECHNICAL_BUCKET_DISPLAY_ORDER,
     TECHNICAL_BUCKET_TYPES,
     TRACK_IDS_MAX,
 )
@@ -1043,6 +1041,11 @@ class TriageRepository:
             return None
         b = block_rows[0]
 
+        # Spec §5.1 bucket ordering: technical buckets in fixed order
+        # (NEW, OLD, NOT, UNCLASSIFIED, DISCARD), then staging buckets sorted
+        # by categories.position ASC, categories.created_at DESC,
+        # categories.id ASC. Done entirely in SQL so user reorderings via
+        # spec-C's PUT /styles/{id}/categories/order surface immediately.
         bucket_rows = self._data_api.execute(
             """
             SELECT
@@ -1058,27 +1061,24 @@ class TriageRepository:
                 GROUP BY triage_bucket_id
             ) tc ON tc.triage_bucket_id = tbk.id
             WHERE tbk.triage_block_id = :block_id
+            ORDER BY
+                CASE tbk.bucket_type
+                    WHEN 'NEW' THEN 0
+                    WHEN 'OLD' THEN 1
+                    WHEN 'NOT' THEN 2
+                    WHEN 'UNCLASSIFIED' THEN 3
+                    WHEN 'DISCARD' THEN 4
+                    WHEN 'STAGING' THEN 5
+                END,
+                c.position ASC NULLS LAST,
+                c.created_at DESC NULLS LAST,
+                c.id ASC NULLS LAST,
+                tbk.id ASC
             """,
             {"block_id": block_id},
             transaction_id=transaction_id,
         )
 
-        # Sort: technical buckets in TECHNICAL_BUCKET_DISPLAY_ORDER,
-        # then staging buckets ordered by category name (or id fallback).
-        sort_index = {
-            t: i for i, t in enumerate(TECHNICAL_BUCKET_DISPLAY_ORDER)
-        }
-
-        def sort_key(row: Mapping[str, Any]) -> tuple[int, str]:
-            bt = row["bucket_type"]
-            if bt == BUCKET_TYPE_STAGING:
-                return (
-                    len(TECHNICAL_BUCKET_DISPLAY_ORDER),
-                    row.get("category_name") or row["id"],
-                )
-            return (sort_index.get(bt, 999), row["id"])
-
-        bucket_rows_sorted = sorted(bucket_rows, key=sort_key)
         buckets = tuple(
             TriageBucketRow(
                 id=r["id"],
@@ -1088,7 +1088,7 @@ class TriageRepository:
                 inactive=bool(r["inactive"]),
                 track_count=int(r["track_count"]),
             )
-            for r in bucket_rows_sorted
+            for r in bucket_rows
         )
 
         return TriageBlockRow(
