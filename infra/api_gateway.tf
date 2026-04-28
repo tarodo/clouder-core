@@ -1,6 +1,18 @@
 resource "aws_apigatewayv2_api" "collector" {
   name          = local.api_name
   protocol_type = "HTTP"
+
+  dynamic "cors_configuration" {
+    for_each = length(var.cors_allowed_origins) > 0 ? [1] : []
+    content {
+      allow_origins     = var.cors_allowed_origins
+      allow_methods     = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+      allow_headers     = ["authorization", "content-type", "x-correlation-id"]
+      expose_headers    = ["x-correlation-id"]
+      max_age           = 600
+      allow_credentials = false
+    }
+  }
 }
 
 resource "aws_apigatewayv2_integration" "collector_lambda" {

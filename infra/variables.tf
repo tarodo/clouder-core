@@ -451,3 +451,9 @@ variable "curation_lambda_memory_mb" {
   default     = 512
   description = "Curation Lambda memory size (MB)"
 }
+
+variable "cors_allowed_origins" {
+  description = "Список origin-ов для CORS на API Gateway. Пустой список = CORS отключён."
+  type        = list(string)
+  default     = []
+}

@@ -27,3 +27,6 @@ spotify_client_secret_ssm_parameter = "/clouder/spotify/client_secret"
 admin_spotify_ids                    = "your_spotify_id_here"
 spotify_oauth_redirect_uri           = "https://app.example.com/auth/callback"
 allowed_frontend_redirects           = "/, /dashboard"
+
+# CORS: укажи origin-ы фронта. Пустой список = CORS отключён (только server-to-server).
+cors_allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
