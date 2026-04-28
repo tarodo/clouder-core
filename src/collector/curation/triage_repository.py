@@ -345,7 +345,9 @@ class TriageRepository:
     def get_block(
         self, *, user_id: str, block_id: str
     ) -> TriageBlockRow | None:
-        raise NotImplementedError
+        return self._fetch_block_detail(
+            user_id=user_id, block_id=block_id, transaction_id=None
+        )
 
     def list_blocks_by_style(
         self,
@@ -356,7 +358,91 @@ class TriageRepository:
         offset: int,
         status: str | None = None,
     ) -> tuple[list[TriageBlockSummaryRow], int]:
-        raise NotImplementedError
+        style_rows = self._data_api.execute(
+            "SELECT id FROM clouder_styles WHERE id = :style_id",
+            {"style_id": style_id},
+        )
+        if not style_rows:
+            raise NotFoundError(
+                "style_not_found",
+                f"clouder_styles row not found: {style_id}",
+            )
+
+        sql_filter = ""
+        params: dict[str, Any] = {
+            "user_id": user_id,
+            "style_id": style_id,
+            "limit": limit,
+            "offset": offset,
+        }
+        if status is not None:
+            sql_filter = " AND tb.status = :status"
+            params["status"] = status
+
+        rows = self._data_api.execute(
+            f"""
+            SELECT
+                tb.id, tb.user_id, tb.style_id,
+                cs.name AS style_name,
+                tb.name,
+                tb.date_from, tb.date_to,
+                tb.status,
+                tb.created_at, tb.updated_at, tb.finalized_at,
+                COALESCE(tc.cnt, 0) AS track_count
+            FROM triage_blocks tb
+            JOIN clouder_styles cs ON tb.style_id = cs.id
+            LEFT JOIN (
+                SELECT tbk.triage_block_id, COUNT(*) AS cnt
+                FROM triage_buckets tbk
+                JOIN triage_bucket_tracks tbt
+                  ON tbt.triage_bucket_id = tbk.id
+                GROUP BY tbk.triage_block_id
+            ) tc ON tc.triage_block_id = tb.id
+            WHERE tb.user_id = :user_id
+              AND tb.style_id = :style_id
+              AND tb.deleted_at IS NULL
+              {sql_filter}
+            ORDER BY tb.created_at DESC, tb.id ASC
+            LIMIT :limit OFFSET :offset
+            """,
+            params,
+        )
+
+        total_rows = self._data_api.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM triage_blocks tb
+            WHERE tb.user_id = :user_id
+              AND tb.style_id = :style_id
+              AND tb.deleted_at IS NULL
+              {sql_filter}
+            """,
+            params,
+        )
+        total = int(total_rows[0]["total"]) if total_rows else 0
+
+        items = [
+            TriageBlockSummaryRow(
+                id=r["id"],
+                user_id=r["user_id"],
+                style_id=r["style_id"],
+                style_name=r["style_name"],
+                name=r["name"],
+                date_from=str(r["date_from"]),
+                date_to=str(r["date_to"]),
+                status=r["status"],
+                created_at=str(r["created_at"]),
+                updated_at=str(r["updated_at"]),
+                finalized_at=(
+                    str(r["finalized_at"])
+                    if r["finalized_at"] is not None
+                    else None
+                ),
+                track_count=int(r["track_count"]),
+            )
+            for r in rows
+        ]
+        return items, total
 
     def list_blocks_all(
         self,
@@ -366,7 +452,76 @@ class TriageRepository:
         offset: int,
         status: str | None = None,
     ) -> tuple[list[TriageBlockSummaryRow], int]:
-        raise NotImplementedError
+        sql_filter = ""
+        params: dict[str, Any] = {
+            "user_id": user_id,
+            "limit": limit,
+            "offset": offset,
+        }
+        if status is not None:
+            sql_filter = " AND tb.status = :status"
+            params["status"] = status
+
+        rows = self._data_api.execute(
+            f"""
+            SELECT
+                tb.id, tb.user_id, tb.style_id,
+                cs.name AS style_name,
+                tb.name,
+                tb.date_from, tb.date_to,
+                tb.status,
+                tb.created_at, tb.updated_at, tb.finalized_at,
+                COALESCE(tc.cnt, 0) AS track_count
+            FROM triage_blocks tb
+            JOIN clouder_styles cs ON tb.style_id = cs.id
+            LEFT JOIN (
+                SELECT tbk.triage_block_id, COUNT(*) AS cnt
+                FROM triage_buckets tbk
+                JOIN triage_bucket_tracks tbt
+                  ON tbt.triage_bucket_id = tbk.id
+                GROUP BY tbk.triage_block_id
+            ) tc ON tc.triage_block_id = tb.id
+            WHERE tb.user_id = :user_id
+              AND tb.deleted_at IS NULL
+              {sql_filter}
+            ORDER BY tb.created_at DESC, tb.id ASC
+            LIMIT :limit OFFSET :offset
+            """,
+            params,
+        )
+        total_rows = self._data_api.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM triage_blocks tb
+            WHERE tb.user_id = :user_id
+              AND tb.deleted_at IS NULL
+              {sql_filter}
+            """,
+            params,
+        )
+        total = int(total_rows[0]["total"]) if total_rows else 0
+        items = [
+            TriageBlockSummaryRow(
+                id=r["id"],
+                user_id=r["user_id"],
+                style_id=r["style_id"],
+                style_name=r["style_name"],
+                name=r["name"],
+                date_from=str(r["date_from"]),
+                date_to=str(r["date_to"]),
+                status=r["status"],
+                created_at=str(r["created_at"]),
+                updated_at=str(r["updated_at"]),
+                finalized_at=(
+                    str(r["finalized_at"])
+                    if r["finalized_at"] is not None
+                    else None
+                ),
+                track_count=int(r["track_count"]),
+            )
+            for r in rows
+        ]
+        return items, total
 
     def list_bucket_tracks(
         self,

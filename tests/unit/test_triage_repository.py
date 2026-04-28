@@ -237,3 +237,77 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
     assert "old_bucket_id" in params
     assert "not_bucket_id" in params
     assert "unclassified_bucket_id" in params
+
+
+def test_get_block_returns_full_detail() -> None:
+    api = _api_with_responses(
+        [
+            [
+                {
+                    "id": "b-1",
+                    "user_id": "u-1",
+                    "style_id": "s-1",
+                    "style_name": "House",
+                    "name": "X",
+                    "date_from": "2026-04-20",
+                    "date_to": "2026-04-26",
+                    "status": "IN_PROGRESS",
+                    "created_at": "2026-04-28T00:00:00+00:00",
+                    "updated_at": "2026-04-28T00:00:00+00:00",
+                    "finalized_at": None,
+                }
+            ],
+            [],
+        ]
+    )
+    repo = TriageRepository(api)
+    out = repo.get_block(user_id="u-1", block_id="b-1")
+    assert out is not None
+    assert out.style_name == "House"
+
+
+def test_get_block_missing_returns_none() -> None:
+    api = _api_with_responses([[]])
+    repo = TriageRepository(api)
+    assert repo.get_block(user_id="u-1", block_id="missing") is None
+
+
+def test_list_blocks_by_style_status_filter_in_sql() -> None:
+    api = _api_with_responses(
+        [
+            [{"id": "s-1"}],
+            [],
+            [{"total": 0}],
+        ]
+    )
+    repo = TriageRepository(api)
+    repo.list_blocks_by_style(
+        user_id="u-1",
+        style_id="s-1",
+        limit=50,
+        offset=0,
+        status="FINALIZED",
+    )
+    list_call = api.execute.call_args_list[1]
+    assert "status = :status" in list_call.args[0]
+    assert list_call.args[1]["status"] == "FINALIZED"
+
+
+def test_list_blocks_by_style_style_not_found() -> None:
+    api = _api_with_responses([[]])
+    repo = TriageRepository(api)
+    with pytest.raises(NotFoundError) as ei:
+        repo.list_blocks_by_style(
+            user_id="u-1", style_id="missing", limit=50, offset=0
+        )
+    assert ei.value.error_code == "style_not_found"
+
+
+def test_list_blocks_all_no_style_filter() -> None:
+    api = _api_with_responses([[], [{"total": 0}]])
+    repo = TriageRepository(api)
+    repo.list_blocks_all(user_id="u-1", limit=50, offset=0)
+    list_call = api.execute.call_args_list[0]
+    sql = list_call.args[0]
+    assert "tb.user_id = :user_id" in sql
+    assert ":style_id" not in sql
