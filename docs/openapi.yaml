@@ -46,8 +46,9 @@ info:
     **Generated** by `scripts/generate_openapi.py` — do not edit by hand.'
 servers:
 - url: https://{api_id}.execute-api.{region}.amazonaws.com
-  description: Set OPENAPI_SERVER_URL env var before regenerating to embed the real
-    API Gateway invoke URL (`cd infra && terraform output -raw api_invoke_url`).
+  description: Default API Gateway invoke URL template. Override via the OPENAPI_SERVER_URL
+    env var when regenerating to embed a concrete staging or prod URL (`terraform
+    output -raw api_invoke_url`).
   variables:
     api_id:
       default: <api-id>

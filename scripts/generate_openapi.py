@@ -1221,6 +1221,30 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
     return schemas
 
 
+_DEFAULT_SERVER_URL = "https://{api_id}.execute-api.{region}.amazonaws.com"
+
+
+def _build_server() -> dict[str, Any]:
+    url = os.environ.get("OPENAPI_SERVER_URL", _DEFAULT_SERVER_URL)
+    is_template = url == _DEFAULT_SERVER_URL
+    server: dict[str, Any] = {
+        "url": url,
+        "description": (
+            "Default API Gateway invoke URL template. Override via the "
+            "OPENAPI_SERVER_URL env var when regenerating to embed a concrete "
+            "staging or prod URL (`terraform output -raw api_invoke_url`)."
+            if is_template
+            else "API Gateway invoke URL embedded at spec generation time."
+        ),
+    }
+    if is_template:
+        server["variables"] = {
+            "api_id": {"default": "<api-id>"},
+            "region": {"default": "us-east-1"},
+        }
+    return server
+
+
 def build_openapi() -> dict[str, Any]:
     pyd_schemas = _collect_pydantic_schemas()
 
@@ -1258,23 +1282,7 @@ def build_openapi() -> dict[str, Any]:
                 "**Generated** by `scripts/generate_openapi.py` — do not edit by hand."
             ),
         },
-        "servers": [
-            {
-                "url": os.environ.get(
-                    "OPENAPI_SERVER_URL",
-                    "https://{api_id}.execute-api.{region}.amazonaws.com",
-                ),
-                "description": (
-                    "Set OPENAPI_SERVER_URL env var before regenerating to embed "
-                    "the real API Gateway invoke URL "
-                    "(`cd infra && terraform output -raw api_invoke_url`)."
-                ),
-                "variables": {
-                    "api_id": {"default": "<api-id>"},
-                    "region": {"default": "us-east-1"},
-                },
-            }
-        ],
+        "servers": [_build_server()],
         "tags": [
             {"name": "auth", "description": "Public OAuth + session-cookie endpoints."},
             {"name": "user", "description": "Routes for any authenticated user."},
