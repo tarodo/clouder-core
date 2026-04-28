@@ -3,17 +3,54 @@ openapi: 3.1.0
 info:
   title: Clouder Core API
   version: 1.0.0
-  description: 'Beatport ingest pipeline + Spotify OAuth user auth (spec-A).
+  description: 'Beatport ingest pipeline + Spotify OAuth user auth (spec-A) + category/triage
+    curation (spec-C/D).
 
 
-    Authorization: most routes require a Bearer JWT issued by `/auth/callback` or
-    `/auth/refresh`. Admin-only routes additionally require `is_admin=true` on the
-    JWT (set from `ADMIN_SPOTIFY_IDS` env var on each login).
+    ## Authentication
+
+
+    All endpoints except `/auth/login` and `/auth/callback` require a JWT Bearer token
+    in `Authorization: Bearer <token>`.
+
+
+    **How to get a token (manual / Postman flow):**
+
+    1. Open `GET /auth/login` in a browser → redirects to Spotify consent.
+
+    2. After approve, Spotify redirects to `/auth/callback?code=...&state=...`.
+
+    3. Callback returns JSON `{access_token, spotify_access_token, expires_in, user,
+    correlation_id}` and sets the refresh JWT as an HttpOnly cookie scoped to `/auth/refresh`.
+
+    4. Use `access_token` in `Authorization: Bearer ...` for every subsequent call.
+
+    5. When `access_token` expires (default 30m), `POST /auth/refresh` (no body —
+    the refresh JWT is read from the cookie) → new access token plus a rotated refresh
+    cookie.
+
+
+    ## Admin endpoints
+
+
+    `POST /collect_bp_releases` and `GET /tracks/spotify-not-found` require `is_admin=true`
+    on the JWT, set from the `ADMIN_SPOTIFY_IDS` env var on each login.
+
+
+    ## Error envelope
+
+
+    All domain errors return `{error_code, message, correlation_id}`. API Gateway
+    503 (cold-start timeout) returns `{"message":"Service Unavailable"}` (capital
+    S/U) — retry the request after a few seconds.
 
 
     **Generated** by `scripts/generate_openapi.py` — do not edit by hand.'
 servers:
 - url: https://{api_id}.execute-api.{region}.amazonaws.com
+  description: Default API Gateway invoke URL template. Override via the OPENAPI_SERVER_URL
+    env var when regenerating to embed a concrete staging or prod URL (`terraform
+    output -raw api_endpoint`).
   variables:
     api_id:
       default: <api-id>
@@ -237,6 +274,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CollectRequestIn'
+            example:
+              iso_year: 2026
+              iso_week: 17
+              style_id: 90
+              bp_token: REDACTED
+              search_label_count: 10
       security:
       - BearerAuth: []
       tags:
@@ -560,6 +603,8 @@ paths:
                   minLength: 1
                   maxLength: 64
               additionalProperties: false
+            example:
+              name: Tribal essentials
       security:
       - BearerAuth: []
       tags:
@@ -674,6 +719,11 @@ paths:
                     type: string
                     format: uuid
               additionalProperties: false
+            example:
+              category_ids:
+              - 11111111-1111-1111-1111-111111111111
+              - 22222222-2222-2222-2222-222222222222
+              - 33333333-3333-3333-3333-333333333333
       security:
       - BearerAuth: []
       tags:
@@ -777,6 +827,8 @@ paths:
                   minLength: 1
                   maxLength: 64
               additionalProperties: false
+            example:
+              name: Renamed category
       security:
       - BearerAuth: []
       tags:
@@ -983,6 +1035,8 @@ paths:
                   type: string
                   format: uuid
               additionalProperties: false
+            example:
+              track_id: aaaaaaaa-1111-1111-1111-111111111111
       security:
       - BearerAuth: []
       tags:
@@ -1134,6 +1188,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateTriageBlockIn'
+            example:
+              style_id: 11111111-1111-1111-1111-111111111111
+              name: House — week 17
+              date_from: '2026-04-21'
+              date_to: '2026-04-28'
       security:
       - BearerAuth: []
       tags:
@@ -1493,6 +1552,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/MoveTracksIn'
+            example:
+              from_bucket_id: 11111111-1111-1111-1111-111111111111
+              to_bucket_id: 22222222-2222-2222-2222-222222222222
+              track_ids:
+              - aaaaaaaa-1111-1111-1111-111111111111
+              - bbbbbbbb-2222-2222-2222-222222222222
       security:
       - BearerAuth: []
       tags:
@@ -1551,6 +1616,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/TransferTracksIn'
+            example:
+              target_bucket_id: 44444444-4444-4444-4444-444444444444
+              track_ids:
+              - aaaaaaaa-1111-1111-1111-111111111111
       security:
       - BearerAuth: []
       tags:

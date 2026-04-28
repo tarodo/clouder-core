@@ -16,6 +16,7 @@ Output: docs/openapi.yaml (OpenAPI 3.1).
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -649,6 +650,13 @@ ROUTES: list[dict[str, Any]] = [
                 }
             },
         },
+        "request_example": {
+            "iso_year": 2026,
+            "iso_week": 17,
+            "style_id": 90,
+            "bp_token": "REDACTED",
+            "search_label_count": 10,
+        },
         "responses": {
             "200": _make_response(
                 200,
@@ -740,6 +748,7 @@ ROUTES: list[dict[str, Any]] = [
                 "additionalProperties": False,
             }}},
         },
+        "request_example": {"name": "Tribal essentials"},
         "responses": {
             "201": _make_response(201, "Category created.", CATEGORY_RESPONSE),
             "404": _error(404, "style_not_found."),
@@ -784,6 +793,13 @@ ROUTES: list[dict[str, Any]] = [
                 "properties": {"category_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}}},
                 "additionalProperties": False,
             }}},
+        },
+        "request_example": {
+            "category_ids": [
+                "11111111-1111-1111-1111-111111111111",
+                "22222222-2222-2222-2222-222222222222",
+                "33333333-3333-3333-3333-333333333333",
+            ]
         },
         "responses": {
             "200": _make_response(200, "Reordered categories in their new order.", REORDER_RESPONSE),
@@ -835,6 +851,7 @@ ROUTES: list[dict[str, Any]] = [
                 "additionalProperties": False,
             }}},
         },
+        "request_example": {"name": "Renamed category"},
         "responses": {
             "200": _make_response(200, "Renamed category.", CATEGORY_RESPONSE),
             "404": _error(404, "category_not_found."),
@@ -900,6 +917,7 @@ ROUTES: list[dict[str, Any]] = [
                 "additionalProperties": False,
             }}},
         },
+        "request_example": {"track_id": "aaaaaaaa-1111-1111-1111-111111111111"},
         "responses": {
             "201": _make_response(201, "Track added.", ADD_TRACK_RESPONSE),
             "200": _make_response(200, "Track already in category (no change).", ADD_TRACK_RESPONSE),
@@ -941,6 +959,12 @@ ROUTES: list[dict[str, Any]] = [
             "content": {"application/json": {"schema": {
                 "$ref": "#/components/schemas/CreateTriageBlockIn",
             }}},
+        },
+        "request_example": {
+            "style_id": "11111111-1111-1111-1111-111111111111",
+            "name": "House — week 17",
+            "date_from": "2026-04-21",
+            "date_to": "2026-04-28",
         },
         "responses": {
             "201": _make_response(201, "Block created.", TRIAGE_BLOCK_DETAIL),
@@ -1046,6 +1070,14 @@ ROUTES: list[dict[str, Any]] = [
                 "$ref": "#/components/schemas/MoveTracksIn",
             }}},
         },
+        "request_example": {
+            "from_bucket_id": "11111111-1111-1111-1111-111111111111",
+            "to_bucket_id": "22222222-2222-2222-2222-222222222222",
+            "track_ids": [
+                "aaaaaaaa-1111-1111-1111-111111111111",
+                "bbbbbbbb-2222-2222-2222-222222222222",
+            ],
+        },
         "responses": {
             "200": _make_response(200, "Tracks moved.", MOVE_TRACKS_OUT),
             "404": _error(404, "triage_block_not_found / bucket_not_found / tracks_not_in_source."),
@@ -1072,6 +1104,10 @@ ROUTES: list[dict[str, Any]] = [
             "content": {"application/json": {"schema": {
                 "$ref": "#/components/schemas/TransferTracksIn",
             }}},
+        },
+        "request_example": {
+            "target_bucket_id": "44444444-4444-4444-4444-444444444444",
+            "track_ids": ["aaaaaaaa-1111-1111-1111-111111111111"],
         },
         "responses": {
             "200": _make_response(200, "Tracks transferred.", TRANSFER_TRACKS_OUT),
@@ -1152,6 +1188,10 @@ def _operation(route: dict) -> dict:
         op["parameters"] = route["parameters"]
     if "requestBody" in route:
         op["requestBody"] = route["requestBody"]
+        if "request_example" in route:
+            op["requestBody"]["content"]["application/json"]["example"] = route[
+                "request_example"
+            ]
     op["security"] = _security_for(route["auth"])
     op["tags"] = {
         PUBLIC: ["auth"],
@@ -1181,6 +1221,30 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
     return schemas
 
 
+_DEFAULT_SERVER_URL = "https://{api_id}.execute-api.{region}.amazonaws.com"
+
+
+def _build_server() -> dict[str, Any]:
+    url = os.environ.get("OPENAPI_SERVER_URL", _DEFAULT_SERVER_URL)
+    is_template = url == _DEFAULT_SERVER_URL
+    server: dict[str, Any] = {
+        "url": url,
+        "description": (
+            "Default API Gateway invoke URL template. Override via the "
+            "OPENAPI_SERVER_URL env var when regenerating to embed a concrete "
+            "staging or prod URL (`terraform output -raw api_endpoint`)."
+            if is_template
+            else "API Gateway invoke URL embedded at spec generation time."
+        ),
+    }
+    if is_template:
+        server["variables"] = {
+            "api_id": {"default": "<api-id>"},
+            "region": {"default": "us-east-1"},
+        }
+    return server
+
+
 def build_openapi() -> dict[str, Any]:
     pyd_schemas = _collect_pydantic_schemas()
 
@@ -1196,22 +1260,30 @@ def build_openapi() -> dict[str, Any]:
             "title": "Clouder Core API",
             "version": "1.0.0",
             "description": (
-                "Beatport ingest pipeline + Spotify OAuth user auth (spec-A).\n\n"
-                "Authorization: most routes require a Bearer JWT issued by `/auth/callback` "
-                "or `/auth/refresh`. Admin-only routes additionally require `is_admin=true` "
-                "on the JWT (set from `ADMIN_SPOTIFY_IDS` env var on each login).\n\n"
+                "Beatport ingest pipeline + Spotify OAuth user auth (spec-A) "
+                "+ category/triage curation (spec-C/D).\n\n"
+                "## Authentication\n\n"
+                "All endpoints except `/auth/login` and `/auth/callback` require a "
+                "JWT Bearer token in `Authorization: Bearer <token>`.\n\n"
+                "**How to get a token (manual / Postman flow):**\n"
+                "1. Open `GET /auth/login` in a browser → redirects to Spotify consent.\n"
+                "2. After approve, Spotify redirects to `/auth/callback?code=...&state=...`.\n"
+                "3. Callback returns JSON `{access_token, spotify_access_token, expires_in, user, correlation_id}` "
+                "and sets the refresh JWT as an HttpOnly cookie scoped to `/auth/refresh`.\n"
+                "4. Use `access_token` in `Authorization: Bearer ...` for every subsequent call.\n"
+                "5. When `access_token` expires (default 30m), `POST /auth/refresh` (no body — "
+                "the refresh JWT is read from the cookie) → new access token plus a rotated refresh cookie.\n\n"
+                "## Admin endpoints\n\n"
+                "`POST /collect_bp_releases` and `GET /tracks/spotify-not-found` require "
+                "`is_admin=true` on the JWT, set from the `ADMIN_SPOTIFY_IDS` env var on each login.\n\n"
+                "## Error envelope\n\n"
+                "All domain errors return `{error_code, message, correlation_id}`. "
+                "API Gateway 503 (cold-start timeout) returns `{\"message\":\"Service Unavailable\"}` "
+                "(capital S/U) — retry the request after a few seconds.\n\n"
                 "**Generated** by `scripts/generate_openapi.py` — do not edit by hand."
             ),
         },
-        "servers": [
-            {
-                "url": "https://{api_id}.execute-api.{region}.amazonaws.com",
-                "variables": {
-                    "api_id": {"default": "<api-id>"},
-                    "region": {"default": "us-east-1"},
-                },
-            }
-        ],
+        "servers": [_build_server()],
         "tags": [
             {"name": "auth", "description": "Public OAuth + session-cookie endpoints."},
             {"name": "user", "description": "Routes for any authenticated user."},

@@ -125,9 +125,9 @@ variable "aurora_master_username" {
 }
 
 variable "aurora_serverless_min_acu" {
-  description = "Aurora Serverless v2 min ACU"
+  description = "Aurora Serverless v2 min ACU. 0 = auto-pause после aurora_auto_pause_seconds (риск 503 cold-start через API GW). 0.5 = всегда warm."
   type        = number
-  default     = 0
+  default     = 0.5
 }
 
 variable "aurora_serverless_max_acu" {
@@ -137,7 +137,7 @@ variable "aurora_serverless_max_acu" {
 }
 
 variable "aurora_auto_pause_seconds" {
-  description = "Aurora Serverless v2 seconds until auto pause"
+  description = "Aurora Serverless v2 seconds until auto pause. Only effective when aurora_serverless_min_acu = 0; ignored otherwise."
   type        = number
   default     = 300
 }
@@ -190,6 +190,12 @@ variable "ai_search_batch_size" {
   description = "SQS batch size for AI search worker lambda"
   type        = number
   default     = 1
+}
+
+variable "ai_search_worker_reserved_concurrency" {
+  description = "Reserved concurrent executions for ai_search_worker. Caps parallel Perplexity API calls (rate limit ~5 RPS on paid tier). 2 is a safe default."
+  type        = number
+  default     = 2
 }
 
 variable "ai_search_queue_visibility_timeout_seconds" {
@@ -450,4 +456,10 @@ variable "curation_lambda_memory_mb" {
   type        = number
   default     = 512
   description = "Curation Lambda memory size (MB)"
+}
+
+variable "cors_allowed_origins" {
+  description = "Список origin-ов для CORS на API Gateway. Пустой список = CORS отключён."
+  type        = list(string)
+  default     = []
 }
