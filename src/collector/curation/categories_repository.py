@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Mapping, Sequence
 
 from collector.data_api import DataAPIClient
+from collector.logging_utils import log_event
 from collector.settings import get_data_api_settings
 
 from . import (
@@ -57,6 +58,7 @@ class CategoriesRepository:
         name: str,
         normalized_name: str,
         now: datetime,
+        correlation_id: str | None = None,
     ) -> CategoryRow:
         with self._data_api.transaction() as tx_id:
             style_rows = self._data_api.execute(
@@ -119,6 +121,30 @@ class CategoriesRepository:
                 raise
 
             row = rows[0]
+            # Spec-D side-effect (D7): snapshot the new category into every
+            # active triage block of the same (user, style) so STAGING
+            # buckets exist for it. Must run inside the same TX as the
+            # INSERT above to keep the create atomic.
+            from .triage_repository import TriageRepository
+
+            triage_repo = TriageRepository(self._data_api)
+            inserted_into_blocks = (
+                triage_repo.snapshot_category_into_active_blocks(
+                    user_id=user_id,
+                    style_id=style_id,
+                    category_id=row["id"],
+                    transaction_id=tx_id,
+                )
+            )
+            log_event(
+                "INFO",
+                "category_snapshot_created",
+                correlation_id=correlation_id,
+                user_id=user_id,
+                category_id=row["id"],
+                style_id=style_id,
+                blocks_snapshot_into=inserted_into_blocks,
+            )
             return CategoryRow(
                 id=row["id"],
                 user_id=row["user_id"],
@@ -300,25 +326,55 @@ class CategoriesRepository:
         return row
 
     def soft_delete(
-        self, *, user_id: str, category_id: str, now: datetime
+        self,
+        *,
+        user_id: str,
+        category_id: str,
+        now: datetime,
+        correlation_id: str | None = None,
     ) -> bool:
-        rows = self._data_api.execute(
-            """
-            UPDATE categories
-            SET deleted_at = :now,
-                updated_at = :now
-            WHERE id = :category_id
-              AND user_id = :user_id
-              AND deleted_at IS NULL
-            RETURNING id
-            """,
-            {
-                "category_id": category_id,
-                "user_id": user_id,
-                "now": now,
-            },
-        )
-        return bool(rows)
+        with self._data_api.transaction() as tx_id:
+            rows = self._data_api.execute(
+                """
+                UPDATE categories
+                SET deleted_at = :now,
+                    updated_at = :now
+                WHERE id = :category_id
+                  AND user_id = :user_id
+                  AND deleted_at IS NULL
+                RETURNING id
+                """,
+                {
+                    "category_id": category_id,
+                    "user_id": user_id,
+                    "now": now,
+                },
+                transaction_id=tx_id,
+            )
+            if not rows:
+                return False
+
+            # Spec-D side-effect (D8): mark every STAGING bucket for this
+            # category inactive across active triage blocks so move/transfer
+            # routes reject them (`target_bucket_inactive`). Must run in the
+            # same TX as the UPDATE above.
+            from .triage_repository import TriageRepository
+
+            triage_repo = TriageRepository(self._data_api)
+            inactivated = triage_repo.mark_staging_inactive_for_category(
+                user_id=user_id,
+                category_id=category_id,
+                transaction_id=tx_id,
+            )
+            log_event(
+                "INFO",
+                "category_staging_inactive",
+                correlation_id=correlation_id,
+                user_id=user_id,
+                category_id=category_id,
+                inactivated_buckets=inactivated,
+            )
+            return True
 
     def reorder(
         self,

@@ -65,9 +65,10 @@ def test_create_starts_transaction_and_inserts() -> None:
     # data_api.transaction() is a contextmanager yielding tx_id
     data_api.transaction.return_value.__enter__.return_value = "tx-1"
     data_api.transaction.return_value.__exit__.return_value = False
-    # First call: style existence -> 1 row.
-    # Second call: max(position) -> [{"max_pos": 2}].
-    # Third call: insert returning row.
+    # 1: style existence -> 1 row.
+    # 2: max(position) -> [{"max_pos": 2}].
+    # 3: insert returning row.
+    # 4: spec-D snapshot: SELECT active triage blocks -> empty (no side-effect)
     data_api.execute.side_effect = [
         [{"id": "s1", "name": "House"}],
         [{"max_pos": 2}],
@@ -85,6 +86,7 @@ def test_create_starts_transaction_and_inserts() -> None:
                 "updated_at": "2026-04-27T12:00:00Z",
             }
         ],
+        [],  # snapshot: no active triage blocks
     ]
 
     row = repo.create(
@@ -98,8 +100,8 @@ def test_create_starts_transaction_and_inserts() -> None:
 
     assert row.id == "c1"
     assert row.position == 3
-    # Three execute calls: style check, max-position, insert
-    assert data_api.execute.call_count == 3
+    # Four execute calls: style check, max-position, insert, snapshot SELECT
+    assert data_api.execute.call_count == 4
     style_sql = data_api.execute.call_args_list[0].args[0]
     assert "FROM clouder_styles" in style_sql
     max_sql = data_api.execute.call_args_list[1].args[0]
@@ -108,7 +110,10 @@ def test_create_starts_transaction_and_inserts() -> None:
     insert_sql = data_api.execute.call_args_list[2].args[0]
     assert "INSERT INTO categories" in insert_sql
     assert "RETURNING" in insert_sql
-    # All three calls must run inside the same transaction
+    snapshot_sql = data_api.execute.call_args_list[3].args[0]
+    assert "FROM triage_blocks" in snapshot_sql
+    assert "status = 'IN_PROGRESS'" in snapshot_sql
+    # All four calls must run inside the same transaction
     for call in data_api.execute.call_args_list:
         assert call.kwargs.get("transaction_id") == "tx-1"
 
@@ -308,28 +313,43 @@ def test_rename_maps_unique_violation_to_name_conflict() -> None:
 
 def test_soft_delete_updates_deleted_at() -> None:
     repo, data_api = _make()
-    data_api.execute.return_value = [{"id": "c1"}]
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    # 1: UPDATE categories ... RETURNING -> one row (success)
+    # 2: spec-D mark_staging_inactive_for_category -> no buckets to inactivate
+    data_api.execute.side_effect = [[{"id": "c1"}], []]
     deleted = repo.soft_delete(
         user_id="u1", category_id="c1", now=_now()
     )
     assert deleted is True
-    sql = data_api.execute.call_args.args[0]
-    params = data_api.execute.call_args.args[1]
+    sql = data_api.execute.call_args_list[0].args[0]
+    params = data_api.execute.call_args_list[0].args[1]
     assert "UPDATE categories" in sql
     assert "user_id = :user_id" in sql
     assert "deleted_at = :now" in sql
     assert "deleted_at IS NULL" in sql
     assert params["user_id"] == "u1"
     assert params["category_id"] == "c1"
+    # Both calls inside the same TX
+    for call in data_api.execute.call_args_list:
+        assert call.kwargs.get("transaction_id") == "tx-1"
+    # Second statement must be the staging inactivate UPDATE
+    inactivate_sql = data_api.execute.call_args_list[1].args[0]
+    assert "UPDATE triage_buckets" in inactivate_sql
+    assert "bucket_type = 'STAGING'" in inactivate_sql
 
 
 def test_soft_delete_returns_false_when_no_row() -> None:
     repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.return_value = []
     deleted = repo.soft_delete(
         user_id="u1", category_id="missing", now=_now()
     )
     assert deleted is False
+    # Only the UPDATE attempt; no inactivate when category was already gone.
+    assert data_api.execute.call_count == 1
 
 
 def test_reorder_validates_set_and_updates_positions() -> None:

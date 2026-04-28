@@ -220,6 +220,7 @@ def _handle_create_category(
         name=body.name.strip(),
         normalized_name=normalized,
         now=now,
+        correlation_id=correlation_id,
     )
     log_event(
         "INFO",
@@ -296,7 +297,10 @@ def _handle_soft_delete(event, repo, user_id, correlation_id):
     if not cid:
         raise ValidationError("id is required in path")
     deleted = repo.soft_delete(
-        user_id=user_id, category_id=cid, now=utc_now()
+        user_id=user_id,
+        category_id=cid,
+        now=utc_now(),
+        correlation_id=correlation_id,
     )
     if not deleted:
         raise NotFoundError("category_not_found", "Category not found")
