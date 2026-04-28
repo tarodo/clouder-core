@@ -393,7 +393,96 @@ class TriageRepository:
         target_bucket_id: str,
         track_ids: Sequence[str],
     ) -> TransferResult:
-        raise NotImplementedError
+        src_rows = self._data_api.execute(
+            """
+            SELECT id, style_id, status
+            FROM triage_blocks
+            WHERE id = :id
+              AND user_id = :user_id
+              AND deleted_at IS NULL
+            """,
+            {"id": src_block_id, "user_id": user_id},
+        )
+        if not src_rows:
+            raise NotFoundError(
+                "triage_block_not_found",
+                f"source triage block not found: {src_block_id}",
+            )
+        src = src_rows[0]
+
+        tgt_rows = self._data_api.execute(
+            """
+            SELECT
+                tbk.id AS bucket_id,
+                tbk.inactive AS bucket_inactive,
+                tb.id AS block_id,
+                tb.user_id AS block_user_id,
+                tb.style_id AS block_style_id,
+                tb.status AS block_status
+            FROM triage_buckets tbk
+            JOIN triage_blocks tb ON tbk.triage_block_id = tb.id
+            WHERE tbk.id = :bucket_id
+              AND tb.deleted_at IS NULL
+            """,
+            {"bucket_id": target_bucket_id},
+        )
+        if not tgt_rows or tgt_rows[0]["block_user_id"] != user_id:
+            raise NotFoundError(
+                "target_bucket_not_found",
+                f"target bucket not found: {target_bucket_id}",
+            )
+        tgt = tgt_rows[0]
+
+        if tgt["block_status"] != "IN_PROGRESS":
+            raise InvalidStateError(
+                "target triage block is not IN_PROGRESS"
+            )
+        if bool(tgt["bucket_inactive"]):
+            raise InactiveBucketError(
+                "target bucket is inactive (its category was soft-deleted)"
+            )
+        if src["style_id"] != tgt["block_style_id"]:
+            raise StyleMismatchError(
+                "source and target triage blocks belong to different styles"
+            )
+
+        present = self._data_api.execute(
+            """
+            SELECT DISTINCT tbt.track_id
+            FROM triage_bucket_tracks tbt
+            JOIN triage_buckets tbk ON tbk.id = tbt.triage_bucket_id
+            WHERE tbk.triage_block_id = :src_block_id
+              AND tbt.track_id = ANY(:track_ids)
+            """,
+            {
+                "src_block_id": src_block_id,
+                "track_ids": list(track_ids),
+            },
+        )
+        present_ids = {r["track_id"] for r in present}
+        missing = [t for t in track_ids if t not in present_ids]
+        if missing:
+            raise TracksNotInSourceError(
+                f"{len(missing)} track(s) not present in source block",
+                missing,
+            )
+
+        inserted_rows = self._data_api.execute(
+            """
+            INSERT INTO triage_bucket_tracks
+                (triage_bucket_id, track_id, added_at)
+            SELECT :tgt_id, t, :now
+            FROM UNNEST(:track_ids::text[]) AS t
+            ON CONFLICT (triage_bucket_id, track_id) DO NOTHING
+            RETURNING track_id
+            """,
+            {
+                "tgt_id": target_bucket_id,
+                "track_ids": list(track_ids),
+                "now": utc_now(),
+            },
+        )
+        return TransferResult(transferred=len(inserted_rows))
 
     def finalize_block(
         self,

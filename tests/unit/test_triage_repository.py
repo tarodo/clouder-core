@@ -58,6 +58,7 @@ from collector.curation import (
     InactiveBucketError,
     InvalidStateError,
     NotFoundError,
+    StyleMismatchError,
     TracksNotInSourceError,
 )
 from collector.curation.triage_repository import (
@@ -499,3 +500,95 @@ def test_move_tracks_self_noop() -> None:
     )
     assert out.moved == 0
     assert api.execute.call_count == 1
+
+
+def test_transfer_tracks_validates_target_state() -> None:
+    api = _api_with_responses(
+        [
+            [{"id": "b-src", "style_id": "s-1", "status": "FINALIZED"}],
+            [
+                {
+                    "bucket_id": "bk-tgt",
+                    "bucket_inactive": False,
+                    "block_id": "b-tgt",
+                    "block_user_id": "u-1",
+                    "block_style_id": "s-1",
+                    "block_status": "FINALIZED",
+                }
+            ],
+        ]
+    )
+    repo = TriageRepository(api)
+    with pytest.raises(InvalidStateError):
+        repo.transfer_tracks(
+            user_id="u-1",
+            src_block_id="b-src",
+            target_bucket_id="bk-tgt",
+            track_ids=["00000000-0000-0000-0000-000000000001"],
+        )
+
+
+def test_transfer_tracks_style_mismatch() -> None:
+    api = _api_with_responses(
+        [
+            [{"id": "b-src", "style_id": "s-1", "status": "FINALIZED"}],
+            [
+                {
+                    "bucket_id": "bk-tgt",
+                    "bucket_inactive": False,
+                    "block_id": "b-tgt",
+                    "block_user_id": "u-1",
+                    "block_style_id": "s-2",
+                    "block_status": "IN_PROGRESS",
+                }
+            ],
+        ]
+    )
+    repo = TriageRepository(api)
+    with pytest.raises(StyleMismatchError):
+        repo.transfer_tracks(
+            user_id="u-1",
+            src_block_id="b-src",
+            target_bucket_id="bk-tgt",
+            track_ids=["00000000-0000-0000-0000-000000000001"],
+        )
+
+
+def test_transfer_tracks_happy_path() -> None:
+    api = _api_with_responses(
+        [
+            [{"id": "b-src", "style_id": "s-1", "status": "FINALIZED"}],
+            [
+                {
+                    "bucket_id": "bk-tgt",
+                    "bucket_inactive": False,
+                    "block_id": "b-tgt",
+                    "block_user_id": "u-1",
+                    "block_style_id": "s-1",
+                    "block_status": "IN_PROGRESS",
+                }
+            ],
+            [
+                {"track_id": "00000000-0000-0000-0000-000000000001"},
+                {"track_id": "00000000-0000-0000-0000-000000000002"},
+            ],
+            [
+                {"track_id": "00000000-0000-0000-0000-000000000001"},
+                {"track_id": "00000000-0000-0000-0000-000000000002"},
+            ],
+        ]
+    )
+    repo = TriageRepository(api)
+    out = repo.transfer_tracks(
+        user_id="u-1",
+        src_block_id="b-src",
+        target_bucket_id="bk-tgt",
+        track_ids=[
+            "00000000-0000-0000-0000-000000000001",
+            "00000000-0000-0000-0000-000000000002",
+        ],
+    )
+    assert out.transferred == 2
+    insert_call = api.execute.call_args_list[3]
+    assert "INSERT INTO triage_bucket_tracks" in insert_call.args[0]
+    assert "ON CONFLICT" in insert_call.args[0]
