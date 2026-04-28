@@ -6,7 +6,7 @@ Backend API контракт см. `docs/openapi.yaml` (импортируй в 
 
 | Окружение | Invoke URL | Как получить |
 |-----------|-----------|--------------|
-| Production | `terraform output -raw api_invoke_url` (из `infra/`) | После `terraform apply` |
+| Production | `terraform output -raw api_endpoint` (из `infra/`) | После `terraform apply` |
 | Local dev | Lambda runtime локально не запускается; интеграционные тесты используют моки (см. ниже). Frontend тестируй против prod / staging. | — |
 
 CORS allowed origins выставляется через `terraform.tfvars` → `cors_allowed_origins`. Дефолт пуст. Пример: `["http://localhost:5173"]` (Vite), `["http://localhost:3000"]` (Next.js / CRA).
@@ -14,7 +14,7 @@ CORS allowed origins выставляется через `terraform.tfvars` → 
 Чтобы вставить реальный staging URL в `docs/openapi.yaml`:
 
 ```bash
-cd infra && URL=$(terraform output -raw api_invoke_url) && cd ..
+cd infra && URL=$(terraform output -raw api_endpoint) && cd ..
 OPENAPI_SERVER_URL="$URL" PYTHONPATH=src .venv/bin/python scripts/generate_openapi.py
 ```
 
@@ -38,7 +38,7 @@ OPENAPI_SERVER_URL="$URL" PYTHONPATH=src .venv/bin/python scripts/generate_opena
 {
   "access_token": "<JWT>",
   "spotify_access_token": "<spotify-issued>",
-  "expires_in": 3600,
+  "expires_in": 1800,
   "user": {"id": "...", "spotify_id": "...", "display_name": "...", "is_admin": false},
   "correlation_id": "uuid-v4"
 }

@@ -20,12 +20,14 @@ info:
 
     2. After approve, Spotify redirects to `/auth/callback?code=...&state=...`.
 
-    3. Callback returns JSON `{access_token, refresh_token, expires_in}`.
+    3. Callback returns JSON `{access_token, spotify_access_token, expires_in, user,
+    correlation_id}` and sets the refresh JWT as an HttpOnly cookie scoped to `/auth/refresh`.
 
     4. Use `access_token` in `Authorization: Bearer ...` for every subsequent call.
 
-    5. When `access_token` expires (default ~1h), `POST /auth/refresh` with `{"refresh_token":
-    "..."}` → new pair.
+    5. When `access_token` expires (default 30m), `POST /auth/refresh` (no body —
+    the refresh JWT is read from the cookie) → new access token plus a rotated refresh
+    cookie.
 
 
     ## Admin endpoints
@@ -48,7 +50,7 @@ servers:
 - url: https://{api_id}.execute-api.{region}.amazonaws.com
   description: Default API Gateway invoke URL template. Override via the OPENAPI_SERVER_URL
     env var when regenerating to embed a concrete staging or prod URL (`terraform
-    output -raw api_invoke_url`).
+    output -raw api_endpoint`).
   variables:
     api_id:
       default: <api-id>

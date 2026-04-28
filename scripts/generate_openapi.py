@@ -1232,7 +1232,7 @@ def _build_server() -> dict[str, Any]:
         "description": (
             "Default API Gateway invoke URL template. Override via the "
             "OPENAPI_SERVER_URL env var when regenerating to embed a concrete "
-            "staging or prod URL (`terraform output -raw api_invoke_url`)."
+            "staging or prod URL (`terraform output -raw api_endpoint`)."
             if is_template
             else "API Gateway invoke URL embedded at spec generation time."
         ),
@@ -1268,10 +1268,11 @@ def build_openapi() -> dict[str, Any]:
                 "**How to get a token (manual / Postman flow):**\n"
                 "1. Open `GET /auth/login` in a browser → redirects to Spotify consent.\n"
                 "2. After approve, Spotify redirects to `/auth/callback?code=...&state=...`.\n"
-                "3. Callback returns JSON `{access_token, refresh_token, expires_in}`.\n"
+                "3. Callback returns JSON `{access_token, spotify_access_token, expires_in, user, correlation_id}` "
+                "and sets the refresh JWT as an HttpOnly cookie scoped to `/auth/refresh`.\n"
                 "4. Use `access_token` in `Authorization: Bearer ...` for every subsequent call.\n"
-                "5. When `access_token` expires (default ~1h), `POST /auth/refresh` "
-                "with `{\"refresh_token\": \"...\"}` → new pair.\n\n"
+                "5. When `access_token` expires (default 30m), `POST /auth/refresh` (no body — "
+                "the refresh JWT is read from the cookie) → new access token plus a rotated refresh cookie.\n\n"
                 "## Admin endpoints\n\n"
                 "`POST /collect_bp_releases` and `GET /tracks/spotify-not-found` require "
                 "`is_admin=true` on the JWT, set from the `ADMIN_SPOTIFY_IDS` env var on each login.\n\n"
