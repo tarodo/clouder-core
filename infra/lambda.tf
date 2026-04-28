@@ -112,6 +112,8 @@ resource "aws_lambda_function" "ai_search_worker" {
   timeout       = var.ai_search_worker_lambda_timeout_seconds
   memory_size   = var.ai_search_worker_lambda_memory_mb
 
+  reserved_concurrent_executions = var.ai_search_worker_reserved_concurrency
+
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 
   environment {

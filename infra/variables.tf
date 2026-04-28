@@ -192,6 +192,12 @@ variable "ai_search_batch_size" {
   default     = 1
 }
 
+variable "ai_search_worker_reserved_concurrency" {
+  description = "Reserved concurrent executions for ai_search_worker. Caps parallel Perplexity API calls (rate limit ~5 RPS on paid tier). 2 is a safe default."
+  type        = number
+  default     = 2
+}
+
 variable "ai_search_queue_visibility_timeout_seconds" {
   description = "Visibility timeout for AI search queue"
   type        = number
