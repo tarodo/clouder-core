@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date as date_type, datetime
 from typing import Any, Iterable, Mapping, Sequence
+from uuid import uuid4
 
 from collector.curation import (
     InactiveBucketError,
@@ -122,12 +123,7 @@ class TriageRepository:
         date_from: date_type,
         date_to: date_type,
     ) -> TriageBlockRow:
-        from uuid import uuid4
-
-        df = date_from.isoformat()
-        dt = date_to.isoformat()
         now = utc_now()
-        now_iso = now.isoformat()
 
         with self._data_api.transaction() as tx_id:
             # 1. Verify style exists (and grab name for response shape).
@@ -164,9 +160,9 @@ class TriageRepository:
                     "user_id": user_id,
                     "style_id": style_id,
                     "name": name,
-                    "date_from": df,
-                    "date_to": dt,
-                    "now": now_iso,
+                    "date_from": date_from,
+                    "date_to": date_to,
+                    "now": now,
                 },
                 transaction_id=tx_id,
             )
@@ -176,7 +172,7 @@ class TriageRepository:
             tech_value_rows: list[str] = []
             tech_params: dict[str, Any] = {
                 "block_id": block_id,
-                "now": now_iso,
+                "now": now,
             }
             for i, bucket_type in enumerate(TECHNICAL_BUCKET_TYPES):
                 tech_value_rows.append(
@@ -215,7 +211,7 @@ class TriageRepository:
                 stg_value_rows: list[str] = []
                 stg_params: dict[str, Any] = {
                     "block_id": block_id,
-                    "now": now_iso,
+                    "now": now,
                 }
                 for i, cat in enumerate(categories):
                     stg_value_rows.append(
@@ -229,25 +225,8 @@ class TriageRepository:
                         id, triage_block_id, bucket_type, category_id,
                         inactive, created_at
                     ) VALUES {", ".join(stg_value_rows)}
-                    RETURNING id, category_id
                     """,
                     stg_params,
-                    transaction_id=tx_id,
-                )
-            else:
-                # No alive categories: fire a no-op INSERT so the call shape
-                # is consistent (downstream logging / test expectations).
-                self._data_api.execute(
-                    """
-                    INSERT INTO triage_buckets (
-                        id, triage_block_id, bucket_type, category_id,
-                        inactive, created_at
-                    )
-                    SELECT NULL::uuid, NULL::uuid, 'STAGING', NULL,
-                           FALSE, NULL::timestamptz
-                    WHERE FALSE
-                    """,
-                    {},
                     transaction_id=tx_id,
                 )
 
@@ -284,9 +263,9 @@ class TriageRepository:
                 {
                     "user_id": user_id,
                     "style_id": style_id,
-                    "date_from": df,
-                    "date_to": dt,
-                    "now": now_iso,
+                    "date_from": date_from,
+                    "date_to": date_to,
+                    "now": now,
                     "new_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_NEW],
                     "old_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_OLD],
                     "not_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_NOT],

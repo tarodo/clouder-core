@@ -190,7 +190,6 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
                 )
             ],
             [],  # no alive categories
-            [],  # no staging inserted
             [],  # classify INSERT
             [
                 {
@@ -219,7 +218,7 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
         date_to=date(2026, 4, 26),
     )
 
-    classify_call = api.execute.call_args_list[5]
+    classify_call = api.execute.call_args_list[4]
     sql = classify_call.args[0]
     params = classify_call.args[1]
     assert "INSERT INTO triage_bucket_tracks" in sql
@@ -232,8 +231,8 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
     assert "c.deleted_at IS NULL" in sql
     assert params["user_id"] == "u-1"
     assert params["style_id"] == "s-1"
-    assert params["date_from"] == "2026-04-20"
-    assert params["date_to"] == "2026-04-26"
+    assert params["date_from"] == date(2026, 4, 20)
+    assert params["date_to"] == date(2026, 4, 26)
     assert "new_bucket_id" in params
     assert "old_bucket_id" in params
     assert "not_bucket_id" in params
