@@ -621,7 +621,23 @@ class TriageRepository:
     def soft_delete_block(
         self, *, user_id: str, block_id: str
     ) -> bool:
-        raise NotImplementedError
+        rows = self._data_api.execute(
+            """
+            UPDATE triage_blocks
+            SET deleted_at = :now,
+                updated_at = :now
+            WHERE id = :id
+              AND user_id = :user_id
+              AND deleted_at IS NULL
+            RETURNING id
+            """,
+            {
+                "id": block_id,
+                "user_id": user_id,
+                "now": utc_now(),
+            },
+        )
+        return bool(rows)
 
     def snapshot_category_into_active_blocks(
         self,

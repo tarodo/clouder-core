@@ -724,3 +724,19 @@ def test_finalize_block_chunks_above_500() -> None:
         for call in fake_categories_repo.add_tracks_bulk.call_args_list
     ]
     assert chunk_sizes == [500, 500, 100]
+
+
+def test_soft_delete_block_returns_true_on_success() -> None:
+    api = _api_with_responses([[{"id": "b-1"}]])
+    repo = TriageRepository(api)
+    assert (
+        repo.soft_delete_block(user_id="u-1", block_id="b-1") is True
+    )
+
+
+def test_soft_delete_block_returns_false_when_not_found() -> None:
+    api = _api_with_responses([[]])
+    repo = TriageRepository(api)
+    assert (
+        repo.soft_delete_block(user_id="u-1", block_id="missing") is False
+    )
