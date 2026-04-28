@@ -7,9 +7,9 @@ Backend API контракт см. `docs/openapi.yaml` (импортируй в 
 | Окружение | Invoke URL | Как получить |
 |-----------|-----------|--------------|
 | Production | `terraform output -raw api_invoke_url` (из `infra/`) | После `terraform apply` |
-| Local dev | Не поддерживается — Lambdas не запускаются локально. Тестируй против prod / staging. | — |
+| Local dev | Lambda runtime локально не запускается; интеграционные тесты используют моки (см. ниже). Frontend тестируй против prod / staging. | — |
 
-CORS allowed origins выставляется через `terraform.tfvars` → `cors_allowed_origins`. Дефолт пуст. Для Vite фронта добавь `"http://localhost:5173"`.
+CORS allowed origins выставляется через `terraform.tfvars` → `cors_allowed_origins`. Дефолт пуст. Пример: `["http://localhost:5173"]` (Vite), `["http://localhost:3000"]` (Next.js / CRA).
 
 Чтобы вставить реальный staging URL в `docs/openapi.yaml`:
 
@@ -20,27 +20,43 @@ OPENAPI_SERVER_URL="$URL" PYTHONPATH=src .venv/bin/python scripts/generate_opena
 
 ## Auth Flow (OAuth + JWT)
 
+В диаграмме ниже Frontend = browser tab. SPA не вызывает `/auth/callback` сама — Spotify редиректит браузер на этот endpoint напрямую, и API возвращает JSON прямо в эту вкладку.
+
 ```
-[Frontend] ──GET /auth/login──▶ [API]
-                                  │
-                                  └──302 redirect──▶ [Spotify OAuth]
-                                                       │
-[Browser] ◀──redirect /auth/callback?code=...&state=...
-                                  │
-[Frontend] ──GET /auth/callback?code=...&state=...──▶ [API]
-                                                       │
-                                                       └──200 {access_token, refresh_token, expires_in}
+[Browser tab] ──GET /auth/login──▶ [API]
+                                     │
+                                     └──302 redirect──▶ [Spotify OAuth]
+                                                          │
+[Browser tab] ◀──Spotify redirect──/auth/callback?code=...&state=...
+                                     │
+                                     └──200 JSON body + Set-Cookie: refresh_token (HttpOnly)
 ```
+
+Тело `/auth/callback`:
+
+```json
+{
+  "access_token": "<JWT>",
+  "spotify_access_token": "<spotify-issued>",
+  "expires_in": 3600,
+  "user": {"id": "...", "spotify_id": "...", "display_name": "...", "is_admin": false},
+  "correlation_id": "uuid-v4"
+}
+```
+
+`refresh_token` в body **не возвращается** — приходит как HttpOnly cookie на `/auth/refresh` path.
 
 После получения `access_token`:
 - В каждый запрос: `Authorization: Bearer <access_token>`
-- На 401 → `POST /auth/refresh` (refresh JWT читается из cookie, body не нужен) → новый `access_token`
-- Logout: `POST /auth/logout`
+- На 401 → `POST /auth/refresh` (refresh JWT читается из cookie, body не нужен) → новый `access_token` + **новый refresh cookie** (rotation: старый refresh после использования инвалидируется).
+- `GET /me` — текущий профиль + список активных сессий.
+- `DELETE /me/sessions/{session_id}` — отозвать сессию (например «выйти на другом устройстве»).
+- Logout: `POST /auth/logout` (отзывает текущую сессию + очищает cookie).
 
 ## Test User Setup
 
-1. Получи Spotify Premium-аккаунт.
-2. Выставь Terraform var `admin_spotify_ids = ["<твой_spotify_id>"]` — это даст admin-доступ к `/collect_bp_releases` и `/tracks/spotify-not-found`.
+1. Получи Spotify Premium-аккаунт. Этого достаточно для логина и доступа ко всем user-эндпоинтам.
+2. **Только если нужен admin-доступ** к `/collect_bp_releases` и `/tracks/spotify-not-found`: выставь Terraform var `admin_spotify_ids = ["<твой_spotify_id>"]` и переразверни. Обычные юзеры этот шаг пропускают.
 3. Залогинься через `/auth/login` → `/auth/callback`.
 
 ## Главные user flows
@@ -102,11 +118,12 @@ Bucket types: `NEW`, `OLD`, `NOT`, `DISCARD`, `UNCLASSIFIED` (technical) + `STAG
 
 ## Quirks
 
-- **Cold-start первого запроса.** Aurora `min_acu = 0.5` (всегда warm), но первая Lambda после ночи может занять 3-8s. UI loading state ставь tolerance минимум 10s.
+- **Cold-start первой Lambda.** Aurora остаётся warm (`min_acu = 0.5`), но Lambda-контейнер recycle-ится после ~15 мин idle — следующий вызов делает `init` (3-8s). UI loading state ставь tolerance минимум 10s.
 - **Long-running collect.** `POST /collect_bp_releases` может выполняться > 29s → API GW отдаст 503, но Lambda продолжит работу в фоне. Проверь статус через `GET /runs/{run_id}`.
 - **Pagination на triage bucket-tracks.** Эндпоинт `GET /triage/blocks/{id}/buckets/{bucket_id}/tracks` поддерживает `limit`+`offset`+`search`.
 - **Rate limits.** Сейчас не выставлены на API Gateway. Внутренние воркеры имеют reserved concurrency (`ai_search_worker = 2`) — соблюдай vendor rate limits через размер batch.
-- **Sensitive data.** `bp_token` отправляй ровно один раз в `POST /collect_bp_releases`. Не логируй на фронте, не клади в localStorage.
+- **Sensitive data.** `bp_token` отправляй ровно один раз в `POST /collect_bp_releases`. Не логируй на фронте, не клади в localStorage, не передавай в URL query (утечёт в Referer-заголовок).
+- **Move vs transfer (triage).** `move` — между bucket-ами одного блока. `transfer` — между блоками (target block выводится из `target_bucket_id`).
 
 ## Локальный запуск тестов API
 
