@@ -21,6 +21,11 @@ from typing import Any
 
 import yaml
 
+from collector.curation.schemas import (
+    CreateTriageBlockIn,
+    MoveTracksIn,
+    TransferTracksIn,
+)
 from collector.schemas import CollectRequestIn
 
 
@@ -156,6 +161,178 @@ REORDER_RESPONSE = {
     "required": ["items"],
     "properties": {
         "items": {"type": "array", "items": CATEGORY_RESPONSE},
+        "correlation_id": {"type": "string"},
+    },
+}
+
+# ── triage (spec-D) response shapes ───────────────────────────────────────
+
+TRIAGE_BUCKET_ROW = {
+    "type": "object",
+    "required": ["id", "bucket_type", "inactive", "track_count"],
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "bucket_type": {
+            "type": "string",
+            "enum": [
+                "NEW",
+                "OLD",
+                "NOT",
+                "DISCARD",
+                "UNCLASSIFIED",
+                "STAGING",
+            ],
+        },
+        "category_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": (
+                "NULL for the five technical buckets; populated for STAGING "
+                "buckets that mirror a clouder_categories row."
+            ),
+        },
+        "category_name": {"type": ["string", "null"]},
+        "inactive": {
+            "type": "boolean",
+            "description": (
+                "True when the linked category was soft-deleted after the "
+                "STAGING bucket was created."
+            ),
+        },
+        "track_count": {"type": "integer"},
+    },
+}
+
+TRIAGE_BLOCK_DETAIL = {
+    "type": "object",
+    "required": [
+        "id", "style_id", "style_name", "name",
+        "date_from", "date_to", "status",
+        "created_at", "updated_at", "buckets",
+    ],
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "style_id": {"type": "string", "format": "uuid"},
+        "style_name": {"type": "string"},
+        "name": {"type": "string"},
+        "date_from": {"type": "string", "format": "date"},
+        "date_to": {"type": "string", "format": "date"},
+        "status": {
+            "type": "string",
+            "enum": ["IN_PROGRESS", "FINALIZED"],
+        },
+        "created_at": {"type": "string"},
+        "updated_at": {"type": "string"},
+        "finalized_at": {"type": ["string", "null"]},
+        "buckets": {
+            "type": "array",
+            "items": TRIAGE_BUCKET_ROW,
+        },
+        "correlation_id": {"type": "string"},
+    },
+}
+
+TRIAGE_BLOCK_SUMMARY = {
+    "type": "object",
+    "required": [
+        "id", "style_id", "style_name", "name",
+        "date_from", "date_to", "status",
+        "created_at", "updated_at", "track_count",
+    ],
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "style_id": {"type": "string", "format": "uuid"},
+        "style_name": {"type": "string"},
+        "name": {"type": "string"},
+        "date_from": {"type": "string", "format": "date"},
+        "date_to": {"type": "string", "format": "date"},
+        "status": {
+            "type": "string",
+            "enum": ["IN_PROGRESS", "FINALIZED"],
+        },
+        "created_at": {"type": "string"},
+        "updated_at": {"type": "string"},
+        "finalized_at": {"type": ["string", "null"]},
+        "track_count": {"type": "integer"},
+    },
+}
+
+TRIAGE_BLOCK_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total", "limit", "offset"],
+    "properties": {
+        "items": {"type": "array", "items": TRIAGE_BLOCK_SUMMARY},
+        "total": {"type": "integer"},
+        "limit": {"type": "integer"},
+        "offset": {"type": "integer"},
+        "correlation_id": {"type": "string"},
+    },
+}
+
+BUCKET_TRACK_ROW = {
+    "type": "object",
+    "required": [
+        "track_id", "title", "is_ai_suspected", "artists", "added_at",
+    ],
+    "properties": {
+        "track_id": {"type": "string", "format": "uuid"},
+        "title": {"type": "string"},
+        "mix_name": {"type": ["string", "null"]},
+        "isrc": {"type": ["string", "null"]},
+        "bpm": {"type": ["integer", "null"]},
+        "length_ms": {"type": ["integer", "null"]},
+        "publish_date": {"type": ["string", "null"]},
+        "spotify_release_date": {"type": ["string", "null"]},
+        "spotify_id": {"type": ["string", "null"]},
+        "release_type": {"type": ["string", "null"]},
+        "is_ai_suspected": {"type": "boolean"},
+        "artists": {"type": "array", "items": {"type": "string"}},
+        "added_at": {"type": "string"},
+    },
+}
+
+BUCKET_TRACKS_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total", "limit", "offset"],
+    "properties": {
+        "items": {"type": "array", "items": BUCKET_TRACK_ROW},
+        "total": {"type": "integer"},
+        "limit": {"type": "integer"},
+        "offset": {"type": "integer"},
+        "correlation_id": {"type": "string"},
+    },
+}
+
+MOVE_TRACKS_OUT = {
+    "type": "object",
+    "required": ["moved"],
+    "properties": {
+        "moved": {"type": "integer"},
+        "correlation_id": {"type": "string"},
+    },
+}
+
+TRANSFER_TRACKS_OUT = {
+    "type": "object",
+    "required": ["transferred"],
+    "properties": {
+        "transferred": {"type": "integer"},
+        "correlation_id": {"type": "string"},
+    },
+}
+
+FINALIZE_OUT = {
+    "type": "object",
+    "required": ["block", "promoted"],
+    "properties": {
+        "block": TRIAGE_BLOCK_DETAIL,
+        "promoted": {
+            "type": "object",
+            "additionalProperties": {"type": "integer"},
+            "description": (
+                "Per-category promoted track counts keyed by category_id."
+            ),
+        },
         "correlation_id": {"type": "string"},
     },
 }
@@ -746,6 +923,213 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
+    # ── curation: triage blocks (spec-D) ───────────────────────────
+    {
+        "method": "post",
+        "path": "/triage/blocks",
+        "auth": AUTH,
+        "summary": "Create a triage block + 5 technical buckets + STAGING per category.",
+        "description": (
+            "Aurora-only. Snapshots `clouder_categories` for the style into STAGING "
+            "buckets at create time; subsequent category renames/deletes do not "
+            "retroactively mutate the block. Tracks are classified into "
+            "NEW/OLD/NOT/UNCLASSIFIED by `spotify_release_date` + `release_type` "
+            "vs `date_from` (R4 in the spec)."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "$ref": "#/components/schemas/CreateTriageBlockIn",
+            }}},
+        },
+        "responses": {
+            "201": _make_response(201, "Block created.", TRIAGE_BLOCK_DETAIL),
+            "404": _error(404, "style_not_found."),
+            "422": _error(422, "validation_error (blank name, date_to < date_from, etc.)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/triage/blocks",
+        "auth": AUTH,
+        "summary": "List the user's triage blocks across styles (paginated).",
+        "parameters": [
+            *PAGINATION_PARAMS,
+            {
+                "name": "status",
+                "in": "query",
+                "schema": {"type": "string", "enum": ["IN_PROGRESS", "FINALIZED"]},
+                "description": "Optional status filter.",
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200, "Paginated triage block summaries.", TRIAGE_BLOCK_LIST_RESPONSE
+            ),
+            "422": _error(422, "validation_error (limit/offset/status invalid)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/styles/{style_id}/triage/blocks",
+        "auth": AUTH,
+        "summary": "List the user's triage blocks for a style (paginated).",
+        "parameters": [
+            {"name": "style_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            *PAGINATION_PARAMS,
+            {
+                "name": "status",
+                "in": "query",
+                "schema": {"type": "string", "enum": ["IN_PROGRESS", "FINALIZED"]},
+                "description": "Optional status filter.",
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200, "Paginated triage block summaries.", TRIAGE_BLOCK_LIST_RESPONSE
+            ),
+            "422": _error(422, "validation_error (limit/offset/status invalid)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/triage/blocks/{id}",
+        "auth": AUTH,
+        "summary": "Get one triage block with its buckets + per-bucket counts.",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Triage block detail.", TRIAGE_BLOCK_DETAIL),
+            "404": _error(404, "triage_block_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/triage/blocks/{id}/buckets/{bucket_id}/tracks",
+        "auth": AUTH,
+        "summary": "List tracks in a bucket (paginated, optional search).",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {"name": "bucket_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            *PAGINATION_PARAMS,
+        ],
+        "responses": {
+            "200": _make_response(
+                200, "Paginated bucket tracks.", BUCKET_TRACKS_LIST_RESPONSE
+            ),
+            "404": _error(404, "triage_block_not_found or bucket_not_found."),
+            "422": _error(422, "validation_error (limit/offset out of range)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/triage/blocks/{id}/move",
+        "auth": AUTH,
+        "summary": "Move tracks between two buckets within one triage block.",
+        "description": (
+            "Both buckets must belong to the same block. Capped at "
+            "1000 track_ids per call. Idempotent: tracks already in `to_bucket_id` "
+            "are silently no-op (counted in `moved` only when actually moved)."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "$ref": "#/components/schemas/MoveTracksIn",
+            }}},
+        },
+        "responses": {
+            "200": _make_response(200, "Tracks moved.", MOVE_TRACKS_OUT),
+            "404": _error(404, "triage_block_not_found / bucket_not_found / tracks_not_in_source."),
+            "409": _error(409, "invalid_state (block is FINALIZED) or inactive_bucket."),
+            "422": _error(422, "validation_error (track_ids empty / >1000 / non-uuid)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/triage/blocks/{src_id}/transfer",
+        "auth": AUTH,
+        "summary": "Transfer tracks from one IN_PROGRESS block to a bucket in another.",
+        "description": (
+            "Source and target blocks must share the same style. Target block must "
+            "be IN_PROGRESS and the target bucket must not be inactive. Tracks "
+            "leave the source block entirely (deleted from source bucket membership)."
+        ),
+        "parameters": [
+            {"name": "src_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "$ref": "#/components/schemas/TransferTracksIn",
+            }}},
+        },
+        "responses": {
+            "200": _make_response(200, "Tracks transferred.", TRANSFER_TRACKS_OUT),
+            "404": _error(404, "triage_block_not_found / bucket_not_found / tracks_not_in_source."),
+            "409": _error(
+                409,
+                "invalid_state (target block not IN_PROGRESS), "
+                "inactive_bucket, or style_mismatch.",
+            ),
+            "422": _error(422, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/triage/blocks/{id}/finalize",
+        "auth": AUTH,
+        "summary": "Finalize triage block and promote STAGING tracks into clouder_categories.",
+        "description": (
+            "Promotes every track in each STAGING bucket into the linked "
+            "`clouder_categories` row via category_tracks (idempotent insert). "
+            "Sets `source_triage_block_id` on each newly added category_tracks "
+            "row. Block status flips to FINALIZED. Idempotent on repeated calls."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Triage block finalized.", FINALIZE_OUT),
+            "404": _error(404, "triage_block_not_found."),
+            "409": _error(
+                409,
+                "inactive_staging_finalize (one or more STAGING buckets reference "
+                "a soft-deleted category — UI must transfer/empty them first).",
+            ),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "delete",
+        "path": "/triage/blocks/{id}",
+        "auth": AUTH,
+        "summary": "Soft-delete a triage block.",
+        "description": (
+            "Sets `deleted_at` on the triage_blocks row; bucket and track-membership "
+            "rows are filtered by the join, not hard-deleted. Idempotent: returns "
+            "404 only if the block never existed for this user."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "204": {"description": "Triage block soft-deleted."},
+            "404": _error(404, "triage_block_not_found (or already deleted)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
 ]
 
 
@@ -779,14 +1163,21 @@ def _operation(route: dict) -> dict:
 
 def _collect_pydantic_schemas() -> dict[str, Any]:
     """Pull JSON Schemas from pydantic models, rewriting refs into the OpenAPI namespace."""
-    collect_schema = CollectRequestIn.model_json_schema(
-        ref_template="#/components/schemas/{model}"
-    )
-    schemas = {"CollectRequestIn": collect_schema}
-    # Promote any nested $defs into top-level components.schemas.
-    if "$defs" in collect_schema:
-        for name, sub in collect_schema.pop("$defs").items():
-            schemas[name] = sub
+    schemas: dict[str, Any] = {}
+    for name, model in (
+        ("CollectRequestIn", CollectRequestIn),
+        ("CreateTriageBlockIn", CreateTriageBlockIn),
+        ("MoveTracksIn", MoveTracksIn),
+        ("TransferTracksIn", TransferTracksIn),
+    ):
+        js = model.model_json_schema(
+            ref_template="#/components/schemas/{model}"
+        )
+        # Promote any nested $defs into top-level components.schemas.
+        if "$defs" in js:
+            for sub_name, sub in js.pop("$defs").items():
+                schemas[sub_name] = sub
+        schemas[name] = js
     return schemas
 
 
