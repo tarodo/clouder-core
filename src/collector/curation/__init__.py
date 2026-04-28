@@ -59,3 +59,50 @@ class NameConflictError(CurationError):
 class OrderMismatchError(CurationError):
     error_code = "order_mismatch"
     http_status = 422
+
+
+class InvalidStateError(CurationError):
+    """Operation rejected because target entity is in the wrong state."""
+
+    error_code = "invalid_state"
+    http_status = 422
+
+
+class InactiveBucketError(CurationError):
+    """Move/transfer target is an inactive staging bucket."""
+
+    error_code = "target_bucket_inactive"
+    http_status = 422
+
+
+class InactiveStagingFinalizeError(CurationError):
+    """Finalize blocked because at least one inactive staging bucket has tracks."""
+
+    error_code = "inactive_buckets_have_tracks"
+    http_status = 409
+
+    def __init__(
+        self, message: str, inactive_buckets: list[dict[str, object]]
+    ) -> None:
+        super().__init__(message)
+        self.inactive_buckets = inactive_buckets
+
+
+class TracksNotInSourceError(CurationError):
+    """Move/transfer references track ids absent from the source bucket/block."""
+
+    error_code = "tracks_not_in_source"
+    http_status = 422
+
+    def __init__(
+        self, message: str, not_in_source: list[str]
+    ) -> None:
+        super().__init__(message)
+        self.not_in_source = not_in_source
+
+
+class StyleMismatchError(CurationError):
+    """Cross-style transfer attempt."""
+
+    error_code = "target_block_style_mismatch"
+    http_status = 422
