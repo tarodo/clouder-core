@@ -311,3 +311,41 @@ def test_list_blocks_all_no_style_filter() -> None:
     sql = list_call.args[0]
     assert "tb.user_id = :user_id" in sql
     assert ":style_id" not in sql
+
+
+def test_list_bucket_tracks_validates_block_and_bucket() -> None:
+    api = _api_with_responses([[]])
+    repo = TriageRepository(api)
+    with pytest.raises(NotFoundError) as ei:
+        repo.list_bucket_tracks(
+            user_id="u-1",
+            block_id="b-missing",
+            bucket_id="bk-missing",
+            limit=50,
+            offset=0,
+        )
+    assert ei.value.error_code == "bucket_not_in_block"
+
+
+def test_list_bucket_tracks_search_lowers_term() -> None:
+    api = _api_with_responses(
+        [
+            [{"block_id": "b-1", "bucket_id": "bk-1"}],
+            [],
+            [{"total": 0}],
+        ]
+    )
+    repo = TriageRepository(api)
+    repo.list_bucket_tracks(
+        user_id="u-1",
+        block_id="b-1",
+        bucket_id="bk-1",
+        limit=50,
+        offset=0,
+        search="  Tech  ",
+    )
+    rows_call = api.execute.call_args_list[1]
+    sql = rows_call.args[0]
+    params = rows_call.args[1]
+    assert "ILIKE :search" in sql
+    assert params["search"] == "%tech%"

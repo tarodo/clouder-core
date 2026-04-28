@@ -533,7 +533,111 @@ class TriageRepository:
         offset: int,
         search: str | None = None,
     ) -> tuple[list[BucketTrackRowOut], int]:
-        raise NotImplementedError
+        guard = self._data_api.execute(
+            """
+            SELECT tb.id AS block_id, tbk.id AS bucket_id
+            FROM triage_blocks tb
+            JOIN triage_buckets tbk ON tbk.triage_block_id = tb.id
+            WHERE tb.id = :block_id
+              AND tb.user_id = :user_id
+              AND tb.deleted_at IS NULL
+              AND tbk.id = :bucket_id
+            """,
+            {
+                "block_id": block_id,
+                "user_id": user_id,
+                "bucket_id": bucket_id,
+            },
+        )
+        if not guard:
+            raise NotFoundError(
+                "bucket_not_in_block",
+                f"bucket {bucket_id} not found in triage block {block_id}",
+            )
+
+        params: dict[str, Any] = {
+            "bucket_id": bucket_id,
+            "limit": limit,
+            "offset": offset,
+        }
+        search_clause = ""
+        if search and search.strip():
+            term = "%" + search.strip().lower() + "%"
+            params["search"] = term
+            search_clause = " AND t.normalized_title ILIKE :search"
+
+        rows = self._data_api.execute(
+            f"""
+            SELECT
+                t.id AS track_id,
+                t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
+                t.publish_date, t.spotify_release_date,
+                t.spotify_id, t.release_type, t.is_ai_suspected,
+                tbt.added_at,
+                COALESCE(
+                    ARRAY_AGG(ca.name ORDER BY cta.role, ca.name)
+                        FILTER (WHERE ca.id IS NOT NULL),
+                    ARRAY[]::text[]
+                ) AS artist_names
+            FROM triage_bucket_tracks tbt
+            JOIN clouder_tracks t ON t.id = tbt.track_id
+            LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
+            LEFT JOIN clouder_artists ca ON ca.id = cta.artist_id
+            WHERE tbt.triage_bucket_id = :bucket_id
+              {search_clause}
+            GROUP BY
+                t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
+                t.publish_date, t.spotify_release_date,
+                t.spotify_id, t.release_type, t.is_ai_suspected,
+                tbt.added_at
+            ORDER BY tbt.added_at DESC, t.id ASC
+            LIMIT :limit OFFSET :offset
+            """,
+            params,
+        )
+        total_rows = self._data_api.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM triage_bucket_tracks tbt
+            JOIN clouder_tracks t ON t.id = tbt.track_id
+            WHERE tbt.triage_bucket_id = :bucket_id
+              {search_clause}
+            """,
+            params,
+        )
+        total = int(total_rows[0]["total"]) if total_rows else 0
+
+        items = [
+            BucketTrackRowOut(
+                track_id=r["track_id"],
+                title=r["title"],
+                mix_name=r.get("mix_name"),
+                isrc=r.get("isrc"),
+                bpm=int(r["bpm"]) if r.get("bpm") is not None else None,
+                length_ms=(
+                    int(r["length_ms"])
+                    if r.get("length_ms") is not None
+                    else None
+                ),
+                publish_date=(
+                    str(r["publish_date"])
+                    if r.get("publish_date") is not None
+                    else None
+                ),
+                spotify_release_date=(
+                    str(r["spotify_release_date"])
+                    if r.get("spotify_release_date") is not None
+                    else None
+                ),
+                spotify_id=r.get("spotify_id"),
+                release_type=r.get("release_type"),
+                is_ai_suspected=bool(r.get("is_ai_suspected", False)),
+                artists=tuple(r.get("artist_names") or ()),
+                added_at=str(r["added_at"]),
+            )
+            for r in rows
+        ]
+        return items, total
 
     # --- internal helpers --------------------------------------------
 
