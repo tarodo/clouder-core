@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -178,6 +179,11 @@ class ClouderTrack(Base):
             "spotify_id",
             postgresql_where=text("spotify_id IS NOT NULL"),
         ),
+        Index(
+            "idx_tracks_spotify_release_date",
+            "spotify_release_date",
+            postgresql_where=text("spotify_release_date IS NOT NULL"),
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -199,6 +205,7 @@ class ClouderTrack(Base):
         DateTime(timezone=True)
     )
     release_type: Mapped[str | None] = mapped_column(String(16))
+    spotify_release_date: Mapped[date_type | None] = mapped_column(Date)
     is_ai_suspected: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("FALSE")
     )
@@ -370,5 +377,132 @@ class UserVendorToken(Base):
     scope: Mapped[str | None] = mapped_column(Text)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class TriageBlock(Base):
+    __tablename__ = "triage_blocks"
+    __table_args__ = (
+        Index(
+            "idx_triage_blocks_user_style_status",
+            "user_id",
+            "style_id",
+            "status",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "idx_triage_blocks_user_created",
+            "user_id",
+            text("created_at DESC"),
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        CheckConstraint(
+            "date_to >= date_from", name="ck_triage_blocks_date_range"
+        ),
+        CheckConstraint(
+            "status IN ('IN_PROGRESS','FINALIZED')",
+            name="ck_triage_blocks_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    style_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("clouder_styles.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    date_from: Mapped[date_type] = mapped_column(Date, nullable=False)
+    date_to: Mapped[date_type] = mapped_column(Date, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default=text("'IN_PROGRESS'")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    finalized_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+
+
+class TriageBucket(Base):
+    __tablename__ = "triage_buckets"
+    __table_args__ = (
+        Index("idx_triage_buckets_block", "triage_block_id"),
+        Index(
+            "idx_triage_buckets_category",
+            "category_id",
+            postgresql_where=text("category_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_triage_buckets_block_category",
+            "triage_block_id",
+            "category_id",
+            unique=True,
+            postgresql_where=text("category_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_triage_buckets_block_type_tech",
+            "triage_block_id",
+            "bucket_type",
+            unique=True,
+            postgresql_where=text("bucket_type <> 'STAGING'"),
+        ),
+        CheckConstraint(
+            "bucket_type IN ('NEW','OLD','NOT','DISCARD','UNCLASSIFIED','STAGING')",
+            name="ck_triage_buckets_type",
+        ),
+        CheckConstraint(
+            "(bucket_type = 'STAGING') = (category_id IS NOT NULL)",
+            name="ck_triage_buckets_staging_category",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    triage_block_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("triage_blocks.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    bucket_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    category_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("categories.id", ondelete="RESTRICT")
+    )
+    inactive: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class TriageBucketTrack(Base):
+    __tablename__ = "triage_bucket_tracks"
+    __table_args__ = (
+        Index(
+            "idx_triage_bucket_tracks_bucket_added",
+            "triage_bucket_id",
+            text("added_at DESC"),
+            "track_id",
+        ),
+    )
+
+    triage_bucket_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("triage_buckets.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    track_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("clouder_tracks.id"), primary_key=True
+    )
+    added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
