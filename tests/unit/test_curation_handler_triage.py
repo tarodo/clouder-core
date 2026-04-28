@@ -16,11 +16,18 @@ import pytest
 
 from collector import curation_handler
 from collector.curation import (
+    InactiveBucketError,
     InactiveStagingFinalizeError,
+    InvalidStateError,
+    NotFoundError,
+    StyleMismatchError,
     TracksNotInSourceError,
 )
 from collector.curation.triage_repository import (
     BucketTrackRowOut,
+    FinalizeResult,
+    MoveResult,
+    TransferResult,
     TriageBlockRow,
     TriageBlockSummaryRow,
     TriageBucketRow,
@@ -656,3 +663,260 @@ def test_list_blocks_rejects_unknown_status(monkeypatch, context) -> None:
     status, payload = _read(resp)
     assert status == 422
     assert payload["error_code"] == "validation_error"
+
+
+# ---------- T19: move + transfer mutating routes ----------------------------
+
+
+def _uuid(suffix: str) -> str:
+    """Pad a short tag to a 36-char UUID-shaped string for schema validation."""
+
+    base = "00000000-0000-0000-0000-"
+    rest = (suffix + "0" * 12)[:12]
+    return base + rest
+
+
+def test_move_tracks_route_registered() -> None:
+    key = "POST /triage/blocks/{id}/move"
+    assert key in curation_handler._ROUTE_TABLE
+    handler, factory = curation_handler._ROUTE_TABLE[key]
+    assert handler is curation_handler._move_tracks
+    assert factory is curation_handler._triage_factory
+
+
+def test_transfer_tracks_route_registered() -> None:
+    key = "POST /triage/blocks/{src_id}/transfer"
+    assert key in curation_handler._ROUTE_TABLE
+    handler, factory = curation_handler._ROUTE_TABLE[key]
+    assert handler is curation_handler._transfer_tracks
+    assert factory is curation_handler._triage_factory
+
+
+def test_move_tracks_happy_path(monkeypatch, context) -> None:
+    captured: dict[str, Any] = {}
+    from_id = _uuid("from")
+    to_id = _uuid("to")
+    track_ids = [_uuid("trk1"), _uuid("trk2")]
+
+    class FakeRepo:
+        def move_tracks(
+            self, *, user_id, block_id, from_bucket_id, to_bucket_id, track_ids
+        ):
+            captured.update(
+                user_id=user_id,
+                block_id=block_id,
+                from_bucket_id=from_bucket_id,
+                to_bucket_id=to_bucket_id,
+                track_ids=list(track_ids),
+            )
+            return MoveResult(moved=2)
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks/{id}/move",
+            path_params={"id": "blk-1"},
+            body={
+                "from_bucket_id": from_id,
+                "to_bucket_id": to_id,
+                "track_ids": track_ids,
+            },
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+
+    assert status == 200
+    assert payload == {
+        "moved": 2,
+        "correlation_id": "cid-unit-1",
+    }
+    assert captured == {
+        "user_id": "u1",
+        "block_id": "blk-1",
+        "from_bucket_id": from_id,
+        "to_bucket_id": to_id,
+        "track_ids": track_ids,
+    }
+
+
+def test_move_tracks_inactive_bucket_returns_422(
+    monkeypatch, context
+) -> None:
+    class FakeRepo:
+        def move_tracks(self, **_kw):
+            raise InactiveBucketError(
+                "target bucket is inactive (its category was soft-deleted)"
+            )
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks/{id}/move",
+            path_params={"id": "blk-1"},
+            body={
+                "from_bucket_id": _uuid("from"),
+                "to_bucket_id": _uuid("to"),
+                "track_ids": [_uuid("trk1")],
+            },
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 422
+    assert payload["error_code"] == "target_bucket_inactive"
+    assert payload["correlation_id"] == "cid-unit-1"
+
+
+def test_move_tracks_invalid_state_returns_422(monkeypatch, context) -> None:
+    class FakeRepo:
+        def move_tracks(self, **_kw):
+            raise InvalidStateError(
+                "triage block is not editable (status != IN_PROGRESS)"
+            )
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks/{id}/move",
+            path_params={"id": "blk-1"},
+            body={
+                "from_bucket_id": _uuid("from"),
+                "to_bucket_id": _uuid("to"),
+                "track_ids": [_uuid("trk1")],
+            },
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 422
+    assert payload["error_code"] == "invalid_state"
+
+
+def test_transfer_tracks_happy_path(monkeypatch, context) -> None:
+    captured: dict[str, Any] = {}
+    target_id = _uuid("tgt")
+    track_ids = [_uuid("trk1"), _uuid("trk2"), _uuid("trk3")]
+
+    class FakeRepo:
+        def transfer_tracks(
+            self, *, user_id, src_block_id, target_bucket_id, track_ids
+        ):
+            captured.update(
+                user_id=user_id,
+                src_block_id=src_block_id,
+                target_bucket_id=target_bucket_id,
+                track_ids=list(track_ids),
+            )
+            return TransferResult(transferred=3)
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks/{src_id}/transfer",
+            path_params={"src_id": "blk-src"},
+            body={
+                "target_bucket_id": target_id,
+                "track_ids": track_ids,
+            },
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+
+    assert status == 200
+    assert payload == {
+        "transferred": 3,
+        "correlation_id": "cid-unit-1",
+    }
+    assert captured == {
+        "user_id": "u1",
+        "src_block_id": "blk-src",
+        "target_bucket_id": target_id,
+        "track_ids": track_ids,
+    }
+
+
+def test_transfer_tracks_style_mismatch_returns_422(
+    monkeypatch, context
+) -> None:
+    class FakeRepo:
+        def transfer_tracks(self, **_kw):
+            raise StyleMismatchError(
+                "source and target triage blocks belong to different styles"
+            )
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks/{src_id}/transfer",
+            path_params={"src_id": "blk-src"},
+            body={
+                "target_bucket_id": _uuid("tgt"),
+                "track_ids": [_uuid("trk1")],
+            },
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 422
+    assert payload["error_code"] == "target_block_style_mismatch"
+
+
+def test_transfer_tracks_not_in_source_returns_422(
+    monkeypatch, context
+) -> None:
+    missing = ["trk-x", "trk-y"]
+
+    class FakeRepo:
+        def transfer_tracks(self, **_kw):
+            raise TracksNotInSourceError(
+                "2 track(s) not present in source block", missing
+            )
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks/{src_id}/transfer",
+            path_params={"src_id": "blk-src"},
+            body={
+                "target_bucket_id": _uuid("tgt"),
+                "track_ids": [_uuid("trk1")],
+            },
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 422
+    assert payload["error_code"] == "tracks_not_in_source"
+    assert payload["not_in_source"] == missing

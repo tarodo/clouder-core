@@ -36,8 +36,10 @@ from .curation.schemas import (
     AddTrackIn,
     CreateCategoryIn,
     CreateTriageBlockIn,
+    MoveTracksIn,
     RenameCategoryIn,
     ReorderCategoriesIn,
+    TransferTracksIn,
 )
 from .curation.triage_repository import (
     TriageRepository,
@@ -668,6 +670,68 @@ def _list_bucket_tracks(
     )
 
 
+def _move_tracks(
+    event, repo: TriageRepository, user_id: str, correlation_id: str
+):
+    block_id = (event.get("pathParameters") or {}).get("id")
+    if not block_id:
+        raise ValidationError("id is required in path")
+    schema = MoveTracksIn.model_validate(_parse_body(event))
+
+    out = repo.move_tracks(
+        user_id=user_id,
+        block_id=block_id,
+        from_bucket_id=schema.from_bucket_id,
+        to_bucket_id=schema.to_bucket_id,
+        track_ids=schema.track_ids,
+    )
+    log_event(
+        "INFO",
+        "triage_tracks_moved",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        block_id=block_id,
+        from_bucket_id=schema.from_bucket_id,
+        to_bucket_id=schema.to_bucket_id,
+        moved=out.moved,
+    )
+    return _json_response(
+        200,
+        {"moved": out.moved, "correlation_id": correlation_id},
+        correlation_id,
+    )
+
+
+def _transfer_tracks(
+    event, repo: TriageRepository, user_id: str, correlation_id: str
+):
+    src_block_id = (event.get("pathParameters") or {}).get("src_id")
+    if not src_block_id:
+        raise ValidationError("src_id is required in path")
+    schema = TransferTracksIn.model_validate(_parse_body(event))
+
+    out = repo.transfer_tracks(
+        user_id=user_id,
+        src_block_id=src_block_id,
+        target_bucket_id=schema.target_bucket_id,
+        track_ids=schema.track_ids,
+    )
+    log_event(
+        "INFO",
+        "triage_tracks_transferred",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        src_block_id=src_block_id,
+        target_bucket_id=schema.target_bucket_id,
+        transferred=out.transferred,
+    )
+    return _json_response(
+        200,
+        {"transferred": out.transferred, "correlation_id": correlation_id},
+        correlation_id,
+    )
+
+
 # Single source of truth for routing: each route maps to a
 # `(handler, repo_factory)` tuple. Adding a new route requires picking the
 # right factory explicitly — there is no silent fallback. spec-C routes use
@@ -697,4 +761,6 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "GET /triage/blocks": (_list_triage_blocks_all, _triage_factory),
     "GET /triage/blocks/{id}": (_get_triage_block, _triage_factory),
     "GET /triage/blocks/{id}/buckets/{bucket_id}/tracks": (_list_bucket_tracks, _triage_factory),
+    "POST /triage/blocks/{id}/move": (_move_tracks, _triage_factory),
+    "POST /triage/blocks/{src_id}/transfer": (_transfer_tracks, _triage_factory),
 }

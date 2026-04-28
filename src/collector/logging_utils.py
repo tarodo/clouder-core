@@ -79,6 +79,13 @@ ALLOWED_LOG_FIELDS = {
     "title_sim",
     "artist_sim",
     "reason",
+    "from_bucket_id",
+    "to_bucket_id",
+    "moved",
+    "src_block_id",
+    "target_bucket_id",
+    "transferred",
+    "promoted_count",
 }
 
 
