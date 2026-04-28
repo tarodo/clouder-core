@@ -264,6 +264,12 @@ variable "spotify_search_batch_size" {
   default     = 1
 }
 
+variable "spotify_search_worker_reserved_concurrency" {
+  description = "Reserved concurrent executions for spotify_search_worker. Caps parallel Spotify Web API calls (Client Credentials search endpoint ~3.3 RPS). Shares the Spotify token bucket with vendor_match_worker — keep combined parallelism ≤ 5."
+  type        = number
+  default     = 3
+}
+
 variable "spotify_search_queue_visibility_timeout_seconds" {
   description = "Visibility timeout for Spotify search queue"
   type        = number
@@ -324,6 +330,12 @@ variable "vendor_match_batch_size" {
   description = "SQS batch size for vendor match worker lambda"
   type        = number
   default     = 1
+}
+
+variable "vendor_match_worker_reserved_concurrency" {
+  description = "Reserved concurrent executions for vendor_match_worker. Caps parallel Spotify lookups during fuzzy matching. Shares the Spotify token bucket with spotify_search_worker — keep combined parallelism ≤ 5."
+  type        = number
+  default     = 2
 }
 
 variable "vendor_match_queue_visibility_timeout_seconds" {

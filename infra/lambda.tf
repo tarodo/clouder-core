@@ -150,6 +150,8 @@ resource "aws_lambda_function" "spotify_search_worker" {
   timeout       = var.spotify_search_worker_lambda_timeout_seconds
   memory_size   = var.spotify_search_worker_lambda_memory_mb
 
+  reserved_concurrent_executions = var.spotify_search_worker_reserved_concurrency
+
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 
   environment {
@@ -189,6 +191,8 @@ resource "aws_lambda_function" "vendor_match_worker" {
   filename      = local.lambda_zip_file
   timeout       = var.vendor_match_worker_lambda_timeout_seconds
   memory_size   = var.vendor_match_worker_lambda_memory_mb
+
+  reserved_concurrent_executions = var.vendor_match_worker_reserved_concurrency
 
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 
