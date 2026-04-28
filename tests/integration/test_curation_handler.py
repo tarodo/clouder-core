@@ -48,7 +48,10 @@ class FakeRepo:
             created_at=c["created_at"], updated_at=c["updated_at"],
         )
 
-    def create(self, *, user_id, style_id, category_id, name, normalized_name, now):
+    def create(
+        self, *, user_id, style_id, category_id, name, normalized_name, now,
+        correlation_id=None,
+    ):
         if style_id not in self.styles:
             raise NotFoundError("style_not_found", "Style not found")
         for c in self.categories.values():
@@ -136,7 +139,7 @@ class FakeRepo:
         c["updated_at"] = now.isoformat()
         return self._row(c)
 
-    def soft_delete(self, *, user_id, category_id, now):
+    def soft_delete(self, *, user_id, category_id, now, correlation_id=None):
         c = self.categories.get(category_id)
         if (
             c is None

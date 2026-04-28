@@ -1018,6 +1018,601 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /triage/blocks:
+    post:
+      summary: Create a triage block + 5 technical buckets + STAGING per category.
+      responses:
+        '201':
+          description: Block created.
+          content:
+            application/json:
+              schema: &id012
+                type: object
+                required:
+                - id
+                - style_id
+                - style_name
+                - name
+                - date_from
+                - date_to
+                - status
+                - created_at
+                - updated_at
+                - buckets
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  style_id:
+                    type: string
+                    format: uuid
+                  style_name:
+                    type: string
+                  name:
+                    type: string
+                  date_from:
+                    type: string
+                    format: date
+                  date_to:
+                    type: string
+                    format: date
+                  status:
+                    type: string
+                    enum:
+                    - IN_PROGRESS
+                    - FINALIZED
+                  created_at:
+                    type: string
+                  updated_at:
+                    type: string
+                  finalized_at:
+                    type:
+                    - string
+                    - 'null'
+                  buckets:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - id
+                      - bucket_type
+                      - inactive
+                      - track_count
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        bucket_type:
+                          type: string
+                          enum:
+                          - NEW
+                          - OLD
+                          - NOT
+                          - DISCARD
+                          - UNCLASSIFIED
+                          - STAGING
+                        category_id:
+                          type:
+                          - string
+                          - 'null'
+                          format: uuid
+                          description: NULL for the five technical buckets; populated
+                            for STAGING buckets that mirror a clouder_categories row.
+                        category_name:
+                          type:
+                          - string
+                          - 'null'
+                        inactive:
+                          type: boolean
+                          description: True when the linked category was soft-deleted
+                            after the STAGING bucket was created.
+                        track_count:
+                          type: integer
+                  correlation_id:
+                    type: string
+        '404':
+          description: style_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error (blank name, date_to < date_from, etc.).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Aurora-only. Snapshots `clouder_categories` for the style into
+        STAGING buckets at create time; subsequent category renames/deletes do not
+        retroactively mutate the block. Tracks are classified into NEW/OLD/NOT/UNCLASSIFIED
+        by `spotify_release_date` + `release_type` vs `date_from` (R4 in the spec).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTriageBlockIn'
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    get:
+      summary: List the user's triage blocks across styles (paginated).
+      responses:
+        '200':
+          description: Paginated triage block summaries.
+          content:
+            application/json:
+              schema: &id011
+                type: object
+                required:
+                - items
+                - total
+                - limit
+                - offset
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - id
+                      - style_id
+                      - style_name
+                      - name
+                      - date_from
+                      - date_to
+                      - status
+                      - created_at
+                      - updated_at
+                      - track_count
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        style_id:
+                          type: string
+                          format: uuid
+                        style_name:
+                          type: string
+                        name:
+                          type: string
+                        date_from:
+                          type: string
+                          format: date
+                        date_to:
+                          type: string
+                          format: date
+                        status:
+                          type: string
+                          enum:
+                          - IN_PROGRESS
+                          - FINALIZED
+                        created_at:
+                          type: string
+                        updated_at:
+                          type: string
+                        finalized_at:
+                          type:
+                          - string
+                          - 'null'
+                        track_count:
+                          type: integer
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  correlation_id:
+                    type: string
+        '422':
+          description: validation_error (limit/offset/status invalid).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - *id006
+      - *id007
+      - *id008
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - IN_PROGRESS
+          - FINALIZED
+        description: Optional status filter.
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /styles/{style_id}/triage/blocks:
+    get:
+      summary: List the user's triage blocks for a style (paginated).
+      responses:
+        '200':
+          description: Paginated triage block summaries.
+          content:
+            application/json:
+              schema: *id011
+        '422':
+          description: validation_error (limit/offset/status invalid).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: style_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id006
+      - *id007
+      - *id008
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - IN_PROGRESS
+          - FINALIZED
+        description: Optional status filter.
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /triage/blocks/{id}:
+    get:
+      summary: Get one triage block with its buckets + per-bucket counts.
+      responses:
+        '200':
+          description: Triage block detail.
+          content:
+            application/json:
+              schema: *id012
+        '404':
+          description: triage_block_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    delete:
+      summary: Soft-delete a triage block.
+      responses:
+        '204':
+          description: Triage block soft-deleted.
+        '404':
+          description: triage_block_not_found (or already deleted).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: 'Sets `deleted_at` on the triage_blocks row; bucket and track-membership
+        rows are filtered by the join, not hard-deleted. Idempotent: returns 404 only
+        if the block never existed for this user.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /triage/blocks/{id}/buckets/{bucket_id}/tracks:
+    get:
+      summary: List tracks in a bucket (paginated, optional search).
+      responses:
+        '200':
+          description: Paginated bucket tracks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - total
+                - limit
+                - offset
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - track_id
+                      - title
+                      - is_ai_suspected
+                      - artists
+                      - added_at
+                      properties:
+                        track_id:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        mix_name:
+                          type:
+                          - string
+                          - 'null'
+                        isrc:
+                          type:
+                          - string
+                          - 'null'
+                        bpm:
+                          type:
+                          - integer
+                          - 'null'
+                        length_ms:
+                          type:
+                          - integer
+                          - 'null'
+                        publish_date:
+                          type:
+                          - string
+                          - 'null'
+                        spotify_release_date:
+                          type:
+                          - string
+                          - 'null'
+                        spotify_id:
+                          type:
+                          - string
+                          - 'null'
+                        release_type:
+                          type:
+                          - string
+                          - 'null'
+                        is_ai_suspected:
+                          type: boolean
+                        artists:
+                          type: array
+                          items:
+                            type: string
+                        added_at:
+                          type: string
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  correlation_id:
+                    type: string
+        '404':
+          description: triage_block_not_found or bucket_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error (limit/offset out of range).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: bucket_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id006
+      - *id007
+      - *id008
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /triage/blocks/{id}/move:
+    post:
+      summary: Move tracks between two buckets within one triage block.
+      responses:
+        '200':
+          description: Tracks moved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - moved
+                properties:
+                  moved:
+                    type: integer
+                  correlation_id:
+                    type: string
+        '404':
+          description: triage_block_not_found / bucket_not_found / tracks_not_in_source.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: invalid_state (block is FINALIZED) or inactive_bucket.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error (track_ids empty / >1000 / non-uuid).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: 'Both buckets must belong to the same block. Capped at 1000 track_ids
+        per call. Idempotent: tracks already in `to_bucket_id` are silently no-op
+        (counted in `moved` only when actually moved).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveTracksIn'
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /triage/blocks/{src_id}/transfer:
+    post:
+      summary: Transfer tracks from one IN_PROGRESS block to a bucket in another.
+      responses:
+        '200':
+          description: Tracks transferred.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - transferred
+                properties:
+                  transferred:
+                    type: integer
+                  correlation_id:
+                    type: string
+        '404':
+          description: triage_block_not_found / bucket_not_found / tracks_not_in_source.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: invalid_state (target block not IN_PROGRESS), inactive_bucket,
+            or style_mismatch.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Source and target blocks must share the same style. Target block
+        must be IN_PROGRESS and the target bucket must not be inactive. Tracks leave
+        the source block entirely (deleted from source bucket membership).
+      parameters:
+      - name: src_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferTracksIn'
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /triage/blocks/{id}/finalize:
+    post:
+      summary: Finalize triage block and promote STAGING tracks into clouder_categories.
+      responses:
+        '200':
+          description: Triage block finalized.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - block
+                - promoted
+                properties:
+                  block: *id012
+                  promoted:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: Per-category promoted track counts keyed by category_id.
+                  correlation_id:
+                    type: string
+        '404':
+          description: triage_block_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: inactive_staging_finalize (one or more STAGING buckets reference
+            a soft-deleted category — UI must transfer/empty them first).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: db_not_configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Promotes every track in each STAGING bucket into the linked `clouder_categories`
+        row via category_tracks (idempotent insert). Sets `source_triage_block_id`
+        on each newly added category_tracks row. Block status flips to FINALIZED.
+        Idempotent on repeated calls.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
 components:
   securitySchemes:
     BearerAuth:
@@ -1061,6 +1656,80 @@ components:
       - iso_year
       - iso_week
       title: CollectRequestIn
+      type: object
+    CreateTriageBlockIn:
+      additionalProperties: false
+      properties:
+        style_id:
+          maxLength: 36
+          minLength: 36
+          title: Style Id
+          type: string
+        name:
+          maxLength: 128
+          minLength: 1
+          title: Name
+          type: string
+        date_from:
+          format: date
+          title: Date From
+          type: string
+        date_to:
+          format: date
+          title: Date To
+          type: string
+      required:
+      - style_id
+      - name
+      - date_from
+      - date_to
+      title: CreateTriageBlockIn
+      type: object
+    MoveTracksIn:
+      additionalProperties: false
+      properties:
+        from_bucket_id:
+          maxLength: 36
+          minLength: 36
+          title: From Bucket Id
+          type: string
+        to_bucket_id:
+          maxLength: 36
+          minLength: 36
+          title: To Bucket Id
+          type: string
+        track_ids:
+          items:
+            type: string
+          maxItems: 1000
+          minItems: 1
+          title: Track Ids
+          type: array
+      required:
+      - from_bucket_id
+      - to_bucket_id
+      - track_ids
+      title: MoveTracksIn
+      type: object
+    TransferTracksIn:
+      additionalProperties: false
+      properties:
+        target_bucket_id:
+          maxLength: 36
+          minLength: 36
+          title: Target Bucket Id
+          type: string
+        track_ids:
+          items:
+            type: string
+          maxItems: 1000
+          minItems: 1
+          title: Track Ids
+          type: array
+      required:
+      - target_bucket_id
+      - track_ids
+      title: TransferTracksIn
       type: object
     ErrorResponse:
       type: object

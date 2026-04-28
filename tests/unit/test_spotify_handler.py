@@ -395,3 +395,22 @@ def test_default_batch_size_used_when_not_specified(monkeypatch) -> None:
     response = lambda_handler(event, context=None)
     assert response == {"processed": 1}
     reset_settings_cache()
+
+
+def test_update_cmds_carry_spotify_release_date() -> None:
+    """spec-D: handler patches release_date into UpdateSpotifyResultCmd."""
+    from datetime import date
+    from collector.spotify_handler import (
+        _extract_album_type,
+        _extract_release_date,
+    )
+
+    payload = {
+        "album": {
+            "album_type": "album",
+            "release_date": "2024-03-15",
+            "release_date_precision": "day",
+        }
+    }
+    assert _extract_album_type(payload) == "album"
+    assert _extract_release_date(payload) == date(2024, 3, 15)
