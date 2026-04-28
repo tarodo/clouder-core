@@ -32,6 +32,7 @@ class AddTrackIn(BaseModel):
 
 
 class CreateTriageBlockIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     style_id: str = Field(..., min_length=36, max_length=36)
     name: str = Field(..., min_length=1, max_length=128)
     date_from: date
@@ -52,6 +53,7 @@ class CreateTriageBlockIn(BaseModel):
 
 
 class MoveTracksIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     from_bucket_id: str = Field(..., min_length=36, max_length=36)
     to_bucket_id: str = Field(..., min_length=36, max_length=36)
     track_ids: list[str] = Field(..., min_length=1, max_length=1000)
@@ -66,6 +68,7 @@ class MoveTracksIn(BaseModel):
 
 
 class TransferTracksIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     target_bucket_id: str = Field(..., min_length=36, max_length=36)
     track_ids: list[str] = Field(..., min_length=1, max_length=1000)
 

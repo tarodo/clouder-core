@@ -106,3 +106,33 @@ class TestTransferTracksIn:
             track_ids=["00000000-0000-0000-0000-000000000002"],
         )
         assert len(m.track_ids) == 1
+
+
+class TestExtraFieldsRejected:
+    def test_create_triage_block_in_rejects_unknown_field(self) -> None:
+        from datetime import date
+        with pytest.raises(ValidationError):
+            CreateTriageBlockIn(
+                style_id="00000000-0000-0000-0000-000000000001",
+                name="X",
+                date_from=date(2026, 4, 20),
+                date_to=date(2026, 4, 26),
+                unknown_field="bogus",
+            )
+
+    def test_move_tracks_in_rejects_unknown_field(self) -> None:
+        with pytest.raises(ValidationError):
+            MoveTracksIn(
+                from_bucket_id="00000000-0000-0000-0000-000000000001",
+                to_bucket_id="00000000-0000-0000-0000-000000000002",
+                track_ids=["00000000-0000-0000-0000-000000000003"],
+                unknown_field="bogus",
+            )
+
+    def test_transfer_tracks_in_rejects_unknown_field(self) -> None:
+        with pytest.raises(ValidationError):
+            TransferTracksIn(
+                target_bucket_id="00000000-0000-0000-0000-000000000001",
+                track_ids=["00000000-0000-0000-0000-000000000002"],
+                unknown_field="bogus",
+            )
