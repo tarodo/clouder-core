@@ -73,7 +73,7 @@ DELETE /categories/{id}
 ### 3. Triage (Spec-D) — сессионная работа
 
 ```
-POST   /triage/blocks                                              {style_id, date_from, date_to, name?}
+POST   /triage/blocks                                              {style_id, date_from, date_to, name}
 GET    /triage/blocks
 GET    /triage/blocks/{id}                                         # detail с buckets
 GET    /triage/blocks/{id}/buckets/{bucket_id}/tracks?limit=&offset=&search=
