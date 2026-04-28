@@ -732,6 +732,73 @@ def _transfer_tracks(
     )
 
 
+def _finalize_triage_block(
+    event, repo: TriageRepository, user_id: str, correlation_id: str
+):
+    block_id = (event.get("pathParameters") or {}).get("id")
+    if not block_id:
+        raise ValidationError("id is required in path")
+
+    cat_repo = create_default_categories_repository()
+    if cat_repo is None:
+        # Triage factory already gated on db config, so this is a defensive
+        # mismatch guard — both factories read the same Aurora env vars.
+        return _error(
+            503, "db_not_configured", "Database not configured", correlation_id
+        )
+
+    out = repo.finalize_block(
+        user_id=user_id,
+        block_id=block_id,
+        categories_repository=cat_repo,
+    )
+    log_event(
+        "INFO",
+        "triage_block_finalized",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        block_id=block_id,
+        promoted_count=sum(out.promoted.values()),
+    )
+    return _json_response(
+        200,
+        {
+            "block": _serialize_triage_block(out.block, correlation_id),
+            "promoted": out.promoted,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _soft_delete_triage_block(
+    event, repo: TriageRepository, user_id: str, correlation_id: str
+):
+    block_id = (event.get("pathParameters") or {}).get("id")
+    if not block_id:
+        raise ValidationError("id is required in path")
+    deleted = repo.soft_delete_block(
+        user_id=user_id, block_id=block_id
+    )
+    if not deleted:
+        raise NotFoundError(
+            "triage_block_not_found",
+            f"triage block not found: {block_id}",
+        )
+    log_event(
+        "INFO",
+        "triage_block_soft_deleted",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        block_id=block_id,
+    )
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
+    }
+
+
 # Single source of truth for routing: each route maps to a
 # `(handler, repo_factory)` tuple. Adding a new route requires picking the
 # right factory explicitly — there is no silent fallback. spec-C routes use
@@ -763,4 +830,6 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "GET /triage/blocks/{id}/buckets/{bucket_id}/tracks": (_list_bucket_tracks, _triage_factory),
     "POST /triage/blocks/{id}/move": (_move_tracks, _triage_factory),
     "POST /triage/blocks/{src_id}/transfer": (_transfer_tracks, _triage_factory),
+    "POST /triage/blocks/{id}/finalize": (_finalize_triage_block, _triage_factory),
+    "DELETE /triage/blocks/{id}": (_soft_delete_triage_block, _triage_factory),
 }

@@ -920,3 +920,197 @@ def test_transfer_tracks_not_in_source_returns_422(
     assert status == 422
     assert payload["error_code"] == "tracks_not_in_source"
     assert payload["not_in_source"] == missing
+
+
+# ---------- T20: finalize + soft-delete routes -----------------------------
+
+
+def test_finalize_triage_block_route_registered() -> None:
+    key = "POST /triage/blocks/{id}/finalize"
+    assert key in curation_handler._ROUTE_TABLE
+    handler, factory = curation_handler._ROUTE_TABLE[key]
+    assert handler is curation_handler._finalize_triage_block
+    assert factory is curation_handler._triage_factory
+
+
+def test_soft_delete_triage_block_route_registered() -> None:
+    key = "DELETE /triage/blocks/{id}"
+    assert key in curation_handler._ROUTE_TABLE
+    handler, factory = curation_handler._ROUTE_TABLE[key]
+    assert handler is curation_handler._soft_delete_triage_block
+    assert factory is curation_handler._triage_factory
+
+
+def test_finalize_triage_block_happy_path(monkeypatch, context) -> None:
+    captured: dict[str, Any] = {}
+    fake_block = _fake_block_row()
+    promoted = {"cat-1": 5, "cat-2": 3}
+
+    sentinel_cat_repo = object()
+
+    class FakeRepo:
+        def finalize_block(
+            self, *, user_id, block_id, categories_repository
+        ):
+            captured.update(
+                user_id=user_id,
+                block_id=block_id,
+                categories_repository=categories_repository,
+            )
+            return FinalizeResult(block=fake_block, promoted=promoted)
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_categories_repository",
+        lambda: sentinel_cat_repo,
+    )
+
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks/{id}/finalize",
+            path_params={"id": fake_block.id},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+
+    assert status == 200
+    assert payload["promoted"] == promoted
+    assert payload["correlation_id"] == "cid-unit-1"
+    block_payload = payload["block"]
+    assert block_payload["id"] == fake_block.id
+    assert block_payload["style_name"] == "House"
+    assert len(block_payload["buckets"]) == 2
+
+    # Repo received the categories repo instance from the categories factory.
+    assert captured["user_id"] == "u1"
+    assert captured["block_id"] == fake_block.id
+    assert captured["categories_repository"] is sentinel_cat_repo
+
+
+def test_finalize_triage_block_inactive_buckets_returns_409(
+    monkeypatch, context
+) -> None:
+    inactive = [
+        {"id": "buck-1", "category_id": "cat-1", "track_count": 4},
+    ]
+
+    class FakeRepo:
+        def finalize_block(self, **_kw):
+            raise InactiveStagingFinalizeError(
+                "1 inactive staging bucket(s) hold tracks", inactive
+            )
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_categories_repository",
+        lambda: object(),
+    )
+
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks/{id}/finalize",
+            path_params={"id": "blk-1"},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 409
+    assert payload["error_code"] == "inactive_buckets_have_tracks"
+    assert payload["inactive_buckets"] == inactive
+    assert payload["correlation_id"] == "cid-unit-1"
+
+
+def test_finalize_triage_block_returns_503_when_categories_factory_none(
+    monkeypatch, context
+) -> None:
+    class FakeRepo:
+        def finalize_block(self, **_kw):  # pragma: no cover - unreachable
+            raise AssertionError("repo.finalize_block should not be invoked")
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_categories_repository",
+        lambda: None,
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks/{id}/finalize",
+            path_params={"id": "blk-1"},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 503
+    assert payload["error_code"] == "db_not_configured"
+
+
+def test_soft_delete_triage_block_happy_path(monkeypatch, context) -> None:
+    captured: dict[str, Any] = {}
+
+    class FakeRepo:
+        def soft_delete_block(self, *, user_id, block_id):
+            captured.update(user_id=user_id, block_id=block_id)
+            return True
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="DELETE",
+            route="/triage/blocks/{id}",
+            path_params={"id": "blk-1"},
+        ),
+        context,
+    )
+
+    assert resp["statusCode"] == 204
+    assert resp["body"] == ""
+    assert resp["headers"]["x-correlation-id"] == "cid-unit-1"
+    assert captured == {"user_id": "u1", "block_id": "blk-1"}
+
+
+def test_soft_delete_triage_block_returns_404_when_missing(
+    monkeypatch, context
+) -> None:
+    class FakeRepo:
+        def soft_delete_block(self, *, user_id, block_id):
+            return False
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="DELETE",
+            route="/triage/blocks/{id}",
+            path_params={"id": "missing-id"},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 404
+    assert payload["error_code"] == "triage_block_not_found"
