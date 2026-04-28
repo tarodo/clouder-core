@@ -54,7 +54,12 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
-from collector.curation import NotFoundError
+from collector.curation import (
+    InactiveBucketError,
+    InvalidStateError,
+    NotFoundError,
+    TracksNotInSourceError,
+)
 from collector.curation.triage_repository import (
     TriageRepository,
     TriageBlockRow,
@@ -349,3 +354,148 @@ def test_list_bucket_tracks_search_lowers_term() -> None:
     params = rows_call.args[1]
     assert "ILIKE :search" in sql
     assert params["search"] == "%tech%"
+
+
+def test_move_tracks_target_inactive() -> None:
+    api = _api_with_responses(
+        [
+            [
+                {
+                    "block_status": "IN_PROGRESS",
+                    "from_id": "bk-from",
+                    "from_inactive": False,
+                    "to_id": "bk-to",
+                    "to_inactive": True,
+                }
+            ],
+        ]
+    )
+    repo = TriageRepository(api)
+    with pytest.raises(InactiveBucketError):
+        repo.move_tracks(
+            user_id="u-1",
+            block_id="b-1",
+            from_bucket_id="bk-from",
+            to_bucket_id="bk-to",
+            track_ids=["00000000-0000-0000-0000-000000000001"],
+        )
+
+
+def test_move_tracks_block_not_editable() -> None:
+    api = _api_with_responses(
+        [
+            [
+                {
+                    "block_status": "FINALIZED",
+                    "from_id": "bk-from",
+                    "from_inactive": False,
+                    "to_id": "bk-to",
+                    "to_inactive": False,
+                }
+            ],
+        ]
+    )
+    repo = TriageRepository(api)
+    with pytest.raises(InvalidStateError):
+        repo.move_tracks(
+            user_id="u-1",
+            block_id="b-1",
+            from_bucket_id="bk-from",
+            to_bucket_id="bk-to",
+            track_ids=["00000000-0000-0000-0000-000000000001"],
+        )
+
+
+def test_move_tracks_tracks_not_in_source() -> None:
+    api = _api_with_responses(
+        [
+            [
+                {
+                    "block_status": "IN_PROGRESS",
+                    "from_id": "bk-from",
+                    "from_inactive": False,
+                    "to_id": "bk-to",
+                    "to_inactive": False,
+                }
+            ],
+            [{"track_id": "00000000-0000-0000-0000-000000000001"}],
+        ]
+    )
+    repo = TriageRepository(api)
+    with pytest.raises(TracksNotInSourceError) as ei:
+        repo.move_tracks(
+            user_id="u-1",
+            block_id="b-1",
+            from_bucket_id="bk-from",
+            to_bucket_id="bk-to",
+            track_ids=[
+                "00000000-0000-0000-0000-000000000001",
+                "00000000-0000-0000-0000-000000000002",
+            ],
+        )
+    assert "00000000-0000-0000-0000-000000000002" in ei.value.not_in_source
+
+
+def test_move_tracks_happy_path() -> None:
+    ids_present = [
+        {"track_id": f"00000000-0000-0000-0000-{n:012d}"} for n in (1, 2)
+    ]
+    api = _api_with_responses(
+        [
+            [
+                {
+                    "block_status": "IN_PROGRESS",
+                    "from_id": "bk-from",
+                    "from_inactive": False,
+                    "to_id": "bk-to",
+                    "to_inactive": False,
+                }
+            ],
+            ids_present,
+            [],  # DELETE
+            [],  # INSERT
+        ]
+    )
+    repo = TriageRepository(api)
+    out = repo.move_tracks(
+        user_id="u-1",
+        block_id="b-1",
+        from_bucket_id="bk-from",
+        to_bucket_id="bk-to",
+        track_ids=[
+            "00000000-0000-0000-0000-000000000001",
+            "00000000-0000-0000-0000-000000000002",
+        ],
+    )
+    assert out.moved == 2
+    delete_call = api.execute.call_args_list[2]
+    insert_call = api.execute.call_args_list[3]
+    assert "DELETE FROM triage_bucket_tracks" in delete_call.args[0]
+    assert "INSERT INTO triage_bucket_tracks" in insert_call.args[0]
+    assert "ON CONFLICT" in insert_call.args[0]
+
+
+def test_move_tracks_self_noop() -> None:
+    api = _api_with_responses(
+        [
+            [
+                {
+                    "block_status": "IN_PROGRESS",
+                    "from_id": "bk-x",
+                    "from_inactive": False,
+                    "to_id": "bk-x",
+                    "to_inactive": False,
+                }
+            ],
+        ]
+    )
+    repo = TriageRepository(api)
+    out = repo.move_tracks(
+        user_id="u-1",
+        block_id="b-1",
+        from_bucket_id="bk-x",
+        to_bucket_id="bk-x",
+        track_ids=["00000000-0000-0000-0000-000000000001"],
+    )
+    assert out.moved == 0
+    assert api.execute.call_count == 1

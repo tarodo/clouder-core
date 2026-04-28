@@ -295,7 +295,95 @@ class TriageRepository:
         to_bucket_id: str,
         track_ids: Sequence[str],
     ) -> MoveResult:
-        raise NotImplementedError
+        guard = self._data_api.execute(
+            """
+            SELECT
+                tb.status AS block_status,
+                bf.id AS from_id, bf.inactive AS from_inactive,
+                bt.id AS to_id, bt.inactive AS to_inactive
+            FROM triage_blocks tb
+            JOIN triage_buckets bf ON bf.triage_block_id = tb.id
+            JOIN triage_buckets bt ON bt.triage_block_id = tb.id
+            WHERE tb.id = :block_id
+              AND tb.user_id = :user_id
+              AND tb.deleted_at IS NULL
+              AND bf.id = :from_id
+              AND bt.id = :to_id
+            """,
+            {
+                "block_id": block_id,
+                "user_id": user_id,
+                "from_id": from_bucket_id,
+                "to_id": to_bucket_id,
+            },
+        )
+        if not guard:
+            raise NotFoundError(
+                "bucket_not_in_block", "block or bucket not found"
+            )
+        row = guard[0]
+        if row["block_status"] != "IN_PROGRESS":
+            raise InvalidStateError(
+                "triage block is not editable (status != IN_PROGRESS)"
+            )
+        if bool(row["to_inactive"]):
+            raise InactiveBucketError(
+                "target bucket is inactive (its category was soft-deleted)"
+            )
+
+        if from_bucket_id == to_bucket_id:
+            return MoveResult(moved=0)
+
+        present = self._data_api.execute(
+            """
+            SELECT track_id
+            FROM triage_bucket_tracks
+            WHERE triage_bucket_id = :from_id
+              AND track_id = ANY(:track_ids)
+            """,
+            {
+                "from_id": from_bucket_id,
+                "track_ids": list(track_ids),
+            },
+        )
+        present_ids = {r["track_id"] for r in present}
+        missing = [t for t in track_ids if t not in present_ids]
+        if missing:
+            raise TracksNotInSourceError(
+                f"{len(missing)} track(s) not present in source bucket",
+                missing,
+            )
+
+        with self._data_api.transaction() as tx_id:
+            self._data_api.execute(
+                """
+                DELETE FROM triage_bucket_tracks
+                WHERE triage_bucket_id = :from_id
+                  AND track_id = ANY(:track_ids)
+                """,
+                {
+                    "from_id": from_bucket_id,
+                    "track_ids": list(track_ids),
+                },
+                transaction_id=tx_id,
+            )
+            self._data_api.execute(
+                """
+                INSERT INTO triage_bucket_tracks
+                    (triage_bucket_id, track_id, added_at)
+                SELECT :to_id, t, :now
+                FROM UNNEST(:track_ids::text[]) AS t
+                ON CONFLICT (triage_bucket_id, track_id) DO NOTHING
+                """,
+                {
+                    "to_id": to_bucket_id,
+                    "track_ids": list(track_ids),
+                    "now": utc_now(),
+                },
+                transaction_id=tx_id,
+            )
+
+        return MoveResult(moved=len(track_ids))
 
     def transfer_tracks(
         self,
