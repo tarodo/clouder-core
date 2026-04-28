@@ -1107,3 +1107,19 @@ class TriageRepository:
             ),
             buckets=buckets,
         )
+
+
+def create_default_triage_repository() -> "TriageRepository | None":
+    from collector.settings import get_data_api_settings
+
+    settings = get_data_api_settings()
+    if not settings.is_configured:
+        return None
+    from collector.data_api import create_default_data_api_client
+
+    data_api = create_default_data_api_client(
+        resource_arn=str(settings.aurora_cluster_arn),
+        secret_arn=str(settings.aurora_secret_arn),
+        database=settings.aurora_database,
+    )
+    return TriageRepository(data_api=data_api)

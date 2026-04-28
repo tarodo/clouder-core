@@ -17,8 +17,10 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .curation import (
     CurationError,
+    InactiveStagingFinalizeError,
     NotFoundError,
     PaginatedResult,
+    TracksNotInSourceError,
     ValidationError,
     utc_now,
 )
@@ -30,7 +32,17 @@ from .curation.categories_service import (
     normalize_category_name,
     validate_category_name,
 )
-from .curation.schemas import AddTrackIn, CreateCategoryIn, RenameCategoryIn, ReorderCategoriesIn
+from .curation.schemas import (
+    AddTrackIn,
+    CreateCategoryIn,
+    CreateTriageBlockIn,
+    RenameCategoryIn,
+    ReorderCategoriesIn,
+)
+from .curation.triage_repository import (
+    TriageRepository,
+    create_default_triage_repository,
+)
 from .logging_utils import log_event
 
 
@@ -71,6 +83,25 @@ def _error(
         },
         correlation_id,
     )
+
+
+def _curation_error_response(
+    exc: CurationError, correlation_id: str
+) -> dict[str, Any]:
+    """Map a CurationError to an HTTP envelope, attaching structured payloads
+    for error subclasses that carry them (InactiveStagingFinalizeError,
+    TracksNotInSourceError)."""
+
+    payload: dict[str, Any] = {
+        "error_code": exc.error_code,
+        "message": exc.message,
+        "correlation_id": correlation_id,
+    }
+    if isinstance(exc, InactiveStagingFinalizeError):
+        payload["inactive_buckets"] = list(exc.inactive_buckets)
+    elif isinstance(exc, TracksNotInSourceError):
+        payload["not_in_source"] = list(exc.not_in_source)
+    return _json_response(exc.http_status, payload, correlation_id)
 
 
 def _user_id_or_none(event: Mapping[str, Any]) -> str | None:
@@ -168,7 +199,8 @@ def lambda_handler(
     if handler is None:
         return _error(404, "not_found", "Unknown route", correlation_id)
 
-    repo = create_default_categories_repository()
+    factory = _REPO_FACTORY.get(route_key, create_default_categories_repository)
+    repo = factory()
     if repo is None:
         return _error(503, "db_not_configured", "Database not configured", correlation_id)
 
@@ -184,7 +216,7 @@ def lambda_handler(
             correlation_id,
         )
     except CurationError as exc:
-        return _error(exc.http_status, exc.error_code, exc.message, correlation_id)
+        return _curation_error_response(exc, correlation_id)
     except Exception as exc:  # noqa: BLE001
         log_event(
             "ERROR",
@@ -423,6 +455,62 @@ def _handle_remove_track(event, repo, user_id, correlation_id):
     }
 
 
+# ---------- spec-D triage handlers ------------------------------------------
+
+
+def _serialize_triage_block(row, correlation_id: str) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "style_id": row.style_id,
+        "style_name": row.style_name,
+        "name": row.name,
+        "date_from": row.date_from,
+        "date_to": row.date_to,
+        "status": row.status,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+        "finalized_at": row.finalized_at,
+        "buckets": [
+            {
+                "id": b.id,
+                "bucket_type": b.bucket_type,
+                "category_id": b.category_id,
+                "category_name": b.category_name,
+                "inactive": b.inactive,
+                "track_count": b.track_count,
+            }
+            for b in row.buckets
+        ],
+        "correlation_id": correlation_id,
+    }
+
+
+def _create_triage_block(
+    event, triage_repo: TriageRepository, user_id: str, correlation_id: str
+):
+    schema = CreateTriageBlockIn.model_validate(_parse_body(event))
+    out = triage_repo.create_block(
+        user_id=user_id,
+        style_id=schema.style_id,
+        name=schema.name,
+        date_from=schema.date_from,
+        date_to=schema.date_to,
+    )
+    log_event(
+        "INFO",
+        "triage_block_created",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        block_id=out.id,
+        style_id=out.style_id,
+        date_from=out.date_from,
+        date_to=out.date_to,
+    )
+    return _json_response(
+        201, _serialize_triage_block(out, correlation_id), correlation_id
+    )
+
+
 _ROUTE_TABLE: dict[str, Callable[..., dict[str, Any]]] = {
     "POST /styles/{style_id}/categories": _handle_create_category,
 }
@@ -436,3 +524,12 @@ _ROUTE_TABLE["PUT /styles/{style_id}/categories/order"] = _handle_reorder
 _ROUTE_TABLE["GET /categories/{id}/tracks"] = _handle_list_tracks
 _ROUTE_TABLE["POST /categories/{id}/tracks"] = _handle_add_track
 _ROUTE_TABLE["DELETE /categories/{id}/tracks/{track_id}"] = _handle_remove_track
+_ROUTE_TABLE["POST /triage/blocks"] = _create_triage_block
+
+
+# Per-route repository factories. Routes not listed here default to
+# `create_default_categories_repository` (spec-C). spec-D routes use the
+# triage repository factory.
+_REPO_FACTORY: dict[str, Callable[[], Any]] = {
+    "POST /triage/blocks": create_default_triage_repository,
+}
