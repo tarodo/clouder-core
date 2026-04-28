@@ -20,7 +20,9 @@ from collector.curation import (
     TracksNotInSourceError,
 )
 from collector.curation.triage_repository import (
+    BucketTrackRowOut,
     TriageBlockRow,
+    TriageBlockSummaryRow,
     TriageBucketRow,
 )
 
@@ -309,3 +311,348 @@ def test_tracks_not_in_source_error_attaches_payload(
     assert status == 422
     assert payload["error_code"] == "tracks_not_in_source"
     assert payload["not_in_source"] == missing
+
+
+# ---------- T18: list/detail/bucket-tracks read routes ----------------------
+
+
+def _fake_summary_row(block_id: str = "blk-1") -> TriageBlockSummaryRow:
+    return TriageBlockSummaryRow(
+        id=block_id,
+        user_id="u1",
+        style_id="22222222-2222-2222-2222-222222222222",
+        style_name="House",
+        name="Week 17",
+        date_from="2026-04-20",
+        date_to="2026-04-26",
+        status="IN_PROGRESS",
+        created_at="2026-04-28T12:00:00+00:00",
+        updated_at="2026-04-28T12:00:00+00:00",
+        finalized_at=None,
+        track_count=7,
+    )
+
+
+def _fake_bucket_track_row(track_id: str = "trk-1") -> BucketTrackRowOut:
+    return BucketTrackRowOut(
+        track_id=track_id,
+        title="Mover",
+        mix_name="Original Mix",
+        isrc="GBABC1234567",
+        bpm=128,
+        length_ms=360000,
+        publish_date="2026-04-22",
+        spotify_release_date="2026-04-22",
+        spotify_id="spot-1",
+        release_type="single",
+        is_ai_suspected=False,
+        artists=("Alice", "Bob"),
+        added_at="2026-04-28T12:05:00+00:00",
+    )
+
+
+# Route registration ---------------------------------------------------------
+
+
+def test_list_blocks_by_style_route_registered() -> None:
+    key = "GET /styles/{style_id}/triage/blocks"
+    assert key in curation_handler._ROUTE_TABLE
+    handler, factory = curation_handler._ROUTE_TABLE[key]
+    assert handler is curation_handler._list_triage_blocks_by_style
+    assert factory is curation_handler._triage_factory
+
+
+def test_list_blocks_all_route_registered() -> None:
+    key = "GET /triage/blocks"
+    assert key in curation_handler._ROUTE_TABLE
+    handler, factory = curation_handler._ROUTE_TABLE[key]
+    assert handler is curation_handler._list_triage_blocks_all
+    assert factory is curation_handler._triage_factory
+
+
+def test_get_triage_block_route_registered() -> None:
+    key = "GET /triage/blocks/{id}"
+    assert key in curation_handler._ROUTE_TABLE
+    handler, factory = curation_handler._ROUTE_TABLE[key]
+    assert handler is curation_handler._get_triage_block
+    assert factory is curation_handler._triage_factory
+
+
+def test_list_bucket_tracks_route_registered() -> None:
+    key = "GET /triage/blocks/{id}/buckets/{bucket_id}/tracks"
+    assert key in curation_handler._ROUTE_TABLE
+    handler, factory = curation_handler._ROUTE_TABLE[key]
+    assert handler is curation_handler._list_bucket_tracks
+    assert factory is curation_handler._triage_factory
+
+
+# Happy paths ----------------------------------------------------------------
+
+
+def test_list_blocks_by_style_happy_path(monkeypatch, context) -> None:
+    captured: dict[str, Any] = {}
+    rows = [_fake_summary_row("blk-1"), _fake_summary_row("blk-2")]
+
+    class FakeRepo:
+        def list_blocks_by_style(
+            self, *, user_id, style_id, limit, offset, status
+        ):
+            captured.update(
+                user_id=user_id,
+                style_id=style_id,
+                limit=limit,
+                offset=offset,
+                status=status,
+            )
+            return rows, 12
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    style_id = "22222222-2222-2222-2222-222222222222"
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="GET",
+            route="/styles/{style_id}/triage/blocks",
+            path_params={"style_id": style_id},
+            query={"limit": "10", "offset": "0", "status": "IN_PROGRESS"},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+
+    assert status == 200
+    assert payload["total"] == 12
+    assert payload["limit"] == 10
+    assert payload["offset"] == 0
+    assert payload["correlation_id"] == "cid-unit-1"
+    assert len(payload["items"]) == 2
+    item = payload["items"][0]
+    assert item["id"] == "blk-1"
+    assert item["style_id"] == style_id
+    assert item["style_name"] == "House"
+    assert item["track_count"] == 7
+    assert item["status"] == "IN_PROGRESS"
+    assert "buckets" not in item  # summary form, not detail
+
+    assert captured == {
+        "user_id": "u1",
+        "style_id": style_id,
+        "limit": 10,
+        "offset": 0,
+        "status": "IN_PROGRESS",
+    }
+
+
+def test_list_blocks_all_happy_path(monkeypatch, context) -> None:
+    captured: dict[str, Any] = {}
+    rows = [_fake_summary_row("blk-9")]
+
+    class FakeRepo:
+        def list_blocks_all(self, *, user_id, limit, offset, status):
+            captured.update(
+                user_id=user_id, limit=limit, offset=offset, status=status,
+            )
+            return rows, 1
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(method="GET", route="/triage/blocks"),
+        context,
+    )
+    status, payload = _read(resp)
+
+    assert status == 200
+    assert payload["total"] == 1
+    assert payload["limit"] == 50  # default
+    assert payload["offset"] == 0
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["id"] == "blk-9"
+    # No status filter passed.
+    assert captured["status"] is None
+    assert captured["limit"] == 50
+
+
+def test_get_triage_block_happy_path(monkeypatch, context) -> None:
+    captured: dict[str, Any] = {}
+    fake = _fake_block_row()
+
+    class FakeRepo:
+        def get_block(self, *, user_id, block_id):
+            captured.update(user_id=user_id, block_id=block_id)
+            return fake
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="GET",
+            route="/triage/blocks/{id}",
+            path_params={"id": fake.id},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+
+    assert status == 200
+    assert payload["id"] == fake.id
+    assert payload["style_name"] == "House"
+    assert len(payload["buckets"]) == 2
+    assert payload["correlation_id"] == "cid-unit-1"
+    assert captured == {"user_id": "u1", "block_id": fake.id}
+
+
+def test_get_triage_block_returns_404_when_missing(
+    monkeypatch, context
+) -> None:
+    class FakeRepo:
+        def get_block(self, *, user_id, block_id):
+            return None
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="GET",
+            route="/triage/blocks/{id}",
+            path_params={"id": "missing-id"},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 404
+    assert payload["error_code"] == "triage_block_not_found"
+
+
+def test_list_bucket_tracks_happy_path(monkeypatch, context) -> None:
+    captured: dict[str, Any] = {}
+    rows = [
+        _fake_bucket_track_row("trk-1"),
+        _fake_bucket_track_row("trk-2"),
+    ]
+
+    class FakeRepo:
+        def list_bucket_tracks(
+            self, *, user_id, block_id, bucket_id, limit, offset, search
+        ):
+            captured.update(
+                user_id=user_id,
+                block_id=block_id,
+                bucket_id=bucket_id,
+                limit=limit,
+                offset=offset,
+                search=search,
+            )
+            return rows, 5
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="GET",
+            route="/triage/blocks/{id}/buckets/{bucket_id}/tracks",
+            path_params={"id": "blk-1", "bucket_id": "buck-1"},
+            query={"limit": "20", "offset": "5", "search": "mover"},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+
+    assert status == 200
+    assert payload["total"] == 5
+    assert payload["limit"] == 20
+    assert payload["offset"] == 5
+    assert len(payload["items"]) == 2
+    item = payload["items"][0]
+    assert item["track_id"] == "trk-1"
+    assert item["title"] == "Mover"
+    assert item["isrc"] == "GBABC1234567"
+    assert item["bpm"] == 128
+    assert item["release_type"] == "single"
+    assert item["is_ai_suspected"] is False
+    assert item["artists"] == ["Alice", "Bob"]
+    assert item["added_at"] == "2026-04-28T12:05:00+00:00"
+
+    assert captured == {
+        "user_id": "u1",
+        "block_id": "blk-1",
+        "bucket_id": "buck-1",
+        "limit": 20,
+        "offset": 5,
+        "search": "mover",
+    }
+
+
+# Validation -----------------------------------------------------------------
+
+
+def test_list_blocks_rejects_bad_limit(monkeypatch, context) -> None:
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: object(),  # repo never invoked
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="GET",
+            route="/triage/blocks",
+            query={"limit": "0"},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 422
+    assert payload["error_code"] == "validation_error"
+
+
+def test_list_blocks_rejects_bad_offset(monkeypatch, context) -> None:
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: object(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="GET",
+            route="/triage/blocks",
+            query={"offset": "-1"},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 422
+    assert payload["error_code"] == "validation_error"
+
+
+def test_list_blocks_rejects_unknown_status(monkeypatch, context) -> None:
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: object(),
+    )
+    resp = curation_handler.lambda_handler(
+        _event(
+            method="GET",
+            route="/triage/blocks",
+            query={"status": "DRAFT"},
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 422
+    assert payload["error_code"] == "validation_error"

@@ -511,6 +511,163 @@ def _create_triage_block(
     )
 
 
+def _serialize_block_summary(row) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "style_id": row.style_id,
+        "style_name": row.style_name,
+        "name": row.name,
+        "date_from": row.date_from,
+        "date_to": row.date_to,
+        "status": row.status,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+        "finalized_at": row.finalized_at,
+        "track_count": row.track_count,
+    }
+
+
+def _serialize_bucket_track(row) -> dict[str, Any]:
+    return {
+        "track_id": row.track_id,
+        "title": row.title,
+        "mix_name": row.mix_name,
+        "isrc": row.isrc,
+        "bpm": row.bpm,
+        "length_ms": row.length_ms,
+        "publish_date": row.publish_date,
+        "spotify_release_date": row.spotify_release_date,
+        "spotify_id": row.spotify_id,
+        "release_type": row.release_type,
+        "is_ai_suspected": row.is_ai_suspected,
+        "artists": list(row.artists),
+        "added_at": row.added_at,
+    }
+
+
+def _parse_status_query(event: Mapping[str, Any]) -> str | None:
+    qp = event.get("queryStringParameters") or {}
+    status = qp.get("status")
+    if status is None:
+        return None
+    if status not in ("IN_PROGRESS", "FINALIZED"):
+        raise ValidationError("status must be IN_PROGRESS or FINALIZED")
+    return status
+
+
+def _list_triage_blocks_by_style(
+    event, repo: TriageRepository, user_id: str, correlation_id: str
+):
+    style_id = (event.get("pathParameters") or {}).get("style_id")
+    if not style_id:
+        raise ValidationError("style_id is required in path")
+    limit, offset = _parse_pagination(event)
+    status = _parse_status_query(event)
+
+    items, total = repo.list_blocks_by_style(
+        user_id=user_id,
+        style_id=style_id,
+        limit=limit,
+        offset=offset,
+        status=status,
+    )
+    log_event(
+        "INFO",
+        "triage_block_listed",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        style_id=style_id,
+        count=len(items),
+        total=total,
+    )
+    return _json_response(
+        200,
+        {
+            "items": [_serialize_block_summary(r) for r in items],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _list_triage_blocks_all(
+    event, repo: TriageRepository, user_id: str, correlation_id: str
+):
+    limit, offset = _parse_pagination(event)
+    status = _parse_status_query(event)
+
+    items, total = repo.list_blocks_all(
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+        status=status,
+    )
+    return _json_response(
+        200,
+        {
+            "items": [_serialize_block_summary(r) for r in items],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _get_triage_block(
+    event, repo: TriageRepository, user_id: str, correlation_id: str
+):
+    block_id = (event.get("pathParameters") or {}).get("id")
+    if not block_id:
+        raise ValidationError("id is required in path")
+    out = repo.get_block(user_id=user_id, block_id=block_id)
+    if out is None:
+        raise NotFoundError(
+            "triage_block_not_found",
+            f"triage block not found: {block_id}",
+        )
+    return _json_response(
+        200, _serialize_triage_block(out, correlation_id), correlation_id
+    )
+
+
+def _list_bucket_tracks(
+    event, repo: TriageRepository, user_id: str, correlation_id: str
+):
+    pp = event.get("pathParameters") or {}
+    block_id = pp.get("id")
+    bucket_id = pp.get("bucket_id")
+    if not block_id or not bucket_id:
+        raise ValidationError("id and bucket_id are required in path")
+    limit, offset = _parse_pagination(event)
+    qp = event.get("queryStringParameters") or {}
+    search = qp.get("search")
+
+    items, total = repo.list_bucket_tracks(
+        user_id=user_id,
+        block_id=block_id,
+        bucket_id=bucket_id,
+        limit=limit,
+        offset=offset,
+        search=search,
+    )
+    return _json_response(
+        200,
+        {
+            "items": [_serialize_bucket_track(r) for r in items],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
 # Single source of truth for routing: each route maps to a
 # `(handler, repo_factory)` tuple. Adding a new route requires picking the
 # right factory explicitly — there is no silent fallback. spec-C routes use
@@ -536,4 +693,8 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "POST /categories/{id}/tracks": (_handle_add_track, _categories_factory),
     "DELETE /categories/{id}/tracks/{track_id}": (_handle_remove_track, _categories_factory),
     "POST /triage/blocks": (_create_triage_block, _triage_factory),
+    "GET /styles/{style_id}/triage/blocks": (_list_triage_blocks_by_style, _triage_factory),
+    "GET /triage/blocks": (_list_triage_blocks_all, _triage_factory),
+    "GET /triage/blocks/{id}": (_get_triage_block, _triage_factory),
+    "GET /triage/blocks/{id}/buckets/{bucket_id}/tracks": (_list_bucket_tracks, _triage_factory),
 }
