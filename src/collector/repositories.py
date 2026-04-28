@@ -102,6 +102,7 @@ class UpdateSpotifyResultCmd:
     spotify_id: str | None
     searched_at: datetime
     release_type: str | None = None
+    spotify_release_date: date | None = None
 
 
 @dataclass(frozen=True)
@@ -770,6 +771,9 @@ class ClouderRepository:
             SET spotify_id = :spotify_id,
                 spotify_searched_at = :searched_at,
                 release_type = COALESCE(:release_type, release_type),
+                spotify_release_date = COALESCE(
+                    :spotify_release_date, spotify_release_date
+                ),
                 updated_at = :searched_at
             WHERE id = :track_id
             """,
@@ -779,6 +783,7 @@ class ClouderRepository:
                     "spotify_id": cmd.spotify_id,
                     "searched_at": cmd.searched_at,
                     "release_type": cmd.release_type,
+                    "spotify_release_date": cmd.spotify_release_date,
                 }
                 for cmd in commands
             ],

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Mapping
 from uuid import uuid4
@@ -43,6 +43,36 @@ def _extract_album_type(spotify_track: Mapping[str, Any] | None) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return None
     return value
+
+
+def _extract_release_date(spotify_track: Mapping[str, Any] | None) -> date | None:
+    """Pull `album.release_date` + `album.release_date_precision` and parse
+    according to precision. Returns None when missing or unparseable.
+
+    Precision mapping:
+        - 'day'   -> exact YYYY-MM-DD
+        - 'month' -> YYYY-MM-01
+        - 'year'  -> YYYY-01-01
+    """
+    if not isinstance(spotify_track, Mapping):
+        return None
+    album = spotify_track.get("album")
+    if not isinstance(album, Mapping):
+        return None
+    raw = album.get("release_date")
+    precision = album.get("release_date_precision")
+    if not isinstance(raw, str) or not isinstance(precision, str):
+        return None
+    try:
+        if precision == "day":
+            return date.fromisoformat(raw)
+        if precision == "month":
+            return date.fromisoformat(f"{raw}-01")
+        if precision == "year":
+            return date.fromisoformat(f"{raw}-01-01")
+    except ValueError:
+        return None
+    return None
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
@@ -277,13 +307,15 @@ def _process_results_chunk(
     if identity_cmds:
         repository.batch_upsert_identities(identity_cmds)
 
-    # 2. Batch update clouder_tracks with spotify_id, searched_at, release_type.
+    # 2. Batch update clouder_tracks with spotify_id, searched_at,
+    #    release_type, spotify_release_date.
     update_cmds = [
         UpdateSpotifyResultCmd(
             track_id=r.clouder_track_id,
             spotify_id=r.spotify_id,
             searched_at=now,
             release_type=_extract_album_type(r.spotify_track),
+            spotify_release_date=_extract_release_date(r.spotify_track),
         )
         for r in chunk
     ]
