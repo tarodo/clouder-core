@@ -175,15 +175,42 @@ def upgrade() -> None:
         ondelete="SET NULL",
     )
 
-    # 6. GRANTs to clouder_app role (same pattern as spec-C migration)
+    # 6. GRANTs to clouder_app role — guarded because the role is aspirational
+    # and not created in this repo today (Lambdas use Data API under master
+    # credentials). Each statement no-ops when the role is absent but still
+    # applies if a future migration introduces it.
     op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON triage_blocks TO clouder_app"
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'clouder_app') THEN
+                EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON triage_blocks TO clouder_app';
+            END IF;
+        END
+        $$;
+        """
     )
     op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON triage_buckets TO clouder_app"
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'clouder_app') THEN
+                EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON triage_buckets TO clouder_app';
+            END IF;
+        END
+        $$;
+        """
     )
     op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON triage_bucket_tracks TO clouder_app"
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'clouder_app') THEN
+                EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON triage_bucket_tracks TO clouder_app';
+            END IF;
+        END
+        $$;
+        """
     )
 
 
