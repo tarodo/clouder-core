@@ -1126,32 +1126,106 @@ const scrubOpacity: Record&lt;PlayerState, number&gt; = {
 <section id="trackrow">
   <h2>TrackRow</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd>composition (<code>Group</code>)</dd>
+    <dt>Mantine</dt><dd>composition (<code>&lt;Group&gt;</code> + <code>&lt;UnstyledButton&gt;</code>)</dd>
     <dt>Used in</dt><dd>P-10 (category detail), P-17 (bucket detail), P-23 left queue</dd>
-    <dt>Variants</dt><dd>compact · regular · with-checkbox</dd>
+    <dt>Variants</dt><dd>compact (48 height) · regular (64 height) · with-checkbox</dd>
   </dl>
 
-  <p>Структура: leading index/cover/checkbox — title+artists — trailing badges (key, BPM, source) — actions. Высота 48 compact / 64 regular. Hover <code>--color-bg-muted</code>. Active row (currently playing) — left border 2px <code>--color-fg</code> + background <code>--color-bg-subtle</code>.</p>
+  <h3>Anatomy</h3>
+  <p>Three slots:</p>
+  <ul>
+    <li><strong>Leading</strong> (32×32, optional): index number (mono, dimmed) OR cover (regular variant) OR Checkbox (multi-select).</li>
+    <li><strong>Middle</strong> (flex 1): title (14/20, semibold, ellipsis), artists (12/16, dimmed, ellipsis).</li>
+    <li><strong>Trailing</strong>: badges row (key 9A, BPM, source flag) + actions (kebab Menu, optional duration mono).</li>
+  </ul>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Visual change</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td>baseline; bottom border 1px <code>--color-border</code></td></tr>
+      <tr><td>hover</td><td>bg <code>--color-bg-muted</code></td></tr>
+      <tr><td>selected (multi-select)</td><td>checkbox checked; bg <code>--color-bg-muted</code></td></tr>
+      <tr><td>currently playing</td><td>left border 2px <code>--color-fg</code> (replaces 1px); bg <code>--color-bg-subtle</code>; small <code>NowPlayingDot</code> in trailing slot</td></tr>
+      <tr><td>focus (keyboard)</td><td>2px ring <code>--color-border-focus</code> with inset (avoids horizontal-scroll jitter)</td></tr>
+      <tr><td>disabled (e.g. unavailable in market)</td><td>opacity 0.5; not clickable; tooltip "Unavailable"</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type Track = {
+  id: string;
+  title: string;
+  artists: string;
+  cover?: string;
+  durationMs: number;
+  key?: string;     // 9A
+  bpm?: number;
+  source: "beatport" | "spotify";
+  unavailable?: boolean;
+};
+
+type TrackRowProps = {
+  track: Track;
+  index?: number;        // shown in leading slot if cover/checkbox absent
+  variant?: "compact" | "regular";
+  selectable?: boolean;  // shows leading checkbox
+  selected?: boolean;
+  playing?: boolean;     // currently playing track
+  onClick?: () =&gt; void;
+  onKebab?: () =&gt; void;
+  onSelectChange?: (next: boolean) =&gt; void;
+};</code></pre>
 
   <h3>Mantine mapping</h3>
-<pre><code>&lt;UnstyledButton
-  style={(t) =&gt; ({
-    display: "flex", alignItems: "center", gap: t.spacing.sm,
-    padding: `${t.spacing.xs} ${t.spacing.sm}`,
-    minHeight: compact ? 48 : 64,
-    borderLeft: active ? `2px solid ${t.other.semantic.fg}` : "2px solid transparent",
-    background: active ? t.other.semantic.bgSubtle : undefined,
-    "&amp;:hover": { background: t.other.semantic.hover },
-  })}
-&gt;
-  &lt;Text ff="monospace" size="xs" c="dimmed" w={16}&gt;{idx + 1}&lt;/Text&gt;
-  &lt;Cover size={28} hue={hue} /&gt;
-  &lt;Stack gap={2} flex={1} miw={0}&gt;
-    &lt;Text size="sm" fw={500} truncate&gt;{title}&lt;/Text&gt;
-    &lt;Text size="xs" c="dimmed" truncate&gt;{artists}&lt;/Text&gt;
-  &lt;/Stack&gt;
-  &lt;Text ff="monospace" size="xs" c="dimmed"&gt;{bpm}&lt;/Text&gt;
-&lt;/UnstyledButton&gt;</code></pre>
+<pre><code>import { Group, Stack, Text, Checkbox, Badge, ActionIcon, UnstyledButton, Tooltip } from "@mantine/core";
+import { MenuIcon } from "./icons";
+
+&lt;Tooltip label="Unavailable" disabled={!track.unavailable}&gt;
+  &lt;UnstyledButton
+    onClick={track.unavailable ? undefined : onClick}
+    aria-label={track.title}
+    aria-pressed={selected || undefined}
+    data-playing={playing || undefined}
+    style={(t) =&gt; ({
+      display: "flex", alignItems: "center", gap: t.spacing.md,
+      padding: variant === "regular" ? "12px 16px" : "8px 16px",
+      minHeight: variant === "regular" ? 64 : 48,
+      borderBottom: "1px solid var(--color-border)",
+      borderLeft: playing ? "2px solid var(--color-fg)" : "1px solid transparent",
+      background: playing ? "var(--color-bg-subtle)" : selected ? "var(--color-bg-muted)" : undefined,
+      opacity: track.unavailable ? 0.5 : 1,
+    })}
+  &gt;
+    {selectable ? (
+      &lt;Checkbox checked={selected} onChange={(e) =&gt; onSelectChange?.(e.currentTarget.checked)} /&gt;
+    ) : variant === "regular" &amp;&amp; track.cover ? (
+      &lt;Cover size={48} src={track.cover} /&gt;
+    ) : (
+      &lt;Text ff="monospace" fz={12} c="dimmed" w={32} ta="right"&gt;{index}&lt;/Text&gt;
+    )}
+
+    &lt;Stack gap={2} flex={1} miw={0}&gt;
+      &lt;Text fw={600} truncate&gt;{track.title}&lt;/Text&gt;
+      &lt;Text size="sm" c="dimmed" truncate&gt;{track.artists}&lt;/Text&gt;
+    &lt;/Stack&gt;
+
+    &lt;Group gap="xs" wrap="nowrap"&gt;
+      {track.key &amp;&amp; &lt;Badge variant="outline" size="sm" color="neutral.5" ff="monospace"&gt;{track.key}&lt;/Badge&gt;}
+      {track.bpm &amp;&amp; &lt;Badge variant="outline" size="sm" color="neutral.5" ff="monospace"&gt;{track.bpm}&lt;/Badge&gt;}
+      &lt;Text ff="monospace" fz={12} c="dimmed"&gt;{formatDuration(track.durationMs)}&lt;/Text&gt;
+      {playing &amp;&amp; &lt;NowPlayingDot /&gt;}
+      &lt;ActionIcon
+        variant="subtle"
+        aria-label="Track actions"
+        onClick={(e) =&gt; { e.stopPropagation(); onKebab?.(); }}
+      &gt;
+        &lt;MenuIcon size={16} /&gt;
+      &lt;/ActionIcon&gt;
+    &lt;/Group&gt;
+  &lt;/UnstyledButton&gt;
+&lt;/Tooltip&gt;</code></pre>
+  <p><code>NowPlayingDot</code> is a project component (small filled circle in <code>--color-accent</code>). <code>formatDuration</code> is a utility helper (e.g. <code>dayjs.duration(ms).format("m:ss")</code>).</p>
 </section>
 
 <section id="categorypill">
