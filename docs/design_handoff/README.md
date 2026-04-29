@@ -1,6 +1,6 @@
 # CLOUDER · iter-2a · Design handoff
 
-> **TL;DR** — All design artefacts for iter-2a (Auth → Categories → Triage Blocks → Curate → Patterns), packaged for one frontend engineer working in **Mantine 7 / TypeScript / React 18**. Read `README.ru.md` if you prefer Russian.
+> **TL;DR** — All design artefacts for iter-2a (Auth → Categories → Triage Blocks → Curate → Patterns), packaged for one frontend engineer working in **Mantine 9 / TypeScript / React 18+**. Read `README.ru.md` if you prefer Russian.
 
 ---
 
@@ -16,6 +16,9 @@
 | `tokens.css` | Source of truth for design tokens. Import once at app root. |
 | `theme.ts` | Mantine `MantineThemeOverride` mirroring tokens.css. |
 | `OPEN_QUESTIONS.md` | Things the design intentionally didn't decide — fallbacks documented. |
+| `MANTINE_9_NOTES.md` | Mantine 7→9 breaking-changes ADR. Read FIRST before copying any code snippet. |
+| `a11y.md` | Minimal accessibility checklist. |
+| `i18n.md` | i18n setup (EN-only iter-2a, react-i18next infra). |
 
 The three `.html` files are **standalone**: each has all CSS + JS + fonts inlined, runs offline, no network needed. You can email them, drop them on a USB stick, host them anywhere.
 
@@ -33,29 +36,34 @@ The three `.html` files are **standalone**: each has all CSS + JS + fonts inline
 
 ## Setup
 
+Stack: **Mantine 9 / TypeScript / React 18+**. See `MANTINE_9_NOTES.md` for 7→9 migration notes.
+
 ```bash
-pnpm add @mantine/core @mantine/hooks @mantine/dates @mantine/notifications dayjs
+pnpm add @mantine/core@9 @mantine/hooks@9 @mantine/dates@9 \
+         @mantine/notifications@9 @mantine/form@9 \
+         dayjs zod react-i18next i18next @tabler/icons-react
 ```
 
 ```tsx
-// app/layout.tsx (Next.js) — or main.tsx (Vite)
+// app/layout.tsx (Next.js) or main.tsx (Vite)
 import "./tokens.css";              // 1. tokens (CSS vars) FIRST
 import "@mantine/core/styles.css";  // 2. Mantine reset + utility classes
-import "@mantine/dates/styles.css"; // 3. DatePicker styles
+import "@mantine/dates/styles.css"; // 3. DatePicker (string values, not Date — see MANTINE_9_NOTES.md)
 import "@mantine/notifications/styles.css";
 
-import { MantineProvider, ColorSchemeScript } from "@mantine/core";
+import { MantineProvider, ColorSchemeScript, mantineHtmlProps } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { clouderTheme } from "./theme";
+import "./i18n";  // i18next init, see i18n.md
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" {...mantineHtmlProps}>
       <head>
-        <ColorSchemeScript defaultColorScheme="auto" />
+        <ColorSchemeScript defaultColorScheme="light" />
       </head>
       <body>
-        <MantineProvider theme={clouderTheme} defaultColorScheme="auto">
+        <MantineProvider theme={clouderTheme} defaultColorScheme="light">
           <Notifications position="top-right" />
           {children}
         </MantineProvider>
@@ -65,15 +73,21 @@ export default function RootLayout({ children }) {
 }
 ```
 
+### iter-2a decisions (locked 2026-04-29)
+
+| Topic | Decision | Source |
+|---|---|---|
+| Mantine | 9.x; light variant without `v8CssVariablesResolver` | `MANTINE_9_NOTES.md` |
+| Icons | `@tabler/icons-react` via `src/components/icons.ts` re-export | spec sheet § Icon mapping |
+| i18n | EN-only iter-2a, `react-i18next` infra from day-1, RU added in iter-2b | `i18n.md` |
+| Breakpoints | 2-step layout, `md=64em` (1024px) is the only meaningful flip; iPhone Air 420×912 is primary mobile | spec sheet § Breakpoints, `theme.ts` |
+| Dark theme | iter-2a ships `defaultColorScheme="light"`. tokens ready for iter-2b | OPEN_QUESTIONS Q1 |
+| DatePicker | bottom Drawer on mobile, popover on desktop | OPEN_QUESTIONS Q3 |
+| Spotify SDK | direct browser-side, backend only handles `/auth/spotify/refresh` | OPEN_QUESTIONS Q5 |
+
 ### Theme switching
 
-Theme switching lives on the **root class**, not in JS theme rebuilds:
-
-- Default → light (no class).
-- `<html class="theme-dark">` → dark mode.
-- `<html class="accent-magenta">` → opt-in brand accent.
-
-Bridge Mantine's `useMantineColorScheme()` to the root class:
+iter-2a has no toggle (`defaultColorScheme="light"` locked). When iter-2b adds the toggle, bridge `useMantineColorScheme()` to the root class:
 
 ```tsx
 import { useMantineColorScheme } from "@mantine/core";
