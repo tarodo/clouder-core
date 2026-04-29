@@ -1145,10 +1145,77 @@ function DestinationButton({ label, hotkey, count, state = "idle", size = "md", 
   <h2>StyleSelector</h2>
   <dl class="meta-grid">
     <dt>Mantine</dt><dd><code>&lt;Menu&gt;</code> + <code>&lt;UnstyledButton&gt;</code> trigger</dd>
-    <dt>Used in</dt><dd>top bar (всегда), P-08 Home, P-15 form, P-19 Transfer</dd>
+    <dt>Used in</dt><dd>top bar (always visible), P-08 Home, P-15 Create Triage Block form, P-19 Transfer step-1</dd>
+    <dt>Variants</dt><dd>compact (32 height, top bar) · regular (44 height, forms)</dd>
   </dl>
 
-  <p>Trigger показывает текущий стиль: name + chevron. Open — список всех стилей пользователя + "Manage styles" внизу. Selected — bold + check.</p>
+  <h3>Anatomy</h3>
+  <p>Trigger: <code>{styleName}</code> in 14/600 + chevron-down 14px on the right, 8px gap. Background <code>--color-bg-subtle</code>, border 1px <code>--color-border</code>, radius <code>sm</code>. On open: dropdown anchored bottom-start, min-width = trigger width, max-width 320, max-height 360 with scroll.</p>
+
+  <p>Dropdown content: list of user's styles (regular MenuItem). Selected style has check icon (16px) on the right + <code>fontWeight: 600</code>. Below the list, a 1px divider, then a fixed footer item "Manage styles…" (mono, 11px, links to P-09 Categories).</p>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Visual change</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td>baseline</td></tr>
+      <tr><td>hover</td><td>trigger bg <code>--color-bg-muted</code></td></tr>
+      <tr><td>open</td><td>trigger border <code>--color-border-strong</code>, chevron rotated 180°</td></tr>
+      <tr><td>empty</td><td>dropdown shows EmptyState body "No styles yet" + button "Create style" (links to P-09)</td></tr>
+      <tr><td>disabled</td><td>opacity 0.4, no dropdown on click</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type StyleSelectorProps = {
+  styles: { id: string; name: string }[];
+  selectedId: string | null;
+  size?: "compact" | "regular";   // default "regular"
+  disabled?: boolean;
+  onSelect: (id: string) =&gt; void;
+  onManage?: () =&gt; void;          // links to /categories
+};</code></pre>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;Menu position="bottom-start" width="target" withinPortal&gt;
+  &lt;Menu.Target&gt;
+    &lt;UnstyledButton
+      disabled={disabled}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 8,
+        padding: "0 12px", height: size === "compact" ? 32 : 44,
+        background: "var(--color-bg-subtle)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "var(--mantine-radius-sm)",
+        fontWeight: 600,
+      }}
+    &gt;
+      {selected?.name ?? "Select style"}
+      &lt;ChevronDownIcon size={14} /&gt;
+    &lt;/UnstyledButton&gt;
+  &lt;/Menu.Target&gt;
+
+  &lt;Menu.Dropdown&gt;
+    {styles.length === 0 ? (
+      &lt;Menu.Item disabled&gt;No styles yet&lt;/Menu.Item&gt;
+    ) : (
+      styles.map((s) =&gt; (
+        &lt;Menu.Item
+          key={s.id}
+          onClick={() =&gt; onSelect(s.id)}
+          rightSection={s.id === selectedId ? &lt;CheckIcon size={16} /&gt; : null}
+          style={{ fontWeight: s.id === selectedId ? 600 : 400 }}
+        &gt;
+          {s.name}
+        &lt;/Menu.Item&gt;
+      ))
+    )}
+    &lt;Menu.Divider /&gt;
+    &lt;Menu.Item onClick={onManage} ff="monospace" fz={11}&gt;
+      Manage styles…
+    &lt;/Menu.Item&gt;
+  &lt;/Menu.Dropdown&gt;
+&lt;/Menu&gt;</code></pre>
 </section>
 
 <section id="bucketcounters">
