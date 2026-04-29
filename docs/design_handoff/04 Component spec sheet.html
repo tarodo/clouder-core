@@ -296,6 +296,7 @@
   <a href="#tokens">Tokens recap</a>
   <a href="#breakpoints">Breakpoints</a>
   <a href="#vocabulary">Vocabulary map</a>
+  <a href="#icons">Icon mapping</a>
 
   <div class="toc-section">Base catalog</div>
   <a href="#button">Button</a>
@@ -453,6 +454,59 @@ return isDesktop ? &lt;DesktopCurate /&gt; : &lt;MobileCurate /&gt;;</code></pre
       <tr><td>TrackRow</td><td>—</td><td>custom composition</td></tr>
     </tbody>
   </table>
+</section>
+
+<section id="icons">
+  <h2>Icon mapping</h2>
+  <dl class="meta-grid">
+    <dt>Library</dt><dd><code>@tabler/icons-react</code></dd>
+    <dt>Used in</dt><dd>everywhere with an icon</dd>
+    <dt>Sizes</dt><dd>12 / 14 / 16 / 18 / 20 / 22 (px) — passed via tabler's <code>size</code> prop</dd>
+  </dl>
+
+  <p>Design system uses ~20 named icon roles. Each maps 1:1 to a tabler component. Centralise in <code>src/components/icons.ts</code> as named re-exports so renames touch one file.</p>
+
+  <h3>Mapping</h3>
+  <table>
+    <thead><tr><th>Design name</th><th>Tabler component</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>play</td><td><code>IconPlayerPlay</code></td><td>player + scrub bar</td></tr>
+      <tr><td>pause</td><td><code>IconPlayerPause</code></td><td>player + scrub bar</td></tr>
+      <tr><td>prev</td><td><code>IconPlayerSkipBack</code></td><td>J hotkey</td></tr>
+      <tr><td>next</td><td><code>IconPlayerSkipForward</code></td><td>K hotkey</td></tr>
+      <tr><td>chevron-right</td><td><code>IconChevronRight</code></td><td>nav-rows, list disclosure</td></tr>
+      <tr><td>chevron-down</td><td><code>IconChevronDown</code></td><td>StyleSelector trigger</td></tr>
+      <tr><td>close</td><td><code>IconX</code></td><td>modal/drawer close, multi-select cancel</td></tr>
+      <tr><td>search</td><td><code>IconSearch</code></td><td>search inputs, P-17</td></tr>
+      <tr><td>grid</td><td><code>IconLayoutGrid</code></td><td>view toggle</td></tr>
+      <tr><td>list</td><td><code>IconList</code></td><td>view toggle</td></tr>
+      <tr><td>filter</td><td><code>IconFilter</code></td><td>P-14 status filter</td></tr>
+      <tr><td>calendar</td><td><code>IconCalendar</code></td><td>DatePicker trigger leading slot</td></tr>
+      <tr><td>check</td><td><code>IconCheck</code></td><td>selected state, success notifications</td></tr>
+      <tr><td>trash</td><td><code>IconTrash</code></td><td>destructive actions</td></tr>
+      <tr><td>alert</td><td><code>IconAlertTriangle</code></td><td>error states (S-03)</td></tr>
+      <tr><td>wifi-off</td><td><code>IconWifiOff</code></td><td>player disconnected state</td></tr>
+      <tr><td>undo</td><td><code>IconArrowBackUp</code></td><td>U hotkey, undo discard</td></tr>
+      <tr><td>help</td><td><code>IconHelp</code></td><td>hotkey overlay trigger (?)</td></tr>
+      <tr><td>menu</td><td><code>IconDots</code></td><td>kebab on track row</td></tr>
+      <tr><td>arrow-up</td><td><code>IconArrowUp</code></td><td>P-09 reorder</td></tr>
+      <tr><td>arrow-down</td><td><code>IconArrowDown</code></td><td>P-09 reorder</td></tr>
+      <tr><td>plus</td><td><code>IconPlus</code></td><td>new category, new block</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Re-export pattern</h3>
+<pre><code>// src/components/icons.ts
+export {
+  IconPlayerPlay        as PlayIcon,
+  IconPlayerPause       as PauseIcon,
+  IconPlayerSkipBack    as PrevIcon,
+  IconPlayerSkipForward as NextIcon,
+  IconX                 as CloseIcon,
+  IconSearch            as SearchIcon,
+  // ...
+} from "@tabler/icons-react";</code></pre>
+  <p>Components import from <code>./icons</code>, never from <code>@tabler/icons-react</code> directly. A future swap (e.g. to lucide) becomes a one-file change.</p>
 </section>
 
 <!-- ── BASE CATALOG ─────────────────────────────────────── -->
