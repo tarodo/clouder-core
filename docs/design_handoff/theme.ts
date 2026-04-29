@@ -134,6 +134,20 @@ export const clouderTheme: MantineThemeOverride = createTheme({
   /* ── Cursor ───────────────────────────────────────────── */
   cursorType: "pointer",
 
+  /* ── Breakpoints ──────────────────────────────────────── */
+  // Layout flip rule: only `md` (1024px) is meaningful. `xs`/`sm`
+  // sit below the iPhone Air threshold (420px CSS, primary device)
+  // so `visibleFrom="md"` correctly hides desktop-only content on
+  // the smallest supported screen. `lg`/`xl` are guides for max-
+  // width containers on wide desktops.
+  breakpoints: {
+    xs: "20em",   // 320px — iPhone SE 1 narrowest
+    sm: "30em",   // 480px — phablet edge
+    md: "64em",   // 1024px — DESKTOP FLIP (only meaningful one)
+    lg: "80em",   // 1280px — wide desktop
+    xl: "96em",   // 1536px — ultrawide
+  },
+
   /* ── Component defaults ───────────────────────────────── */
   components: {
     Button: {

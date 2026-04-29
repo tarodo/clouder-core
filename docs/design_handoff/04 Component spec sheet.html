@@ -294,11 +294,14 @@
 
   <div class="toc-section">Foundations</div>
   <a href="#tokens">Tokens recap</a>
+  <a href="#breakpoints">Breakpoints</a>
   <a href="#vocabulary">Vocabulary map</a>
+  <a href="#icons">Icon mapping</a>
 
   <div class="toc-section">Base catalog</div>
   <a href="#button">Button</a>
   <a href="#input">Input</a>
+  <a href="#form-snippet">Form (schemaResolver)</a>
   <a href="#select">Select</a>
   <a href="#tabs">Tabs</a>
   <a href="#badge">Badge</a>
@@ -359,21 +362,60 @@
   <h2>Tokens recap</h2>
   <p>Полная спецификация в <code>tokens.css</code>. Ниже — что важно помнить при реализации.</p>
 
-  <h4>Type</h4>
+  <h3>Type</h3>
   <ul>
     <li><strong>Geist</strong> sans (300/400/500/600/700) и <strong>Geist Mono</strong> (400/500/600). Подключены через Google Fonts в <code>tokens.css</code>.</li>
     <li>Mono используется для технических меток: ID, hotkeys, BPM, временные коды, ratio'ы. Sans — для всего остального.</li>
     <li>Размеры: 11/12/13/14/16/18/24/32. Ничего меньше 11 не использовать.</li>
   </ul>
 
-  <h4>Spacing</h4>
+  <h3>Spacing</h3>
   <p>Шкала <code>0/1/2/3/4/5/6/8/10/12/16/20</code> (в px <code>0/4/8/12/16/20/24/32/40/48/64/80</code>). Mantine spacing keys покрывают xs..xl (4..20). Шире — через <code>theme.other.space[N]</code>.</p>
 
-  <h4>Radii</h4>
+  <h3>Radii</h3>
   <p><code>xs:4 / sm:6 / md:10 / lg:14 / full:999</code>. По умолчанию для большинства компонентов — <code>md</code>.</p>
 
-  <h4>Motion</h4>
+  <h3>Motion</h3>
   <p>fast=120 / base=160 / slow=200 / pulse=80. Easing: <code>--ease-out</code> (для interaction feedback) и <code>--ease-in-out</code> (для transition'ов). Не использовать другие кривые без согласования.</p>
+</section>
+
+<section id="breakpoints">
+  <h2>Breakpoints</h2>
+  <p>2-step layout: mobile (&lt; <code>md</code>) and desktop (&ge; <code>md</code>). Only <code>md</code> at 1024px is a meaningful flip; lower breakpoints are Mantine plumbing for narrow phones, higher ones are guides for max-width containers.</p>
+
+  <table>
+    <thead><tr><th>Key</th><th>em</th><th>px</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td><code>xs</code></td><td>20em</td><td>320</td><td>iPhone SE 1 narrowest — no layout flip</td></tr>
+      <tr><td><code>sm</code></td><td>30em</td><td>480</td><td>phablet edge — no layout flip</td></tr>
+      <tr><td><code>md</code></td><td>64em</td><td>1024</td><td>⚠️ MAIN FLIP · mobile↔desktop</td></tr>
+      <tr><td><code>lg</code></td><td>80em</td><td>1280</td><td>wide desktop max-width guide</td></tr>
+      <tr><td><code>xl</code></td><td>96em</td><td>1536</td><td>ultrawide max-width guide</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Primary mobile target</h3>
+  <p>iPhone Air, 6.5", 2736×1260 physical @ DPR 3 = <strong>420×912 CSS px</strong> portrait. Min-width target across all components is 420px; 360px (older devices) is best-effort, not a guarantee.</p>
+
+  <h3>Per-page layout flip rules</h3>
+  <table>
+    <thead><tr><th>Page</th><th>&lt; <code>md</code> (mobile)</th><th>&ge; <code>md</code> (desktop)</th></tr></thead>
+    <tbody>
+      <tr><td>P-08 Home</td><td>single column, sticky bottom-tabs</td><td>two-column with side rail</td></tr>
+      <tr><td>P-15 Create Triage Block</td><td>full-screen form; DatePicker → bottom Drawer</td><td>modal form; DatePicker → popover</td></tr>
+      <tr><td>P-16 Block detail</td><td>stack: header above counters</td><td>row: header left, counters right</td></tr>
+      <tr><td>P-22 Curate (mobile)</td><td>this layout — single-track + DISCARD top + staging row</td><td>—</td></tr>
+      <tr><td>P-23 Curate (desktop)</td><td>—</td><td>this layout — left queue + center player + right destinations</td></tr>
+      <tr><td>P-25 Device picker</td><td>full-screen sheet</td><td>centered modal</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Mantine usage</h3>
+  <p>Use <code>visibleFrom="md"</code> / <code>hiddenFrom="md"</code> on layout primitives. For conditional logic in JS use <code>useMediaQuery('(min-width: 64em)')</code>.</p>
+<pre><code>import { useMediaQuery } from "@mantine/hooks";
+
+const isDesktop = useMediaQuery("(min-width: 64em)");
+return isDesktop ? &lt;DesktopCurate /&gt; : &lt;MobileCurate /&gt;;</code></pre>
 </section>
 
 <section id="vocabulary">
@@ -407,12 +449,67 @@
       <tr><td>DatePicker</td><td><code>DatePickerInput</code> из <code>@mantine/dates</code></td><td>см. § DatePicker</td></tr>
       <tr><td>Bottom tabs (mobile)</td><td>—</td><td>composition (3 NavLink в горизонтальном Stack)</td></tr>
       <tr><td>Side rail (desktop)</td><td>—</td><td>composition (NavLink + AppShell.Navbar)</td></tr>
+      <tr><td>CategoryPill</td><td><code>UnstyledButton</code></td><td>пилюля как кнопка — было <code>&lt;Badge&gt;</code> в первом драфте, переключено на <code>UnstyledButton</code> для keyboard a11y (focusable, Enter/Space)</td></tr>
       <tr><td>HotkeyHint</td><td>—</td><td>custom; <code>&lt;Kbd&gt;</code> Mantine-аналог НЕ использовать (визуально не подходит)</td></tr>
       <tr><td>DestinationButton</td><td>—</td><td>custom; внутри — <code>UnstyledButton</code> из Mantine</td></tr>
       <tr><td>PlayerCard</td><td>—</td><td>custom composition</td></tr>
       <tr><td>TrackRow</td><td>—</td><td>custom composition</td></tr>
     </tbody>
   </table>
+</section>
+
+<section id="icons">
+  <h2>Icon mapping</h2>
+  <dl class="meta-grid">
+    <dt>Library</dt><dd><code>@tabler/icons-react</code></dd>
+    <dt>Used in</dt><dd>everywhere with an icon</dd>
+    <dt>Sizes</dt><dd>12 / 14 / 16 / 18 / 20 / 22 (px) — passed via tabler's <code>size</code> prop</dd>
+  </dl>
+
+  <p>Design system uses ~20 named icon roles. Each maps 1:1 to a tabler component. Centralise in <code>src/components/icons.ts</code> as named re-exports so renames touch one file.</p>
+
+  <h3>Mapping</h3>
+  <table>
+    <thead><tr><th>Design name</th><th>Tabler component</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>play</td><td><code>IconPlayerPlay</code></td><td>player + scrub bar</td></tr>
+      <tr><td>pause</td><td><code>IconPlayerPause</code></td><td>player + scrub bar</td></tr>
+      <tr><td>prev</td><td><code>IconPlayerSkipBack</code></td><td>J hotkey</td></tr>
+      <tr><td>next</td><td><code>IconPlayerSkipForward</code></td><td>K hotkey</td></tr>
+      <tr><td>chevron-right</td><td><code>IconChevronRight</code></td><td>nav-rows, list disclosure</td></tr>
+      <tr><td>chevron-down</td><td><code>IconChevronDown</code></td><td>StyleSelector trigger</td></tr>
+      <tr><td>close</td><td><code>IconX</code></td><td>modal/drawer close, multi-select cancel</td></tr>
+      <tr><td>search</td><td><code>IconSearch</code></td><td>search inputs, P-17</td></tr>
+      <tr><td>grid</td><td><code>IconLayoutGrid</code></td><td>view toggle</td></tr>
+      <tr><td>list</td><td><code>IconList</code></td><td>view toggle</td></tr>
+      <tr><td>filter</td><td><code>IconFilter</code></td><td>P-14 status filter</td></tr>
+      <tr><td>calendar</td><td><code>IconCalendar</code></td><td>DatePicker trigger leading slot</td></tr>
+      <tr><td>check</td><td><code>IconCheck</code></td><td>selected state, success notifications</td></tr>
+      <tr><td>trash</td><td><code>IconTrash</code></td><td>destructive actions</td></tr>
+      <tr><td>alert</td><td><code>IconAlertTriangle</code></td><td>error states (S-03)</td></tr>
+      <tr><td>wifi-off</td><td><code>IconWifiOff</code></td><td>player disconnected state</td></tr>
+      <tr><td>undo</td><td><code>IconArrowBackUp</code></td><td>U hotkey, undo discard</td></tr>
+      <tr><td>help</td><td><code>IconHelp</code></td><td>hotkey overlay trigger (?)</td></tr>
+      <tr><td>menu</td><td><code>IconDotsVertical</code></td><td>kebab (⋮) on track row</td></tr>
+      <tr><td>copy</td><td><code>IconCopy</code></td><td>copy correlation_id in S-03 toast</td></tr>
+      <tr><td>arrow-up</td><td><code>IconArrowUp</code></td><td>P-09 reorder</td></tr>
+      <tr><td>arrow-down</td><td><code>IconArrowDown</code></td><td>P-09 reorder</td></tr>
+      <tr><td>plus</td><td><code>IconPlus</code></td><td>new category, new block</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Re-export pattern</h3>
+<pre><code>// src/components/icons.ts
+export {
+  IconPlayerPlay        as PlayIcon,
+  IconPlayerPause       as PauseIcon,
+  IconPlayerSkipBack    as PrevIcon,
+  IconPlayerSkipForward as NextIcon,
+  IconX                 as CloseIcon,
+  IconSearch            as SearchIcon,
+  // ...
+} from "@tabler/icons-react";</code></pre>
+  <p>Components import from <code>./icons</code>, never from <code>@tabler/icons-react</code> directly. A future swap (e.g. to lucide) becomes a one-file change.</p>
 </section>
 
 <!-- ── BASE CATALOG ─────────────────────────────────────── -->
@@ -441,7 +538,7 @@
     <tbody>
       <tr><td>idle</td><td>baseline</td><td>default</td></tr>
       <tr><td>hover</td><td>фон <code>--color-bg-muted</code> для secondary; <code>--neutral-700</code> для primary</td><td>CSS <code>:hover</code></td></tr>
-      <tr><td>focus</td><td>2px focus ring цвета <code>--color-border-focus</code> с offset 2px</td><td>Mantine default + override <code>--mantine-color-blue-filled</code></td></tr>
+      <tr><td>focus</td><td>2px focus ring цвета <code>--color-border-focus</code> с offset 2px</td><td>Mantine default — focus ring colour comes from <code>--color-border-focus</code> via the <code>theme.ts</code> CSS-variable layer; no Mantine-internal override needed in 9.x</td></tr>
       <tr><td>active</td><td>чуть темнее hover, без scale</td><td>CSS <code>:active</code></td></tr>
       <tr><td>disabled</td><td>opacity 0.4, не реагирует</td><td>Mantine <code>disabled</code> prop</td></tr>
       <tr><td>loading</td><td>spinner вместо текста, кнопка не reflow'ится по ширине</td><td>Mantine <code>loading</code> prop</td></tr>
@@ -508,6 +605,31 @@
   error={error?.message}
   withAsterisk={required}
 /&gt;</code></pre>
+</section>
+
+<section id="form-snippet">
+  <h2>Form (P-15) — schemaResolver</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>@mantine/form</code> with <code>schemaResolver</code> + Zod 4</dd>
+    <dt>Used in</dt><dd>P-15 Create Triage Block</dd>
+  </dl>
+
+  <p>Mantine 9 removed <code>zodResolver</code>. Use <code>schemaResolver</code> with a Standard-Schema-compliant validator. Zod v4 is the recommended choice.</p>
+
+<pre><code>import { useForm, schemaResolver } from "@mantine/form";
+import { z } from "zod/v4";
+
+const schema = z.object({
+  name: z.string().min(1, { error: "Name required" }),
+  style: z.string().min(1, { error: "Style required" }),
+  date_from: z.string().min(1, { error: "Start date required" }),
+  date_to: z.string().min(1, { error: "End date required" }),
+});
+
+const form = useForm({
+  initialValues: { name: "", style: "", date_from: "", date_to: "" },
+  validate: schemaResolver(schema, { sync: true }),
+});</code></pre>
 </section>
 
 <section id="select">
@@ -768,6 +890,18 @@ notifications.show({
 .mantine-DatePicker-day[data-in-range]:not([data-selected]) {
   background: var(--color-bg-muted);
 }</code></pre>
+  <div class="callout">
+    <div>
+      <strong>Mantine 9 callout — value type is <code>string</code></strong>
+      <p>From Mantine 8 onward, <code>onChange</code> receives <code>string | null</code> in <code>YYYY-MM-DD</code> form. Three integration patterns documented in <a href="MANTINE_9_NOTES.md">MANTINE_9_NOTES.md</a>. Native string state is recommended.</p>
+    </div>
+  </div>
+  <div class="callout">
+    <div>
+      <strong>Mobile pattern — bottom Drawer</strong>
+      <p>On <code>&lt; md</code> the popover is replaced with a bottom <code>&lt;Drawer position="bottom"&gt;</code> wrapping an inline <code>&lt;DatePicker&gt;</code>. Wrapper component <code>&lt;DateRangeField&gt;</code> uses <code>useMediaQuery('(max-width: 64em)')</code>. Recorded in OPEN_QUESTIONS Q3.</p>
+    </div>
+  </div>
 </section>
 
 <section id="hotkeyhint">
@@ -918,113 +1052,552 @@ function DestinationButton({ label, hotkey, count, state = "idle", size = "md", 
 <section id="playercard">
   <h2>PlayerCard</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd>composition (<code>Paper</code> + custom layout)</dd>
+    <dt>Mantine</dt><dd>composition (<code>&lt;Paper&gt;</code> + custom layout)</dd>
     <dt>Used in</dt><dd>P-22, P-23, P-24 mini-player</dd>
     <dt>Variants</dt><dd>full · sticky-mini · mobile · desktop · accent</dd>
   </dl>
 
-  <p>Состав: cover (square), title (size 22 desktop / 18 mobile, ellipsis on overflow), artists (muted), metadata row (mono — BPM · key · duration), scrub bar, transport (prev/play/next).</p>
+  <p>Composition: cover (square), title (size 22 desktop / 18 mobile, ellipsis on overflow), artists (muted), metadata row (mono — BPM · key · duration), scrub bar, transport (prev/play/next).</p>
 
-  <p>Сцены и их состояния: idle / playing / buffering / paused / error / disconnected. Каждое состояние меняет иконку центральной кнопки (play / spinner / pause / alert / wifi-off) и opacity scrub бара.</p>
+  <h3>States — visual matrix</h3>
+  <table>
+    <thead><tr><th>State</th><th>Center button icon</th><th>Scrub opacity</th><th>Subline copy</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td><code>PlayIcon</code> filled</td><td>1.0</td><td>artist names</td></tr>
+      <tr><td>playing</td><td><code>PauseIcon</code> filled</td><td>1.0</td><td>artist names</td></tr>
+      <tr><td>buffering</td><td><code>&lt;Loader size={20} /&gt;</code></td><td>0.4</td><td>artist names + small "Buffering…" mono badge</td></tr>
+      <tr><td>paused</td><td><code>PlayIcon</code> filled</td><td>0.6</td><td>artist names</td></tr>
+      <tr><td>error</td><td><code>AlertIcon</code> in <code>--color-danger</code></td><td>0.4 + scrub disabled</td><td>"Playback failed · <a>Retry</a>"</td></tr>
+      <tr><td>disconnected</td><td><code>WifiOffIcon</code> in <code>--color-fg-muted</code></td><td>0.3 + scrub disabled</td><td>"Reconnect Spotify · <a>Open device picker</a>"</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Variants — sizing</h3>
+  <table>
+    <thead><tr><th>Variant</th><th>Cover</th><th>Title</th><th>Show transport</th><th>Use case</th></tr></thead>
+    <tbody>
+      <tr><td>full · desktop</td><td>108×108</td><td>22/30</td><td>yes</td><td>P-23 center column</td></tr>
+      <tr><td>full · mobile</td><td>square 100% width × 320</td><td>18/26</td><td>yes</td><td>P-22 top section</td></tr>
+      <tr><td>sticky-mini · desktop</td><td>40×40</td><td>14/20</td><td>compact</td><td>P-08 Home bottom rail</td></tr>
+      <tr><td>sticky-mini · mobile</td><td>40×40</td><td>14/20</td><td>play only</td><td>mobile sticky</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type PlayerState =
+  | "idle" | "playing" | "buffering" | "paused" | "error" | "disconnected";
+
+type PlayerCardProps = {
+  track: { title: string; artists: string; cover: string; bpm?: number; key?: string; duration: number };
+  state: PlayerState;
+  progress: number;     // 0..1
+  variant: "full" | "mini";
+  onPlayPause: () =&gt; void;
+  onPrev?: () =&gt; void;
+  onNext?: () =&gt; void;
+  onRetry?: () =&gt; void;
+  onOpenDevicePicker?: () =&gt; void;
+};</code></pre>
 
   <h3>Mantine mapping</h3>
-<pre><code>// PlayerCard composes Paper + custom blocks; not a single Mantine atom.
-&lt;Paper p={mini ? "sm" : "lg"} radius="md" withBorder={mini}&gt;
-  &lt;Group align="center" gap="lg" wrap="nowrap"&gt;
-    &lt;Cover size={mini ? 40 : 108} hue={track.hue} /&gt;
-    &lt;Stack gap={4} flex={1}&gt;
-      &lt;Text size="xs" tt="uppercase" c="dimmed" ff="monospace"&gt;
-        Now playing · {idx + 1} / {total}
-      &lt;/Text&gt;
-      &lt;Title order={mini ? 5 : 3} truncate&gt;{track.title}&lt;/Title&gt;
-      &lt;Text size="sm" c="dimmed"&gt;{track.artists}&lt;/Text&gt;
-    &lt;/Stack&gt;
-  &lt;/Group&gt;
+<pre><code>// Mini variant shown; full variant adds prev/next ActionIcons + larger title.
+import { Paper, Group, Stack, Text, Title, ActionIcon, Progress, Loader, Anchor, Badge } from "@mantine/core";
+import { PlayIcon, PauseIcon, AlertIcon, WifiOffIcon } from "./icons";
 
-  &lt;Stack gap={mini ? 4 : "md"} mt="md"&gt;
-    &lt;Progress value={progress * 100} size={4} color="neutral.9" /&gt;
-    {!mini &amp;&amp; (
-      &lt;Group justify="center" gap="md"&gt;
-        &lt;ActionIcon size="lg" variant="subtle"&gt;&lt;IconPlayerSkipBack /&gt;&lt;/ActionIcon&gt;
-        &lt;ActionIcon size={44} radius="xl" variant="filled" color="neutral.9"&gt;
-          {playing ? &lt;IconPlayerPause /&gt; : &lt;IconPlayerPlay /&gt;}
-        &lt;/ActionIcon&gt;
-        &lt;ActionIcon size="lg" variant="subtle"&gt;&lt;IconPlayerSkipForward /&gt;&lt;/ActionIcon&gt;
-      &lt;/Group&gt;
-    )}
-  &lt;/Stack&gt;
+const centerIcon = {
+  idle: &lt;PlayIcon /&gt;,
+  playing: &lt;PauseIcon /&gt;,
+  buffering: &lt;Loader size={20} /&gt;,
+  paused: &lt;PlayIcon /&gt;,
+  error: &lt;AlertIcon style={{ color: "var(--color-danger)" }} /&gt;,
+  disconnected: &lt;WifiOffIcon style={{ color: "var(--color-fg-muted)" }} /&gt;,
+}[state];
+
+const scrubOpacity: Record&lt;PlayerState, number&gt; = {
+  idle: 1.0, playing: 1.0, paused: 0.6,
+  buffering: 0.4, error: 0.4, disconnected: 0.3,
+}[state];
+
+&lt;Paper p={variant === "mini" ? "sm" : "lg"} radius="md" withBorder={variant === "mini"}&gt;
+  &lt;Group align="center" gap="lg" wrap="nowrap"&gt;
+    &lt;Cover size={variant === "mini" ? 40 : 108} src={track.cover} /&gt;
+    &lt;Stack gap={4} flex={1}&gt;
+      &lt;Text size="xs" tt="uppercase" c="dimmed" ff="monospace"&gt;Now Playing&lt;/Text&gt;
+      &lt;Title order={variant === "mini" ? 5 : 3} truncate&gt;{track.title}&lt;/Title&gt;
+      {state === "error" ? (
+        &lt;Text size="sm" c="var(--color-danger)"&gt;
+          Playback failed · &lt;Anchor component="button" onClick={onRetry}&gt;Retry&lt;/Anchor&gt;
+        &lt;/Text&gt;
+      ) : state === "disconnected" ? (
+        &lt;Text size="sm" c="dimmed"&gt;
+          Reconnect Spotify · &lt;Anchor component="button" onClick={onOpenDevicePicker}&gt;Open device picker&lt;/Anchor&gt;
+        &lt;/Text&gt;
+      ) : state === "buffering" ? (
+        &lt;Group gap={6}&gt;
+          &lt;Text size="sm" c="dimmed"&gt;{track.artists}&lt;/Text&gt;
+          &lt;Badge size="xs" variant="light" ff="monospace"&gt;Buffering…&lt;/Badge&gt;
+        &lt;/Group&gt;
+      ) : (
+        &lt;Text size="sm" c="dimmed"&gt;{track.artists}&lt;/Text&gt;
+      )}
+    &lt;/Stack&gt;
+    &lt;ActionIcon
+      size={variant === "mini" ? "lg" : 44}
+      radius="xl"
+      variant="filled"
+      color="neutral.9"
+      onClick={onPlayPause}
+      disabled={state === "error" || state === "disconnected"}
+      aria-label={state === "playing" ? "Pause" : "Play"}
+    &gt;
+      {centerIcon}
+    &lt;/ActionIcon&gt;
+  &lt;/Group&gt;
+  &lt;Progress
+    value={progress * 100}
+    size={4}
+    color="neutral.9"
+    style={{ opacity: scrubOpacity, marginTop: variant === "mini" ? 4 : 16 }}
+  /&gt;
 &lt;/Paper&gt;</code></pre>
 </section>
 
 <section id="trackrow">
   <h2>TrackRow</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd>composition (<code>Group</code>)</dd>
+    <dt>Mantine</dt><dd>composition (<code>&lt;Group&gt;</code> + <code>&lt;UnstyledButton&gt;</code>)</dd>
     <dt>Used in</dt><dd>P-10 (category detail), P-17 (bucket detail), P-23 left queue</dd>
-    <dt>Variants</dt><dd>compact · regular · with-checkbox</dd>
+    <dt>Variants</dt><dd>compact (48 height) · regular (64 height) · with-checkbox</dd>
   </dl>
 
-  <p>Структура: leading index/cover/checkbox — title+artists — trailing badges (key, BPM, source) — actions. Высота 48 compact / 64 regular. Hover <code>--color-bg-muted</code>. Active row (currently playing) — left border 2px <code>--color-fg</code> + background <code>--color-bg-subtle</code>.</p>
+  <h3>Anatomy</h3>
+  <p>Three slots:</p>
+  <ul>
+    <li><strong>Leading</strong> (32×32, optional): index number (mono, dimmed) OR cover (regular variant) OR Checkbox (multi-select).</li>
+    <li><strong>Middle</strong> (flex 1): title (14/20, semibold, ellipsis), artists (12/16, dimmed, ellipsis).</li>
+    <li><strong>Trailing</strong>: badges row (key 9A, BPM, source flag) + actions (kebab Menu, optional duration mono).</li>
+  </ul>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Visual change</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td>baseline; bottom border 1px <code>--color-border</code></td></tr>
+      <tr><td>hover</td><td>bg <code>--color-bg-muted</code></td></tr>
+      <tr><td>selected (multi-select)</td><td>checkbox checked; bg <code>--color-bg-muted</code></td></tr>
+      <tr><td>currently playing</td><td>left border 2px <code>--color-fg</code> (replaces 1px); bg <code>--color-bg-subtle</code>; small <code>NowPlayingDot</code> in trailing slot</td></tr>
+      <tr><td>focus (keyboard)</td><td>2px ring <code>--color-border-focus</code> with inset (avoids horizontal-scroll jitter)</td></tr>
+      <tr><td>disabled (e.g. unavailable in market)</td><td>opacity 0.5; not clickable; tooltip "Unavailable"</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type Track = {
+  id: string;
+  title: string;
+  artists: string;
+  cover?: string;
+  durationMs: number;
+  key?: string;     // 9A
+  bpm?: number;
+  source: "beatport" | "spotify";
+  unavailable?: boolean;
+};
+
+type TrackRowProps = {
+  track: Track;
+  index?: number;        // shown in leading slot if cover/checkbox absent
+  variant?: "compact" | "regular";
+  selectable?: boolean;  // shows leading checkbox
+  selected?: boolean;
+  playing?: boolean;     // currently playing track
+  onClick?: () =&gt; void;
+  onKebab?: () =&gt; void;
+  onSelectChange?: (next: boolean) =&gt; void;
+};</code></pre>
 
   <h3>Mantine mapping</h3>
-<pre><code>&lt;UnstyledButton
-  style={(t) =&gt; ({
-    display: "flex", alignItems: "center", gap: t.spacing.sm,
-    padding: `${t.spacing.xs} ${t.spacing.sm}`,
-    minHeight: compact ? 48 : 64,
-    borderLeft: active ? `2px solid ${t.other.semantic.fg}` : "2px solid transparent",
-    background: active ? t.other.semantic.bgSubtle : undefined,
-    "&amp;:hover": { background: t.other.semantic.hover },
-  })}
-&gt;
-  &lt;Text ff="monospace" size="xs" c="dimmed" w={16}&gt;{idx + 1}&lt;/Text&gt;
-  &lt;Cover size={28} hue={hue} /&gt;
-  &lt;Stack gap={2} flex={1} miw={0}&gt;
-    &lt;Text size="sm" fw={500} truncate&gt;{title}&lt;/Text&gt;
-    &lt;Text size="xs" c="dimmed" truncate&gt;{artists}&lt;/Text&gt;
-  &lt;/Stack&gt;
-  &lt;Text ff="monospace" size="xs" c="dimmed"&gt;{bpm}&lt;/Text&gt;
-&lt;/UnstyledButton&gt;</code></pre>
+<pre><code>import { Group, Stack, Text, Checkbox, Badge, ActionIcon, UnstyledButton, Tooltip } from "@mantine/core";
+import { MenuIcon } from "./icons";
+
+&lt;Tooltip label="Unavailable" disabled={!track.unavailable}&gt;
+  &lt;UnstyledButton
+    onClick={track.unavailable ? undefined : onClick}
+    aria-label={track.title}
+    aria-disabled={track.unavailable || undefined}
+    tabIndex={track.unavailable ? -1 : 0}
+    data-playing={playing || undefined}
+    style={(t) =&gt; ({
+      display: "flex", alignItems: "center", gap: t.spacing.md,
+      padding: variant === "regular" ? "12px 16px" : "8px 16px",
+      minHeight: variant === "regular" ? 64 : 48,
+      borderBottom: "1px solid var(--color-border)",
+      borderLeft: playing ? "2px solid var(--color-fg)" : "2px solid transparent",
+      background: playing ? "var(--color-bg-subtle)" : selected ? "var(--color-bg-muted)" : undefined,
+      opacity: track.unavailable ? 0.5 : 1,
+      "&:focus-visible": {
+        outline: "2px solid var(--color-border-focus)",
+        outlineOffset: -2,
+      },
+    })}
+  &gt;
+    {selectable ? (
+      &lt;Checkbox
+        checked={selected}
+        onChange={(e) =&gt; onSelectChange?.(e.currentTarget.checked)}
+        onClick={(e) =&gt; e.stopPropagation()}
+      /&gt;
+    ) : variant === "regular" &amp;&amp; track.cover ? (
+      &lt;Cover size={48} src={track.cover} /&gt;
+    ) : (
+      &lt;Text ff="monospace" fz={12} c="dimmed" w={32} ta="right"&gt;{index}&lt;/Text&gt;
+    )}
+
+    &lt;Stack gap={2} flex={1} miw={0}&gt;
+      &lt;Text fw={600} truncate&gt;{track.title}&lt;/Text&gt;
+      &lt;Text size="sm" c="dimmed" truncate&gt;{track.artists}&lt;/Text&gt;
+    &lt;/Stack&gt;
+
+    &lt;Group gap="xs" wrap="nowrap"&gt;
+      {track.key &amp;&amp; &lt;Badge variant="outline" size="sm" color="neutral.5" ff="monospace"&gt;{track.key}&lt;/Badge&gt;}
+      {track.bpm &amp;&amp; &lt;Badge variant="outline" size="sm" color="neutral.5" ff="monospace"&gt;{track.bpm}&lt;/Badge&gt;}
+      &lt;Text ff="monospace" fz={12} c="dimmed"&gt;{formatDuration(track.durationMs)}&lt;/Text&gt;
+      {playing &amp;&amp; &lt;NowPlayingDot /&gt;}
+      &lt;ActionIcon
+        variant="subtle"
+        aria-label="Track actions"
+        onClick={(e) =&gt; { e.stopPropagation(); onKebab?.(); }}
+      &gt;
+        &lt;MenuIcon size={16} /&gt;
+      &lt;/ActionIcon&gt;
+    &lt;/Group&gt;
+  &lt;/UnstyledButton&gt;
+&lt;/Tooltip&gt;</code></pre>
+  <p><code>NowPlayingDot</code> is a project component (small filled circle in <code>--color-accent</code>). <code>formatDuration</code> is a utility helper (e.g. <code>dayjs.duration(ms).format("m:ss")</code>).</p>
 </section>
 
 <section id="categorypill">
   <h2>CategoryPill</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd><code>&lt;Badge&gt;</code> с custom radius full</dd>
-    <dt>Used in</dt><dd>P-09, P-08 (current style), P-10 header</dd>
+    <dt>Mantine</dt><dd>composition: <code>&lt;UnstyledButton&gt;</code> with <code>radius="xl"</code> (full)</dd>
+    <dt>Used in</dt><dd>P-09 categories list, P-08 Home current style chip, P-10 category detail header, P-22 Curate destination row labels</dd>
+    <dt>Variants</dt><dd>idle · hover · selected · disabled</dd>
   </dl>
 
-  <p>Пилюля radius full, padding 4×10, mono шрифт 11px. Idle <code>--color-bg-muted</code>, selected <code>--color-fg</code>+inverse text, count badge справа.</p>
+  <h3>Anatomy</h3>
+  <p>Pill: radius full, padding 4×10, mono font 11/14. Optional trailing count badge (number, mono, opacity 0.7). Min height 24.</p>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>bg</th><th>fg</th><th>border</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td><code>--color-bg-muted</code></td><td><code>--color-fg</code></td><td>none</td></tr>
+      <tr><td>hover</td><td><code>--color-bg-subtle</code></td><td><code>--color-fg</code></td><td>1px <code>--color-border</code></td></tr>
+      <tr><td>focus</td><td>idle bg</td><td><code>--color-fg</code></td><td>2px ring <code>--color-border-focus</code> with offset 2px</td></tr>
+      <tr><td>selected</td><td><code>--color-fg</code></td><td><code>--color-fg-inverse</code></td><td>none</td></tr>
+      <tr><td>disabled</td><td><code>--color-bg-subtle</code></td><td><code>--color-fg-subtle</code></td><td>none</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type CategoryPillProps = {
+  label: string;
+  count?: number;            // optional trailing count
+  selected?: boolean;
+  disabled?: boolean;
+  onClick?: () =&gt; void;
+};</code></pre>
+
+  <h3>Mantine mapping</h3>
+<pre><code>import { UnstyledButton } from "@mantine/core";
+
+&lt;UnstyledButton
+  onClick={disabled ? undefined : onClick}
+  disabled={disabled}
+  aria-pressed={selected || undefined}
+  style={{
+    display: "inline-flex", alignItems: "center", gap: 6,
+    padding: "4px 10px", minHeight: 24,
+    background: selected ? "var(--color-fg)" : disabled ? "var(--color-bg-subtle)" : "var(--color-bg-muted)",
+    color: selected ? "var(--color-fg-inverse)" : disabled ? "var(--color-fg-subtle)" : "var(--color-fg)",
+    borderRadius: "var(--radius-full)",
+    fontFamily: "var(--font-mono)",
+    fontSize: 11, lineHeight: "14px",
+    cursor: disabled ? "not-allowed" : "pointer",
+    transition: "background var(--motion-fast) var(--ease-out)",
+  }}
+&gt;
+  {label}
+  {count != null &amp;&amp; (
+    &lt;span style={{ opacity: 0.7 }}&gt;{count}&lt;/span&gt;
+  )}
+&lt;/UnstyledButton&gt;</code></pre>
+  <p>UnstyledButton (not Badge) for two reasons: (1) Mantine's Badge variants do not produce a filled-muted-no-border look without a styles override anyway; (2) Badge renders as a <code>&lt;div&gt;</code> so it would not be keyboard-activatable. UnstyledButton gives Enter/Space, focus ring (via Mantine default), and ARIA out of the box.</p>
 </section>
 
 <section id="styleselector">
   <h2>StyleSelector</h2>
   <dl class="meta-grid">
     <dt>Mantine</dt><dd><code>&lt;Menu&gt;</code> + <code>&lt;UnstyledButton&gt;</code> trigger</dd>
-    <dt>Used in</dt><dd>top bar (всегда), P-08 Home, P-15 form, P-19 Transfer</dd>
+    <dt>Used in</dt><dd>top bar (always visible), P-08 Home, P-15 Create Triage Block form, P-19 Transfer step-1</dd>
+    <dt>Variants</dt><dd>compact (32 height, top bar) · regular (44 height, forms)</dd>
   </dl>
 
-  <p>Trigger показывает текущий стиль: name + chevron. Open — список всех стилей пользователя + "Manage styles" внизу. Selected — bold + check.</p>
+  <h3>Anatomy</h3>
+  <p>Trigger: <code>{styleName}</code> in 14/600 + chevron-down 14px on the right, 8px gap. Background <code>--color-bg-subtle</code>, border 1px <code>--color-border</code>, radius <code>sm</code>. On open: dropdown anchored bottom-start, min-width = trigger width, max-width 320, max-height 360 with scroll.</p>
+
+  <p>Dropdown content: list of user's styles (regular MenuItem). Selected style has check icon (16px) on the right + <code>fontWeight: 600</code>. Below the list, a 1px divider, then a fixed footer item "Manage styles…" (mono, 11px, links to P-09 Categories).</p>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Visual change</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td>baseline</td></tr>
+      <tr><td>hover</td><td>trigger bg <code>--color-bg-muted</code></td></tr>
+      <tr><td>open</td><td>trigger border <code>--color-border-strong</code>, chevron rotated 180°</td></tr>
+      <tr><td>empty</td><td>dropdown shows EmptyState body "No styles yet" + button "Create style" (links to P-09)</td></tr>
+      <tr><td>disabled</td><td>opacity 0.4, no dropdown on click</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type StyleSelectorProps = {
+  styles: { id: string; name: string }[];
+  selectedId: string | null;
+  size?: "compact" | "regular";   // default "regular"
+  disabled?: boolean;
+  onSelect: (id: string) =&gt; void;
+  onManage?: () =&gt; void;          // links to /categories
+};</code></pre>
+
+  <h3>Mantine mapping</h3>
+<pre><code>// Derive the selected entry from props
+const selected = styles.find((s) =&gt; s.id === selectedId);
+
+&lt;Menu position="bottom-start" width="target" withinPortal&gt;
+  &lt;Menu.Target&gt;
+    &lt;UnstyledButton
+      disabled={disabled}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 8,
+        padding: "0 12px", height: size === "compact" ? 32 : 44,
+        background: "var(--color-bg-subtle)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "var(--mantine-radius-sm)",
+        fontWeight: 600,
+        opacity: disabled ? 0.4 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
+    &gt;
+      {selected?.name ?? "Select style"}
+      &lt;ChevronDownIcon size={14} /&gt;
+    &lt;/UnstyledButton&gt;
+  &lt;/Menu.Target&gt;
+
+  &lt;Menu.Dropdown&gt;
+    {styles.length === 0 ? (
+      &lt;EmptyState
+        title="No styles yet"
+        body="Create your first style to start organising tracks."
+        cta={{ label: "Create style", href: "/categories" }}
+      /&gt;
+    ) : (
+      styles.map((s) =&gt; (
+        &lt;Menu.Item
+          key={s.id}
+          onClick={() =&gt; onSelect(s.id)}
+          rightSection={s.id === selectedId ? &lt;CheckIcon size={16} /&gt; : null}
+          style={{ fontWeight: s.id === selectedId ? 600 : 400 }}
+        &gt;
+          {s.name}
+        &lt;/Menu.Item&gt;
+      ))
+    )}
+    &lt;Menu.Divider /&gt;
+    &lt;Menu.Item onClick={onManage} ff="monospace" fz={11}&gt;
+      Manage styles…
+    &lt;/Menu.Item&gt;
+  &lt;/Menu.Dropdown&gt;
+&lt;/Menu&gt;</code></pre>
+  <p>Mantine <code>&lt;Menu&gt;</code> wires <code>aria-haspopup="menu"</code>, <code>aria-expanded</code>, and arrow-key/Enter navigation automatically. <code>UnstyledButton disabled</code> handles tab-skip; the explicit <code>opacity: 0.4</code> is needed because Mantine does not apply opacity to disabled UnstyledButton by default.</p>
 </section>
 
 <section id="bucketcounters">
   <h2>BucketCounters</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd>composition (<code>SimpleGrid</code>)</dd>
-    <dt>Used in</dt><dd>P-16 BlockHeader, P-17 bucket header</dd>
+    <dt>Mantine</dt><dd>composition (<code>&lt;SimpleGrid&gt;</code> + per-cell <code>&lt;UnstyledButton&gt;</code>)</dd>
+    <dt>Used in</dt><dd>P-16 BlockHeader (right column), P-17 bucket detail (header)</dd>
+    <dt>Cell variants</dt><dd>active · inactive (deleted-category, S-10) · empty (count=0)</dd>
   </dl>
 
-  <p>Сетка из 6+ ячеек: NEW · OLD · NOT · UNCLASSIFIED · DISCARD · STAGING-per-category. Каждая ячейка — uppercase mono label + большое число + (опционально) progress hint. Inactive (deleted-category) bucket — opacity 0.5 + S-10 badge.</p>
+  <h3>Anatomy</h3>
+  <p>Grid of 6+ cells: <code>NEW · OLD · NOT · UNCLASSIFIED · DISCARD · STAGING-per-category</code>. Each cell: uppercase mono label (11/14, tracking 0.04em) above a large number (28/32, semibold). Optional below-number progress hint (mono 11, e.g. "<code>12 / 38</code>").</p>
+
+  <h3>Layout</h3>
+  <table>
+    <thead><tr><th>Viewport</th><th>Grid</th><th>Cell padding</th></tr></thead>
+    <tbody>
+      <tr><td>&lt; <code>md</code> (mobile)</td><td><code>SimpleGrid cols={3}</code></td><td>12 / 8</td></tr>
+      <tr><td>&ge; <code>md</code> (desktop)</td><td><code>SimpleGrid cols={6}</code></td><td>16 / 12</td></tr>
+    </tbody>
+  </table>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Visual change</th></tr></thead>
+    <tbody>
+      <tr><td>active (count &gt; 0, has destination)</td><td>baseline; clickable cell (UnstyledButton); hover bg <code>--color-bg-muted</code></td></tr>
+      <tr><td>empty (count = 0)</td><td>number colour <code>--color-fg-subtle</code>; not clickable</td></tr>
+      <tr><td>inactive (S-10 deleted-category bucket)</td><td>opacity 0.5; small badge "DELETED" in <code>--color-danger</code> below number; clickable but routes to S-10 explainer</td></tr>
+      <tr><td>active (selected)</td><td>cell bg <code>--color-bg-muted</code>, border 1px <code>--color-border-strong</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type Bucket = {
+  key: "NEW" | "OLD" | "NOT" | "UNCLASSIFIED" | "DISCARD" | string; // string for staging-{categoryId}
+  label: string;     // display label (uppercase or category name)
+  count: number;
+  total?: number;    // for "x / total" hint
+  deleted?: boolean; // S-10 inactive variant
+  selected?: boolean;
+};
+
+type BucketCountersProps = {
+  buckets: Bucket[];
+  onSelect?: (key: string) =&gt; void;
+};</code></pre>
+
+  <h3>Mantine mapping</h3>
+<pre><code>import { SimpleGrid, UnstyledButton, Stack, Text, Badge } from "@mantine/core";
+
+&lt;SimpleGrid cols={{ base: 3, md: 6 }} spacing="xs" verticalSpacing="xs"&gt;
+  {buckets.map((b) =&gt; (
+    &lt;UnstyledButton
+      key={b.key}
+      disabled={b.count === 0 &amp;&amp; !b.deleted}
+      onClick={() =&gt; onSelect?.(b.key)}
+      aria-pressed={b.selected || undefined}
+      aria-label={`${b.label}, ${b.count} tracks${b.deleted ? ", deleted category" : ""}`}
+      style={{
+        padding: "12px 8px",
+        opacity: b.deleted ? 0.5 : 1,
+        background: b.selected ? "var(--color-bg-muted)" : "transparent",
+        border: b.selected ? "1px solid var(--color-border-strong)" : "1px solid transparent",
+        borderRadius: "var(--mantine-radius-sm)",
+        textAlign: "left",
+      }}
+    &gt;
+      &lt;Stack gap={4}&gt;
+        &lt;Text ff="monospace" fz={11} tt="uppercase" c="dimmed"&gt;
+          {b.label}
+        &lt;/Text&gt;
+        &lt;Text fw={600} fz={28} c={b.count === 0 ? "var(--color-fg-subtle)" : undefined}&gt;
+          {b.count}
+        &lt;/Text&gt;
+        {b.total != null &amp;&amp; (
+          &lt;Text ff="monospace" fz={11} c="dimmed"&gt;
+            {b.count} / {b.total}
+          &lt;/Text&gt;
+        )}
+        {b.deleted &amp;&amp; (
+          &lt;Badge variant="filled" color="red.7" size="xs"&gt;DELETED&lt;/Badge&gt;
+        )}
+      &lt;/Stack&gt;
+    &lt;/UnstyledButton&gt;
+  ))}
+&lt;/SimpleGrid&gt;</code></pre>
+  <p>Empty cells (<code>count = 0</code>) dim only the number, not the whole cell — the grid rhythm stays visible at low engagement. This deliberately diverges from the StyleSelector convention where the whole disabled trigger gets <code>opacity: 0.4</code>.</p>
 </section>
 
 <section id="blockheader">
   <h2>BlockHeader</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd>composition (<code>Group</code> + <code>Stack</code>)</dd>
-    <dt>Used in</dt><dd>P-16 Triage Block detail</dd>
+    <dt>Mantine</dt><dd>composition (<code>&lt;Group&gt;</code> + <code>&lt;Stack&gt;</code> + <code>&lt;Button&gt;</code>)</dd>
+    <dt>Used in</dt><dd>P-16 Triage Block detail (top of page)</dd>
   </dl>
 
-  <p>Левая колонка: name (h2) + style badge + week range (mono small). Правая: per-bucket counters + finalize CTA. На mobile — стек.</p>
+  <h3>Anatomy</h3>
+  <p>Two-column row at <code>&ge; md</code>; vertical stack at <code>&lt; md</code>.</p>
+  <ul>
+    <li><strong>Left column:</strong> Block name (h2, 24/30, semibold), style CategoryPill (small), week range (mono 12/16, e.g. "Apr 21 — Apr 27 · 38 tracks").</li>
+    <li><strong>Right column:</strong> BucketCounters mini-row + finalize CTA (Button primary, size lg).</li>
+  </ul>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Visual change</th><th>Finalize button</th></tr></thead>
+    <tbody>
+      <tr><td>in_progress (untouched)</td><td>baseline</td><td>disabled — tooltip "Triage all tracks first"</td></tr>
+      <tr><td>in_progress (some triaged)</td><td>baseline</td><td>disabled until UNCLASSIFIED count = 0</td></tr>
+      <tr><td>ready (UNCLASSIFIED = 0)</td><td>baseline</td><td>enabled, primary CTA</td></tr>
+      <tr><td>finalized</td><td>name has trailing badge "FINALIZED" (filled neutral.9)</td><td>replaced with read-only "Finalized {date}" mono caption</td></tr>
+      <tr><td>finalizing (long-op, B7)</td><td>baseline</td><td>loading spinner; copy variants by elapsed time (see OPEN_QUESTIONS Q9)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type BlockHeaderProps = {
+  block: {
+    id: string;
+    name: string;
+    style: { id: string; name: string };
+    weekRange: { from: string; to: string }; // ISO date strings
+    trackCount: number;
+    status: "in_progress" | "ready" | "finalized" | "finalizing";
+    finalizedAt?: string;
+    unclassifiedCount: number;
+  };
+  buckets: Bucket[];
+  onFinalize: () =&gt; void;
+};</code></pre>
+
+  <h3>Mantine mapping</h3>
+<pre><code>import { Group, Stack, Title, Button, Text, Badge, Tooltip, useMatches } from "@mantine/core";
+
+// Mantine 9 useMatches resolves to the matching breakpoint value; SSR-safe
+// (renders the `base` value on first paint, swaps after hydration).
+const direction = useMatches({ base: "column", md: "row" });
+const align     = useMatches({ base: "stretch", md: "flex-end" });
+
+&lt;Group justify="space-between" align="flex-start" gap={24} style={{ flexDirection: direction }}&gt;
+  &lt;Stack gap="xs"&gt;
+    &lt;Group gap="sm"&gt;
+      &lt;Title order={2}&gt;{block.name}&lt;/Title&gt;
+      {block.status === "finalized" &amp;&amp; (
+        &lt;Badge variant="filled" color="neutral.9"&gt;FINALIZED&lt;/Badge&gt;
+      )}
+    &lt;/Group&gt;
+    &lt;CategoryPill label={block.style.name} /&gt;
+    &lt;Text ff="monospace" fz={12} c="dimmed"&gt;
+      {formatRange(block.weekRange)} · {block.trackCount} tracks
+    &lt;/Text&gt;
+  &lt;/Stack&gt;
+
+  &lt;Stack gap="md" align={align}&gt;
+    &lt;BucketCounters buckets={buckets} /&gt;
+    {block.status === "finalized" ? (
+      &lt;Text ff="monospace" fz={12} c="dimmed"&gt;
+        Finalized {formatDate(block.finalizedAt)}
+      &lt;/Text&gt;
+    ) : (
+      &lt;Tooltip
+        label="Triage all tracks first"
+        disabled={block.unclassifiedCount === 0}
+      &gt;
+        &lt;Button
+          size="lg"
+          disabled={block.unclassifiedCount &gt; 0}
+          loading={block.status === "finalizing"}
+          onClick={onFinalize}
+        &gt;
+          Finalize
+        &lt;/Button&gt;
+      &lt;/Tooltip&gt;
+    )}
+  &lt;/Stack&gt;
+&lt;/Group&gt;</code></pre>
+  <p>Use Mantine 9's <code>useMatches</code> hook for responsive style values — SSR-safe (renders <code>base</code> first, swaps after hydration). The earlier Breakpoints section also documents <code>visibleFrom="md"</code> / <code>hiddenFrom="md"</code> as alternative for layout primitives. <code>formatRange</code> / <code>formatDate</code> are utility helpers (e.g. <code>dayjs</code>-based) returning short strings like "Apr 21 — Apr 27" / "Apr 28".</p>
 </section>
 
 <!-- ── PATTERNS ─────────────────────────────────────────── -->

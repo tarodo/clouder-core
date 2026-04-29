@@ -1,6 +1,6 @@
 # CLOUDER · iter-2a · Дизайн-хэндовер
 
-> **Кратко** — все дизайн-артефакты iter-2a (Auth → Categories → Triage Blocks → Curate → Patterns), упакованные для одного фронт-инженера на стеке **Mantine 7 / TypeScript / React 18**. English version: `README.md`.
+> **Кратко** — все дизайн-артефакты iter-2a (Auth → Categories → Triage Blocks → Curate → Patterns), упакованные для одного фронт-инженера на стеке **Mantine 9 / TypeScript / React 18+**. English version: `README.md`.
 
 ---
 
@@ -16,6 +16,9 @@
 | `tokens.css` | Source of truth для дизайн-токенов. Импортировать один раз в корне приложения. |
 | `theme.ts` | Mantine `MantineThemeOverride`, отзеркаливает tokens.css. |
 | `OPEN_QUESTIONS.md` | То, что дизайн осознанно не решал — с рабочими fallback'ами. |
+| `MANTINE_9_NOTES.md` | Mantine 7→9 breaking changes ADR. Читай ПЕРВЫМ если копируешь любой code snippet. |
+| `a11y.md` | Минимальный accessibility чеклист. |
+| `i18n.md` | i18n setup (EN-only iter-2a, react-i18next infra). |
 
 Все три `.html` файла — **standalone**: внутри инлайнено всё CSS/JS/шрифты, работают офлайн, ничего не качают из сети. Можешь отправить почтой, кинуть на флешку, захостить где угодно.
 
@@ -33,29 +36,34 @@
 
 ## Setup
 
+Стек: **Mantine 9 / TypeScript / React 18+**. Подробности 7→9 миграции — `MANTINE_9_NOTES.md`.
+
 ```bash
-pnpm add @mantine/core @mantine/hooks @mantine/dates @mantine/notifications dayjs
+pnpm add @mantine/core@9 @mantine/hooks@9 @mantine/dates@9 \
+         @mantine/notifications@9 @mantine/form@9 \
+         dayjs zod react-i18next i18next @tabler/icons-react
 ```
 
 ```tsx
 // app/layout.tsx (Next.js) — или main.tsx (Vite)
 import "./tokens.css";              // 1. tokens (CSS vars) ПЕРВЫМ
 import "@mantine/core/styles.css";  // 2. Mantine reset + utility classes
-import "@mantine/dates/styles.css"; // 3. DatePicker
+import "@mantine/dates/styles.css"; // 3. DatePicker (string values, не Date — см. MANTINE_9_NOTES.md)
 import "@mantine/notifications/styles.css";
 
-import { MantineProvider, ColorSchemeScript } from "@mantine/core";
+import { MantineProvider, ColorSchemeScript, mantineHtmlProps } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { clouderTheme } from "./theme";
+import "./i18n";  // i18next init, см. i18n.md
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ru">
+    <html lang="en" {...mantineHtmlProps}>
       <head>
-        <ColorSchemeScript defaultColorScheme="auto" />
+        <ColorSchemeScript defaultColorScheme="light" />
       </head>
       <body>
-        <MantineProvider theme={clouderTheme} defaultColorScheme="auto">
+        <MantineProvider theme={clouderTheme} defaultColorScheme="light">
           <Notifications position="top-right" />
           {children}
         </MantineProvider>
@@ -65,15 +73,21 @@ export default function RootLayout({ children }) {
 }
 ```
 
+### iter-2a решения (зафиксировано 2026-04-29)
+
+| Тема | Решение | Файл |
+|---|---|---|
+| Mantine | 9.x; light variant без `v8CssVariablesResolver` | `MANTINE_9_NOTES.md` |
+| Иконки | `@tabler/icons-react` через `src/components/icons.ts` re-export | spec sheet § Icon mapping |
+| i18n | EN-only iter-2a, `react-i18next` infra с дня-1, RU копируется в iter-2b | `i18n.md` |
+| Breakpoints | 2-step layout, `md=64em` (1024px) — единственный flip; iPhone Air 420×912 — primary mobile | spec sheet § Breakpoints, `theme.ts` |
+| Dark theme | iter-2a — `defaultColorScheme="light"`. tokens готовы для iter-2b | OPEN_QUESTIONS Q1 |
+| DatePicker | sheet (Drawer bottom) на mobile, popover на desktop | OPEN_QUESTIONS Q3 |
+| Spotify SDK | direct browser-side, backend только `/auth/spotify/refresh` | OPEN_QUESTIONS Q5 |
+
 ### Переключение темы
 
-Переключение темы живёт на **root-классе**, а не в пересборке темы JS:
-
-- По умолчанию → light (без класса).
-- `<html class="theme-dark">` → dark mode.
-- `<html class="accent-magenta">` → опциональный бренд-акцент.
-
-Связать `useMantineColorScheme()` Mantine с root-классом:
+В iter-2a переключения нет (`defaultColorScheme="light"` зафиксирован). Когда iter-2b добавит toggle — связать `useMantineColorScheme()` с root-классом:
 
 ```tsx
 import { useMantineColorScheme } from "@mantine/core";
