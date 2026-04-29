@@ -1283,6 +1283,8 @@ type BucketCountersProps = {
       key={b.key}
       disabled={b.count === 0 &amp;&amp; !b.deleted}
       onClick={() =&gt; onSelect?.(b.key)}
+      aria-pressed={b.selected || undefined}
+      aria-label={`${b.label}, ${b.count} tracks${b.deleted ? ", deleted category" : ""}`}
       style={{
         padding: "12px 8px",
         opacity: b.deleted ? 0.5 : 1,
@@ -1305,12 +1307,13 @@ type BucketCountersProps = {
           &lt;/Text&gt;
         )}
         {b.deleted &amp;&amp; (
-          &lt;Badge variant="light" color="red.7" size="xs"&gt;DELETED&lt;/Badge&gt;
+          &lt;Badge variant="filled" color="red.7" size="xs"&gt;DELETED&lt;/Badge&gt;
         )}
       &lt;/Stack&gt;
     &lt;/UnstyledButton&gt;
   ))}
 &lt;/SimpleGrid&gt;</code></pre>
+  <p>Empty cells (<code>count = 0</code>) dim only the number, not the whole cell — the grid rhythm stays visible at low engagement. This deliberately diverges from the StyleSelector convention where the whole disabled trigger gets <code>opacity: 0.4</code>.</p>
 </section>
 
 <section id="blockheader">
