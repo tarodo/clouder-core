@@ -294,6 +294,7 @@
 
   <div class="toc-section">Foundations</div>
   <a href="#tokens">Tokens recap</a>
+  <a href="#breakpoints">Breakpoints</a>
   <a href="#vocabulary">Vocabulary map</a>
 
   <div class="toc-section">Base catalog</div>
@@ -374,6 +375,45 @@
 
   <h4>Motion</h4>
   <p>fast=120 / base=160 / slow=200 / pulse=80. Easing: <code>--ease-out</code> (для interaction feedback) и <code>--ease-in-out</code> (для transition'ов). Не использовать другие кривые без согласования.</p>
+</section>
+
+<section id="breakpoints">
+  <h2>Breakpoints</h2>
+  <p>2-step layout: mobile (&lt; <code>md</code>) and desktop (&ge; <code>md</code>). Only <code>md</code> at 1024px is a meaningful flip; lower breakpoints are Mantine plumbing for narrow phones, higher ones are guides for max-width containers.</p>
+
+  <table>
+    <thead><tr><th>Key</th><th>em</th><th>px</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td><code>xs</code></td><td>20em</td><td>320</td><td>iPhone SE 1 narrowest — no layout flip</td></tr>
+      <tr><td><code>sm</code></td><td>30em</td><td>480</td><td>phablet edge — no layout flip</td></tr>
+      <tr><td><code>md</code></td><td>64em</td><td>1024</td><td>⚠️ MAIN FLIP · mobile↔desktop</td></tr>
+      <tr><td><code>lg</code></td><td>80em</td><td>1280</td><td>wide desktop max-width guide</td></tr>
+      <tr><td><code>xl</code></td><td>96em</td><td>1536</td><td>ultrawide max-width guide</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Primary mobile target</h3>
+  <p>iPhone Air, 6.5", 2736×1260 physical @ DPR 3 = <strong>420×912 CSS px</strong> portrait. Min-width target across all components is 420px; 360px (older devices) is best-effort, not a guarantee.</p>
+
+  <h3>Per-page layout flip rules</h3>
+  <table>
+    <thead><tr><th>Page</th><th>&lt; <code>md</code> (mobile)</th><th>&ge; <code>md</code> (desktop)</th></tr></thead>
+    <tbody>
+      <tr><td>P-08 Home</td><td>single column, sticky bottom-tabs</td><td>two-column with side rail</td></tr>
+      <tr><td>P-15 Create Triage Block</td><td>full-screen form; DatePicker → bottom Drawer</td><td>modal form; DatePicker → popover</td></tr>
+      <tr><td>P-16 Block detail</td><td>stack: header above counters</td><td>row: header left, counters right</td></tr>
+      <tr><td>P-22 Curate (mobile)</td><td>this layout — single-track + DISCARD top + staging row</td><td>—</td></tr>
+      <tr><td>P-23 Curate (desktop)</td><td>—</td><td>this layout — left queue + center player + right destinations</td></tr>
+      <tr><td>P-25 Device picker</td><td>full-screen sheet</td><td>centered modal</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Mantine usage</h3>
+  <p>Use <code>visibleFrom="md"</code> / <code>hiddenFrom="md"</code> on layout primitives. For conditional logic in JS use <code>useMediaQuery('(min-width: 64em)')</code>.</p>
+<pre><code>import { useMediaQuery } from "@mantine/hooks";
+
+const isDesktop = useMediaQuery("(min-width: 64em)");
+return isDesktop ? &lt;DesktopCurate /&gt; : &lt;MobileCurate /&gt;;</code></pre>
 </section>
 
 <section id="vocabulary">
