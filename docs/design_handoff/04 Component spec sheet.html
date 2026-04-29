@@ -1062,7 +1062,7 @@ type PlayerCardProps = {
 
   <h3>Mantine mapping</h3>
 <pre><code>// Mini variant shown; full variant adds prev/next ActionIcons + larger title.
-import { Paper, Group, Stack, Text, Title, ActionIcon, Progress, Loader } from "@mantine/core";
+import { Paper, Group, Stack, Text, Title, ActionIcon, Progress, Loader, Anchor, Badge } from "@mantine/core";
 import { PlayIcon, PauseIcon, AlertIcon, WifiOffIcon } from "./icons";
 
 const centerIcon = {
@@ -1074,11 +1074,10 @@ const centerIcon = {
   disconnected: &lt;WifiOffIcon style={{ color: "var(--color-fg-muted)" }} /&gt;,
 }[state];
 
-const scrubOpacity = state === "buffering" ? 0.4
-  : state === "paused" ? 0.6
-  : state === "error" ? 0.4
-  : state === "disconnected" ? 0.3
-  : 1.0;
+const scrubOpacity: Record&lt;PlayerState, number&gt; = {
+  idle: 1.0, playing: 1.0, paused: 0.6,
+  buffering: 0.4, error: 0.4, disconnected: 0.3,
+}[state];
 
 &lt;Paper p={variant === "mini" ? "sm" : "lg"} radius="md" withBorder={variant === "mini"}&gt;
   &lt;Group align="center" gap="lg" wrap="nowrap"&gt;
@@ -1087,9 +1086,18 @@ const scrubOpacity = state === "buffering" ? 0.4
       &lt;Text size="xs" tt="uppercase" c="dimmed" ff="monospace"&gt;Now Playing&lt;/Text&gt;
       &lt;Title order={variant === "mini" ? 5 : 3} truncate&gt;{track.title}&lt;/Title&gt;
       {state === "error" ? (
-        &lt;Text size="sm" c="var(--color-danger)"&gt;Playback failed · &lt;a onClick={onRetry}&gt;Retry&lt;/a&gt;&lt;/Text&gt;
+        &lt;Text size="sm" c="var(--color-danger)"&gt;
+          Playback failed · &lt;Anchor component="button" onClick={onRetry}&gt;Retry&lt;/Anchor&gt;
+        &lt;/Text&gt;
       ) : state === "disconnected" ? (
-        &lt;Text size="sm" c="dimmed"&gt;Reconnect Spotify · &lt;a onClick={onOpenDevicePicker}&gt;Open device picker&lt;/a&gt;&lt;/Text&gt;
+        &lt;Text size="sm" c="dimmed"&gt;
+          Reconnect Spotify · &lt;Anchor component="button" onClick={onOpenDevicePicker}&gt;Open device picker&lt;/Anchor&gt;
+        &lt;/Text&gt;
+      ) : state === "buffering" ? (
+        &lt;Group gap={6}&gt;
+          &lt;Text size="sm" c="dimmed"&gt;{track.artists}&lt;/Text&gt;
+          &lt;Badge size="xs" variant="light" ff="monospace"&gt;Buffering…&lt;/Badge&gt;
+        &lt;/Group&gt;
       ) : (
         &lt;Text size="sm" c="dimmed"&gt;{track.artists}&lt;/Text&gt;
       )}
@@ -1101,6 +1109,7 @@ const scrubOpacity = state === "buffering" ? 0.4
       color="neutral.9"
       onClick={onPlayPause}
       disabled={state === "error" || state === "disconnected"}
+      aria-label={state === "playing" ? "Pause" : "Play"}
     &gt;
       {centerIcon}
     &lt;/ActionIcon&gt;
