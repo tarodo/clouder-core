@@ -1177,7 +1177,10 @@ function DestinationButton({ label, hotkey, count, state = "idle", size = "md", 
 };</code></pre>
 
   <h3>Mantine mapping</h3>
-<pre><code>&lt;Menu position="bottom-start" width="target" withinPortal&gt;
+<pre><code>// Derive the selected entry from props
+const selected = styles.find((s) =&gt; s.id === selectedId);
+
+&lt;Menu position="bottom-start" width="target" withinPortal&gt;
   &lt;Menu.Target&gt;
     &lt;UnstyledButton
       disabled={disabled}
@@ -1188,6 +1191,8 @@ function DestinationButton({ label, hotkey, count, state = "idle", size = "md", 
         border: "1px solid var(--color-border)",
         borderRadius: "var(--mantine-radius-sm)",
         fontWeight: 600,
+        opacity: disabled ? 0.4 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
       }}
     &gt;
       {selected?.name ?? "Select style"}
@@ -1197,7 +1202,11 @@ function DestinationButton({ label, hotkey, count, state = "idle", size = "md", 
 
   &lt;Menu.Dropdown&gt;
     {styles.length === 0 ? (
-      &lt;Menu.Item disabled&gt;No styles yet&lt;/Menu.Item&gt;
+      &lt;EmptyState
+        title="No styles yet"
+        body="Create your first style to start organising tracks."
+        cta={{ label: "Create style", href: "/categories" }}
+      /&gt;
     ) : (
       styles.map((s) =&gt; (
         &lt;Menu.Item
@@ -1216,6 +1225,7 @@ function DestinationButton({ label, hotkey, count, state = "idle", size = "md", 
     &lt;/Menu.Item&gt;
   &lt;/Menu.Dropdown&gt;
 &lt;/Menu&gt;</code></pre>
+  <p>Mantine <code>&lt;Menu&gt;</code> wires <code>aria-haspopup="menu"</code>, <code>aria-expanded</code>, and arrow-key/Enter navigation automatically. <code>UnstyledButton disabled</code> handles tab-skip; the explicit <code>opacity: 0.4</code> is needed because Mantine does not apply opacity to disabled UnstyledButton by default.</p>
 </section>
 
 <section id="bucketcounters">
