@@ -1185,20 +1185,29 @@ import { MenuIcon } from "./icons";
   &lt;UnstyledButton
     onClick={track.unavailable ? undefined : onClick}
     aria-label={track.title}
-    aria-pressed={selected || undefined}
+    aria-disabled={track.unavailable || undefined}
+    tabIndex={track.unavailable ? -1 : 0}
     data-playing={playing || undefined}
     style={(t) =&gt; ({
       display: "flex", alignItems: "center", gap: t.spacing.md,
       padding: variant === "regular" ? "12px 16px" : "8px 16px",
       minHeight: variant === "regular" ? 64 : 48,
       borderBottom: "1px solid var(--color-border)",
-      borderLeft: playing ? "2px solid var(--color-fg)" : "1px solid transparent",
+      borderLeft: playing ? "2px solid var(--color-fg)" : "2px solid transparent",
       background: playing ? "var(--color-bg-subtle)" : selected ? "var(--color-bg-muted)" : undefined,
       opacity: track.unavailable ? 0.5 : 1,
+      "&:focus-visible": {
+        outline: "2px solid var(--color-border-focus)",
+        outlineOffset: -2,
+      },
     })}
   &gt;
     {selectable ? (
-      &lt;Checkbox checked={selected} onChange={(e) =&gt; onSelectChange?.(e.currentTarget.checked)} /&gt;
+      &lt;Checkbox
+        checked={selected}
+        onChange={(e) =&gt; onSelectChange?.(e.currentTarget.checked)}
+        onClick={(e) =&gt; e.stopPropagation()}
+      /&gt;
     ) : variant === "regular" &amp;&amp; track.cover ? (
       &lt;Cover size={48} src={track.cover} /&gt;
     ) : (
