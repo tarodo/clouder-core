@@ -1085,11 +1085,51 @@ function DestinationButton({ label, hotkey, count, state = "idle", size = "md", 
 <section id="categorypill">
   <h2>CategoryPill</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd><code>&lt;Badge&gt;</code> с custom radius full</dd>
-    <dt>Used in</dt><dd>P-09, P-08 (current style), P-10 header</dd>
+    <dt>Mantine</dt><dd><code>&lt;Badge&gt;</code> with <code>radius="xl"</code> (full)</dd>
+    <dt>Used in</dt><dd>P-09 categories list, P-08 Home current style chip, P-10 category detail header, P-22 Curate destination row labels</dd>
+    <dt>Variants</dt><dd>idle · hover · selected · disabled</dd>
   </dl>
 
-  <p>Пилюля radius full, padding 4×10, mono шрифт 11px. Idle <code>--color-bg-muted</code>, selected <code>--color-fg</code>+inverse text, count badge справа.</p>
+  <h3>Anatomy</h3>
+  <p>Pill: radius full, padding 4×10, mono font 11/14. Optional trailing count badge (number, mono, opacity 0.7). Min height 24.</p>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>bg</th><th>fg</th><th>border</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td><code>--color-bg-muted</code></td><td><code>--color-fg</code></td><td>none</td></tr>
+      <tr><td>hover</td><td><code>--color-bg-subtle</code> + <code>--color-border</code></td><td><code>--color-fg</code></td><td>1px <code>--color-border</code></td></tr>
+      <tr><td>selected</td><td><code>--color-fg</code></td><td><code>--color-fg-inverse</code></td><td>none</td></tr>
+      <tr><td>disabled</td><td><code>--color-bg-subtle</code></td><td><code>--color-fg-subtle</code></td><td>none</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type CategoryPillProps = {
+  label: string;
+  count?: number;            // optional trailing count
+  selected?: boolean;
+  disabled?: boolean;
+  onClick?: () =&gt; void;
+};</code></pre>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;Badge
+  variant={selected ? "filled" : "default"}
+  color="neutral.9"
+  radius="xl"
+  size="sm"
+  onClick={disabled ? undefined : onClick}
+  style={{ cursor: disabled ? "default" : "pointer", textTransform: "none" }}
+&gt;
+  {label}
+  {count != null &amp;&amp; (
+    &lt;span style={{ marginLeft: 6, opacity: 0.7, fontFamily: "var(--font-mono)" }}&gt;
+      {count}
+    &lt;/span&gt;
+  )}
+&lt;/Badge&gt;</code></pre>
+  <p>Override Mantine's <code>textTransform: "uppercase"</code> default — CategoryPill is mixed-case. Mono trailing count must NOT inherit the badge's tracking.</p>
 </section>
 
 <section id="styleselector">
