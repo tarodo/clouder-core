@@ -301,6 +301,7 @@
   <div class="toc-section">Base catalog</div>
   <a href="#button">Button</a>
   <a href="#input">Input</a>
+  <a href="#form-snippet">Form (schemaResolver)</a>
   <a href="#select">Select</a>
   <a href="#tabs">Tabs</a>
   <a href="#badge">Badge</a>
@@ -536,7 +537,7 @@ export {
     <tbody>
       <tr><td>idle</td><td>baseline</td><td>default</td></tr>
       <tr><td>hover</td><td>фон <code>--color-bg-muted</code> для secondary; <code>--neutral-700</code> для primary</td><td>CSS <code>:hover</code></td></tr>
-      <tr><td>focus</td><td>2px focus ring цвета <code>--color-border-focus</code> с offset 2px</td><td>Mantine default + override <code>--mantine-color-blue-filled</code></td></tr>
+      <tr><td>focus</td><td>2px focus ring цвета <code>--color-border-focus</code> с offset 2px</td><td>Mantine default — focus ring colour comes from <code>--color-border-focus</code> via the <code>theme.ts</code> CSS-variable layer; no Mantine-internal override needed in 9.x</td></tr>
       <tr><td>active</td><td>чуть темнее hover, без scale</td><td>CSS <code>:active</code></td></tr>
       <tr><td>disabled</td><td>opacity 0.4, не реагирует</td><td>Mantine <code>disabled</code> prop</td></tr>
       <tr><td>loading</td><td>spinner вместо текста, кнопка не reflow'ится по ширине</td><td>Mantine <code>loading</code> prop</td></tr>
@@ -603,6 +604,31 @@ export {
   error={error?.message}
   withAsterisk={required}
 /&gt;</code></pre>
+</section>
+
+<section id="form-snippet">
+  <h2>Form (P-15) — schemaResolver</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>@mantine/form</code> with <code>schemaResolver</code> + Zod 4</dd>
+    <dt>Used in</dt><dd>P-15 Create Triage Block</dd>
+  </dl>
+
+  <p>Mantine 9 removed <code>zodResolver</code>. Use <code>schemaResolver</code> with a Standard-Schema-compliant validator. Zod v4 is the recommended choice.</p>
+
+<pre><code>import { useForm, schemaResolver } from "@mantine/form";
+import { z } from "zod/v4";
+
+const schema = z.object({
+  name: z.string().min(1, { error: "Name required" }),
+  style: z.string().min(1, { error: "Style required" }),
+  date_from: z.string().min(1, { error: "Start date required" }),
+  date_to: z.string().min(1, { error: "End date required" }),
+});
+
+const form = useForm({
+  initialValues: { name: "", style: "", date_from: "", date_to: "" },
+  validate: schemaResolver(schema, { sync: true }),
+});</code></pre>
 </section>
 
 <section id="select">
@@ -863,6 +889,18 @@ notifications.show({
 .mantine-DatePicker-day[data-in-range]:not([data-selected]) {
   background: var(--color-bg-muted);
 }</code></pre>
+  <div class="callout">
+    <div>
+      <strong>Mantine 9 callout — value type is <code>string</code></strong>
+      <p>From Mantine 8 onward, <code>onChange</code> receives <code>string | null</code> in <code>YYYY-MM-DD</code> form. Three integration patterns documented in <a href="MANTINE_9_NOTES.md">MANTINE_9_NOTES.md</a>. Native string state is recommended.</p>
+    </div>
+  </div>
+  <div class="callout">
+    <div>
+      <strong>Mobile pattern — bottom Drawer</strong>
+      <p>On <code>&lt; md</code> the popover is replaced with a bottom <code>&lt;Drawer position="bottom"&gt;</code> wrapping an inline <code>&lt;DatePicker&gt;</code>. Wrapper component <code>&lt;DateRangeField&gt;</code> uses <code>useMediaQuery('(max-width: 64em)')</code>. Recorded in OPEN_QUESTIONS Q3.</p>
+    </div>
+  </div>
 </section>
 
 <section id="hotkeyhint">
