@@ -362,20 +362,20 @@
   <h2>Tokens recap</h2>
   <p>Полная спецификация в <code>tokens.css</code>. Ниже — что важно помнить при реализации.</p>
 
-  <h4>Type</h4>
+  <h3>Type</h3>
   <ul>
     <li><strong>Geist</strong> sans (300/400/500/600/700) и <strong>Geist Mono</strong> (400/500/600). Подключены через Google Fonts в <code>tokens.css</code>.</li>
     <li>Mono используется для технических меток: ID, hotkeys, BPM, временные коды, ratio'ы. Sans — для всего остального.</li>
     <li>Размеры: 11/12/13/14/16/18/24/32. Ничего меньше 11 не использовать.</li>
   </ul>
 
-  <h4>Spacing</h4>
+  <h3>Spacing</h3>
   <p>Шкала <code>0/1/2/3/4/5/6/8/10/12/16/20</code> (в px <code>0/4/8/12/16/20/24/32/40/48/64/80</code>). Mantine spacing keys покрывают xs..xl (4..20). Шире — через <code>theme.other.space[N]</code>.</p>
 
-  <h4>Radii</h4>
+  <h3>Radii</h3>
   <p><code>xs:4 / sm:6 / md:10 / lg:14 / full:999</code>. По умолчанию для большинства компонентов — <code>md</code>.</p>
 
-  <h4>Motion</h4>
+  <h3>Motion</h3>
   <p>fast=120 / base=160 / slow=200 / pulse=80. Easing: <code>--ease-out</code> (для interaction feedback) и <code>--ease-in-out</code> (для transition'ов). Не использовать другие кривые без согласования.</p>
 </section>
 
