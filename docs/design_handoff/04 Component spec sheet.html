@@ -1013,41 +1013,104 @@ function DestinationButton({ label, hotkey, count, state = "idle", size = "md", 
 <section id="playercard">
   <h2>PlayerCard</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd>composition (<code>Paper</code> + custom layout)</dd>
+    <dt>Mantine</dt><dd>composition (<code>&lt;Paper&gt;</code> + custom layout)</dd>
     <dt>Used in</dt><dd>P-22, P-23, P-24 mini-player</dd>
     <dt>Variants</dt><dd>full · sticky-mini · mobile · desktop · accent</dd>
   </dl>
 
-  <p>Состав: cover (square), title (size 22 desktop / 18 mobile, ellipsis on overflow), artists (muted), metadata row (mono — BPM · key · duration), scrub bar, transport (prev/play/next).</p>
+  <p>Composition: cover (square), title (size 22 desktop / 18 mobile, ellipsis on overflow), artists (muted), metadata row (mono — BPM · key · duration), scrub bar, transport (prev/play/next).</p>
 
-  <p>Сцены и их состояния: idle / playing / buffering / paused / error / disconnected. Каждое состояние меняет иконку центральной кнопки (play / spinner / pause / alert / wifi-off) и opacity scrub бара.</p>
+  <h3>States — visual matrix</h3>
+  <table>
+    <thead><tr><th>State</th><th>Center button icon</th><th>Scrub opacity</th><th>Subline copy</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td><code>PlayIcon</code> filled</td><td>1.0</td><td>artist names</td></tr>
+      <tr><td>playing</td><td><code>PauseIcon</code> filled</td><td>1.0</td><td>artist names</td></tr>
+      <tr><td>buffering</td><td><code>&lt;Loader size={20} /&gt;</code></td><td>0.4</td><td>artist names + small "Buffering…" mono badge</td></tr>
+      <tr><td>paused</td><td><code>PlayIcon</code> filled</td><td>0.6</td><td>artist names</td></tr>
+      <tr><td>error</td><td><code>AlertIcon</code> in <code>--color-danger</code></td><td>0.4 + scrub disabled</td><td>"Playback failed · <a>Retry</a>"</td></tr>
+      <tr><td>disconnected</td><td><code>WifiOffIcon</code> in <code>--color-fg-muted</code></td><td>0.3 + scrub disabled</td><td>"Reconnect Spotify · <a>Open device picker</a>"</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Variants — sizing</h3>
+  <table>
+    <thead><tr><th>Variant</th><th>Cover</th><th>Title</th><th>Show transport</th><th>Use case</th></tr></thead>
+    <tbody>
+      <tr><td>full · desktop</td><td>108×108</td><td>22/30</td><td>yes</td><td>P-23 center column</td></tr>
+      <tr><td>full · mobile</td><td>square 100% width × 320</td><td>18/26</td><td>yes</td><td>P-22 top section</td></tr>
+      <tr><td>sticky-mini · desktop</td><td>40×40</td><td>14/20</td><td>compact</td><td>P-08 Home bottom rail</td></tr>
+      <tr><td>sticky-mini · mobile</td><td>40×40</td><td>14/20</td><td>play only</td><td>mobile sticky</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type PlayerState =
+  | "idle" | "playing" | "buffering" | "paused" | "error" | "disconnected";
+
+type PlayerCardProps = {
+  track: { title: string; artists: string; cover: string; bpm?: number; key?: string; duration: number };
+  state: PlayerState;
+  progress: number;     // 0..1
+  variant: "full" | "mini";
+  onPlayPause: () =&gt; void;
+  onPrev?: () =&gt; void;
+  onNext?: () =&gt; void;
+  onRetry?: () =&gt; void;
+  onOpenDevicePicker?: () =&gt; void;
+};</code></pre>
 
   <h3>Mantine mapping</h3>
-<pre><code>// PlayerCard composes Paper + custom blocks; not a single Mantine atom.
-&lt;Paper p={mini ? "sm" : "lg"} radius="md" withBorder={mini}&gt;
-  &lt;Group align="center" gap="lg" wrap="nowrap"&gt;
-    &lt;Cover size={mini ? 40 : 108} hue={track.hue} /&gt;
-    &lt;Stack gap={4} flex={1}&gt;
-      &lt;Text size="xs" tt="uppercase" c="dimmed" ff="monospace"&gt;
-        Now playing · {idx + 1} / {total}
-      &lt;/Text&gt;
-      &lt;Title order={mini ? 5 : 3} truncate&gt;{track.title}&lt;/Title&gt;
-      &lt;Text size="sm" c="dimmed"&gt;{track.artists}&lt;/Text&gt;
-    &lt;/Stack&gt;
-  &lt;/Group&gt;
+<pre><code>// Mini variant shown; full variant adds prev/next ActionIcons + larger title.
+import { Paper, Group, Stack, Text, Title, ActionIcon, Progress, Loader } from "@mantine/core";
+import { PlayIcon, PauseIcon, AlertIcon, WifiOffIcon } from "./icons";
 
-  &lt;Stack gap={mini ? 4 : "md"} mt="md"&gt;
-    &lt;Progress value={progress * 100} size={4} color="neutral.9" /&gt;
-    {!mini &amp;&amp; (
-      &lt;Group justify="center" gap="md"&gt;
-        &lt;ActionIcon size="lg" variant="subtle"&gt;&lt;IconPlayerSkipBack /&gt;&lt;/ActionIcon&gt;
-        &lt;ActionIcon size={44} radius="xl" variant="filled" color="neutral.9"&gt;
-          {playing ? &lt;IconPlayerPause /&gt; : &lt;IconPlayerPlay /&gt;}
-        &lt;/ActionIcon&gt;
-        &lt;ActionIcon size="lg" variant="subtle"&gt;&lt;IconPlayerSkipForward /&gt;&lt;/ActionIcon&gt;
-      &lt;/Group&gt;
-    )}
-  &lt;/Stack&gt;
+const centerIcon = {
+  idle: &lt;PlayIcon /&gt;,
+  playing: &lt;PauseIcon /&gt;,
+  buffering: &lt;Loader size={20} /&gt;,
+  paused: &lt;PlayIcon /&gt;,
+  error: &lt;AlertIcon style={{ color: "var(--color-danger)" }} /&gt;,
+  disconnected: &lt;WifiOffIcon style={{ color: "var(--color-fg-muted)" }} /&gt;,
+}[state];
+
+const scrubOpacity = state === "buffering" ? 0.4
+  : state === "paused" ? 0.6
+  : state === "error" ? 0.4
+  : state === "disconnected" ? 0.3
+  : 1.0;
+
+&lt;Paper p={variant === "mini" ? "sm" : "lg"} radius="md" withBorder={variant === "mini"}&gt;
+  &lt;Group align="center" gap="lg" wrap="nowrap"&gt;
+    &lt;Cover size={variant === "mini" ? 40 : 108} src={track.cover} /&gt;
+    &lt;Stack gap={4} flex={1}&gt;
+      &lt;Text size="xs" tt="uppercase" c="dimmed" ff="monospace"&gt;Now Playing&lt;/Text&gt;
+      &lt;Title order={variant === "mini" ? 5 : 3} truncate&gt;{track.title}&lt;/Title&gt;
+      {state === "error" ? (
+        &lt;Text size="sm" c="var(--color-danger)"&gt;Playback failed · &lt;a onClick={onRetry}&gt;Retry&lt;/a&gt;&lt;/Text&gt;
+      ) : state === "disconnected" ? (
+        &lt;Text size="sm" c="dimmed"&gt;Reconnect Spotify · &lt;a onClick={onOpenDevicePicker}&gt;Open device picker&lt;/a&gt;&lt;/Text&gt;
+      ) : (
+        &lt;Text size="sm" c="dimmed"&gt;{track.artists}&lt;/Text&gt;
+      )}
+    &lt;/Stack&gt;
+    &lt;ActionIcon
+      size={variant === "mini" ? "lg" : 44}
+      radius="xl"
+      variant="filled"
+      color="neutral.9"
+      onClick={onPlayPause}
+      disabled={state === "error" || state === "disconnected"}
+    &gt;
+      {centerIcon}
+    &lt;/ActionIcon&gt;
+  &lt;/Group&gt;
+  &lt;Progress
+    value={progress * 100}
+    size={4}
+    color="neutral.9"
+    style={{ opacity: scrubOpacity, marginTop: variant === "mini" ? 4 : 16 }}
+  /&gt;
 &lt;/Paper&gt;</code></pre>
 </section>
 
