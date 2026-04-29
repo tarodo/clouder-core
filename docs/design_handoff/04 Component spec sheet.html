@@ -1359,10 +1359,14 @@ type BucketCountersProps = {
 };</code></pre>
 
   <h3>Mantine mapping</h3>
-<pre><code>import { Group, Stack, Title, Button, Text, Badge } from "@mantine/core";
+<pre><code>import { Group, Stack, Title, Button, Text, Badge, Tooltip, useMatches } from "@mantine/core";
 
-&lt;Group justify="space-between" align="flex-start" wrap="nowrap"
-       style={{ flexDirection: isMobile ? "column" : "row", gap: 24 }}&gt;
+// Mantine 9 useMatches resolves to the matching breakpoint value; SSR-safe
+// (renders the `base` value on first paint, swaps after hydration).
+const direction = useMatches({ base: "column", md: "row" });
+const align     = useMatches({ base: "stretch", md: "flex-end" });
+
+&lt;Group justify="space-between" align="flex-start" gap={24} style={{ flexDirection: direction }}&gt;
   &lt;Stack gap="xs"&gt;
     &lt;Group gap="sm"&gt;
       &lt;Title order={2}&gt;{block.name}&lt;/Title&gt;
@@ -1376,25 +1380,30 @@ type BucketCountersProps = {
     &lt;/Text&gt;
   &lt;/Stack&gt;
 
-  &lt;Stack gap="md" align={isMobile ? "stretch" : "flex-end"}&gt;
+  &lt;Stack gap="md" align={align}&gt;
     &lt;BucketCounters buckets={buckets} /&gt;
     {block.status === "finalized" ? (
       &lt;Text ff="monospace" fz={12} c="dimmed"&gt;
         Finalized {formatDate(block.finalizedAt)}
       &lt;/Text&gt;
     ) : (
-      &lt;Button
-        size="lg"
-        disabled={block.unclassifiedCount &gt; 0}
-        loading={block.status === "finalizing"}
-        onClick={onFinalize}
+      &lt;Tooltip
+        label="Triage all tracks first"
+        disabled={block.unclassifiedCount === 0}
       &gt;
-        Finalize
-      &lt;/Button&gt;
+        &lt;Button
+          size="lg"
+          disabled={block.unclassifiedCount &gt; 0}
+          loading={block.status === "finalizing"}
+          onClick={onFinalize}
+        &gt;
+          Finalize
+        &lt;/Button&gt;
+      &lt;/Tooltip&gt;
     )}
   &lt;/Stack&gt;
 &lt;/Group&gt;</code></pre>
-  <p>The <code>isMobile</code> flag is derived from <code>useMediaQuery('(max-width: 64em)')</code>. <code>formatRange</code> / <code>formatDate</code> are utility helpers (e.g. <code>dayjs</code>-based) returning short strings like "Apr 21 — Apr 27" / "Apr 28".</p>
+  <p>Use Mantine 9's <code>useMatches</code> hook for responsive style values — SSR-safe (renders <code>base</code> first, swaps after hydration). The earlier Breakpoints section also documents <code>visibleFrom="md"</code> / <code>hiddenFrom="md"</code> as alternative for layout primitives. <code>formatRange</code> / <code>formatDate</code> are utility helpers (e.g. <code>dayjs</code>-based) returning short strings like "Apr 21 — Apr 27" / "Apr 28".</p>
 </section>
 
 <!-- ── PATTERNS ─────────────────────────────────────────── -->
