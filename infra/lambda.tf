@@ -112,7 +112,7 @@ resource "aws_lambda_function" "ai_search_worker" {
   timeout       = var.ai_search_worker_lambda_timeout_seconds
   memory_size   = var.ai_search_worker_lambda_memory_mb
 
-  reserved_concurrent_executions = var.ai_search_worker_reserved_concurrency
+  reserved_concurrent_executions = var.enable_lambda_reserved_concurrency ? var.ai_search_worker_reserved_concurrency : -1
 
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 
@@ -150,7 +150,7 @@ resource "aws_lambda_function" "spotify_search_worker" {
   timeout       = var.spotify_search_worker_lambda_timeout_seconds
   memory_size   = var.spotify_search_worker_lambda_memory_mb
 
-  reserved_concurrent_executions = var.spotify_search_worker_reserved_concurrency
+  reserved_concurrent_executions = var.enable_lambda_reserved_concurrency ? var.spotify_search_worker_reserved_concurrency : -1
 
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 
@@ -192,7 +192,7 @@ resource "aws_lambda_function" "vendor_match_worker" {
   timeout       = var.vendor_match_worker_lambda_timeout_seconds
   memory_size   = var.vendor_match_worker_lambda_memory_mb
 
-  reserved_concurrent_executions = var.vendor_match_worker_reserved_concurrency
+  reserved_concurrent_executions = var.enable_lambda_reserved_concurrency ? var.vendor_match_worker_reserved_concurrency : -1
 
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 

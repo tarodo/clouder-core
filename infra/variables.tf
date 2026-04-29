@@ -193,7 +193,7 @@ variable "ai_search_batch_size" {
 }
 
 variable "ai_search_worker_reserved_concurrency" {
-  description = "Reserved concurrent executions for ai_search_worker. Caps parallel Perplexity API calls (rate limit ~5 RPS on paid tier). 2 is a safe default."
+  description = "Reserved concurrent executions for ai_search_worker. Caps parallel Perplexity API calls (rate limit ~5 RPS on paid tier). 2 is a safe default. Only applied when var.enable_lambda_reserved_concurrency = true (requires account ConcurrentExecutions quota high enough that the sum of all reserved values does not push UnreservedConcurrentExecution below the AWS floor of 10)."
   type        = number
   default     = 2
 }
@@ -265,7 +265,7 @@ variable "spotify_search_batch_size" {
 }
 
 variable "spotify_search_worker_reserved_concurrency" {
-  description = "Reserved concurrent executions for spotify_search_worker. Caps parallel Spotify Web API calls (Client Credentials search endpoint ~3.3 RPS). Shares the Spotify token bucket with vendor_match_worker — keep combined parallelism ≤ 5."
+  description = "Reserved concurrent executions for spotify_search_worker. Caps parallel Spotify Web API calls (Client Credentials search endpoint ~3.3 RPS). Shares the Spotify token bucket with vendor_match_worker — keep combined parallelism ≤ 5. Only applied when var.enable_lambda_reserved_concurrency = true."
   type        = number
   default     = 3
 }
@@ -333,9 +333,15 @@ variable "vendor_match_batch_size" {
 }
 
 variable "vendor_match_worker_reserved_concurrency" {
-  description = "Reserved concurrent executions for vendor_match_worker. Caps parallel Spotify lookups during fuzzy matching. Shares the Spotify token bucket with spotify_search_worker — keep combined parallelism ≤ 5."
+  description = "Reserved concurrent executions for vendor_match_worker. Caps parallel Spotify lookups during fuzzy matching. Shares the Spotify token bucket with spotify_search_worker — keep combined parallelism ≤ 5. Only applied when var.enable_lambda_reserved_concurrency = true."
   type        = number
   default     = 2
+}
+
+variable "enable_lambda_reserved_concurrency" {
+  description = "Apply per-Lambda reserved_concurrent_executions to Spotify/Perplexity workers. Disable when the AWS account ConcurrentExecutions quota is too low (sum of reserved values must leave ≥10 unreserved). Default false because new accounts ship with quota 10. Raise the quota via Service Quotas (L-B99A9384, target ≥ 17) before flipping this on."
+  type        = bool
+  default     = false
 }
 
 variable "vendor_match_queue_visibility_timeout_seconds" {
