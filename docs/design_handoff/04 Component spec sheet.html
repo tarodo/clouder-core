@@ -1319,11 +1319,82 @@ type BucketCountersProps = {
 <section id="blockheader">
   <h2>BlockHeader</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd>composition (<code>Group</code> + <code>Stack</code>)</dd>
-    <dt>Used in</dt><dd>P-16 Triage Block detail</dd>
+    <dt>Mantine</dt><dd>composition (<code>&lt;Group&gt;</code> + <code>&lt;Stack&gt;</code> + <code>&lt;Button&gt;</code>)</dd>
+    <dt>Used in</dt><dd>P-16 Triage Block detail (top of page)</dd>
   </dl>
 
-  <p>Левая колонка: name (h2) + style badge + week range (mono small). Правая: per-bucket counters + finalize CTA. На mobile — стек.</p>
+  <h3>Anatomy</h3>
+  <p>Two-column row at <code>&ge; md</code>; vertical stack at <code>&lt; md</code>.</p>
+  <ul>
+    <li><strong>Left column:</strong> Block name (h2, 24/30, semibold), style CategoryPill (small), week range (mono 12/16, e.g. "Apr 21 — Apr 27 · 38 tracks").</li>
+    <li><strong>Right column:</strong> BucketCounters mini-row + finalize CTA (Button primary, size lg).</li>
+  </ul>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Visual change</th><th>Finalize button</th></tr></thead>
+    <tbody>
+      <tr><td>in_progress (untouched)</td><td>baseline</td><td>disabled — tooltip "Triage all tracks first"</td></tr>
+      <tr><td>in_progress (some triaged)</td><td>baseline</td><td>disabled until UNCLASSIFIED count = 0</td></tr>
+      <tr><td>ready (UNCLASSIFIED = 0)</td><td>baseline</td><td>enabled, primary CTA</td></tr>
+      <tr><td>finalized</td><td>name has trailing badge "FINALIZED" (filled neutral.9)</td><td>replaced with read-only "Finalized {date}" mono caption</td></tr>
+      <tr><td>finalizing (long-op, B7)</td><td>baseline</td><td>loading spinner; copy variants by elapsed time (see OPEN_QUESTIONS Q9)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type BlockHeaderProps = {
+  block: {
+    id: string;
+    name: string;
+    style: { id: string; name: string };
+    weekRange: { from: string; to: string }; // ISO date strings
+    trackCount: number;
+    status: "in_progress" | "ready" | "finalized" | "finalizing";
+    finalizedAt?: string;
+    unclassifiedCount: number;
+  };
+  buckets: Bucket[];
+  onFinalize: () =&gt; void;
+};</code></pre>
+
+  <h3>Mantine mapping</h3>
+<pre><code>import { Group, Stack, Title, Button, Text, Badge } from "@mantine/core";
+
+&lt;Group justify="space-between" align="flex-start" wrap="nowrap"
+       style={{ flexDirection: isMobile ? "column" : "row", gap: 24 }}&gt;
+  &lt;Stack gap="xs"&gt;
+    &lt;Group gap="sm"&gt;
+      &lt;Title order={2}&gt;{block.name}&lt;/Title&gt;
+      {block.status === "finalized" &amp;&amp; (
+        &lt;Badge variant="filled" color="neutral.9"&gt;FINALIZED&lt;/Badge&gt;
+      )}
+    &lt;/Group&gt;
+    &lt;CategoryPill label={block.style.name} /&gt;
+    &lt;Text ff="monospace" fz={12} c="dimmed"&gt;
+      {formatRange(block.weekRange)} · {block.trackCount} tracks
+    &lt;/Text&gt;
+  &lt;/Stack&gt;
+
+  &lt;Stack gap="md" align={isMobile ? "stretch" : "flex-end"}&gt;
+    &lt;BucketCounters buckets={buckets} /&gt;
+    {block.status === "finalized" ? (
+      &lt;Text ff="monospace" fz={12} c="dimmed"&gt;
+        Finalized {formatDate(block.finalizedAt)}
+      &lt;/Text&gt;
+    ) : (
+      &lt;Button
+        size="lg"
+        disabled={block.unclassifiedCount &gt; 0}
+        loading={block.status === "finalizing"}
+        onClick={onFinalize}
+      &gt;
+        Finalize
+      &lt;/Button&gt;
+    )}
+  &lt;/Stack&gt;
+&lt;/Group&gt;</code></pre>
+  <p>The <code>isMobile</code> flag is derived from <code>useMediaQuery('(max-width: 64em)')</code>. <code>formatRange</code> / <code>formatDate</code> are utility helpers (e.g. <code>dayjs</code>-based) returning short strings like "Apr 21 — Apr 27" / "Apr 28".</p>
 </section>
 
 <!-- ── PATTERNS ─────────────────────────────────────────── -->
