@@ -74,7 +74,7 @@ import { MantineProvider, v8CssVariablesResolver } from '@mantine/core';
 
 ## Spec snippet patches
 
-These edits are applied directly in `04 Component spec sheet.html` (Task 6 of the implementation plan). Listed here as a single source of truth.
+These edits are applied directly in `04 Component spec sheet.html` (Task 11 of the implementation plan). Listed here as a single source of truth.
 
 ### DatePicker — `onChange` returns string
 
