@@ -1231,11 +1231,86 @@ const selected = styles.find((s) =&gt; s.id === selectedId);
 <section id="bucketcounters">
   <h2>BucketCounters</h2>
   <dl class="meta-grid">
-    <dt>Mantine</dt><dd>composition (<code>SimpleGrid</code>)</dd>
-    <dt>Used in</dt><dd>P-16 BlockHeader, P-17 bucket header</dd>
+    <dt>Mantine</dt><dd>composition (<code>&lt;SimpleGrid&gt;</code> + per-cell <code>&lt;UnstyledButton&gt;</code>)</dd>
+    <dt>Used in</dt><dd>P-16 BlockHeader (right column), P-17 bucket detail (header)</dd>
+    <dt>Cell variants</dt><dd>active · inactive (deleted-category, S-10) · empty (count=0)</dd>
   </dl>
 
-  <p>Сетка из 6+ ячеек: NEW · OLD · NOT · UNCLASSIFIED · DISCARD · STAGING-per-category. Каждая ячейка — uppercase mono label + большое число + (опционально) progress hint. Inactive (deleted-category) bucket — opacity 0.5 + S-10 badge.</p>
+  <h3>Anatomy</h3>
+  <p>Grid of 6+ cells: <code>NEW · OLD · NOT · UNCLASSIFIED · DISCARD · STAGING-per-category</code>. Each cell: uppercase mono label (11/14, tracking 0.04em) above a large number (28/32, semibold). Optional below-number progress hint (mono 11, e.g. "<code>12 / 38</code>").</p>
+
+  <h3>Layout</h3>
+  <table>
+    <thead><tr><th>Viewport</th><th>Grid</th><th>Cell padding</th></tr></thead>
+    <tbody>
+      <tr><td>&lt; <code>md</code> (mobile)</td><td><code>SimpleGrid cols={3}</code></td><td>12 / 8</td></tr>
+      <tr><td>&ge; <code>md</code> (desktop)</td><td><code>SimpleGrid cols={6}</code></td><td>16 / 12</td></tr>
+    </tbody>
+  </table>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Visual change</th></tr></thead>
+    <tbody>
+      <tr><td>active (count &gt; 0, has destination)</td><td>baseline; clickable cell (UnstyledButton); hover bg <code>--color-bg-muted</code></td></tr>
+      <tr><td>empty (count = 0)</td><td>number colour <code>--color-fg-subtle</code>; not clickable</td></tr>
+      <tr><td>inactive (S-10 deleted-category bucket)</td><td>opacity 0.5; small badge "DELETED" in <code>--color-danger</code> below number; clickable but routes to S-10 explainer</td></tr>
+      <tr><td>active (selected)</td><td>cell bg <code>--color-bg-muted</code>, border 1px <code>--color-border-strong</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type Bucket = {
+  key: "NEW" | "OLD" | "NOT" | "UNCLASSIFIED" | "DISCARD" | string; // string for staging-{categoryId}
+  label: string;     // display label (uppercase or category name)
+  count: number;
+  total?: number;    // for "x / total" hint
+  deleted?: boolean; // S-10 inactive variant
+  selected?: boolean;
+};
+
+type BucketCountersProps = {
+  buckets: Bucket[];
+  onSelect?: (key: string) =&gt; void;
+};</code></pre>
+
+  <h3>Mantine mapping</h3>
+<pre><code>import { SimpleGrid, UnstyledButton, Stack, Text, Badge } from "@mantine/core";
+
+&lt;SimpleGrid cols={{ base: 3, md: 6 }} spacing="xs" verticalSpacing="xs"&gt;
+  {buckets.map((b) =&gt; (
+    &lt;UnstyledButton
+      key={b.key}
+      disabled={b.count === 0 &amp;&amp; !b.deleted}
+      onClick={() =&gt; onSelect?.(b.key)}
+      style={{
+        padding: "12px 8px",
+        opacity: b.deleted ? 0.5 : 1,
+        background: b.selected ? "var(--color-bg-muted)" : "transparent",
+        border: b.selected ? "1px solid var(--color-border-strong)" : "1px solid transparent",
+        borderRadius: "var(--mantine-radius-sm)",
+        textAlign: "left",
+      }}
+    &gt;
+      &lt;Stack gap={4}&gt;
+        &lt;Text ff="monospace" fz={11} tt="uppercase" c="dimmed"&gt;
+          {b.label}
+        &lt;/Text&gt;
+        &lt;Text fw={600} fz={28} c={b.count === 0 ? "var(--color-fg-subtle)" : undefined}&gt;
+          {b.count}
+        &lt;/Text&gt;
+        {b.total != null &amp;&amp; (
+          &lt;Text ff="monospace" fz={11} c="dimmed"&gt;
+            {b.count} / {b.total}
+          &lt;/Text&gt;
+        )}
+        {b.deleted &amp;&amp; (
+          &lt;Badge variant="light" color="red.7" size="xs"&gt;DELETED&lt;/Badge&gt;
+        )}
+      &lt;/Stack&gt;
+    &lt;/UnstyledButton&gt;
+  ))}
+&lt;/SimpleGrid&gt;</code></pre>
 </section>
 
 <section id="blockheader">
