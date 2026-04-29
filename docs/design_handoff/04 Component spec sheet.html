@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CLOUDER · Component spec sheet</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --fg: #0a0a0a;
+    --fg-muted: #737373;
+    --fg-subtle: #a3a3a3;
+    --bg: #ffffff;
+    --bg-subtle: #fafafa;
+    --bg-muted: #f4f4f4;
+    --border: #e8e8e8;
+    --border-strong: #d4d4d4;
+    --accent: oklch(0.62 0.26 340);
+    --code-bg: #0a0a0a;
+    --code-fg: #f4f4f4;
+    --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    color: var(--fg);
+    background: var(--bg);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+  .toc {
+    position: sticky; top: 0; align-self: start;
+    height: 100vh; overflow-y: auto;
+    background: var(--bg-subtle);
+    border-right: 1px solid var(--border);
+    padding: 32px 24px;
+  }
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-muted);
+    margin-bottom: 16px;
+  }
+  .toc-section {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    margin: 24px 0 8px;
+  }
+  .toc a {
+    display: block;
+    color: var(--fg);
+    text-decoration: none;
+    padding: 4px 8px;
+    margin: 0 -8px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .toc a:hover { background: var(--bg-muted); }
+  .content {
+    padding: 64px 80px;
+    max-width: 920px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-muted);
+  }
+  h1 {
+    font-size: 48px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    margin: 12px 0 16px;
+  }
+  h2 {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 80px 0 8px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 32px 0 12px;
+  }
+  h4 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    margin: 20px 0 8px;
+  }
+  p { margin: 0 0 12px; max-width: 68ch; }
+  p.lead { font-size: 16px; color: var(--fg-muted); max-width: 68ch; }
+  ul, ol { margin: 0 0 12px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    background: var(--bg-muted);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 16px 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin: 12px 0 16px;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; }
+
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    background: var(--bg);
+  }
+  .card.neutral { background: var(--bg-subtle); }
+  .card-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-muted);
+    margin-bottom: 12px;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+    margin: 12px 0 16px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+    font-weight: 500;
+  }
+  td code { font-size: 12px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--bg-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--fg-muted);
+  }
+  .pill.accent { background: oklch(0.62 0.26 340 / 0.08); color: oklch(0.5 0.26 340); border-color: oklch(0.62 0.26 340 / 0.3); }
+  .pill.warn { background: oklch(0.78 0.14 75 / 0.12); color: oklch(0.5 0.14 75); border-color: oklch(0.78 0.14 75 / 0.3); }
+
+  .anatomy-svg { display: block; max-width: 100%; height: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-subtle); }
+
+  .ds-button {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 36px; padding: 0 16px;
+    background: var(--fg); color: var(--bg);
+    border: 1px solid var(--fg);
+    border-radius: 6px;
+    font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+    cursor: pointer;
+  }
+  .ds-button.secondary { background: var(--bg); color: var(--fg); }
+  .ds-button.ghost { background: transparent; color: var(--fg); border-color: transparent; }
+
+  .ds-input {
+    display: inline-flex; align-items: center;
+    height: 36px; padding: 0 12px;
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    font-family: var(--font-sans); font-size: 13px;
+    color: var(--fg-muted);
+    min-width: 200px;
+  }
+
+  .ds-badge {
+    display: inline-flex; align-items: center;
+    height: 22px; padding: 0 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--fg-muted);
+  }
+  .ds-badge.solid { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .ds-badge.danger { background: oklch(0.95 0.06 27); color: oklch(0.45 0.21 27); border-color: oklch(0.85 0.12 27); }
+
+  .ds-hotkey {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  }
+
+  .ds-dest {
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+    height: 52px; padding: 10px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    font-family: var(--font-sans); font-size: 14px; font-weight: 600;
+    position: relative; min-width: 140px;
+  }
+  .ds-dest .h { position: absolute; top: 8px; right: 8px; }
+  .ds-dest.tapped { background: oklch(0.62 0.26 340); color: white; border-color: oklch(0.62 0.26 340); }
+  .ds-dest.disabled { background: var(--bg-subtle); color: var(--fg-subtle); }
+
+  .header {
+    padding: 56px 80px 40px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .meta-grid { display: grid; grid-template-columns: 120px 1fr; gap: 8px 24px; font-size: 13px; margin: 16px 0 0; }
+  .meta-grid dt { color: var(--fg-muted); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .meta-grid dd { margin: 0; }
+
+  .callout {
+    display: flex; gap: 12px;
+    padding: 14px 16px;
+    background: oklch(0.97 0.05 75);
+    border-left: 3px solid oklch(0.78 0.14 75);
+    border-radius: 4px;
+    font-size: 13px;
+    margin: 12px 0 16px;
+  }
+  .callout.info {
+    background: var(--bg-subtle);
+    border-left-color: var(--fg);
+  }
+  .callout strong { display: block; margin-bottom: 2px; }
+
+  .nav-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .nav-row a {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--fg);
+    font-size: 12px;
+    font-family: var(--font-mono);
+  }
+  .nav-row a:hover { background: var(--bg-muted); }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<aside class="toc">
+  <div class="toc-title">Components · v1</div>
+  <a href="#intro">Intro &amp; usage</a>
+
+  <div class="toc-section">Foundations</div>
+  <a href="#tokens">Tokens recap</a>
+  <a href="#vocabulary">Vocabulary map</a>
+
+  <div class="toc-section">Base catalog</div>
+  <a href="#button">Button</a>
+  <a href="#input">Input</a>
+  <a href="#select">Select</a>
+  <a href="#tabs">Tabs</a>
+  <a href="#badge">Badge</a>
+  <a href="#card">Card</a>
+  <a href="#listitem">ListItem</a>
+  <a href="#dialog">Dialog</a>
+  <a href="#sheet">Sheet</a>
+  <a href="#toast">Toast (Notification)</a>
+  <a href="#datepicker">DatePicker</a>
+  <a href="#hotkeyhint">HotkeyHint</a>
+
+  <div class="toc-section">Product catalog</div>
+  <a href="#destinationbutton">DestinationButton ★</a>
+  <a href="#playercard">PlayerCard</a>
+  <a href="#trackrow">TrackRow</a>
+  <a href="#categorypill">CategoryPill</a>
+  <a href="#styleselector">StyleSelector</a>
+  <a href="#bucketcounters">BucketCounters</a>
+  <a href="#blockheader">BlockHeader</a>
+
+  <div class="toc-section">Patterns</div>
+  <a href="#emptystate">EmptyState</a>
+  <a href="#skeleton">Skeleton</a>
+  <a href="#hotkeyoverlay">Hotkey overlay</a>
+  <a href="#multiselectbar">Multi-select bar</a>
+</aside>
+
+<main class="content">
+
+<header class="header" style="margin: -64px -80px 64px; padding: 56px 80px 40px;">
+  <div class="eyebrow">CLOUDER · iter-2a · component spec</div>
+  <h1>Component spec sheet</h1>
+  <p class="lead">Anatomy, states, props и Mantine mapping для каждого компонента, использованного в pages-каталоге iter-2a. Среднюю глубину держим: достаточно, чтобы фронтендер мог реализовать без дополнительных вопросов, но без покрытия всех edge-cases — они отрисованы в HTML-каталоге сцен.</p>
+  <div class="nav-row">
+    <a href="01 Design system · Sprint-1.html">↗ DS catalog</a>
+    <a href="02 Pages catalog · Pass 1 (Auth-Triage).html">↗ Pages · Pass 1</a>
+    <a href="03 Pages catalog · Pass 2 (Curate-Patterns).html">↗ Pages · Pass 2</a>
+    <a href="theme.ts">↗ theme.ts</a>
+    <a href="tokens.css">↗ tokens.css</a>
+    <a href="OPEN_QUESTIONS.md">↗ Open questions</a>
+  </div>
+</header>
+
+<section id="intro">
+  <h2>Intro &amp; usage</h2>
+  <p>Все компоненты из CLOUDER catalog имеют 1:1 соответствие с компонентом из <code>@mantine/core</code> или <code>@mantine/dates</code>, либо являются <em>composition</em> двух-трёх Mantine-примитивов под общей CLOUDER-шапкой. Раздел "Mantine mapping" внутри каждой карточки даёт точное имя и снippet.</p>
+  <p>Стилевые токены читаются из <code>tokens.css</code> через CSS custom properties (<code>var(--color-fg)</code> etc.), <strong>не</strong> через Mantine's <code>theme.colors</code>. Это сделано осознанно — переключение dark/light/accent живёт на root-классе (<code>.theme-dark</code>, <code>.accent-magenta</code>) и не требует пересборки JS-темы.</p>
+
+  <div class="callout info">
+    <div>
+      <strong>Naming convention</strong>
+      Если компонент в дизайне называется условно (<code>HotkeyHint</code>, <code>NowPlayingDot</code>) — название отражает интент, не привязано к Mantine. В коде имя компонента такое же; внутри он использует Mantine-примитивы.
+    </div>
+  </div>
+</section>
+
+<section id="tokens">
+  <h2>Tokens recap</h2>
+  <p>Полная спецификация в <code>tokens.css</code>. Ниже — что важно помнить при реализации.</p>
+
+  <h4>Type</h4>
+  <ul>
+    <li><strong>Geist</strong> sans (300/400/500/600/700) и <strong>Geist Mono</strong> (400/500/600). Подключены через Google Fonts в <code>tokens.css</code>.</li>
+    <li>Mono используется для технических меток: ID, hotkeys, BPM, временные коды, ratio'ы. Sans — для всего остального.</li>
+    <li>Размеры: 11/12/13/14/16/18/24/32. Ничего меньше 11 не использовать.</li>
+  </ul>
+
+  <h4>Spacing</h4>
+  <p>Шкала <code>0/1/2/3/4/5/6/8/10/12/16/20</code> (в px <code>0/4/8/12/16/20/24/32/40/48/64/80</code>). Mantine spacing keys покрывают xs..xl (4..20). Шире — через <code>theme.other.space[N]</code>.</p>
+
+  <h4>Radii</h4>
+  <p><code>xs:4 / sm:6 / md:10 / lg:14 / full:999</code>. По умолчанию для большинства компонентов — <code>md</code>.</p>
+
+  <h4>Motion</h4>
+  <p>fast=120 / base=160 / slow=200 / pulse=80. Easing: <code>--ease-out</code> (для interaction feedback) и <code>--ease-in-out</code> (для transition'ов). Не использовать другие кривые без согласования.</p>
+</section>
+
+<section id="vocabulary">
+  <h2>Vocabulary map</h2>
+  <p>Перевод названий из CLOUDER design system в названия из Mantine. Используется как cheatsheet при чтении макетов.</p>
+  <table>
+    <thead>
+      <tr><th>CLOUDER</th><th>Mantine</th><th>Note</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Button</td><td><code>Button</code></td><td>прямое</td></tr>
+      <tr><td>Input</td><td><code>TextInput</code></td><td>+ <code>NumberInput</code> для чисел</td></tr>
+      <tr><td>Select</td><td><code>Select</code> / <code>Combobox</code></td><td>Combobox для search-as-you-type</td></tr>
+      <tr><td>Tabs</td><td><code>Tabs</code></td><td>прямое</td></tr>
+      <tr><td>Badge / Tag</td><td><code>Badge</code></td><td>прямое</td></tr>
+      <tr><td>Card</td><td><code>Paper</code> / <code>Card</code></td><td>Paper для plain, Card для structured</td></tr>
+      <tr><td>ListItem</td><td><code>NavLink</code> / <code>UnstyledButton</code></td><td>зависит от навигационного контекста</td></tr>
+      <tr><td>Dialog</td><td><code>Modal</code></td><td>прямое</td></tr>
+      <tr><td>Sheet (mobile)</td><td><code>Drawer position="bottom"</code></td><td></td></tr>
+      <tr><td>Toast</td><td><code>notifications.show()</code> из <code>@mantine/notifications</code></td><td></td></tr>
+      <tr><td>Popover</td><td><code>Popover</code></td><td>прямое</td></tr>
+      <tr><td>Tooltip</td><td><code>Tooltip</code></td><td>прямое</td></tr>
+      <tr><td>Skeleton</td><td><code>Skeleton</code></td><td>прямое</td></tr>
+      <tr><td>Avatar</td><td><code>Avatar</code></td><td>прямое</td></tr>
+      <tr><td>Switch</td><td><code>Switch</code></td><td>прямое</td></tr>
+      <tr><td>Checkbox / Radio</td><td><code>Checkbox</code> / <code>Radio</code></td><td>прямое</td></tr>
+      <tr><td>Separator</td><td><code>Divider</code></td><td>прямое</td></tr>
+      <tr><td>Breadcrumb</td><td><code>Breadcrumbs</code></td><td>прямое</td></tr>
+      <tr><td>EmptyState</td><td>—</td><td>composition (Stack + Icon + Text + Button)</td></tr>
+      <tr><td>Progress (linear)</td><td><code>Progress</code></td><td>прямое</td></tr>
+      <tr><td>DatePicker</td><td><code>DatePickerInput</code> из <code>@mantine/dates</code></td><td>см. § DatePicker</td></tr>
+      <tr><td>Bottom tabs (mobile)</td><td>—</td><td>composition (3 NavLink в горизонтальном Stack)</td></tr>
+      <tr><td>Side rail (desktop)</td><td>—</td><td>composition (NavLink + AppShell.Navbar)</td></tr>
+      <tr><td>HotkeyHint</td><td>—</td><td>custom; <code>&lt;Kbd&gt;</code> Mantine-аналог НЕ использовать (визуально не подходит)</td></tr>
+      <tr><td>DestinationButton</td><td>—</td><td>custom; внутри — <code>UnstyledButton</code> из Mantine</td></tr>
+      <tr><td>PlayerCard</td><td>—</td><td>custom composition</td></tr>
+      <tr><td>TrackRow</td><td>—</td><td>custom composition</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ── BASE CATALOG ─────────────────────────────────────── -->
+
+<section id="button">
+  <h2>Button</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Button&gt;</code></dd>
+    <dt>Used in</dt><dd>P-01..P-25 (везде, где есть CTA)</dd>
+    <dt>Variants</dt><dd>primary · secondary · ghost · destructive · icon</dd>
+  </dl>
+
+  <h3>Anatomy</h3>
+  <div class="card neutral">
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <button class="ds-button">Primary</button>
+      <button class="ds-button secondary">Secondary</button>
+      <button class="ds-button ghost">Ghost</button>
+      <button class="ds-button" style="background: oklch(0.58 0.21 27); border-color: oklch(0.58 0.21 27);">Destructive</button>
+    </div>
+  </div>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>Visual change</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td>baseline</td><td>default</td></tr>
+      <tr><td>hover</td><td>фон <code>--color-bg-muted</code> для secondary; <code>--neutral-700</code> для primary</td><td>CSS <code>:hover</code></td></tr>
+      <tr><td>focus</td><td>2px focus ring цвета <code>--color-border-focus</code> с offset 2px</td><td>Mantine default + override <code>--mantine-color-blue-filled</code></td></tr>
+      <tr><td>active</td><td>чуть темнее hover, без scale</td><td>CSS <code>:active</code></td></tr>
+      <tr><td>disabled</td><td>opacity 0.4, не реагирует</td><td>Mantine <code>disabled</code> prop</td></tr>
+      <tr><td>loading</td><td>spinner вместо текста, кнопка не reflow'ится по ширине</td><td>Mantine <code>loading</code> prop</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Sizes</h3>
+  <table>
+    <thead><tr><th>Size</th><th>Height</th><th>Padding</th><th>Font</th><th>Use case</th></tr></thead>
+    <tbody>
+      <tr><td>xs</td><td>24</td><td>0 8</td><td>11/14</td><td>inline в плотных таблицах</td></tr>
+      <tr><td>sm</td><td>28</td><td>0 12</td><td>12/16</td><td>в карточках, рядом с инпутами sm</td></tr>
+      <tr><td>md</td><td>36</td><td>0 16</td><td>13/18</td><td>default</td></tr>
+      <tr><td>lg</td><td>44</td><td>0 20</td><td>14/20</td><td>mobile primary, hit target</td></tr>
+      <tr><td>xl</td><td>56</td><td>0 24</td><td>16/24</td><td>главные CTA на onboarding-экранах</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Mantine mapping</h3>
+<pre><code>// Primary CTA
+&lt;Button variant="filled" size="md" color="neutral.9"&gt;Sign in&lt;/Button&gt;
+
+// Secondary (outline)
+&lt;Button variant="default" size="md"&gt;Cancel&lt;/Button&gt;
+
+// Ghost (text-only)
+&lt;Button variant="subtle" size="md"&gt;Skip&lt;/Button&gt;
+
+// Destructive
+&lt;Button variant="filled" size="md" color="red.7"&gt;Delete&lt;/Button&gt;
+
+// Icon-only
+&lt;ActionIcon size="md" variant="subtle"&gt;&lt;IconTrash size={16} /&gt;&lt;/ActionIcon&gt;</code></pre>
+</section>
+
+<section id="input">
+  <h2>Input</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;TextInput&gt;</code> · <code>&lt;NumberInput&gt;</code> · <code>&lt;PasswordInput&gt;</code></dd>
+    <dt>Used in</dt><dd>P-09..P-13 (categories), P-15 (create block), P-17 (search)</dd>
+  </dl>
+
+  <h3>Anatomy</h3>
+  <div class="card neutral">
+    <div class="ds-input">type a name…</div>
+  </div>
+
+  <h3>States</h3>
+  <ul>
+    <li><strong>idle</strong> — border <code>--color-border-strong</code></li>
+    <li><strong>hover</strong> — border <code>--color-fg-muted</code></li>
+    <li><strong>focus</strong> — 2px ring <code>--color-border-focus</code></li>
+    <li><strong>error</strong> — border + caption color <code>--color-danger</code>; иконка <code>!</code> в trailing slot</li>
+    <li><strong>disabled</strong> — opacity 0.5, фон <code>--color-bg-subtle</code></li>
+    <li><strong>readonly</strong> — без border, фон <code>--color-bg-muted</code></li>
+  </ul>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;TextInput
+  label="Category name"
+  placeholder="Type a name…"
+  size="md"
+  radius="sm"
+  error={error?.message}
+  withAsterisk={required}
+/&gt;</code></pre>
+</section>
+
+<section id="select">
+  <h2>Select</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Select&gt;</code> для коротких списков, <code>&lt;Combobox&gt;</code> для search-as-you-type</dd>
+    <dt>Used in</dt><dd>P-15 (style), везде где StyleSelector</dd>
+  </dl>
+
+  <p>StyleSelector (см. ниже § Product catalog) — это специализированный Select с расширенным trigger'ом.</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;Select
+  label="Style"
+  data={["House", "Techno", "Drum &amp; Bass"]}
+  size="md"
+  radius="sm"
+  searchable
+/&gt;</code></pre>
+</section>
+
+<section id="tabs">
+  <h2>Tabs</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Tabs&gt;</code></dd>
+    <dt>Used in</dt><dd>P-19 Transfer (step-1 / step-2), P-14 (status filter)</dd>
+  </dl>
+
+  <p>Использовать вариант <code>variant="default"</code>. Underline-стиль активной вкладки толщиной 2px, цвет <code>--color-fg</code>.</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;Tabs defaultValue="in_progress"&gt;
+  &lt;Tabs.List&gt;
+    &lt;Tabs.Tab value="in_progress"&gt;In progress&lt;/Tabs.Tab&gt;
+    &lt;Tabs.Tab value="finalized"&gt;Finalized&lt;/Tabs.Tab&gt;
+  &lt;/Tabs.List&gt;
+  &lt;Tabs.Panel value="in_progress"&gt;…&lt;/Tabs.Panel&gt;
+  &lt;Tabs.Panel value="finalized"&gt;…&lt;/Tabs.Panel&gt;
+&lt;/Tabs&gt;</code></pre>
+</section>
+
+<section id="badge">
+  <h2>Badge</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Badge&gt;</code></dd>
+  </dl>
+
+  <h3>Anatomy</h3>
+  <div class="card neutral">
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+      <span class="ds-badge">outline</span>
+      <span class="ds-badge solid">solid</span>
+      <span class="ds-badge danger">danger</span>
+      <span class="ds-badge" style="font-family: var(--font-sans);">9A</span>
+    </div>
+  </div>
+
+  <p>Mono-вариант badge используется для тех. меток (key, BPM, error code). Sans — для статусов (IN PROGRESS, FINALIZED).</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;Badge variant="outline" size="sm" color="neutral.5"&gt;9A&lt;/Badge&gt;
+&lt;Badge variant="filled" size="sm" color="neutral.9"&gt;FINALIZED&lt;/Badge&gt;
+&lt;Badge variant="light" size="sm" color="red.7"&gt;DELETED&lt;/Badge&gt;</code></pre>
+</section>
+
+<section id="card">
+  <h2>Card</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Paper&gt;</code> для plain, <code>&lt;Card&gt;</code> для структурированных (header / body / footer)</dd>
+    <dt>Used in</dt><dd>P-08 Home (block list), P-14 (block list), P-15 styling preview</dd>
+  </dl>
+
+  <h3>Anatomy</h3>
+  <div class="card">
+    <div class="card-title">Triage block</div>
+    <div style="font-size: 18px; font-weight: 600;">House · W17 fresh</div>
+    <div style="color: var(--fg-muted); margin-top: 4px;">Apr 21 — Apr 27 · 38 tracks · 12 left</div>
+  </div>
+
+  <p>Border <code>1px solid var(--color-border)</code>, radius <code>md</code> (10), padding <code>20–24</code>. Без shadow по умолчанию; <code>--shadow-sm</code> только на hover для кликабельных карточек.</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;Paper withBorder radius="md" p="lg"&gt;
+  &lt;Stack gap="xs"&gt;
+    &lt;Text size="xs" tt="uppercase" c="dimmed" ff="monospace"&gt;Triage block&lt;/Text&gt;
+    &lt;Title order={3}&gt;House · W17 fresh&lt;/Title&gt;
+    &lt;Text size="sm" c="dimmed"&gt;Apr 21 — Apr 27 · 38 tracks · 12 left&lt;/Text&gt;
+  &lt;/Stack&gt;
+&lt;/Paper&gt;</code></pre>
+</section>
+
+<section id="listitem">
+  <h2>ListItem</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd>composition: <code>UnstyledButton</code> + <code>Group</code></dd>
+    <dt>Used in</dt><dd>P-18 Move sheet, P-19 Transfer sheet, P-25 device picker</dd>
+  </dl>
+
+  <p>Левая иконка / индикатор — middle title + subtitle — правая иконка / chevron / value. Min height 48 (mobile hit target). Hover <code>--color-bg-muted</code>.</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;UnstyledButton
+  onClick={onSelect}
+  style={(t) =&gt; ({
+    display: "flex", alignItems: "center", gap: t.spacing.md,
+    padding: `${t.spacing.sm} ${t.spacing.md}`,
+    minHeight: 48,
+    borderRadius: t.radius.sm,
+    "&amp;:hover": { background: t.other.semantic.hover },
+  })}
+&gt;
+  &lt;Icon ... /&gt;
+  &lt;Stack gap={2} flex={1}&gt;
+    &lt;Text fw={500}&gt;{title}&lt;/Text&gt;
+    {subtitle &amp;&amp; &lt;Text size="xs" c="dimmed"&gt;{subtitle}&lt;/Text&gt;}
+  &lt;/Stack&gt;
+  &lt;IconChevronRight size={16} /&gt;
+&lt;/UnstyledButton&gt;</code></pre>
+</section>
+
+<section id="dialog">
+  <h2>Dialog (Modal)</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Modal&gt;</code></dd>
+    <dt>Used in</dt><dd>P-11 Create cat, P-12 Rename, P-13 Delete confirm, P-20 Finalize confirm, P-21 Finalize blocked</dd>
+  </dl>
+
+  <p>Ширина по умолчанию 480, для destructive — 360. Centered. Overlay <code>backgroundOpacity 0.4 + blur 2</code>. Закрытие по Esc и клику снаружи (кроме destructive — там только явная кнопка).</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;Modal
+  opened={opened}
+  onClose={onClose}
+  title="Rename category"
+  size="md"            /* 480 */
+  radius="md"
+  centered
+  closeOnClickOutside={!destructive}
+  closeOnEscape={!destructive}
+&gt;
+  &lt;TextInput defaultValue={currentName} /&gt;
+  &lt;Group justify="flex-end" mt="md"&gt;
+    &lt;Button variant="default" onClick={onClose}&gt;Cancel&lt;/Button&gt;
+    &lt;Button onClick={onSubmit}&gt;Rename&lt;/Button&gt;
+  &lt;/Group&gt;
+&lt;/Modal&gt;</code></pre>
+</section>
+
+<section id="sheet">
+  <h2>Sheet (mobile bottom drawer)</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Drawer position="bottom"&gt;</code></dd>
+    <dt>Used in</dt><dd>P-15 (mobile), P-18, P-19, P-25 (mobile)</dd>
+  </dl>
+
+  <p>На mobile весь Dialog контент превращается в Sheet с handle сверху. На desktop тот же контент остаётся в Modal. Pattern S-09.</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>// Conditional render:
+const isMobile = useMediaQuery("(max-width: 600px)");
+
+return isMobile ? (
+  &lt;Drawer position="bottom" opened={opened} onClose={onClose}
+          size="auto" radius="md" title={title}&gt;
+    {body}
+  &lt;/Drawer&gt;
+) : (
+  &lt;Modal opened={opened} onClose={onClose} size="md" title={title}&gt;
+    {body}
+  &lt;/Modal&gt;
+);</code></pre>
+</section>
+
+<section id="toast">
+  <h2>Toast / Notification</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>notifications.show()</code> из <code>@mantine/notifications</code></dd>
+    <dt>Used in</dt><dd>S-03 Error envelope, S-04 Undo, везде где async-операция завершается</dd>
+  </dl>
+
+  <p>Pattern S-03 — error envelope: title + message + secondary <code>code: &lt;error_code&gt;</code> + action "Copy correlation id". Auto-dismiss 5s, кроме errors (sticky до явного закрытия).</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>import { notifications } from "@mantine/notifications";
+
+// Success
+notifications.show({
+  title: "Category renamed",
+  message: "Saved as 'Tech House'",
+  color: "neutral.9",
+  autoClose: 5000,
+});
+
+// Error envelope (S-03)
+notifications.show({
+  title: "Failed to create block",
+  message: (
+    &lt;Stack gap={4}&gt;
+      &lt;Text&gt;{err.message}&lt;/Text&gt;
+      &lt;Group gap={6}&gt;
+        &lt;Code&gt;{err.error_code}&lt;/Code&gt;
+        &lt;ActionIcon onClick={() =&gt; copy(err.correlation_id)}&gt;
+          &lt;IconCopy size={12} /&gt;
+        &lt;/ActionIcon&gt;
+      &lt;/Group&gt;
+    &lt;/Stack&gt;
+  ),
+  color: "red.7",
+  autoClose: false,
+});
+
+// Undo (S-04) — 8s auto-dismiss with progress
+notifications.show({
+  title: "Aphelion → Tech House",
+  message: "Undo? (8s)",
+  withCloseButton: true,
+  autoClose: 8000,
+  withBorder: true,
+});</code></pre>
+</section>
+
+<section id="datepicker">
+  <h2>DatePicker</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;DatePickerInput&gt;</code> из <code>@mantine/dates</code></dd>
+    <dt>Used in</dt><dd>P-15 Create Triage Block (date_from + date_to)</dd>
+    <dt>Status</dt><dd><span class="pill warn">Sprint-1.5 delta</span> — добавлен в DS, не было в Sprint-1</dd>
+  </dl>
+
+  <p>Visual treatment в CLOUDER tokens: input height 36 (md) / 44 (lg), radius sm, font Geist 13. Open state — popover с calendar grid; cells 36×36 (sm) / 40×40 (md). Selected day — solid fill <code>--color-fg</code> + inverse text. Today — dashed underline без fill. Range — soft fill <code>--color-bg-muted</code> между двумя селектами.</p>
+
+  <p>Mobile — см. § Open questions Q3 (full-screen sheet vs popover).</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>import { DatePickerInput } from "@mantine/dates";
+
+&lt;DatePickerInput
+  type="range"
+  label="Date range"
+  placeholder="Pick date range"
+  size="md"
+  radius="sm"
+  value={[from, to]}
+  onChange={setRange}
+  minDate={new Date()}
+  maxDate={dayjs().add(8, "weeks").toDate()}
+/&gt;</code></pre>
+
+<p>Стилизация (один раз в app entry):</p>
+<pre><code>// styles/datepicker.css — overrides for tokens.css
+.mantine-DatePicker-day[data-selected] {
+  background: var(--color-fg);
+  color: var(--color-fg-inverse);
+}
+.mantine-DatePicker-day[data-today]:not([data-selected]) {
+  text-decoration: underline dashed;
+}
+.mantine-DatePicker-day[data-in-range]:not([data-selected]) {
+  background: var(--color-bg-muted);
+}</code></pre>
+</section>
+
+<section id="hotkeyhint">
+  <h2>HotkeyHint</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd>—</dd>
+    <dt>Used in</dt><dd>DestinationButton, hotkey overlay, inline copy ("Press <span class="ds-hotkey">?</span> for shortcuts")</dd>
+  </dl>
+
+  <h3>Anatomy</h3>
+  <div class="card neutral" style="display: flex; gap: 6px; align-items: center;">
+    <span class="ds-hotkey">1</span>
+    <span class="ds-hotkey">G</span>
+    <span class="ds-hotkey">?</span>
+    <span class="ds-hotkey" style="width: auto; padding: 0 6px;">⌘K</span>
+  </div>
+
+  <p>18×18 (sm) / 22×22 (md) квадрат с радиусом 4, border <code>--color-border-strong</code>, фон <code>--color-bg</code>, текст mono 10/11px, weight 600.</p>
+
+  <p>Сознательно НЕ используем Mantine <code>&lt;Kbd&gt;</code> — он визуально слишком тяжёлый (drop-shadow + multi-tone fill).</p>
+
+  <h3>Implementation</h3>
+<pre><code>function HotkeyHint({ children, size = "sm" }) {
+  const dim = size === "md" ? 22 : 18;
+  return (
+    &lt;span style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      width: dim, height: dim,
+      background: "var(--color-bg)",
+      border: "1px solid var(--color-border-strong)",
+      borderRadius: 4,
+      fontFamily: "var(--font-mono)",
+      fontSize: size === "md" ? 11 : 10,
+      fontWeight: 600,
+    }}&gt;
+      {children}
+    &lt;/span&gt;
+  );
+}</code></pre>
+</section>
+
+<!-- ── PRODUCT CATALOG ─────────────────────────────────── -->
+
+<section id="destinationbutton">
+  <h2>DestinationButton <span class="pill accent">★ flagship</span></h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd>composition: <code>UnstyledButton</code> + custom states</dd>
+    <dt>Used in</dt><dd>P-22 mobile Curate, P-23 desktop Curate</dd>
+    <dt>Why custom</dt><dd>5 states (idle/hover/primary/just-tapped/disabled), hotkey badge в углу, плотная сетка — Mantine Button слишком "общий" для этого</dd>
+  </dl>
+
+  <h3>Anatomy</h3>
+  <div class="card neutral">
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+      <button class="ds-dest"><span class="h"><span class="ds-hotkey">1</span></span>Tech House</button>
+      <button class="ds-dest" style="background: var(--bg-muted);"><span class="h"><span class="ds-hotkey">2</span></span>Deep <span style="color: var(--fg-muted); font-size: 11px;">hover</span></button>
+      <button class="ds-dest tapped"><span class="h"><span class="ds-hotkey" style="background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.3);">7</span></span>NEW</button>
+      <button class="ds-dest disabled"><span class="h"><span class="ds-hotkey">9</span></span>NOT</button>
+    </div>
+  </div>
+
+  <h3>States</h3>
+  <table>
+    <thead><tr><th>State</th><th>bg</th><th>fg</th><th>border</th><th>scale</th></tr></thead>
+    <tbody>
+      <tr><td>idle</td><td><code>--color-bg</code></td><td><code>--color-fg</code></td><td><code>--color-border-strong</code></td><td>1.0</td></tr>
+      <tr><td>hover</td><td><code>--color-bg-muted</code></td><td><code>--color-fg</code></td><td><code>--color-fg</code></td><td>1.0</td></tr>
+      <tr><td>primary</td><td><code>--color-fg</code></td><td><code>--color-bg</code></td><td><code>--color-fg</code></td><td>1.0</td></tr>
+      <tr><td>just-tapped</td><td><code>--color-accent</code></td><td><code>--color-accent-fg</code></td><td><code>--color-accent</code></td><td>0.97</td></tr>
+      <tr><td>disabled</td><td><code>--color-bg-subtle</code></td><td><code>--color-fg-subtle</code></td><td><code>--color-border</code></td><td>1.0</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Sizes</h3>
+  <table>
+    <thead><tr><th>Size</th><th>Height</th><th>Use case</th></tr></thead>
+    <tbody>
+      <tr><td>sm</td><td>44</td><td>desktop Curate (P-23) — компактная сетка под scrub</td></tr>
+      <tr><td>md</td><td>52</td><td>generic / mobile Curate (P-22) staging row</td></tr>
+      <tr><td>lg</td><td>64</td><td>DISCARD как hero-кнопка</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Props</h3>
+<pre><code>type DestinationButtonProps = {
+  label: string;          // visible text
+  hotkey?: number | string;  // 0..9 or letter; rendered top-right
+  count?: number;         // optional "N tracks" subline
+  state?: "idle" | "hover" | "primary" | "just-tapped" | "disabled";
+  size?: "sm" | "md" | "lg";
+  primary?: boolean;      // shorthand for state="primary"
+  centered?: boolean;     // mobile uses centered text
+  onClick?: () =&gt; void;
+};</code></pre>
+
+  <div class="callout">
+    <div>
+      <strong>Pitfall — <code>hotkey={0}</code></strong>
+      В JSX-шаблоне нельзя писать <code>{hotkey &amp;&amp; …}</code> — для <code>hotkey={0}</code> это отрендерит литеральный "0" как текст рядом с label. Использовать <code>{hotkey != null &amp;&amp; …}</code>.
+    </div>
+  </div>
+
+  <h3>Implementation sketch</h3>
+<pre><code>import { UnstyledButton } from "@mantine/core";
+
+function DestinationButton({ label, hotkey, count, state = "idle", size = "md", centered, onClick }) {
+  const h = { sm: 44, md: 52, lg: 64 }[size];
+  const styles = {
+    idle:        { bg: "var(--color-bg)",        fg: "var(--color-fg)",        bd: "var(--color-border-strong)" },
+    hover:       { bg: "var(--color-bg-muted)",  fg: "var(--color-fg)",        bd: "var(--color-fg)" },
+    primary:     { bg: "var(--color-fg)",        fg: "var(--color-bg)",        bd: "var(--color-fg)" },
+    "just-tapped": { bg: "var(--color-accent)",  fg: "var(--color-accent-fg)", bd: "var(--color-accent)" },
+    disabled:    { bg: "var(--color-bg-subtle)", fg: "var(--color-fg-subtle)", bd: "var(--color-border)" },
+  }[state];
+
+  return (
+    &lt;UnstyledButton
+      onClick={state === "disabled" ? undefined : onClick}
+      style={{
+        position: "relative",
+        height: h, width: "100%",
+        padding: "10px 14px",
+        background: styles.bg, color: styles.fg,
+        border: `1px solid ${styles.bd}`,
+        borderRadius: "var(--mantine-radius-md)",
+        textAlign: centered ? "center" : "left",
+        fontWeight: 600, fontSize: 14, letterSpacing: "0.005em",
+        cursor: state === "disabled" ? "not-allowed" : "pointer",
+        transform: state === "just-tapped" ? "scale(0.97)" : undefined,
+        transition: "all var(--motion-fast) var(--ease-out)",
+      }}&gt;
+      {label}
+      {count !== undefined &amp;&amp; (
+        &lt;div style={{ fontFamily: "var(--font-mono)", fontSize: 11, opacity: 0.65, marginTop: 4 }}&gt;
+          {count} tracks
+        &lt;/div&gt;
+      )}
+      {hotkey != null &amp;&amp; (
+        &lt;div style={{ position: "absolute", top: 8, right: 8 }}&gt;
+          &lt;HotkeyHint size="sm"&gt;{hotkey}&lt;/HotkeyHint&gt;
+        &lt;/div&gt;
+      )}
+    &lt;/UnstyledButton&gt;
+  );
+}</code></pre>
+</section>
+
+<section id="playercard">
+  <h2>PlayerCard</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd>composition (<code>Paper</code> + custom layout)</dd>
+    <dt>Used in</dt><dd>P-22, P-23, P-24 mini-player</dd>
+    <dt>Variants</dt><dd>full · sticky-mini · mobile · desktop · accent</dd>
+  </dl>
+
+  <p>Состав: cover (square), title (size 22 desktop / 18 mobile, ellipsis on overflow), artists (muted), metadata row (mono — BPM · key · duration), scrub bar, transport (prev/play/next).</p>
+
+  <p>Сцены и их состояния: idle / playing / buffering / paused / error / disconnected. Каждое состояние меняет иконку центральной кнопки (play / spinner / pause / alert / wifi-off) и opacity scrub бара.</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>// PlayerCard composes Paper + custom blocks; not a single Mantine atom.
+&lt;Paper p={mini ? "sm" : "lg"} radius="md" withBorder={mini}&gt;
+  &lt;Group align="center" gap="lg" wrap="nowrap"&gt;
+    &lt;Cover size={mini ? 40 : 108} hue={track.hue} /&gt;
+    &lt;Stack gap={4} flex={1}&gt;
+      &lt;Text size="xs" tt="uppercase" c="dimmed" ff="monospace"&gt;
+        Now playing · {idx + 1} / {total}
+      &lt;/Text&gt;
+      &lt;Title order={mini ? 5 : 3} truncate&gt;{track.title}&lt;/Title&gt;
+      &lt;Text size="sm" c="dimmed"&gt;{track.artists}&lt;/Text&gt;
+    &lt;/Stack&gt;
+  &lt;/Group&gt;
+
+  &lt;Stack gap={mini ? 4 : "md"} mt="md"&gt;
+    &lt;Progress value={progress * 100} size={4} color="neutral.9" /&gt;
+    {!mini &amp;&amp; (
+      &lt;Group justify="center" gap="md"&gt;
+        &lt;ActionIcon size="lg" variant="subtle"&gt;&lt;IconPlayerSkipBack /&gt;&lt;/ActionIcon&gt;
+        &lt;ActionIcon size={44} radius="xl" variant="filled" color="neutral.9"&gt;
+          {playing ? &lt;IconPlayerPause /&gt; : &lt;IconPlayerPlay /&gt;}
+        &lt;/ActionIcon&gt;
+        &lt;ActionIcon size="lg" variant="subtle"&gt;&lt;IconPlayerSkipForward /&gt;&lt;/ActionIcon&gt;
+      &lt;/Group&gt;
+    )}
+  &lt;/Stack&gt;
+&lt;/Paper&gt;</code></pre>
+</section>
+
+<section id="trackrow">
+  <h2>TrackRow</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd>composition (<code>Group</code>)</dd>
+    <dt>Used in</dt><dd>P-10 (category detail), P-17 (bucket detail), P-23 left queue</dd>
+    <dt>Variants</dt><dd>compact · regular · with-checkbox</dd>
+  </dl>
+
+  <p>Структура: leading index/cover/checkbox — title+artists — trailing badges (key, BPM, source) — actions. Высота 48 compact / 64 regular. Hover <code>--color-bg-muted</code>. Active row (currently playing) — left border 2px <code>--color-fg</code> + background <code>--color-bg-subtle</code>.</p>
+
+  <h3>Mantine mapping</h3>
+<pre><code>&lt;UnstyledButton
+  style={(t) =&gt; ({
+    display: "flex", alignItems: "center", gap: t.spacing.sm,
+    padding: `${t.spacing.xs} ${t.spacing.sm}`,
+    minHeight: compact ? 48 : 64,
+    borderLeft: active ? `2px solid ${t.other.semantic.fg}` : "2px solid transparent",
+    background: active ? t.other.semantic.bgSubtle : undefined,
+    "&amp;:hover": { background: t.other.semantic.hover },
+  })}
+&gt;
+  &lt;Text ff="monospace" size="xs" c="dimmed" w={16}&gt;{idx + 1}&lt;/Text&gt;
+  &lt;Cover size={28} hue={hue} /&gt;
+  &lt;Stack gap={2} flex={1} miw={0}&gt;
+    &lt;Text size="sm" fw={500} truncate&gt;{title}&lt;/Text&gt;
+    &lt;Text size="xs" c="dimmed" truncate&gt;{artists}&lt;/Text&gt;
+  &lt;/Stack&gt;
+  &lt;Text ff="monospace" size="xs" c="dimmed"&gt;{bpm}&lt;/Text&gt;
+&lt;/UnstyledButton&gt;</code></pre>
+</section>
+
+<section id="categorypill">
+  <h2>CategoryPill</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Badge&gt;</code> с custom radius full</dd>
+    <dt>Used in</dt><dd>P-09, P-08 (current style), P-10 header</dd>
+  </dl>
+
+  <p>Пилюля radius full, padding 4×10, mono шрифт 11px. Idle <code>--color-bg-muted</code>, selected <code>--color-fg</code>+inverse text, count badge справа.</p>
+</section>
+
+<section id="styleselector">
+  <h2>StyleSelector</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Menu&gt;</code> + <code>&lt;UnstyledButton&gt;</code> trigger</dd>
+    <dt>Used in</dt><dd>top bar (всегда), P-08 Home, P-15 form, P-19 Transfer</dd>
+  </dl>
+
+  <p>Trigger показывает текущий стиль: name + chevron. Open — список всех стилей пользователя + "Manage styles" внизу. Selected — bold + check.</p>
+</section>
+
+<section id="bucketcounters">
+  <h2>BucketCounters</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd>composition (<code>SimpleGrid</code>)</dd>
+    <dt>Used in</dt><dd>P-16 BlockHeader, P-17 bucket header</dd>
+  </dl>
+
+  <p>Сетка из 6+ ячеек: NEW · OLD · NOT · UNCLASSIFIED · DISCARD · STAGING-per-category. Каждая ячейка — uppercase mono label + большое число + (опционально) progress hint. Inactive (deleted-category) bucket — opacity 0.5 + S-10 badge.</p>
+</section>
+
+<section id="blockheader">
+  <h2>BlockHeader</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd>composition (<code>Group</code> + <code>Stack</code>)</dd>
+    <dt>Used in</dt><dd>P-16 Triage Block detail</dd>
+  </dl>
+
+  <p>Левая колонка: name (h2) + style badge + week range (mono small). Правая: per-bucket counters + finalize CTA. На mobile — стек.</p>
+</section>
+
+<!-- ── PATTERNS ─────────────────────────────────────────── -->
+
+<section id="emptystate">
+  <h2>EmptyState</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd>composition (<code>Stack</code> + <code>ThemeIcon</code> + <code>Title</code> + <code>Text</code> + <code>Button</code>)</dd>
+    <dt>Used in</dt><dd>P-03 Premium-required, "no triage blocks", "no categories", "no tracks in bucket", search no-results, "Coming soon"</dd>
+  </dl>
+
+  <h3>Anatomy</h3>
+  <ul>
+    <li>icon (ThemeIcon size="xl", neutral background)</li>
+    <li>title (h3, semibold)</li>
+    <li>body (max 320px wide, color dimmed, line-height 1.5)</li>
+    <li>action (Button, optional)</li>
+  </ul>
+
+  <p>Padding y=64, max-width 480, центрировано. Иконка опциональна — для "Coming soon" просто текст без иконки.</p>
+</section>
+
+<section id="skeleton">
+  <h2>Skeleton</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Skeleton&gt;</code></dd>
+    <dt>Used in</dt><dd>S-01 — track list, bucket lane, card grid, player. Минимум 3 примера в DS.</dd>
+  </dl>
+
+  <p>Animation — Mantine default (shimmer). Высоты совпадают с production-компонентами 1:1, чтобы не было layout shift.</p>
+</section>
+
+<section id="hotkeyoverlay">
+  <h2>Hotkey overlay (S-08)</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd><code>&lt;Modal&gt;</code> или <code>&lt;Drawer&gt;</code></dd>
+    <dt>Used in</dt><dd>P-23 Curate · открывается по <code>?</code> или <code>⌘/</code></dd>
+  </dl>
+
+  <p>Список всех хоткеев текущего экрана, сгруппирован по разделам (Playback / Triage / Nav). Каждая строка: HotkeyHint(s) + описание. Закрывается Esc или backdrop click.</p>
+
+  <h3>Sections</h3>
+<pre><code>const groups = [
+  { title: "Playback", keys: [
+    ["Space", "Play / pause"], ["J", "Prev track"], ["K", "Next track"], ["←/→", "Seek 5s"],
+  ]},
+  { title: "Triage", keys: [
+    ["1–6", "File to staging category"],
+    ["7", "NEW"], ["8", "OLD"], ["9", "NOT"], ["0", "DISCARD"],
+    ["U", "Undo last"],
+  ]},
+  { title: "Nav", keys: [
+    ["G H", "Home"], ["G C", "Curate"], ["G L", "Library"],
+    ["?", "This panel"], ["Esc", "Close"],
+  ]},
+];</code></pre>
+</section>
+
+<section id="multiselectbar">
+  <h2>Multi-select bar (S-07)</h2>
+  <dl class="meta-grid">
+    <dt>Mantine</dt><dd>composition (<code>Affix</code> + <code>Paper</code>)</dd>
+    <dt>Used in</dt><dd>P-17 Bucket detail (когда выделено ≥1 track)</dd>
+  </dl>
+
+  <p>Sticky bottom bar 56–64px, фон <code>--color-bg-elevated</code>, border-top 1px. Внутри: count + actions (Move / Transfer / Open in Player) + cancel (Esc).</p>
+
+  <p>Анимация появления: slide-up 200ms + fade-in. Mantine <code>&lt;Transition&gt;</code> с <code>"slide-up"</code>.</p>
+</section>
+
+<footer style="margin: 96px 0 64px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 13px;">
+  <p style="font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px;">END OF SPEC SHEET</p>
+  <p>Открытые вопросы — <a href="OPEN_QUESTIONS.md" style="color: var(--fg);">OPEN_QUESTIONS.md</a>. Полные сцены — <a href="02 Pages catalog · Pass 1 (Auth-Triage).html" style="color: var(--fg);">Pass 1</a> и <a href="03 Pages catalog · Pass 2 (Curate-Patterns).html" style="color: var(--fg);">Pass 2</a>. Tokens — <a href="tokens.css" style="color: var(--fg);">tokens.css</a> · <a href="theme.ts" style="color: var(--fg);">theme.ts</a>.</p>
+</footer>
+
+</main>
+</div>
+</body>
+</html>

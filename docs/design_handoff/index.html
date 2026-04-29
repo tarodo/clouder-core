@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CLOUDER · iter-2a · Design handoff</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+  :root {
+    --fg: #0a0a0a;
+    --fg-muted: #737373;
+    --fg-subtle: #a3a3a3;
+    --bg: #ffffff;
+    --bg-subtle: #fafafa;
+    --bg-muted: #f4f4f4;
+    --border: #e8e8e8;
+    --border-strong: #d4d4d4;
+    --accent: oklch(0.62 0.26 340);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
+    color: var(--fg);
+    background: var(--bg-subtle);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 64px 48px 96px; }
+
+  header {
+    padding-bottom: 56px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--fg-muted);
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 64px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin: 0 0 24px;
+  }
+  h1 .tag {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 12px;
+    padding: 6px 12px;
+    background: var(--fg);
+    color: var(--bg);
+    border-radius: 999px;
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    margin-left: 12px;
+    transform: translateY(-12px);
+  }
+  .lead {
+    font-size: 18px;
+    color: var(--fg-muted);
+    max-width: 64ch;
+    line-height: 1.55;
+  }
+
+  .meta-rail {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 32px;
+    margin-top: 40px;
+    padding: 24px 0;
+    border-top: 1px solid var(--border);
+  }
+  .meta-rail dt {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-muted);
+    margin-bottom: 6px;
+  }
+  .meta-rail dd { margin: 0; font-weight: 500; font-size: 15px; }
+
+  section {
+    margin-top: 80px;
+  }
+  .section-title {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .section-title h2 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .section-title .num {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--fg-subtle);
+    letter-spacing: 0.08em;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .card-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px 22px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 160ms, transform 160ms;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    border-color: var(--fg);
+    transform: translateY(-1px);
+  }
+  .card::after {
+    content: "→";
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    font-size: 18px;
+    color: var(--fg-subtle);
+    transition: color 160ms, transform 160ms;
+  }
+  .card:hover::after {
+    color: var(--fg);
+    transform: translate(2px, -1px);
+  }
+  .card .filename {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--fg-subtle);
+    letter-spacing: 0.04em;
+    margin-bottom: 16px;
+  }
+  .card h3 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0 0 8px;
+    line-height: 1.2;
+    padding-right: 32px;
+  }
+  .card p {
+    margin: 0 0 16px;
+    color: var(--fg-muted);
+    font-size: 13.5px;
+    line-height: 1.55;
+    flex: 1;
+  }
+  .card .meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--fg-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .card.featured {
+    grid-column: 1 / -1;
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+  .card.featured::after { color: var(--bg); }
+  .card.featured .filename { color: rgba(255,255,255,0.5); }
+  .card.featured p { color: rgba(255,255,255,0.75); }
+  .card.featured .meta { color: rgba(255,255,255,0.5); border-top-color: rgba(255,255,255,0.15); }
+  .card.featured h3 { font-size: 28px; }
+
+  .card.code {
+    background: var(--bg);
+    font-family: "Geist Mono", ui-monospace, monospace;
+  }
+  .card.code .filename { font-size: 12px; color: var(--fg); font-weight: 600; margin-bottom: 12px; }
+  .card.code p { font-family: "Geist", ui-sans-serif, sans-serif; font-size: 13px; }
+
+  .reading-order {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 16px 20px;
+    align-items: baseline;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+  }
+  .reading-order .num {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--fg-subtle);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .reading-order .step {
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .reading-order .step:last-of-type { border-bottom: none; padding-bottom: 0; }
+  .reading-order strong { display: block; font-size: 15px; margin-bottom: 2px; }
+  .reading-order .step span { color: var(--fg-muted); font-size: 13.5px; }
+
+  .quick-ref {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+  }
+  .quick-ref h4 {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-muted);
+    margin: 0 0 12px;
+    font-weight: 500;
+  }
+  .quick-ref h4:not(:first-child) { margin-top: 24px; }
+  .quick-ref ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    columns: 2;
+    column-gap: 32px;
+  }
+  .quick-ref li {
+    padding: 4px 0;
+    font-size: 13px;
+    color: var(--fg-muted);
+    break-inside: avoid;
+  }
+  .quick-ref li code {
+    color: var(--fg);
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 12px;
+    background: var(--bg-muted);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 6px;
+  }
+
+  footer {
+    margin-top: 96px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    color: var(--fg-subtle);
+    font-size: 12px;
+    font-family: "Geist Mono", ui-monospace, monospace;
+    letter-spacing: 0.06em;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 40px 24px 64px; }
+    h1 { font-size: 44px; }
+    .meta-rail { grid-template-columns: 1fr 1fr; gap: 24px; }
+    .card-grid, .card-grid.three { grid-template-columns: 1fr; }
+    .quick-ref ul { columns: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Design handoff · April 2026</div>
+  <h1>CLOUDER<span class="tag">iter-2a</span></h1>
+  <p class="lead">Auth · Categories · Triage Blocks · Curate · System patterns. Все артефакты дизайна для одного фронта на стеке Mantine 7 / TypeScript. Standalone — работает офлайн.</p>
+
+  <dl class="meta-rail">
+    <div><dt>Scope</dt><dd>25 pages + 10 patterns</dd></div>
+    <div><dt>Stack</dt><dd>Mantine 7 / TS</dd></div>
+    <div><dt>Sprint</dt><dd>iter-2a → iter-2b</dd></div>
+    <div><dt>Languages</dt><dd>EN · RU readme</dd></div>
+  </dl>
+</header>
+
+<section>
+  <div class="section-title"><span class="num">01 · CATALOGS</span><h2>Visual catalogs</h2></div>
+  <div class="card-grid">
+    <a class="card featured" href="04 Component spec sheet.html">
+      <div class="filename">04 Component spec sheet.html</div>
+      <h3>Component spec sheet</h3>
+      <p>Anatomy, states, props, и Mantine mapping для каждого компонента из каталога. Code snippets, pitfalls, vocabulary map. Начинай отсюда при реализации — это контракт.</p>
+      <div class="meta"><span>Spec</span><span>~30 components</span><span>Code snippets</span></div>
+    </a>
+
+    <a class="card" href="01 Design system · Sprint-1 (standalone).html">
+      <div class="filename">01 Design system · Sprint-1.html</div>
+      <h3>Design system</h3>
+      <p>Foundations из Sprint-1 — type, spacing, color, radii, motion + Mantine alignment секция. Standalone, offline-capable.</p>
+      <div class="meta"><span>Foundations</span><span>Sprint-1 + 1.5 delta</span></div>
+    </a>
+
+    <a class="card" href="02 Pages catalog · Pass 1 (Auth-Triage).html">
+      <div class="filename">02 Pages catalog · Pass 1.html</div>
+      <h3>Pages · Pass 1</h3>
+      <p>P-01..P-21: Auth, AppShell, Home, Categories, Triage Blocks list, Create / Detail / Move / Transfer / Finalize. Каждый экран с mobile + desktop парой.</p>
+      <div class="meta"><span>21 pages</span><span>Mobile + desktop</span></div>
+    </a>
+
+    <a class="card" href="03 Pages catalog · Pass 2 (Curate-Patterns).html">
+      <div class="filename">03 Pages catalog · Pass 2.html</div>
+      <h3>Pages · Pass 2 + Patterns</h3>
+      <p>P-22..P-25 (Curate mobile + desktop, Mini-player, Device picker) + S-01..S-10 системные паттерны: loading, empty, errors, undo, hotkeys, search, multi-select, inactive bucket.</p>
+      <div class="meta"><span>4 pages</span><span>10 patterns</span></div>
+    </a>
+  </div>
+</section>
+
+<section>
+  <div class="section-title"><span class="num">02 · TOKENS</span><h2>Tokens &amp; theme</h2></div>
+  <div class="card-grid">
+    <a class="card code" href="tokens.css">
+      <div class="filename">tokens.css</div>
+      <h3>Design tokens</h3>
+      <p>Source of truth для всех raw значений. CSS custom properties для type, spacing, color, radii, shadows, motion. Импортировать в корне приложения один раз.</p>
+      <div class="meta"><span>211 lines</span><span>oklch</span><span>2 themes + accent</span></div>
+    </a>
+
+    <a class="card code" href="theme.ts">
+      <div class="filename">theme.ts</div>
+      <h3>Mantine theme</h3>
+      <p>MantineThemeOverride, который зеркалит tokens.css. Component defaults, augmented theme.other для widget-уровня токенов (semantic, motion, control).</p>
+      <div class="meta"><span>TypeScript</span><span>createTheme</span></div>
+    </a>
+  </div>
+</section>
+
+<section>
+  <div class="section-title"><span class="num">03 · DOCS</span><h2>Documentation</h2></div>
+  <div class="card-grid three">
+    <a class="card" href="README.md">
+      <div class="filename">README.md</div>
+      <h3>Setup &amp; conventions</h3>
+      <p>Setup команды, theme switching, design language quick reference, implementation priorities.</p>
+      <div class="meta"><span>English</span></div>
+    </a>
+
+    <a class="card" href="README.ru.md">
+      <div class="filename">README.ru.md</div>
+      <h3>На русском</h3>
+      <p>Тот же setup и conventions guide, но на русском. Содержание идентично EN-версии.</p>
+      <div class="meta"><span>Russian</span></div>
+    </a>
+
+    <a class="card" href="OPEN_QUESTIONS.md">
+      <div class="filename">OPEN_QUESTIONS.md</div>
+      <h3>Open questions</h3>
+      <p>13 известных пробелов в дизайне с рекомендуемыми fallback'ами. Не блокеры — у каждого есть рабочий ответ.</p>
+      <div class="meta"><span>Q1–Q13</span><span>Fallbacks</span></div>
+    </a>
+  </div>
+</section>
+
+<section>
+  <div class="section-title"><span class="num">04 · ORDER</span><h2>Reading order</h2></div>
+  <div class="reading-order">
+    <div class="num">01</div>
+    <div class="step"><strong>Index.html (this page)</strong><span>3 минуты — визуальная карта всех артефактов.</span></div>
+
+    <div class="num">02</div>
+    <div class="step"><strong>OPEN_QUESTIONS.md</strong><span>10 минут — что дизайн не решил, и какие fallback'и применять.</span></div>
+
+    <div class="num">03</div>
+    <div class="step"><strong>04 Component spec sheet.html</strong><span>30 минут — контракт. Anatomy, states, Mantine mapping для каждого компонента.</span></div>
+
+    <div class="num">04</div>
+    <div class="step"><strong>02 + 03 Pages catalogs</strong><span>Глазами — как визуальный референс при реализации экранов.</span></div>
+
+    <div class="num">05</div>
+    <div class="step"><strong>tokens.css + theme.ts</strong><span>Lookup-документы — открывать когда нужно посмотреть raw-значение.</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="section-title"><span class="num">05 · QUICK</span><h2>Quick reference</h2></div>
+  <div class="quick-ref">
+    <h4>Type · Geist + Geist Mono</h4>
+    <ul>
+      <li><code>11</code> mono labels, hotkeys</li>
+      <li><code>12</code> dense rows, captions</li>
+      <li><code>13</code> body small, controls</li>
+      <li><code>14</code> body default</li>
+      <li><code>16</code> body large</li>
+      <li><code>18</code> h3 / titles</li>
+      <li><code>24</code> h2</li>
+      <li><code>32</code> h1</li>
+    </ul>
+    <h4>Spacing scale (px)</h4>
+    <ul>
+      <li><code>4</code> hairline gaps</li>
+      <li><code>8</code> dense rows</li>
+      <li><code>12</code> default gap</li>
+      <li><code>16</code> card padding</li>
+      <li><code>20</code> section padding</li>
+      <li><code>24</code> page rhythm</li>
+      <li><code>32</code> section breaks</li>
+      <li><code>48–80</code> page-level</li>
+    </ul>
+    <h4>Radii</h4>
+    <ul>
+      <li><code>4</code> hotkey hint, badge</li>
+      <li><code>6</code> input, small button</li>
+      <li><code>10</code> default — cards, modals</li>
+      <li><code>14</code> hero cards</li>
+      <li><code>999</code> pill, avatar</li>
+    </ul>
+    <h4>Motion</h4>
+    <ul>
+      <li><code>80</code> pulse (just-tapped peak)</li>
+      <li><code>120</code> fast (hover, button)</li>
+      <li><code>160</code> base (most transitions)</li>
+      <li><code>200</code> slow (sheet, modal)</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <span>CLOUDER · ITER-2A · DESIGN HANDOFF</span>
+  <span>v1.0 · APR 2026</span>
+</footer>
+
+</div>
+</body>
+</html>
