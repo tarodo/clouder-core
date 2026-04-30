@@ -31,7 +31,7 @@ After this work merges, every subsequent iter-2a feature is a single PR that fil
 | # | Topic | Decision | Why |
 |---|---|---|---|
 | 1 | Code location | Monorepo: `frontend/` directory inside `clouder-core`. | Solo dev, atomic contract+UI PRs, OpenAPI lives next to its consumer. |
-| 2 | Build tool | Vite 5 + React 18 + TypeScript 5. **No Next.js.** | Auth-gated SPA, no SEO need, Spotify SDK is browser-only, Mantine 9 SSR adds friction without payoff. |
+| 2 | Build tool | Vite 5 + React 19 + TypeScript 5. **No Next.js.** | Auth-gated SPA, no SEO need, Spotify SDK is browser-only, Mantine 9 SSR adds friction without payoff. (React 19 chosen during T1 implementation: Mantine 9 line declares React 19 as a peer dep — the design handoff said "Mantine 9 / React 18+" but no Mantine 9 release ever supported React 18.) |
 | 3 | Routing | `react-router` 7 data router (`createBrowserRouter`, `loader`/`action`/`errorElement`). | Loaders gate protected routes; `errorElement` standardises error UX. |
 | 4 | API client | `openapi-typescript` for types from `docs/openapi.yaml` + 50-line hand-written `fetch` wrapper. **No `openapi-fetch` runtime.** | Free types, full control over 401-retry and refresh, zero runtime lock-in. |
 | 5 | Auth state | React Context + `useReducer` in `AuthProvider`. **No Zustand, no localStorage for token.** | Small state, no extra dep, access token must stay in-memory (Q5 OPEN_QUESTIONS). |

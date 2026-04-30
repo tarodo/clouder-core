@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bootstrap the CLOUDER frontend in the `clouder-core` monorepo: Vite 5 + React 18 + TypeScript 5 + Mantine 9 + react-router 7 data router + tanstack/react-query + openapi-typescript + react-i18next. Ship a working sign-in flow and a protected AppShell skeleton with `<EmptyState>` placeholders for Home, Categories, Triage, Curate, Profile.
+**Goal:** Bootstrap the CLOUDER frontend in the `clouder-core` monorepo: Vite 5 + React 19 + TypeScript 5 + Mantine 9 + react-router 7 data router + tanstack/react-query + openapi-typescript + react-i18next. Ship a working sign-in flow and a protected AppShell skeleton with `<EmptyState>` placeholders for Home, Categories, Triage, Curate, Profile.
+
+**Stack revision (2026-05-01):** React was bumped from 18 → 19 during Task 1 because every published Mantine 9 line declares React 19 as a peer dep. The design handoff's "Mantine 9 / React 18+" phrasing was wrong from day one. Code in this plan still works under React 19; the only mechanical adjustments are the four version bumps (`react`, `react-dom`, `@types/react`, `@types/react-dom`) recorded in the fix-up commit `87a6a85`.
 
 **Architecture:** New `frontend/` directory inside `clouder-core`. Spotify OAuth lands on the SPA route `/auth/return` which fetches the backend `/auth/callback` through a Vite dev-server proxy (with `cookieDomainRewrite: 'localhost'` so the `SameSite=Strict` refresh cookie binds to the dev origin). Auth state lives in a React Context backed by a `useReducer`; the access token sits in a module-level singleton (`tokenStore`) so the `apiClient` `fetch` wrapper can read it without re-rendering. Protected routes are gated by a `requireAuth` loader that awaits a `bootstrapPromise` resolved by `AuthProvider` after its first refresh attempt. CI uses `dorny/paths-filter@v3` to split frontend, backend, and infra jobs.
 
-**Tech Stack:** Node 22, pnpm 9, Vite 5, React 18, TypeScript 5 strict, react-router 7, @mantine/core@9 + hooks/dates/form/notifications, @tabler/icons-react, @tanstack/react-query 5, zod 3, react-i18next, dayjs, openapi-typescript (devDep), Vitest + @testing-library/react + msw, ESLint flat config + Prettier.
+**Tech Stack:** Node 22, pnpm 9, Vite 5, React 19, TypeScript 5 strict, react-router 7, @mantine/core@9 + hooks/dates/form/notifications, @tabler/icons-react, @tanstack/react-query 5, zod 3, react-i18next, dayjs, openapi-typescript (devDep), Vitest + @testing-library/react + msw, ESLint flat config + Prettier.
 
 **Spec:** `docs/superpowers/specs/2026-04-30-frontend-bootstrap-design.md` (commit `9097df5`).
 
@@ -148,8 +150,8 @@ If pnpm missing: `corepack enable && corepack prepare pnpm@9.12.3 --activate`.
     "@tanstack/react-query": "^5.59.0",
     "dayjs": "^1.11.13",
     "i18next": "^23.16.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "react-i18next": "^15.1.0",
     "react-router": "^7.0.0",
     "zod": "^3.23.8"
@@ -159,8 +161,8 @@ If pnpm missing: `corepack enable && corepack prepare pnpm@9.12.3 --activate`.
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.5.2",
     "@types/node": "^22.7.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.3",
     "@vitest/coverage-v8": "^2.1.0",
     "eslint": "^9.13.0",
@@ -3557,7 +3559,7 @@ PR filling in the spec for that page.
 Open `README.md` at the repo root, find a sensible spot (after the layout section), and add:
 
 ```markdown
-- `frontend/` — Vite + React 18 + Mantine 9 SPA. See [`frontend/README.md`](frontend/README.md).
+- `frontend/` — Vite + React 19 + Mantine 9 SPA. See [`frontend/README.md`](frontend/README.md).
 ```
 
 - [ ] **Step 3: Commit**
