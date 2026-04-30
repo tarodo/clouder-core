@@ -7,4 +7,5 @@ coverage
 *.log
 .DS_Store
 .vite/
+*.tsbuildinfo
 src/api/schema.d.ts.tmp
