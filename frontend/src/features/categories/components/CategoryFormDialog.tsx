@@ -86,7 +86,7 @@ export function CategoryFormDialog({
     );
   }
   return (
-    <Modal opened={opened} onClose={onClose} title={title} centered>
+    <Modal opened={opened} onClose={onClose} title={title} centered transitionProps={{ duration: 0 }}>
       {body}
     </Modal>
   );
