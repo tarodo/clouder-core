@@ -49,12 +49,12 @@ describe('useCategoryTracks', () => {
     );
     const { result } = renderHook(() => useCategoryTracks('c1', ''), { wrapper: wrap() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.pages[0].items).toHaveLength(50);
+    expect(result.current.data?.pages[0]?.items).toHaveLength(50);
     expect(result.current.hasNextPage).toBe(true);
 
     await act(() => result.current.fetchNextPage());
     await waitFor(() => expect(result.current.data?.pages.length).toBe(2));
-    expect(result.current.data?.pages[1].items).toHaveLength(10);
+    expect(result.current.data?.pages[1]?.items).toHaveLength(10);
     expect(result.current.hasNextPage).toBe(false);
   });
 

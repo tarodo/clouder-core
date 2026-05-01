@@ -41,8 +41,8 @@ describe('useCategoriesByStyle', () => {
     );
     const { result } = renderHook(() => useCategoriesByStyle('s1'), { wrapper: wrap() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.items[0].name).toBe('Deep');
-    expect(result.current.data?.items[0].track_count).toBe(12);
+    expect(result.current.data?.items[0]?.name).toBe('Deep');
+    expect(result.current.data?.items[0]?.track_count).toBe(12);
   });
 
   it('does not fetch when styleId is empty', () => {

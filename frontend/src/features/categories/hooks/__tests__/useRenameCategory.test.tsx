@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
@@ -46,7 +46,7 @@ describe('useRenameCategory', () => {
       await result.current.mutateAsync({ name: 'New' });
     });
     const list = qc.getQueryData<{ items: typeof baseCategory[] }>(['categories', 'byStyle', 's1']);
-    expect(list?.items[0].name).toBe('New');
+    expect(list?.items[0]?.name).toBe('New');
   });
 
   it('rolls back on 409', async () => {
@@ -72,6 +72,6 @@ describe('useRenameCategory', () => {
       }),
     ).rejects.toThrow();
     const list = qc.getQueryData<{ items: typeof baseCategory[] }>(['categories', 'byStyle', 's1']);
-    expect(list?.items[0].name).toBe('Old');
+    expect(list?.items[0]?.name).toBe('Old');
   });
 });

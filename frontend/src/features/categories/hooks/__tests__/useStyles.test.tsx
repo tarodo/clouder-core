@@ -34,7 +34,7 @@ describe('useStyles', () => {
     const { result } = renderHook(() => useStyles(), { wrapper: wrap() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.items).toHaveLength(2);
-    expect(result.current.data?.items[0].name).toBe('House');
+    expect(result.current.data?.items[0]?.name).toBe('House');
   });
 
   it('hits limit=200', async () => {

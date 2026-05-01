@@ -50,7 +50,8 @@ describe('useReorderCategories', () => {
     });
 
     expect(putCount).toBe(1);
-    expect(lastBody?.category_ids).toEqual(['c3', 'c2', 'c1']);
+    const body = lastBody as { category_ids: string[] } | null;
+    expect(body?.category_ids).toEqual(['c3', 'c2', 'c1']);
   });
 
   it('invalidates on 422 order_mismatch', async () => {
