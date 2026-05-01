@@ -10,7 +10,37 @@ permissions:
   id-token: write
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend:  ${{ steps.filter.outputs.backend }}
+      infra:    ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - 'docs/openapi.yaml'
+              - '.github/workflows/pr.yml'
+            backend:
+              - 'src/**'
+              - 'tests/**'
+              - 'alembic/**'
+              - 'requirements*.txt'
+              - 'pytest.ini'
+              - 'scripts/**'
+              - '.github/workflows/pr.yml'
+            infra:
+              - 'infra/**'
+              - '.github/workflows/pr.yml'
+
   alembic-check:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -49,6 +79,8 @@ jobs:
           alembic upgrade head
 
   terraform:
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -94,6 +126,8 @@ jobs:
         run: terraform plan -input=false -lock=false -var="environment=prod" -var="canonicalization_enabled=true"
 
   tests:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -113,3 +147,34 @@ jobs:
         env:
           PYTHONPATH: src
         run: pytest -q
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Verify generated API types are fresh
+        run: |
+          pnpm api:types
+          if ! git diff --quiet src/api/schema.d.ts; then
+            echo "::error::src/api/schema.d.ts is out of sync with docs/openapi.yaml — run pnpm api:types"
+            git --no-pager diff src/api/schema.d.ts
+            exit 1
+          fi
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
