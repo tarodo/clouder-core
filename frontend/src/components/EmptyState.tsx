@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 export interface EmptyStateProps {
   title: string;
-  body?: string;
+  body?: ReactNode;
   icon?: ReactNode;
   action?: { label: string; onClick: () => void };
 }
@@ -16,11 +16,14 @@ export function EmptyState({ title, body, icon, action }: EmptyStateProps) {
         <Title order={2} ta="center">
           {title}
         </Title>
-        {body && (
-          <Text c="dimmed" ta="center">
-            {body}
-          </Text>
-        )}
+        {body &&
+          (typeof body === 'string' ? (
+            <Text c="dimmed" ta="center">
+              {body}
+            </Text>
+          ) : (
+            body
+          ))}
         {action && (
           <Button onClick={action.onClick} variant="default">
             {action.label}
