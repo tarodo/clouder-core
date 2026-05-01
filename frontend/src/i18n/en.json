@@ -44,5 +44,68 @@
     "not_found_body": "The page you tried to open does not exist.",
     "error_title": "Something broke",
     "reload_app": "Reload"
+  },
+  "categories": {
+    "page_title": "Categories",
+    "create_cta": "Create category",
+    "loading": "Loading categories…",
+    "track_count_one": "{{count}} track",
+    "track_count_other": "{{count}} tracks",
+    "row_menu": { "rename": "Rename", "delete": "Delete" },
+    "form": {
+      "name_label": "Name",
+      "name_description": "Up to 64 characters.",
+      "name_placeholder": "Tech House",
+      "create_title": "Create category",
+      "rename_title": "Rename category",
+      "save": "Save",
+      "create_submit": "Create",
+      "cancel": "Cancel"
+    },
+    "delete_modal": {
+      "title": "Delete category?",
+      "body": "Delete '{{name}}'? Tracks remain in history but become invisible.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "created": "Category created.",
+      "renamed": "Category renamed.",
+      "deleted": "Category deleted.",
+      "race_refreshed": "List changed elsewhere — refreshed.",
+      "generic_error": "Couldn't save changes. Please retry."
+    },
+    "errors": {
+      "name_required": "Name is required.",
+      "name_too_long": "Name must be 64 characters or less.",
+      "name_control_chars": "Name contains forbidden characters.",
+      "name_conflict": "A category with this name already exists in this style."
+    },
+    "empty_state": {
+      "no_categories_title": "No categories yet",
+      "no_categories_body": "Create your first category for {{style_name}}.",
+      "no_tracks_title": "No tracks yet",
+      "no_tracks_body": "Finalize a triage block to populate this category.",
+      "no_search_results_title": "No tracks match '{{term}}'.",
+      "clear_search": "Clear search"
+    },
+    "no_styles": {
+      "title": "No styles available",
+      "body": "Styles are populated by admin ingest. Ask an admin to seed Beatport data."
+    },
+    "detail": {
+      "tracks_search_placeholder": "Search by title…",
+      "tracks_load_more": "Show more ({{remaining}} remaining)",
+      "back_to_list": "Back to categories",
+      "actions": { "rename": "Rename", "delete": "Delete" }
+    },
+    "tracks_table": {
+      "title": "Title",
+      "artists": "Artists",
+      "bpm": "BPM",
+      "length": "Length",
+      "added": "Added",
+      "ai_suspected_aria": "AI-suspected"
+    }
   }
 }
