@@ -274,3 +274,7 @@ Main events:
 
 - `bp_token` is not stored in S3 and is not logged in plaintext.
 - API errors are returned in a sanitized form.
+
+## Frontend
+
+- `frontend/` — Vite + React 19 + Mantine 9 SPA. See [`frontend/README.md`](frontend/README.md).

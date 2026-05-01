@@ -1,0 +1,48 @@
+{
+  "auth": {
+    "signin": "Sign in with Spotify",
+    "signin_hint": "CLOUDER uses your Spotify Premium account.",
+    "signing_in": "Signing you in…",
+    "premium_required": "CLOUDER requires Spotify Premium.",
+    "premium_body": "Upgrade your Spotify account and try again.",
+    "oauth_failed": "Sign-in failed",
+    "oauth_failed_body": "Spotify could not complete authentication. Please retry.",
+    "missing_params": "Authentication response is missing code or state."
+  },
+  "appshell": {
+    "home": "Home",
+    "categories": "Categories",
+    "triage": "Triage",
+    "curate": "Curate",
+    "profile": "Profile",
+    "wordmark": "CLOUDER"
+  },
+  "user_menu": {
+    "signed_in_as": "Signed in as {{name}}",
+    "sign_out": "Sign out"
+  },
+  "empty_state": {
+    "coming_soon_title": "Coming soon",
+    "coming_soon_body": "This screen lands in a follow-up ticket.",
+    "back_home": "Back to home"
+  },
+  "errors": {
+    "cold_start": "Backend warming up, retrying…",
+    "server_error": "Something went wrong on our side.",
+    "network": "Connection lost. Check your network and retry.",
+    "forbidden": "You don't have access to this.",
+    "not_found": "Not found.",
+    "unknown": "Something went wrong.",
+    "correlation_id": "Reference: {{id}}"
+  },
+  "long_op": {
+    "cold_start": "Cold start, hang on…",
+    "very_long": "This is taking longer than usual. If nothing happens, refresh — the operation may have already succeeded."
+  },
+  "router": {
+    "not_found_title": "Page not found",
+    "not_found_body": "The page you tried to open does not exist.",
+    "error_title": "Something broke",
+    "reload_app": "Reload"
+  }
+}
