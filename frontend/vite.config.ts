@@ -3,8 +3,13 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
+// `/auth/return` is a SPA route owned by AuthReturnPage. Everything else
+// under /auth/* is a backend endpoint and must be proxied to API GW.
 const PROXIED_PREFIXES = [
-  '/auth',
+  '/auth/login',
+  '/auth/callback',
+  '/auth/refresh',
+  '/auth/logout',
   '/me',
   '/categories',
   '/styles',
@@ -28,7 +33,7 @@ export default defineConfig(({ mode }) => {
         target,
         changeOrigin: true,
         secure: true,
-        cookieDomainRewrite: 'localhost',
+        cookieDomainRewrite: '',
       },
     ]),
   );
@@ -38,7 +43,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { '@': path.resolve(__dirname, 'src') },
     },
-    server: { port: 5173, proxy: target ? proxy : undefined },
+    server: { host: '127.0.0.1', port: 5173, proxy: target ? proxy : undefined },
     test: {
       environment: 'jsdom',
       globals: true,
