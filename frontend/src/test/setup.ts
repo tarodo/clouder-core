@@ -3,6 +3,14 @@ import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { handlers } from './handlers';
+import { notifyManager } from '@tanstack/react-query';
+
+// React Query uses setTimeout(0) by default to schedule state notifications.
+// In tests, `act` only flushes microtasks — setTimeout callbacks fire after `act`
+// returns, so `result.current.data` stays undefined after `await act(async () =>
+// { await mutateAsync(...) })`. Switch to queueMicrotask so notifications land
+// inside `act`'s microtask drain, matching the spec test pattern.
+notifyManager.setScheduler(queueMicrotask);
 
 // jsdom installs its own AbortController/AbortSignal; Node's `Request`
 // constructor (used internally by react-router 7's data router and by
