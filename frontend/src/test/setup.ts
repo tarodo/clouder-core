@@ -4,6 +4,7 @@ import { cleanup } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { handlers } from './handlers';
 import { notifyManager } from '@tanstack/react-query';
+import '../i18n';
 
 // React Query uses setTimeout(0) by default to schedule state notifications.
 // In tests, `act` only flushes microtasks — setTimeout callbacks fire after `act`
