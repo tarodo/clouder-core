@@ -42,6 +42,23 @@ if (!signalValid) {
   });
 }
 
+// jsdom does not implement ResizeObserver; Mantine's ScrollArea (used inside
+// Select dropdown) calls it on mount. Provide a no-op stub so tests don't throw.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+// jsdom does not implement Element.prototype.scrollIntoView; Mantine's Combobox
+// calls it in a setTimeout after selection. Provide a no-op to prevent the
+// "scrollIntoView is not a function" unhandled error after test cleanup.
+if (typeof Element.prototype.scrollIntoView === 'undefined') {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 // jsdom does not implement window.matchMedia; Mantine reads it for color scheme.
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
