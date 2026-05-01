@@ -28,4 +28,16 @@ describe('lastVisitedStyle', () => {
       Storage.prototype.getItem = original;
     }
   });
+
+  it('survives a thrown SecurityError on write', () => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => {
+      throw new Error('QuotaExceededError');
+    };
+    try {
+      expect(() => writeLastVisitedStyle('abc-123')).not.toThrow();
+    } finally {
+      Storage.prototype.setItem = original;
+    }
+  });
 });
