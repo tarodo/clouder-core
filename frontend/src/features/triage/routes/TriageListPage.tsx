@@ -1,6 +1,6 @@
 import { Button, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import { StyleSelector } from '../../../components/StyleSelector';
@@ -21,7 +21,7 @@ export function TriageListPage() {
     if (styleId) writeLastVisitedTriageStyle(styleId);
   }, [styleId]);
 
-  if (!styleId) return null;
+  if (!styleId) return <Navigate to="/triage" replace />;
 
   const styleName = styles?.items.find((s) => s.id === styleId)?.name ?? '';
 
