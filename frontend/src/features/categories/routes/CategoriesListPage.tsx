@@ -12,7 +12,7 @@ import {
   type Category,
   type PaginatedCategories,
 } from '../hooks/useCategoriesByStyle';
-import { useStyles } from '../hooks/useStyles';
+import { useStyles } from '../../../hooks/useStyles';
 import { useCreateCategory } from '../hooks/useCreateCategory';
 import { useRenameCategory } from '../hooks/useRenameCategory';
 import { useDeleteCategory } from '../hooks/useDeleteCategory';

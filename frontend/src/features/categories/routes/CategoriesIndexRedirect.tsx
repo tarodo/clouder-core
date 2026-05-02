@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useStyles } from '../hooks/useStyles';
+import { useStyles } from '../../../hooks/useStyles';
 import { readLastVisitedStyle } from '../lib/lastVisitedStyle';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
 import { EmptyState } from '../../../components/EmptyState';
