@@ -27,7 +27,7 @@ Each row is a single PR. Sub-PRs allowed if a row gets too large (e.g. Triage co
 
 | # | Ticket | Pages | Backend endpoints | Existing design | Existing backend spec | Size |
 |---|---|---|---|---|---|---|
-| **F1** | Categories CRUD | P-09..P-12 | `GET/POST/PATCH/DELETE /categories`, reorder | `02 Pages catalog` Pass 1 | `2026-04-26-spec-C-categories-design.md` | M (3-4 days) |
+| ~~**F1**~~ ✅ **Shipped 2026-05-02** | Categories CRUD + DnD reorder + read-only tracks tab | P-09..P-13 | `GET/POST/PATCH/DELETE /categories`, reorder, list-tracks | `02 Pages catalog` Pass 1 | `2026-04-26-spec-C-categories-design.md` | M — actual ~1 day session |
 | **F2** | Triage list + create modal | P-13..P-15 | `GET /triage/blocks`, `POST /triage/blocks` | `02 Pages catalog` Pass 1 | `2026-04-28-spec-D-triage-design.md` | M |
 | **F3** | Triage detail (buckets + reordering) | P-16..P-19 | `GET /triage/blocks/{id}`, `POST /move`, `POST /transfer` | `02 Pages catalog` Pass 1 | spec-D | L (4-6 days) |
 | **F4** | Triage finalize | P-20..P-21 + S-04 | `POST /triage/blocks/{id}/finalize` | Pass 1 + Pass 2 patterns | spec-D | S |
@@ -102,6 +102,43 @@ When you open a new session to land ticket Fn:
 | TD-4 | Bundle 544 KB minified | Slow first paint as features grow | CC-3 above. |
 | TD-5 | AuthProvider test occasionally flakes (snapshot lag race) | Red CI, false alarms | Investigate with deterministic clock + flushSync; not currently failing. |
 | TD-6 | No branch protection on `main` | PRs can be merged without CI passing | One-time GitHub setting: Settings → Branches → Add rule: require status checks (`changes`, `frontend`, `tests`, `alembic-check`, `terraform`). |
+| TD-7 | Curation Lambda CloudWatch IAM gap. Logging perms in `beatport-prod-collector-lambda-policy` did not include `/aws/lambda/beatport-prod-curation:*`. Patched ad-hoc via `aws iam put-role-policy` on 2026-05-02 to unblock F1 smoke. | Terraform drift on next `terraform apply` (will revert the manual fix). | Add the curation log-group ARN to whatever module generates the Lambda IAM policy in `infra/`. Then `terraform apply` to align state. |
+| TD-8 | `SPOTIFY_OAUTH_REDIRECT_URI` Lambda env was set to API GW callback URL (Postman flow) before F1 smoke. Patched ad-hoc on 2026-05-02 to `http://127.0.0.1:5173/auth/return` (SPA flow). | Same Terraform drift — `terraform.tfvars` likely still has the old API GW URL. | Set the dev redirect URI in tfvars (or environment-specific tfvars when prod SPA deploys via CC-1). Until then, document in `infra/README.md`. |
+
+---
+
+## Lessons learned (post-F1, 2026-05-02)
+
+The full F1 cycle (brainstorm → plan → 22 tasks → smoke against prod API) surfaced these non-obvious gotchas. Carry them into iter-2a F2-F10.
+
+**Frontend / test-infra:**
+
+1. **Node 25 ships `--experimental-webstorage`** which injects a stub `localStorage` over jsdom's. Tests that call `localStorage.clear()` blow up. Fix: prefix vitest scripts in `frontend/package.json` with `NODE_OPTIONS=--no-experimental-webstorage`.
+2. **TanStack Query 5 + React 19 + `act()`.** TQ5 default `notifyManager` schedules state updates via `setTimeout(0)`. `act()` only drains microtasks; the state notification fires AFTER `act` returns, so `result.current.data` stays undefined after `await mutateAsync(...)`. Fix: `notifyManager.setScheduler(queueMicrotask)` in `src/test/setup.ts`.
+3. **i18next not initialised in component tests.** `useTranslation()` returns raw keys. Fix: `import '../i18n'` once in `src/test/setup.ts` so the singleton initialises before any component test mounts.
+4. **Mantine 9 components in jsdom need stubs.** `Select`/`Combobox` calls `ResizeObserver` and `Element.prototype.scrollIntoView`. jsdom doesn't ship either. Fix: stub both in `setup.ts` (one-line guards each).
+5. **Mantine 9 transitions are non-deterministic in jsdom.** Modal/Menu open animations leak across `userEvent.click(...)` calls. Fix: pass `transitionProps={{ duration: 0 }}` on overlay components in test wrappers OR globally via theme.
+
+**TanStack Query gotchas:**
+
+6. **Multiple observers on the same `queryKey` SHARE a `queryFn`. Latest registration wins.** A passive `useQuery` with `enabled: false` and a placeholder rejecting `queryFn` (added to keep cache from GC during fake timers) will OVERRIDE the real fetch — every subsequent invalidate-driven refetch errors. Don't use that pattern. Keep cache alive in tests via `gcTime: Infinity` on the test QueryClient instead.
+
+**Vite dev / SPA routing:**
+
+7. **Vite proxy prefix table can shadow SPA routes.** `/categories` matches both backend endpoints AND SPA routes (`/categories/:styleId`, etc). On F5 the browser sends `Accept: text/html` and the proxy forwards JSON from API GW → blank page. Fix: per-prefix `bypass` that returns `/index.html` for `Accept: text/html` GETs; only on prefixes that have an SPA route. Backend-only prefixes (e.g. `/auth/login` redirect) must proxy unconditionally.
+8. **Hooks order rule + `Navigate` early-return.** Calling `useParams` then `if (!param) return <Navigate>` then more hooks is a `react-hooks/rules-of-hooks` violation that lint catches but easy to slip in. Pattern: split into a thin guard wrapper plus an inner component that owns the hooks.
+9. **`<Text component={Link}>` picks up browser default link colors** (blue / visited purple). Mantine `Text` doesn't override anchor styling. Set `c="var(--color-fg)"` and `td="none"` explicitly, or use Mantine `<Anchor>` (which respects `theme.primaryColor`).
+
+**Auth / OAuth:**
+
+10. **Spotify OAuth redirect URI is set in two places** that must agree: the Lambda env `SPOTIFY_OAUTH_REDIRECT_URI` (used to build the Spotify auth URL) and the Spotify Developer Dashboard whitelist. If the Lambda env points at API GW callback (Postman flow) but the SPA expects `/auth/return` → state cookie mismatch + replay-detection cascade.
+11. **Refresh-cookie replay detection is unforgiving.** Backend rotates the refresh token on each use; using the same cookie twice (e.g. via two parallel bootstrap effects) revokes ALL of the user's sessions. After replay is triggered, ONLY a fresh `/auth/login` round-trip restores the session. Cookie-clear + relogin during dev — not a code bug.
+12. **AuthProvider bootstrap fires `/auth/refresh` on mount** even on the SPA login flow. With no cookie yet (first visit), it 401s — that's expected and harmless because `tokenStore.get()` returns null at that point and `notifyAuthFailure` only fires when token was present.
+
+**Backend / infra (already in TD-7 + TD-8 above but worth restating):**
+
+13. **Curation Lambda's CW log group was un-writable** because `beatport-prod-collector-lambda-policy` listed every Lambda log group EXCEPT curation's. Lambda still ran (zero-error metric is misleading), but every error path was invisible. Verify all new Lambdas appear in the policy when adding handlers in `infra/`.
+14. **Production env mutations require explicit grant.** Sandbox blocks IAM/Lambda env changes by default; the user has to authorize each modification by name (role + policy + change). Plan accordingly when troubleshooting prod-only behaviour from a dev environment.
 
 ---
 
@@ -137,7 +174,7 @@ These bullets exist because each one was a real bug fixed during A2 smoke test. 
 - [ ] Latest `main` pulled in the worktree directory you'll be working in
 - [ ] `pnpm install` run (or `pnpm install --frozen-lockfile` if pnpm-lock.yaml hasn't drifted)
 - [ ] `pnpm api:types` regenerated (backend spec may have changed since A2)
-- [ ] `pnpm test` green locally (46 tests passing today)
+- [ ] `pnpm test` green locally (91 tests passing post-F1; 46 baseline + F1 surfaces)
 - [ ] Spotify Developer Dashboard whitelist still includes `http://127.0.0.1:5173/auth/return`
 - [ ] Lambda env `SPOTIFY_OAUTH_REDIRECT_URI` still says `http://127.0.0.1:5173/auth/return` (re-verify after any backend deploy)
 - [ ] `frontend/.env.local` set to current `terraform output -raw api_endpoint`
