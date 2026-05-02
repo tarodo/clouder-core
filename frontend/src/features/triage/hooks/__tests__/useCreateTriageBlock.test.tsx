@@ -45,7 +45,6 @@ describe('useCreateTriageBlock', () => {
         HttpResponse.json(
           {
             id: 'b1',
-            style_id: 's1',
             style_name: 'House',
             ...validInput,
             status: 'IN_PROGRESS',
