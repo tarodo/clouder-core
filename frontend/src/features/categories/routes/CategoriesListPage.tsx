@@ -27,11 +27,14 @@ import { ApiError } from '../../../api/error';
 
 export function CategoriesListPage() {
   const { styleId } = useParams<{ styleId: string }>();
+  if (!styleId) return <Navigate to="/categories" replace />;
+  return <CategoriesListPageInner styleId={styleId} />;
+}
+
+function CategoriesListPageInner({ styleId }: { styleId: string }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const qc = useQueryClient();
-
-  if (!styleId) return <Navigate to="/categories" replace />;
 
   const { data, isLoading, isError } = useCategoriesByStyle(styleId);
   const { data: stylesData } = useStyles();

@@ -61,6 +61,7 @@ export function CategoryFormDialog({
           label={t('categories.form.name_label')}
           description={t('categories.form.name_description')}
           placeholder={t('categories.form.name_placeholder')}
+          // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus
           maxLength={64}
           {...form.getInputProps('name')}

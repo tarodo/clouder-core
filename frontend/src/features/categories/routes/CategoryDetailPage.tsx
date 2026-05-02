@@ -15,10 +15,13 @@ import { EmptyState } from '../../../components/EmptyState';
 
 export function CategoryDetailPage() {
   const { styleId, id } = useParams<{ styleId: string; id: string }>();
+  if (!styleId || !id) return <Navigate to="/categories" replace />;
+  return <CategoryDetailPageInner styleId={styleId} id={id} />;
+}
+
+function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
-
-  if (!styleId || !id) return <Navigate to="/categories" replace />;
 
   const { data, isLoading, isError, error } = useCategoryDetail(id);
   const renameMut = useRenameCategory(id, styleId);

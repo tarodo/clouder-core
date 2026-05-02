@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+// Matches ASCII C0 + DEL + C1 control bytes — these characters break
+// rendering and storage; we reject them deliberately. eslint-disable
+// the no-control-regex rule because the match is the whole point.
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\x00-\x1f\x7f-\x9f]/;
 
 export const categoryNameSchema = z
