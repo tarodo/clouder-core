@@ -26,7 +26,7 @@ describe('useReorderCategories', () => {
   });
 
   it('coalesces multiple swaps into one PUT', async () => {
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
     let putCount = 0;
     let lastBody: { category_ids: string[] } | null = null;
     server.use(
@@ -55,7 +55,7 @@ describe('useReorderCategories', () => {
   });
 
   it('invalidates on 422 order_mismatch', async () => {
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
     qc.setQueryData(['categories', 'byStyle', 's1'], { items: cats, total: 3, limit: 200, offset: 0 });
     server.use(
       http.put('http://localhost/styles/s1/categories/order', () =>
