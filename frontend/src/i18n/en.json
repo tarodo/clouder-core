@@ -114,6 +114,7 @@
     "loading": "Loading triage blocks…",
     "track_count_one": "{{count}} track",
     "track_count_other": "{{count}} tracks",
+    "load_more": "Show more ({{remaining}} remaining)",
     "tabs": {
       "active": "Active",
       "finalized": "Finalized",

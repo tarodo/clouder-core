@@ -140,7 +140,7 @@ export function TriageBlocksList({ styleId }: TriageBlocksListProps) {
                     mt="md"
                     style={{ alignSelf: 'center' }}
                   >
-                    {`Show more (${remaining} remaining)`}
+                    {t('triage.load_more', { remaining })}
                   </Button>
                 )}
               </Stack>
