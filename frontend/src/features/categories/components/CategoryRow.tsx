@@ -22,6 +22,7 @@ export function CategoryRow({ category, onRename, onDelete }: CategoryRowProps) 
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    borderRadius: 'var(--mantine-radius-md)',
   };
 
   return (
@@ -44,7 +45,14 @@ export function CategoryRow({ category, onRename, onDelete }: CategoryRowProps) 
       >
         <IconGripVertical size={18} />
       </ActionIcon>
-      <Text component={Link} to={`/categories/${category.style_id}/${category.id}`} fw={500} flex={1}>
+      <Text
+        component={Link}
+        to={`/categories/${category.style_id}/${category.id}`}
+        fw={500}
+        flex={1}
+        c="var(--color-fg)"
+        td="none"
+      >
         {category.name}
       </Text>
       <Badge variant="default" size="sm">
