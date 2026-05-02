@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
-import { server } from '../../../../test/setup';
-import { tokenStore } from '../../../../auth/tokenStore';
+import { server } from '../../test/setup';
+import { tokenStore } from '../../auth/tokenStore';
 import { StyleSelector } from '../StyleSelector';
 
 function Wrapper({ children }: { children: React.ReactNode }) {

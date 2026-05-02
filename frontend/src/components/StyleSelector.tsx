@@ -1,5 +1,5 @@
 import { Select } from '@mantine/core';
-import { useStyles } from '../../../hooks/useStyles';
+import { useStyles } from '../hooks/useStyles';
 
 export interface StyleSelectorProps {
   value: string;
