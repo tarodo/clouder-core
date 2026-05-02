@@ -60,6 +60,48 @@ if (typeof Element.prototype.scrollIntoView === 'undefined') {
   Element.prototype.scrollIntoView = () => {};
 }
 
+// jsdom returns zero-dimension bounding rects for every element, which makes
+// Floating UI's `hide` middleware mark Mantine Popover references as
+// `referenceHidden`. Mantine then injects `display: none` on the dropdown
+// (PopoverDropdown uses `ctx.referenceHidden ? { display: 'none' } : null`),
+// so opened menus stay hidden in the accessibility tree and `getByRole(
+// 'menuitem')` cannot find them. Stub a non-zero rect so the dropdown stays
+// visible after click.
+const NativeGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+Element.prototype.getBoundingClientRect = function getBoundingClientRect() {
+  const rect = NativeGetBoundingClientRect.call(this);
+  if (rect.width === 0 && rect.height === 0) {
+    return {
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      bottom: 1024,
+      right: 1024,
+      width: 1024,
+      height: 1024,
+      toJSON() {
+        return this;
+      },
+    } as DOMRect;
+  }
+  return rect;
+};
+
+// jsdom's window has 0 inner dimensions, which Floating UI's `hide()` middleware
+// uses to compute clipping ancestors. Set non-zero values so popovers aren't
+// flagged `referenceHidden`.
+Object.defineProperty(window, 'innerWidth', { writable: true, value: 1024 });
+Object.defineProperty(window, 'innerHeight', { writable: true, value: 768 });
+Object.defineProperty(document.documentElement, 'clientWidth', {
+  configurable: true,
+  value: 1024,
+});
+Object.defineProperty(document.documentElement, 'clientHeight', {
+  configurable: true,
+  value: 768,
+});
+
 // jsdom does not implement window.matchMedia; Mantine reads it for color scheme.
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

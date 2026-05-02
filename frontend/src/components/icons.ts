@@ -16,4 +16,6 @@ export {
   IconLoader,
   IconAlertTriangle,
   IconArrowLeft,
+  IconDotsVertical,
+  IconTrash,
 } from '@tabler/icons-react';
