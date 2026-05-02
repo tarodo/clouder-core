@@ -107,5 +107,63 @@
       "added": "Added",
       "ai_suspected_aria": "AI-suspected"
     }
+  },
+  "triage": {
+    "page_title": "Triage",
+    "create_cta": "New triage block",
+    "loading": "Loading triage blocks…",
+    "track_count_one": "{{count}} track",
+    "track_count_other": "{{count}} tracks",
+    "tabs": {
+      "active": "Active",
+      "finalized": "Finalized",
+      "all": "All",
+      "counter": "{{label}} · {{count}}"
+    },
+    "row": {
+      "date_range": "{{from}} → {{to}}",
+      "menu": { "delete": "Delete" }
+    },
+    "form": {
+      "create_title": "New triage block",
+      "name_label": "Name",
+      "name_description": "Up to 128 characters.",
+      "name_placeholder": "Tech House W17",
+      "date_range_label": "Window",
+      "date_range_description": "First and last release date covered by this block.",
+      "date_range_placeholder": "Pick range",
+      "create_submit": "Create",
+      "cancel": "Cancel"
+    },
+    "delete_modal": {
+      "title": "Delete triage block?",
+      "body": "Delete '{{name}}'? Tracks already promoted to categories stay there. Tracks still in staging are removed.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "created": "Triage block created.",
+      "deleted": "Triage block deleted.",
+      "create_pending": "Creation is taking longer than usual. We'll refresh the list automatically.",
+      "create_eventually_succeeded": "Triage block created (it took a moment).",
+      "create_failed_to_confirm": "Couldn't confirm creation. Please refresh and try again.",
+      "delete_not_found": "Block already deleted elsewhere.",
+      "generic_error": "Something went wrong. Please retry."
+    },
+    "errors": {
+      "name_required": "Name is required.",
+      "name_too_long": "Name must be 128 characters or less.",
+      "name_control_chars": "Name contains forbidden characters.",
+      "date_range_required": "Pick a date range.",
+      "date_range_invalid": "End date must be on or after start date."
+    },
+    "empty_state": {
+      "no_active_title": "No active triage blocks",
+      "no_active_body": "Create one to start sorting this style's releases.",
+      "no_finalized_title": "No finalized blocks yet",
+      "no_finalized_body": "Finalize a block to see it here.",
+      "no_blocks_title": "No triage blocks yet",
+      "no_blocks_body": "Create your first block for {{style_name}}."
+    }
   }
 }
