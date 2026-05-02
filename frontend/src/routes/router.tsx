@@ -3,7 +3,9 @@ import { AppShellLayout } from './_layout';
 import { LoginPage } from './login';
 import { AuthReturnPage } from './auth.return';
 import { HomePage } from './home';
-import { CategoriesPage } from './categories';
+import { CategoriesIndexRedirect } from '../features/categories/routes/CategoriesIndexRedirect';
+import { CategoriesListPage } from '../features/categories/routes/CategoriesListPage';
+import { CategoryDetailPage } from '../features/categories/routes/CategoryDetailPage';
 import { TriagePage } from './triage';
 import { CuratePage } from './curate';
 import { ProfilePage } from './profile';
@@ -29,7 +31,14 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: 'categories', element: <CategoriesPage /> },
+      {
+        path: 'categories',
+        children: [
+          { index: true, element: <CategoriesIndexRedirect /> },
+          { path: ':styleId', element: <CategoriesListPage /> },
+          { path: ':styleId/:id', element: <CategoryDetailPage /> },
+        ],
+      },
       { path: 'triage', element: <TriagePage /> },
       { path: 'curate', element: <CuratePage /> },
       { path: 'profile', element: <ProfilePage /> },

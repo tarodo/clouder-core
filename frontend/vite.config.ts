@@ -5,38 +5,50 @@ import path from 'node:path';
 
 // `/auth/return` is a SPA route owned by AuthReturnPage. Everything else
 // under /auth/* is a backend endpoint and must be proxied to API GW.
-const PROXIED_PREFIXES = [
+//
+// `BACKEND_ONLY_PREFIXES` are always proxied — they have no SPA equivalent.
+// `SPA_AWARE_PREFIXES` collide with client-side SPA routes (`/categories/*`,
+// `/triage/*`); for those we proxy `Accept: application/json` calls from the
+// SPA but bypass to `/index.html` for browser navigations (F5, deep-link
+// paste — they send `Accept: text/html`) so the router can render the page.
+const BACKEND_ONLY_PREFIXES = [
   '/auth/login',
   '/auth/callback',
   '/auth/refresh',
   '/auth/logout',
   '/me',
-  '/categories',
   '/styles',
   '/tracks',
   '/artists',
   '/labels',
   '/albums',
-  '/triage',
   '/runs',
   '/collect_bp_releases',
 ];
+const SPA_AWARE_PREFIXES = ['/categories', '/triage'];
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const target = env.VITE_API_BASE_URL ?? '';
 
-  const proxy = Object.fromEntries(
-    PROXIED_PREFIXES.map((prefix) => [
-      prefix,
-      {
-        target,
-        changeOrigin: true,
-        secure: true,
-        cookieDomainRewrite: '',
-      },
-    ]),
-  );
+  const baseOpts = { target, changeOrigin: true, secure: true, cookieDomainRewrite: '' };
+  const spaAwareOpts = {
+    ...baseOpts,
+    bypass: (req: { method?: string; headers: Record<string, string | string[] | undefined> }) => {
+      if (req.method !== 'GET') return undefined;
+      const accept = req.headers.accept;
+      const acceptStr = Array.isArray(accept) ? accept.join(',') : accept;
+      if (typeof acceptStr === 'string' && acceptStr.includes('text/html')) {
+        return '/index.html';
+      }
+      return undefined;
+    },
+  };
+
+  const proxy = {
+    ...Object.fromEntries(BACKEND_ONLY_PREFIXES.map((p) => [p, baseOpts])),
+    ...Object.fromEntries(SPA_AWARE_PREFIXES.map((p) => [p, spaAwareOpts])),
+  };
 
   return {
     plugins: [react()],

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { I18nextProvider } from 'react-i18next';
+import { MemoryRouter } from 'react-router';
 import i18n from '../../i18n';
 import { AuthContext, type AuthContextValue } from '../../auth/AuthProvider';
 import { UserMenu } from '../UserMenu';
@@ -24,7 +25,9 @@ function wrap(ui: React.ReactNode, auth: AuthContextValue = makeAuth()) {
   return render(
     <I18nextProvider i18n={i18n}>
       <MantineProvider>
-        <AuthContext.Provider value={auth}>{ui}</AuthContext.Provider>
+        <MemoryRouter>
+          <AuthContext.Provider value={auth}>{ui}</AuthContext.Provider>
+        </MemoryRouter>
       </MantineProvider>
     </I18nextProvider>,
   );
