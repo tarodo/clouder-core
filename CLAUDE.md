@@ -82,7 +82,7 @@ cd infra && terraform init && terraform apply
 - **`scripts/generate_openapi.py:ROUTES` is a manual table.** Update it whenever API Gateway routes change (`infra/api_gateway.tf`, `infra/auth.tf`, `infra/curation.tf`). Without sync, `docs/openapi.yaml` (used as Postman import) goes stale silently.
 - **macOS `python` is unavailable.** Use `python3` for stdlib-only scripts; for project scripts that import `yaml`/`pydantic`/etc., use `.venv/bin/python` (Homebrew `python3.14` lacks repo deps).
 
-**Frontend (post-F1, 2026-05-02; F2 additions 2026-05-03):**
+**Frontend (post-F1, 2026-05-02; F2, F3, F4 additions 2026-05-03):**
 
 - **Run `pnpm dev` from `frontend/`**, not from worktree root. Requires `frontend/.env.local` with `VITE_API_BASE_URL=$(cd infra && terraform output -raw api_endpoint)`. SPA on `http://127.0.0.1:5173`, Vite proxies API calls to deployed prod API GW. Without `.env.local` the proxy is disabled (`server.proxy: target ? proxy : undefined`) and `/auth/login` falls into SPA fallback → `NotFoundPage`.
 - **Vite proxy SPA-aware bypass.** `/categories` and `/triage` collide with SPA route paths. `vite.config.ts` `bypass` returns `/index.html` for `Accept: text/html` GETs so F5 / deep-link paste lands in the SPA router. Backend-only prefixes (`/auth/login`, `/me`, `/styles`, etc.) proxy unconditionally.
@@ -96,6 +96,13 @@ cd infra && terraform init && terraform apply
 - **Refresh-cookie replay detection is unforgiving.** Reusing the same refresh cookie revokes ALL of the user's sessions. Only a fresh `/auth/login` round-trip restores them — clear cookies + relogin during dev. AuthProvider bootstrap fires `/auth/refresh` on mount even pre-login (401 expected, harmless when token is null).
 - **`SPOTIFY_OAUTH_REDIRECT_URI` Lambda env (`beatport-prod-auth-handler`) determines the OAuth redirect target.** Set to `http://127.0.0.1:5173/auth/return` for SPA dev flow; `https://<api-gw>/auth/callback` for Postman/backend-only flow. Patched ad-hoc 2026-05-02 — terraform drift exists (see roadmap TD-8).
 - **Curation Lambda CW logging IAM** was missing `/aws/lambda/beatport-prod-curation:*` in the role policy until 2026-05-02. Patched ad-hoc — terraform drift exists (roadmap TD-7). When adding new Lambdas to `infra/`, ensure the corresponding log group ARN appears in `beatport-prod-collector-lambda-policy`.
+- **Vitest 2.x `vi.fn` typed mocks** use the function-type form `vi.fn<() => Promise<T>>()`, NOT the legacy `vi.fn<[], Promise<T>>()` (which compiles as `never` and fails typecheck on Vitest 2.x).
+- **MSW handler URLs in tests use `http://localhost/...`** — jsdom default `window.location.origin`. `apiClient` builds `${baseUrl}${path}` from `window.location.origin`, so don't invent hosts like `https://api.test`.
+- **`triageBlocksByStyleKey(styleId, undefined)` resolves to `[..., 'all']`**, NOT `[..., undefined]`. When asserting on cache keys via `invalidateQueries` spies, call the helper rather than writing literal tuples.
+- **`ApiError.raw: unknown` carries the parsed JSON error body** (`frontend/src/api/error.ts:7`). Use `err.raw as XBody` to read structured error payloads (e.g. `inactive_buckets[]` on 409). The field already exists — no need to extend `ApiError`.
+- **Mantine portal singleton survives RTL `cleanup()`.** `data-mantine-shared-portal-node` is global on `document.body`, so subsequent tests' `screen.getAllByRole('button', { name: 'X' })` match stale buttons from prior tests' modals. Fix: scope queries via `within(await screen.findByRole('dialog'))`.
+- **`<MantineProvider theme={testTheme}>` is required** in any test that mounts a `Modal` or `Notifications`. `frontend/src/test/theme.ts` exposes the singleton — disables transition durations to defeat jsdom portal-animation races.
+- **Cold-start (503) auto-recovery scheduler pattern.** Two consumers shipped: `pendingCreateRecovery.ts` (F2, match by `(name, date_from, date_to)` tuple) and `pendingFinalizeRecovery.ts` (F4, match by `block.status === 'FINALIZED'`). Pure scheduler shape: no React, no QueryClient. Caller passes `refetch`, `onSuccess`, `onFailure` + optional `delays`. Promote to shared `frontend/src/lib/coldStartRecovery.ts` at N=3.
 
 ## Env Vars (runtime)
 
