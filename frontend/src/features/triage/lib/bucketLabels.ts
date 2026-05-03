@@ -6,8 +6,8 @@ export type BucketType = TechnicalBucketType | 'STAGING';
 export interface TriageBucket {
   id: string;
   bucket_type: BucketType;
-  category_id: string | null;
-  category_name: string | null;
+  category_id?: string | null;
+  category_name?: string | null;
   inactive: boolean;
   track_count: number;
 }
