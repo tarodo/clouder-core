@@ -12,9 +12,11 @@ import {
 } from './useTriageBlocksByStyle';
 
 export interface TransferInput {
+  /** Used for cache invalidation only — not sent to the API. */
   targetBlockId: string;
   targetBucketId: string;
   trackIds: string[];
+  /** Used for cache invalidation only — not sent to the API. */
   styleId: string;
 }
 
@@ -39,6 +41,10 @@ export function useTransferTracks(
           track_ids: input.trackIds,
         }),
       }),
+    // No onMutate / optimistic write: the backend transfer endpoint uses
+    // snapshot semantics — the source bucket is NOT mutated. The caller's view
+    // of the source remains valid after transfer, so there is nothing to
+    // optimistically update or roll back.
     onSuccess: (_data, input) => {
       qc.invalidateQueries({
         queryKey: ['triage', 'bucketTracks', input.targetBlockId, input.targetBucketId],
