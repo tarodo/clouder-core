@@ -451,6 +451,8 @@ describe('TransferModal — bulk mode', () => {
     await waitFor(() =>
       expect(screen.getByText(/Transferred 1000 of 3000/i)).toBeInTheDocument(),
     );
+    // Red diagnostic toast surfaces the underlying reason alongside the orange partial.
+    expect(screen.getByText(/Target block was finalized/i)).toBeInTheDocument();
     expect(screen.getByText('← Back')).toBeInTheDocument();
   });
 });

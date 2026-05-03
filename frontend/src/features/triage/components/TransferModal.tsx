@@ -86,18 +86,6 @@ export function TransferModal({
     setStep('bucket');
   };
 
-  const invalidateForBulkError = (code: string) => {
-    if (code === 'triage_block_not_found' || code === 'tracks_not_in_source') {
-      qc.invalidateQueries({ queryKey: ['triage', 'bucketTracks', srcBlock.id] });
-    } else if (code === 'target_bucket_not_found' || code === 'invalid_state') {
-      for (const s of STATUSES) {
-        qc.invalidateQueries({ queryKey: triageBlocksByStyleKey(styleId, s) });
-      }
-    } else if (code === 'target_bucket_inactive' && targetBlockId) {
-      qc.invalidateQueries({ queryKey: triageBlockKey(targetBlockId) });
-    }
-  };
-
   const runBulkTransfer = async (resolvedBlockId: string, bucket: TriageBucket) => {
     cancelledRef.current = false;
     const total = trackIds.length;
@@ -118,8 +106,9 @@ export function TransferModal({
         });
         transferred += resp.transferred;
       } catch (err) {
-        const code = err instanceof ApiError ? err.code : 'unknown';
-        invalidateForBulkError(code);
+        // Bulk: keep modal on step 2 (snapshot + idempotent retry per spec D9), but surface BOTH:
+        //   - orange partial toast (count + total)
+        //   - red diagnostic toast (per error code)
         notifications.show({
           color: 'orange',
           message: t('triage.transfer.bulk.toast.partial', {
@@ -129,6 +118,10 @@ export function TransferModal({
             bucketLabel: bucketLabel(bucket, t),
           }),
         });
+        const code = err instanceof ApiError ? err.code : 'unknown';
+        const mapping = mapTransferError(code);
+        notifications.show({ color: 'red', message: t(mapping.toastKey) });
+        mapping.invalidate(qc, { styleId, srcBlockId: srcBlock.id, targetBlockId });
         setBulkPhase(null);
         return;
       }
@@ -345,43 +338,79 @@ interface ErrorCtx {
   close: () => void;
 }
 
-function handleTransferError(ctx: ErrorCtx): void {
-  const code = ctx.err instanceof ApiError ? ctx.err.code : 'unknown';
-  let toastKey: string;
-  let next: 'close' | 'step1' | 'stay';
+type TransferErrorAction = 'close' | 'step1' | 'stay';
 
+interface TransferErrorInvalidateCtx {
+  styleId: string;
+  srcBlockId: string;
+  targetBlockId: string | null;
+}
+
+interface TransferErrorMapping {
+  toastKey: string;
+  invalidate: (qc: QueryClient, ctx: TransferErrorInvalidateCtx) => void;
+  action: TransferErrorAction;
+}
+
+function mapTransferError(code: string): TransferErrorMapping {
   switch (code) {
     case 'triage_block_not_found':
     case 'tracks_not_in_source':
-      toastKey = 'triage.transfer.toast.stale_source';
-      ctx.qc.invalidateQueries({ queryKey: ['triage', 'bucketTracks', ctx.srcBlockId] });
-      next = 'close';
-      break;
+      return {
+        toastKey: 'triage.transfer.toast.stale_source',
+        invalidate: (qc, ctx) => {
+          qc.invalidateQueries({ queryKey: ['triage', 'bucketTracks', ctx.srcBlockId] });
+        },
+        action: 'close',
+      };
     case 'target_bucket_not_found':
-      toastKey = 'triage.transfer.toast.stale_target';
-      for (const s of STATUSES) ctx.qc.invalidateQueries({ queryKey: triageBlocksByStyleKey(ctx.styleId, s) });
-      next = 'step1';
-      break;
+      return {
+        toastKey: 'triage.transfer.toast.stale_target',
+        invalidate: (qc, ctx) => {
+          for (const s of STATUSES) qc.invalidateQueries({ queryKey: triageBlocksByStyleKey(ctx.styleId, s) });
+        },
+        action: 'step1',
+      };
     case 'invalid_state':
-      toastKey = 'triage.transfer.toast.target_finalized';
-      for (const s of STATUSES) ctx.qc.invalidateQueries({ queryKey: triageBlocksByStyleKey(ctx.styleId, s) });
-      next = 'close';
-      break;
+      return {
+        toastKey: 'triage.transfer.toast.target_finalized',
+        invalidate: (qc, ctx) => {
+          for (const s of STATUSES) qc.invalidateQueries({ queryKey: triageBlocksByStyleKey(ctx.styleId, s) });
+        },
+        action: 'close',
+      };
     case 'target_bucket_inactive':
-      toastKey = 'triage.transfer.toast.target_inactive';
-      if (ctx.targetBlockId) ctx.qc.invalidateQueries({ queryKey: triageBlockKey(ctx.targetBlockId) });
-      next = 'stay';
-      break;
+      return {
+        toastKey: 'triage.transfer.toast.target_inactive',
+        invalidate: (qc, ctx) => {
+          if (ctx.targetBlockId) qc.invalidateQueries({ queryKey: triageBlockKey(ctx.targetBlockId) });
+        },
+        action: 'stay',
+      };
     case 'target_block_style_mismatch':
-      toastKey = 'triage.transfer.toast.style_mismatch';
-      next = 'close';
-      break;
+      return {
+        toastKey: 'triage.transfer.toast.style_mismatch',
+        invalidate: () => {},
+        action: 'close',
+      };
     default:
-      toastKey = 'errors.network';
-      next = 'stay';
+      return {
+        toastKey: 'errors.network',
+        invalidate: () => {},
+        action: 'stay',
+      };
   }
+}
 
-  notifications.show({ color: 'red', message: ctx.t(toastKey) });
-  if (next === 'close') ctx.close();
-  else if (next === 'step1') ctx.setStep('block');
+function handleTransferError(ctx: ErrorCtx): void {
+  const code = ctx.err instanceof ApiError ? ctx.err.code : 'unknown';
+  const mapping = mapTransferError(code);
+  mapping.invalidate(ctx.qc, {
+    styleId: ctx.styleId,
+    srcBlockId: ctx.srcBlockId,
+    targetBlockId: ctx.targetBlockId,
+  });
+  notifications.show({ color: 'red', message: ctx.t(mapping.toastKey) });
+  if (mapping.action === 'close') ctx.close();
+  else if (mapping.action === 'step1') ctx.setStep('block');
 }
