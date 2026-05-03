@@ -150,7 +150,7 @@ describe('BucketDetailPage integration', () => {
     expect(await screen.findByText(/Undone/)).toBeInTheDocument();
   });
 
-  it('move 409 inactive_bucket: rollback + red toast', async () => {
+  it('move 409 target_bucket_inactive: rollback + red toast', async () => {
     server.use(
       http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(inProgressBlock)),
       http.get('http://localhost/triage/blocks/b1/buckets/bk1/tracks', () =>
@@ -158,7 +158,7 @@ describe('BucketDetailPage integration', () => {
       ),
       http.post('http://localhost/triage/blocks/b1/move', () =>
         HttpResponse.json(
-          { error_code: 'inactive_bucket', message: 'no' },
+          { error_code: 'target_bucket_inactive', message: 'no' },
           { status: 409 },
         ),
       ),

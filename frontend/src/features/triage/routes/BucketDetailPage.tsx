@@ -142,7 +142,7 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
       onError: (err) => {
         const code = err instanceof ApiError ? err.code : 'unknown';
         let messageKey = 'triage.move.toast.error';
-        if (code === 'inactive_bucket' || code === 'invalid_state') {
+        if (code === 'target_bucket_inactive' || code === 'invalid_state') {
           messageKey = 'triage.move.toast.invalid_target';
         } else if (
           code === 'triage_block_not_found' ||

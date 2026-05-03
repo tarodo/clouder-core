@@ -103,11 +103,11 @@ describe('useMoveTracks — optimistic write', () => {
     expect(after?.pages[0]?.total).toBe(1);
   });
 
-  it('rolls back on 409 inactive_bucket', async () => {
+  it('rolls back on 409 target_bucket_inactive', async () => {
     server.use(
       http.post('http://localhost/triage/blocks/b1/move', () =>
         HttpResponse.json(
-          { error_code: 'inactive_bucket', message: 'no' },
+          { error_code: 'target_bucket_inactive', message: 'no' },
           { status: 409 },
         ),
       ),
