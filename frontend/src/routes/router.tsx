@@ -8,7 +8,8 @@ import { CategoriesListPage } from '../features/categories/routes/CategoriesList
 import { CategoryDetailPage } from '../features/categories/routes/CategoryDetailPage';
 import { TriageIndexRedirect } from '../features/triage/routes/TriageIndexRedirect';
 import { TriageListPage } from '../features/triage/routes/TriageListPage';
-import { TriageDetailStub } from '../features/triage/routes/TriageDetailStub';
+import { TriageDetailPage } from '../features/triage/routes/TriageDetailPage';
+import { BucketDetailPage } from '../features/triage/routes/BucketDetailPage';
 import { CuratePage } from './curate';
 import { ProfilePage } from './profile';
 import { NotFoundPage } from './not-found';
@@ -46,7 +47,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <TriageIndexRedirect /> },
           { path: ':styleId', element: <TriageListPage /> },
-          { path: ':styleId/:id', element: <TriageDetailStub /> },
+          { path: ':styleId/:id', element: <TriageDetailPage /> },
+          { path: ':styleId/:id/buckets/:bucketId', element: <BucketDetailPage /> },
         ],
       },
       { path: 'curate', element: <CuratePage /> },
