@@ -259,6 +259,52 @@
         "target_finalized": "Target block was finalized. Pick another.",
         "target_inactive": "That bucket is no longer valid.",
         "style_mismatch": "Style mismatch. Refreshing."
+      },
+      "bulk": {
+        "cta": "Transfer all to another block…",
+        "modal": {
+          "batch_progress": "Transferring batch {{k}} of {{m}}…"
+        },
+        "toast": {
+          "success_one": "Transferred {{count}} track to {{blockName}} / {{bucketLabel}}.",
+          "success_other": "Transferred {{count}} tracks to {{blockName}} / {{bucketLabel}}.",
+          "partial": "Transferred {{count}} of {{total}} tracks. Source unchanged — click Transfer all again to retry."
+        }
+      }
+    },
+    "finalize": {
+      "confirm": {
+        "title": "Finalize {{blockName}}?",
+        "body_one": "{{count}} track will be promoted into {{categoryCount}} category. This cannot be undone.",
+        "body_other": "{{count}} tracks will be promoted into {{categoryCount}} categories. This cannot be undone.",
+        "empty_summary": "Block has no staging buckets. Finalizing will mark it FINALIZED with no category promotions.",
+        "row_count_one": "{{count}} track",
+        "row_count_other": "{{count}} tracks",
+        "submit": "Finalize",
+        "cancel": "Cancel",
+        "recovering": "Cold start, hang on…"
+      },
+      "blocker": {
+        "title": "Cannot finalize yet",
+        "body_one": "{{count}} staging bucket holds tracks but its category was deleted. Move or transfer them first.",
+        "body_other": "{{count}} staging buckets hold tracks but their categories were deleted. Move or transfer them first.",
+        "row_count_one": "{{count}} track",
+        "row_count_other": "{{count}} tracks",
+        "open": "Open",
+        "dismiss": "Dismiss",
+        "unknown_category": "(deleted category)"
+      },
+      "toast": {
+        "success_one": "Finalized {{blockName}} · promoted {{count}} track across {{categoryCount}} categories.",
+        "success_other": "Finalized {{blockName}} · promoted {{count}} tracks across {{categoryCount}} categories.",
+        "success_recovered_one": "Finalize succeeded after retry — {{blockName}} · promoted {{count}} track.",
+        "success_recovered_other": "Finalize succeeded after retry — {{blockName}} · promoted {{count}} tracks.",
+        "stale_block": "Block is gone. Refreshing.",
+        "already_finalized": "Block is already finalized.",
+        "blocked_race_one": "{{count}} bucket needs attention before finalize.",
+        "blocked_race_other": "{{count}} buckets need attention before finalize.",
+        "cold_start_terminal": "Finalize is taking too long. Refresh — it may have already succeeded.",
+        "error": "Finalize failed."
       }
     }
   }
