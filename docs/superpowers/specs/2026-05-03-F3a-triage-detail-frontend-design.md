@@ -537,7 +537,7 @@ Pluralisation uses i18next ICU (`_one` / `_other`).
 ### 11.1 Unit (Vitest + Testing Library)
 
 `frontend/src/lib/__tests__/formatters.test.ts`:
-- `formatLength(0)` → `'0:00'`. `formatLength(null)` → `'—'`. `formatLength(135_000)` → `'2:15'`. `formatLength(59_999)` → `'1:00'` (Math.round).
+- `formatLength(0)` → `'—'` (legacy F1 behavior — 0-ms tracks treated as missing). `formatLength(null)` → `'—'`. `formatLength(135_000)` → `'2:15'`. `formatLength(59_999)` → `'1:00'` (Math.round).
 - `formatAdded` returns ISO-date-formatted localised string (snapshot-style, locale-stable).
 - `formatReleaseDate(null)` → `'—'`. `formatReleaseDate('2026-04-15')` → `'2026-04-15'` (strict ISO display).
 
