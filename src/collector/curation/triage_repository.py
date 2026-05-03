@@ -332,20 +332,27 @@ class TriageRepository:
         if from_bucket_id == to_bucket_id:
             return MoveResult(moved=0)
 
+        # Aurora Data API forbids array params (lists serialize as jsonb,
+        # `ANY(jsonb)` and `jsonb::text[]` both fail). Build a parametric
+        # IN-list and per-id VALUES rows instead — same pattern as
+        # categories_repository.add_tracks_bulk.
+        track_id_list = list(track_ids)
+        select_placeholders = ", ".join(f":t{i}" for i in range(len(track_id_list)))
+        select_params: dict[str, Any] = {
+            "from_id": from_bucket_id,
+            **{f"t{i}": tid for i, tid in enumerate(track_id_list)},
+        }
         present = self._data_api.execute(
-            """
+            f"""
             SELECT track_id
             FROM triage_bucket_tracks
             WHERE triage_bucket_id = :from_id
-              AND track_id = ANY(:track_ids)
+              AND track_id IN ({select_placeholders})
             """,
-            {
-                "from_id": from_bucket_id,
-                "track_ids": list(track_ids),
-            },
+            select_params,
         )
         present_ids = {r["track_id"] for r in present}
-        missing = [t for t in track_ids if t not in present_ids]
+        missing = [t for t in track_id_list if t not in present_ids]
         if missing:
             raise TracksNotInSourceError(
                 f"{len(missing)} track(s) not present in source bucket",
@@ -354,34 +361,34 @@ class TriageRepository:
 
         with self._data_api.transaction() as tx_id:
             self._data_api.execute(
-                """
+                f"""
                 DELETE FROM triage_bucket_tracks
                 WHERE triage_bucket_id = :from_id
-                  AND track_id = ANY(:track_ids)
+                  AND track_id IN ({select_placeholders})
                 """,
-                {
-                    "from_id": from_bucket_id,
-                    "track_ids": list(track_ids),
-                },
+                select_params,
                 transaction_id=tx_id,
             )
+            insert_value_rows = ", ".join(
+                f"(:to_id, :t{i}, :now)" for i in range(len(track_id_list))
+            )
+            insert_params: dict[str, Any] = {
+                "to_id": to_bucket_id,
+                "now": utc_now(),
+                **{f"t{i}": tid for i, tid in enumerate(track_id_list)},
+            }
             self._data_api.execute(
-                """
+                f"""
                 INSERT INTO triage_bucket_tracks
                     (triage_bucket_id, track_id, added_at)
-                SELECT :to_id, t, :now
-                FROM UNNEST(:track_ids::text[]) AS t
+                VALUES {insert_value_rows}
                 ON CONFLICT (triage_bucket_id, track_id) DO NOTHING
                 """,
-                {
-                    "to_id": to_bucket_id,
-                    "track_ids": list(track_ids),
-                    "now": utc_now(),
-                },
+                insert_params,
                 transaction_id=tx_id,
             )
 
-        return MoveResult(moved=len(track_ids))
+        return MoveResult(moved=len(track_id_list))
 
     def transfer_tracks(
         self,
@@ -444,41 +451,48 @@ class TriageRepository:
                 "source and target triage blocks belong to different styles"
             )
 
+        # Aurora Data API forbids array params — see move_tracks for rationale.
+        track_id_list = list(track_ids)
+        select_placeholders = ", ".join(f":t{i}" for i in range(len(track_id_list)))
+        select_params: dict[str, Any] = {
+            "src_block_id": src_block_id,
+            **{f"t{i}": tid for i, tid in enumerate(track_id_list)},
+        }
         present = self._data_api.execute(
-            """
+            f"""
             SELECT DISTINCT tbt.track_id
             FROM triage_bucket_tracks tbt
             JOIN triage_buckets tbk ON tbk.id = tbt.triage_bucket_id
             WHERE tbk.triage_block_id = :src_block_id
-              AND tbt.track_id = ANY(:track_ids)
+              AND tbt.track_id IN ({select_placeholders})
             """,
-            {
-                "src_block_id": src_block_id,
-                "track_ids": list(track_ids),
-            },
+            select_params,
         )
         present_ids = {r["track_id"] for r in present}
-        missing = [t for t in track_ids if t not in present_ids]
+        missing = [t for t in track_id_list if t not in present_ids]
         if missing:
             raise TracksNotInSourceError(
                 f"{len(missing)} track(s) not present in source block",
                 missing,
             )
 
+        insert_value_rows = ", ".join(
+            f"(:tgt_id, :t{i}, :now)" for i in range(len(track_id_list))
+        )
+        insert_params: dict[str, Any] = {
+            "tgt_id": target_bucket_id,
+            "now": utc_now(),
+            **{f"t{i}": tid for i, tid in enumerate(track_id_list)},
+        }
         inserted_rows = self._data_api.execute(
-            """
+            f"""
             INSERT INTO triage_bucket_tracks
                 (triage_bucket_id, track_id, added_at)
-            SELECT :tgt_id, t, :now
-            FROM UNNEST(:track_ids::text[]) AS t
+            VALUES {insert_value_rows}
             ON CONFLICT (triage_bucket_id, track_id) DO NOTHING
             RETURNING track_id
             """,
-            {
-                "tgt_id": target_bucket_id,
-                "track_ids": list(track_ids),
-                "now": utc_now(),
-            },
+            insert_params,
         )
         return TransferResult(transferred=len(inserted_rows))
 
