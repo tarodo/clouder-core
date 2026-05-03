@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MantineProvider, Table } from '@mantine/core';
 import '../../../../i18n';
 import { BucketTrackRow } from '../BucketTrackRow';
@@ -24,6 +25,7 @@ const track: BucketTrack = {
   release_type: null,
   is_ai_suspected: false,
   artists: ['Artist A', 'Artist B'],
+  label_name: 'Anjunadeep',
   added_at: '2026-04-21T08:00:00Z',
 };
 
@@ -90,6 +92,36 @@ describe('BucketTrackRow desktop', () => {
       </Table>,
     );
     expect(screen.queryByRole('button', { name: /Move track/ })).not.toBeInTheDocument();
+  });
+
+  it('passes onTransfer through to MoveToMenu when blockStatus=IN_PROGRESS', async () => {
+    const onTransfer = vi.fn();
+    r(
+      <Table>
+        <Table.Tbody>
+          <BucketTrackRow
+            track={{
+              track_id: 'tk1', title: 't', mix_name: null, isrc: null, bpm: null,
+              length_ms: null, publish_date: null, spotify_release_date: null,
+              spotify_id: null, release_type: null, is_ai_suspected: false,
+              artists: ['a'], label_name: null, added_at: '2026-04-21T00:00:00Z',
+            }}
+            variant="desktop"
+            buckets={[
+              { id: 'cur', bucket_type: 'NEW', category_id: null, category_name: null, inactive: false, track_count: 1 },
+            ]}
+            currentBucketId="cur"
+            onMove={vi.fn()}
+            onTransfer={onTransfer}
+            showMoveMenu
+            blockStatus="IN_PROGRESS"
+          />
+        </Table.Tbody>
+      </Table>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Move track/ }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /Transfer to other block/ }));
+    expect(onTransfer).toHaveBeenCalledTimes(1);
   });
 });
 

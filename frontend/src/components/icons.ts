@@ -16,6 +16,7 @@ export {
   IconLoader,
   IconAlertTriangle,
   IconArrowLeft,
+  IconArrowsExchange,
   IconDotsVertical,
   IconTrash,
   IconPlus,

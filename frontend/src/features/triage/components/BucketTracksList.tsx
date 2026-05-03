@@ -15,6 +15,8 @@ export interface BucketTracksListProps {
   buckets: TriageBucket[];
   showMoveMenu: boolean;
   onMove: (trackId: string, toBucket: TriageBucket) => void;
+  onTransfer?: (trackId: string) => void;
+  blockStatus?: 'IN_PROGRESS' | 'FINALIZED';
 }
 
 export function BucketTracksList({
@@ -23,6 +25,8 @@ export function BucketTracksList({
   buckets,
   showMoveMenu,
   onMove,
+  onTransfer,
+  blockStatus,
 }: BucketTracksListProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
@@ -106,7 +110,9 @@ export function BucketTracksList({
       buckets={buckets}
       currentBucketId={bucket.id}
       onMove={(b) => onMove(tr.track_id, b)}
+      onTransfer={onTransfer ? () => onTransfer(tr.track_id) : undefined}
       showMoveMenu={showMoveMenu}
+      blockStatus={blockStatus}
     />
   ));
 
@@ -137,6 +143,7 @@ export function BucketTracksList({
           <Table.Tr>
             <Table.Th>{t('triage.tracks_table.title_header')}</Table.Th>
             <Table.Th>{t('triage.tracks_table.artists_header')}</Table.Th>
+            <Table.Th>{t('triage.tracks_table.label_header')}</Table.Th>
             <Table.Th>{t('triage.tracks_table.bpm_header')}</Table.Th>
             <Table.Th>{t('triage.tracks_table.length_header')}</Table.Th>
             <Table.Th>{t('triage.tracks_table.released_header')}</Table.Th>

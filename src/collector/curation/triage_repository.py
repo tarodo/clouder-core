@@ -87,6 +87,7 @@ class BucketTrackRowOut:
     release_type: str | None
     is_ai_suspected: bool
     artists: tuple[str, ...]
+    label_name: str | None
     added_at: str
 
 
@@ -959,22 +960,21 @@ class TriageRepository:
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type, t.is_ai_suspected,
                 tbt.added_at,
-                COALESCE(
-                    ARRAY_AGG(ca.name ORDER BY cta.role, ca.name)
-                        FILTER (WHERE ca.id IS NOT NULL),
-                    ARRAY[]::text[]
-                ) AS artist_names
+                cl.name AS label_name,
+                STRING_AGG(ca.name, ',' ORDER BY cta.role, ca.name) AS artist_names
             FROM triage_bucket_tracks tbt
             JOIN clouder_tracks t ON t.id = tbt.track_id
             LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
             LEFT JOIN clouder_artists ca ON ca.id = cta.artist_id
+            LEFT JOIN clouder_albums cab ON cab.id = t.album_id
+            LEFT JOIN clouder_labels cl ON cl.id = cab.label_id
             WHERE tbt.triage_bucket_id = :bucket_id
               {search_clause}
             GROUP BY
                 t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type, t.is_ai_suspected,
-                tbt.added_at
+                tbt.added_at, cl.name
             ORDER BY tbt.added_at DESC, t.id ASC
             LIMIT :limit OFFSET :offset
             """,
@@ -992,36 +992,44 @@ class TriageRepository:
         )
         total = int(total_rows[0]["total"]) if total_rows else 0
 
-        items = [
-            BucketTrackRowOut(
-                track_id=r["track_id"],
-                title=r["title"],
-                mix_name=r.get("mix_name"),
-                isrc=r.get("isrc"),
-                bpm=int(r["bpm"]) if r.get("bpm") is not None else None,
-                length_ms=(
-                    int(r["length_ms"])
-                    if r.get("length_ms") is not None
-                    else None
-                ),
-                publish_date=(
-                    str(r["publish_date"])
-                    if r.get("publish_date") is not None
-                    else None
-                ),
-                spotify_release_date=(
-                    str(r["spotify_release_date"])
-                    if r.get("spotify_release_date") is not None
-                    else None
-                ),
-                spotify_id=r.get("spotify_id"),
-                release_type=r.get("release_type"),
-                is_ai_suspected=bool(r.get("is_ai_suspected", False)),
-                artists=tuple(r.get("artist_names") or ()),
-                added_at=str(r["added_at"]),
+        items = []
+        for r in rows:
+            artists_raw = r.get("artist_names")
+            artists = (
+                tuple(n.strip() for n in artists_raw.split(",") if n.strip())
+                if artists_raw
+                else ()
             )
-            for r in rows
-        ]
+            items.append(
+                BucketTrackRowOut(
+                    track_id=r["track_id"],
+                    title=r["title"],
+                    mix_name=r.get("mix_name"),
+                    isrc=r.get("isrc"),
+                    bpm=int(r["bpm"]) if r.get("bpm") is not None else None,
+                    length_ms=(
+                        int(r["length_ms"])
+                        if r.get("length_ms") is not None
+                        else None
+                    ),
+                    publish_date=(
+                        str(r["publish_date"])
+                        if r.get("publish_date") is not None
+                        else None
+                    ),
+                    spotify_release_date=(
+                        str(r["spotify_release_date"])
+                        if r.get("spotify_release_date") is not None
+                        else None
+                    ),
+                    spotify_id=r.get("spotify_id"),
+                    release_type=r.get("release_type"),
+                    is_ai_suspected=bool(r.get("is_ai_suspected", False)),
+                    artists=artists,
+                    label_name=r.get("label_name"),
+                    added_at=str(r["added_at"]),
+                )
+            )
         return items, total
 
     # --- internal helpers --------------------------------------------

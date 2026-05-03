@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Anchor, Group, Stack, Text, Title } from '@mantine/core';
 import { Link, Navigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,7 @@ import {
 } from '../hooks/useMoveTracks';
 import { BucketTracksList } from '../components/BucketTracksList';
 import { BucketBadge } from '../components/BucketBadge';
+import { TransferModal } from '../components/TransferModal';
 import { bucketLabel, type TriageBucket } from '../lib/bucketLabels';
 
 export function BucketDetailPage() {
@@ -41,6 +42,7 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   const { data: block, isLoading, isError, error } = useTriageBlock(blockId);
   const move = useMoveTracks(blockId, styleId);
   const undoInflight = useRef(false);
+  const [transferTrackId, setTransferTrackId] = useState<string | null>(null);
 
   if (isLoading) return <FullScreenLoader />;
   if (isError) {
@@ -184,7 +186,18 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
         buckets={block.buckets}
         showMoveMenu={showMoveMenu}
         onMove={handleMove}
+        onTransfer={(trackId) => setTransferTrackId(trackId)}
+        blockStatus={block.status}
       />
+      {transferTrackId && (
+        <TransferModal
+          opened
+          onClose={() => setTransferTrackId(null)}
+          srcBlock={block}
+          trackId={transferTrackId}
+          styleId={styleId}
+        />
+      )}
     </Stack>
   );
 }

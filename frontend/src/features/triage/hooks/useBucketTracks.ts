@@ -18,6 +18,7 @@ export interface BucketTrack {
   release_type: string | null;
   is_ai_suspected: boolean;
   artists: string[];
+  label_name: string | null;
   added_at: string;
 }
 

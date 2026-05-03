@@ -51,4 +51,91 @@ describe('MoveToMenu', () => {
     r(<MoveToMenu buckets={buckets} currentBucketId="src" onMove={onMove} disabled />);
     expect(screen.getByRole('button', { name: /Move track/ })).toBeDisabled();
   });
+
+  it('shows Transfer item after divider when showTransfer + onTransfer provided', async () => {
+    const onMove = vi.fn();
+    const onTransfer = vi.fn();
+    r(
+      <MoveToMenu
+        buckets={buckets}
+        currentBucketId="src"
+        onMove={onMove}
+        showTransfer
+        onTransfer={onTransfer}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Move track/ }));
+    expect(
+      await screen.findByRole('menuitem', { name: /Transfer to other block/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides Transfer item when showTransfer is false', async () => {
+    const onMove = vi.fn();
+    const onTransfer = vi.fn();
+    r(
+      <MoveToMenu
+        buckets={buckets}
+        currentBucketId="src"
+        onMove={onMove}
+        showTransfer={false}
+        onTransfer={onTransfer}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Move track/ }));
+    await screen.findByRole('menuitem', { name: /Move to OLD/ });
+    expect(
+      screen.queryByRole('menuitem', { name: /Transfer to other block/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides Transfer item when onTransfer is omitted', async () => {
+    const onMove = vi.fn();
+    r(<MoveToMenu buckets={buckets} currentBucketId="src" onMove={onMove} showTransfer />);
+    await userEvent.click(screen.getByRole('button', { name: /Move track/ }));
+    await screen.findByRole('menuitem', { name: /Move to OLD/ });
+    expect(
+      screen.queryByRole('menuitem', { name: /Transfer to other block/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('clicking Transfer fires onTransfer callback', async () => {
+    const onMove = vi.fn();
+    const onTransfer = vi.fn();
+    r(
+      <MoveToMenu
+        buckets={buckets}
+        currentBucketId="src"
+        onMove={onMove}
+        showTransfer
+        onTransfer={onTransfer}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Move track/ }));
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: /Transfer to other block/ }),
+    );
+    expect(onTransfer).toHaveBeenCalledTimes(1);
+  });
+
+  it('with empty destinations + showTransfer, trigger is enabled and Transfer is the only item', async () => {
+    const onMove = vi.fn();
+    const onTransfer = vi.fn();
+    const onlyCurrent: TriageBucket[] = [buckets[0]!];
+    r(
+      <MoveToMenu
+        buckets={onlyCurrent}
+        currentBucketId="src"
+        onMove={onMove}
+        showTransfer
+        onTransfer={onTransfer}
+      />,
+    );
+    const trigger = screen.getByRole('button', { name: /Move track/ });
+    expect(trigger).not.toBeDisabled();
+    await userEvent.click(trigger);
+    const items = await screen.findAllByRole('menuitem');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveAccessibleName(/Transfer to other block/);
+  });
 });

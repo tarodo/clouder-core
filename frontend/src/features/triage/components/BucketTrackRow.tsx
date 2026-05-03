@@ -12,7 +12,9 @@ export interface BucketTrackRowProps {
   buckets: TriageBucket[];
   currentBucketId: string;
   onMove: (toBucket: TriageBucket) => void;
+  onTransfer?: () => void;
   showMoveMenu: boolean;
+  blockStatus?: 'IN_PROGRESS' | 'FINALIZED';
 }
 
 export function BucketTrackRow({
@@ -21,7 +23,9 @@ export function BucketTrackRow({
   buckets,
   currentBucketId,
   onMove,
+  onTransfer,
   showMoveMenu,
+  blockStatus,
 }: BucketTrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
@@ -32,7 +36,13 @@ export function BucketTrackRow({
     />
   ) : null;
   const moveMenu = showMoveMenu ? (
-    <MoveToMenu buckets={buckets} currentBucketId={currentBucketId} onMove={onMove} />
+    <MoveToMenu
+      buckets={buckets}
+      currentBucketId={currentBucketId}
+      onMove={onMove}
+      onTransfer={onTransfer}
+      showTransfer={blockStatus === 'IN_PROGRESS' && !!onTransfer}
+    />
   ) : null;
 
   if (variant === 'desktop') {
@@ -51,7 +61,8 @@ export function BucketTrackRow({
             </Stack>
           </Group>
         </Table.Td>
-        <Table.Td>{track.artists.join(', ')}</Table.Td>
+        <Table.Td>{track.artists.join(', ') || '—'}</Table.Td>
+        <Table.Td>{track.label_name ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{track.bpm ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{formatLength(track.length_ms)}</Table.Td>
         <Table.Td className="font-mono">{formatReleaseDate(track.spotify_release_date)}</Table.Td>
@@ -75,7 +86,12 @@ export function BucketTrackRow({
             {track.mix_name}
           </Text>
         )}
-        <Text size="sm">{track.artists.join(', ')}</Text>
+        <Text size="sm">{track.artists.join(', ') || '—'}</Text>
+        {track.label_name && (
+          <Text size="xs" c="dimmed">
+            {track.label_name}
+          </Text>
+        )}
         <Group gap="md" mt={4}>
           <Text size="xs" c="dimmed" className="font-mono">
             {track.bpm ?? '—'} BPM
