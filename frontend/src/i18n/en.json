@@ -173,7 +173,6 @@
     "detail": {
       "back_to_list": "← Back to triage",
       "finalize_cta": "Finalize",
-      "finalize_coming_soon": "Coming in F4",
       "kebab": {
         "delete": "Delete block"
       },

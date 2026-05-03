@@ -88,7 +88,7 @@ function TriageDetailInner({ styleId, blockId }: InnerProps) {
       <Anchor component={Link} to={`/triage/${styleId}`} c="var(--color-fg)" td="none">
         {t('triage.detail.back_to_list')}
       </Anchor>
-      <TriageBlockHeader block={data} onDelete={handleDelete} />
+      <TriageBlockHeader block={data} onDelete={handleDelete} onFinalize={() => {}} />
       <BucketGrid buckets={data.buckets} styleId={styleId} blockId={blockId} />
     </Stack>
   );
