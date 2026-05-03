@@ -8,7 +8,6 @@ import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router';
 import { TriageIndexRedirect } from '../routes/TriageIndexRedirect';
-import { TriageDetailStub } from '../routes/TriageDetailStub';
 import { TriageListPage } from '../routes/TriageListPage';
 
 const server = setupServer();
@@ -36,10 +35,6 @@ function renderApp(initialPath: string) {
               <Route
                 path="/triage/:styleId"
                 element={<TriageListPage />}
-              />
-              <Route
-                path="/triage/:styleId/:id"
-                element={<TriageDetailStub />}
               />
             </Routes>
           </ModalsProvider>
@@ -95,10 +90,4 @@ describe('Triage routing', () => {
     expect(await screen.findByDisplayValue('Techno')).toBeInTheDocument();
   });
 
-  it('detail stub renders coming-soon EmptyState', async () => {
-    renderApp('/triage/s1/abc');
-    expect(
-      await screen.findByText(/coming soon/i),
-    ).toBeInTheDocument();
-  });
 });

@@ -19,4 +19,6 @@ export {
   IconDotsVertical,
   IconTrash,
   IconPlus,
+  IconSearch,
+  IconX,
 } from '@tabler/icons-react';
