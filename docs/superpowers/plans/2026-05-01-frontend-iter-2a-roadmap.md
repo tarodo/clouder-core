@@ -29,7 +29,8 @@ Each row is a single PR. Sub-PRs allowed if a row gets too large (e.g. Triage co
 |---|---|---|---|---|---|---|
 | ~~**F1**~~ ✅ **Shipped 2026-05-02** | Categories CRUD + DnD reorder + read-only tracks tab | P-09..P-13 | `GET/POST/PATCH/DELETE /categories`, reorder, list-tracks | `02 Pages catalog` Pass 1 | `2026-04-26-spec-C-categories-design.md` | M — actual ~1 day session |
 | ~~**F2**~~ ✅ **Shipped 2026-05-03** | Triage list + create modal + soft-delete | P-14..P-15 | `GET /triage/blocks`, `POST /triage/blocks`, `DELETE /triage/blocks/{id}` | `02 Pages catalog` Pass 1 | `2026-04-28-spec-D-triage-design.md` | M — actual ~1 day session |
-| **F3** | Triage detail (buckets + reordering) | P-16..P-19 | `GET /triage/blocks/{id}`, `POST /move`, `POST /transfer` | `02 Pages catalog` Pass 1 | spec-D | L (4-6 days) |
+| ~~**F3a**~~ 🟡 **Merged locally 2026-05-03 — push blocked on spec-D backend bug** | Triage detail (block + bucket browse + single-track move + soft-delete) | P-16, P-17 | `GET /triage/blocks/{id}`, `GET .../buckets/{bucket_id}/tracks`, `POST /move` | `02 Pages catalog` Pass 1 | spec-D | M — actual ~1 day session |
+| **F3b** | Triage transfer (cross-block) | P-19 | `POST /triage/blocks/{src_id}/transfer` | Pass 1 | spec-D | M |
 | **F4** | Triage finalize | P-20..P-21 + S-04 | `POST /triage/blocks/{id}/finalize` | Pass 1 + Pass 2 patterns | spec-D | S |
 | **F5** | Curate desktop + mobile | P-22..P-23 | `POST /triage/blocks/{id}/move`, hotkey overlay | `03 Pages catalog` Pass 2 | spec-D + Q6 + Q7 + Q8 | L |
 | **F6** | PlayerCard + sticky mini | P-24 | Spotify Web Playback SDK directly | spec sheet § PlayerCard | `2026-04-29-playback-ux-design.md`, OPEN_QUESTIONS Q5 | L |
@@ -172,6 +173,36 @@ The F2 cycle (brainstorm → plan → 19 tasks → smoke against prod API GW) ad
 
 25. **OAuth Lambda `SPOTIFY_OAUTH_REDIRECT_URI` env still defaults to API GW callback after backend deploys.** TD-8 not yet permanently fixed in terraform. Symptom: `csrf_state_mismatch` on `/auth/callback` because cookie set on `127.0.0.1:5173` doesn't transmit to `*.execute-api.amazonaws.com`. Patch via `aws lambda update-function-configuration --cli-input-json` (the shorthand `--environment` syntax fights JSON-encoded env values). Re-flip after every deploy until terraform owns it.
 26. **`api_endpoint` from `terraform output -raw api_endpoint` includes a trailing slash.** Strip it before writing to `frontend/.env.local` — Vite proxy target works with or without it but the trailing slash sometimes confuses path concatenation in `apiClient`.
+
+---
+
+## Lessons learned (post-F3a, 2026-05-03)
+
+The F3a cycle (brainstorm → plan → 22 tasks via subagent-driven-development → smoke against prod API GW) shipped 26 commits cleanly tested locally (205/205 tests, typecheck clean, build 890 KB +43 KB delta), but **prod smoke surfaced a spec-D backend bug that blocks push of the merge**. F3a is therefore merged to local `main` but **not pushed**. Carry these into F3b/F4/F5 and the spec-D hotfix session.
+
+**Backend (spec-D) — blocker for F3a push:**
+
+27. **`triage_repository.move_tracks` and `transfer_tracks` use `ANY(:track_ids)` and `UNNEST(:track_ids::text[])` — both fail at runtime against Aurora Data API.** `data_api.py:_to_field` serialises Python lists as JSON-strings with `typeHint: "JSON"` (i.e. Postgres `jsonb`). `ANY(jsonb)` doesn't exist; `jsonb::text[]` cast doesn't work either. Aurora returns the error, the curation handler catches it, returns 500 `internal_error`. **Fix pattern is documented in `categories_repository.py`:** "Build an IN-list parametrically (Data API forbids ANY/array on plain strings)" — use `placeholders = ", ".join(f":t{i}" ...)` + per-id params. Three SQL blocks need patching: `move_tracks` lines 340 + 360, `transfer_tracks` line 453.
+
+28. **Unit tests don't exercise SQL semantics — they mock the Data API client.** `tests/unit/test_triage_repository.py::test_move_tracks_happy_path` mocks `_data_api.execute` to return canned rows; never executes the SQL string. Spec-D shipped without an integration test against a real Postgres → bug surfaced only when F3a became the first UI consumer. **Action:** add an integration test in `tests/integration/test_triage_repository.py` that exercises `move_tracks` / `transfer_tracks` against the ephemeral Postgres CI uses for `alembic-check`. Catches every future Data-API-vs-Postgres divergence in this codepath.
+
+29. **Structlog whitelist (`ALLOWED_LOG_FIELDS` in `logging_utils.py`) silently drops unknown fields.** `curation_handler.py:222` logs `error=str(exc)` on the unhandled-exception path — but `error` is not in the whitelist, so the log line shows just `"message": "curation_handler_unhandled"` with no exception detail. Made the move 500 unbug-able from CW alone — had to read the source. **Fix:** rename to `error_message=str(exc)` + add `error_type=type(exc).__name__` (both already whitelisted). Two-line patch.
+
+**Backend infra reverts (F1/F2 patches, drifted again):**
+
+30. **TD-7 (curation Lambda CW IAM) reverted again.** `beatport-prod-collector-lambda-policy` lost the `/aws/lambda/beatport-prod-curation:*` ARN between the F2 ad-hoc patch (2026-05-02) and the F3a smoke (2026-05-03). Symptom: Lambda invocations succeed but every error path is invisible (no log stream past the previous patch's deploy). Re-patched ad-hoc via `aws iam put-role-policy`. Next `terraform apply` will revert. **Permanent fix:** add the curation log-group ARN to the IAM policy module in `infra/`. TD-7 promoted to a **must-fix-before-F3a-push** blocker — without it, future move/finalize errors will be invisible again.
+
+31. **TD-8 (`SPOTIFY_OAUTH_REDIRECT_URI` Lambda env) also reverted.** Was pointing at API GW callback (Postman flow); had to flip back to `http://127.0.0.1:5173/auth/return` for SPA dev smoke. Same as F1. Re-flip after every backend deploy until terraform owns it.
+
+**Frontend / dev workflow:**
+
+32. **Vite test files: drop `import React from 'react'` for pure JSX-runtime files.** F3a's two integration tests had a leftover `React` import that triggered TS6133 (`'React' is declared but its value is never read`) under the project's strict TS settings — broke `pnpm typecheck`. Component test files that build a wrapper with `({ children }: { children: React.ReactNode })` still need it; integration tests using `RouterProvider` directly do not. Took one extra commit to discover.
+
+33. **Subagent-driven-development workflow is fast and disciplined when the plan is precise.** F3a shipped 22 tasks (plus 4 follow-up fixes from code review) over a single session. Implementer subagents caught two real plan defects (T1 zero-handling semantic, T6 noUncheckedIndexedAccess chains) and made correct judgment calls without escalating. Two-stage review (spec compliance + code quality) added value on the substantive tasks (T1, T3, T7). Skipped the formal review for trivial tasks (T2 icon re-export, T8/T9/T10 leaf components) — verified inline. Kept overall throughput high without sacrificing rigor on the load-bearing pieces.
+
+**Process / scope:**
+
+34. **A frontend ticket can surface a backend bug that blocks deploy.** F3a is the first UI consumer of `POST /triage/blocks/{id}/move` — spec-D wrote the endpoint but never exercised it from real client. The bug is in spec-D, not F3a; the right move is to merge F3a locally (frontend code is correct, all 205 tests green) but **not push** until the backend hotfix lands. Otherwise prod gets an SPA that throws red toasts on every Move click. Carry this principle: when smoke surfaces a backend bug, scope it as a separate ticket and gate the push.
 
 ---
 
