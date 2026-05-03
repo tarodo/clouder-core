@@ -234,6 +234,32 @@
       "released_header": "Released",
       "ai_suspected_aria": "AI-suspected track",
       "actions_header": "Actions"
+    },
+    "transfer": {
+      "menu_item": "Transfer to other block…",
+      "modal": {
+        "title_pick_block": "Transfer to which block?",
+        "title_pick_bucket": "Pick a bucket in {{block_name}}",
+        "back": "← Back",
+        "load_more": "Load more",
+        "track_count_one": "{{count}} track",
+        "track_count_other": "{{count}} tracks"
+      },
+      "empty": {
+        "no_siblings_title": "No other in-progress blocks",
+        "no_siblings_body": "Create a new triage block to transfer tracks.",
+        "no_siblings_cta": "Go to triage"
+      },
+      "toast": {
+        "transferred_one": "Transferred 1 track to {{block_name}} / {{bucket_label}}.",
+        "transferred_other": "Transferred {{count}} tracks to {{block_name}} / {{bucket_label}}.",
+        "stale_source": "Source block changed. Refreshing.",
+        "stale_target": "Target block is gone. Pick another.",
+        "target_finalized": "Target block was finalized. Pick another.",
+        "target_inactive": "That bucket is no longer valid.",
+        "style_mismatch": "Style mismatch. Refreshing.",
+        "error": "Transfer failed."
+      }
     }
   }
 }
