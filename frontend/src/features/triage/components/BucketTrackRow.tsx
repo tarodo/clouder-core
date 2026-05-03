@@ -61,7 +61,8 @@ export function BucketTrackRow({
             </Stack>
           </Group>
         </Table.Td>
-        <Table.Td>{track.artists.join(', ')}</Table.Td>
+        <Table.Td>{track.artists.join(', ') || '—'}</Table.Td>
+        <Table.Td>{track.label_name ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{track.bpm ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{formatLength(track.length_ms)}</Table.Td>
         <Table.Td className="font-mono">{formatReleaseDate(track.spotify_release_date)}</Table.Td>
@@ -85,7 +86,12 @@ export function BucketTrackRow({
             {track.mix_name}
           </Text>
         )}
-        <Text size="sm">{track.artists.join(', ')}</Text>
+        <Text size="sm">{track.artists.join(', ') || '—'}</Text>
+        {track.label_name && (
+          <Text size="xs" c="dimmed">
+            {track.label_name}
+          </Text>
+        )}
         <Group gap="md" mt={4}>
           <Text size="xs" c="dimmed" className="font-mono">
             {track.bpm ?? '—'} BPM

@@ -229,6 +229,7 @@
     "tracks_table": {
       "title_header": "Title",
       "artists_header": "Artists",
+      "label_header": "Label",
       "bpm_header": "BPM",
       "length_header": "Length",
       "released_header": "Released",
