@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Anchor, Group, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { Link, Navigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
@@ -7,6 +7,7 @@ import { notifications } from '@mantine/notifications';
 import { ApiError } from '../../../api/error';
 import { EmptyState } from '../../../components/EmptyState';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { IconArrowsExchange } from '../../../components/icons';
 import { useTriageBlock } from '../hooks/useTriageBlock';
 import {
   takeSnapshot,
@@ -15,6 +16,7 @@ import {
   type MoveInput,
   type MoveSnapshot,
 } from '../hooks/useMoveTracks';
+import { useBucketTracks } from '../hooks/useBucketTracks';
 import { BucketTracksList } from '../components/BucketTracksList';
 import { BucketBadge } from '../components/BucketBadge';
 import { TransferModal } from '../components/TransferModal';
@@ -43,6 +45,10 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   const move = useMoveTracks(blockId, styleId);
   const undoInflight = useRef(false);
   const [transferTrackId, setTransferTrackId] = useState<string | null>(null);
+  const tracksQuery = useBucketTracks(blockId, bucketId, '');
+  const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
+  const [bulkTrackIds, setBulkTrackIds] = useState<string[] | null>(null);
+  const [collecting, setCollecting] = useState(false);
 
   if (isLoading) return <FullScreenLoader />;
   if (isError) {
@@ -87,6 +93,33 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   }
 
   const showMoveMenu = block.status === 'IN_PROGRESS';
+  const showBulkTransfer =
+    block.status === 'FINALIZED' &&
+    bucket.bucket_type !== 'STAGING' &&
+    bucket.track_count > 0;
+
+  const handleOpenBulk = async () => {
+    if (collecting) return;
+    setCollecting(true);
+    try {
+      // Drain — `fetchNextPage()` resolves with the latest InfiniteData snapshot,
+      // so we re-check via the returned `result.hasNextPage` rather than the
+      // closed-over `tracksQuery` (which stays stale until React re-renders).
+      let result = await tracksQuery.fetchNextPage();
+      while (result.hasNextPage) {
+        result = await tracksQuery.fetchNextPage();
+      }
+      const allIds = (result.data?.pages ?? []).flatMap((p) =>
+        p.items.map((tr) => tr.track_id),
+      );
+      setBulkTrackIds(allIds);
+      setBulkTransferOpen(true);
+    } catch {
+      notifications.show({ color: 'red', message: t('errors.network') });
+    } finally {
+      setCollecting(false);
+    }
+  };
 
   const handleMove = (trackId: string, toBucket: TriageBucket) => {
     const input: MoveInput = {
@@ -167,9 +200,22 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
         {t('triage.bucket.back_to_block', { name: block.name })}
       </Anchor>
       <Stack gap="xs">
-        <Group gap="md" align="center">
-          <Title order={2}>{bucketLabel(bucket, t)}</Title>
-          <BucketBadge bucket={bucket} size="md" />
+        <Group justify="space-between" wrap="nowrap" align="center">
+          <Group gap="md" align="center">
+            <Title order={2}>{bucketLabel(bucket, t)}</Title>
+            <BucketBadge bucket={bucket} size="md" />
+          </Group>
+          {showBulkTransfer && (
+            <Button
+              variant="light"
+              leftSection={<IconArrowsExchange size={14} />}
+              onClick={handleOpenBulk}
+              loading={collecting}
+              disabled={collecting}
+            >
+              {t('triage.transfer.bulk.cta')}
+            </Button>
+          )}
         </Group>
         <Text c="dimmed" size="sm">
           {t('triage.bucket.header.subtitle', {
@@ -196,6 +242,19 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
           srcBlock={block}
           trackIds={[transferTrackId]}
           styleId={styleId}
+        />
+      )}
+      {bulkTransferOpen && bulkTrackIds && (
+        <TransferModal
+          opened
+          onClose={() => {
+            setBulkTransferOpen(false);
+            setBulkTrackIds(null);
+          }}
+          srcBlock={block}
+          trackIds={bulkTrackIds}
+          styleId={styleId}
+          mode="bulk"
         />
       )}
     </Stack>
