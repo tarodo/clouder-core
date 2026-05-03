@@ -257,8 +257,7 @@
         "stale_target": "Target block is gone. Pick another.",
         "target_finalized": "Target block was finalized. Pick another.",
         "target_inactive": "That bucket is no longer valid.",
-        "style_mismatch": "Style mismatch. Refreshing.",
-        "error": "Transfer failed."
+        "style_mismatch": "Style mismatch. Refreshing."
       }
     }
   }

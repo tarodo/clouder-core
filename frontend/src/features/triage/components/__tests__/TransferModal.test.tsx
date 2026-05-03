@@ -9,6 +9,7 @@ import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
+import { testTheme } from '../../../../test/theme';
 import { tokenStore } from '../../../../auth/tokenStore';
 import '../../../../i18n';
 import { TransferModal } from '../TransferModal';
@@ -19,16 +20,6 @@ function makeClient() {
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
 }
-
-const testTheme = {
-  components: {
-    Modal: {
-      defaultProps: {
-        transitionProps: { duration: 0 },
-      },
-    },
-  },
-} as const;
 
 function r(ui: React.ReactNode, qc = makeClient()) {
   return render(
