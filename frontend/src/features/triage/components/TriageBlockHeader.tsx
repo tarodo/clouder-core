@@ -7,7 +7,6 @@ import {
   Stack,
   Text,
   Title,
-  Tooltip,
 } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
@@ -20,9 +19,10 @@ dayjs.extend(relativeTime);
 export interface TriageBlockHeaderProps {
   block: TriageBlock;
   onDelete: () => void;
+  onFinalize: () => void;
 }
 
-export function TriageBlockHeader({ block, onDelete }: TriageBlockHeaderProps) {
+export function TriageBlockHeader({ block, onDelete, onFinalize }: TriageBlockHeaderProps) {
   const { t } = useTranslation();
   const isFinalized = block.status === 'FINALIZED';
 
@@ -53,9 +53,7 @@ export function TriageBlockHeader({ block, onDelete }: TriageBlockHeaderProps) {
         </Stack>
         {!isFinalized && (
           <Group gap="xs">
-            <Tooltip label={t('triage.detail.finalize_coming_soon')}>
-              <Button disabled>{t('triage.detail.finalize_cta')}</Button>
-            </Tooltip>
+            <Button onClick={onFinalize}>{t('triage.detail.finalize_cta')}</Button>
             <Menu position="bottom-end" withinPortal>
               <Menu.Target>
                 <ActionIcon variant="subtle" aria-label={t('triage.detail.kebab.delete')}>

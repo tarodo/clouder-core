@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Anchor, Stack } from '@mantine/core';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +11,7 @@ import { useTriageBlock } from '../hooks/useTriageBlock';
 import { useDeleteTriageBlock } from '../hooks/useDeleteTriageBlock';
 import { TriageBlockHeader } from '../components/TriageBlockHeader';
 import { BucketGrid } from '../components/BucketGrid';
+import { FinalizeModal } from '../components/FinalizeModal';
 
 export function TriageDetailPage() {
   const { styleId, id } = useParams<{ styleId: string; id: string }>();
@@ -27,6 +29,7 @@ function TriageDetailInner({ styleId, blockId }: InnerProps) {
   const navigate = useNavigate();
   const { data, isLoading, isError, error } = useTriageBlock(blockId);
   const del = useDeleteTriageBlock(styleId);
+  const [finalizeOpen, setFinalizeOpen] = useState(false);
 
   if (isLoading) return <FullScreenLoader />;
   if (isError) {
@@ -88,8 +91,20 @@ function TriageDetailInner({ styleId, blockId }: InnerProps) {
       <Anchor component={Link} to={`/triage/${styleId}`} c="var(--color-fg)" td="none">
         {t('triage.detail.back_to_list')}
       </Anchor>
-      <TriageBlockHeader block={data} onDelete={handleDelete} />
+      <TriageBlockHeader
+        block={data}
+        onDelete={handleDelete}
+        onFinalize={() => setFinalizeOpen(true)}
+      />
       <BucketGrid buckets={data.buckets} styleId={styleId} blockId={blockId} />
+      {finalizeOpen && (
+        <FinalizeModal
+          opened
+          onClose={() => setFinalizeOpen(false)}
+          block={data}
+          styleId={styleId}
+        />
+      )}
     </Stack>
   );
 }

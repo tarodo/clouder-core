@@ -138,3 +138,25 @@ describe('TriageDetailPage integration', () => {
     expect(stagingInactiveLink).toHaveStyle('opacity: 0.5');
   });
 });
+
+describe('TriageDetailPage Finalize modal', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    notifications.clean();
+  });
+  afterEach(() => notifications.clean());
+
+  it('opens FinalizeModal when Finalize button is clicked', async () => {
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(inProgressBlock)),
+    );
+    const user = userEvent.setup();
+    renderAt('/triage/s1/b1');
+    await user.click(await screen.findByRole('button', { name: 'Finalize' }));
+    await waitFor(() => {
+      const titleA = screen.queryByText(/Finalize W17\?/i);
+      const titleB = screen.queryByText('Cannot finalize yet');
+      expect(titleA || titleB).toBeTruthy();
+    });
+  });
+});

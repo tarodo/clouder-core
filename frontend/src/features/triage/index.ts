@@ -4,3 +4,5 @@ export { TriageDetailPage } from './routes/TriageDetailPage';
 export { BucketDetailPage } from './routes/BucketDetailPage';
 export { TransferModal } from './components/TransferModal';
 export { useTransferTracks } from './hooks/useTransferTracks';
+export { FinalizeModal } from './components/FinalizeModal';
+export { useFinalizeTriageBlock } from './hooks/useFinalizeTriageBlock';

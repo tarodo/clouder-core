@@ -223,3 +223,121 @@ describe('BucketDetailPage integration', () => {
     expect(await screen.findByText(/Bucket not found/)).toBeInTheDocument();
   });
 });
+
+describe('BucketDetailPage — bulk transfer CTA', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    notifications.clean();
+  });
+  afterEach(() => notifications.clean());
+
+  const finalizedBlock = {
+    ...inProgressBlock,
+    status: 'FINALIZED',
+    finalized_at: '2026-04-22T00:00:00Z',
+  };
+
+  it('hides the button on STAGING buckets of FINALIZED block', async () => {
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(finalizedBlock)),
+      http.get('http://localhost/triage/blocks/b1/buckets/bk3/tracks', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
+      ),
+    );
+    renderAt('/triage/s1/b1/buckets/bk3');
+    // Wait for header to render
+    await screen.findByRole('heading', { name: /Tech/ });
+    expect(
+      screen.queryByRole('button', { name: /Transfer all to another block/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides the button on tech bucket of IN_PROGRESS block', async () => {
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(inProgressBlock)),
+      http.get('http://localhost/triage/blocks/b1/buckets/bk1/tracks', () =>
+        HttpResponse.json({ items: [track('t1')], total: 1, limit: 50, offset: 0 }),
+      ),
+    );
+    renderAt('/triage/s1/b1/buckets/bk1');
+    await screen.findByText('Track t1');
+    expect(
+      screen.queryByRole('button', { name: /Transfer all to another block/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides the button when bucket has 0 tracks', async () => {
+    const emptyFinalizedBlock = {
+      ...finalizedBlock,
+      buckets: [
+        {
+          id: 'bk1',
+          bucket_type: 'NEW',
+          category_id: null,
+          category_name: null,
+          inactive: false,
+          track_count: 0,
+        },
+        ...finalizedBlock.buckets.slice(1),
+      ],
+    };
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(emptyFinalizedBlock)),
+      http.get('http://localhost/triage/blocks/b1/buckets/bk1/tracks', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
+      ),
+    );
+    renderAt('/triage/s1/b1/buckets/bk1');
+    // Wait for the header
+    await screen.findByRole('heading', { name: /NEW/ });
+    expect(
+      screen.queryByRole('button', { name: /Transfer all to another block/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('drains pages then opens TransferModal pre-filled with trackIds', async () => {
+    const finalizedWith75 = {
+      ...finalizedBlock,
+      buckets: [
+        {
+          id: 'bk1',
+          bucket_type: 'NEW',
+          category_id: null,
+          category_name: null,
+          inactive: false,
+          track_count: 75,
+        },
+        ...finalizedBlock.buckets.slice(1),
+      ],
+    };
+    const trackRequests: number[] = [];
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(finalizedWith75)),
+      http.get('http://localhost/triage/blocks/b1/buckets/bk1/tracks', ({ request }) => {
+        const url = new URL(request.url);
+        const offset = Number(url.searchParams.get('offset') ?? '0');
+        trackRequests.push(offset);
+        if (offset === 0) {
+          const items = Array.from({ length: 50 }, (_, i) => track(`t${i}`));
+          return HttpResponse.json({ items, total: 75, limit: 50, offset: 0 });
+        }
+        const items = Array.from({ length: 25 }, (_, i) => track(`t${50 + i}`));
+        return HttpResponse.json({ items, total: 75, limit: 50, offset: 50 });
+      }),
+      http.get('http://localhost/styles/s1/triage/blocks', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
+      ),
+    );
+    renderAt('/triage/s1/b1/buckets/bk1');
+    // The first page (50 tracks) loads on mount; wait for it
+    await screen.findByText('Track t0');
+    const cta = await screen.findByRole('button', { name: /Transfer all to another block/i });
+    await userEvent.click(cta);
+    // Wait for the modal to open with the title
+    expect(
+      await screen.findByRole('heading', { name: /Transfer to which block\?/i }),
+    ).toBeInTheDocument();
+    // We expect 2 paginated GET calls: offset=0 (initial) + offset=50 (drained)
+    await waitFor(() => expect(trackRequests).toContain(50));
+  });
+});
