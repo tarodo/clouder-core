@@ -1,4 +1,5 @@
 export function formatLength(ms: number | null): string {
+  // Em-dash on null OR zero — preserves F1 legacy behavior; covered by tests.
   if (!ms) return '—';
   const total = Math.round(ms / 1000);
   const m = Math.floor(total / 60);
