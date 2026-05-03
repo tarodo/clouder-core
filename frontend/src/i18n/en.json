@@ -156,7 +156,11 @@
       "name_too_long": "Name must be 128 characters or less.",
       "name_control_chars": "Name contains forbidden characters.",
       "date_range_required": "Pick a date range.",
-      "date_range_invalid": "End date must be on or after start date."
+      "date_range_invalid": "End date must be on or after start date.",
+      "block_not_found_title": "Block not found",
+      "block_not_found_body": "It may have been deleted.",
+      "bucket_not_found_title": "Bucket not found",
+      "service_unavailable": "Service unavailable. Please retry."
     },
     "empty_state": {
       "no_active_title": "No active triage blocks",
@@ -165,6 +169,71 @@
       "no_finalized_body": "Finalize a block to see it here.",
       "no_blocks_title": "No triage blocks yet",
       "no_blocks_body": "Create your first block for {{style_name}}."
+    },
+    "detail": {
+      "back_to_list": "← Back to triage",
+      "finalize_cta": "Finalize",
+      "finalize_coming_soon": "Coming in F4",
+      "kebab": {
+        "delete": "Delete block"
+      },
+      "header": {
+        "date_range": "{{from}} → {{to}}",
+        "created": "created {{relative}}",
+        "finalized": "finalized {{relative}}"
+      },
+      "bucket_count_one": "{{count}} bucket",
+      "bucket_count_other": "{{count}} buckets"
+    },
+    "bucket": {
+      "back_to_block": "← Back to {{name}}",
+      "header": {
+        "subtitle": "{{count}} tracks · {{block_name}} · {{from}} → {{to}}"
+      },
+      "search_placeholder": "Search tracks…",
+      "load_more": "Load more",
+      "loading": "Loading tracks…",
+      "track_count_one": "{{count}} track",
+      "track_count_other": "{{count}} tracks",
+      "empty": {
+        "no_tracks_title": "No tracks in this bucket",
+        "no_tracks_body_default": "Move tracks here from another bucket.",
+        "no_tracks_body_unclassified": "Tracks land here when their Spotify release date is missing. Re-run enrichment or move manually.",
+        "search_miss_title": "Nothing matches your search",
+        "search_miss_body": "Try a different term.",
+        "search_miss_clear": "Clear search"
+      }
+    },
+    "bucket_type": {
+      "STAGING_label": "{{name}} (staging)",
+      "STAGING_inactive_label": "{{name}} (staging, inactive)",
+      "inactive_suffix": "(inactive)"
+    },
+    "move": {
+      "menu": {
+        "trigger_aria": "Move track",
+        "label": "Move to",
+        "destination_aria": "Move to {{label}}"
+      },
+      "toast": {
+        "moved_one": "Moved 1 track to {{to}}.",
+        "moved_other": "Moved {{count}} tracks to {{to}}.",
+        "undo_action": "Undo",
+        "undone": "Undone.",
+        "undo_failed": "Undo failed.",
+        "error": "Move failed.",
+        "stale_state": "This bucket has changed. Refreshing.",
+        "invalid_target": "That destination is no longer valid."
+      }
+    },
+    "tracks_table": {
+      "title_header": "Title",
+      "artists_header": "Artists",
+      "bpm_header": "BPM",
+      "length_header": "Length",
+      "released_header": "Released",
+      "ai_suspected_aria": "AI-suspected track",
+      "actions_header": "Actions"
     }
   }
 }
