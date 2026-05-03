@@ -119,6 +119,8 @@ describe('BucketCard', () => {
         disabled
       />,
     );
-    expect(screen.getByRole('button')).toBeDisabled();
+    const btn = screen.getByRole('button');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveStyle('opacity: 0.5');
   });
 });

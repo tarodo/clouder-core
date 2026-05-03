@@ -45,7 +45,7 @@ export function BucketCard({
         onClick={() => onSelect?.(bucket)}
         disabled={isDisabled}
         aria-label={ariaLabel}
-        style={{ width: '100%', opacity: dimmed ? 0.5 : 1 }}
+        style={{ width: '100%', opacity: isDisabled ? 0.5 : 1 }}
       >
         <Card withBorder padding="md">
           {inner}
