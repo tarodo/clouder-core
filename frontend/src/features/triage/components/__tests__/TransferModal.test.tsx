@@ -20,10 +20,20 @@ function makeClient() {
   });
 }
 
+const testTheme = {
+  components: {
+    Modal: {
+      defaultProps: {
+        transitionProps: { duration: 0 },
+      },
+    },
+  },
+} as const;
+
 function r(ui: React.ReactNode, qc = makeClient()) {
   return render(
     <QueryClientProvider client={qc}>
-      <MantineProvider>
+      <MantineProvider theme={testTheme}>
         <ModalsProvider>
           <Notifications />
           <MemoryRouter>{ui}</MemoryRouter>

@@ -119,7 +119,6 @@ export function TransferModal({
       onClose={handleClose}
       size="lg"
       title={title}
-      transitionProps={{ duration: 0 }}
     >
       {step === 'block' && (
         <Step1
@@ -264,7 +263,7 @@ function handleTransferError(ctx: ErrorCtx): void {
       ctx.qc.invalidateQueries({ queryKey: ['triage', 'bucketTracks', ctx.srcBlockId] });
       next = 'close';
       break;
-    case 'bucket_not_found':
+    case 'target_bucket_not_found':
       toastKey = 'triage.transfer.toast.stale_target';
       for (const s of STATUSES) ctx.qc.invalidateQueries({ queryKey: triageBlocksByStyleKey(ctx.styleId, s) });
       next = 'step1';
