@@ -470,11 +470,29 @@ def test_move_tracks_happy_path() -> None:
         ],
     )
     assert out.moved == 2
+    select_call = api.execute.call_args_list[1]
     delete_call = api.execute.call_args_list[2]
     insert_call = api.execute.call_args_list[3]
     assert "DELETE FROM triage_bucket_tracks" in delete_call.args[0]
     assert "INSERT INTO triage_bucket_tracks" in insert_call.args[0]
     assert "ON CONFLICT" in insert_call.args[0]
+    # Regression guard: Aurora Data API rejects array params (lists serialize
+    # as jsonb). All three queries must use the parametric IN-list / VALUES
+    # pattern, never `ANY(:track_ids)` or `UNNEST(:track_ids::text[])`.
+    for call in (select_call, delete_call, insert_call):
+        assert "ANY(:" not in call.args[0]
+        assert "UNNEST(:" not in call.args[0]
+    assert ":t0" in select_call.args[0]
+    assert ":t1" in select_call.args[0]
+    assert ":t0" in delete_call.args[0]
+    assert ":t0" in insert_call.args[0]
+    assert ":t1" in insert_call.args[0]
+    assert "VALUES" in insert_call.args[0]
+    # Per-id params land in the params dict, not as a Python list.
+    select_params = select_call.args[1]
+    assert select_params["t0"] == "00000000-0000-0000-0000-000000000001"
+    assert select_params["t1"] == "00000000-0000-0000-0000-000000000002"
+    assert "track_ids" not in select_params
 
 
 def test_move_tracks_self_noop() -> None:
@@ -590,9 +608,19 @@ def test_transfer_tracks_happy_path() -> None:
         ],
     )
     assert out.transferred == 2
+    select_call = api.execute.call_args_list[2]
     insert_call = api.execute.call_args_list[3]
     assert "INSERT INTO triage_bucket_tracks" in insert_call.args[0]
     assert "ON CONFLICT" in insert_call.args[0]
+    # Regression guard (see test_move_tracks_happy_path).
+    for call in (select_call, insert_call):
+        assert "ANY(:" not in call.args[0]
+        assert "UNNEST(:" not in call.args[0]
+    assert ":t0" in select_call.args[0]
+    assert "VALUES" in insert_call.args[0]
+    select_params = select_call.args[1]
+    assert select_params["t0"] == "00000000-0000-0000-0000-000000000001"
+    assert "track_ids" not in select_params
 
 
 def test_finalize_block_inactive_staging_with_tracks_returns_409() -> None:

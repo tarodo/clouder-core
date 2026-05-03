@@ -220,11 +220,14 @@ def lambda_handler(
     except CurationError as exc:
         return _curation_error_response(exc, correlation_id)
     except Exception as exc:  # noqa: BLE001
+        # `error` is not in ALLOWED_LOG_FIELDS — structlog drops unknown
+        # fields silently. Use whitelisted error_message + error_type.
         log_event(
             "ERROR",
             "curation_handler_unhandled",
             correlation_id=correlation_id,
-            error=str(exc),
+            error_message=str(exc),
+            error_type=type(exc).__name__,
         )
         return _error(500, "internal_error", "Internal error", correlation_id)
 
