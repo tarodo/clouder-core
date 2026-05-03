@@ -29,7 +29,7 @@ Each row is a single PR. Sub-PRs allowed if a row gets too large (e.g. Triage co
 |---|---|---|---|---|---|---|
 | ~~**F1**~~ ✅ **Shipped 2026-05-02** | Categories CRUD + DnD reorder + read-only tracks tab | P-09..P-13 | `GET/POST/PATCH/DELETE /categories`, reorder, list-tracks | `02 Pages catalog` Pass 1 | `2026-04-26-spec-C-categories-design.md` | M — actual ~1 day session |
 | ~~**F2**~~ ✅ **Shipped 2026-05-03** | Triage list + create modal + soft-delete | P-14..P-15 | `GET /triage/blocks`, `POST /triage/blocks`, `DELETE /triage/blocks/{id}` | `02 Pages catalog` Pass 1 | `2026-04-28-spec-D-triage-design.md` | M — actual ~1 day session |
-| ~~**F3a**~~ 🟡 **Merged locally 2026-05-03 — push blocked on spec-D backend bug** | Triage detail (block + bucket browse + single-track move + soft-delete) | P-16, P-17 | `GET /triage/blocks/{id}`, `GET .../buckets/{bucket_id}/tracks`, `POST /move` | `02 Pages catalog` Pass 1 | spec-D | M — actual ~1 day session |
+| ~~**F3a**~~ ✅ **Shipped 2026-05-03** | Triage detail (block + bucket browse + single-track move + soft-delete) — required out-of-band spec-D backend hotfix (ANY/UNNEST → IN-list, see lessons #27-28) before push | P-16, P-17 | `GET /triage/blocks/{id}`, `GET .../buckets/{bucket_id}/tracks`, `POST /move` | `02 Pages catalog` Pass 1 | spec-D | M — actual ~1 day session + ½ day backend hotfix |
 | **F3b** | Triage transfer (cross-block) | P-19 | `POST /triage/blocks/{src_id}/transfer` | Pass 1 | spec-D | M |
 | **F4** | Triage finalize | P-20..P-21 + S-04 | `POST /triage/blocks/{id}/finalize` | Pass 1 + Pass 2 patterns | spec-D | S |
 | **F5** | Curate desktop + mobile | P-22..P-23 | `POST /triage/blocks/{id}/move`, hotkey overlay | `03 Pages catalog` Pass 2 | spec-D + Q6 + Q7 + Q8 | L |
