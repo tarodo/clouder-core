@@ -2,7 +2,6 @@ import { ActionIcon, Menu } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { IconArrowsExchange, IconDotsVertical } from '../../../components/icons';
 import { bucketLabel, moveDestinationsFor, type TriageBucket } from '../lib/bucketLabels';
-import { BucketBadge } from './BucketBadge';
 
 export interface MoveToMenuProps {
   buckets: TriageBucket[];
@@ -49,7 +48,6 @@ export function MoveToMenu({
             {destinations.map((d) => (
               <Menu.Item
                 key={d.id}
-                leftSection={<BucketBadge bucket={d} size="xs" />}
                 onClick={() => onMove(d)}
                 aria-label={t('triage.move.menu.destination_aria', { label: bucketLabel(d, t) })}
               >
