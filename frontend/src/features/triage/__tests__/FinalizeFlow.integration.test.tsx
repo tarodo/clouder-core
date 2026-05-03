@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Notifications, notifications } from '@mantine/notifications';
@@ -327,5 +327,103 @@ describe('FinalizeFlow integration', () => {
     await screen.findByText('FINALIZED');
     expect(screen.queryByRole('button', { name: 'Finalize' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Delete block/ })).not.toBeInTheDocument();
+  });
+
+  it('404 stale block on finalize → red toast and modal closes', async () => {
+    let postSeen = false;
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(STAGING_BLOCK)),
+      http.post('http://localhost/triage/blocks/b1/finalize', () => {
+        postSeen = true;
+        return HttpResponse.json(
+          { error_code: 'triage_block_not_found', message: 'block not found' },
+          { status: 404 },
+        );
+      }),
+    );
+
+    mountTriageDetail('b1');
+
+    await screen.findByText('Block 1');
+    await userEvent.click(screen.getByRole('button', { name: 'Finalize' }));
+
+    // Modal opens — wait for modal title (singular within modal scope)
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent(/Finalize Block 1\?/i);
+
+    // Submit — find button inside modal dialog scope
+    const modalSubmit = await within(dialog).findByRole('button', {
+      name: 'Finalize',
+    });
+    await userEvent.click(modalSubmit);
+
+    // POST has fired
+    await waitFor(() => expect(postSeen).toBe(true));
+
+    // Red toast for stale block
+    expect(
+      await screen.findByText(/Block is gone\. Refreshing\./i),
+    ).toBeInTheDocument();
+
+    // Modal closes
+    await waitFor(() =>
+      expect(screen.queryByText(/Finalize Block 1\?/i)).not.toBeInTheDocument(),
+    );
+  });
+});
+
+describe('FinalizeFlow integration — 503 cold-start terminal', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    notifications.clean();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    notifications.clean();
+    server.resetHandlers();
+  });
+
+  it('503 cold-start terminal: 3 ticks all IN_PROGRESS → red cold_start_terminal toast', async () => {
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(STAGING_BLOCK)),
+      http.post('http://localhost/triage/blocks/b1/finalize', () =>
+        HttpResponse.json({ message: 'Service Unavailable' }, { status: 503 }),
+      ),
+    );
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    mountTriageDetail('b1');
+
+    await screen.findByText('Block 1');
+    await user.click(screen.getByRole('button', { name: 'Finalize' }));
+
+    // Modal opens — scope further queries to dialog to avoid stale portal DOM
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent(/Finalize Block 1\?/i);
+
+    // Submit
+    const modalSubmit = await within(dialog).findByRole('button', { name: 'Finalize' });
+    await user.click(modalSubmit);
+
+    // tick 1 (t=0): recovering phase visible — block is still IN_PROGRESS
+    await vi.advanceTimersByTimeAsync(0);
+    expect(within(dialog).getByText(/cold start, hang on/i)).toBeInTheDocument();
+
+    // tick 2 (t=15s): still IN_PROGRESS
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    // tick 3 (t=30s, final): still IN_PROGRESS → terminal failure
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Finalize is taking too long\. Refresh — it may have already succeeded\./i),
+      ).toBeInTheDocument(),
+    );
+
+    // Modal still mounted (phase reset to idle, modal not closed) — confirm title still in DOM
+    expect(within(dialog).getByText(/Finalize Block 1\?/i)).toBeInTheDocument();
   });
 });
