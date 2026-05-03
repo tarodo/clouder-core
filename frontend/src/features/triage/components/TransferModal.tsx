@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Anchor,
   Button,
@@ -7,6 +7,7 @@ import {
   Loader,
   Modal,
   Stack,
+  Text,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
@@ -28,26 +29,31 @@ import { BucketGrid } from './BucketGrid';
 import { TransferBlockOption } from './TransferBlockOption';
 
 const STATUSES: (TriageStatus | undefined)[] = ['IN_PROGRESS', 'FINALIZED', undefined];
+const BULK_CHUNK_SIZE = 1000;
 
 export interface TransferModalProps {
   opened: boolean;
   onClose: () => void;
   srcBlock: TriageBlock;
-  trackId: string;
+  trackIds: string[];
   styleId: string;
+  mode?: 'single' | 'bulk';
 }
 
 export function TransferModal({
   opened,
   onClose,
   srcBlock,
-  trackId,
+  trackIds,
   styleId,
+  mode = 'single',
 }: TransferModalProps) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [step, setStep] = useState<'block' | 'bucket'>('block');
   const [targetBlockId, setTargetBlockId] = useState<string | null>(null);
+  const [bulkPhase, setBulkPhase] = useState<{ k: number; m: number } | null>(null);
+  const cancelledRef = useRef(false);
 
   const siblingsQuery = useTriageBlocksByStyle(styleId, 'IN_PROGRESS');
   const targetBlockQuery = useTriageBlock(targetBlockId ?? '');
@@ -57,6 +63,9 @@ export function TransferModal({
     if (!opened) {
       setStep('block');
       setTargetBlockId(null);
+      setBulkPhase(null);
+    } else {
+      cancelledRef.current = false;
     }
   }, [opened]);
 
@@ -65,6 +74,8 @@ export function TransferModal({
     .filter((b) => b.id !== srcBlock.id);
 
   const handleClose = () => {
+    cancelledRef.current = true;
+    setBulkPhase(null);
     setStep('block');
     setTargetBlockId(null);
     onClose();
@@ -75,35 +86,98 @@ export function TransferModal({
     setStep('bucket');
   };
 
+  const invalidateForBulkError = (code: string) => {
+    if (code === 'triage_block_not_found' || code === 'tracks_not_in_source') {
+      qc.invalidateQueries({ queryKey: ['triage', 'bucketTracks', srcBlock.id] });
+    } else if (code === 'target_bucket_not_found' || code === 'invalid_state') {
+      for (const s of STATUSES) {
+        qc.invalidateQueries({ queryKey: triageBlocksByStyleKey(styleId, s) });
+      }
+    } else if (code === 'target_bucket_inactive' && targetBlockId) {
+      qc.invalidateQueries({ queryKey: triageBlockKey(targetBlockId) });
+    }
+  };
+
+  const runBulkTransfer = async (resolvedBlockId: string, bucket: TriageBucket) => {
+    cancelledRef.current = false;
+    const total = trackIds.length;
+    const chunks: string[][] = [];
+    for (let i = 0; i < total; i += BULK_CHUNK_SIZE) {
+      chunks.push(trackIds.slice(i, i + BULK_CHUNK_SIZE));
+    }
+    let transferred = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      if (cancelledRef.current) return;
+      setBulkPhase({ k: i + 1, m: chunks.length });
+      try {
+        const resp = await transfer.mutateAsync({
+          targetBlockId: resolvedBlockId,
+          targetBucketId: bucket.id,
+          trackIds: chunks[i]!,
+          styleId,
+        });
+        transferred += resp.transferred;
+      } catch (err) {
+        const code = err instanceof ApiError ? err.code : 'unknown';
+        invalidateForBulkError(code);
+        notifications.show({
+          color: 'orange',
+          message: t('triage.transfer.bulk.toast.partial', {
+            count: transferred,
+            total,
+            blockName: targetBlockQuery.data?.name ?? '',
+            bucketLabel: bucketLabel(bucket, t),
+          }),
+        });
+        setBulkPhase(null);
+        return;
+      }
+    }
+    setBulkPhase(null);
+    notifications.show({
+      color: 'green',
+      message: t('triage.transfer.bulk.toast.success', {
+        count: transferred,
+        blockName: targetBlockQuery.data?.name ?? '',
+        bucketLabel: bucketLabel(bucket, t),
+      }),
+    });
+    handleClose();
+  };
+
   const handlePickBucket = (bucket: TriageBucket) => {
     if (!targetBlockId) return;
-    transfer.mutate(
-      { targetBlockId, targetBucketId: bucket.id, trackIds: [trackId], styleId },
-      {
-        onSuccess: () => {
-          notifications.show({
-            color: 'green',
-            message: t('triage.transfer.toast.transferred', {
-              count: 1,
-              block_name: targetBlockQuery.data?.name ?? '',
-              bucket_label: bucketLabel(bucket, t),
+    if (mode === 'single') {
+      transfer.mutate(
+        { targetBlockId, targetBucketId: bucket.id, trackIds, styleId },
+        {
+          onSuccess: () => {
+            notifications.show({
+              color: 'green',
+              message: t('triage.transfer.toast.transferred', {
+                count: trackIds.length,
+                block_name: targetBlockQuery.data?.name ?? '',
+                bucket_label: bucketLabel(bucket, t),
+              }),
+            });
+            handleClose();
+          },
+          onError: (err) =>
+            handleTransferError({
+              err,
+              t,
+              qc,
+              styleId,
+              srcBlockId: srcBlock.id,
+              targetBlockId,
+              setStep,
+              close: handleClose,
             }),
-          });
-          handleClose();
         },
-        onError: (err) =>
-          handleTransferError({
-            err,
-            t,
-            qc,
-            styleId,
-            srcBlockId: srcBlock.id,
-            targetBlockId,
-            setStep,
-            close: handleClose,
-          }),
-      },
-    );
+      );
+      return;
+    }
+    void runBulkTransfer(targetBlockId, bucket);
   };
 
   const title =
@@ -137,6 +211,7 @@ export function TransferModal({
           loading={targetBlockQuery.isLoading}
           targetBlock={targetBlockQuery.data}
           transferPending={transfer.isPending}
+          bulkPhase={bulkPhase}
           onBack={() => setStep('block')}
           onPick={handlePickBucket}
         />
@@ -207,11 +282,19 @@ interface Step2Props {
   loading: boolean;
   targetBlock: TriageBlock | undefined;
   transferPending: boolean;
+  bulkPhase: { k: number; m: number } | null;
   onBack: () => void;
   onPick: (bucket: TriageBucket) => void;
 }
 
-function Step2({ loading, targetBlock, transferPending, onBack, onPick }: Step2Props) {
+function Step2({
+  loading,
+  targetBlock,
+  transferPending,
+  bulkPhase,
+  onBack,
+  onPick,
+}: Step2Props) {
   const { t } = useTranslation();
   return (
     <Stack gap="md">
@@ -225,6 +308,17 @@ function Step2({ loading, targetBlock, transferPending, onBack, onPick }: Step2P
           <Loader />
         </Center>
       )}
+      {bulkPhase && (
+        <Group gap="xs">
+          <Loader size="sm" />
+          <Text size="sm">
+            {t('triage.transfer.bulk.modal.batch_progress', {
+              k: bulkPhase.k,
+              m: bulkPhase.m,
+            })}
+          </Text>
+        </Group>
+      )}
       {targetBlock && (
         <BucketGrid
           buckets={targetBlock.buckets}
@@ -233,7 +327,7 @@ function Step2({ loading, targetBlock, transferPending, onBack, onPick }: Step2P
           mode="select"
           cols={{ base: 1, xs: 2 }}
           onSelect={onPick}
-          disabled={transferPending}
+          disabled={transferPending || bulkPhase !== null}
         />
       )}
     </Stack>

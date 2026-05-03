@@ -194,7 +194,7 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
           opened
           onClose={() => setTransferTrackId(null)}
           srcBlock={block}
-          trackId={transferTrackId}
+          trackIds={[transferTrackId]}
           styleId={styleId}
         />
       )}

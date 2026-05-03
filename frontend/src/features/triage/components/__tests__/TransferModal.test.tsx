@@ -108,7 +108,7 @@ describe('TransferModal', () => {
         opened
         onClose={vi.fn()}
         srcBlock={srcBlock}
-        trackId="tk1"
+        trackIds={['tk1']}
         styleId="s1"
       />,
     );
@@ -134,7 +134,7 @@ describe('TransferModal', () => {
         opened
         onClose={vi.fn()}
         srcBlock={srcBlock}
-        trackId="tk1"
+        trackIds={['tk1']}
         styleId="s1"
       />,
     );
@@ -159,7 +159,7 @@ describe('TransferModal', () => {
         opened
         onClose={vi.fn()}
         srcBlock={srcBlock}
-        trackId="tk1"
+        trackIds={['tk1']}
         styleId="s1"
       />,
     );
@@ -200,7 +200,7 @@ describe('TransferModal', () => {
         opened
         onClose={onClose}
         srcBlock={srcBlock}
-        trackId="tk1"
+        trackIds={['tk1']}
         styleId="s1"
       />,
     );
@@ -236,7 +236,7 @@ describe('TransferModal', () => {
         opened
         onClose={vi.fn()}
         srcBlock={srcBlock}
-        trackId="tk1"
+        trackIds={['tk1']}
         styleId="s1"
       />,
     );
@@ -272,7 +272,7 @@ describe('TransferModal', () => {
         opened
         onClose={onClose}
         srcBlock={srcBlock}
-        trackId="tk1"
+        trackIds={['tk1']}
         styleId="s1"
       />,
     );
@@ -309,7 +309,7 @@ describe('TransferModal', () => {
         opened
         onClose={onClose}
         srcBlock={srcBlock}
-        trackId="tk1"
+        trackIds={['tk1']}
         styleId="s1"
       />,
     );
@@ -321,5 +321,136 @@ describe('TransferModal', () => {
     expect(await screen.findByText(/no longer valid/)).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByText(/Pick a bucket in/)).toBeInTheDocument();
+  });
+});
+
+describe('TransferModal — bulk mode', () => {
+  beforeEach(() => {
+    server.resetHandlers();
+    tokenStore.set('TOK');
+    notifications.clean();
+  });
+
+  it('mode=bulk, 100 trackIds → 1 chunk, success toast', async () => {
+    let postCount = 0;
+    server.use(
+      http.get('http://localhost/styles/s1/triage/blocks', () =>
+        HttpResponse.json(siblings),
+      ),
+      http.get('http://localhost/triage/blocks/tgt1', () =>
+        HttpResponse.json(targetBlock),
+      ),
+      http.post('http://localhost/triage/blocks/src1/transfer', async ({ request }) => {
+        postCount++;
+        const body = (await request.json()) as { track_ids: string[] };
+        return HttpResponse.json({ transferred: body.track_ids.length }, { status: 200 });
+      }),
+    );
+
+    const trackIds = Array.from({ length: 100 }, (_, i) => `t${i + 1}`);
+    r(
+      <TransferModal
+        opened
+        onClose={vi.fn()}
+        srcBlock={srcBlock}
+        trackIds={trackIds}
+        styleId="s1"
+        mode="bulk"
+      />,
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: /Tgt Block/ }));
+    await waitFor(() => screen.getByText(/Pick a bucket in/));
+    await userEvent.click(screen.getByRole('button', { name: /Move to NEW/ }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Transferred 100 tracks to .*\/ NEW/i)).toBeInTheDocument(),
+    );
+    expect(postCount).toBe(1);
+  });
+
+  it('mode=bulk, 1500 trackIds → 2 chunks fired sequentially', async () => {
+    let postCount = 0;
+    let totalTransferred = 0;
+    server.use(
+      http.get('http://localhost/styles/s1/triage/blocks', () =>
+        HttpResponse.json(siblings),
+      ),
+      http.get('http://localhost/triage/blocks/tgt1', () =>
+        HttpResponse.json(targetBlock),
+      ),
+      http.post('http://localhost/triage/blocks/src1/transfer', async ({ request }) => {
+        postCount++;
+        const body = (await request.json()) as { track_ids: string[] };
+        totalTransferred += body.track_ids.length;
+        return HttpResponse.json({ transferred: body.track_ids.length }, { status: 200 });
+      }),
+    );
+
+    const trackIds = Array.from({ length: 1500 }, (_, i) => `t${i + 1}`);
+    r(
+      <TransferModal
+        opened
+        onClose={vi.fn()}
+        srcBlock={srcBlock}
+        trackIds={trackIds}
+        styleId="s1"
+        mode="bulk"
+      />,
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: /Tgt Block/ }));
+    await waitFor(() => screen.getByText(/Pick a bucket in/));
+    await userEvent.click(screen.getByRole('button', { name: /Move to NEW/ }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Transferred 1500 tracks to/i)).toBeInTheDocument(),
+    );
+    expect(postCount).toBe(2);
+    expect(totalTransferred).toBe(1500);
+  });
+
+  it('mode=bulk, mid-chunk error → orange partial toast + modal stays on step 2', async () => {
+    let postCount = 0;
+    server.use(
+      http.get('http://localhost/styles/s1/triage/blocks', () =>
+        HttpResponse.json(siblings),
+      ),
+      http.get('http://localhost/triage/blocks/tgt1', () =>
+        HttpResponse.json(targetBlock),
+      ),
+      http.post('http://localhost/triage/blocks/src1/transfer', async ({ request }) => {
+        postCount++;
+        if (postCount === 1) {
+          const body = (await request.json()) as { track_ids: string[] };
+          return HttpResponse.json({ transferred: body.track_ids.length }, { status: 200 });
+        }
+        return HttpResponse.json(
+          { error_code: 'invalid_state', message: 'finalized' },
+          { status: 422 },
+        );
+      }),
+    );
+
+    const trackIds = Array.from({ length: 3000 }, (_, i) => `t${i + 1}`);
+    r(
+      <TransferModal
+        opened
+        onClose={vi.fn()}
+        srcBlock={srcBlock}
+        trackIds={trackIds}
+        styleId="s1"
+        mode="bulk"
+      />,
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: /Tgt Block/ }));
+    await waitFor(() => screen.getByText(/Pick a bucket in/));
+    await userEvent.click(screen.getByRole('button', { name: /Move to NEW/ }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Transferred 1000 of 3000/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByText('← Back')).toBeInTheDocument();
   });
 });
