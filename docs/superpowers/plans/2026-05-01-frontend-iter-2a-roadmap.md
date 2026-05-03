@@ -28,7 +28,7 @@ Each row is a single PR. Sub-PRs allowed if a row gets too large (e.g. Triage co
 | # | Ticket | Pages | Backend endpoints | Existing design | Existing backend spec | Size |
 |---|---|---|---|---|---|---|
 | ~~**F1**~~ ✅ **Shipped 2026-05-02** | Categories CRUD + DnD reorder + read-only tracks tab | P-09..P-13 | `GET/POST/PATCH/DELETE /categories`, reorder, list-tracks | `02 Pages catalog` Pass 1 | `2026-04-26-spec-C-categories-design.md` | M — actual ~1 day session |
-| **F2** | Triage list + create modal | P-13..P-15 | `GET /triage/blocks`, `POST /triage/blocks` | `02 Pages catalog` Pass 1 | `2026-04-28-spec-D-triage-design.md` | M |
+| ~~**F2**~~ ✅ **Shipped 2026-05-03** | Triage list + create modal + soft-delete | P-14..P-15 | `GET /triage/blocks`, `POST /triage/blocks`, `DELETE /triage/blocks/{id}` | `02 Pages catalog` Pass 1 | `2026-04-28-spec-D-triage-design.md` | M — actual ~1 day session |
 | **F3** | Triage detail (buckets + reordering) | P-16..P-19 | `GET /triage/blocks/{id}`, `POST /move`, `POST /transfer` | `02 Pages catalog` Pass 1 | spec-D | L (4-6 days) |
 | **F4** | Triage finalize | P-20..P-21 + S-04 | `POST /triage/blocks/{id}/finalize` | Pass 1 + Pass 2 patterns | spec-D | S |
 | **F5** | Curate desktop + mobile | P-22..P-23 | `POST /triage/blocks/{id}/move`, hotkey overlay | `03 Pages catalog` Pass 2 | spec-D + Q6 + Q7 + Q8 | L |
@@ -139,6 +139,39 @@ The full F1 cycle (brainstorm → plan → 22 tasks → smoke against prod API) 
 
 13. **Curation Lambda's CW log group was un-writable** because `beatport-prod-collector-lambda-policy` listed every Lambda log group EXCEPT curation's. Lambda still ran (zero-error metric is misleading), but every error path was invisible. Verify all new Lambdas appear in the policy when adding handlers in `infra/`.
 14. **Production env mutations require explicit grant.** Sandbox blocks IAM/Lambda env changes by default; the user has to authorize each modification by name (role + policy + change). Plan accordingly when troubleshooting prod-only behaviour from a dev environment.
+
+---
+
+## Lessons learned (post-F2, 2026-05-03)
+
+The F2 cycle (brainstorm → plan → 19 tasks → smoke against prod API GW) added these gotchas on top of the F1 set. Carry them into F3-F10.
+
+**Frontend / Mantine 9:**
+
+15. **Mantine 9 `DatePickerInput type="range"` emits `[string | null, string | null]`, not `[Date | null, Date | null]`.** TS types lie — `valueFormat="YYYY-MM-DD"` formats the display AND the emitted value. Schemas validating the tuple must accept both shapes: `z.union([z.date(), z.string().min(1)])` then `transform([new Date(a), new Date(b)])`. Discovered post-smoke when Create button silently no-op'd (Zod tuple element error landed at `dateRange.0` / `dateRange.1` paths, not `dateRange`).
+16. **Mantine 9 + Floating UI `hide()` middleware on jsdom.** Popover-anchored components (`Menu` dropdown, `Combobox`, `Select`) compute `referenceHidden: true` from jsdom's zero-dimension `getBoundingClientRect`, then inject `display: none` on the dropdown — `getByRole('menuitem')` can't find items. Fix: 5th jsdom shim in `src/test/setup.ts` stubs `getBoundingClientRect` to return non-zero rect when native returns 0×0, plus non-zero `window.innerWidth/Height` and `documentElement.client*`. Documented in CLAUDE.md.
+17. **Mantine form 9.x `setFieldValue` typing dropped the third options arg.** Plan code `form.setFieldValue('name', value, { validate: false })` doesn't typecheck — the only accepted option is `{ forceUpdate?: boolean }`. Just call `form.setFieldValue(key, value)` without options; if you need to skip validation, use `form.setValues` with a partial.
+
+**Test infra:**
+
+18. **Mantine `DatePickerInput` is undriveable in jsdom via `userEvent.type` / `fireEvent.change`.** The component is a button + popover, not a text input. For unit / integration tests, mock `@mantine/dates` at file scope: `vi.mock('@mantine/dates', () => ({ DatePickerInput: <plain input that splits ' – ' em-dash> }))`. The mock parses `'YYYY-MM-DD – YYYY-MM-DD'` and emits `[Date, Date]` directly to the form's onChange. Real DatePicker behavior is left to E2E (CC-2).
+19. **`userEvent.type` + `vi.useFakeTimers()` + TQ5 + React 19 microtask scheduler is brittle.** When testing 503 cold-start auto-recovery (3 timers at t=0/+15s/+30s), prefer real timers + `waitFor` with a 3s ceiling, OR drive form input via `fireEvent.change` inside the timer-controlled block. Documented in F2 integration test comments.
+20. **Mantine notifications store is global and persists across tests.** Without `notifications.clean()` in `beforeEach` / `afterEach`, toast text from a prior test can leak into the next test's `findByText` assertion window. Defensive add — cheap belt-and-suspenders.
+
+**Architectural / refactor patterns:**
+
+21. **Extract shared atoms BEFORE the second consumer ships, not after.** F2 needed `useStyles` + `StyleSelector` (both originally in F1's feature folder). The mid-flight D14 refactor (Tasks 1-2 of F2 plan) moved both to `frontend/src/{hooks,components}/` and rewired F1's imports in the same commit. F3-F10 should expect this dependency direction (`features/<feature>` → `components/`, `hooks/`, never to another feature).
+22. **`<Navigate to="/parent" replace />` is the right "missing-param" fallback,** not `return null`. F2 Task 14 originally returned null when `:styleId` was absent, which would render a blank page on a misconfigured route. Switching to `<Navigate to="/triage" replace />` routes through `TriageIndexRedirect` and picks a style. F1's `CategoriesListPage` uses the wrapper-split pattern; either works.
+
+**503 cold-start UX pattern:**
+
+23. **Pure scheduler + hook adapter + sentinel error is the right shape for the cold-start auto-recovery flow.** `pendingCreateRecovery.ts` accepts `{ payload, refetchAllTabs, onSuccess, onFailure, delays? }` — no React, no QueryClient. The hook (`useCreateTriageBlock`) builds the closure and throws `PendingCreateError` on 503 so the dialog can branch on the error class. Reusable for F3 (finalize) and F4 (curate import). When a third consumer arrives, promote to `frontend/src/lib/coldStartRecovery.ts`.
+24. **Match by `(name, date_from, date_to)` tuple, not by ID.** The auto-recovery scheduler doesn't have the server-assigned ID, so it polls list endpoints and matches on the deterministic tuple the user submitted. Idempotency-Key header would be cleaner but requires a backend ticket.
+
+**Backend / infra:**
+
+25. **OAuth Lambda `SPOTIFY_OAUTH_REDIRECT_URI` env still defaults to API GW callback after backend deploys.** TD-8 not yet permanently fixed in terraform. Symptom: `csrf_state_mismatch` on `/auth/callback` because cookie set on `127.0.0.1:5173` doesn't transmit to `*.execute-api.amazonaws.com`. Patch via `aws lambda update-function-configuration --cli-input-json` (the shorthand `--environment` syntax fights JSON-encoded env values). Re-flip after every deploy until terraform owns it.
+26. **`api_endpoint` from `terraform output -raw api_endpoint` includes a trailing slash.** Strip it before writing to `frontend/.env.local` — Vite proxy target works with or without it but the trailing slash sometimes confuses path concatenation in `apiClient`.
 
 ---
 

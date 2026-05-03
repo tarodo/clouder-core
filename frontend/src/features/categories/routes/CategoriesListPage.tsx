@@ -12,12 +12,12 @@ import {
   type Category,
   type PaginatedCategories,
 } from '../hooks/useCategoriesByStyle';
-import { useStyles } from '../hooks/useStyles';
+import { useStyles } from '../../../hooks/useStyles';
 import { useCreateCategory } from '../hooks/useCreateCategory';
 import { useRenameCategory } from '../hooks/useRenameCategory';
 import { useDeleteCategory } from '../hooks/useDeleteCategory';
 import { useReorderCategories } from '../hooks/useReorderCategories';
-import { StyleSelector } from '../components/StyleSelector';
+import { StyleSelector } from '../../../components/StyleSelector';
 import { CategoriesList } from '../components/CategoriesList';
 import { CategoryFormDialog } from '../components/CategoryFormDialog';
 import { writeLastVisitedStyle } from '../lib/lastVisitedStyle';

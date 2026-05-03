@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { EmptyState } from '../components/EmptyState';
-import { IconLayoutColumns } from '../components/icons';
+import { EmptyState } from '../../../components/EmptyState';
+import { IconLayoutColumns } from '../../../components/icons';
 
-export function TriagePage() {
+export function TriageDetailStub() {
   const { t } = useTranslation();
   return (
     <EmptyState
