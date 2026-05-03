@@ -43,6 +43,8 @@ export function CreateTriageBlockDialog({
 
   const form = useForm<ZodInput>({
     initialValues: {
+      // Mantine 9 DatePickerInput accepts/emits string|null for range slots.
+      // Use null placeholders; Zod coercion handles the string conversion on submit.
       name: '',
       dateRange: [null as unknown as Date, null as unknown as Date],
     },
@@ -53,7 +55,8 @@ export function CreateTriageBlockDialog({
   useEffect(() => {
     if (userEditedName.current) return;
     if (!fromDate) return;
-    const week = isoWeekOf(fromDate as Date);
+    // fromDate is `string | Date` — `new Date(fromDate)` handles both.
+    const week = isoWeekOf(new Date(fromDate as string | Date));
     form.setFieldValue('name', `${styleName} W${week}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromDate, styleName]);
@@ -107,12 +110,17 @@ export function CreateTriageBlockDialog({
     }
   });
 
-  // Map Zod error keys to localised strings; fall back to date_range_required for any
-  // raw "expected date" / null-tuple noise that isn't our refinement key.
+  // Map Zod error keys to localised strings. Tuple-element errors land at
+  // path `dateRange.0` / `dateRange.1` (Mantine form flattens Zod paths with
+  // dots), so check those alongside the top-level key.
+  const rawDateError =
+    form.errors.dateRange ??
+    form.errors['dateRange.0'] ??
+    form.errors['dateRange.1'];
   const dateError =
-    form.errors.dateRange === 'date_range_invalid'
+    rawDateError === 'date_range_invalid'
       ? t('triage.errors.date_range_invalid')
-      : form.errors.dateRange
+      : rawDateError
         ? t('triage.errors.date_range_required')
         : undefined;
   const nameErrorKey = form.errors.name;
