@@ -125,7 +125,9 @@ export async function undoMoveDirect(
     throw err;
   }
 
-  // 3. Invalidate the byStyle list (counters on F2 list page).
+  // 3. Invalidate caches affected by the inverse move.
+  qc.invalidateQueries({ queryKey: ['triage', 'bucketTracks', blockId, originalInput.toBucketId] });
+  qc.invalidateQueries({ queryKey: triageBlockKey(blockId) });
   for (const s of STATUSES) {
     qc.invalidateQueries({ queryKey: triageBlocksByStyleKey(styleId, s) });
   }
