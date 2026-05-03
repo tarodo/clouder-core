@@ -12,7 +12,9 @@ export interface BucketTrackRowProps {
   buckets: TriageBucket[];
   currentBucketId: string;
   onMove: (toBucket: TriageBucket) => void;
+  onTransfer?: () => void;
   showMoveMenu: boolean;
+  blockStatus?: 'IN_PROGRESS' | 'FINALIZED';
 }
 
 export function BucketTrackRow({
@@ -21,7 +23,9 @@ export function BucketTrackRow({
   buckets,
   currentBucketId,
   onMove,
+  onTransfer,
   showMoveMenu,
+  blockStatus,
 }: BucketTrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
@@ -32,7 +36,13 @@ export function BucketTrackRow({
     />
   ) : null;
   const moveMenu = showMoveMenu ? (
-    <MoveToMenu buckets={buckets} currentBucketId={currentBucketId} onMove={onMove} />
+    <MoveToMenu
+      buckets={buckets}
+      currentBucketId={currentBucketId}
+      onMove={onMove}
+      onTransfer={onTransfer}
+      showTransfer={blockStatus === 'IN_PROGRESS' && !!onTransfer}
+    />
   ) : null;
 
   if (variant === 'desktop') {
