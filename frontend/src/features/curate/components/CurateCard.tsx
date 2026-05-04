@@ -25,7 +25,7 @@ function formatReleaseDate(track: BucketTrack): string {
   return track.spotify_release_date ?? track.publish_date ?? '—';
 }
 
-export function CurateCard({ track }: CurateCardProps): JSX.Element {
+export function CurateCard({ track }: CurateCardProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
 
