@@ -182,7 +182,13 @@
         "finalized": "finalized {{relative}}"
       },
       "bucket_count_one": "{{count}} bucket",
-      "bucket_count_other": "{{count}} buckets"
+      "bucket_count_other": "{{count}} buckets",
+      "section": {
+        "technical_title": "Technical",
+        "technical_hint": "Inbox + sorting overflow",
+        "staging_title": "Categories",
+        "staging_hint": "Already sorted into your playlists"
+      }
     },
     "bucket": {
       "back_to_block": "← Back to {{name}}",

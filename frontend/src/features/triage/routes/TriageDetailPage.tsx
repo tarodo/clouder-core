@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Anchor, Stack } from '@mantine/core';
+import { Anchor, Stack, Text, Title } from '@mantine/core';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { modals } from '@mantine/modals';
@@ -12,6 +12,7 @@ import { useDeleteTriageBlock } from '../hooks/useDeleteTriageBlock';
 import { TriageBlockHeader } from '../components/TriageBlockHeader';
 import { BucketGrid } from '../components/BucketGrid';
 import { FinalizeModal } from '../components/FinalizeModal';
+import { isTechnical } from '../lib/bucketLabels';
 
 export function TriageDetailPage() {
   const { styleId, id } = useParams<{ styleId: string; id: string }>();
@@ -59,6 +60,11 @@ function TriageDetailInner({ styleId, blockId }: InnerProps) {
   }
   if (!data) return null;
 
+  // Buckets arrive ordered NEW, OLD, NOT, UNCLASSIFIED, DISCARD, staging[position ASC]
+  // (spec-D §6). Filtering preserves that order within each section.
+  const technicalBuckets = data.buckets.filter(isTechnical);
+  const stagingBuckets = data.buckets.filter((b) => !isTechnical(b));
+
   const handleDelete = () => {
     modals.openConfirmModal({
       title: t('triage.delete_modal.title'),
@@ -96,7 +102,28 @@ function TriageDetailInner({ styleId, blockId }: InnerProps) {
         onDelete={handleDelete}
         onFinalize={() => setFinalizeOpen(true)}
       />
-      <BucketGrid buckets={data.buckets} styleId={styleId} blockId={blockId} />
+      {technicalBuckets.length > 0 && (
+        <Stack gap="sm">
+          <Stack gap={2}>
+            <Title order={4}>{t('triage.detail.section.technical_title')}</Title>
+            <Text size="sm" c="dimmed">
+              {t('triage.detail.section.technical_hint')}
+            </Text>
+          </Stack>
+          <BucketGrid buckets={technicalBuckets} styleId={styleId} blockId={blockId} />
+        </Stack>
+      )}
+      {stagingBuckets.length > 0 && (
+        <Stack gap="sm">
+          <Stack gap={2}>
+            <Title order={4}>{t('triage.detail.section.staging_title')}</Title>
+            <Text size="sm" c="dimmed">
+              {t('triage.detail.section.staging_hint')}
+            </Text>
+          </Stack>
+          <BucketGrid buckets={stagingBuckets} styleId={styleId} blockId={blockId} />
+        </Stack>
+      )}
       {finalizeOpen && (
         <FinalizeModal
           opened
