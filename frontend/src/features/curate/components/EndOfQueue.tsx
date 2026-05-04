@@ -43,6 +43,7 @@ export function EndOfQueue({
       </Text>
       <Group>
         {next ? (
+          // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: keyboard flow continues with Enter on suggested CTA
           <Button autoFocus component={Link} to={`/curate/${styleId}/${block.id}/${next.id}`}>
             {t('curate.end_of_queue.continue_cta', {
               label: bucketLabel(next, t),
@@ -50,6 +51,7 @@ export function EndOfQueue({
             })}
           </Button>
         ) : (
+          // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: keyboard flow continues with Enter on Finalize CTA
           <Button autoFocus component={Link} to={`/triage/${styleId}/${block.id}`}>
             {t('curate.end_of_queue.finalize_cta')}
           </Button>
