@@ -33,12 +33,12 @@ describe('BucketBadge', () => {
     r(<BucketBadge bucket={tech} />);
     expect(screen.getByText('NEW')).toBeInTheDocument();
   });
-  it('renders STAGING with category name', () => {
+  it('renders STAGING with bare category name', () => {
     r(<BucketBadge bucket={staging} />);
-    expect(screen.getByText(/Tech House.*staging/)).toBeInTheDocument();
+    expect(screen.getByText('Tech House')).toBeInTheDocument();
   });
-  it('renders inactive STAGING with inactive label', () => {
+  it('renders inactive STAGING with inactive suffix', () => {
     r(<BucketBadge bucket={{ ...staging, inactive: true }} />);
-    expect(screen.getByText(/Tech House.*staging.*inactive/)).toBeInTheDocument();
+    expect(screen.getByText(/Tech House.*\(inactive\)/)).toBeInTheDocument();
   });
 });

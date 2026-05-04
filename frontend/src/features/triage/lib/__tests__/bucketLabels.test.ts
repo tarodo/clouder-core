@@ -7,9 +7,8 @@ import {
 } from '../bucketLabels';
 
 const t = ((key: string, vars?: Record<string, string>) => {
-  if (key === 'triage.bucket_type.STAGING_label') return `${vars?.name} (staging)`;
-  if (key === 'triage.bucket_type.STAGING_inactive_label')
-    return `${vars?.name} (staging, inactive)`;
+  if (key === 'triage.bucket_type.STAGING_label') return `${vars?.name}`;
+  if (key === 'triage.bucket_type.STAGING_inactive_label') return `${vars?.name} (inactive)`;
   return key;
 }) as Parameters<typeof bucketLabel>[1];
 
@@ -42,11 +41,11 @@ describe('bucketLabel', () => {
   it('returns the bucket_type literal for technical buckets', () => {
     expect(bucketLabel(tech, t)).toBe('NEW');
   });
-  it('returns "<name> (staging)" for active STAGING', () => {
-    expect(bucketLabel(staging, t)).toBe('Tech House (staging)');
+  it('returns the category name for active STAGING', () => {
+    expect(bucketLabel(staging, t)).toBe('Tech House');
   });
-  it('returns "<name> (staging, inactive)" for inactive STAGING', () => {
-    expect(bucketLabel(stagingInactive, t)).toBe('Old Genre (staging, inactive)');
+  it('returns "<name> (inactive)" for inactive STAGING', () => {
+    expect(bucketLabel(stagingInactive, t)).toBe('Old Genre (inactive)');
   });
 });
 

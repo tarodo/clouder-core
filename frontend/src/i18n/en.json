@@ -210,8 +210,8 @@
       }
     },
     "bucket_type": {
-      "STAGING_label": "{{name}} (staging)",
-      "STAGING_inactive_label": "{{name}} (staging, inactive)",
+      "STAGING_label": "{{name}}",
+      "STAGING_inactive_label": "{{name}} (inactive)",
       "inactive_suffix": "(inactive)"
     },
     "move": {
