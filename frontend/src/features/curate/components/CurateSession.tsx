@@ -81,7 +81,14 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
       gap="sm"
       p={isMobile ? 'sm' : 'md'}
       data-testid="curate-session"
-      style={{ maxWidth: 720, width: '100%', margin: '0 auto' }}
+      style={{
+        maxWidth: 720,
+        width: '100%',
+        margin: '0 auto',
+        // Fill the AppShell.Main height so the flex-1 spacer below the card
+        // can push the destination strip down to the actual viewport bottom.
+        minHeight: '100%',
+      }}
     >
       <Group justify="space-between" align="center" gap="xs">
         <ActionIcon
@@ -106,6 +113,10 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
       </Group>
 
       <CurateCard track={session.currentTrack} />
+      {/* Flex spacer pushes the destination strip to the bottom of the
+          available height. When content overflows (tall card / cramped
+          screen), the strip still scrolls naturally. */}
+      <div style={{ flex: 1 }} />
       <div
         style={{
           position: 'sticky',
