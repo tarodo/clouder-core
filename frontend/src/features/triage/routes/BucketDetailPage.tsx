@@ -205,6 +205,17 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
             <Title order={2}>{bucketLabel(bucket, t)}</Title>
             <BucketBadge bucket={bucket} size="md" />
           </Group>
+          {block?.status === 'IN_PROGRESS' &&
+            bucket.bucket_type !== 'STAGING' &&
+            bucket.track_count > 0 && (
+              <Button
+                component={Link}
+                to={`/curate/${block.style_id}/${block.id}/${bucket.id}`}
+                variant="default"
+              >
+                {t('curate.triage_cta.from_bucket')}
+              </Button>
+            )}
           {showBulkTransfer && (
             <Button
               variant="light"
