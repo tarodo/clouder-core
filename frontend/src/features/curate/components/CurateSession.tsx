@@ -65,9 +65,13 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
     (b) => b.id === bucketId,
   );
   const currentLabel = currentBucket ? bucketLabel(currentBucket, t) : '';
-  const counter = t('curate.footer.track_counter', {
-    current: session.currentNumber,
-    total: session.totalInBucket,
+  // Live remaining count from block.buckets — useMoveTracks decrements
+  // track_count optimistically on assign and the block query refetches on
+  // success, so this stays accurate without extra accounting.
+  const remaining = currentBucket?.track_count ?? 0;
+  const counter = t('curate.footer.tracks_left', {
+    count: remaining,
+    label: currentLabel,
   });
   const hasOverflow = stagingOverflow(session.destinations).length > 0;
 
@@ -88,7 +92,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
           <IconArrowLeft size={16} />
         </ActionIcon>
         <Text size="xs" c="var(--color-fg-muted)">
-          {counter} {t('curate.footer.in_bucket', { label: currentLabel })}
+          {counter}
         </Text>
         <ActionIcon
           variant="subtle"
