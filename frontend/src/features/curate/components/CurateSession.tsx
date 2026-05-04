@@ -72,6 +72,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
   const counter = t('curate.footer.tracks_left', {
     count: remaining,
     label: currentLabel,
+    block: session.block.name,
   });
   const hasOverflow = stagingOverflow(session.destinations).length > 0;
 

@@ -337,8 +337,8 @@
       "inactive_disabled_title": "Category inactive — re-activate in Categories"
     },
     "footer": {
-      "tracks_left_one": "1 track left in {{label}}",
-      "tracks_left_other": "{{count}} tracks left in {{label}}",
+      "tracks_left_one": "1 track left in {{label}} · {{block}}",
+      "tracks_left_other": "{{count}} tracks left in {{label}} · {{block}}",
       "shortcut_prev": "Prev",
       "shortcut_skip": "Skip",
       "shortcut_undo": "Undo",
