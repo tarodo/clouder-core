@@ -96,7 +96,14 @@ function reducer(state: State, action: Action): State {
     case 'ASSIGN_SAME_DEST_PULSE':
       return { ...state, lastTappedBucketId: action.toBucketId };
     case 'ADVANCE':
-      return { ...state, currentIndex: state.currentIndex + 1 };
+      // No-op: useMoveTracks.applyOptimisticMove already removed the assigned
+      // track from the bucket-tracks query cache synchronously, so the queue
+      // shrunk by 1 and currentIndex now points at the natural next track.
+      // Incrementing here would skip ONE track per assign. The reducer keeps
+      // the action so reducer-mechanic tests can still observe pendingTimer
+      // lifecycle via the mutation's success/error path. UNDO_AFTER uses
+      // lastOp.trackIndex (captured at assign time) to restore the right index.
+      return state;
     case 'CLEAR_PULSE':
       return { ...state, lastTappedBucketId: null };
     case 'UNDO_WITHIN':
@@ -303,10 +310,15 @@ export function useCurateSession({
         void undoMoveDirect(qc, blockId, styleId, lastOp.input, lastOp.snapshot).catch(() => {
           /* if the inverse fails we re-apply the optimistic — see undoMoveDirect */
         });
+        // Reuse the SAME track that the first tap was for — `queue[currentIndex]`
+        // would point at the next track now (post-rollback the original is at
+        // lastOp.trackIndex; the closure's `queue` is stale anyway). User intent
+        // is "change destination of THIS track I just tapped".
+        const replayTrackId = lastOp.input.trackIds[0] ?? track.track_id;
         const input: MoveInput = {
           fromBucketId: bucketId,
           toBucketId,
-          trackIds: [track.track_id],
+          trackIds: [replayTrackId],
         };
         const snapshot = takeSnapshot(qc, blockId, bucketId);
         scheduleAdvance();
@@ -314,7 +326,7 @@ export function useCurateSession({
         dispatch({
           type: 'ASSIGN_REPLACE_BEGIN',
           toBucketId,
-          lastOp: { input, snapshot, trackIndex: stateRef.current.currentIndex },
+          lastOp: { input, snapshot, trackIndex: lastOp.trackIndex },
         });
         fireMutation(input);
         return;

@@ -152,8 +152,11 @@ describe('useCurateSession — assign + advance', () => {
     expect(result.current.lastTappedBucketId).toBe('dst1');
     expect(result.current.canUndo).toBe(true);
     expect(result.current.totalAssigned).toBe(1);
-    // pulse has not yet cleared; advance has not yet fired
+    // currentIndex stays at 0; queue shrunk by optimistic apply so currentTrack
+    // is now t2 (was t1 pre-assign). ADVANCE is a no-op — see reducer comment.
     expect(result.current.currentIndex).toBe(0);
+    // Optimistic apply propagates via TQ5 microtask scheduler — wait for it.
+    await waitFor(() => expect(result.current.currentTrack?.track_id).toBe('t2'));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(80);
@@ -164,7 +167,9 @@ describe('useCurateSession — assign + advance', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(120); // 80 + 120 = 200ms total
     });
-    await waitFor(() => expect(result.current.currentIndex).toBe(1));
+    // No state change at 200ms because ADVANCE is no-op; queue + index unchanged.
+    expect(result.current.currentIndex).toBe(0);
+    expect(result.current.currentTrack?.track_id).toBe('t2');
 
     // localStorage updated by onSuccess
     await waitFor(() => {
@@ -199,7 +204,11 @@ describe('useCurateSession — assign + advance', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(200);
     });
-    expect(result.current.currentIndex).toBe(1);
+    // After ADVANCE no-op: currentIndex still 0, queue shrunk via optimistic
+    // apply (t1 removed, only one track was actually consumed because the
+    // double-tap rolled the first move back before applying the second).
+    expect(result.current.currentIndex).toBe(0);
+    expect(result.current.currentTrack?.track_id).toBe('t2');
     expect(firstSeen).toBe(true);
   });
 
@@ -226,7 +235,9 @@ describe('useCurateSession — assign + advance', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2);
     });
-    expect(result.current.currentIndex).toBe(1);
+    // ADVANCE no-op: currentIndex stays at 0; queue shrunk so currentTrack = t2.
+    expect(result.current.currentIndex).toBe(0);
+    expect(result.current.currentTrack?.track_id).toBe('t2');
     expect(result.current.totalAssigned).toBe(1);
   });
 
@@ -283,9 +294,13 @@ describe('useCurateSession — undo + skip + prev', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
-    expect(result.current.currentIndex).toBe(1);
-    act(() => result.current.undo());
+    // After ADVANCE no-op: index stays 0 but queue shrunk → currentTrack = t2.
     expect(result.current.currentIndex).toBe(0);
+    expect(result.current.currentTrack?.track_id).toBe('t2');
+    act(() => result.current.undo());
+    // Undo restores t1; UNDO_AFTER sets currentIndex = lastOp.trackIndex = 0.
+    expect(result.current.currentIndex).toBe(0);
+    expect(result.current.currentTrack?.track_id).toBe('t1');
     expect(result.current.canUndo).toBe(false);
     expect(result.current.totalAssigned).toBe(0);
   });
