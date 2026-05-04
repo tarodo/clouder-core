@@ -40,7 +40,13 @@ export function TriageBlockHeader({ block, onDelete, onFinalize }: TriageBlockHe
                 to: block.date_to,
               })}
             </Text>
-            <Badge variant={isFinalized ? 'light' : 'filled'}>{block.status}</Badge>
+            <Badge
+              size="sm"
+              variant={isFinalized ? 'filled' : 'light'}
+              color={isFinalized ? 'neutral.9' : undefined}
+            >
+              {block.status}
+            </Badge>
             <Text c="dimmed" size="sm">
               {t('triage.detail.header.created', { relative: dayjs(block.created_at).fromNow() })}
             </Text>
