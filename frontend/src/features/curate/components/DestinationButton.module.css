@@ -18,8 +18,6 @@
 }
 .button[data-just-tapped='true'] {
   transform: scale(0.97);
-  background: var(--color-selected-bg);
-  color: var(--color-selected-fg);
 }
 .label {
   font-size: var(--text-14);

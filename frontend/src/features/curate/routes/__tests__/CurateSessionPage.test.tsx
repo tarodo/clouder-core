@@ -8,6 +8,10 @@ import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
 import { testTheme } from '../../../../test/theme';
 import { CurateSessionPage } from '../CurateSessionPage';
+import {
+  LAST_CURATE_LOCATION_KEY,
+  LAST_CURATE_STYLE_KEY,
+} from '../../lib/lastCurateLocation';
 
 function makeClient() {
   return new QueryClient({
@@ -16,8 +20,9 @@ function makeClient() {
 }
 
 describe('CurateSessionPage', () => {
-  it('mounts accent-magenta on body and removes on unmount', async () => {
+  it('writes lastCurateLocation + lastCurateStyle on mount', async () => {
     tokenStore.set('TOK');
+    localStorage.clear();
     server.use(
       http.get('http://localhost/triage/blocks/b1', () =>
         HttpResponse.json({
@@ -39,7 +44,7 @@ describe('CurateSessionPage', () => {
       ),
     );
     const qc = makeClient();
-    const { unmount } = render(
+    render(
       <MemoryRouter initialEntries={['/curate/s1/b1/src']}>
         <QueryClientProvider client={qc}>
           <MantineProvider theme={testTheme}>
@@ -50,8 +55,8 @@ describe('CurateSessionPage', () => {
         </QueryClientProvider>
       </MemoryRouter>,
     );
-    expect(document.body.classList.contains('accent-magenta')).toBe(true);
-    unmount();
-    expect(document.body.classList.contains('accent-magenta')).toBe(false);
+    expect(localStorage.getItem(LAST_CURATE_STYLE_KEY)).toBe('s1');
+    const stored = JSON.parse(localStorage.getItem(LAST_CURATE_LOCATION_KEY) ?? '{}');
+    expect(stored.s1).toMatchObject({ blockId: 'b1', bucketId: 'src' });
   });
 });

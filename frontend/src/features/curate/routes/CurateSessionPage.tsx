@@ -12,12 +12,8 @@ export function CurateSessionPage() {
 
   useEffect(() => {
     if (!styleId || !blockId || !bucketId) return;
-    document.body.classList.add('accent-magenta');
     writeLastCurateLocation(styleId, blockId, bucketId);
     writeLastCurateStyle(styleId);
-    return () => {
-      document.body.classList.remove('accent-magenta');
-    };
   }, [styleId, blockId, bucketId]);
 
   if (!styleId || !blockId || !bucketId) {
