@@ -106,12 +106,37 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
       </Group>
 
       <CurateCard track={session.currentTrack} />
-      <DestinationGrid
-        buckets={session.destinations}
-        currentBucketId={bucketId}
-        lastTappedBucketId={session.lastTappedBucketId}
-        onAssign={session.assign}
-      />
+      <div
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          alignSelf: 'stretch',
+          background: 'var(--color-bg)',
+          borderTop: '1px solid var(--color-border)',
+          paddingTop: 'var(--mantine-spacing-sm)',
+          paddingBottom: 'var(--mantine-spacing-sm)',
+          // Negative margins extend the background to the page edges
+          // so the destination strip reads as "pinned to bottom" rather
+          // than a card with gutters.
+          marginInline: isMobile
+            ? 'calc(-1 * var(--mantine-spacing-sm))'
+            : 'calc(-1 * var(--mantine-spacing-md))',
+          marginBottom: isMobile
+            ? 'calc(-1 * var(--mantine-spacing-sm))'
+            : 'calc(-1 * var(--mantine-spacing-md))',
+          paddingInline: isMobile
+            ? 'var(--mantine-spacing-sm)'
+            : 'var(--mantine-spacing-md)',
+          zIndex: 1,
+        }}
+      >
+        <DestinationGrid
+          buckets={session.destinations}
+          currentBucketId={bucketId}
+          lastTappedBucketId={session.lastTappedBucketId}
+          onAssign={session.assign}
+        />
+      </div>
 
       <HotkeyOverlay
         opened={overlayOpen}
