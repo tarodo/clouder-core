@@ -149,6 +149,14 @@ function reducer(state: State, action: Action): State {
 
 export const PENDING_ADVANCE_MS = 200;
 export const PULSE_MS = 80;
+/**
+ * Pagination prefetch threshold. When the loaded queue drops below this
+ * size and another page is available on the server, trigger fetchNextPage.
+ * Set to 40 (with PAGE_SIZE=50) so the next fetch starts after ~10 assigns
+ * and lands well before the user runs out — the page boundary becomes
+ * invisible.
+ */
+export const QUEUE_REFILL_THRESHOLD = 40;
 
 export function useCurateSession({
   blockId,
@@ -195,17 +203,20 @@ export function useCurateSession({
     state.currentIndex,
   ]);
 
-  // Pagination buffer
+  // Pagination prefetch. Trigger whenever the queue dips below the buffer —
+  // independent of currentIndex because optimistic shrink keeps the user at
+  // index 0. With PAGE_SIZE=50 and buffer=40, we kick off the next fetch
+  // after ~10 assigns and the queue refills before it can drain. Result:
+  // queue size stays in the 40–100 range and page boundaries are invisible.
   useEffect(() => {
     if (
       tracksQuery.hasNextPage &&
       !tracksQuery.isFetchingNextPage &&
-      state.currentIndex >= queue.length - 5
+      queue.length < QUEUE_REFILL_THRESHOLD
     ) {
       tracksQuery.fetchNextPage();
     }
   }, [
-    state.currentIndex,
     queue.length,
     tracksQuery.hasNextPage,
     tracksQuery.isFetchingNextPage,
