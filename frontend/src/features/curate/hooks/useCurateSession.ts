@@ -127,8 +127,8 @@ function reducer(state: State, action: Action): State {
     case 'PREV':
       return { ...state, currentIndex: Math.max(0, state.currentIndex - 1) };
     case 'RESET_INDEX_FOR_QUEUE_SHRINK':
-      if (state.currentIndex > action.queueLength) {
-        return { ...state, currentIndex: action.queueLength };
+      if (state.currentIndex >= action.queueLength) {
+        return { ...state, currentIndex: Math.max(0, action.queueLength - 1) };
       }
       return state;
     default:
@@ -193,7 +193,13 @@ export function useCurateSession({
     ) {
       tracksQuery.fetchNextPage();
     }
-  }, [state.currentIndex, queue.length, tracksQuery]);
+  }, [
+    state.currentIndex,
+    queue.length,
+    tracksQuery.hasNextPage,
+    tracksQuery.isFetchingNextPage,
+    tracksQuery.fetchNextPage,
+  ]);
 
   // Queue-shrink reset (e.g. cache invalidation external to a session move)
   useEffect(() => {
@@ -249,9 +255,10 @@ export function useCurateSession({
     [t],
   );
 
+  const { mutate: moveMutate } = moveMutation;
   const fireMutation = useCallback(
     (input: MoveInput) => {
-      moveMutation.mutate(input, {
+      moveMutate(input, {
         onSuccess: () => {
           writeLastCurateLocation(styleId, blockId, bucketId);
           writeLastCurateStyle(styleId);
@@ -266,7 +273,7 @@ export function useCurateSession({
         },
       });
     },
-    [moveMutation, blockId, bucketId, styleId, emitErrorToast],
+    [moveMutate, blockId, bucketId, styleId, emitErrorToast],
   );
 
   const assign = useCallback(
@@ -349,6 +356,10 @@ export function useCurateSession({
     if (isPending) {
       clearTimeout(pendingTimerRef.current as number);
       pendingTimerRef.current = null;
+      if (pulseTimerRef.current !== null) {
+        clearTimeout(pulseTimerRef.current);
+        pulseTimerRef.current = null;
+      }
       void undoMoveDirect(qc, blockId, styleId, lastOp.input, lastOp.snapshot).catch(() => {});
       dispatch({ type: 'UNDO_WITHIN' });
     } else {
