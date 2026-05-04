@@ -101,8 +101,8 @@ describe('DestinationGrid', () => {
     expect(btn).toHaveAttribute('data-just-tapped', 'true');
   });
 
-  it('disables the source-bucket button (excluded entirely from rendering by default)', () => {
-    // currentBucketId matching a tech bucket should hide it
+  it('renders the source-bucket button as disabled (still visible so user knows it exists)', () => {
+    // currentBucketId matching a tech bucket should render it as disabled
     render(
       wrap(
         <DestinationGrid
@@ -113,7 +113,8 @@ describe('DestinationGrid', () => {
         />,
       ),
     );
-    expect(screen.queryByRole('button', { name: /Assign to NEW/ })).toBeNull();
+    const newBtn = screen.getByRole('button', { name: /Assign to NEW/ });
+    expect(newBtn).toBeDisabled();
   });
 
   it('clicking a button calls onAssign with the bucket id', () => {

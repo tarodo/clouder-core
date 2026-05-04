@@ -36,15 +36,19 @@ export function DestinationGrid({
 }: DestinationGridProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
-  const visible = buckets.filter((b) => b.id !== currentBucketId);
+  // Staging slots exclude the current bucket entirely (and inactive ones,
+  // by resolveStagingHotkeys). Technical buckets stay in the layout even
+  // when the user is currently curating from one of them — render the
+  // self-bucket as disabled so it's clear the bucket exists but can't be
+  // a destination of itself.
+  const stagingSource = buckets.filter((b) => b.id !== currentBucketId);
+  const stagingSlots = resolveStagingHotkeys(stagingSource);
+  const overflow = stagingOverflow(stagingSource);
 
-  const stagingSlots = resolveStagingHotkeys(visible);
-  const overflow = stagingOverflow(visible);
-
-  const newBucket = byTechType(visible, 'NEW');
-  const oldBucket = byTechType(visible, 'OLD');
-  const notBucket = byTechType(visible, 'NOT');
-  const discardBucket = byDiscard(visible);
+  const newBucket = byTechType(buckets, 'NEW');
+  const oldBucket = byTechType(buckets, 'OLD');
+  const notBucket = byTechType(buckets, 'NOT');
+  const discardBucket = byDiscard(buckets);
 
   const sectionLabel = (text: string) => (
     <Text
@@ -63,13 +67,14 @@ export function DestinationGrid({
     hotkeyHint: string | null,
   ) => {
     if (!bucket) return null;
+    const isSelf = bucket.id === currentBucketId;
     return (
       <DestinationButton
         key={bucket.id}
         bucket={bucket}
         hotkeyHint={isMobile ? null : hotkeyHint}
         justTapped={lastTappedBucketId === bucket.id}
-        disabled={false}
+        disabled={isSelf}
         onClick={() => onAssign(bucket.id)}
       />
     );
