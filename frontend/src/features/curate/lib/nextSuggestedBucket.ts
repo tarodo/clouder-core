@@ -1,6 +1,6 @@
 import type { TriageBucket } from '../../triage/lib/bucketLabels';
 
-const PRIORITY: ReadonlyArray<TriageBucket['bucket_type']> = ['NEW', 'UNCLASSIFIED', 'OLD', 'NOT'];
+const PRIORITY: ReadonlyArray<TriageBucket['bucket_type']> = ['NEW', 'OLD', 'NOT', 'UNCLASSIFIED'];
 
 export function nextSuggestedBucket(
   buckets: TriageBucket[],

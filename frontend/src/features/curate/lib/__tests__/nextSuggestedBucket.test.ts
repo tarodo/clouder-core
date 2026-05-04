@@ -18,7 +18,7 @@ const stage = (id: string, count: number): TriageBucket => ({
 });
 
 describe('nextSuggestedBucket', () => {
-  it('priority NEW → UNCLASSIFIED → OLD → NOT', () => {
+  it('priority NEW → OLD → NOT → UNCLASSIFIED', () => {
     const buckets = [
       tech('b-new', 'NEW', 5),
       tech('b-uncl', 'UNCLASSIFIED', 3),
@@ -26,9 +26,9 @@ describe('nextSuggestedBucket', () => {
       tech('b-not', 'NOT', 9),
     ];
     expect(nextSuggestedBucket(buckets, 'b-current')?.id).toBe('b-new');
-    expect(nextSuggestedBucket(buckets, 'b-new')?.id).toBe('b-uncl');
-    expect(nextSuggestedBucket(buckets, 'b-uncl')?.id).toBe('b-old');
+    expect(nextSuggestedBucket(buckets, 'b-new')?.id).toBe('b-old');
     expect(nextSuggestedBucket(buckets, 'b-old')?.id).toBe('b-not');
+    expect(nextSuggestedBucket(buckets, 'b-not')?.id).toBe('b-uncl');
   });
 
   it('skips empty buckets', () => {
