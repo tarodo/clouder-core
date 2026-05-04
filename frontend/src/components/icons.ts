@@ -22,4 +22,5 @@ export {
   IconPlus,
   IconSearch,
   IconX,
+  IconExternalLink,
 } from '@tabler/icons-react';
