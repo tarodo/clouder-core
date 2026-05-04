@@ -5,6 +5,7 @@ import {
   byPosition,
   byTechType,
   resolveStagingHotkeys,
+  stagingOverflow,
 } from '../destinationMap';
 
 const stage = (id: string, name: string, inactive = false): TriageBucket => ({
@@ -101,5 +102,34 @@ describe('destinationMap.resolveStagingHotkeys', () => {
       .slice(9);
     expect(slots).toHaveLength(9);
     expect(overflow.map((b) => b.id)).toEqual(['s9', 's10', 's11']);
+  });
+});
+
+describe('destinationMap.stagingOverflow', () => {
+  it('returns active staging buckets beyond position 9, in order, with inactive filtered out', () => {
+    const buckets = [
+      stage('s0', 'A'),
+      stage('s1', 'B'),
+      stage('s2', 'C'),
+      stage('s3', 'D'),
+      stage('s4', 'E'),
+      stage('s5', 'F'),
+      stage('s6', 'G'),
+      stage('s7', 'H'),
+      stage('s8', 'I'),
+      stage('s9', 'J'),
+      stage('s10', 'K', true), // inactive — skipped from indexing
+      stage('s11', 'L'),
+      stage('s12', 'M'),
+    ];
+    const overflow = stagingOverflow(buckets);
+    // 12 active staging (s10 inactive); first 9 take positions 0–8, overflow = [s9, s11, s12]
+    expect(overflow.map((b) => b.id)).toEqual(['s9', 's11', 's12']);
+  });
+
+  it('returns an empty array when fewer than 10 active staging buckets exist', () => {
+    expect(stagingOverflow([])).toEqual([]);
+    expect(stagingOverflow([stage('s1', 'A'), stage('s2', 'B'), stage('s3', 'C')])).toEqual([]);
+    expect(stagingOverflow(Array.from({ length: 9 }, (_, i) => stage(`s${i}`, `Cat ${i}`)))).toEqual([]);
   });
 });
