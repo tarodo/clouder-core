@@ -29,6 +29,10 @@ export type CurateStatus = 'loading' | 'active' | 'empty' | 'error';
 export interface CurateSession {
   status: CurateStatus;
   queue: BucketTrack[];
+  /** Total tracks in the source bucket on the server (not the loaded queue length). */
+  totalInBucket: number;
+  /** 1-based "current track number" from the user's perspective: counts already-distributed tracks + 1. */
+  currentNumber: number;
   currentTrack: BucketTrack | null;
   currentIndex: number;
   totalAssigned: number;
@@ -208,10 +212,29 @@ export function useCurateSession({
     tracksQuery.fetchNextPage,
   ]);
 
-  // Queue-shrink reset (e.g. cache invalidation external to a session move)
+  // Queue-shrink reset (e.g. cache invalidation external to a session move).
+  // Also covers the page-boundary refill: when queue went from 0 to N because
+  // a fresh page just loaded, currentIndex stays at 0 (already correct), but
+  // dispatching here keeps the reducer in sync with whatever just happened.
   useEffect(() => {
     dispatch({ type: 'RESET_INDEX_FOR_QUEUE_SHRINK', queueLength: queue.length });
   }, [queue.length]);
+
+  // Page-refill safety: if queue refilled from empty (last loaded track was
+  // assigned and a new page landed), explicitly nudge currentIndex back to
+  // 0 + clear any stale lastTappedBucketId that survived the empty-state gap.
+  // This avoids an observed glitch where the UI would keep rendering the
+  // just-distributed track because some intermediate state lingered.
+  const prevQueueLengthRef = useRef(queue.length);
+  useEffect(() => {
+    const prev = prevQueueLengthRef.current;
+    if (prev === 0 && queue.length > 0 && state.currentIndex !== 0) {
+      // currentIndex shouldn't be > 0 in normal assign-only flow, but if it
+      // somehow drifted (skip + queue refill timing), force back to first.
+      dispatch({ type: 'PREV' }); // walks back; safe no-op if already at 0
+    }
+    prevQueueLengthRef.current = queue.length;
+  }, [queue.length, state.currentIndex]);
 
   const cleanupTimers = useCallback(() => {
     if (pendingTimerRef.current !== null) {
@@ -398,9 +421,18 @@ export function useCurateSession({
     }
   }, [currentTrack]);
 
+  // Server-side total at the moment page 1 was first loaded. Doesn't shrink
+  // with optimistic moves (the source bucket query isn't invalidated on
+  // success). Good enough for "Track N of M in BUCKET" since M reflects what
+  // the user signed up to triage at session start.
+  const totalInBucket = tracksQuery.data?.pages[0]?.total ?? queue.length;
+  const currentNumber = Math.min(state.totalAssigned + 1, totalInBucket);
+
   return {
     status,
     queue,
+    totalInBucket,
+    currentNumber,
     currentTrack,
     currentIndex: state.currentIndex,
     totalAssigned: state.totalAssigned,

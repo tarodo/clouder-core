@@ -65,10 +65,9 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
     (b) => b.id === bucketId,
   );
   const currentLabel = currentBucket ? bucketLabel(currentBucket, t) : '';
-  const total = session.queue.length;
   const counter = t('curate.footer.track_counter', {
-    current: session.currentIndex + 1,
-    total,
+    current: session.currentNumber,
+    total: session.totalInBucket,
   });
   const hasOverflow = stagingOverflow(session.destinations).length > 0;
 
