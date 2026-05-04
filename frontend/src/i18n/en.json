@@ -328,7 +328,7 @@
     },
     "destination": {
       "group_staging": "Staging",
-      "group_technical": "Technical",
+      "group_technical": "System",
       "group_discard": "Discard",
       "more_categories": "More categories…",
       "more_aria": "Show {{count}} more categories",

@@ -42,8 +42,16 @@ export function DestinationButton({
       aria-label={t('curate.destination.assign_aria', { label })}
       title={title}
     >
-      <Group justify="space-between" gap="md" wrap="nowrap" px="md" py="xs">
-        <span className={classes.label}>{label}</span>
+      <Group
+        justify={hotkeyHint === null ? 'center' : 'space-between'}
+        gap="sm"
+        wrap="nowrap"
+        px="md"
+        py="xs"
+      >
+        <span className={classes.label} data-centered={hotkeyHint === null ? 'true' : 'false'}>
+          {label}
+        </span>
         {hotkeyHint !== null && <Kbd>{hotkeyHint}</Kbd>}
       </Group>
     </UnstyledButton>

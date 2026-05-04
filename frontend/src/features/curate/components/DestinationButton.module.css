@@ -31,6 +31,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.label[data-centered='true'] {
+  text-align: center;
+  flex: 0 1 auto;
+}
 @media (prefers-reduced-motion: reduce) {
   .button[data-just-tapped='true'] {
     transform: none;

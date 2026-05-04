@@ -37,7 +37,7 @@ const wrap = (ui: React.ReactElement) => (
 );
 
 describe('DestinationGrid', () => {
-  it('renders staging / technical / discard sections', () => {
+  it('renders DISCARD on top + staging + system sections (per P-22/P-23 design)', () => {
     render(
       wrap(
         <DestinationGrid
@@ -49,8 +49,8 @@ describe('DestinationGrid', () => {
       ),
     );
     expect(screen.getByText('Staging')).toBeInTheDocument();
-    expect(screen.getByText('Technical')).toBeInTheDocument();
-    expect(screen.getByText('Discard')).toBeInTheDocument();
+    expect(screen.getByText('System')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Assign to DISCARD/ })).toBeInTheDocument();
   });
 
   it('renders staging buttons with digit hotkeys 1-N', () => {

@@ -1,5 +1,5 @@
 // frontend/src/features/curate/components/DestinationGrid.tsx
-import { Menu, Stack, Text } from '@mantine/core';
+import { Menu, SimpleGrid, Stack, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { DestinationButton } from './DestinationButton';
@@ -21,6 +21,13 @@ export interface DestinationGridProps {
   onAssign: (toBucketId: string) => void;
 }
 
+/**
+ * Layout follows P-22 mobile + P-23 desktop:
+ *  - DISCARD button stands alone at the top (full-width).
+ *  - Staging categories form a tile grid (2-col on mobile, 3-col on desktop).
+ *  - Technical buckets (NEW/OLD/NOT) sit at the bottom in a 3-col grid.
+ *  - Section labels are mono uppercase muted text.
+ */
 export function DestinationGrid({
   buckets,
   currentBucketId,
@@ -38,6 +45,18 @@ export function DestinationGrid({
   const oldBucket = byTechType(visible, 'OLD');
   const notBucket = byTechType(visible, 'NOT');
   const discardBucket = byDiscard(visible);
+
+  const sectionLabel = (text: string) => (
+    <Text
+      ff="monospace"
+      fz={10}
+      c="var(--color-fg-muted)"
+      tt="uppercase"
+      style={{ letterSpacing: '0.1em' }}
+    >
+      {text}
+    </Text>
+  );
 
   const renderBtn = (
     bucket: TriageBucket | null,
@@ -58,55 +77,54 @@ export function DestinationGrid({
 
   return (
     <Stack gap="md" data-testid="destination-grid">
-      <Stack gap={4}>
-        <Text size="xs" fw={600} c="var(--color-fg-muted)" tt="uppercase">
-          {t('curate.destination.group_staging')}
-        </Text>
-        {stagingSlots.map((b, idx) => renderBtn(b, String(idx + 1)))}
-        {overflow.length > 0 && (
-          <Menu position="bottom-end" withinPortal>
-            <Menu.Target>
-              <DestinationButton
-                bucket={{
-                  id: '__overflow__',
-                  bucket_type: 'STAGING',
-                  inactive: false,
-                  track_count: 0,
-                  category_id: null,
-                  category_name: t('curate.destination.more_categories'),
-                }}
-                hotkeyHint={null}
-                justTapped={false}
-                disabled={false}
-                onClick={() => {}}
-              />
-            </Menu.Target>
-            <Menu.Dropdown>
-              {overflow.map((b) => (
-                <Menu.Item key={b.id} onClick={() => onAssign(b.id)}>
-                  {bucketLabel(b, t)}
-                </Menu.Item>
-              ))}
-            </Menu.Dropdown>
-          </Menu>
-        )}
-      </Stack>
+      {discardBucket && renderBtn(discardBucket, '0')}
 
-      <Stack gap={4}>
-        <Text size="xs" fw={600} c="var(--color-fg-muted)" tt="uppercase">
-          {t('curate.destination.group_technical')}
-        </Text>
-        {renderBtn(newBucket, 'Q')}
-        {renderBtn(oldBucket, 'W')}
-        {renderBtn(notBucket, 'E')}
-      </Stack>
+      {(stagingSlots.length > 0 || overflow.length > 0) && (
+        <Stack gap="xs">
+          {sectionLabel(t('curate.destination.group_staging'))}
+          <SimpleGrid cols={{ base: 2, md: 3 }} spacing="xs" verticalSpacing="xs">
+            {stagingSlots.map((b, idx) => renderBtn(b, String(idx + 1)))}
+            {overflow.length > 0 && (
+              <Menu position="bottom-end" withinPortal>
+                <Menu.Target>
+                  <DestinationButton
+                    bucket={{
+                      id: '__overflow__',
+                      bucket_type: 'STAGING',
+                      inactive: false,
+                      track_count: 0,
+                      category_id: null,
+                      category_name: t('curate.destination.more_categories'),
+                    }}
+                    hotkeyHint={null}
+                    justTapped={false}
+                    disabled={false}
+                    onClick={() => {}}
+                  />
+                </Menu.Target>
+                <Menu.Dropdown>
+                  {overflow.map((b) => (
+                    <Menu.Item key={b.id} onClick={() => onAssign(b.id)}>
+                      {bucketLabel(b, t)}
+                    </Menu.Item>
+                  ))}
+                </Menu.Dropdown>
+              </Menu>
+            )}
+          </SimpleGrid>
+        </Stack>
+      )}
 
-      <Stack gap={4}>
-        <Text size="xs" fw={600} c="var(--color-fg-muted)" tt="uppercase">
-          {t('curate.destination.group_discard')}
-        </Text>
-        {renderBtn(discardBucket, '0')}
-      </Stack>
+      {(newBucket || oldBucket || notBucket) && (
+        <Stack gap="xs">
+          {sectionLabel(t('curate.destination.group_technical'))}
+          <SimpleGrid cols={3} spacing="xs" verticalSpacing="xs">
+            {renderBtn(newBucket, 'Q')}
+            {renderBtn(oldBucket, 'W')}
+            {renderBtn(notBucket, 'E')}
+          </SimpleGrid>
+        </Stack>
+      )}
     </Stack>
   );
 }

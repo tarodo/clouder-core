@@ -94,23 +94,15 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         </ActionIcon>
       </Group>
 
-      <Group
-        align="flex-start"
-        gap={isMobile ? 'md' : 'xl'}
-        wrap={isMobile ? 'wrap' : 'nowrap'}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <CurateCard track={session.currentTrack} />
-        </div>
-        <div style={{ width: isMobile ? '100%' : 360, flexShrink: 0 }}>
-          <DestinationGrid
-            buckets={session.destinations}
-            currentBucketId={bucketId}
-            lastTappedBucketId={session.lastTappedBucketId}
-            onAssign={session.assign}
-          />
-        </div>
-      </Group>
+      <Stack gap={isMobile ? 'md' : 'lg'} style={{ maxWidth: 720, width: '100%', alignSelf: 'center' }}>
+        <CurateCard track={session.currentTrack} />
+        <DestinationGrid
+          buckets={session.destinations}
+          currentBucketId={bucketId}
+          lastTappedBucketId={session.lastTappedBucketId}
+          onAssign={session.assign}
+        />
+      </Stack>
 
       {!isMobile && (
         <Group gap="md" justify="center">
