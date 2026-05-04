@@ -35,13 +35,12 @@ export function CurateCard({ track }: CurateCardProps) {
 
   return (
     <Stack
-      gap={isMobile ? 'sm' : 'md'}
-      p={isMobile ? 'md' : 'xl'}
+      gap={isMobile ? 'sm' : 'sm'}
+      p={isMobile ? 'md' : 'lg'}
       style={{
         background: 'var(--color-bg-elevated)',
         borderRadius: 'var(--radius-lg)',
         boxShadow: 'var(--shadow-sm)',
-        minHeight: isMobile ? 'auto' : 480,
       }}
       data-testid="curate-card"
     >

@@ -73,46 +73,41 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
   const hasOverflow = stagingOverflow(session.destinations).length > 0;
 
   return (
-    <Stack gap="md" p={isMobile ? 'sm' : 'xl'} data-testid="curate-session">
-      <Group justify="space-between" align="center">
+    <Stack
+      gap="sm"
+      p={isMobile ? 'sm' : 'md'}
+      data-testid="curate-session"
+      style={{ maxWidth: 720, width: '100%', margin: '0 auto' }}
+    >
+      <Group justify="space-between" align="center" gap="xs">
         <ActionIcon
           variant="subtle"
+          size="sm"
           aria-label={t('curate.back_aria')}
           onClick={() => navigate(`/triage/${styleId}/${blockId}`)}
         >
-          <IconArrowLeft size={18} />
+          <IconArrowLeft size={16} />
         </ActionIcon>
-        <Text size="sm" c="var(--color-fg-muted)">
+        <Text size="xs" c="var(--color-fg-muted)">
           {counter} {t('curate.footer.in_bucket', { label: currentLabel })}
         </Text>
         <ActionIcon
           variant="subtle"
+          size="sm"
           aria-label={t('curate.help_aria')}
           onClick={() => setOverlayOpen(true)}
         >
-          <IconKeyboard size={18} />
+          <IconKeyboard size={16} />
         </ActionIcon>
       </Group>
 
-      <Stack gap={isMobile ? 'md' : 'lg'} style={{ maxWidth: 720, width: '100%', alignSelf: 'center' }}>
-        <CurateCard track={session.currentTrack} />
-        <DestinationGrid
-          buckets={session.destinations}
-          currentBucketId={bucketId}
-          lastTappedBucketId={session.lastTappedBucketId}
-          onAssign={session.assign}
-        />
-      </Stack>
-
-      {!isMobile && (
-        <Group gap="md" justify="center">
-          <Text size="xs" c="var(--color-fg-muted)">
-            J {t('curate.footer.shortcut_skip')} · K {t('curate.footer.shortcut_prev')} · U{' '}
-            {t('curate.footer.shortcut_undo')} · ? {t('curate.footer.shortcut_help')} · Esc{' '}
-            {t('curate.footer.shortcut_exit')}
-          </Text>
-        </Group>
-      )}
+      <CurateCard track={session.currentTrack} />
+      <DestinationGrid
+        buckets={session.destinations}
+        currentBucketId={bucketId}
+        lastTappedBucketId={session.lastTappedBucketId}
+        onAssign={session.assign}
+      />
 
       <HotkeyOverlay
         opened={overlayOpen}
