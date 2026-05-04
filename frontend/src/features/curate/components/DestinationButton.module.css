@@ -1,0 +1,46 @@
+.button {
+  width: 100%;
+  min-height: var(--control-xl, 56px);
+  border-radius: var(--radius-md);
+  border: var(--border-thin) solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-fg);
+  transition:
+    transform var(--motion-pulse) var(--ease-out),
+    background var(--motion-base) var(--ease-out);
+}
+.button:hover:not([data-disabled='true']) {
+  background: var(--color-hover);
+}
+.button[data-disabled='true'] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.button[data-just-tapped='true'] {
+  transform: scale(0.97);
+  background: var(--color-selected-bg);
+  color: var(--color-selected-fg);
+}
+.label {
+  font-size: var(--text-14);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .button[data-just-tapped='true'] {
+    transform: none;
+  }
+  .button {
+    transition: background var(--motion-base) var(--ease-out);
+  }
+}
+@media (min-width: 64em) {
+  .button {
+    min-height: 64px;
+  }
+}
