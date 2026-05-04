@@ -16,10 +16,12 @@ export {
   IconLoader,
   IconAlertTriangle,
   IconArrowLeft,
+  IconKeyboard,
   IconArrowsExchange,
   IconDotsVertical,
   IconTrash,
   IconPlus,
   IconSearch,
   IconX,
+  IconExternalLink,
 } from '@tabler/icons-react';

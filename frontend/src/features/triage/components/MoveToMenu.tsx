@@ -1,7 +1,12 @@
 import { ActionIcon, Menu } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { IconArrowsExchange, IconDotsVertical } from '../../../components/icons';
-import { bucketLabel, moveDestinationsFor, type TriageBucket } from '../lib/bucketLabels';
+import {
+  bucketLabel,
+  isTechnical,
+  moveDestinationsFor,
+  type TriageBucket,
+} from '../lib/bucketLabels';
 
 export interface MoveToMenuProps {
   buckets: TriageBucket[];
@@ -22,6 +27,10 @@ export function MoveToMenu({
 }: MoveToMenuProps) {
   const { t } = useTranslation();
   const destinations = moveDestinationsFor(buckets, currentBucketId);
+  // Reorder per UX: staging categories on top (where the user usually wants
+  // to go), technical buckets after, divider, then Transfer-to-other-block.
+  const stagingDest = destinations.filter((b) => !isTechnical(b));
+  const technicalDest = destinations.filter((b) => isTechnical(b));
   const transferAvailable = !!showTransfer && !!onTransfer;
 
   const noItems = destinations.length === 0 && !transferAvailable;
@@ -43,19 +52,27 @@ export function MoveToMenu({
       </Menu.Target>
       <Menu.Dropdown>
         {destinations.length > 0 && (
-          <>
-            <Menu.Label>{t('triage.move.menu.label')}</Menu.Label>
-            {destinations.map((d) => (
-              <Menu.Item
-                key={d.id}
-                onClick={() => onMove(d)}
-                aria-label={t('triage.move.menu.destination_aria', { label: bucketLabel(d, t) })}
-              >
-                {bucketLabel(d, t)}
-              </Menu.Item>
-            ))}
-          </>
+          <Menu.Label>{t('triage.move.menu.label')}</Menu.Label>
         )}
+        {stagingDest.map((d) => (
+          <Menu.Item
+            key={d.id}
+            onClick={() => onMove(d)}
+            aria-label={t('triage.move.menu.destination_aria', { label: bucketLabel(d, t) })}
+          >
+            {bucketLabel(d, t)}
+          </Menu.Item>
+        ))}
+        {stagingDest.length > 0 && technicalDest.length > 0 && <Menu.Divider />}
+        {technicalDest.map((d) => (
+          <Menu.Item
+            key={d.id}
+            onClick={() => onMove(d)}
+            aria-label={t('triage.move.menu.destination_aria', { label: bucketLabel(d, t) })}
+          >
+            {bucketLabel(d, t)}
+          </Menu.Item>
+        ))}
         {transferAvailable && destinations.length > 0 && <Menu.Divider />}
         {transferAvailable && (
           <Menu.Item leftSection={<IconArrowsExchange size={14} />} onClick={onTransfer}>

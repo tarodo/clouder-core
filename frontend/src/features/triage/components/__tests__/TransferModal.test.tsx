@@ -244,7 +244,7 @@ describe('TransferModal', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Tgt Block/ }));
     await waitFor(() => screen.getByText(/Pick a bucket in/));
 
-    const stagingBtn = screen.getByRole('button', { name: /Move to Tech \(staging, inactive\)/ });
+    const stagingBtn = screen.getByRole('button', { name: /Move to Tech \(inactive\)/ });
     expect(stagingBtn).toBeDisabled();
     await userEvent.click(stagingBtn);
     expect(posted).toBe(false);

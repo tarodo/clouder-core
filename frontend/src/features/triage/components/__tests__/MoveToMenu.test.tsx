@@ -24,10 +24,10 @@ describe('MoveToMenu', () => {
     r(<MoveToMenu buckets={buckets} currentBucketId="src" onMove={onMove} />);
     await userEvent.click(screen.getByRole('button', { name: /Move track/ }));
     expect(await screen.findByRole('menuitem', { name: /Move to OLD/ })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Move to Tech \(staging\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Move to Tech$/ })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Move to NEW/ })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('menuitem', { name: /Old \(staging, inactive\)/ }),
+      screen.queryByRole('menuitem', { name: /Old \(inactive\)/ }),
     ).not.toBeInTheDocument();
   });
 

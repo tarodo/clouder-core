@@ -182,14 +182,17 @@ describe('FinalizeFlow integration', () => {
     await screen.findByText('Block 1');
     await userEvent.click(screen.getByRole('button', { name: 'Finalize' }));
 
-    // Confirm modal: title + 2 summary rows + total
-    expect(await screen.findByText(/Finalize Block 1\?/i)).toBeInTheDocument();
-    expect(screen.getByText('Tech')).toBeInTheDocument();
-    expect(screen.getByText('Deep')).toBeInTheDocument();
-    expect(screen.getByText('+3 tracks')).toBeInTheDocument();
-    expect(screen.getByText('+5 tracks')).toBeInTheDocument();
+    // Confirm modal: title + 2 summary rows + total. Scope to the dialog
+    // because the page also shows "Tech"/"Deep" in the BucketBadge grid now
+    // that the (staging) suffix is dropped.
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/Finalize Block 1\?/i)).toBeInTheDocument();
+    expect(within(dialog).getByText('Tech')).toBeInTheDocument();
+    expect(within(dialog).getByText('Deep')).toBeInTheDocument();
+    expect(within(dialog).getByText('+3 tracks')).toBeInTheDocument();
+    expect(within(dialog).getByText('+5 tracks')).toBeInTheDocument();
     expect(
-      screen.getByText(/8 tracks will be promoted into 2 categories/i),
+      within(dialog).getByText(/8 tracks will be promoted into 2 categories/i),
     ).toBeInTheDocument();
 
     // Submit — there are two "Finalize" buttons after modal opens (header + modal submit).

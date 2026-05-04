@@ -18,7 +18,6 @@ import {
 } from '../hooks/useMoveTracks';
 import { useBucketTracks } from '../hooks/useBucketTracks';
 import { BucketTracksList } from '../components/BucketTracksList';
-import { BucketBadge } from '../components/BucketBadge';
 import { TransferModal } from '../components/TransferModal';
 import { bucketLabel, type TriageBucket } from '../lib/bucketLabels';
 
@@ -201,10 +200,18 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
       </Anchor>
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap" align="center">
-          <Group gap="md" align="center">
-            <Title order={2}>{bucketLabel(bucket, t)}</Title>
-            <BucketBadge bucket={bucket} size="md" />
-          </Group>
+          <Title order={2}>{bucketLabel(bucket, t)}</Title>
+          {block?.status === 'IN_PROGRESS' &&
+            bucket.bucket_type !== 'STAGING' &&
+            bucket.track_count > 0 && (
+              <Button
+                component={Link}
+                to={`/curate/${block.style_id}/${block.id}/${bucket.id}`}
+                variant="default"
+              >
+                {t('curate.triage_cta.from_bucket')}
+              </Button>
+            )}
           {showBulkTransfer && (
             <Button
               variant="light"

@@ -182,7 +182,13 @@
         "finalized": "finalized {{relative}}"
       },
       "bucket_count_one": "{{count}} bucket",
-      "bucket_count_other": "{{count}} buckets"
+      "bucket_count_other": "{{count}} buckets",
+      "section": {
+        "technical_title": "Technical",
+        "technical_hint": "Inbox + sorting overflow",
+        "staging_title": "Categories",
+        "staging_hint": "Already sorted into your playlists"
+      }
     },
     "bucket": {
       "back_to_block": "← Back to {{name}}",
@@ -204,8 +210,8 @@
       }
     },
     "bucket_type": {
-      "STAGING_label": "{{name}} (staging)",
-      "STAGING_inactive_label": "{{name}} (staging, inactive)",
+      "STAGING_label": "{{name}}",
+      "STAGING_inactive_label": "{{name}} (inactive)",
       "inactive_suffix": "(inactive)"
     },
     "move": {
@@ -306,5 +312,95 @@
         "error": "Finalize failed."
       }
     }
+  },
+  "curate": {
+    "page_title": "Curate",
+    "card": {
+      "open_in_spotify": "Open in Spotify",
+      "open_in_spotify_aria": "Open {{title}} in Spotify (new tab)",
+      "ai_badge": "AI suspect",
+      "ai_badge_aria": "Track flagged as possibly AI-generated",
+      "released_label": "Released",
+      "label_label": "Label",
+      "bpm_label": "BPM",
+      "length_label": "Length",
+      "no_spotify_id": "No Spotify match"
+    },
+    "destination": {
+      "group_staging": "Staging",
+      "group_technical": "System",
+      "group_discard": "Discard",
+      "more_categories": "More categories…",
+      "more_aria": "Show {{count}} more categories",
+      "assign_aria": "Assign to {{label}}",
+      "self_disabled_title": "Current bucket — pick a different destination",
+      "inactive_disabled_title": "Category inactive — re-activate in Categories"
+    },
+    "footer": {
+      "tracks_left_one": "1 track left · {{label}} · {{block}}",
+      "tracks_left_other": "{{count}} tracks left · {{label}} · {{block}}",
+      "shortcut_prev": "Prev",
+      "shortcut_skip": "Skip",
+      "shortcut_undo": "Undo",
+      "shortcut_help": "Help",
+      "shortcut_exit": "Exit"
+    },
+    "hotkeys": {
+      "title": "Keyboard shortcuts",
+      "section_assign": "Assign",
+      "section_navigate": "Navigate",
+      "section_action": "Action",
+      "section_system": "System",
+      "key_digits_label": "Assign to staging category 1–9",
+      "key_qwe_label": "Assign to NEW / OLD / NOT",
+      "key_zero_label": "Assign to DISCARD",
+      "key_space_label": "Open in Spotify (audio in F6)",
+      "key_j_label": "Skip without assigning",
+      "key_k_label": "Step back to previous track",
+      "key_u_label": "Undo last assignment",
+      "key_help_label": "Show / hide this overlay",
+      "key_esc_label": "Close overlay or exit Curate",
+      "key_enter_label": "Accept suggested next bucket",
+      "footer_audio_note": "Audio playback ships in F6 — Space opens Spotify in a new tab for now.",
+      "footer_overflow_note": "Categories beyond 9 are accessible via the More… menu.",
+      "mobile_note": "Keyboard shortcuts available on desktop only. Tap a destination button to assign."
+    },
+    "toast": {
+      "skip_stale": "Track no longer in this bucket — skipped.",
+      "block_finalized": "Block was finalized. Returning to triage.",
+      "block_not_found": "Block not found. It may have been deleted.",
+      "destination_inactive": "Destination became inactive. Pick another.",
+      "service_unavailable": "Service unavailable. Move not applied — please retry.",
+      "move_failed": "Move failed. Please retry."
+    },
+    "setup": {
+      "title": "Pick a block to curate",
+      "block_select_label": "Block",
+      "block_select_placeholder": "Select an active block",
+      "bucket_select_label": "Bucket",
+      "bucket_select_placeholder": "Select a source bucket",
+      "start_cta": "Start curating",
+      "no_active_blocks_title": "No active blocks for {{style_name}}",
+      "no_active_blocks_body": "Create a triage block to start curating.",
+      "open_triage_cta": "Open Triage",
+      "no_eligible_buckets_title": "No source-eligible buckets",
+      "no_eligible_buckets_body": "All buckets are empty or already promoted. Try another block."
+    },
+    "end_of_queue": {
+      "heading": "Bucket clean — {{label}}",
+      "body_zero": "No tracks sorted in this session.",
+      "body_one": "You sorted 1 track. Nice work.",
+      "body_other": "You sorted {{count}} tracks. Nice work.",
+      "continue_cta": "Continue with {{label}} ({{count}})",
+      "finalize_cta": "Finalize block",
+      "back_to_triage_cta": "Back to triage"
+    },
+    "triage_cta": {
+      "from_block": "Curate this block",
+      "from_bucket": "Curate this bucket"
+    },
+    "exit_aria": "Exit Curate",
+    "help_aria": "Show keyboard shortcuts",
+    "back_aria": "Back to triage"
   }
 }

@@ -10,7 +10,11 @@ import { TriageIndexRedirect } from '../features/triage/routes/TriageIndexRedire
 import { TriageListPage } from '../features/triage/routes/TriageListPage';
 import { TriageDetailPage } from '../features/triage/routes/TriageDetailPage';
 import { BucketDetailPage } from '../features/triage/routes/BucketDetailPage';
-import { CuratePage } from './curate';
+import {
+  CurateIndexRedirect,
+  CurateStyleResume,
+  CurateSessionPage,
+} from '../features/curate';
 import { ProfilePage } from './profile';
 import { NotFoundPage } from './not-found';
 import { RouteErrorBoundary } from '../components/RouteErrorBoundary';
@@ -51,7 +55,14 @@ export const router = createBrowserRouter([
           { path: ':styleId/:id/buckets/:bucketId', element: <BucketDetailPage /> },
         ],
       },
-      { path: 'curate', element: <CuratePage /> },
+      {
+        path: 'curate',
+        children: [
+          { index: true, element: <CurateIndexRedirect /> },
+          { path: ':styleId', element: <CurateStyleResume /> },
+          { path: ':styleId/:blockId/:bucketId', element: <CurateSessionPage /> },
+        ],
+      },
       { path: 'profile', element: <ProfilePage /> },
     ],
   },
