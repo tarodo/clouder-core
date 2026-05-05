@@ -121,7 +121,7 @@ function AppShellInner() {
   );
 }
 
-function PlaybackChrome() {
+export function PlaybackChrome() {
   const playback = usePlayback();
   const location = useLocation();
 

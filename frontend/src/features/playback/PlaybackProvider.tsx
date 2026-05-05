@@ -179,6 +179,13 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         queueDispatch({ type: 'CURSOR', cursor: idx });
         onCursorChangeRef.current?.(idx);
       }
+      // PlaybackProvider doesn't read `track_window.current_track` from
+      // `player_state_changed`, so source-of-truth `track.current` comes from
+      // the queue cursor at play time. PlaybackChrome's MiniBar visibility
+      // gate (`track.current !== null`) and CurateSession's PlayerCard title
+      // both depend on this. Keep `positionMs/durationMs` whatever the SDK
+      // last reported.
+      setTrack((prev) => ({ ...prev, current: track }));
       queueDispatch({ type: 'STATUS', status: 'loading' });
       await spotifyApi.play(
         { uris: [`spotify:track:${track.spotify_id}`], deviceId },
@@ -216,6 +223,9 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       const t = queue.tracks[next];
       const deviceId = deviceIdRef.current;
       if (!t || !t.spotify_id || !deviceId) return;
+      // Mirror play() — populate track.current from queue at the moment we
+      // initiate playback so MiniBar / PlayerCard see the right track.
+      setTrack((prev) => ({ ...prev, current: t }));
       await spotifyApi.play(
         { uris: [`spotify:track:${t.spotify_id}`], deviceId },
         { onAuthExpired },
@@ -266,6 +276,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     cancelPendingAdvance();
     void playerRef.current?.pause();
     queueDispatch({ type: 'CLEAR' });
+    setTrack({ current: null, positionMs: 0, durationMs: 0 });
     onCursorChangeRef.current = null;
   }, [cancelPendingAdvance]);
 
