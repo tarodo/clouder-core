@@ -1,12 +1,13 @@
 // frontend/src/features/curate/components/CurateCard.tsx
-import { Anchor, Badge, Group, Stack, Text, Title } from '@mantine/core';
+import { ActionIcon, Anchor, Badge, Group, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { useMediaQuery } from '@mantine/hooks';
 import type { BucketTrack } from '../../triage/hooks/useBucketTracks';
-import { IconExternalLink } from '../../../components/icons';
+import { IconExternalLink, IconPlayerPlayFilled } from '../../../components/icons';
 
 export interface CurateCardProps {
   track: BucketTrack;
+  onPlay?: (track: BucketTrack) => void;
 }
 
 function formatLengthMs(ms: number | null): string {
@@ -25,7 +26,7 @@ function formatReleaseDate(track: BucketTrack): string {
   return track.spotify_release_date ?? track.publish_date ?? '—';
 }
 
-export function CurateCard({ track }: CurateCardProps) {
+export function CurateCard({ track, onPlay }: CurateCardProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
 
@@ -88,7 +89,21 @@ export function CurateCard({ track }: CurateCardProps) {
         </Group>
       </Stack>
 
-      <Group justify="flex-start">
+      <Group justify="flex-start" gap="md">
+        <Tooltip
+          label={t('playback.track_row.no_spotify_match')}
+          disabled={!!track.spotify_id}
+          withArrow
+        >
+          <ActionIcon
+            variant="subtle"
+            aria-label={t('playback.controls.play_aria')}
+            disabled={!track.spotify_id}
+            onClick={() => onPlay?.(track)}
+          >
+            <IconPlayerPlayFilled size={18} />
+          </ActionIcon>
+        </Tooltip>
         {track.spotify_id ? (
           <Anchor
             href={`https://open.spotify.com/track/${track.spotify_id}`}

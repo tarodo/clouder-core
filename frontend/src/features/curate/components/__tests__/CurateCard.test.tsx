@@ -1,6 +1,7 @@
 // frontend/src/features/curate/components/__tests__/CurateCard.test.tsx
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { testTheme } from '../../../../test/theme';
 import { CurateCard } from '../CurateCard';
@@ -67,5 +68,29 @@ describe('CurateCard', () => {
   it('formats unknown BPM and length gracefully', () => {
     render(wrap(<CurateCard track={mkTrack({ bpm: null, length_ms: null })} />));
     expect(screen.getByText(/—/)).toBeInTheDocument();
+  });
+
+  describe('Play affordance', () => {
+    it('renders Play button enabled when spotify_id is present', () => {
+      render(wrap(<CurateCard track={mkTrack()} onPlay={vi.fn()} />));
+      const btn = screen.getByRole('button', { name: /^play$/i });
+      expect(btn).toBeEnabled();
+    });
+
+    it('renders Play button disabled when spotify_id is null', () => {
+      render(
+        wrap(<CurateCard track={mkTrack({ spotify_id: null })} onPlay={vi.fn()} />),
+      );
+      const btn = screen.getByRole('button', { name: /^play$/i });
+      expect(btn).toBeDisabled();
+    });
+
+    it('clicking Play fires onPlay with the track', async () => {
+      const onPlay = vi.fn();
+      const track = mkTrack();
+      render(wrap(<CurateCard track={track} onPlay={onPlay} />));
+      await userEvent.click(screen.getByRole('button', { name: /^play$/i }));
+      expect(onPlay).toHaveBeenCalledWith(track);
+    });
   });
 });
