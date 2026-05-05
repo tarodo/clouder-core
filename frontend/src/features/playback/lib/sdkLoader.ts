@@ -22,6 +22,7 @@ export function loadSpotifySdk(): Promise<void> {
     tag.async = true;
     tag.dataset.spotifySdk = 'true';
     tag.onerror = () => {
+      tag.remove();
       inflight = null;
       reject(new Error('spotify_sdk_load_failed'));
     };

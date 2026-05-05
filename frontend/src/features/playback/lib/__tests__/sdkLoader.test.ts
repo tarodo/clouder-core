@@ -32,4 +32,21 @@ describe('sdkLoader.loadSpotifySdk', () => {
     window.onSpotifyWebPlaybackSDKReady?.();
     await expect(promise).resolves.toBeUndefined();
   });
+
+  it('removes failed script tag and retries cleanly', async () => {
+    const promise = loadSpotifySdk();
+    // simulate CDN failure
+    const tag = document.head.querySelector('script[data-spotify-sdk]') as HTMLScriptElement | null;
+    expect(tag).not.toBeNull();
+    tag!.dispatchEvent(new Event('error'));
+    await expect(promise).rejects.toThrow(/spotify_sdk_load_failed/);
+
+    // retry should inject a fresh tag, not enter waitForReady on the dead one
+    expect(document.head.querySelectorAll('script[data-spotify-sdk]').length).toBe(0);
+    const retry = loadSpotifySdk();
+    expect(document.head.querySelectorAll('script[data-spotify-sdk]').length).toBe(1);
+    // resolve the retry to keep the test clean
+    window.onSpotifyWebPlaybackSDKReady?.();
+    await expect(retry).resolves.toBeUndefined();
+  });
 });
