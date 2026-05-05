@@ -1,8 +1,10 @@
 import {
   createContext,
+  useCallback,
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from 'react';
 import type {
@@ -12,6 +14,9 @@ import type {
   QueueStatus,
   SdkError,
 } from './lib/types';
+import { loadSpotifySdk } from './lib/sdkLoader';
+import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
+import { spotifyApi } from './api/spotifyWebApi';
 
 export interface PlaybackContextValue {
   queue: {
@@ -65,13 +70,57 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   const [state] = useReducer(reducer, INITIAL_STATE);
   const onCursorChangeRef = useRef<((next: number) => void) | null>(null);
 
+  const sdkInitRef = useRef<Promise<void> | null>(null);
+  const playerRef = useRef<Spotify.Player | null>(null);
+  const deviceIdRef = useRef<string | null>(null);
+  const [sdkReady, setSdkReady] = useState(false);
+
+  const ensureSdk = useCallback(async (): Promise<void> => {
+    if (sdkInitRef.current) return sdkInitRef.current;
+    sdkInitRef.current = (async () => {
+      await loadSpotifySdk();
+      const SpotifyGlobal = (
+        window as unknown as {
+          Spotify: { Player: new (opts: unknown) => Spotify.Player };
+        }
+      ).Spotify;
+      const player = new SpotifyGlobal.Player({
+        name: 'CLOUDER Web Player',
+        getOAuthToken: (cb: (t: string) => void) => {
+          const t = spotifyTokenStore.get();
+          if (t) cb(t);
+        },
+        volume: 0.6,
+      });
+      playerRef.current = player;
+      player.addListener('ready', ({ device_id }: { device_id: string }) => {
+        deviceIdRef.current = device_id;
+        setSdkReady(true);
+        void spotifyApi.transferMyPlayback({ deviceId: device_id, play: false });
+      });
+      player.addListener('not_ready', () => {
+        setSdkReady(false);
+      });
+      await player.connect();
+    })();
+    return sdkInitRef.current;
+  }, []);
+
+  const play = useCallback(
+    async (_idx?: number) => {
+      await ensureSdk();
+      // Real play() lands in T14 — for T12 just guarantee SDK init runs.
+    },
+    [ensureSdk],
+  );
+
   const value = useMemo<PlaybackContextValue>(
     () => ({
       queue: state.queue,
       track: state.track,
-      sdk: state.sdk,
+      sdk: { ready: sdkReady, error: state.sdk.error },
       controls: {
-        play: async () => {},
+        play,
         pause: async () => {},
         togglePlayPause: async () => {},
         next: async () => {},
@@ -92,7 +141,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         },
       },
     }),
-    [state],
+    [state, sdkReady, play],
   );
 
   return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>;
