@@ -63,12 +63,12 @@ describe('HotkeyOverlay', () => {
     ).toBeInTheDocument();
   });
 
-  it('always shows audio-deferral footer', async () => {
+  it('always shows audio playback footer note', async () => {
     render(
       wrap(<HotkeyOverlay opened={true} onClose={() => {}} hasOverflow={false} />),
     );
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/Audio playback ships in F6/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Audio playback/i)).toBeInTheDocument();
   });
 
   it('mobile copy when useMediaQuery returns true', async () => {

@@ -361,7 +361,7 @@
       "key_help_label": "Show / hide this overlay",
       "key_esc_label": "Close overlay or exit Curate",
       "key_enter_label": "Accept suggested next bucket",
-      "footer_audio_note": "Audio playback ships in F6 — Space opens Spotify in a new tab for now.",
+      "footer_audio_note": "Audio playback works inside CLOUDER. Press Space to start or pause.",
       "footer_overflow_note": "Categories beyond 9 are accessible via the More… menu.",
       "mobile_note": "Keyboard shortcuts available on desktop only. Tap a destination button to assign."
     },
