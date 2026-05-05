@@ -46,6 +46,7 @@ export interface PlaybackContextValue {
     clearQueue: () => void;
     cancelPendingAdvance: () => void;
     openSpotifyExternal: (uri: string) => void;
+    __schedulePendingAdvance?: (direction: 1 | -1, delayMs: number) => void;
   };
 }
 
@@ -101,6 +102,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   const sdkInitRef = useRef<Promise<void> | null>(null);
   const playerRef = useRef<Spotify.Player | null>(null);
   const deviceIdRef = useRef<string | null>(null);
+  const pendingAdvanceTimerRef = useRef<number | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
 
   const ensureSdk = useCallback(async (): Promise<void> => {
@@ -222,6 +224,33 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     [seekMs, track.durationMs],
   );
 
+  const cancelPendingAdvance = useCallback(() => {
+    if (pendingAdvanceTimerRef.current != null) {
+      window.clearTimeout(pendingAdvanceTimerRef.current);
+      pendingAdvanceTimerRef.current = null;
+    }
+  }, []);
+
+  const __schedulePendingAdvance = useCallback(
+    (direction: 1 | -1, delayMs: number) => {
+      if (pendingAdvanceTimerRef.current != null) {
+        window.clearTimeout(pendingAdvanceTimerRef.current);
+      }
+      pendingAdvanceTimerRef.current = window.setTimeout(() => {
+        pendingAdvanceTimerRef.current = null;
+        void advance(direction);
+      }, delayMs);
+    },
+    [advance],
+  );
+
+  const clearQueue = useCallback(() => {
+    cancelPendingAdvance();
+    void playerRef.current?.pause();
+    queueDispatch({ type: 'CLEAR' });
+    onCursorChangeRef.current = null;
+  }, [cancelPendingAdvance]);
+
   const value = useMemo<PlaybackContextValue>(
     () => ({
       queue,
@@ -236,8 +265,9 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         seekMs,
         seekPct,
         bindQueue,
-        clearQueue: () => {},
-        cancelPendingAdvance: () => {},
+        clearQueue,
+        cancelPendingAdvance,
+        __schedulePendingAdvance,
         openSpotifyExternal: (uri) => {
           window.open(
             uri.replace('spotify:track:', 'https://open.spotify.com/track/'),
@@ -247,7 +277,22 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         },
       },
     }),
-    [queue, track, sdkReady, play, pause, togglePlayPause, next, prev, seekMs, seekPct, bindQueue],
+    [
+      queue,
+      track,
+      sdkReady,
+      play,
+      pause,
+      togglePlayPause,
+      next,
+      prev,
+      seekMs,
+      seekPct,
+      bindQueue,
+      clearQueue,
+      cancelPendingAdvance,
+      __schedulePendingAdvance,
+    ],
   );
 
   return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>;

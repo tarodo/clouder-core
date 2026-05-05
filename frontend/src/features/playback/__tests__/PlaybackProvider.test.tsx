@@ -406,4 +406,75 @@ describe('PlaybackProvider SDK lifecycle', () => {
     await act(async () => { await result.current.controls.seekPct(0.6); });
     expect(handle.getLatest()?.seek).toHaveBeenLastCalledWith(216000);
   });
+
+  it('cancelPendingAdvance prevents the next-after-200ms call', async () => {
+    vi.useFakeTimers();
+    const handle = installSpotifySdkMock();
+    const captured: { calls: number } = { calls: 0 };
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', () => {
+        captured.calls++;
+        return HttpResponse.json({}, { status: 204 });
+      }),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'bucket', blockId: 'b', bucketId: 'u' },
+        tracks: [
+          { id: 'A', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: 'spA' },
+          { id: 'B', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: 'spB' },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    // Use real timers for the SDK boot, fake for the schedule
+    vi.useRealTimers();
+    await act(async () => { await result.current.controls.play(0); });
+    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    await act(async () => { await result.current.controls.play(0); });
+    // initial play call counted; reset
+    captured.calls = 0;
+    vi.useFakeTimers();
+    act(() => {
+      (result.current.controls as unknown as {
+        __schedulePendingAdvance: (direction: 1 | -1, delay: number) => void;
+      }).__schedulePendingAdvance(+1, 200);
+    });
+    act(() => {
+      result.current.controls.cancelPendingAdvance();
+    });
+    act(() => { vi.advanceTimersByTime(250); });
+    vi.useRealTimers();
+    // Allow microtasks to flush
+    await new Promise((r) => setTimeout(r, 30));
+    expect(captured.calls).toBe(0);
+  });
+
+  it('clearQueue resets to idle and pauses SDK', async () => {
+    const handle = installSpotifySdkMock();
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', () => HttpResponse.json({}, { status: 204 })),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'bucket', blockId: 'b', bucketId: 'u' },
+        tracks: [
+          { id: 'A', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: 'spA' },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    await act(async () => { await result.current.controls.play(0); });
+    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    act(() => { result.current.controls.clearQueue(); });
+    await waitFor(() => expect(result.current.queue.status).toBe('idle'));
+    expect(result.current.queue.source).toBeNull();
+    expect(handle.getLatest()?.pause).toHaveBeenCalled();
+  });
 });
