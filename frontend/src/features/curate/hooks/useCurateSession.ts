@@ -17,6 +17,19 @@ import {
   writeLastCurateLocation,
   writeLastCurateStyle,
 } from '../lib/lastCurateLocation';
+import { usePlayback } from '../../playback/usePlayback';
+import type { PlaybackTrack } from '../../playback/lib/types';
+
+function toPlaybackTrack(t: BucketTrack): PlaybackTrack {
+  return {
+    id: t.track_id,
+    title: t.title,
+    artists: t.artists.join(', '),
+    cover_url: null,
+    duration_ms: t.length_ms ?? 0,
+    spotify_id: t.spotify_id,
+  };
+}
 
 export interface UseCurateSessionArgs {
   blockId: string;
@@ -71,6 +84,7 @@ type Action =
   | { type: 'MUTATION_ERROR' }
   | { type: 'SKIP'; max: number }
   | { type: 'PREV' }
+  | { type: 'JUMP_TO'; index: number; max: number }
   | { type: 'RESET_INDEX_FOR_QUEUE_SHRINK'; queueLength: number };
 
 const initialState: State = {
@@ -137,6 +151,12 @@ function reducer(state: State, action: Action): State {
       return { ...state, currentIndex: Math.min(action.max, state.currentIndex + 1) };
     case 'PREV':
       return { ...state, currentIndex: Math.max(0, state.currentIndex - 1) };
+    case 'JUMP_TO': {
+      const max = Math.max(0, action.max - 1);
+      const clamped = Math.max(0, Math.min(action.index, max));
+      if (clamped === state.currentIndex) return state;
+      return { ...state, currentIndex: clamped };
+    }
     case 'RESET_INDEX_FOR_QUEUE_SHRINK':
       if (state.currentIndex >= action.queueLength) {
         return { ...state, currentIndex: Math.max(0, action.queueLength - 1) };
@@ -165,6 +185,7 @@ export function useCurateSession({
 }: UseCurateSessionArgs): CurateSession {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const playback = usePlayback();
   const blockQuery = useTriageBlock(blockId);
   const tracksQuery = useBucketTracks(blockId, bucketId, '');
   const moveMutation = useMoveTracks(blockId, styleId);
@@ -247,6 +268,23 @@ export function useCurateSession({
     prevQueueLengthRef.current = queue.length;
   }, [queue.length, state.currentIndex]);
 
+  // Bind queue to PlaybackProvider so the player tracks the curate cursor.
+  // Re-fires whenever the loaded queue identity OR the current cursor changes
+  // (optimistic shrink, page refill, skip/prev, etc.). PlaybackProvider's
+  // bindQueue is referentially stable (useCallback with []) so listing it in
+  // deps is safe and required by react-hooks/exhaustive-deps.
+  const queueLength = queue.length;
+  const playbackTracks = useMemo(() => queue.map(toPlaybackTrack), [queue]);
+  const bindQueue = playback.controls.bindQueue;
+  useEffect(() => {
+    bindQueue({
+      source: { type: 'bucket', blockId, bucketId },
+      tracks: playbackTracks,
+      cursor: state.currentIndex,
+      onCursorChange: (i) => dispatch({ type: 'JUMP_TO', index: i, max: queueLength }),
+    });
+  }, [bindQueue, blockId, bucketId, playbackTracks, state.currentIndex, queueLength]);
+
   const cleanupTimers = useCallback(() => {
     if (pendingTimerRef.current !== null) {
       clearTimeout(pendingTimerRef.current);
@@ -269,11 +307,19 @@ export function useCurateSession({
     }, PULSE_MS);
   }, []);
 
+  const playRef = useRef(playback.controls.play);
+  playRef.current = playback.controls.play;
+
   const scheduleAdvance = useCallback(() => {
     if (pendingTimerRef.current !== null) clearTimeout(pendingTimerRef.current);
     pendingTimerRef.current = window.setTimeout(() => {
       pendingTimerRef.current = null;
       dispatch({ type: 'ADVANCE' });
+      // After the optimistic shrink, queue.tracks[cursor] is the natural next
+      // track — play() (no arg) reads the bound cursor and plays it. next()
+      // would advance cursor by +1 and skip a track. If spotify_id is null,
+      // PlaybackProvider.play is a silent no-op (PB4 skip-null gap).
+      void playRef.current();
     }, PENDING_ADVANCE_MS);
   }, []);
 
@@ -336,6 +382,9 @@ export function useCurateSession({
 
       // Different destination during pending window — undo first.
       if (isPending && lastOp) {
+        // Cancel any pending playback advance scheduled by PlaybackProvider
+        // BEFORE the rollback so the timer can't fire post-rollback.
+        playback.controls.cancelPendingAdvance();
         if (pendingTimerRef.current !== null) {
           clearTimeout(pendingTimerRef.current);
           pendingTimerRef.current = null;
@@ -391,6 +440,7 @@ export function useCurateSession({
       scheduleAdvance,
       schedulePulse,
       fireMutation,
+      playback.controls,
     ],
   );
 
@@ -398,6 +448,10 @@ export function useCurateSession({
     const lastOp = stateRef.current.lastOp;
     if (!lastOp) return;
     const isPending = pendingTimerRef.current !== null;
+
+    // Always cancel any pending playback advance BEFORE state rollback so the
+    // 200ms timer can't fire post-rollback and play the wrong track.
+    playback.controls.cancelPendingAdvance();
 
     if (isPending) {
       clearTimeout(pendingTimerRef.current as number);
@@ -412,7 +466,7 @@ export function useCurateSession({
       void undoMoveDirect(qc, blockId, styleId, lastOp.input, lastOp.snapshot).catch(() => {});
       dispatch({ type: 'UNDO_AFTER' });
     }
-  }, [qc, blockId, styleId]);
+  }, [qc, blockId, styleId, playback.controls]);
 
   const skip = useCallback(() => {
     dispatch({ type: 'SKIP', max: queue.length });

@@ -16,6 +16,27 @@ import {
   CurateSessionPage,
 } from '../features/curate';
 
+vi.mock('../features/playback/usePlayback', () => ({
+  usePlayback: () => ({
+    queue: { source: null, tracks: [], cursor: 0, status: 'idle' as const },
+    track: { current: null, positionMs: 0, durationMs: 0 },
+    sdk: { ready: false, error: null },
+    controls: {
+      play: vi.fn(async () => {}),
+      pause: vi.fn(async () => {}),
+      togglePlayPause: vi.fn(async () => {}),
+      next: vi.fn(async () => {}),
+      prev: vi.fn(async () => {}),
+      seekMs: vi.fn(async () => {}),
+      seekPct: vi.fn(async () => {}),
+      bindQueue: vi.fn(),
+      clearQueue: vi.fn(),
+      cancelPendingAdvance: vi.fn(),
+      openSpotifyExternal: vi.fn(),
+    },
+  }),
+}));
+
 function makeClient() {
   return new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
