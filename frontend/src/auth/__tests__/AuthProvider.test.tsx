@@ -5,6 +5,7 @@ import { server } from '../../test/setup';
 import { AuthProvider, getAuthSnapshot } from '../AuthProvider';
 import { useAuth } from '../useAuth';
 import { tokenStore } from '../tokenStore';
+import { spotifyTokenStore } from '../spotifyTokenStore';
 import { resetBootstrapForTests } from '../bootstrap';
 
 function Probe() {
@@ -15,6 +16,7 @@ function Probe() {
 describe('AuthProvider', () => {
   beforeEach(() => {
     tokenStore.set(null);
+    spotifyTokenStore.set(null);
     resetBootstrapForTests();
   });
 
@@ -23,6 +25,7 @@ describe('AuthProvider', () => {
       http.post('http://localhost/auth/refresh', () =>
         HttpResponse.json({
           access_token: 'TOK',
+          spotify_access_token: 'SPTOK',
           expires_in: 1800,
           user: { id: 'u', spotify_id: 's', display_name: 'D', is_admin: false },
         }),
@@ -59,6 +62,7 @@ describe('AuthProvider', () => {
       http.post('http://localhost/auth/refresh', () =>
         HttpResponse.json({
           access_token: 'TOK',
+          spotify_access_token: 'SPTOK',
           expires_in: 1800,
           user: { id: 'u', spotify_id: 's', display_name: 'D', is_admin: false },
         }),
@@ -95,6 +99,7 @@ describe('AuthProvider', () => {
       http.post('http://localhost/auth/refresh', () =>
         HttpResponse.json({
           access_token: 'TOK',
+          spotify_access_token: 'SPTOK',
           expires_in: 1800,
           user: { id: 'u', spotify_id: 's', display_name: 'D', is_admin: false },
         }),
@@ -135,6 +140,7 @@ describe('AuthProvider', () => {
         new CustomEvent('auth:refreshed', {
           detail: {
             access_token: 'FRESH',
+            spotify_access_token: 'FRESH_SP',
             expires_in: 1800,
             user: { id: 'u2', spotify_id: 's2', display_name: 'New', is_admin: false },
           },
@@ -142,5 +148,109 @@ describe('AuthProvider', () => {
       );
     });
     await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('authenticated'));
+  });
+
+  it('exposes spotifyAccessToken from /auth/callback', async () => {
+    server.use(
+      http.post('http://localhost/auth/refresh', () =>
+        HttpResponse.json({
+          access_token: 'TOK',
+          spotify_access_token: 'SPTOK',
+          expires_in: 1800,
+          user: { id: 'u', spotify_id: 's', display_name: 'D', is_admin: false },
+        }),
+      ),
+    );
+
+    let capturedState: ReturnType<typeof useAuth>['state'] | null = null;
+    function Capture() {
+      const { state } = useAuth();
+      capturedState = state;
+      return <Probe />;
+    }
+    render(
+      <AuthProvider>
+        <Capture />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('authenticated'));
+    expect(spotifyTokenStore.get()).toBe('SPTOK');
+    expect(capturedState).not.toBeNull();
+    const finalState = capturedState!;
+    expect(finalState.status).toBe('authenticated');
+    if (finalState.status === 'authenticated') {
+      expect(finalState.spotifyAccessToken).toBe('SPTOK');
+    }
+  });
+
+  it('rolls spotifyAccessToken on refresh', async () => {
+    server.use(
+      http.post('http://localhost/auth/refresh', () =>
+        HttpResponse.json({
+          access_token: 'TOK',
+          spotify_access_token: 'SPTOK',
+          expires_in: 1800,
+          user: { id: 'u', spotify_id: 's', display_name: 'D', is_admin: false },
+        }),
+      ),
+    );
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('authenticated'));
+    expect(spotifyTokenStore.get()).toBe('SPTOK');
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('auth:refreshed', {
+          detail: {
+            access_token: 'FRESH',
+            spotify_access_token: 'FRESH_SP',
+            expires_in: 1800,
+          },
+        }),
+      );
+    });
+    await waitFor(() => expect(spotifyTokenStore.get()).toBe('FRESH_SP'));
+  });
+
+  it('clears spotifyAccessToken on signOut', async () => {
+    server.use(
+      http.post('http://localhost/auth/refresh', () =>
+        HttpResponse.json({
+          access_token: 'TOK',
+          spotify_access_token: 'SPTOK',
+          expires_in: 1800,
+          user: { id: 'u', spotify_id: 's', display_name: 'D', is_admin: false },
+        }),
+      ),
+      http.post('http://localhost/auth/logout', () => HttpResponse.json({ ok: true })),
+    );
+
+    let signOutFn: () => Promise<void> = async () => {};
+    let capturedState: ReturnType<typeof useAuth>['state'] | null = null;
+    function Capture() {
+      const auth = useAuth();
+      signOutFn = auth.signOut;
+      capturedState = auth.state;
+      return <Probe />;
+    }
+    render(
+      <AuthProvider>
+        <Capture />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('authenticated'));
+    expect(spotifyTokenStore.get()).toBe('SPTOK');
+
+    await act(async () => {
+      await signOutFn();
+    });
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('unauthenticated'));
+    expect(spotifyTokenStore.get()).toBeNull();
+    expect(capturedState).not.toBeNull();
+    expect(capturedState!.status).toBe('unauthenticated');
   });
 });
