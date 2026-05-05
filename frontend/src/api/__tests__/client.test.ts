@@ -4,10 +4,12 @@ import { server } from '../../test/setup';
 import { api } from '../client';
 import { ApiError } from '../error';
 import { tokenStore } from '../../auth/tokenStore';
+import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
 
 describe('api()', () => {
   beforeEach(() => {
     tokenStore.set(null);
+    spotifyTokenStore.set(null);
     // reset auth-failure listeners
     window.removeEventListener('auth:expired', authFailHandler);
     authFailFired = false;
@@ -62,6 +64,7 @@ describe('api()', () => {
       http.post('http://localhost/auth/refresh', () =>
         HttpResponse.json({
           access_token: 'FRESH',
+          spotify_access_token: 'SP_FRESH',
           expires_in: 1800,
           user: { id: 'u', spotify_id: 's', display_name: 'd', is_admin: false },
         }),
@@ -71,11 +74,13 @@ describe('api()', () => {
     const out = await api<{ id: string }>('/me');
     expect(out).toEqual({ id: 'after-refresh' });
     expect(tokenStore.get()).toBe('FRESH');
+    expect(spotifyTokenStore.get()).toBe('SP_FRESH');
     expect(attempt).toBe(2);
   });
 
   it('fires auth:expired event when refresh fails', async () => {
     tokenStore.set('STALE');
+    spotifyTokenStore.set('SOMETHING');
     server.use(
       http.get('http://localhost/me', () =>
         HttpResponse.json(
@@ -94,6 +99,7 @@ describe('api()', () => {
     await expect(api('/me')).rejects.toBeInstanceOf(ApiError);
     expect(authFailFired).toBe(true);
     expect(tokenStore.get()).toBeNull();
+    expect(spotifyTokenStore.get()).toBeNull();
   });
 });
 
