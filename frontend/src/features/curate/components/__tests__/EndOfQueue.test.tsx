@@ -1,5 +1,5 @@
 // frontend/src/features/curate/components/__tests__/EndOfQueue.test.tsx
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { MantineProvider } from '@mantine/core';
@@ -7,6 +7,29 @@ import { testTheme } from '../../../../test/theme';
 import { EndOfQueue } from '../EndOfQueue';
 import type { TriageBlock } from '../../../triage/hooks/useTriageBlock';
 import type { TriageBucket } from '../../../triage/lib/bucketLabels';
+
+const pauseMock = vi.fn(async () => {});
+
+vi.mock('../../../playback/usePlayback', () => ({
+  usePlayback: () => ({
+    queue: { source: null, tracks: [], cursor: 0, status: 'idle' as const },
+    track: { current: null, positionMs: 0, durationMs: 0 },
+    sdk: { ready: false, error: null },
+    controls: {
+      play: vi.fn(async () => {}),
+      pause: pauseMock,
+      togglePlayPause: vi.fn(async () => {}),
+      next: vi.fn(async () => {}),
+      prev: vi.fn(async () => {}),
+      seekMs: vi.fn(async () => {}),
+      seekPct: vi.fn(async () => {}),
+      bindQueue: vi.fn(),
+      clearQueue: vi.fn(),
+      cancelPendingAdvance: vi.fn(),
+      openSpotifyExternal: vi.fn(),
+    },
+  }),
+}));
 
 function mkBlock(buckets: TriageBucket[]): TriageBlock {
   return {
@@ -31,7 +54,46 @@ const wrap = (ui: React.ReactElement) => (
 );
 
 describe('EndOfQueue', () => {
+  it('renders Bucket finished + tracks_done copy', () => {
+    pauseMock.mockClear();
+    const block = mkBlock([
+      { id: 'src', bucket_type: 'NEW', inactive: false, track_count: 0 },
+      { id: 'old', bucket_type: 'OLD', inactive: false, track_count: 5 },
+    ]);
+    render(
+      wrap(
+        <EndOfQueue
+          styleId="s1"
+          block={block}
+          currentBucketId="src"
+          totalAssigned={5}
+        />,
+      ),
+    );
+    expect(screen.getByText(/Bucket finished/i)).toBeInTheDocument();
+    expect(screen.getByText(/5 tracks done/i)).toBeInTheDocument();
+  });
+
+  it('calls playback.controls.pause on mount', () => {
+    pauseMock.mockClear();
+    const block = mkBlock([
+      { id: 'src', bucket_type: 'NEW', inactive: false, track_count: 0 },
+    ]);
+    render(
+      wrap(
+        <EndOfQueue
+          styleId="s1"
+          block={block}
+          currentBucketId="src"
+          totalAssigned={3}
+        />,
+      ),
+    );
+    expect(pauseMock).toHaveBeenCalled();
+  });
+
   it('renders Continue CTA when a non-empty source-eligible bucket exists', () => {
+    pauseMock.mockClear();
     const block = mkBlock([
       { id: 'src', bucket_type: 'NEW', inactive: false, track_count: 0 },
       { id: 'old', bucket_type: 'OLD', inactive: false, track_count: 5 },
@@ -46,7 +108,7 @@ describe('EndOfQueue', () => {
         />,
       ),
     );
-    expect(screen.getByText(/You sorted 3 tracks/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 tracks done/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Continue with OLD \(5\)/i })).toHaveAttribute(
       'href',
       '/curate/s1/b1/old',
@@ -54,6 +116,7 @@ describe('EndOfQueue', () => {
   });
 
   it('renders Finalize CTA when no non-empty source-eligible bucket exists', () => {
+    pauseMock.mockClear();
     const block = mkBlock([
       { id: 'src', bucket_type: 'NEW', inactive: false, track_count: 0 },
     ]);
@@ -71,10 +134,11 @@ describe('EndOfQueue', () => {
       'href',
       '/triage/s1/b1',
     );
-    expect(screen.getByText(/No tracks sorted in this session/i)).toBeInTheDocument();
+    expect(screen.getByText(/0 tracks done/i)).toBeInTheDocument();
   });
 
   it('always renders Back to triage', () => {
+    pauseMock.mockClear();
     const block = mkBlock([
       { id: 'src', bucket_type: 'NEW', inactive: false, track_count: 0 },
     ]);
@@ -92,6 +156,6 @@ describe('EndOfQueue', () => {
       'href',
       '/triage/s1/b1',
     );
-    expect(screen.getByText(/You sorted 1 track/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 tracks done/i)).toBeInTheDocument();
   });
 });

@@ -1,25 +1,18 @@
 // frontend/src/features/curate/components/EndOfQueue.tsx
+import { useEffect } from 'react';
 import { Button, Group, Stack, Text, Title } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { TriageBlock } from '../../triage/hooks/useTriageBlock';
-import {
-  bucketLabel,
-  type TriageBucket,
-} from '../../triage/lib/bucketLabels';
+import { bucketLabel } from '../../triage/lib/bucketLabels';
 import { nextSuggestedBucket } from '../lib/nextSuggestedBucket';
+import { usePlayback } from '../../playback/usePlayback';
 
 export interface EndOfQueueProps {
   styleId: string;
   block: TriageBlock;
   currentBucketId: string;
   totalAssigned: number;
-}
-
-function bodyKey(count: number): string {
-  if (count === 0) return 'curate.end_of_queue.body_zero';
-  if (count === 1) return 'curate.end_of_queue.body_one';
-  return 'curate.end_of_queue.body_other';
 }
 
 export function EndOfQueue({
@@ -29,17 +22,18 @@ export function EndOfQueue({
   totalAssigned,
 }: EndOfQueueProps) {
   const { t } = useTranslation();
-  const currentBucket: TriageBucket | undefined = block.buckets.find(
-    (b) => b.id === currentBucketId,
-  );
-  const currentLabel = currentBucket ? bucketLabel(currentBucket, t) : '';
+  const playback = usePlayback();
   const next = nextSuggestedBucket(block.buckets, currentBucketId);
+
+  useEffect(() => {
+    void playback.controls.pause();
+  }, [playback.controls]);
 
   return (
     <Stack gap="lg" align="center" p="xl" data-testid="end-of-queue">
-      <Title order={2}>{t('curate.end_of_queue.heading', { label: currentLabel })}</Title>
+      <Title order={2}>{t('playback.end_of_queue.title')}</Title>
       <Text c="var(--color-fg-muted)">
-        {t(bodyKey(totalAssigned), { count: totalAssigned })}
+        {t('playback.end_of_queue.tracks_done', { count: totalAssigned })}
       </Text>
       <Group>
         {next ? (
