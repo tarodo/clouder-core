@@ -374,4 +374,36 @@ describe('PlaybackProvider SDK lifecycle', () => {
     expect(onCursorChange).toHaveBeenLastCalledWith(0);
     await waitFor(() => expect(captured.body?.uris).toEqual(['spotify:track:spA']));
   });
+
+  it('seekMs clamps to [0, duration] and calls SDK seek', async () => {
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    await act(async () => { await result.current.controls.play(); });
+    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    act(() => {
+      handle.getLatest()?.__emit('player_state_changed', {
+        paused: false, position: 0, duration: 60000, track_window: { current_track: { id: 'x' } },
+      });
+    });
+    await waitFor(() => expect(result.current.track.durationMs).toBe(60000));
+    await act(async () => { await result.current.controls.seekMs(-100); });
+    expect(handle.getLatest()?.seek).toHaveBeenLastCalledWith(0);
+    await act(async () => { await result.current.controls.seekMs(99999); });
+    expect(handle.getLatest()?.seek).toHaveBeenLastCalledWith(60000);
+  });
+
+  it('seekPct(0.6) of 360s == 216000ms', async () => {
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    await act(async () => { await result.current.controls.play(); });
+    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    act(() => {
+      handle.getLatest()?.__emit('player_state_changed', {
+        paused: false, position: 0, duration: 360000, track_window: { current_track: { id: 'x' } },
+      });
+    });
+    await waitFor(() => expect(result.current.track.durationMs).toBe(360000));
+    await act(async () => { await result.current.controls.seekPct(0.6); });
+    expect(handle.getLatest()?.seek).toHaveBeenLastCalledWith(216000);
+  });
 });

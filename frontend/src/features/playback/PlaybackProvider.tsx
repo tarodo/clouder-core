@@ -15,6 +15,7 @@ import type {
   SdkError,
 } from './lib/types';
 import { loadSpotifySdk } from './lib/sdkLoader';
+import { clampMs, pctToMs } from './lib/seekHotkeys';
 import { findNextPlayable } from './lib/skipNullSpotifyId';
 import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
 import { spotifyApi } from './api/spotifyWebApi';
@@ -206,6 +207,21 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   const next = useCallback(() => advance(+1), [advance]);
   const prev = useCallback(() => advance(-1), [advance]);
 
+  const seekMs = useCallback(
+    async (ms: number) => {
+      const clamped = clampMs(ms, track.durationMs || 0);
+      await playerRef.current?.seek(clamped);
+    },
+    [track.durationMs],
+  );
+
+  const seekPct = useCallback(
+    async (p: number) => {
+      await seekMs(pctToMs(p, track.durationMs || 0));
+    },
+    [seekMs, track.durationMs],
+  );
+
   const value = useMemo<PlaybackContextValue>(
     () => ({
       queue,
@@ -217,8 +233,8 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         togglePlayPause,
         next,
         prev,
-        seekMs: async () => {},
-        seekPct: async () => {},
+        seekMs,
+        seekPct,
         bindQueue,
         clearQueue: () => {},
         cancelPendingAdvance: () => {},
@@ -231,7 +247,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         },
       },
     }),
-    [queue, track, sdkReady, play, pause, togglePlayPause, next, prev, bindQueue],
+    [queue, track, sdkReady, play, pause, togglePlayPause, next, prev, seekMs, seekPct, bindQueue],
   );
 
   return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>;
