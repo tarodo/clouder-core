@@ -17,6 +17,7 @@ import type {
 import { loadSpotifySdk } from './lib/sdkLoader';
 import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
 import { spotifyApi } from './api/spotifyWebApi';
+import { useAuth } from '../../auth/useAuth';
 
 export interface PlaybackContextValue {
   queue: {
@@ -77,6 +78,9 @@ function queueReducer(state: QueueState, action: QueueAction): QueueState {
 }
 
 export function PlaybackProvider({ children }: { children: ReactNode }) {
+  const { refresh } = useAuth();
+  const onAuthExpired = useCallback(() => refresh(), [refresh]);
+
   const [queue, queueDispatch] = useReducer(queueReducer, {
     source: null,
     tracks: [] as readonly PlaybackTrack[],
@@ -138,12 +142,38 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const play = useCallback(
-    async (_idx?: number) => {
+    async (idx?: number) => {
       await ensureSdk();
-      // Real play() lands in T14 — for T12 just guarantee SDK init runs.
+      const player = playerRef.current;
+      const deviceId = deviceIdRef.current;
+      if (!player || !deviceId) return;
+
+      const targetIdx = idx ?? queue.cursor;
+      const track = queue.tracks[targetIdx];
+      if (!track || !track.spotify_id) return;
+
+      await player.activateElement();
+      if (idx !== undefined && idx !== queue.cursor) {
+        queueDispatch({ type: 'CURSOR', cursor: idx });
+        onCursorChangeRef.current?.(idx);
+      }
+      queueDispatch({ type: 'STATUS', status: 'loading' });
+      await spotifyApi.play(
+        { uris: [`spotify:track:${track.spotify_id}`], deviceId },
+        { onAuthExpired },
+      );
     },
-    [ensureSdk],
+    [queue.cursor, queue.tracks, ensureSdk, onAuthExpired],
   );
+
+  const pause = useCallback(async () => {
+    await playerRef.current?.pause();
+  }, []);
+
+  const togglePlayPause = useCallback(async () => {
+    await ensureSdk();
+    await playerRef.current?.togglePlay();
+  }, [ensureSdk]);
 
   const bindQueue = useCallback((args: BindQueueArgs) => {
     onCursorChangeRef.current = args.onCursorChange;
@@ -157,8 +187,8 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       sdk: { ready: sdkReady, error: null /* set in T18 */ },
       controls: {
         play,
-        pause: async () => {},
-        togglePlayPause: async () => {},
+        pause,
+        togglePlayPause,
         next: async () => {},
         prev: async () => {},
         seekMs: async () => {},
@@ -175,7 +205,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         },
       },
     }),
-    [queue, track, sdkReady, play, bindQueue],
+    [queue, track, sdkReady, play, pause, togglePlayPause, bindQueue],
   );
 
   return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>;

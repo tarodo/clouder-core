@@ -3,15 +3,41 @@ import { render, renderHook, screen, act, waitFor } from '@testing-library/react
 import { MantineProvider } from '@mantine/core';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
+import type { ReactNode } from 'react';
 import { testTheme } from '../../../test/theme';
 import { PlaybackProvider } from '../PlaybackProvider';
 import { usePlayback } from '../usePlayback';
 import { spotifyTokenStore } from '../../../auth/spotifyTokenStore';
+import { AuthContext, type AuthContextValue } from '../../../auth/AuthProvider';
 import { __resetSdkLoaderForTests } from '../lib/sdkLoader';
 import {
   installSpotifySdkMock,
   uninstallSpotifySdkMock,
 } from '../../../test/spotifySdk';
+
+function makeStubAuth(refresh: AuthContextValue['refresh'] = vi.fn().mockResolvedValue(true)): AuthContextValue {
+  return {
+    state: {
+      status: 'authenticated',
+      user: { id: 'u', spotify_id: 's', display_name: 'Test', is_admin: false },
+      expiresAt: Date.now() + 1_800_000,
+      spotifyAccessToken: 'SPTOK',
+    },
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    refresh,
+  };
+}
+
+function makeAuthWrapper(auth: AuthContextValue = makeStubAuth()) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <AuthContext.Provider value={auth}>
+        <PlaybackProvider>{children}</PlaybackProvider>
+      </AuthContext.Provider>
+    );
+  };
+}
 
 function Probe() {
   const playback = usePlayback();
@@ -27,11 +53,13 @@ function Probe() {
 describe('PlaybackProvider scaffold', () => {
   it('exposes idle queue + sdk.ready=false at mount', () => {
     render(
-      <MantineProvider theme={testTheme}>
-        <PlaybackProvider>
-          <Probe />
-        </PlaybackProvider>
-      </MantineProvider>,
+      <AuthContext.Provider value={makeStubAuth()}>
+        <MantineProvider theme={testTheme}>
+          <PlaybackProvider>
+            <Probe />
+          </PlaybackProvider>
+        </MantineProvider>
+      </AuthContext.Provider>,
     );
     expect(screen.getByTestId('status').textContent).toBe('idle');
     expect(screen.getByTestId('cursor').textContent).toBe('0');
@@ -62,7 +90,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
   });
 
   it('does not load SDK on mount', () => {
-    renderHook(() => usePlayback(), { wrapper: PlaybackProvider });
+    renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
     expect(document.head.querySelector('script[data-spotify-sdk]')).toBeNull();
   });
 
@@ -77,7 +105,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
       }),
     );
     const handle = installSpotifySdkMock();
-    const { result } = renderHook(() => usePlayback(), { wrapper: PlaybackProvider });
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
     await act(async () => {
       await result.current.controls.play(0);
     });
@@ -94,7 +122,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
   });
 
   it('bindQueue stores source/tracks/cursor and reads it back', () => {
-    const { result } = renderHook(() => usePlayback(), { wrapper: PlaybackProvider });
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
     const tracks = [
       { id: 'A', title: 'A', artists: 'A', cover_url: null, duration_ms: 1000, spotify_id: 'spA' },
     ];
@@ -113,7 +141,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
 
   it('player_state_changed updates positionMs and durationMs', async () => {
     const handle = installSpotifySdkMock();
-    const { result } = renderHook(() => usePlayback(), { wrapper: PlaybackProvider });
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
     await act(async () => { await result.current.controls.play(); });
     act(() => {
       handle.getLatest()?.__emit('ready', { device_id: 'd1' });
@@ -134,7 +162,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
 
   it('player_state_changed with paused:true sets queue.status=paused', async () => {
     const handle = installSpotifySdkMock();
-    const { result } = renderHook(() => usePlayback(), { wrapper: PlaybackProvider });
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
     await act(async () => { await result.current.controls.play(); });
     act(() => {
       handle.getLatest()?.__emit('ready', { device_id: 'd1' });
@@ -150,5 +178,111 @@ describe('PlaybackProvider SDK lifecycle', () => {
     await waitFor(() => {
       expect(result.current.queue.status).toBe('paused');
     });
+  });
+
+  it('controls.play(idx) calls Spotify Web API play with spotify URI of tracks[idx]', async () => {
+    const captured: { body: { uris?: string[] } | null } = { body: null };
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', async ({ request }) => {
+        captured.body = (await request.json()) as { uris?: string[] };
+        return HttpResponse.json({}, { status: 204 });
+      }),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'bucket', blockId: 'b', bucketId: 'u' },
+        tracks: [
+          { id: 'A', title: 'A', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spA' },
+          { id: 'B', title: 'B', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spB' },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    await act(async () => {
+      await result.current.controls.play(1);
+    });
+    act(() => {
+      handle.getLatest()?.__emit('ready', { device_id: 'd1' });
+    });
+    // After ready fires, cursor=1; trigger play() again now that device exists.
+    await act(async () => {
+      await result.current.controls.play(1);
+    });
+    await waitFor(() => {
+      expect(captured.body?.uris).toEqual(['spotify:track:spB']);
+    });
+  });
+
+  it('controls.play() with no idx uses cursor track', async () => {
+    const captured: { body: { uris?: string[] } | null } = { body: null };
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', async ({ request }) => {
+        captured.body = (await request.json()) as { uris?: string[] };
+        return HttpResponse.json({}, { status: 204 });
+      }),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'bucket', blockId: 'b', bucketId: 'u' },
+        tracks: [
+          { id: 'A', title: 'A', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spA' },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    await act(async () => { await result.current.controls.play(); });
+    act(() => {
+      handle.getLatest()?.__emit('ready', { device_id: 'd1' });
+    });
+    await act(async () => { await result.current.controls.play(); });
+    await waitFor(() => {
+      expect(captured.body?.uris).toEqual(['spotify:track:spA']);
+    });
+  });
+
+  it('controls.play(idx) is a no-op when track has null spotify_id', async () => {
+    const captured: { calls: number } = { calls: 0 };
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', () => {
+        captured.calls++;
+        return HttpResponse.json({}, { status: 204 });
+      }),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'bucket', blockId: 'b', bucketId: 'u' },
+        tracks: [
+          { id: 'X', title: 'X', artists: '', cover_url: null, duration_ms: 1000, spotify_id: null },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    await act(async () => { await result.current.controls.play(0); });
+    act(() => {
+      handle.getLatest()?.__emit('ready', { device_id: 'd1' });
+    });
+    await act(async () => { await result.current.controls.play(0); });
+    // Wait a tick; ensure /play never fires (it would have by now if it were going to)
+    await new Promise((r) => setTimeout(r, 50));
+    expect(captured.calls).toBe(0);
+  });
+
+  it('togglePlayPause calls SDK togglePlay', async () => {
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    await act(async () => { await result.current.controls.togglePlayPause(); });
+    expect(handle.getLatest()?.togglePlay).toHaveBeenCalled();
   });
 });
