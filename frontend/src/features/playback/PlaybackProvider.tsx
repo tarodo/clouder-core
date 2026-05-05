@@ -15,6 +15,7 @@ import type {
   SdkError,
 } from './lib/types';
 import { loadSpotifySdk } from './lib/sdkLoader';
+import { findNextPlayable } from './lib/skipNullSpotifyId';
 import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
 import { spotifyApi } from './api/spotifyWebApi';
 import { useAuth } from '../../auth/useAuth';
@@ -180,6 +181,31 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     queueDispatch({ type: 'BIND', source: args.source, tracks: args.tracks, cursor: args.cursor });
   }, []);
 
+  const advance = useCallback(
+    async (direction: 1 | -1) => {
+      const startIndex = queue.cursor + direction;
+      const next = findNextPlayable(queue.tracks, startIndex, direction);
+      if (next == null) {
+        queueDispatch({ type: 'STATUS', status: 'ended' });
+        await playerRef.current?.pause();
+        return;
+      }
+      queueDispatch({ type: 'CURSOR', cursor: next });
+      onCursorChangeRef.current?.(next);
+      const t = queue.tracks[next];
+      const deviceId = deviceIdRef.current;
+      if (!t || !t.spotify_id || !deviceId) return;
+      await spotifyApi.play(
+        { uris: [`spotify:track:${t.spotify_id}`], deviceId },
+        { onAuthExpired },
+      );
+    },
+    [queue.cursor, queue.tracks, onAuthExpired],
+  );
+
+  const next = useCallback(() => advance(+1), [advance]);
+  const prev = useCallback(() => advance(-1), [advance]);
+
   const value = useMemo<PlaybackContextValue>(
     () => ({
       queue,
@@ -189,8 +215,8 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         play,
         pause,
         togglePlayPause,
-        next: async () => {},
-        prev: async () => {},
+        next,
+        prev,
         seekMs: async () => {},
         seekPct: async () => {},
         bindQueue,
@@ -205,7 +231,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         },
       },
     }),
-    [queue, track, sdkReady, play, pause, togglePlayPause, bindQueue],
+    [queue, track, sdkReady, play, pause, togglePlayPause, next, prev, bindQueue],
   );
 
   return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>;

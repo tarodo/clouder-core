@@ -285,4 +285,93 @@ describe('PlaybackProvider SDK lifecycle', () => {
     await act(async () => { await result.current.controls.togglePlayPause(); });
     expect(handle.getLatest()?.togglePlay).toHaveBeenCalled();
   });
+
+  it('next advances cursor + plays next playable track', async () => {
+    const onCursorChange = vi.fn();
+    const handle = installSpotifySdkMock();
+    const captured: { body: { uris?: string[] } | null } = { body: null };
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', async ({ request }) => {
+        captured.body = (await request.json()) as { uris?: string[] };
+        return HttpResponse.json({}, { status: 204 });
+      }),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'bucket', blockId: 'b', bucketId: 'u' },
+        tracks: [
+          { id: 'A', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: 'spA' },
+          { id: 'B', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: null },
+          { id: 'C', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: 'spC' },
+        ],
+        cursor: 0,
+        onCursorChange,
+      });
+    });
+    await act(async () => { await result.current.controls.play(0); });
+    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    await act(async () => { await result.current.controls.play(0); });
+    await waitFor(() => expect(captured.body?.uris).toEqual(['spotify:track:spA']));
+    await act(async () => { await result.current.controls.next(); });
+    expect(onCursorChange).toHaveBeenLastCalledWith(2);
+    await waitFor(() => expect(captured.body?.uris).toEqual(['spotify:track:spC']));
+  });
+
+  it('next on last playable enters ended state and pauses', async () => {
+    const handle = installSpotifySdkMock();
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', () => HttpResponse.json({}, { status: 204 })),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'bucket', blockId: 'b', bucketId: 'u' },
+        tracks: [
+          { id: 'A', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: 'spA' },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    await act(async () => { await result.current.controls.play(0); });
+    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    await act(async () => { await result.current.controls.next(); });
+    await waitFor(() => expect(result.current.queue.status).toBe('ended'));
+    expect(handle.getLatest()?.pause).toHaveBeenCalled();
+  });
+
+  it('prev steps backward through playable tracks', async () => {
+    const onCursorChange = vi.fn();
+    const handle = installSpotifySdkMock();
+    const captured: { body: { uris?: string[] } | null } = { body: null };
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', async ({ request }) => {
+        captured.body = (await request.json()) as { uris?: string[] };
+        return HttpResponse.json({}, { status: 204 });
+      }),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'bucket', blockId: 'b', bucketId: 'u' },
+        tracks: [
+          { id: 'A', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: 'spA' },
+          { id: 'B', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: null },
+          { id: 'C', title: '', artists: '', cover_url: null, duration_ms: 1, spotify_id: 'spC' },
+        ],
+        cursor: 2,
+        onCursorChange,
+      });
+    });
+    await act(async () => { await result.current.controls.play(2); });
+    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    await act(async () => { await result.current.controls.play(2); });
+    await act(async () => { await result.current.controls.prev(); });
+    expect(onCursorChange).toHaveBeenLastCalledWith(0);
+    await waitFor(() => expect(captured.body?.uris).toEqual(['spotify:track:spA']));
+  });
 });
