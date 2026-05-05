@@ -4,6 +4,7 @@ import { MantineProvider } from '@mantine/core';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { testTheme } from '../../../test/theme';
 import { PlaybackProvider } from '../PlaybackProvider';
 import { usePlayback } from '../usePlayback';
@@ -14,6 +15,15 @@ import {
   installSpotifySdkMock,
   uninstallSpotifySdkMock,
 } from '../../../test/spotifySdk';
+
+const navigateMock = vi.fn();
+vi.mock('react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router')>();
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 function makeStubAuth(refresh: AuthContextValue['refresh'] = vi.fn().mockResolvedValue(true)): AuthContextValue {
   return {
@@ -32,9 +42,11 @@ function makeStubAuth(refresh: AuthContextValue['refresh'] = vi.fn().mockResolve
 function makeAuthWrapper(auth: AuthContextValue = makeStubAuth()) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <AuthContext.Provider value={auth}>
-        <PlaybackProvider>{children}</PlaybackProvider>
-      </AuthContext.Provider>
+      <MemoryRouter>
+        <AuthContext.Provider value={auth}>
+          <PlaybackProvider>{children}</PlaybackProvider>
+        </AuthContext.Provider>
+      </MemoryRouter>
     );
   };
 }
@@ -53,13 +65,15 @@ function Probe() {
 describe('PlaybackProvider scaffold', () => {
   it('exposes idle queue + sdk.ready=false at mount', () => {
     render(
-      <AuthContext.Provider value={makeStubAuth()}>
-        <MantineProvider theme={testTheme}>
-          <PlaybackProvider>
-            <Probe />
-          </PlaybackProvider>
-        </MantineProvider>
-      </AuthContext.Provider>,
+      <MemoryRouter>
+        <AuthContext.Provider value={makeStubAuth()}>
+          <MantineProvider theme={testTheme}>
+            <PlaybackProvider>
+              <Probe />
+            </PlaybackProvider>
+          </MantineProvider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
     );
     expect(screen.getByTestId('status').textContent).toBe('idle');
     expect(screen.getByTestId('cursor').textContent).toBe('0');
@@ -79,6 +93,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
     document.head.querySelectorAll('script[data-spotify-sdk]').forEach((s) => s.remove());
     spotifyTokenStore.set('SPTOK');
     sdkServer.listen({ onUnhandledRequest: 'bypass' });
+    navigateMock.mockReset();
   });
   afterEach(() => {
     uninstallSpotifySdkMock();
@@ -476,5 +491,47 @@ describe('PlaybackProvider SDK lifecycle', () => {
     await waitFor(() => expect(result.current.queue.status).toBe('idle'));
     expect(result.current.queue.source).toBeNull();
     expect(handle.getLatest()?.pause).toHaveBeenCalled();
+  });
+
+  it('SDK initialization_error sets sdk.error.kind=init', async () => {
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    await act(async () => { await result.current.controls.play(); });
+    act(() => { handle.getLatest()?.__emit('initialization_error', { message: 'boom' }); });
+    await waitFor(() => expect(result.current.sdk.error?.kind).toBe('init'));
+  });
+
+  it('SDK playback_error sets queue.status=error and sdk.error.kind=playback', async () => {
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    await act(async () => { await result.current.controls.play(); });
+    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    act(() => { handle.getLatest()?.__emit('playback_error', { message: 'unavail' }); });
+    await waitFor(() => expect(result.current.queue.status).toBe('error'));
+    expect(result.current.sdk.error?.kind).toBe('playback');
+  });
+
+  it('SDK authentication_error triggers AuthProvider.refresh', async () => {
+    const handle = installSpotifySdkMock();
+    const refreshSpy = vi.fn().mockResolvedValue(true);
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <MemoryRouter>
+        <AuthContext.Provider value={makeStubAuth(refreshSpy)}>
+          <PlaybackProvider>{children}</PlaybackProvider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    );
+    const { result } = renderHook(() => usePlayback(), { wrapper });
+    await act(async () => { await result.current.controls.play(); });
+    act(() => { handle.getLatest()?.__emit('authentication_error', { message: 'expired' }); });
+    await waitFor(() => expect(refreshSpy).toHaveBeenCalled());
+  });
+
+  it('SDK account_error navigates to /auth/premium-required', async () => {
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    await act(async () => { await result.current.controls.play(); });
+    act(() => { handle.getLatest()?.__emit('account_error', { message: 'free' }); });
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/auth/premium-required'));
   });
 });

@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useNavigate } from 'react-router';
 import type {
   BindQueueArgs,
   PlaybackTrack,
@@ -82,6 +83,7 @@ function queueReducer(state: QueueState, action: QueueAction): QueueState {
 
 export function PlaybackProvider({ children }: { children: ReactNode }) {
   const { refresh } = useAuth();
+  const navigate = useNavigate();
   const onAuthExpired = useCallback(() => refresh(), [refresh]);
 
   const [queue, queueDispatch] = useReducer(queueReducer, {
@@ -104,6 +106,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   const deviceIdRef = useRef<string | null>(null);
   const pendingAdvanceTimerRef = useRef<number | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
+  const [sdkError, setSdkError] = useState<SdkError | null>(null);
 
   const ensureSdk = useCallback(async (): Promise<void> => {
     if (sdkInitRef.current) return sdkInitRef.current;
@@ -140,10 +143,25 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         }));
         queueDispatch({ type: 'STATUS', status: sdkState.paused ? 'paused' : 'playing' });
       });
+      player.addListener('initialization_error', ({ message }: { message: string }) => {
+        setSdkError({ kind: 'init', message });
+      });
+      player.addListener('authentication_error', ({ message }: { message: string }) => {
+        setSdkError({ kind: 'auth', message });
+        void refresh();
+      });
+      player.addListener('account_error', ({ message }: { message: string }) => {
+        setSdkError({ kind: 'account', message });
+        navigate('/auth/premium-required');
+      });
+      player.addListener('playback_error', ({ message }: { message: string }) => {
+        setSdkError({ kind: 'playback', message });
+        queueDispatch({ type: 'STATUS', status: 'error' });
+      });
       await player.connect();
     })();
     return sdkInitRef.current;
-  }, []);
+  }, [refresh, navigate]);
 
   const play = useCallback(
     async (idx?: number) => {
@@ -255,7 +273,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     () => ({
       queue,
       track,
-      sdk: { ready: sdkReady, error: null /* set in T18 */ },
+      sdk: { ready: sdkReady, error: sdkError },
       controls: {
         play,
         pause,
@@ -281,6 +299,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       queue,
       track,
       sdkReady,
+      sdkError,
       play,
       pause,
       togglePlayPause,
