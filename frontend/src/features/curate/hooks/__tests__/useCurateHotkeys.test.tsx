@@ -59,7 +59,6 @@ describe('useCurateHotkeys', () => {
   let onOpenOverlay: ReturnType<typeof vi.fn>;
   let onCloseOverlay: ReturnType<typeof vi.fn>;
   let onExit: ReturnType<typeof vi.fn>;
-  let onOpenSpotify: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     onAssign = vi.fn();
@@ -69,7 +68,6 @@ describe('useCurateHotkeys', () => {
     onOpenOverlay = vi.fn();
     onCloseOverlay = vi.fn();
     onExit = vi.fn();
-    onOpenSpotify = vi.fn();
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -86,7 +84,6 @@ describe('useCurateHotkeys', () => {
           onOpenOverlay,
           onCloseOverlay,
           onExit,
-          onOpenSpotify,
         }),
       { wrapper },
     );
@@ -132,18 +129,20 @@ describe('useCurateHotkeys', () => {
     expect(onUndo).toHaveBeenCalledTimes(1);
   });
 
-  it('KeyJ / KeyK call onSkip / onPrev', () => {
+  it('KeyJ / KeyK call onPrev / onSkip', () => {
     mount(false);
     act(() => dispatchKey({ code: 'KeyJ' }));
-    expect(onSkip).toHaveBeenCalledTimes(1);
-    act(() => dispatchKey({ code: 'KeyK' }));
     expect(onPrev).toHaveBeenCalledTimes(1);
+    act(() => dispatchKey({ code: 'KeyK' }));
+    expect(onSkip).toHaveBeenCalledTimes(1);
   });
 
-  it('Space calls onOpenSpotify', () => {
+  it('Space is not bound (handled by playback hotkeys layer)', () => {
     mount(false);
     act(() => dispatchKey({ code: 'Space' }));
-    expect(onOpenSpotify).toHaveBeenCalledTimes(1);
+    expect(onSkip).not.toHaveBeenCalled();
+    expect(onPrev).not.toHaveBeenCalled();
+    expect(onAssign).not.toHaveBeenCalled();
   });
 
   it('? opens the overlay', () => {

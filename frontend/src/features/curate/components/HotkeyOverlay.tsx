@@ -24,7 +24,6 @@ const NAVIGATE: KeyRow[] = [
   { keys: ['K'], labelKey: 'curate.hotkeys.key_k_label' },
 ];
 const ACTION: KeyRow[] = [
-  { keys: ['Space'], labelKey: 'curate.hotkeys.key_space_label' },
   { keys: ['U'], labelKey: 'curate.hotkeys.key_u_label' },
 ];
 const PLAYBACK: KeyRow[] = [

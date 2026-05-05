@@ -14,7 +14,6 @@ export interface UseCurateHotkeysArgs {
   onOpenOverlay: () => void;
   onCloseOverlay: () => void;
   onExit: () => void;
-  onOpenSpotify: () => void;
 }
 
 const DIGIT_CODES: Record<string, number> = {
@@ -49,7 +48,6 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
     onOpenOverlay,
     onCloseOverlay,
     onExit,
-    onOpenSpotify,
   } = args;
 
   useEffect(() => {
@@ -76,15 +74,11 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
           return;
         case 'KeyJ':
           event.preventDefault();
-          onSkip();
+          onPrev();
           return;
         case 'KeyK':
           event.preventDefault();
-          onPrev();
-          return;
-        case 'Space':
-          event.preventDefault();
-          onOpenSpotify();
+          onSkip();
           return;
         case 'KeyQ': {
           event.preventDefault();
@@ -133,6 +127,5 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
     onOpenOverlay,
     onCloseOverlay,
     onExit,
-    onOpenSpotify,
   ]);
 }

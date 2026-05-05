@@ -38,7 +38,6 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
     onOpenOverlay: () => setOverlayOpen(true),
     onCloseOverlay: () => setOverlayOpen(false),
     onExit: () => navigate(`/triage/${styleId}/${blockId}`),
-    onOpenSpotify: session.openSpotify,
   });
 
   if (session.status === 'loading') return <CurateSkeleton />;
