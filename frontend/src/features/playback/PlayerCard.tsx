@@ -10,6 +10,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import classes from './PlayerCard.module.css';
 import type { PlaybackTrack } from './lib/types';
+import { useScrubDebounce } from './useScrubDebounce';
 
 export type PlayerCardState =
   | 'idle'
@@ -117,6 +118,7 @@ export function PlayerCard(props: PlayerCardProps) {
 
   const scrubDisabled = state === 'error' || state === 'disconnected' || state === 'empty-bucket';
   const progressMax = track?.duration_ms || 1;
+  const scrub = useScrubDebounce(onSeekMs, 100);
 
   return (
     <Paper
@@ -197,7 +199,8 @@ export function PlayerCard(props: PlayerCardProps) {
         thumbSize={isMini ? 0 : 12}
         label={null}
         disabled={scrubDisabled}
-        onChange={onSeekMs}
+        onChange={scrub.onChange}
+        onChangeEnd={scrub.onChangeEnd}
         style={{ opacity: SCRUB_OPACITY[state], marginTop: isMini ? 4 : 16 }}
         aria-label={t('playback.controls.scrub_aria')}
       />
