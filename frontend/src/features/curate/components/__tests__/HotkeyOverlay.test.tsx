@@ -33,6 +33,26 @@ describe('HotkeyOverlay', () => {
     expect(within(dialog).getByText(/Show \/ hide this overlay/i)).toBeInTheDocument();
   });
 
+  it('shows playback hotkey rows in desktop mode', async () => {
+    const mod = await import('@mantine/hooks');
+    (mod.useMediaQuery as unknown as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    render(
+      wrap(<HotkeyOverlay opened={true} onClose={() => {}} hasOverflow={false} />),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/^Playback$/)).toBeInTheDocument();
+    expect(within(dialog).getByText('Play / pause')).toBeInTheDocument();
+    expect(within(dialog).getByText('Previous track')).toBeInTheDocument();
+    expect(within(dialog).getByText('Next track')).toBeInTheDocument();
+    expect(within(dialog).getByText('Seek −10s')).toBeInTheDocument();
+    expect(within(dialog).getByText('Seek +10s')).toBeInTheDocument();
+    expect(within(dialog).getByText('Seek 0%')).toBeInTheDocument();
+    expect(within(dialog).getByText('Seek 20%')).toBeInTheDocument();
+    expect(within(dialog).getByText('Seek 40%')).toBeInTheDocument();
+    expect(within(dialog).getByText('Seek 60%')).toBeInTheDocument();
+    expect(within(dialog).getByText('Seek 80%')).toBeInTheDocument();
+  });
+
   it('shows overflow note when hasOverflow=true', async () => {
     render(
       wrap(<HotkeyOverlay opened={true} onClose={() => {}} hasOverflow={true} />),
@@ -62,6 +82,8 @@ describe('HotkeyOverlay', () => {
       within(dialog).getByText(/Keyboard shortcuts available on desktop only/i),
     ).toBeInTheDocument();
     expect(within(dialog).queryByText(/Assign to staging category 1–9/i)).toBeNull();
+    expect(within(dialog).queryByText(/^Playback$/)).toBeNull();
+    expect(within(dialog).queryByText(/Play \/ pause/i)).toBeNull();
   });
 
   it('close button fires onClose', async () => {
