@@ -402,5 +402,60 @@
     "exit_aria": "Exit Curate",
     "help_aria": "Show keyboard shortcuts",
     "back_aria": "Back to triage"
+  },
+  "playback": {
+    "now_playing": "Now Playing",
+    "buffering": "Buffering…",
+    "playback_failed": "Playback failed",
+    "retry": "Retry",
+    "reconnect_spotify": "Reconnect Spotify",
+    "open_device_picker": "Open device picker",
+    "empty_bucket_title": "No Spotify match",
+    "empty_bucket_body": "В этом ведре нет треков с Spotify match",
+    "controls": {
+      "play_aria": "Play",
+      "pause_aria": "Pause",
+      "prev_aria": "Previous track",
+      "next_aria": "Next track",
+      "scrub_aria": "Scrub bar",
+      "close_aria": "Close player"
+    },
+    "minibar": {
+      "now_playing_aria": "Now playing — {{title}}",
+      "open_source": "Open in Curate"
+    },
+    "leave_context": {
+      "title": "Прервать текущую очередь?",
+      "body": "Текущая очередь воспроизведения будет очищена.",
+      "confirm": "Да, новый блок",
+      "cancel": "Нет, остаться"
+    },
+    "end_of_queue": {
+      "title": "Bucket finished.",
+      "tracks_done": "{{count}} tracks done."
+    },
+    "hotkeys": {
+      "space": "Play / pause",
+      "j": "Previous track",
+      "k": "Next track",
+      "shift_j": "Seek −10s",
+      "shift_k": "Seek +10s",
+      "a": "Seek 0%",
+      "s": "Seek 20%",
+      "d": "Seek 40%",
+      "f": "Seek 60%",
+      "g": "Seek 80%"
+    },
+    "errors": {
+      "premium_required_title": "Spotify Premium required",
+      "init_failed": "Player init failed — refresh страницу",
+      "device_offline": "Device went offline",
+      "page_load_failed": "Could not load next page",
+      "block_deleted": "Block was deleted"
+    },
+    "track_row": {
+      "open_in_spotify": "Open in Spotify",
+      "no_spotify_match": "Нет Spotify match — слушай вручную"
+    }
   }
 }
