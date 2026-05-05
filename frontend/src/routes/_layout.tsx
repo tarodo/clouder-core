@@ -11,6 +11,12 @@ import {
   IconUser,
 } from '../components/icons';
 import { UserMenu } from '../components/UserMenu';
+import { PlaybackProvider } from '../features/playback/PlaybackProvider';
+import { MiniBar } from '../features/playback/MiniBar';
+import { LeaveContextDialog } from '../features/playback/LeaveContextDialog';
+import { usePlayback } from '../features/playback/usePlayback';
+import { hasPlayerCard } from '../features/playback/routeContext';
+import { readLastCurateStyle } from '../features/curate/lib/lastCurateLocation';
 
 interface NavItem {
   path: string;
@@ -27,6 +33,15 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function AppShellLayout() {
+  return (
+    <PlaybackProvider>
+      <AppShellInner />
+      <PlaybackChrome />
+    </PlaybackProvider>
+  );
+}
+
+function AppShellInner() {
   const { t } = useTranslation();
   const theme = useMantineTheme();
   const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
@@ -103,5 +118,50 @@ export function AppShellLayout() {
         </AppShell.Footer>
       )}
     </AppShell>
+  );
+}
+
+function PlaybackChrome() {
+  const playback = usePlayback();
+  const location = useLocation();
+
+  const status = playback.queue.status;
+  const onPlayerCardRoute = hasPlayerCard(location.pathname);
+  const showMini =
+    !onPlayerCardRoute &&
+    playback.queue.source !== null &&
+    playback.track.current !== null &&
+    (status === 'playing' || status === 'paused' || status === 'buffering');
+
+  // Reconstruct source href for MiniBar's title link. The PlaybackProvider's
+  // queue.source carries blockId + bucketId but not styleId. Read the most
+  // recent styleId from F5's localStorage helper. If unknown, fall back to a
+  // sentinel slug so the link still navigates somewhere predictable; the F5
+  // resume route is responsible for resolving the right style itself.
+  const source = playback.queue.source;
+  const styleId = readLastCurateStyle() ?? '_resume';
+  const sourceHref = source
+    ? `/curate/${styleId}/${source.blockId}/${source.bucketId}`
+    : '/';
+
+  const queueActive = status !== 'idle' && status !== 'ended';
+
+  return (
+    <>
+      {showMini && playback.track.current ? (
+        <MiniBar
+          track={playback.track.current}
+          state={status}
+          sourceHref={sourceHref}
+          onPlayPause={() => void playback.controls.togglePlayPause()}
+          onClose={() => playback.controls.clearQueue()}
+        />
+      ) : null}
+      <LeaveContextDialog
+        active={queueActive}
+        currentPath={location.pathname}
+        onConfirm={() => playback.controls.clearQueue()}
+      />
+    </>
   );
 }
