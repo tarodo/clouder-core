@@ -48,26 +48,48 @@ export interface PlaybackContextValue {
 
 export const PlaybackContext = createContext<PlaybackContextValue | null>(null);
 
-interface State {
-  queue: PlaybackContextValue['queue'];
-  track: PlaybackContextValue['track'];
-  sdk: PlaybackContextValue['sdk'];
-}
-
-const INITIAL_STATE: State = {
-  queue: { source: null, tracks: [], cursor: 0, status: 'idle' },
-  track: { current: null, positionMs: 0, durationMs: 0 },
-  sdk: { ready: false, error: null },
+type QueueState = {
+  source: QueueSource | null;
+  tracks: readonly PlaybackTrack[];
+  cursor: number;
+  status: QueueStatus;
 };
 
-type Action = { type: 'noop' };
+type QueueAction =
+  | { type: 'BIND'; source: QueueSource; tracks: readonly PlaybackTrack[]; cursor: number }
+  | { type: 'CURSOR'; cursor: number }
+  | { type: 'STATUS'; status: QueueStatus }
+  | { type: 'CLEAR' };
 
-function reducer(state: State, _action: Action): State {
-  return state;
+function queueReducer(state: QueueState, action: QueueAction): QueueState {
+  switch (action.type) {
+    case 'BIND':
+      return { source: action.source, tracks: action.tracks, cursor: action.cursor, status: state.status };
+    case 'CURSOR':
+      return { ...state, cursor: action.cursor };
+    case 'STATUS':
+      return { ...state, status: action.status };
+    case 'CLEAR':
+      return { source: null, tracks: [], cursor: 0, status: 'idle' };
+    default:
+      return state;
+  }
 }
 
 export function PlaybackProvider({ children }: { children: ReactNode }) {
-  const [state] = useReducer(reducer, INITIAL_STATE);
+  const [queue, queueDispatch] = useReducer(queueReducer, {
+    source: null,
+    tracks: [] as readonly PlaybackTrack[],
+    cursor: 0,
+    status: 'idle' as QueueStatus,
+  });
+
+  const [track, setTrack] = useState<{
+    current: PlaybackTrack | null;
+    positionMs: number;
+    durationMs: number;
+  }>({ current: null, positionMs: 0, durationMs: 0 });
+
   const onCursorChangeRef = useRef<((next: number) => void) | null>(null);
 
   const sdkInitRef = useRef<Promise<void> | null>(null);
@@ -101,6 +123,15 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       player.addListener('not_ready', () => {
         setSdkReady(false);
       });
+      player.addListener('player_state_changed', (sdkState: Spotify.PlaybackState | null) => {
+        if (!sdkState) return;
+        setTrack((prev) => ({
+          current: prev.current,
+          positionMs: sdkState.position,
+          durationMs: sdkState.duration,
+        }));
+        queueDispatch({ type: 'STATUS', status: sdkState.paused ? 'paused' : 'playing' });
+      });
       await player.connect();
     })();
     return sdkInitRef.current;
@@ -114,11 +145,16 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     [ensureSdk],
   );
 
+  const bindQueue = useCallback((args: BindQueueArgs) => {
+    onCursorChangeRef.current = args.onCursorChange;
+    queueDispatch({ type: 'BIND', source: args.source, tracks: args.tracks, cursor: args.cursor });
+  }, []);
+
   const value = useMemo<PlaybackContextValue>(
     () => ({
-      queue: state.queue,
-      track: state.track,
-      sdk: { ready: sdkReady, error: state.sdk.error },
+      queue,
+      track,
+      sdk: { ready: sdkReady, error: null /* set in T18 */ },
       controls: {
         play,
         pause: async () => {},
@@ -127,9 +163,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         prev: async () => {},
         seekMs: async () => {},
         seekPct: async () => {},
-        bindQueue: (args) => {
-          onCursorChangeRef.current = args.onCursorChange;
-        },
+        bindQueue,
         clearQueue: () => {},
         cancelPendingAdvance: () => {},
         openSpotifyExternal: (uri) => {
@@ -141,7 +175,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         },
       },
     }),
-    [state, sdkReady, play],
+    [queue, track, sdkReady, play, bindQueue],
   );
 
   return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>;
