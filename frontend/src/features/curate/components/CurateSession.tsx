@@ -14,6 +14,9 @@ import { useCurateHotkeys } from '../hooks/useCurateHotkeys';
 import { stagingOverflow } from '../lib/destinationMap';
 import { IconArrowLeft, IconKeyboard } from '../../../components/icons';
 import { bucketLabel, type TriageBucket } from '../../triage/lib/bucketLabels';
+import { usePlayback } from '../../playback/usePlayback';
+import { usePlaybackHotkeys } from '../../playback/usePlaybackHotkeys';
+import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 
 export interface CurateSessionProps {
   styleId: string;
@@ -26,6 +29,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 64em)');
   const session = useCurateSession({ styleId, blockId, bucketId });
+  const playback = usePlayback();
   const [overlayOpen, setOverlayOpen] = useState(false);
 
   useCurateHotkeys({
@@ -39,6 +43,34 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
     onCloseOverlay: () => setOverlayOpen(false),
     onExit: () => navigate(`/triage/${styleId}/${blockId}`),
   });
+
+  usePlaybackHotkeys({
+    onTogglePlayPause: () => void playback.controls.togglePlayPause(),
+    onPrev: () => void playback.controls.prev(),
+    onNext: () => void playback.controls.next(),
+    onSeekRelative: (delta) =>
+      void playback.controls.seekMs(playback.track.positionMs + delta),
+    onSeekPct: (p) => void playback.controls.seekPct(p),
+  });
+
+  const allNullSpotifyId =
+    playback.queue.tracks.length > 0 &&
+    playback.queue.tracks.every((t) => t.spotify_id == null || t.spotify_id === '');
+
+  const playerState: PlayerCardState = (() => {
+    if (allNullSpotifyId) return 'empty-bucket';
+    if (playback.sdk.error?.kind === 'init') return 'disconnected';
+    const status = playback.queue.status;
+    if (status === 'error') return 'error';
+    if (status === 'idle' || status === 'ended') return 'idle';
+    if (status === 'loading' || status === 'buffering') return 'buffering';
+    return status; // 'playing' | 'paused'
+  })();
+
+  const playerTrack =
+    playback.track.current ??
+    playback.queue.tracks[playback.queue.cursor] ??
+    null;
 
   if (session.status === 'loading') return <CurateSkeleton />;
   if (session.status === 'error') {
@@ -111,7 +143,24 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         </ActionIcon>
       </Group>
 
-      <CurateCard track={session.currentTrack} />
+      <PlayerCard
+        variant="full"
+        state={playerState}
+        track={playerTrack}
+        positionMs={playback.track.positionMs}
+        onPlayPause={() => void playback.controls.togglePlayPause()}
+        onPrev={() => void playback.controls.prev()}
+        onNext={() => void playback.controls.next()}
+        onRetry={() => void playback.controls.play()}
+        onOpenDevicePicker={() => {
+          /* F7 */
+        }}
+        onSeekMs={(ms) => void playback.controls.seekMs(ms)}
+      />
+      <CurateCard
+        track={session.currentTrack}
+        onPlay={() => void playback.controls.play(session.currentIndex)}
+      />
       {/* Flex spacer pushes the destination strip to the bottom of the
           available height. When content overflows (tall card / cramped
           screen), the strip still scrolls naturally. */}
