@@ -354,7 +354,7 @@
       "section_system": "System",
       "key_digits_label": "Assign to staging category 1–9",
       "key_qwe_label": "Assign to NEW / OLD / NOT",
-      "key_zero_label": "Assign to DISCARD",
+      "key_z_label": "Assign to DISCARD",
       "key_j_label": "Step back to previous track",
       "key_k_label": "Skip without assigning",
       "key_u_label": "Undo last assignment",
@@ -418,6 +418,7 @@
       "prev_aria": "Previous track",
       "next_aria": "Next track",
       "scrub_aria": "Scrub bar",
+      "seek_chip_aria_pct": "Seek to {{pct}}%",
       "close_aria": "Close player"
     },
     "minibar": {

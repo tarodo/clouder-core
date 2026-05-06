@@ -90,7 +90,7 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
           if (b) onAssign(b.id);
           return;
         }
-        case 'Digit0': {
+        case 'KeyZ': {
           event.preventDefault();
           const b = byDiscard(buckets);
           if (b) onAssign(b.id);

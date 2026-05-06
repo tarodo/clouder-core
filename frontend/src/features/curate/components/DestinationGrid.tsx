@@ -75,6 +75,7 @@ export function DestinationGrid({
         hotkeyHint={isMobile ? null : hotkeyHint}
         justTapped={lastTappedBucketId === bucket.id}
         disabled={isSelf}
+        compact={isMobile}
         onClick={() => onAssign(bucket.id)}
       />
     );
@@ -82,7 +83,7 @@ export function DestinationGrid({
 
   return (
     <Stack gap="md" data-testid="destination-grid">
-      {discardBucket && renderBtn(discardBucket, '0')}
+      {discardBucket && renderBtn(discardBucket, 'Z')}
 
       {(stagingSlots.length > 0 || overflow.length > 0) && (
         <Stack gap="xs">
@@ -104,6 +105,7 @@ export function DestinationGrid({
                     hotkeyHint={null}
                     justTapped={false}
                     disabled={false}
+                    compact={isMobile}
                     onClick={() => {}}
                   />
                 </Menu.Target>

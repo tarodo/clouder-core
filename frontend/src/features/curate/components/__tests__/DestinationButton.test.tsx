@@ -142,4 +142,57 @@ describe('DestinationButton', () => {
     );
     expect(screen.queryByText('1')).toBeNull();
   });
+
+  it('renders with data-compact="true" attribute when compact prop is set', () => {
+    const bucket: TriageBucket = {
+      id: 'b1',
+      bucket_type: 'STAGING',
+      inactive: false,
+      track_count: 0,
+      category_id: 'c1',
+      category_name: 'Big Room',
+    };
+    render(
+      wrap(
+        <DestinationButton
+          bucket={bucket}
+          hotkeyHint={null}
+          justTapped={false}
+          disabled={false}
+          compact
+          onClick={() => {}}
+        />,
+      ),
+    );
+    expect(screen.getByRole('button', { name: /Assign to Big Room/i })).toHaveAttribute(
+      'data-compact',
+      'true',
+    );
+  });
+
+  it('renders with data-compact="false" by default', () => {
+    const bucket: TriageBucket = {
+      id: 'b1',
+      bucket_type: 'STAGING',
+      inactive: false,
+      track_count: 0,
+      category_id: 'c1',
+      category_name: 'Big Room',
+    };
+    render(
+      wrap(
+        <DestinationButton
+          bucket={bucket}
+          hotkeyHint={null}
+          justTapped={false}
+          disabled={false}
+          onClick={() => {}}
+        />,
+      ),
+    );
+    expect(screen.getByRole('button', { name: /Assign to Big Room/i })).toHaveAttribute(
+      'data-compact',
+      'false',
+    );
+  });
 });

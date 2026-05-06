@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { testTheme } from '../../../test/theme';
@@ -7,6 +7,7 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from '../../../i18n';
 import type { ReactElement } from 'react';
 import { PlayerCard } from '../PlayerCard';
+import type { PlaybackTrack } from '../lib/types';
 
 const sampleTrack = {
   id: 't1',
@@ -81,5 +82,90 @@ describe('PlayerCard', () => {
     const { container } = render(wrap(<PlayerCard {...baseProps} state="paused" />));
     expect(container.querySelector('[data-state="paused"]')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^play$/i })).toBeInTheDocument();
+  });
+
+  it('renders 5 seek chips when mobileSeekChips is true and clicking 40% chip calls onSeekMs(0.4 * duration)', () => {
+    const onSeekMs = vi.fn();
+    const track: PlaybackTrack = {
+      id: 't1',
+      title: 'T',
+      artists: 'A',
+      duration_ms: 200_000,
+      spotify_id: 'sp1',
+      cover_url: null,
+    };
+    render(
+      wrap(
+        <PlayerCard
+          variant="full"
+          state="playing"
+          track={track}
+          positionMs={0}
+          mobileSeekChips
+          onPlayPause={() => {}}
+          onPrev={() => {}}
+          onNext={() => {}}
+          onRetry={() => {}}
+          onOpenDevicePicker={() => {}}
+          onSeekMs={onSeekMs}
+        />,
+      ),
+    );
+    const chip0 = screen.getByRole('button', { name: /Seek to 0%/i });
+    const chip20 = screen.getByRole('button', { name: /Seek to 20%/i });
+    const chip40 = screen.getByRole('button', { name: /Seek to 40%/i });
+    const chip60 = screen.getByRole('button', { name: /Seek to 60%/i });
+    const chip80 = screen.getByRole('button', { name: /Seek to 80%/i });
+    expect(chip0).toBeInTheDocument();
+    expect(chip20).toBeInTheDocument();
+    expect(chip60).toBeInTheDocument();
+    expect(chip80).toBeInTheDocument();
+    fireEvent.click(chip40);
+    expect(onSeekMs).toHaveBeenCalledWith(80_000);
+  });
+
+  it('omits seek chips when mobileSeekChips is false / undefined', () => {
+    render(
+      wrap(
+        <PlayerCard
+          variant="full"
+          state="playing"
+          track={null}
+          positionMs={0}
+          onPlayPause={() => {}}
+          onPrev={() => {}}
+          onNext={() => {}}
+          onRetry={() => {}}
+          onOpenDevicePicker={() => {}}
+          onSeekMs={() => {}}
+        />,
+      ),
+    );
+    expect(screen.queryByRole('button', { name: /Seek to 40%/i })).toBeNull();
+  });
+
+  it('seek chips are disabled when state is disconnected', () => {
+    const onSeekMs = vi.fn();
+    render(
+      wrap(
+        <PlayerCard
+          variant="full"
+          state="disconnected"
+          track={null}
+          positionMs={0}
+          mobileSeekChips
+          onPlayPause={() => {}}
+          onPrev={() => {}}
+          onNext={() => {}}
+          onRetry={() => {}}
+          onOpenDevicePicker={() => {}}
+          onSeekMs={onSeekMs}
+        />,
+      ),
+    );
+    const chip40 = screen.getByRole('button', { name: /Seek to 40%/i });
+    expect(chip40).toBeDisabled();
+    fireEvent.click(chip40);
+    expect(onSeekMs).not.toHaveBeenCalled();
   });
 });

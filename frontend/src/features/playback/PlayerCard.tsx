@@ -1,4 +1,4 @@
-import { Paper, Group, Stack, Text, Title, ActionIcon, Anchor, Slider } from '@mantine/core';
+import { Paper, Group, Stack, Text, Title, ActionIcon, Anchor, Slider, Button } from '@mantine/core';
 import {
   IconPlayerPlayFilled,
   IconPlayerPauseFilled,
@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import classes from './PlayerCard.module.css';
 import type { PlaybackTrack } from './lib/types';
 import { useScrubDebounce } from './useScrubDebounce';
+import { pctToMs } from './lib/seekHotkeys';
 
 export type PlayerCardState =
   | 'idle'
@@ -44,6 +45,12 @@ export interface PlayerCardProps {
    * Title and the artists subline. CurateSession passes BucketTrack.mix_name.
    */
   mixName?: string | null;
+  /**
+   * When true, renders a row of 5 chips (0/20/40/60/80%) directly below the
+   * progress slider for fast mobile seeking. CurateSession sets this only on
+   * mobile breakpoints; PlayerCard itself stays layout-agnostic.
+   */
+  mobileSeekChips?: boolean;
   /** Spotify external open href; when set, renders an icon button at top-right. */
   spotifyHref?: string;
   /** Tooltip / aria text for the Spotify external icon. */
@@ -55,6 +62,8 @@ export interface PlayerCardProps {
   onOpenDevicePicker: () => void;
   onSeekMs: (ms: number) => void;
 }
+
+const SEEK_CHIP_PCTS = [0, 0.2, 0.4, 0.6, 0.8] as const;
 
 const SCRUB_OPACITY: Record<PlayerCardState, number> = {
   idle: 1.0,
@@ -77,6 +86,7 @@ export function PlayerCard(props: PlayerCardProps) {
     showText = true,
     metaRow,
     mixName,
+    mobileSeekChips = false,
     spotifyHref,
     spotifyAriaLabel,
     onPlayPause,
@@ -247,6 +257,27 @@ export function PlayerCard(props: PlayerCardProps) {
         style={{ opacity: SCRUB_OPACITY[state], marginTop: isMini ? 4 : 16 }}
         aria-label={t('playback.controls.scrub_aria')}
       />
+      {mobileSeekChips ? (
+        <Group gap={4} wrap="nowrap" mt={6} justify="space-between">
+          {SEEK_CHIP_PCTS.map((pct) => {
+            const label = `${Math.round(pct * 100)}%`;
+            return (
+              <Button
+                key={pct}
+                size="compact-xs"
+                variant="light"
+                color="gray"
+                disabled={scrubDisabled}
+                onClick={() => onSeekMs(pctToMs(pct, progressMax))}
+                aria-label={t('playback.controls.seek_chip_aria_pct', { pct: Math.round(pct * 100) })}
+                className={classes.seekChip}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </Group>
+      ) : null}
     </Paper>
   );
 }

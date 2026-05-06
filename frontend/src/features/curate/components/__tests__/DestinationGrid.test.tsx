@@ -69,7 +69,7 @@ describe('DestinationGrid', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  it('renders Q/W/E and 0 hotkey badges', () => {
+  it('renders Q/W/E and Z hotkey badges', () => {
     render(
       wrap(
         <DestinationGrid
@@ -83,7 +83,7 @@ describe('DestinationGrid', () => {
     expect(screen.getByText('Q')).toBeInTheDocument();
     expect(screen.getByText('W')).toBeInTheDocument();
     expect(screen.getByText('E')).toBeInTheDocument();
-    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText('Z')).toBeInTheDocument();
   });
 
   it('passes lastTappedBucketId through to the matching DestinationButton', () => {

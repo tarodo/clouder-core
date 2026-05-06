@@ -17,7 +17,7 @@ interface KeyRow {
 const ASSIGN: KeyRow[] = [
   { keys: ['1', '…', '9'], labelKey: 'curate.hotkeys.key_digits_label' },
   { keys: ['Q', 'W', 'E'], labelKey: 'curate.hotkeys.key_qwe_label' },
-  { keys: ['0'], labelKey: 'curate.hotkeys.key_zero_label' },
+  { keys: ['Z'], labelKey: 'curate.hotkeys.key_z_label' },
 ];
 const NAVIGATE: KeyRow[] = [
   { keys: ['J'], labelKey: 'curate.hotkeys.key_j_label' },

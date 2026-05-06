@@ -147,6 +147,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         track={playerTrack}
         positionMs={playback.track.positionMs}
         showText={!isMobile}
+        mobileSeekChips={isMobile}
         spotifyHref={
           session.currentTrack.spotify_id
             ? `https://open.spotify.com/track/${session.currentTrack.spotify_id}`
