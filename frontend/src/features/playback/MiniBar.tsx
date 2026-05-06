@@ -1,3 +1,4 @@
+import React from 'react';
 import { Group, Stack, Text, ActionIcon } from '@mantine/core';
 import { IconPlayerPlayFilled, IconPlayerPauseFilled, IconX } from '@tabler/icons-react';
 import { Link } from 'react-router';
@@ -11,9 +12,10 @@ export interface MiniBarProps {
   sourceHref: string;
   onPlayPause: () => void;
   onClose: () => void;
+  deviceIndicator?: React.ReactNode;
 }
 
-export function MiniBar({ track, state, sourceHref, onPlayPause, onClose }: MiniBarProps) {
+export function MiniBar({ track, state, sourceHref, onPlayPause, onClose, deviceIndicator }: MiniBarProps) {
   const { t } = useTranslation();
   if (!track) return null;
   const isPlaying = state === 'playing' || state === 'buffering';
@@ -43,6 +45,7 @@ export function MiniBar({ track, state, sourceHref, onPlayPause, onClose }: Mini
             {track.artists}
           </Text>
         </Stack>
+        {deviceIndicator}
         <ActionIcon
           variant="subtle"
           radius="xl"
