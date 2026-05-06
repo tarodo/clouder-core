@@ -59,6 +59,97 @@ describe('PlaybackProvider.devices.refresh', () => {
   });
 });
 
+// helper: install a fake SDK that fires `ready` synchronously on connect()
+function installFakeSdk(deviceId: string) {
+  let readyCb: ((p: { device_id: string }) => void) | null = null;
+  const player = {
+    addListener: vi.fn((event: string, cb: (p: { device_id: string }) => void) => {
+      if (event === 'ready') readyCb = cb;
+    }),
+    connect: vi.fn(async () => {
+      readyCb?.({ device_id: deviceId });
+      return true;
+    }),
+    activateElement: vi.fn(async () => {}),
+    pause: vi.fn(async () => {}),
+    togglePlay: vi.fn(async () => {}),
+    seek: vi.fn(async () => {}),
+  };
+  (window as unknown as { Spotify: unknown }).Spotify = { Player: vi.fn(() => player) };
+  return player;
+}
+
+describe('PlaybackProvider bootstrap silent restore', () => {
+  beforeEach(() => {
+    spotifyTokenStore.set('tok');
+  });
+  afterEach(() => {
+    spotifyTokenStore.set(null);
+    window.localStorage.clear();
+    vi.restoreAllMocks();
+    delete (window as unknown as { Spotify?: unknown }).Spotify;
+  });
+
+  it('no last_device — falls back to CLOUDER tab', async () => {
+    installFakeSdk('cloder-id');
+    const list = [
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ];
+    vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue(list);
+    const transfer = vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    let captured: ReturnType<typeof usePlayback> | null = null;
+    render(wrap(<Probe onValue={(v) => { captured = v; }} />));
+    // Trigger ensureSdk by calling controls.togglePlayPause (calls ensureSdk).
+    await act(async () => {
+      await captured!.controls.togglePlayPause();
+    });
+    await waitFor(() => expect(transfer).toHaveBeenCalled());
+    expect(transfer).toHaveBeenCalledWith({ deviceId: 'cloder-id', play: false }, expect.any(Object));
+    expect(window.localStorage.getItem('clouder.last_device_id')).toBeNull();
+    expect(captured!.devices.cloderTabId).toBe('cloder-id');
+  });
+
+  it('last_device matches list element — restores to that device', async () => {
+    installFakeSdk('cloder-id');
+    window.localStorage.setItem('clouder.last_device_id', 'speaker-id');
+    const list = [
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+      { id: 'speaker-id', name: 'Kitchen', type: 'Speaker' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ];
+    vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue(list);
+    const transfer = vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    let captured: ReturnType<typeof usePlayback> | null = null;
+    render(wrap(<Probe onValue={(v) => { captured = v; }} />));
+    await act(async () => {
+      await captured!.controls.togglePlayPause();
+    });
+    await waitFor(() => expect(transfer).toHaveBeenCalled());
+    expect(transfer).toHaveBeenCalledWith({ deviceId: 'speaker-id', play: false }, expect.any(Object));
+    // F7-2: bootstrap must NOT touch localStorage
+    expect(window.localStorage.getItem('clouder.last_device_id')).toBe('speaker-id'); // unchanged
+  });
+
+  it('last_device offline — falls back to CLOUDER tab', async () => {
+    installFakeSdk('cloder-id');
+    window.localStorage.setItem('clouder.last_device_id', 'iphone-id');
+    const list = [
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+      // iphone-id NOT in list
+    ];
+    vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue(list);
+    const transfer = vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    let captured: ReturnType<typeof usePlayback> | null = null;
+    render(wrap(<Probe onValue={(v) => { captured = v; }} />));
+    await act(async () => {
+      await captured!.controls.togglePlayPause();
+    });
+    await waitFor(() => expect(transfer).toHaveBeenCalled());
+    expect(transfer).toHaveBeenCalledWith({ deviceId: 'cloder-id', play: false }, expect.any(Object));
+    // localStorage left untouched (do NOT clear stale id — phone may come back)
+    expect(window.localStorage.getItem('clouder.last_device_id')).toBe('iphone-id');
+  });
+});
+
 describe('PlaybackProvider.devices.pick', () => {
   beforeEach(() => {
     spotifyTokenStore.set('tok');

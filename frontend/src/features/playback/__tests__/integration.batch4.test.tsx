@@ -190,9 +190,12 @@ describe('F6 integration · batch 4 · token refresh', () => {
           is_admin: false,
         }),
       ),
-      // F6 ensureSdk → ready listener → transferMyPlayback. Handle the
-      // PUT so the request resolves without erroring under MSW's
+      // F6/F7 ensureSdk → ready listener → getMyDevices + transferMyPlayback.
+      // Handle both so requests resolve without erroring under MSW's
       // `onUnhandledRequest: 'error'` policy.
+      http.get('https://api.spotify.com/v1/me/player/devices', () =>
+        HttpResponse.json({ devices: [{ id: 'dev-test', name: 'CLOUDER', type: 'Computer', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null }] }),
+      ),
       http.put('https://api.spotify.com/v1/me/player', () =>
         HttpResponse.json({}, { status: 204 }),
       ),
@@ -368,6 +371,10 @@ describe('F6 integration · batch 4 · token refresh', () => {
       ),
       http.get('http://localhost/triage/blocks/b1/buckets/src/tracks', () =>
         HttpResponse.json(buildTracks()),
+      ),
+      // F7: bootstrap getMyDevices call on SDK ready.
+      http.get('https://api.spotify.com/v1/me/player/devices', () =>
+        HttpResponse.json({ devices: [{ id: 'dev-1', name: 'CLOUDER', type: 'Computer', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null }] }),
       ),
       http.put('https://api.spotify.com/v1/me/player', () =>
         HttpResponse.json({}, { status: 204 }),

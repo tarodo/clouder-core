@@ -121,7 +121,6 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
 
   const sdkInitRef = useRef<Promise<void> | null>(null);
   const playerRef = useRef<Spotify.Player | null>(null);
-  const deviceIdRef = useRef<string | null>(null);
   const deviceReadyRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
   const pendingAdvanceTimerRef = useRef<number | null>(null);
   // Detect natural end-of-track in the SDK player_state_changed listener.
@@ -167,10 +166,33 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       });
       playerRef.current = player;
       player.addListener('ready', ({ device_id }: { device_id: string }) => {
-        deviceIdRef.current = device_id;
+        cloderTabIdRef.current = device_id;
+        setCloderTabId(device_id);
         setSdkReady(true);
-        void spotifyApi.transferMyPlayback({ deviceId: device_id, play: false });
-        deviceReadyRef.current?.resolve();
+        // Bootstrap restore: refresh devices, then transfer to last_device if
+        // online, else to CLOUDER tab. Resolves deviceReadyRef AFTER the
+        // transfer completes so play() callers wait for the right device.
+        void (async () => {
+          try {
+            const list = await spotifyApi.getMyDevices({ onAuthExpired });
+            setDevicesList(list);
+            setDevicesError(null);
+            const last = lastDeviceStore.get();
+            const targetId = last && list.some((d) => d.id === last) ? last : device_id;
+            await spotifyApi.transferMyPlayback({ deviceId: targetId, play: false }, { onAuthExpired });
+            setActive(targetId);
+          } catch {
+            // Network blip on first poll: fall back silently to CLOUDER tab.
+            try {
+              await spotifyApi.transferMyPlayback({ deviceId: device_id, play: false }, { onAuthExpired });
+            } catch {
+              // ignore — sdk listener will surface SDK-level errors via state events.
+            }
+            setActive(device_id);
+          } finally {
+            deviceReadyRef.current?.resolve();
+          }
+        })();
       });
       player.addListener('not_ready', () => {
         setSdkReady(false);
@@ -243,21 +265,22 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       await player.connect();
     })();
     return sdkInitRef.current;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh, navigate]);
 
   const play = useCallback(
     async (idx?: number, overrideTrack?: PlaybackTrack) => {
       await ensureSdk();
       // SDK boot completes when `connect()` resolves, but `ready` event (which
-      // populates deviceIdRef) fires asynchronously after. On the first user
-      // click after page load, ensureSdk may resolve before the device is
+      // populates activeDeviceIdRef) fires asynchronously after. On the first
+      // user click after page load, ensureSdk may resolve before the device is
       // ready — without this wait `play()` silently bails and Spotify auto-
       // resumes whatever was previously cued in the user's session.
-      if (!deviceIdRef.current && deviceReadyRef.current) {
+      if (!activeDeviceIdRef.current && deviceReadyRef.current) {
         await deviceReadyRef.current.promise;
       }
       const player = playerRef.current;
-      const deviceId = deviceIdRef.current;
+      const deviceId = activeDeviceIdRef.current;
       if (!player || !deviceId) return;
 
       // overrideTrack lets callers (e.g. undo) play a track that hasn't yet
@@ -323,7 +346,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       queueDispatch({ type: 'CURSOR', cursor: next });
       onCursorChangeRef.current?.(next);
       const t = queue.tracks[next];
-      const deviceId = deviceIdRef.current;
+      const deviceId = activeDeviceIdRef.current;
       if (!t || !t.spotify_id || !deviceId) return;
       // Mirror play() — populate track.current from queue at the moment we
       // initiate playback so MiniBar / PlayerCard see the right track.
@@ -395,7 +418,6 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   // --- Devices slice (stub — real logic lands in Tasks 6–9) ---
   const [devicesList, setDevicesList] = useState<readonly SpotifyDevice[]>([]);
   const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [cloderTabId, setCloderTabId] = useState<string | null>(null);
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [devicesError, setDevicesError] = useState<'network' | 'auth' | null>(null);
@@ -403,7 +425,6 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   const [pickerAnchor, setPickerAnchor] = useState<HTMLElement | null>(null);
 
   const activeDeviceIdRef = useRef<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const cloderTabIdRef = useRef<string | null>(null);
 
   const setActive = useCallback((deviceId: string | null) => {
