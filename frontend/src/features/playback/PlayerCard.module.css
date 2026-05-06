@@ -27,3 +27,7 @@
 .scrub:focus-within :global(.mantine-Slider-thumb) {
   opacity: 1;
 }
+.seekChip {
+  flex: 1;
+  min-width: 0;
+}

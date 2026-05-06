@@ -418,6 +418,7 @@
       "prev_aria": "Previous track",
       "next_aria": "Next track",
       "scrub_aria": "Scrub bar",
+      "seek_chip_aria_pct": "Seek to {{pct}}%",
       "close_aria": "Close player"
     },
     "minibar": {
