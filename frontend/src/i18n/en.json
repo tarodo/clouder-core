@@ -404,6 +404,19 @@
     "back_aria": "Back to triage"
   },
   "playback": {
+    "devices": {
+      "title": "Playback devices",
+      "active_aria": "Active device",
+      "restricted": "Restricted",
+      "empty_title": "No devices found",
+      "empty_body": "Open Spotify on a device, then refresh.",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "auth_error": "Re-sign in to Spotify",
+      "connecting": "Connecting to Spotify…",
+      "no_device": "No device",
+      "indicator_aria": "Switch playback device. Currently: {{name}}"
+    },
     "now_playing": "Now Playing",
     "buffering": "Buffering…",
     "playback_failed": "Playback failed",
