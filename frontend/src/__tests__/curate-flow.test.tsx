@@ -77,6 +77,16 @@ vi.mock('../features/playback/usePlayback', async () => {
           cancelPendingAdvance: vi.fn(),
           openSpotifyExternal: vi.fn(),
         },
+        devices: {
+          list: [],
+          active: null,
+          cloderTabId: null,
+          isLoading: false,
+          error: null,
+          refresh: vi.fn(async () => {}),
+          pick: vi.fn(async () => {}),
+          open: vi.fn(),
+        },
       };
     },
   };

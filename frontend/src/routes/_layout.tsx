@@ -14,6 +14,7 @@ import { UserMenu } from '../components/UserMenu';
 import { PlaybackProvider } from '../features/playback/PlaybackProvider';
 import { MiniBar } from '../features/playback/MiniBar';
 import { DevicePickerSurface } from '../features/playback/DevicePickerSurface';
+import { DeviceIndicator } from '../features/playback/DeviceIndicator';
 import { LeaveContextDialog } from '../features/playback/LeaveContextDialog';
 import { usePlayback } from '../features/playback/usePlayback';
 import { hasPlayerCard } from '../features/playback/routeContext';
@@ -124,6 +125,7 @@ function AppShellInner() {
 
 export function PlaybackChrome() {
   const playback = usePlayback();
+  const { devices } = playback;
   const location = useLocation();
 
   const status = playback.queue.status;
@@ -156,6 +158,14 @@ export function PlaybackChrome() {
           sourceHref={sourceHref}
           onPlayPause={() => void playback.controls.togglePlayPause()}
           onClose={() => playback.controls.clearQueue()}
+          deviceIndicator={
+            <DeviceIndicator
+              mode="compact"
+              active={devices.active}
+              cloderTabId={devices.cloderTabId}
+              onOpen={(anchor) => devices.open(anchor)}
+            />
+          }
         />
       ) : null}
       <LeaveContextDialog
