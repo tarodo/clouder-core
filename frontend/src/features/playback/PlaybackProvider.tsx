@@ -23,6 +23,7 @@ import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
 import { spotifyApi } from './api/spotifyWebApi';
 import { useAuth } from '../../auth/useAuth';
 import type { SpotifyDevice } from './lib/deviceTypes';
+import { lastDeviceStore } from './lib/lastDeviceStore';
 
 export interface DevicesSlice {
   list: readonly SpotifyDevice[];
@@ -405,7 +406,6 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const cloderTabIdRef = useRef<string | null>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setActive = useCallback((deviceId: string | null) => {
     activeDeviceIdRef.current = deviceId;
     setActiveDeviceId(deviceId);
@@ -441,9 +441,23 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     }
   }, [onAuthExpired]);
 
-  const pickDevice = useCallback(async (_deviceId: string): Promise<void> => {
-    // Stub — real implementation in Task 7.
-  }, []);
+  const pickDevice = useCallback(async (deviceId: string): Promise<void> => {
+    try {
+      await spotifyApi.transferMyPlayback({ deviceId, play: false }, { onAuthExpired });
+      setActive(deviceId);
+      lastDeviceStore.set(deviceId);
+      setPickerOpen(false);
+      setPickerAnchor(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('spotify_api_404')) {
+        // Device went offline between poll and tap. Refresh and keep picker open.
+        void refreshDevices();
+      }
+      // 5xx: surface via toast in caller (UI layer); leave picker open.
+      throw err;
+    }
+  }, [onAuthExpired, refreshDevices, setActive]);
 
   const activeDevice = useMemo(
     () => devicesList.find((d) => d.id === activeDeviceId) ?? null,
