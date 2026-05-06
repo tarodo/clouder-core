@@ -20,6 +20,25 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_protocol                  = "sigv4"
 }
 
+# SPA-fallback router on the S3 default behavior only. Rewrites any path
+# that is not the document root, /index.html, or under /assets/ to
+# /index.html so client-side routing works for deep links / F5.
+# Attached only to the default behavior — API GW behaviors are unaffected.
+resource "aws_cloudfront_function" "spa_router" {
+  name    = "${local.name_prefix}-spa-router"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var req = event.request;
+      if (req.uri !== '/' && req.uri !== '/index.html' && !req.uri.startsWith('/assets/')) {
+        req.uri = '/index.html';
+      }
+      return req;
+    }
+  EOT
+}
+
 resource "aws_s3_bucket_policy" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   policy = data.aws_iam_policy_document.frontend_bucket.json
@@ -97,6 +116,11 @@ resource "aws_cloudfront_distribution" "frontend" {
     cached_methods         = ["GET", "HEAD"]
     compress               = true
     cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_router.arn
+    }
   }
 
   dynamic "ordered_cache_behavior" {
@@ -113,19 +137,11 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
-  }
-
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
-  }
+  # SPA fallback handled by aws_cloudfront_function.spa_router on the
+  # default behavior — it rewrites unknown paths to /index.html before
+  # the request hits S3, so 4xx never bubbles up. Distribution-level
+  # custom_error_response would also intercept API GW errors (e.g.
+  # /me 404 → HTML), so it is intentionally absent.
 
   viewer_certificate {
     cloudfront_default_certificate = true
