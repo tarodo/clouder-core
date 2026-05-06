@@ -9,12 +9,6 @@
     transform var(--motion-pulse) var(--ease-out),
     background var(--motion-base) var(--ease-out);
 }
-.button[data-compact='true'] {
-  min-height: 44px;
-}
-.button[data-compact='true'] .label {
-  font-size: 12px;
-}
 .button:hover:not([data-disabled='true']) {
   background: var(--color-hover);
 }
@@ -47,9 +41,16 @@
     transition: background var(--motion-base) var(--ease-out);
   }
 }
+@media (max-width: 64em) {
+  .button[data-compact='true'] {
+    min-height: 44px;
+  }
+  .button[data-compact='true'] .label {
+    font-size: 12px;
+  }
+}
 @media (min-width: 64em) {
   .button {
     min-height: 64px;
   }
-  /* Compact mode is mobile-only by intent; desktop ignores the hint. */
 }
