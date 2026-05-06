@@ -111,10 +111,16 @@ describe('useCurateHotkeys', () => {
     expect(onAssign).toHaveBeenCalledWith('b-not');
   });
 
-  it('Digit0 calls onAssign with DISCARD', () => {
+  it('KeyZ calls onAssign with DISCARD', () => {
+    mount(false);
+    act(() => dispatchKey({ code: 'KeyZ' }));
+    expect(onAssign).toHaveBeenCalledWith('b-disc');
+  });
+
+  it('Digit0 no longer fires DISCARD', () => {
     mount(false);
     act(() => dispatchKey({ code: 'Digit0' }));
-    expect(onAssign).toHaveBeenCalledWith('b-disc');
+    expect(onAssign).not.toHaveBeenCalled();
   });
 
   it('KeyU calls onUndo', () => {

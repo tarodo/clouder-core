@@ -83,7 +83,7 @@ export function DestinationGrid({
 
   return (
     <Stack gap="md" data-testid="destination-grid">
-      {discardBucket && renderBtn(discardBucket, '0')}
+      {discardBucket && renderBtn(discardBucket, 'Z')}
 
       {(stagingSlots.length > 0 || overflow.length > 0) && (
         <Stack gap="xs">
