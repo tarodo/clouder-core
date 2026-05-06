@@ -5,6 +5,7 @@ export {
   IconAdjustments,
   IconUser,
   IconPlayerPlay,
+  IconPlayerPlayFilled,
   IconPlayerPause,
   IconPlayerSkipForward,
   IconPlayerSkipBack,

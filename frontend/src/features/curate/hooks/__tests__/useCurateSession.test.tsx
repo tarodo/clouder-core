@@ -13,6 +13,31 @@ import {
   LAST_CURATE_STYLE_KEY,
 } from '../../lib/lastCurateLocation';
 
+const playMock = vi.fn(async () => {});
+const bindQueueMock = vi.fn();
+const cancelPendingAdvanceMock = vi.fn();
+
+vi.mock('../../../playback/usePlayback', () => ({
+  usePlayback: () => ({
+    queue: { source: null, tracks: [], cursor: 0, status: 'idle' as const },
+    track: { current: null, positionMs: 0, durationMs: 0 },
+    sdk: { ready: false, error: null },
+    controls: {
+      play: playMock,
+      pause: vi.fn(async () => {}),
+      togglePlayPause: vi.fn(async () => {}),
+      next: vi.fn(async () => {}),
+      prev: vi.fn(async () => {}),
+      seekMs: vi.fn(async () => {}),
+      seekPct: vi.fn(async () => {}),
+      bindQueue: bindQueueMock,
+      clearQueue: vi.fn(),
+      cancelPendingAdvance: cancelPendingAdvanceMock,
+      openSpotifyExternal: vi.fn(),
+    },
+  }),
+}));
+
 function makeClient() {
   return new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
@@ -381,5 +406,86 @@ describe('useCurateSession — error path', () => {
     // Mutation onError fires; reducer should clean up
     await waitFor(() => expect(result.current.canUndo).toBe(false));
     expect(result.current.totalAssigned).toBe(0);
+  });
+});
+
+describe('useCurateSession — playback integration', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    localStorage.clear();
+    playMock.mockClear();
+    bindQueueMock.mockClear();
+    cancelPendingAdvanceMock.mockClear();
+    server.use(...defaultHandlers());
+  });
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it('calls playback.bindQueue on mount with current tracks/cursor', async () => {
+    const qc = makeClient();
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+      { wrapper: wrap(qc) },
+    );
+    await waitFor(() => expect(result.current.status).toBe('active'));
+
+    await waitFor(() => expect(bindQueueMock).toHaveBeenCalled());
+    const calls = bindQueueMock.mock.calls;
+    const lastArgs = calls[calls.length - 1];
+    expect(lastArgs).toBeDefined();
+    const lastCall = lastArgs![0];
+    expect(lastCall.source).toEqual({ type: 'bucket', blockId: 'b1', bucketId: 'src' });
+    expect(lastCall.cursor).toBe(0);
+    expect(typeof lastCall.onCursorChange).toBe('function');
+    expect(lastCall.tracks).toHaveLength(3);
+    expect(lastCall.tracks[0]).toMatchObject({
+      id: 't1',
+      title: 'Track t1',
+      spotify_id: 'sp-t1',
+      duration_ms: 360000,
+    });
+  });
+
+  it('200ms after assign fires playback.controls.play', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const qc = makeClient();
+      const { result } = renderHook(
+        () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+        { wrapper: wrap(qc) },
+      );
+      await waitFor(() => expect(result.current.status).toBe('active'));
+
+      playMock.mockClear();
+      act(() => result.current.assign('dst1'));
+      expect(playMock).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(220);
+      });
+      expect(playMock).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('undo within 200ms calls playback.cancelPendingAdvance', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const qc = makeClient();
+      const { result } = renderHook(
+        () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+        { wrapper: wrap(qc) },
+      );
+      await waitFor(() => expect(result.current.status).toBe('active'));
+
+      cancelPendingAdvanceMock.mockClear();
+      act(() => result.current.assign('dst1'));
+      act(() => result.current.undo());
+      expect(cancelPendingAdvanceMock).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

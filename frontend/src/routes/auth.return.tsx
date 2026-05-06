@@ -10,6 +10,7 @@ import type { Me } from '../auth/AuthProvider';
 
 interface CallbackResponse {
   access_token: string;
+  spotify_access_token: string;
   expires_in: number;
   user: Me;
 }
@@ -55,7 +56,7 @@ export function AuthReturnPage() {
       `/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
     )
       .then((res) => {
-        signIn(res.user, res.access_token, res.expires_in);
+        signIn(res.user, res.access_token, res.spotify_access_token, res.expires_in);
         navigate('/', { replace: true });
       })
       .catch((err: unknown) => {

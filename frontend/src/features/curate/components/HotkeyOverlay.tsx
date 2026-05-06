@@ -24,8 +24,19 @@ const NAVIGATE: KeyRow[] = [
   { keys: ['K'], labelKey: 'curate.hotkeys.key_k_label' },
 ];
 const ACTION: KeyRow[] = [
-  { keys: ['Space'], labelKey: 'curate.hotkeys.key_space_label' },
   { keys: ['U'], labelKey: 'curate.hotkeys.key_u_label' },
+];
+const PLAYBACK: KeyRow[] = [
+  { keys: ['Space'], labelKey: 'playback.hotkeys.space' },
+  { keys: ['J'], labelKey: 'playback.hotkeys.j' },
+  { keys: ['K'], labelKey: 'playback.hotkeys.k' },
+  { keys: ['Shift', 'J'], labelKey: 'playback.hotkeys.shift_j' },
+  { keys: ['Shift', 'K'], labelKey: 'playback.hotkeys.shift_k' },
+  { keys: ['A'], labelKey: 'playback.hotkeys.a' },
+  { keys: ['S'], labelKey: 'playback.hotkeys.s' },
+  { keys: ['D'], labelKey: 'playback.hotkeys.d' },
+  { keys: ['F'], labelKey: 'playback.hotkeys.f' },
+  { keys: ['G'], labelKey: 'playback.hotkeys.g' },
 ];
 const SYSTEM: KeyRow[] = [
   { keys: ['?'], labelKey: 'curate.hotkeys.key_help_label' },
@@ -88,6 +99,10 @@ export function HotkeyOverlay({ opened, onClose, hasOverflow }: HotkeyOverlayPro
               {t('curate.hotkeys.section_action')}
             </Text>
             <KeyTable rows={ACTION} t={t} />
+            <Text fw={600} size="sm">
+              {t('curate.hotkeys.section_playback')}
+            </Text>
+            <KeyTable rows={PLAYBACK} t={t} />
             <Text fw={600} size="sm">
               {t('curate.hotkeys.section_system')}
             </Text>

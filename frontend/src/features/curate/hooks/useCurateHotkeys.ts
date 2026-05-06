@@ -9,12 +9,9 @@ export interface UseCurateHotkeysArgs {
   overlayOpen: boolean;
   onAssign: (toBucketId: string) => void;
   onUndo: () => void;
-  onSkip: () => void;
-  onPrev: () => void;
   onOpenOverlay: () => void;
   onCloseOverlay: () => void;
   onExit: () => void;
-  onOpenSpotify: () => void;
 }
 
 const DIGIT_CODES: Record<string, number> = {
@@ -44,12 +41,9 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
     overlayOpen,
     onAssign,
     onUndo,
-    onSkip,
-    onPrev,
     onOpenOverlay,
     onCloseOverlay,
     onExit,
-    onOpenSpotify,
   } = args;
 
   useEffect(() => {
@@ -74,18 +68,10 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
           event.preventDefault();
           onUndo();
           return;
-        case 'KeyJ':
-          event.preventDefault();
-          onSkip();
-          return;
-        case 'KeyK':
-          event.preventDefault();
-          onPrev();
-          return;
-        case 'Space':
-          event.preventDefault();
-          onOpenSpotify();
-          return;
+        // KeyJ / KeyK are handled by usePlaybackHotkeys (F6) — it calls
+        // playback.controls.prev/next, which round-trips cursor via
+        // onCursorChange so F5's reducer stays in sync. Binding them here
+        // too caused double-fire and SDK-state interference.
         case 'KeyQ': {
           event.preventDefault();
           const b = byTechType(buckets, 'NEW');
@@ -128,11 +114,8 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
     overlayOpen,
     onAssign,
     onUndo,
-    onSkip,
-    onPrev,
     onOpenOverlay,
     onCloseOverlay,
     onExit,
-    onOpenSpotify,
   ]);
 }

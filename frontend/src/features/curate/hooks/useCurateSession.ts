@@ -17,6 +17,19 @@ import {
   writeLastCurateLocation,
   writeLastCurateStyle,
 } from '../lib/lastCurateLocation';
+import { usePlayback } from '../../playback/usePlayback';
+import type { PlaybackTrack } from '../../playback/lib/types';
+
+function toPlaybackTrack(t: BucketTrack): PlaybackTrack {
+  return {
+    id: t.track_id,
+    title: t.title,
+    artists: t.artists.join(', '),
+    cover_url: null,
+    duration_ms: t.length_ms ?? 0,
+    spotify_id: t.spotify_id,
+  };
+}
 
 export interface UseCurateSessionArgs {
   blockId: string;
@@ -51,6 +64,9 @@ interface LastOp {
   input: MoveInput;
   snapshot: MoveSnapshot;
   trackIndex: number;
+  /** The actual track being assigned, captured pre-shrink. Used by undo to
+   *  play the restored track without depending on bindQueue rebind timing. */
+  track: BucketTrack;
 }
 
 interface State {
@@ -71,6 +87,7 @@ type Action =
   | { type: 'MUTATION_ERROR' }
   | { type: 'SKIP'; max: number }
   | { type: 'PREV' }
+  | { type: 'JUMP_TO'; index: number; max: number }
   | { type: 'RESET_INDEX_FOR_QUEUE_SHRINK'; queueLength: number };
 
 const initialState: State = {
@@ -137,6 +154,12 @@ function reducer(state: State, action: Action): State {
       return { ...state, currentIndex: Math.min(action.max, state.currentIndex + 1) };
     case 'PREV':
       return { ...state, currentIndex: Math.max(0, state.currentIndex - 1) };
+    case 'JUMP_TO': {
+      const max = Math.max(0, action.max - 1);
+      const clamped = Math.max(0, Math.min(action.index, max));
+      if (clamped === state.currentIndex) return state;
+      return { ...state, currentIndex: clamped };
+    }
     case 'RESET_INDEX_FOR_QUEUE_SHRINK':
       if (state.currentIndex >= action.queueLength) {
         return { ...state, currentIndex: Math.max(0, action.queueLength - 1) };
@@ -165,6 +188,7 @@ export function useCurateSession({
 }: UseCurateSessionArgs): CurateSession {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const playback = usePlayback();
   const blockQuery = useTriageBlock(blockId);
   const tracksQuery = useBucketTracks(blockId, bucketId, '');
   const moveMutation = useMoveTracks(blockId, styleId);
@@ -247,6 +271,40 @@ export function useCurateSession({
     prevQueueLengthRef.current = queue.length;
   }, [queue.length, state.currentIndex]);
 
+  // Bind queue to PlaybackProvider so the player tracks the curate cursor.
+  // Re-fires whenever the loaded queue identity OR the current cursor changes
+  // (optimistic shrink, page refill, skip/prev, etc.). PlaybackProvider's
+  // bindQueue is referentially stable (useCallback with []) so listing it in
+  // deps is safe and required by react-hooks/exhaustive-deps.
+  const queueLength = queue.length;
+  const playbackTracks = useMemo(() => queue.map(toPlaybackTrack), [queue]);
+  const bindQueue = playback.controls.bindQueue;
+  useEffect(() => {
+    bindQueue({
+      source: { type: 'bucket', blockId, bucketId },
+      tracks: playbackTracks,
+      cursor: state.currentIndex,
+      onCursorChange: (i) => dispatch({ type: 'JUMP_TO', index: i, max: queueLength }),
+    });
+  }, [bindQueue, blockId, bucketId, playbackTracks, state.currentIndex, queueLength]);
+
+  // Auto-play the first track when entering a NEW Curate bucket and SDK is
+  // already initialized (the user was listening before navigating). On the
+  // first-ever Curate visit per session, sdk.ready is false (lazy boot) so
+  // this no-ops — the user clicks play themselves. Tracked via ref so we
+  // fire only once per bucket (cursor changes / shrink etc. don't re-fire).
+  const sdkReady = playback.sdk.ready;
+  const autoPlayedBucketRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (autoPlayedBucketRef.current === bucketId) return;
+    if (!sdkReady) return;
+    if (queue.length === 0) return;
+    const first = queue[0];
+    if (!first?.spotify_id) return;
+    autoPlayedBucketRef.current = bucketId;
+    void playback.controls.play(0, toPlaybackTrack(first));
+  }, [bucketId, sdkReady, queue, playback.controls]);
+
   const cleanupTimers = useCallback(() => {
     if (pendingTimerRef.current !== null) {
       clearTimeout(pendingTimerRef.current);
@@ -269,11 +327,19 @@ export function useCurateSession({
     }, PULSE_MS);
   }, []);
 
+  const playRef = useRef(playback.controls.play);
+  playRef.current = playback.controls.play;
+
   const scheduleAdvance = useCallback(() => {
     if (pendingTimerRef.current !== null) clearTimeout(pendingTimerRef.current);
     pendingTimerRef.current = window.setTimeout(() => {
       pendingTimerRef.current = null;
       dispatch({ type: 'ADVANCE' });
+      // After the optimistic shrink, queue.tracks[cursor] is the natural next
+      // track — play() (no arg) reads the bound cursor and plays it. next()
+      // would advance cursor by +1 and skip a track. If spotify_id is null,
+      // PlaybackProvider.play is a silent no-op (PB4 skip-null gap).
+      void playRef.current();
     }, PENDING_ADVANCE_MS);
   }, []);
 
@@ -336,6 +402,9 @@ export function useCurateSession({
 
       // Different destination during pending window — undo first.
       if (isPending && lastOp) {
+        // Cancel any pending playback advance scheduled by PlaybackProvider
+        // BEFORE the rollback so the timer can't fire post-rollback.
+        playback.controls.cancelPendingAdvance();
         if (pendingTimerRef.current !== null) {
           clearTimeout(pendingTimerRef.current);
           pendingTimerRef.current = null;
@@ -360,7 +429,7 @@ export function useCurateSession({
         dispatch({
           type: 'ASSIGN_REPLACE_BEGIN',
           toBucketId,
-          lastOp: { input, snapshot, trackIndex: lastOp.trackIndex },
+          lastOp: { input, snapshot, trackIndex: lastOp.trackIndex, track: lastOp.track },
         });
         fireMutation(input);
         return;
@@ -378,7 +447,7 @@ export function useCurateSession({
       dispatch({
         type: 'ASSIGN_BEGIN',
         toBucketId,
-        lastOp: { input, snapshot, trackIndex: stateRef.current.currentIndex },
+        lastOp: { input, snapshot, trackIndex: stateRef.current.currentIndex, track },
       });
       fireMutation(input);
     },
@@ -391,6 +460,7 @@ export function useCurateSession({
       scheduleAdvance,
       schedulePulse,
       fireMutation,
+      playback.controls,
     ],
   );
 
@@ -398,6 +468,10 @@ export function useCurateSession({
     const lastOp = stateRef.current.lastOp;
     if (!lastOp) return;
     const isPending = pendingTimerRef.current !== null;
+
+    // Always cancel any pending playback advance BEFORE state rollback so the
+    // 200ms timer can't fire post-rollback and play the wrong track.
+    playback.controls.cancelPendingAdvance();
 
     if (isPending) {
       clearTimeout(pendingTimerRef.current as number);
@@ -411,8 +485,16 @@ export function useCurateSession({
     } else {
       void undoMoveDirect(qc, blockId, styleId, lastOp.input, lastOp.snapshot).catch(() => {});
       dispatch({ type: 'UNDO_AFTER' });
+      // Pending hold already fired — SDK is playing the post-shrink track.
+      // Pass the captured track directly via overrideTrack so play() doesn't
+      // depend on bindQueue rebind timing (it would otherwise read the stale
+      // post-shrink queue and play the wrong track).
+      const restored = toPlaybackTrack(lastOp.track);
+      setTimeout(() => {
+        void playRef.current(lastOp.trackIndex, restored);
+      }, 0);
     }
-  }, [qc, blockId, styleId]);
+  }, [qc, blockId, styleId, playback.controls]);
 
   const skip = useCallback(() => {
     dispatch({ type: 'SKIP', max: queue.length });

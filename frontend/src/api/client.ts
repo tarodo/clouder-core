@@ -1,5 +1,6 @@
 import { ApiError } from './error';
 import { tokenStore } from '../auth/tokenStore';
+import { spotifyTokenStore } from '../auth/spotifyTokenStore';
 
 const baseUrl =
   typeof window !== 'undefined' && window.location ? window.location.origin : 'http://localhost';
@@ -8,6 +9,7 @@ let inflightRefresh: Promise<boolean> | null = null;
 
 interface RefreshResponse {
   access_token: string;
+  spotify_access_token: string;
   expires_in: number;
   user: unknown;
 }
@@ -23,6 +25,7 @@ async function tryRefreshOnce(): Promise<boolean> {
       if (!res.ok) return false;
       const body = (await res.json()) as RefreshResponse;
       tokenStore.set(body.access_token);
+      spotifyTokenStore.set(body.spotify_access_token);
       window.dispatchEvent(
         new CustomEvent<RefreshResponse>('auth:refreshed', { detail: body }),
       );
@@ -38,6 +41,7 @@ async function tryRefreshOnce(): Promise<boolean> {
 
 function notifyAuthFailure(): void {
   tokenStore.set(null);
+  spotifyTokenStore.set(null);
   window.dispatchEvent(new CustomEvent('auth:expired'));
 }
 

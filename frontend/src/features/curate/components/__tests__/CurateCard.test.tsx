@@ -50,22 +50,43 @@ describe('CurateCard', () => {
     expect(screen.queryByText(/AI suspect/i)).toBeNull();
   });
 
-  it('renders the Open in Spotify button when spotify_id is present', () => {
-    render(wrap(<CurateCard track={mkTrack()} />));
-    const link = screen.getByRole('link', { name: /Open .* in Spotify/i });
-    expect(link).toHaveAttribute('href', 'https://open.spotify.com/track/sp-t1');
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
-  });
-
-  it('hides the Spotify link and shows fallback copy when spotify_id is null', () => {
+  // F6 (commit 2b6a1b4): the inline "Open in Spotify" link moved out of
+  // CurateCard into PlayerCard's top-right corner. CurateCard now only renders
+  // a fallback hint when spotify_id is null.
+  it('shows fallback copy when spotify_id is null', () => {
     render(wrap(<CurateCard track={mkTrack({ spotify_id: null })} />));
     expect(screen.queryByRole('link', { name: /Spotify/i })).toBeNull();
     expect(screen.getByText(/No Spotify match/i)).toBeInTheDocument();
   });
 
+  it('does NOT render the inline Open-in-Spotify link when spotify_id is present', () => {
+    // Affordance moved to PlayerCard top-right icon.
+    render(wrap(<CurateCard track={mkTrack()} />));
+    expect(screen.queryByRole('link', { name: /Spotify/i })).toBeNull();
+    expect(screen.queryByText(/No Spotify match/i)).toBeNull();
+  });
+
   it('formats unknown BPM and length gracefully', () => {
     render(wrap(<CurateCard track={mkTrack({ bpm: null, length_ms: null })} />));
     expect(screen.getByText(/—/)).toBeInTheDocument();
+  });
+
+  // F6: the in-card Play ActionIcon was removed; the PlayerCard's center
+  // button is now the only Play affordance. Play-button assertions live in
+  // PlayerCard.test.tsx instead.
+  describe('Play affordance (post-F6: removed)', () => {
+    it('does not render a Play button inside the card', () => {
+      render(wrap(<CurateCard track={mkTrack()} />));
+      expect(
+        screen.queryByRole('button', { name: /^play$/i }),
+      ).toBeNull();
+    });
+
+    it('does not render a disabled Play button when spotify_id is null', () => {
+      render(wrap(<CurateCard track={mkTrack({ spotify_id: null })} />));
+      expect(
+        screen.queryByRole('button', { name: /^play$/i }),
+      ).toBeNull();
+    });
   });
 });

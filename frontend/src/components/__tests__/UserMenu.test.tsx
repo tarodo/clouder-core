@@ -14,6 +14,7 @@ function makeAuth(signOut: AuthContextValue['signOut'] = vi.fn()): AuthContextVa
       status: 'authenticated',
       user: { id: 'u', spotify_id: 's', display_name: 'Roman', is_admin: false },
       expiresAt: Date.now() + 1_800_000,
+      spotifyAccessToken: 'SPTOK',
     },
     signIn: vi.fn(),
     signOut,

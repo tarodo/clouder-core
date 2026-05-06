@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -12,6 +12,27 @@ import {
   LAST_CURATE_LOCATION_KEY,
   LAST_CURATE_STYLE_KEY,
 } from '../../lib/lastCurateLocation';
+
+vi.mock('../../../playback/usePlayback', () => ({
+  usePlayback: () => ({
+    queue: { source: null, tracks: [], cursor: 0, status: 'idle' as const },
+    track: { current: null, positionMs: 0, durationMs: 0 },
+    sdk: { ready: false, error: null },
+    controls: {
+      play: vi.fn(async () => {}),
+      pause: vi.fn(async () => {}),
+      togglePlayPause: vi.fn(async () => {}),
+      next: vi.fn(async () => {}),
+      prev: vi.fn(async () => {}),
+      seekMs: vi.fn(async () => {}),
+      seekPct: vi.fn(async () => {}),
+      bindQueue: vi.fn(),
+      clearQueue: vi.fn(),
+      cancelPendingAdvance: vi.fn(),
+      openSpotifyExternal: vi.fn(),
+    },
+  }),
+}));
 
 function makeClient() {
   return new QueryClient({

@@ -10,6 +10,7 @@ import {
 import { ApiError } from '../api/error';
 import { api } from '../api/client';
 import { tokenStore } from './tokenStore';
+import { spotifyTokenStore } from './spotifyTokenStore';
 import { completeBootstrap } from './bootstrap';
 
 export interface Me {
@@ -21,6 +22,7 @@ export interface Me {
 
 interface CallbackResponse {
   access_token: string;
+  spotify_access_token: string;
   expires_in: number;
   user: Me;
 }
@@ -30,19 +32,30 @@ interface CallbackResponse {
 // page reload we call /me separately after refresh succeeds.
 interface RefreshResponse {
   access_token: string;
+  spotify_access_token: string;
   expires_in: number;
 }
 
 export type AuthState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'authenticated'; user: Me; expiresAt: number }
+  | {
+      status: 'authenticated';
+      user: Me;
+      expiresAt: number;
+      spotifyAccessToken: string | null;
+    }
   | { status: 'unauthenticated' }
   | { status: 'error'; error: ApiError };
 
 type Action =
   | { type: 'loading' }
-  | { type: 'authenticated'; user: Me; expiresAt: number }
+  | {
+      type: 'authenticated';
+      user: Me;
+      expiresAt: number;
+      spotifyAccessToken: string | null;
+    }
   | { type: 'unauthenticated' }
   | { type: 'error'; error: ApiError };
 
@@ -51,7 +64,12 @@ function reducer(_: AuthState, action: Action): AuthState {
     case 'loading':
       return { status: 'loading' };
     case 'authenticated':
-      return { status: 'authenticated', user: action.user, expiresAt: action.expiresAt };
+      return {
+        status: 'authenticated',
+        user: action.user,
+        expiresAt: action.expiresAt,
+        spotifyAccessToken: action.spotifyAccessToken,
+      };
     case 'unauthenticated':
       return { status: 'unauthenticated' };
     case 'error':
@@ -66,7 +84,12 @@ export function getAuthSnapshot(): AuthState {
 
 export interface AuthContextValue {
   state: AuthState;
-  signIn: (user: Me, accessToken: string, expiresIn: number) => void;
+  signIn: (
+    user: Me,
+    accessToken: string,
+    spotifyAccessToken: string,
+    expiresIn: number,
+  ) => void;
   signOut: () => Promise<void>;
   refresh: () => Promise<boolean>;
 }
@@ -114,15 +137,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signIn = useCallback(
-    (user: Me, accessToken: string, expiresIn: number) => {
+    (user: Me, accessToken: string, spotifyAccessToken: string, expiresIn: number) => {
       tokenStore.set(accessToken);
+      spotifyTokenStore.set(spotifyAccessToken);
       const expiresAt = Date.now() + expiresIn * 1000;
       // Mirror snapshot synchronously — the state-effect mirror runs only on
       // the next render, which races completeBootstrap() and would leave
       // requireAuth seeing the stale 'loading' snapshot, redirecting the
       // just-authenticated user back to /login.
-      snapshot = { status: 'authenticated', user, expiresAt };
-      dispatch({ type: 'authenticated', user, expiresAt });
+      snapshot = { status: 'authenticated', user, expiresAt, spotifyAccessToken };
+      dispatch({ type: 'authenticated', user, expiresAt, spotifyAccessToken });
       scheduleRefresh(expiresIn * 1000);
     },
     [scheduleRefresh],
@@ -134,11 +158,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Set the new token before fetching /me so the apiClient picks it up
       // for the Authorization header.
       tokenStore.set(body.access_token);
+      spotifyTokenStore.set(body.spotify_access_token);
       const user = await api<Me>('/me');
-      signIn(user, body.access_token, body.expires_in);
+      signIn(user, body.access_token, body.spotify_access_token, body.expires_in);
       return true;
     } catch {
       tokenStore.set(null);
+      spotifyTokenStore.set(null);
       clearRefreshTimer();
       snapshot = { status: 'unauthenticated' };
       dispatch({ type: 'unauthenticated' });
@@ -158,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // logout always succeeds locally even if remote fails
     }
     tokenStore.set(null);
+    spotifyTokenStore.set(null);
     clearRefreshTimer();
     snapshot = { status: 'unauthenticated' };
     dispatch({ type: 'unauthenticated' });
@@ -187,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onExpired = () => {
       tokenStore.set(null);
+      spotifyTokenStore.set(null);
       clearRefreshTimer();
       snapshot = { status: 'unauthenticated' };
       dispatch({ type: 'unauthenticated' });
@@ -205,9 +233,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const onRefreshed = (e: Event) => {
       const detail = (e as CustomEvent<Partial<CallbackResponse>>).detail;
       if (!detail || typeof detail.expires_in !== 'number') return;
+      if (typeof detail.spotify_access_token === 'string') {
+        spotifyTokenStore.set(detail.spotify_access_token);
+      }
       if (detail.user) {
         const expiresAt = Date.now() + detail.expires_in * 1000;
-        dispatch({ type: 'authenticated', user: detail.user, expiresAt });
+        dispatch({
+          type: 'authenticated',
+          user: detail.user,
+          expiresAt,
+          spotifyAccessToken:
+            typeof detail.spotify_access_token === 'string'
+              ? detail.spotify_access_token
+              : spotifyTokenStore.get(),
+        });
       }
       scheduleRefresh(detail.expires_in * 1000);
     };
