@@ -156,6 +156,7 @@ export function PlayerCard(props: PlayerCardProps) {
       data-state={state}
       data-variant={variant}
       p={isMini ? 'sm' : 'lg'}
+      pb={mobileSeekChips ? 'sm' : undefined}
       radius="md"
       withBorder={isMini}
       style={{ position: 'relative' }}
@@ -254,11 +255,11 @@ export function PlayerCard(props: PlayerCardProps) {
         disabled={scrubDisabled}
         onChange={scrub.onChange}
         onChangeEnd={scrub.onChangeEnd}
-        style={{ opacity: SCRUB_OPACITY[state], marginTop: isMini ? 4 : 16 }}
+        style={{ opacity: SCRUB_OPACITY[state], marginTop: isMini ? 4 : mobileSeekChips ? 8 : 16 }}
         aria-label={t('playback.controls.scrub_aria')}
       />
       {mobileSeekChips ? (
-        <Group gap={4} wrap="nowrap" mt={6} justify="space-between">
+        <Group gap={4} wrap="nowrap" mt={4} justify="space-between">
           {SEEK_CHIP_PCTS.map((pct) => {
             const label = `${Math.round(pct * 100)}%`;
             return (

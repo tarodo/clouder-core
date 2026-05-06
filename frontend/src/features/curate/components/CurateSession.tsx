@@ -107,7 +107,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
 
   return (
     <Stack
-      gap="sm"
+      gap={isMobile ? 'xs' : 'sm'}
       p={isMobile ? 'sm' : 'md'}
       data-testid="curate-session"
       style={{
