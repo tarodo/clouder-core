@@ -1,6 +1,6 @@
 // frontend/src/features/curate/components/__tests__/CurateSession.test.tsx
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,6 +10,17 @@ import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
 import { testTheme } from '../../../../test/theme';
 import { CurateSession } from '../CurateSession';
+
+// F6: CurateCard now only renders on mobile (isMobile=true). Force the test
+// suite into mobile mode so the in-card play button is mounted; PlayerCard +
+// CurateCard cohabit on mobile, but the card-level onPlay is what this suite
+// asserts on.
+vi.mock('@mantine/hooks', async () => {
+  const actual = await vi.importActual<typeof import('@mantine/hooks')>(
+    '@mantine/hooks',
+  );
+  return { ...actual, useMediaQuery: vi.fn(() => true) };
+});
 
 const playMock = vi.fn(async () => {});
 const togglePlayPauseMock = vi.fn(async () => {});
@@ -131,27 +142,29 @@ describe('CurateSession with PlayerCard', () => {
 
   it('renders PlayerCard at the top of the session', async () => {
     renderSession();
-    // CurateCard appears once data loads
+    // CurateCard appears on mobile once data loads.
     await screen.findByTestId('curate-card');
-    // PlayerCard's "Now Playing" eyebrow text identifies it.
-    expect(screen.getByText(/now playing/i)).toBeInTheDocument();
+    // F6: the "Now Playing" eyebrow + "Buffering…" badge were dropped. The
+    // PlayerCard surface is identified by its data-state attribute on the
+    // outer Paper. With queue.status='idle' the state resolves to 'idle'.
+    expect(document.querySelector('[data-state="idle"]')).toBeInTheDocument();
     // Sanity: the curate-session container is mounted.
     expect(screen.getByTestId('curate-session')).toBeInTheDocument();
   });
 
-  it('CurateCard onPlay calls playback.controls.play with currentIndex', async () => {
+  it('PlayerCard center button calls playback.controls.togglePlayPause', async () => {
     renderSession();
     await screen.findByTestId('curate-card');
-    // CurateCard's Play button (within the card, distinguished from PlayerCard's
-    // central control via aria-label "Play"). Both have the same aria-label;
-    // CurateCard's button is the only one inside data-testid="curate-card".
-    const card = screen.getByTestId('curate-card');
-    const playButton = await waitFor(() =>
-      within(card).getByRole('button', { name: /^play$/i }),
-    );
-    await userEvent.click(playButton);
-    expect(playMock).toHaveBeenCalled();
-    // CurateSession passes the currentIndex (0 for the first track).
-    expect(playMock).toHaveBeenCalledWith(0);
+    // F6: the in-card Play affordance moved to PlayerCard; its center button
+    // is wired to togglePlayPause (NOT play(idx)). With queue.status='idle'
+    // togglePlayPause routes through play() internally, but at the harness
+    // boundary we only verify togglePlayPause was invoked.
+    const buttons = screen.getAllByRole('button', { name: /^play$/i });
+    // PlayerCard's center button is disabled only in error/disconnected/empty;
+    // in 'idle' state it's the enabled one. Click the first enabled match.
+    const target = buttons.find((b) => !(b as HTMLButtonElement).disabled);
+    expect(target).toBeDefined();
+    await userEvent.click(target!);
+    expect(togglePlayPauseMock).toHaveBeenCalled();
   });
 });

@@ -162,30 +162,43 @@ function emitPlayerState(
   });
 }
 
+/**
+ * F6: CurateCard only renders on mobile (and has no Play button there). On
+ * desktop the PlayerCard absorbs the title. Scope by curate-session.
+ */
 async function waitForCurateCardTrack(title: string): Promise<void> {
   await waitFor(() => {
-    const card = screen.getByTestId('curate-card');
-    expect(within(card).getByText(title)).toBeInTheDocument();
+    const session = screen.getByTestId('curate-session');
+    expect(within(session).getByText(title)).toBeInTheDocument();
   });
 }
 
+function findPlayButton(): HTMLElement {
+  const candidates = screen.getAllByRole('button', { name: /^play$/i });
+  const enabled = candidates.find(
+    (el) => !(el as HTMLButtonElement).disabled,
+  );
+  if (!enabled) {
+    throw new Error('No enabled Play button found in current DOM');
+  }
+  return enabled;
+}
+
 /**
- * Pre-warm: click the CurateCard play button, emit SDK ready, click again so
- * /play actually fires (deviceId now set), wait for the first /play call,
- * then emit player_state_changed with paused=false so the queue status flips
- * to 'playing' (required for MiniBar visibility).
+ * Pre-warm: click PlayerCard's Play button (CurateCard's was removed in F6),
+ * emit `ready` while the click is awaiting deviceReadyRef so play() resolves,
+ * then emit player_state_changed paused=false so MiniBar visibility kicks in.
  */
 async function preWarmAndPlay(
   user: ReturnType<typeof userEvent.setup>,
   handle: ReturnType<typeof installSpotifySdkMock>,
   captures: ServerCaptures,
 ): Promise<FakeSpotifyPlayer> {
-  const card = screen.getByTestId('curate-card');
-  const playButtons = within(card).getAllByRole('button', { name: /play/i });
-  await user.click(playButtons[0]!);
+  const playBtn = findPlayButton();
+  const clickPromise = user.click(playBtn);
   await waitFor(() => expect(handle.getLatest()).not.toBeNull());
   await act(async () => emitReady(handle.getLatest()));
-  await user.click(playButtons[0]!);
+  await clickPromise;
   await waitFor(() => expect(captures.playCalls.length).toBeGreaterThanOrEqual(1));
   const player = handle.getLatest()!;
   await act(async () => {
@@ -247,8 +260,10 @@ describe('F6 integration · batch 3', () => {
     await waitForCurateCardTrack('Track t1');
     await preWarmAndPlay(user, handle, captures);
 
-    // Sanity: PlayerCard's "Now Playing" eyebrow is visible on the curate route.
-    expect(screen.getByText('Now Playing')).toBeInTheDocument();
+    // Sanity: PlayerCard is mounted on the curate route (data-state attr on
+    // its outer Paper). F6 dropped the "Now Playing" eyebrow text.
+    expect(document.querySelector('[data-state]')).not.toBeNull();
+    expect(screen.getByTestId('curate-session')).toBeInTheDocument();
 
     // Navigate off curate → /tracks. Drive via router.navigate to bypass the
     // SPA-link click race (none expected here since contextDifferent('/tracks')
@@ -261,8 +276,8 @@ describe('F6 integration · batch 3', () => {
       expect(screen.getByTestId('tracks-page')).toBeInTheDocument();
     });
 
-    // PlayerCard's "Now Playing" eyebrow is gone (CurateSession unmounted).
-    expect(screen.queryByText('Now Playing')).toBeNull();
+    // PlayerCard unmounts when CurateSession does.
+    expect(screen.queryByTestId('curate-session')).toBeNull();
 
     // MiniBar is visible — the region's accessible name is the "Now playing —
     // {{title}}" template (lower-case "Now playing", em-dash separator).
@@ -452,10 +467,14 @@ describe('F6 integration · batch 3', () => {
 
     await waitForCurateCardTrack('Track t1');
 
-    // Boot the SDK. Click play to trigger ensureSdk.
-    const card = screen.getByTestId('curate-card');
-    const playButtons = within(card).getAllByRole('button', { name: /play/i });
-    await user.click(playButtons[0]!);
+    // Boot the SDK by kicking off play() — F6's deviceReadyRef makes play()
+    // hang awaiting `ready`, but ensureSdk has already constructed the fake
+    // Player + registered listeners. We don't await the click; the promise
+    // is intentionally orphaned because we're about to error out.
+    const playBtn = findPlayButton();
+    user.click(playBtn).catch(() => {
+      /* orphaned — error scenarios don't await the play flow */
+    });
 
     await waitFor(() => expect(handle.getLatest()).not.toBeNull());
     const player = handle.getLatest()!;
@@ -501,9 +520,12 @@ describe('F6 integration · batch 3', () => {
 
     await waitForCurateCardTrack('Track t1');
 
-    const card = screen.getByTestId('curate-card');
-    const playButtons = within(card).getAllByRole('button', { name: /play/i });
-    await user.click(playButtons[0]!);
+    // Boot the SDK; play() will hang on deviceReadyRef but ensureSdk already
+    // registered the account_error listener.
+    const playBtn = findPlayButton();
+    user.click(playBtn).catch(() => {
+      /* orphaned — error scenarios don't await the play flow */
+    });
 
     await waitFor(() => expect(handle.getLatest()).not.toBeNull());
     const player = handle.getLatest()!;

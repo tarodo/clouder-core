@@ -155,31 +155,43 @@ function emitPlayerState(
   });
 }
 
-function expectCurateCardTrack(title: string): HTMLElement {
-  const card = screen.getByTestId('curate-card');
-  return within(card).getByText(title);
+/**
+ * F6: CurateCard only renders on mobile (and has no Play button there). On
+ * desktop the PlayerCard absorbs the title. Scope by curate-session.
+ */
+async function waitForCurateCardTrack(title: string): Promise<void> {
+  await waitFor(() => {
+    const session = screen.getByTestId('curate-session');
+    expect(within(session).getByText(title)).toBeInTheDocument();
+  });
 }
 
-async function waitForCurateCardTrack(title: string): Promise<void> {
-  await waitFor(() => expect(expectCurateCardTrack(title)).toBeInTheDocument());
+function findPlayButton(): HTMLElement {
+  const candidates = screen.getAllByRole('button', { name: /^play$/i });
+  const enabled = candidates.find(
+    (el) => !(el as HTMLButtonElement).disabled,
+  );
+  if (!enabled) {
+    throw new Error('No enabled Play button found in current DOM');
+  }
+  return enabled;
 }
 
 /**
- * Pre-warm: click the CurateCard play, emit ready, click again (deviceId now
- * set so /play actually fires), wait for the first /play call. After this,
- * subsequent hotkey-driven flows have a working SDK + Web API path.
+ * Pre-warm: click PlayerCard's Play button (the only Play affordance now —
+ * CurateCard's button was removed in F6). Emit `ready` while the click
+ * handler is awaiting deviceReadyRef so play() resolves and /play fires.
  */
 async function preWarm(
   user: ReturnType<typeof userEvent.setup>,
   handle: ReturnType<typeof installSpotifySdkMock>,
   captures: ServerCaptures,
 ): Promise<FakeSpotifyPlayer> {
-  const card = screen.getByTestId('curate-card');
-  const playButtons = within(card).getAllByRole('button', { name: /play/i });
-  await user.click(playButtons[0]!);
+  const playBtn = findPlayButton();
+  const clickPromise = user.click(playBtn);
   await waitFor(() => expect(handle.getLatest()).not.toBeNull());
   await act(async () => emitReady(handle.getLatest()));
-  await user.click(playButtons[0]!);
+  await clickPromise;
   await waitFor(() => expect(captures.playCalls.length).toBeGreaterThanOrEqual(1));
   return handle.getLatest()!;
 }

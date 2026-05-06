@@ -14,7 +14,35 @@ import { __resetSdkLoaderForTests } from '../lib/sdkLoader';
 import {
   installSpotifySdkMock,
   uninstallSpotifySdkMock,
+  type FakeSpotifyPlayer,
 } from '../../../test/spotifySdk';
+
+/**
+ * F6 fix-up helper. After commit 2b6a1b4, `controls.play()` awaits a
+ * `deviceReadyRef.promise` that resolves when the SDK 'ready' event fires.
+ * The original test pattern (`await play()` THEN emit 'ready') would deadlock.
+ *
+ * This helper kicks off `play()` without awaiting, polls for the fake SDK
+ * Player to be constructed, emits 'ready' so the deviceReady promise resolves,
+ * then awaits the original play() promise. Mirrors the production sequence:
+ *   click → play() → ensureSdk → connect() → 'ready' → resolve → spotifyApi.play
+ */
+async function playAndEmitReady(
+  invoke: () => Promise<void>,
+  handle: { getLatest: () => FakeSpotifyPlayer | null },
+  deviceId = 'd1',
+): Promise<void> {
+  let p!: Promise<void>;
+  await act(async () => {
+    p = invoke();
+    // Yield so ensureSdk can construct the Player + register listeners.
+    for (let i = 0; i < 5; i += 1) {
+      await Promise.resolve();
+    }
+    handle.getLatest()?.__emit('ready', { device_id: deviceId });
+    await p;
+  });
+}
 
 const navigateMock = vi.fn();
 vi.mock('react-router', async (importOriginal) => {
@@ -121,12 +149,11 @@ describe('PlaybackProvider SDK lifecycle', () => {
     );
     const handle = installSpotifySdkMock();
     const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
-    await act(async () => {
-      await result.current.controls.play(0);
-    });
-    act(() => {
-      handle.getLatest()?.__emit('ready', { device_id: 'cl-tab-1' });
-    });
+    await playAndEmitReady(
+      () => result.current.controls.play(0),
+      handle,
+      'cl-tab-1',
+    );
     await waitFor(() => {
       expect(captured.transferBody?.device_ids).toEqual(['cl-tab-1']);
       expect(captured.transferBody?.play).toBe(false);
@@ -157,10 +184,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
   it('player_state_changed updates positionMs and durationMs', async () => {
     const handle = installSpotifySdkMock();
     const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
-    await act(async () => { await result.current.controls.play(); });
-    act(() => {
-      handle.getLatest()?.__emit('ready', { device_id: 'd1' });
-    });
+    await playAndEmitReady(() => result.current.controls.play(), handle);
     act(() => {
       handle.getLatest()?.__emit('player_state_changed', {
         paused: false,
@@ -178,10 +202,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
   it('player_state_changed with paused:true sets queue.status=paused', async () => {
     const handle = installSpotifySdkMock();
     const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
-    await act(async () => { await result.current.controls.play(); });
-    act(() => {
-      handle.getLatest()?.__emit('ready', { device_id: 'd1' });
-    });
+    await playAndEmitReady(() => result.current.controls.play(), handle);
     act(() => {
       handle.getLatest()?.__emit('player_state_changed', {
         paused: true,
@@ -217,16 +238,10 @@ describe('PlaybackProvider SDK lifecycle', () => {
         onCursorChange: vi.fn(),
       });
     });
-    await act(async () => {
-      await result.current.controls.play(1);
-    });
-    act(() => {
-      handle.getLatest()?.__emit('ready', { device_id: 'd1' });
-    });
-    // After ready fires, cursor=1; trigger play() again now that device exists.
-    await act(async () => {
-      await result.current.controls.play(1);
-    });
+    await playAndEmitReady(
+      () => result.current.controls.play(1),
+      handle,
+    );
     await waitFor(() => {
       expect(captured.body?.uris).toEqual(['spotify:track:spB']);
     });
@@ -253,11 +268,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
         onCursorChange: vi.fn(),
       });
     });
-    await act(async () => { await result.current.controls.play(); });
-    act(() => {
-      handle.getLatest()?.__emit('ready', { device_id: 'd1' });
-    });
-    await act(async () => { await result.current.controls.play(); });
+    await playAndEmitReady(() => result.current.controls.play(), handle);
     await waitFor(() => {
       expect(captured.body?.uris).toEqual(['spotify:track:spA']);
     });
@@ -284,20 +295,37 @@ describe('PlaybackProvider SDK lifecycle', () => {
         onCursorChange: vi.fn(),
       });
     });
-    await act(async () => { await result.current.controls.play(0); });
-    act(() => {
-      handle.getLatest()?.__emit('ready', { device_id: 'd1' });
-    });
-    await act(async () => { await result.current.controls.play(0); });
+    await playAndEmitReady(
+      () => result.current.controls.play(0),
+      handle,
+    );
     // Wait a tick; ensure /play never fires (it would have by now if it were going to)
     await new Promise((r) => setTimeout(r, 50));
     expect(captured.calls).toBe(0);
   });
 
-  it('togglePlayPause calls SDK togglePlay', async () => {
+  it('togglePlayPause calls SDK togglePlay when queue is playing/paused', async () => {
+    // F6 (commit 2b6a1b4): when queue.status is 'idle' or 'ended',
+    // togglePlayPause routes through play() (so the SDK doesn't resume the
+    // user's stale remote-cued track). SDK.togglePlay is only invoked once
+    // we've seen a player_state_changed event flip status to 'playing' or
+    // 'paused'. Drive the queue into 'playing' first, then assert.
     const handle = installSpotifySdkMock();
     const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
-    await act(async () => { await result.current.controls.togglePlayPause(); });
+    await playAndEmitReady(() => result.current.controls.play(), handle);
+    act(() => {
+      handle.getLatest()?.__emit('player_state_changed', {
+        paused: false,
+        position: 0,
+        duration: 60_000,
+        track_window: { current_track: { id: 'sp1' } },
+      });
+    });
+    await waitFor(() => expect(result.current.queue.status).toBe('playing'));
+    handle.getLatest()!.togglePlay.mockClear();
+    await act(async () => {
+      await result.current.controls.togglePlayPause();
+    });
     expect(handle.getLatest()?.togglePlay).toHaveBeenCalled();
   });
 
@@ -325,9 +353,10 @@ describe('PlaybackProvider SDK lifecycle', () => {
         onCursorChange,
       });
     });
-    await act(async () => { await result.current.controls.play(0); });
-    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
-    await act(async () => { await result.current.controls.play(0); });
+    await playAndEmitReady(
+      () => result.current.controls.play(0),
+      handle,
+    );
     await waitFor(() => expect(captured.body?.uris).toEqual(['spotify:track:spA']));
     await act(async () => { await result.current.controls.next(); });
     expect(onCursorChange).toHaveBeenLastCalledWith(2);
@@ -351,8 +380,10 @@ describe('PlaybackProvider SDK lifecycle', () => {
         onCursorChange: vi.fn(),
       });
     });
-    await act(async () => { await result.current.controls.play(0); });
-    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    await playAndEmitReady(
+      () => result.current.controls.play(0),
+      handle,
+    );
     await act(async () => { await result.current.controls.next(); });
     await waitFor(() => expect(result.current.queue.status).toBe('ended'));
     expect(handle.getLatest()?.pause).toHaveBeenCalled();
@@ -382,9 +413,10 @@ describe('PlaybackProvider SDK lifecycle', () => {
         onCursorChange,
       });
     });
-    await act(async () => { await result.current.controls.play(2); });
-    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
-    await act(async () => { await result.current.controls.play(2); });
+    await playAndEmitReady(
+      () => result.current.controls.play(2),
+      handle,
+    );
     await act(async () => { await result.current.controls.prev(); });
     expect(onCursorChange).toHaveBeenLastCalledWith(0);
     await waitFor(() => expect(captured.body?.uris).toEqual(['spotify:track:spA']));
@@ -393,8 +425,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
   it('seekMs clamps to [0, duration] and calls SDK seek', async () => {
     const handle = installSpotifySdkMock();
     const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
-    await act(async () => { await result.current.controls.play(); });
-    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    await playAndEmitReady(() => result.current.controls.play(), handle);
     act(() => {
       handle.getLatest()?.__emit('player_state_changed', {
         paused: false, position: 0, duration: 60000, track_window: { current_track: { id: 'x' } },
@@ -410,8 +441,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
   it('seekPct(0.6) of 360s == 216000ms', async () => {
     const handle = installSpotifySdkMock();
     const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
-    await act(async () => { await result.current.controls.play(); });
-    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    await playAndEmitReady(() => result.current.controls.play(), handle);
     act(() => {
       handle.getLatest()?.__emit('player_state_changed', {
         paused: false, position: 0, duration: 360000, track_window: { current_track: { id: 'x' } },
@@ -447,9 +477,10 @@ describe('PlaybackProvider SDK lifecycle', () => {
     });
     // Use real timers for the SDK boot, fake for the schedule
     vi.useRealTimers();
-    await act(async () => { await result.current.controls.play(0); });
-    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
-    await act(async () => { await result.current.controls.play(0); });
+    await playAndEmitReady(
+      () => result.current.controls.play(0),
+      handle,
+    );
     // initial play call counted; reset
     captured.calls = 0;
     vi.useFakeTimers();
@@ -485,18 +516,43 @@ describe('PlaybackProvider SDK lifecycle', () => {
         onCursorChange: vi.fn(),
       });
     });
-    await act(async () => { await result.current.controls.play(0); });
-    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    await playAndEmitReady(
+      () => result.current.controls.play(0),
+      handle,
+    );
     act(() => { result.current.controls.clearQueue(); });
     await waitFor(() => expect(result.current.queue.status).toBe('idle'));
     expect(result.current.queue.source).toBeNull();
     expect(handle.getLatest()?.pause).toHaveBeenCalled();
   });
 
+  /**
+   * SDK error tests don't need play() to finish — they just need ensureSdk
+   * to register listeners on the fake player. Kick off play() without
+   * awaiting (it will hang on deviceReadyRef.promise), poll for the player
+   * to exist, emit the error. Catch + swallow on the orphaned promise so
+   * a late resolution (e.g. a stray ready emit during cleanup) doesn't
+   * surface as an unhandled rejection from spotifyApi.play.
+   */
+  async function ensureSdkBooted(
+    invoke: () => Promise<void>,
+    handle: { getLatest: () => FakeSpotifyPlayer | null },
+  ): Promise<void> {
+    await act(async () => {
+      invoke().catch(() => {
+        /* orphaned — error tests don't await play() */
+      });
+      for (let i = 0; i < 5; i += 1) {
+        await Promise.resolve();
+      }
+    });
+    await waitFor(() => expect(handle.getLatest()).not.toBeNull());
+  }
+
   it('SDK initialization_error sets sdk.error.kind=init', async () => {
     const handle = installSpotifySdkMock();
     const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
-    await act(async () => { await result.current.controls.play(); });
+    await ensureSdkBooted(() => result.current.controls.play(), handle);
     act(() => { handle.getLatest()?.__emit('initialization_error', { message: 'boom' }); });
     await waitFor(() => expect(result.current.sdk.error?.kind).toBe('init'));
   });
@@ -504,8 +560,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
   it('SDK playback_error sets queue.status=error and sdk.error.kind=playback', async () => {
     const handle = installSpotifySdkMock();
     const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
-    await act(async () => { await result.current.controls.play(); });
-    act(() => { handle.getLatest()?.__emit('ready', { device_id: 'd1' }); });
+    await playAndEmitReady(() => result.current.controls.play(), handle);
     act(() => { handle.getLatest()?.__emit('playback_error', { message: 'unavail' }); });
     await waitFor(() => expect(result.current.queue.status).toBe('error'));
     expect(result.current.sdk.error?.kind).toBe('playback');
@@ -522,7 +577,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
       </MemoryRouter>
     );
     const { result } = renderHook(() => usePlayback(), { wrapper });
-    await act(async () => { await result.current.controls.play(); });
+    await ensureSdkBooted(() => result.current.controls.play(), handle);
     act(() => { handle.getLatest()?.__emit('authentication_error', { message: 'expired' }); });
     await waitFor(() => expect(refreshSpy).toHaveBeenCalled());
   });
@@ -530,7 +585,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
   it('SDK account_error navigates to /auth/premium-required', async () => {
     const handle = installSpotifySdkMock();
     const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
-    await act(async () => { await result.current.controls.play(); });
+    await ensureSdkBooted(() => result.current.controls.play(), handle);
     act(() => { handle.getLatest()?.__emit('account_error', { message: 'free' }); });
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/auth/premium-required'));
   });

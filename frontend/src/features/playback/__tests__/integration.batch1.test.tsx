@@ -31,6 +31,45 @@ import {
 import { __resetSdkLoaderForTests } from '../lib/sdkLoader';
 import { renderApp } from '../../../test/renderApp';
 
+/**
+ * The PlayerCard center button has aria-label "Play" when state is idle/
+ * paused/buffering and "Pause" when state is playing. CurateCard no longer
+ * renders any Play button on F6. The PlayerCard button is therefore the
+ * unambiguous "Play" target — return the enabled match.
+ */
+function findPlayButton(): HTMLElement {
+  const candidates = screen.getAllByRole('button', { name: /^play$/i });
+  const enabled = candidates.find(
+    (el) => !(el as HTMLButtonElement).disabled,
+  );
+  if (!enabled) {
+    throw new Error('No enabled Play button found in current DOM');
+  }
+  return enabled;
+}
+
+/**
+ * Pre-warm helper: clicks the PlayerCard Play button to trigger
+ * togglePlayPause→play(), emits SDK 'ready' while the click handler is
+ * awaiting deviceReadyRef, then waits for the first /play call. Returns
+ * the latest fake player. After this, queue.cursor=0 and SDK is wired up.
+ */
+async function preWarm(
+  user: ReturnType<typeof userEvent.setup>,
+  handle: ReturnType<typeof installSpotifySdkMock>,
+  captures: { playCalls: Array<{ uris: string[] }> },
+): Promise<FakeSpotifyPlayer> {
+  const playBtn = findPlayButton();
+  const clickPromise = user.click(playBtn);
+  await waitFor(() => expect(handle.getLatest()).not.toBeNull());
+  await act(async () => {
+    emitReady(handle.getLatest());
+  });
+  await clickPromise;
+  await waitFor(() => expect(captures.playCalls.length).toBeGreaterThanOrEqual(1));
+  return handle.getLatest()!;
+}
+
 /* ---------- backend fixtures ---------- */
 
 interface FixtureTrack {
@@ -143,17 +182,16 @@ function emitReady(player: FakeSpotifyPlayer | null, deviceId = 'dev-1'): void {
 }
 
 /**
- * "Track t1" appears in both the PlayerCard title and the CurateCard title
- * (PlayerCard's track falls back to queue[cursor] before SDK player_state_changed
- * fires). Scope queries to the CurateCard test-id to disambiguate.
+ * F6: CurateCard only renders on mobile (and even there has no Play button).
+ * On desktop the PlayerCard absorbs the title — wait for any element with
+ * the track text inside the curate-session container. The earlier scope to
+ * data-testid="curate-card" no longer survives the desktop layout split.
  */
-function expectCurateCardTrack(title: string): HTMLElement {
-  const card = screen.getByTestId('curate-card');
-  return within(card).getByText(title);
-}
-
 async function waitForCurateCardTrack(title: string): Promise<void> {
-  await waitFor(() => expect(expectCurateCardTrack(title)).toBeInTheDocument());
+  await waitFor(() => {
+    const session = screen.getByTestId('curate-session');
+    expect(within(session).getByText(title)).toBeInTheDocument();
+  });
 }
 
 /* ---------- suite ---------- */
@@ -195,31 +233,25 @@ describe('F6 integration · batch 1', () => {
 
     await waitForCurateCardTrack('Track t1');
 
-    // CurateCard's onPlay invokes playback.controls.play(currentIndex). The
-    // PlayerCard's center button maps to togglePlayPause (SDK only, no Web API
-    // /play call). Scope to CurateCard's test-id to grab the right button.
-    const card = screen.getByTestId('curate-card');
-    const playButtons = within(card).getAllByRole('button', { name: /play/i });
-    // CurateCard's play button is the one labelled "playback.controls.play_aria"
-    // (resolved to "Play" by i18n). PlayerCard exposes the same aria. Click the
-    // first match — both routes ensureSdk, so any click suffices for scenario 1.
-    await user.click(playButtons[0]!);
+    // F6: CurateCard no longer has its own Play button; the PlayerCard's
+    // center button is the only Play affordance. With queue.status='idle' it
+    // routes togglePlayPause → play(), which now awaits deviceReadyRef.
+    // Click WITHOUT awaiting so we can emit `ready` while the click handler
+    // is still in flight.
+    const playBtn = findPlayButton();
+    const clickPromise = user.click(playBtn);
 
-    // ensureSdk creates a fake Player; emit ready to set deviceId.
+    // ensureSdk creates a fake Player; emit ready to resolve deviceReadyRef.
     await waitFor(() => expect(handle.getLatest()).not.toBeNull());
     await act(async () => {
       emitReady(handle.getLatest());
     });
-
-    // Now click play again — first call may have raced ensureSdk's
-    // deviceIdRef being null. With deviceId set, /play fires.
-    await user.click(playButtons[0]!);
+    await clickPromise;
 
     await waitFor(() => {
       expect(captures.playCalls.length).toBeGreaterThanOrEqual(1);
     });
-    // CurateCard's onPlay forwards `playback.controls.play(currentIndex=0)`,
-    // which queues spotify:track:spA (first track in fixture).
+    // togglePlayPause→play() (no idx) reads cursor=0 from queue → spA.
     const lastUris = captures.playCalls[captures.playCalls.length - 1]?.uris;
     expect(lastUris).toEqual(['spotify:track:spA']);
   });
@@ -249,17 +281,7 @@ describe('F6 integration · batch 1', () => {
 
     await waitForCurateCardTrack('Track t1');
 
-    // Pre-warm: ensureSdk + ready so subsequent play calls actually hit /play.
-    // CurateCard's onPlay invokes playback.controls.play(currentIndex). The
-    // PlayerCard's center button maps to togglePlayPause (SDK only, no Web API
-    // /play call). Scope to CurateCard's test-id to grab the right button.
-    const card = screen.getByTestId('curate-card');
-    const playButtons = within(card).getAllByRole('button', { name: /play/i });
-    await user.click(playButtons[0]!);
-    await waitFor(() => expect(handle.getLatest()).not.toBeNull());
-    await act(async () => emitReady(handle.getLatest()));
-    await user.click(playButtons[0]!);
-    await waitFor(() => expect(captures.playCalls.length).toBeGreaterThanOrEqual(1));
+    await preWarm(user, handle, captures);
     // Capture pre-advance state
     const beforeAdvanceCalls = captures.playCalls.length;
 
@@ -306,17 +328,7 @@ describe('F6 integration · batch 1', () => {
 
     await waitForCurateCardTrack('Track t1');
 
-    // Pre-warm
-    // CurateCard's onPlay invokes playback.controls.play(currentIndex). The
-    // PlayerCard's center button maps to togglePlayPause (SDK only, no Web API
-    // /play call). Scope to CurateCard's test-id to grab the right button.
-    const card = screen.getByTestId('curate-card');
-    const playButtons = within(card).getAllByRole('button', { name: /play/i });
-    await user.click(playButtons[0]!);
-    await waitFor(() => expect(handle.getLatest()).not.toBeNull());
-    await act(async () => emitReady(handle.getLatest()));
-    await user.click(playButtons[0]!);
-    await waitFor(() => expect(captures.playCalls.length).toBeGreaterThanOrEqual(1));
+    await preWarm(user, handle, captures);
     const beforeUndoCalls = captures.playCalls.length;
 
     // Assign + undo within window (no setTimeout pause between them).
@@ -363,17 +375,7 @@ describe('F6 integration · batch 1', () => {
 
     await waitForCurateCardTrack('Track t1');
 
-    // Pre-warm so deviceId is set when scheduleAdvance fires play().
-    // CurateCard's onPlay invokes playback.controls.play(currentIndex). The
-    // PlayerCard's center button maps to togglePlayPause (SDK only, no Web API
-    // /play call). Scope to CurateCard's test-id to grab the right button.
-    const card = screen.getByTestId('curate-card');
-    const playButtons = within(card).getAllByRole('button', { name: /play/i });
-    await user.click(playButtons[0]!);
-    await waitFor(() => expect(handle.getLatest()).not.toBeNull());
-    await act(async () => emitReady(handle.getLatest()));
-    await user.click(playButtons[0]!);
-    await waitFor(() => expect(captures.playCalls.length).toBeGreaterThanOrEqual(1));
+    await preWarm(user, handle, captures);
     const beforeAdvanceCalls = captures.playCalls.length;
 
     await user.keyboard('1');

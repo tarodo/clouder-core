@@ -16,26 +16,71 @@ import {
   CurateSessionPage,
 } from '../features/curate';
 
-vi.mock('../features/playback/usePlayback', () => ({
-  usePlayback: () => ({
-    queue: { source: null, tracks: [], cursor: 0, status: 'idle' as const },
-    track: { current: null, positionMs: 0, durationMs: 0 },
-    sdk: { ready: false, error: null },
-    controls: {
-      play: vi.fn(async () => {}),
-      pause: vi.fn(async () => {}),
-      togglePlayPause: vi.fn(async () => {}),
-      next: vi.fn(async () => {}),
-      prev: vi.fn(async () => {}),
-      seekMs: vi.fn(async () => {}),
-      seekPct: vi.fn(async () => {}),
-      bindQueue: vi.fn(),
-      clearQueue: vi.fn(),
-      cancelPendingAdvance: vi.fn(),
-      openSpotifyExternal: vi.fn(),
+// Stateful playback mock — `bindQueue` stores the bound tracks in a module-
+// level subscription store so all `usePlayback` callers in the same render
+// tree share the same queue. CurateSession's PlayerCard derives its title
+// via `playback.queue.tracks[playback.queue.cursor]?.title`; without this
+// the prior stateless mock left the title at '—'.
+//
+// Module-state-driven hooks need a subscription mechanism to trigger
+// re-renders; we cheat with React's `useSyncExternalStore` since that's
+// the canonical way to expose external mutable state to hooks.
+vi.mock('../features/playback/usePlayback', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+  const playbackState: {
+    tracks: readonly unknown[];
+    cursor: number;
+    listeners: Set<() => void>;
+  } = { tracks: [], cursor: 0, listeners: new Set() };
+  const subscribe = (cb: () => void) => {
+    playbackState.listeners.add(cb);
+    return () => playbackState.listeners.delete(cb);
+  };
+  const getSnapshot = () => playbackState.tracks;
+  const bindQueue = (args: {
+    tracks: readonly unknown[];
+    cursor: number;
+  }) => {
+    playbackState.tracks = args.tracks;
+    playbackState.cursor = args.cursor;
+    playbackState.listeners.forEach((cb) => cb());
+  };
+  return {
+    __resetPlaybackMock: () => {
+      playbackState.tracks = [];
+      playbackState.cursor = 0;
+      playbackState.listeners.forEach((cb) => cb());
     },
-  }),
-}));
+    usePlayback: () => {
+      // useSyncExternalStore re-renders when the snapshot changes; we
+      // additionally read cursor through it (subscribe is shared).
+      React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+      return {
+        queue: {
+          source: null,
+          tracks: playbackState.tracks,
+          cursor: playbackState.cursor,
+          status: 'idle' as const,
+        },
+        track: { current: null, positionMs: 0, durationMs: 0 },
+        sdk: { ready: false, error: null },
+        controls: {
+          play: vi.fn(async () => {}),
+          pause: vi.fn(async () => {}),
+          togglePlayPause: vi.fn(async () => {}),
+          next: vi.fn(async () => {}),
+          prev: vi.fn(async () => {}),
+          seekMs: vi.fn(async () => {}),
+          seekPct: vi.fn(async () => {}),
+          bindQueue,
+          clearQueue: vi.fn(),
+          cancelPendingAdvance: vi.fn(),
+          openSpotifyExternal: vi.fn(),
+        },
+      };
+    },
+  };
+});
 
 function makeClient() {
   return new QueryClient({
@@ -127,10 +172,16 @@ function renderApp(initial = '/curate/s1/b1/src') {
 }
 
 describe('Curate flow integration', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     tokenStore.set('TOK');
     localStorage.clear();
     server.use(...defaultHandlers());
+    // Reset the playback mock's module-level queue state between tests so
+    // a previous test's bindQueue call doesn't leak into the next render.
+    const mod = (await import('../features/playback/usePlayback')) as unknown as {
+      __resetPlaybackMock: () => void;
+    };
+    mod.__resetPlaybackMock();
   });
   afterEach(() => {
     localStorage.clear();

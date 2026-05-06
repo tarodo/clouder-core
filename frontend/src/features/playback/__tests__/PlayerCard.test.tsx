@@ -67,9 +67,14 @@ describe('PlayerCard', () => {
     expect(screen.getByText(/нет треков с Spotify match/i)).toBeInTheDocument();
   });
 
-  it('renders buffering state with Buffering badge', () => {
-    render(wrap(<PlayerCard {...baseProps} state="buffering" />));
-    expect(screen.getByText(/buffering/i)).toBeInTheDocument();
+  it('renders buffering state with Pause icon (no badge — F6 fix)', () => {
+    // F6 (commit 2b6a1b4) removed the visible "Buffering…" badge + Loader.
+    // The center button shows the Pause icon during buffering instead so the
+    // pause-button doesn't flash on auto-advance. Verify the data-state
+    // attribute survives + the center button reads as "Pause".
+    const { container } = render(wrap(<PlayerCard {...baseProps} state="buffering" />));
+    expect(container.querySelector('[data-state="buffering"]')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pause/i })).toBeInTheDocument();
   });
 
   it('renders paused with data-state attribute', () => {
