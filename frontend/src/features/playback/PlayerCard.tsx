@@ -51,6 +51,11 @@ export interface PlayerCardProps {
    * mobile breakpoints; PlayerCard itself stays layout-agnostic.
    */
   mobileSeekChips?: boolean;
+  /**
+   * Optional slot rendered below the subline and above metaRow. T17 passes
+   * <DeviceIndicator mode="full" ... /> here. When null/undefined, renders nothing.
+   */
+  deviceIndicator?: ReactNode;
   /** Spotify external open href; when set, renders an icon button at top-right. */
   spotifyHref?: string;
   /** Tooltip / aria text for the Spotify external icon. */
@@ -86,6 +91,7 @@ export function PlayerCard(props: PlayerCardProps) {
     showText = true,
     metaRow,
     mixName,
+    deviceIndicator,
     mobileSeekChips = false,
     spotifyHref,
     spotifyAriaLabel,
@@ -201,6 +207,7 @@ export function PlayerCard(props: PlayerCardProps) {
               </Text>
             ) : null}
             {subline}
+            {deviceIndicator}
             {metaRow}
           </Stack>
         ) : (

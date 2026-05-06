@@ -30,6 +30,7 @@ const baseProps = {
   variant: 'full' as const,
   track: sampleTrack,
   positionMs: 0,
+  deviceIndicator: null,
   onPlayPause: vi.fn(),
   onPrev: vi.fn(),
   onNext: vi.fn(),
