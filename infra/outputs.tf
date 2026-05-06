@@ -82,3 +82,18 @@ output "aurora_writer_endpoint" {
   description = "Aurora writer endpoint for direct SQL migrations"
   value       = aws_rds_cluster.aurora.endpoint
 }
+
+output "frontend_url" {
+  description = "CloudFront URL for the SPA"
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+}
+
+output "frontend_bucket" {
+  description = "S3 bucket holding the SPA bundle"
+  value       = aws_s3_bucket.frontend.bucket
+}
+
+output "frontend_distribution_id" {
+  description = "CloudFront distribution ID for invalidation"
+  value       = aws_cloudfront_distribution.frontend.id
+}
