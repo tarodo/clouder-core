@@ -22,6 +22,21 @@ import { findNextPlayable } from './lib/skipNullSpotifyId';
 import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
 import { spotifyApi } from './api/spotifyWebApi';
 import { useAuth } from '../../auth/useAuth';
+import type { SpotifyDevice } from './lib/deviceTypes';
+
+export interface DevicesSlice {
+  list: readonly SpotifyDevice[];
+  active: SpotifyDevice | null;
+  cloderTabId: string | null;
+  isLoading: boolean;
+  error: 'network' | 'auth' | null;
+  isOpen: boolean;
+  pickerAnchor: HTMLElement | null;
+  open: (anchor?: HTMLElement | null) => void;
+  close: () => void;
+  refresh: () => Promise<void>;
+  pick: (deviceId: string) => Promise<void>;
+}
 
 export interface PlaybackContextValue {
   queue: {
@@ -50,6 +65,7 @@ export interface PlaybackContextValue {
     openSpotifyExternal: (uri: string) => void;
     __schedulePendingAdvance?: (direction: 1 | -1, delayMs: number) => void;
   };
+  devices: DevicesSlice;
 }
 
 export const PlaybackContext = createContext<PlaybackContextValue | null>(null);
@@ -375,6 +391,53 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     playbackConfirmedRef.current = false;
   }, [cancelPendingAdvance]);
 
+  // --- Devices slice (stub — real logic lands in Tasks 6–9) ---
+  const [devicesList, setDevicesList] = useState<readonly SpotifyDevice[]>([]);
+  const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
+  const [cloderTabId, setCloderTabId] = useState<string | null>(null);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [devicesError, setDevicesError] = useState<'network' | 'auth' | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerAnchor, setPickerAnchor] = useState<HTMLElement | null>(null);
+
+  const activeDeviceIdRef = useRef<string | null>(null);
+  const cloderTabIdRef = useRef<string | null>(null);
+
+  const setActive = useCallback((deviceId: string | null) => {
+    activeDeviceIdRef.current = deviceId;
+    setActiveDeviceId(deviceId);
+  }, []);
+
+  const openPicker = useCallback((anchor?: HTMLElement | null) => {
+    setPickerAnchor(anchor ?? null);
+    setPickerOpen(true);
+  }, []);
+
+  const closePicker = useCallback(() => {
+    setPickerOpen(false);
+  }, []);
+
+  const refreshDevices = useCallback(async (): Promise<void> => {
+    // Stub — real implementation in Task 6.
+    // TODO(T6): wire setDevicesList, setDevicesLoading, setDevicesError, setActive, cloderTabIdRef, setCloderTabId
+    void setDevicesList;
+    void setDevicesLoading;
+    void setDevicesError;
+    void setActive;
+    void cloderTabIdRef;
+    void setCloderTabId;
+  }, []);
+
+  const pickDevice = useCallback(async (_deviceId: string): Promise<void> => {
+    // Stub — real implementation in Task 7.
+  }, []);
+
+  const activeDevice = useMemo(
+    () => devicesList.find((d) => d.id === activeDeviceId) ?? null,
+    [devicesList, activeDeviceId],
+  );
+  // --- End devices slice ---
+
   const value = useMemo<PlaybackContextValue>(
     () => ({
       queue,
@@ -400,6 +463,19 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
           );
         },
       },
+      devices: {
+        list: devicesList,
+        active: activeDevice,
+        cloderTabId,
+        isLoading: devicesLoading,
+        error: devicesError,
+        isOpen: pickerOpen,
+        pickerAnchor,
+        open: openPicker,
+        close: closePicker,
+        refresh: refreshDevices,
+        pick: pickDevice,
+      },
     }),
     [
       queue,
@@ -417,6 +493,17 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       clearQueue,
       cancelPendingAdvance,
       __schedulePendingAdvance,
+      devicesList,
+      activeDevice,
+      cloderTabId,
+      devicesLoading,
+      devicesError,
+      pickerOpen,
+      pickerAnchor,
+      openPicker,
+      closePicker,
+      refreshDevices,
+      pickDevice,
     ],
   );
 

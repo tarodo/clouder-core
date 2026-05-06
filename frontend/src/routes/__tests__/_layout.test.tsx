@@ -44,6 +44,19 @@ function makeIdlePlayback(): PlaybackContextValue {
       cancelPendingAdvance: vi.fn(),
       openSpotifyExternal: vi.fn(),
     },
+    devices: {
+      list: [],
+      active: null,
+      cloderTabId: null,
+      isLoading: false,
+      error: null,
+      isOpen: false,
+      pickerAnchor: null,
+      open: vi.fn(),
+      close: vi.fn(),
+      refresh: vi.fn().mockResolvedValue(undefined),
+      pick: vi.fn().mockResolvedValue(undefined),
+    },
   };
 }
 
