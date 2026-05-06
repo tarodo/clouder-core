@@ -315,6 +315,22 @@ The F5 cycle (brainstorm → spec → plan → 22 tasks via subagent-driven-deve
 
 ---
 
+## Lessons learned (post-F-deploy-1, 2026-05-06)
+
+65. **Local `terraform apply` will silently downgrade prod Lambdas to a stale `dist/collector.zip`.** A worktree starts with no zip; copying the main-repo's `dist/collector.zip` (8KB stub from Feb) made every subsequent `plan` show `9 to change` for `source_code_hash`. An unscoped `apply` would have replaced 9 prod Lambdas with the stub. **Workaround used:** `aws lambda get-function --function-name beatport-prod-auth-handler --query 'Code.Location' --output text` returns a presigned URL to download the actual deployed zip — that hash matches state, so `plan` shows only the env-var change. **Permanent fix idea:** add a `scripts/sync_lambda_zip_from_aws.sh` helper to do this in one step before any local `terraform plan`.
+
+66. **CloudFront `custom_error_response` is distribution-level, not per-behavior.** First iteration set `404 → 200 /index.html` to handle SPA deep-link fallback on the S3 origin. Side effect: every API GW behavior also got HTML 200 on backend 404 — `/me` unauth (which API GW returns as 404) responded with `index.html`, breaking `apiClient` JSON parsing. **Fix that landed:** an inline `aws_cloudfront_function` (cloudfront-js-2.0) attached as `viewer-request` only on the default S3 behavior. It rewrites any URI that is not `/`, `/index.html`, or `/assets/*` to `/index.html` BEFORE hitting S3 — so SPA fallback works without a 404 round-trip, and API GW errors propagate untouched. `custom_error_response` blocks are now intentionally absent. CF Functions are free up to 2M invocations/month.
+
+67. **API Gateway HTTP API ($default stage) routes by Host header; CloudFront forwards the viewer Host by default.** Using the managed origin-request policy `AllViewer` (`216adef6-...`) forwarded the CloudFront domain as Host to API GW, which then returned `403 ForbiddenException` (`x-amzn-errortype`) for every routed call. The fix is the managed `AllViewerExceptHostHeader` policy (`b689b0a8-53d0-40ab-baf2-68738e2966ac`) — keeps cookies, auth headers, and query strings flowing while letting API GW use its own origin domain for routing. Symptom in DevTools: `{"message":"Forbidden"}` with `x-cache: Error from cloudfront`.
+
+68. **`curl -sI` (HEAD) against API GW v2 returns 404 for routes defined as `GET`.** API Gateway v2 routes are method-specific — `GET /auth/login` does not match HEAD requests. Smoke-testing with `-sI` falsely confirmed the route was missing; switching to `-sD - -o /dev/null` (real GET, headers only) revealed the actual `302` redirect to Spotify. Use full GET when smoke-testing API behaviors via CloudFront.
+
+69. **Worktrees inherit no Terraform state, no `backend.hcl`, no `terraform.tfvars`, no `dist/collector.zip`.** All four are gitignored or untracked. To unblock local apply in a worktree: copy `backend.hcl` from the main repo, `terraform init -backend-config=backend.hcl`, reconstruct `terraform.tfvars` from `.github/workflows/deploy.yml` + `gh variable list --env production` (`SPOTIFY_OAUTH_REDIRECT_URI`, `ADMIN_SPOTIFY_IDS`, `ALLOWED_FRONTEND_REDIRECTS`), and pull a real Lambda zip per #65. This is the same one-time cost the main repo paid; consider a `scripts/init_worktree.sh` if more worktree-driven ops are coming.
+
+70. **`-target` is the right tool when local Lambda hash drift contaminates a frontend-only apply.** Terraform warns "Resource targeting is in effect ... not for routine use" — the warning is correct in the abstract but acceptable for this exact case. Tasks 5 and 9 in `docs/superpowers/plans/2026-05-06-staging-frontend-host.md` codify the targeted apply for frontend resources and for `aws_lambda_function.auth_handler` env-only updates. Avoid bare `apply` until a permanent zip-sync workflow lands.
+
+---
+
 ## Constraints to remember (carry into every new session)
 
 These are decisions that bind every future frontend ticket. Don't re-litigate them in a fresh session — they're locked.
