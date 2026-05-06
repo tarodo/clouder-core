@@ -150,6 +150,67 @@ describe('PlaybackProvider bootstrap silent restore', () => {
   });
 });
 
+describe('PlaybackProvider polling cadence', () => {
+  beforeEach(() => {
+    spotifyTokenStore.set('tok');
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    spotifyTokenStore.set(null);
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    delete (window as unknown as { Spotify?: unknown }).Spotify;
+  });
+
+  it('runs every 30s when picker closed, every 5s when open', async () => {
+    installFakeSdk('cloder-id');
+    const spy = vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue([
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ]);
+    vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    let captured: ReturnType<typeof usePlayback> | null = null;
+    render(wrap(<Probe onValue={(v) => { captured = v; }} />));
+    await act(async () => {
+      await captured!.controls.togglePlayPause();   // bootstrap getMyDevices: 1 call
+    });
+    await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+
+    // Picker closed: advance 30s -> +1 call
+    await act(async () => { vi.advanceTimersByTime(30_000); });
+    expect(spy).toHaveBeenCalledTimes(2);
+
+    // Open picker: 5s cadence
+    act(() => { captured!.devices.open(null); });
+    await act(async () => { vi.advanceTimersByTime(5_000); });
+    expect(spy).toHaveBeenCalledTimes(3);
+    await act(async () => { vi.advanceTimersByTime(5_000); });
+    expect(spy).toHaveBeenCalledTimes(4);
+
+    // Close picker: back to 30s
+    act(() => { captured!.devices.close(); });
+    await act(async () => { vi.advanceTimersByTime(5_000); });
+    expect(spy).toHaveBeenCalledTimes(4); // no new call
+    await act(async () => { vi.advanceTimersByTime(25_000); });
+    expect(spy).toHaveBeenCalledTimes(5);
+  });
+
+  it('focus event fires refresh', async () => {
+    installFakeSdk('cloder-id');
+    const spy = vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue([
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ]);
+    vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    let captured: ReturnType<typeof usePlayback> | null = null;
+    render(wrap(<Probe onValue={(v) => { captured = v; }} />));
+    await act(async () => {
+      await captured!.controls.togglePlayPause();
+    });
+    await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+    await act(async () => { window.dispatchEvent(new Event('focus')); });
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('PlaybackProvider.devices.pick', () => {
   beforeEach(() => {
     spotifyTokenStore.set('tok');

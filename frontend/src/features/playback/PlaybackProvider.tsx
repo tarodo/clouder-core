@@ -24,6 +24,7 @@ import { spotifyApi } from './api/spotifyWebApi';
 import { useAuth } from '../../auth/useAuth';
 import type { SpotifyDevice } from './lib/deviceTypes';
 import { lastDeviceStore } from './lib/lastDeviceStore';
+import { usePolling } from './lib/usePolling';
 
 export interface DevicesSlice {
   list: readonly SpotifyDevice[];
@@ -484,6 +485,13 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     () => devicesList.find((d) => d.id === activeDeviceId) ?? null,
     [devicesList, activeDeviceId],
   );
+
+  // Poll getMyDevices every 30s (picker closed) or 5s (picker open).
+  // Also fires on window 'focus' events (handled inside usePolling).
+  usePolling(refreshDevices, {
+    enabled: sdkReady,
+    intervalMs: pickerOpen ? 5000 : 30000,
+  });
   // --- End devices slice ---
 
   const value = useMemo<PlaybackContextValue>(
