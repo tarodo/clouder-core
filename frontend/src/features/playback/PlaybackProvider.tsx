@@ -415,18 +415,28 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
 
   const closePicker = useCallback(() => {
     setPickerOpen(false);
+    setPickerAnchor(null); // avoid stale HTMLElement ref
   }, []);
 
   const refreshDevices = useCallback(async (): Promise<void> => {
-    // Stub — real implementation in Task 6.
-    // TODO(T6): wire setDevicesList, setDevicesLoading, setDevicesError, setActive, cloderTabIdRef, setCloderTabId
-    void setDevicesList;
-    void setDevicesLoading;
-    void setDevicesError;
-    void setActive;
-    void cloderTabIdRef;
-    void setCloderTabId;
-  }, []);
+    setDevicesLoading(true);
+    try {
+      const list = await spotifyApi.getMyDevices({ onAuthExpired });
+      setDevicesList(list);
+      setDevicesError(null);
+      // Active-device-offline detection: if the active device disappeared
+      // from the new list, flip queue.status to 'disconnected'. The user
+      // recovers by opening the picker and choosing another device.
+      const activeId = activeDeviceIdRef.current;
+      if (activeId && !list.some((d) => d.id === activeId)) {
+        queueDispatch({ type: 'STATUS', status: 'disconnected' });
+      }
+    } catch {
+      setDevicesError('network');
+    } finally {
+      setDevicesLoading(false);
+    }
+  }, [onAuthExpired]);
 
   const pickDevice = useCallback(async (_deviceId: string): Promise<void> => {
     // Stub — real implementation in Task 7.
