@@ -1,6 +1,6 @@
 // frontend/src/features/playback/__tests__/integration.f7.test.tsx
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
@@ -163,4 +163,122 @@ describe('F7 integration · restore + open', () => {
     await user.click(screen.getByRole('button', { name: /Switch playback device/i }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
+});
+
+describe('F7 integration · pick + cadence', () => {
+  it('pick remote device happy path — closes picker, persists last_device', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn((q: string) => ({
+        matches: q.includes('min-width'), media: q, onchange: null,
+        addListener: vi.fn(), removeListener: vi.fn(),
+        addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+      })),
+    });
+    installFakeSdk('cloder-id');
+    // mockResolvedValue (no Once) covers all calls: bootstrap + picker-open eager refresh
+    vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue([
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+      { id: 'speaker', name: 'KitchenSpeaker', type: 'Speaker', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ]);
+    vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    const user = userEvent.setup();
+    render(wrap(<App />));
+    await user.click(screen.getByText('boot'));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('CLOUDER'));
+    await user.click(screen.getByRole('button', { name: /Switch playback device/i }));
+    await user.click(await screen.findByRole('button', { name: 'KitchenSpeaker' }));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('KitchenSpeaker'));
+    expect(window.localStorage.getItem('clouder.last_device_id')).toBe('speaker');
+  });
+
+  it('pick 404 — toast + auto-refresh + picker stays open', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn((q: string) => ({
+        matches: q.includes('min-width'), media: q, onchange: null,
+        addListener: vi.fn(), removeListener: vi.fn(),
+        addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+      })),
+    });
+    installFakeSdk('cloder-id');
+    const before = [
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+      { id: 'stale', name: 'StalePhone', type: 'Smartphone' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ];
+    const after = [before[0]!];
+    // 1st call: bootstrap; 2nd call: picker-open eager refresh (still shows StalePhone); 3rd call: post-404 auto-refresh (StalePhone gone)
+    vi.spyOn(spotifyApi, 'getMyDevices')
+      .mockResolvedValueOnce(before)
+      .mockResolvedValueOnce(before)
+      .mockResolvedValueOnce(after);
+    const transfer = vi.spyOn(spotifyApi, 'transferMyPlayback')
+      .mockResolvedValueOnce()                              // bootstrap
+      .mockRejectedValueOnce(new Error('spotify_api_404')); // user pick
+    const user = userEvent.setup();
+    render(wrap(<App />));
+    await user.click(screen.getByText('boot'));
+    await waitFor(() => expect(transfer).toHaveBeenCalled());
+    await user.click(screen.getByRole('button', { name: /Switch playback device/i }));
+    await user.click(await screen.findByRole('button', { name: 'StalePhone' }));
+    expect(await screen.findByText(/Device went offline/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'StalePhone' })).toBeNull());
+  });
+
+  it('disconnected → picker (active device leaves list)', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn((q: string) => ({
+        matches: q.includes('min-width'), media: q, onchange: null,
+        addListener: vi.fn(), removeListener: vi.fn(),
+        addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+      })),
+    });
+    installFakeSdk('cloder-id');
+    window.localStorage.setItem('clouder.last_device_id', 'speaker');
+    const before = [
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+      { id: 'speaker', name: 'KitchenSpeaker', type: 'Speaker' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ];
+    const after = [before[0]!]; // speaker dropped
+    const polls = vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValueOnce(before).mockResolvedValue(after);
+    vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    const user = userEvent.setup();
+    render(wrap(<App />));
+    await user.click(screen.getByText('boot'));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('KitchenSpeaker'));
+    // simulate next polling tick — easiest path: dispatch focus event to force refresh
+    await act(async () => { window.dispatchEvent(new Event('focus')); });
+    await waitFor(() => expect(polls).toHaveBeenCalledTimes(2));
+    // active is now null (speaker not in list); status flipped to disconnected
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('none'));
+  });
+
+  it('polling cadence — 5s when picker open', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn((q: string) => ({
+        matches: q.includes('min-width'), media: q, onchange: null,
+        addListener: vi.fn(), removeListener: vi.fn(),
+        addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+      })),
+    });
+    installFakeSdk('cloder-id');
+    const polls = vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue([
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ]);
+    vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    const user = userEvent.setup();
+    render(wrap(<App />));
+    await user.click(screen.getByText('boot'));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('CLOUDER'));
+    // Bootstrap poll landed (getMyDevices called once during bootstrap + once on picker open below)
+    await waitFor(() => expect(polls).toHaveBeenCalledTimes(1));
+    // Open picker → switches polling cadence to 5s; also triggers eager refresh
+    await user.click(screen.getByRole('button', { name: /Switch playback device/i }));
+    const callCountAfterPickerOpen = polls.mock.calls.length;
+    // Wait up to 8s for the 5s-cadence poll to fire
+    await waitFor(() => expect(polls.mock.calls.length).toBeGreaterThan(callCountAfterPickerOpen), { timeout: 8000 });
+    expect(polls).toHaveBeenCalledTimes(callCountAfterPickerOpen + 1);
+  }, 20_000);
 });
