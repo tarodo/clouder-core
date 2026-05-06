@@ -88,3 +88,79 @@ describe('F7 integration · cold start', () => {
     expect(window.localStorage.getItem('clouder.last_device_id')).toBeNull();
   });
 });
+
+describe('F7 integration · restore + open', () => {
+  it('last_device online — silent restore to that device', async () => {
+    installFakeSdk('cloder-id');
+    window.localStorage.setItem('clouder.last_device_id', 'iphone');
+    vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue([
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+      { id: 'iphone', name: 'iPhone', type: 'Smartphone', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ]);
+    const transfer = vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    const user = userEvent.setup();
+    render(wrap(<App />));
+    await user.click(screen.getByText('boot'));
+    await waitFor(() => expect(transfer).toHaveBeenCalledWith({ deviceId: 'iphone', play: false }, expect.any(Object)));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('iPhone'));
+    expect(window.localStorage.getItem('clouder.last_device_id')).toBe('iphone'); // unchanged
+  });
+
+  it('last_device offline — fallback CLOUDER; localStorage retained', async () => {
+    installFakeSdk('cloder-id');
+    window.localStorage.setItem('clouder.last_device_id', 'iphone');
+    vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue([
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ]);
+    const transfer = vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    const user = userEvent.setup();
+    render(wrap(<App />));
+    await user.click(screen.getByText('boot'));
+    await waitFor(() => expect(transfer).toHaveBeenCalledWith({ deviceId: 'cloder-id', play: false }, expect.any(Object)));
+    expect(window.localStorage.getItem('clouder.last_device_id')).toBe('iphone'); // unchanged
+  });
+
+  it('open picker desktop renders Popover with list', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn((q: string) => ({
+        matches: q.includes('min-width'), media: q, onchange: null,
+        addListener: vi.fn(), removeListener: vi.fn(),
+        addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+      })),
+    });
+    installFakeSdk('cloder-id');
+    vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue([
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ]);
+    vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    const user = userEvent.setup();
+    render(wrap(<App />));
+    await user.click(screen.getByText('boot'));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('CLOUDER'));
+    await user.click(screen.getByRole('button', { name: /Switch playback device/i }));
+    expect(await screen.findByRole('button', { name: 'CLOUDER' })).toBeInTheDocument();
+  });
+
+  it('open picker mobile renders Drawer dialog with list', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn((q: string) => ({
+        matches: q.includes('max-width'), media: q, onchange: null,
+        addListener: vi.fn(), removeListener: vi.fn(),
+        addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+      })),
+    });
+    installFakeSdk('cloder-id');
+    vi.spyOn(spotifyApi, 'getMyDevices').mockResolvedValue([
+      { id: 'cloder-id', name: 'CLOUDER', type: 'Computer', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ]);
+    vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    const user = userEvent.setup();
+    render(wrap(<App />));
+    await user.click(screen.getByText('boot'));
+    await waitFor(() => expect(screen.getByTestId('active').textContent).toBe('CLOUDER'));
+    await user.click(screen.getByRole('button', { name: /Switch playback device/i }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+});
