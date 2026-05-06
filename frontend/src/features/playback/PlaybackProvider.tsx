@@ -394,6 +394,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   // --- Devices slice (stub — real logic lands in Tasks 6–9) ---
   const [devicesList, setDevicesList] = useState<readonly SpotifyDevice[]>([]);
   const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [cloderTabId, setCloderTabId] = useState<string | null>(null);
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [devicesError, setDevicesError] = useState<'network' | 'auth' | null>(null);
@@ -401,8 +402,10 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   const [pickerAnchor, setPickerAnchor] = useState<HTMLElement | null>(null);
 
   const activeDeviceIdRef = useRef<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const cloderTabIdRef = useRef<string | null>(null);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setActive = useCallback((deviceId: string | null) => {
     activeDeviceIdRef.current = deviceId;
     setActiveDeviceId(deviceId);
