@@ -467,6 +467,10 @@
       "page_load_failed": "Could not load next page",
       "block_deleted": "Block was deleted"
     },
+    "toasts": {
+      "device_offline": "Device went offline",
+      "device_switch_failed": "Couldn't switch device"
+    },
     "track_row": {
       "open_in_spotify": "Open in Spotify",
       "no_spotify_match": "Нет Spotify match — слушай вручную"
