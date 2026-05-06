@@ -1,7 +1,7 @@
 // frontend/src/features/curate/components/CurateSession.tsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ActionIcon, Group, Stack, Text } from '@mantine/core';
+import { ActionIcon, Badge, Group, Stack, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { CurateCard } from './CurateCard';
@@ -37,8 +37,6 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
     overlayOpen,
     onAssign: session.assign,
     onUndo: session.undo,
-    onSkip: session.skip,
-    onPrev: session.prev,
     onOpenOverlay: () => setOverlayOpen(true),
     onCloseOverlay: () => setOverlayOpen(false),
     onExit: () => navigate(`/triage/${styleId}/${blockId}`),
@@ -148,6 +146,81 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         state={playerState}
         track={playerTrack}
         positionMs={playback.track.positionMs}
+        showText={!isMobile}
+        spotifyHref={
+          session.currentTrack.spotify_id
+            ? `https://open.spotify.com/track/${session.currentTrack.spotify_id}`
+            : undefined
+        }
+        spotifyAriaLabel={t('curate.card.open_in_spotify_aria', {
+          title: session.currentTrack.title,
+        })}
+        mixName={!isMobile ? session.currentTrack.mix_name : undefined}
+        metaRow={
+          !isMobile ? (
+            <Stack gap={2} mt={4}>
+              {session.currentTrack.is_ai_suspected && (
+                <Badge
+                  color="yellow"
+                  variant="light"
+                  size="sm"
+                  aria-label={t('curate.card.ai_badge_aria')}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  {t('curate.card.ai_badge')}
+                </Badge>
+              )}
+              <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
+                <Text size="sm" c="var(--color-fg-muted)">
+                  {t('curate.card.label_label')}:
+                </Text>
+                <Text
+                  size="sm"
+                  c="var(--color-fg-muted)"
+                  truncate
+                  style={{ flex: 1, minWidth: 0 }}
+                >
+                  {session.currentTrack.label_name ?? '—'}
+                </Text>
+              </Group>
+              <Group gap="md" wrap="wrap">
+                <Group gap={4} wrap="nowrap">
+                  <Text size="sm" c="var(--color-fg-muted)">
+                    {t('curate.card.bpm_label')}:
+                  </Text>
+                  <Text size="sm" c="var(--color-fg-muted)">
+                    {session.currentTrack.bpm ?? '—'}
+                  </Text>
+                </Group>
+                {session.currentTrack.length_ms != null && (
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="sm" c="var(--color-fg-muted)">
+                      {t('curate.card.length_label')}:
+                    </Text>
+                    <Text size="sm" c="var(--color-fg-muted)">
+                      {(() => {
+                        const total = Math.round((session.currentTrack.length_ms ?? 0) / 1000);
+                        const m = Math.floor(total / 60);
+                        const s = total % 60;
+                        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                      })()}
+                    </Text>
+                  </Group>
+                )}
+                <Group gap={4} wrap="nowrap">
+                  <Text size="sm" c="var(--color-fg-muted)">
+                    {t('curate.card.released_label')}:
+                  </Text>
+                  <Text size="sm" c="var(--color-fg-muted)">
+                    {session.currentTrack.spotify_release_date ??
+                      session.currentTrack.publish_date ??
+                      '—'}
+                  </Text>
+                </Group>
+              </Group>
+            </Stack>
+          ) : undefined
+        }
         onPlayPause={() => void playback.controls.togglePlayPause()}
         onPrev={() => void playback.controls.prev()}
         onNext={() => void playback.controls.next()}
@@ -157,10 +230,12 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         }}
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
       />
-      <CurateCard
-        track={session.currentTrack}
-        onPlay={() => void playback.controls.play(session.currentIndex)}
-      />
+      {isMobile && (
+        <CurateCard
+          track={session.currentTrack}
+          onPlay={() => void playback.controls.play(session.currentIndex)}
+        />
+      )}
       {/* Flex spacer pushes the destination strip to the bottom of the
           available height. When content overflows (tall card / cramped
           screen), the strip still scrolls naturally. */}

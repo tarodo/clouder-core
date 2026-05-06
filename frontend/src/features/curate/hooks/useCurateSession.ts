@@ -64,6 +64,9 @@ interface LastOp {
   input: MoveInput;
   snapshot: MoveSnapshot;
   trackIndex: number;
+  /** The actual track being assigned, captured pre-shrink. Used by undo to
+   *  play the restored track without depending on bindQueue rebind timing. */
+  track: BucketTrack;
 }
 
 interface State {
@@ -285,6 +288,23 @@ export function useCurateSession({
     });
   }, [bindQueue, blockId, bucketId, playbackTracks, state.currentIndex, queueLength]);
 
+  // Auto-play the first track when entering a NEW Curate bucket and SDK is
+  // already initialized (the user was listening before navigating). On the
+  // first-ever Curate visit per session, sdk.ready is false (lazy boot) so
+  // this no-ops — the user clicks play themselves. Tracked via ref so we
+  // fire only once per bucket (cursor changes / shrink etc. don't re-fire).
+  const sdkReady = playback.sdk.ready;
+  const autoPlayedBucketRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (autoPlayedBucketRef.current === bucketId) return;
+    if (!sdkReady) return;
+    if (queue.length === 0) return;
+    const first = queue[0];
+    if (!first?.spotify_id) return;
+    autoPlayedBucketRef.current = bucketId;
+    void playback.controls.play(0, toPlaybackTrack(first));
+  }, [bucketId, sdkReady, queue, playback.controls]);
+
   const cleanupTimers = useCallback(() => {
     if (pendingTimerRef.current !== null) {
       clearTimeout(pendingTimerRef.current);
@@ -409,7 +429,7 @@ export function useCurateSession({
         dispatch({
           type: 'ASSIGN_REPLACE_BEGIN',
           toBucketId,
-          lastOp: { input, snapshot, trackIndex: lastOp.trackIndex },
+          lastOp: { input, snapshot, trackIndex: lastOp.trackIndex, track: lastOp.track },
         });
         fireMutation(input);
         return;
@@ -427,7 +447,7 @@ export function useCurateSession({
       dispatch({
         type: 'ASSIGN_BEGIN',
         toBucketId,
-        lastOp: { input, snapshot, trackIndex: stateRef.current.currentIndex },
+        lastOp: { input, snapshot, trackIndex: stateRef.current.currentIndex, track },
       });
       fireMutation(input);
     },
@@ -465,6 +485,14 @@ export function useCurateSession({
     } else {
       void undoMoveDirect(qc, blockId, styleId, lastOp.input, lastOp.snapshot).catch(() => {});
       dispatch({ type: 'UNDO_AFTER' });
+      // Pending hold already fired — SDK is playing the post-shrink track.
+      // Pass the captured track directly via overrideTrack so play() doesn't
+      // depend on bindQueue rebind timing (it would otherwise read the stale
+      // post-shrink queue and play the wrong track).
+      const restored = toPlaybackTrack(lastOp.track);
+      setTimeout(() => {
+        void playRef.current(lastOp.trackIndex, restored);
+      }, 0);
     }
   }, [qc, blockId, styleId, playback.controls]);
 

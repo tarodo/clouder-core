@@ -1,4 +1,4 @@
-import { Paper, Group, Stack, Text, Title, ActionIcon, Loader, Anchor, Badge, Slider } from '@mantine/core';
+import { Paper, Group, Stack, Text, Title, ActionIcon, Anchor, Slider } from '@mantine/core';
 import {
   IconPlayerPlayFilled,
   IconPlayerPauseFilled,
@@ -6,7 +6,9 @@ import {
   IconWifiOff,
   IconPlayerSkipBackFilled,
   IconPlayerSkipForwardFilled,
+  IconExternalLink,
 } from '@tabler/icons-react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import classes from './PlayerCard.module.css';
 import type { PlaybackTrack } from './lib/types';
@@ -26,6 +28,26 @@ export interface PlayerCardProps {
   state: PlayerCardState;
   track: PlaybackTrack | null;
   positionMs: number;
+  /**
+   * If false, hides the title/subline Stack entirely. Used by mobile
+   * CurateSession to avoid duplicating CurateCard's metadata.
+   */
+  showText?: boolean;
+  /**
+   * Optional metadata row (BPM · key · label · length etc.) rendered below
+   * the subline on desktop. CurateSession passes a custom node so PlayerCard
+   * stays unaware of the BucketTrack shape.
+   */
+  metaRow?: ReactNode;
+  /**
+   * Optional mix name (e.g. "Original Mix", "Extended"), rendered between
+   * Title and the artists subline. CurateSession passes BucketTrack.mix_name.
+   */
+  mixName?: string | null;
+  /** Spotify external open href; when set, renders an icon button at top-right. */
+  spotifyHref?: string;
+  /** Tooltip / aria text for the Spotify external icon. */
+  spotifyAriaLabel?: string;
   onPlayPause: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -37,7 +59,8 @@ export interface PlayerCardProps {
 const SCRUB_OPACITY: Record<PlayerCardState, number> = {
   idle: 1.0,
   playing: 1.0,
-  buffering: 0.4,
+  // Treat transient buffering same as playing — no flicker on auto-advance.
+  buffering: 1.0,
   paused: 0.6,
   error: 0.4,
   disconnected: 0.3,
@@ -51,6 +74,11 @@ export function PlayerCard(props: PlayerCardProps) {
     state,
     track,
     positionMs,
+    showText = true,
+    metaRow,
+    mixName,
+    spotifyHref,
+    spotifyAriaLabel,
     onPlayPause,
     onPrev,
     onNext,
@@ -60,14 +88,14 @@ export function PlayerCard(props: PlayerCardProps) {
   } = props;
 
   const isMini = variant === 'mini';
-  const showAsLoader = state === 'buffering';
+  // No Loader during transient `buffering`/`loading` — pause-button flashes
+  // were distracting on auto-advance. Pause/Play icon is enough; the SDK
+  // converges back to a stable state in milliseconds.
   const showAsAlert = state === 'error';
   const showAsWifiOff = state === 'disconnected' || state === 'empty-bucket';
-  const showAsPause = state === 'playing';
+  const showAsPause = state === 'playing' || state === 'buffering';
 
-  const centerIcon = showAsLoader ? (
-    <Loader size={20} />
-  ) : showAsAlert ? (
+  const centerIcon = showAsAlert ? (
     <IconAlertCircle style={{ color: 'var(--color-danger)' }} />
   ) : showAsWifiOff ? (
     <IconWifiOff style={{ color: 'var(--color-fg-muted)' }} />
@@ -77,8 +105,9 @@ export function PlayerCard(props: PlayerCardProps) {
     <IconPlayerPlayFilled />
   );
 
-  const centerAriaLabel =
-    state === 'playing' ? t('playback.controls.pause_aria') : t('playback.controls.play_aria');
+  const centerAriaLabel = showAsPause
+    ? t('playback.controls.pause_aria')
+    : t('playback.controls.play_aria');
 
   const subline =
     state === 'error' ? (
@@ -101,15 +130,6 @@ export function PlayerCard(props: PlayerCardProps) {
       <Text size="sm" c="dimmed">
         {t('playback.empty_bucket_body')}
       </Text>
-    ) : state === 'buffering' ? (
-      <Group gap={6} wrap="nowrap">
-        <Text size="sm" c="dimmed" truncate>
-          {track?.artists ?? ''}
-        </Text>
-        <Badge size="xs" variant="light" ff="monospace">
-          {t('playback.buffering')}
-        </Badge>
-      </Group>
     ) : (
       <Text size="sm" c="dimmed" truncate>
         {track?.artists ?? ''}
@@ -128,7 +148,23 @@ export function PlayerCard(props: PlayerCardProps) {
       p={isMini ? 'sm' : 'lg'}
       radius="md"
       withBorder={isMini}
+      style={{ position: 'relative' }}
     >
+      {!isMini && spotifyHref ? (
+        <ActionIcon
+          component="a"
+          href={spotifyHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          variant="subtle"
+          radius="xl"
+          size="md"
+          aria-label={spotifyAriaLabel ?? 'Open in Spotify'}
+          style={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}
+        >
+          <IconExternalLink size={16} />
+        </ActionIcon>
+      ) : null}
       <Group align="center" gap="lg" wrap="nowrap">
         <div className={classes.cover} data-mini={isMini || undefined}>
           {track?.cover_url ? (
@@ -136,22 +172,29 @@ export function PlayerCard(props: PlayerCardProps) {
           ) : null}
         </div>
 
-        <Stack gap={4} flex={1} miw={0}>
-          <Text size="xs" tt="uppercase" c="dimmed" ff="monospace">
-            {t('playback.now_playing')}
-          </Text>
-          <Title
-            order={isMini ? 5 : 3}
-            style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {track?.title ?? '—'}
-          </Title>
-          {subline}
-        </Stack>
+        {showText ? (
+          <Stack gap={4} flex={1} miw={0}>
+            <Title
+              order={isMini ? 5 : 3}
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {track?.title ?? '—'}
+            </Title>
+            {mixName ? (
+              <Text size="sm" c="var(--color-fg-muted)" truncate>
+                {mixName}
+              </Text>
+            ) : null}
+            {subline}
+            {metaRow}
+          </Stack>
+        ) : (
+          <div style={{ flex: 1 }} />
+        )}
 
         {!isMini ? (
           <ActionIcon
