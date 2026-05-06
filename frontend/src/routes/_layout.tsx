@@ -13,6 +13,7 @@ import {
 import { UserMenu } from '../components/UserMenu';
 import { PlaybackProvider } from '../features/playback/PlaybackProvider';
 import { MiniBar } from '../features/playback/MiniBar';
+import { DevicePickerSurface } from '../features/playback/DevicePickerSurface';
 import { LeaveContextDialog } from '../features/playback/LeaveContextDialog';
 import { usePlayback } from '../features/playback/usePlayback';
 import { hasPlayerCard } from '../features/playback/routeContext';
@@ -162,6 +163,7 @@ export function PlaybackChrome() {
         currentPath={location.pathname}
         onConfirm={() => playback.controls.clearQueue()}
       />
+      <DevicePickerSurface />
     </>
   );
 }
