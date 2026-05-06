@@ -319,17 +319,38 @@ EOF
 
 **Files:** none modified (state change only).
 
-- [ ] **Step 1: Confirm plan one last time**
+**Important: use `-target` flags to scope the apply to frontend resources only.** A bare `terraform apply` from a local worktree will trigger 9 Lambda updates because `dist/collector.zip` rebuilt locally always hashes differently from the CI-built zip in prod. We are not deploying backend code with this ticket — keep Lambdas untouched. Add a target flag for each of the 5 new resources.
 
-Run: `cd infra && terraform plan`
-Expected: `Plan: 5 to add, 0 to change, 0 to destroy.` exactly. Anything else = stop and ask.
+- [ ] **Step 1: Targeted plan**
 
-- [ ] **Step 2: Apply**
+Run:
+```bash
+cd infra
+terraform plan -no-color \
+  -target=aws_s3_bucket.frontend \
+  -target=aws_s3_bucket_public_access_block.frontend \
+  -target=aws_cloudfront_origin_access_control.frontend \
+  -target=aws_s3_bucket_policy.frontend \
+  -target=aws_cloudfront_distribution.frontend \
+  | tail -20
+```
+Expected: `Plan: 5 to add, 0 to change, 0 to destroy.` plus the standard `Warning: Resource targeting is in effect` (expected — we are scoping deliberately).
 
-Run: `cd infra && terraform apply -auto-approve`
+- [ ] **Step 2: Targeted apply**
+
+Run:
+```bash
+cd infra
+terraform apply -auto-approve \
+  -target=aws_s3_bucket.frontend \
+  -target=aws_s3_bucket_public_access_block.frontend \
+  -target=aws_cloudfront_origin_access_control.frontend \
+  -target=aws_s3_bucket_policy.frontend \
+  -target=aws_cloudfront_distribution.frontend
+```
 Expected: Runs ~10 minutes. The bucket + policy + OAC complete fast (~30s); the `aws_cloudfront_distribution.frontend: Still creating...` lines repeat for ~5-15 min until `Apply complete!`.
 
-If the apply errors midway, do NOT re-run blindly: investigate, fix, then `terraform apply` again (Terraform tracks partial state).
+If the apply errors midway, do NOT re-run blindly: investigate, fix, then re-run `terraform apply` with the same `-target` flags (Terraform tracks partial state).
 
 - [ ] **Step 3: Capture the CloudFront URL**
 
@@ -504,10 +525,10 @@ Expected: `Plan: 0 to add, 1 to change, 0 to destroy.` and exactly one `~ ... wi
 
 To confirm the resource name in `infra/auth.tf`: `grep -n "aws_lambda_function" infra/auth.tf | head -3`.
 
-- [ ] **Step 4: Apply**
+- [ ] **Step 4: Targeted apply**
 
-Run: `cd infra && terraform apply -auto-approve`
-Expected: completes in <30s (Lambda env update is fast).
+Run: `cd infra && terraform apply -auto-approve -target=aws_lambda_function.auth_handler`
+Expected: completes in <30s (Lambda env update is fast). The `-target` flag keeps the apply from picking up unrelated Lambda hash drift (see Task 5 note).
 
 - [ ] **Step 5: Note known dev-flow regression**
 
