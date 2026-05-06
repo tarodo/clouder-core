@@ -1,4 +1,5 @@
 import { spotifyTokenStore } from '../../../auth/spotifyTokenStore';
+import type { SpotifyDevice } from '../lib/deviceTypes';
 
 const BASE = 'https://api.spotify.com';
 
@@ -74,5 +75,10 @@ export const spotifyApi = {
   async seek(args: SeekArgs, opts: CallOptions = {}): Promise<void> {
     const path = `/v1/me/player/seek?position_ms=${args.positionMs}&device_id=${encodeURIComponent(args.deviceId)}`;
     await call('PUT', path, null, opts);
+  },
+  async getMyDevices(opts: CallOptions = {}): Promise<SpotifyDevice[]> {
+    const res = await call('GET', '/v1/me/player/devices', null, opts);
+    const json = (await res.json()) as { devices?: SpotifyDevice[] };
+    return json.devices ?? [];
   },
 };

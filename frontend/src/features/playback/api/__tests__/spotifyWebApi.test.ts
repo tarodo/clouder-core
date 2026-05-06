@@ -3,6 +3,7 @@ import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import { spotifyTokenStore } from '../../../../auth/spotifyTokenStore';
 import { spotifyApi } from '../spotifyWebApi';
+import type { SpotifyDevice } from '../../lib/deviceTypes';
 
 const server = setupServer();
 
@@ -91,5 +92,63 @@ describe('spotifyWebApi', () => {
     await spotifyApi.seek({ positionMs: 12345, deviceId: 'dev1' });
     expect(captured.url?.searchParams.get('position_ms')).toBe('12345');
     expect(captured.url?.searchParams.get('device_id')).toBe('dev1');
+  });
+});
+
+describe('spotifyApi.getMyDevices', () => {
+  const fetchMock = vi.fn();
+  beforeEach(() => {
+    spotifyTokenStore.set('token-1');
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockReset();
+  });
+  afterEach(() => {
+    spotifyTokenStore.set(null);
+    vi.unstubAllGlobals();
+  });
+
+  it('returns devices on 200', async () => {
+    const devices: SpotifyDevice[] = [{ id: 'd1', name: 'Laptop', type: 'Computer', is_active: true, is_private_session: false, is_restricted: false, volume_percent: 60 }];
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ devices }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    );
+    const result = await spotifyApi.getMyDevices();
+    expect(result).toEqual(devices);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('https://api.spotify.com/v1/me/player/devices');
+    expect((init as RequestInit).method).toBe('GET');
+    expect(((init as RequestInit).headers as Record<string, string>).Authorization).toBe('Bearer token-1');
+  });
+
+  it('retries once on 401 if onAuthExpired returns true', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response('', { status: 401 }))
+      .mockImplementationOnce(async () => {
+        // simulate token rotated by AuthProvider
+        spotifyTokenStore.set('token-2');
+        return new Response(JSON.stringify({ devices: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      });
+    const onAuthExpired = vi.fn(async () => true);
+    const result = await spotifyApi.getMyDevices({ onAuthExpired });
+    expect(result).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(onAuthExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws on 500', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
+    await expect(spotifyApi.getMyDevices()).rejects.toThrow(/spotify_api_500/);
+  });
+
+  it('returns [] when devices field is missing', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    );
+    const result = await spotifyApi.getMyDevices();
+    expect(result).toEqual([]);
   });
 });
