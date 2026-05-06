@@ -282,9 +282,10 @@ Make executable: `chmod +x scripts/deploy_frontend.sh`.
 After CloudFront URL is known (from `terraform output -raw frontend_url`):
 
 - `spotify_oauth_redirect_uri = "https://<cf-domain>/auth/return"`
-- `allowed_frontend_redirects = "https://<cf-domain>/auth/return,http://127.0.0.1:5173/auth/return"`
 
 Re-run `terraform apply` to push to the auth Lambda env.
+
+**Note:** `allowed_frontend_redirects` is unrelated — it's the exact-match allow-list of relative SPA paths accepted as the optional `?redirect_uri=` query param on `/auth/login` (see `src/collector/auth/auth_settings.py:23`). It does NOT contain the OAuth callback URL and does not need updating for this deploy.
 
 ### 5. Spotify Developer Dashboard (manual)
 
