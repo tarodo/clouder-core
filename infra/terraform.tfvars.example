@@ -25,9 +25,11 @@ spotify_client_secret_ssm_parameter = "/clouder/spotify/client_secret"
 
 # ── Spec-A user auth ───────────────────────────────────────────────
 admin_spotify_ids                    = "your_spotify_id_here"
-# Dev: Vite SPA on localhost. Spotify Developer Dashboard whitelist must
-# include this exact URL. Production value lives in tfvars (not committed)
-# and lands with the CloudFront deploy ticket.
+# Dev: Vite SPA on localhost — Spotify Developer Dashboard must whitelist
+# this exact URL.
+# Prod: leave empty (or comment the line out) — auth.tf coalesces to
+# https://<cloudfront-domain>/auth/return, which must ALSO be added to
+# the Spotify Developer Dashboard Redirect URIs allow-list (manual step).
 spotify_oauth_redirect_uri           = "http://localhost:5173/auth/return"
 allowed_frontend_redirects           = "/, /dashboard"
 

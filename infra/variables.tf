@@ -406,8 +406,9 @@ variable "admin_spotify_ids" {
 }
 
 variable "spotify_oauth_redirect_uri" {
-  description = "Full URL Spotify redirects to after consent (must be registered in the Spotify Developer Dashboard)"
+  description = "Full URL Spotify redirects to after consent (must be registered in the Spotify Developer Dashboard). Leave empty to derive from the CloudFront distribution domain (https://<cf-domain>/auth/return)."
   type        = string
+  default     = ""
 }
 
 variable "jwt_signing_key_ssm_parameter" {

@@ -59,7 +59,7 @@ resource "aws_lambda_function" "auth_handler" {
       JWT_SIGNING_KEY_SSM_PARAMETER             = var.jwt_signing_key_ssm_parameter
       SPOTIFY_OAUTH_CLIENT_ID_SSM_PARAMETER     = var.spotify_client_id_ssm_parameter
       SPOTIFY_OAUTH_CLIENT_SECRET_SSM_PARAMETER = var.spotify_client_secret_ssm_parameter
-      SPOTIFY_OAUTH_REDIRECT_URI                = var.spotify_oauth_redirect_uri
+      SPOTIFY_OAUTH_REDIRECT_URI                = coalesce(var.spotify_oauth_redirect_uri, "https://${aws_cloudfront_distribution.frontend.domain_name}/auth/return")
       ALLOWED_FRONTEND_REDIRECTS                = var.allowed_frontend_redirects
       ADMIN_SPOTIFY_IDS                         = var.admin_spotify_ids
       JWT_ACCESS_TOKEN_TTL_SECONDS              = tostring(var.jwt_access_token_ttl_seconds)
