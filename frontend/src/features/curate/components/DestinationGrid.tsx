@@ -75,6 +75,7 @@ export function DestinationGrid({
         hotkeyHint={isMobile ? null : hotkeyHint}
         justTapped={lastTappedBucketId === bucket.id}
         disabled={isSelf}
+        compact={isMobile}
         onClick={() => onAssign(bucket.id)}
       />
     );
@@ -104,6 +105,7 @@ export function DestinationGrid({
                     hotkeyHint={null}
                     justTapped={false}
                     disabled={false}
+                    compact={isMobile}
                     onClick={() => {}}
                   />
                 </Menu.Target>

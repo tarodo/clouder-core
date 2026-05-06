@@ -11,6 +11,8 @@ export interface DestinationButtonProps {
   hotkeyHint: string | null;
   justTapped: boolean;
   disabled: boolean;
+  /** When true, renders a tighter layout for mobile (smaller height + padding + font). */
+  compact?: boolean;
   onClick: () => void;
 }
 
@@ -19,6 +21,7 @@ export function DestinationButton({
   hotkeyHint,
   justTapped,
   disabled,
+  compact = false,
   onClick,
 }: DestinationButtonProps) {
   const { t } = useTranslation();
@@ -39,6 +42,7 @@ export function DestinationButton({
       className={classes.button}
       data-just-tapped={justTapped ? 'true' : 'false'}
       data-disabled={disabled ? 'true' : 'false'}
+      data-compact={compact ? 'true' : 'false'}
       aria-label={t('curate.destination.assign_aria', { label })}
       title={title}
     >
@@ -46,8 +50,8 @@ export function DestinationButton({
         justify={hotkeyHint === null ? 'center' : 'space-between'}
         gap="sm"
         wrap="nowrap"
-        px="md"
-        py="xs"
+        px={compact ? 'sm' : 'md'}
+        py={compact ? 4 : 'xs'}
       >
         <span className={classes.label} data-centered={hotkeyHint === null ? 'true' : 'false'}>
           {label}
