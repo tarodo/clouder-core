@@ -31,6 +31,7 @@ describe('PlaybackProvider.devices.refresh', () => {
   });
   afterEach(() => {
     spotifyTokenStore.set(null);
+    window.localStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -56,6 +57,28 @@ describe('PlaybackProvider.devices.refresh', () => {
       await captured!.devices.refresh();
     });
     await waitFor(() => expect(captured!.devices.error).toBe('network'));
+  });
+
+  it('flips queue.status to disconnected when active device leaves the list', async () => {
+    const initial = [
+      { id: 'cloder', name: 'CLOUDER', type: 'Computer' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+      { id: 'speaker', name: 'KitchenSpeaker', type: 'Speaker' as const, is_active: false, is_private_session: false, is_restricted: false, volume_percent: null },
+    ];
+    const after = [initial[0]!]; // speaker dropped
+    vi.spyOn(spotifyApi, 'getMyDevices')
+      .mockResolvedValueOnce(initial)
+      .mockResolvedValueOnce(after);
+    vi.spyOn(spotifyApi, 'transferMyPlayback').mockResolvedValue();
+    let captured: ReturnType<typeof usePlayback> | null = null;
+    render(wrap(<Probe onValue={(v) => { captured = v; }} />));
+    // First refresh + pick speaker as active
+    await act(async () => { await captured!.devices.refresh(); });
+    await act(async () => { await captured!.devices.pick('speaker'); });
+    expect(captured!.devices.active?.id).toBe('speaker');
+    // Second refresh returns list without speaker → status flips
+    await act(async () => { await captured!.devices.refresh(); });
+    await waitFor(() => expect(captured!.queue.status).toBe('disconnected'));
+    expect(captured!.devices.active).toBeNull();
   });
 });
 
