@@ -40,3 +40,101 @@ data "aws_iam_policy_document" "frontend_bucket" {
     }
   }
 }
+
+locals {
+  # Order matters: CloudFront evaluates ordered_cache_behavior top-down on first match.
+  # `/auth/return` is an SPA route — must NOT be in this list (falls through to S3 default).
+  # Mirror of frontend/vite.config.ts BACKEND_ONLY_PREFIXES + SPA_AWARE_PREFIXES (14 patterns).
+  api_gw_path_patterns = [
+    "/auth/login",
+    "/auth/callback",
+    "/auth/refresh",
+    "/auth/logout",
+    "/me",
+    "/styles*",
+    "/tracks*",
+    "/artists*",
+    "/labels*",
+    "/albums*",
+    "/runs*",
+    "/collect_bp_releases",
+    "/categories*",
+    "/triage*",
+  ]
+  # API GW $default stage has no URL path prefix — strip the protocol only.
+  api_gw_host = replace(aws_apigatewayv2_api.collector.api_endpoint, "https://", "")
+}
+
+resource "aws_cloudfront_distribution" "frontend" {
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "${local.name_prefix} SPA"
+  default_root_object = "index.html"
+  price_class         = "PriceClass_100"
+
+  origin {
+    origin_id                = "s3-frontend"
+    domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+  }
+
+  origin {
+    origin_id   = "api-gw"
+    domain_name = local.api_gw_host
+    # No origin_path: $default stage = no URL path prefix.
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  default_cache_behavior {
+    target_origin_id       = "s3-frontend"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+    cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
+  }
+
+  dynamic "ordered_cache_behavior" {
+    for_each = local.api_gw_path_patterns
+    content {
+      path_pattern             = ordered_cache_behavior.value
+      target_origin_id         = "api-gw"
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD"]
+      compress                 = true
+      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+      origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # AllViewer
+    }
+  }
+
+  custom_error_response {
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 0
+  }
+
+  custom_error_response {
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 0
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+    minimum_protocol_version       = "TLSv1.2_2021"
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+}
