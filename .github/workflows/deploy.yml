@@ -110,3 +110,19 @@ jobs:
           if isinstance(response, dict) and response.get("status") != "ok":
               sys.exit("Migration Lambda returned non-ok status")
           PY
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Deploy frontend (S3 + CloudFront)
+        working-directory: .
+        run: scripts/deploy_frontend.sh
