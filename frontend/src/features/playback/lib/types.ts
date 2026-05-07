@@ -5,7 +5,8 @@ export type QueueStatus =
   | 'paused'
   | 'buffering'
   | 'ended'
-  | 'error';
+  | 'error'
+  | 'disconnected';
 
 export type SdkErrorKind =
   | 'init'

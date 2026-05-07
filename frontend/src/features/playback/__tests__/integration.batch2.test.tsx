@@ -126,6 +126,12 @@ function installHandlers(
       return HttpResponse.json({ moved: 1, correlation_id: `cid-${captures.moveCalls}` });
     }),
     // ---- Spotify Web API ----
+    // F7: SDK ready handler now calls getMyDevices before transferMyPlayback.
+    // Stub the devices endpoint so the bootstrap completes without an MSW
+    // unhandled-request error.
+    http.get('https://api.spotify.com/v1/me/player/devices', () =>
+      HttpResponse.json({ devices: [{ id: 'dev-1', name: 'CLOUDER', type: 'Computer', is_active: false, is_private_session: false, is_restricted: false, volume_percent: null }] }),
+    ),
     http.put('https://api.spotify.com/v1/me/player', () => {
       captures.transferCalls += 1;
       return HttpResponse.json({}, { status: 204 });

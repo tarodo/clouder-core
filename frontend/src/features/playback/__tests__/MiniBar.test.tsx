@@ -126,4 +126,20 @@ describe('MiniBar', () => {
     );
     expect(screen.getByRole('button', { name: /^play$/i })).toBeInTheDocument();
   });
+
+  it('renders deviceIndicator slot', () => {
+    render(
+      wrap(
+        <MiniBar
+          track={t}
+          state="playing"
+          sourceHref="/curate/s/b/u"
+          onPlayPause={vi.fn()}
+          onClose={vi.fn()}
+          deviceIndicator={<span data-testid="indicator">x</span>}
+        />,
+      ),
+    );
+    expect(screen.getByTestId('indicator')).toBeInTheDocument();
+  });
 });

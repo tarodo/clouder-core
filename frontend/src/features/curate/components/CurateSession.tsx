@@ -17,6 +17,7 @@ import { bucketLabel, type TriageBucket } from '../../triage/lib/bucketLabels';
 import { usePlayback } from '../../playback/usePlayback';
 import { usePlaybackHotkeys } from '../../playback/usePlaybackHotkeys';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
+import { DeviceIndicator } from '../../playback/DeviceIndicator';
 
 export interface CurateSessionProps {
   styleId: string;
@@ -226,9 +227,15 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         onPrev={() => void playback.controls.prev()}
         onNext={() => void playback.controls.next()}
         onRetry={() => void playback.controls.play()}
-        onOpenDevicePicker={() => {
-          /* F7 */
-        }}
+        deviceIndicator={
+          <DeviceIndicator
+            mode="full"
+            active={playback.devices.active}
+            cloderTabId={playback.devices.cloderTabId}
+            onOpen={(anchor) => playback.devices.open(anchor)}
+          />
+        }
+        onOpenDevicePicker={() => playback.devices.open(null)}
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
       />
       {isMobile && (

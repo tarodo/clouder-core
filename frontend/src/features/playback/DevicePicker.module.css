@@ -1,0 +1,38 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  width: 100%;
+  padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.row:hover {
+  background: var(--mantine-color-gray-1);
+}
+.rowActive {
+  background: var(--mantine-color-gray-1);
+}
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-bg-elevated, var(--mantine-color-gray-0));
+  border: 1px solid var(--color-border, var(--mantine-color-gray-3));
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 160px;
+}
+.indicator span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.indicatorCompact {
+  max-width: 80px;
+  padding: 2px 6px;
+}
