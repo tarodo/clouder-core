@@ -170,28 +170,34 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         cloderTabIdRef.current = device_id;
         setCloderTabId(device_id);
         setSdkReady(true);
-        // Bootstrap restore: refresh devices, then transfer to last_device if
-        // online, else to CLOUDER tab. Resolves deviceReadyRef AFTER the
-        // transfer completes so play() callers wait for the right device.
+        // SYNC: assign CLOUDER tab as active immediately and resolve
+        // deviceReadyRef so play() called from a user-click doesn't await.
+        // Awaiting any bootstrap work here breaks Spotify SDK's
+        // activateElement() user-activation chain — audio stays locked and
+        // SDK fires playback_error.
+        setActive(device_id);
+        void spotifyApi
+          .transferMyPlayback({ deviceId: device_id, play: false }, { onAuthExpired })
+          .catch(() => {
+            // ignore — async restore below or SDK state events will surface real errors.
+          });
+        deviceReadyRef.current?.resolve();
+
+        // ASYNC: silent restore — if last_device_id is saved AND online,
+        // transfer playback to it. Runs after the sync path so play() never
+        // waits for it. Failure is silent — we already on CLOUDER tab.
         void (async () => {
           try {
             const list = await spotifyApi.getMyDevices({ onAuthExpired });
             setDevicesList(list);
             setDevicesError(null);
             const last = lastDeviceStore.get();
-            const targetId = last && list.some((d) => d.id === last) ? last : device_id;
-            await spotifyApi.transferMyPlayback({ deviceId: targetId, play: false }, { onAuthExpired });
-            setActive(targetId);
-          } catch {
-            // Network blip on first poll: fall back silently to CLOUDER tab.
-            try {
-              await spotifyApi.transferMyPlayback({ deviceId: device_id, play: false }, { onAuthExpired });
-            } catch {
-              // ignore — sdk listener will surface SDK-level errors via state events.
+            if (last && last !== device_id && list.some((d) => d.id === last)) {
+              await spotifyApi.transferMyPlayback({ deviceId: last, play: false }, { onAuthExpired });
+              setActive(last);
             }
-            setActive(device_id);
-          } finally {
-            deviceReadyRef.current?.resolve();
+          } catch {
+            // ignore — already on CLOUDER tab as fallback.
           }
         })();
       });
