@@ -217,22 +217,31 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         if (sdkMatchesExpected && !sdkState.paused) {
           playbackConfirmedRef.current = true;
         }
-        // Pick the cover URL from SDK's album.images. Only adopt it when
-        // the SDK is actually playing OUR expected track — otherwise we'd
-        // briefly flash whatever Spotify's remote queue auto-loaded.
-        const coverFromSdk =
-          sdkMatchesExpected && sdkTrack?.album?.images?.[0]?.url
-            ? sdkTrack.album.images[0].url
-            : null;
-        setTrack((s) => ({
-          current: s.current
-            ? coverFromSdk && s.current.cover_url !== coverFromSdk
-              ? { ...s.current, cover_url: coverFromSdk }
-              : s.current
-            : null,
-          positionMs: sdkState.position,
-          durationMs: sdkState.duration,
-        }));
+        // Use SDK album cover when SDK URI matches the track currently in
+        // state. Earlier the gate used `expectedSpotifyIdRef`, but that ref
+        // gets reset by auto-advance and during transitions, so cover
+        // updates were silently dropped on second/third tracks. Matching
+        // against `s.current.spotify_id` instead is robust.
+        // Position/duration: prefer SDK values when present, else keep what
+        // play()/advance() seeded from backend so seek works even when SDK
+        // is observer-only (active device ≠ CLOUDER tab).
+        setTrack((s) => {
+          const matchesCurrent =
+            !!currentUri && !!s.current && currentUri === `spotify:track:${s.current.spotify_id}`;
+          const coverFromSdk =
+            matchesCurrent && sdkTrack?.album?.images?.[0]?.url
+              ? sdkTrack.album.images[0].url
+              : null;
+          return {
+            current: s.current
+              ? coverFromSdk && s.current.cover_url !== coverFromSdk
+                ? { ...s.current, cover_url: coverFromSdk }
+                : s.current
+              : null,
+            positionMs: sdkState.position,
+            durationMs: sdkState.duration > 0 ? sdkState.duration : s.durationMs,
+          };
+        });
         queueDispatch({ type: 'STATUS', status: sdkState.paused ? 'paused' : 'playing' });
         // Auto-advance when Spotify's session played PAST our requested URI.
         // After our track ends, Spotify Connect typically loads the next
@@ -301,13 +310,16 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         queueDispatch({ type: 'CURSOR', cursor: idx });
         onCursorChangeRef.current?.(idx);
       }
-      // PlaybackProvider doesn't read `track_window.current_track` from
-      // `player_state_changed`, so source-of-truth `track.current` comes from
-      // the queue cursor at play time. PlaybackChrome's MiniBar visibility
-      // gate (`track.current !== null`) and CurateSession's PlayerCard title
-      // both depend on this. Keep `positionMs/durationMs` whatever the SDK
-      // last reported.
-      setTrack((prev) => ({ ...prev, current: track }));
+      // Source-of-truth `track.current` comes from the queue cursor at play
+      // time. Seed `durationMs` from backend (track.duration_ms) and reset
+      // `positionMs` so seek hotkeys (A/S/D/F/G) work even when the SDK is
+      // in observer mode (active device ≠ CLOUDER tab — SDK stops emitting
+      // `player_state_changed` and durationMs would otherwise stay stale).
+      setTrack(() => ({
+        current: track,
+        durationMs: track.duration_ms || 0,
+        positionMs: 0,
+      }));
       queueDispatch({ type: 'STATUS', status: 'loading' });
       expectedSpotifyIdRef.current = track.spotify_id;
       playbackConfirmedRef.current = false;
@@ -355,9 +367,13 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       const t = queue.tracks[next];
       const deviceId = activeDeviceIdRef.current;
       if (!t || !t.spotify_id || !deviceId) return;
-      // Mirror play() — populate track.current from queue at the moment we
-      // initiate playback so MiniBar / PlayerCard see the right track.
-      setTrack((prev) => ({ ...prev, current: t }));
+      // Mirror play() — backend-seeded duration so seek works in observer
+      // mode (active device ≠ CLOUDER tab) where SDK state events stop.
+      setTrack(() => ({
+        current: t,
+        durationMs: t.duration_ms || 0,
+        positionMs: 0,
+      }));
       expectedSpotifyIdRef.current = t.spotify_id;
       playbackConfirmedRef.current = false;
       await spotifyApi.play(
@@ -380,9 +396,22 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   const seekMs = useCallback(
     async (ms: number) => {
       const clamped = clampMs(ms, track.durationMs || 0);
+      const activeId = activeDeviceIdRef.current;
+      const cloderId = cloderTabIdRef.current;
+      // When active device is the CLOUDER Web Player tab, SDK seek is the
+      // fastest path. When user has picked a remote device (phone, speaker
+      // etc.), SDK is observer-only and `player.seek` is a no-op — fall
+      // through to Spotify Web API which targets the active device.
+      if (activeId && cloderId && activeId !== cloderId) {
+        await spotifyApi.seek({ positionMs: clamped, deviceId: activeId }, { onAuthExpired });
+        // SDK won't emit player_state_changed for remote devices, mirror
+        // the new position locally so the scrub bar reflects the seek.
+        setTrack((s) => ({ ...s, positionMs: clamped }));
+        return;
+      }
       await playerRef.current?.seek(clamped);
     },
-    [track.durationMs],
+    [track.durationMs, onAuthExpired],
   );
 
   const seekPct = useCallback(
