@@ -273,6 +273,12 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         navigate('/auth/premium-required');
       });
       player.addListener('playback_error', ({ message }: { message: string }) => {
+        // Suppress when active device is remote — SDK is observer-only and
+        // these errors are expected (it can't control inactive playback).
+        // Real errors on remote surface from Web API calls (pause/resume/seek).
+        const activeId = activeDeviceIdRef.current;
+        const cloderId = cloderTabIdRef.current;
+        if (activeId && cloderId && activeId !== cloderId) return;
         setSdkError({ kind: 'playback', message });
         queueDispatch({ type: 'STATUS', status: 'error' });
       });
@@ -330,8 +336,17 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   );
 
   const pause = useCallback(async () => {
+    const activeId = activeDeviceIdRef.current;
+    const cloderId = cloderTabIdRef.current;
+    // SDK pause only works on the active local device. On remote (active ≠
+    // CLOUDER tab) SDK is observer-only — fall through to Web API.
+    if (activeId && cloderId && activeId !== cloderId) {
+      await spotifyApi.pause({ deviceId: activeId }, { onAuthExpired });
+      queueDispatch({ type: 'STATUS', status: 'paused' });
+      return;
+    }
     await playerRef.current?.pause();
-  }, []);
+  }, [onAuthExpired]);
 
   const togglePlayPause = useCallback(async () => {
     await ensureSdk();
@@ -343,8 +358,22 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       await play();
       return;
     }
+    const activeId = activeDeviceIdRef.current;
+    const cloderId = cloderTabIdRef.current;
+    if (activeId && cloderId && activeId !== cloderId) {
+      // Remote device — togglePlay on SDK is a no-op. Branch on cached
+      // queue.status instead and route through Web API.
+      if (queue.status === 'playing' || queue.status === 'buffering') {
+        await spotifyApi.pause({ deviceId: activeId }, { onAuthExpired });
+        queueDispatch({ type: 'STATUS', status: 'paused' });
+      } else {
+        await spotifyApi.resume({ deviceId: activeId }, { onAuthExpired });
+        queueDispatch({ type: 'STATUS', status: 'playing' });
+      }
+      return;
+    }
     await playerRef.current?.togglePlay();
-  }, [ensureSdk, queue.status, play]);
+  }, [ensureSdk, queue.status, play, onAuthExpired]);
 
   const bindQueue = useCallback((args: BindQueueArgs) => {
     onCursorChangeRef.current = args.onCursorChange;
@@ -498,7 +527,10 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
 
   const pickDevice = useCallback(async (deviceId: string): Promise<void> => {
     try {
-      await spotifyApi.transferMyPlayback({ deviceId, play: false }, { onAuthExpired });
+      // play: true keeps audio going on the new device when the user
+      // switches mid-playback. Spotify treats it as "ensure playback
+      // happens" — if there is nothing to play, it is a no-op.
+      await spotifyApi.transferMyPlayback({ deviceId, play: true }, { onAuthExpired });
       setActive(deviceId);
       lastDeviceStore.set(deviceId);
       setPickerOpen(false);

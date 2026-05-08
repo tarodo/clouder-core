@@ -76,6 +76,15 @@ export const spotifyApi = {
     const path = `/v1/me/player/seek?position_ms=${args.positionMs}&device_id=${encodeURIComponent(args.deviceId)}`;
     await call('PUT', path, null, opts);
   },
+  async pause(args: { deviceId: string }, opts: CallOptions = {}): Promise<void> {
+    const path = `/v1/me/player/pause?device_id=${encodeURIComponent(args.deviceId)}`;
+    await call('PUT', path, null, opts);
+  },
+  async resume(args: { deviceId: string }, opts: CallOptions = {}): Promise<void> {
+    // PUT /me/player/play with no body resumes the current Spotify Connect track.
+    const path = `/v1/me/player/play?device_id=${encodeURIComponent(args.deviceId)}`;
+    await call('PUT', path, null, opts);
+  },
   async getMyDevices(opts: CallOptions = {}): Promise<SpotifyDevice[]> {
     const res = await call('GET', '/v1/me/player/devices', null, opts);
     const json = (await res.json()) as { devices?: SpotifyDevice[] };

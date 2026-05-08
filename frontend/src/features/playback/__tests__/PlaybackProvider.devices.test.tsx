@@ -268,7 +268,8 @@ describe('PlaybackProvider.devices.pick', () => {
       await captured!.devices.pick('speaker');
     });
 
-    expect(transfer).toHaveBeenCalledWith({ deviceId: 'speaker', play: false }, expect.any(Object));
+    // play: true so audio continues on the new device when user switches mid-playback
+    expect(transfer).toHaveBeenCalledWith({ deviceId: 'speaker', play: true }, expect.any(Object));
     expect(window.localStorage.getItem('clouder.last_device_id')).toBe('speaker');
     expect(captured!.devices.isOpen).toBe(false);
     expect(captured!.devices.active?.id).toBe('speaker');
