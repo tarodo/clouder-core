@@ -288,14 +288,25 @@ export function useCurateSession({
     });
   }, [bindQueue, blockId, bucketId, playbackTracks, state.currentIndex, queueLength]);
 
-  // Auto-play the first track when entering a NEW Curate bucket and SDK is
-  // already initialized (the user was listening before navigating). On the
-  // first-ever Curate visit per session, sdk.ready is false (lazy boot) so
-  // this no-ops — the user clicks play themselves. Tracked via ref so we
-  // fire only once per bucket (cursor changes / shrink etc. don't re-fire).
+  // Auto-play the first track when entering a NEW Curate bucket FROM ANOTHER
+  // ONE (bucket-to-bucket transition). On the initial mount per session we
+  // do NOT auto-play — otherwise the user's click on Play (which fires its
+  // own play API) and the auto-play race produce two competing playback
+  // sessions in Spotify Connect, the SDK loses play_token, audio fails to
+  // start. autoPlayedBucketRef starts null; the very first effect run marks
+  // the current bucket as "seen" and returns. Subsequent buckets fire.
   const sdkReady = playback.sdk.ready;
+  const prewarm = playback.controls.prewarm;
   const autoPlayedBucketRef = useRef<string | null>(null);
   useEffect(() => {
+    if (autoPlayedBucketRef.current === null) {
+      autoPlayedBucketRef.current = bucketId;
+      // Pre-warm SDK on the first Curate mount so the eventual user click
+      // hits a hot SDK and `activateElement` runs inside the user-gesture
+      // window. Idempotent — re-mount is safe.
+      void prewarm();
+      return;
+    }
     if (autoPlayedBucketRef.current === bucketId) return;
     if (!sdkReady) return;
     if (queue.length === 0) return;
@@ -303,7 +314,7 @@ export function useCurateSession({
     if (!first?.spotify_id) return;
     autoPlayedBucketRef.current = bucketId;
     void playback.controls.play(0, toPlaybackTrack(first));
-  }, [bucketId, sdkReady, queue, playback.controls]);
+  }, [bucketId, sdkReady, queue, playback.controls, prewarm]);
 
   const cleanupTimers = useCallback(() => {
     if (pendingTimerRef.current !== null) {

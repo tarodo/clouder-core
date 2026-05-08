@@ -54,6 +54,14 @@ export interface PlaybackContextValue {
   };
   sdk: { ready: boolean; error: SdkError | null };
   controls: {
+    /**
+     * Pre-warm: load the Spotify SDK script + connect ahead of the first
+     * user click. Calling on Curate route mount means by the time the user
+     * clicks Play, ensureSdk + the 'ready' event have already fired and
+     * `activateElement()` runs inside the user-gesture window (browser
+     * autoplay policy). Idempotent.
+     */
+    prewarm: () => Promise<void>;
     play: (idx?: number, overrideTrack?: PlaybackTrack) => Promise<void>;
     pause: () => Promise<void>;
     togglePlayPause: () => Promise<void>;
@@ -565,6 +573,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       track,
       sdk: { ready: sdkReady, error: sdkError },
       controls: {
+        prewarm: ensureSdk,
         play,
         pause,
         togglePlayPause,
@@ -603,6 +612,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       track,
       sdkReady,
       sdkError,
+      ensureSdk,
       play,
       pause,
       togglePlayPause,

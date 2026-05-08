@@ -29,6 +29,7 @@ vi.mock('../../../playback/usePlayback', () => ({
       bindQueue: vi.fn(),
       clearQueue: vi.fn(),
       cancelPendingAdvance: vi.fn(),
+      prewarm: vi.fn().mockResolvedValue(undefined),
       openSpotifyExternal: vi.fn(),
     },
   }),
