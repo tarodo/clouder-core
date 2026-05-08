@@ -3,13 +3,18 @@ import { useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { DeviceList } from './DeviceList';
-import { DevicePicker } from './DevicePicker';
 import { DeviceDrawer } from './DeviceDrawer';
 import { usePlayback } from './usePlayback';
 
+/**
+ * Mobile-only picker surface: renders the bottom `<Drawer>`.
+ *
+ * Desktop: each `DeviceIndicator` embeds its own `<Popover>` so it anchors
+ * correctly to the indicator pill (Mantine 9 `Popover` needs a real
+ * `<Popover.Target>` child — a global picker would float in a corner).
+ */
 export function DevicePickerSurface() {
   const { t } = useTranslation();
-  // Mantine 9 breakpoint md = 62em. Use max-width to detect mobile.
   const isMobile = useMediaQuery('(max-width: 62em)');
   const { sdk, devices } = usePlayback();
 
@@ -22,6 +27,8 @@ export function DevicePickerSurface() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [devices.isOpen]);
+
+  if (!isMobile) return null;
 
   const onPick = async (deviceId: string) => {
     try {
@@ -38,34 +45,20 @@ export function DevicePickerSurface() {
     }
   };
 
-  // Show the device list without the "Connecting" skeleton if we already have
-  // a populated list from the REST API — the SDK player doesn't need to be
-  // running for the user to browse and pick a device.
   const sdkReadyForPicker = sdk.ready || devices.list.length > 0;
 
-  const list = (
-    <DeviceList
-      devices={devices.list}
-      active={devices.active}
-      cloderTabId={devices.cloderTabId}
-      isLoading={devices.isLoading}
-      error={devices.error}
-      sdkReady={sdkReadyForPicker}
-      onPick={onPick}
-      onRefresh={() => void devices.refresh()}
-    />
-  );
-
-  if (isMobile) {
-    return (
-      <DeviceDrawer opened={devices.isOpen} onClose={devices.close}>
-        {list}
-      </DeviceDrawer>
-    );
-  }
   return (
-    <DevicePicker opened={devices.isOpen} onClose={devices.close}>
-      {list}
-    </DevicePicker>
+    <DeviceDrawer opened={devices.isOpen} onClose={devices.close}>
+      <DeviceList
+        devices={devices.list}
+        active={devices.active}
+        cloderTabId={devices.cloderTabId}
+        isLoading={devices.isLoading}
+        error={devices.error}
+        sdkReady={sdkReadyForPicker}
+        onPick={onPick}
+        onRefresh={() => void devices.refresh()}
+      />
+    </DeviceDrawer>
   );
 }

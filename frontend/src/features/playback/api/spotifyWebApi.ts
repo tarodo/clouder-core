@@ -90,4 +90,12 @@ export const spotifyApi = {
     const json = (await res.json()) as { devices?: SpotifyDevice[] };
     return json.devices ?? [];
   },
+  async getTrackCover(trackId: string, opts: CallOptions = {}): Promise<string | null> {
+    // Used on remote devices where SDK player_state_changed doesn't fire
+    // and backend track.cover_url may be null. Returns the largest album
+    // image URL or null.
+    const res = await call('GET', `/v1/tracks/${encodeURIComponent(trackId)}`, null, opts);
+    const json = (await res.json()) as { album?: { images?: Array<{ url?: string }> } };
+    return json.album?.images?.[0]?.url ?? null;
+  },
 };

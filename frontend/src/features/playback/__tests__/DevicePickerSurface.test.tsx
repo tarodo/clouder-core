@@ -83,15 +83,19 @@ afterEach(() => {
 });
 
 describe('DevicePickerSurface', () => {
-  it('renders Popover content when desktop and open', async () => {
+  it('renders nothing on desktop — DeviceIndicator hosts its own Popover', async () => {
+    // Desktop popover anchoring lives in DeviceIndicator (so Mantine 9
+    // Popover.Target wraps the actual button). DevicePickerSurface only
+    // renders the mobile Drawer.
     const user = userEvent.setup();
     render(wrapDesktop(<Trigger />));
     await user.click(screen.getByText('open'));
-    // Popover content includes the device row
-    expect(await screen.findByRole('button', { name: 'Laptop' })).toBeInTheDocument();
+    // No dialog or device-row button should appear from this surface.
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Laptop' })).toBeNull();
   });
 
-  it('renders Drawer when mobile (max-width:64em matches)', async () => {
+  it('renders Drawer when mobile (max-width:62em matches)', async () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn((q: string) => ({

@@ -248,7 +248,17 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
             durationMs: sdkState.duration > 0 ? sdkState.duration : s.durationMs,
           };
         });
-        queueDispatch({ type: 'STATUS', status: sdkState.paused ? 'paused' : 'playing' });
+        // queue.status from SDK is reliable only when SDK is the active
+        // device. On remote the SDK pauses itself on losing play_token and
+        // emits paused=true even though audio is playing on remote. We
+        // manage status explicitly in pickDevice / pause / togglePlayPause.
+        {
+          const activeIdNow = activeDeviceIdRef.current;
+          const cloderIdNow = cloderTabIdRef.current;
+          if (!activeIdNow || !cloderIdNow || activeIdNow === cloderIdNow) {
+            queueDispatch({ type: 'STATUS', status: sdkState.paused ? 'paused' : 'playing' });
+          }
+        }
         // Auto-advance when Spotify's session played PAST our requested URI.
         // After our track ends, Spotify Connect typically loads the next
         // item from the user's remote queue (Verchiel-related leftovers).
@@ -339,6 +349,24 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         { uris: [`spotify:track:${track.spotify_id}`], deviceId },
         { onAuthExpired },
       );
+      // On remote (SDK observer-only) player_state_changed never fires
+      // album.images, so the cover fallback can't fill in. Fetch the cover
+      // from Spotify Web API and patch s.current. No-op when backend
+      // already provided cover_url.
+      const cloderId = cloderTabIdRef.current;
+      if (deviceId !== cloderId && !track.cover_url && track.spotify_id) {
+        void spotifyApi
+          .getTrackCover(track.spotify_id, { onAuthExpired })
+          .then((coverUrl) => {
+            if (!coverUrl) return;
+            setTrack((s) =>
+              s.current && s.current.spotify_id === track.spotify_id && !s.current.cover_url
+                ? { ...s, current: { ...s.current, cover_url: coverUrl } }
+                : s,
+            );
+          })
+          .catch(() => {});
+      }
     },
     [queue.cursor, queue.tracks, ensureSdk, onAuthExpired],
   );
@@ -415,6 +443,23 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         { uris: [`spotify:track:${t.spotify_id}`], deviceId },
         { onAuthExpired },
       );
+      // Remote-cover fallback (mirror of play() — SDK observer doesn't
+      // fire album.images on remote). No-op when backend already had it.
+      const cloderId = cloderTabIdRef.current;
+      if (deviceId !== cloderId && !t.cover_url && t.spotify_id) {
+        const trackId = t.spotify_id;
+        void spotifyApi
+          .getTrackCover(trackId, { onAuthExpired })
+          .then((coverUrl) => {
+            if (!coverUrl) return;
+            setTrack((s) =>
+              s.current && s.current.spotify_id === trackId && !s.current.cover_url
+                ? { ...s, current: { ...s.current, cover_url: coverUrl } }
+                : s,
+            );
+          })
+          .catch(() => {});
+      }
     },
     [queue.cursor, queue.tracks, onAuthExpired],
   );
@@ -543,6 +588,15 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       lastDeviceStore.set(deviceId);
       setPickerOpen(false);
       setPickerAnchor(null);
+      // After transferMyPlayback({play:true}), Spotify resumes playback on
+      // the new device. SDK on the CLOUDER tab is now observer-only and
+      // its paused=true state events should not override our authoritative
+      // status (gated in player_state_changed listener). Set 'playing'
+      // explicitly so togglePlayPause's status-branch routes to pause API.
+      const cloderId = cloderTabIdRef.current;
+      if (cloderId && deviceId !== cloderId) {
+        queueDispatch({ type: 'STATUS', status: 'playing' });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       if (message.includes('spotify_api_404')) {
