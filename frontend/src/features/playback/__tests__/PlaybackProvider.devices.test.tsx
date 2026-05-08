@@ -132,7 +132,11 @@ describe('PlaybackProvider bootstrap silent restore', () => {
     expect(captured!.devices.cloderTabId).toBe('cloder-id');
   });
 
-  it('last_device matches list element — restores to that device', async () => {
+  it('last_device saved — bootstrap stays on CLOUDER tab; localStorage retained', async () => {
+    // Auto-restore was removed: device_ids change every browser session,
+    // so restoring a saved id is usually stale and caused state_conflict
+    // thrashing. lastDeviceStore is preserved (used only by user-explicit
+    // pick — not for bootstrap).
     installFakeSdk('cloder-id');
     window.localStorage.setItem('clouder.last_device_id', 'speaker-id');
     const list = [
@@ -147,9 +151,10 @@ describe('PlaybackProvider bootstrap silent restore', () => {
       await captured!.controls.togglePlayPause();
     });
     await waitFor(() => expect(transfer).toHaveBeenCalled());
-    expect(transfer).toHaveBeenCalledWith({ deviceId: 'speaker-id', play: false }, expect.any(Object));
-    // F7-2: bootstrap must NOT touch localStorage
-    expect(window.localStorage.getItem('clouder.last_device_id')).toBe('speaker-id'); // unchanged
+    expect(transfer).toHaveBeenCalledWith({ deviceId: 'cloder-id', play: false }, expect.any(Object));
+    // single transfer to CLOUDER tab — no second transfer to last_device
+    expect(transfer).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem('clouder.last_device_id')).toBe('speaker-id');
   });
 
   it('last_device offline — falls back to CLOUDER tab', async () => {
