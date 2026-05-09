@@ -1,11 +1,13 @@
 import { Pagination, Skeleton, Stack, Table, Text, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSpotifyNotFound } from '../hooks/useSpotifyNotFound';
 
 const LIMIT = 50;
 
 export function SpotifyNotFoundTable() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
@@ -13,7 +15,7 @@ export function SpotifyNotFoundTable() {
   const q = useSpotifyNotFound({ limit: LIMIT, offset, search: debouncedSearch });
 
   if (q.isLoading) return <Skeleton h={400} />;
-  if (q.isError) return <Text c="red">Failed to load tracks.</Text>;
+  if (q.isError) return <Text c="red">{t('admin.spotify_not_found.load_failed')}</Text>;
   if (!q.data) return null;
 
   const totalPages = Math.max(1, Math.ceil(q.data.total / LIMIT));
@@ -21,12 +23,12 @@ export function SpotifyNotFoundTable() {
   return (
     <Stack>
       <TextInput
-        placeholder="Search title or artist…"
+        placeholder={t('admin.spotify_not_found.search')}
         value={search}
         onChange={(e) => setSearch(e.currentTarget.value)}
       />
       <Text size="sm" c="dimmed">
-        {q.data.total} tracks pending Spotify enrichment
+        {t('admin.spotify_not_found.total_label', { count: q.data.total })}
       </Text>
       <Table striped withTableBorder>
         <Table.Thead>

@@ -1,5 +1,6 @@
 import { Alert, Stack, Title } from '@mantine/core';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCoverage } from '../hooks/useCoverage';
 import { weekOfDate } from '../lib/saturdayWeek';
 import { CoverageMatrix } from '../components/CoverageMatrix';
@@ -9,6 +10,7 @@ import { cellState, type CoverageCell } from '../lib/cellState';
 import { runsTrackerStore } from '../lib/runsTracker';
 
 export function AdminCoveragePage() {
+  const { t } = useTranslation();
   const [year, setYear] = useState(() => weekOfDate(new Date())[0]);
   const q = useCoverage(year);
   const [active, setActive] = useState<{ styleId: number; weekNumber: number } | null>(
@@ -33,9 +35,9 @@ export function AdminCoveragePage() {
 
   return (
     <Stack>
-      <Title order={2}>Coverage</Title>
+      <Title order={2}>{t('admin.coverage.title')}</Title>
       <YearNavigator year={year} onChange={setYear} />
-      {q.isError && <Alert color="red">Failed to load coverage.</Alert>}
+      {q.isError && <Alert color="red">{t('admin.coverage.load_failed')}</Alert>}
       {q.data && (
         <CoverageMatrix
           data={q.data}

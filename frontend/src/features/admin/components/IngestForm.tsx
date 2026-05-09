@@ -9,6 +9,7 @@ import {
   Text,
 } from '@mantine/core';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { saturdayWeekRange } from '../lib/saturdayWeek';
 import { useBpToken } from '../lib/bpTokenStore';
 import { useStartIngest } from '../hooks/useStartIngest';
@@ -27,6 +28,7 @@ function fmt(d: Date): string {
 }
 
 export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) {
+  const { t } = useTranslation();
   const [override, setOverride] = useState(false);
   const [stdStart, stdEnd] = saturdayWeekRange(weekYear, weekNumber);
   const [start, setStart] = useState(fmt(stdStart));
@@ -59,14 +61,14 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
     <Stack gap="sm">
       <BpTokenInput />
       <Switch
-        label="Override date range"
+        label={t('admin.ingest.override')}
         checked={override}
         onChange={(e) => setOverride(e.currentTarget.checked)}
       />
       <Collapse in={override}>
         <Stack gap={4}>
           <Text size="xs" c="dimmed">
-            Standard week: {fmt(stdStart)} – {fmt(stdEnd)}
+            {t('admin.ingest.standard_week', { start: fmt(stdStart), end: fmt(stdEnd) })}
           </Text>
           <Group grow>
             <input
@@ -87,13 +89,13 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
       <Stack gap={2}>
         <Switch
           size="xs"
-          label="Advanced"
+          label={t('admin.ingest.advanced')}
           checked={advancedOpen}
           onChange={(e) => setAdvancedOpen(e.currentTarget.checked)}
         />
         <Collapse in={advancedOpen}>
           <NumberInput
-            label="search_label_count"
+            label={t('admin.ingest.search_label_count')}
             min={1}
             max={200}
             value={labelCount}
@@ -102,12 +104,12 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
         </Collapse>
       </Stack>
       {mutation.isError && (
-        <Alert color="red" title="Ingest failed">
-          {(mutation.error as Error)?.message ?? 'Unknown error'}
+        <Alert color="red" title={t('admin.ingest.failed_title')}>
+          {(mutation.error as Error)?.message ?? t('admin.ingest.unknown_error')}
         </Alert>
       )}
       <Button onClick={submit} loading={mutation.isPending} disabled={!token}>
-        Start ingest
+        {t('admin.ingest.start')}
       </Button>
     </Stack>
   );
