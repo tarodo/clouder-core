@@ -167,6 +167,7 @@ resource "aws_lambda_function" "spotify_search_worker" {
       AURORA_DATABASE                     = var.aurora_database_name
       LOG_LEVEL                           = "INFO"
       VENDORS_ENABLED                     = "spotify"
+      SPOTIFY_METADATA_FALLBACK_ENABLED   = "true"
     }
   }
 
