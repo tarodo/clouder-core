@@ -39,6 +39,44 @@ resource "aws_cloudfront_function" "spa_router" {
   EOT
 }
 
+# SPA-aware fallback for API GW behaviors that share path shape with SPA routes
+# (e.g. `/categories/<uuid>` is BOTH `GET /categories/{id}` on API GW AND the
+# CategoriesListPage URL; `/admin/coverage` is BOTH `GET /admin/coverage` on
+# API GW AND the AdminCoveragePage URL).
+#
+# CloudFront cache behavior is selected from the original path before any
+# function runs, and a viewer-request CloudFront Function CANNOT switch origin —
+# so we synthesize a tiny HTML stub when `Accept: text/html` (browser refresh /
+# deep-link paste, NOT apiClient fetches which set `Accept: application/json`).
+# The stub fetches /index.html (S3 default behavior) and document.write()s it,
+# preserving location.pathname so the SPA router resolves the deep link.
+resource "aws_cloudfront_function" "spa_html_fallback" {
+  name    = "${local.name_prefix}-spa-html-fallback"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var req = event.request;
+      if (req.method !== 'GET') return req;
+      var hdr = req.headers['accept'];
+      if (!hdr || hdr.value.indexOf('text/html') < 0) return req;
+      var html = '<!doctype html><html><head><meta charset="utf-8">'
+        + '<title>CLOUDER</title>'
+        + '<script>fetch("/index.html",{credentials:"omit"}).then(function(r){return r.text();}).then(function(h){document.open();document.write(h);document.close();}).catch(function(){location.replace("/");});</script>'
+        + '</head><body></body></html>';
+      return {
+        statusCode: 200,
+        statusDescription: 'OK',
+        headers: {
+          'content-type': { value: 'text/html; charset=utf-8' },
+          'cache-control': { value: 'no-store' },
+        },
+        body: html,
+      };
+    }
+  EOT
+}
+
 resource "aws_s3_bucket_policy" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   policy = data.aws_iam_policy_document.frontend_bucket.json
@@ -61,10 +99,24 @@ data "aws_iam_policy_document" "frontend_bucket" {
 }
 
 locals {
-  # Order matters: CloudFront evaluates ordered_cache_behavior top-down on first match.
-  # `/auth/return` is an SPA route — must NOT be in this list (falls through to S3 default).
-  # Mirror of frontend/vite.config.ts BACKEND_ONLY_PREFIXES + SPA_AWARE_PREFIXES (14 patterns).
-  api_gw_path_patterns = [
+  # CloudFront evaluates ordered_cache_behavior in declaration order; first match
+  # wins. None of the patterns below overlap, so order does not matter here.
+  # `/auth/return` is an SPA route — must NOT be listed (falls through to S3).
+  #
+  # Split into two groups so we can attach spa_html_fallback only where SPA
+  # routes share path shape with API GW routes:
+  #
+  # `/triage*` is tightened to `/triage/blocks*` — all BE triage routes live
+  # under that prefix, so SPA paths like `/triage/<id>` fall through to S3.
+  # No fallback function needed.
+  #
+  # `/categories*` and `/admin/*` cannot be tightened: BE owns
+  # `/categories/{id}` and `/admin/coverage`, exact-shape collisions with
+  # `CategoriesListPage` (`/categories/<styleId>`) and `AdminCoveragePage`
+  # (`/admin/coverage`). They get spa_html_fallback so browser refresh on
+  # those paths returns the SPA shell, while apiClient fetches
+  # (`Accept: application/json`) bypass and forward to API GW unchanged.
+  api_gw_pure_path_patterns = [
     "/auth/login",
     "/auth/callback",
     "/auth/refresh",
@@ -77,8 +129,10 @@ locals {
     "/albums*",
     "/runs*",
     "/collect_bp_releases",
+    "/triage/blocks*",
+  ]
+  api_gw_spa_aware_path_patterns = [
     "/categories*",
-    "/triage*",
     "/admin/*",
   ]
   # API GW $default stage has no URL path prefix — strip the protocol only.
@@ -125,7 +179,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   dynamic "ordered_cache_behavior" {
-    for_each = local.api_gw_path_patterns
+    for_each = local.api_gw_pure_path_patterns
     content {
       path_pattern             = ordered_cache_behavior.value
       target_origin_id         = "api-gw"
@@ -135,6 +189,25 @@ resource "aws_cloudfront_distribution" "frontend" {
       compress                 = true
       cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
       origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader
+    }
+  }
+
+  dynamic "ordered_cache_behavior" {
+    for_each = local.api_gw_spa_aware_path_patterns
+    content {
+      path_pattern             = ordered_cache_behavior.value
+      target_origin_id         = "api-gw"
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods           = ["GET", "HEAD"]
+      compress                 = true
+      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader
+
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.spa_html_fallback.arn
+      }
     }
   }
 
