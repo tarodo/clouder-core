@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import random
+import re
 import time
 import urllib.parse
 import urllib.request
@@ -188,6 +189,9 @@ class SpotifyClient:
         best_combined = -1.0
         max_title_sim = 0.0
         max_artist_sim = 0.0
+        # Normalize once so both sides shed Radio Edit / Extended Mix / feat. X
+        # decoration before the fuzzy match.
+        norm_query_title = _normalize_title_for_match(title)
         for item in items:
             if not isinstance(item, dict):
                 continue
@@ -201,7 +205,8 @@ class SpotifyClient:
             cand_duration_ms = (
                 int(cand_duration) if isinstance(cand_duration, (int, float)) else None
             )
-            title_sim = string_sim(cand_name, title)
+            norm_cand_name = _normalize_title_for_match(cand_name)
+            title_sim = string_sim(norm_cand_name, norm_query_title)
             artist_sim = best_artist_sim(cand_artists, artist)
             max_title_sim = max(max_title_sim, title_sim)
             max_artist_sim = max(max_artist_sim, artist_sim)
@@ -391,6 +396,29 @@ def _album_release_sort_key(track: Dict[str, Any]) -> str:
     while len(parts) < 3:
         parts.append("00")
     return "-".join(parts[:3])
+
+
+# Suffix patterns commonly appended by labels — strip before fuzzy matching.
+# Order matters: more specific patterns first.
+_TITLE_SUFFIX_PATTERNS = [
+    # "(feat. X)" / "[feat. X]" / " - feat. X" / " feat. X"
+    re.compile(r"[\s]*[\(\[\-][\s]*(feat\.?|ft\.?|featuring)[\s].*?[\)\]]", re.IGNORECASE),
+    re.compile(r"[\s]+(feat\.?|ft\.?|featuring)[\s].*$", re.IGNORECASE),
+    # "(... Mix)", "[... Mix]", " - ... Mix"
+    re.compile(r"[\s]*[\(\[][^()\[\]]*\b(remix|mix|edit|version|dub|bootleg|rework|vip)\b[^()\[\]]*[\)\]]", re.IGNORECASE),
+    re.compile(r"[\s]*\-[\s]+[^-]*\b(radio edit|extended mix|original mix|club mix|dub mix|remix|edit|vip)\b.*$", re.IGNORECASE),
+]
+
+
+def _normalize_title_for_match(title: str) -> str:
+    """Lowercase + strip common suffixes (Radio Edit / Extended Mix / feat. X /
+    Remix in brackets) so fuzzy comparison sees the canonical title."""
+    if not title:
+        return ""
+    s = title
+    for pat in _TITLE_SUFFIX_PATTERNS:
+        s = pat.sub("", s)
+    return " ".join(s.lower().split())
 
 
 def _accept_metadata_match(

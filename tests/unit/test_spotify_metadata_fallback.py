@@ -5,7 +5,11 @@ from __future__ import annotations
 import json
 from unittest.mock import patch
 
-from collector.spotify_client import SpotifyClient, _accept_metadata_match
+from collector.spotify_client import (
+    SpotifyClient,
+    _accept_metadata_match,
+    _normalize_title_for_match,
+)
 
 
 class _Resp:
@@ -43,6 +47,41 @@ def _spotify_track(
         "external_ids": {"isrc": isrc},
         "album": {"release_date": "2026-01-01", "release_date_precision": "day"},
     }
+
+
+def test_normalize_title_strips_radio_edit_suffix() -> None:
+    assert _normalize_title_for_match("Fealty - Radio Edit") == "fealty"
+
+
+def test_normalize_title_strips_extended_mix_suffix() -> None:
+    assert _normalize_title_for_match("Move On - Extended Mix") == "move on"
+
+
+def test_normalize_title_strips_original_mix_suffix() -> None:
+    assert _normalize_title_for_match("Bombay (Original Mix)") == "bombay"
+
+
+def test_normalize_title_strips_remix_suffix() -> None:
+    assert _normalize_title_for_match("Walk Away (Koven Remix)") == "walk away"
+    assert _normalize_title_for_match("Walk Away [Koven Remix]") == "walk away"
+
+
+def test_normalize_title_strips_feat_clause() -> None:
+    assert _normalize_title_for_match("Shut Em Down feat. Ragga Twins") == "shut em down"
+    assert _normalize_title_for_match("Shut Em Down (feat. Ragga Twins)") == "shut em down"
+    assert _normalize_title_for_match("Shut Em Down ft. Ragga Twins") == "shut em down"
+
+
+def test_normalize_title_collapses_whitespace_and_lowers() -> None:
+    assert _normalize_title_for_match("  Move   On  ") == "move on"
+
+
+def test_normalize_title_leaves_clean_titles_unchanged() -> None:
+    assert _normalize_title_for_match("Metropolis") == "metropolis"
+
+
+def test_normalize_title_handles_empty() -> None:
+    assert _normalize_title_for_match("") == ""
 
 
 def test_accept_match_passes_strict_thresholds() -> None:
@@ -303,6 +342,39 @@ def test_search_tracks_skips_fallback_without_metadata() -> None:
     assert len(results) == 1
     assert results[0].spotify_id is None
     assert call_count["n"] == 1
+
+
+def test_search_by_metadata_normalizes_title_suffix() -> None:
+    """Spotify's 'Fealty - Radio Edit' should match BP's 'Fealty' after normalization."""
+    client = _make_client()
+    payload = {
+        "tracks": {
+            "items": [
+                _spotify_track(
+                    sp_id="sp_radio",
+                    name="Fealty - Radio Edit",
+                    artists=["Krisna Artha"],
+                    duration_ms=180_000,
+                    isrc="GB8KE2609780",
+                ),
+            ]
+        }
+    }
+    with patch(
+        "collector.spotify_client.urllib.request.urlopen",
+        return_value=_Resp(payload),
+    ):
+        track = client._search_by_metadata(
+            title="Fealty",
+            artist="Krisna Artha",
+            duration_ms=181_000,
+            correlation_id="cid",
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+    assert track is not None
+    assert track["id"] == "sp_radio"
 
 
 def test_search_by_metadata_picks_highest_combined_when_multiple_pass() -> None:
