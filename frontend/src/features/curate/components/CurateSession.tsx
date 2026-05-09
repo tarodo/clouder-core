@@ -1,5 +1,5 @@
 // frontend/src/features/curate/components/CurateSession.tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ActionIcon, Badge, Group, Stack, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
@@ -18,6 +18,7 @@ import { usePlayback } from '../../playback/usePlayback';
 import { usePlaybackHotkeys } from '../../playback/usePlaybackHotkeys';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
+import { spotifyApi } from '../../playback/api/spotifyWebApi';
 
 export interface CurateSessionProps {
   styleId: string;
@@ -66,10 +67,43 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
     return status; // 'playing' | 'paused'
   })();
 
-  const playerTrack =
+  const baseTrack =
     playback.track.current ??
     playback.queue.tracks[playback.queue.cursor] ??
     null;
+
+  // Cover fallback: backend track.cover_url is sometimes null. play()
+  // and advance() pre-fetch the cover from Spotify Web API ON REMOTE
+  // devices (where SDK player_state_changed never fires album.images).
+  // This effect covers the case BEFORE the user has clicked Play —
+  // PlayerCard otherwise sits with no cover for tracks whose
+  // backend cover_url is empty. Cache by spotify_id so navigation
+  // back to the same track doesn't re-fetch.
+  const [coverCache, setCoverCache] = useState<Record<string, string>>({});
+  const baseSpotifyId = baseTrack?.spotify_id ?? null;
+  const baseCover = baseTrack?.cover_url ?? null;
+  useEffect(() => {
+    if (baseCover || !baseSpotifyId) return;
+    if (coverCache[baseSpotifyId]) return;
+    let cancelled = false;
+    void spotifyApi
+      .getTrackCover(baseSpotifyId)
+      .then((url) => {
+        if (cancelled || !url) return;
+        setCoverCache((prev) =>
+          prev[baseSpotifyId] ? prev : { ...prev, [baseSpotifyId]: url },
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [baseSpotifyId, baseCover, coverCache]);
+
+  const playerTrack =
+    baseTrack && !baseTrack.cover_url && baseSpotifyId && coverCache[baseSpotifyId]
+      ? { ...baseTrack, cover_url: coverCache[baseSpotifyId] ?? null }
+      : baseTrack;
 
   if (session.status === 'loading') return <CurateSkeleton />;
   if (session.status === 'error') {

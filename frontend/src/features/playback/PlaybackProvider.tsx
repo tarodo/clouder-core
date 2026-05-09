@@ -394,6 +394,15 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       await play();
       return;
     }
+    // After `prewarm` made CLOUDER the active device, Spotify's prior
+    // session shows up as paused state in the SDK and queue.status flips
+    // to 'paused' even though we never called play(). A naive togglePlay
+    // would resume that stale URI. Detect this via expectedSpotifyIdRef
+    // (set inside play()/advance() — null until we've initiated a track).
+    if (queue.status === 'paused' && expectedSpotifyIdRef.current === null) {
+      await play();
+      return;
+    }
     const activeId = activeDeviceIdRef.current;
     const cloderId = cloderTabIdRef.current;
     if (activeId && cloderId && activeId !== cloderId) {
