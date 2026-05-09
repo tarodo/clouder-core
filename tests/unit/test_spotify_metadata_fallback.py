@@ -8,6 +8,7 @@ from unittest.mock import patch
 from collector.spotify_client import (
     SpotifyClient,
     _accept_metadata_match,
+    _isrc_neighbours,
     _normalize_title_for_match,
 )
 
@@ -47,6 +48,31 @@ def _spotify_track(
         "external_ids": {"isrc": isrc},
         "album": {"release_date": "2026-01-01", "release_date_precision": "day"},
     }
+
+
+def test_isrc_neighbours_returns_closest_first_within_0_9() -> None:
+    # 4 → 3, 5, 2, 6 (delta order: -1, +1, -2, +2 == closest first)
+    assert _isrc_neighbours("GBKQU2633814") == [
+        "GBKQU2633815",  # +1
+        "GBKQU2633813",  # -1
+        "GBKQU2633816",  # +2
+        "GBKQU2633812",  # -2
+    ]
+
+
+def test_isrc_neighbours_skips_negative_when_last_is_zero() -> None:
+    # last=0: -1 invalid, +1=1; -2 invalid, +2=2
+    assert _isrc_neighbours("GBKQU2633810") == ["GBKQU2633811", "GBKQU2633812"]
+
+
+def test_isrc_neighbours_skips_carry_when_last_is_nine() -> None:
+    # last=9: +1=10 invalid (no carry), -1=8; +2=11 invalid, -2=7
+    assert _isrc_neighbours("GBKQU2633819") == ["GBKQU2633818", "GBKQU2633817"]
+
+
+def test_isrc_neighbours_returns_empty_when_last_not_digit() -> None:
+    assert _isrc_neighbours("GBKQU263381X") == []
+    assert _isrc_neighbours("") == []
 
 
 def test_normalize_title_strips_radio_edit_suffix() -> None:
@@ -375,6 +401,127 @@ def test_search_by_metadata_normalizes_title_suffix() -> None:
         )
     assert track is not None
     assert track["id"] == "sp_radio"
+
+
+def test_search_by_isrc_neighbours_finds_byteflip_match() -> None:
+    """ISRC GBKQU2633814 has no track; +1 sibling GBKQU2633815 is the actual master."""
+    client = _make_client()
+    sibling = _spotify_track(
+        sp_id="sp_byteflip",
+        name="Move On",
+        artists=["Guri & Eider"],
+        duration_ms=180_000,
+        isrc="GBKQU2633815",
+    )
+    call_log = []
+
+    def fake_urlopen(request, timeout=None):
+        url = request.full_url
+        call_log.append(url)
+        if "isrc%3AGBKQU2633815" in url:  # +1 hit
+            return _Resp({"tracks": {"items": [sibling]}})
+        return _Resp({"tracks": {"items": []}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        track = client._search_by_isrc_neighbours(
+            isrc="GBKQU2633814",
+            title="Move On",
+            artist="Guri & Eider",
+            correlation_id="cid",
+            title_min=0.90,
+            artist_min=0.85,
+        )
+    assert track is not None
+    assert track["id"] == "sp_byteflip"
+
+
+def test_search_by_isrc_neighbours_rejects_when_title_artist_dont_match() -> None:
+    """Sibling ISRC may belong to a totally different track in the same release —
+    must reject if title/artist similarity is below the gate."""
+    client = _make_client()
+    sibling = _spotify_track(
+        sp_id="sp_other_track",
+        name="Completely Different Song",
+        artists=["Different Artist"],
+        duration_ms=180_000,
+        isrc="GBKQU2633815",
+    )
+
+    def fake_urlopen(request, timeout=None):
+        return _Resp({"tracks": {"items": [sibling]}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        track = client._search_by_isrc_neighbours(
+            isrc="GBKQU2633814",
+            title="Move On",
+            artist="Guri & Eider",
+            correlation_id="cid",
+            title_min=0.90,
+            artist_min=0.85,
+        )
+    assert track is None
+
+
+def test_search_by_isrc_neighbours_returns_none_when_all_neighbours_empty() -> None:
+    client = _make_client()
+
+    def fake_urlopen(request, timeout=None):
+        return _Resp({"tracks": {"items": []}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        track = client._search_by_isrc_neighbours(
+            isrc="GBKQU2633814",
+            title="Move On",
+            artist="Guri & Eider",
+            correlation_id="cid",
+            title_min=0.90,
+            artist_min=0.85,
+        )
+    assert track is None
+
+
+def test_search_tracks_invokes_isrc_neighbours_before_metadata() -> None:
+    """ISRC miss → neighbour hit → metadata search NOT issued."""
+    client = _make_client()
+    sibling = _spotify_track(
+        sp_id="sp_neighbour",
+        name="Move On",
+        artists=["Guri & Eider"],
+        duration_ms=180_000,
+        isrc="GBKQU2633815",
+    )
+
+    call_log: list[str] = []
+
+    def fake_urlopen(request, timeout=None):
+        url = request.full_url
+        call_log.append(url)
+        if "isrc%3AGBKQU2633815" in url:
+            return _Resp({"tracks": {"items": [sibling]}})
+        return _Resp({"tracks": {"items": []}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        results = client.search_tracks_by_isrc(
+            tracks=[
+                {
+                    "clouder_track_id": "ct1",
+                    "isrc": "GBKQU2633814",
+                    "title": "Move On",
+                    "artists": "Guri & Eider",
+                    "duration_ms": 180_000,
+                }
+            ],
+            correlation_id="cid",
+            metadata_fallback_enabled=True,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+
+    assert len(results) == 1
+    assert results[0].spotify_id == "sp_neighbour"
+    # No q=track:... search should have been issued
+    assert not any("q=track" in u for u in call_log)
 
 
 def test_search_by_metadata_picks_highest_combined_when_multiple_pass() -> None:

@@ -92,6 +92,31 @@ class SpotifyClient:
                 artist = str(track.get("artists") or "").strip()
                 duration_ms = track.get("duration_ms")
                 if title and artist:
+                    # Step 1: try sibling ISRCs (off-by-one / off-by-two on last digit).
+                    # Cheaper + higher-confidence than metadata text search when
+                    # a sibling exists.
+                    spotify_track = self._search_by_isrc_neighbours(
+                        isrc=isrc,
+                        title=title,
+                        artist=artist,
+                        correlation_id=correlation_id,
+                        title_min=title_min,
+                        artist_min=artist_min,
+                    )
+                    if spotify_track is not None:
+                        log_event(
+                            "INFO",
+                            "spotify_isrc_neighbour_match",
+                            correlation_id=correlation_id,
+                            clouder_track_id=clouder_track_id,
+                            isrc=isrc,
+                            spotify_id=spotify_track.get("id"),
+                            spotify_isrc=spotify_track.get(
+                                "external_ids", {}
+                            ).get("isrc"),
+                        )
+                if spotify_track is None and title and artist:
+                    # Step 2: full metadata text search.
                     log_event(
                         "INFO",
                         "spotify_metadata_fallback_attempted",
@@ -234,6 +259,48 @@ class SpotifyClient:
                 candidate_count=len(items),
             )
         return best_track
+
+    def _search_by_isrc_neighbours(
+        self,
+        *,
+        isrc: str,
+        title: str,
+        artist: str,
+        correlation_id: str,
+        title_min: float,
+        artist_min: float,
+    ) -> Dict[str, Any] | None:
+        """Try ISRCs that differ from the query by ±1, ±2 in the last digit.
+
+        Sibling ISRCs in the same release are common when Beatport ships an
+        ISRC that's off-by-one from Spotify's master. Each candidate is
+        verified against title/artist gates (NO duration check — radio edits
+        and master/extended versions can differ wildly in length but are
+        legitimately the same track family). Closest neighbour wins on tie.
+        Title is normalized via _normalize_title_for_match.
+        """
+        neighbours = _isrc_neighbours(isrc)
+        if not neighbours:
+            return None
+        norm_query_title = _normalize_title_for_match(title)
+        for nb in neighbours:
+            track = self._search_by_isrc(isrc=nb, correlation_id=correlation_id)
+            if track is None:
+                continue
+            cand_name = str(track.get("name") or "")
+            cand_artists = tuple(
+                str(a.get("name", ""))
+                for a in (track.get("artists") or [])
+                if isinstance(a, dict)
+            )
+            title_sim = string_sim(
+                _normalize_title_for_match(cand_name), norm_query_title
+            )
+            artist_sim = best_artist_sim(cand_artists, artist)
+            if title_sim < title_min or artist_sim < artist_min:
+                continue
+            return track
+        return None
 
     def _search_by_isrc(
         self, isrc: str, correlation_id: str
@@ -396,6 +463,27 @@ def _album_release_sort_key(track: Dict[str, Any]) -> str:
     while len(parts) < 3:
         parts.append("00")
     return "-".join(parts[:3])
+
+
+def _isrc_neighbours(isrc: str) -> list[str]:
+    """Generate sibling ISRCs by varying the last digit ±1, ±2.
+
+    Beatport sometimes emits ISRCs that differ from Spotify's master by a
+    single digit at the tail (off-by-one releases / different masters).
+    Order is closest-first: +1, -1, +2, -2. Out-of-range (negative or > 9)
+    is skipped so we never carry into the prior digit. Returns [] if the
+    last char is not a digit.
+    """
+    if not isrc or not isrc[-1].isdigit():
+        return []
+    last = int(isrc[-1])
+    prefix = isrc[:-1]
+    out: list[str] = []
+    for delta in (1, -1, 2, -2):
+        new = last + delta
+        if 0 <= new <= 9:
+            out.append(f"{prefix}{new}")
+    return out
 
 
 # Suffix patterns commonly appended by labels — strip before fuzzy matching.
