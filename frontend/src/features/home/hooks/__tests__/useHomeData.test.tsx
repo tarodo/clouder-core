@@ -102,4 +102,16 @@ describe('useHomeData', () => {
     expect(result.current.data?.activeBlocksCount).toBe(0);
     expect(result.current.data?.styles).toEqual([]);
   });
+
+  it('returns isError when /styles fails', async () => {
+    server.use(
+      http.get('http://localhost/styles', () =>
+        HttpResponse.json({ error_code: 'server', message: 'boom', correlation_id: 'x' }, { status: 500 }),
+      ),
+    );
+    const { result } = renderHook(() => useHomeData(), { wrapper: wrap() });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.isLoading).toBe(false);
+  });
 });
