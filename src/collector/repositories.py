@@ -1195,12 +1195,18 @@ class ClouderRepository:
                 r.finished_at
             FROM clouder_styles cs
             LEFT JOIN LATERAL (
-                SELECT *
+                SELECT
+                    ir.run_id, ir.week_year, ir.week_number, ir.style_id,
+                    ir.status, ir.item_count, ir.is_custom_range,
+                    ir.period_start, ir.period_end,
+                    ir.started_at, ir.finished_at
                 FROM ingest_runs ir
                 WHERE ir.week_year = :week_year
                   AND ir.style_id::text = cs.id::text
                 ORDER BY ir.week_number, ir.started_at DESC
             ) r ON TRUE
+            -- r.run_id IS NULL when a style has no runs for the year (LEFT JOIN);
+            -- include those rows so the matrix shows empty cells for that style.
             WHERE r.run_id IS NULL OR NOT EXISTS (
                 SELECT 1
                 FROM ingest_runs ir2
