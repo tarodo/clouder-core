@@ -478,8 +478,8 @@ def _handle_admin_runs(event: Mapping[str, Any]) -> dict[str, Any]:
 
     def _int_param(name: str) -> int:
         raw = qs.get(name)
-        if not isinstance(raw, str) or not raw.lstrip("-").isdigit():
-            raise ValidationError(f"{name} is required (integer)")
+        if not isinstance(raw, str) or not raw.isdigit() or int(raw) < 1:
+            raise ValidationError(f"{name} is required (positive integer)")
         return int(raw)
 
     style_id = _int_param("style_id")
