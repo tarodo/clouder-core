@@ -167,7 +167,8 @@ class SpotifyClient:
         Builds q=track:<title> artist:<artist>, scores each result against
         the query, and returns the highest-scoring candidate that passes
         the strict per-component accept gate. Returns None if the input
-        is empty or no candidate passes.
+        is empty or no candidate passes. Logs the best title/artist sims
+        seen across all candidates for debug visibility on rejects.
         """
         if not title.strip() or not artist.strip():
             return None
@@ -185,6 +186,8 @@ class SpotifyClient:
 
         best_track: Dict[str, Any] | None = None
         best_combined = -1.0
+        max_title_sim = 0.0
+        max_artist_sim = 0.0
         for item in items:
             if not isinstance(item, dict):
                 continue
@@ -200,6 +203,8 @@ class SpotifyClient:
             )
             title_sim = string_sim(cand_name, title)
             artist_sim = best_artist_sim(cand_artists, artist)
+            max_title_sim = max(max_title_sim, title_sim)
+            max_artist_sim = max(max_artist_sim, artist_sim)
             if not _accept_metadata_match(
                 title_sim=title_sim,
                 artist_sim=artist_sim,
@@ -214,6 +219,15 @@ class SpotifyClient:
             if combined > best_combined:
                 best_combined = combined
                 best_track = item
+        if best_track is None:
+            log_event(
+                "INFO",
+                "spotify_metadata_fallback_scores",
+                correlation_id=correlation_id,
+                title_sim=round(max_title_sim, 3),
+                artist_sim=round(max_artist_sim, 3),
+                candidate_count=len(items),
+            )
         return best_track
 
     def _search_by_isrc(

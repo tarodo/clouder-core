@@ -86,6 +86,10 @@ ALLOWED_LOG_FIELDS = {
     "target_bucket_id",
     "transferred",
     "promoted_count",
+    "isrc",
+    "clouder_track_id",
+    "spotify_id",
+    "spotify_isrc",
 }
 
 
