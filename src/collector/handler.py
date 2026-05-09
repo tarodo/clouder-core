@@ -154,6 +154,17 @@ def _route(
 
 @dataclass(frozen=True)
 class _IngestParams:
+    """Inputs for `_run_beatport_ingest`.
+
+    Three valid field combinations:
+    - Legacy ISO path: iso_year + iso_week set; week_year/week_number None;
+      is_custom_range False.
+    - Admin Saturday-week path: week_year + week_number set; iso_year/iso_week None;
+      is_custom_range False; period_start/period_end derived from saturday_week_range.
+    - Admin custom-range path: same as Saturday-week plus is_custom_range True;
+      period_start/period_end taken from the request body verbatim.
+    """
+
     style_id: int
     bp_token: str
     period_start: str  # YYYY-MM-DD
@@ -267,8 +278,8 @@ def _run_beatport_ingest(
         run_id=run_id,
         s3_key=releases_key,
         style_id=params.style_id,
-        iso_year=params.iso_year or 0,
-        iso_week=params.iso_week or 0,
+        iso_year=params.iso_year,
+        iso_week=params.iso_week,
         correlation_id=correlation_id,
         settings=settings,
     )
@@ -319,6 +330,7 @@ def _run_beatport_ingest(
         iso_week=params.iso_week,
         week_year=params.week_year,
         week_number=params.week_number,
+        is_custom_range=params.is_custom_range,
         item_count=item_count,
         api_pages_fetched=api_pages_fetched,
         duration_ms=duration_ms,
@@ -570,8 +582,8 @@ def _enqueue_canonicalization(
     run_id: str,
     s3_key: str,
     style_id: int,
-    iso_year: int,
-    iso_week: int,
+    iso_year: int | None,
+    iso_week: int | None,
     correlation_id: str,
     settings: ApiSettings,
 ) -> EnqueueResult:
