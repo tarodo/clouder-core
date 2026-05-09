@@ -726,11 +726,16 @@ class ClouderRepository:
     def find_tracks_needing_spotify_search(self, limit: int) -> list[dict[str, Any]]:
         return self._data_api.execute(
             """
-            SELECT id, isrc, title, normalized_title
-            FROM clouder_tracks
-            WHERE isrc IS NOT NULL
-              AND spotify_searched_at IS NULL
-            ORDER BY created_at DESC
+            SELECT t.id, t.isrc, t.title, t.normalized_title, t.length_ms,
+                   string_agg(DISTINCT a.name, ', ') AS artists
+            FROM clouder_tracks t
+            LEFT JOIN clouder_track_artists ta ON ta.track_id = t.id
+            LEFT JOIN clouder_artists a ON ta.artist_id = a.id
+            WHERE t.isrc IS NOT NULL
+              AND t.spotify_searched_at IS NULL
+            GROUP BY t.id, t.isrc, t.title, t.normalized_title,
+                     t.length_ms, t.created_at
+            ORDER BY t.created_at DESC
             LIMIT :limit
             """,
             {"limit": limit},
