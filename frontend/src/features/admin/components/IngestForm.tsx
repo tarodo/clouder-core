@@ -61,7 +61,7 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
         checked={override}
         onChange={(e) => setOverride(e.currentTarget.checked)}
       />
-      <Collapse in={override}>
+      <Collapse expanded={override}>
         <Stack gap={4}>
           <Text size="xs" c="dimmed">
             {t('admin.ingest.standard_week', { start: fmt(stdStart), end: fmt(stdEnd) })}
@@ -89,7 +89,7 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
           checked={advancedOpen}
           onChange={(e) => setAdvancedOpen(e.currentTarget.checked)}
         />
-        <Collapse in={advancedOpen}>
+        <Collapse expanded={advancedOpen}>
           <NumberInput
             label={t('admin.ingest.search_label_count')}
             min={1}
