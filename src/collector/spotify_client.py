@@ -51,17 +51,22 @@ class SpotifyClient:
 
     def search_tracks_by_isrc(
         self,
-        tracks: List[Dict[str, str]],
+        tracks: List[Dict[str, Any]],
         correlation_id: str,
+        *,
+        metadata_fallback_enabled: bool = False,
+        title_min: float = 0.90,
+        artist_min: float = 0.85,
+        duration_tolerance_ms: int = 3000,
     ) -> List[SpotifySearchResult]:
-        """Search Spotify for each track by ISRC.
+        """Search Spotify for each track by ISRC, with optional metadata fallback.
 
         Args:
-            tracks: list of {"clouder_track_id": ..., "isrc": ...}
-            correlation_id: request trace ID
-
-        Returns:
-            List of SpotifySearchResult for each input track.
+            tracks: list of dicts. Required keys: clouder_track_id, isrc.
+                Optional (used by fallback): title, artists, duration_ms.
+            correlation_id: trace ID
+            metadata_fallback_enabled: if True, fall back to text search on ISRC miss
+            title_min, artist_min, duration_tolerance_ms: accept-gate thresholds
         """
         self._ensure_token(correlation_id)
         results: List[SpotifySearchResult] = []
@@ -74,31 +79,66 @@ class SpotifyClient:
                 spotify_track = self._search_by_isrc(
                     isrc=isrc, correlation_id=correlation_id
                 )
-                spotify_id = spotify_track["id"] if spotify_track else None
-                results.append(
-                    SpotifySearchResult(
-                        isrc=isrc,
-                        clouder_track_id=clouder_track_id,
-                        spotify_track=spotify_track,
-                        spotify_id=spotify_id,
-                    )
-                )
             except SpotifyAuthError:
-                # Token might have expired mid-batch; re-authenticate once.
                 self._access_token = None
                 self._ensure_token(correlation_id)
                 spotify_track = self._search_by_isrc(
                     isrc=isrc, correlation_id=correlation_id
                 )
-                spotify_id = spotify_track["id"] if spotify_track else None
-                results.append(
-                    SpotifySearchResult(
-                        isrc=isrc,
+
+            if spotify_track is None and metadata_fallback_enabled:
+                title = str(track.get("title") or "").strip()
+                artist = str(track.get("artists") or "").strip()
+                duration_ms = track.get("duration_ms")
+                if title and artist:
+                    log_event(
+                        "INFO",
+                        "spotify_metadata_fallback_attempted",
+                        correlation_id=correlation_id,
                         clouder_track_id=clouder_track_id,
-                        spotify_track=spotify_track,
-                        spotify_id=spotify_id,
+                        isrc=isrc,
                     )
+                    spotify_track = self._search_by_metadata(
+                        title=title,
+                        artist=artist,
+                        duration_ms=int(duration_ms)
+                        if isinstance(duration_ms, (int, float))
+                        else None,
+                        correlation_id=correlation_id,
+                        title_min=title_min,
+                        artist_min=artist_min,
+                        duration_tolerance_ms=duration_tolerance_ms,
+                    )
+                    if spotify_track is None:
+                        log_event(
+                            "INFO",
+                            "spotify_metadata_fallback_rejected",
+                            correlation_id=correlation_id,
+                            clouder_track_id=clouder_track_id,
+                            isrc=isrc,
+                        )
+                    else:
+                        log_event(
+                            "INFO",
+                            "spotify_metadata_fallback_match",
+                            correlation_id=correlation_id,
+                            clouder_track_id=clouder_track_id,
+                            isrc=isrc,
+                            spotify_id=spotify_track.get("id"),
+                            spotify_isrc=spotify_track.get(
+                                "external_ids", {}
+                            ).get("isrc"),
+                        )
+
+            spotify_id = spotify_track["id"] if spotify_track else None
+            results.append(
+                SpotifySearchResult(
+                    isrc=isrc,
+                    clouder_track_id=clouder_track_id,
+                    spotify_track=spotify_track,
+                    spotify_id=spotify_id,
                 )
+            )
 
             if (index + 1) % 100 == 0:
                 log_event(

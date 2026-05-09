@@ -207,6 +207,104 @@ def test_search_by_metadata_returns_none_for_empty_inputs() -> None:
         ) is None
 
 
+def test_search_tracks_invokes_metadata_fallback_on_isrc_miss() -> None:
+    client = _make_client()
+
+    fallback_track = _spotify_track(
+        sp_id="sp_fallback",
+        name="Move On",
+        artists=["Guri & Eider"],
+        duration_ms=180_000,
+    )
+
+    call_count = {"n": 0}
+
+    def fake_urlopen(request, timeout=None):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return _Resp({"tracks": {"items": []}})
+        return _Resp({"tracks": {"items": [fallback_track]}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        results = client.search_tracks_by_isrc(
+            tracks=[
+                {
+                    "clouder_track_id": "ct1",
+                    "isrc": "GBKQU2633814",
+                    "title": "Move On",
+                    "artists": "Guri & Eider",
+                    "duration_ms": 180_000,
+                }
+            ],
+            correlation_id="cid",
+            metadata_fallback_enabled=True,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+
+    assert len(results) == 1
+    assert results[0].spotify_id == "sp_fallback"
+    assert call_count["n"] == 2
+
+
+def test_search_tracks_skips_fallback_when_flag_off() -> None:
+    client = _make_client()
+    call_count = {"n": 0}
+
+    def fake_urlopen(request, timeout=None):
+        call_count["n"] += 1
+        return _Resp({"tracks": {"items": []}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        results = client.search_tracks_by_isrc(
+            tracks=[
+                {
+                    "clouder_track_id": "ct1",
+                    "isrc": "GBKQU2633814",
+                    "title": "Move On",
+                    "artists": "Guri & Eider",
+                    "duration_ms": 180_000,
+                }
+            ],
+            correlation_id="cid",
+            metadata_fallback_enabled=False,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+    assert len(results) == 1
+    assert results[0].spotify_id is None
+    assert call_count["n"] == 1
+
+
+def test_search_tracks_skips_fallback_without_metadata() -> None:
+    client = _make_client()
+    call_count = {"n": 0}
+
+    def fake_urlopen(request, timeout=None):
+        call_count["n"] += 1
+        return _Resp({"tracks": {"items": []}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        results = client.search_tracks_by_isrc(
+            tracks=[
+                {
+                    "clouder_track_id": "ct1",
+                    "isrc": "GBKQU2633814",
+                }
+            ],
+            correlation_id="cid",
+            metadata_fallback_enabled=True,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+    assert len(results) == 1
+    assert results[0].spotify_id is None
+    assert call_count["n"] == 1
+
+
 def test_search_by_metadata_picks_highest_combined_when_multiple_pass() -> None:
     client = _make_client()
     payload = {
