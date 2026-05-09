@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router';
+import { Navigate } from 'react-router';
 import { AppShellLayout } from './_layout';
 import { LoginPage } from './login';
 import { AuthReturnPage } from './auth.return';
@@ -19,6 +20,10 @@ import { ProfilePage } from './profile';
 import { NotFoundPage } from './not-found';
 import { RouteErrorBoundary } from '../components/RouteErrorBoundary';
 import { requireAuth, redirectIfAuthenticated } from '../auth/requireAuth';
+import { requireAdmin } from '../auth/requireAdmin';
+import { AdminLayout } from '../features/admin/routes/AdminLayout';
+import { AdminCoveragePage } from '../features/admin/routes/AdminCoveragePage';
+import { AdminSpotifyNotFoundPage } from '../features/admin/routes/AdminSpotifyNotFoundPage';
 
 export const router = createBrowserRouter([
   {
@@ -64,6 +69,16 @@ export const router = createBrowserRouter([
         ],
       },
       { path: 'profile', element: <ProfilePage /> },
+      {
+        path: 'admin',
+        element: <AdminLayout />,
+        loader: requireAdmin,
+        children: [
+          { index: true, element: <Navigate to="/admin/coverage" replace /> },
+          { path: 'coverage', element: <AdminCoveragePage /> },
+          { path: 'spotify-not-found', element: <AdminSpotifyNotFoundPage /> },
+        ],
+      },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
