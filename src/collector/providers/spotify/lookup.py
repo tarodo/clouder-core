@@ -31,12 +31,21 @@ class SpotifyLookup:
 
     def lookup_batch_by_isrc(
         self,
-        tracks: list[dict[str, str]],
+        tracks: list[dict[str, Any]],
         correlation_id: str,
+        *,
+        metadata_fallback_enabled: bool = False,
+        title_min: float = 0.90,
+        artist_min: float = 0.85,
+        duration_tolerance_ms: int = 3000,
     ) -> list[SpotifySearchResult]:
         return self._client.search_tracks_by_isrc(
             tracks=tracks,
             correlation_id=correlation_id,
+            metadata_fallback_enabled=metadata_fallback_enabled,
+            title_min=title_min,
+            artist_min=artist_min,
+            duration_tolerance_ms=duration_tolerance_ms,
         )
 
     def lookup_by_isrc(self, isrc: str) -> VendorTrackRef | None:

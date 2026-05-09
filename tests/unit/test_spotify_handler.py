@@ -137,7 +137,7 @@ def _setup(monkeypatch, repo=None, tracks=None):
 
 def _fake_search_results(*pairs):
     """Build fake search function returning given (isrc, track_id, spotify_id) tuples."""
-    def fake_search(self, tracks, correlation_id):
+    def fake_search(self, tracks, correlation_id, **_kwargs):
         return [
             SpotifySearchResult(
                 isrc=isrc,
@@ -231,7 +231,7 @@ def test_captures_album_type_and_propagates_to_albums(monkeypatch) -> None:
     ]
     repo, _ = _setup(monkeypatch, tracks=tracks)
 
-    def fake_search(self, tracks, correlation_id):
+    def fake_search(self, tracks, correlation_id, **_kwargs):
         mapping = {
             "ISRC001": ("sp1", "compilation"),
             "ISRC002": ("sp2", "single"),
@@ -414,3 +414,54 @@ def test_update_cmds_carry_spotify_release_date() -> None:
     }
     assert _extract_album_type(payload) == "album"
     assert _extract_release_date(payload) == date(2024, 3, 15)
+
+
+def test_handler_forwards_metadata_kwargs_when_enabled(monkeypatch) -> None:
+    """Worker passes title/artists/duration_ms + thresholds into the client."""
+    tracks = [
+        {
+            "id": "ct1",
+            "isrc": "ISRC001",
+            "title": "Move On",
+            "normalized_title": "move on",
+            "length_ms": 180_000,
+            "artists": "Guri & Eider",
+        }
+    ]
+    repo, _ = _setup(monkeypatch, tracks=tracks)
+    monkeypatch.setenv("SPOTIFY_METADATA_FALLBACK_ENABLED", "true")
+    monkeypatch.setenv("SPOTIFY_FUZZY_TITLE_MIN", "0.91")
+    monkeypatch.setenv("SPOTIFY_FUZZY_ARTIST_MIN", "0.86")
+    monkeypatch.setenv("SPOTIFY_FUZZY_DURATION_TOLERANCE_MS", "2500")
+    reset_settings_cache()
+
+    captured: dict[str, Any] = {}
+
+    def fake_search(self, tracks, correlation_id, **kwargs):
+        captured["tracks"] = list(tracks)
+        captured["kwargs"] = dict(kwargs)
+        return [
+            SpotifySearchResult(
+                isrc="ISRC001",
+                clouder_track_id="ct1",
+                spotify_track=None,
+                spotify_id=None,
+            )
+        ]
+
+    monkeypatch.setattr(
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
+        fake_search,
+    )
+
+    event = _sqs_event({"batch_size": 100})
+    lambda_handler(event, context=None)
+
+    assert captured["tracks"][0]["title"] == "Move On"
+    assert captured["tracks"][0]["artists"] == "Guri & Eider"
+    assert captured["tracks"][0]["duration_ms"] == 180_000
+    assert captured["kwargs"]["metadata_fallback_enabled"] is True
+    assert captured["kwargs"]["title_min"] == 0.91
+    assert captured["kwargs"]["artist_min"] == 0.86
+    assert captured["kwargs"]["duration_tolerance_ms"] == 2500
+    reset_settings_cache()

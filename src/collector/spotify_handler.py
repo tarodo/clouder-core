@@ -189,13 +189,23 @@ def _process_spotify_search(
     client = registry.get_lookup("spotify")
 
     search_input = [
-        {"clouder_track_id": str(t["id"]), "isrc": str(t["isrc"])}
+        {
+            "clouder_track_id": str(t["id"]),
+            "isrc": str(t["isrc"]),
+            "title": str(t.get("title") or ""),
+            "artists": str(t.get("artists") or ""),
+            "duration_ms": t.get("length_ms"),
+        }
         for t in tracks
     ]
 
     results = client.lookup_batch_by_isrc(
         tracks=search_input,
         correlation_id=correlation_id,
+        metadata_fallback_enabled=settings.metadata_fallback_enabled,
+        title_min=settings.metadata_fallback_title_min,
+        artist_min=settings.metadata_fallback_artist_min,
+        duration_tolerance_ms=settings.metadata_fallback_duration_tolerance_ms,
     )
 
     now = utc_now()
