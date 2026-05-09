@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -50,8 +50,8 @@ def test_weeks_in_year_2028_is_53():
 def test_week_of_date_round_trip_2026():
     for n in range(1, weeks_in_year(2026) + 1):
         start, _ = saturday_week_range(2026, n)
-        assert week_of_date(start) == (2026, n)
-        assert week_of_date(start + (saturday_week_range(2026, n)[1] - start)) == (2026, n)
+        for offset in range(7):
+            assert week_of_date(start + timedelta(days=offset)) == (2026, n)
 
 
 def test_week_of_date_jan_1_2027_belongs_to_prev_year():
