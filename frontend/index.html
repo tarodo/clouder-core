@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>CLOUDER</title>
+    <script>
+      // SPA fallback shim: CloudFront `spa_html_fallback` redirects browser
+      // refresh / deep-link on api-gw collision paths (/categories/<id>,
+      // /admin/coverage, ...) to /__spa?p=<encoded original path>. Restore
+      // the URL bar before the module script imports the router so
+      // createBrowserRouter sees the deep link directly.
+      (function () {
+        if (window.location.pathname !== '/__spa') return;
+        var p = new URLSearchParams(window.location.search).get('p');
+        if (!p || !p.startsWith('/') || p.startsWith('//')) return;
+        window.history.replaceState(null, '', p);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

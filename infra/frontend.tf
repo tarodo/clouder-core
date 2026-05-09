@@ -45,11 +45,18 @@ resource "aws_cloudfront_function" "spa_router" {
 # API GW AND the AdminCoveragePage URL).
 #
 # CloudFront cache behavior is selected from the original path before any
-# function runs, and a viewer-request CloudFront Function CANNOT switch origin —
-# so we synthesize a tiny HTML stub when `Accept: text/html` (browser refresh /
-# deep-link paste, NOT apiClient fetches which set `Accept: application/json`).
-# The stub fetches /index.html (S3 default behavior) and document.write()s it,
-# preserving location.pathname so the SPA router resolves the deep link.
+# function runs, and a viewer-request CloudFront Function CANNOT switch origin.
+# When the request is a browser navigation (Accept: text/html) — and NOT an
+# apiClient fetch (Accept: application/json) — we 302-redirect to
+# `/__spa?p=<encoded original path>`. That sentinel falls through to the S3
+# default behavior, the spa_router CF Function rewrites it to /index.html, the
+# SPA shell loads, and an inline shim in `frontend/index.html` reads `?p=` and
+# `history.replaceState`s the URL bar back to the original path BEFORE
+# `createBrowserRouter` reads `location.pathname`.
+#
+# Tried previously: synthesize a 200 HTML stub that fetches /index.html and
+# `document.write`s it. Module scripts inserted via document.write don't reliably
+# execute after the async fetch, so the SPA never bootstrapped (blank page).
 resource "aws_cloudfront_function" "spa_html_fallback" {
   name    = "${local.name_prefix}-spa-html-fallback"
   runtime = "cloudfront-js-2.0"
@@ -60,18 +67,14 @@ resource "aws_cloudfront_function" "spa_html_fallback" {
       if (req.method !== 'GET') return req;
       var hdr = req.headers['accept'];
       if (!hdr || hdr.value.indexOf('text/html') < 0) return req;
-      var html = '<!doctype html><html><head><meta charset="utf-8">'
-        + '<title>CLOUDER</title>'
-        + '<script>fetch("/index.html",{credentials:"omit"}).then(function(r){return r.text();}).then(function(h){document.open();document.write(h);document.close();}).catch(function(){location.replace("/");});</script>'
-        + '</head><body></body></html>';
+      var target = '/__spa?p=' + encodeURIComponent(req.uri);
       return {
-        statusCode: 200,
-        statusDescription: 'OK',
+        statusCode: 302,
+        statusDescription: 'Found',
         headers: {
-          'content-type': { value: 'text/html; charset=utf-8' },
+          'location': { value: target },
           'cache-control': { value: 'no-store' },
         },
-        body: html,
       };
     }
   EOT
