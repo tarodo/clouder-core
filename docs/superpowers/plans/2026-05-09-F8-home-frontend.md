@@ -15,7 +15,7 @@
 ```bash
 cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/f8_task/frontend
 pnpm install
-pnpm vitest run --reporter=dot 2>&1 | tail -5
+pnpm test --reporter=dot 2>&1 | tail -5
 ```
 Expected: green baseline (no Home tests yet — placeholder only).
 
@@ -132,7 +132,7 @@ describe('weekLabel', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd frontend && pnpm vitest run src/features/home/lib/__tests__/weekLabel.test.ts`
+Run: `cd frontend && pnpm test src/features/home/lib/__tests__/weekLabel.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement weekLabel**
@@ -156,7 +156,7 @@ export function weekLabel(isoDate: string): string {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd frontend && pnpm vitest run src/features/home/lib/__tests__/weekLabel.test.ts`
+Run: `cd frontend && pnpm test src/features/home/lib/__tests__/weekLabel.test.ts`
 Expected: 4 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -246,7 +246,7 @@ describe('homeActiveBlocksQueryOptions', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd frontend && pnpm vitest run src/features/home/hooks/__tests__/homeActiveBlocksQueryOptions.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/hooks/__tests__/homeActiveBlocksQueryOptions.test.tsx`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement the factory**
@@ -288,7 +288,7 @@ export function homeActiveBlocksQueryOptions(styleId: string) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd frontend && pnpm vitest run src/features/home/hooks/__tests__/homeActiveBlocksQueryOptions.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/hooks/__tests__/homeActiveBlocksQueryOptions.test.tsx`
 Expected: 3 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -421,7 +421,7 @@ describe('useHomeData', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd frontend && pnpm vitest run src/features/home/hooks/__tests__/useHomeData.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/hooks/__tests__/useHomeData.test.tsx`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement `useHomeData`**
@@ -518,7 +518,7 @@ export function useHomeData(): UseHomeDataResult {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd frontend && pnpm vitest run src/features/home/hooks/__tests__/useHomeData.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/hooks/__tests__/useHomeData.test.tsx`
 Expected: 3 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -637,7 +637,7 @@ describe('useResumeTarget', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd frontend && pnpm vitest run src/features/home/hooks/__tests__/useResumeTarget.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/hooks/__tests__/useResumeTarget.test.tsx`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement `useResumeTarget`**
@@ -704,7 +704,7 @@ export function useResumeTarget(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd frontend && pnpm vitest run src/features/home/hooks/__tests__/useResumeTarget.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/hooks/__tests__/useResumeTarget.test.tsx`
 Expected: 6 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -788,7 +788,7 @@ describe('ResumeHero', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd frontend && pnpm vitest run src/features/home/components/__tests__/ResumeHero.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/components/__tests__/ResumeHero.test.tsx`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement `ResumeHero`**
@@ -878,7 +878,7 @@ export function ResumeHero({ target }: ResumeHeroProps) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd frontend && pnpm vitest run src/features/home/components/__tests__/ResumeHero.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/components/__tests__/ResumeHero.test.tsx`
 Expected: 3 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -936,7 +936,7 @@ describe('CountersGrid', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd frontend && pnpm vitest run src/features/home/components/__tests__/CountersGrid.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/components/__tests__/CountersGrid.test.tsx`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement `CountersGrid`**
@@ -987,7 +987,7 @@ export function CountersGrid({ awaitingTriage, activeBlocks }: CountersGridProps
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd frontend && pnpm vitest run src/features/home/components/__tests__/CountersGrid.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/components/__tests__/CountersGrid.test.tsx`
 Expected: 1 test passes.
 
 - [ ] **Step 5: Commit**
@@ -1069,7 +1069,7 @@ describe('ActiveBlocksList', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd frontend && pnpm vitest run src/features/home/components/__tests__/ActiveBlocksList.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/components/__tests__/ActiveBlocksList.test.tsx`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement `ActiveBlocksList`**
@@ -1128,7 +1128,7 @@ export function ActiveBlocksList({ blocks, total }: ActiveBlocksListProps) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd frontend && pnpm vitest run src/features/home/components/__tests__/ActiveBlocksList.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/components/__tests__/ActiveBlocksList.test.tsx`
 Expected: 3 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -1192,7 +1192,7 @@ export function NoStylesEmpty() {
 
 - [ ] **Step 3: Build & typecheck**
 
-Run: `cd frontend && pnpm tsc --noEmit`
+Run: `cd frontend && pnpm exec tsc --noEmit`
 Expected: no errors.
 
 - [ ] **Step 4: Commit**
@@ -1328,7 +1328,7 @@ git rm frontend/src/routes/home.tsx
 
 - [ ] **Step 5: Typecheck + lint**
 
-Run: `cd frontend && pnpm tsc --noEmit && pnpm lint src/features/home src/routes/router.tsx`
+Run: `cd frontend && pnpm exec tsc --noEmit && pnpm lint src/features/home src/routes/router.tsx`
 Expected: no errors.
 
 - [ ] **Step 6: Commit**
@@ -1484,7 +1484,7 @@ describe('TriageListPage ?create=1', () => {
 
 - [ ] **Step 5: Run tests**
 
-Run: `cd frontend && pnpm vitest run src/features/triage/routes`
+Run: `cd frontend && pnpm test src/features/triage/routes`
 Expected: all tests in the dir pass, including the new one.
 
 - [ ] **Step 6: Commit**
@@ -1714,12 +1714,12 @@ describe('HomePage', () => {
 
 - [ ] **Step 2: Run integration tests**
 
-Run: `cd frontend && pnpm vitest run src/features/home/routes/__tests__/HomePage.test.tsx`
+Run: `cd frontend && pnpm test src/features/home/routes/__tests__/HomePage.test.tsx`
 Expected: 6 tests pass.
 
 - [ ] **Step 3: Run the full feature suite**
 
-Run: `cd frontend && pnpm vitest run src/features/home`
+Run: `cd frontend && pnpm test src/features/home`
 Expected: all home tests green.
 
 - [ ] **Step 4: Commit**
@@ -1735,7 +1735,7 @@ git commit -m "test(f8): integration coverage for HomePage"
 
 - [ ] **Step 1: Full typecheck**
 
-Run: `cd frontend && pnpm tsc --noEmit`
+Run: `cd frontend && pnpm exec tsc --noEmit`
 Expected: no errors.
 
 - [ ] **Step 2: Full lint**
@@ -1745,7 +1745,7 @@ Expected: no errors.
 
 - [ ] **Step 3: Full test suite**
 
-Run: `cd frontend && pnpm vitest run --reporter=dot`
+Run: `cd frontend && pnpm test --reporter=dot`
 Expected: every test in the repo passes (no regressions in F1–F7).
 
 - [ ] **Step 4: Bundle check**
