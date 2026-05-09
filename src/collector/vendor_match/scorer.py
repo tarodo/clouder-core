@@ -22,20 +22,26 @@ def _normalize(s: str) -> str:
     return " ".join(s.lower().split())
 
 
-def _string_sim(a: str, b: str) -> float:
+def string_sim(a: str, b: str) -> float:
     return SequenceMatcher(None, _normalize(a), _normalize(b)).ratio()
 
 
-def _best_artist_sim(candidate_artists: tuple[str, ...], query_artist: str) -> float:
+def best_artist_sim(candidate_artists: tuple[str, ...], query_artist: str) -> float:
     if not candidate_artists:
         return 0.0
     parts = [p.strip() for p in query_artist.replace("&", ",").split(",") if p.strip()]
     if not parts:
         parts = [query_artist]
+    # Also compare against the unsplit query, so a candidate carrying a single
+    # combined artist (e.g. Spotify's "Guri & Eider") matches a multi-artist
+    # query string symmetrically.
+    full = query_artist.strip()
+    if full and full not in parts:
+        parts.append(full)
     best = 0.0
     for cand in candidate_artists:
         for q in parts:
-            best = max(best, _string_sim(cand, q))
+            best = max(best, string_sim(cand, q))
     return best
 
 
@@ -47,8 +53,8 @@ def score_candidate(
     duration_ms: int | None,
     album: str | None,
 ) -> FuzzyScore:
-    title_sim = _string_sim(candidate.title, title)
-    artist_sim = _best_artist_sim(candidate.artist_names, artist)
+    title_sim = string_sim(candidate.title, title)
+    artist_sim = best_artist_sim(candidate.artist_names, artist)
 
     tolerance = get_vendor_match_settings().fuzzy_duration_tolerance_ms
     duration_ok = False

@@ -15,6 +15,7 @@ from urllib.error import HTTPError, URLError
 
 from .errors import SpotifyAuthError, SpotifyUnavailableError
 from .logging_utils import log_event
+from .vendor_match.scorer import best_artist_sim, string_sim
 
 TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 TOKEN_URL = "https://accounts.spotify.com/api/token"
@@ -109,6 +110,71 @@ class SpotifyClient:
                 )
 
         return results
+
+    def _search_by_metadata(
+        self,
+        *,
+        title: str,
+        artist: str,
+        duration_ms: int | None,
+        correlation_id: str,
+        title_min: float,
+        artist_min: float,
+        duration_tolerance_ms: int,
+    ) -> Dict[str, Any] | None:
+        """Spotify text search fallback when ISRC lookup returned no items.
+
+        Builds q=track:<title> artist:<artist>, scores each result against
+        the query, and returns the highest-scoring candidate that passes
+        the strict per-component accept gate. Returns None if the input
+        is empty or no candidate passes.
+        """
+        if not title.strip() or not artist.strip():
+            return None
+
+        q = f"track:{title} artist:{artist}"
+        params = {"q": q, "type": "track", "limit": "10"}
+        url = f"{API_BASE_URL}/search?{urllib.parse.urlencode(params)}"
+        payload = self._request(url=url, correlation_id=correlation_id)
+        tracks_obj = payload.get("tracks")
+        if not isinstance(tracks_obj, dict):
+            return None
+        items = tracks_obj.get("items")
+        if not isinstance(items, list) or not items:
+            return None
+
+        best_track: Dict[str, Any] | None = None
+        best_combined = -1.0
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            cand_name = str(item.get("name") or "")
+            cand_artists = tuple(
+                str(a.get("name", ""))
+                for a in (item.get("artists") or [])
+                if isinstance(a, dict)
+            )
+            cand_duration = item.get("duration_ms")
+            cand_duration_ms = (
+                int(cand_duration) if isinstance(cand_duration, (int, float)) else None
+            )
+            title_sim = string_sim(cand_name, title)
+            artist_sim = best_artist_sim(cand_artists, artist)
+            if not _accept_metadata_match(
+                title_sim=title_sim,
+                artist_sim=artist_sim,
+                candidate_duration_ms=cand_duration_ms,
+                query_duration_ms=duration_ms,
+                title_min=title_min,
+                artist_min=artist_min,
+                duration_tolerance_ms=duration_tolerance_ms,
+            ):
+                continue
+            combined = title_sim + artist_sim
+            if combined > best_combined:
+                best_combined = combined
+                best_track = item
+        return best_track
 
     def _search_by_isrc(
         self, isrc: str, correlation_id: str
