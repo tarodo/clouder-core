@@ -39,7 +39,7 @@ from .repositories import (
     create_clouder_repository_from_env,
     utc_now,
 )
-from .schemas import CollectRequestIn, validation_error_message
+from .schemas import AdminIngestRequestIn, CollectRequestIn, validation_error_message
 from .search.prompts import get_latest as get_latest_prompt
 from .settings import ApiSettings, get_api_settings
 from .storage import S3Storage, create_default_s3_client
@@ -61,7 +61,10 @@ _LIST_ROUTES = {
 }
 
 _ADMIN_ROUTES = frozenset({
-    "POST /collect_bp_releases",
+    "POST /collect_bp_releases",          # legacy, kept for backward compatibility
+    "POST /admin/beatport/ingest",
+    "GET /admin/coverage",
+    "GET /admin/runs",
     "GET /tracks/spotify-not-found",
 })
 
@@ -141,6 +144,12 @@ def _route(
         return _handle_get_run(event, context)
     if route_key in ("POST /collect_bp_releases", ""):
         return _handle_collect(event, context)
+    if route_key == "POST /admin/beatport/ingest":
+        return _handle_admin_ingest(event, context)
+    if route_key == "GET /admin/coverage":
+        return _handle_admin_coverage(event)
+    if route_key == "GET /admin/runs":
+        return _handle_admin_runs(event)
     if route_key == "GET /tracks/spotify-not-found":
         return _handle_spotify_not_found(event)
     if route_key in _LIST_ROUTES:
@@ -365,6 +374,145 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         is_custom_range=False,
     )
     return _run_beatport_ingest(event, context, params)
+
+
+def _handle_admin_ingest(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
+    body = _parse_json_body(event)
+    try:
+        request = AdminIngestRequestIn.model_validate(body)
+    except PydanticValidationError as exc:
+        raise ValidationError(validation_error_message(exc))
+
+    from .saturday_week import saturday_week_range
+
+    if request.period_start is None:
+        std_start, std_end = saturday_week_range(
+            request.week_year, request.week_number
+        )
+        period_start_iso = std_start.isoformat()
+        period_end_iso = std_end.isoformat()
+        is_custom = False
+    else:
+        period_start_iso = request.period_start.isoformat()
+        period_end_iso = request.period_end.isoformat()
+        is_custom = True
+
+    params = _IngestParams(
+        style_id=request.style_id,
+        bp_token=request.bp_token,
+        period_start=period_start_iso,
+        period_end=period_end_iso,
+        search_label_count=request.search_label_count,
+        iso_year=None,
+        iso_week=None,
+        week_year=request.week_year,
+        week_number=request.week_number,
+        is_custom_range=is_custom,
+    )
+    return _run_beatport_ingest(event, context, params)
+
+
+def _handle_admin_coverage(event: Mapping[str, Any]) -> dict[str, Any]:
+    correlation_id = _extract_correlation_id(event)
+    qs = event.get("queryStringParameters") or {}
+    raw = qs.get("week_year") if isinstance(qs, Mapping) else None
+    if not raw or not raw.isdigit():
+        raise ValidationError("week_year is required (4-digit year)")
+    week_year = int(raw)
+    if week_year < 2000 or week_year > 2100:
+        raise ValidationError("week_year out of range")
+
+    from .saturday_week import weeks_in_year
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {"error_code": "db_not_configured", "message": "Database is not configured"},
+            correlation_id,
+        )
+
+    rows = repository.coverage_for_year(week_year)
+
+    grouped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        sid = str(row["style_id"])
+        if sid not in grouped:
+            grouped[sid] = {
+                "style_id": sid,
+                "style_name": row["style_name"],
+                "cells": [],
+            }
+        if row.get("run_id") is None:
+            continue
+        grouped[sid]["cells"].append(
+            {
+                "week_number": row["week_number"],
+                "status": row["status"],
+                "run_id": row["run_id"],
+                "item_count": row["item_count"],
+                "is_custom_range": bool(row.get("is_custom_range")),
+                "period_start": _iso(row.get("period_start")),
+                "period_end": _iso(row.get("period_end")),
+                "started_at": _iso(row.get("started_at")),
+                "finished_at": _iso(row.get("finished_at")),
+            }
+        )
+
+    return _json_response(
+        200,
+        {
+            "week_year": week_year,
+            "weeks_in_year": weeks_in_year(week_year),
+            "styles": list(grouped.values()),
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_admin_runs(event: Mapping[str, Any]) -> dict[str, Any]:
+    correlation_id = _extract_correlation_id(event)
+    qs = event.get("queryStringParameters") or {}
+    qs = qs if isinstance(qs, Mapping) else {}
+
+    def _int_param(name: str) -> int:
+        raw = qs.get(name)
+        if not isinstance(raw, str) or not raw.lstrip("-").isdigit():
+            raise ValidationError(f"{name} is required (integer)")
+        return int(raw)
+
+    style_id = _int_param("style_id")
+    week_year = _int_param("week_year")
+    week_number = _int_param("week_number")
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {"error_code": "db_not_configured", "message": "Database is not configured"},
+            correlation_id,
+        )
+
+    rows = repository.list_runs_for_cell(style_id, week_year, week_number)
+    items = [
+        {
+            "run_id": r["run_id"],
+            "status": r["status"],
+            "started_at": _iso(r.get("started_at")),
+            "finished_at": _iso(r.get("finished_at")),
+            "item_count": r.get("item_count"),
+            "processed_count": r.get("processed_count"),
+            "error_code": r.get("error_code"),
+            "error_message": r.get("error_message"),
+            "is_custom_range": bool(r.get("is_custom_range")),
+            "period_start": _iso(r.get("period_start")),
+            "period_end": _iso(r.get("period_end")),
+        }
+        for r in rows
+    ]
+
+    return _json_response(200, {"items": items, "correlation_id": correlation_id}, correlation_id)
 
 
 def _handle_get_run(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
@@ -853,6 +1001,14 @@ def _extract_correlation_id(event: Mapping[str, Any]) -> str:
             ):
                 return value.strip()
     return str(uuid.uuid4())
+
+
+def _iso(value: Any) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
 
 
 def _json_response(
