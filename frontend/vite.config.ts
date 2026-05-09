@@ -25,7 +25,7 @@ const BACKEND_ONLY_PREFIXES = [
   '/runs',
   '/collect_bp_releases',
 ];
-const SPA_AWARE_PREFIXES = ['/categories', '/triage'];
+const SPA_AWARE_PREFIXES = ['/categories', '/triage', '/admin'];
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');

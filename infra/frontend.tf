@@ -79,6 +79,7 @@ locals {
     "/collect_bp_releases",
     "/categories*",
     "/triage*",
+    "/admin/*",
   ]
   # API GW $default stage has no URL path prefix — strip the protocol only.
   api_gw_host = replace(aws_apigatewayv2_api.collector.api_endpoint, "https://", "")
