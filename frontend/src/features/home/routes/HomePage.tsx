@@ -1,6 +1,5 @@
 import { Alert, Button, Stack } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-import { RouteErrorBoundary } from '../../../components/RouteErrorBoundary';
 import { ActiveBlocksList } from '../components/ActiveBlocksList';
 import { CountersGrid } from '../components/CountersGrid';
 import { HomeSkeleton } from '../components/HomeSkeleton';
@@ -12,9 +11,24 @@ import { useResumeTarget } from '../hooks/useResumeTarget';
 export function HomePage() {
   const { data, isLoading, isError, refetchAll } = useHomeData();
   if (isLoading) return <HomeSkeleton />;
-  if (isError || !data) return <RouteErrorBoundary />;
+  if (isError || !data) {
+    return <HomeError refetchAll={refetchAll} />;
+  }
   if (data.styles.length === 0) return <NoStylesEmpty />;
   return <HomeReady data={data} refetchAll={refetchAll} />;
+}
+
+function HomeError({ refetchAll }: { refetchAll: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Stack gap="md" maw={720} mx="auto" px="md">
+      <Alert color="red" variant="light" title={t('home.error.partial')}>
+        <Button size="xs" variant="default" onClick={refetchAll}>
+          {t('home.error.partial_retry')}
+        </Button>
+      </Alert>
+    </Stack>
+  );
 }
 
 function HomeReady({ data, refetchAll }: { data: HomeData; refetchAll: () => void }) {
