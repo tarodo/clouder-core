@@ -280,8 +280,9 @@ describe('HomePage', () => {
       </Wrapper>,
     );
     await waitFor(() =>
-      expect(screen.getByText(/Some styles failed to load/)).toBeInTheDocument(),
+      expect(screen.getByText(/Couldn't load your dashboard/i)).toBeInTheDocument(),
     );
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByText(/Reference: x/)).toBeInTheDocument();
   });
 });

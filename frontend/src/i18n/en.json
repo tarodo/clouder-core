@@ -56,8 +56,7 @@
     "counters": {
       "awaiting_triage": "Awaiting triage",
       "active_blocks": "Active blocks",
-      "tracks_unit": "tracks",
-      "blocks_unit": "blocks"
+      "tracks_unit": "tracks"
     },
     "active_blocks": {
       "title": "Active blocks",
@@ -66,7 +65,9 @@
     },
     "error": {
       "partial": "Some styles failed to load.",
-      "partial_retry": "Retry"
+      "partial_retry": "Retry",
+      "full": "Couldn't load your dashboard.",
+      "full_retry": "Retry"
     },
     "no_styles": {
       "title": "No styles assigned yet",

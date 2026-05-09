@@ -20,6 +20,7 @@ export interface UseHomeDataResult {
   data: HomeData | undefined;
   isLoading: boolean;
   isError: boolean;
+  error?: unknown;
   refetchAll: () => void;
 }
 
@@ -43,7 +44,7 @@ export function useHomeData(): UseHomeDataResult {
     return { data: undefined, isLoading: true, isError: false, refetchAll };
   }
   if (stylesQuery.isError) {
-    return { data: undefined, isLoading: false, isError: true, refetchAll };
+    return { data: undefined, isLoading: false, isError: true, error: stylesQuery.error, refetchAll };
   }
   const anyPending = blockQueries.some((q) => q.isPending);
   if (anyPending) {
