@@ -19,14 +19,14 @@ Home is **not** a navigation hub or a vanity-stats screen. It is a hybrid Resume
 When a signed-in user lands on `/`:
 
 1. **Resume hero** points at the user's last in-flight curation context, falling back through three layers:
-   1. localStorage `clouder.lastCurate` — last Curate session, validated against current data (block must exist and be ACTIVE, bucket must exist).
-   2. Freshest ACTIVE Triage block across all styles (sort by `updated_at` desc).
+   1. localStorage `clouder.lastCurate` — last Curate session, validated against current data (block must exist and be `IN_PROGRESS`).
+   2. Freshest `IN_PROGRESS` Triage block across all styles (sort by `updated_at` desc).
    3. Empty state with CTA "Create first triage block" → `/triage?create=1`.
 2. **Counters** show:
-   - `awaitingTriageCount` — sum of `track_count` over UNCLASSIFIED buckets in all ACTIVE blocks.
-   - `activeBlocksCount` — number of ACTIVE blocks across all styles.
+   - `awaitingTriageCount` — sum of `track_count` over all `IN_PROGRESS` blocks (block-level total, not bucket-specific). Bucket-level UNCLASSIFIED breakdown would require a detail fetch per block (N+1) and is out of scope.
+   - `activeBlocksCount` — number of `IN_PROGRESS` blocks across all styles.
    Both are clickable and lead to `/triage`.
-3. **Active blocks list** shows top-5 ACTIVE blocks (sort by `updated_at` desc) with `{week_label} · {style_name}` and UNCLASSIFIED count. Each row links to `/triage/blocks/:id`. Footer "View all" link if total > 5.
+3. **Active blocks list** shows top-5 `IN_PROGRESS` blocks (sort by `updated_at` desc) with `{week_label} · {style_name}` and the block's `track_count`. Each row links to `/triage/:styleId/:id`. Footer "View all" link if total > 5.
 
 If the user has no styles bound (rare multi-tenant edge), Home renders "No styles assigned yet. Contact admin." in the hero slot, with counters and list hidden.
 
@@ -39,27 +39,37 @@ New feature folder per CLAUDE.md feature-folder convention:
 ```
 frontend/src/features/home/
 ├── hooks/
-│   ├── useHomeData.ts            # composer: useQueries → aggregates
-│   ├── useResumeTarget.ts        # localStorage → fallback ACTIVE → null
-│   ├── useLastCurateSession.ts   # localStorage read/write
+│   ├── useHomeData.ts                # composer: useQueries → aggregates
+│   ├── useResumeTarget.ts            # localStorage + blocksByStyle → discriminated target
+│   ├── homeActiveBlocksQueryOptions.ts  # query options factory (non-infinite)
 │   └── __tests__/
 ├── components/
-│   ├── ResumeHero.tsx            # 3 states: curate / triage / empty
-│   ├── CountersGrid.tsx          # 2-col SimpleGrid
-│   ├── ActiveBlocksList.tsx      # top-5 + "View all"
-│   ├── HomeSkeleton.tsx          # parallel skeleton for all sections
+│   ├── ResumeHero.tsx                # 3 states: curate / triage / empty
+│   ├── CountersGrid.tsx              # 2-col SimpleGrid
+│   ├── ActiveBlocksList.tsx          # top-5 + "View all"
+│   ├── HomeSkeleton.tsx              # parallel skeleton for all sections
+│   ├── NoStylesEmpty.tsx             # multi-tenant edge: no styles assigned
+│   └── __tests__/
+├── lib/
+│   ├── weekLabel.ts                  # ISO date → "YYYY-Www" label
 │   └── __tests__/
 └── routes/
-    └── HomePage.tsx              # thin composer
+    └── HomePage.tsx                  # thin composer
 ```
 
 `frontend/src/routes/router.tsx` updates the `/` route to import from `features/home/routes/HomePage`. The existing placeholder `frontend/src/routes/home.tsx` is removed.
 
-### 3.2 Cross-feature dependency
+### 3.2 Reuse of existing localStorage helpers
 
-`useLastCurateSession.write()` is consumed by **`features/curate/`**, not Home. The Curate session page writes the localStorage entry on mount and after each cursor advance. Home only reads.
+The Curate feature already ships `frontend/src/features/curate/lib/lastCurateLocation.ts` with the writer + reader pair:
 
-This is a one-direction cross-feature import (`features/curate/` → `features/home/hooks/`). Rationale per CLAUDE.md lesson #21 ("Extract shared atoms BEFORE the second consumer ships"): Home is the second consumer (Curate is the writer). The hook lives in `features/home/hooks/` because Home owns the read semantics; Curate is just a callsite.
+- `LAST_CURATE_LOCATION_KEY = 'clouder.lastCurateLocation'` — `Record<styleId, { blockId, bucketId, updatedAt }>`
+- `LAST_CURATE_STYLE_KEY = 'clouder.lastCurateStyle'` — single string, last-visited style id
+- `readLastCurateLocation(styleId)`, `readLastCurateStyle()`, `writeLastCurate*`, `clearLastCurateLocation`
+
+`CurateSessionPage` already calls both writers on mount (no F5 modification needed).
+
+`useResumeTarget` consumes the existing readers — no new hook for localStorage. Validation against `TriageBlockSummary` (status only, no bucket array available in summary) lives in `useResumeTarget`. The existing `isStaleLocation(loc, block: TriageBlock)` helper is NOT used here because it requires the full block detail; Home does its own summary-level validation.
 
 If a third consumer appears (e.g. MiniBar wants the same restore signal), promote the hook to `frontend/src/hooks/` per the established pattern.
 
@@ -68,24 +78,26 @@ If a third consumer appears (e.g. MiniBar wants the same restore signal), promot
 ```
 HomePage
   └── useHomeData()
-        ├── useStyles()  ───────────── styles[]
-        └── useQueries(styles.map(s =>
-              triageBlocksByStyleQueryOptions(s.id, { status: 'ACTIVE', limit: 50 })))
-              └── blocksByStyle: Map<styleId, TriageBlockSummary[]>
+        ├── useStyles()  ───────────── styles.items[]
+        └── useQueries(styles.items.map(s =>
+              homeActiveBlocksQueryOptions(s.id)))    # GET /styles/:id/triage/blocks?status=IN_PROGRESS&limit=50
+              └── blocksByStyle: Record<styleId, TriageBlockSummary[]>
 
   derived (in useHomeData):
     activeBlocks: TriageBlockSummary[]      # flat, sorted updated_at desc
-    activeBlocksCount: number
-    awaitingTriageCount: number             # sum of UNCLASSIFIED bucket track_count
+    activeBlocksCount: number               # activeBlocks.length
+    awaitingTriageCount: number             # sum of activeBlocks[i].track_count
     topActiveBlocks: TriageBlockSummary[]   # activeBlocks.slice(0, 5)
     partialError: boolean                   # true if any useQueries entry failed
     refetchAll: () => void                  # invalidate styles + per-style queries
 
-  └── useResumeTarget(activeBlocks, blocksByStyle)
-        → { kind: 'curate', styleId, blockId, bucketId, ... }
+  └── useResumeTarget(activeBlocks, blocksByStyle, lastCurateSession)
+        → { kind: 'curate', session: LastCurateSession, block: TriageBlockSummary }
         | { kind: 'triage', block: TriageBlockSummary }
         | { kind: 'empty' }
 ```
+
+Note: `homeActiveBlocksQueryOptions` is a Home-specific (non-infinite) query option factory keyed `['home', 'activeBlocks', styleId]`. It does NOT reuse the `useTriageBlocksByStyle` infinite cache (different key, different shape) — this avoids cache cross-pollution between Home (single page, status-pinned) and Triage list (paginated, all statuses).
 
 Cache strategy:
 
@@ -113,13 +125,13 @@ Visual: light card per layout option A (rejected the dark hero of option B). `bo
 
 ### 4.3 ActiveBlocksList
 
-Mantine `<Stack>` of up to 5 rows. Each row is `<UnstyledButton component={Link}>` with flex justify-between: left `{weekLabel} · {styleName}`, right `{unclassifiedCount}` mono.
+Mantine `<Stack>` of up to 5 rows. Each row is `<UnstyledButton component={Link}>` with flex justify-between: left `{weekLabel} · {styleName}`, right `{block.track_count}` mono.
 
 `weekLabel` derivation: parse `block.date_from` (ISO date) → ISO-week string `YYYY-Www` (e.g. `2026-W18`). Helper added inline; tracked as candidate for `lib/dates.ts` if reused.
 
 Footer `<Anchor component={Link} to="/triage">View all ({total} blocks)</Anchor>` shown only if `total > 5`.
 
-Empty state (styles exist, ACTIVE = 0): inline `<EmptyState>` with the same CTA as the hero (no second create button needed; the section collapses to a hint).
+Empty state (styles exist, IN_PROGRESS = 0): inline `<EmptyState>` with the same CTA as the hero (no second create button needed; the section collapses to a hint).
 
 ### 4.4 HomeSkeleton
 
@@ -147,57 +159,50 @@ export function HomePage() {
 
 ## 5. localStorage
 
-### 5.1 Shape
+### 5.1 Shape (existing — reused as-is)
 
-Key: `clouder.lastCurate`
-
-```ts
-type LastCurateSession = {
-  styleId: string;        // UUID
-  blockId: string;        // UUID
-  bucketId: string;       // UUID
-  styleName: string;      // for hero render without extra fetch
-  blockName: string;
-  bucketType: 'NEW' | 'OLD' | 'NOT' | 'DISCARD' | 'UNCLASSIFIED' | 'STAGING';
-  savedAt: number;        // Date.now()
-};
-```
-
-### 5.2 Hook contract
+Defined in `frontend/src/features/curate/lib/lastCurateLocation.ts`:
 
 ```ts
-useLastCurateSession(): {
-  read: () => LastCurateSession | null;
-  write: (session: LastCurateSession) => void;
-  clear: () => void;
-};
+// Key: 'clouder.lastCurateLocation'
+type Storage = Record<styleId, { blockId: string; bucketId: string; updatedAt: string }>;
+
+// Key: 'clouder.lastCurateStyle'
+// value: styleId (string)
 ```
 
-- `read` wraps `JSON.parse` in try/catch; corrupt entry → returns `null` (does not throw).
-- `write` wraps `localStorage.setItem` in try/catch; QuotaExceeded swallowed silently.
-- `clear` calls `localStorage.removeItem`.
+`updatedAt` is an ISO timestamp string — Home parses it via `new Date(updatedAt).getTime()` for the stale-window check.
 
-### 5.3 Writer integration (Curate)
+### 5.2 Reader functions (existing — reused)
 
-`frontend/src/features/curate/routes/CurateSessionPage.tsx` calls `write({ ... })`:
+```ts
+readLastCurateStyle(): string | null;
+readLastCurateLocation(styleId: string): { blockId, bucketId, updatedAt } | null;
+clearLastCurateLocation(styleId: string): void;
+```
 
-- On mount (initial entry).
-- On each successful `assign` mutation (cursor advanced).
+Home composes them in `useResumeTarget`: `style = readLastCurateStyle()` → `loc = readLastCurateLocation(style)` → combine into a transient `ResumeSession = { styleId, blockId, bucketId, updatedAt }`. No new hook is introduced.
 
-Throttled via `useRef` to ≤ 1 call/sec. Implementation: stamp a timestamp ref, skip writes within 1000 ms of the last.
+### 5.3 Writer integration
+
+Already in place: `frontend/src/features/curate/routes/CurateSessionPage.tsx:13-17` calls `writeLastCurateLocation(styleId, blockId, bucketId)` and `writeLastCurateStyle(styleId)` on mount whenever route params change. F8 adds **no** code to the Curate feature.
 
 ### 5.4 Validation in `useResumeTarget`
 
 ```
-1. read() → last
-2. if last == null → fallback to freshest ACTIVE block
-3. if Date.now() - last.savedAt > 7 days → clear() + fallback
-4. lookup blocksByStyle[last.styleId]
-5. if not found, or block.status !== 'ACTIVE', or last.bucketId not in block.buckets[].id → clear() + fallback
-6. else → { kind: 'curate', ...last }
+1. styleId = readLastCurateStyle(); if null → fallback
+2. loc = readLastCurateLocation(styleId); if null → fallback
+3. if Date.now() - new Date(loc.updatedAt).getTime() > 7 days → clearLastCurateLocation(styleId) + fallback
+4. block = blocksByStyle[styleId]?.find(b => b.id === loc.blockId)
+5. if !block OR block.status !== 'IN_PROGRESS' → clearLastCurateLocation(styleId) + fallback
+6. else → { kind: 'curate', session: { styleId, ...loc }, block }
 ```
 
+`fallback` = first IN_PROGRESS block in `activeBlocks` (already sorted updated_at desc) → `{ kind: 'triage', block }`. If `activeBlocks` is empty → `{ kind: 'empty' }`.
+
 Stale window of 7 days picks "user came back from vacation" up as a fresh start, not a stale resume.
+
+Bucket existence is NOT validated client-side — list summaries do not include the buckets array, and a detail fetch per block would inflate the page's request count. If the bucket has been removed (e.g. STAGING bucket gone after a category was deleted), the user lands on `/curate/:style/:block/:bucket` and Curate's existing 404 handler resolves it. This is acceptable tail latency for a rare edge case.
 
 ### 5.5 Privacy
 
@@ -222,8 +227,8 @@ Single skeleton, single flip. No partial render.
 ### 6.3 Empty
 
 - No styles bound: hero "No styles assigned yet. Contact admin." Counters and list hidden.
-- Styles exist, ACTIVE = 0, no localStorage: hero `empty` CTA "Create first triage block". Counters `0` / `0`. List section replaced by inline empty state.
-- Styles exist, ACTIVE = 0, localStorage stale or invalid: clear localStorage, treat as previous case.
+- Styles exist, IN_PROGRESS = 0, no localStorage: hero `empty` CTA "Create first triage block". Counters `0` / `0`. List section replaced by inline empty state.
+- Styles exist, IN_PROGRESS = 0, localStorage stale or invalid: clear localStorage, treat as previous case.
 
 ### 6.4 i18n
 
@@ -241,16 +246,15 @@ All strings in `frontend/src/i18n/en.json` under `home.*`. RU bundle deferred to
 
 ### 7.1 Unit (vitest)
 
-- `useLastCurateSession.test.ts` — read corrupt JSON → `null`; write under quota; clear; idempotent re-read.
+- `weekLabel.test.ts` — ISO date → `YYYY-Www`. Cover Jan 1 corner cases (week 53/01).
 - `useResumeTarget.test.ts` — table-driven scenarios:
   1. localStorage curate-valid → `kind: 'curate'`.
-  2. curate but block finalized → fallback + clear.
-  3. curate but block missing → fallback + clear.
-  4. curate but bucket missing → fallback + clear.
-  5. curate but stale (>7d) → fallback + clear.
-  6. no localStorage, ACTIVE blocks exist → `kind: 'triage'`.
-  7. no localStorage, no ACTIVE → `kind: 'empty'`.
-- `useHomeData.test.ts` — mock `useStyles` + `useQueries`; verify aggregates `awaitingTriageCount` (sum), `activeBlocksCount`, `topActiveBlocks` (sort + slice), `partialError`.
+  2. curate but block FINALIZED → fallback + cleared.
+  3. curate but block missing → fallback + cleared.
+  4. curate but stale (>7d) → fallback + cleared.
+  5. no localStorage, IN_PROGRESS blocks exist → `kind: 'triage'`.
+  6. no localStorage, no IN_PROGRESS → `kind: 'empty'`.
+- `useHomeData.test.ts` — MSW-backed; verify aggregates `awaitingTriageCount` (sum of `track_count`), `activeBlocksCount`, `topActiveBlocks` (sort updated_at desc + slice 5), `partialError` (one query 500s → flag set, others succeed).
 
 ### 7.2 Component (RTL + jsdom)
 
@@ -260,13 +264,13 @@ All strings in `frontend/src/i18n/en.json` under `home.*`. RU bundle deferred to
 
 ### 7.3 Integration (`frontend/src/features/home/routes/__tests__/HomePage.test.tsx`)
 
-- Cold mount: MSW handlers — `/styles` → 2 styles, `/styles/:id/triage/blocks?status=ACTIVE` → mocked summaries. Skeleton → content. Counters summed across both styles.
-- localStorage path: pre-seed `clouder.lastCurate` valid → hero `curate` shows correct target.
-- Stale localStorage: `savedAt = Date.now() - 8d` → fallback + cleared (assert `localStorage.getItem === null`).
-- Block finalized after save: localStorage points to a block currently in FINALIZED status → fallback + cleared.
-- Empty: 0 ACTIVE blocks, no localStorage → CTA `/triage?create=1`.
-- Partial error: one `useQueries` entry fails → alert + remaining content.
-- No styles: `/styles` → `[]` → "Contact admin" hero, counters/list hidden.
+- Cold mount: MSW handlers — `/styles` → 2 styles, `/styles/:id/triage/blocks?status=IN_PROGRESS` → mocked summaries. Skeleton → content. Counters summed across both styles.
+- localStorage path: pre-seed `clouder.lastCurateStyle` + `clouder.lastCurateLocation[styleId]` valid → hero `curate` shows correct target with link `/curate/:styleId/:blockId/:bucketId`.
+- Stale localStorage: `updatedAt` 8 days ago → fallback to `triage` and `clouder.lastCurateLocation` cleared for that styleId.
+- Block FINALIZED after save: localStorage points to a block currently in FINALIZED status → fallback + cleared.
+- Empty: 0 IN_PROGRESS blocks, no localStorage → hero `empty` with CTA `/triage?create=1`.
+- Partial error: one `useQueries` entry fails (500) → warning Alert visible + remaining content rendered.
+- No styles: `/styles` → `{ items: [], total: 0, ... }` → "Contact admin" hero, counters/list hidden.
 
 ### 7.4 Test infra reminders (CLAUDE.md)
 
@@ -307,8 +311,8 @@ Bundle impact estimate: ~5–8 KB minified (3 hooks, 4 components, JSX). Within 
 ## 11. Backwards compatibility
 
 - Existing `/` route is the placeholder `EmptyState` — fully replaced. No production users depend on the placeholder.
-- F2 `TriageBlocksListPage` gains a small `?create=1` query param handler. Backward-compatible (param absent → existing behaviour).
-- F5 `CurateSessionPage` gains a localStorage write call. No visible change.
+- F2 `TriageListPage` gains a small `?create=1` query param handler that opens the create-modal on mount and strips the param. Backward-compatible (param absent → existing behaviour).
+- F5 `CurateSessionPage` already writes localStorage; no change required.
 
 ## 12. Implementation note
 
