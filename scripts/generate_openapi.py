@@ -27,7 +27,7 @@ from collector.curation.schemas import (
     MoveTracksIn,
     TransferTracksIn,
 )
-from collector.schemas import CollectRequestIn
+from collector.schemas import AdminIngestRequestIn, CollectRequestIn
 
 
 # ── shared response schemas ────────────────────────────────────────────────
@@ -670,6 +670,85 @@ ROUTES: list[dict[str, Any]] = [
         },
     },
     {
+        "method": "post",
+        "path": "/admin/beatport/ingest",
+        "auth": ADMIN,
+        "summary": "Admin: trigger Beatport ingest with Saturday-week or custom range.",
+        "description": (
+            "Saturday-week semantics. If `period_start` and `period_end` are "
+            "omitted, the server computes them from `(week_year, week_number)`. "
+            "If both are present the run is recorded with `is_custom_range = true`."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/AdminIngestRequestIn"},
+                }
+            },
+        },
+        "request_example": {
+            "style_id": 90,
+            "week_year": 2026,
+            "week_number": 17,
+            "bp_token": "REDACTED",
+        },
+        "responses": {
+            "200": _make_response(
+                200,
+                "Run created.",
+                {"$ref": "#/components/schemas/CollectResponse"},
+            ),
+            "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+            "502": _error(502, "beatport_unavailable."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/coverage",
+        "auth": ADMIN,
+        "summary": "Admin: ingest coverage matrix for one Saturday-year.",
+        "parameters": [
+            {
+                "name": "week_year",
+                "in": "query",
+                "required": True,
+                "schema": {"type": "integer", "minimum": 2000, "maximum": 2100},
+            }
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Coverage payload.",
+                {"type": "object"},
+            ),
+            "400": _error(400, "validation_error."),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/runs",
+        "auth": ADMIN,
+        "summary": "Admin: list runs for one (style, week_year, week_number) cell.",
+        "parameters": [
+            {"name": "style_id", "in": "query", "required": True, "schema": {"type": "integer"}},
+            {"name": "week_year", "in": "query", "required": True, "schema": {"type": "integer"}},
+            {"name": "week_number", "in": "query", "required": True, "schema": {"type": "integer"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Runs (DESC by started_at).", {"type": "object"}),
+            "400": _error(400, "validation_error."),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
         "method": "get",
         "path": "/runs/{run_id}",
         "auth": AUTH,
@@ -1205,6 +1284,7 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
     """Pull JSON Schemas from pydantic models, rewriting refs into the OpenAPI namespace."""
     schemas: dict[str, Any] = {}
     for name, model in (
+        ("AdminIngestRequestIn", AdminIngestRequestIn),
         ("CollectRequestIn", CollectRequestIn),
         ("CreateTriageBlockIn", CreateTriageBlockIn),
         ("MoveTracksIn", MoveTracksIn),
