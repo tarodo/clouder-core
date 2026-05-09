@@ -1182,8 +1182,9 @@ class ClouderRepository:
         return self._data_api.execute(
             """
             SELECT
-                cs.id          AS style_id,
-                cs.name        AS style_name,
+                cs.id            AS clouder_style_id,
+                cs.name          AS style_name,
+                im.external_id   AS beatport_style_id,
                 r.run_id,
                 r.week_number,
                 r.status,
@@ -1194,6 +1195,11 @@ class ClouderRepository:
                 r.started_at,
                 r.finished_at
             FROM clouder_styles cs
+            INNER JOIN identity_map im
+              ON im.source = 'beatport'
+              AND im.entity_type = 'style'
+              AND im.clouder_entity_type = 'style'
+              AND im.clouder_id = cs.id
             LEFT JOIN LATERAL (
                 SELECT
                     ir.run_id, ir.week_year, ir.week_number, ir.style_id,
@@ -1202,10 +1208,10 @@ class ClouderRepository:
                     ir.started_at, ir.finished_at
                 FROM ingest_runs ir
                 WHERE ir.week_year = :week_year
-                  AND ir.style_id::text = cs.id::text
+                  AND ir.style_id::text = im.external_id
                 ORDER BY ir.week_number, ir.started_at DESC
             ) r ON TRUE
-            -- r.run_id IS NULL when a style has no runs for the year (LEFT JOIN);
+            -- r.run_id IS NULL when this style has no runs for the year (LEFT JOIN);
             -- include those rows so the matrix shows empty cells for that style.
             WHERE r.run_id IS NULL OR NOT EXISTS (
                 SELECT 1

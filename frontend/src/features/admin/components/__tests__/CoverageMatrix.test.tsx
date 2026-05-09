@@ -11,7 +11,7 @@ const sample: CoveragePayload = {
   weeks_in_year: 52,
   styles: [
     {
-      style_id: '1',
+      style_id: 90,
       style_name: 'Tech House',
       cells: [
         {
@@ -51,7 +51,7 @@ describe('CoverageMatrix', () => {
     const onClick = vi.fn();
     render(ui({ data: sample, onCellClick: onClick }));
     await userEvent.click(screen.getByLabelText('Tech House week 1 loaded'));
-    expect(onClick).toHaveBeenCalledWith(1, 1);
+    expect(onClick).toHaveBeenCalledWith(90, 1);
   });
 
   it('renders empty cells for missing weeks', () => {

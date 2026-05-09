@@ -41,7 +41,7 @@ export function CoverageMatrix({ data, onCellClick }: Props) {
           return (
             <Row
               key={style.style_id}
-              styleIdNum={Number(style.style_id) || 0}
+              styleIdNum={style.style_id}
               styleName={style.style_name}
               weekYear={data.week_year}
               weeks={weeks}

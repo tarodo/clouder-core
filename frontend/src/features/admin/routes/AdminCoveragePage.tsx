@@ -19,10 +19,9 @@ export function AdminCoveragePage() {
 
   const styleMap = new Map<number, { name: string; cells: Map<number, CoverageCell> }>();
   for (const s of q.data?.styles ?? []) {
-    const sid = Number(s.style_id) || 0;
     const cells = new Map<number, CoverageCell>();
     for (const c of s.cells) cells.set(c.week_number, c);
-    styleMap.set(sid, { name: s.style_name, cells });
+    styleMap.set(s.style_id, { name: s.style_name, cells });
   }
   const activeStyle = active ? styleMap.get(active.styleId) : null;
   const activeCell =

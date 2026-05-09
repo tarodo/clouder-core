@@ -69,8 +69,9 @@ def test_coverage_db_not_configured_503(monkeypatch):
 def test_coverage_returns_grouped_styles(monkeypatch):
     rows = [
         {
-            "style_id": "s1",
+            "clouder_style_id": "uuid-s1",
             "style_name": "Tech House",
+            "beatport_style_id": "90",
             "run_id": "r1",
             "week_number": 1,
             "status": "completed",
@@ -82,8 +83,9 @@ def test_coverage_returns_grouped_styles(monkeypatch):
             "finished_at": "2026-01-04T09:14:00Z",
         },
         {
-            "style_id": "s1",
+            "clouder_style_id": "uuid-s1",
             "style_name": "Tech House",
+            "beatport_style_id": "90",
             "run_id": None,
             "week_number": None,
             "status": None,
@@ -95,8 +97,9 @@ def test_coverage_returns_grouped_styles(monkeypatch):
             "finished_at": None,
         },
         {
-            "style_id": "s2",
+            "clouder_style_id": "uuid-s2",
             "style_name": "Melodic",
+            "beatport_style_id": "131",
             "run_id": "r2",
             "week_number": 4,
             "status": "completed",
@@ -124,10 +127,10 @@ def test_coverage_returns_grouped_styles(monkeypatch):
     assert body["week_year"] == 2026
     assert body["weeks_in_year"] == 52
     styles = {s["style_id"]: s for s in body["styles"]}
-    assert {"s1", "s2"} == set(styles.keys())
-    # Row with run_id=None is skipped; s1 has one cell
-    assert len(styles["s1"]["cells"]) == 1
-    assert styles["s1"]["cells"][0]["week_number"] == 1
-    assert styles["s2"]["cells"][0]["is_custom_range"] is True
-    assert styles["s1"]["style_name"] == "Tech House"
-    assert styles["s2"]["style_name"] == "Melodic"
+    assert {90, 131} == set(styles.keys())
+    # Row with run_id=None is skipped; style 90 has one cell
+    assert len(styles[90]["cells"]) == 1
+    assert styles[90]["cells"][0]["week_number"] == 1
+    assert styles[131]["cells"][0]["is_custom_range"] is True
+    assert styles[90]["style_name"] == "Tech House"
+    assert styles[131]["style_name"] == "Melodic"

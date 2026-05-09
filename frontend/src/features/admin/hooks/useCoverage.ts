@@ -5,7 +5,7 @@ export interface CoveragePayload {
   week_year: number;
   weeks_in_year: number;
   styles: Array<{
-    style_id: string;
+    style_id: number;
     style_name: string;
     cells: Array<{
       week_number: number;

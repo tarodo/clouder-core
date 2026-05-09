@@ -434,9 +434,15 @@ def _handle_admin_coverage(event: Mapping[str, Any]) -> dict[str, Any]:
 
     rows = repository.coverage_for_year(week_year)
 
-    grouped: dict[str, dict[str, Any]] = {}
+    grouped: dict[int, dict[str, Any]] = {}
     for row in rows:
-        sid = str(row["style_id"])
+        bp_raw = row.get("beatport_style_id")
+        if bp_raw is None:
+            continue
+        try:
+            sid = int(bp_raw)
+        except (TypeError, ValueError):
+            continue
         if sid not in grouped:
             grouped[sid] = {
                 "style_id": sid,

@@ -35,13 +35,15 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
   const [end, setEnd] = useState(fmt(stdEnd));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [labelCount, setLabelCount] = useState<number | ''>('');
+  const [styleIdValue, setStyleIdValue] = useState<number>(styleId);
   const token = useBpToken();
   const mutation = useStartIngest();
 
   const submit = () => {
     if (!token) return;
+    if (styleIdValue < 1) return;
     const payload = {
-      style_id: styleId,
+      style_id: styleIdValue,
       week_year: weekYear,
       week_number: weekNumber,
       bp_token: token,
@@ -56,6 +58,18 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
   return (
     <Stack gap="sm">
       <BpTokenInput />
+      <NumberInput
+        label="Beatport style ID"
+        value={styleIdValue}
+        onChange={(v) => setStyleIdValue(typeof v === 'number' ? v : 0)}
+        min={1}
+        description="Beatport's numeric genre id (e.g. 90 = Tech House)."
+      />
+      {styleIdValue < 1 && (
+        <Alert color="red">
+          A valid Beatport style ID (≥ 1) is required.
+        </Alert>
+      )}
       <Switch
         label={t('admin.ingest.override')}
         checked={override}
