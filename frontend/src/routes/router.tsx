@@ -2,7 +2,7 @@ import { createBrowserRouter } from 'react-router';
 import { AppShellLayout } from './_layout';
 import { LoginPage } from './login';
 import { AuthReturnPage } from './auth.return';
-import { HomePage } from './home';
+import { HomePage } from '../features/home/routes/HomePage';
 import { CategoriesIndexRedirect } from '../features/categories/routes/CategoriesIndexRedirect';
 import { CategoriesListPage } from '../features/categories/routes/CategoriesListPage';
 import { CategoryDetailPage } from '../features/categories/routes/CategoryDetailPage';
