@@ -271,3 +271,29 @@ def _album_release_sort_key(track: Dict[str, Any]) -> str:
     while len(parts) < 3:
         parts.append("00")
     return "-".join(parts[:3])
+
+
+def _accept_metadata_match(
+    *,
+    title_sim: float,
+    artist_sim: float,
+    candidate_duration_ms: int | None,
+    query_duration_ms: int | None,
+    title_min: float,
+    artist_min: float,
+    duration_tolerance_ms: int,
+) -> bool:
+    """Strict per-component gate for metadata-fallback candidates.
+
+    All three checks must pass:
+      - title similarity >= title_min
+      - artist similarity >= artist_min
+      - duration within tolerance (skipped if either side is None)
+    """
+    if title_sim < title_min:
+        return False
+    if artist_sim < artist_min:
+        return False
+    if candidate_duration_ms is None or query_duration_ms is None:
+        return True
+    return abs(candidate_duration_ms - query_duration_ms) <= duration_tolerance_ms
