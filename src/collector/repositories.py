@@ -23,13 +23,18 @@ class CreateIngestRunCmd:
     run_id: str
     source: str
     style_id: int
-    iso_year: int
-    iso_week: int
     raw_s3_key: str
     status: RunStatus
     item_count: int
     meta: Mapping[str, Any]
     started_at: datetime
+    iso_year: int | None = None
+    iso_week: int | None = None
+    week_year: int | None = None
+    week_number: int | None = None
+    period_start: date | None = None
+    period_end: date | None = None
+    is_custom_range: bool = False
 
 
 @dataclass(frozen=True)
@@ -142,10 +147,18 @@ class ClouderRepository:
         self._data_api.execute(
             """
             INSERT INTO ingest_runs (
-                run_id, source, style_id, iso_year, iso_week, raw_s3_key,
+                run_id, source, style_id,
+                iso_year, iso_week,
+                week_year, week_number,
+                period_start, period_end, is_custom_range,
+                raw_s3_key,
                 status, item_count, processed_count, started_at, meta
             ) VALUES (
-                :run_id, :source, :style_id, :iso_year, :iso_week, :raw_s3_key,
+                :run_id, :source, :style_id,
+                :iso_year, :iso_week,
+                :week_year, :week_number,
+                :period_start, :period_end, :is_custom_range,
+                :raw_s3_key,
                 :status, :item_count, 0, :started_at, :meta
             )
             ON CONFLICT (run_id) DO UPDATE SET
@@ -153,6 +166,11 @@ class ClouderRepository:
                 style_id = EXCLUDED.style_id,
                 iso_year = EXCLUDED.iso_year,
                 iso_week = EXCLUDED.iso_week,
+                week_year = EXCLUDED.week_year,
+                week_number = EXCLUDED.week_number,
+                period_start = EXCLUDED.period_start,
+                period_end = EXCLUDED.period_end,
+                is_custom_range = EXCLUDED.is_custom_range,
                 raw_s3_key = EXCLUDED.raw_s3_key,
                 status = EXCLUDED.status,
                 item_count = EXCLUDED.item_count,
@@ -167,6 +185,11 @@ class ClouderRepository:
                 "style_id": cmd.style_id,
                 "iso_year": cmd.iso_year,
                 "iso_week": cmd.iso_week,
+                "week_year": cmd.week_year,
+                "week_number": cmd.week_number,
+                "period_start": cmd.period_start,
+                "period_end": cmd.period_end,
+                "is_custom_range": cmd.is_custom_range,
                 "raw_s3_key": cmd.raw_s3_key,
                 "status": cmd.status.value,
                 "item_count": cmd.item_count,
@@ -1153,6 +1176,71 @@ class ClouderRepository:
                 "payload": dict(cmd.payload),
             },
             transaction_id=transaction_id,
+        )
+
+    def coverage_for_year(self, week_year: int) -> list[dict[str, Any]]:
+        return self._data_api.execute(
+            """
+            SELECT
+                cs.id          AS style_id,
+                cs.name        AS style_name,
+                r.run_id,
+                r.week_number,
+                r.status,
+                r.item_count,
+                r.is_custom_range,
+                r.period_start,
+                r.period_end,
+                r.started_at,
+                r.finished_at
+            FROM clouder_styles cs
+            LEFT JOIN LATERAL (
+                SELECT
+                    ir.run_id, ir.week_year, ir.week_number, ir.style_id,
+                    ir.status, ir.item_count, ir.is_custom_range,
+                    ir.period_start, ir.period_end,
+                    ir.started_at, ir.finished_at
+                FROM ingest_runs ir
+                WHERE ir.week_year = :week_year
+                  AND ir.style_id::text = cs.id::text
+                ORDER BY ir.week_number, ir.started_at DESC
+            ) r ON TRUE
+            -- r.run_id IS NULL when a style has no runs for the year (LEFT JOIN);
+            -- include those rows so the matrix shows empty cells for that style.
+            WHERE r.run_id IS NULL OR NOT EXISTS (
+                SELECT 1
+                FROM ingest_runs ir2
+                WHERE ir2.week_year = r.week_year
+                  AND ir2.style_id = r.style_id
+                  AND ir2.week_number = r.week_number
+                  AND ir2.started_at > r.started_at
+            )
+            ORDER BY cs.name ASC, r.week_number ASC NULLS LAST
+            """,
+            {"week_year": week_year},
+        )
+
+    def list_runs_for_cell(
+        self, style_id: int, week_year: int, week_number: int
+    ) -> list[dict[str, Any]]:
+        return self._data_api.execute(
+            """
+            SELECT
+                run_id, status, started_at, finished_at,
+                item_count, processed_count,
+                error_code, error_message,
+                is_custom_range, period_start, period_end
+            FROM ingest_runs
+            WHERE style_id = :style_id
+              AND week_year = :week_year
+              AND week_number = :week_number
+            ORDER BY started_at DESC
+            """,
+            {
+                "style_id": style_id,
+                "week_year": week_year,
+                "week_number": week_number,
+            },
         )
 
     def insert_review_candidate(

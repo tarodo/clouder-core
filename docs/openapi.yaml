@@ -284,6 +284,143 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/beatport/ingest:
+    post:
+      summary: 'Admin: trigger Beatport ingest with Saturday-week or custom range.'
+      responses:
+        '200':
+          description: Run created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectResponse'
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: beatport_unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Saturday-week semantics. If `period_start` and `period_end` are
+        omitted, the server computes them from `(week_year, week_number)`. If both
+        are present the run is recorded with `is_custom_range = true`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminIngestRequestIn'
+            example:
+              style_id: 90
+              week_year: 2026
+              week_number: 17
+              bp_token: REDACTED
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/coverage:
+    get:
+      summary: 'Admin: ingest coverage matrix for one Saturday-year.'
+      responses:
+        '200':
+          description: Coverage payload.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: db_not_configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: week_year
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 2000
+          maximum: 2100
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/runs:
+    get:
+      summary: 'Admin: list runs for one (style, week_year, week_number) cell.'
+      responses:
+        '200':
+          description: Runs (DESC by started_at).
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: db_not_configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: style_id
+        in: query
+        required: true
+        schema:
+          type: integer
+      - name: week_year
+        in: query
+        required: true
+        schema:
+          type: integer
+      - name: week_number
+        in: query
+        required: true
+        schema:
+          type: integer
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /runs/{run_id}:
     get:
       summary: Get status of an ingest run.
@@ -1690,6 +1827,56 @@ components:
       bearerFormat: JWT
       description: HS256 JWT issued by /auth/callback or /auth/refresh.
   schemas:
+    AdminIngestRequestIn:
+      additionalProperties: false
+      properties:
+        style_id:
+          exclusiveMinimum: 0
+          title: Style Id
+          type: integer
+        week_year:
+          maximum: 2100
+          minimum: 2000
+          title: Week Year
+          type: integer
+        week_number:
+          maximum: 53
+          minimum: 1
+          title: Week Number
+          type: integer
+        period_start:
+          anyOf:
+          - format: date
+            type: string
+          - type: 'null'
+          default: null
+          title: Period Start
+        period_end:
+          anyOf:
+          - format: date
+            type: string
+          - type: 'null'
+          default: null
+          title: Period End
+        bp_token:
+          minLength: 1
+          title: Bp Token
+          type: string
+        search_label_count:
+          anyOf:
+          - maximum: 200
+            minimum: 1
+            type: integer
+          - type: 'null'
+          default: null
+          title: Search Label Count
+      required:
+      - style_id
+      - week_year
+      - week_number
+      - bp_token
+      title: AdminIngestRequestIn
+      type: object
     CollectRequestIn:
       additionalProperties: false
       properties:

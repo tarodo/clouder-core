@@ -10,6 +10,7 @@
     "missing_params": "Authentication response is missing code or state."
   },
   "appshell": {
+    "admin": "Admin",
     "home": "Home",
     "categories": "Categories",
     "triage": "Triage",
@@ -19,7 +20,8 @@
   },
   "user_menu": {
     "signed_in_as": "Signed in as {{name}}",
-    "sign_out": "Sign out"
+    "sign_out": "Sign out",
+    "reset_bp_token": "Reset Beatport token"
   },
   "empty_state": {
     "coming_soon_title": "Coming soon",
@@ -441,6 +443,45 @@
     "exit_aria": "Exit Curate",
     "help_aria": "Show keyboard shortcuts",
     "back_aria": "Back to triage"
+  },
+  "admin": {
+    "coverage": {
+      "title": "Coverage",
+      "year": "Year",
+      "weeks_label": "{{count}} weeks",
+      "load_failed": "Failed to load coverage."
+    },
+    "spotify_not_found": {
+      "title": "Tracks not on Spotify",
+      "search": "Search title or artist…",
+      "total_label": "{{count}} tracks pending Spotify enrichment",
+      "load_failed": "Failed to load tracks.",
+      "empty": "No tracks awaiting Spotify match"
+    },
+    "tabs": {
+      "coverage": "Coverage",
+      "spotify_not_found": "Tracks not on Spotify"
+    },
+    "ingest": {
+      "start": "Start ingest",
+      "override": "Override date range",
+      "advanced": "Advanced",
+      "token_loaded": "Beatport token loaded",
+      "reset": "Reset",
+      "token_label": "Beatport token",
+      "token_placeholder": "Paste bp_token",
+      "standard_week": "Standard week: {{start}} – {{end}}",
+      "search_label_count": "search_label_count",
+      "failed_title": "Ingest failed",
+      "unknown_error": "Unknown error"
+    },
+    "errors": {
+      "validation": "Request was invalid.",
+      "bp_token_invalid": "Beatport token rejected. Check or regenerate.",
+      "db_not_configured": "Database is unavailable. Try again.",
+      "internal": "Unexpected error.",
+      "admin_required": "Admin access required."
+    }
   },
   "playback": {
     "devices": {

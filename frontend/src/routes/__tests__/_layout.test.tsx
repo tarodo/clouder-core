@@ -141,6 +141,42 @@ describe('AppShellLayout', () => {
   });
 });
 
+describe('AppShellLayout admin nav', () => {
+  it('shows Admin nav link for is_admin: true', () => {
+    const adminAuth = {
+      ...auth,
+      state: {
+        ...auth.state,
+        user: { ...auth.state.user, is_admin: true },
+      },
+    };
+    const router = createMemoryRouter(
+      [
+        {
+          element: <AppShellLayout />,
+          children: [{ path: '/', element: <div data-testid="outlet">HOME</div> }],
+        },
+      ],
+      { initialEntries: ['/'] },
+    );
+    render(
+      <I18nextProvider i18n={i18n}>
+        <MantineProvider theme={testTheme}>
+          <AuthContext.Provider value={adminAuth}>
+            <RouterProvider router={router} />
+          </AuthContext.Provider>
+        </MantineProvider>
+      </I18nextProvider>,
+    );
+    expect(screen.getAllByRole('link', { name: /admin/i }).length).toBeGreaterThan(0);
+  });
+
+  it('does not show Admin nav link for is_admin: false', () => {
+    renderAt('/');
+    expect(screen.queryByRole('link', { name: /admin/i })).toBeNull();
+  });
+});
+
 describe('AppShellLayout playback chrome', () => {
   const track: PlaybackTrack = {
     id: 'T1',

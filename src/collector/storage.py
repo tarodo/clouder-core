@@ -30,11 +30,15 @@ class S3Storage:
         meta: Dict[str, Any],
     ) -> Tuple[str, str]:
         style_id = int(meta["style_id"])
-        iso_year = int(meta["iso_year"])
-        iso_week = int(meta["iso_week"])
+        year_raw = meta.get("iso_year") if meta.get("iso_year") is not None else meta.get("week_year")
+        week_raw = meta.get("iso_week") if meta.get("iso_week") is not None else meta.get("week_number")
+        if year_raw is None or week_raw is None:
+            raise StorageError("S3 key requires either iso_year/iso_week or week_year/week_number in meta")
+        year = int(year_raw)
+        week = int(week_raw)
 
         base_key = self._base_key(
-            style_id=style_id, iso_year=iso_year, iso_week=iso_week
+            style_id=style_id, iso_year=year, iso_week=week
         )
         releases_key = f"{base_key}/releases.json.gz"
         meta_key = f"{base_key}/meta.json"

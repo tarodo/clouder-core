@@ -86,6 +86,30 @@ resource "aws_apigatewayv2_route" "spotify_not_found" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "admin_beatport_ingest" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /admin/beatport/ingest"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "admin_coverage" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/coverage"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "admin_runs" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/runs"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"

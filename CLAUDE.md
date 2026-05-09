@@ -81,6 +81,10 @@ cd infra && terraform init && terraform apply
 - **`/labels` API does not project `is_ai_suspected`.** The column exists on `clouder_labels` and is set by `propagate_ai_flag`, but `list_labels` SQL doesn't `SELECT` it. To verify the flag, query Aurora Data API directly: `SELECT COUNT(*) FROM clouder_labels WHERE is_ai_suspected = true`. Same gap likely on `/artists` and `/tracks`.
 - **`scripts/generate_openapi.py:ROUTES` is a manual table.** Update it whenever API Gateway routes change (`infra/api_gateway.tf`, `infra/auth.tf`, `infra/curation.tf`). Without sync, `docs/openapi.yaml` (used as Postman import) goes stale silently.
 - **macOS `python` is unavailable.** Use `python3` for stdlib-only scripts; for project scripts that import `yaml`/`pydantic`/etc., use `.venv/bin/python` (Homebrew `python3.14` lacks repo deps).
+- **Saturday-week convention is admin-only.** `src/collector/saturday_week.py` is the BE source of truth; `frontend/src/features/admin/lib/saturdayWeek.ts` mirrors it. Week N runs Saturday-to-Friday; week 1 begins on the first Saturday on/after Jan 1. Days before the first Saturday belong to the previous year.
+- **`POST /collect_bp_releases` is deprecated.** Admin UI uses `POST /admin/beatport/ingest`. Both share `_run_beatport_ingest` in `handler.py`. Don't add new ISO-week entry points; new ingests must be Saturday-week with optional `period_start`/`period_end` override.
+- **`bp_token` lives in browser memory only.** `frontend/src/features/admin/lib/bpTokenStore.ts` is a module-scoped singleton; it survives soft navigations but is wiped on tab close or hard reload. Never persist it (no localStorage/sessionStorage/cookies). UserMenu has a "Reset Beatport token" item visible to admins only.
+- **`/admin/*` is gated client-side too.** `requireAdmin` loader (`frontend/src/auth/requireAdmin.ts`) bounces non-admins to `/`. The AppShell `Admin` nav item is rendered conditionally on `auth.state.user.is_admin`.
 
 **Frontend (post-F1, 2026-05-02; F2, F3, F4 additions 2026-05-03):**
 

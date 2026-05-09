@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import json
 import re
 import time
@@ -39,7 +39,7 @@ from .repositories import (
     create_clouder_repository_from_env,
     utc_now,
 )
-from .schemas import CollectRequestIn, validation_error_message
+from .schemas import AdminIngestRequestIn, CollectRequestIn, validation_error_message
 from .search.prompts import get_latest as get_latest_prompt
 from .settings import ApiSettings, get_api_settings
 from .storage import S3Storage, create_default_s3_client
@@ -61,7 +61,10 @@ _LIST_ROUTES = {
 }
 
 _ADMIN_ROUTES = frozenset({
-    "POST /collect_bp_releases",
+    "POST /collect_bp_releases",          # legacy, kept for backward compatibility
+    "POST /admin/beatport/ingest",
+    "GET /admin/coverage",
+    "GET /admin/runs",
     "GET /tracks/spotify-not-found",
 })
 
@@ -141,6 +144,12 @@ def _route(
         return _handle_get_run(event, context)
     if route_key in ("POST /collect_bp_releases", ""):
         return _handle_collect(event, context)
+    if route_key == "POST /admin/beatport/ingest":
+        return _handle_admin_ingest(event, context)
+    if route_key == "GET /admin/coverage":
+        return _handle_admin_coverage(event)
+    if route_key == "GET /admin/runs":
+        return _handle_admin_runs(event)
     if route_key == "GET /tracks/spotify-not-found":
         return _handle_spotify_not_found(event)
     if route_key in _LIST_ROUTES:
@@ -152,7 +161,36 @@ def _route(
     )
 
 
-def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
+@dataclass(frozen=True)
+class _IngestParams:
+    """Inputs for `_run_beatport_ingest`.
+
+    Three valid field combinations:
+    - Legacy ISO path: iso_year + iso_week set; week_year/week_number None;
+      is_custom_range False.
+    - Admin Saturday-week path: week_year + week_number set; iso_year/iso_week None;
+      is_custom_range False; period_start/period_end derived from saturday_week_range.
+    - Admin custom-range path: same as Saturday-week plus is_custom_range True;
+      period_start/period_end taken from the request body verbatim.
+    """
+
+    style_id: int
+    bp_token: str
+    period_start: str  # YYYY-MM-DD
+    period_end: str    # YYYY-MM-DD
+    search_label_count: int | None
+    iso_year: int | None
+    iso_week: int | None
+    week_year: int | None
+    week_number: int | None
+    is_custom_range: bool
+
+
+def _run_beatport_ingest(
+    event: Mapping[str, Any],
+    context: Any,
+    params: _IngestParams,
+) -> dict[str, Any]:
     started_at_perf = time.perf_counter()
     api_request_id = _extract_api_request_id(event)
     lambda_request_id = getattr(context, "aws_request_id", "unknown")
@@ -167,11 +205,6 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     )
 
     settings = _load_api_settings()
-    body = _parse_json_body(event)
-    request = _parse_collect_request(body)
-    week_start, week_end = compute_iso_week_date_range(
-        request.iso_year, request.iso_week
-    )
     run_id = str(uuid.uuid4())
 
     log_event(
@@ -180,28 +213,34 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         correlation_id=correlation_id,
         api_request_id=api_request_id,
         lambda_request_id=lambda_request_id,
-        style_id=request.style_id,
-        iso_year=request.iso_year,
-        iso_week=request.iso_week,
+        style_id=params.style_id,
+        iso_year=params.iso_year,
+        iso_week=params.iso_week,
+        week_year=params.week_year,
+        week_number=params.week_number,
+        is_custom_range=params.is_custom_range,
     )
 
     beatport_client = registry.get_ingest("beatport")
     releases, api_pages_fetched = beatport_client.fetch_weekly_releases(
-        bp_token=request.bp_token,
-        style_id=request.style_id,
-        week_start=week_start,
-        week_end=week_end,
+        bp_token=params.bp_token,
+        style_id=params.style_id,
+        week_start=params.period_start,
+        week_end=params.period_end,
         correlation_id=correlation_id,
     )
 
     duration_ms = int((time.perf_counter() - started_at_perf) * 1000)
     item_count = len(releases)
     meta = {
-        "style_id": request.style_id,
-        "iso_year": request.iso_year,
-        "iso_week": request.iso_week,
-        "week_start": week_start,
-        "week_end": week_end,
+        "style_id": params.style_id,
+        "iso_year": params.iso_year,
+        "iso_week": params.iso_week,
+        "week_year": params.week_year,
+        "week_number": params.week_number,
+        "period_start": params.period_start,
+        "period_end": params.period_end,
+        "is_custom_range": params.is_custom_range,
         "run_id": run_id,
         "correlation_id": correlation_id,
         "api_request_id": api_request_id,
@@ -228,9 +267,14 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             CreateIngestRunCmd(
                 run_id=run_id,
                 source="beatport",
-                style_id=request.style_id,
-                iso_year=request.iso_year,
-                iso_week=request.iso_week,
+                style_id=params.style_id,
+                iso_year=params.iso_year,
+                iso_week=params.iso_week,
+                week_year=params.week_year,
+                week_number=params.week_number,
+                period_start=date.fromisoformat(params.period_start),
+                period_end=date.fromisoformat(params.period_end),
+                is_custom_range=params.is_custom_range,
                 raw_s3_key=releases_key,
                 status=RunStatus.RAW_SAVED,
                 item_count=item_count,
@@ -242,17 +286,17 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     enqueue_result = _enqueue_canonicalization(
         run_id=run_id,
         s3_key=releases_key,
-        style_id=request.style_id,
-        iso_year=request.iso_year,
-        iso_week=request.iso_week,
+        style_id=params.style_id,
+        iso_year=params.iso_year,
+        iso_week=params.iso_week,
         correlation_id=correlation_id,
         settings=settings,
     )
 
     search_enqueued = 0
-    if request.search_label_count and settings.ai_search_enabled:
+    if params.search_label_count and settings.ai_search_enabled:
         search_enqueued = _enqueue_label_search(
-            limit=request.search_label_count,
+            limit=params.search_label_count,
             settings=settings,
             correlation_id=correlation_id,
         )
@@ -262,8 +306,13 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         "correlation_id": correlation_id,
         "api_request_id": api_request_id,
         "lambda_request_id": lambda_request_id,
-        "iso_year": request.iso_year,
-        "iso_week": request.iso_week,
+        "iso_year": params.iso_year,
+        "iso_week": params.iso_week,
+        "week_year": params.week_year,
+        "week_number": params.week_number,
+        "period_start": params.period_start,
+        "period_end": params.period_end,
+        "is_custom_range": params.is_custom_range,
         "s3_object_key": releases_key,
         "item_count": item_count,
         "duration_ms": duration_ms,
@@ -285,9 +334,12 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         api_request_id=api_request_id,
         lambda_request_id=lambda_request_id,
         run_id=run_id,
-        style_id=request.style_id,
-        iso_year=request.iso_year,
-        iso_week=request.iso_week,
+        style_id=params.style_id,
+        iso_year=params.iso_year,
+        iso_week=params.iso_week,
+        week_year=params.week_year,
+        week_number=params.week_number,
+        is_custom_range=params.is_custom_range,
         item_count=item_count,
         api_pages_fetched=api_pages_fetched,
         duration_ms=duration_ms,
@@ -301,6 +353,166 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         ),
     )
     return _json_response(200, response, correlation_id)
+
+
+def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
+    body = _parse_json_body(event)
+    request = _parse_collect_request(body)
+    week_start, week_end = compute_iso_week_date_range(
+        request.iso_year, request.iso_week
+    )
+    params = _IngestParams(
+        style_id=request.style_id,
+        bp_token=request.bp_token,
+        period_start=week_start,
+        period_end=week_end,
+        search_label_count=request.search_label_count,
+        iso_year=request.iso_year,
+        iso_week=request.iso_week,
+        week_year=None,
+        week_number=None,
+        is_custom_range=False,
+    )
+    return _run_beatport_ingest(event, context, params)
+
+
+def _handle_admin_ingest(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
+    body = _parse_json_body(event)
+    try:
+        request = AdminIngestRequestIn.model_validate(body)
+    except PydanticValidationError as exc:
+        raise ValidationError(validation_error_message(exc))
+
+    from .saturday_week import saturday_week_range
+
+    if request.period_start is None:
+        std_start, std_end = saturday_week_range(
+            request.week_year, request.week_number
+        )
+        period_start_iso = std_start.isoformat()
+        period_end_iso = std_end.isoformat()
+        is_custom = False
+    else:
+        period_start_iso = request.period_start.isoformat()
+        period_end_iso = request.period_end.isoformat()
+        is_custom = True
+
+    params = _IngestParams(
+        style_id=request.style_id,
+        bp_token=request.bp_token,
+        period_start=period_start_iso,
+        period_end=period_end_iso,
+        search_label_count=request.search_label_count,
+        iso_year=None,
+        iso_week=None,
+        week_year=request.week_year,
+        week_number=request.week_number,
+        is_custom_range=is_custom,
+    )
+    return _run_beatport_ingest(event, context, params)
+
+
+def _handle_admin_coverage(event: Mapping[str, Any]) -> dict[str, Any]:
+    correlation_id = _extract_correlation_id(event)
+    qs = event.get("queryStringParameters") or {}
+    raw = qs.get("week_year") if isinstance(qs, Mapping) else None
+    if not raw or not raw.isdigit():
+        raise ValidationError("week_year is required (4-digit year)")
+    week_year = int(raw)
+    if week_year < 2000 or week_year > 2100:
+        raise ValidationError("week_year out of range")
+
+    from .saturday_week import weeks_in_year
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {"error_code": "db_not_configured", "message": "Database is not configured"},
+            correlation_id,
+        )
+
+    rows = repository.coverage_for_year(week_year)
+
+    grouped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        sid = str(row["style_id"])
+        if sid not in grouped:
+            grouped[sid] = {
+                "style_id": sid,
+                "style_name": row["style_name"],
+                "cells": [],
+            }
+        if row.get("run_id") is None:
+            continue
+        grouped[sid]["cells"].append(
+            {
+                "week_number": row["week_number"],
+                "status": row["status"],
+                "run_id": row["run_id"],
+                "item_count": row["item_count"],
+                "is_custom_range": bool(row.get("is_custom_range")),
+                "period_start": _iso(row.get("period_start")),
+                "period_end": _iso(row.get("period_end")),
+                "started_at": _iso(row.get("started_at")),
+                "finished_at": _iso(row.get("finished_at")),
+            }
+        )
+
+    return _json_response(
+        200,
+        {
+            "week_year": week_year,
+            "weeks_in_year": weeks_in_year(week_year),
+            "styles": list(grouped.values()),
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_admin_runs(event: Mapping[str, Any]) -> dict[str, Any]:
+    correlation_id = _extract_correlation_id(event)
+    qs = event.get("queryStringParameters") or {}
+    qs = qs if isinstance(qs, Mapping) else {}
+
+    def _int_param(name: str) -> int:
+        raw = qs.get(name)
+        if not isinstance(raw, str) or not raw.isdigit() or int(raw) < 1:
+            raise ValidationError(f"{name} is required (positive integer)")
+        return int(raw)
+
+    style_id = _int_param("style_id")
+    week_year = _int_param("week_year")
+    week_number = _int_param("week_number")
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {"error_code": "db_not_configured", "message": "Database is not configured"},
+            correlation_id,
+        )
+
+    rows = repository.list_runs_for_cell(style_id, week_year, week_number)
+    items = [
+        {
+            "run_id": r["run_id"],
+            "status": r["status"],
+            "started_at": _iso(r.get("started_at")),
+            "finished_at": _iso(r.get("finished_at")),
+            "item_count": r.get("item_count"),
+            "processed_count": r.get("processed_count"),
+            "error_code": r.get("error_code"),
+            "error_message": r.get("error_message"),
+            "is_custom_range": bool(r.get("is_custom_range")),
+            "period_start": _iso(r.get("period_start")),
+            "period_end": _iso(r.get("period_end")),
+        }
+        for r in rows
+    ]
+
+    return _json_response(200, {"items": items, "correlation_id": correlation_id}, correlation_id)
 
 
 def _handle_get_run(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
@@ -456,6 +668,8 @@ def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
         item: dict[str, Any] = {}
         for key, value in row.items():
             item[key] = value
+        if "id" in item:
+            item["track_id"] = item.pop("id")
         if "artist_names" in item:
             raw = item.pop("artist_names")
             item["artists"] = [n.strip() for n in raw.split(",")] if raw else []
@@ -518,8 +732,8 @@ def _enqueue_canonicalization(
     run_id: str,
     s3_key: str,
     style_id: int,
-    iso_year: int,
-    iso_week: int,
+    iso_year: int | None,
+    iso_week: int | None,
     correlation_id: str,
     settings: ApiSettings,
 ) -> EnqueueResult:
@@ -789,6 +1003,14 @@ def _extract_correlation_id(event: Mapping[str, Any]) -> str:
             ):
                 return value.strip()
     return str(uuid.uuid4())
+
+
+def _iso(value: Any) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
 
 
 def _json_response(
