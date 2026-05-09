@@ -35,6 +35,45 @@
     "unknown": "Something went wrong.",
     "correlation_id": "Reference: {{id}}"
   },
+  "home": {
+    "resume": {
+      "curate": {
+        "title": "Continue curating",
+        "context": "{{style}} → {{block}}",
+        "cta": "Continue"
+      },
+      "triage": {
+        "title": "Open latest active block",
+        "context": "{{style}} · {{block}}",
+        "cta": "Open block"
+      },
+      "empty": {
+        "title": "No active triage yet",
+        "body": "Start by creating your first triage block.",
+        "cta": "Create first triage block"
+      }
+    },
+    "counters": {
+      "awaiting_triage": "Awaiting triage",
+      "active_blocks": "Active blocks",
+      "tracks_unit": "tracks"
+    },
+    "active_blocks": {
+      "title": "Active blocks",
+      "view_all": "View all ({{count}} blocks)",
+      "empty_body": "Nothing in progress."
+    },
+    "error": {
+      "partial": "Some styles failed to load.",
+      "partial_retry": "Retry",
+      "full": "Couldn't load your dashboard.",
+      "full_retry": "Retry"
+    },
+    "no_styles": {
+      "title": "No styles assigned yet",
+      "body": "Contact your admin to get a style assigned."
+    }
+  },
   "long_op": {
     "cold_start": "Cold start, hang on…",
     "very_long": "This is taking longer than usual. If nothing happens, refresh — the operation may have already succeeded."
