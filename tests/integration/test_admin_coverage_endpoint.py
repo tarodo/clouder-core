@@ -129,3 +129,5 @@ def test_coverage_returns_grouped_styles(monkeypatch):
     assert len(styles["s1"]["cells"]) == 1
     assert styles["s1"]["cells"][0]["week_number"] == 1
     assert styles["s2"]["cells"][0]["is_custom_range"] is True
+    assert styles["s1"]["style_name"] == "Tech House"
+    assert styles["s2"]["style_name"] == "Melodic"

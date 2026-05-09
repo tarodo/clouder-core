@@ -87,7 +87,7 @@ def test_admin_runs_db_not_configured_503(monkeypatch):
     assert body["error_code"] == "db_not_configured"
 
 
-def test_admin_runs_returns_items_desc(monkeypatch):
+def test_admin_runs_returns_repo_rows_in_received_order(monkeypatch):
     rows = [
         {
             "run_id": "r2",

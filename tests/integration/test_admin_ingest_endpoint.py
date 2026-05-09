@@ -136,6 +136,8 @@ def test_admin_ingest_happy_path_default_range(monkeypatch):
     assert body["week_number"] == 5
     assert body["period_start"] == "2026-01-31"
     assert body["period_end"] == "2026-02-06"
+    assert body["processing_status"] == "QUEUED"
+    assert body["processing_outcome"] == "ENQUEUED"
 
     cmd = fake_repo.create_ingest_run.call_args[0][0]
     assert cmd.is_custom_range is False
@@ -165,6 +167,8 @@ def test_admin_ingest_happy_path_with_override(monkeypatch):
     assert body["is_custom_range"] is True
     assert body["period_start"] == "2026-01-25"
     assert body["period_end"] == "2026-02-02"
+    assert body["processing_status"] == "QUEUED"
+    assert body["processing_outcome"] == "ENQUEUED"
 
     cmd = fake_repo.create_ingest_run.call_args[0][0]
     assert cmd.is_custom_range is True
