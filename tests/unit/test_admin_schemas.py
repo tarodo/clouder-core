@@ -80,3 +80,11 @@ def test_extra_fields_forbidden():
     payload = _base_payload() | {"unknown": "x"}
     with pytest.raises(ValidationError):
         AdminIngestRequestIn.model_validate(payload)
+
+
+def test_week_53_valid_for_53_week_year():
+    # 2028 has 53 Saturday-anchored weeks.
+    req = AdminIngestRequestIn.model_validate(
+        _base_payload() | {"week_year": 2028, "week_number": 53}
+    )
+    assert req.week_number == 53

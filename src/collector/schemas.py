@@ -166,7 +166,7 @@ class AdminIngestRequestIn(BaseModel):
         return normalized
 
     @model_validator(mode="after")
-    def _validate(self) -> "AdminIngestRequestIn":
+    def _validate_range_constraints(self) -> "AdminIngestRequestIn":
         from .saturday_week import weeks_in_year
 
         if (self.period_start is None) != (self.period_end is None):
@@ -176,10 +176,10 @@ class AdminIngestRequestIn(BaseModel):
         if self.period_start is not None and self.period_end is not None:
             if self.period_end < self.period_start:
                 raise ValueError("period_end must be on or after period_start")
-        if self.week_number > weeks_in_year(self.week_year):
+        limit = weeks_in_year(self.week_year)
+        if self.week_number > limit:
             raise ValueError(
-                f"week_number {self.week_number} exceeds weeks_in_year"
-                f"({self.week_year}) = {weeks_in_year(self.week_year)}"
+                f"week_number {self.week_number} exceeds weeks_in_year({self.week_year}) = {limit}"
             )
         return self
 
