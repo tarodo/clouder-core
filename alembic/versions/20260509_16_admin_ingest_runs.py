@@ -17,8 +17,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.alter_column("ingest_runs", "iso_year", nullable=True)
-    op.alter_column("ingest_runs", "iso_week", nullable=True)
+    op.alter_column("ingest_runs", "iso_year", existing_type=sa.Integer(), nullable=True)
+    op.alter_column("ingest_runs", "iso_week", existing_type=sa.Integer(), nullable=True)
     op.add_column("ingest_runs", sa.Column("week_year", sa.Integer(), nullable=True))
     op.add_column("ingest_runs", sa.Column("week_number", sa.Integer(), nullable=True))
     op.add_column("ingest_runs", sa.Column("period_start", sa.Date(), nullable=True))
@@ -46,5 +46,7 @@ def downgrade() -> None:
     op.drop_column("ingest_runs", "period_start")
     op.drop_column("ingest_runs", "week_number")
     op.drop_column("ingest_runs", "week_year")
-    op.alter_column("ingest_runs", "iso_week", nullable=False)
-    op.alter_column("ingest_runs", "iso_year", nullable=False)
+    # Restoring NOT NULL fails if admin-initiated runs (iso_year/iso_week NULL)
+    # exist. Truncate/backfill those rows before downgrading in production.
+    op.alter_column("ingest_runs", "iso_week", existing_type=sa.Integer(), nullable=False)
+    op.alter_column("ingest_runs", "iso_year", existing_type=sa.Integer(), nullable=False)
