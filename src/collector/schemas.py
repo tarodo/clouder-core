@@ -146,6 +146,44 @@ class SpotifySearchMessage(BaseModel):
     auto_continue: bool = Field(default=True)
 
 
+class AdminIngestRequestIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    style_id: StrictInt = Field(gt=0)
+    week_year: StrictInt = Field(ge=2000, le=2100)
+    week_number: StrictInt = Field(ge=1, le=53)
+    period_start: date | None = None
+    period_end: date | None = None
+    bp_token: str = Field(min_length=1)
+    search_label_count: StrictInt | None = Field(default=None, ge=1, le=200)
+
+    @field_validator("bp_token")
+    @classmethod
+    def _normalize_bp_token(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("bp_token is required and must be a non-empty string")
+        return normalized
+
+    @model_validator(mode="after")
+    def _validate(self) -> "AdminIngestRequestIn":
+        from .saturday_week import weeks_in_year
+
+        if (self.period_start is None) != (self.period_end is None):
+            raise ValueError(
+                "period_start and period_end must both be present or both absent"
+            )
+        if self.period_start is not None and self.period_end is not None:
+            if self.period_end < self.period_start:
+                raise ValueError("period_end must be on or after period_start")
+        if self.week_number > weeks_in_year(self.week_year):
+            raise ValueError(
+                f"week_number {self.week_number} exceeds weeks_in_year"
+                f"({self.week_year}) = {weeks_in_year(self.week_year)}"
+            )
+        return self
+
+
 def coerce_search_message(payload: dict[str, object]) -> EntitySearchMessage:
     """Accept both EntitySearchMessage and LabelSearchMessage shapes.
 
