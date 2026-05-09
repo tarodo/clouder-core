@@ -28,8 +28,9 @@ export function useRunPoller(
 
   useEffect(() => {
     if (!query.data || !run_id || !args) return;
-    if (!TERMINAL.has(query.data.status.toLowerCase())) return;
-    runsTrackerStore.getState().remove(run_id);
+    const status = query.data.status.toLowerCase();
+    if (!TERMINAL.has(status)) return;
+    runsTrackerStore.getState().setTerminal(run_id, status === 'failed' ? 'failed' : 'completed');
     void qc.invalidateQueries({ queryKey: ['admin', 'coverage', args.weekYear] });
     void qc.invalidateQueries({
       queryKey: ['admin', 'runs', args.styleId, args.weekYear, args.weekNumber],

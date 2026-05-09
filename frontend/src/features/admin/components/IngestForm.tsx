@@ -40,10 +40,6 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
 
   const submit = () => {
     if (!token) return;
-    if (override && new Date(end) < new Date(start)) {
-      mutation.reset();
-      return;
-    }
     const payload = {
       style_id: styleId,
       week_year: weekYear,

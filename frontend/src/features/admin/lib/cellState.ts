@@ -18,8 +18,6 @@ export type CellState =
   | 'running'
   | 'n/a';
 
-const RUNNING = new Set(['queued', 'processing', 'raw_saved']);
-
 export function cellState(
   cell: CoverageCell | undefined,
   isTrackedRunning: boolean,
@@ -27,7 +25,6 @@ export function cellState(
   if (isTrackedRunning) return 'running';
   if (!cell) return 'empty';
   const status = cell.status.toLowerCase();
-  if (RUNNING.has(status)) return 'running';
   if (status === 'failed') return 'failed';
   if (status === 'completed') {
     return cell.is_custom_range ? 'loaded-custom' : 'loaded';

@@ -36,8 +36,8 @@ describe('cellState', () => {
     expect(cellState({ ...ok, status: 'failed' }, false)).toBe('failed');
   });
 
-  it('running for processing/queued status', () => {
-    expect(cellState({ ...ok, status: 'processing' }, false)).toBe('running');
-    expect(cellState({ ...ok, status: 'queued' }, false)).toBe('running');
+  it('empty for unrecognised status (processing/queued are not stored by BE)', () => {
+    expect(cellState({ ...ok, status: 'processing' }, false)).toBe('empty');
+    expect(cellState({ ...ok, status: 'queued' }, false)).toBe('empty');
   });
 });

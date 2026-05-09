@@ -668,6 +668,8 @@ def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
         item: dict[str, Any] = {}
         for key, value in row.items():
             item[key] = value
+        if "id" in item:
+            item["track_id"] = item.pop("id")
         if "artist_names" in item:
             raw = item.pop("artist_names")
             item["artists"] = [n.strip() for n in raw.split(",")] if raw else []

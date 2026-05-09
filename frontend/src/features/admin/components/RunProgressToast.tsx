@@ -8,9 +8,25 @@ export function RunProgressToast() {
   const toastIds = useRef(new Map<string, string>());
 
   useEffect(() => {
-    // Add toasts for new runs.
     for (const meta of tracker.runs.values()) {
-      if (toastIds.current.has(meta.run_id)) continue;
+      if (toastIds.current.has(meta.run_id)) {
+        // Already showing — settle if terminal status has been set.
+        if (meta.terminalStatus) {
+          const id = toastIds.current.get(meta.run_id)!;
+          notifications.update({
+            id,
+            title: 'Beatport ingest',
+            message: meta.terminalStatus === 'failed' ? 'failed' : 'completed',
+            color: meta.terminalStatus === 'failed' ? 'red' : 'green',
+            loading: false,
+            autoClose: 4000,
+          });
+          toastIds.current.delete(meta.run_id);
+          runsTrackerStore.getState().remove(meta.run_id);
+        }
+        continue;
+      }
+      // Show a new loading toast for a newly-tracked run.
       const id = notifications.show({
         loading: true,
         title: 'Beatport ingest',
@@ -19,19 +35,6 @@ export function RunProgressToast() {
         withCloseButton: false,
       });
       toastIds.current.set(meta.run_id, id);
-    }
-    // Settle removed runs.
-    for (const [runId, id] of toastIds.current.entries()) {
-      if (tracker.runs.has(runId)) continue;
-      notifications.update({
-        id,
-        title: 'Beatport ingest',
-        message: 'completed',
-        color: 'green',
-        loading: false,
-        autoClose: 4000,
-      });
-      toastIds.current.delete(runId);
     }
   }, [tracker.runs]);
 
