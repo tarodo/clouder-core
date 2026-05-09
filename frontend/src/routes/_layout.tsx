@@ -2,6 +2,7 @@ import { AppShell, Group, NavLink, Stack, Text, useMantineTheme } from '@mantine
 import { Outlet, NavLink as RouterLink, useLocation } from 'react-router';
 import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
+import { useContext, useMemo } from 'react';
 import type { ComponentType } from 'react';
 import {
   IconHome,
@@ -9,7 +10,9 @@ import {
   IconLayoutColumns,
   IconAdjustments,
   IconUser,
+  IconShield,
 } from '../components/icons';
+import { AuthContext } from '../auth/AuthProvider';
 import { UserMenu } from '../components/UserMenu';
 import { PlaybackProvider } from '../features/playback/PlaybackProvider';
 import { MiniBar } from '../features/playback/MiniBar';
@@ -48,6 +51,16 @@ function AppShellInner() {
   const theme = useMantineTheme();
   const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
   const location = useLocation();
+  const auth = useContext(AuthContext);
+  const isAdmin =
+    auth?.state.status === 'authenticated' && auth.state.user.is_admin === true;
+  const navItems = useMemo<NavItem[]>(
+    () =>
+      isAdmin
+        ? [...NAV_ITEMS, { path: '/admin', labelKey: 'appshell.admin', Icon: IconShield }]
+        : NAV_ITEMS,
+    [isAdmin],
+  );
 
   return (
     <AppShell
@@ -68,7 +81,7 @@ function AppShellInner() {
       {isDesktop && (
         <AppShell.Navbar p="sm">
           <Stack gap="xs">
-            {NAV_ITEMS.map(({ path, labelKey, Icon }) => (
+            {navItems.map(({ path, labelKey, Icon }) => (
               <NavLink
                 key={path}
                 component={RouterLink}
@@ -92,7 +105,7 @@ function AppShellInner() {
       {!isDesktop && (
         <AppShell.Footer p={0}>
           <Group h="100%" justify="space-around" align="center" gap={0}>
-            {NAV_ITEMS.map(({ path, labelKey, Icon }) => {
+            {navItems.map(({ path, labelKey, Icon }) => {
               const active =
                 path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
               return (

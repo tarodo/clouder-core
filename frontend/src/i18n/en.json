@@ -10,6 +10,7 @@
     "missing_params": "Authentication response is missing code or state."
   },
   "appshell": {
+    "admin": "Admin",
     "home": "Home",
     "categories": "Categories",
     "triage": "Triage",
