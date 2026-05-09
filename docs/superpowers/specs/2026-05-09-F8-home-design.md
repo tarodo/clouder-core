@@ -1,7 +1,7 @@
 # F8 Home / Dashboard — Frontend Design
 
 **Date:** 2026-05-09
-**Status:** Draft for review
+**Status:** Shipped 2026-05-09 (merge `7eca6f8`)
 **Roadmap:** `docs/superpowers/plans/2026-05-01-frontend-iter-2a-roadmap.md` (F8)
 **Design ref:** `docs/design_handoff/02 Pages catalog · Pass 1 (Auth-Triage).html` § P-04 / P-08
 **Backend ref:** `docs/openapi.yaml` (no new endpoints — composes existing data)
@@ -139,23 +139,32 @@ Empty state (styles exist, IN_PROGRESS = 0): inline `<EmptyState>` with the same
 
 ### 4.5 HomePage
 
-Thin composer, ~25 lines:
+Wrapper-split composer to satisfy `react-hooks/rules-of-hooks` (any post-load hook must run after a fresh component mount, not after an early return). `HomePage` owns guards; `HomeReady` owns the data-bound hooks; `HomeError` owns the inline failure surface.
 
 ```tsx
 export function HomePage() {
-  const { data, isLoading, isError, partialError, refetchAll } = useHomeData();
+  const { data, isLoading, isError, error, refetchAll } = useHomeData();
   if (isLoading) return <HomeSkeleton />;
-  if (isError) return <RouteErrorBoundary />;
-  return (
-    <Stack gap="md" maw={720} mx="auto" px="md">
-      {partialError && <Alert color="warning" variant="light" /* ... retry */ />}
-      <ResumeHero target={data.resumeTarget} />
-      <CountersGrid awaitingTriage={data.awaitingTriageCount} activeBlocks={data.activeBlocksCount} />
-      <ActiveBlocksList blocks={data.topActiveBlocks} total={data.activeBlocksCount} />
-    </Stack>
-  );
+  if (isError || !data) return <HomeError refetchAll={refetchAll} error={error} />;
+  if (data.styles.length === 0) return <NoStylesEmpty />;
+  return <HomeReady data={data} refetchAll={refetchAll} />;
+}
+
+function HomeError({ refetchAll, error }: { refetchAll: () => void; error?: unknown }) {
+  // Alert color="red" with home.error.full / home.error.full_retry copy.
+  // Renders <Code>{t('errors.correlation_id', { id })}</Code> when
+  // error instanceof ApiError && error.correlationId is truthy.
+}
+
+function HomeReady({ data, refetchAll }: { data: HomeData; refetchAll: () => void }) {
+  const target = useResumeTarget(data.activeBlocks, data.blocksByStyle);
+  // Stack maw={720} with optional partial-error Alert (color="yellow",
+  // home.error.partial / home.error.partial_retry), ResumeHero, CountersGrid,
+  // ActiveBlocksList.
 }
 ```
+
+Note: an earlier draft used `<RouteErrorBoundary />` as the full-error fallback; in implementation `RouteErrorBoundary` calls `useRouteError()` which returns `undefined` outside a route-level errorElement, so the user got a generic "Something broke" with a useless "Back to home" CTA and no retry. The inline `<HomeError>` above replaces that path — see commits `219838b` and `0a30a3f`.
 
 ## 5. localStorage
 
@@ -220,9 +229,10 @@ Single skeleton, single flip. No partial render.
 
 ### 6.2 Error
 
-- `useStyles` error → `<RouteErrorBoundary>` (existing, retry button).
-- One or more `useQueries` failed → `useHomeData` surfaces `partialError: true`. `HomePage` renders content + a top `<Alert color="warning" variant="light">` with retry button calling `refetchAll`.
+- `useStyles` error → inline `<HomeError>` rendering `<Alert color="red" variant="light" title={t('home.error.full')}>` ("Couldn't load your dashboard.") with a `Retry` button wired to `refetchAll`. When `error instanceof ApiError && error.correlationId` truthy, the alert appends `<Code>{t('errors.correlation_id', { id })}</Code>` so support / debug stories keep the correlation id visible.
+- One or more `useQueries` failed → `useHomeData` surfaces `partialError: true`. `HomeReady` renders content as usual + a top `<Alert color="yellow" variant="light" title={t('home.error.partial')}>` ("Some styles failed to load.") with a `Retry` button calling `refetchAll`.
 - Aurora cold-start 503 (per CLAUDE.md gotcha): TanStack Query default retries (3 × exponential backoff) handle it. Skeleton stays longer; no cold-start banner on Home (low impact, user just waits).
+- Distinct copy / colour / scope for the two paths is deliberate: the partial state still shows usable data, so a yellow advisory is right; the full state hides everything until retry, so a red alert with the correlation id is right.
 
 ### 6.3 Empty
 
@@ -232,15 +242,17 @@ Single skeleton, single flip. No partial render.
 
 ### 6.4 i18n
 
-All strings in `frontend/src/i18n/en.json` under `home.*`. RU bundle deferred to CC-4 (F9). Keys to add:
+All strings in `frontend/src/i18n/en.json` under `home.*`. RU bundle deferred to CC-4 (F9). Final shipped key set (snake_case leaves):
 
-- `home.resume.curate.title`, `home.resume.curate.cta`
-- `home.resume.triage.title`, `home.resume.triage.cta`
-- `home.resume.empty.title`, `home.resume.empty.cta`
-- `home.counters.awaitingTriage.label`, `home.counters.activeBlocks.label`
-- `home.activeBlocks.title`, `home.activeBlocks.viewAll`, `home.activeBlocks.empty`
-- `home.error.partial`, `home.error.partialRetry`
-- `home.noStyles.title`, `home.noStyles.body`
+- `home.resume.curate.{title,context,cta}`
+- `home.resume.triage.{title,context,cta}`
+- `home.resume.empty.{title,body,cta}`
+- `home.counters.{awaiting_triage,active_blocks,tracks_unit}`
+- `home.active_blocks.{title,view_all,empty_body}`
+- `home.error.{partial,partial_retry,full,full_retry}`
+- `home.no_styles.{title,body}`
+
+`home.counters.blocks_unit` was scaffolded in Task 1 but never consumed — `view_all` includes "blocks" inline — and was removed in commit `0a30a3f`.
 
 ## 7. Testing
 

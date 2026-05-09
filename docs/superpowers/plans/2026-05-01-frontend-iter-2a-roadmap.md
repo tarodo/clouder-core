@@ -33,9 +33,9 @@ Each row is a single PR. Sub-PRs allowed if a row gets too large (e.g. Triage co
 | ~~**F3b**~~ ✅ **Shipped 2026-05-03** | Triage transfer (cross-block) — single-track, two-step modal, fire-and-toast (no Undo per snapshot semantics) | P-19 | `POST /triage/blocks/{src_id}/transfer` | Pass 1 | spec-D | M — actual ~1 session via subagent-driven plan |
 | ~~**F4**~~ ✅ **Shipped 2026-05-03** | Triage finalize + bulk transfer-from-FINALIZED | P-20..P-21 + S-04 | `POST /triage/blocks/{id}/finalize` | Pass 1 + Pass 2 patterns | spec-D | M — actual ~1 day session via subagent-driven plan |
 | ~~**F5**~~ ✅ **Shipped 2026-05-04** | Curate desktop + mobile | P-22..P-23 | `POST /triage/blocks/{id}/move`, hotkey overlay | `03 Pages catalog` Pass 2 | spec-D + Q6 + Q7 + Q8 | L — actual ~1 day session via subagent-driven plan (22 tasks, 380 tests) |
-| **F6** | PlayerCard + sticky mini | P-24 | Spotify Web Playback SDK directly | spec sheet § PlayerCard | `2026-04-29-playback-ux-design.md`, OPEN_QUESTIONS Q5 | L |
-| **F7** | Device picker | P-25 | Spotify Web API `getMyDevices`, `transferMyPlayback` | Pass 2 | OPEN_QUESTIONS Q5 | M |
-| **F8** | Home / Dashboard | P-05..P-08 | `GET /styles`, `GET /categories`, `GET /triage/blocks` | Pass 1 | — (composes existing data) | M |
+| ~~**F6**~~ ✅ **Shipped 2026-05-05** | PlayerCard + sticky mini | P-24 | Spotify Web Playback SDK directly | spec sheet § PlayerCard | `2026-04-29-playback-ux-design.md`, OPEN_QUESTIONS Q5 | L |
+| ~~**F7**~~ ✅ **Shipped 2026-05-06** | Device picker | P-25 | Spotify Web API `getMyDevices`, `transferMyPlayback` | Pass 2 | OPEN_QUESTIONS Q5 | M |
+| ~~**F8**~~ ✅ **Shipped 2026-05-09** | Home / Dashboard — resume hero (localStorage → freshest IN_PROGRESS → empty CTA) + counters + top-5 active blocks list. Inline error retry with correlation_id surface. `/triage?create=1` deep-link auto-opens create-block dialog. | P-05..P-08 | `GET /styles`, `GET /styles/{id}/triage/blocks?status=IN_PROGRESS` | Pass 1 | — (composes existing data) | M — actual ~1 day session via subagent-driven plan (13 tasks, 33 new tests, 609/609) |
 | **F9** | Profile / Settings (basic) | P-24 mobile profile tab | `GET /me`, `DELETE /me/sessions/{id}` | Pass 2 | spec-A | S |
 | **F10** | Patterns polish + a11y audit | S-01..S-10 | — | Pass 2 | `docs/design_handoff/a11y.md` | M |
 
