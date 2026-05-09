@@ -1,6 +1,6 @@
 import { Button, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Navigate, useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import { StyleSelector } from '../../../components/StyleSelector';
@@ -16,10 +16,20 @@ export function TriageListPage() {
   const { t } = useTranslation();
   const { data: styles } = useStyles();
   const [opened, { open, close }] = useDisclosure(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     if (styleId) writeLastVisitedTriageStyle(styleId);
   }, [styleId]);
+
+  useEffect(() => {
+    if (searchParams.get('create') === '1') {
+      open();
+      const next = new URLSearchParams(searchParams);
+      next.delete('create');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, open, setSearchParams]);
 
   if (!styleId) return <Navigate to="/triage" replace />;
 

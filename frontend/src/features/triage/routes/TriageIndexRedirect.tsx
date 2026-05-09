@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useStyles } from '../../../hooks/useStyles';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
@@ -8,6 +8,7 @@ import { readLastVisitedTriageStyle } from '../lib/lastVisitedTriageStyle';
 
 export function TriageIndexRedirect() {
   const { t } = useTranslation();
+  const { search } = useLocation();
   const { data, isLoading, isError } = useStyles();
 
   if (isLoading) return <FullScreenLoader />;
@@ -29,5 +30,5 @@ export function TriageIndexRedirect() {
   const last = readLastVisitedTriageStyle();
   const target = items.find((s) => s.id === last)?.id ?? items[0]?.id;
   if (!target) return null;
-  return <Navigate to={`/triage/${target}`} replace />;
+  return <Navigate to={`/triage/${target}${search}`} replace />;
 }
