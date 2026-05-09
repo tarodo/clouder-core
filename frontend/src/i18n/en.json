@@ -20,7 +20,8 @@
   },
   "user_menu": {
     "signed_in_as": "Signed in as {{name}}",
-    "sign_out": "Sign out"
+    "sign_out": "Sign out",
+    "reset_bp_token": "Reset Beatport token"
   },
   "empty_state": {
     "coming_soon_title": "Coming soon",
