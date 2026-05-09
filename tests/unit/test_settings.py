@@ -323,3 +323,45 @@ def test_spotify_partial_ssm_falls_through_to_secrets_manager(monkeypatch):
     assert settings.spotify_client_secret == "csecret-sm"
 
     s.reset_settings_cache()
+
+
+def test_spotify_worker_metadata_fallback_defaults(monkeypatch):
+    from collector import settings as s
+
+    monkeypatch.setenv("RAW_BUCKET_NAME", "x")
+    monkeypatch.setenv("SPOTIFY_CLIENT_ID", "cid")
+    monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "csecret")
+    monkeypatch.delenv("SPOTIFY_METADATA_FALLBACK_ENABLED", raising=False)
+    monkeypatch.delenv("SPOTIFY_FUZZY_TITLE_MIN", raising=False)
+    monkeypatch.delenv("SPOTIFY_FUZZY_ARTIST_MIN", raising=False)
+    monkeypatch.delenv("SPOTIFY_FUZZY_DURATION_TOLERANCE_MS", raising=False)
+    s.reset_settings_cache()
+
+    settings = s.get_spotify_worker_settings()
+    assert settings.metadata_fallback_enabled is False
+    assert settings.metadata_fallback_title_min == 0.90
+    assert settings.metadata_fallback_artist_min == 0.85
+    assert settings.metadata_fallback_duration_tolerance_ms == 3000
+
+    s.reset_settings_cache()
+
+
+def test_spotify_worker_metadata_fallback_overrides(monkeypatch):
+    from collector import settings as s
+
+    monkeypatch.setenv("RAW_BUCKET_NAME", "x")
+    monkeypatch.setenv("SPOTIFY_CLIENT_ID", "cid")
+    monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "csecret")
+    monkeypatch.setenv("SPOTIFY_METADATA_FALLBACK_ENABLED", "true")
+    monkeypatch.setenv("SPOTIFY_FUZZY_TITLE_MIN", "0.95")
+    monkeypatch.setenv("SPOTIFY_FUZZY_ARTIST_MIN", "0.90")
+    monkeypatch.setenv("SPOTIFY_FUZZY_DURATION_TOLERANCE_MS", "5000")
+    s.reset_settings_cache()
+
+    settings = s.get_spotify_worker_settings()
+    assert settings.metadata_fallback_enabled is True
+    assert settings.metadata_fallback_title_min == 0.95
+    assert settings.metadata_fallback_artist_min == 0.90
+    assert settings.metadata_fallback_duration_tolerance_ms == 5000
+
+    s.reset_settings_cache()

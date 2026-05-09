@@ -162,6 +162,18 @@ class SpotifyWorkerSettings(_SettingsBase):
     raw_bucket_name: str = Field(alias="RAW_BUCKET_NAME")
     spotify_raw_prefix: str = Field(default="raw/sp/tracks", alias="SPOTIFY_RAW_PREFIX")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
+    metadata_fallback_enabled: bool = Field(
+        default=False, alias="SPOTIFY_METADATA_FALLBACK_ENABLED"
+    )
+    metadata_fallback_title_min: float = Field(
+        default=0.90, alias="SPOTIFY_FUZZY_TITLE_MIN", ge=0.0, le=1.0
+    )
+    metadata_fallback_artist_min: float = Field(
+        default=0.85, alias="SPOTIFY_FUZZY_ARTIST_MIN", ge=0.0, le=1.0
+    )
+    metadata_fallback_duration_tolerance_ms: int = Field(
+        default=3000, alias="SPOTIFY_FUZZY_DURATION_TOLERANCE_MS", ge=0
+    )
 
 
 class MigrationSettings(_SettingsBase):
