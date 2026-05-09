@@ -325,6 +325,11 @@ def _run_beatport_ingest(
         status_code=200,
         processing_status=enqueue_result.processing_status.value,
         processing_outcome=enqueue_result.processing_outcome.value,
+        processing_reason=(
+            enqueue_result.processing_reason.value
+            if enqueue_result.processing_reason
+            else None
+        ),
     )
     return _json_response(200, response, correlation_id)
 
