@@ -1,8 +1,9 @@
 // frontend/src/features/curate/components/DestinationGrid.tsx
-import { Menu, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Group, Menu, SimpleGrid, Stack, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { DestinationButton } from './DestinationButton';
+import { ForceToggle } from './ForceToggle';
 import {
   bucketLabel,
   type TriageBucket,
@@ -18,7 +19,9 @@ export interface DestinationGridProps {
   buckets: TriageBucket[];
   currentBucketId: string;
   lastTappedBucketId: string | null;
+  forceMode: boolean;
   onAssign: (toBucketId: string) => void;
+  onToggleForce: () => void;
 }
 
 /**
@@ -32,7 +35,9 @@ export function DestinationGrid({
   buckets,
   currentBucketId,
   lastTappedBucketId,
+  forceMode,
   onAssign,
+  onToggleForce,
 }: DestinationGridProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
@@ -83,7 +88,19 @@ export function DestinationGrid({
 
   return (
     <Stack gap="md" data-testid="destination-grid">
-      {discardBucket && renderBtn(discardBucket, 'Z')}
+      {discardBucket && (
+        <Group gap="xs" wrap="nowrap" align="stretch">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {renderBtn(discardBucket, 'Z')}
+          </div>
+          <ForceToggle
+            active={forceMode}
+            hotkeyHint={isMobile ? null : 'L'}
+            compact={isMobile}
+            onClick={onToggleForce}
+          />
+        </Group>
+      )}
 
       {(stagingSlots.length > 0 || overflow.length > 0) && (
         <Stack gap="xs">

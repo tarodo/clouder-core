@@ -42,6 +42,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
     onOpenOverlay: () => setOverlayOpen(true),
     onCloseOverlay: () => setOverlayOpen(false),
     onExit: () => navigate(`/triage/${styleId}/${blockId}`),
+    onToggleForce: session.toggleForce,
   });
 
   usePlaybackHotkeys({
@@ -310,7 +311,9 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
           buckets={session.destinations}
           currentBucketId={bucketId}
           lastTappedBucketId={session.lastTappedBucketId}
+          forceMode={session.forceMode}
           onAssign={session.assign}
+          onToggleForce={session.toggleForce}
         />
       </div>
 

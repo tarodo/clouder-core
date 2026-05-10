@@ -2,6 +2,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import { I18nextProvider } from 'react-i18next';
+import i18n from '../../../../i18n';
 import { testTheme } from '../../../../test/theme';
 import { DestinationGrid } from '../DestinationGrid';
 import type { TriageBucket } from '../../../triage/lib/bucketLabels';
@@ -33,7 +35,9 @@ const buckets: TriageBucket[] = [
 ];
 
 const wrap = (ui: React.ReactElement) => (
-  <MantineProvider theme={testTheme}>{ui}</MantineProvider>
+  <I18nextProvider i18n={i18n}>
+    <MantineProvider theme={testTheme}>{ui}</MantineProvider>
+  </I18nextProvider>
 );
 
 describe('DestinationGrid', () => {
@@ -44,7 +48,9 @@ describe('DestinationGrid', () => {
           buckets={buckets}
           currentBucketId="b-current"
           lastTappedBucketId={null}
+          forceMode={false}
           onAssign={() => {}}
+          onToggleForce={vi.fn()}
         />,
       ),
     );
@@ -60,7 +66,9 @@ describe('DestinationGrid', () => {
           buckets={buckets}
           currentBucketId="b-current"
           lastTappedBucketId={null}
+          forceMode={false}
           onAssign={() => {}}
+          onToggleForce={vi.fn()}
         />,
       ),
     );
@@ -76,7 +84,9 @@ describe('DestinationGrid', () => {
           buckets={buckets}
           currentBucketId="b-current"
           lastTappedBucketId={null}
+          forceMode={false}
           onAssign={() => {}}
+          onToggleForce={vi.fn()}
         />,
       ),
     );
@@ -93,7 +103,9 @@ describe('DestinationGrid', () => {
           buckets={buckets}
           currentBucketId="b-current"
           lastTappedBucketId="s2"
+          forceMode={false}
           onAssign={() => {}}
+          onToggleForce={vi.fn()}
         />,
       ),
     );
@@ -109,7 +121,9 @@ describe('DestinationGrid', () => {
           buckets={buckets}
           currentBucketId="b-new"
           lastTappedBucketId={null}
+          forceMode={false}
           onAssign={() => {}}
+          onToggleForce={vi.fn()}
         />,
       ),
     );
@@ -125,7 +139,9 @@ describe('DestinationGrid', () => {
           buckets={buckets}
           currentBucketId="b-current"
           lastTappedBucketId={null}
+          forceMode={false}
           onAssign={onAssign}
+          onToggleForce={vi.fn()}
         />,
       ),
     );
@@ -144,10 +160,67 @@ describe('DestinationGrid', () => {
           buckets={many}
           currentBucketId="b-current"
           lastTappedBucketId={null}
+          forceMode={false}
           onAssign={() => {}}
+          onToggleForce={vi.fn()}
         />,
       ),
     );
     expect(screen.getByRole('button', { name: /More categories/i })).toBeInTheDocument();
+  });
+
+  it('renders ForceToggle next to DISCARD in the same flex row', () => {
+    render(
+      wrap(
+        <DestinationGrid
+          buckets={buckets}
+          currentBucketId="b-current"
+          lastTappedBucketId={null}
+          forceMode={false}
+          onAssign={() => {}}
+          onToggleForce={vi.fn()}
+        />,
+      ),
+    );
+    const discardBtn = screen.getByRole('button', { name: /Assign to DISCARD/ });
+    const forceBtn = screen.getByRole('button', { name: /Force mode (on|off)/ });
+    // The DISCARD button is wrapped in a flex:1 div; both that wrapper and
+    // the ForceToggle button share the same Group container.
+    expect(discardBtn.parentElement?.parentElement).toBe(forceBtn.parentElement);
+  });
+
+  it('passes forceMode to ForceToggle (aria-pressed reflects it)', () => {
+    render(
+      wrap(
+        <DestinationGrid
+          buckets={buckets}
+          currentBucketId="b-current"
+          lastTappedBucketId={null}
+          forceMode={true}
+          onAssign={() => {}}
+          onToggleForce={vi.fn()}
+        />,
+      ),
+    );
+    const forceBtn = screen.getByRole('button', { name: /Force mode (on|off)/ });
+    expect(forceBtn).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('calls onToggleForce when ForceToggle is clicked', () => {
+    const onToggleForce = vi.fn();
+    render(
+      wrap(
+        <DestinationGrid
+          buckets={buckets}
+          currentBucketId="b-current"
+          lastTappedBucketId={null}
+          forceMode={false}
+          onAssign={() => {}}
+          onToggleForce={onToggleForce}
+        />,
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Force mode (on|off)/ }));
+    expect(onToggleForce).toHaveBeenCalledTimes(1);
   });
 });
