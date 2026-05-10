@@ -26,4 +26,5 @@ export {
   IconX,
   IconExternalLink,
   IconShield,
+  IconBolt,
 } from '@tabler/icons-react';
