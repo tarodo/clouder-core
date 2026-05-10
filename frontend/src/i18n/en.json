@@ -143,8 +143,10 @@
     "tracks_table": {
       "title": "Title",
       "artists": "Artists",
+      "label": "Label",
       "bpm": "BPM",
       "length": "Length",
+      "released": "Released",
       "added": "Added",
       "ai_suspected_aria": "AI-suspected"
     }
