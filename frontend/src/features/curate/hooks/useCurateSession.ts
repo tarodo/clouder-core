@@ -11,6 +11,7 @@ import {
   type MoveInput,
   type MoveSnapshot,
 } from '../../triage/hooks/useMoveTracks';
+import { useAddTrackToCategory } from '../../categories/hooks/useAddTrackToCategory';
 import type { TriageBucket } from '../../triage/lib/bucketLabels';
 import { ApiError } from '../../../api/error';
 import {
@@ -403,12 +404,33 @@ export function useCurateSession({
   );
 
   const { mutate: moveMutate } = moveMutation;
+  const { mutate: addToCategoryMutate } = useAddTrackToCategory();
   const fireMutation = useCallback(
-    (input: MoveInput) => {
+    (input: MoveInput, lastOp: LastOp) => {
       moveMutate(input, {
         onSuccess: () => {
           writeLastCurateLocation(styleId, blockId, bucketId);
           writeLastCurateStyle(styleId);
+          // Race guard: if user undid (UNDO_WITHIN clears lastOp) or replaced
+          // the op (ASSIGN_REPLACE_BEGIN sets a new lastOp), stateRef.current.lastOp
+          // is no longer the captured one — skip the category chain.
+          const cur = stateRef.current.lastOp;
+          if (!cur || cur !== lastOp) return;
+          const trackId = input.trackIds[0];
+          if (lastOp.forceCategoryId && trackId) {
+            addToCategoryMutate(
+              { categoryId: lastOp.forceCategoryId, trackId },
+              {
+                onError: () => {
+                  notifications.show({
+                    message: t('curate.toast.force_partial'),
+                    color: 'yellow',
+                    autoClose: 4000,
+                  });
+                },
+              },
+            );
+          }
         },
         onError: (err) => {
           if (pendingTimerRef.current !== null) {
@@ -420,7 +442,7 @@ export function useCurateSession({
         },
       });
     },
-    [moveMutate, blockId, bucketId, styleId, emitErrorToast],
+    [moveMutate, addToCategoryMutate, blockId, bucketId, styleId, emitErrorToast, t],
   );
 
   const assign = useCallback(
@@ -469,20 +491,21 @@ export function useCurateSession({
           trackIds: [replayTrackId],
         };
         const snapshot = takeSnapshot(qc, blockId, bucketId);
+        const newLastOp: LastOp = {
+          input,
+          snapshot,
+          trackIndex: lastOp.trackIndex,
+          track: lastOp.track,
+          forceCategoryId,
+        };
         scheduleAdvance();
         schedulePulse();
         dispatch({
           type: 'ASSIGN_REPLACE_BEGIN',
           toBucketId,
-          lastOp: {
-            input,
-            snapshot,
-            trackIndex: lastOp.trackIndex,
-            track: lastOp.track,
-            forceCategoryId,
-          },
+          lastOp: newLastOp,
         });
-        fireMutation(input);
+        fireMutation(input, newLastOp);
         return;
       }
 
@@ -493,20 +516,21 @@ export function useCurateSession({
         trackIds: [track.track_id],
       };
       const snapshot = takeSnapshot(qc, blockId, bucketId);
+      const newLastOp: LastOp = {
+        input,
+        snapshot,
+        trackIndex: stateRef.current.currentIndex,
+        track,
+        forceCategoryId,
+      };
       scheduleAdvance();
       schedulePulse();
       dispatch({
         type: 'ASSIGN_BEGIN',
         toBucketId,
-        lastOp: {
-          input,
-          snapshot,
-          trackIndex: stateRef.current.currentIndex,
-          track,
-          forceCategoryId,
-        },
+        lastOp: newLastOp,
       });
-      fireMutation(input);
+      fireMutation(input, newLastOp);
     },
     [
       queue,
