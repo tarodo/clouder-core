@@ -53,11 +53,13 @@ export interface CurateSession {
   block: TriageBlock | null;
   lastTappedBucketId: string | null;
   canUndo: boolean;
+  forceMode: boolean;
   assign: (toBucketId: string) => void;
   undo: () => void;
   skip: () => void;
   prev: () => void;
   openSpotify: () => void;
+  toggleForce: () => void;
 }
 
 interface LastOp {
@@ -67,6 +69,7 @@ interface LastOp {
   /** The actual track being assigned, captured pre-shrink. Used by undo to
    *  play the restored track without depending on bindQueue rebind timing. */
   track: BucketTrack;
+  forceCategoryId: string | null;
 }
 
 interface State {
@@ -74,6 +77,7 @@ interface State {
   totalAssigned: number;
   lastTappedBucketId: string | null;
   lastOp: LastOp | null;
+  forceMode: boolean;
 }
 
 type Action =
@@ -88,13 +92,16 @@ type Action =
   | { type: 'SKIP'; max: number }
   | { type: 'PREV' }
   | { type: 'JUMP_TO'; index: number; max: number }
-  | { type: 'RESET_INDEX_FOR_QUEUE_SHRINK'; queueLength: number };
+  | { type: 'RESET_INDEX_FOR_QUEUE_SHRINK'; queueLength: number }
+  | { type: 'TOGGLE_FORCE' }
+  | { type: 'CLEAR_FORCE' };
 
 const initialState: State = {
   currentIndex: 0,
   totalAssigned: 0,
   lastTappedBucketId: null,
   lastOp: null,
+  forceMode: false,
 };
 
 function reducer(state: State, action: Action): State {
@@ -117,14 +124,14 @@ function reducer(state: State, action: Action): State {
     case 'ASSIGN_SAME_DEST_PULSE':
       return { ...state, lastTappedBucketId: action.toBucketId };
     case 'ADVANCE':
-      // No-op: useMoveTracks.applyOptimisticMove already removed the assigned
-      // track from the bucket-tracks query cache synchronously, so the queue
-      // shrunk by 1 and currentIndex now points at the natural next track.
-      // Incrementing here would skip ONE track per assign. The reducer keeps
-      // the action so reducer-mechanic tests can still observe pendingTimer
-      // lifecycle via the mutation's success/error path. UNDO_AFTER uses
-      // lastOp.trackIndex (captured at assign time) to restore the right index.
-      return state;
+      // Cursor stays put: useMoveTracks.applyOptimisticMove already removed
+      // the assigned track from the bucket-tracks query cache synchronously,
+      // so the queue shrunk by 1 and currentIndex now points at the natural
+      // next track. Incrementing here would skip ONE track per assign.
+      // UNDO_AFTER uses lastOp.trackIndex (captured at assign time) to
+      // restore the right index. ADVANCE's only state change is clearing
+      // forceMode so a Force-tap doesn't carry over to the next track.
+      return state.forceMode ? { ...state, forceMode: false } : state;
     case 'CLEAR_PULSE':
       return { ...state, lastTappedBucketId: null };
     case 'UNDO_WITHIN':
@@ -133,6 +140,7 @@ function reducer(state: State, action: Action): State {
         lastOp: null,
         lastTappedBucketId: null,
         totalAssigned: Math.max(0, state.totalAssigned - 1),
+        forceMode: false,
       };
     case 'UNDO_AFTER':
       if (!state.lastOp) return state;
@@ -142,6 +150,7 @@ function reducer(state: State, action: Action): State {
         lastOp: null,
         lastTappedBucketId: null,
         totalAssigned: Math.max(0, state.totalAssigned - 1),
+        forceMode: false,
       };
     case 'MUTATION_ERROR':
       return {
@@ -151,9 +160,17 @@ function reducer(state: State, action: Action): State {
         totalAssigned: Math.max(0, state.totalAssigned - 1),
       };
     case 'SKIP':
-      return { ...state, currentIndex: Math.min(action.max, state.currentIndex + 1) };
+      return {
+        ...state,
+        currentIndex: Math.min(action.max, state.currentIndex + 1),
+        forceMode: false,
+      };
     case 'PREV':
-      return { ...state, currentIndex: Math.max(0, state.currentIndex - 1) };
+      return {
+        ...state,
+        currentIndex: Math.max(0, state.currentIndex - 1),
+        forceMode: false,
+      };
     case 'JUMP_TO': {
       const max = Math.max(0, action.max - 1);
       const clamped = Math.max(0, Math.min(action.index, max));
@@ -165,6 +182,10 @@ function reducer(state: State, action: Action): State {
         return { ...state, currentIndex: Math.max(0, action.queueLength - 1) };
       }
       return state;
+    case 'TOGGLE_FORCE':
+      return { ...state, forceMode: !state.forceMode };
+    case 'CLEAR_FORCE':
+      return state.forceMode ? { ...state, forceMode: false } : state;
     default:
       return state;
   }
@@ -440,7 +461,13 @@ export function useCurateSession({
         dispatch({
           type: 'ASSIGN_REPLACE_BEGIN',
           toBucketId,
-          lastOp: { input, snapshot, trackIndex: lastOp.trackIndex, track: lastOp.track },
+          lastOp: {
+            input,
+            snapshot,
+            trackIndex: lastOp.trackIndex,
+            track: lastOp.track,
+            forceCategoryId: null,
+          },
         });
         fireMutation(input);
         return;
@@ -458,7 +485,13 @@ export function useCurateSession({
       dispatch({
         type: 'ASSIGN_BEGIN',
         toBucketId,
-        lastOp: { input, snapshot, trackIndex: stateRef.current.currentIndex, track },
+        lastOp: {
+          input,
+          snapshot,
+          trackIndex: stateRef.current.currentIndex,
+          track,
+          forceCategoryId: null,
+        },
       });
       fireMutation(input);
     },
@@ -507,6 +540,10 @@ export function useCurateSession({
     }
   }, [qc, blockId, styleId, playback.controls]);
 
+  const toggleForce = useCallback(() => {
+    dispatch({ type: 'TOGGLE_FORCE' });
+  }, []);
+
   const skip = useCallback(() => {
     dispatch({ type: 'SKIP', max: queue.length });
   }, [queue.length]);
@@ -544,10 +581,12 @@ export function useCurateSession({
     block: blockQuery.data ?? null,
     lastTappedBucketId: state.lastTappedBucketId,
     canUndo: state.lastOp !== null,
+    forceMode: state.forceMode,
     assign,
     undo,
     skip,
     prev,
     openSpotify,
+    toggleForce,
   };
 }

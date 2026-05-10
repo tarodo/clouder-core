@@ -490,3 +490,55 @@ describe('useCurateSession — playback integration', () => {
     }
   });
 });
+
+describe('useCurateSession — Force mode (toggle + resets)', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    localStorage.clear();
+    server.use(...defaultHandlers());
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    localStorage.clear();
+  });
+
+  it('forceMode starts false; toggleForce flips it', async () => {
+    const qc = makeClient();
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+      { wrapper: wrap(qc) },
+    );
+    await waitFor(() => expect(result.current.status).toBe('active'));
+    expect(result.current.forceMode).toBe(false);
+    act(() => result.current.toggleForce());
+    expect(result.current.forceMode).toBe(true);
+    act(() => result.current.toggleForce());
+    expect(result.current.forceMode).toBe(false);
+  });
+
+  it('skip resets forceMode', async () => {
+    const qc = makeClient();
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+      { wrapper: wrap(qc) },
+    );
+    await waitFor(() => expect(result.current.status).toBe('active'));
+    act(() => result.current.toggleForce());
+    expect(result.current.forceMode).toBe(true);
+    act(() => result.current.skip());
+    expect(result.current.forceMode).toBe(false);
+  });
+
+  it('prev resets forceMode', async () => {
+    const qc = makeClient();
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+      { wrapper: wrap(qc) },
+    );
+    await waitFor(() => expect(result.current.status).toBe('active'));
+    act(() => result.current.toggleForce());
+    act(() => result.current.prev());
+    expect(result.current.forceMode).toBe(false);
+  });
+});
