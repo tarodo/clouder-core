@@ -16,6 +16,7 @@ from typing import Any, Callable, Mapping
 from pydantic import ValidationError as PydanticValidationError
 
 from .curation import (
+    BadQueryParamError,
     CurationError,
     InactiveStagingFinalizeError,
     NotFoundError,
@@ -47,6 +48,14 @@ from .curation.triage_repository import (
 )
 from .logging_utils import log_event
 
+
+# ---------- Constants -------------------------------------------------------
+
+_SORT_VALUES = {"title", "spotify_release_date", "added_at"}
+_ORDER_VALUES = {"asc", "desc"}
+
+
+# ---------- Utility Functions -----------------------------------------------
 
 def _extract_correlation_id(event: Mapping[str, Any]) -> str:
     headers = event.get("headers")
@@ -398,9 +407,20 @@ def _handle_list_tracks(event, repo, user_id, correlation_id):
     limit, offset = _parse_pagination(event)
     qp = event.get("queryStringParameters") or {}
     search = qp.get("search")
+
+    sort = (qp.get("sort") or "added_at").lower()
+    if sort not in _SORT_VALUES:
+        raise BadQueryParamError(
+            f"sort must be one of {sorted(_SORT_VALUES)}"
+        )
+    order = (qp.get("order") or "desc").lower()
+    if order not in _ORDER_VALUES:
+        raise BadQueryParamError("order must be 'asc' or 'desc'")
+
     result = repo.list_tracks(
         user_id=user_id, category_id=cid,
         limit=limit, offset=offset, search=search,
+        sort=sort, order=order,
     )
     return _paginated_response(
         result, _track_in_category_response, correlation_id

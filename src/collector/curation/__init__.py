@@ -43,6 +43,13 @@ class ValidationError(CurationError):
     http_status = 422
 
 
+class BadQueryParamError(CurationError):
+    """Invalid query parameter value (HTTP 400)."""
+
+    error_code = "bad_query_param"
+    http_status = 400
+
+
 class NotFoundError(CurationError):
     http_status = 404
 
