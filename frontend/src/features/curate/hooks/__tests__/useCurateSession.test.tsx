@@ -542,4 +542,56 @@ describe('useCurateSession — Force mode (toggle + resets)', () => {
     act(() => result.current.prev());
     expect(result.current.forceMode).toBe(false);
   });
+
+  it('after Force-tap on staging then advance, ADVANCE clears forceMode', async () => {
+    const qc = makeClient();
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+      { wrapper: wrap(qc) },
+    );
+    await waitFor(() => expect(result.current.status).toBe('active'));
+    act(() => result.current.toggleForce());
+    expect(result.current.forceMode).toBe(true);
+    act(() => result.current.assign('dst1'));
+    await act(async () => {
+      vi.advanceTimersByTime(250);
+    });
+    await waitFor(() => expect(result.current.forceMode).toBe(false));
+  });
+
+  it('after Force-tap on OLD (no category_id), forceMode resets after advance', async () => {
+    const qc = makeClient();
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+      { wrapper: wrap(qc) },
+    );
+    await waitFor(() => expect(result.current.status).toBe('active'));
+    act(() => result.current.toggleForce());
+    act(() => result.current.assign('b-old'));
+    await act(async () => {
+      vi.advanceTimersByTime(250);
+    });
+    await waitFor(() => expect(result.current.forceMode).toBe(false));
+  });
+
+  it('forceMode persists on move error (MUTATION_ERROR)', async () => {
+    server.use(
+      http.post('http://localhost/triage/blocks/b1/move', () =>
+        HttpResponse.json(
+          { error_code: 'tracks_not_in_source', message: 'gone' },
+          { status: 422 },
+        ),
+      ),
+    );
+    const qc = makeClient();
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+      { wrapper: wrap(qc) },
+    );
+    await waitFor(() => expect(result.current.status).toBe('active'));
+    act(() => result.current.toggleForce());
+    act(() => result.current.assign('dst1'));
+    await waitFor(() => expect(result.current.lastTappedBucketId).toBeNull());
+    expect(result.current.forceMode).toBe(true);
+  });
 });

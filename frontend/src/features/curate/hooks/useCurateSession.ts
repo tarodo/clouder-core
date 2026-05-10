@@ -432,6 +432,11 @@ export function useCurateSession({
       const lastOp = stateRef.current.lastOp;
       const isPending = pendingTimerRef.current !== null;
 
+      const dst = destinations.find((b) => b.id === toBucketId);
+      const isForce = stateRef.current.forceMode;
+      const forceCategoryId =
+        isForce && dst?.category_id ? dst.category_id : null;
+
       // Same destination during pending window — only restart the timer + pulse.
       if (isPending && lastOp && lastOp.input.toBucketId === toBucketId) {
         scheduleAdvance();
@@ -474,8 +479,7 @@ export function useCurateSession({
             snapshot,
             trackIndex: lastOp.trackIndex,
             track: lastOp.track,
-            // Placeholder — T9 resolves real category_id from destinations.
-            forceCategoryId: null,
+            forceCategoryId,
           },
         });
         fireMutation(input);
@@ -499,14 +503,14 @@ export function useCurateSession({
           snapshot,
           trackIndex: stateRef.current.currentIndex,
           track,
-          // Placeholder — T9 resolves real category_id from destinations.
-          forceCategoryId: null,
+          forceCategoryId,
         },
       });
       fireMutation(input);
     },
     [
       queue,
+      destinations,
       bucketId,
       blockId,
       styleId,
