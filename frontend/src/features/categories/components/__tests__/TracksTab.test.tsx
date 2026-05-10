@@ -24,9 +24,11 @@ function mkTracks(start: number, count: number) {
     title: `Track ${start + i}`,
     mix_name: null,
     artists: [{ id: 'a1', name: 'Artist' }],
+    label: { id: 'l1', name: 'Cool Label' },
     bpm: 120,
     length_ms: 360000,
     publish_date: '2026-01-01',
+    spotify_release_date: '2026-01-03',
     isrc: null,
     spotify_id: null,
     release_type: null,
@@ -90,5 +92,55 @@ describe('TracksTab', () => {
       </Wrapper>,
     );
     await waitFor(() => expect(screen.getByText(/no tracks yet/i)).toBeInTheDocument());
+  });
+
+  it('renders Title and Released sortable headers with default sort', async () => {
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', () =>
+        HttpResponse.json({ items: mkTracks(0, 1), total: 1, limit: 50, offset: 0 }),
+      ),
+    );
+    render(
+      <Wrapper>
+        <TracksTab categoryId="c1" />
+      </Wrapper>,
+    );
+    await waitFor(() => expect(screen.getByText('Track 0')).toBeInTheDocument());
+    expect(
+      screen.getByRole('columnheader', { name: /Added/i }),
+    ).toHaveAttribute('aria-sort', 'descending');
+    expect(
+      screen.getByRole('columnheader', { name: /Title/i }),
+    ).toHaveAttribute('aria-sort', 'none');
+  });
+
+  it('clicking Title switches sort to title asc, then desc', async () => {
+    let lastSort = '';
+    let lastOrder = '';
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', ({ request }) => {
+        const url = new URL(request.url);
+        lastSort = url.searchParams.get('sort') ?? '';
+        lastOrder = url.searchParams.get('order') ?? '';
+        return HttpResponse.json({
+          items: mkTracks(0, 1),
+          total: 1,
+          limit: 50,
+          offset: 0,
+        });
+      }),
+    );
+    render(
+      <Wrapper>
+        <TracksTab categoryId="c1" />
+      </Wrapper>,
+    );
+    await waitFor(() => expect(screen.getByText('Track 0')).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: /Title/i }));
+    await waitFor(() => expect(lastSort).toBe('title'));
+    expect(lastOrder).toBe('asc');
+    await userEvent.click(screen.getByRole('button', { name: /Title/i }));
+    await waitFor(() => expect(lastOrder).toBe('desc'));
+    expect(lastSort).toBe('title');
   });
 });

@@ -3,8 +3,13 @@ import { Button, Group, Stack, Table, TextInput } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { useCategoryTracks } from '../hooks/useCategoryTracks';
+import {
+  useCategoryTracks,
+  type CategoryTrackSort,
+  type SortOrder,
+} from '../hooks/useCategoryTracks';
 import { TrackRow } from './TrackRow';
+import { SortableTh } from './SortableTh';
 import { EmptyState } from '../../../components/EmptyState';
 
 export interface TracksTabProps {
@@ -16,11 +21,20 @@ export function TracksTab({ categoryId }: TracksTabProps) {
   const isMobile = useMediaQuery('(max-width: 64em)');
   const [rawSearch, setRawSearch] = useState('');
   const [debounced] = useDebouncedValue(rawSearch.trim().toLowerCase(), 300);
+  const [sortKey, setSortKey] = useState<CategoryTrackSort>('added_at');
+  const [sortDir, setSortDir] = useState<SortOrder>('desc');
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useCategoryTracks(
-    categoryId,
-    debounced,
-  );
+  const handleSort = (key: CategoryTrackSort) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'title' ? 'asc' : 'desc');
+    }
+  };
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useCategoryTracks(categoryId, debounced, sortKey, sortDir);
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
@@ -34,7 +48,12 @@ export function TracksTab({ categoryId }: TracksTabProps) {
       onChange={(e) => setRawSearch(e.currentTarget.value)}
       rightSection={
         rawSearch ? (
-          <IconX size={16} role="button" onClick={() => setRawSearch('')} style={{ cursor: 'pointer' }} />
+          <IconX
+            size={16}
+            role="button"
+            onClick={() => setRawSearch('')}
+            style={{ cursor: 'pointer' }}
+          />
         ) : null
       }
     />
@@ -89,11 +108,31 @@ export function TracksTab({ categoryId }: TracksTabProps) {
       <Table>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>{t('categories.tracks_table.title')}</Table.Th>
+            <SortableTh
+              active={sortKey === 'title'}
+              dir={sortDir}
+              onClick={() => handleSort('title')}
+            >
+              {t('categories.tracks_table.title')}
+            </SortableTh>
             <Table.Th>{t('categories.tracks_table.artists')}</Table.Th>
+            <Table.Th>{t('categories.tracks_table.label')}</Table.Th>
             <Table.Th>{t('categories.tracks_table.bpm')}</Table.Th>
             <Table.Th>{t('categories.tracks_table.length')}</Table.Th>
-            <Table.Th>{t('categories.tracks_table.added')}</Table.Th>
+            <SortableTh
+              active={sortKey === 'spotify_release_date'}
+              dir={sortDir}
+              onClick={() => handleSort('spotify_release_date')}
+            >
+              {t('categories.tracks_table.released')}
+            </SortableTh>
+            <SortableTh
+              active={sortKey === 'added_at'}
+              dir={sortDir}
+              onClick={() => handleSort('added_at')}
+            >
+              {t('categories.tracks_table.added')}
+            </SortableTh>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
