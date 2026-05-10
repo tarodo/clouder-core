@@ -759,3 +759,106 @@ def test_list_tracks_applies_search_lowercased() -> None:
     list_params = data_api.execute.call_args_list[1].args[1]
     assert "ILIKE" in list_sql
     assert list_params["search"] == "%tech%"
+
+
+def test_list_tracks_label_null_when_no_album() -> None:
+    """Track with no album → label is None."""
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [
+            {
+                "id": "t1", "title": "Song", "mix_name": None,
+                "isrc": None, "bpm": None, "length_ms": None,
+                "publish_date": None, "spotify_id": None,
+                "release_type": None, "is_ai_suspected": False,
+                "spotify_release_date": None,
+                "artists_json": "[]",
+                "label_id": None, "label_name": None,
+                "added_at": "2026-04-27T12:00:00Z",
+                "source_triage_block_id": None,
+            }
+        ],
+        [{"total": 1}],
+    ]
+    result = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=50, offset=0, search=None,
+    )
+    assert result.items[0].track["label"] is None
+
+
+def test_list_tracks_default_sort_added_at_desc() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}], [], [{"total": 0}],
+    ]
+    repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=50, offset=0, search=None,
+    )
+    list_sql = data_api.execute.call_args_list[1].args[0]
+    assert "ORDER BY ct.added_at DESC, t.id ASC" in list_sql
+
+
+def test_list_tracks_sort_title_asc() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}], [], [{"total": 0}],
+    ]
+    repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=50, offset=0, search=None,
+        sort="title", order="asc",
+    )
+    list_sql = data_api.execute.call_args_list[1].args[0]
+    assert "ORDER BY t.title ASC, t.id ASC" in list_sql
+
+
+def test_list_tracks_sort_spotify_release_date_nulls_last_asc() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}], [], [{"total": 0}],
+    ]
+    repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=50, offset=0, search=None,
+        sort="spotify_release_date", order="asc",
+    )
+    list_sql = data_api.execute.call_args_list[1].args[0]
+    assert (
+        "ORDER BY t.spotify_release_date ASC NULLS LAST, t.id ASC" in list_sql
+    )
+
+
+def test_list_tracks_sort_spotify_release_date_nulls_last_desc() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}], [], [{"total": 0}],
+    ]
+    repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=50, offset=0, search=None,
+        sort="spotify_release_date", order="desc",
+    )
+    list_sql = data_api.execute.call_args_list[1].args[0]
+    assert (
+        "ORDER BY t.spotify_release_date DESC NULLS LAST, t.id ASC" in list_sql
+    )
+
+
+def test_list_tracks_search_combines_with_sort() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}], [], [{"total": 0}],
+    ]
+    repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=50, offset=0, search="tech",
+        sort="title", order="asc",
+    )
+    list_sql = data_api.execute.call_args_list[1].args[0]
+    list_params = data_api.execute.call_args_list[1].args[1]
+    assert "ILIKE" in list_sql
+    assert "ORDER BY t.title ASC, t.id ASC" in list_sql
+    assert list_params["search"] == "%tech%"
