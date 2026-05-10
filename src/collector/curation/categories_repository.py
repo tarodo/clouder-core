@@ -6,6 +6,7 @@ Cross-user access yields zero rows (mapped to 404 by the handler).
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping, Sequence
@@ -43,6 +44,14 @@ class TrackInCategoryRow:
     track: Mapping[str, Any]
     added_at: str
     source_triage_block_id: str | None
+
+
+_SORT_COLUMNS = {
+    "title":                "t.title",
+    "spotify_release_date": "t.spotify_release_date",
+    "added_at":             "ct.added_at",
+}
+_ORDER_DIRS = {"asc": "ASC", "desc": "DESC"}
 
 
 class CategoriesRepository:
@@ -613,6 +622,8 @@ class CategoriesRepository:
         limit: int,
         offset: int,
         search: str | None,
+        sort: str = "added_at",
+        order: str = "desc",
     ) -> PaginatedResult[TrackInCategoryRow]:
         cat_rows = self._data_api.execute(
             """
@@ -636,20 +647,36 @@ class CategoriesRepository:
             search_clause = " AND t.normalized_title ILIKE :search "
             params["search"] = f"%{search.strip().lower()}%"
 
+        column = _SORT_COLUMNS[sort]
+        direction = _ORDER_DIRS[order]
+        nulls = " NULLS LAST" if sort == "spotify_release_date" else ""
+        order_by = f"{column} {direction}{nulls}"
+
         sql = f"""
             SELECT
                 t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.publish_date, t.spotify_id, t.release_type, t.is_ai_suspected,
-                STRING_AGG(a.name, ',' ORDER BY cta.role, a.name) AS artist_names,
+                t.spotify_release_date,
+                COALESCE(
+                    JSON_AGG(
+                        JSON_BUILD_OBJECT('id', a.id, 'name', a.name)
+                        ORDER BY cta.role, a.name
+                    ) FILTER (WHERE a.id IS NOT NULL),
+                    '[]'::json
+                ) AS artists_json,
+                l.id   AS label_id,
+                l.name AS label_name,
                 ct.added_at, ct.source_triage_block_id
             FROM category_tracks ct
             JOIN clouder_tracks t ON t.id = ct.track_id
             LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
-            LEFT JOIN clouder_artists a ON a.id = cta.artist_id
+            LEFT JOIN clouder_artists       a   ON a.id  = cta.artist_id
+            LEFT JOIN clouder_albums        alb ON alb.id = t.album_id
+            LEFT JOIN clouder_labels        l   ON l.id   = alb.label_id
             WHERE ct.category_id = :category_id
               {search_clause}
-            GROUP BY t.id, ct.added_at, ct.source_triage_block_id
-            ORDER BY ct.added_at DESC, t.id ASC
+            GROUP BY t.id, ct.added_at, ct.source_triage_block_id, l.id, l.name
+            ORDER BY {order_by}, t.id ASC
             LIMIT :limit OFFSET :offset
         """
         rows = self._data_api.execute(sql, params)
@@ -673,11 +700,24 @@ class CategoriesRepository:
 
         items = []
         for r in rows:
-            artists_raw = r.pop("artist_names")
-            track = dict(r)
-            track["artists"] = (
-                [n.strip() for n in artists_raw.split(",")] if artists_raw else []
+            artists_raw = r.pop("artists_json", "[]")
+            if isinstance(artists_raw, str):
+                artists = json.loads(artists_raw)
+            else:
+                artists = artists_raw or []
+            label_id = r.pop("label_id", None)
+            label_name = r.pop("label_name", None)
+            label = (
+                {"id": label_id, "name": label_name} if label_id else None
             )
+            spot = r.pop("spotify_release_date", None)
+            spot_str = str(spot) if spot is not None else None
+
+            track = dict(r)
+            track["artists"] = artists
+            track["label"] = label
+            track["spotify_release_date"] = spot_str
+
             added_at = track.pop("added_at")
             source_id = track.pop("source_triage_block_id")
             items.append(
