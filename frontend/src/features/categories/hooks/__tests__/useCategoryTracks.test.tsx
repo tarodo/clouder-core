@@ -20,9 +20,11 @@ function mkTracks(start: number, count: number) {
     title: `Track ${start + i}`,
     mix_name: 'Original Mix',
     artists: [{ id: 'a1', name: 'Artist' }],
+    label: { id: 'l1', name: 'Cool Label' },
     bpm: 120,
     length_ms: 360000,
     publish_date: '2026-01-01',
+    spotify_release_date: '2026-01-03',
     isrc: null,
     spotify_id: null,
     release_type: null,
@@ -69,5 +71,49 @@ describe('useCategoryTracks', () => {
     const { result } = renderHook(() => useCategoryTracks('c1', 'tech'), { wrapper: wrap() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(captured).toBe('tech');
+  });
+
+  it('passes default ?sort=added_at&order=desc', async () => {
+    let captured: { sort: string | null; order: string | null } = { sort: null, order: null };
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', ({ request }) => {
+        const url = new URL(request.url);
+        captured = {
+          sort: url.searchParams.get('sort'),
+          order: url.searchParams.get('order'),
+        };
+        return HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 });
+      }),
+    );
+    const { result } = renderHook(() => useCategoryTracks('c1', ''), { wrapper: wrap() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(captured).toEqual({ sort: 'added_at', order: 'desc' });
+  });
+
+  it('passes explicit ?sort and ?order', async () => {
+    let captured: { sort: string | null; order: string | null } = { sort: null, order: null };
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', ({ request }) => {
+        const url = new URL(request.url);
+        captured = {
+          sort: url.searchParams.get('sort'),
+          order: url.searchParams.get('order'),
+        };
+        return HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 });
+      }),
+    );
+    const { result } = renderHook(
+      () => useCategoryTracks('c1', '', 'spotify_release_date', 'asc'),
+      { wrapper: wrap() },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(captured).toEqual({ sort: 'spotify_release_date', order: 'asc' });
+  });
+
+  it('changes cache key when sort changes', async () => {
+    const { categoryTracksKey } = await import('../useCategoryTracks');
+    expect(categoryTracksKey('c1', '', 'added_at', 'desc')).not.toEqual(
+      categoryTracksKey('c1', '', 'title', 'desc'),
+    );
   });
 });

@@ -39,12 +39,12 @@ describe('useAddTrackToCategory', () => {
       http.post('http://localhost/categories/c1/tracks', () => HttpResponse.json({ ok: true })),
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-    qc.setQueryData(categoryTracksKey('c1', ''), { items: [], total: 0 });
+    qc.setQueryData(categoryTracksKey('c1', '', 'added_at', 'desc'), { items: [], total: 0 });
     const { result } = renderHook(() => useAddTrackToCategory(), { wrapper: wrap(qc) });
     await act(async () => {
       await result.current.mutateAsync({ categoryId: 'c1', trackId: 't1' });
     });
-    const state = qc.getQueryState(categoryTracksKey('c1', ''));
+    const state = qc.getQueryState(categoryTracksKey('c1', '', 'added_at', 'desc'));
     expect(state?.isInvalidated).toBe(true);
   });
 

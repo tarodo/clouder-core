@@ -39,12 +39,12 @@ describe('useRemoveTrackFromCategory', () => {
       http.delete('http://localhost/categories/c1/tracks/t1', () => new HttpResponse(null, { status: 204 })),
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-    qc.setQueryData(categoryTracksKey('c1', ''), { items: [], total: 0 });
+    qc.setQueryData(categoryTracksKey('c1', '', 'added_at', 'desc'), { items: [], total: 0 });
     const { result } = renderHook(() => useRemoveTrackFromCategory(), { wrapper: wrap(qc) });
     await act(async () => {
       await result.current.mutateAsync({ categoryId: 'c1', trackId: 't1' });
     });
-    const state = qc.getQueryState(categoryTracksKey('c1', ''));
+    const state = qc.getQueryState(categoryTracksKey('c1', '', 'added_at', 'desc'));
     expect(state?.isInvalidated).toBe(true);
   });
 
