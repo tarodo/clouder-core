@@ -19,7 +19,8 @@ export function useAddTrackToCategory(): UseMutationResult<
         body: JSON.stringify({ track_id: trackId }),
       }),
     onSuccess: (_data, { categoryId }) => {
-      qc.invalidateQueries({ queryKey: ['categories', 'tracks', categoryId], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['categories'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['categories', 'tracks', categoryId] });
     },
   });
 }
