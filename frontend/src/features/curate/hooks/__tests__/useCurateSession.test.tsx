@@ -538,6 +538,7 @@ describe('useCurateSession — Force mode (toggle + resets)', () => {
     );
     await waitFor(() => expect(result.current.status).toBe('active'));
     act(() => result.current.toggleForce());
+    expect(result.current.forceMode).toBe(true);
     act(() => result.current.prev());
     expect(result.current.forceMode).toBe(false);
   });

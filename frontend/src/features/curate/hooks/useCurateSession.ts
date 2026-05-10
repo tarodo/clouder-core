@@ -153,6 +153,8 @@ function reducer(state: State, action: Action): State {
         forceMode: false,
       };
     case 'MUTATION_ERROR':
+      // forceMode preserved on purpose: the move failed, the user is still
+      // looking at the same track, and may retry the same destination tap.
       return {
         ...state,
         lastOp: null,
@@ -172,10 +174,16 @@ function reducer(state: State, action: Action): State {
         forceMode: false,
       };
     case 'JUMP_TO': {
+      // External cursor change (e.g. playback auto-advance) clears Force —
+      // the contract is "Force is single-shot per track", so a cursor move
+      // we did not initiate via assign/skip/prev should not carry Force
+      // forward to a track the user has not chosen to act on.
       const max = Math.max(0, action.max - 1);
       const clamped = Math.max(0, Math.min(action.index, max));
-      if (clamped === state.currentIndex) return state;
-      return { ...state, currentIndex: clamped };
+      if (clamped === state.currentIndex) {
+        return state.forceMode ? { ...state, forceMode: false } : state;
+      }
+      return { ...state, currentIndex: clamped, forceMode: false };
     }
     case 'RESET_INDEX_FOR_QUEUE_SHRINK':
       if (state.currentIndex >= action.queueLength) {
@@ -466,6 +474,7 @@ export function useCurateSession({
             snapshot,
             trackIndex: lastOp.trackIndex,
             track: lastOp.track,
+            // Placeholder — T9 resolves real category_id from destinations.
             forceCategoryId: null,
           },
         });
@@ -490,6 +499,7 @@ export function useCurateSession({
           snapshot,
           trackIndex: stateRef.current.currentIndex,
           track,
+          // Placeholder — T9 resolves real category_id from destinations.
           forceCategoryId: null,
         },
       });
