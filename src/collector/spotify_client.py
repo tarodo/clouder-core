@@ -124,7 +124,7 @@ class SpotifyClient:
                         clouder_track_id=clouder_track_id,
                         isrc=isrc,
                     )
-                    spotify_track = self._search_by_metadata(
+                    metadata_hit = self._search_by_metadata(
                         title=title,
                         artist=artist,
                         duration_ms=int(duration_ms)
@@ -135,7 +135,7 @@ class SpotifyClient:
                         artist_min=artist_min,
                         duration_tolerance_ms=duration_tolerance_ms,
                     )
-                    if spotify_track is None:
+                    if metadata_hit is None:
                         log_event(
                             "INFO",
                             "spotify_metadata_fallback_rejected",
@@ -144,9 +144,15 @@ class SpotifyClient:
                             isrc=isrc,
                         )
                     else:
+                        spotify_track, tier = metadata_hit
+                        event = (
+                            "spotify_metadata_fallback_match"
+                            if tier == "strict"
+                            else "spotify_metadata_fallback_match_relaxed"
+                        )
                         log_event(
                             "INFO",
-                            "spotify_metadata_fallback_match",
+                            event,
                             correlation_id=correlation_id,
                             clouder_track_id=clouder_track_id,
                             isrc=isrc,
@@ -187,19 +193,22 @@ class SpotifyClient:
         title_min: float,
         artist_min: float,
         duration_tolerance_ms: int,
-    ) -> Dict[str, Any] | None:
+    ) -> tuple[Dict[str, Any], str] | None:
         """Spotify text search fallback when ISRC lookup returned no items.
 
-        Builds q=track:<title> artist:<artist>, scores each result against
-        the query, and returns the highest-scoring candidate that passes
-        the strict per-component accept gate. Returns None if the input
-        is empty or no candidate passes. Logs the best title/artist sims
-        seen across all candidates for debug visibility on rejects.
+        Builds q=track:<title> artist:<first_artist>, scores each result, and
+        returns (best_candidate, tier) where tier is 'strict' or 'relaxed'.
+        Strict candidates win over relaxed when both exist. Returns None on
+        empty input, no items, or no candidate passing any tier. The query
+        uses only the FIRST artist (country-suffix stripped) — Spotify's
+        artist: operator substring-matches literally and full BP-shaped
+        multi-artist strings often return 0 items.
         """
         if not title.strip() or not artist.strip():
             return None
 
-        q = f"track:{title} artist:{artist}"
+        query_artist = _first_query_artist(artist) or artist
+        q = f"track:{title} artist:{query_artist}"
         params = {"q": q, "type": "track", "limit": "10"}
         url = f"{API_BASE_URL}/search?{urllib.parse.urlencode(params)}"
         payload = self._request(url=url, correlation_id=correlation_id)
@@ -210,8 +219,10 @@ class SpotifyClient:
         if not isinstance(items, list) or not items:
             return None
 
-        best_track: Dict[str, Any] | None = None
-        best_combined = -1.0
+        strict_best: Dict[str, Any] | None = None
+        strict_combined = -1.0
+        relaxed_best: Dict[str, Any] | None = None
+        relaxed_combined = -1.0
         max_title_sim = 0.0
         max_artist_sim = 0.0
         # Normalize once so both sides shed Radio Edit / Extended Mix / feat. X
@@ -232,10 +243,13 @@ class SpotifyClient:
             )
             norm_cand_name = _normalize_title_for_match(cand_name)
             title_sim = string_sim(norm_cand_name, norm_query_title)
+            # Score against the FULL artist list (still want multi-artist
+            # collaborations to match symmetrically) — only the search QUERY
+            # uses just the first artist.
             artist_sim = best_artist_sim(cand_artists, artist)
             max_title_sim = max(max_title_sim, title_sim)
             max_artist_sim = max(max_artist_sim, artist_sim)
-            if not _accept_metadata_match(
+            tier = _match_tier(
                 title_sim=title_sim,
                 artist_sim=artist_sim,
                 candidate_duration_ms=cand_duration_ms,
@@ -243,22 +257,27 @@ class SpotifyClient:
                 title_min=title_min,
                 artist_min=artist_min,
                 duration_tolerance_ms=duration_tolerance_ms,
-            ):
-                continue
-            combined = title_sim + artist_sim
-            if combined > best_combined:
-                best_combined = combined
-                best_track = item
-        if best_track is None:
-            log_event(
-                "INFO",
-                "spotify_metadata_fallback_scores",
-                correlation_id=correlation_id,
-                title_sim=round(max_title_sim, 3),
-                artist_sim=round(max_artist_sim, 3),
-                candidate_count=len(items),
             )
-        return best_track
+            combined = title_sim + artist_sim
+            if tier == "strict" and combined > strict_combined:
+                strict_combined = combined
+                strict_best = item
+            elif tier == "relaxed" and combined > relaxed_combined:
+                relaxed_combined = combined
+                relaxed_best = item
+        if strict_best is not None:
+            return strict_best, "strict"
+        if relaxed_best is not None:
+            return relaxed_best, "relaxed"
+        log_event(
+            "INFO",
+            "spotify_metadata_fallback_scores",
+            correlation_id=correlation_id,
+            title_sim=round(max_title_sim, 3),
+            artist_sim=round(max_artist_sim, 3),
+            candidate_count=len(items),
+        )
+        return None
 
     def _search_by_isrc_neighbours(
         self,
@@ -465,6 +484,25 @@ def _album_release_sort_key(track: Dict[str, Any]) -> str:
     return "-".join(parts[:3])
 
 
+_COUNTRY_SUFFIX_RE = re.compile(r"\s*\([A-Za-z]{2,4}\)\s*$")
+
+
+def _first_query_artist(artists: str) -> str:
+    """Pick the first artist for Spotify's `artist:` search operator.
+
+    Spotify's artist filter substring-matches the literal query against each
+    candidate artist string; passing the BP-shaped multi-artist string
+    (`Kays (UK), Nixxy Rain`) often returns 0 items because it doesn't appear
+    verbatim. Use just the first artist (split on `,` or `&`) and strip the
+    trailing country tag (`(UK)`, `(USA)`, etc.).
+    """
+    if not artists or not artists.strip():
+        return ""
+    first = re.split(r"[,&]", artists, maxsplit=1)[0].strip()
+    first = _COUNTRY_SUFFIX_RE.sub("", first).strip()
+    return first
+
+
 def _isrc_neighbours(isrc: str) -> list[str]:
     """Generate sibling ISRCs by varying the last digit ±1, ±2.
 
@@ -509,7 +547,13 @@ def _normalize_title_for_match(title: str) -> str:
     return " ".join(s.lower().split())
 
 
-def _accept_metadata_match(
+# Title/artist similarity gates — when both >= this, accept even if duration
+# diverges (typical: master vs radio edit / extended of the SAME track).
+_RELAXED_TITLE_MIN = 0.95
+_RELAXED_ARTIST_MIN = 0.95
+
+
+def _match_tier(
     *,
     title_sim: float,
     artist_sim: float,
@@ -518,18 +562,26 @@ def _accept_metadata_match(
     title_min: float,
     artist_min: float,
     duration_tolerance_ms: int,
-) -> bool:
-    """Strict per-component gate for metadata-fallback candidates.
+) -> str:
+    """Classify a candidate against per-component fuzzy gates.
 
-    All three checks must pass:
-      - title similarity >= title_min
-      - artist similarity >= artist_min
-      - duration within tolerance (skipped if either side is None)
+    Returns:
+        'strict'  — passes title_min + artist_min + duration tolerance
+                    (or duration unknown on either side)
+        'relaxed' — passes title_min + artist_min, fails duration, but
+                    title_sim >= 0.95 AND artist_sim >= 0.95 (near-perfect
+                    text → same track, different master)
+        'fail'    — does not pass min thresholds OR fails duration without
+                    near-perfect text backup
     """
     if title_sim < title_min:
-        return False
+        return "fail"
     if artist_sim < artist_min:
-        return False
+        return "fail"
     if candidate_duration_ms is None or query_duration_ms is None:
-        return True
-    return abs(candidate_duration_ms - query_duration_ms) <= duration_tolerance_ms
+        return "strict"
+    if abs(candidate_duration_ms - query_duration_ms) <= duration_tolerance_ms:
+        return "strict"
+    if title_sim >= _RELAXED_TITLE_MIN and artist_sim >= _RELAXED_ARTIST_MIN:
+        return "relaxed"
+    return "fail"

@@ -7,8 +7,9 @@ from unittest.mock import patch
 
 from collector.spotify_client import (
     SpotifyClient,
-    _accept_metadata_match,
+    _first_query_artist,
     _isrc_neighbours,
+    _match_tier,
     _normalize_title_for_match,
 )
 
@@ -48,6 +49,34 @@ def _spotify_track(
         "external_ids": {"isrc": isrc},
         "album": {"release_date": "2026-01-01", "release_date_precision": "day"},
     }
+
+
+def test_first_query_artist_strips_country_suffix() -> None:
+    assert _first_query_artist("Kays (UK)") == "Kays"
+    assert _first_query_artist("Artist (US)") == "Artist"
+    assert _first_query_artist("Some One (USA)") == "Some One"
+
+
+def test_first_query_artist_takes_first_of_comma_list() -> None:
+    assert _first_query_artist("Kays (UK), Nixxy Rain") == "Kays"
+    assert (
+        _first_query_artist("Alessandro Pierozzi, Luca Belotti")
+        == "Alessandro Pierozzi"
+    )
+
+
+def test_first_query_artist_takes_first_of_ampersand_list() -> None:
+    assert _first_query_artist("Foo & Bar") == "Foo"
+    assert _first_query_artist("Above & Beyond") == "Above"
+
+
+def test_first_query_artist_solo_artist_unchanged() -> None:
+    assert _first_query_artist("Rudimental") == "Rudimental"
+
+
+def test_first_query_artist_handles_empty() -> None:
+    assert _first_query_artist("") == ""
+    assert _first_query_artist("   ") == ""
 
 
 def test_isrc_neighbours_returns_closest_first_within_0_9() -> None:
@@ -110,8 +139,8 @@ def test_normalize_title_handles_empty() -> None:
     assert _normalize_title_for_match("") == ""
 
 
-def test_accept_match_passes_strict_thresholds() -> None:
-    assert _accept_metadata_match(
+def test_match_tier_strict_when_dur_within_tolerance() -> None:
+    assert _match_tier(
         title_sim=0.92,
         artist_sim=0.88,
         candidate_duration_ms=180_000,
@@ -119,11 +148,11 @@ def test_accept_match_passes_strict_thresholds() -> None:
         title_min=0.90,
         artist_min=0.85,
         duration_tolerance_ms=3000,
-    )
+    ) == "strict"
 
 
-def test_accept_rejects_low_title_sim() -> None:
-    assert not _accept_metadata_match(
+def test_match_tier_fail_when_title_below_min() -> None:
+    assert _match_tier(
         title_sim=0.89,
         artist_sim=0.99,
         candidate_duration_ms=180_000,
@@ -131,11 +160,11 @@ def test_accept_rejects_low_title_sim() -> None:
         title_min=0.90,
         artist_min=0.85,
         duration_tolerance_ms=3000,
-    )
+    ) == "fail"
 
 
-def test_accept_rejects_low_artist_sim() -> None:
-    assert not _accept_metadata_match(
+def test_match_tier_fail_when_artist_below_min() -> None:
+    assert _match_tier(
         title_sim=1.0,
         artist_sim=0.84,
         candidate_duration_ms=180_000,
@@ -143,23 +172,40 @@ def test_accept_rejects_low_artist_sim() -> None:
         title_min=0.90,
         artist_min=0.85,
         duration_tolerance_ms=3000,
-    )
+    ) == "fail"
 
 
-def test_accept_rejects_duration_outside_tolerance() -> None:
-    assert not _accept_metadata_match(
+def test_match_tier_relaxed_when_dur_outside_but_near_perfect_text() -> None:
+    """title>=0.95 AND artist>=0.95 → accept as 'relaxed' regardless of duration delta.
+    Same track, different master (radio edit / extended)."""
+    assert _match_tier(
         title_sim=1.0,
         artist_sim=1.0,
         candidate_duration_ms=180_000,
-        query_duration_ms=184_000,
+        query_duration_ms=255_000,  # 75s out
         title_min=0.90,
         artist_min=0.85,
         duration_tolerance_ms=3000,
-    )
+    ) == "relaxed"
 
 
-def test_accept_passes_when_query_duration_unknown() -> None:
-    assert _accept_metadata_match(
+def test_match_tier_fail_when_dur_out_and_text_not_perfect() -> None:
+    """title=0.92, artist=0.92 — pass min thresholds but below 0.95 relaxed gate.
+    Without strict-duration backup, must fail to avoid wrong-track matches."""
+    assert _match_tier(
+        title_sim=0.92,
+        artist_sim=0.92,
+        candidate_duration_ms=180_000,
+        query_duration_ms=240_000,  # 60s out
+        title_min=0.90,
+        artist_min=0.85,
+        duration_tolerance_ms=3000,
+    ) == "fail"
+
+
+def test_match_tier_strict_when_query_duration_unknown() -> None:
+    """Cannot enforce duration if either side is None — collapse to strict pass."""
+    assert _match_tier(
         title_sim=0.95,
         artist_sim=0.90,
         candidate_duration_ms=180_000,
@@ -167,11 +213,11 @@ def test_accept_passes_when_query_duration_unknown() -> None:
         title_min=0.90,
         artist_min=0.85,
         duration_tolerance_ms=3000,
-    )
+    ) == "strict"
 
 
-def test_accept_passes_when_candidate_duration_unknown() -> None:
-    assert _accept_metadata_match(
+def test_match_tier_strict_when_candidate_duration_unknown() -> None:
+    assert _match_tier(
         title_sim=0.95,
         artist_sim=0.90,
         candidate_duration_ms=None,
@@ -179,7 +225,7 @@ def test_accept_passes_when_candidate_duration_unknown() -> None:
         title_min=0.90,
         artist_min=0.85,
         duration_tolerance_ms=3000,
-    )
+    ) == "strict"
 
 
 def test_search_by_metadata_picks_best_when_passes_gate() -> None:
@@ -201,7 +247,7 @@ def test_search_by_metadata_picks_best_when_passes_gate() -> None:
         "collector.spotify_client.urllib.request.urlopen",
         return_value=_Resp(payload),
     ):
-        track = client._search_by_metadata(
+        result = client._search_by_metadata(
             title="Move On",
             artist="Guri & Eider",
             duration_ms=181_000,
@@ -210,8 +256,10 @@ def test_search_by_metadata_picks_best_when_passes_gate() -> None:
             artist_min=0.85,
             duration_tolerance_ms=3000,
         )
-    assert track is not None
+    assert result is not None
+    track, tier = result
     assert track["id"] == "sp_match"
+    assert tier == "strict"
 
 
 def test_search_by_metadata_returns_none_when_no_items() -> None:
@@ -370,6 +418,107 @@ def test_search_tracks_skips_fallback_without_metadata() -> None:
     assert call_count["n"] == 1
 
 
+def test_search_by_metadata_uses_first_artist_in_query() -> None:
+    """Query string must use first artist with country tag stripped, not full list."""
+    client = _make_client()
+    captured = {}
+
+    def fake_urlopen(request, timeout=None):
+        captured["url"] = request.full_url
+        return _Resp({"tracks": {"items": []}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        client._search_by_metadata(
+            title="Secret Lover",
+            artist="Kays (UK), Nixxy Rain",
+            duration_ms=180_000,
+            correlation_id="cid",
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+    # urlencoded: spaces are '+' and ':' is '%3A'
+    assert "track%3ASecret+Lover" in captured["url"]
+    assert "artist%3AKays" in captured["url"]
+    assert "Nixxy" not in captured["url"]
+    assert "%28UK%29" not in captured["url"]  # no "(UK)"
+
+
+def test_search_by_metadata_returns_relaxed_tier_when_dur_diff_but_text_perfect() -> None:
+    """Same track / different master: title 1.0 + artist 1.0, duration 75s out → relaxed."""
+    client = _make_client()
+    payload = {
+        "tracks": {
+            "items": [
+                _spotify_track(
+                    sp_id="sp_radio_master",
+                    name="Universum",
+                    artists=["TERRAZZA", "Wra1th"],
+                    duration_ms=215_000,  # 75s shorter than BP's 290_000
+                    isrc="UKACT2674300",
+                ),
+            ]
+        }
+    }
+    with patch(
+        "collector.spotify_client.urllib.request.urlopen",
+        return_value=_Resp(payload),
+    ):
+        result = client._search_by_metadata(
+            title="Universum",
+            artist="TERRAZZA, Wra1th",
+            duration_ms=290_000,
+            correlation_id="cid",
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+    assert result is not None
+    track, tier = result
+    assert track["id"] == "sp_radio_master"
+    assert tier == "relaxed"
+
+
+def test_search_by_metadata_picks_strict_over_relaxed_when_both_present() -> None:
+    """If both strict and relaxed candidates exist, strict wins."""
+    client = _make_client()
+    payload = {
+        "tracks": {
+            "items": [
+                _spotify_track(
+                    sp_id="relaxed_winner_combined",
+                    name="Universum",
+                    artists=["TERRAZZA", "Wra1th"],
+                    duration_ms=215_000,  # dur out, but title+artist 1.0 → relaxed
+                ),
+                _spotify_track(
+                    sp_id="strict_pick",
+                    name="Universum",
+                    artists=["TERRAZZA"],  # artist 1.0 still
+                    duration_ms=290_000,  # dur ok → strict
+                ),
+            ]
+        }
+    }
+    with patch(
+        "collector.spotify_client.urllib.request.urlopen",
+        return_value=_Resp(payload),
+    ):
+        result = client._search_by_metadata(
+            title="Universum",
+            artist="TERRAZZA, Wra1th",
+            duration_ms=290_000,
+            correlation_id="cid",
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+    assert result is not None
+    track, tier = result
+    assert tier == "strict"
+    assert track["id"] == "strict_pick"
+
+
 def test_search_by_metadata_normalizes_title_suffix() -> None:
     """Spotify's 'Fealty - Radio Edit' should match BP's 'Fealty' after normalization."""
     client = _make_client()
@@ -390,7 +539,7 @@ def test_search_by_metadata_normalizes_title_suffix() -> None:
         "collector.spotify_client.urllib.request.urlopen",
         return_value=_Resp(payload),
     ):
-        track = client._search_by_metadata(
+        result = client._search_by_metadata(
             title="Fealty",
             artist="Krisna Artha",
             duration_ms=181_000,
@@ -399,7 +548,8 @@ def test_search_by_metadata_normalizes_title_suffix() -> None:
             artist_min=0.85,
             duration_tolerance_ms=3000,
         )
-    assert track is not None
+    assert result is not None
+    track, _tier = result
     assert track["id"] == "sp_radio"
 
 
@@ -548,10 +698,11 @@ def test_search_by_metadata_picks_highest_combined_when_multiple_pass() -> None:
         "collector.spotify_client.urllib.request.urlopen",
         return_value=_Resp(payload),
     ):
-        track = client._search_by_metadata(
+        result = client._search_by_metadata(
             title="Move On", artist="Guri & Eider", duration_ms=181_000,
             correlation_id="cid",
             title_min=0.90, artist_min=0.85, duration_tolerance_ms=3000,
         )
-    assert track is not None
+    assert result is not None
+    track, _tier = result
     assert track["id"] == "best"
