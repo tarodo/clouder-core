@@ -221,7 +221,8 @@ class FakeRepo:
         return self.tracks.pop((category_id, track_id), None) is not None
 
     def list_tracks(
-        self, *, user_id, category_id, limit, offset, search
+        self, *, user_id, category_id, limit, offset, search,
+        sort: str = "added_at", order: str = "desc",
     ):
         c = self.categories.get(category_id)
         if (
@@ -246,7 +247,16 @@ class FakeRepo:
                     source_triage_block_id=meta["source_triage_block_id"],
                 )
             )
-        rows.sort(key=lambda r: (r.added_at, r.track["id"]), reverse=True)
+
+        def _key(r):
+            if sort == "title":
+                return (r.track.get("title", ""), r.track["id"])
+            if sort == "spotify_release_date":
+                v = r.track.get("spotify_release_date")
+                return (0 if v is not None else 1, v or "", r.track["id"])
+            return (r.added_at, r.track["id"])
+
+        rows.sort(key=_key, reverse=(order == "desc"))
         total = len(rows)
         return PaginatedResult(
             items=rows[offset:offset+limit],
@@ -711,6 +721,65 @@ def test_list_tracks_200(fake_repo, context):
     assert body["items"][0]["id"] == "t1"
     assert body["items"][0]["added_at"] is not None
     assert body["items"][0]["source_triage_block_id"] is None
+
+
+def test_list_tracks_400_invalid_sort(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+            query={"sort": "bogus"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 400
+    assert "sort" in body["message"].lower()
+
+
+def test_list_tracks_400_invalid_order(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+            query={"order": "sideways"},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 400
+    assert "order" in body["message"].lower()
+
+
+def test_list_tracks_accepts_mixed_case_sort(fake_repo, context):
+    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    fake_repo.create(
+        user_id="u1", style_id="s1", category_id="c1",
+        name="Tech", normalized_name="tech", now=now,
+    )
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/categories/{id}/tracks",
+            path_params={"id": "c1"},
+            query={"sort": "Title", "order": "ASC"},
+        ),
+        context,
+    )
+    status, _body = _read(resp)
+    assert status == 200
 
 
 def test_add_track_201(fake_repo, context):
