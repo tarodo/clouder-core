@@ -93,4 +93,13 @@ describe('HotkeyOverlay', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: /close/i }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('renders the L hotkey row for Toggle Force mode in desktop layout', async () => {
+    render(
+      wrap(<HotkeyOverlay opened={true} onClose={() => {}} hasOverflow={false} />),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Toggle Force mode')).toBeInTheDocument();
+    expect(within(dialog).getByText('L')).toBeInTheDocument();
+  });
 });
