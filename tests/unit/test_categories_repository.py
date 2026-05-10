@@ -677,7 +677,7 @@ def test_list_tracks_validates_category() -> None:
 
 
 def test_list_tracks_handles_empty_artists() -> None:
-    """LEFT JOIN with no matching artists yields artist_names=NULL → []."""
+    """LEFT JOIN with no matching artists yields artists_json='[]' → []."""
     repo, data_api = _make()
     data_api.execute.side_effect = [
         [{"id": "c1"}],
@@ -687,7 +687,9 @@ def test_list_tracks_handles_empty_artists() -> None:
                 "isrc": None, "bpm": None, "length_ms": None,
                 "publish_date": None, "spotify_id": None,
                 "release_type": None, "is_ai_suspected": False,
-                "artist_names": None,
+                "spotify_release_date": None,
+                "artists_json": "[]",
+                "label_id": None, "label_name": None,
                 "added_at": "2026-04-27T12:00:00Z",
                 "source_triage_block_id": None,
             }
@@ -699,6 +701,8 @@ def test_list_tracks_handles_empty_artists() -> None:
         limit=50, offset=0, search=None,
     )
     assert result.items[0].track["artists"] == []
+    assert result.items[0].track["label"] is None
+    assert result.items[0].track["spotify_release_date"] is None
 
 
 def test_list_tracks_returns_rows_and_total() -> None:
@@ -711,7 +715,12 @@ def test_list_tracks_returns_rows_and_total() -> None:
                 "isrc": "X", "bpm": 124, "length_ms": 360000,
                 "publish_date": None, "spotify_id": None,
                 "release_type": "single", "is_ai_suspected": False,
-                "artist_names": "Artist A,Artist B",
+                "spotify_release_date": "2026-01-15",
+                "artists_json": (
+                    '[{"id":"a1","name":"Artist A"},'
+                    '{"id":"a2","name":"Artist B"}]'
+                ),
+                "label_id": "l1", "label_name": "Cool Label",
                 "added_at": "2026-04-27T12:00:00Z",
                 "source_triage_block_id": None,
             }
@@ -725,7 +734,12 @@ def test_list_tracks_returns_rows_and_total() -> None:
     assert result.total == 1
     item = result.items[0]
     assert item.track["id"] == "t1"
-    assert item.track["artists"] == ["Artist A", "Artist B"]
+    assert item.track["artists"] == [
+        {"id": "a1", "name": "Artist A"},
+        {"id": "a2", "name": "Artist B"},
+    ]
+    assert item.track["label"] == {"id": "l1", "name": "Cool Label"}
+    assert item.track["spotify_release_date"] == "2026-01-15"
     assert item.added_at == "2026-04-27T12:00:00Z"
     assert item.source_triage_block_id is None
 
