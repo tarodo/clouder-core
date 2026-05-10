@@ -71,6 +71,10 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
           onUndo();
           return;
         case 'KeyL':
+          // Silenced while help overlay is open: the overlay shows hotkey
+          // hints, toggling Force underneath would change semantics the
+          // user is actively reading. KeyU has no such guard because undo
+          // is a non-stateful action.
           if (overlayOpen) return;
           event.preventDefault();
           onToggleForce();
