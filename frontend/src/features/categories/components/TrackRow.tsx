@@ -1,7 +1,7 @@
 import { Card, Group, Stack, Table, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { formatAdded, formatLength } from '../../../lib/formatters';
+import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/formatters';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
 
 function joinArtists(artists: CategoryTrack['artists']): string {
@@ -16,7 +16,11 @@ export interface TrackRowProps {
 export function TrackRow({ track, variant }: TrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
-    <IconAlertTriangle size={14} aria-label={t('categories.tracks_table.ai_suspected_aria')} color="var(--color-warning)" />
+    <IconAlertTriangle
+      size={14}
+      aria-label={t('categories.tracks_table.ai_suspected_aria')}
+      color="var(--color-warning)"
+    />
   ) : null;
 
   if (variant === 'desktop') {
@@ -36,8 +40,12 @@ export function TrackRow({ track, variant }: TrackRowProps) {
           </Group>
         </Table.Td>
         <Table.Td>{joinArtists(track.artists)}</Table.Td>
+        <Table.Td>{track.label?.name ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{track.bpm ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{formatLength(track.length_ms)}</Table.Td>
+        <Table.Td className="font-mono">
+          {formatReleaseDate(track.spotify_release_date)}
+        </Table.Td>
         <Table.Td>{formatAdded(track.added_at)}</Table.Td>
       </Table.Tr>
     );
@@ -56,6 +64,11 @@ export function TrackRow({ track, variant }: TrackRowProps) {
           </Text>
         )}
         <Text size="sm">{joinArtists(track.artists)}</Text>
+        {track.label && (
+          <Text size="xs" c="dimmed">
+            {track.label.name}
+          </Text>
+        )}
         <Group gap="md" mt={4}>
           <Text size="xs" c="dimmed" className="font-mono">
             {track.bpm ?? '—'} BPM
@@ -63,6 +76,11 @@ export function TrackRow({ track, variant }: TrackRowProps) {
           <Text size="xs" c="dimmed" className="font-mono">
             {formatLength(track.length_ms)}
           </Text>
+          {track.spotify_release_date && (
+            <Text size="xs" c="dimmed" className="font-mono">
+              {track.spotify_release_date}
+            </Text>
+          )}
           <Text size="xs" c="dimmed">
             {formatAdded(track.added_at)}
           </Text>
