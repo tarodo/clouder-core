@@ -114,7 +114,16 @@
       "renamed": "Category renamed.",
       "deleted": "Category deleted.",
       "race_refreshed": "List changed elsewhere — refreshed.",
-      "generic_error": "Couldn't save changes. Please retry."
+      "generic_error": "Couldn't save changes. Please retry.",
+      "track_moved": "Moved to {{name}}.",
+      "track_moved_partial": "Track is in both categories — couldn't remove from source.",
+      "track_move_failed": "Move failed.",
+      "track_removed": "Removed from category.",
+      "track_remove_failed": "Couldn't remove track.",
+      "undo_action": "Undo",
+      "undone": "Undone.",
+      "undo_failed": "Undo failed.",
+      "retry": "Retry"
     },
     "errors": {
       "name_required": "Name is required.",
@@ -149,6 +158,13 @@
       "released": "Released",
       "added": "Added",
       "ai_suspected_aria": "AI-suspected"
+    },
+    "row_actions": {
+      "trigger_aria": "Track actions",
+      "move_label": "Move to",
+      "move_empty": "No other categories",
+      "remove_label": "Remove from category",
+      "current_marker": "(current)"
     }
   },
   "triage": {
