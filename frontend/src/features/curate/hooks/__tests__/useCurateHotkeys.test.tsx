@@ -57,6 +57,7 @@ describe('useCurateHotkeys', () => {
   let onOpenOverlay: ReturnType<typeof vi.fn>;
   let onCloseOverlay: ReturnType<typeof vi.fn>;
   let onExit: ReturnType<typeof vi.fn>;
+  let onToggleForce: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     onAssign = vi.fn();
@@ -64,6 +65,7 @@ describe('useCurateHotkeys', () => {
     onOpenOverlay = vi.fn();
     onCloseOverlay = vi.fn();
     onExit = vi.fn();
+    onToggleForce = vi.fn();
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -78,6 +80,7 @@ describe('useCurateHotkeys', () => {
           onOpenOverlay,
           onCloseOverlay,
           onExit,
+          onToggleForce,
         }),
       { wrapper },
     );
@@ -179,6 +182,18 @@ describe('useCurateHotkeys', () => {
     window.dispatchEvent(ev);
     expect(onAssign).not.toHaveBeenCalled();
     document.body.removeChild(input);
+  });
+
+  it('KeyL calls onToggleForce', () => {
+    mount(false);
+    act(() => dispatchKey({ code: 'KeyL' }));
+    expect(onToggleForce).toHaveBeenCalledTimes(1);
+  });
+
+  it('KeyL while overlayOpen=true does NOT call onToggleForce', () => {
+    mount(true);
+    act(() => dispatchKey({ code: 'KeyL' }));
+    expect(onToggleForce).not.toHaveBeenCalled();
   });
 
   it('mobile: no listeners bound', async () => {

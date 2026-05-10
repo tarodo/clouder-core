@@ -12,6 +12,7 @@ export interface UseCurateHotkeysArgs {
   onOpenOverlay: () => void;
   onCloseOverlay: () => void;
   onExit: () => void;
+  onToggleForce: () => void;
 }
 
 const DIGIT_CODES: Record<string, number> = {
@@ -44,6 +45,7 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
     onOpenOverlay,
     onCloseOverlay,
     onExit,
+    onToggleForce,
   } = args;
 
   useEffect(() => {
@@ -67,6 +69,11 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
         case 'KeyU':
           event.preventDefault();
           onUndo();
+          return;
+        case 'KeyL':
+          if (overlayOpen) return;
+          event.preventDefault();
+          onToggleForce();
           return;
         // KeyJ / KeyK are handled by usePlaybackHotkeys (F6) — it calls
         // playback.controls.prev/next, which round-trips cursor via
@@ -117,5 +124,6 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
     onOpenOverlay,
     onCloseOverlay,
     onExit,
+    onToggleForce,
   ]);
 }
