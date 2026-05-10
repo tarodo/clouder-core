@@ -21,6 +21,11 @@ from .vendor_match.scorer import best_artist_sim, string_sim
 TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 API_BASE_URL = "https://api.spotify.com/v1"
+# Spotify can return Retry-After values larger than the Lambda timeout (15 min).
+# Sleeping that long blocks the worker until it's hard-killed. Cap at this value
+# and raise SpotifyUnavailableError when exceeded — SQS visibility timeout
+# (16 min) becomes the natural cool-down.
+_MAX_RETRY_AFTER_SECONDS = 120.0
 
 
 @dataclass(frozen=True)
@@ -460,6 +465,20 @@ class SpotifyClient:
                 if exc.code == 429:
                     retry_after = exc.headers.get("Retry-After") if exc.headers else None
                     delay = float(retry_after) if retry_after else None
+                    if delay and delay > _MAX_RETRY_AFTER_SECONDS:
+                        # Spotify wants us to wait longer than Lambda can.
+                        # Bail out so SQS visibility timeout becomes the cool-down.
+                        log_event(
+                            "WARNING",
+                            "spotify_rate_limited_long_cooldown",
+                            correlation_id=correlation_id,
+                            retry_after=delay,
+                            attempt=attempt + 1,
+                        )
+                        raise SpotifyUnavailableError(
+                            f"Spotify rate limit cooldown {delay}s exceeds cap "
+                            f"{_MAX_RETRY_AFTER_SECONDS}s"
+                        ) from exc
                     if delay and attempt < self.max_retries:
                         log_event(
                             "INFO",

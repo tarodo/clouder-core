@@ -30,9 +30,10 @@ from .storage import S3Storage, create_default_s3_client
 _PERMANENT_ERRORS = (ValueError, TypeError, KeyError, StorageError)
 _CHUNK_SIZE = 200
 # Max follow-up batch size — Lambda has a 15min hard timeout, and the cascade
-# (direct ISRC + neighbour ±1/±2 + metadata) takes ~1s/track under Spotify's
-# rate limit. 500 leaves comfortable headroom; chains self-pace via follow-ups.
-_MAX_FOLLOW_UP_BATCH_SIZE = 500
+# (direct ISRC + up to 4 neighbour calls + 1 metadata call) means 5+ Spotify
+# API calls per ISRC miss. With Spotify's ~180 req/min sustained quota, batches
+# above 200 risk hitting hard rate limits with multi-minute Retry-After values.
+_MAX_FOLLOW_UP_BATCH_SIZE = 200
 
 
 def _extract_album_type(spotify_track: Mapping[str, Any] | None) -> str | None:

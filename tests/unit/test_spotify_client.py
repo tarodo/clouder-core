@@ -249,6 +249,73 @@ def test_search_handles_partial_release_dates() -> None:
     assert results[0].spotify_id == "sp_old"
 
 
+def test_rate_limit_long_cooldown_raises_unavailable() -> None:
+    """Retry-After > 120s must raise SpotifyUnavailableError instead of sleeping
+    longer than the Lambda timeout."""
+    from urllib.error import HTTPError
+
+    client = _make_client()
+    client._access_token = "tok"
+    client._token_expires_at = 9e18
+
+    class _Headers:
+        def get(self, key, default=None):
+            if key == "Retry-After":
+                return "1296"
+            return default
+
+    def fake_urlopen(request, timeout=None):
+        raise HTTPError(
+            url=request.full_url, code=429, msg="rate", hdrs=_Headers(), fp=None
+        )
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        with pytest.raises(SpotifyUnavailableError, match="exceeds cap"):
+            client.search_tracks_by_isrc(
+                tracks=[{"clouder_track_id": "ct1", "isrc": "ZZ1"}],
+                correlation_id="cid-rl",
+            )
+
+
+def test_rate_limit_short_cooldown_sleeps_and_retries() -> None:
+    """Retry-After <= 120s should still sleep + retry as before."""
+    from urllib.error import HTTPError
+
+    sleep_calls: list[float] = []
+    client = SpotifyClient(
+        client_id="x", client_secret="y", sleep_fn=sleep_calls.append,
+    )
+    client._access_token = "tok"
+    client._token_expires_at = 9e18
+
+    class _Headers:
+        def get(self, key, default=None):
+            if key == "Retry-After":
+                return "10"
+            return default
+
+    call_count = {"n": 0}
+
+    def fake_urlopen(request, timeout=None):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            raise HTTPError(
+                url=request.full_url, code=429, msg="rate",
+                hdrs=_Headers(), fp=None,
+            )
+        return FakeResponse({"tracks": {"items": []}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        results = client.search_tracks_by_isrc(
+            tracks=[{"clouder_track_id": "ct1", "isrc": "ZZ1"}],
+            correlation_id="cid-rl",
+        )
+
+    assert sleep_calls == [10.0]
+    assert results[0].spotify_id is None
+    assert call_count["n"] == 2
+
+
 def test_album_release_sort_key_edge_cases() -> None:
     assert _album_release_sort_key({"album": {"release_date": "2020-01-15"}}) == "2020-01-15"
     assert _album_release_sort_key({"album": {"release_date": "2020-01"}}) == "2020-01-00"
