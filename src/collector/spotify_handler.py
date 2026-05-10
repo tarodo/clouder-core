@@ -29,6 +29,10 @@ from .storage import S3Storage, create_default_s3_client
 
 _PERMANENT_ERRORS = (ValueError, TypeError, KeyError, StorageError)
 _CHUNK_SIZE = 200
+# Max follow-up batch size — Lambda has a 15min hard timeout, and the cascade
+# (direct ISRC + neighbour ±1/±2 + metadata) takes ~1s/track under Spotify's
+# rate limit. 500 leaves comfortable headroom; chains self-pace via follow-ups.
+_MAX_FOLLOW_UP_BATCH_SIZE = 500
 
 
 def _extract_album_type(spotify_track: Mapping[str, Any] | None) -> str | None:
@@ -76,7 +80,10 @@ def _extract_release_date(spotify_track: Mapping[str, Any] | None) -> date | Non
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
-    del context
+    deadline_provider = None
+    if context is not None and hasattr(context, "get_remaining_time_in_millis"):
+        deadline_provider = context.get_remaining_time_in_millis
+
     records = event.get("Records")
     if not isinstance(records, list):
         return {"processed": 0}
@@ -138,6 +145,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 settings=settings,
                 message=payload,
                 correlation_id=correlation_id,
+                deadline_provider=deadline_provider,
             )
             processed += 1
         except Exception as exc:
@@ -168,6 +176,7 @@ def _process_spotify_search(
     settings: Any,
     message: SpotifySearchMessage,
     correlation_id: str,
+    deadline_provider: Any = None,
 ) -> None:
     tracks = repository.find_tracks_needing_spotify_search(limit=message.batch_size)
     if not tracks:
@@ -206,6 +215,7 @@ def _process_spotify_search(
         title_min=settings.metadata_fallback_title_min,
         artist_min=settings.metadata_fallback_artist_min,
         duration_tolerance_ms=settings.metadata_fallback_duration_tolerance_ms,
+        deadline_provider=deadline_provider,
     )
 
     now = utc_now()
@@ -360,7 +370,8 @@ def _enqueue_follow_up_if_needed(
         )
         return
 
-    message = {"batch_size": batch_size}
+    capped_batch = min(batch_size, _MAX_FOLLOW_UP_BATCH_SIZE)
+    message = {"batch_size": capped_batch}
     try:
         import boto3
 

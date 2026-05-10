@@ -38,6 +38,7 @@ class SpotifyLookup:
         title_min: float = 0.90,
         artist_min: float = 0.85,
         duration_tolerance_ms: int = 3000,
+        deadline_provider: Any = None,
     ) -> list[SpotifySearchResult]:
         return self._client.search_tracks_by_isrc(
             tracks=tracks,
@@ -46,6 +47,7 @@ class SpotifyLookup:
             title_min=title_min,
             artist_min=artist_min,
             duration_tolerance_ms=duration_tolerance_ms,
+            deadline_provider=deadline_provider,
         )
 
     def lookup_by_isrc(self, isrc: str) -> VendorTrackRef | None:

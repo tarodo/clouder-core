@@ -416,6 +416,36 @@ def test_update_cmds_carry_spotify_release_date() -> None:
     assert _extract_release_date(payload) == date(2024, 3, 15)
 
 
+def test_follow_up_caps_batch_size_at_500(monkeypatch) -> None:
+    """Even if incoming batch_size is 2000, follow-up SQS msg uses 500 cap to fit Lambda timeout."""
+    tracks = [{"id": f"ct{i}", "isrc": f"ISRC{i:03}", "title": f"T{i}",
+               "normalized_title": f"t{i}"} for i in range(2)]
+    repo = FakeRepoWithRemaining(tracks=tracks)
+    repo, _ = _setup(monkeypatch, repo=repo)
+    monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.test/q")
+    reset_settings_cache()
+
+    monkeypatch.setattr(
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
+        _fake_search_results(*((t["isrc"], t["id"], None) for t in tracks)),
+    )
+
+    captured: dict[str, Any] = {}
+
+    class FakeSqs:
+        def send_message(self, **kwargs):
+            captured["body"] = json.loads(kwargs["MessageBody"])
+
+    import boto3 as _boto3
+    monkeypatch.setattr(_boto3, "client", lambda name: FakeSqs())
+
+    event = _sqs_event({"batch_size": 2000})
+    lambda_handler(event, context=None)
+
+    assert captured["body"] == {"batch_size": 500}
+    reset_settings_cache()
+
+
 def test_handler_forwards_metadata_kwargs_when_enabled(monkeypatch) -> None:
     """Worker passes title/artists/duration_ms + thresholds into the client."""
     tracks = [

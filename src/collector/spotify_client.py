@@ -59,6 +59,7 @@ class SpotifyClient:
         title_min: float = 0.90,
         artist_min: float = 0.85,
         duration_tolerance_ms: int = 3000,
+        deadline_provider: Callable[[], int] | None = None,
     ) -> List[SpotifySearchResult]:
         """Search Spotify for each track by ISRC, with optional metadata fallback.
 
@@ -68,12 +69,29 @@ class SpotifyClient:
             correlation_id: trace ID
             metadata_fallback_enabled: if True, fall back to text search on ISRC miss
             title_min, artist_min, duration_tolerance_ms: accept-gate thresholds
+            deadline_provider: callable returning ms-remaining-until-Lambda-timeout.
+                When < 60_000, loop aborts gracefully and returns partial results.
         """
         self._ensure_token(correlation_id)
         results: List[SpotifySearchResult] = []
         total = len(tracks)
 
         for index, track in enumerate(tracks):
+            if deadline_provider is not None:
+                try:
+                    remaining_ms = deadline_provider()
+                except Exception:
+                    remaining_ms = None
+                if remaining_ms is not None and remaining_ms < 60_000:
+                    log_event(
+                        "WARNING",
+                        "spotify_search_aborting_near_timeout",
+                        correlation_id=correlation_id,
+                        searched=index,
+                        total=total,
+                    )
+                    break
+
             isrc = track["isrc"]
             clouder_track_id = track["clouder_track_id"]
             searched = index + 1

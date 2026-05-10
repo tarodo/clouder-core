@@ -630,6 +630,66 @@ def test_search_by_isrc_neighbours_returns_none_when_all_neighbours_empty() -> N
     assert track is None
 
 
+def test_search_tracks_aborts_when_deadline_near() -> None:
+    """deadline_provider returning <60s should break loop and return partial results."""
+    client = _make_client()
+    fallback_track = _spotify_track(
+        sp_id="sp_first",
+        name="First",
+        artists=["A"],
+        duration_ms=180_000,
+    )
+
+    call_count = {"n": 0}
+
+    def fake_urlopen(request, timeout=None):
+        call_count["n"] += 1
+        return _Resp({"tracks": {"items": [fallback_track]}})
+
+    deadline_calls = {"n": 0}
+
+    def deadline_provider():
+        deadline_calls["n"] += 1
+        # First call: plenty of time. Second call onwards: < 60s.
+        return 600_000 if deadline_calls["n"] == 1 else 30_000
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        results = client.search_tracks_by_isrc(
+            tracks=[
+                {"clouder_track_id": "ct1", "isrc": "ZZ1"},
+                {"clouder_track_id": "ct2", "isrc": "ZZ2"},
+                {"clouder_track_id": "ct3", "isrc": "ZZ3"},
+            ],
+            correlation_id="cid",
+            deadline_provider=deadline_provider,
+        )
+
+    # Only first track should have been processed; deadline aborted before track 2.
+    assert len(results) == 1
+    assert results[0].clouder_track_id == "ct1"
+
+
+def test_search_tracks_finishes_when_deadline_far() -> None:
+    """Deadline provider with plenty of time should not affect normal completion."""
+    client = _make_client()
+    track = _spotify_track(sp_id="sp1", name="X", artists=["A"], duration_ms=180_000)
+
+    def fake_urlopen(request, timeout=None):
+        return _Resp({"tracks": {"items": [track]}})
+
+    with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
+        results = client.search_tracks_by_isrc(
+            tracks=[
+                {"clouder_track_id": "ct1", "isrc": "ZZ1"},
+                {"clouder_track_id": "ct2", "isrc": "ZZ2"},
+            ],
+            correlation_id="cid",
+            deadline_provider=lambda: 800_000,
+        )
+
+    assert len(results) == 2
+
+
 def test_search_tracks_invokes_isrc_neighbours_before_metadata() -> None:
     """ISRC miss → neighbour hit → metadata search NOT issued."""
     client = _make_client()
