@@ -211,3 +211,62 @@ describe('useCurateSession Force chain — happy path + variants', () => {
     await waitFor(() => expect(result.current.forceMode).toBe(false));
   });
 });
+
+describe('useCurateSession Force chain — undo', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    server.use(...defaults());
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('undo after Force-tap (after hold) fires DELETE /categories/:cid/tracks/:tid', async () => {
+    let deleteHit = false;
+    let deleteUrl = '';
+    server.use(
+      http.post('http://localhost/categories/c1/tracks', () => HttpResponse.json({ ok: true })),
+      http.delete('http://localhost/categories/:cid/tracks/:tid', ({ request }) => {
+        deleteHit = true;
+        deleteUrl = request.url;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const qc = makeClient();
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+      { wrapper: wrap(qc) },
+    );
+    await waitFor(() => expect(result.current.status).toBe('active'));
+    act(() => result.current.toggleForce());
+    act(() => result.current.assign('dst1'));
+    await act(async () => { vi.advanceTimersByTime(300); });
+    expect(result.current.canUndo).toBe(true);
+    act(() => result.current.undo());
+    await waitFor(() => expect(deleteHit).toBe(true));
+    expect(deleteUrl).toContain('/categories/c1/tracks/t1');
+  });
+
+  it('undo within window after Force-tap also fires DELETE', async () => {
+    let deleteHit = false;
+    server.use(
+      http.post('http://localhost/categories/c1/tracks', () => HttpResponse.json({ ok: true })),
+      http.delete('http://localhost/categories/:cid/tracks/:tid', () => {
+        deleteHit = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const qc = makeClient();
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'b1', bucketId: 'src', styleId: 's1' }),
+      { wrapper: wrap(qc) },
+    );
+    await waitFor(() => expect(result.current.status).toBe('active'));
+    act(() => result.current.toggleForce());
+    act(() => result.current.assign('dst1'));
+    // BEFORE 200ms hold:
+    act(() => result.current.undo());
+    await act(async () => { vi.advanceTimersByTime(50); });
+    await waitFor(() => expect(deleteHit).toBe(true));
+    await waitFor(() => expect(result.current.forceMode).toBe(false));
+  });
+});

@@ -12,6 +12,7 @@ import {
   type MoveSnapshot,
 } from '../../triage/hooks/useMoveTracks';
 import { useAddTrackToCategory } from '../../categories/hooks/useAddTrackToCategory';
+import { useRemoveTrackFromCategory } from '../../categories/hooks/useRemoveTrackFromCategory';
 import type { TriageBucket } from '../../triage/lib/bucketLabels';
 import { ApiError } from '../../../api/error';
 import {
@@ -405,6 +406,7 @@ export function useCurateSession({
 
   const { mutate: moveMutate } = moveMutation;
   const { mutate: addToCategoryMutate } = useAddTrackToCategory();
+  const { mutate: removeFromCategoryMutate } = useRemoveTrackFromCategory();
   const fireMutation = useCallback(
     (input: MoveInput, lastOp: LastOp) => {
       moveMutate(input, {
@@ -555,6 +557,23 @@ export function useCurateSession({
     // 200ms timer can't fire post-rollback and play the wrong track.
     playback.controls.cancelPendingAdvance();
 
+    const rollbackForce = () => {
+      const trackId = lastOp.input.trackIds[0];
+      if (!lastOp.forceCategoryId || !trackId) return;
+      removeFromCategoryMutate(
+        { categoryId: lastOp.forceCategoryId, trackId },
+        {
+          onError: () => {
+            notifications.show({
+              message: t('curate.toast.force_undo_partial'),
+              color: 'yellow',
+              autoClose: 4000,
+            });
+          },
+        },
+      );
+    };
+
     if (isPending) {
       clearTimeout(pendingTimerRef.current as number);
       pendingTimerRef.current = null;
@@ -563,9 +582,11 @@ export function useCurateSession({
         pulseTimerRef.current = null;
       }
       void undoMoveDirect(qc, blockId, styleId, lastOp.input, lastOp.snapshot).catch(() => {});
+      rollbackForce();
       dispatch({ type: 'UNDO_WITHIN' });
     } else {
       void undoMoveDirect(qc, blockId, styleId, lastOp.input, lastOp.snapshot).catch(() => {});
+      rollbackForce();
       dispatch({ type: 'UNDO_AFTER' });
       // Pending hold already fired — SDK is playing the post-shrink track.
       // Pass the captured track directly via overrideTrack so play() doesn't
@@ -576,7 +597,7 @@ export function useCurateSession({
         void playRef.current(lastOp.trackIndex, restored);
       }, 0);
     }
-  }, [qc, blockId, styleId, playback.controls]);
+  }, [qc, blockId, styleId, playback.controls, removeFromCategoryMutate, t]);
 
   const toggleForce = useCallback(() => {
     dispatch({ type: 'TOGGLE_FORCE' });
