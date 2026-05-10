@@ -317,7 +317,7 @@ const handleSort = (key: CategoryTrackSort) => {
 };
 ```
 
-Desktop `<Table.Thead>` updated with three sortable headers (Title, Released, Added) plus two static columns (Label, Artists, BPM, Length stay non-sortable). Order from left to right: **Title · Artists · Label · BPM · Length · Released · Added**.
+Desktop `<Table.Thead>` updated with three sortable headers (Title, Released, Added) plus four static columns (Artists, Label, BPM, Length stay non-sortable). Order from left to right: **Title · Artists · Label · BPM · Length · Released · Added**.
 
 ### SortableTh component
 
