@@ -399,6 +399,7 @@
       "key_j_label": "Step back to previous track",
       "key_k_label": "Skip without assigning",
       "key_u_label": "Undo last assignment",
+      "key_l_label": "Toggle Force mode",
       "key_help_label": "Show / hide this overlay",
       "key_esc_label": "Close overlay or exit Curate",
       "key_enter_label": "Accept suggested next bucket",
@@ -406,13 +407,20 @@
       "footer_overflow_note": "Categories beyond 9 are accessible via the More… menu.",
       "mobile_note": "Keyboard shortcuts available on desktop only. Tap a destination button to assign."
     },
+    "force": {
+      "button_label": "Force",
+      "aria_on": "Force mode on",
+      "aria_off": "Force mode off"
+    },
     "toast": {
       "skip_stale": "Track no longer in this bucket — skipped.",
       "block_finalized": "Block was finalized. Returning to triage.",
       "block_not_found": "Block not found. It may have been deleted.",
       "destination_inactive": "Destination became inactive. Pick another.",
       "service_unavailable": "Service unavailable. Move not applied — please retry.",
-      "move_failed": "Move failed. Please retry."
+      "move_failed": "Move failed. Please retry.",
+      "force_partial": "Track moved, but failed to add to category folder.",
+      "force_undo_partial": "Move undone, but the track may still be in the category folder."
     },
     "setup": {
       "title": "Pick a block to curate",
