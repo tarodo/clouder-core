@@ -90,6 +90,7 @@ ALLOWED_LOG_FIELDS = {
     "clouder_track_id",
     "spotify_id",
     "spotify_isrc",
+    "searched",
 }
 
 

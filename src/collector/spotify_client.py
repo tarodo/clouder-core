@@ -71,10 +71,12 @@ class SpotifyClient:
         """
         self._ensure_token(correlation_id)
         results: List[SpotifySearchResult] = []
+        total = len(tracks)
 
         for index, track in enumerate(tracks):
             isrc = track["isrc"]
             clouder_track_id = track["clouder_track_id"]
+            searched = index + 1
 
             try:
                 spotify_track = self._search_by_isrc(
@@ -114,6 +116,8 @@ class SpotifyClient:
                             spotify_isrc=spotify_track.get(
                                 "external_ids", {}
                             ).get("isrc"),
+                            searched=searched,
+                            total=total,
                         )
                 if spotify_track is None and title and artist:
                     # Step 2: full metadata text search.
@@ -123,6 +127,8 @@ class SpotifyClient:
                         correlation_id=correlation_id,
                         clouder_track_id=clouder_track_id,
                         isrc=isrc,
+                        searched=searched,
+                        total=total,
                     )
                     metadata_hit = self._search_by_metadata(
                         title=title,
@@ -142,6 +148,8 @@ class SpotifyClient:
                             correlation_id=correlation_id,
                             clouder_track_id=clouder_track_id,
                             isrc=isrc,
+                            searched=searched,
+                            total=total,
                         )
                     else:
                         spotify_track, tier = metadata_hit
@@ -160,6 +168,8 @@ class SpotifyClient:
                             spotify_isrc=spotify_track.get(
                                 "external_ids", {}
                             ).get("isrc"),
+                            searched=searched,
+                            total=total,
                         )
 
             spotify_id = spotify_track["id"] if spotify_track else None
@@ -172,13 +182,13 @@ class SpotifyClient:
                 )
             )
 
-            if (index + 1) % 100 == 0:
+            if searched % 25 == 0 or searched == total:
                 log_event(
                     "INFO",
                     "spotify_search_progress",
                     correlation_id=correlation_id,
-                    searched=index + 1,
-                    total=len(tracks),
+                    searched=searched,
+                    total=total,
                 )
 
         return results
