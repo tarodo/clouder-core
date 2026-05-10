@@ -26,7 +26,7 @@ export interface DestinationGridProps {
 
 /**
  * Layout follows P-22 mobile + P-23 desktop:
- *  - DISCARD button stands alone at the top (full-width).
+ *  - Top row pairs DISCARD (flex-1) with the smaller Force toggle.
  *  - Staging categories form a tile grid (2-col on mobile, 3-col on desktop).
  *  - Technical buckets (NEW/OLD/NOT) sit at the bottom in a 3-col grid.
  *  - Section labels are mono uppercase muted text.
