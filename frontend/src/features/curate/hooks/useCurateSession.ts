@@ -95,8 +95,7 @@ type Action =
   | { type: 'PREV' }
   | { type: 'JUMP_TO'; index: number; max: number }
   | { type: 'RESET_INDEX_FOR_QUEUE_SHRINK'; queueLength: number }
-  | { type: 'TOGGLE_FORCE' }
-  | { type: 'CLEAR_FORCE' };
+  | { type: 'TOGGLE_FORCE' };
 
 const initialState: State = {
   currentIndex: 0,
@@ -194,8 +193,6 @@ function reducer(state: State, action: Action): State {
       return state;
     case 'TOGGLE_FORCE':
       return { ...state, forceMode: !state.forceMode };
-    case 'CLEAR_FORCE':
-      return state.forceMode ? { ...state, forceMode: false } : state;
     default:
       return state;
   }
