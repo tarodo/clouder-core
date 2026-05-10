@@ -91,6 +91,7 @@ ALLOWED_LOG_FIELDS = {
     "spotify_id",
     "spotify_isrc",
     "searched",
+    "retry_after",
 }
 
 
