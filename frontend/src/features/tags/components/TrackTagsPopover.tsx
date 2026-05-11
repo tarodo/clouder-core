@@ -81,7 +81,9 @@ export function TrackTagsPopover({
   return (
     <Popover
       opened={opened}
-      onClose={onClose}
+      onChange={(o) => {
+        if (!o) onClose();
+      }}
       position="bottom-start"
       withinPortal
       shadow="md"
