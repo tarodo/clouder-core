@@ -1,6 +1,7 @@
 import { Card, Group, Stack, Table, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import type { ReactNode } from 'react';
 import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/formatters';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
 
@@ -11,9 +12,10 @@ function joinArtists(artists: CategoryTrack['artists']): string {
 export interface TrackRowProps {
   track: CategoryTrack;
   variant: 'desktop' | 'mobile';
+  actions?: ReactNode;
 }
 
-export function TrackRow({ track, variant }: TrackRowProps) {
+export function TrackRow({ track, variant, actions }: TrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
     <IconAlertTriangle
@@ -47,12 +49,16 @@ export function TrackRow({ track, variant }: TrackRowProps) {
           {formatReleaseDate(track.spotify_release_date)}
         </Table.Td>
         <Table.Td>{formatAdded(track.added_at)}</Table.Td>
+        <Table.Td style={{ width: 40 }}>{actions ?? null}</Table.Td>
       </Table.Tr>
     );
   }
 
   return (
-    <Card withBorder padding="sm">
+    <Card withBorder padding="sm" style={{ position: 'relative' }}>
+      {actions && (
+        <div style={{ position: 'absolute', top: 8, right: 8 }}>{actions}</div>
+      )}
       <Stack gap={4}>
         <Group gap="xs">
           {aiBadge}
