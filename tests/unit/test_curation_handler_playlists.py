@@ -114,3 +114,78 @@ def test_get_playlist_returns_200_with_full_payload() -> None:
     assert resp["statusCode"] == 200
     body = json.loads(resp["body"])
     assert body["track_count"] == 5
+
+
+def test_list_playlist_tracks_returns_paginated() -> None:
+    repo = MagicMock()
+    repo.list_tracks.return_value = ([], 0)
+    with _patch_factory(repo):
+        resp = lambda_handler(
+            _event("GET", "/playlists/{id}/tracks",
+                   path_params={"id": "p-1"}),
+            None,
+        )
+    assert resp["statusCode"] == 200
+
+
+def test_add_tracks_resolves_scope_then_appends() -> None:
+    repo = MagicMock()
+    repo.validate_tracks_in_scope.return_value = {"t-1", "t-2"}
+    append_result = MagicMock()
+    append_result.configure_mock(
+        added_track_ids=["t-1", "t-2"],
+        skipped_duplicates=[],
+        position_after=2,
+    )
+    repo.append_tracks.return_value = append_result
+    with _patch_factory(repo):
+        resp = lambda_handler(
+            _event("POST", "/playlists/{id}/tracks",
+                   body={"track_ids": ["t-1", "t-2"]},
+                   path_params={"id": "p-1"}),
+            None,
+        )
+    assert resp["statusCode"] == 201
+    body = json.loads(resp["body"])
+    assert body["added"] == ["t-1", "t-2"]
+    assert body["position_after"] == 2
+
+
+def test_add_tracks_returns_404_for_out_of_scope() -> None:
+    repo = MagicMock()
+    repo.validate_tracks_in_scope.return_value = {"t-1"}
+    with _patch_factory(repo):
+        resp = lambda_handler(
+            _event("POST", "/playlists/{id}/tracks",
+                   body={"track_ids": ["t-1", "t-foreign"]},
+                   path_params={"id": "p-1"}),
+            None,
+        )
+    assert resp["statusCode"] == 404
+    body = json.loads(resp["body"])
+    assert "t-foreign" in body["missing_track_ids"]
+
+
+def test_remove_track_204() -> None:
+    repo = MagicMock()
+    repo.remove_track.return_value = True
+    with _patch_factory(repo):
+        resp = lambda_handler(
+            _event("DELETE", "/playlists/{id}/tracks/{track_id}",
+                   path_params={"id": "p-1", "track_id": "t-1"}),
+            None,
+        )
+    assert resp["statusCode"] == 204
+
+
+def test_reorder_tracks_200() -> None:
+    repo = MagicMock()
+    repo.reorder_tracks.return_value = None
+    with _patch_factory(repo):
+        resp = lambda_handler(
+            _event("POST", "/playlists/{id}/tracks/order",
+                   body={"track_ids": ["t-2", "t-1"]},
+                   path_params={"id": "p-1"}),
+            None,
+        )
+    assert resp["statusCode"] == 200

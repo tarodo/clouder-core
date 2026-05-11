@@ -59,6 +59,7 @@ from .curation.playlists_service import (
 )
 from .curation.schemas import (
     AddTrackIn,
+    AddTracksIn,
     CreateCategoryIn,
     CreatePlaylistIn,
     CreateTriageBlockIn,
@@ -66,6 +67,7 @@ from .curation.schemas import (
     PatchPlaylistIn,
     RenameCategoryIn,
     ReorderCategoriesIn,
+    ReorderPlaylistTracksIn,
     TransferTracksIn,
 )
 from .curation.triage_repository import (
@@ -217,6 +219,19 @@ def _playlist_response(row) -> dict[str, Any]:
         "track_count": row.track_count,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
+    }
+
+
+def _playlist_track_response(row) -> dict[str, Any]:
+    return {
+        "track_id": row.track_id,
+        "position": row.position,
+        "added_at": row.added_at,
+        "title": row.title,
+        "spotify_id": row.spotify_id,
+        "isrc": row.isrc,
+        "length_ms": row.length_ms,
+        "origin": row.origin,
     }
 
 
@@ -653,6 +668,101 @@ def _handle_delete_playlist(event, repo: PlaylistsRepository, user_id, correlati
         "headers": {"x-correlation-id": correlation_id},
         "body": "",
     }
+
+
+def _handle_list_playlist_tracks(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    limit, offset = _parse_pagination(event)
+    rows, total = repo.list_tracks(
+        user_id=user_id, playlist_id=pid, limit=limit, offset=offset,
+    )
+    return _json_response(
+        200,
+        {
+            "items": [_playlist_track_response(r) for r in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_add_playlist_tracks(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = AddTracksIn.model_validate(_parse_body(event))
+    visible = repo.validate_tracks_in_scope(
+        user_id=user_id, track_ids=body.track_ids,
+    )
+    missing = [t for t in body.track_ids if t not in visible]
+    if missing:
+        raise TrackNotInUserScopeError(
+            "Some tracks are not accessible to the user", missing,
+        )
+    result = repo.append_tracks(
+        user_id=user_id, playlist_id=pid,
+        track_ids=body.track_ids, now=utc_now(),
+    )
+    log_event(
+        "INFO", "playlist_track_added",
+        correlation_id=correlation_id, user_id=user_id,
+        playlist_id=pid, n=len(result.added_track_ids),
+    )
+    return _json_response(
+        201,
+        {
+            "added": result.added_track_ids,
+            "skipped_duplicates": result.skipped_duplicates,
+            "position_after": result.position_after,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_remove_playlist_track(event, repo, user_id, correlation_id):
+    pp = event.get("pathParameters") or {}
+    pid = pp.get("id")
+    track_id = pp.get("track_id")
+    if not pid or not track_id:
+        raise ValidationError("id and track_id are required in path")
+    ok = repo.remove_track(
+        user_id=user_id, playlist_id=pid, track_id=track_id, now=utc_now(),
+    )
+    if not ok:
+        raise PlaylistNotFoundError("Playlist or track not found")
+    log_event(
+        "INFO", "playlist_track_removed",
+        correlation_id=correlation_id, user_id=user_id,
+        playlist_id=pid, track_id=track_id,
+    )
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
+    }
+
+
+def _handle_reorder_playlist_tracks(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = ReorderPlaylistTracksIn.model_validate(_parse_body(event))
+    repo.reorder_tracks(
+        user_id=user_id, playlist_id=pid,
+        ordered_track_ids=body.track_ids, now=utc_now(),
+    )
+    log_event(
+        "INFO", "playlist_track_reordered",
+        correlation_id=correlation_id, user_id=user_id,
+        playlist_id=pid, size=len(body.track_ids),
+    )
+    return _json_response(200, {"correlation_id": correlation_id}, correlation_id)
 
 
 # ---------- spec-D triage handlers ------------------------------------------
@@ -1247,4 +1357,12 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "GET /playlists/{id}": (_handle_get_playlist, _playlists_factory),
     "PATCH /playlists/{id}": (_handle_patch_playlist, _playlists_factory),
     "DELETE /playlists/{id}": (_handle_delete_playlist, _playlists_factory),
+    "GET /playlists/{id}/tracks": (_handle_list_playlist_tracks, _playlists_factory),
+    "POST /playlists/{id}/tracks": (_handle_add_playlist_tracks, _playlists_factory),
+    "DELETE /playlists/{id}/tracks/{track_id}": (
+        _handle_remove_playlist_track, _playlists_factory,
+    ),
+    "POST /playlists/{id}/tracks/order": (
+        _handle_reorder_playlist_tracks, _playlists_factory,
+    ),
 }
