@@ -616,6 +616,8 @@ def test_add_track_returns_existing_when_already_present() -> None:
 
 def test_remove_track_returns_true_on_delete() -> None:
     repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
     # Validate category ownership first (one execute), then delete
     data_api.execute.side_effect = [
         [{"id": "c1"}],
@@ -636,6 +638,8 @@ def test_remove_track_returns_true_on_delete() -> None:
 
 def test_remove_track_raises_category_not_found() -> None:
     repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.side_effect = [[]]
     with pytest.raises(NotFoundError) as exc:
         repo.remove_track(
@@ -650,6 +654,8 @@ def test_remove_track_raises_category_not_found() -> None:
 
 def test_remove_track_returns_false_when_not_in_category() -> None:
     repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.side_effect = [
         [{"id": "c1"}],
         [],   # DELETE RETURNING -> empty
@@ -658,6 +664,78 @@ def test_remove_track_returns_false_when_not_in_category() -> None:
         user_id="u1", category_id="c1", track_id="t-missing"
     )
     assert deleted is False
+
+
+def test_remove_track_calls_tags_cleanup_on_delete() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [{"track_id": "t1"}],
+    ]
+    tags_repo = MagicMock()
+    tags_repo.cleanup_orphaned_track_tags.return_value = 0
+    deleted = repo.remove_track(
+        user_id="u1", category_id="c1", track_id="t1", tags_repo=tags_repo,
+    )
+    assert deleted is True
+    tags_repo.cleanup_orphaned_track_tags.assert_called_once_with(
+        user_id="u1", track_ids=["t1"], transaction_id="tx-1",
+    )
+
+
+def test_remove_track_skips_tags_cleanup_when_nothing_deleted() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [],
+    ]
+    tags_repo = MagicMock()
+    deleted = repo.remove_track(
+        user_id="u1", category_id="c1", track_id="t1", tags_repo=tags_repo,
+    )
+    assert deleted is False
+    tags_repo.cleanup_orphaned_track_tags.assert_not_called()
+
+
+def test_soft_delete_calls_tags_cleanup_for_member_tracks() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [{"track_id": "t1"}, {"track_id": "t2"}],   # SELECT member tracks
+        [{"id": "c1"}],                              # UPDATE deleted_at returning
+        [],                                          # mark_staging_inactive_for_category
+    ]
+    tags_repo = MagicMock()
+    tags_repo.cleanup_orphaned_track_tags.return_value = 0
+    ok = repo.soft_delete(
+        user_id="u1", category_id="c1", now=_now(), tags_repo=tags_repo,
+    )
+    assert ok is True
+    tags_repo.cleanup_orphaned_track_tags.assert_called_once_with(
+        user_id="u1", track_ids=["t1", "t2"], transaction_id="tx-1",
+    )
+
+
+def test_soft_delete_skips_tags_cleanup_when_no_members() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [],                  # SELECT member tracks — empty
+        [{"id": "c1"}],      # UPDATE deleted_at returning
+        [],                  # mark_staging_inactive
+    ]
+    tags_repo = MagicMock()
+    ok = repo.soft_delete(
+        user_id="u1", category_id="c1", now=_now(), tags_repo=tags_repo,
+    )
+    assert ok is True
+    tags_repo.cleanup_orphaned_track_tags.assert_not_called()
 
 
 def test_list_tracks_validates_category() -> None:

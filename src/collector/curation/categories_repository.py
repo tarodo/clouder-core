@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from collector.data_api import DataAPIClient
 from collector.logging_utils import log_event
@@ -23,6 +23,9 @@ from . import (
     utc_now,
 )
 from .categories_service import validate_reorder_set
+
+if TYPE_CHECKING:
+    from .tags_repository import TagsRepository
 
 
 @dataclass(frozen=True)
@@ -341,8 +344,24 @@ class CategoriesRepository:
         category_id: str,
         now: datetime,
         correlation_id: str | None = None,
+        tags_repo: "TagsRepository | None" = None,
     ) -> bool:
         with self._data_api.transaction() as tx_id:
+            # When cleanup is requested, snapshot the member track ids
+            # BEFORE the UPDATE — once the category is soft-deleted, the
+            # cleanup needs to know which tracks to inspect.
+            member_track_ids: list[str] = []
+            if tags_repo is not None:
+                member_rows = self._data_api.execute(
+                    """
+                    SELECT track_id FROM category_tracks
+                    WHERE category_id = :category_id
+                    """,
+                    {"category_id": category_id},
+                    transaction_id=tx_id,
+                )
+                member_track_ids = [r["track_id"] for r in member_rows]
+
             rows = self._data_api.execute(
                 """
                 UPDATE categories
@@ -383,6 +402,13 @@ class CategoriesRepository:
                 category_id=category_id,
                 inactivated_buckets=inactivated,
             )
+
+            if tags_repo is not None and member_track_ids:
+                tags_repo.cleanup_orphaned_track_tags(
+                    user_id=user_id,
+                    track_ids=member_track_ids,
+                    transaction_id=tx_id,
+                )
             return True
 
     def reorder(
@@ -589,30 +615,43 @@ class CategoriesRepository:
         )
 
     def remove_track(
-        self, *, user_id: str, category_id: str, track_id: str
+        self,
+        *,
+        user_id: str,
+        category_id: str,
+        track_id: str,
+        tags_repo: "TagsRepository | None" = None,
     ) -> bool:
-        cat_rows = self._data_api.execute(
-            """
-            SELECT id FROM categories
-            WHERE id = :category_id
-              AND user_id = :user_id
-              AND deleted_at IS NULL
-            """,
-            {"category_id": category_id, "user_id": user_id},
-        )
-        if not cat_rows:
-            raise NotFoundError("category_not_found", "Category not found")
+        with self._data_api.transaction() as tx_id:
+            cat_rows = self._data_api.execute(
+                """
+                SELECT id FROM categories
+                WHERE id = :category_id
+                  AND user_id = :user_id
+                  AND deleted_at IS NULL
+                """,
+                {"category_id": category_id, "user_id": user_id},
+                transaction_id=tx_id,
+            )
+            if not cat_rows:
+                raise NotFoundError("category_not_found", "Category not found")
 
-        rows = self._data_api.execute(
-            """
-            DELETE FROM category_tracks
-            WHERE category_id = :category_id
-              AND track_id = :track_id
-            RETURNING track_id
-            """,
-            {"category_id": category_id, "track_id": track_id},
-        )
-        return bool(rows)
+            rows = self._data_api.execute(
+                """
+                DELETE FROM category_tracks
+                WHERE category_id = :category_id
+                  AND track_id = :track_id
+                RETURNING track_id
+                """,
+                {"category_id": category_id, "track_id": track_id},
+                transaction_id=tx_id,
+            )
+            deleted = bool(rows)
+            if deleted and tags_repo is not None:
+                tags_repo.cleanup_orphaned_track_tags(
+                    user_id=user_id, track_ids=[track_id], transaction_id=tx_id,
+                )
+            return deleted
 
     def list_tracks(
         self,
