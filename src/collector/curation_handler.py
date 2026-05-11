@@ -28,6 +28,7 @@ from .curation import (
     PaginatedResult,
     TagNotFoundError,
     TooManyTagsError,
+    TrackNotInUserScopeError,
     TracksNotInSourceError,
     ValidationError,
     utc_now,
@@ -123,6 +124,8 @@ def _curation_error_response(
         payload["inactive_buckets"] = list(exc.inactive_buckets)
     elif isinstance(exc, TracksNotInSourceError):
         payload["not_in_source"] = list(exc.not_in_source)
+    elif isinstance(exc, TrackNotInUserScopeError):
+        payload["missing_track_ids"] = list(exc.missing_track_ids)
     return _json_response(exc.http_status, payload, correlation_id)
 
 
