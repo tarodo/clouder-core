@@ -950,24 +950,28 @@ def _handle_rename_tag(
     if not tag_id:
         raise ValidationError("tag_id is required in path")
     body = _parse_body(event)
-    name = body.get("name")
-    color = body.get("color")
+    has_name = "name" in body
+    has_color = "color" in body
+    name = body.get("name") if has_name else None
+    color = body.get("color") if has_color else None
     normalized: str | None = None
-    if name is not None:
+    if has_name:
         if not isinstance(name, str) or not name.strip() or len(name.strip()) > _MAX_TAG_NAME:
             raise InvalidTagNameError("name must be 1..64 chars")
         name = name.strip()
         normalized = _normalize_tag_name(name)
-    if color is not None:
+    if has_color and color is not None:
         if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
             raise InvalidTagColorError("color must be #RRGGBB hex or null")
-    if name is None and color is None:
+    if not has_name and not has_color:
         raise InvalidTagPayloadError(
             "at least one of name|color required"
         )
     row = repo.rename_tag(
         user_id=user_id, tag_id=tag_id,
-        name=name, normalized_name=normalized, color=color, now=utc_now(),
+        name=name, normalized_name=normalized,
+        color=color, clear_color=has_color,
+        now=utc_now(),
     )
     return _json_response(200, _tag_dict(row), correlation_id)
 

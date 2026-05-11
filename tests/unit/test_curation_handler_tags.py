@@ -225,6 +225,25 @@ def test_patch_tag_200_renames(fake_tags, context) -> None:
     assert kwargs["name"] == "Vocal F"
     assert kwargs["normalized_name"] == "vocal f"
     assert kwargs["color"] is None
+    assert kwargs.get("clear_color", False) is False
+
+
+def test_patch_tag_clears_color_with_explicit_null(fake_tags, context) -> None:
+    fake_tags.rename_tag.return_value = _stock_tag_row(color=None)
+    resp = lambda_handler(
+        _event(
+            method="PATCH", route="/tags/{tag_id}",
+            path_params={"tag_id": "tg1"},
+            body={"color": None},     # explicit null clears
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["color"] is None
+    kwargs = fake_tags.rename_tag.call_args.kwargs
+    assert kwargs["color"] is None
+    assert kwargs["clear_color"] is True
 
 
 def test_patch_tag_400_when_no_fields(fake_tags, context) -> None:

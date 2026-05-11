@@ -153,6 +153,7 @@ class TagsRepository:
         name: str | None,
         normalized_name: str | None,
         color: str | None,
+        clear_color: bool = False,
         now: datetime,
     ) -> TagRow:
         sets: list[str] = ["updated_at = :updated_at"]
@@ -166,7 +167,7 @@ class TagsRepository:
             params["name"] = name
             sets.append("normalized_name = :normalized_name")
             params["normalized_name"] = normalized_name
-        if color is not None:
+        if color is not None or clear_color:
             sets.append("color = :color")
             params["color"] = color
         try:

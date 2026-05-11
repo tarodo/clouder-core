@@ -419,3 +419,23 @@ def test_rename_tag_with_color_none_does_not_emit_color_set_clause() -> None:
     sql = data_api.execute.call_args.args[0]
     assert "color = :color" not in sql
     assert row.color is None
+
+
+def test_rename_tag_clears_color_when_clear_color_true() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = [
+        {"id": "tg1", "name": "Vocal", "color": None,
+         "created_at": "2026-05-11T12:00:00Z",
+         "updated_at": "2026-05-11T12:01:00Z"}
+    ]
+    row = repo.rename_tag(
+        user_id="u1", tag_id="tg1",
+        name=None, normalized_name=None,
+        color=None, clear_color=True,
+        now=_now(),
+    )
+    sql = data_api.execute.call_args.args[0]
+    assert "color = :color" in sql
+    params = data_api.execute.call_args.args[1]
+    assert params["color"] is None
+    assert row.color is None
