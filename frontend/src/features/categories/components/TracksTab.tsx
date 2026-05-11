@@ -9,14 +9,16 @@ import {
   type SortOrder,
 } from '../hooks/useCategoryTracks';
 import { TrackRow } from './TrackRow';
+import { TrackRowActions } from './TrackRowActions';
 import { SortableTh } from './SortableTh';
 import { EmptyState } from '../../../components/EmptyState';
 
 export interface TracksTabProps {
   categoryId: string;
+  styleId: string;
 }
 
-export function TracksTab({ categoryId }: TracksTabProps) {
+export function TracksTab({ categoryId, styleId }: TracksTabProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
   const [rawSearch, setRawSearch] = useState('');
@@ -91,7 +93,18 @@ export function TracksTab({ categoryId }: TracksTabProps) {
       <Stack gap="md">
         {searchInput}
         {items.map((tr) => (
-          <TrackRow key={tr.id} track={tr} variant="mobile" />
+          <TrackRow
+            key={tr.id}
+            track={tr}
+            variant="mobile"
+            actions={
+              <TrackRowActions
+                track={tr}
+                currentCategoryId={categoryId}
+                styleId={styleId}
+              />
+            }
+          />
         ))}
         {hasNextPage && (
           <Button onClick={() => fetchNextPage()} loading={isFetchingNextPage} variant="default">
@@ -133,11 +146,23 @@ export function TracksTab({ categoryId }: TracksTabProps) {
             >
               {t('categories.tracks_table.added')}
             </SortableTh>
+            <Table.Th aria-hidden style={{ width: 40 }} />
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {items.map((track) => (
-            <TrackRow key={track.id} track={track} variant="desktop" />
+            <TrackRow
+              key={track.id}
+              track={track}
+              variant="desktop"
+              actions={
+                <TrackRowActions
+                  track={track}
+                  currentCategoryId={categoryId}
+                  styleId={styleId}
+                />
+              }
+            />
           ))}
         </Table.Tbody>
       </Table>

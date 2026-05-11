@@ -52,10 +52,13 @@ describe('TracksTab', () => {
           offset,
         });
       }),
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
     );
     render(
       <Wrapper>
-        <TracksTab categoryId="c1" />
+        <TracksTab categoryId="c1" styleId="s1" />
       </Wrapper>,
     );
     await waitFor(() => expect(screen.getByText('Track 0')).toBeInTheDocument());
@@ -70,10 +73,13 @@ describe('TracksTab', () => {
       http.get('http://localhost/categories/c1/tracks', () =>
         HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
       ),
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
     );
     render(
       <Wrapper>
-        <TracksTab categoryId="c1" />
+        <TracksTab categoryId="c1" styleId="s1" />
       </Wrapper>,
     );
     await userEvent.type(screen.getByPlaceholderText(/search by title/i), 'zzz');
@@ -85,10 +91,13 @@ describe('TracksTab', () => {
       http.get('http://localhost/categories/c1/tracks', () =>
         HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
       ),
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
     );
     render(
       <Wrapper>
-        <TracksTab categoryId="c1" />
+        <TracksTab categoryId="c1" styleId="s1" />
       </Wrapper>,
     );
     await waitFor(() => expect(screen.getByText(/no tracks yet/i)).toBeInTheDocument());
@@ -99,10 +108,13 @@ describe('TracksTab', () => {
       http.get('http://localhost/categories/c1/tracks', () =>
         HttpResponse.json({ items: mkTracks(0, 1), total: 1, limit: 50, offset: 0 }),
       ),
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
     );
     render(
       <Wrapper>
-        <TracksTab categoryId="c1" />
+        <TracksTab categoryId="c1" styleId="s1" />
       </Wrapper>,
     );
     await waitFor(() => expect(screen.getByText('Track 0')).toBeInTheDocument());
@@ -129,10 +141,13 @@ describe('TracksTab', () => {
           offset: 0,
         });
       }),
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
     );
     render(
       <Wrapper>
-        <TracksTab categoryId="c1" />
+        <TracksTab categoryId="c1" styleId="s1" />
       </Wrapper>,
     );
     await waitFor(() => expect(screen.getByText('Track 0')).toBeInTheDocument());
@@ -142,5 +157,23 @@ describe('TracksTab', () => {
     await userEvent.click(screen.getByRole('button', { name: /Title/i }));
     await waitFor(() => expect(lastOrder).toBe('desc'));
     expect(lastSort).toBe('title');
+  });
+
+  it('renders an actions column with a kebab trigger per row (desktop)', async () => {
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', () =>
+        HttpResponse.json({ items: mkTracks(0, 2), total: 2, limit: 50, offset: 0 }),
+      ),
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
+    );
+    render(
+      <Wrapper>
+        <TracksTab categoryId="c1" styleId="s1" />
+      </Wrapper>,
+    );
+    await waitFor(() => expect(screen.getByText('Track 0')).toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: /Track actions/i })).toHaveLength(2);
   });
 });
