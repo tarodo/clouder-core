@@ -133,6 +133,7 @@ locals {
     "/runs*",
     "/collect_bp_releases",
     "/triage/blocks*",
+    "/tags*",
   ]
   api_gw_spa_aware_path_patterns = [
     "/categories*",
