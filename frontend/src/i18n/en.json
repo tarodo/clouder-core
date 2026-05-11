@@ -169,6 +169,9 @@
       "loading": "Loading categories…"
     }
   },
+  "tags": {
+    "color_picker": { "none_aria": "no colour" }
+  },
   "triage": {
     "page_title": "Triage",
     "create_cta": "New triage block",
