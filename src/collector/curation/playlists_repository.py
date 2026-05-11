@@ -17,8 +17,13 @@ from . import (
     PlaylistLimitReachedError,
     PlaylistNameConflictError,
     PlaylistNotFoundError,
+    PlaylistTrackLimitError,
 )
-from .playlists_service import MAX_PLAYLISTS_PER_USER
+from .playlists_service import (
+    MAX_PLAYLISTS_PER_USER,
+    MAX_TRACKS_PER_PLAYLIST,
+    validate_reorder_set,
+)
 
 
 @dataclass(frozen=True)
@@ -78,6 +83,25 @@ def _row(raw: Mapping[str, Any]) -> PlaylistRow:
         created_at=str(raw["created_at"]),
         updated_at=str(raw["updated_at"]),
     )
+
+
+@dataclass(frozen=True)
+class PlaylistTrackRow:
+    track_id: str
+    position: int
+    added_at: str
+    title: str
+    spotify_id: str | None
+    isrc: str | None
+    length_ms: int | None
+    origin: str
+
+
+@dataclass(frozen=True)
+class AppendTracksResult:
+    added_track_ids: list[str]
+    skipped_duplicates: list[str]
+    position_after: int
 
 
 class PlaylistsRepository:
@@ -250,6 +274,236 @@ class PlaylistsRepository:
             {"id": playlist_id, "user_id": user_id, "now": now},
         )
         return bool(rows)
+
+    # ---------- Tracks -------------------------------------------------------
+
+    def append_tracks(
+        self,
+        *,
+        user_id: str,
+        playlist_id: str,
+        track_ids: list[str],
+        now: datetime,
+    ) -> AppendTracksResult:
+        if not track_ids:
+            return AppendTracksResult([], [], 0)
+        with self._data_api.transaction() as tx_id:
+            owner_rows = self._data_api.execute(
+                "SELECT 1 AS ok FROM playlists "
+                "WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL",
+                {"id": playlist_id, "user_id": user_id},
+                transaction_id=tx_id,
+            )
+            if not owner_rows:
+                raise PlaylistNotFoundError()
+
+            count_rows = self._data_api.execute(
+                "SELECT COUNT(*) AS cnt FROM playlist_tracks "
+                "WHERE playlist_id = :id",
+                {"id": playlist_id},
+                transaction_id=tx_id,
+            )
+            current = int(count_rows[0]["cnt"]) if count_rows else 0
+
+            existing_rows = self._data_api.execute(
+                "SELECT track_id FROM playlist_tracks "
+                "WHERE playlist_id = :id AND track_id = ANY(:ids)",
+                {"id": playlist_id, "ids": track_ids},
+                transaction_id=tx_id,
+            )
+            existing = {r["track_id"] for r in existing_rows}
+
+            to_add = [t for t in track_ids if t not in existing]
+            skipped = [t for t in track_ids if t in existing]
+
+            if current + len(to_add) > MAX_TRACKS_PER_PLAYLIST:
+                raise PlaylistTrackLimitError(
+                    f"Cannot exceed {MAX_TRACKS_PER_PLAYLIST} tracks per playlist"
+                )
+
+            max_rows = self._data_api.execute(
+                "SELECT COALESCE(MAX(position), -1) AS max_pos "
+                "FROM playlist_tracks WHERE playlist_id = :id",
+                {"id": playlist_id},
+                transaction_id=tx_id,
+            )
+            start = int(max_rows[0]["max_pos"]) + 1
+
+            if to_add:
+                self._data_api.batch_execute(
+                    "INSERT INTO playlist_tracks "
+                    "(playlist_id, track_id, position, added_at) "
+                    "VALUES (:playlist_id, :track_id, :position, :now)",
+                    [
+                        {
+                            "playlist_id": playlist_id,
+                            "track_id": t,
+                            "position": start + i,
+                            "now": now,
+                        }
+                        for i, t in enumerate(to_add)
+                    ],
+                    transaction_id=tx_id,
+                )
+                self._mark_dirty_if_published(playlist_id, now, tx_id)
+
+            return AppendTracksResult(
+                added_track_ids=to_add,
+                skipped_duplicates=skipped,
+                position_after=start + len(to_add),
+            )
+
+    def remove_track(
+        self,
+        *,
+        user_id: str,
+        playlist_id: str,
+        track_id: str,
+    ) -> bool:
+        with self._data_api.transaction() as tx_id:
+            owner_rows = self._data_api.execute(
+                "SELECT 1 AS ok FROM playlists "
+                "WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL",
+                {"id": playlist_id, "user_id": user_id},
+                transaction_id=tx_id,
+            )
+            if not owner_rows:
+                raise PlaylistNotFoundError()
+
+            pos_rows = self._data_api.execute(
+                "SELECT position FROM playlist_tracks "
+                "WHERE playlist_id = :id AND track_id = :tid",
+                {"id": playlist_id, "tid": track_id},
+                transaction_id=tx_id,
+            )
+            if not pos_rows:
+                return False
+            removed_pos = int(pos_rows[0]["position"])
+
+            self._data_api.execute(
+                "DELETE FROM playlist_tracks "
+                "WHERE playlist_id = :id AND track_id = :tid",
+                {"id": playlist_id, "tid": track_id},
+                transaction_id=tx_id,
+            )
+            self._data_api.execute(
+                "UPDATE playlist_tracks SET position = position - 1 "
+                "WHERE playlist_id = :id AND position > :pos",
+                {"id": playlist_id, "pos": removed_pos},
+                transaction_id=tx_id,
+            )
+            # Use a real timestamp so updated_at on playlists is sensible.
+            from datetime import timezone as _tz
+            now = datetime.now(_tz.utc)
+            self._mark_dirty_if_published(playlist_id, now, tx_id)
+            return True
+
+    def reorder_tracks(
+        self,
+        *,
+        user_id: str,
+        playlist_id: str,
+        ordered_track_ids: list[str],
+        now: datetime,
+    ) -> None:
+        with self._data_api.transaction() as tx_id:
+            owner_rows = self._data_api.execute(
+                "SELECT 1 AS ok FROM playlists "
+                "WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL",
+                {"id": playlist_id, "user_id": user_id},
+                transaction_id=tx_id,
+            )
+            if not owner_rows:
+                raise PlaylistNotFoundError()
+
+            current = self._data_api.execute(
+                "SELECT track_id FROM playlist_tracks WHERE playlist_id = :id",
+                {"id": playlist_id},
+                transaction_id=tx_id,
+            )
+            actual_ids = [r["track_id"] for r in current]
+            validate_reorder_set(actual=actual_ids, requested=ordered_track_ids)
+
+            # Two-phase: shift everyone past the max position, then put them
+            # back with desired positions. Avoids stepping on the
+            # (playlist_id, position) UNIQUE even though it is DEFERRABLE.
+            self._data_api.execute(
+                "UPDATE playlist_tracks "
+                "SET position = position + :offset "
+                "WHERE playlist_id = :id",
+                {"id": playlist_id, "offset": len(actual_ids) + 1},
+                transaction_id=tx_id,
+            )
+            self._data_api.batch_execute(
+                "UPDATE playlist_tracks SET position = :position "
+                "WHERE playlist_id = :playlist_id AND track_id = :track_id",
+                [
+                    {"playlist_id": playlist_id, "track_id": t, "position": i}
+                    for i, t in enumerate(ordered_track_ids)
+                ],
+                transaction_id=tx_id,
+            )
+            self._mark_dirty_if_published(playlist_id, now, tx_id)
+
+    def list_tracks(
+        self,
+        *,
+        user_id: str,
+        playlist_id: str,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[PlaylistTrackRow], int]:
+        owner = self._data_api.execute(
+            "SELECT 1 AS ok FROM playlists "
+            "WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL",
+            {"id": playlist_id, "user_id": user_id},
+        )
+        if not owner:
+            raise PlaylistNotFoundError()
+        rows = self._data_api.execute(
+            """
+            SELECT pt.track_id, pt.position, pt.added_at,
+                   t.title, t.spotify_id, t.isrc, t.length_ms, t.origin
+            FROM playlist_tracks pt
+            JOIN clouder_tracks t ON t.id = pt.track_id
+            WHERE pt.playlist_id = :id
+            ORDER BY pt.position ASC
+            LIMIT :limit OFFSET :offset
+            """,
+            {"id": playlist_id, "limit": limit, "offset": offset},
+        )
+        total_rows = self._data_api.execute(
+            "SELECT COUNT(*) AS total FROM playlist_tracks pt2 "
+            "WHERE pt2.playlist_id = :id",
+            {"id": playlist_id},
+        )
+        total = int(total_rows[0]["total"]) if total_rows else 0
+        out = [
+            PlaylistTrackRow(
+                track_id=r["track_id"],
+                position=int(r["position"]),
+                added_at=str(r["added_at"]),
+                title=r["title"],
+                spotify_id=r.get("spotify_id"),
+                isrc=r.get("isrc"),
+                length_ms=(int(r["length_ms"]) if r.get("length_ms") else None),
+                origin=r.get("origin") or "beatport",
+            )
+            for r in rows
+        ]
+        return out, total
+
+    # ---------- Helpers ------------------------------------------------------
+
+    def _mark_dirty_if_published(
+        self, playlist_id: str, now: datetime, tx_id: str
+    ) -> None:
+        self._data_api.execute(
+            "UPDATE playlists SET needs_republish = TRUE, updated_at = :now "
+            "WHERE id = :id AND spotify_playlist_id IS NOT NULL",
+            {"id": playlist_id, "now": now},
+            transaction_id=tx_id,
+        )
 
 
 def create_default_playlists_repository() -> PlaylistsRepository | None:

@@ -156,3 +156,212 @@ def test_patch_raises_not_found_when_missing() -> None:
             name="new", normalized_name="new",
             description=None, is_public=None, now=_utc(),
         )
+
+
+from collector.curation import (
+    OrderMismatchError,
+    PlaylistTrackLimitError,
+)
+from collector.curation.playlists_repository import PlaylistTrackRow
+
+
+def test_append_tracks_uses_max_position_plus_one() -> None:
+    captured_inserts: list[dict] = []
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT COUNT(*) AS cnt FROM playlist_tracks" in sql:
+            return [{"cnt": 3}]
+        if "SELECT COALESCE(MAX(position), -1)" in sql:
+            return [{"max_pos": 4}]
+        if "SELECT track_id FROM playlist_tracks" in sql:
+            return []  # no duplicates yet
+        return []
+
+    def _batch_execute(sql, parameter_sets, transaction_id=None):
+        captured_inserts.extend(parameter_sets)
+
+    api.execute.side_effect = _execute
+    api.batch_execute.side_effect = _batch_execute
+
+    repo = PlaylistsRepository(api)
+    result = repo.append_tracks(
+        user_id="u-1",
+        playlist_id="p-1",
+        track_ids=["t-a", "t-b"],
+        now=_utc(),
+    )
+    assert result.added_track_ids == ["t-a", "t-b"]
+    assert result.skipped_duplicates == []
+    assert result.position_after == 7
+    assert [p["position"] for p in captured_inserts] == [5, 6]
+
+
+def test_append_tracks_dedups_against_existing() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT COUNT(*) AS cnt FROM playlist_tracks" in sql:
+            return [{"cnt": 1}]
+        if "SELECT COALESCE(MAX(position), -1)" in sql:
+            return [{"max_pos": 0}]
+        if "SELECT track_id FROM playlist_tracks" in sql:
+            return [{"track_id": "t-a"}]
+        return []
+
+    api.execute.side_effect = _execute
+    api.batch_execute = MagicMock()
+
+    repo = PlaylistsRepository(api)
+    result = repo.append_tracks(
+        user_id="u-1", playlist_id="p-1",
+        track_ids=["t-a", "t-b"], now=_utc(),
+    )
+    assert result.added_track_ids == ["t-b"]
+    assert result.skipped_duplicates == ["t-a"]
+
+
+def test_append_tracks_rejects_when_over_limit() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT COUNT(*) AS cnt FROM playlist_tracks" in sql:
+            return [{"cnt": 999}]
+        if "SELECT track_id FROM playlist_tracks" in sql:
+            return []
+        if "SELECT COALESCE(MAX(position), -1)" in sql:
+            return [{"max_pos": 998}]
+        return []
+
+    api.execute.side_effect = _execute
+    api.batch_execute = MagicMock()
+    repo = PlaylistsRepository(api)
+    with pytest.raises(PlaylistTrackLimitError):
+        repo.append_tracks(
+            user_id="u-1", playlist_id="p-1",
+            track_ids=["a", "b"], now=_utc(),
+        )
+
+
+def test_remove_track_redenses_positions() -> None:
+    captured = []
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        captured.append((sql.strip().split()[0], params))
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT position FROM playlist_tracks" in sql:
+            return [{"position": 2}]
+        if "DELETE FROM playlist_tracks" in sql:
+            return [{"track_id": "t-1"}]
+        return []
+
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    removed = repo.remove_track(user_id="u-1", playlist_id="p-1", track_id="t-1")
+    assert removed is True
+    assert any("UPDATE" in op for op, _ in captured)
+
+
+def test_remove_track_returns_false_when_missing() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT position FROM playlist_tracks" in sql:
+            return []
+        return []
+
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    assert repo.remove_track(user_id="u-1", playlist_id="p-1", track_id="x") is False
+
+
+def test_reorder_rejects_mismatched_set() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT track_id FROM playlist_tracks" in sql:
+            return [{"track_id": "t-1"}, {"track_id": "t-2"}]
+        return []
+
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    with pytest.raises(OrderMismatchError):
+        repo.reorder_tracks(
+            user_id="u-1", playlist_id="p-1",
+            ordered_track_ids=["t-1", "t-2", "t-3"], now=_utc(),
+        )
+
+
+def test_reorder_accepts_permutation_and_emits_updates() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT track_id FROM playlist_tracks" in sql:
+            return [{"track_id": "t-1"}, {"track_id": "t-2"}]
+        return []
+
+    batched = []
+    api.execute.side_effect = _execute
+    api.batch_execute.side_effect = (
+        lambda sql, parameter_sets, transaction_id=None: batched.extend(parameter_sets)
+    )
+    repo = PlaylistsRepository(api)
+    repo.reorder_tracks(
+        user_id="u-1", playlist_id="p-1",
+        ordered_track_ids=["t-2", "t-1"], now=_utc(),
+    )
+    assert {(p["track_id"], p["position"]) for p in batched} == {
+        ("t-2", 0), ("t-1", 1),
+    }
+
+
+def test_list_tracks_returns_rows_with_position() -> None:
+    api = _make_data_api({
+        "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
+        # Check the COUNT needle before the JOIN needle: the JOIN needle
+        # "FROM playlist_tracks pt" is also a substring of the COUNT SQL
+        # (which uses alias "pt2"), so insertion order matters here.
+        "SELECT COUNT(*) AS total FROM playlist_tracks pt2": [{"total": 1}],
+        "FROM playlist_tracks pt": [
+            {
+                "track_id": "t-1", "position": 0, "added_at": _utc().isoformat(),
+                "title": "Title A", "spotify_id": "s-a", "isrc": None,
+                "length_ms": 200000, "origin": "beatport",
+            },
+        ],
+    })
+    repo = PlaylistsRepository(api)
+    rows, total = repo.list_tracks(
+        user_id="u-1", playlist_id="p-1", limit=50, offset=0,
+    )
+    assert total == 1
+    assert isinstance(rows[0], PlaylistTrackRow)
+    assert rows[0].position == 0
