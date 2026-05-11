@@ -436,3 +436,96 @@ def test_set_publish_state_persists_and_clears_dirty() -> None:
     )
     assert "needs_republish = FALSE" in captured["sql"]
     assert captured["params"]["spotify_playlist_id"] == "spt-abc"
+
+
+def test_validate_tracks_in_scope_returns_subset() -> None:
+    api = _make_data_api({
+        "SELECT t.id": [{"id": "t-1"}, {"id": "t-3"}],
+    })
+    repo = PlaylistsRepository(api)
+    visible = repo.validate_tracks_in_scope(
+        user_id="u-1", track_ids=["t-1", "t-2", "t-3"],
+    )
+    assert visible == {"t-1", "t-3"}
+
+
+def test_validate_tracks_in_scope_empty_input() -> None:
+    api = MagicMock()
+    repo = PlaylistsRepository(api)
+    assert repo.validate_tracks_in_scope(user_id="u-1", track_ids=[]) == set()
+    api.execute.assert_not_called()
+
+
+def test_upsert_imported_track_uses_existing_when_spotify_id_matches() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT id FROM clouder_tracks WHERE spotify_id" in sql:
+            return [{"id": "existing-track-id"}]
+        return []
+
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    track_id = repo.upsert_imported_track(
+        user_id="u-1",
+        spotify_id="spt-abc",
+        title="X", isrc=None, length_ms=200_000, now=_utc(),
+    )
+    assert track_id == "existing-track-id"
+
+
+def test_upsert_imported_track_inserts_new_when_missing() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+    calls = []
+
+    def _execute(sql, params=None, transaction_id=None):
+        calls.append(sql.split("\n")[0].strip())
+        if "SELECT id FROM clouder_tracks WHERE spotify_id" in sql:
+            return []
+        if "INSERT INTO clouder_tracks" in sql:
+            return [{"id": params["id"]}]
+        return []
+
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    track_id = repo.upsert_imported_track(
+        user_id="u-1",
+        spotify_id="spt-abc",
+        title="X", isrc=None, length_ms=None, now=_utc(),
+    )
+    assert track_id
+    sqls = " | ".join(calls)
+    assert "INSERT INTO clouder_tracks" in sqls
+    assert "INSERT INTO user_imported_tracks" in sqls
+
+
+def test_upsert_imported_track_handles_race_on_conflict() -> None:
+    """ON CONFLICT skipped → repository re-SELECTs the winner's id."""
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    state = {"selected": 0}
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT id FROM clouder_tracks WHERE spotify_id" in sql:
+            state["selected"] += 1
+            if state["selected"] == 1:
+                return []  # first check: not there
+            return [{"id": "winner"}]  # second check after ON CONFLICT
+        if "INSERT INTO clouder_tracks" in sql:
+            return []  # conflict, nothing returned
+        return []
+
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    track_id = repo.upsert_imported_track(
+        user_id="u-1",
+        spotify_id="spt-abc",
+        title="X", isrc=None, length_ms=None, now=_utc(),
+    )
+    assert track_id == "winner"

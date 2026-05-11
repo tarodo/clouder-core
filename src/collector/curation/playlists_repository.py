@@ -6,11 +6,13 @@ Cross-user access yields no rows → handler maps to 404.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping
 
 from collector.data_api import DataAPIClient
+from collector.models import normalize_text
 from collector.settings import get_data_api_settings
 
 from . import (
@@ -57,6 +59,31 @@ _PLAYLIST_SELECT = """
         FROM playlist_tracks
         GROUP BY playlist_id
     ) t ON t.playlist_id = p.id
+"""
+
+
+_SCOPE_CHECK_SQL = """
+    SELECT t.id
+    FROM clouder_tracks t
+    WHERE t.id = ANY(:track_ids)
+      AND (
+        EXISTS (
+          SELECT 1 FROM category_tracks ct
+          JOIN categories c ON c.id = ct.category_id
+          WHERE ct.track_id = t.id AND c.user_id = :user_id
+        )
+        OR EXISTS (
+          SELECT 1 FROM playlist_tracks pt
+          JOIN playlists p ON p.id = pt.playlist_id
+          WHERE pt.track_id = t.id
+            AND p.user_id = :user_id
+            AND p.deleted_at IS NULL
+        )
+        OR EXISTS (
+          SELECT 1 FROM user_imported_tracks uit
+          WHERE uit.track_id = t.id AND uit.user_id = :user_id
+        )
+      )
 """
 
 
@@ -578,6 +605,91 @@ class PlaylistsRepository:
             },
         )
         return bool(rows)
+
+    # ---------- Scope check + import -----------------------------------------
+
+    def validate_tracks_in_scope(
+        self,
+        *,
+        user_id: str,
+        track_ids: list[str],
+    ) -> set[str]:
+        if not track_ids:
+            return set()
+        rows = self._data_api.execute(
+            _SCOPE_CHECK_SQL,
+            {"user_id": user_id, "track_ids": track_ids},
+        )
+        return {r["id"] for r in rows}
+
+    def upsert_imported_track(
+        self,
+        *,
+        user_id: str,
+        spotify_id: str,
+        title: str,
+        isrc: str | None,
+        length_ms: int | None,
+        now: datetime,
+    ) -> str:
+        """Idempotent import: returns canonical clouder_tracks.id.
+
+        Three branches:
+          1. spotify_id already present → reuse.
+          2. INSERT ... ON CONFLICT DO NOTHING returned a row → use it.
+          3. Conflict (race) → re-SELECT to find the winner's id.
+
+        Always inserts a (user_id, track_id) marker into user_imported_tracks.
+        """
+        with self._data_api.transaction() as tx_id:
+            existing = self._data_api.execute(
+                "SELECT id FROM clouder_tracks WHERE spotify_id = :spotify_id",
+                {"spotify_id": spotify_id},
+                transaction_id=tx_id,
+            )
+            if existing:
+                track_id = existing[0]["id"]
+            else:
+                new_id = str(uuid.uuid4())
+                inserted = self._data_api.execute(
+                    "INSERT INTO clouder_tracks (\n"
+                    "    id, title, normalized_title, isrc, length_ms,\n"
+                    "    spotify_id, origin, created_at, updated_at\n"
+                    ") VALUES (\n"
+                    "    :id, :title, :normalized_title, :isrc, :length_ms,\n"
+                    "    :spotify_id, 'spotify_user_import', :now, :now\n"
+                    ")\n"
+                    "ON CONFLICT (spotify_id) DO NOTHING\n"
+                    "RETURNING id",
+                    {
+                        "id": new_id,
+                        "title": title,
+                        "normalized_title": normalize_text(title),
+                        "isrc": isrc,
+                        "length_ms": length_ms,
+                        "spotify_id": spotify_id,
+                        "now": now,
+                    },
+                    transaction_id=tx_id,
+                )
+                if inserted:
+                    track_id = inserted[0]["id"]
+                else:
+                    rerun = self._data_api.execute(
+                        "SELECT id FROM clouder_tracks WHERE spotify_id = :spotify_id",
+                        {"spotify_id": spotify_id},
+                        transaction_id=tx_id,
+                    )
+                    track_id = rerun[0]["id"]
+
+            self._data_api.execute(
+                "INSERT INTO user_imported_tracks (user_id, track_id, imported_at)\n"
+                "VALUES (:user_id, :track_id, :now)\n"
+                "ON CONFLICT DO NOTHING",
+                {"user_id": user_id, "track_id": track_id, "now": now},
+                transaction_id=tx_id,
+            )
+            return track_id
 
     # ---------- Helpers ------------------------------------------------------
 
