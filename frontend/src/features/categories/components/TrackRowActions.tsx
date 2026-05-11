@@ -62,93 +62,86 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
     });
   };
 
-  const handleMove = (toCategoryId: string, toCategoryName: string) => {
-    moveMut.mutate(
-      {
+  const handleMove = async (toCategoryId: string, toCategoryName: string) => {
+    try {
+      await moveMut.mutateAsync({
         trackId: track.id,
         fromCategoryId: currentCategoryId,
         toCategoryId,
-      },
-      {
-        onSuccess: () => {
-          fireUndoToast(
-            t('categories.toast.track_moved', { name: toCategoryName }),
-            () =>
-              moveMut.mutateAsync({
-                trackId: track.id,
-                fromCategoryId: toCategoryId,
-                toCategoryId: currentCategoryId,
-              }) as unknown as Promise<void>,
-          );
-        },
-        onError: (err) => {
-          if (err instanceof MovePartialError) {
-            const partialId = `cat-track-partial-${Date.now()}-${track.id}`;
-            notifications.show({
-              id: partialId,
-              color: 'red',
-              autoClose: 8000,
-              message: (
-                <Group justify="space-between" gap="md">
-                  <Text size="sm">{t('categories.toast.track_moved_partial')}</Text>
-                  <Anchor
-                    component="button"
-                    onClick={async () => {
-                      notifications.hide(partialId);
-                      try {
-                        await api(`/categories/${currentCategoryId}/tracks/${track.id}`, {
-                          method: 'DELETE',
-                        });
-                        notifications.show({
-                          message: t('categories.toast.track_removed'),
-                          color: 'green',
-                        });
-                      } catch {
-                        notifications.show({
-                          message: t('categories.toast.track_remove_failed'),
-                          color: 'red',
-                        });
-                      }
-                    }}
-                  >
-                    {t('categories.toast.retry')}
-                  </Anchor>
-                </Group>
-              ),
-            });
-          } else {
-            notifications.show({
-              message: t('categories.toast.track_move_failed'),
-              color: 'red',
-            });
-          }
-        },
-      },
-    );
+      });
+      fireUndoToast(
+        t('categories.toast.track_moved', { name: toCategoryName }),
+        () =>
+          moveMut.mutateAsync({
+            trackId: track.id,
+            fromCategoryId: toCategoryId,
+            toCategoryId: currentCategoryId,
+          }) as unknown as Promise<void>,
+      );
+    } catch (err) {
+      if (err instanceof MovePartialError) {
+        const partialId = `cat-track-partial-${Date.now()}-${track.id}`;
+        notifications.show({
+          id: partialId,
+          color: 'red',
+          autoClose: 8000,
+          message: (
+            <Group justify="space-between" gap="md">
+              <Text size="sm">{t('categories.toast.track_moved_partial')}</Text>
+              <Anchor
+                component="button"
+                onClick={async () => {
+                  notifications.hide(partialId);
+                  try {
+                    await api(`/categories/${currentCategoryId}/tracks/${track.id}`, {
+                      method: 'DELETE',
+                    });
+                    notifications.show({
+                      message: t('categories.toast.track_removed'),
+                      color: 'green',
+                    });
+                  } catch {
+                    notifications.show({
+                      message: t('categories.toast.track_remove_failed'),
+                      color: 'red',
+                    });
+                  }
+                }}
+              >
+                {t('categories.toast.retry')}
+              </Anchor>
+            </Group>
+          ),
+        });
+      } else {
+        notifications.show({
+          message: t('categories.toast.track_move_failed'),
+          color: 'red',
+        });
+      }
+    }
   };
 
-  const handleRemove = () => {
-    removeMut.mutate(
-      { categoryId: currentCategoryId, trackId: track.id },
-      {
-        onSuccess: () => {
-          fireUndoToast(
-            t('categories.toast.track_removed'),
-            () =>
-              addMut.mutateAsync({
-                categoryId: currentCategoryId,
-                trackId: track.id,
-              }) as unknown as Promise<void>,
-          );
-        },
-        onError: () => {
-          notifications.show({
-            message: t('categories.toast.track_remove_failed'),
-            color: 'red',
-          });
-        },
-      },
-    );
+  const handleRemove = async () => {
+    try {
+      await removeMut.mutateAsync({
+        categoryId: currentCategoryId,
+        trackId: track.id,
+      });
+      fireUndoToast(
+        t('categories.toast.track_removed'),
+        () =>
+          addMut.mutateAsync({
+            categoryId: currentCategoryId,
+            trackId: track.id,
+          }) as unknown as Promise<void>,
+      );
+    } catch {
+      notifications.show({
+        message: t('categories.toast.track_remove_failed'),
+        color: 'red',
+      });
+    }
   };
 
   return (
