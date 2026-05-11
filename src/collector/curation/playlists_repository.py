@@ -231,9 +231,12 @@ class PlaylistsRepository:
         if not rows:
             raise PlaylistNotFoundError()
         # track_count not returned by UPDATE; re-select to attach it.
-        return self.get(user_id=user_id, playlist_id=playlist_id) or _row(
-            {**rows[0], "track_count": 0}
-        )
+        # If the row vanished between UPDATE and SELECT (concurrent
+        # soft-delete), surface as 404 rather than synthesizing a stale row.
+        result = self.get(user_id=user_id, playlist_id=playlist_id)
+        if result is None:
+            raise PlaylistNotFoundError()
+        return result
 
     def soft_delete(
         self, *, user_id: str, playlist_id: str, now: datetime
