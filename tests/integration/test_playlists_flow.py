@@ -250,13 +250,14 @@ class FakePlaylistsRepo:
         return True
 
     def set_publish_state(self, *, user_id, playlist_id,
-                          spotify_playlist_id, now) -> bool:
+                          spotify_playlist_id, now,
+                          mark_dirty: bool = False) -> bool:
         p = self.playlists.get(playlist_id)
         if p is None or p["user_id"] != user_id or p.get("deleted_at"):
             return False
         p["spotify_playlist_id"] = spotify_playlist_id
         p["last_published_at"] = now.isoformat()
-        p["needs_republish"] = False
+        p["needs_republish"] = bool(mark_dirty)
         p["updated_at"] = now.isoformat()
         return True
 
@@ -313,6 +314,7 @@ def fake_s3(monkeypatch):
         f"covers/{user_id}/{playlist_id}/{epoch_ms}.jpg"
     )
     s3.presigned_cover_put_url.return_value = "https://signed-put"
+    s3.presigned_cover_get_url.return_value = "https://signed-get"
     s3.head_cover.return_value = {"size": 1024, "content_type": "image/jpeg"}
     s3.read_cover_bytes.return_value = b"\xff\xd8jpegbytes"
     monkeypatch.setattr(
@@ -372,14 +374,19 @@ def test_full_lifecycle(fake_repo):
         None,
     )
     assert resp["statusCode"] == 201
-    pid = json.loads(resp["body"])["id"]
+    created = json.loads(resp["body"])
+    pid = created["id"]
+    # Newly-created playlist has no cover → cover_url is null.
+    assert created["cover_url"] is None
 
     # 2. List
     resp = lambda_handler(
         _event(method="GET", route="/playlists"), None,
     )
     assert resp["statusCode"] == 200
-    assert json.loads(resp["body"])["total"] == 1
+    listed = json.loads(resp["body"])
+    assert listed["total"] == 1
+    assert listed["items"][0]["cover_url"] is None
 
     # 3. Seed a canonical track in user's category scope
     fake_repo.canonical_tracks["t-1"] = {
@@ -565,7 +572,19 @@ def test_cover_upload_lifecycle(fake_repo, fake_s3):
         None,
     )
     assert resp["statusCode"] == 200
-    assert json.loads(resp["body"])["cover_s3_key"] == s3_key
+    body = json.loads(resp["body"])
+    assert body["cover_s3_key"] == s3_key
+    # Cover URL is a presigned GET on the cover key.
+    assert body["cover_url"] == "https://signed-get"
+
+    # GET /playlists/{id} also surfaces cover_url.
+    resp = lambda_handler(
+        _event(method="GET", route="/playlists/{id}",
+               path_params={"id": pid}),
+        None,
+    )
+    assert resp["statusCode"] == 200
+    assert json.loads(resp["body"])["cover_url"] == "https://signed-get"
 
     # Delete cover
     resp = lambda_handler(
@@ -574,4 +593,52 @@ def test_cover_upload_lifecycle(fake_repo, fake_s3):
         None,
     )
     assert resp["statusCode"] == 200
-    assert json.loads(resp["body"])["cover_s3_key"] is None
+    body = json.loads(resp["body"])
+    assert body["cover_s3_key"] is None
+    assert body["cover_url"] is None
+
+
+def test_publish_cover_failure_keeps_dirty(
+    fake_repo, fake_s3, fake_spotify_client,
+):
+    """When cover upload fails during publish, the playlist stays
+    needs_republish=True and the response carries cover_failed=True."""
+    from collector.curation import SpotifyApiError
+
+    # Set up: create playlist, set a cover, add a track with spotify_id.
+    resp = lambda_handler(
+        _event(method="POST", route="/playlists", body={"name": "Set"}),
+        None,
+    )
+    pid = json.loads(resp["body"])["id"]
+    fake_repo.playlists[pid]["cover_s3_key"] = f"covers/u1/{pid}/1.jpg"
+    fake_repo.canonical_tracks["t-1"] = {
+        "title": "T", "spotify_id": "spt-a", "isrc": None,
+        "length_ms": 200000, "origin": "beatport",
+    }
+    fake_repo.category_tracks["u1"] = {"t-1"}
+    lambda_handler(
+        _event(method="POST", route="/playlists/{id}/tracks",
+               body={"track_ids": ["t-1"]}, path_params={"id": pid}),
+        None,
+    )
+
+    # Force the cover upload to fail.
+    fake_spotify_client.set_cover.side_effect = SpotifyApiError("503")
+
+    resp = lambda_handler(
+        _event(method="POST", route="/playlists/{id}/publish",
+               body={"confirm_overwrite": False},
+               path_params={"id": pid}),
+        None,
+    )
+    assert resp["statusCode"] == 200
+    body = json.loads(resp["body"])
+    assert body["cover_failed"] is True
+    assert body["spotify_playlist_id"] == "spt-new"
+
+    # Repo state: spotify_playlist_id persisted, needs_republish kept TRUE
+    # so the next publish retries the cover.
+    saved = fake_repo.playlists[pid]
+    assert saved["spotify_playlist_id"] == "spt-new"
+    assert saved["needs_republish"] is True

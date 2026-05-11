@@ -199,8 +199,32 @@ def test_publish_uploads_cover_when_present() -> None:
     s3 = MagicMock()
     s3.read_cover_bytes.return_value = b"\xff\xd8jpegbytes"
     svc = _build(repo, sp, user_repo, s3)
-    svc.publish(user_id="u-1", playlist_id="p-1", confirm_overwrite=False)
+    result = svc.publish(user_id="u-1", playlist_id="p-1", confirm_overwrite=False)
     sp.set_cover.assert_called_once_with("spt-1", b"\xff\xd8jpegbytes")
+    assert result.cover_failed is False
+
+
+def test_publish_cover_failure_marks_dirty() -> None:
+    """When set_cover raises, set_publish_state is called with
+    mark_dirty=True, and the result carries cover_failed=True."""
+    repo = MagicMock()
+    repo.get.return_value = _playlist(cover_s3_key="covers/u/p/1.jpg")
+    repo.list_tracks.return_value = ([_track("t-1", "spt-1")], 1)
+    sp = MagicMock()
+    sp.create_playlist.return_value = MagicMock(id="spt-1", url=None)
+    sp.set_cover.side_effect = SpotifyApiError("S3 down")
+    user_repo = MagicMock()
+    user_repo.get_spotify_id.return_value = "u-sp"
+    s3 = MagicMock()
+    s3.read_cover_bytes.return_value = b"jpeg"
+    svc = _build(repo, sp, user_repo, s3)
+    result = svc.publish(
+        user_id="u-1", playlist_id="p-1", confirm_overwrite=False,
+    )
+    assert result.cover_failed is True
+    repo.set_publish_state.assert_called_once()
+    call_kwargs = repo.set_publish_state.call_args.kwargs
+    assert call_kwargs["mark_dirty"] is True
 
 
 def test_publish_404_when_not_found() -> None:

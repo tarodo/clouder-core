@@ -434,8 +434,26 @@ def test_set_publish_state_persists_and_clears_dirty() -> None:
         user_id="u-1", playlist_id="p-1",
         spotify_playlist_id="spt-abc", now=_utc(),
     )
-    assert "needs_republish = FALSE" in captured["sql"]
     assert captured["params"]["spotify_playlist_id"] == "spt-abc"
+    # Default mark_dirty=False → needs_republish bound to False.
+    assert captured["params"]["needs_republish"] is False
+
+
+def test_set_publish_state_mark_dirty_keeps_republish_true() -> None:
+    api = MagicMock()
+    captured = {}
+
+    def _execute(sql, params=None, transaction_id=None):
+        captured["params"] = params
+        return [{"id": "p-1"}]
+
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    repo.set_publish_state(
+        user_id="u-1", playlist_id="p-1",
+        spotify_playlist_id="spt", now=_utc(), mark_dirty=True,
+    )
+    assert captured["params"]["needs_republish"] is True
 
 
 def test_validate_tracks_in_scope_returns_subset() -> None:

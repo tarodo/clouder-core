@@ -592,13 +592,22 @@ class PlaylistsRepository:
         playlist_id: str,
         spotify_playlist_id: str,
         now: datetime,
+        mark_dirty: bool = False,
     ) -> bool:
+        """Persist publish-state.
+
+        When ``mark_dirty`` is True we still record the resulting
+        ``spotify_playlist_id`` (so the next publish targets the same
+        Spotify playlist) and bump ``last_published_at``, but leave
+        ``needs_republish`` as TRUE so the next publish retries the part
+        that failed (e.g. cover upload).
+        """
         rows = self._data_api.execute(
             """
             UPDATE playlists SET
                 spotify_playlist_id = :spotify_playlist_id,
                 last_published_at = :now,
-                needs_republish = FALSE,
+                needs_republish = :needs_republish,
                 updated_at = :now
             WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
             RETURNING id
@@ -607,6 +616,7 @@ class PlaylistsRepository:
                 "id": playlist_id,
                 "user_id": user_id,
                 "spotify_playlist_id": spotify_playlist_id,
+                "needs_republish": mark_dirty,
                 "now": now,
             },
         )

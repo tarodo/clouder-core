@@ -24,6 +24,7 @@ class PublishResult:
     spotify_url: str | None
     skipped: list[dict]
     published_at: str
+    cover_failed: bool = False
 
 
 class _UserRepoLike(Protocol):
@@ -122,11 +123,13 @@ class PlaylistsPublishService:
         for i in range(100, len(uris), 100):
             self._sp.append_tracks(target_id, uris[i : i + 100])
 
+        cover_failed = False
         if playlist.cover_s3_key:
             try:
                 jpeg_bytes = self._storage.read_cover_bytes(playlist.cover_s3_key)
                 self._sp.set_cover(target_id, jpeg_bytes)
             except Exception as exc:
+                cover_failed = True
                 log_event(
                     "WARNING", "playlist_publish_partial_fail",
                     user_id=user_id, playlist_id=playlist_id,
@@ -139,17 +142,20 @@ class PlaylistsPublishService:
         self._repo.set_publish_state(
             user_id=user_id, playlist_id=playlist_id,
             spotify_playlist_id=target_id, now=now,
+            mark_dirty=cover_failed,
         )
         log_event(
             "INFO", "playlist_publish_succeeded",
             user_id=user_id, playlist_id=playlist_id,
             spotify_playlist_id=target_id, skipped=len(skipped),
+            cover_failed=cover_failed,
         )
         return PublishResult(
             spotify_playlist_id=target_id,
             spotify_url=spotify_url,
             skipped=skipped,
             published_at=now.isoformat(),
+            cover_failed=cover_failed,
         )
 
 

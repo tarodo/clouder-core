@@ -17,7 +17,6 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .curation import (
     BadQueryParamError,
-    ConfirmOverwriteRequiredError,
     CoverMissingError,
     CoverTooLargeError,
     CurationError,
@@ -29,16 +28,10 @@ from .curation import (
     InvalidTagNameError,
     InvalidTagPayloadError,
     NotFoundError,
-    NothingToPublishError,
     PaginatedResult,
-    PlaylistLimitReachedError,
-    PlaylistNameConflictError,
     PlaylistNotFoundError,
-    SpotifyApiError,
     SpotifyNotAuthorizedError,
     SpotifyNotFoundError,
-    SpotifyRateLimitedError,
-    SpotifyScopeInsufficientError,
     TagNotFoundError,
     TooManyTagsError,
     TrackNotInUserScopeError,
@@ -219,14 +212,15 @@ def _category_response(row) -> dict[str, Any]:
     }
 
 
-def _playlist_response(row) -> dict[str, Any]:
-    return {
+def _playlist_response(row, storage=None) -> dict[str, Any]:
+    payload = {
         "id": row.id,
         "user_id": row.user_id,
         "name": row.name,
         "description": row.description,
         "is_public": row.is_public,
         "cover_s3_key": row.cover_s3_key,
+        "cover_url": None,
         "cover_uploaded_at": row.cover_uploaded_at,
         "spotify_playlist_id": row.spotify_playlist_id,
         "last_published_at": row.last_published_at,
@@ -235,6 +229,18 @@ def _playlist_response(row) -> dict[str, Any]:
         "created_at": row.created_at,
         "updated_at": row.updated_at,
     }
+    if row.cover_s3_key and storage is not None:
+        payload["cover_url"] = storage.presigned_cover_get_url(
+            s3_key=row.cover_s3_key,
+        )
+    return payload
+
+
+def _build_storage_if_needed(rows):
+    """Return an S3Storage only if any of the given rows carries a cover."""
+    if any(getattr(r, "cover_s3_key", None) for r in rows):
+        return _build_s3_storage()
+    return None
 
 
 def _playlist_track_response(row) -> dict[str, Any]:
@@ -616,10 +622,11 @@ def _handle_create_playlist(event, repo: PlaylistsRepository, user_id, correlati
 def _handle_list_playlists(event, repo: PlaylistsRepository, user_id, correlation_id):
     limit, offset = _parse_pagination(event)
     rows, total = repo.list_all(user_id=user_id, limit=limit, offset=offset)
+    storage = _build_storage_if_needed(rows)
     return _json_response(
         200,
         {
-            "items": [_playlist_response(r) for r in rows],
+            "items": [_playlist_response(r, storage) for r in rows],
             "total": total,
             "limit": limit,
             "offset": offset,
@@ -636,7 +643,8 @@ def _handle_get_playlist(event, repo: PlaylistsRepository, user_id, correlation_
     row = repo.get(user_id=user_id, playlist_id=pid)
     if row is None:
         raise PlaylistNotFoundError()
-    payload = _playlist_response(row)
+    storage = _build_s3_storage() if row.cover_s3_key else None
+    payload = _playlist_response(row, storage)
     payload["correlation_id"] = correlation_id
     return _json_response(200, payload, correlation_id)
 
@@ -662,7 +670,8 @@ def _handle_patch_playlist(event, repo: PlaylistsRepository, user_id, correlatio
         "INFO", "playlist_patched",
         correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
     )
-    payload = _playlist_response(row)
+    storage = _build_s3_storage() if row.cover_s3_key else None
+    payload = _playlist_response(row, storage)
     payload["correlation_id"] = correlation_id
     return _json_response(200, payload, correlation_id)
 
@@ -839,7 +848,8 @@ def _handle_cover_confirm(event, repo, user_id, correlation_id):
         correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
     )
     row = repo.get(user_id=user_id, playlist_id=pid)
-    payload = _playlist_response(row)
+    # Storage already built above for HEAD; reuse for presigned GET URL.
+    payload = _playlist_response(row, storage)
     payload["correlation_id"] = correlation_id
     return _json_response(200, payload, correlation_id)
 
@@ -856,7 +866,8 @@ def _handle_cover_delete(event, repo, user_id, correlation_id):
         correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
     )
     row = repo.get(user_id=user_id, playlist_id=pid)
-    payload = _playlist_response(row)
+    # Cover was just cleared; cover_url will be None regardless of storage.
+    payload = _playlist_response(row, None)
     payload["correlation_id"] = correlation_id
     return _json_response(200, payload, correlation_id)
 
@@ -979,6 +990,7 @@ def _handle_publish(event, repo, user_id, correlation_id):
             "spotify_playlist_id": result.spotify_playlist_id,
             "spotify_url": result.spotify_url,
             "skipped_tracks": result.skipped,
+            "cover_failed": result.cover_failed,
             "published_at": result.published_at,
             "correlation_id": correlation_id,
         },
