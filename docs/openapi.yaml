@@ -1062,6 +1062,25 @@ paths:
                           type:
                           - string
                           - 'null'
+                        tags:
+                          type: array
+                          description: User-tags attached to this track (always present,
+                            may be empty).
+                          items:
+                            type: object
+                            required:
+                            - id
+                            - name
+                            - color
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                              name:
+                                type: string
+                              color:
+                                type: string
+                                pattern: ^#[0-9A-Fa-f]{6}$
                   total:
                     type: integer
                   limit:
@@ -1070,6 +1089,12 @@ paths:
                     type: integer
                   correlation_id:
                     type: string
+        '400':
+          description: invalid_match (match must be 'all' or 'any').
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: category_not_found.
           content:
@@ -1100,6 +1125,22 @@ paths:
           type: string
         description: Lowercased + trimmed before matching against clouder_tracks.normalized_title
           (ILIKE %term%).
+      - name: tags
+        in: query
+        schema:
+          type: string
+        description: CSV of user_tag UUIDs. Filters the page to tracks carrying the
+          listed tag(s) per `match`. Unknown tag ids are silently ignored. Empty /
+          absent → no tag filtering.
+      - name: match
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - any
+        description: Tag-set semantics. `all` (default) = every listed tag must be
+          present on the track. `any` = at least one match suffices.
       security:
       - BearerAuth: []
       tags:
@@ -1810,6 +1851,388 @@ paths:
         Idempotent on repeated calls.
       parameters:
       - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /tags:
+    post:
+      summary: Create a user tag.
+      responses:
+        '201':
+          description: Tag created.
+          content:
+            application/json:
+              schema: &id013
+                type: object
+                required:
+                - id
+                - name
+                - color
+                - created_at
+                - updated_at
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  color:
+                    type: string
+                    pattern: ^#[0-9A-Fa-f]{6}$
+                  created_at:
+                    type: string
+                  updated_at:
+                    type: string
+        '400':
+          description: invalid_name or invalid_color.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: tag_name_conflict (case-insensitive duplicate).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Per-user vocabulary entry. `name` is preserved as entered; `normalized_name`
+        (server-derived `lower(trim(name))`) is unique per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - color
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                color:
+                  type: string
+                  pattern: ^#[0-9A-Fa-f]{6}$
+              additionalProperties: false
+            example:
+              name: Vocal
+              color: '#ff8800'
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    get:
+      summary: List the user's tags (paginated, optional prefix search).
+      responses:
+        '200':
+          description: Paginated tags.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - total
+                - limit
+                - offset
+                properties:
+                  items:
+                    type: array
+                    items: *id013
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401': *id001
+        '403': *id002
+      parameters:
+      - *id006
+      - *id007
+      - *id008
+      - name: search
+        in: query
+        schema:
+          type: string
+        description: Lowercased prefix match against normalized_name.
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /tags/{tag_id}:
+    patch:
+      summary: Rename or recolour a tag (partial update).
+      responses:
+        '200':
+          description: Tag updated.
+          content:
+            application/json:
+              schema: *id013
+        '400':
+          description: invalid_name, invalid_color, or invalid_payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: tag_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: tag_name_conflict.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: tag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                color:
+                  type: string
+                  pattern: ^#[0-9A-Fa-f]{6}$
+              additionalProperties: false
+            example:
+              name: Vocal F
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    delete:
+      summary: Delete a tag (cascades to all track_tags rows).
+      responses:
+        '204':
+          description: Tag deleted.
+        '404':
+          description: tag_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: tag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /tracks/{track_id}/tags:
+    get:
+      summary: List the user's tags attached to a track.
+      responses:
+        '200':
+          description: Tag list (may be empty).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - tags
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - id
+                      - name
+                      - color
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        color:
+                          type: string
+                          pattern: ^#[0-9A-Fa-f]{6}$
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: track_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    put:
+      summary: Replace all tags on a track (transactional set).
+      responses:
+        '200':
+          description: Updated tag set.
+          content:
+            application/json:
+              schema: &id014
+                type: object
+                required:
+                - tags
+                properties:
+                  tags:
+                    type: array
+                    items: *id013
+        '400':
+          description: invalid_tag_ids or too_many_tags.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: tag_not_found (one of tag_ids is foreign).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: track_not_in_any_category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Empty array `[]` clears all tags. Track must currently sit in at
+        least one of the user's active categories — tracks inside triage blocks cannot
+        be tagged.
+      parameters:
+      - name: track_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - tag_ids
+              properties:
+                tag_ids:
+                  type: array
+                  maxItems: 50
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+              additionalProperties: false
+            example:
+              tag_ids:
+              - 11111111-1111-1111-1111-111111111111
+              - 22222222-2222-2222-2222-222222222222
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+    post:
+      summary: Attach a single tag to a track (idempotent).
+      responses:
+        '201':
+          description: Updated tag set (idempotent on conflict).
+          content:
+            application/json:
+              schema: *id014
+        '400':
+          description: invalid_tag_ids.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: tag_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: track_not_in_any_category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: track_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - tag_id
+              properties:
+                tag_id:
+                  type: string
+                  format: uuid
+              additionalProperties: false
+            example:
+              tag_id: 11111111-1111-1111-1111-111111111111
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /tracks/{track_id}/tags/{tag_id}:
+    delete:
+      summary: Detach a tag from a track (idempotent — 204 either way).
+      responses:
+        '204':
+          description: Tag detached (or was already absent).
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: track_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: tag_id
         in: path
         required: true
         schema:

@@ -128,6 +128,22 @@ CATEGORY_TRACK_RESPONSE = {
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
         "source_triage_block_id": {"type": ["string", "null"]},
+        "tags": {
+            "type": "array",
+            "description": "User-tags attached to this track (always present, may be empty).",
+            "items": {
+                "type": "object",
+                "required": ["id", "name", "color"],
+                "properties": {
+                    "id": {"type": "string", "format": "uuid"},
+                    "name": {"type": "string"},
+                    "color": {
+                        "type": "string",
+                        "pattern": "^#[0-9A-Fa-f]{6}$",
+                    },
+                },
+            },
+        },
     },
 }
 
@@ -140,6 +156,56 @@ CATEGORY_TRACKS_LIST_RESPONSE = {
         "limit": {"type": "integer"},
         "offset": {"type": "integer"},
         "correlation_id": {"type": "string"},
+    },
+}
+
+TAG_RESPONSE = {
+    "type": "object",
+    "required": ["id", "name", "color", "created_at", "updated_at"],
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "name": {"type": "string"},
+        "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "created_at": {"type": "string"},
+        "updated_at": {"type": "string"},
+    },
+}
+
+TAG_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total", "limit", "offset"],
+    "properties": {
+        "items": {"type": "array", "items": TAG_RESPONSE},
+        "total": {"type": "integer"},
+        "limit": {"type": "integer"},
+        "offset": {"type": "integer"},
+    },
+}
+
+TRACK_TAGS_RESPONSE = {
+    "type": "object",
+    "required": ["tags"],
+    "properties": {
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["id", "name", "color"],
+                "properties": {
+                    "id": {"type": "string", "format": "uuid"},
+                    "name": {"type": "string"},
+                    "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                },
+            },
+        },
+    },
+}
+
+SET_TRACK_TAGS_RESPONSE = {
+    "type": "object",
+    "required": ["tags"],
+    "properties": {
+        "tags": {"type": "array", "items": TAG_RESPONSE},
     },
 }
 
@@ -967,9 +1033,29 @@ ROUTES: list[dict[str, Any]] = [
                 "schema": {"type": "string"},
                 "description": "Lowercased + trimmed before matching against clouder_tracks.normalized_title (ILIKE %term%).",
             },
+            {
+                "name": "tags",
+                "in": "query",
+                "schema": {"type": "string"},
+                "description": (
+                    "CSV of user_tag UUIDs. Filters the page to tracks carrying "
+                    "the listed tag(s) per `match`. Unknown tag ids are silently "
+                    "ignored. Empty / absent → no tag filtering."
+                ),
+            },
+            {
+                "name": "match",
+                "in": "query",
+                "schema": {"type": "string", "enum": ["all", "any"]},
+                "description": (
+                    "Tag-set semantics. `all` (default) = every listed tag must "
+                    "be present on the track. `any` = at least one match suffices."
+                ),
+            },
         ],
         "responses": {
             "200": _make_response(200, "Paginated tracks.", CATEGORY_TRACKS_LIST_RESPONSE),
+            "400": _error(400, "invalid_match (match must be 'all' or 'any')."),
             "404": _error(404, "category_not_found."),
             "422": _error(422, "validation_error (limit/offset out of range)."),
             **COMMON_AUTH_ERRORS,
@@ -1242,6 +1328,193 @@ ROUTES: list[dict[str, Any]] = [
         "responses": {
             "204": {"description": "Triage block soft-deleted."},
             "404": _error(404, "triage_block_not_found (or already deleted)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    # ── track-tags: vocabulary CRUD (spec 2026-05-11) ───────────────
+    {
+        "method": "post",
+        "path": "/tags",
+        "auth": AUTH,
+        "summary": "Create a user tag.",
+        "description": (
+            "Per-user vocabulary entry. `name` is preserved as entered; "
+            "`normalized_name` (server-derived `lower(trim(name))`) is unique "
+            "per user."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["name", "color"],
+                "properties": {
+                    "name": {"type": "string", "minLength": 1, "maxLength": 64},
+                    "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"name": "Vocal", "color": "#ff8800"},
+        "responses": {
+            "201": _make_response(201, "Tag created.", TAG_RESPONSE),
+            "400": _error(400, "invalid_name or invalid_color."),
+            "409": _error(409, "tag_name_conflict (case-insensitive duplicate)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/tags",
+        "auth": AUTH,
+        "summary": "List the user's tags (paginated, optional prefix search).",
+        "parameters": [
+            *PAGINATION_PARAMS,
+            {
+                "name": "search",
+                "in": "query",
+                "schema": {"type": "string"},
+                "description": "Lowercased prefix match against normalized_name.",
+            },
+        ],
+        "responses": {
+            "200": _make_response(200, "Paginated tags.", TAG_LIST_RESPONSE),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "patch",
+        "path": "/tags/{tag_id}",
+        "auth": AUTH,
+        "summary": "Rename or recolour a tag (partial update).",
+        "parameters": [
+            {"name": "tag_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "minLength": 1, "maxLength": 64},
+                    "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"name": "Vocal F"},
+        "responses": {
+            "200": _make_response(200, "Tag updated.", TAG_RESPONSE),
+            "400": _error(400, "invalid_name, invalid_color, or invalid_payload."),
+            "404": _error(404, "tag_not_found."),
+            "409": _error(409, "tag_name_conflict."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "delete",
+        "path": "/tags/{tag_id}",
+        "auth": AUTH,
+        "summary": "Delete a tag (cascades to all track_tags rows).",
+        "parameters": [
+            {"name": "tag_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "204": {"description": "Tag deleted."},
+            "404": _error(404, "tag_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    # ── track-tags: per-track ops (spec 2026-05-11) ─────────────────
+    {
+        "method": "get",
+        "path": "/tracks/{track_id}/tags",
+        "auth": AUTH,
+        "summary": "List the user's tags attached to a track.",
+        "parameters": [
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Tag list (may be empty).", TRACK_TAGS_RESPONSE),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "put",
+        "path": "/tracks/{track_id}/tags",
+        "auth": AUTH,
+        "summary": "Replace all tags on a track (transactional set).",
+        "description": (
+            "Empty array `[]` clears all tags. Track must currently sit in at "
+            "least one of the user's active categories — tracks inside triage "
+            "blocks cannot be tagged."
+        ),
+        "parameters": [
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["tag_ids"],
+                "properties": {
+                    "tag_ids": {
+                        "type": "array",
+                        "maxItems": 50,
+                        "uniqueItems": True,
+                        "items": {"type": "string", "format": "uuid"},
+                    },
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"tag_ids": [
+            "11111111-1111-1111-1111-111111111111",
+            "22222222-2222-2222-2222-222222222222",
+        ]},
+        "responses": {
+            "200": _make_response(200, "Updated tag set.", SET_TRACK_TAGS_RESPONSE),
+            "400": _error(400, "invalid_tag_ids or too_many_tags."),
+            "404": _error(404, "tag_not_found (one of tag_ids is foreign)."),
+            "422": _error(422, "track_not_in_any_category."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/tracks/{track_id}/tags",
+        "auth": AUTH,
+        "summary": "Attach a single tag to a track (idempotent).",
+        "parameters": [
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["tag_id"],
+                "properties": {"tag_id": {"type": "string", "format": "uuid"}},
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"tag_id": "11111111-1111-1111-1111-111111111111"},
+        "responses": {
+            "201": _make_response(201, "Updated tag set (idempotent on conflict).", SET_TRACK_TAGS_RESPONSE),
+            "400": _error(400, "invalid_tag_ids."),
+            "404": _error(404, "tag_not_found."),
+            "422": _error(422, "track_not_in_any_category."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "delete",
+        "path": "/tracks/{track_id}/tags/{tag_id}",
+        "auth": AUTH,
+        "summary": "Detach a tag from a track (idempotent — 204 either way).",
+        "parameters": [
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {"name": "tag_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "204": {"description": "Tag detached (or was already absent)."},
             **COMMON_AUTH_ERRORS,
         },
     },
