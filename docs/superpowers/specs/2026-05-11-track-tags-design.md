@@ -55,8 +55,8 @@ Alternative approaches considered:
 
 | Column            | Type                       | Notes                                                                 |
 | ----------------- | -------------------------- | --------------------------------------------------------------------- |
-| `id`              | `uuid PK`                  | App-generated UUIDv4.                                                 |
-| `user_id`         | `uuid NOT NULL`            | FK `users.id ON DELETE CASCADE`.                                      |
+| `id`              | `varchar(36) PK`           | App-generated UUIDv4, stored as string (project convention).          |
+| `user_id`         | `varchar(36) NOT NULL`     | FK `users.id ON DELETE CASCADE`.                                      |
 | `name`            | `text NOT NULL`            | Display name (preserves user casing/spacing).                         |
 | `normalized_name` | `text NOT NULL`            | `lower(trim(name))`. Used for uniqueness + search.                    |
 | `color`           | `text NOT NULL`            | Hex `#RRGGBB` (regex-validated at handler).                           |
@@ -72,9 +72,9 @@ Constraints / indexes:
 
 | Column       | Type                   | Notes                                                                 |
 | ------------ | ---------------------- | --------------------------------------------------------------------- |
-| `user_id`    | `uuid NOT NULL`        | Denormalised for tenant filter without JOIN. Matches `category_tracks` pattern. |
-| `track_id`   | `bigint NOT NULL`      | FK `clouder_tracks.id ON DELETE CASCADE`.                             |
-| `tag_id`     | `uuid NOT NULL`        | FK `user_tags.id ON DELETE CASCADE`.                                  |
+| `user_id`    | `varchar(36) NOT NULL` | Denormalised for tenant filter without JOIN. Matches `category_tracks` pattern. |
+| `track_id`   | `varchar(36) NOT NULL` | FK `clouder_tracks.id ON DELETE CASCADE`. Project convention (UUID-string).     |
+| `tag_id`     | `varchar(36) NOT NULL` | FK `user_tags.id ON DELETE CASCADE`.                                            |
 | `created_at` | `timestamptz NOT NULL` |                                                                       |
 
 Constraints / indexes:
@@ -193,16 +193,16 @@ New file `src/collector/curation/tags_repository.py`.
 ```python
 @dataclass(frozen=True)
 class TagRow:
-    id: UUID
+    id: str             # UUID string
     name: str
     color: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: str     # ISO-8601 from Data API
+    updated_at: str
 
 @dataclass(frozen=True)
 class TrackTagRow:
-    track_id: int
-    tag_id: UUID
+    track_id: str
+    tag_id: str
     name: str
     color: str
 ```
@@ -230,7 +230,7 @@ Factory: `create_default_tags_repository()` next to `create_default_categories_r
 
 - `remove_track(user_id, category_id, track_id)` — wrap existing DELETE in a transaction; after the DELETE call `tags_repo.cleanup_orphaned_track_tags(user_id, track_id, transaction_id)`. Pass the `tags_repo` as a method argument (same pattern as `TriageRepository.finalize_block` passing `categories_repository`) to avoid circular DI between modules.
 - `soft_delete(user_id, category_id, now, tags_repo, ...)` — already runs a multi-statement flow. Inside the existing transaction: select the affected `track_ids` for the category being deleted, then iterate and call `tags_repo.cleanup_orphaned_track_tags(user_id, track_id, transaction_id)` for each (or run a single batched delete — see Implementation Notes below).
-- `list_tracks(...)` — extended signature `list_tracks(user_id, category_id, limit, offset, search, sort, order, tag_ids: list[UUID] | None = None, tag_match: Literal["all", "any"] = "all")`. Builds the tag subquery from `tag_ids` and appends it to the existing WHERE clause. After the main page query, calls `tags_repo.list_tags_for_tracks(user_id, [row.id for row in page])` and merges `tags` into each row dataclass.
+- `list_tracks(...)` — extended signature `list_tracks(user_id, category_id, limit, offset, search, sort, order, tag_ids: list[str] | None = None, tag_match: Literal["all", "any"] = "all")`. Builds the tag subquery from `tag_ids` and appends it to the existing WHERE clause. After the main page query, calls `tags_repo.list_tags_for_tracks(user_id, [row.id for row in page])` and merges `tags` into each row dataclass.
 
 The existing `TrackInCategoryRow` dataclass gains a `tags: list[TrackTagRow]` field.
 
