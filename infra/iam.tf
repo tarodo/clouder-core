@@ -44,6 +44,7 @@ data "aws_iam_policy_document" "collector_lambda" {
     resources = [
       "${aws_s3_bucket.raw.arn}/${var.raw_prefix}/*",
       "${aws_s3_bucket.raw.arn}/${var.spotify_raw_prefix}/*",
+      "${aws_s3_bucket.raw.arn}/covers/*",
     ]
   }
 
@@ -52,10 +53,12 @@ data "aws_iam_policy_document" "collector_lambda" {
     effect = "Allow"
     actions = [
       "s3:GetObject",
+      "s3:HeadObject",
     ]
     resources = [
       "${aws_s3_bucket.raw.arn}/${var.raw_prefix}/*",
       "${aws_s3_bucket.raw.arn}/${var.spotify_raw_prefix}/*",
+      "${aws_s3_bucket.raw.arn}/covers/*",
     ]
   }
 
@@ -69,7 +72,7 @@ data "aws_iam_policy_document" "collector_lambda" {
     condition {
       test     = "StringLike"
       variable = "s3:prefix"
-      values   = ["${var.raw_prefix}/*", "${var.spotify_raw_prefix}/*"]
+      values   = ["${var.raw_prefix}/*", "${var.spotify_raw_prefix}/*", "covers/*"]
     }
   }
 

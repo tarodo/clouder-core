@@ -16,10 +16,16 @@ resource "aws_lambda_function" "curation" {
 
   environment {
     variables = {
-      AURORA_CLUSTER_ARN = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN  = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE    = var.aurora_database_name
-      LOG_LEVEL          = "INFO"
+      AURORA_CLUSTER_ARN                        = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN                         = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE                           = var.aurora_database_name
+      RAW_BUCKET_NAME                           = aws_s3_bucket.raw.bucket
+      RAW_PREFIX                                = var.raw_prefix
+      KMS_USER_TOKENS_KEY_ARN                   = aws_kms_key.user_tokens.arn
+      SPOTIFY_OAUTH_CLIENT_ID_SSM_PARAMETER     = var.spotify_client_id_ssm_parameter
+      SPOTIFY_OAUTH_CLIENT_SECRET_SSM_PARAMETER = var.spotify_client_secret_ssm_parameter
+      SPOTIFY_OAUTH_REDIRECT_URI                = coalesce(var.spotify_oauth_redirect_uri, "https://${aws_cloudfront_distribution.frontend.domain_name}/auth/return")
+      LOG_LEVEL                                 = "INFO"
     }
   }
 
