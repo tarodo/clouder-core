@@ -170,7 +170,20 @@
     }
   },
   "tags": {
-    "color_picker": { "none_aria": "no colour" }
+    "color_picker": { "none_aria": "no colour" },
+    "form": {
+      "name_label": "Name",
+      "name_placeholder": "Vocal",
+      "create_submit": "Create",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "name_required": "Name is required.",
+      "name_too_long": "Name must be 64 characters or less.",
+      "name_control_chars": "Name contains forbidden characters.",
+      "color_invalid": "Invalid colour."
+    }
   },
   "triage": {
     "page_title": "Triage",
