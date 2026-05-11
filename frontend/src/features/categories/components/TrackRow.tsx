@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/formatters';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
-import { TrackTagsCell } from '../../tags/components/TrackTagsCell';
+import { TrackTagsCell } from '../../tags';
 
 function joinArtists(artists: CategoryTrack['artists']): string {
   return artists.map((a) => a.name).join(', ');

@@ -13,13 +13,13 @@ import { TrackRow } from './TrackRow';
 import { TrackRowActions } from './TrackRowActions';
 import { SortableTh } from './SortableTh';
 import { EmptyState } from '../../../components/EmptyState';
-import { TagsFilterBar } from '../../tags/components/TagsFilterBar';
-import { TagsManagerModal } from '../../tags/components/TagsManagerModal';
 import {
+  TagsFilterBar,
+  TagsManagerModal,
   readTagsUrlState,
   writeTagsUrlState,
   type TagsFilterState,
-} from '../../tags/lib/tagsUrlState';
+} from '../../tags';
 
 export interface TracksTabProps {
   categoryId: string;
