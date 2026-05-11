@@ -94,6 +94,7 @@ export function TrackTagsPopover({
             placeholder={t('tags.popover.search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
+            // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
           />
           {tagsQ.isLoading && <Loader size="xs" />}

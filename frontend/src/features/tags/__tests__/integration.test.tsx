@@ -34,8 +34,10 @@ describe('Track-tags end-to-end', () => {
     tokenStore.set('TOK');
 
     // In-memory tag store for the test
-    let tags: any[] = [];
-    let trackTags: any[] = [];
+    type Tag = { id: string; name: string; color: string | null; created_at: string; updated_at: string };
+    type TrackTag = { track_id: string; tag_id: string };
+    let tags: Tag[] = [];
+    let trackTags: TrackTag[] = [];
 
     server.use(
       http.get('http://localhost/styles/:styleId/categories', () =>
@@ -62,8 +64,9 @@ describe('Track-tags end-to-end', () => {
       }),
       http.post('http://localhost/tracks/:trackId/tags', async ({ params, request }) => {
         const body = (await request.json()) as { tag_id: string };
-        if (!trackTags.some((t) => t.track_id === params.trackId && t.tag_id === body.tag_id)) {
-          trackTags.push({ track_id: params.trackId, tag_id: body.tag_id });
+        const trackId = String(params.trackId);
+        if (!trackTags.some((t) => t.track_id === trackId && t.tag_id === body.tag_id)) {
+          trackTags.push({ track_id: trackId, tag_id: body.tag_id });
         }
         return HttpResponse.json({ tags: [] }, { status: 201 });
       }),
