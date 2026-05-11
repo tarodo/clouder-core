@@ -397,6 +397,10 @@ def _track_in_category_response(item) -> dict[str, Any]:
     track = dict(item.track)
     track["added_at"] = item.added_at
     track["source_triage_block_id"] = item.source_triage_block_id
+    track["tags"] = [
+        {"id": t.tag_id, "name": t.name, "color": t.color}
+        for t in getattr(item, "tags", ())
+    ]
     return track
 
 

@@ -25,7 +25,7 @@ from . import (
 from .categories_service import validate_reorder_set
 
 if TYPE_CHECKING:
-    from .tags_repository import TagsRepository
+    from .tags_repository import TagsRepository, TrackTagRow
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,7 @@ class TrackInCategoryRow:
     track: Mapping[str, Any]
     added_at: str
     source_triage_block_id: str | None
+    tags: tuple["TrackTagRow", ...] = ()
 
 
 _SORT_COLUMNS = {
@@ -663,6 +664,9 @@ class CategoriesRepository:
         search: str | None,
         sort: str = "added_at",
         order: str = "desc",
+        tag_ids: list[str] | None = None,
+        tag_match: str = "all",
+        tags_repo: "TagsRepository | None" = None,
     ) -> PaginatedResult[TrackInCategoryRow]:
         cat_rows = self._data_api.execute(
             """
@@ -685,6 +689,35 @@ class CategoriesRepository:
         if search and search.strip():
             search_clause = " AND t.normalized_title ILIKE :search "
             params["search"] = f"%{search.strip().lower()}%"
+
+        # Tag filter: builds a sub-SELECT in (track_id) the WHERE clause is
+        # appended to. Match=all uses GROUP BY + HAVING; match=any is a
+        # plain IN.
+        tag_clause = ""
+        if tag_ids:
+            tag_placeholders = ", ".join(f":tag{i}" for i in range(len(tag_ids)))
+            for i, tid in enumerate(tag_ids):
+                params[f"tag{i}"] = tid
+            params["user_id"] = user_id
+            if tag_match == "all":
+                params["tag_count"] = len(tag_ids)
+                tag_clause = (
+                    " AND ct.track_id IN ("
+                    "SELECT track_id FROM track_tags "
+                    "WHERE user_id = :user_id "
+                    f"AND tag_id IN ({tag_placeholders}) "
+                    "GROUP BY track_id "
+                    "HAVING COUNT(DISTINCT tag_id) = :tag_count"
+                    ") "
+                )
+            else:  # any
+                tag_clause = (
+                    " AND ct.track_id IN ("
+                    "SELECT track_id FROM track_tags "
+                    "WHERE user_id = :user_id "
+                    f"AND tag_id IN ({tag_placeholders})"
+                    ") "
+                )
 
         column = _SORT_COLUMNS[sort]
         direction = _ORDER_DIRS[order]
@@ -714,6 +747,7 @@ class CategoriesRepository:
             LEFT JOIN clouder_labels        l   ON l.id   = alb.label_id
             WHERE ct.category_id = :category_id
               {search_clause}
+              {tag_clause}
             GROUP BY t.id, ct.added_at, ct.source_triage_block_id, l.id, l.name
             ORDER BY {order_by}, t.id ASC
             LIMIT :limit OFFSET :offset
@@ -725,6 +759,31 @@ class CategoriesRepository:
         if "search" in params:
             count_clause = " AND t.normalized_title ILIKE :search "
             count_params["search"] = params["search"]
+        count_tag_clause = ""
+        if tag_ids:
+            tag_placeholders = ", ".join(f":tag{i}" for i in range(len(tag_ids)))
+            for i, tid in enumerate(tag_ids):
+                count_params[f"tag{i}"] = tid
+            count_params["user_id"] = user_id
+            if tag_match == "all":
+                count_params["tag_count"] = len(tag_ids)
+                count_tag_clause = (
+                    " AND ct.track_id IN ("
+                    "SELECT track_id FROM track_tags "
+                    "WHERE user_id = :user_id "
+                    f"AND tag_id IN ({tag_placeholders}) "
+                    "GROUP BY track_id "
+                    "HAVING COUNT(DISTINCT tag_id) = :tag_count"
+                    ") "
+                )
+            else:
+                count_tag_clause = (
+                    " AND ct.track_id IN ("
+                    "SELECT track_id FROM track_tags "
+                    "WHERE user_id = :user_id "
+                    f"AND tag_id IN ({tag_placeholders})"
+                    ") "
+                )
         total_rows = self._data_api.execute(
             f"""
             SELECT COUNT(*) AS total
@@ -732,12 +791,13 @@ class CategoriesRepository:
             JOIN clouder_tracks t ON t.id = ct.track_id
             WHERE ct.category_id = :category_id
               {count_clause}
+              {count_tag_clause}
             """,
             count_params,
         )
         total = int(total_rows[0]["total"]) if total_rows else 0
 
-        items = []
+        items: list[TrackInCategoryRow] = []
         for r in rows:
             artists_raw = r.pop("artists_json", "[]")
             if isinstance(artists_raw, str):
@@ -766,6 +826,21 @@ class CategoriesRepository:
                     source_triage_block_id=source_id,
                 )
             )
+
+        if tags_repo is not None and items:
+            grouped = tags_repo.list_tags_for_tracks(
+                user_id=user_id,
+                track_ids=[r.track["id"] for r in items],
+            )
+            items = [
+                TrackInCategoryRow(
+                    track=row.track,
+                    added_at=row.added_at,
+                    source_triage_block_id=row.source_triage_block_id,
+                    tags=tuple(grouped.get(row.track["id"], [])),
+                )
+                for row in items
+            ]
         return PaginatedResult(items=items, total=total, limit=limit, offset=offset)
 
     # Remaining methods filled in by Task 13.

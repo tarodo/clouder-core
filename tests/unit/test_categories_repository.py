@@ -15,6 +15,7 @@ from collector.curation.categories_repository import (
     CategoryRow,
     TrackInCategoryRow,
 )
+from collector.curation.tags_repository import TrackTagRow
 
 
 def _make() -> tuple[CategoriesRepository, MagicMock]:
@@ -940,3 +941,112 @@ def test_list_tracks_search_combines_with_sort() -> None:
     assert "ILIKE" in list_sql
     assert "ORDER BY t.title ASC, t.id ASC" in list_sql
     assert list_params["search"] == "%tech%"
+
+
+# --- list_tracks tag filter + fan-in (Task 5) -------------------------------
+
+
+def _stock_track_row() -> dict[str, object]:
+    return {
+        "id": "t1", "title": "Song", "mix_name": None,
+        "isrc": None, "bpm": None, "length_ms": None,
+        "publish_date": None, "spotify_id": None,
+        "release_type": None, "is_ai_suspected": False,
+        "spotify_release_date": None,
+        "artists_json": "[]",
+        "label_id": None, "label_name": None,
+        "added_at": "2026-04-27T12:00:00Z",
+        "source_triage_block_id": None,
+    }
+
+
+def test_list_tracks_filters_with_match_all() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [_stock_track_row()],
+        [{"total": 1}],
+    ]
+    tags_repo = MagicMock()
+    tags_repo.list_tags_for_tracks.return_value = {
+        "t1": [TrackTagRow(track_id="t1", tag_id="tg1", name="Vocal", color="#f00")]
+    }
+    page = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=20, offset=0, search=None,
+        tag_ids=["tg1", "tg2"], tag_match="all",
+        tags_repo=tags_repo,
+    )
+    assert page.total == 1
+    assert page.items[0].tags[0].tag_id == "tg1"
+    main_sql = data_api.execute.call_args_list[1].args[0]
+    assert "GROUP BY track_id" in main_sql
+    assert "COUNT(DISTINCT tag_id)" in main_sql
+    main_params = data_api.execute.call_args_list[1].args[1]
+    assert main_params["user_id"] == "u1"
+    assert main_params["tag_count"] == 2
+    assert main_params["tag0"] == "tg1"
+    assert main_params["tag1"] == "tg2"
+    # fan-in is called with the page's track ids
+    tags_repo.list_tags_for_tracks.assert_called_once_with(
+        user_id="u1", track_ids=["t1"],
+    )
+
+
+def test_list_tracks_filters_with_match_any() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [],
+        [{"total": 0}],
+    ]
+    tags_repo = MagicMock()
+    tags_repo.list_tags_for_tracks.return_value = {}
+    page = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=20, offset=0, search=None,
+        tag_ids=["tg1"], tag_match="any",
+        tags_repo=tags_repo,
+    )
+    assert page.total == 0
+    main_sql = data_api.execute.call_args_list[1].args[0]
+    # AND-form has GROUP BY + HAVING; OR-form does not.
+    assert "COUNT(DISTINCT" not in main_sql
+    # No fan-in needed when no items
+    tags_repo.list_tags_for_tracks.assert_not_called()
+
+
+def test_list_tracks_no_tag_filter_still_populates_tags_when_repo_passed() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [_stock_track_row()],
+        [{"total": 1}],
+    ]
+    tags_repo = MagicMock()
+    tags_repo.list_tags_for_tracks.return_value = {
+        "t1": [TrackTagRow(track_id="t1", tag_id="tg1", name="Vocal", color="#f00")]
+    }
+    page = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=20, offset=0, search=None,
+        tags_repo=tags_repo,
+    )
+    assert page.items[0].tags[0].name == "Vocal"
+    tags_repo.list_tags_for_tracks.assert_called_once_with(
+        user_id="u1", track_ids=["t1"],
+    )
+
+
+def test_list_tracks_without_tags_repo_returns_empty_tags_tuple() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [_stock_track_row()],
+        [{"total": 1}],
+    ]
+    page = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=20, offset=0, search=None,
+    )
+    assert page.items[0].tags == ()
