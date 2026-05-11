@@ -189,3 +189,61 @@ def test_reorder_tracks_200() -> None:
             None,
         )
     assert resp["statusCode"] == 200
+
+
+def test_cover_upload_url_returns_presign_metadata() -> None:
+    repo = MagicMock()
+    repo.get.return_value = _row()  # exists
+    with _patch_factory(repo), patch(
+        "collector.curation_handler._build_s3_storage"
+    ) as s3_factory:
+        s3 = MagicMock()
+        s3.cover_key.return_value = "covers/u-1/p-1/123.jpg"
+        s3.presigned_cover_put_url.return_value = "https://signed"
+        s3_factory.return_value = s3
+        resp = lambda_handler(
+            _event("POST", "/playlists/{id}/cover/upload-url",
+                   body={"content_type": "image/jpeg"},
+                   path_params={"id": "p-1"}),
+            None,
+        )
+    assert resp["statusCode"] == 200
+    body = json.loads(resp["body"])
+    assert body["upload_url"] == "https://signed"
+    assert body["s3_key"].startswith("covers/u-1/p-1/")
+
+
+def test_cover_confirm_400_when_missing() -> None:
+    repo = MagicMock()
+    repo.get.return_value = _row()
+    with _patch_factory(repo), patch(
+        "collector.curation_handler._build_s3_storage"
+    ) as s3_factory:
+        s3 = MagicMock()
+        s3.head_cover.return_value = None
+        s3_factory.return_value = s3
+        resp = lambda_handler(
+            _event("POST", "/playlists/{id}/cover/confirm",
+                   body={"s3_key": "covers/u-1/p-1/123.jpg"},
+                   path_params={"id": "p-1"}),
+            None,
+        )
+    assert resp["statusCode"] == 400
+    assert json.loads(resp["body"])["error_code"] == "cover_missing"
+
+
+def test_publish_returns_412_when_no_spotify_token() -> None:
+    repo = MagicMock()
+    repo.get.return_value = _row()
+    from collector.curation import SpotifyNotAuthorizedError as _ENA
+    with _patch_factory(repo), patch(
+        "collector.curation_handler._build_spotify_user_client",
+        side_effect=_ENA("no token"),
+    ):
+        resp = lambda_handler(
+            _event("POST", "/playlists/{id}/publish",
+                   body={"confirm_overwrite": False},
+                   path_params={"id": "p-1"}),
+            None,
+        )
+    assert resp["statusCode"] == 412
