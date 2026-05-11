@@ -123,7 +123,8 @@
       "undo_action": "Undo",
       "undone": "Undone.",
       "undo_failed": "Undo failed.",
-      "retry": "Retry"
+      "retry": "Retry",
+      "category_missing": "Category not found. Refresh the page."
     },
     "errors": {
       "name_required": "Name is required.",
@@ -164,7 +165,8 @@
       "move_label": "Move to",
       "move_empty": "No other categories",
       "remove_label": "Remove from category",
-      "current_marker": "(current)"
+      "current_marker": "(current)",
+      "loading": "Loading categories…"
     }
   },
   "triage": {

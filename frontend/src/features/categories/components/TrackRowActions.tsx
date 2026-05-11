@@ -1,4 +1,4 @@
-import { ActionIcon, Anchor, Group, Menu, Text } from '@mantine/core';
+import { ActionIcon, Anchor, Group, Loader, Menu, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconDotsVertical } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import {
 } from '../hooks/useMoveTrackBetweenCategories';
 import { useAddTrackToCategory } from '../hooks/useAddTrackToCategory';
 import { api } from '../../../api/client';
+import { ApiError } from '../../../api/error';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
 
 export interface TrackRowActionsProps {
@@ -113,6 +114,15 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
             </Group>
           ),
         });
+      } else if (
+        err instanceof ApiError &&
+        err.status === 404 &&
+        err.code === 'category_not_found'
+      ) {
+        notifications.show({
+          message: t('categories.toast.category_missing'),
+          color: 'red',
+        });
       } else {
         notifications.show({
           message: t('categories.toast.track_move_failed'),
@@ -153,20 +163,28 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>
-          {others.length === 0
-            ? t('categories.row_actions.move_empty')
-            : t('categories.row_actions.move_label')}
+          {categoriesQ.isLoading
+            ? t('categories.row_actions.move_label')
+            : others.length === 0
+              ? t('categories.row_actions.move_empty')
+              : t('categories.row_actions.move_label')}
         </Menu.Label>
-        {allCategories.map((c) =>
-          c.id === currentCategoryId ? (
-            <Menu.Item key={c.id} disabled>
-              {c.name} {t('categories.row_actions.current_marker')}
-            </Menu.Item>
-          ) : (
-            <Menu.Item key={c.id} onClick={() => handleMove(c.id, c.name)}>
-              {c.name}
-            </Menu.Item>
-          ),
+        {categoriesQ.isLoading ? (
+          <Menu.Item disabled leftSection={<Loader size={12} />}>
+            {t('categories.row_actions.loading')}
+          </Menu.Item>
+        ) : (
+          allCategories.map((c) =>
+            c.id === currentCategoryId ? (
+              <Menu.Item key={c.id} disabled>
+                {c.name} {t('categories.row_actions.current_marker')}
+              </Menu.Item>
+            ) : (
+              <Menu.Item key={c.id} onClick={() => handleMove(c.id, c.name)}>
+                {c.name}
+              </Menu.Item>
+            ),
+          )
         )}
         <Menu.Divider />
         <Menu.Item color="red" onClick={handleRemove}>
