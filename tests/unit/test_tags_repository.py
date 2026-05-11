@@ -202,3 +202,176 @@ def test_delete_tag_returns_false_when_missing() -> None:
     repo, data_api = _make()
     data_api.execute.return_value = []
     assert repo.delete_tag(user_id="u1", tag_id="missing") is False
+
+
+# --- track-tag ops ---------------------------------------------------------
+
+
+def _bind_tx(data_api: MagicMock, tx_id: str = "tx-1") -> None:
+    data_api.transaction.return_value.__enter__.return_value = tx_id
+    data_api.transaction.return_value.__exit__.return_value = False
+
+
+def test_set_track_tags_replaces_set() -> None:
+    repo, data_api = _make()
+    _bind_tx(data_api)
+    data_api.execute.side_effect = [
+        [{"x": 1}],                           # category probe
+        [{"id": "tg1"}, {"id": "tg2"}],       # tag ownership probe
+        [],                                    # DELETE existing
+        [],                                    # INSERT new
+        [                                      # SELECT joined for return
+            {"id": "tg1", "name": "Vocal", "color": "#f00",
+             "created_at": "2026-05-11T12:00:00Z",
+             "updated_at": "2026-05-11T12:00:00Z"},
+            {"id": "tg2", "name": "Dark", "color": "#000",
+             "created_at": "2026-05-11T12:00:00Z",
+             "updated_at": "2026-05-11T12:00:00Z"},
+        ],
+    ]
+    result = repo.set_track_tags(
+        user_id="u1", track_id="t1", tag_ids=["tg1", "tg2"], now=_now(),
+    )
+    assert [r.id for r in result] == ["tg1", "tg2"]
+
+
+def test_set_track_tags_empty_clears() -> None:
+    repo, data_api = _make()
+    _bind_tx(data_api)
+    data_api.execute.side_effect = [
+        [{"x": 1}],   # category probe
+        [],            # DELETE existing
+        [],            # SELECT joined returns empty
+    ]
+    result = repo.set_track_tags(user_id="u1", track_id="t1", tag_ids=[], now=_now())
+    assert result == []
+
+
+def test_set_track_tags_dedupes_input() -> None:
+    repo, data_api = _make()
+    _bind_tx(data_api)
+    data_api.execute.side_effect = [
+        [{"x": 1}],          # category probe
+        [{"id": "tg1"}],     # tag ownership probe — only tg1 needed
+        [],                   # DELETE
+        [],                   # INSERT
+        [
+            {"id": "tg1", "name": "Vocal", "color": "#f00",
+             "created_at": "2026-05-11T12:00:00Z",
+             "updated_at": "2026-05-11T12:00:00Z"},
+        ],
+    ]
+    result = repo.set_track_tags(
+        user_id="u1", track_id="t1", tag_ids=["tg1", "tg1"], now=_now(),
+    )
+    assert [r.id for r in result] == ["tg1"]
+
+
+def test_set_track_tags_raises_when_track_not_in_category() -> None:
+    repo, data_api = _make()
+    _bind_tx(data_api)
+    data_api.execute.side_effect = [
+        [],  # category probe returns no rows
+    ]
+    with pytest.raises(TrackNotInAnyCategoryError):
+        repo.set_track_tags(user_id="u1", track_id="t1", tag_ids=["tg1"], now=_now())
+
+
+def test_set_track_tags_raises_when_foreign_tag() -> None:
+    repo, data_api = _make()
+    _bind_tx(data_api)
+    data_api.execute.side_effect = [
+        [{"x": 1}],         # category probe ok
+        [{"id": "tg1"}],    # only one of two requested tag_ids is owned
+    ]
+    with pytest.raises(TagNotFoundError):
+        repo.set_track_tags(
+            user_id="u1", track_id="t1", tag_ids=["tg1", "tg2"], now=_now(),
+        )
+
+
+def test_add_track_tag_idempotent() -> None:
+    repo, data_api = _make()
+    _bind_tx(data_api)
+    data_api.execute.side_effect = [
+        [{"x": 1}],          # category probe
+        [{"id": "tg1"}],     # tag ownership probe
+        [],                   # INSERT ON CONFLICT DO NOTHING
+        [
+            {"id": "tg1", "name": "Vocal", "color": "#f00",
+             "created_at": "2026-05-11T12:00:00Z",
+             "updated_at": "2026-05-11T12:00:00Z"},
+        ],
+    ]
+    out = repo.add_track_tag(user_id="u1", track_id="t1", tag_id="tg1", now=_now())
+    assert [r.id for r in out] == ["tg1"]
+
+
+def test_add_track_tag_raises_when_track_not_in_category() -> None:
+    repo, data_api = _make()
+    _bind_tx(data_api)
+    data_api.execute.side_effect = [[]]  # category probe empty
+    with pytest.raises(TrackNotInAnyCategoryError):
+        repo.add_track_tag(user_id="u1", track_id="t1", tag_id="tg1", now=_now())
+
+
+def test_add_track_tag_raises_when_foreign_tag() -> None:
+    repo, data_api = _make()
+    _bind_tx(data_api)
+    data_api.execute.side_effect = [
+        [{"x": 1}],   # category probe ok
+        [],            # tag ownership probe — empty (not owned)
+    ]
+    with pytest.raises(TagNotFoundError):
+        repo.add_track_tag(user_id="u1", track_id="t1", tag_id="tg1", now=_now())
+
+
+def test_remove_track_tag_returns_true_on_delete() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = [{"tag_id": "tg1"}]
+    assert repo.remove_track_tag(user_id="u1", track_id="t1", tag_id="tg1") is True
+
+
+def test_remove_track_tag_returns_false_when_no_row() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = []
+    assert repo.remove_track_tag(user_id="u1", track_id="t1", tag_id="tg1") is False
+
+
+def test_list_tags_for_tracks_groups_by_track() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = [
+        {"track_id": "t1", "id": "tg1", "name": "Vocal", "color": "#f00"},
+        {"track_id": "t1", "id": "tg2", "name": "Dark",  "color": "#000"},
+        {"track_id": "t2", "id": "tg1", "name": "Vocal", "color": "#f00"},
+    ]
+    grouped = repo.list_tags_for_tracks(user_id="u1", track_ids=["t1", "t2"])
+    assert [r.tag_id for r in grouped["t1"]] == ["tg1", "tg2"]
+    assert [r.tag_id for r in grouped["t2"]] == ["tg1"]
+
+
+def test_list_tags_for_tracks_empty_input_short_circuits() -> None:
+    repo, data_api = _make()
+    grouped = repo.list_tags_for_tracks(user_id="u1", track_ids=[])
+    assert grouped == {}
+    data_api.execute.assert_not_called()
+
+
+def test_cleanup_orphaned_track_tags_deletes_when_no_categories() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = [{"track_id": "t1"}, {"track_id": "t1"}]
+    n = repo.cleanup_orphaned_track_tags(
+        user_id="u1", track_ids=["t1"], transaction_id="tx-1",
+    )
+    assert n == 2
+    sql = data_api.execute.call_args.args[0]
+    assert "NOT EXISTS" in sql
+
+
+def test_cleanup_orphaned_track_tags_empty_short_circuits() -> None:
+    repo, data_api = _make()
+    n = repo.cleanup_orphaned_track_tags(
+        user_id="u1", track_ids=[], transaction_id="tx-1",
+    )
+    assert n == 0
+    data_api.execute.assert_not_called()

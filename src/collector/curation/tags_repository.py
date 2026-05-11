@@ -17,6 +17,7 @@ from . import (
     PaginatedResult,
     TagNameConflictError,
     TagNotFoundError,
+    TrackNotInAnyCategoryError,
 )
 
 
@@ -197,6 +198,242 @@ class TagsRepository:
             {"user_id": user_id, "tag_id": tag_id},
         )
         return bool(rows)
+
+    # --- track-tag ops ----------------------------------------------------
+
+    def _assert_track_in_any_active_category(
+        self, *, user_id: str, track_id: str, transaction_id: str | None
+    ) -> None:
+        rows = self._data_api.execute(
+            """
+            SELECT 1
+            FROM category_tracks ct
+            JOIN categories c ON c.id = ct.category_id
+            WHERE c.user_id = :user_id
+              AND ct.track_id = :track_id
+              AND c.deleted_at IS NULL
+            LIMIT 1
+            """,
+            {"user_id": user_id, "track_id": track_id},
+            transaction_id=transaction_id,
+        )
+        if not rows:
+            raise TrackNotInAnyCategoryError(
+                "Track is not in any of the user's categories",
+            )
+
+    def _assert_tag_ids_owned(
+        self,
+        *,
+        user_id: str,
+        tag_ids: list[str],
+        transaction_id: str | None,
+    ) -> None:
+        if not tag_ids:
+            return
+        placeholders = ", ".join(f":tg{i}" for i in range(len(tag_ids)))
+        params: dict[str, Any] = {f"tg{i}": tid for i, tid in enumerate(tag_ids)}
+        params["user_id"] = user_id
+        found = self._data_api.execute(
+            f"SELECT id FROM user_tags WHERE user_id = :user_id AND id IN ({placeholders})",
+            params,
+            transaction_id=transaction_id,
+        )
+        found_ids = {r["id"] for r in found}
+        missing = [t for t in tag_ids if t not in found_ids]
+        if missing:
+            raise TagNotFoundError(f"Unknown tag id: {missing[0]}")
+
+    def _select_track_tags(
+        self,
+        *,
+        user_id: str,
+        track_id: str,
+        transaction_id: str | None,
+    ) -> list[TagRow]:
+        rows = self._data_api.execute(
+            """
+            SELECT ut.id, ut.name, ut.color, ut.created_at, ut.updated_at
+            FROM track_tags tt
+            JOIN user_tags ut ON ut.id = tt.tag_id
+            WHERE tt.user_id = :user_id AND tt.track_id = :track_id
+            ORDER BY ut.normalized_name ASC
+            """,
+            {"user_id": user_id, "track_id": track_id},
+            transaction_id=transaction_id,
+        )
+        return [_row_to_tag(r) for r in rows]
+
+    def set_track_tags(
+        self,
+        *,
+        user_id: str,
+        track_id: str,
+        tag_ids: list[str],
+        now: datetime,
+        transaction_id: str | None = None,
+    ) -> list[TagRow]:
+        # de-dup while preserving caller order
+        ordered: list[str] = []
+        seen: set[str] = set()
+        for t in tag_ids:
+            if t not in seen:
+                ordered.append(t)
+                seen.add(t)
+
+        def _do(tx_id: str) -> list[TagRow]:
+            self._assert_track_in_any_active_category(
+                user_id=user_id, track_id=track_id, transaction_id=tx_id,
+            )
+            self._assert_tag_ids_owned(
+                user_id=user_id, tag_ids=ordered, transaction_id=tx_id,
+            )
+            self._data_api.execute(
+                "DELETE FROM track_tags WHERE user_id = :user_id AND track_id = :track_id",
+                {"user_id": user_id, "track_id": track_id},
+                transaction_id=tx_id,
+            )
+            if ordered:
+                value_clauses: list[str] = []
+                params: dict[str, Any] = {
+                    "user_id": user_id,
+                    "track_id": track_id,
+                    "created_at": now,
+                }
+                for i, tid in enumerate(ordered):
+                    value_clauses.append(
+                        f"(:user_id, :track_id, :tg{i}, :created_at)"
+                    )
+                    params[f"tg{i}"] = tid
+                self._data_api.execute(
+                    f"""
+                    INSERT INTO track_tags (user_id, track_id, tag_id, created_at)
+                    VALUES {", ".join(value_clauses)}
+                    """,
+                    params,
+                    transaction_id=tx_id,
+                )
+            return self._select_track_tags(
+                user_id=user_id, track_id=track_id, transaction_id=tx_id,
+            )
+
+        if transaction_id is not None:
+            return _do(transaction_id)
+        with self._data_api.transaction() as tx_id:
+            return _do(tx_id)
+
+    def add_track_tag(
+        self,
+        *,
+        user_id: str,
+        track_id: str,
+        tag_id: str,
+        now: datetime,
+        transaction_id: str | None = None,
+    ) -> list[TagRow]:
+        def _do(tx_id: str) -> list[TagRow]:
+            self._assert_track_in_any_active_category(
+                user_id=user_id, track_id=track_id, transaction_id=tx_id,
+            )
+            self._assert_tag_ids_owned(
+                user_id=user_id, tag_ids=[tag_id], transaction_id=tx_id,
+            )
+            self._data_api.execute(
+                """
+                INSERT INTO track_tags (user_id, track_id, tag_id, created_at)
+                VALUES (:user_id, :track_id, :tag_id, :created_at)
+                ON CONFLICT (user_id, track_id, tag_id) DO NOTHING
+                """,
+                {
+                    "user_id": user_id,
+                    "track_id": track_id,
+                    "tag_id": tag_id,
+                    "created_at": now,
+                },
+                transaction_id=tx_id,
+            )
+            return self._select_track_tags(
+                user_id=user_id, track_id=track_id, transaction_id=tx_id,
+            )
+
+        if transaction_id is not None:
+            return _do(transaction_id)
+        with self._data_api.transaction() as tx_id:
+            return _do(tx_id)
+
+    def remove_track_tag(
+        self, *, user_id: str, track_id: str, tag_id: str
+    ) -> bool:
+        rows = self._data_api.execute(
+            """
+            DELETE FROM track_tags
+            WHERE user_id = :user_id AND track_id = :track_id AND tag_id = :tag_id
+            RETURNING tag_id
+            """,
+            {"user_id": user_id, "track_id": track_id, "tag_id": tag_id},
+        )
+        return bool(rows)
+
+    def list_tags_for_tracks(
+        self, *, user_id: str, track_ids: list[str]
+    ) -> dict[str, list[TrackTagRow]]:
+        if not track_ids:
+            return {}
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {f"t{i}": tid for i, tid in enumerate(track_ids)}
+        params["user_id"] = user_id
+        rows = self._data_api.execute(
+            f"""
+            SELECT tt.track_id, ut.id, ut.name, ut.color
+            FROM track_tags tt
+            JOIN user_tags ut ON ut.id = tt.tag_id
+            WHERE tt.user_id = :user_id AND tt.track_id IN ({placeholders})
+            ORDER BY tt.track_id, ut.normalized_name ASC
+            """,
+            params,
+        )
+        grouped: dict[str, list[TrackTagRow]] = {}
+        for r in rows:
+            grouped.setdefault(r["track_id"], []).append(
+                TrackTagRow(
+                    track_id=r["track_id"],
+                    tag_id=r["id"],
+                    name=r["name"],
+                    color=r["color"],
+                )
+            )
+        return grouped
+
+    def cleanup_orphaned_track_tags(
+        self,
+        *,
+        user_id: str,
+        track_ids: list[str],
+        transaction_id: str,
+    ) -> int:
+        if not track_ids:
+            return 0
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {f"t{i}": tid for i, tid in enumerate(track_ids)}
+        params["user_id"] = user_id
+        rows = self._data_api.execute(
+            f"""
+            DELETE FROM track_tags
+            WHERE user_id = :user_id
+              AND track_id IN ({placeholders})
+              AND NOT EXISTS (
+                  SELECT 1 FROM category_tracks ct
+                  JOIN categories c ON c.id = ct.category_id
+                  WHERE ct.track_id = track_tags.track_id
+                    AND c.user_id = :user_id
+                    AND c.deleted_at IS NULL
+              )
+            RETURNING track_id
+            """,
+            params,
+            transaction_id=transaction_id,
+        )
+        return len(rows)
 
 
 def create_default_tags_repository() -> TagsRepository | None:
