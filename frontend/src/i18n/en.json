@@ -199,8 +199,16 @@
       "confirm": "Delete",
       "cancel": "Cancel"
     },
+    "popover": {
+      "search_placeholder": "Search or create…",
+      "empty": "No tags yet.",
+      "cap_hint": "Max 50 tags per track.",
+      "create_label": "+ Create \"{{name}}\"",
+      "create_confirm": "Create"
+    },
     "toast": {
       "save_failed": "Couldn't save tag.",
+      "update_failed": "Couldn't update track tags.",
       "delete_failed": "Couldn't delete tag."
     }
   },
