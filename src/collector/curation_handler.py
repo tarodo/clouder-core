@@ -960,7 +960,7 @@ def _handle_rename_tag(
         normalized = _normalize_tag_name(name)
     if color is not None:
         if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
-            raise InvalidTagColorError("color must be #RRGGBB hex")
+            raise InvalidTagColorError("color must be #RRGGBB hex or null")
     if name is None and color is None:
         raise InvalidTagPayloadError(
             "at least one of name|color required"

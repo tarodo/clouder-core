@@ -401,7 +401,7 @@ def test_create_tag_accepts_null_color() -> None:
     assert params["color"] is None
 
 
-def test_rename_tag_accepts_null_color_explicitly() -> None:
+def test_rename_tag_with_color_none_does_not_emit_color_set_clause() -> None:
     repo, data_api = _make()
     data_api.execute.return_value = [
         {"id": "tg1", "name": "Vocal", "color": None,
@@ -416,4 +416,6 @@ def test_rename_tag_accepts_null_color_explicitly() -> None:
         color=None,
         now=_now(),
     )
+    sql = data_api.execute.call_args.args[0]
+    assert "color = :color" not in sql
     assert row.color is None

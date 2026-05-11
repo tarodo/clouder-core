@@ -125,7 +125,10 @@ def test_create_tag_accepts_explicit_null_color(fake_tags, context) -> None:
         ),
         context,
     )
-    assert _read(resp)[0] == 201
+    status, body = _read(resp)
+    assert status == 201
+    assert body["color"] is None
+    assert fake_tags.create_tag.call_args.kwargs["color"] is None
 
 
 def test_create_tag_400_invalid_color(fake_tags, context) -> None:
