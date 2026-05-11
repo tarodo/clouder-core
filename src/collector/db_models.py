@@ -638,6 +638,13 @@ class PlaylistTrack(Base):
     __tablename__ = "playlist_tracks"
     __table_args__ = (
         CheckConstraint("position >= 0", name="ck_playlist_tracks_position"),
+        UniqueConstraint(
+            "playlist_id",
+            "position",
+            name="uq_playlist_tracks_playlist_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
         Index("idx_playlist_tracks_playlist_position", "playlist_id", "position"),
     )
 
