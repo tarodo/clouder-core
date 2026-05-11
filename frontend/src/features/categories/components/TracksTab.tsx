@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Button, Group, Stack, Table, TextInput } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
-import { IconSearch, IconX } from '@tabler/icons-react';
+import { IconSearch, IconSettings, IconX } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import {
   useCategoryTracks,
   type CategoryTrackSort,
@@ -12,6 +13,13 @@ import { TrackRow } from './TrackRow';
 import { TrackRowActions } from './TrackRowActions';
 import { SortableTh } from './SortableTh';
 import { EmptyState } from '../../../components/EmptyState';
+import { TagsFilterBar } from '../../tags/components/TagsFilterBar';
+import { TagsManagerModal } from '../../tags/components/TagsManagerModal';
+import {
+  readTagsUrlState,
+  writeTagsUrlState,
+  type TagsFilterState,
+} from '../../tags/lib/tagsUrlState';
 
 export interface TracksTabProps {
   categoryId: string;
@@ -21,10 +29,14 @@ export interface TracksTabProps {
 export function TracksTab({ categoryId, styleId }: TracksTabProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tagFilter = readTagsUrlState(searchParams);
+
   const [rawSearch, setRawSearch] = useState('');
   const [debounced] = useDebouncedValue(rawSearch.trim().toLowerCase(), 300);
   const [sortKey, setSortKey] = useState<CategoryTrackSort>('added_at');
   const [sortDir, setSortDir] = useState<SortOrder>('desc');
+  const [managerOpen, setManagerOpen] = useState(false);
 
   const handleSort = (key: CategoryTrackSort) => {
     if (key === sortKey) {
@@ -35,37 +47,67 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
     }
   };
 
+  const handleTagFilterChange = (next: TagsFilterState) => {
+    setSearchParams(writeTagsUrlState(searchParams, next), { replace: true });
+  };
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useCategoryTracks(categoryId, debounced, sortKey, sortDir);
+    useCategoryTracks(
+      categoryId,
+      debounced,
+      sortKey,
+      sortDir,
+      tagFilter.selectedIds,
+      tagFilter.match,
+    );
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
   const remaining = Math.max(0, total - items.length);
 
-  const searchInput = (
-    <TextInput
-      placeholder={t('categories.detail.tracks_search_placeholder')}
-      leftSection={<IconSearch size={16} />}
-      value={rawSearch}
-      onChange={(e) => setRawSearch(e.currentTarget.value)}
-      rightSection={
-        rawSearch ? (
-          <IconX
-            size={16}
-            role="button"
-            onClick={() => setRawSearch('')}
-            style={{ cursor: 'pointer' }}
-          />
-        ) : null
-      }
-    />
+  const filterRow = (
+    <Group gap="sm" align="flex-end" wrap="wrap">
+      <TextInput
+        placeholder={t('categories.detail.tracks_search_placeholder')}
+        leftSection={<IconSearch size={16} />}
+        value={rawSearch}
+        onChange={(e) => setRawSearch(e.currentTarget.value)}
+        rightSection={
+          rawSearch ? (
+            <IconX
+              size={16}
+              role="button"
+              onClick={() => setRawSearch('')}
+              style={{ cursor: 'pointer' }}
+            />
+          ) : null
+        }
+        style={{ flex: 1, minWidth: 200 }}
+      />
+      <TagsFilterBar
+        selectedIds={tagFilter.selectedIds}
+        match={tagFilter.match}
+        onChange={handleTagFilterChange}
+      />
+      <Button
+        variant="default"
+        leftSection={<IconSettings size={14} />}
+        onClick={() => setManagerOpen(true)}
+      >
+        {t('tags.filter.manage_tags')}
+      </Button>
+    </Group>
+  );
+
+  const modal = (
+    <TagsManagerModal opened={managerOpen} onClose={() => setManagerOpen(false)} />
   );
 
   if (!isLoading && items.length === 0) {
     if (debounced) {
       return (
         <Stack gap="md">
-          {searchInput}
+          {filterRow}
           <EmptyState
             title={t('categories.empty_state.no_search_results_title', { term: debounced })}
             body={
@@ -74,16 +116,18 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
               </Button>
             }
           />
+          {modal}
         </Stack>
       );
     }
     return (
       <Stack gap="md">
-        {searchInput}
+        {filterRow}
         <EmptyState
           title={t('categories.empty_state.no_tracks_title')}
           body={t('categories.empty_state.no_tracks_body')}
         />
+        {modal}
       </Stack>
     );
   }
@@ -91,7 +135,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
   if (isMobile) {
     return (
       <Stack gap="md">
-        {searchInput}
+        {filterRow}
         {items.map((tr) => (
           <TrackRow
             key={tr.id}
@@ -112,13 +156,14 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
             {t('categories.detail.tracks_load_more', { remaining })}
           </Button>
         )}
+        {modal}
       </Stack>
     );
   }
 
   return (
     <Stack gap="md">
-      {searchInput}
+      {filterRow}
       <Table>
         <Table.Thead>
           <Table.Tr>
@@ -176,6 +221,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
           </Button>
         </Group>
       )}
+      {modal}
     </Stack>
   );
 }

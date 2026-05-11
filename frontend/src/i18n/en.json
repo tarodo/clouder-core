@@ -219,7 +219,8 @@
       "match_all": "All",
       "match_any": "Any",
       "count_one": "{{count}} tag",
-      "count_other": "{{count}} tags"
+      "count_other": "{{count}} tags",
+      "manage_tags": "Manage tags"
     }
   },
   "triage": {

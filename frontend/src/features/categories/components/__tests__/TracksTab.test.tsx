@@ -3,17 +3,48 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
+import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
+import { MemoryRouter } from 'react-router';
 import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
+import { testTheme } from '../../../../test/theme';
 import { TracksTab } from '../TracksTab';
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <MantineProvider>
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </QueryClientProvider>
+    </MantineProvider>
+  );
+}
+
+function RouterWrapper({
+  initialUrl,
+  children,
+}: {
+  initialUrl: string;
+  children: React.ReactNode;
+}) {
+  const qc = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      mutations: { retry: false },
+    },
+  });
+  return (
+    <MantineProvider theme={testTheme}>
+      <ModalsProvider>
+        <Notifications />
+        <QueryClientProvider client={qc}>
+          <MemoryRouter initialEntries={[initialUrl]}>{children}</MemoryRouter>
+        </QueryClientProvider>
+      </ModalsProvider>
     </MantineProvider>
   );
 }
@@ -176,5 +207,51 @@ describe('TracksTab', () => {
     );
     await waitFor(() => expect(screen.getByText('Track 0')).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: /Track actions/i })).toHaveLength(2);
+  });
+
+  it('forwards tag filter from URL into useCategoryTracks request', async () => {
+    let captured: URL | null = null;
+    server.use(
+      http.get('http://localhost/tags', () =>
+        HttpResponse.json({
+          items: [{ id: 'tg1', name: 'Vocal', color: '#ff8800',
+                    created_at: 'x', updated_at: 'x' }],
+          total: 1, limit: 200, offset: 0,
+        }),
+      ),
+      http.get('http://localhost/categories/c1/tracks', ({ request }) => {
+        captured = new URL(request.url);
+        return HttpResponse.json({
+          items: [], total: 0, limit: 50, offset: 0,
+        });
+      }),
+    );
+    render(
+      <RouterWrapper initialUrl="/categories/c1?tags=tg1&match=any">
+        <TracksTab categoryId="c1" styleId="s1" />
+      </RouterWrapper>,
+    );
+    await waitFor(() => {
+      expect(captured?.searchParams.get('tags')).toBe('tg1');
+      expect(captured?.searchParams.get('match')).toBe('any');
+    });
+  });
+
+  it('opens the manage-tags modal when the button is clicked', async () => {
+    server.use(
+      http.get('http://localhost/tags', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
+      http.get('http://localhost/categories/c1/tracks', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
+      ),
+    );
+    render(
+      <RouterWrapper initialUrl="/categories/c1">
+        <TracksTab categoryId="c1" styleId="s1" />
+      </RouterWrapper>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /manage tags/i }));
+    expect(await screen.findByRole('dialog', { name: /manage tags/i })).toBeInTheDocument();
   });
 });
