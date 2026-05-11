@@ -7,11 +7,12 @@ time. Initial OAuth + replay protection still lives in auth_handler.
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol
 
-from collector.auth.kms_envelope import KmsEnvelope
+from collector.auth.kms_envelope import EnvelopePayload, KmsEnvelope
 from collector.data_api import DataAPIClient
 from collector.logging_utils import log_event
 
@@ -19,6 +20,18 @@ from . import SpotifyNotAuthorizedError
 
 
 _REFRESH_LEEWAY_SECONDS = 60
+
+
+def _b64e(value: bytes) -> str:
+    return base64.b64encode(value).decode("ascii")
+
+
+def _b64d(value: Any) -> bytes:
+    if isinstance(value, bytes):
+        return value
+    if value is None:
+        return b""
+    return base64.b64decode(value)
 
 
 @dataclass(frozen=True)
@@ -56,8 +69,11 @@ class SpotifyTokenResolver:
     def resolve(self, *, user_id: str) -> ResolvedSpotifyToken:
         rows = self._data_api.execute(
             """
-            SELECT access_token_enc, refresh_token_enc,
-                   data_key_enc, expires_at
+            SELECT
+                encode(access_token_enc, 'base64')  AS access_token_enc,
+                encode(refresh_token_enc, 'base64') AS refresh_token_enc,
+                encode(data_key_enc, 'base64')      AS data_key_enc,
+                expires_at
             FROM user_vendor_tokens
             WHERE user_id = :user_id AND vendor = 'spotify'
             """,
@@ -72,7 +88,10 @@ class SpotifyTokenResolver:
         now = datetime.now(timezone.utc)
 
         if (expires_at - now).total_seconds() > _REFRESH_LEEWAY_SECONDS:
-            plain = self._envelope.decrypt(row["access_token_enc"])
+            access_payload = EnvelopePayload.deserialize(
+                _b64d(row["access_token_enc"])
+            )
+            plain = self._envelope.decrypt(access_payload)
             return ResolvedSpotifyToken(
                 user_id=user_id,
                 access_token=plain.decode("utf-8"),
@@ -81,36 +100,37 @@ class SpotifyTokenResolver:
 
         # Refresh path.
         try:
-            refresh_plain = self._envelope.decrypt(
-                row["refresh_token_enc"]
-            ).decode("utf-8")
+            refresh_payload = EnvelopePayload.deserialize(
+                _b64d(row["refresh_token_enc"])
+            )
+            refresh_plain = self._envelope.decrypt(refresh_payload).decode("utf-8")
             new_tokens = self._oauth.refresh(refresh_token=refresh_plain)
         except Exception as exc:
             raise SpotifyNotAuthorizedError(
                 "Spotify refresh failed"
             ) from exc
 
-        access_payload = self._envelope.encrypt(
+        access_payload_new = self._envelope.encrypt(
             new_tokens.access_token.encode("utf-8")
         )
-        refresh_payload = self._envelope.encrypt(
+        refresh_payload_new = self._envelope.encrypt(
             new_tokens.refresh_token.encode("utf-8")
         )
-        new_expires = now + timedelta(seconds=int(new_tokens.expires_in))
+        new_expires = now + timedelta(seconds=int(round(new_tokens.expires_in)))
 
         self._data_api.execute(
             """
             UPDATE user_vendor_tokens SET
-                access_token_enc = :access_enc,
-                refresh_token_enc = :refresh_enc,
+                access_token_enc = decode(:access_enc, 'base64'),
+                refresh_token_enc = decode(:refresh_enc, 'base64'),
                 expires_at = :expires_at,
                 updated_at = :updated_at
             WHERE user_id = :user_id AND vendor = 'spotify'
             """,
             {
                 "user_id": user_id,
-                "access_enc": access_payload.serialize(),
-                "refresh_enc": refresh_payload.serialize(),
+                "access_enc": _b64e(access_payload_new.serialize()),
+                "refresh_enc": _b64e(refresh_payload_new.serialize()),
                 "expires_at": new_expires,
                 "updated_at": now,
             },
