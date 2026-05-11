@@ -23,17 +23,21 @@ function patch(
   tag: AddTrackTagInput['tag'],
 ): InfiniteData<PaginatedTracks> | undefined {
   if (!data) return data;
-  return {
-    ...data,
-    pages: data.pages.map((p) => ({
-      ...p,
-      items: p.items.map((it) => {
-        if (it.id !== trackId) return it;
-        if (it.tags.some((t) => t.id === tag.id)) return it;
-        return { ...it, tags: [...it.tags, tag] };
-      }),
-    })),
-  };
+  let changed = 0;
+  const pages = data.pages.map((p) => {
+    let pageChanged = 0;
+    const items = p.items.map((it) => {
+      if (it.id !== trackId) return it;
+      if (it.tags.some((t) => t.id === tag.id)) return it;
+      pageChanged += 1;
+      return { ...it, tags: [...it.tags, tag] };
+    });
+    if (pageChanged === 0) return p;
+    changed += pageChanged;
+    return { ...p, items };
+  });
+  if (changed === 0) return data;
+  return { ...data, pages };
 }
 
 export function useAddTrackTag(): UseMutationResult<
