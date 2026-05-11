@@ -372,3 +372,67 @@ def test_list_tracks_returns_rows_with_position() -> None:
     assert total == 1
     assert isinstance(rows[0], PlaylistTrackRow)
     assert rows[0].position == 0
+
+
+def test_set_cover_updates_row_and_marks_dirty() -> None:
+    captured = {}
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        captured.setdefault("calls", []).append((sql, params))
+        if "RETURNING" in sql:
+            return [{"id": "p-1"}]
+        return []
+
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    ok = repo.set_cover(
+        user_id="u-1", playlist_id="p-1",
+        s3_key="covers/u-1/p-1/123.jpg", now=_utc(),
+    )
+    assert ok is True
+    sqls = " | ".join(s for s, _ in captured["calls"])
+    assert "cover_s3_key" in sqls
+    assert "needs_republish" in sqls
+
+
+def test_set_cover_returns_false_when_playlist_missing() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+    api.execute.side_effect = lambda *a, **k: []
+    repo = PlaylistsRepository(api)
+    assert repo.set_cover(
+        user_id="u-1", playlist_id="p-1",
+        s3_key="x", now=_utc(),
+    ) is False
+
+
+def test_clear_cover_returns_true_when_affected() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+    api.execute.side_effect = lambda *a, **k: [{"id": "p-1"}]
+    repo = PlaylistsRepository(api)
+    assert repo.clear_cover(user_id="u-1", playlist_id="p-1", now=_utc()) is True
+
+
+def test_set_publish_state_persists_and_clears_dirty() -> None:
+    api = MagicMock()
+    captured = {}
+
+    def _execute(sql, params=None, transaction_id=None):
+        captured["sql"] = sql
+        captured["params"] = params
+        return [{"id": "p-1"}]
+
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    repo.set_publish_state(
+        user_id="u-1", playlist_id="p-1",
+        spotify_playlist_id="spt-abc", now=_utc(),
+    )
+    assert "needs_republish = FALSE" in captured["sql"]
+    assert captured["params"]["spotify_playlist_id"] == "spt-abc"

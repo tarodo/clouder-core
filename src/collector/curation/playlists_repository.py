@@ -499,6 +499,86 @@ class PlaylistsRepository:
         ]
         return out, total
 
+    # ---------- Cover --------------------------------------------------------
+
+    def set_cover(
+        self,
+        *,
+        user_id: str,
+        playlist_id: str,
+        s3_key: str,
+        now: datetime,
+    ) -> bool:
+        rows = self._data_api.execute(
+            """
+            UPDATE playlists SET
+                cover_s3_key = :s3_key,
+                cover_uploaded_at = :now,
+                updated_at = :now,
+                needs_republish = CASE
+                    WHEN spotify_playlist_id IS NOT NULL THEN TRUE
+                    ELSE needs_republish
+                END
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
+            RETURNING id
+            """,
+            {"id": playlist_id, "user_id": user_id, "s3_key": s3_key, "now": now},
+        )
+        return bool(rows)
+
+    def clear_cover(
+        self,
+        *,
+        user_id: str,
+        playlist_id: str,
+        now: datetime,
+    ) -> bool:
+        rows = self._data_api.execute(
+            """
+            UPDATE playlists SET
+                cover_s3_key = NULL,
+                cover_uploaded_at = NULL,
+                updated_at = :now,
+                needs_republish = CASE
+                    WHEN spotify_playlist_id IS NOT NULL THEN TRUE
+                    ELSE needs_republish
+                END
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
+            RETURNING id
+            """,
+            {"id": playlist_id, "user_id": user_id, "now": now},
+        )
+        return bool(rows)
+
+    # ---------- Publish state -----------------------------------------------
+
+    def set_publish_state(
+        self,
+        *,
+        user_id: str,
+        playlist_id: str,
+        spotify_playlist_id: str,
+        now: datetime,
+    ) -> bool:
+        rows = self._data_api.execute(
+            """
+            UPDATE playlists SET
+                spotify_playlist_id = :spotify_playlist_id,
+                last_published_at = :now,
+                needs_republish = FALSE,
+                updated_at = :now
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
+            RETURNING id
+            """,
+            {
+                "id": playlist_id,
+                "user_id": user_id,
+                "spotify_playlist_id": spotify_playlist_id,
+                "now": now,
+            },
+        )
+        return bool(rows)
+
     # ---------- Helpers ------------------------------------------------------
 
     def _mark_dirty_if_published(
