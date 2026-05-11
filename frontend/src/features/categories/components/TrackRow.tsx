@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/formatters';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
+import { TrackTagsCell } from '../../tags/components/TrackTagsCell';
 
 function joinArtists(artists: CategoryTrack['artists']): string {
   return artists.map((a) => a.name).join(', ');
@@ -12,10 +13,11 @@ function joinArtists(artists: CategoryTrack['artists']): string {
 export interface TrackRowProps {
   track: CategoryTrack;
   variant: 'desktop' | 'mobile';
+  categoryId: string;
   actions?: ReactNode;
 }
 
-export function TrackRow({ track, variant, actions }: TrackRowProps) {
+export function TrackRow({ track, variant, categoryId, actions }: TrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
     <IconAlertTriangle
@@ -24,6 +26,9 @@ export function TrackRow({ track, variant, actions }: TrackRowProps) {
       color="var(--color-warning)"
     />
   ) : null;
+  const tagsCell = (
+    <TrackTagsCell categoryId={categoryId} trackId={track.id} tags={track.tags} />
+  );
 
   if (variant === 'desktop') {
     return (
@@ -34,13 +39,12 @@ export function TrackRow({ track, variant, actions }: TrackRowProps) {
             <Stack gap={0}>
               <Text fw={500}>{track.title}</Text>
               {track.mix_name && (
-                <Text size="xs" c="dimmed">
-                  {track.mix_name}
-                </Text>
+                <Text size="xs" c="dimmed">{track.mix_name}</Text>
               )}
             </Stack>
           </Group>
         </Table.Td>
+        <Table.Td>{tagsCell}</Table.Td>
         <Table.Td>{joinArtists(track.artists)}</Table.Td>
         <Table.Td>{track.label?.name ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{track.bpm ?? '—'}</Table.Td>
@@ -65,16 +69,13 @@ export function TrackRow({ track, variant, actions }: TrackRowProps) {
           <Text fw={500}>{track.title}</Text>
         </Group>
         {track.mix_name && (
-          <Text size="xs" c="dimmed">
-            {track.mix_name}
-          </Text>
+          <Text size="xs" c="dimmed">{track.mix_name}</Text>
         )}
         <Text size="sm">{joinArtists(track.artists)}</Text>
         {track.label && (
-          <Text size="xs" c="dimmed">
-            {track.label.name}
-          </Text>
+          <Text size="xs" c="dimmed">{track.label.name}</Text>
         )}
+        <div>{tagsCell}</div>
         <Group gap="md" mt={4}>
           <Text size="xs" c="dimmed" className="font-mono">
             {track.bpm ?? '—'} BPM
@@ -87,9 +88,7 @@ export function TrackRow({ track, variant, actions }: TrackRowProps) {
               {track.spotify_release_date}
             </Text>
           )}
-          <Text size="xs" c="dimmed">
-            {formatAdded(track.added_at)}
-          </Text>
+          <Text size="xs" c="dimmed">{formatAdded(track.added_at)}</Text>
         </Group>
       </Stack>
     </Card>

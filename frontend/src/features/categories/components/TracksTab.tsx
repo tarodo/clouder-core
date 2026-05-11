@@ -97,6 +97,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
             key={tr.id}
             track={tr}
             variant="mobile"
+            categoryId={categoryId}
             actions={
               <TrackRowActions
                 track={tr}
@@ -128,6 +129,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
             >
               {t('categories.tracks_table.title')}
             </SortableTh>
+            <Table.Th>{t('categories.tracks_table.tags')}</Table.Th>
             <Table.Th>{t('categories.tracks_table.artists')}</Table.Th>
             <Table.Th>{t('categories.tracks_table.label')}</Table.Th>
             <Table.Th>{t('categories.tracks_table.bpm')}</Table.Th>
@@ -155,6 +157,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
               key={track.id}
               track={track}
               variant="desktop"
+              categoryId={categoryId}
               actions={
                 <TrackRowActions
                   track={track}

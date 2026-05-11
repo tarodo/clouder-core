@@ -152,6 +152,7 @@
     },
     "tracks_table": {
       "title": "Title",
+      "tags": "Tags",
       "artists": "Artists",
       "label": "Label",
       "bpm": "BPM",
