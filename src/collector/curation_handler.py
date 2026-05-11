@@ -26,6 +26,9 @@ from .curation import (
     InvalidTagPayloadError,
     NotFoundError,
     PaginatedResult,
+    PlaylistLimitReachedError,
+    PlaylistNameConflictError,
+    PlaylistNotFoundError,
     TagNotFoundError,
     TooManyTagsError,
     TrackNotInUserScopeError,
@@ -45,11 +48,22 @@ from .curation.categories_service import (
     normalize_category_name,
     validate_category_name,
 )
+from .curation.playlists_repository import (
+    PlaylistsRepository,
+    create_default_playlists_repository,
+)
+from .curation.playlists_service import (
+    normalize_playlist_name,
+    validate_description,
+    validate_playlist_name,
+)
 from .curation.schemas import (
     AddTrackIn,
     CreateCategoryIn,
+    CreatePlaylistIn,
     CreateTriageBlockIn,
     MoveTracksIn,
+    PatchPlaylistIn,
     RenameCategoryIn,
     ReorderCategoriesIn,
     TransferTracksIn,
@@ -182,6 +196,24 @@ def _category_response(row) -> dict[str, Any]:
         "style_name": row.style_name,
         "name": row.name,
         "position": row.position,
+        "track_count": row.track_count,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+    }
+
+
+def _playlist_response(row) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "user_id": row.user_id,
+        "name": row.name,
+        "description": row.description,
+        "is_public": row.is_public,
+        "cover_s3_key": row.cover_s3_key,
+        "cover_uploaded_at": row.cover_uploaded_at,
+        "spotify_playlist_id": row.spotify_playlist_id,
+        "last_published_at": row.last_published_at,
+        "needs_republish": row.needs_republish,
         "track_count": row.track_count,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
@@ -514,6 +546,107 @@ def _handle_remove_track(event, repo, user_id, correlation_id):
         user_id=user_id,
         category_id=cid,
         track_id=tid,
+    )
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
+    }
+
+
+# ---------- Playlist CRUD handlers ------------------------------------------
+
+
+def _handle_create_playlist(event, repo: PlaylistsRepository, user_id, correlation_id):
+    body = CreatePlaylistIn.model_validate(_parse_body(event))
+    validate_playlist_name(body.name)
+    validate_description(body.description)
+    normalized = normalize_playlist_name(body.name)
+    if not normalized:
+        raise ValidationError("Name must be non-empty")
+    playlist_id = str(uuid.uuid4())
+    row = repo.create(
+        user_id=user_id,
+        playlist_id=playlist_id,
+        name=body.name.strip(),
+        normalized_name=normalized,
+        description=body.description,
+        is_public=body.is_public,
+        now=utc_now(),
+    )
+    log_event(
+        "INFO", "playlist_created",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=row.id,
+    )
+    payload = _playlist_response(row)
+    payload["correlation_id"] = correlation_id
+    return _json_response(201, payload, correlation_id)
+
+
+def _handle_list_playlists(event, repo: PlaylistsRepository, user_id, correlation_id):
+    limit, offset = _parse_pagination(event)
+    rows, total = repo.list_all(user_id=user_id, limit=limit, offset=offset)
+    return _json_response(
+        200,
+        {
+            "items": [_playlist_response(r) for r in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_get_playlist(event, repo: PlaylistsRepository, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    row = repo.get(user_id=user_id, playlist_id=pid)
+    if row is None:
+        raise PlaylistNotFoundError()
+    payload = _playlist_response(row)
+    payload["correlation_id"] = correlation_id
+    return _json_response(200, payload, correlation_id)
+
+
+def _handle_patch_playlist(event, repo: PlaylistsRepository, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = PatchPlaylistIn.model_validate(_parse_body(event))
+    name = body.name.strip() if body.name is not None else None
+    normalized = normalize_playlist_name(body.name) if body.name is not None else None
+    if body.name is not None:
+        validate_playlist_name(body.name)
+    if body.description is not None:
+        validate_description(body.description)
+    row = repo.patch(
+        user_id=user_id, playlist_id=pid,
+        name=name, normalized_name=normalized,
+        description=body.description, is_public=body.is_public,
+        now=utc_now(),
+    )
+    log_event(
+        "INFO", "playlist_patched",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+    )
+    payload = _playlist_response(row)
+    payload["correlation_id"] = correlation_id
+    return _json_response(200, payload, correlation_id)
+
+
+def _handle_delete_playlist(event, repo: PlaylistsRepository, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    ok = repo.soft_delete(user_id=user_id, playlist_id=pid, now=utc_now())
+    if not ok:
+        raise PlaylistNotFoundError()
+    log_event(
+        "INFO", "playlist_deleted",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
     )
     return {
         "statusCode": 204,
@@ -1077,6 +1210,10 @@ def _tags_factory() -> Any:
     return create_default_tags_repository()
 
 
+def _playlists_factory() -> Any:
+    return create_default_playlists_repository()
+
+
 _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]] = {
     "POST /styles/{style_id}/categories": (_handle_create_category, _categories_factory),
     "GET /styles/{style_id}/categories": (_handle_list_by_style, _categories_factory),
@@ -1105,4 +1242,9 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "PUT /tracks/{track_id}/tags": (_handle_set_track_tags, _tags_factory),
     "POST /tracks/{track_id}/tags": (_handle_add_track_tag, _tags_factory),
     "DELETE /tracks/{track_id}/tags/{tag_id}": (_handle_remove_track_tag, _tags_factory),
+    "POST /playlists": (_handle_create_playlist, _playlists_factory),
+    "GET /playlists": (_handle_list_playlists, _playlists_factory),
+    "GET /playlists/{id}": (_handle_get_playlist, _playlists_factory),
+    "PATCH /playlists/{id}": (_handle_patch_playlist, _playlists_factory),
+    "DELETE /playlists/{id}": (_handle_delete_playlist, _playlists_factory),
 }
