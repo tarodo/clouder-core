@@ -117,4 +117,91 @@ describe('useCategoryTracks', () => {
       categoryTracksKey('c1', '', 'title', 'desc'),
     );
   });
+
+  it('passes tags + match query params when filter set', async () => {
+    let captured: URL | null = null;
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', ({ request }) => {
+        captured = new URL(request.url);
+        return HttpResponse.json({
+          items: [],
+          total: 0,
+          limit: 50,
+          offset: 0,
+        });
+      }),
+    );
+    const { result } = renderHook(
+      () =>
+        useCategoryTracks('c1', '', 'added_at', 'desc', ['tg2', 'tg1'], 'any'),
+      { wrapper: wrap() },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(captured).not.toBeNull();
+    // Sorted lexicographically before being sent
+    expect(captured!.searchParams.get('tags')).toBe('tg1,tg2');
+    expect(captured!.searchParams.get('match')).toBe('any');
+  });
+
+  it('omits tags param when no filter', async () => {
+    let captured: URL | null = null;
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', ({ request }) => {
+        captured = new URL(request.url);
+        return HttpResponse.json({
+          items: [],
+          total: 0,
+          limit: 50,
+          offset: 0,
+        });
+      }),
+    );
+    const { result } = renderHook(
+      () => useCategoryTracks('c1', '', 'added_at', 'desc'),
+      { wrapper: wrap() },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(captured!.searchParams.has('tags')).toBe(false);
+    expect(captured!.searchParams.has('match')).toBe(false);
+  });
+
+  it('parses tags field on each row', async () => {
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 't1',
+              title: 't1',
+              mix_name: null,
+              artists: [],
+              label: null,
+              bpm: null,
+              length_ms: null,
+              publish_date: null,
+              spotify_release_date: null,
+              isrc: null,
+              spotify_id: null,
+              release_type: null,
+              is_ai_suspected: false,
+              added_at: 'now',
+              source_triage_block_id: null,
+              tags: [{ id: 'tg1', name: 'Vocal', color: '#ff8800' }],
+            },
+          ],
+          total: 1,
+          limit: 50,
+          offset: 0,
+        }),
+      ),
+    );
+    const { result } = renderHook(
+      () => useCategoryTracks('c1', '', 'added_at', 'desc'),
+      { wrapper: wrap() },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.pages[0]?.items[0]?.tags).toEqual([
+      { id: 'tg1', name: 'Vocal', color: '#ff8800' },
+    ]);
+  });
 });
