@@ -483,7 +483,7 @@ def test_upsert_imported_track_inserts_new_when_missing() -> None:
     calls = []
 
     def _execute(sql, params=None, transaction_id=None):
-        calls.append(sql.split("\n")[0].strip())
+        calls.append(sql)
         if "SELECT id FROM clouder_tracks WHERE spotify_id" in sql:
             return []
         if "INSERT INTO clouder_tracks" in sql:
@@ -498,9 +498,8 @@ def test_upsert_imported_track_inserts_new_when_missing() -> None:
         title="X", isrc=None, length_ms=None, now=_utc(),
     )
     assert track_id
-    sqls = " | ".join(calls)
-    assert "INSERT INTO clouder_tracks" in sqls
-    assert "INSERT INTO user_imported_tracks" in sqls
+    assert any("INSERT INTO clouder_tracks" in s for s in calls)
+    assert any("INSERT INTO user_imported_tracks" in s for s in calls)
 
 
 def test_upsert_imported_track_handles_race_on_conflict() -> None:

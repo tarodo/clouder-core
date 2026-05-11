@@ -652,15 +652,17 @@ class PlaylistsRepository:
             else:
                 new_id = str(uuid.uuid4())
                 inserted = self._data_api.execute(
-                    "INSERT INTO clouder_tracks (\n"
-                    "    id, title, normalized_title, isrc, length_ms,\n"
-                    "    spotify_id, origin, created_at, updated_at\n"
-                    ") VALUES (\n"
-                    "    :id, :title, :normalized_title, :isrc, :length_ms,\n"
-                    "    :spotify_id, 'spotify_user_import', :now, :now\n"
-                    ")\n"
-                    "ON CONFLICT (spotify_id) DO NOTHING\n"
-                    "RETURNING id",
+                    """
+                    INSERT INTO clouder_tracks (
+                        id, title, normalized_title, isrc, length_ms,
+                        spotify_id, origin, created_at, updated_at
+                    ) VALUES (
+                        :id, :title, :normalized_title, :isrc, :length_ms,
+                        :spotify_id, 'spotify_user_import', :now, :now
+                    )
+                    ON CONFLICT (spotify_id) DO NOTHING
+                    RETURNING id
+                    """,
                     {
                         "id": new_id,
                         "title": title,
@@ -680,12 +682,18 @@ class PlaylistsRepository:
                         {"spotify_id": spotify_id},
                         transaction_id=tx_id,
                     )
+                    if not rerun:
+                        raise RuntimeError(
+                            f"Race during import: spotify_id={spotify_id} disappeared"
+                        )
                     track_id = rerun[0]["id"]
 
             self._data_api.execute(
-                "INSERT INTO user_imported_tracks (user_id, track_id, imported_at)\n"
-                "VALUES (:user_id, :track_id, :now)\n"
-                "ON CONFLICT DO NOTHING",
+                """
+                INSERT INTO user_imported_tracks (user_id, track_id, imported_at)
+                VALUES (:user_id, :track_id, :now)
+                ON CONFLICT DO NOTHING
+                """,
                 {"user_id": user_id, "track_id": track_id, "now": now},
                 transaction_id=tx_id,
             )
