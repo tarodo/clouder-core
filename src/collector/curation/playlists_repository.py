@@ -285,8 +285,6 @@ class PlaylistsRepository:
         track_ids: list[str],
         now: datetime,
     ) -> AppendTracksResult:
-        if not track_ids:
-            return AppendTracksResult([], [], 0)
         with self._data_api.transaction() as tx_id:
             owner_rows = self._data_api.execute(
                 "SELECT 1 AS ok FROM playlists "
@@ -296,6 +294,16 @@ class PlaylistsRepository:
             )
             if not owner_rows:
                 raise PlaylistNotFoundError()
+
+            if not track_ids:
+                max_rows = self._data_api.execute(
+                    "SELECT COALESCE(MAX(position), -1) AS max_pos "
+                    "FROM playlist_tracks WHERE playlist_id = :id",
+                    {"id": playlist_id},
+                    transaction_id=tx_id,
+                )
+                start = int(max_rows[0]["max_pos"]) + 1
+                return AppendTracksResult([], [], start)
 
             count_rows = self._data_api.execute(
                 "SELECT COUNT(*) AS cnt FROM playlist_tracks "
@@ -359,6 +367,7 @@ class PlaylistsRepository:
         user_id: str,
         playlist_id: str,
         track_id: str,
+        now: datetime,
     ) -> bool:
         with self._data_api.transaction() as tx_id:
             owner_rows = self._data_api.execute(
@@ -392,9 +401,6 @@ class PlaylistsRepository:
                 {"id": playlist_id, "pos": removed_pos},
                 transaction_id=tx_id,
             )
-            # Use a real timestamp so updated_at on playlists is sensible.
-            from datetime import timezone as _tz
-            now = datetime.now(_tz.utc)
             self._mark_dirty_if_published(playlist_id, now, tx_id)
             return True
 

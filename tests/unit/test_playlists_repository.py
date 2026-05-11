@@ -273,7 +273,9 @@ def test_remove_track_redenses_positions() -> None:
 
     api.execute.side_effect = _execute
     repo = PlaylistsRepository(api)
-    removed = repo.remove_track(user_id="u-1", playlist_id="p-1", track_id="t-1")
+    removed = repo.remove_track(
+        user_id="u-1", playlist_id="p-1", track_id="t-1", now=_utc()
+    )
     assert removed is True
     assert any("UPDATE" in op for op, _ in captured)
 
@@ -292,7 +294,12 @@ def test_remove_track_returns_false_when_missing() -> None:
 
     api.execute.side_effect = _execute
     repo = PlaylistsRepository(api)
-    assert repo.remove_track(user_id="u-1", playlist_id="p-1", track_id="x") is False
+    assert (
+        repo.remove_track(
+            user_id="u-1", playlist_id="p-1", track_id="x", now=_utc()
+        )
+        is False
+    )
 
 
 def test_reorder_rejects_mismatched_set() -> None:
