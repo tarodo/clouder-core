@@ -18,6 +18,12 @@ export interface TrackLabel {
 export type CategoryTrackSort = 'title' | 'spotify_release_date' | 'added_at';
 export type SortOrder = 'asc' | 'desc';
 
+export interface CategoryTagRef {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
 export interface CategoryTrack {
   id: string;
   title: string;
@@ -34,6 +40,7 @@ export interface CategoryTrack {
   is_ai_suspected: boolean;
   added_at: string;
   source_triage_block_id: string | null;
+  tags: CategoryTagRef[];
 }
 
 export interface PaginatedTracks {
@@ -51,7 +58,11 @@ export const categoryTracksKey = (
   search: string,
   sort: CategoryTrackSort,
   order: SortOrder,
-) => ['categories', 'tracks', id, search, sort, order] as const;
+  tagIds: readonly string[] = [],
+  tagMatch: 'all' | 'any' = 'all',
+) =>
+  ['categories', 'tracks', id, search, sort, order,
+   [...tagIds].sort().join(','), tagMatch] as const;
 
 export function useCategoryTracks(
   categoryId: string,

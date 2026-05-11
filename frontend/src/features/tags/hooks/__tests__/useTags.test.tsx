@@ -45,7 +45,7 @@ describe('useTags', () => {
     const { result } = renderHook(() => useTags(), { wrapper: wrap(qc) });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.map((t) => t.id)).toEqual(['tg1', 'tg2']);
-    expect(result.current.data?.[1].color).toBeNull();
+    expect(result.current.data?.[1]?.color).toBeNull();
   });
 
   it('uses the stable cache key', () => {

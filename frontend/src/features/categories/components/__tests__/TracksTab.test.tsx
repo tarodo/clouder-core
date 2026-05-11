@@ -35,6 +35,7 @@ function mkTracks(start: number, count: number) {
     is_ai_suspected: false,
     added_at: '2026-01-01T00:00:00Z',
     source_triage_block_id: null,
+    tags: [],
   }));
 }
 

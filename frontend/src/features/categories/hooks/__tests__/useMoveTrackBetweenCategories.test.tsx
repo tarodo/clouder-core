@@ -35,6 +35,7 @@ function seed(qc: QueryClient, categoryId: string, ids: string[]): void {
     is_ai_suspected: false,
     added_at: '2026-01-01T00:00:00Z',
     source_triage_block_id: null,
+    tags: [],
   }));
   const page: PaginatedTracks = { items, total: items.length, limit: 50, offset: 0 };
   qc.setQueryData(categoryTracksKey(categoryId, '', 'added_at', 'desc'), {
