@@ -375,3 +375,45 @@ def test_cleanup_orphaned_track_tags_empty_short_circuits() -> None:
     )
     assert n == 0
     data_api.execute.assert_not_called()
+
+
+def test_create_tag_accepts_null_color() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = [
+        {
+            "id": "tg1",
+            "name": "Vocal",
+            "color": None,
+            "created_at": "2026-05-11T12:00:00Z",
+            "updated_at": "2026-05-11T12:00:00Z",
+        }
+    ]
+    row = repo.create_tag(
+        user_id="u1",
+        tag_id="tg1",
+        name="Vocal",
+        normalized_name="vocal",
+        color=None,
+        now=_now(),
+    )
+    assert row.color is None
+    params = data_api.execute.call_args.args[1]
+    assert params["color"] is None
+
+
+def test_rename_tag_accepts_null_color_explicitly() -> None:
+    repo, data_api = _make()
+    data_api.execute.return_value = [
+        {"id": "tg1", "name": "Vocal", "color": None,
+         "created_at": "2026-05-11T12:00:00Z",
+         "updated_at": "2026-05-11T12:01:00Z"}
+    ]
+    row = repo.rename_tag(
+        user_id="u1",
+        tag_id="tg1",
+        name=None,
+        normalized_name=None,
+        color=None,
+        now=_now(),
+    )
+    assert row.color is None

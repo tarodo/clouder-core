@@ -908,8 +908,9 @@ def _handle_create_tag(
     name = name_raw.strip()
     if not name or len(name) > _MAX_TAG_NAME:
         raise InvalidTagNameError("name must be 1..64 chars")
-    if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
-        raise InvalidTagColorError("color must be #RRGGBB hex")
+    if color is not None:
+        if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
+            raise InvalidTagColorError("color must be #RRGGBB hex or null")
     row = repo.create_tag(
         user_id=user_id,
         tag_id=str(uuid.uuid4()),

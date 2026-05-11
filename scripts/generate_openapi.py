@@ -138,7 +138,7 @@ CATEGORY_TRACK_RESPONSE = {
                     "id": {"type": "string", "format": "uuid"},
                     "name": {"type": "string"},
                     "color": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "pattern": "^#[0-9A-Fa-f]{6}$",
                     },
                 },
@@ -165,7 +165,7 @@ TAG_RESPONSE = {
     "properties": {
         "id": {"type": "string", "format": "uuid"},
         "name": {"type": "string"},
-        "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+        "color": {"type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$"},
         "created_at": {"type": "string"},
         "updated_at": {"type": "string"},
     },
@@ -194,7 +194,7 @@ TRACK_TAGS_RESPONSE = {
                 "properties": {
                     "id": {"type": "string", "format": "uuid"},
                     "name": {"type": "string"},
-                    "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                    "color": {"type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$"},
                 },
             },
         },
@@ -1346,10 +1346,10 @@ ROUTES: list[dict[str, Any]] = [
             "required": True,
             "content": {"application/json": {"schema": {
                 "type": "object",
-                "required": ["name", "color"],
+                "required": ["name"],
                 "properties": {
                     "name": {"type": "string", "minLength": 1, "maxLength": 64},
-                    "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                    "color": {"type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$"},
                 },
                 "additionalProperties": False,
             }}},
@@ -1395,7 +1395,7 @@ ROUTES: list[dict[str, Any]] = [
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "minLength": 1, "maxLength": 64},
-                    "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                    "color": {"type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$"},
                 },
                 "additionalProperties": False,
             }}},

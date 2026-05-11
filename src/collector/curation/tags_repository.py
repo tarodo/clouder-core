@@ -25,7 +25,7 @@ from . import (
 class TagRow:
     id: str
     name: str
-    color: str
+    color: str | None
     created_at: str
     updated_at: str
 
@@ -35,14 +35,14 @@ class TrackTagRow:
     track_id: str
     tag_id: str
     name: str
-    color: str
+    color: str | None
 
 
 def _row_to_tag(r: dict[str, Any]) -> TagRow:
     return TagRow(
         id=r["id"],
         name=r["name"],
-        color=r["color"],
+        color=r.get("color"),
         created_at=str(r["created_at"]),
         updated_at=str(r["updated_at"]),
     )
@@ -61,7 +61,7 @@ class TagsRepository:
         tag_id: str,
         name: str,
         normalized_name: str,
-        color: str,
+        color: str | None,
         now: datetime,
     ) -> TagRow:
         try:

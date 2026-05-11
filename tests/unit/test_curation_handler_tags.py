@@ -73,7 +73,7 @@ def fake_tags(monkeypatch) -> MagicMock:
 
 
 def _stock_tag_row(
-    id: str = "tg1", name: str = "Vocal", color: str = "#ff8800"
+    id: str = "tg1", name: str = "Vocal", color: str | None = "#ff8800"
 ) -> TagRow:
     return TagRow(
         id=id, name=name, color=color,
@@ -99,6 +99,33 @@ def test_create_tag_returns_201(fake_tags, context) -> None:
     assert body["name"] == "Vocal"
     assert body["color"] == "#ff8800"
     assert body["id"] == "tg1"
+
+
+def test_create_tag_accepts_null_color(fake_tags, context) -> None:
+    fake_tags.create_tag.return_value = _stock_tag_row(color=None)
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/tags",
+            body={"name": "Vocal"},     # color absent
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 201
+    assert body["color"] is None
+    assert fake_tags.create_tag.call_args.kwargs["color"] is None
+
+
+def test_create_tag_accepts_explicit_null_color(fake_tags, context) -> None:
+    fake_tags.create_tag.return_value = _stock_tag_row(color=None)
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/tags",
+            body={"name": "Vocal", "color": None},
+        ),
+        context,
+    )
+    assert _read(resp)[0] == 201
 
 
 def test_create_tag_400_invalid_color(fake_tags, context) -> None:
