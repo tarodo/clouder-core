@@ -47,6 +47,9 @@ beforeEach(() => {
     http.get('http://localhost/categories/c1/tracks', () =>
       HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
     ),
+    http.get('http://localhost/styles/s1/categories', () =>
+      HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+    ),
   );
 });
 

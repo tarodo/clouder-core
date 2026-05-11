@@ -107,7 +107,7 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
           </Button>
         </Group>
       </Group>
-      <TracksTab categoryId={id} />
+      <TracksTab categoryId={id} styleId={styleId} />
       <CategoryFormDialog
         mode="rename"
         opened={renameOpen}
