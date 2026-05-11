@@ -211,7 +211,15 @@
       "update_failed": "Couldn't update track tags.",
       "delete_failed": "Couldn't delete tag."
     },
-    "cell": { "add_aria": "Add tag" }
+    "cell": { "add_aria": "Add tag" },
+    "filter": {
+      "placeholder": "Filter by tag…",
+      "empty": "No tags yet.",
+      "match_all": "All",
+      "match_any": "Any",
+      "count_one": "{{count}} tag",
+      "count_other": "{{count}} tags"
+    }
   },
   "triage": {
     "page_title": "Triage",
