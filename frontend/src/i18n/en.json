@@ -210,7 +210,8 @@
       "save_failed": "Couldn't save tag.",
       "update_failed": "Couldn't update track tags.",
       "delete_failed": "Couldn't delete tag."
-    }
+    },
+    "cell": { "add_aria": "Add tag" }
   },
   "triage": {
     "page_title": "Triage",
