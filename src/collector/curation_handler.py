@@ -353,11 +353,17 @@ def _handle_soft_delete(event, repo, user_id, correlation_id):
     cid = (event.get("pathParameters") or {}).get("id")
     if not cid:
         raise ValidationError("id is required in path")
+    tags_repo = create_default_tags_repository()
+    if tags_repo is None:
+        return _error(
+            503, "db_not_configured", "Database not configured", correlation_id,
+        )
     deleted = repo.soft_delete(
         user_id=user_id,
         category_id=cid,
         now=utc_now(),
         correlation_id=correlation_id,
+        tags_repo=tags_repo,
     )
     if not deleted:
         raise NotFoundError("category_not_found", "Category not found")
@@ -432,10 +438,23 @@ def _handle_list_tracks(event, repo, user_id, correlation_id):
     if order not in _ORDER_VALUES:
         raise BadQueryParamError("order must be 'asc' or 'desc'")
 
+    tags_raw = qp.get("tags")
+    tag_ids = [t for t in (tags_raw.split(",") if tags_raw else []) if t]
+    tag_match = (qp.get("match") or "all").lower()
+    if tag_match not in ("all", "any"):
+        raise InvalidMatchError("match must be 'all' or 'any'")
+
+    tags_repo = create_default_tags_repository()
+    if tags_repo is None:
+        return _error(
+            503, "db_not_configured", "Database not configured", correlation_id,
+        )
+
     result = repo.list_tracks(
         user_id=user_id, category_id=cid,
         limit=limit, offset=offset, search=search,
         sort=sort, order=order,
+        tag_ids=tag_ids or None, tag_match=tag_match, tags_repo=tags_repo,
     )
     return _paginated_response(
         result, _track_in_category_response, correlation_id
@@ -475,8 +494,13 @@ def _handle_remove_track(event, repo, user_id, correlation_id):
     tid = pp.get("track_id")
     if not cid or not tid:
         raise ValidationError("id and track_id are required in path")
+    tags_repo = create_default_tags_repository()
+    if tags_repo is None:
+        return _error(
+            503, "db_not_configured", "Database not configured", correlation_id,
+        )
     deleted = repo.remove_track(
-        user_id=user_id, category_id=cid, track_id=tid,
+        user_id=user_id, category_id=cid, track_id=tid, tags_repo=tags_repo,
     )
     if not deleted:
         raise NotFoundError("track_not_in_category", "Track not in category")

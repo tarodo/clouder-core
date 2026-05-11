@@ -139,7 +139,10 @@ class FakeRepo:
         c["updated_at"] = now.isoformat()
         return self._row(c)
 
-    def soft_delete(self, *, user_id, category_id, now, correlation_id=None):
+    def soft_delete(
+        self, *, user_id, category_id, now, correlation_id=None,
+        tags_repo=None,
+    ):
         c = self.categories.get(category_id)
         if (
             c is None
@@ -210,7 +213,9 @@ class FakeRepo:
             bool(added),
         )
 
-    def remove_track(self, *, user_id, category_id, track_id):
+    def remove_track(
+        self, *, user_id, category_id, track_id, tags_repo=None,
+    ):
         c = self.categories.get(category_id)
         if (
             c is None
@@ -223,6 +228,7 @@ class FakeRepo:
     def list_tracks(
         self, *, user_id, category_id, limit, offset, search,
         sort: str = "added_at", order: str = "desc",
+        tag_ids=None, tag_match: str = "all", tags_repo=None,
     ):
         c = self.categories.get(category_id)
         if (
@@ -273,10 +279,23 @@ def context() -> SimpleNamespace:
 
 @pytest.fixture
 def fake_repo(monkeypatch) -> FakeRepo:
+    from unittest.mock import MagicMock
+
     repo = FakeRepo()
     monkeypatch.setattr(
         "collector.curation_handler.create_default_categories_repository",
         lambda: repo,
+    )
+    # Stub TagsRepository factory so handlers that inline-instantiate it
+    # (list_tracks, remove_track, soft_delete) don't 503 in integration
+    # tests. The default behaviour is a no-op MagicMock — tests that need
+    # specific tag behaviour can override via monkeypatch.
+    tags_repo = MagicMock()
+    tags_repo.list_tags_for_tracks.return_value = {}
+    tags_repo.cleanup_orphaned_track_tags.return_value = 0
+    monkeypatch.setattr(
+        "collector.curation_handler.create_default_tags_repository",
+        lambda: tags_repo,
     )
     return repo
 
