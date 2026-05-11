@@ -19,8 +19,15 @@ from .curation import (
     BadQueryParamError,
     CurationError,
     InactiveStagingFinalizeError,
+    InvalidMatchError,
+    InvalidTagColorError,
+    InvalidTagIdsError,
+    InvalidTagNameError,
+    InvalidTagPayloadError,
     NotFoundError,
     PaginatedResult,
+    TagNotFoundError,
+    TooManyTagsError,
     TracksNotInSourceError,
     ValidationError,
     utc_now,
@@ -28,6 +35,10 @@ from .curation import (
 from .curation.categories_repository import (
     CategoriesRepository,
     create_default_categories_repository,
+)
+from .curation.tags_repository import (
+    TagsRepository,
+    create_default_tags_repository,
 )
 from .curation.categories_service import (
     normalize_category_name,
@@ -342,11 +353,17 @@ def _handle_soft_delete(event, repo, user_id, correlation_id):
     cid = (event.get("pathParameters") or {}).get("id")
     if not cid:
         raise ValidationError("id is required in path")
+    tags_repo = create_default_tags_repository()
+    if tags_repo is None:
+        return _error(
+            503, "db_not_configured", "Database not configured", correlation_id,
+        )
     deleted = repo.soft_delete(
         user_id=user_id,
         category_id=cid,
         now=utc_now(),
         correlation_id=correlation_id,
+        tags_repo=tags_repo,
     )
     if not deleted:
         raise NotFoundError("category_not_found", "Category not found")
@@ -397,6 +414,10 @@ def _track_in_category_response(item) -> dict[str, Any]:
     track = dict(item.track)
     track["added_at"] = item.added_at
     track["source_triage_block_id"] = item.source_triage_block_id
+    track["tags"] = [
+        {"id": t.tag_id, "name": t.name, "color": t.color}
+        for t in getattr(item, "tags", ())
+    ]
     return track
 
 
@@ -417,10 +438,23 @@ def _handle_list_tracks(event, repo, user_id, correlation_id):
     if order not in _ORDER_VALUES:
         raise BadQueryParamError("order must be 'asc' or 'desc'")
 
+    tags_raw = qp.get("tags")
+    tag_ids = [t for t in (tags_raw.split(",") if tags_raw else []) if t]
+    tag_match = (qp.get("match") or "all").lower()
+    if tag_match not in ("all", "any"):
+        raise InvalidMatchError("match must be 'all' or 'any'")
+
+    tags_repo = create_default_tags_repository()
+    if tags_repo is None:
+        return _error(
+            503, "db_not_configured", "Database not configured", correlation_id,
+        )
+
     result = repo.list_tracks(
         user_id=user_id, category_id=cid,
         limit=limit, offset=offset, search=search,
         sort=sort, order=order,
+        tag_ids=tag_ids or None, tag_match=tag_match, tags_repo=tags_repo,
     )
     return _paginated_response(
         result, _track_in_category_response, correlation_id
@@ -460,8 +494,13 @@ def _handle_remove_track(event, repo, user_id, correlation_id):
     tid = pp.get("track_id")
     if not cid or not tid:
         raise ValidationError("id and track_id are required in path")
+    tags_repo = create_default_tags_repository()
+    if tags_repo is None:
+        return _error(
+            503, "db_not_configured", "Database not configured", correlation_id,
+        )
     deleted = repo.remove_track(
-        user_id=user_id, category_id=cid, track_id=tid,
+        user_id=user_id, category_id=cid, track_id=tid, tags_repo=tags_repo,
     )
     if not deleted:
         raise NotFoundError("track_not_in_category", "Track not in category")
@@ -823,6 +862,201 @@ def _soft_delete_triage_block(
     }
 
 
+# ---------- Track-tags handlers (spec 2026-05-11) ---------------------------
+
+import re as _re
+
+_HEX_COLOR_RE = _re.compile(r"^#[0-9A-Fa-f]{6}$")
+_MAX_TAG_NAME = 64
+_MAX_TAGS_PER_TRACK = 50
+
+
+def _normalize_tag_name(name: str) -> str:
+    return " ".join(name.strip().lower().split())
+
+
+def _tag_dict(row) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "name": row.name,
+        "color": row.color,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+    }
+
+
+def _track_tag_dict(row) -> dict[str, Any]:
+    return {"id": row.tag_id, "name": row.name, "color": row.color}
+
+
+def _no_content(correlation_id: str) -> dict[str, Any]:
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
+    }
+
+
+def _handle_create_tag(
+    event, repo: TagsRepository, user_id: str, correlation_id: str
+):
+    body = _parse_body(event)
+    name_raw = body.get("name")
+    color = body.get("color")
+    if not isinstance(name_raw, str):
+        raise InvalidTagNameError("name is required")
+    name = name_raw.strip()
+    if not name or len(name) > _MAX_TAG_NAME:
+        raise InvalidTagNameError("name must be 1..64 chars")
+    if color is not None:
+        if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
+            raise InvalidTagColorError("color must be #RRGGBB hex or null")
+    row = repo.create_tag(
+        user_id=user_id,
+        tag_id=str(uuid.uuid4()),
+        name=name,
+        normalized_name=_normalize_tag_name(name),
+        color=color,
+        now=utc_now(),
+    )
+    return _json_response(201, _tag_dict(row), correlation_id)
+
+
+def _handle_list_tags(
+    event, repo: TagsRepository, user_id: str, correlation_id: str
+):
+    limit, offset = _parse_pagination(event)
+    qp = event.get("queryStringParameters") or {}
+    search = qp.get("search")
+    page = repo.list_tags(
+        user_id=user_id, limit=limit, offset=offset, search=search,
+    )
+    return _json_response(
+        200,
+        {
+            "items": [_tag_dict(r) for r in page.items],
+            "total": page.total,
+            "limit": page.limit,
+            "offset": page.offset,
+        },
+        correlation_id,
+    )
+
+
+def _handle_rename_tag(
+    event, repo: TagsRepository, user_id: str, correlation_id: str
+):
+    tag_id = (event.get("pathParameters") or {}).get("tag_id")
+    if not tag_id:
+        raise ValidationError("tag_id is required in path")
+    body = _parse_body(event)
+    has_name = "name" in body
+    has_color = "color" in body
+    name = body.get("name") if has_name else None
+    color = body.get("color") if has_color else None
+    normalized: str | None = None
+    if has_name:
+        if not isinstance(name, str) or not name.strip() or len(name.strip()) > _MAX_TAG_NAME:
+            raise InvalidTagNameError("name must be 1..64 chars")
+        name = name.strip()
+        normalized = _normalize_tag_name(name)
+    if has_color and color is not None:
+        if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
+            raise InvalidTagColorError("color must be #RRGGBB hex or null")
+    if not has_name and not has_color:
+        raise InvalidTagPayloadError(
+            "at least one of name|color required"
+        )
+    row = repo.rename_tag(
+        user_id=user_id, tag_id=tag_id,
+        name=name, normalized_name=normalized,
+        color=color, clear_color=has_color,
+        now=utc_now(),
+    )
+    return _json_response(200, _tag_dict(row), correlation_id)
+
+
+def _handle_delete_tag(
+    event, repo: TagsRepository, user_id: str, correlation_id: str
+):
+    tag_id = (event.get("pathParameters") or {}).get("tag_id")
+    if not tag_id:
+        raise ValidationError("tag_id is required in path")
+    ok = repo.delete_tag(user_id=user_id, tag_id=tag_id)
+    if not ok:
+        raise TagNotFoundError()
+    return _no_content(correlation_id)
+
+
+def _handle_list_track_tags(
+    event, repo: TagsRepository, user_id: str, correlation_id: str
+):
+    track_id = (event.get("pathParameters") or {}).get("track_id")
+    if not track_id:
+        raise ValidationError("track_id is required in path")
+    grouped = repo.list_tags_for_tracks(user_id=user_id, track_ids=[track_id])
+    items = grouped.get(track_id, [])
+    return _json_response(
+        200, {"tags": [_track_tag_dict(r) for r in items]}, correlation_id,
+    )
+
+
+def _handle_set_track_tags(
+    event, repo: TagsRepository, user_id: str, correlation_id: str
+):
+    track_id = (event.get("pathParameters") or {}).get("track_id")
+    if not track_id:
+        raise ValidationError("track_id is required in path")
+    body = _parse_body(event)
+    tag_ids = body.get("tag_ids")
+    if not isinstance(tag_ids, list):
+        raise InvalidTagIdsError("tag_ids must be an array")
+    if len(tag_ids) > _MAX_TAGS_PER_TRACK:
+        raise TooManyTagsError(
+            f"Maximum {_MAX_TAGS_PER_TRACK} tags per track"
+        )
+    if any(not isinstance(t, str) or not t for t in tag_ids):
+        raise InvalidTagIdsError("tag_ids must be non-empty strings")
+    if len(set(tag_ids)) != len(tag_ids):
+        raise InvalidTagIdsError("Duplicate tag ids")
+    out = repo.set_track_tags(
+        user_id=user_id, track_id=track_id, tag_ids=tag_ids, now=utc_now(),
+    )
+    return _json_response(
+        200, {"tags": [_tag_dict(r) for r in out]}, correlation_id,
+    )
+
+
+def _handle_add_track_tag(
+    event, repo: TagsRepository, user_id: str, correlation_id: str
+):
+    track_id = (event.get("pathParameters") or {}).get("track_id")
+    if not track_id:
+        raise ValidationError("track_id is required in path")
+    body = _parse_body(event)
+    tag_id = body.get("tag_id")
+    if not isinstance(tag_id, str) or not tag_id:
+        raise InvalidTagIdsError("tag_id required")
+    out = repo.add_track_tag(
+        user_id=user_id, track_id=track_id, tag_id=tag_id, now=utc_now(),
+    )
+    return _json_response(
+        201, {"tags": [_tag_dict(r) for r in out]}, correlation_id,
+    )
+
+
+def _handle_remove_track_tag(
+    event, repo: TagsRepository, user_id: str, correlation_id: str
+):
+    pp = event.get("pathParameters") or {}
+    track_id = pp.get("track_id")
+    tag_id = pp.get("tag_id")
+    if not track_id or not tag_id:
+        raise ValidationError("track_id and tag_id are required in path")
+    repo.remove_track_tag(user_id=user_id, track_id=track_id, tag_id=tag_id)
+    return _no_content(correlation_id)
+
+
 # Single source of truth for routing: each route maps to a
 # `(handler, repo_factory)` tuple. Adding a new route requires picking the
 # right factory explicitly — there is no silent fallback. spec-C routes use
@@ -834,6 +1068,10 @@ def _categories_factory() -> Any:
 
 def _triage_factory() -> Any:
     return create_default_triage_repository()
+
+
+def _tags_factory() -> Any:
+    return create_default_tags_repository()
 
 
 _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]] = {
@@ -856,4 +1094,12 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "POST /triage/blocks/{src_id}/transfer": (_transfer_tracks, _triage_factory),
     "POST /triage/blocks/{id}/finalize": (_finalize_triage_block, _triage_factory),
     "DELETE /triage/blocks/{id}": (_soft_delete_triage_block, _triage_factory),
+    "POST /tags": (_handle_create_tag, _tags_factory),
+    "GET /tags": (_handle_list_tags, _tags_factory),
+    "PATCH /tags/{tag_id}": (_handle_rename_tag, _tags_factory),
+    "DELETE /tags/{tag_id}": (_handle_delete_tag, _tags_factory),
+    "GET /tracks/{track_id}/tags": (_handle_list_track_tags, _tags_factory),
+    "PUT /tracks/{track_id}/tags": (_handle_set_track_tags, _tags_factory),
+    "POST /tracks/{track_id}/tags": (_handle_add_track_tag, _tags_factory),
+    "DELETE /tracks/{track_id}/tags/{tag_id}": (_handle_remove_track_tag, _tags_factory),
 }

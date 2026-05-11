@@ -66,7 +66,7 @@ Alternative approaches considered:
 Constraints / indexes:
 
 - `UNIQUE (user_id, normalized_name)` → `uq_user_tags_user_normalized_name`.
-- `INDEX (user_id)` → `ix_user_tags_user_id`.
+- `INDEX (user_id)` → `idx_user_tags_user_id` (project convention is `idx_…`, not `ix_…` — see existing alembic revisions).
 
 ### `track_tags`
 
@@ -80,8 +80,8 @@ Constraints / indexes:
 Constraints / indexes:
 
 - `PRIMARY KEY (user_id, track_id, tag_id)`.
-- `INDEX (user_id, tag_id)` → `ix_track_tags_user_tag`. Used by category filter SQL.
-- `INDEX (user_id, track_id)` → `ix_track_tags_user_track`. Used by per-track fan-in.
+- `INDEX (user_id, tag_id)` → `idx_track_tags_user_tag`. Used by category filter SQL.
+- `INDEX (user_id, track_id)` → `idx_track_tags_user_track`. Used by per-track fan-in.
 
 No soft-delete on either table — tags are cheap and reproducible; hard delete keeps queries simple.
 
@@ -94,6 +94,25 @@ Down migration drops the two tables in reverse order. No backfill.
 ## API Surface
 
 All routes sit on the existing `beatport-prod-curation` Lambda and use the same authorizer. `user_id` is read from `event.requestContext.authorizer.lambda.user_id` (existing helper `_user_id_or_none`). Error envelope: `{error_code, message, correlation_id}` (existing convention).
+
+**Dispatcher pattern (existing).** `_ROUTE_TABLE` in `curation_handler.py` is a `dict["METHOD /path", (handler, factory)]` keyed by `event.requestContext.routeKey`. Each handler receives `(event, repo, user_id, correlation_id)` — a single repository per route, produced by the matching factory. New tag routes register against a new `_tags_factory` returning `tags_repo`. Existing handlers that need a second repo (`_handle_list_tracks`, `_handle_remove_track`, `_handle_soft_delete`) instantiate the second repo inline via `create_default_tags_repository()` — same pattern already used by `_finalize_triage_block` (which calls `create_default_categories_repository()` inside the handler body). No widening of the `(event, repo, user_id, correlation_id)` signature.
+
+**Exception classes (new, added to `collector.curation`).** The existing `NameConflictError` and `NotFoundError` carry fixed `error_code` / `http_status` — reusing them would surface `"name_conflict"` instead of `"tag_name_conflict"`, and `404` instead of `422` for the category-membership rule. Three thin subclasses keep the central `_curation_error_response` mapper authoritative:
+
+```python
+class TagNameConflictError(NameConflictError):
+    error_code = "tag_name_conflict"
+
+class TagNotFoundError(NotFoundError):
+    def __init__(self, message: str = "Tag not found") -> None:
+        super().__init__("tag_not_found", message)
+
+class TrackNotInAnyCategoryError(CurationError):
+    error_code = "track_not_in_any_category"
+    http_status = 422
+```
+
+Repositories raise these directly; handlers do not need per-route try/except for them.
 
 ### Tag vocabulary
 
@@ -126,7 +145,10 @@ Validation (applied on every write):
 
 - The track must satisfy `EXISTS (SELECT 1 FROM category_tracks ct JOIN categories c ON c.id = ct.category_id WHERE c.user_id = :user AND ct.track_id = :track AND c.deleted_at IS NULL)`. If not → `422 track_not_in_any_category`.
 - Every `tag_id` in the body must belong to the calling user. If any is foreign → `404 tag_not_found`.
-- `PUT` body: `tag_ids` is required, may be empty (`[]` = clear all tags on this track), max 50 entries, no duplicates, all valid UUIDs. Violations → `400 invalid_tag_ids` or `400 too_many_tags`.
+- `PUT` body: `tag_ids` is required, may be empty (`[]` = clear all tags on this track), max 50 entries, no duplicates, all valid UUIDs. Violations:
+    - missing field, not an array, non-string entries, malformed UUID, duplicates → `400 invalid_tag_ids`.
+    - more than 50 entries → `400 too_many_tags`.
+    - empty array `[]` is **valid** (clear all) — not an error.
 - `POST` body: exactly one `tag_id` (single UUID). Missing / malformed → `400 invalid_tag_ids`.
 - The category-membership check (422) runs on every write including a `PUT` with empty `tag_ids` — keeps the rule uniform and prevents a backdoor for orphaned writes.
 
@@ -211,14 +233,14 @@ class TrackTagRow:
 
 Public methods:
 
-- `create_tag(user_id, name, color, now) -> TagRow` — INSERT; UNIQUE violation surfaced as a typed error mapped by the handler to `409 tag_name_conflict`.
+- `create_tag(user_id, name, color, now) -> TagRow` — INSERT; UNIQUE violation raised as `TagNameConflictError` → mapped to `409 tag_name_conflict` by the central error responder.
 - `list_tags(user_id, limit, offset, search) -> PaginatedResult[TagRow]` — paginated; `search` matches `normalized_name LIKE :q || '%'`.
 - `get_tag(user_id, tag_id) -> TagRow | None`.
-- `rename_tag(user_id, tag_id, name=None, color=None, now) -> TagRow` — partial UPDATE. Recomputes `normalized_name` when `name` changes. UNIQUE violation → 409.
+- `rename_tag(user_id, tag_id, name=None, color=None, now) -> TagRow` — partial UPDATE. Recomputes `normalized_name` when `name` changes. UNIQUE violation → `TagNameConflictError` (409). Missing row → `TagNotFoundError` (404).
 - `delete_tag(user_id, tag_id) -> bool` — DELETE; FK CASCADE clears all `track_tags` rows.
-- `list_tags_for_tracks(user_id, track_ids) -> dict[int, list[TrackTagRow]]` — fan-in helper used by the categories list endpoint.
-- `set_track_tags(user_id, track_id, tag_ids, now, transaction_id=None) -> list[TagRow]` — replace-all. `tag_ids` may be empty (clear all). Inside a transaction: (1) verify track-in-category, (2) verify all tag ids belong to the user (skipped when empty), (3) DELETE existing rows for `(user_id, track_id)`, (4) INSERT the new set if any, (5) return the full current set.
-- `add_track_tag(user_id, track_id, tag_id, now, transaction_id=None) -> list[TagRow]` — same validations; `INSERT ... ON CONFLICT DO NOTHING`. Returns the full current set.
+- `list_tags_for_tracks(user_id, track_ids) -> dict[str, list[TrackTagRow]]` — fan-in helper used by the categories list endpoint. Track id is the project-standard `varchar(36)` (UUID string), so the dict key is `str`.
+- `set_track_tags(user_id, track_id, tag_ids, now, transaction_id=None) -> list[TagRow]` — replace-all. `tag_ids` may be empty (clear all). Inside a transaction: (1) verify track-in-category — raises `TrackNotInAnyCategoryError` on miss (422), (2) verify all tag ids belong to the user (skipped when empty) — raises `TagNotFoundError` on miss (404), (3) DELETE existing rows for `(user_id, track_id)`, (4) INSERT the new set if any, (5) return the full current set.
+- `add_track_tag(user_id, track_id, tag_id, now, transaction_id=None) -> list[TagRow]` — same validations and exceptions; `INSERT ... ON CONFLICT DO NOTHING`. Returns the full current set.
 - `remove_track_tag(user_id, track_id, tag_id) -> bool` — DELETE; returns whether a row was actually deleted.
 - `cleanup_orphaned_track_tags(user_id, track_id, transaction_id) -> int` — invoked by `CategoriesRepository`. SQL: `DELETE FROM track_tags WHERE user_id = :u AND track_id = :t AND NOT EXISTS (SELECT 1 FROM category_tracks ct JOIN categories c ON c.id = ct.category_id WHERE ct.track_id = :t AND c.user_id = :u AND c.deleted_at IS NULL)`. Returns affected row count.
 
@@ -226,11 +248,15 @@ Factory: `create_default_tags_repository()` next to `create_default_categories_r
 
 ### Changes to existing repositories
 
+> **Caller audit.** `categories_service.py` does not call `remove_track`, `soft_delete`, or `list_tracks` — these are only invoked from `curation_handler.py`. Adding the optional `tags_repo` keyword to those repository methods is therefore handler-only and does not require service-layer changes.
+
 `CategoriesRepository`:
 
 - `remove_track(user_id, category_id, track_id)` — wrap existing DELETE in a transaction; after the DELETE call `tags_repo.cleanup_orphaned_track_tags(user_id, track_id, transaction_id)`. Pass the `tags_repo` as a method argument (same pattern as `TriageRepository.finalize_block` passing `categories_repository`) to avoid circular DI between modules.
 - `soft_delete(user_id, category_id, now, tags_repo, ...)` — already runs a multi-statement flow. Inside the existing transaction: select the affected `track_ids` for the category being deleted, then iterate and call `tags_repo.cleanup_orphaned_track_tags(user_id, track_id, transaction_id)` for each (or run a single batched delete — see Implementation Notes below).
-- `list_tracks(...)` — extended signature `list_tracks(user_id, category_id, limit, offset, search, sort, order, tag_ids: list[str] | None = None, tag_match: Literal["all", "any"] = "all")`. Builds the tag subquery from `tag_ids` and appends it to the existing WHERE clause. After the main page query, calls `tags_repo.list_tags_for_tracks(user_id, [row.id for row in page])` and merges `tags` into each row dataclass.
+- `list_tracks(...)` — extended signature `list_tracks(user_id, category_id, limit, offset, search, sort, order, tag_ids: list[str] | None = None, tag_match: Literal["all", "any"] = "all", tags_repo: "TagsRepository | None" = None)`. Builds the tag subquery from `tag_ids` and appends it to the existing WHERE clause. After the main page query, if `tags_repo is not None and items`, calls `tags_repo.list_tags_for_tracks(user_id, [row.track["id"] for row in items])` and merges `tags` into each row dataclass.
+
+The handler `_track_in_category_response` (`curation_handler.py:396`) gains a single line: `track["tags"] = [{"id": t.tag_id, "name": t.name, "color": t.color} for t in item.tags]`. No other touch points in the response shape.
 
 The existing `TrackInCategoryRow` dataclass gains a `tags: list[TrackTagRow]` field.
 
@@ -254,7 +280,7 @@ Every SQL statement filters by `user_id` in the WHERE clause — the existing so
 | ---- | --------------------------- | ------------------------------------------------------------- |
 | 400  | `invalid_color`             | Colour fails hex regex.                                       |
 | 400  | `invalid_name`              | Empty / overlong tag name.                                    |
-| 400  | `invalid_tag_ids`           | Empty array, duplicates, malformed UUID on PUT/POST.          |
+| 400  | `invalid_tag_ids`           | Missing/non-array/non-string/malformed-UUID/duplicates on PUT; missing or non-string `tag_id` on POST. (PUT `[]` is valid — clears all tags.) |
 | 400  | `too_many_tags`             | `len(tag_ids) > 50` on PUT.                                   |
 | 404  | `tag_not_found`             | Tag id unknown to the user.                                   |
 | 404  | `track_not_found`           | Track id does not exist (per existing convention).            |
@@ -314,7 +340,7 @@ Structured events emitted from the repository (`structlog`):
 ## Non-functional
 
 - **Transactionality.** All multi-statement mutations (`set_track_tags`, `remove_track + cleanup`, `soft_delete + cleanup`) run inside a single `DataAPIClient.transaction()` block. The pre-execution retry decorator (`retry_data_api_pre_execution` on `commit_transaction`) keeps the partial-commit behaviour safe (see CLAUDE.md gotcha).
-- **Performance.** Filter SQL hits `ix_track_tags_user_tag`. Expected `track_tags` table size: thousands per user × users → millions globally — well within index range. Fan-in adds one query per page, bounded by `limit`.
+- **Performance.** Filter SQL hits `idx_track_tags_user_tag`. Expected `track_tags` table size: thousands per user × users → millions globally — well within index range. Fan-in adds one query per page, bounded by `limit`.
 - **Idempotency.** `POST /tracks/{id}/tags` is idempotent via `ON CONFLICT DO NOTHING`. `DELETE /tracks/{id}/tags/{tag_id}` is idempotent (`bool` return; 204 either way).
 - **Cleanup decision.** Removing a track from its last active category permanently deletes the user's tag assignments on that track. This is the product-chosen behaviour ("чистим тэги"). Documented here so the implementation does not silently second-guess it.
 

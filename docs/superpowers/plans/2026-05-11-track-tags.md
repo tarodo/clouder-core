@@ -21,16 +21,84 @@
 
 **Modify:**
 - `src/collector/db_models.py` — add `UserTag`, `TrackTag` SQLAlchemy models (autogen only).
-- `src/collector/curation/__init__.py` — re-export new symbols if needed (mirror existing pattern).
+- `src/collector/curation/__init__.py` — add `TagNameConflictError`, `TagNotFoundError`, `TrackNotInAnyCategoryError`; re-export `TagsRepository`/dataclasses/factory.
 - `src/collector/curation/categories_repository.py` — extend `remove_track`, `soft_delete`, `list_tracks`; extend `TrackInCategoryRow`.
-- `src/collector/curation_handler.py` — register new routes + handler functions.
+- `src/collector/curation_handler.py` — register new routes (`_ROUTE_TABLE` dict entries) + handler functions + `_tags_factory`.
 - `scripts/generate_openapi.py` — append routes to `ROUTES`.
 - `tests/unit/test_categories_repository.py` — tests for the extended methods.
 - `tests/unit/test_curation_handler.py` — handler-level tests for new routes and filter param.
 
+**Caller audit (verified before plan was written):**
+- `categories_service.py` does not call `remove_track`, `soft_delete`, or `list_tracks` — these are only invoked from `curation_handler.py`. Adding the optional `tags_repo` keyword to those repo methods is therefore handler-only.
+- `_ROUTE_TABLE` (`curation_handler.py` ~line 833) is `dict["METHOD /path", (handler, factory)]` keyed by `event.requestContext.routeKey`; each handler signature is `(event, repo, user_id, correlation_id)`. Tag routes register a new `_tags_factory`. Existing handlers needing both repos (`_handle_list_tracks`, `_handle_remove_track`, `_handle_soft_delete`) instantiate the second repo inline via `create_default_tags_repository()` — same pattern as `_finalize_triage_block`.
+
 **Out of scope:**
 - Frontend.
 - `docs/openapi.yaml` regeneration is a one-off command at the very end (Task 8).
+
+---
+
+## Task 0: Add curation exception subclasses
+
+**Files:**
+- Modify: `src/collector/curation/__init__.py`
+
+The existing `NameConflictError`, `NotFoundError`, and `BadQueryParamError` carry fixed `error_code`/`http_status`. Reusing them would surface generic codes (`"name_conflict"`, `"bad_query_param"`) instead of the spec-mandated codes (`"tag_name_conflict"`, `"invalid_name"`, etc.), and HTTP 404 instead of 422 for the category-membership rule. We add thin subclasses so the central `_curation_error_response` mapper handles routing/codes automatically — no per-route try/except needed in handlers.
+
+- [ ] **Step 1: Append new classes to `src/collector/curation/__init__.py`**
+
+After the existing `NameConflictError` / `NotFoundError` / `BadQueryParamError` definitions (~line 60–80), add:
+
+```python
+class TagNameConflictError(NameConflictError):
+    error_code = "tag_name_conflict"
+
+
+class TagNotFoundError(NotFoundError):
+    def __init__(self, message: str = "Tag not found") -> None:
+        super().__init__("tag_not_found", message)
+
+
+class TrackNotInAnyCategoryError(CurationError):
+    error_code = "track_not_in_any_category"
+    http_status = 422
+
+
+class InvalidTagNameError(BadQueryParamError):
+    error_code = "invalid_name"
+
+
+class InvalidTagColorError(BadQueryParamError):
+    error_code = "invalid_color"
+
+
+class InvalidTagPayloadError(BadQueryParamError):
+    error_code = "invalid_payload"
+
+
+class InvalidTagIdsError(BadQueryParamError):
+    error_code = "invalid_tag_ids"
+
+
+class TooManyTagsError(BadQueryParamError):
+    error_code = "too_many_tags"
+
+
+class InvalidMatchError(BadQueryParamError):
+    error_code = "invalid_match"
+```
+
+- [ ] **Step 2: Run unit suite to confirm no regressions**
+
+Run: `pytest tests/unit -q`
+Expected: green.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/collector/curation/__init__.py
+git commit -m "feat(curation): add tag-domain exception subclasses"
+```
 
 ---
 
@@ -208,7 +276,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from collector.curation import NameConflictError, NotFoundError
+from collector.curation import (
+    TagNameConflictError,
+    TagNotFoundError,
+    TrackNotInAnyCategoryError,
+)
 from collector.curation.tags_repository import (
     TagRow,
     TagsRepository,
@@ -267,8 +339,12 @@ from typing import Any, Iterable, Literal
 from collector.data_api import DataAPIClient
 from collector.settings import get_data_api_settings
 
-from . import NameConflictError, NotFoundError, ValidationError
-from .categories_repository import PaginatedResult  # reuse
+from . import (
+    PaginatedResult,
+    TagNameConflictError,
+    TagNotFoundError,
+    TrackNotInAnyCategoryError,
+)
 
 
 @dataclass(frozen=True)
@@ -307,7 +383,7 @@ def create_default_tags_repository() -> TagsRepository | None:
     return TagsRepository(data_api=data_api)
 ```
 
-If `ValidationError` is not exported by `collector.curation`, check existing errors and use the closest match (`NameConflictError`, `NotFoundError`) — keep imports honest, drop the unused name.
+All three exception classes are added by Task 0; if Task 0 was skipped this import will fail — fix by completing Task 0 first.
 
 - [ ] **Step 4: Verify tests now pass**
 
@@ -390,10 +466,10 @@ def create_tag(
                 "updated_at": now,
             },
         )
-    except Exception as exc:  # narrow once we know data_api's typed errors
+    except Exception as exc:
         if "uq_user_tags_user_normalized_name" in str(exc):
-            raise NameConflictError(
-                "tag_name_conflict", "Tag with this name already exists"
+            raise TagNameConflictError(
+                "Tag with this name already exists"
             ) from exc
         raise
     r = rows[0]
@@ -406,7 +482,7 @@ def create_tag(
     )
 ```
 
-If the codebase has a more specific exception for unique violations (grep `IntegrityError` / `unique_violation` in `categories_repository.py`), follow that pattern instead of the string sniff.
+This mirrors the existing string-sniff pattern in `categories_repository.py:127` (`uq_categories_user_style_normname`). `TagNameConflictError` takes a single `message` arg — `error_code = "tag_name_conflict"` is class-level so the central `_curation_error_response` mapper emits the correct envelope.
 
 - [ ] **Step 8: Add tests + impl for `list_tags`, `get_tag`, `rename_tag`, `delete_tag`**
 
@@ -451,7 +527,7 @@ def test_rename_tag_updates_returned_row() -> None:
 def test_rename_tag_raises_when_no_row() -> None:
     repo, data_api = _make()
     data_api.execute.return_value = []
-    with pytest.raises(NotFoundError):
+    with pytest.raises(TagNotFoundError):
         repo.rename_tag(
             user_id="u1", tag_id="missing", name="X",
             normalized_name="x", color=None, now=_now(),
@@ -461,7 +537,7 @@ def test_rename_tag_raises_when_no_row() -> None:
 def test_rename_tag_maps_unique_violation() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = Exception("uq_user_tags_user_normalized_name")
-    with pytest.raises(NameConflictError):
+    with pytest.raises(TagNameConflictError):
         repo.rename_tag(
             user_id="u1", tag_id="tg1", name="Vocal",
             normalized_name="vocal", color=None, now=_now(),
@@ -571,12 +647,12 @@ def rename_tag(
         )
     except Exception as exc:
         if "uq_user_tags_user_normalized_name" in str(exc):
-            raise NameConflictError(
-                "tag_name_conflict", "Tag with this name already exists"
+            raise TagNameConflictError(
+                "Tag with this name already exists"
             ) from exc
         raise
     if not rows:
-        raise NotFoundError("tag_not_found", "Tag not found")
+        raise TagNotFoundError()
     r = rows[0]
     return TagRow(
         id=r["id"], name=r["name"], color=r["color"],
@@ -679,9 +755,8 @@ def test_set_track_tags_raises_when_track_not_in_category() -> None:
     data_api.execute.side_effect = [
         [],  # category probe returns no rows
     ]
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(TrackNotInAnyCategoryError):
         repo.set_track_tags(user_id="u1", track_id="t1", tag_ids=["tg1"], now=_now())
-    assert exc.value.error_code == "track_not_in_any_category"
 
 
 def test_set_track_tags_raises_when_foreign_tag() -> None:
@@ -692,14 +767,13 @@ def test_set_track_tags_raises_when_foreign_tag() -> None:
         [{"x": 1}],         # category probe ok
         [{"id": "tg1"}],    # only one of two requested tag_ids is owned
     ]
-    with pytest.raises(NotFoundError) as exc:
+    with pytest.raises(TagNotFoundError):
         repo.set_track_tags(
             user_id="u1", track_id="t1", tag_ids=["tg1", "tg2"], now=_now(),
         )
-    assert exc.value.error_code == "tag_not_found"
 ```
 
-Note: `NotFoundError` in this codebase carries `error_code` + `message`. Verify via `from collector.curation import NotFoundError`.
+`TrackNotInAnyCategoryError` is a `CurationError` with `http_status = 422`; `TagNotFoundError` is a `NotFoundError` subclass — both already added in Task 0. The central `_curation_error_response` mapper will translate them to the correct HTTP envelopes without per-route try/except.
 
 - [ ] **Step 2: Run, expect failures**
 
@@ -728,8 +802,7 @@ def _assert_track_in_any_active_category(
         transaction_id=transaction_id,
     )
     if not rows:
-        raise NotFoundError(
-            "track_not_in_any_category",
+        raise TrackNotInAnyCategoryError(
             "Track is not in any of the user's categories",
         )
 
@@ -767,7 +840,7 @@ def set_track_tags(
             found_ids = {r["id"] for r in found}
             missing = [t for t in ordered if t not in found_ids]
             if missing:
-                raise NotFoundError("tag_not_found", f"Unknown tag id: {missing[0]}")
+                raise TagNotFoundError(f"Unknown tag id: {missing[0]}")
 
         self._data_api.execute(
             "DELETE FROM track_tags WHERE user_id = :user_id AND track_id = :track_id",
@@ -848,6 +921,27 @@ def test_add_track_tag_idempotent() -> None:
     assert [r.id for r in out] == ["tg1"]
 
 
+def test_add_track_tag_raises_when_track_not_in_category() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [[]]  # category probe empty
+    with pytest.raises(TrackNotInAnyCategoryError):
+        repo.add_track_tag(user_id="u1", track_id="t1", tag_id="tg1", now=_now())
+
+
+def test_add_track_tag_raises_when_foreign_tag() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [{"x": 1}],   # category probe ok
+        [],           # tag ownership probe — empty (not owned)
+    ]
+    with pytest.raises(TagNotFoundError):
+        repo.add_track_tag(user_id="u1", track_id="t1", tag_id="tg1", now=_now())
+
+
 def test_remove_track_tag_returns_true_on_delete() -> None:
     repo, data_api = _make()
     data_api.execute.return_value = [{"tag_id": "tg1"}]
@@ -915,7 +1009,7 @@ def add_track_tag(
             transaction_id=tx_id,
         )
         if not owned:
-            raise NotFoundError("tag_not_found", "Tag not found")
+            raise TagNotFoundError()
         self._data_api.execute(
             """
             INSERT INTO track_tags (user_id, track_id, tag_id, created_at)
@@ -1371,15 +1465,35 @@ Modify `categories_repository.py:617-730`:
    ]
    ```
 
-- [ ] **Step 4: Run tests**
+- [ ] **Step 4: Extend `_track_in_category_response` serializer**
 
-Run: `pytest tests/unit/test_categories_repository.py -q`
+Modify `src/collector/curation_handler.py:396`:
+
+```python
+def _track_in_category_response(item) -> dict[str, Any]:
+    track = dict(item.track)
+    track["added_at"] = item.added_at
+    track["source_triage_block_id"] = item.source_triage_block_id
+    track["tags"] = [
+        {"id": t.tag_id, "name": t.name, "color": t.color}
+        for t in getattr(item, "tags", ())
+    ]
+    return track
+```
+
+`getattr(..., "tags", ())` keeps the serializer safe for any test fixture that constructs `TrackInCategoryRow` without the new field — the dataclass default is `()` so this should never fire in production.
+
+Add a small unit test in `tests/unit/test_curation_handler.py` confirming `tags` is always present (empty list when row has no tags, populated when it does).
+
+- [ ] **Step 5: Run tests**
+
+Run: `pytest tests/unit/test_categories_repository.py tests/unit/test_curation_handler.py -q`
 Expected: green.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/collector/curation/categories_repository.py tests/unit/test_categories_repository.py
+git add src/collector/curation/categories_repository.py src/collector/curation_handler.py tests/unit/test_categories_repository.py tests/unit/test_curation_handler.py
 git commit -m "feat(curation): filter category tracks by tags and fan-in tag list"
 ```
 
@@ -1391,21 +1505,20 @@ git commit -m "feat(curation): filter category tracks by tags and fan-in tag lis
 - Modify: `src/collector/curation_handler.py`
 - Modify: `tests/unit/test_curation_handler.py`
 
-- [ ] **Step 1: Read the existing route table**
+> **Dispatcher contract.** `_ROUTE_TABLE` (`curation_handler.py` ~line 833) is `dict["METHOD /path", (handler, factory)]` keyed by `event.requestContext.routeKey`. Each handler signature is `(event, repo, user_id, correlation_id)` — a single repository per route, produced by the matching factory. We do **not** widen this signature. Tag routes register against a new `_tags_factory`. Existing handlers that need a second repo instantiate it inline (see Task 7).
 
-`grep -n "_ROUTES\|create_default_categories_repository" src/collector/curation_handler.py` — find the dispatcher and factory.
+- [ ] **Step 1: Add the `_tags_factory` shim**
 
-- [ ] **Step 2: Add a `tags_repo` factory call alongside `cat_repo`**
-
-Search the dispatcher (`curation_handler.py:766` area where `cat_repo = create_default_categories_repository()`) and add:
+Near `_categories_factory` / `_triage_factory` (~line 825):
 
 ```python
-tags_repo = create_default_tags_repository()
+def _tags_factory() -> Any:
+    return create_default_tags_repository()
 ```
 
-If `tags_repo is None` (Aurora not configured), behave the same way the existing handler does for `cat_repo is None` (503 path).
+Add the import at the top of the file: `from collector.curation import create_default_tags_repository` (or wherever `create_default_categories_repository` is imported from).
 
-- [ ] **Step 3: Write failing tests for tag vocabulary routes**
+- [ ] **Step 2: Write failing tests for tag vocabulary routes**
 
 Add to `tests/unit/test_curation_handler.py`:
 
@@ -1435,8 +1548,8 @@ def test_create_tag_400_on_invalid_color() -> None:
 
 def test_create_tag_409_on_duplicate_name(monkeypatch) -> None:
     fake_tags = MagicMock()
-    fake_tags.create_tag.side_effect = NameConflictError(
-        "tag_name_conflict", "Tag with this name already exists"
+    fake_tags.create_tag.side_effect = TagNameConflictError(
+        "Tag with this name already exists"
     )
     monkeypatch.setattr(
         "collector.curation_handler.create_default_tags_repository",
@@ -1476,7 +1589,7 @@ def test_list_tags_returns_items_total(monkeypatch) -> None:
 
 def test_patch_tag_404_when_missing(monkeypatch) -> None:
     fake_tags = MagicMock()
-    fake_tags.rename_tag.side_effect = NotFoundError("tag_not_found", "Tag not found")
+    fake_tags.rename_tag.side_effect = TagNotFoundError()
     monkeypatch.setattr(
         "collector.curation_handler.create_default_tags_repository",
         lambda: fake_tags,
@@ -1524,9 +1637,9 @@ def test_delete_tag_404_when_missing(monkeypatch) -> None:
 
 Use the existing test conventions in this file (look for the `_make_event` helper, the `_FakeDataAPI` pattern, or however the file mocks the repos — match it precisely). Do not invent new infrastructure.
 
-- [ ] **Step 4: Add the four handlers + register routes**
+- [ ] **Step 3: Add the four handlers + register routes**
 
-Implement four handler functions:
+Implement four handler functions. Each takes `(event, repo, user_id, correlation_id)` — `repo` here is the `TagsRepository` returned by `_tags_factory`. Repository exceptions (`TagNameConflictError`, `TagNotFoundError`) propagate up to the central `_curation_error_response` mapper at line 100 — no per-handler try/except needed.
 
 ```python
 _HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -1537,33 +1650,41 @@ def _normalize_tag_name(name: str) -> str:
     return " ".join(name.strip().lower().split())
 
 
-def _handle_create_tag(event, cat_repo, tags_repo, user_id, correlation_id):
+def _tag_dict(row) -> dict:
+    return {
+        "id": row.id, "name": row.name, "color": row.color,
+        "created_at": row.created_at, "updated_at": row.updated_at,
+    }
+
+
+def _handle_create_tag(event, repo, user_id, correlation_id):
     body = _parse_body(event)
-    name = (body.get("name") or "").strip()
+    name_raw = body.get("name")
     color = body.get("color")
+    if not isinstance(name_raw, str):
+        raise InvalidTagNameError("name is required")
+    name = name_raw.strip()
     if not name or len(name) > _MAX_TAG_NAME:
-        return _error(400, "invalid_name", "Name must be 1..64 chars", correlation_id)
+        raise InvalidTagNameError("name must be 1..64 chars")
     if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
-        return _error(400, "invalid_color", "Color must be #RRGGBB hex", correlation_id)
-    try:
-        row = tags_repo.create_tag(
-            user_id=user_id,
-            tag_id=str(uuid.uuid4()),
-            name=name,
-            normalized_name=_normalize_tag_name(name),
-            color=color,
-            now=_now(),
-        )
-    except NameConflictError as e:
-        return _error(409, e.error_code, e.message, correlation_id)
-    return _json(201, _tag_dict(row), correlation_id)
+        raise InvalidTagColorError("color must be #RRGGBB hex")
+    row = repo.create_tag(
+        user_id=user_id,
+        tag_id=str(uuid.uuid4()),
+        name=name,
+        normalized_name=_normalize_tag_name(name),
+        color=color,
+        now=utc_now(),
+    )
+    return _json_response(201, _tag_dict(row), correlation_id)
 
 
-def _handle_list_tags(event, cat_repo, tags_repo, user_id, correlation_id):
-    limit, offset = _pagination(event)
-    search = event.get("queryStringParameters", {}).get("search") if event.get("queryStringParameters") else None
-    page = tags_repo.list_tags(user_id=user_id, limit=limit, offset=offset, search=search)
-    return _json(200, {
+def _handle_list_tags(event, repo, user_id, correlation_id):
+    limit, offset = _parse_pagination(event)
+    qp = event.get("queryStringParameters") or {}
+    search = qp.get("search")
+    page = repo.list_tags(user_id=user_id, limit=limit, offset=offset, search=search)
+    return _json_response(200, {
         "items": [_tag_dict(r) for r in page.items],
         "total": page.total,
         "limit": page.limit,
@@ -1571,72 +1692,68 @@ def _handle_list_tags(event, cat_repo, tags_repo, user_id, correlation_id):
     }, correlation_id)
 
 
-def _handle_rename_tag(event, cat_repo, tags_repo, user_id, correlation_id):
-    tag_id = event["pathParameters"]["tag_id"]
+def _handle_rename_tag(event, repo, user_id, correlation_id):
+    tag_id = (event.get("pathParameters") or {}).get("tag_id")
+    if not tag_id:
+        raise ValidationError("tag_id is required in path")
     body = _parse_body(event)
     name = body.get("name")
     color = body.get("color")
     normalized = None
     if name is not None:
         if not isinstance(name, str) or not name.strip() or len(name.strip()) > _MAX_TAG_NAME:
-            return _error(400, "invalid_name", "Name must be 1..64 chars", correlation_id)
+            raise InvalidTagNameError("name must be 1..64 chars")
         name = name.strip()
         normalized = _normalize_tag_name(name)
     if color is not None:
         if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
-            return _error(400, "invalid_color", "Color must be #RRGGBB hex", correlation_id)
+            raise InvalidTagColorError("color must be #RRGGBB hex")
     if name is None and color is None:
-        return _error(400, "invalid_payload", "At least one of name|color required", correlation_id)
-    try:
-        row = tags_repo.rename_tag(
-            user_id=user_id, tag_id=tag_id,
-            name=name, normalized_name=normalized, color=color, now=_now(),
-        )
-    except NotFoundError as e:
-        return _error(404, e.error_code, e.message, correlation_id)
-    except NameConflictError as e:
-        return _error(409, e.error_code, e.message, correlation_id)
-    return _json(200, _tag_dict(row), correlation_id)
+        raise InvalidTagPayloadError("at least one of name|color required")
+    row = repo.rename_tag(
+        user_id=user_id, tag_id=tag_id,
+        name=name, normalized_name=normalized, color=color, now=utc_now(),
+    )
+    return _json_response(200, _tag_dict(row), correlation_id)
 
 
-def _handle_delete_tag(event, cat_repo, tags_repo, user_id, correlation_id):
-    tag_id = event["pathParameters"]["tag_id"]
-    ok = tags_repo.delete_tag(user_id=user_id, tag_id=tag_id)
+def _handle_delete_tag(event, repo, user_id, correlation_id):
+    tag_id = (event.get("pathParameters") or {}).get("tag_id")
+    if not tag_id:
+        raise ValidationError("tag_id is required in path")
+    ok = repo.delete_tag(user_id=user_id, tag_id=tag_id)
     if not ok:
-        return _error(404, "tag_not_found", "Tag not found", correlation_id)
-    return _json(204, None, correlation_id)
-
-
-def _tag_dict(row) -> dict:
+        raise TagNotFoundError()
     return {
-        "id": row.id, "name": row.name, "color": row.color,
-        "created_at": row.created_at, "updated_at": row.updated_at,
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
     }
 ```
 
-Then add to the route table:
+Notes:
+- `InvalidTagNameError`, `InvalidTagColorError`, `InvalidTagPayloadError` are added in Task 0. They are `BadQueryParamError` subclasses that override `error_code` so the central responder emits the spec-mandated envelopes (`invalid_name`/`invalid_color`/`invalid_payload`) instead of the generic `bad_query_param`. No per-handler try/except.
+
+Then add to `_ROUTE_TABLE` (`curation_handler.py` ~line 833), as `dict["METHOD /path", (handler, factory)]` entries — matching the existing pattern verbatim:
+
+```python
+"POST   /tags":             (_handle_create_tag, _tags_factory),
+"GET    /tags":             (_handle_list_tags,  _tags_factory),
+"PATCH  /tags/{tag_id}":    (_handle_rename_tag, _tags_factory),
+"DELETE /tags/{tag_id}":    (_handle_delete_tag, _tags_factory),
 ```
-("POST",   r"^/tags$",                    _handle_create_tag),
-("GET",    r"^/tags$",                    _handle_list_tags),
-("PATCH",  r"^/tags/(?P<tag_id>[^/]+)$",  _handle_rename_tag),
-("DELETE", r"^/tags/(?P<tag_id>[^/]+)$",  _handle_delete_tag),
-```
 
-Match the precise format the existing `_ROUTES` table uses (it may use tuples, dicts, or another shape — copy that).
+(Use exactly the same spacing as the surrounding rows — the table is alignment-formatted.)
 
-- [ ] **Step 5: Pass `tags_repo` through the dispatcher**
-
-The existing dispatcher passes `(event, cat_repo, user_id, correlation_id)` to each handler. Either (a) widen the signature to include `tags_repo`, or (b) wrap `tags_repo` inside `cat_repo` via a small adapter. Pick (a) — it keeps things explicit. Update every existing handler call site to match (signatures are simple kwargs, the change is mechanical).
-
-- [ ] **Step 6: Run handler tests**
+- [ ] **Step 4: Run handler tests**
 
 Run: `pytest tests/unit/test_curation_handler.py -q`
 Expected: all green (existing + new).
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/collector/curation_handler.py tests/unit/test_curation_handler.py
+git add src/collector/curation_handler.py src/collector/curation/__init__.py tests/unit/test_curation_handler.py
 git commit -m "feat(curation): add tag vocabulary HTTP routes"
 ```
 
@@ -1647,6 +1764,8 @@ git commit -m "feat(curation): add tag vocabulary HTTP routes"
 **Files:**
 - Modify: `src/collector/curation_handler.py`
 - Modify: `tests/unit/test_curation_handler.py`
+
+> **Cross-repo handlers.** `_handle_set_track_tags`, `_handle_add_track_tag`, `_handle_remove_track_tag`, `_handle_list_track_tags` all use `_tags_factory` (single repo per route). The two existing handlers that need both `cat_repo` and `tags_repo` — `_handle_list_tracks` and `_handle_remove_track` — keep `_categories_factory` as their primary repo, and call `create_default_tags_repository()` inline within the handler body. This mirrors `_finalize_triage_block` (`curation_handler.py:763`), which already calls `create_default_categories_repository()` inline.
 
 - [ ] **Step 1: Write failing tests**
 
@@ -1660,8 +1779,8 @@ def _patch_tags(monkeypatch, fake_tags) -> None:
 
 def test_put_track_tags_422_when_not_in_any_category(monkeypatch) -> None:
     fake_tags = MagicMock()
-    fake_tags.set_track_tags.side_effect = NotFoundError(
-        "track_not_in_any_category", "Track not in any category"
+    fake_tags.set_track_tags.side_effect = TrackNotInAnyCategoryError(
+        "Track not in any category"
     )
     _patch_tags(monkeypatch, fake_tags)
     event = _make_event(
@@ -1812,103 +1931,142 @@ def test_get_category_tracks_invalid_match_returns_400(monkeypatch) -> None:
     assert json.loads(resp["body"])["error_code"] == "invalid_match"
 ```
 
-- [ ] **Step 2: Implement the five handlers**
+- [ ] **Step 2: Implement the four track-tag handlers**
+
+All four take `(event, repo, user_id, correlation_id)` where `repo` is the `TagsRepository` from `_tags_factory`. Repository exceptions propagate to the central `_curation_error_response` mapper.
+
+`InvalidTagIdsError`, `TooManyTagsError`, `InvalidMatchError` are already added in Task 0 and importable from `collector.curation`.
 
 ```python
-def _handle_list_track_tags(event, cat_repo, tags_repo, user_id, correlation_id):
-    track_id = event["pathParameters"]["track_id"]
-    grouped = tags_repo.list_tags_for_tracks(user_id=user_id, track_ids=[track_id])
+def _track_tag_dict(row) -> dict:
+    return {"id": row.tag_id, "name": row.name, "color": row.color}
+
+
+def _handle_list_track_tags(event, repo, user_id, correlation_id):
+    track_id = (event.get("pathParameters") or {}).get("track_id")
+    if not track_id:
+        raise ValidationError("track_id is required in path")
+    grouped = repo.list_tags_for_tracks(user_id=user_id, track_ids=[track_id])
     items = grouped.get(track_id, [])
-    return _json(200, {"tags": [_track_tag_dict(r) for r in items]}, correlation_id)
+    return _json_response(
+        200, {"tags": [_track_tag_dict(r) for r in items]}, correlation_id,
+    )
 
 
-def _handle_set_track_tags(event, cat_repo, tags_repo, user_id, correlation_id):
-    track_id = event["pathParameters"]["track_id"]
+def _handle_set_track_tags(event, repo, user_id, correlation_id):
+    track_id = (event.get("pathParameters") or {}).get("track_id")
+    if not track_id:
+        raise ValidationError("track_id is required in path")
     body = _parse_body(event)
     tag_ids = body.get("tag_ids")
     if not isinstance(tag_ids, list):
-        return _error(400, "invalid_tag_ids", "tag_ids must be an array", correlation_id)
+        raise InvalidTagIdsError("tag_ids must be an array")
     if len(tag_ids) > 50:
-        return _error(400, "too_many_tags", "Maximum 50 tags per track", correlation_id)
+        raise TooManyTagsError("Maximum 50 tags per track")
     if any(not isinstance(t, str) or not t for t in tag_ids):
-        return _error(400, "invalid_tag_ids", "tag_ids must be non-empty strings", correlation_id)
+        raise InvalidTagIdsError("tag_ids must be non-empty strings")
     if len(set(tag_ids)) != len(tag_ids):
-        return _error(400, "invalid_tag_ids", "Duplicate tag ids", correlation_id)
-    try:
-        out = tags_repo.set_track_tags(
-            user_id=user_id, track_id=track_id, tag_ids=tag_ids, now=_now(),
-        )
-    except NotFoundError as e:
-        status = 422 if e.error_code == "track_not_in_any_category" else 404
-        return _error(status, e.error_code, e.message, correlation_id)
-    return _json(200, {"tags": [_tag_dict(r) for r in out]}, correlation_id)
+        raise InvalidTagIdsError("Duplicate tag ids")
+    out = repo.set_track_tags(
+        user_id=user_id, track_id=track_id, tag_ids=tag_ids, now=utc_now(),
+    )
+    return _json_response(
+        200, {"tags": [_tag_dict(r) for r in out]}, correlation_id,
+    )
 
 
-def _handle_add_track_tag(event, cat_repo, tags_repo, user_id, correlation_id):
-    track_id = event["pathParameters"]["track_id"]
+def _handle_add_track_tag(event, repo, user_id, correlation_id):
+    track_id = (event.get("pathParameters") or {}).get("track_id")
+    if not track_id:
+        raise ValidationError("track_id is required in path")
     body = _parse_body(event)
     tag_id = body.get("tag_id")
     if not isinstance(tag_id, str) or not tag_id:
-        return _error(400, "invalid_tag_ids", "tag_id required", correlation_id)
-    try:
-        out = tags_repo.add_track_tag(
-            user_id=user_id, track_id=track_id, tag_id=tag_id, now=_now(),
-        )
-    except NotFoundError as e:
-        status = 422 if e.error_code == "track_not_in_any_category" else 404
-        return _error(status, e.error_code, e.message, correlation_id)
-    return _json(201, {"tags": [_tag_dict(r) for r in out]}, correlation_id)
+        raise InvalidTagIdsError("tag_id required")
+    out = repo.add_track_tag(
+        user_id=user_id, track_id=track_id, tag_id=tag_id, now=utc_now(),
+    )
+    return _json_response(
+        201, {"tags": [_tag_dict(r) for r in out]}, correlation_id,
+    )
 
 
-def _handle_remove_track_tag(event, cat_repo, tags_repo, user_id, correlation_id):
-    track_id = event["pathParameters"]["track_id"]
-    tag_id = event["pathParameters"]["tag_id"]
-    tags_repo.remove_track_tag(user_id=user_id, track_id=track_id, tag_id=tag_id)
-    return _json(204, None, correlation_id)
-
-
-def _track_tag_dict(row) -> dict:
-    return {"id": row.tag_id, "name": row.name, "color": row.color}
+def _handle_remove_track_tag(event, repo, user_id, correlation_id):
+    pp = event.get("pathParameters") or {}
+    track_id = pp.get("track_id")
+    tag_id = pp.get("tag_id")
+    if not track_id or not tag_id:
+        raise ValidationError("track_id and tag_id are required in path")
+    repo.remove_track_tag(user_id=user_id, track_id=track_id, tag_id=tag_id)
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
+    }
 ```
 
-Register routes:
+Register in `_ROUTE_TABLE`:
 
+```python
+"GET    /tracks/{track_id}/tags":             (_handle_list_track_tags,   _tags_factory),
+"PUT    /tracks/{track_id}/tags":             (_handle_set_track_tags,    _tags_factory),
+"POST   /tracks/{track_id}/tags":             (_handle_add_track_tag,     _tags_factory),
+"DELETE /tracks/{track_id}/tags/{tag_id}":    (_handle_remove_track_tag,  _tags_factory),
 ```
-("GET",    r"^/tracks/(?P<track_id>[^/]+)/tags$",                          _handle_list_track_tags),
-("PUT",    r"^/tracks/(?P<track_id>[^/]+)/tags$",                          _handle_set_track_tags),
-("POST",   r"^/tracks/(?P<track_id>[^/]+)/tags$",                          _handle_add_track_tag),
-("DELETE", r"^/tracks/(?P<track_id>[^/]+)/tags/(?P<tag_id>[^/]+)$",        _handle_remove_track_tag),
-```
 
-- [ ] **Step 3: Extend `_handle_list_tracks` to parse `tags` and `match` query params**
+(Mirror existing row alignment.)
 
-Find the existing `_handle_list_tracks` (`curation_handler.py:403`). Add:
+- [ ] **Step 3: Extend `_handle_list_tracks` to parse `tags` + `match` and inline-instantiate `tags_repo`**
+
+Modify the existing `_handle_list_tracks` (`curation_handler.py:403`). The handler keeps `_categories_factory` (so the primary `repo` arg is still `cat_repo`). Inside the body:
 
 ```python
 qs = event.get("queryStringParameters") or {}
 tags_raw = qs.get("tags")
-tag_ids = [t for t in (tags_raw.split(",") if tags_raw else []) if t]
-tag_match = qs.get("match", "all")
+tag_ids = [t for t in (tags_raw.split(",") if tags_raw else []) if t] or None
+tag_match = (qs.get("match") or "all").lower()
 if tag_match not in ("all", "any"):
-    return _error(400, "invalid_match", "match must be all|any", correlation_id)
-```
+    raise InvalidMatchError("match must be 'all' or 'any'")
 
-Then forward to `cat_repo.list_tracks(..., tag_ids=tag_ids or None, tag_match=tag_match, tags_repo=tags_repo)`.
+tags_repo = create_default_tags_repository()
+if tags_repo is None:
+    # Same defensive guard as `_finalize_triage_block` for `cat_repo is None`.
+    return _error(503, "db_not_configured", "Database not configured", correlation_id)
 
-Update the response serialiser for each track row to include `"tags": [_track_tag_dict(t) for t in row.tags]`.
-
-- [ ] **Step 4: Pass `tags_repo` through `_handle_remove_track` too**
-
-Update its call site to forward `tags_repo`:
-
-```python
-cat_repo.remove_track(
-    user_id=user_id, category_id=category_id, track_id=track_id,
-    tags_repo=tags_repo,
+result = repo.list_tracks(
+    user_id=user_id, category_id=cid,
+    limit=limit, offset=offset, search=search,
+    sort=sort, order=order,
+    tag_ids=tag_ids, tag_match=tag_match, tags_repo=tags_repo,
 )
 ```
 
-Same for `_handle_soft_delete` if it now accepts `tags_repo`.
+The `_track_in_category_response` serializer was already extended in Task 5 — `tags` is included in every track row.
+
+- [ ] **Step 4: Pass `tags_repo` through `_handle_remove_track`**
+
+Modify `_handle_remove_track` (`curation_handler.py:457`) — the handler keeps `_categories_factory` as its factory. Add inline lookup:
+
+```python
+def _handle_remove_track(event, repo, user_id, correlation_id):
+    pp = event.get("pathParameters") or {}
+    cid = pp.get("id")
+    tid = pp.get("track_id")
+    if not cid or not tid:
+        raise ValidationError("id and track_id are required in path")
+    tags_repo = create_default_tags_repository()
+    if tags_repo is None:
+        return _error(503, "db_not_configured", "Database not configured", correlation_id)
+    deleted = repo.remove_track(
+        user_id=user_id, category_id=cid, track_id=tid,
+        tags_repo=tags_repo,
+    )
+    if not deleted:
+        raise NotFoundError("track_not_in_category", "Track not in category")
+    # … existing log_event + 204 return unchanged.
+```
+
+Same inline pattern for `_handle_soft_delete` — add a `tags_repo = create_default_tags_repository()` lookup and pass it to `repo.soft_delete(..., tags_repo=tags_repo)`.
 
 - [ ] **Step 5: Run tests**
 

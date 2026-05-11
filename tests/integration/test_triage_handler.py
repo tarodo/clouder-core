@@ -851,8 +851,12 @@ def test_soft_delete_category_triggers_inactive_mark(monkeypatch, context):
     data_api = MagicMock()
     data_api.transaction.return_value.__enter__.return_value = "tx-d8"
     data_api.transaction.return_value.__exit__.return_value = False
-    # UPDATE ... RETURNING -> one row (success).
-    data_api.execute.side_effect = [[{"id": "cat-victim"}]]
+    # 1: SELECT member tracks (added by track-tags cleanup hook) -> empty
+    # 2: UPDATE ... RETURNING -> one row (success).
+    data_api.execute.side_effect = [
+        [],
+        [{"id": "cat-victim"}],
+    ]
     repo = CategoriesRepository(data_api=data_api)
 
     monkeypatch.setattr(
@@ -861,6 +865,10 @@ def test_soft_delete_category_triggers_inactive_mark(monkeypatch, context):
     )
     monkeypatch.setattr(
         "collector.curation_handler.create_default_triage_repository",
+        lambda: MagicMock(),
+    )
+    monkeypatch.setattr(
+        "collector.curation_handler.create_default_tags_repository",
         lambda: MagicMock(),
     )
 

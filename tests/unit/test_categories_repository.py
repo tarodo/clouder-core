@@ -15,6 +15,7 @@ from collector.curation.categories_repository import (
     CategoryRow,
     TrackInCategoryRow,
 )
+from collector.curation.tags_repository import TrackTagRow
 
 
 def _make() -> tuple[CategoriesRepository, MagicMock]:
@@ -616,6 +617,8 @@ def test_add_track_returns_existing_when_already_present() -> None:
 
 def test_remove_track_returns_true_on_delete() -> None:
     repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
     # Validate category ownership first (one execute), then delete
     data_api.execute.side_effect = [
         [{"id": "c1"}],
@@ -636,6 +639,8 @@ def test_remove_track_returns_true_on_delete() -> None:
 
 def test_remove_track_raises_category_not_found() -> None:
     repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.side_effect = [[]]
     with pytest.raises(NotFoundError) as exc:
         repo.remove_track(
@@ -650,6 +655,8 @@ def test_remove_track_raises_category_not_found() -> None:
 
 def test_remove_track_returns_false_when_not_in_category() -> None:
     repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.side_effect = [
         [{"id": "c1"}],
         [],   # DELETE RETURNING -> empty
@@ -658,6 +665,78 @@ def test_remove_track_returns_false_when_not_in_category() -> None:
         user_id="u1", category_id="c1", track_id="t-missing"
     )
     assert deleted is False
+
+
+def test_remove_track_calls_tags_cleanup_on_delete() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [{"track_id": "t1"}],
+    ]
+    tags_repo = MagicMock()
+    tags_repo.cleanup_orphaned_track_tags.return_value = 0
+    deleted = repo.remove_track(
+        user_id="u1", category_id="c1", track_id="t1", tags_repo=tags_repo,
+    )
+    assert deleted is True
+    tags_repo.cleanup_orphaned_track_tags.assert_called_once_with(
+        user_id="u1", track_ids=["t1"], transaction_id="tx-1",
+    )
+
+
+def test_remove_track_skips_tags_cleanup_when_nothing_deleted() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [],
+    ]
+    tags_repo = MagicMock()
+    deleted = repo.remove_track(
+        user_id="u1", category_id="c1", track_id="t1", tags_repo=tags_repo,
+    )
+    assert deleted is False
+    tags_repo.cleanup_orphaned_track_tags.assert_not_called()
+
+
+def test_soft_delete_calls_tags_cleanup_for_member_tracks() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [{"track_id": "t1"}, {"track_id": "t2"}],   # SELECT member tracks
+        [{"id": "c1"}],                              # UPDATE deleted_at returning
+        [],                                          # mark_staging_inactive_for_category
+    ]
+    tags_repo = MagicMock()
+    tags_repo.cleanup_orphaned_track_tags.return_value = 0
+    ok = repo.soft_delete(
+        user_id="u1", category_id="c1", now=_now(), tags_repo=tags_repo,
+    )
+    assert ok is True
+    tags_repo.cleanup_orphaned_track_tags.assert_called_once_with(
+        user_id="u1", track_ids=["t1", "t2"], transaction_id="tx-1",
+    )
+
+
+def test_soft_delete_skips_tags_cleanup_when_no_members() -> None:
+    repo, data_api = _make()
+    data_api.transaction.return_value.__enter__.return_value = "tx-1"
+    data_api.transaction.return_value.__exit__.return_value = False
+    data_api.execute.side_effect = [
+        [],                  # SELECT member tracks — empty
+        [{"id": "c1"}],      # UPDATE deleted_at returning
+        [],                  # mark_staging_inactive
+    ]
+    tags_repo = MagicMock()
+    ok = repo.soft_delete(
+        user_id="u1", category_id="c1", now=_now(), tags_repo=tags_repo,
+    )
+    assert ok is True
+    tags_repo.cleanup_orphaned_track_tags.assert_not_called()
 
 
 def test_list_tracks_validates_category() -> None:
@@ -862,3 +941,112 @@ def test_list_tracks_search_combines_with_sort() -> None:
     assert "ILIKE" in list_sql
     assert "ORDER BY t.title ASC, t.id ASC" in list_sql
     assert list_params["search"] == "%tech%"
+
+
+# --- list_tracks tag filter + fan-in (Task 5) -------------------------------
+
+
+def _stock_track_row() -> dict[str, object]:
+    return {
+        "id": "t1", "title": "Song", "mix_name": None,
+        "isrc": None, "bpm": None, "length_ms": None,
+        "publish_date": None, "spotify_id": None,
+        "release_type": None, "is_ai_suspected": False,
+        "spotify_release_date": None,
+        "artists_json": "[]",
+        "label_id": None, "label_name": None,
+        "added_at": "2026-04-27T12:00:00Z",
+        "source_triage_block_id": None,
+    }
+
+
+def test_list_tracks_filters_with_match_all() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [_stock_track_row()],
+        [{"total": 1}],
+    ]
+    tags_repo = MagicMock()
+    tags_repo.list_tags_for_tracks.return_value = {
+        "t1": [TrackTagRow(track_id="t1", tag_id="tg1", name="Vocal", color="#f00")]
+    }
+    page = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=20, offset=0, search=None,
+        tag_ids=["tg1", "tg2"], tag_match="all",
+        tags_repo=tags_repo,
+    )
+    assert page.total == 1
+    assert page.items[0].tags[0].tag_id == "tg1"
+    main_sql = data_api.execute.call_args_list[1].args[0]
+    assert "GROUP BY track_id" in main_sql
+    assert "COUNT(DISTINCT tag_id)" in main_sql
+    main_params = data_api.execute.call_args_list[1].args[1]
+    assert main_params["user_id"] == "u1"
+    assert main_params["tag_count"] == 2
+    assert main_params["tag0"] == "tg1"
+    assert main_params["tag1"] == "tg2"
+    # fan-in is called with the page's track ids
+    tags_repo.list_tags_for_tracks.assert_called_once_with(
+        user_id="u1", track_ids=["t1"],
+    )
+
+
+def test_list_tracks_filters_with_match_any() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [],
+        [{"total": 0}],
+    ]
+    tags_repo = MagicMock()
+    tags_repo.list_tags_for_tracks.return_value = {}
+    page = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=20, offset=0, search=None,
+        tag_ids=["tg1"], tag_match="any",
+        tags_repo=tags_repo,
+    )
+    assert page.total == 0
+    main_sql = data_api.execute.call_args_list[1].args[0]
+    # AND-form has GROUP BY + HAVING; OR-form does not.
+    assert "COUNT(DISTINCT" not in main_sql
+    # No fan-in needed when no items
+    tags_repo.list_tags_for_tracks.assert_not_called()
+
+
+def test_list_tracks_no_tag_filter_still_populates_tags_when_repo_passed() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [_stock_track_row()],
+        [{"total": 1}],
+    ]
+    tags_repo = MagicMock()
+    tags_repo.list_tags_for_tracks.return_value = {
+        "t1": [TrackTagRow(track_id="t1", tag_id="tg1", name="Vocal", color="#f00")]
+    }
+    page = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=20, offset=0, search=None,
+        tags_repo=tags_repo,
+    )
+    assert page.items[0].tags[0].name == "Vocal"
+    tags_repo.list_tags_for_tracks.assert_called_once_with(
+        user_id="u1", track_ids=["t1"],
+    )
+
+
+def test_list_tracks_without_tags_repo_returns_empty_tags_tuple() -> None:
+    repo, data_api = _make()
+    data_api.execute.side_effect = [
+        [{"id": "c1"}],
+        [_stock_track_row()],
+        [{"total": 1}],
+    ]
+    page = repo.list_tracks(
+        user_id="u1", category_id="c1",
+        limit=20, offset=0, search=None,
+    )
+    assert page.items[0].tags == ()

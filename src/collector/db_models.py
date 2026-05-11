@@ -18,6 +18,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -511,5 +512,64 @@ class TriageBucketTrack(Base):
         String(36), ForeignKey("clouder_tracks.id"), primary_key=True
     )
     added_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class UserTag(Base):
+    __tablename__ = "user_tags"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "normalized_name",
+            name="uq_user_tags_user_normalized_name",
+        ),
+        Index("idx_user_tags_user_id", "user_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_user_tags_user"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
+    color: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class TrackTag(Base):
+    __tablename__ = "track_tags"
+    __table_args__ = (
+        Index("idx_track_tags_user_tag", "user_id", "tag_id"),
+        Index("idx_track_tags_user_track", "user_id", "track_id"),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_track_tags_user"),
+        primary_key=True,
+    )
+    track_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey(
+            "clouder_tracks.id", ondelete="CASCADE", name="fk_track_tags_track"
+        ),
+        primary_key=True,
+    )
+    tag_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey(
+            "user_tags.id", ondelete="CASCADE", name="fk_track_tags_tag"
+        ),
+        primary_key=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

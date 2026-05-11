@@ -113,3 +113,44 @@ class StyleMismatchError(CurationError):
 
     error_code = "target_block_style_mismatch"
     http_status = 422
+
+
+# --- Track-tags (spec 2026-05-11) ------------------------------------------
+
+
+class TagNameConflictError(NameConflictError):
+    error_code = "tag_name_conflict"
+
+
+class TagNotFoundError(NotFoundError):
+    def __init__(self, message: str = "Tag not found") -> None:
+        super().__init__("tag_not_found", message)
+
+
+class TrackNotInAnyCategoryError(CurationError):
+    error_code = "track_not_in_any_category"
+    http_status = 422
+
+
+class InvalidTagNameError(BadQueryParamError):
+    error_code = "invalid_name"
+
+
+class InvalidTagColorError(BadQueryParamError):
+    error_code = "invalid_color"
+
+
+class InvalidTagPayloadError(BadQueryParamError):
+    error_code = "invalid_payload"
+
+
+class InvalidTagIdsError(BadQueryParamError):
+    error_code = "invalid_tag_ids"
+
+
+class TooManyTagsError(BadQueryParamError):
+    error_code = "too_many_tags"
+
+
+class InvalidMatchError(BadQueryParamError):
+    error_code = "invalid_match"

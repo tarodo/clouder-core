@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from collector.data_api import DataAPIClient
 from collector.logging_utils import log_event
@@ -23,6 +23,9 @@ from . import (
     utc_now,
 )
 from .categories_service import validate_reorder_set
+
+if TYPE_CHECKING:
+    from .tags_repository import TagsRepository, TrackTagRow
 
 
 @dataclass(frozen=True)
@@ -44,6 +47,7 @@ class TrackInCategoryRow:
     track: Mapping[str, Any]
     added_at: str
     source_triage_block_id: str | None
+    tags: tuple["TrackTagRow", ...] = ()
 
 
 _SORT_COLUMNS = {
@@ -341,8 +345,24 @@ class CategoriesRepository:
         category_id: str,
         now: datetime,
         correlation_id: str | None = None,
+        tags_repo: "TagsRepository | None" = None,
     ) -> bool:
         with self._data_api.transaction() as tx_id:
+            # When cleanup is requested, snapshot the member track ids
+            # BEFORE the UPDATE — once the category is soft-deleted, the
+            # cleanup needs to know which tracks to inspect.
+            member_track_ids: list[str] = []
+            if tags_repo is not None:
+                member_rows = self._data_api.execute(
+                    """
+                    SELECT track_id FROM category_tracks
+                    WHERE category_id = :category_id
+                    """,
+                    {"category_id": category_id},
+                    transaction_id=tx_id,
+                )
+                member_track_ids = [r["track_id"] for r in member_rows]
+
             rows = self._data_api.execute(
                 """
                 UPDATE categories
@@ -383,6 +403,13 @@ class CategoriesRepository:
                 category_id=category_id,
                 inactivated_buckets=inactivated,
             )
+
+            if tags_repo is not None and member_track_ids:
+                tags_repo.cleanup_orphaned_track_tags(
+                    user_id=user_id,
+                    track_ids=member_track_ids,
+                    transaction_id=tx_id,
+                )
             return True
 
     def reorder(
@@ -589,30 +616,43 @@ class CategoriesRepository:
         )
 
     def remove_track(
-        self, *, user_id: str, category_id: str, track_id: str
+        self,
+        *,
+        user_id: str,
+        category_id: str,
+        track_id: str,
+        tags_repo: "TagsRepository | None" = None,
     ) -> bool:
-        cat_rows = self._data_api.execute(
-            """
-            SELECT id FROM categories
-            WHERE id = :category_id
-              AND user_id = :user_id
-              AND deleted_at IS NULL
-            """,
-            {"category_id": category_id, "user_id": user_id},
-        )
-        if not cat_rows:
-            raise NotFoundError("category_not_found", "Category not found")
+        with self._data_api.transaction() as tx_id:
+            cat_rows = self._data_api.execute(
+                """
+                SELECT id FROM categories
+                WHERE id = :category_id
+                  AND user_id = :user_id
+                  AND deleted_at IS NULL
+                """,
+                {"category_id": category_id, "user_id": user_id},
+                transaction_id=tx_id,
+            )
+            if not cat_rows:
+                raise NotFoundError("category_not_found", "Category not found")
 
-        rows = self._data_api.execute(
-            """
-            DELETE FROM category_tracks
-            WHERE category_id = :category_id
-              AND track_id = :track_id
-            RETURNING track_id
-            """,
-            {"category_id": category_id, "track_id": track_id},
-        )
-        return bool(rows)
+            rows = self._data_api.execute(
+                """
+                DELETE FROM category_tracks
+                WHERE category_id = :category_id
+                  AND track_id = :track_id
+                RETURNING track_id
+                """,
+                {"category_id": category_id, "track_id": track_id},
+                transaction_id=tx_id,
+            )
+            deleted = bool(rows)
+            if deleted and tags_repo is not None:
+                tags_repo.cleanup_orphaned_track_tags(
+                    user_id=user_id, track_ids=[track_id], transaction_id=tx_id,
+                )
+            return deleted
 
     def list_tracks(
         self,
@@ -624,6 +664,9 @@ class CategoriesRepository:
         search: str | None,
         sort: str = "added_at",
         order: str = "desc",
+        tag_ids: list[str] | None = None,
+        tag_match: str = "all",
+        tags_repo: "TagsRepository | None" = None,
     ) -> PaginatedResult[TrackInCategoryRow]:
         cat_rows = self._data_api.execute(
             """
@@ -646,6 +689,35 @@ class CategoriesRepository:
         if search and search.strip():
             search_clause = " AND t.normalized_title ILIKE :search "
             params["search"] = f"%{search.strip().lower()}%"
+
+        # Tag filter: builds a sub-SELECT in (track_id) the WHERE clause is
+        # appended to. Match=all uses GROUP BY + HAVING; match=any is a
+        # plain IN.
+        tag_clause = ""
+        if tag_ids:
+            tag_placeholders = ", ".join(f":tag{i}" for i in range(len(tag_ids)))
+            for i, tid in enumerate(tag_ids):
+                params[f"tag{i}"] = tid
+            params["user_id"] = user_id
+            if tag_match == "all":
+                params["tag_count"] = len(tag_ids)
+                tag_clause = (
+                    " AND ct.track_id IN ("
+                    "SELECT track_id FROM track_tags "
+                    "WHERE user_id = :user_id "
+                    f"AND tag_id IN ({tag_placeholders}) "
+                    "GROUP BY track_id "
+                    "HAVING COUNT(DISTINCT tag_id) = :tag_count"
+                    ") "
+                )
+            else:  # any
+                tag_clause = (
+                    " AND ct.track_id IN ("
+                    "SELECT track_id FROM track_tags "
+                    "WHERE user_id = :user_id "
+                    f"AND tag_id IN ({tag_placeholders})"
+                    ") "
+                )
 
         column = _SORT_COLUMNS[sort]
         direction = _ORDER_DIRS[order]
@@ -675,6 +747,7 @@ class CategoriesRepository:
             LEFT JOIN clouder_labels        l   ON l.id   = alb.label_id
             WHERE ct.category_id = :category_id
               {search_clause}
+              {tag_clause}
             GROUP BY t.id, ct.added_at, ct.source_triage_block_id, l.id, l.name
             ORDER BY {order_by}, t.id ASC
             LIMIT :limit OFFSET :offset
@@ -686,6 +759,31 @@ class CategoriesRepository:
         if "search" in params:
             count_clause = " AND t.normalized_title ILIKE :search "
             count_params["search"] = params["search"]
+        count_tag_clause = ""
+        if tag_ids:
+            tag_placeholders = ", ".join(f":tag{i}" for i in range(len(tag_ids)))
+            for i, tid in enumerate(tag_ids):
+                count_params[f"tag{i}"] = tid
+            count_params["user_id"] = user_id
+            if tag_match == "all":
+                count_params["tag_count"] = len(tag_ids)
+                count_tag_clause = (
+                    " AND ct.track_id IN ("
+                    "SELECT track_id FROM track_tags "
+                    "WHERE user_id = :user_id "
+                    f"AND tag_id IN ({tag_placeholders}) "
+                    "GROUP BY track_id "
+                    "HAVING COUNT(DISTINCT tag_id) = :tag_count"
+                    ") "
+                )
+            else:
+                count_tag_clause = (
+                    " AND ct.track_id IN ("
+                    "SELECT track_id FROM track_tags "
+                    "WHERE user_id = :user_id "
+                    f"AND tag_id IN ({tag_placeholders})"
+                    ") "
+                )
         total_rows = self._data_api.execute(
             f"""
             SELECT COUNT(*) AS total
@@ -693,12 +791,13 @@ class CategoriesRepository:
             JOIN clouder_tracks t ON t.id = ct.track_id
             WHERE ct.category_id = :category_id
               {count_clause}
+              {count_tag_clause}
             """,
             count_params,
         )
         total = int(total_rows[0]["total"]) if total_rows else 0
 
-        items = []
+        items: list[TrackInCategoryRow] = []
         for r in rows:
             artists_raw = r.pop("artists_json", "[]")
             if isinstance(artists_raw, str):
@@ -727,6 +826,21 @@ class CategoriesRepository:
                     source_triage_block_id=source_id,
                 )
             )
+
+        if tags_repo is not None and items:
+            grouped = tags_repo.list_tags_for_tracks(
+                user_id=user_id,
+                track_ids=[r.track["id"] for r in items],
+            )
+            items = [
+                TrackInCategoryRow(
+                    track=row.track,
+                    added_at=row.added_at,
+                    source_triage_block_id=row.source_triage_block_id,
+                    tags=tuple(grouped.get(row.track["id"], [])),
+                )
+                for row in items
+            ]
         return PaginatedResult(items=items, total=total, limit=limit, offset=offset)
 
     # Remaining methods filled in by Task 13.

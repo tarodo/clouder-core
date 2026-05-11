@@ -29,6 +29,7 @@ const TRACK: CategoryTrack = {
   is_ai_suspected: false,
   added_at: '2026-01-01T00:00:00Z',
   source_triage_block_id: null,
+  tags: [],
 };
 
 function Wrapper({ children }: { children: React.ReactNode }) {
