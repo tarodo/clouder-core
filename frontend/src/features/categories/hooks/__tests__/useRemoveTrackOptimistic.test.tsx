@@ -124,12 +124,12 @@ describe('useRemoveTrackOptimistic', () => {
       const cached = qc.getQueryData<{ pages: PaginatedTracks[] }>(
         categoryTracksKey('c1', '', 'added_at', 'desc'),
       );
-      expect(cached?.pages[0].items.map((x) => x.id)).toEqual(['t2']);
+      expect(cached?.pages[0]?.items.map((x) => x.id)).toEqual(['t2']);
     });
     const cachedMid = qc.getQueryData<{ pages: PaginatedTracks[] }>(
       categoryTracksKey('c1', '', 'added_at', 'desc'),
     );
-    expect(cachedMid?.pages[0].total).toBe(1);
+    expect(cachedMid?.pages[0]?.total).toBe(1);
 
     // Release the network call and settle the mutation.
     resolveDelete!();
@@ -153,7 +153,7 @@ describe('useRemoveTrackOptimistic', () => {
     const cached = qc.getQueryData<{ pages: PaginatedTracks[] }>(
       categoryTracksKey('c1', '', 'added_at', 'desc'),
     );
-    expect(cached?.pages[0].items.map((x) => x.id)).toEqual(['t1', 't2']);
-    expect(cached?.pages[0].total).toBe(2);
+    expect(cached?.pages[0]?.items.map((x) => x.id)).toEqual(['t1', 't2']);
+    expect(cached?.pages[0]?.total).toBe(2);
   });
 });

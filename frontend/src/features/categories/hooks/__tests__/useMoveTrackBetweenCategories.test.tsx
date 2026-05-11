@@ -158,7 +158,7 @@ describe('useMoveTrackBetweenCategories', () => {
       const cached = qc.getQueryData<{ pages: PaginatedTracks[] }>(
         categoryTracksKey('c1', '', 'added_at', 'desc'),
       );
-      expect(cached?.pages[0].items.map((x) => x.id)).toEqual(['t2']);
+      expect(cached?.pages[0]?.items.map((x) => x.id)).toEqual(['t2']);
     });
 
     resolvePost!();
@@ -189,7 +189,7 @@ describe('useMoveTrackBetweenCategories', () => {
     const cached = qc.getQueryData<{ pages: PaginatedTracks[] }>(
       categoryTracksKey('c1', '', 'added_at', 'desc'),
     );
-    expect(cached?.pages[0].items.map((x) => x.id)).toEqual(['t1', 't2']);
+    expect(cached?.pages[0]?.items.map((x) => x.id)).toEqual(['t1', 't2']);
   });
 
   it('invalidates both categories and ["categories"] on settle', async () => {
