@@ -16,6 +16,7 @@ from typing import Any, Callable
 from . import (
     SpotifyApiError,
     SpotifyNotAuthorizedError,
+    SpotifyNotFoundError,
     SpotifyRateLimitedError,
     SpotifyScopeInsufficientError,
 )
@@ -208,6 +209,8 @@ class SpotifyUserClient:
                 self._sleep(0.5)
                 attempts_5xx += 1
                 continue
+            if status == 404:
+                raise SpotifyNotFoundError(f"Spotify 404: {url}")
             raise SpotifyApiError(
                 f"Spotify {status}: unexpected response"
             )

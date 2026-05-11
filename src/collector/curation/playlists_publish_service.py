@@ -13,6 +13,8 @@ from . import (
     NothingToPublishError,
     PlaylistNotFoundError,
     SpotifyApiError,
+    SpotifyNotAuthorizedError,
+    SpotifyNotFoundError,
 )
 
 
@@ -75,7 +77,7 @@ class PlaylistsPublishService:
 
         user_spotify_id = self._user_repo.get_spotify_id(user_id)
         if not user_spotify_id:
-            raise PlaylistNotFoundError("User has no linked Spotify identity")
+            raise SpotifyNotAuthorizedError("User has no linked Spotify identity")
 
         log_event(
             "INFO", "playlist_publish_started",
@@ -95,16 +97,15 @@ class PlaylistsPublishService:
                     description=playlist.description,
                     public=playlist.is_public,
                 )
-            except SpotifyApiError as exc:
-                if treat_404_as_orphan and "404" in str(exc):
-                    log_event(
-                        "WARNING", "playlist_publish_orphan_recreated",
-                        user_id=user_id, playlist_id=playlist_id,
-                        old_spotify_playlist_id=target_id,
-                    )
-                    target_id = None
-                else:
-                    raise
+            except SpotifyNotFoundError as exc:
+                if not treat_404_as_orphan:
+                    raise SpotifyApiError(str(exc)) from exc
+                log_event(
+                    "WARNING", "playlist_publish_orphan_recreated",
+                    user_id=user_id, playlist_id=playlist_id,
+                    old_spotify_playlist_id=target_id,
+                )
+                target_id = None
         if not target_id:
             ref = self._sp.create_playlist(
                 user_spotify_id=user_spotify_id,

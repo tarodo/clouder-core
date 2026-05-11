@@ -36,6 +36,7 @@ from .curation import (
     PlaylistNotFoundError,
     SpotifyApiError,
     SpotifyNotAuthorizedError,
+    SpotifyNotFoundError,
     SpotifyRateLimitedError,
     SpotifyScopeInsufficientError,
     TagNotFoundError,
@@ -895,7 +896,7 @@ def _handle_import_spotify(event, repo, user_id, correlation_id):
     for sid in spotify_ids:
         try:
             payload = sp_client.get_track(sid)
-        except SpotifyApiError as exc:
+        except SpotifyNotFoundError as exc:
             skipped.append({"ref": sid, "reason": "not_found"})
             log_event(
                 "WARNING", "playlist_spotify_import_failed",
@@ -962,7 +963,7 @@ def _handle_publish(event, repo, user_id, correlation_id):
     )
 
     # Build user-id reader on top of the same Data API client the repo uses.
-    user_repo = UserSpotifyIdReader(repo._data_api)
+    user_repo = UserSpotifyIdReader(repo.data_api)
 
     svc = PlaylistsPublishService(
         repo=repo, spotify_client=sp_client,

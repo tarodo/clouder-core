@@ -144,11 +144,12 @@ def test_repub_with_confirm_uses_update_then_replace() -> None:
 
 
 def test_repub_orphan_falls_back_to_create() -> None:
+    from collector.curation import SpotifyNotFoundError
     repo = MagicMock()
     repo.get.return_value = _playlist(spotify_playlist_id="orphan")
     repo.list_tracks.return_value = ([_track("t-1", "spt-1")], 1)
     sp = MagicMock()
-    sp.update_playlist.side_effect = SpotifyApiError("Spotify 404")
+    sp.update_playlist.side_effect = SpotifyNotFoundError("Spotify 404")
     sp.create_playlist.return_value = MagicMock(id="new-spt-id", url=None)
     user_repo = MagicMock()
     user_repo.get_spotify_id.return_value = "u-sp"
@@ -157,6 +158,34 @@ def test_repub_orphan_falls_back_to_create() -> None:
         user_id="u-1", playlist_id="p-1", confirm_overwrite=True,
     )
     assert result.spotify_playlist_id == "new-spt-id"
+
+
+def test_publish_raises_not_authorized_when_no_spotify_identity() -> None:
+    from collector.curation import SpotifyNotAuthorizedError
+    repo = MagicMock()
+    repo.get.return_value = _playlist()
+    repo.list_tracks.return_value = ([_track("t-1", "spt-1")], 1)
+    sp = MagicMock()
+    user_repo = MagicMock()
+    user_repo.get_spotify_id.return_value = None  # no Spotify identity
+    svc = _build(repo, sp, user_repo, MagicMock())
+    with pytest.raises(SpotifyNotAuthorizedError):
+        svc.publish(user_id="u-1", playlist_id="p-1", confirm_overwrite=False)
+
+
+def test_publish_non_404_spotify_error_propagates() -> None:
+    repo = MagicMock()
+    repo.get.return_value = _playlist(spotify_playlist_id="existing")
+    repo.list_tracks.return_value = ([_track("t-1", "spt-1")], 1)
+    sp = MagicMock()
+    sp.update_playlist.side_effect = SpotifyApiError("Spotify 500")
+    user_repo = MagicMock()
+    user_repo.get_spotify_id.return_value = "u-sp"
+    svc = _build(repo, sp, user_repo, MagicMock())
+    with pytest.raises(SpotifyApiError):
+        svc.publish(
+            user_id="u-1", playlist_id="p-1", confirm_overwrite=True,
+        )
 
 
 def test_publish_uploads_cover_when_present() -> None:

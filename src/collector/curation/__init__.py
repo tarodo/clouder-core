@@ -207,6 +207,16 @@ class SpotifyApiError(CurationError):
     http_status = 502
 
 
+class SpotifyNotFoundError(SpotifyApiError):
+    """Spotify returned 404 — track/playlist/user does not exist on Spotify.
+
+    Subclass of SpotifyApiError so existing `except SpotifyApiError`
+    catches still work, but callers that want to handle 404 distinctly
+    can match on the subclass."""
+
+    error_code = "spotify_not_found"
+
+
 class SpotifyRateLimitedError(CurationError):
     error_code = "spotify_rate_limited"
     http_status = 502

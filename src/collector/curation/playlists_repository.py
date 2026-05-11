@@ -135,6 +135,12 @@ class PlaylistsRepository:
     def __init__(self, data_api: DataAPIClient) -> None:
         self._data_api = data_api
 
+    @property
+    def data_api(self) -> DataAPIClient:
+        """Exposed for collaborators that need read access to other tables
+        from inside the same Lambda invocation (e.g. UserSpotifyIdReader)."""
+        return self._data_api
+
     # ---------- CRUD ---------------------------------------------------------
 
     def create(

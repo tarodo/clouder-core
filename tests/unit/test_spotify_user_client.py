@@ -109,6 +109,15 @@ def test_401_propagates_as_not_authorized() -> None:
         client.get_track("x")
 
 
+def test_404_propagates_as_not_found() -> None:
+    from collector.curation import SpotifyNotFoundError
+    session = MagicMock()
+    session.request.return_value = _Resp(404, {"error": "not found"})
+    client = _client(session)
+    with pytest.raises(SpotifyNotFoundError):
+        client.get_track("x")
+
+
 def test_403_insufficient_scope_propagates() -> None:
     session = MagicMock()
     session.request.return_value = _Resp(
