@@ -182,7 +182,26 @@
       "name_required": "Name is required.",
       "name_too_long": "Name must be 64 characters or less.",
       "name_control_chars": "Name contains forbidden characters.",
-      "color_invalid": "Invalid colour."
+      "color_invalid": "Invalid colour.",
+      "name_conflict": "A tag with this name already exists."
+    },
+    "manager": {
+      "title": "Manage tags",
+      "new_tag": "New tag",
+      "search_placeholder": "Search…",
+      "rename_aria": "Rename {{name}}",
+      "delete_aria": "Delete {{name}}",
+      "empty": "No tags yet."
+    },
+    "delete_modal": {
+      "title": "Delete tag?",
+      "body": "Delete \"{{name}}\"? It will be removed from every track.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "save_failed": "Couldn't save tag.",
+      "delete_failed": "Couldn't delete tag."
     }
   },
   "triage": {
