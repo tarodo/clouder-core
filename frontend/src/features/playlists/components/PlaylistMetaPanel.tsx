@@ -20,7 +20,12 @@ import { CoverPicker } from './CoverPicker';
 
 export interface PlaylistMetaPanelProps {
   playlist: Playlist;
-  onPatch: (input: { name?: string; description?: string | null; is_public?: boolean }) => Promise<void>;
+  onPatch: (input: {
+    name?: string;
+    description?: string | null;
+    is_public?: boolean;
+    status?: 'active' | 'completed';
+  }) => Promise<void>;
   publishSlot?: React.ReactNode;
 }
 
@@ -168,11 +173,26 @@ export function PlaylistMetaPanel({
           </Group>
         )}
 
-        <Switch
-          label={t('playlists.form.is_public_label')}
-          checked={playlist.is_public}
-          onChange={(e) => void togglePublic(e.currentTarget.checked)}
-        />
+        <Group gap="md" wrap="wrap">
+          <Switch
+            label={t('playlists.form.is_public_label')}
+            checked={playlist.is_public}
+            onChange={(e) => void togglePublic(e.currentTarget.checked)}
+          />
+          <Switch
+            label={
+              playlist.status === 'completed'
+                ? t('playlists.status.completed')
+                : t('playlists.status.active')
+            }
+            checked={playlist.status === 'completed'}
+            onChange={(e) =>
+              void onPatch({ status: e.currentTarget.checked ? 'completed' : 'active' }).catch(
+                () => undefined,
+              )
+            }
+          />
+        </Group>
 
         <Text c="dimmed" size="sm">
           {t('playlists.detail.stats', {

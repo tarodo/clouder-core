@@ -178,11 +178,22 @@
     "page_title": "Playlists",
     "create_cta": "Create playlist",
     "search_placeholder": "Search playlists",
+    "show_completed": "Show completed",
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "switch_label": "Status",
+      "mark_completed": "Mark completed",
+      "mark_active": "Mark active",
+      "toast_active": "Marked active",
+      "toast_completed": "Marked completed"
+    },
     "table": {
       "col_cover": "",
       "col_name": "Name",
       "col_tracks": "Tracks",
       "col_public": "Public",
+      "col_status": "Status",
       "col_spotify": "Spotify",
       "col_updated": "Updated",
       "col_actions": ""

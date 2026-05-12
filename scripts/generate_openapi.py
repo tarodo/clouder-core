@@ -1555,8 +1555,16 @@ ROUTES: list[dict[str, Any]] = [
         "method": "get",
         "path": "/playlists",
         "auth": AUTH,
-        "summary": "List the user's playlists (paginated, optional search).",
-        "parameters": PAGINATION_PARAMS,
+        "summary": "List the user's playlists (paginated, optional status filter).",
+        "parameters": PAGINATION_PARAMS + [
+            {
+                "name": "status",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "enum": ["active", "completed"]},
+                "description": "Optional status filter. Omit to return all.",
+            },
+        ],
         "responses": {
             "200": _make_response(200, "Paginated playlists.", LIST_RESPONSE_TEMPLATE),
             **COMMON_AUTH_ERRORS,
@@ -1592,6 +1600,7 @@ ROUTES: list[dict[str, Any]] = [
                     "name": {"type": "string", "minLength": 1, "maxLength": 100},
                     "description": {"type": ["string", "null"], "maxLength": 300},
                     "is_public": {"type": "boolean"},
+                    "status": {"type": "string", "enum": ["active", "completed"]},
                 },
                 "additionalProperties": False,
             }}},

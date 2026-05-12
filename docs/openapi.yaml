@@ -2315,7 +2315,7 @@ paths:
       tags:
       - user
     get:
-      summary: List the user's playlists (paginated, optional search).
+      summary: List the user's playlists (paginated, optional status filter).
       responses:
         '200':
           description: Paginated playlists.
@@ -2324,7 +2324,19 @@ paths:
               schema: *id003
         '401': *id001
         '403': *id002
-      parameters: *id004
+      parameters:
+      - *id006
+      - *id007
+      - *id008
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - active
+          - completed
+        description: Optional status filter. Omit to return all.
       security:
       - BearerAuth: []
       tags:
@@ -2412,6 +2424,11 @@ paths:
                   maxLength: 300
                 is_public:
                   type: boolean
+                status:
+                  type: string
+                  enum:
+                  - active
+                  - completed
               additionalProperties: false
             example:
               name: Saturday techno v2

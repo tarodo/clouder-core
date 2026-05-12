@@ -25,6 +25,9 @@ export function usePatchPlaylist(
           ...('is_public' in input && input.is_public !== undefined
             ? { is_public: input.is_public }
             : {}),
+          ...('status' in input && input.status !== undefined
+            ? { status: input.status }
+            : {}),
         });
       }
       return { previous };

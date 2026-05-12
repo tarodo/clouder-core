@@ -3566,7 +3566,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List the user's playlists (paginated, optional search). */
+        /** List the user's playlists (paginated, optional status filter). */
         get: {
             parameters: {
                 query?: {
@@ -3574,6 +3574,8 @@ export interface paths {
                     offset?: number;
                     /** @description Substring match on normalized name/title (case-insensitive). */
                     search?: string;
+                    /** @description Optional status filter. Omit to return all. */
+                    status?: "active" | "completed";
                 };
                 header?: never;
                 path?: never;
@@ -3838,6 +3840,8 @@ export interface paths {
                         name?: string;
                         description?: string | null;
                         is_public?: boolean;
+                        /** @enum {string} */
+                        status?: "active" | "completed";
                     };
                 };
             };

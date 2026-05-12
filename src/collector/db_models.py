@@ -599,6 +599,15 @@ class Playlist(Base):
             "spotify_playlist_id",
             postgresql_where=text("spotify_playlist_id IS NOT NULL"),
         ),
+        Index(
+            "idx_playlists_user_active",
+            "user_id",
+            text("created_at DESC"),
+            postgresql_where=text("deleted_at IS NULL AND status = 'active'"),
+        ),
+        CheckConstraint(
+            "status IN ('active','completed')", name="ck_playlists_status"
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -610,6 +619,9 @@ class Playlist(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_public: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("FALSE")
+    )
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'active'")
     )
     cover_s3_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     cover_uploaded_at: Mapped[datetime | None] = mapped_column(

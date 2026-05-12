@@ -16,8 +16,11 @@ import {
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { notifications } from '@mantine/notifications';
 import type { Playlist } from '../lib/playlistTypes';
 import { DriftBadge } from './DriftBadge';
+import { StatusBadge } from './StatusBadge';
+import { useTogglePlaylistStatus } from '../hooks/useTogglePlaylistStatus';
 
 export interface PlaylistRowProps {
   playlist: Playlist;
@@ -33,6 +36,25 @@ export function PlaylistRow({
   onDelete,
 }: PlaylistRowProps) {
   const { t } = useTranslation();
+  const toggleStatus = useTogglePlaylistStatus();
+  const nextStatus = playlist.status === 'active' ? 'completed' : 'active';
+
+  async function handleToggleStatus() {
+    try {
+      await toggleStatus.mutateAsync({ playlistId: playlist.id, status: nextStatus });
+      notifications.show({
+        message: t(
+          nextStatus === 'completed'
+            ? 'playlists.status.toast_completed'
+            : 'playlists.status.toast_active',
+        ),
+        color: 'green',
+      });
+    } catch {
+      notifications.show({ message: t('playlists.toast.generic_error'), color: 'red' });
+    }
+  }
+
   return (
     <Table.Tr>
       <Table.Td>
@@ -62,6 +84,9 @@ export function PlaylistRow({
         {playlist.is_public ? <IconLockOpen size={16} /> : <IconLock size={16} />}
       </Table.Td>
       <Table.Td>
+        <StatusBadge status={playlist.status} />
+      </Table.Td>
+      <Table.Td>
         <Group gap="xs" wrap="nowrap">
           {playlist.spotify_playlist_id ? <IconBrandSpotify size={16} /> : null}
           {playlist.needs_republish ? <DriftBadge /> : null}
@@ -85,6 +110,11 @@ export function PlaylistRow({
             </Menu.Item>
             <Menu.Item onClick={() => onEditDescription(playlist)}>
               {t('playlists.form.edit_description_title')}
+            </Menu.Item>
+            <Menu.Item onClick={() => void handleToggleStatus()}>
+              {nextStatus === 'completed'
+                ? t('playlists.status.mark_completed')
+                : t('playlists.status.mark_active')}
             </Menu.Item>
             <Menu.Item color="red" onClick={() => onDelete(playlist)}>
               {t('playlists.detail.delete_cta')}

@@ -226,6 +226,7 @@ def _playlist_response(row, storage=None) -> dict[str, Any]:
         "last_published_at": row.last_published_at,
         "needs_republish": row.needs_republish,
         "track_count": row.track_count,
+        "status": row.status,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
     }
@@ -621,7 +622,13 @@ def _handle_create_playlist(event, repo: PlaylistsRepository, user_id, correlati
 
 def _handle_list_playlists(event, repo: PlaylistsRepository, user_id, correlation_id):
     limit, offset = _parse_pagination(event)
-    rows, total = repo.list_all(user_id=user_id, limit=limit, offset=offset)
+    qp = event.get("queryStringParameters") or {}
+    status = qp.get("status")
+    if status is not None and status not in ("active", "completed"):
+        raise ValidationError("status must be 'active' or 'completed'")
+    rows, total = repo.list_all(
+        user_id=user_id, limit=limit, offset=offset, status=status,
+    )
     storage = _build_storage_if_needed(rows)
     return _json_response(
         200,
@@ -664,6 +671,7 @@ def _handle_patch_playlist(event, repo: PlaylistsRepository, user_id, correlatio
         user_id=user_id, playlist_id=pid,
         name=name, normalized_name=normalized,
         description=body.description, is_public=body.is_public,
+        status=body.status,
         now=utc_now(),
     )
     log_event(

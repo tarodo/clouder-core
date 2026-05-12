@@ -33,6 +33,7 @@ def _row(**overrides) -> MagicMock:
         description=None, is_public=False, cover_s3_key=None,
         cover_uploaded_at=None, spotify_playlist_id=None,
         last_published_at=None, needs_republish=False, track_count=0,
+        status="active",
         created_at="2026-05-12T10:00:00+00:00",
         updated_at="2026-05-12T10:00:00+00:00",
     )

@@ -75,6 +75,7 @@ class FakePlaylistsRepo:
             needs_republish=bool(p["needs_republish"]),
             track_count=sum(1 for (pid, _) in self.tracks if pid == p["id"]),
             created_at=p["created_at"], updated_at=p["updated_at"],
+            status=p.get("status", "active"),
         )
 
     def _alive_playlists_for(self, user_id: str) -> list[dict]:
@@ -111,13 +112,15 @@ class FakePlaylistsRepo:
             return None
         return self._row(p)
 
-    def list_all(self, *, user_id, limit, offset):
+    def list_all(self, *, user_id, limit, offset, status=None):
         items = self._alive_playlists_for(user_id)
+        if status is not None:
+            items = [p for p in items if p.get("status", "active") == status]
         items.sort(key=lambda p: p["created_at"], reverse=True)
         return [self._row(p) for p in items[offset:offset+limit]], len(items)
 
     def patch(self, *, user_id, playlist_id, name, normalized_name,
-              description, is_public, now) -> PlaylistRow:
+              description, is_public, status, now) -> PlaylistRow:
         p = self.playlists.get(playlist_id)
         if p is None or p["user_id"] != user_id or p.get("deleted_at"):
             raise PlaylistNotFoundError()
@@ -131,7 +134,11 @@ class FakePlaylistsRepo:
             p["description"] = description
         if is_public is not None:
             p["is_public"] = is_public
-        if p["spotify_playlist_id"]:
+        if status is not None:
+            p["status"] = status
+        if p["spotify_playlist_id"] and (
+            name is not None or description is not None or is_public is not None
+        ):
             p["needs_republish"] = True
         p["updated_at"] = now.isoformat()
         return self._row(p)

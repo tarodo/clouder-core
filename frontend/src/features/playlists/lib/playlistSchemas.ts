@@ -23,14 +23,21 @@ export const createPlaylistSchema = z.object({
   is_public: z.boolean().default(false),
 });
 
+export const playlistStatusSchema = z.enum(['active', 'completed']);
+
 export const patchPlaylistSchema = z
   .object({
     name: playlistNameSchema.optional(),
     description: playlistDescriptionSchema.optional(),
     is_public: z.boolean().optional(),
+    status: playlistStatusSchema.optional(),
   })
   .refine(
-    (v) => v.name !== undefined || v.description !== undefined || v.is_public !== undefined,
+    (v) =>
+      v.name !== undefined ||
+      v.description !== undefined ||
+      v.is_public !== undefined ||
+      v.status !== undefined,
     { message: 'at_least_one_field' },
   );
 

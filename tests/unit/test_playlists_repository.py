@@ -154,7 +154,7 @@ def test_patch_raises_not_found_when_missing() -> None:
         repo.patch(
             user_id="u-1", playlist_id="missing",
             name="new", normalized_name="new",
-            description=None, is_public=None, now=_utc(),
+            description=None, is_public=None, status=None, now=_utc(),
         )
 
 
@@ -602,3 +602,100 @@ def test_upsert_imported_track_returns_existing_winner_under_race() -> None:
         title="X", isrc=None, length_ms=None, now=_utc(),
     )
     assert track_id == "existing-1"
+
+
+# ---- status filter / patch ----------------------------------------------
+
+
+def test_list_all_filters_by_status_when_requested() -> None:
+    captured: dict[str, object] = {}
+
+    def _execute(sql, params=None, transaction_id=None):
+        captured.setdefault("sqls", []).append(sql)
+        captured.setdefault("params", []).append(params)
+        if "COUNT(*) AS total" in sql:
+            return [{"total": 0}]
+        return []
+
+    api = MagicMock()
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    repo.list_all(user_id="u-1", limit=20, offset=0, status="active")
+    sqls = captured["sqls"]
+    assert any("p.status = :status" in s for s in sqls)
+    params_list = captured["params"]
+    assert all(p.get("status") == "active" for p in params_list)
+
+
+def test_list_all_omits_status_clause_when_none() -> None:
+    captured: dict[str, object] = {}
+
+    def _execute(sql, params=None, transaction_id=None):
+        captured.setdefault("sqls", []).append(sql)
+        captured.setdefault("params", []).append(params)
+        if "COUNT(*) AS total" in sql:
+            return [{"total": 0}]
+        return []
+
+    api = MagicMock()
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    repo.list_all(user_id="u-1", limit=20, offset=0, status=None)
+    sqls = captured["sqls"]
+    # _PLAYLIST_SELECT projects p.status (column read), but the WHERE
+    # clause must NOT include a status filter.
+    assert all("p.status = " not in s for s in sqls)
+    assert all("AND status = " not in s for s in sqls)
+    # And no `status` param bound to either query.
+    params_list = captured["params"]
+    assert all("status" not in (p or {}) for p in params_list)
+
+
+def test_patch_status_does_not_set_needs_republish() -> None:
+    """Status flip is organizational, not Spotify-visible — must not mark drift."""
+    captured: dict[str, object] = {"sqls": []}
+
+    def _execute(sql, params=None, transaction_id=None):
+        captured["sqls"].append(sql)
+        if "UPDATE playlists SET" in sql:
+            return [{
+                "id": "p-1", "user_id": "u-1", "name": "n",
+                "normalized_name": "n", "description": None, "is_public": False,
+                "cover_s3_key": None, "cover_uploaded_at": None,
+                "spotify_playlist_id": "sp-1",
+                "last_published_at": "2026-05-12T00:00:00",
+                "needs_republish": False,
+                "status": "completed",
+                "created_at": "2026-05-12T00:00:00",
+                "updated_at": "2026-05-12T00:00:00",
+            }]
+        if "SELECT" in sql and "FROM playlists p" in sql:
+            return [{
+                "id": "p-1", "user_id": "u-1", "name": "n",
+                "normalized_name": "n", "description": None, "is_public": False,
+                "cover_s3_key": None, "cover_uploaded_at": None,
+                "spotify_playlist_id": "sp-1",
+                "last_published_at": "2026-05-12T00:00:00",
+                "needs_republish": False,
+                "status": "completed",
+                "track_count": 0,
+                "created_at": "2026-05-12T00:00:00",
+                "updated_at": "2026-05-12T00:00:00",
+            }]
+        return []
+
+    api = MagicMock()
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    out = repo.patch(
+        user_id="u-1", playlist_id="p-1",
+        name=None, normalized_name=None,
+        description=None, is_public=None, status="completed",
+        now=_utc(),
+    )
+    assert out.status == "completed"
+    # Sanity: the UPDATE SQL gates needs_republish on name/desc/is_public,
+    # not on status.
+    update_sql = next(s for s in captured["sqls"] if "UPDATE playlists SET" in s)
+    assert "spotify_playlist_id IS NOT NULL" in update_sql
+    assert ":name IS NOT NULL OR :description_set OR :is_public IS NOT NULL" in update_sql
