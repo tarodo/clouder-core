@@ -32,17 +32,7 @@ def upgrade() -> None:
         "origin IN ('beatport','spotify_user_import')",
     )
 
-    # 2. spotify_id partial UNIQUE (replaces the non-unique partial index)
-    op.drop_index("idx_tracks_spotify_id", table_name="clouder_tracks")
-    op.create_index(
-        "uq_tracks_spotify_id",
-        "clouder_tracks",
-        ["spotify_id"],
-        unique=True,
-        postgresql_where=sa.text("spotify_id IS NOT NULL"),
-    )
-
-    # 3. playlists
+    # 2. playlists
     op.create_table(
         "playlists",
         sa.Column("id", sa.String(length=36), primary_key=True, nullable=False),
@@ -81,7 +71,7 @@ def upgrade() -> None:
         postgresql_where=sa.text("spotify_playlist_id IS NOT NULL"),
     )
 
-    # 4. playlist_tracks
+    # 3. playlist_tracks
     op.create_table(
         "playlist_tracks",
         sa.Column("playlist_id", sa.String(length=36), nullable=False),
@@ -112,7 +102,7 @@ def upgrade() -> None:
         ["playlist_id", "position"],
     )
 
-    # 5. user_imported_tracks
+    # 4. user_imported_tracks
     op.create_table(
         "user_imported_tracks",
         sa.Column("user_id", sa.String(length=36), nullable=False),
@@ -150,14 +140,6 @@ def downgrade() -> None:
     op.drop_index("uq_playlists_user_normname", table_name="playlists")
     op.drop_index("idx_playlists_user_created", table_name="playlists")
     op.drop_table("playlists")
-
-    op.drop_index("uq_tracks_spotify_id", table_name="clouder_tracks")
-    op.create_index(
-        "idx_tracks_spotify_id",
-        "clouder_tracks",
-        ["spotify_id"],
-        postgresql_where=sa.text("spotify_id IS NOT NULL"),
-    )
 
     op.drop_constraint("ck_clouder_tracks_origin", "clouder_tracks", type_="check")
     op.drop_column("clouder_tracks", "origin")

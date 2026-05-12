@@ -183,9 +183,8 @@ class ClouderTrack(Base):
     __table_args__ = (
         Index("idx_tracks_isrc", "isrc", postgresql_where=text("isrc IS NOT NULL")),
         Index(
-            "uq_tracks_spotify_id",
+            "idx_tracks_spotify_id",
             "spotify_id",
-            unique=True,
             postgresql_where=text("spotify_id IS NOT NULL"),
         ),
         Index(
