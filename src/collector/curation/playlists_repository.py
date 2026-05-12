@@ -279,17 +279,27 @@ class PlaylistsRepository:
         status is organizational, not Spotify-visible.
         """
         try:
+            # Explicit ::type casts on every param: when status-only patches
+            # send NULL for name/description/is_public, Aurora Data API fails
+            # with `could not determine data type of parameter $N` because
+            # the same param is read in multiple contexts (COALESCE for the
+            # column AND `IS NOT NULL` for the drift gate). The casts give
+            # Postgres a definite type independent of how each call uses it.
             rows = self._data_api.execute(
                 """
                 UPDATE playlists SET
-                    name = COALESCE(:name, name),
-                    normalized_name = COALESCE(:normalized_name, normalized_name),
-                    description = CASE WHEN :description_set THEN :description ELSE description END,
-                    is_public = COALESCE(:is_public, is_public),
-                    status = COALESCE(:status, status),
+                    name = COALESCE(:name::text, name),
+                    normalized_name = COALESCE(:normalized_name::text, normalized_name),
+                    description = CASE WHEN :description_set::boolean
+                                       THEN :description::text
+                                       ELSE description END,
+                    is_public = COALESCE(:is_public::boolean, is_public),
+                    status = COALESCE(:status::text, status),
                     needs_republish = CASE
                         WHEN spotify_playlist_id IS NOT NULL
-                             AND (:name IS NOT NULL OR :description_set OR :is_public IS NOT NULL)
+                             AND (:name::text IS NOT NULL
+                                  OR :description_set::boolean
+                                  OR :is_public::boolean IS NOT NULL)
                         THEN TRUE
                         ELSE needs_republish
                     END,
