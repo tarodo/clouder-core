@@ -474,6 +474,65 @@ def test_validate_tracks_in_scope_empty_input() -> None:
     api.execute.assert_not_called()
 
 
+def test_validate_tracks_in_scope_uses_parametric_in_list_not_any() -> None:
+    """Regression: Aurora Data API rejects PostgreSQL arrays passed as JSON
+    (`op ANY/ALL (array) requires array on right side`). The repository must
+    expand `track_ids` into per-id placeholders inside an `IN (...)` clause.
+    """
+    captured: dict[str, object] = {}
+
+    def _execute(sql, params=None, transaction_id=None):
+        captured["sql"] = sql
+        captured["params"] = params
+        return [{"id": "t-1"}]
+
+    api = MagicMock()
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    repo.validate_tracks_in_scope(user_id="u-1", track_ids=["t-1", "t-2"])
+    sql = captured["sql"]
+    assert "ANY(" not in sql, f"ANY() must not be used: {sql!r}"
+    assert ":t0" in sql and ":t1" in sql
+    assert captured["params"] == {"user_id": "u-1", "t0": "t-1", "t1": "t-2"}
+
+
+def test_append_tracks_uses_parametric_in_list_for_dedup_check() -> None:
+    """Regression: same Data API constraint as scope-check — the dedup SELECT
+    inside append_tracks must build `IN (:t0, :t1)`, not `ANY(:ids)`.
+    """
+    seen_sqls: list[str] = []
+    seen_params: list[dict] = []
+
+    def _execute(sql, params=None, transaction_id=None):
+        seen_sqls.append(sql)
+        seen_params.append(params or {})
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT COUNT(*) AS cnt FROM playlist_tracks" in sql:
+            return [{"cnt": 0}]
+        if "SELECT COALESCE(MAX(position), -1)" in sql:
+            return [{"max_pos": -1}]
+        if "SELECT track_id FROM playlist_tracks" in sql:
+            return []
+        return []
+
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+    api.execute.side_effect = _execute
+    api.batch_execute = MagicMock()
+    repo = PlaylistsRepository(api)
+    repo.append_tracks(
+        user_id="u-1", playlist_id="p-1",
+        track_ids=["t-a", "t-b"], now=_utc(),
+    )
+    dedup_sql = next(
+        s for s in seen_sqls if "SELECT track_id FROM playlist_tracks" in s
+    )
+    assert "ANY(" not in dedup_sql, f"ANY() must not be used: {dedup_sql!r}"
+    assert ":t0" in dedup_sql and ":t1" in dedup_sql
+
+
 def test_upsert_imported_track_uses_existing_when_spotify_id_matches() -> None:
     api = MagicMock()
     api.transaction.return_value.__enter__.return_value = "tx"
