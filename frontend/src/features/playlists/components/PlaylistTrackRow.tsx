@@ -10,6 +10,7 @@ export interface PlaylistTrackRowProps {
   track: PlaylistTrack;
   position: number;
   onRemove: (track: PlaylistTrack) => void;
+  reorderDisabled?: boolean;
 }
 
 function formatDuration(ms: number | null): string {
@@ -20,7 +21,12 @@ function formatDuration(ms: number | null): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function PlaylistTrackRow({ track, position, onRemove }: PlaylistTrackRowProps) {
+export function PlaylistTrackRow({
+  track,
+  position,
+  onRemove,
+  reorderDisabled = false,
+}: PlaylistTrackRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: track.track_id,
   });
@@ -44,10 +50,11 @@ export function PlaylistTrackRow({ track, position, onRemove }: PlaylistTrackRow
       <ActionIcon
         variant="subtle"
         aria-label="Drag handle"
-        {...attributes}
-        {...listeners}
+        disabled={reorderDisabled}
+        {...(reorderDisabled ? {} : attributes)}
+        {...(reorderDisabled ? {} : listeners)}
         aria-roledescription="sortable"
-        style={{ cursor: 'grab', touchAction: 'none' }}
+        style={{ cursor: reorderDisabled ? 'not-allowed' : 'grab', touchAction: 'none' }}
       >
         <IconGripVertical size={18} />
       </ActionIcon>

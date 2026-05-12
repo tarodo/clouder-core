@@ -180,8 +180,9 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
       ) : (
         <PlaylistTracksList
           tracks={filtered}
-          onReorder={handleReorder}
+          onReorder={search.trim() === '' ? handleReorder : () => {}}
           onRemove={handleRemoveTrack}
+          reorderDisabled={search.trim() !== ''}
         />
       )}
 

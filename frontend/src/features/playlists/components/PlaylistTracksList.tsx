@@ -22,9 +22,15 @@ export interface PlaylistTracksListProps {
   tracks: PlaylistTrack[];
   onReorder: (orderedIds: string[]) => void;
   onRemove: (track: PlaylistTrack) => void;
+  reorderDisabled?: boolean;
 }
 
-export function PlaylistTracksList({ tracks, onReorder, onRemove }: PlaylistTracksListProps) {
+export function PlaylistTracksList({
+  tracks,
+  onReorder,
+  onRemove,
+  reorderDisabled = false,
+}: PlaylistTracksListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -32,6 +38,7 @@ export function PlaylistTracksList({ tracks, onReorder, onRemove }: PlaylistTrac
   const ids = useMemo(() => tracks.map((t) => t.track_id), [tracks]);
 
   function onDragEnd(event: DragEndEvent) {
+    if (reorderDisabled) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = ids.indexOf(String(active.id));
@@ -50,6 +57,7 @@ export function PlaylistTracksList({ tracks, onReorder, onRemove }: PlaylistTrac
               track={t}
               position={i + 1}
               onRemove={onRemove}
+              reorderDisabled={reorderDisabled}
             />
           ))}
         </Stack>
