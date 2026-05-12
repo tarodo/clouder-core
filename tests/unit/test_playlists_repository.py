@@ -698,4 +698,57 @@ def test_patch_status_does_not_set_needs_republish() -> None:
     # not on status.
     update_sql = next(s for s in captured["sqls"] if "UPDATE playlists SET" in s)
     assert "spotify_playlist_id IS NOT NULL" in update_sql
-    assert ":name IS NOT NULL OR :description_set OR :is_public IS NOT NULL" in update_sql
+    # Drift gate references name / description_set / is_public — casts
+    # are explicit so status-only patches don't trip Data API type inference.
+    assert ":name::text IS NOT NULL" in update_sql
+    assert ":description_set::boolean" in update_sql
+    assert ":is_public::boolean IS NOT NULL" in update_sql
+
+
+def test_patch_sql_has_explicit_param_casts() -> None:
+    """Regression: Aurora Data API failed status-only patches with
+    `could not determine data type of parameter $N` because params
+    appear in both COALESCE and IS NOT NULL contexts. Every param the
+    UPDATE binds must carry an explicit ::type cast."""
+    captured: dict[str, object] = {"sqls": []}
+
+    def _execute(sql, params=None, transaction_id=None):
+        captured["sqls"].append(sql)
+        if "UPDATE playlists SET" in sql:
+            return [{
+                "id": "p-1", "user_id": "u-1", "name": "n",
+                "normalized_name": "n", "description": None, "is_public": False,
+                "cover_s3_key": None, "cover_uploaded_at": None,
+                "spotify_playlist_id": None, "last_published_at": None,
+                "needs_republish": False, "status": "completed",
+                "created_at": "2026-05-12T00:00:00",
+                "updated_at": "2026-05-12T00:00:00",
+            }]
+        if "SELECT" in sql and "FROM playlists p" in sql:
+            return [{
+                "id": "p-1", "user_id": "u-1", "name": "n",
+                "normalized_name": "n", "description": None, "is_public": False,
+                "cover_s3_key": None, "cover_uploaded_at": None,
+                "spotify_playlist_id": None, "last_published_at": None,
+                "needs_republish": False, "status": "completed",
+                "track_count": 0,
+                "created_at": "2026-05-12T00:00:00",
+                "updated_at": "2026-05-12T00:00:00",
+            }]
+        return []
+
+    api = MagicMock()
+    api.execute.side_effect = _execute
+    repo = PlaylistsRepository(api)
+    # Status-only patch — all other inputs None.
+    repo.patch(
+        user_id="u-1", playlist_id="p-1",
+        name=None, normalized_name=None,
+        description=None, is_public=None, status="completed",
+        now=_utc(),
+    )
+    update_sql = next(s for s in captured["sqls"] if "UPDATE playlists SET" in s)
+    for cast in (":name::text", ":normalized_name::text",
+                 ":description::text", ":description_set::boolean",
+                 ":is_public::boolean", ":status::text"):
+        assert cast in update_sql, f"missing explicit cast {cast}"
