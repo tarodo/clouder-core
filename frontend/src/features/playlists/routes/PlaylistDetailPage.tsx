@@ -45,7 +45,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
-  const tracks = tracksQ.data?.items ?? [];
+  const tracks = useMemo(() => tracksQ.data?.items ?? [], [tracksQ.data?.items]);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return tracks;
