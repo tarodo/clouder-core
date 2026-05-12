@@ -171,7 +171,8 @@
       "loading": "Loading categories…",
       "add_to_playlist_label": "Add to playlist",
       "add_to_playlist_empty": "No playlists yet",
-      "manage_playlists": "Manage playlists…"
+      "manage_playlists": "Manage playlists…",
+      "back": "Back"
     }
   },
   "playlists": {

@@ -1,6 +1,11 @@
+import { useState } from 'react';
 import { ActionIcon, Anchor, Group, Loader, Menu, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconDotsVertical } from '@tabler/icons-react';
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconDotsVertical,
+} from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useCategoriesByStyle } from '../hooks/useCategoriesByStyle';
 import { useRemoveTrackOptimistic } from '../hooks/useRemoveTrackOptimistic';
@@ -22,6 +27,10 @@ export interface TrackRowActionsProps {
 
 export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowActionsProps) {
   const { t } = useTranslation();
+  // 'main' = primary actions (playlists + Move-to + Remove).
+  // 'move' = expanded category list. Move-to is deprioritised vs Add-to-playlist
+  // because users move tracks rarely; the playlist flow is the hot path.
+  const [mode, setMode] = useState<'main' | 'move'>('main');
   const categoriesQ = useCategoriesByStyle(styleId);
   const moveMut = useMoveTrackBetweenCategories();
   const removeMut = useRemoveTrackOptimistic();
@@ -156,43 +165,69 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
   };
 
   return (
-    <Menu position="bottom-end" withinPortal>
+    <Menu
+      position="bottom-end"
+      withinPortal
+      onClose={() => setMode('main')}
+    >
       <Menu.Target>
         <ActionIcon variant="subtle" aria-label={t('categories.row_actions.trigger_aria')}>
           <IconDotsVertical size={16} />
         </ActionIcon>
       </Menu.Target>
       <Menu.Dropdown>
-        <Menu.Label>
-          {categoriesQ.isLoading
-            ? t('categories.row_actions.move_label')
-            : others.length === 0
-              ? t('categories.row_actions.move_empty')
-              : t('categories.row_actions.move_label')}
-        </Menu.Label>
-        {categoriesQ.isLoading ? (
-          <Menu.Item disabled leftSection={<Loader size={12} />}>
-            {t('categories.row_actions.loading')}
-          </Menu.Item>
+        {mode === 'main' ? (
+          <>
+            <AddToPlaylistSubmenu trackId={track.id} />
+            <Menu.Divider />
+            <Menu.Item
+              closeMenuOnClick={false}
+              rightSection={<IconChevronRight size={14} />}
+              onClick={() => setMode('move')}
+            >
+              {t('categories.row_actions.move_label')}
+            </Menu.Item>
+            <Menu.Divider />
+            <Menu.Item color="red" onClick={handleRemove}>
+              {t('categories.row_actions.remove_label')}
+            </Menu.Item>
+          </>
         ) : (
-          allCategories.map((c) =>
-            c.id === currentCategoryId ? (
-              <Menu.Item key={c.id} disabled>
-                {c.name} {t('categories.row_actions.current_marker')}
+          <>
+            <Menu.Item
+              closeMenuOnClick={false}
+              leftSection={<IconChevronLeft size={14} />}
+              onClick={() => setMode('main')}
+            >
+              {t('categories.row_actions.back')}
+            </Menu.Item>
+            <Menu.Divider />
+            <Menu.Label>
+              {categoriesQ.isLoading
+                ? t('categories.row_actions.move_label')
+                : others.length === 0
+                  ? t('categories.row_actions.move_empty')
+                  : t('categories.row_actions.move_label')}
+            </Menu.Label>
+            {categoriesQ.isLoading ? (
+              <Menu.Item disabled leftSection={<Loader size={12} />}>
+                {t('categories.row_actions.loading')}
               </Menu.Item>
             ) : (
-              <Menu.Item key={c.id} onClick={() => handleMove(c.id, c.name)}>
-                {c.name}
-              </Menu.Item>
-            ),
-          )
+              allCategories.map((c) =>
+                c.id === currentCategoryId ? (
+                  <Menu.Item key={c.id} disabled>
+                    {c.name} {t('categories.row_actions.current_marker')}
+                  </Menu.Item>
+                ) : (
+                  <Menu.Item key={c.id} onClick={() => handleMove(c.id, c.name)}>
+                    {c.name}
+                  </Menu.Item>
+                ),
+              )
+            )}
+          </>
         )}
-        <Menu.Divider />
-        <AddToPlaylistSubmenu trackId={track.id} />
-        <Menu.Divider />
-        <Menu.Item color="red" onClick={handleRemove}>
-          {t('categories.row_actions.remove_label')}
-        </Menu.Item>
       </Menu.Dropdown>
     </Menu>
   );
