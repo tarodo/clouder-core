@@ -21,6 +21,7 @@ export {
   IconArrowsExchange,
   IconDotsVertical,
   IconTrash,
+  IconPlaylist,
   IconPlus,
   IconSearch,
   IconX,

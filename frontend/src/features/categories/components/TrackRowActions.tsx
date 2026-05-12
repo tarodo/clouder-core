@@ -12,6 +12,7 @@ import { useAddTrackToCategory } from '../hooks/useAddTrackToCategory';
 import { api } from '../../../api/client';
 import { ApiError } from '../../../api/error';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
+import { AddToPlaylistSubmenu } from './AddToPlaylistSubmenu';
 
 export interface TrackRowActionsProps {
   track: CategoryTrack;
@@ -186,6 +187,8 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
             ),
           )
         )}
+        <Menu.Divider />
+        <AddToPlaylistSubmenu trackId={track.id} />
         <Menu.Divider />
         <Menu.Item color="red" onClick={handleRemove}>
           {t('categories.row_actions.remove_label')}

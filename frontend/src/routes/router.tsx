@@ -16,6 +16,8 @@ import {
   CurateStyleResume,
   CurateSessionPage,
 } from '../features/curate';
+import { PlaylistsListPage } from '../features/playlists/routes/PlaylistsListPage';
+import { PlaylistDetailPage } from '../features/playlists/routes/PlaylistDetailPage';
 import { ProfilePage } from './profile';
 import { NotFoundPage } from './not-found';
 import { RouteErrorBoundary } from '../components/RouteErrorBoundary';
@@ -66,6 +68,13 @@ export const router = createBrowserRouter([
           { index: true, element: <CurateIndexRedirect /> },
           { path: ':styleId', element: <CurateStyleResume /> },
           { path: ':styleId/:blockId/:bucketId', element: <CurateSessionPage /> },
+        ],
+      },
+      {
+        path: 'playlists',
+        children: [
+          { index: true, element: <PlaylistsListPage /> },
+          { path: ':id', element: <PlaylistDetailPage /> },
         ],
       },
       { path: 'profile', element: <ProfilePage /> },
