@@ -14,10 +14,10 @@ export function parseSpotifyRef(input: string): string {
   if (!ref) throw new InvalidSpotifyRefError();
 
   const uriMatch = URI_RE.exec(ref);
-  if (uriMatch) return uriMatch[1];
+  if (uriMatch && uriMatch[1]) return uriMatch[1];
 
   const urlMatch = URL_RE.exec(ref);
-  if (urlMatch) return urlMatch[1];
+  if (urlMatch && urlMatch[1]) return urlMatch[1];
 
   if (BASE62.test(ref)) return ref;
 
