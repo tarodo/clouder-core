@@ -62,10 +62,15 @@ _PLAYLIST_SELECT = """
 """
 
 
-_SCOPE_CHECK_SQL = """
+# Aurora Data API forbids passing Python lists as PostgreSQL arrays
+# (lists serialize as JSON via `typeHint=JSON`, not as `text[]`), so
+# `t.id = ANY(:track_ids)` blows up with
+# `op ANY/ALL (array) requires array on right side`. The scope-check SQL
+# is built parametrically per-call — see `validate_tracks_in_scope`.
+_SCOPE_CHECK_SQL_TEMPLATE = """
     SELECT t.id
     FROM clouder_tracks t
-    WHERE t.id = ANY(:track_ids)
+    WHERE t.id IN ({placeholders})
       AND (
         EXISTS (
           SELECT 1 FROM category_tracks ct
@@ -346,10 +351,16 @@ class PlaylistsRepository:
             )
             current = int(count_rows[0]["cnt"]) if count_rows else 0
 
+            # Aurora Data API forbids array params (see _SCOPE_CHECK_SQL_TEMPLATE
+            # note above). Build IN-list parametrically.
+            id_placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+            id_params: dict[str, Any] = {"id": playlist_id}
+            for i, tid in enumerate(track_ids):
+                id_params[f"t{i}"] = tid
             existing_rows = self._data_api.execute(
                 "SELECT track_id FROM playlist_tracks "
-                "WHERE playlist_id = :id AND track_id = ANY(:ids)",
-                {"id": playlist_id, "ids": track_ids},
+                f"WHERE playlist_id = :id AND track_id IN ({id_placeholders})",
+                id_params,
                 transaction_id=tx_id,
             )
             existing = {r["track_id"] for r in existing_rows}
@@ -632,9 +643,13 @@ class PlaylistsRepository:
     ) -> set[str]:
         if not track_ids:
             return set()
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {"user_id": user_id}
+        for i, tid in enumerate(track_ids):
+            params[f"t{i}"] = tid
         rows = self._data_api.execute(
-            _SCOPE_CHECK_SQL,
-            {"user_id": user_id, "track_ids": track_ids},
+            _SCOPE_CHECK_SQL_TEMPLATE.format(placeholders=placeholders),
+            params,
         )
         return {r["id"] for r in rows}
 
