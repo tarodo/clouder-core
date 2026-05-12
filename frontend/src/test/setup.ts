@@ -102,6 +102,21 @@ Object.defineProperty(document.documentElement, 'clientHeight', {
   value: 768,
 });
 
+// jsdom does not implement document.fonts; Mantine's Textarea Autosize calls
+// `document.fonts.addEventListener('loadingdone', ...)` on mount and tears
+// down on cleanup, so it crashes with "Cannot read properties of undefined
+// (reading 'addEventListener')". Provide a minimal stub.
+if (!('fonts' in document)) {
+  Object.defineProperty(document, 'fonts', {
+    configurable: true,
+    value: {
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      ready: Promise.resolve(),
+    },
+  });
+}
+
 // jsdom does not implement window.matchMedia; Mantine reads it for color scheme.
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
