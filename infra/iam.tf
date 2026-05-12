@@ -32,6 +32,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       "${aws_cloudwatch_log_group.spotify_search_worker.arn}:*",
       "${aws_cloudwatch_log_group.vendor_match_worker.arn}:*",
       "${aws_cloudwatch_log_group.auth_handler.arn}:*",
+      "${aws_cloudwatch_log_group.curation.arn}:*",
     ]
   }
 
