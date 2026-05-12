@@ -13,7 +13,7 @@ export function AddToPlaylistSubmenu({ trackId }: AddToPlaylistSubmenuProps) {
   const { t } = useTranslation();
   // Always-enabled — Mantine renders Menu.Dropdown content lazily, so this
   // query only fires when the menu opens (parent Menu component gates render).
-  const q = usePlaylists({ limit: 100 });
+  const q = usePlaylists({ limit: 200 });
   const addMut = useAddTracksToPlaylist();
 
   async function handleAdd(playlistId: string, playlistName: string) {

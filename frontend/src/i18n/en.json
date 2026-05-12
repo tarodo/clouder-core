@@ -250,7 +250,8 @@
       "reason_invalid_ref": "invalid format",
       "reason_not_found": "not found",
       "reason_already_in_playlist": "already in playlist",
-      "max_exceeded": "Maximum 50 refs per import."
+      "max_exceeded": "Maximum 50 refs per import.",
+      "valid_count": "{{valid}}/{{total}} valid"
     },
     "add_tracks": {
       "title": "Add tracks",
@@ -294,6 +295,7 @@
       "spotify_not_authorized": "Spotify isn't linked. Re-link from Profile.",
       "spotify_upstream_error": "Spotify is unreachable, retry in a moment.",
       "tracks_not_accessible": "Some tracks are no longer accessible.",
+      "tracks_not_accessible_count": "{{count}} tracks are no longer accessible.",
       "confirm_overwrite_required": "Someone else already published this playlist. Confirm to overwrite."
     }
   },

@@ -16,6 +16,7 @@ import { useCategoriesByStyle } from '../../categories/hooks/useCategoriesByStyl
 import { useCategoryTracks } from '../../categories/hooks/useCategoryTracks';
 import { useAddTracksToPlaylist } from '../hooks/useAddTracksToPlaylist';
 import { notifications } from '@mantine/notifications';
+import { ApiError } from '../../../api/error';
 
 export interface AddTracksModalProps {
   opened: boolean;
@@ -74,8 +75,21 @@ export function AddTracksModal({ opened, onClose, playlistId, onAdded }: AddTrac
       });
       onAdded();
       onClose();
-    } catch {
-      notifications.show({ message: t('playlists.toast.generic_error'), color: 'red' });
+    } catch (err) {
+      if (
+        err instanceof ApiError &&
+        err.status === 403 &&
+        err.code === 'track_not_in_user_scope'
+      ) {
+        const raw = err.raw as { missing_track_ids?: string[] } | undefined;
+        const count = raw?.missing_track_ids?.length ?? 0;
+        notifications.show({
+          message: t('playlists.errors.tracks_not_accessible_count', { count }),
+          color: 'red',
+        });
+      } else {
+        notifications.show({ message: t('playlists.toast.generic_error'), color: 'red' });
+      }
     }
   }
 

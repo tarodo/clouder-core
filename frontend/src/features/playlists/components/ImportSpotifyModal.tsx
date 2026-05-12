@@ -111,7 +111,10 @@ export function ImportSpotifyModal({ opened, onClose, playlistId }: ImportSpotif
               ? ''
               : tooMany
                 ? t('playlists.import.max_exceeded')
-                : `${validCount}/${lines.length} valid`}
+                : t('playlists.import.valid_count', {
+                    valid: validCount,
+                    total: lines.length,
+                  })}
           </Text>
           <Button
             onClick={() => void handleSubmit()}

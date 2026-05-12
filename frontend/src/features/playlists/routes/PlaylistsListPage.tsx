@@ -20,7 +20,7 @@ export function PlaylistsListPage() {
   const { t } = useTranslation();
   const [rawSearch, setRawSearch] = useState('');
   const [search] = useDebouncedValue(rawSearch.trim(), 300);
-  const { data, isLoading, isError } = usePlaylists({ search });
+  const { data, isLoading, isError } = usePlaylists({ search, limit: 200 });
   const create = useCreatePlaylist();
   const deleteMut = useDeletePlaylist();
 

@@ -19,6 +19,7 @@ import {
   playlistNameSchema,
   playlistDescriptionSchema,
 } from '../lib/playlistSchemas';
+import { translateFieldError } from '../lib/errorMessages';
 
 export type PlaylistFormMode = 'create' | 'rename' | 'edit-description';
 
@@ -94,25 +95,13 @@ export function PlaylistFormDialog({
   const submitLabel =
     mode === 'create' ? t('playlists.form.submit_create') : t('playlists.form.submit_save');
 
-  const errorMap: Record<string, string> = {
-    name_required: t('playlists.errors.name_required'),
-    name_too_long: t('playlists.errors.name_too_long'),
-    name_control_chars: t('playlists.errors.name_control_chars'),
-    description_too_long: t('playlists.errors.description_too_long'),
-  };
+  const nameError = serverNameError
+    ?? translateFieldError(form.errors.name as string | undefined, t);
 
-  const nameError = (() => {
-    if (serverNameError) return serverNameError;
-    const e = form.errors.name;
-    if (!e) return undefined;
-    return errorMap[String(e)] ?? String(e);
-  })();
-
-  const descriptionError = (() => {
-    const e = form.errors.description;
-    if (!e) return undefined;
-    return errorMap[String(e)] ?? String(e);
-  })();
+  const descriptionError = translateFieldError(
+    form.errors.description as string | undefined,
+    t,
+  );
 
   function handleSubmit(values: FormValues) {
     const out: { name?: string; description?: string | null; is_public?: boolean } = {};

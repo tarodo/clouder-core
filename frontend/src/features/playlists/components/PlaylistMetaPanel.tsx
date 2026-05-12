@@ -11,9 +11,11 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconPencil, IconX } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import type { Playlist } from '../lib/playlistTypes';
 import { playlistNameSchema, playlistDescriptionSchema } from '../lib/playlistSchemas';
+import { translateFieldError } from '../lib/errorMessages';
 import { CoverPicker } from './CoverPicker';
 
 export interface PlaylistMetaPanelProps {
@@ -38,7 +40,8 @@ export function PlaylistMetaPanel({
   async function commitName() {
     const parsed = playlistNameSchema.safeParse(nameDraft);
     if (!parsed.success) {
-      setNameError(t('playlists.errors.name_too_long'));
+      const code = parsed.error.issues[0]?.message;
+      setNameError(translateFieldError(code, t) ?? t('playlists.errors.name_too_long'));
       return;
     }
     setNameError(undefined);
@@ -59,7 +62,8 @@ export function PlaylistMetaPanel({
     const value = descDraft.trim() === '' ? null : descDraft.trim();
     const parsed = playlistDescriptionSchema.safeParse(value);
     if (!parsed.success) {
-      setDescError(t('playlists.errors.description_too_long'));
+      const code = parsed.error.issues[0]?.message;
+      setDescError(translateFieldError(code, t) ?? t('playlists.errors.description_too_long'));
       return;
     }
     setDescError(undefined);
@@ -79,8 +83,9 @@ export function PlaylistMetaPanel({
   async function togglePublic(checked: boolean) {
     try {
       await onPatch({ is_public: checked });
+      notifications.show({ message: t('playlists.toast.visibility_saved'), color: 'green' });
     } catch {
-      // optimistic rollback happens at the hook level
+      notifications.show({ message: t('playlists.toast.generic_error'), color: 'red' });
     }
   }
 
