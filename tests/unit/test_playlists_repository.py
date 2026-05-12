@@ -518,24 +518,21 @@ def test_upsert_imported_track_inserts_new_when_missing() -> None:
     assert track_id
     assert any("INSERT INTO clouder_tracks" in s for s in calls)
     assert any("INSERT INTO user_imported_tracks" in s for s in calls)
+    # spotify_id is intentionally not unique → no ON CONFLICT clause on it
+    assert not any("ON CONFLICT (spotify_id)" in s for s in calls)
 
 
-def test_upsert_imported_track_handles_race_on_conflict() -> None:
-    """ON CONFLICT skipped → repository re-SELECTs the winner's id."""
+def test_upsert_imported_track_returns_existing_winner_under_race() -> None:
+    """If multiple clouder_tracks rows share spotify_id (legitimate prod
+    state), upsert reuses whichever one SELECT happens to return first
+    and adds the user-imported marker against it."""
     api = MagicMock()
     api.transaction.return_value.__enter__.return_value = "tx"
     api.transaction.return_value.__exit__.return_value = False
 
-    state = {"selected": 0}
-
     def _execute(sql, params=None, transaction_id=None):
         if "SELECT id FROM clouder_tracks WHERE spotify_id" in sql:
-            state["selected"] += 1
-            if state["selected"] == 1:
-                return []  # first check: not there
-            return [{"id": "winner"}]  # second check after ON CONFLICT
-        if "INSERT INTO clouder_tracks" in sql:
-            return []  # conflict, nothing returned
+            return [{"id": "existing-1"}]  # picks first
         return []
 
     api.execute.side_effect = _execute
@@ -545,4 +542,4 @@ def test_upsert_imported_track_handles_race_on_conflict() -> None:
         spotify_id="spt-abc",
         title="X", isrc=None, length_ms=None, now=_utc(),
     )
-    assert track_id == "winner"
+    assert track_id == "existing-1"

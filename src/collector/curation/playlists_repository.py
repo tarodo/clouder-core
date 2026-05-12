@@ -650,10 +650,9 @@ class PlaylistsRepository:
     ) -> str:
         """Idempotent import: returns canonical clouder_tracks.id.
 
-        Three branches:
-          1. spotify_id already present → reuse.
-          2. INSERT ... ON CONFLICT DO NOTHING returned a row → use it.
-          3. Conflict (race) → re-SELECT to find the winner's id.
+        Two branches:
+          1. spotify_id already present → reuse (SELECT-first dedup).
+          2. Otherwise INSERT a fresh row.
 
         Always inserts a (user_id, track_id) marker into user_imported_tracks.
         """
@@ -667,6 +666,9 @@ class PlaylistsRepository:
                 track_id = existing[0]["id"]
             else:
                 new_id = str(uuid.uuid4())
+                # No ON CONFLICT — spotify_id is not unique by design (one
+                # Spotify track may map to multiple Beatport tracks, e.g.
+                # original vs extended mix).
                 inserted = self._data_api.execute(
                     """
                     INSERT INTO clouder_tracks (
@@ -676,7 +678,6 @@ class PlaylistsRepository:
                         :id, :title, :normalized_title, :isrc, :length_ms,
                         :spotify_id, 'spotify_user_import', :now, :now
                     )
-                    ON CONFLICT (spotify_id) DO NOTHING
                     RETURNING id
                     """,
                     {
@@ -690,19 +691,7 @@ class PlaylistsRepository:
                     },
                     transaction_id=tx_id,
                 )
-                if inserted:
-                    track_id = inserted[0]["id"]
-                else:
-                    rerun = self._data_api.execute(
-                        "SELECT id FROM clouder_tracks WHERE spotify_id = :spotify_id",
-                        {"spotify_id": spotify_id},
-                        transaction_id=tx_id,
-                    )
-                    if not rerun:
-                        raise RuntimeError(
-                            f"Race during import: spotify_id={spotify_id} disappeared"
-                        )
-                    track_id = rerun[0]["id"]
+                track_id = inserted[0]["id"]
 
             self._data_api.execute(
                 """
