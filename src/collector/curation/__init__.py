@@ -154,3 +154,89 @@ class TooManyTagsError(BadQueryParamError):
 
 class InvalidMatchError(BadQueryParamError):
     error_code = "invalid_match"
+
+
+# --- Playlists (spec 2026-05-11) -------------------------------------------
+
+
+class PlaylistNotFoundError(NotFoundError):
+    def __init__(self, message: str = "Playlist not found") -> None:
+        super().__init__("playlist_not_found", message)
+
+
+class PlaylistNameConflictError(NameConflictError):
+    error_code = "playlist_name_conflict"
+
+
+class PlaylistLimitReachedError(CurationError):
+    error_code = "playlist_limit_reached"
+    http_status = 429
+
+
+class PlaylistTrackLimitError(CurationError):
+    error_code = "playlist_track_limit"
+    http_status = 400
+
+
+class TrackNotInUserScopeError(CurationError):
+    error_code = "track_not_in_user_scope"
+    http_status = 404
+
+    def __init__(self, message: str, missing_track_ids: list[str]) -> None:
+        super().__init__(message)
+        self.missing_track_ids = missing_track_ids
+
+
+class ConfirmOverwriteRequiredError(CurationError):
+    error_code = "confirm_overwrite_required"
+    http_status = 409
+
+
+class SpotifyNotAuthorizedError(CurationError):
+    error_code = "spotify_not_authorized"
+    http_status = 412
+
+
+class SpotifyScopeInsufficientError(CurationError):
+    error_code = "spotify_scope_insufficient"
+    http_status = 412
+
+
+class SpotifyApiError(CurationError):
+    error_code = "spotify_api_error"
+    http_status = 502
+
+
+class SpotifyNotFoundError(SpotifyApiError):
+    """Spotify returned 404 — track/playlist/user does not exist on Spotify.
+
+    Subclass of SpotifyApiError so existing `except SpotifyApiError`
+    catches still work, but callers that want to handle 404 distinctly
+    can match on the subclass."""
+
+    error_code = "spotify_not_found"
+
+
+class SpotifyRateLimitedError(CurationError):
+    error_code = "spotify_rate_limited"
+    http_status = 502
+
+
+class InvalidSpotifyRefError(CurationError):
+    error_code = "invalid_spotify_ref"
+    http_status = 400
+
+
+class CoverMissingError(CurationError):
+    error_code = "cover_missing"
+    http_status = 400
+
+
+class CoverTooLargeError(CurationError):
+    error_code = "cover_too_large"
+    http_status = 400
+
+
+class NothingToPublishError(CurationError):
+    error_code = "nothing_to_publish"
+    http_status = 400

@@ -17,17 +17,24 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .curation import (
     BadQueryParamError,
+    CoverMissingError,
+    CoverTooLargeError,
     CurationError,
     InactiveStagingFinalizeError,
     InvalidMatchError,
+    InvalidSpotifyRefError,
     InvalidTagColorError,
     InvalidTagIdsError,
     InvalidTagNameError,
     InvalidTagPayloadError,
     NotFoundError,
     PaginatedResult,
+    PlaylistNotFoundError,
+    SpotifyNotAuthorizedError,
+    SpotifyNotFoundError,
     TagNotFoundError,
     TooManyTagsError,
+    TrackNotInUserScopeError,
     TracksNotInSourceError,
     ValidationError,
     utc_now,
@@ -44,13 +51,31 @@ from .curation.categories_service import (
     normalize_category_name,
     validate_category_name,
 )
+from .curation.playlists_repository import (
+    PlaylistsRepository,
+    create_default_playlists_repository,
+)
+from .curation.playlists_service import (
+    MAX_COVER_BYTES,
+    normalize_playlist_name,
+    parse_spotify_ref,
+    validate_description,
+    validate_playlist_name,
+)
 from .curation.schemas import (
     AddTrackIn,
+    AddTracksIn,
+    CoverUploadUrlIn,
     CreateCategoryIn,
+    CreatePlaylistIn,
     CreateTriageBlockIn,
+    ImportSpotifyTracksIn,
     MoveTracksIn,
+    PatchPlaylistIn,
+    PublishPlaylistIn,
     RenameCategoryIn,
     ReorderCategoriesIn,
+    ReorderPlaylistTracksIn,
     TransferTracksIn,
 )
 from .curation.triage_repository import (
@@ -123,6 +148,8 @@ def _curation_error_response(
         payload["inactive_buckets"] = list(exc.inactive_buckets)
     elif isinstance(exc, TracksNotInSourceError):
         payload["not_in_source"] = list(exc.not_in_source)
+    elif isinstance(exc, TrackNotInUserScopeError):
+        payload["missing_track_ids"] = list(exc.missing_track_ids)
     return _json_response(exc.http_status, payload, correlation_id)
 
 
@@ -182,6 +209,50 @@ def _category_response(row) -> dict[str, Any]:
         "track_count": row.track_count,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
+    }
+
+
+def _playlist_response(row, storage=None) -> dict[str, Any]:
+    payload = {
+        "id": row.id,
+        "user_id": row.user_id,
+        "name": row.name,
+        "description": row.description,
+        "is_public": row.is_public,
+        "cover_s3_key": row.cover_s3_key,
+        "cover_url": None,
+        "cover_uploaded_at": row.cover_uploaded_at,
+        "spotify_playlist_id": row.spotify_playlist_id,
+        "last_published_at": row.last_published_at,
+        "needs_republish": row.needs_republish,
+        "track_count": row.track_count,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+    }
+    if row.cover_s3_key and storage is not None:
+        payload["cover_url"] = storage.presigned_cover_get_url(
+            s3_key=row.cover_s3_key,
+        )
+    return payload
+
+
+def _build_storage_if_needed(rows):
+    """Return an S3Storage only if any of the given rows carries a cover."""
+    if any(getattr(r, "cover_s3_key", None) for r in rows):
+        return _build_s3_storage()
+    return None
+
+
+def _playlist_track_response(row) -> dict[str, Any]:
+    return {
+        "track_id": row.track_id,
+        "position": row.position,
+        "added_at": row.added_at,
+        "title": row.title,
+        "spotify_id": row.spotify_id,
+        "isrc": row.isrc,
+        "length_ms": row.length_ms,
+        "origin": row.origin,
     }
 
 
@@ -517,6 +588,414 @@ def _handle_remove_track(event, repo, user_id, correlation_id):
         "headers": {"x-correlation-id": correlation_id},
         "body": "",
     }
+
+
+# ---------- Playlist CRUD handlers ------------------------------------------
+
+
+def _handle_create_playlist(event, repo: PlaylistsRepository, user_id, correlation_id):
+    body = CreatePlaylistIn.model_validate(_parse_body(event))
+    validate_playlist_name(body.name)
+    validate_description(body.description)
+    normalized = normalize_playlist_name(body.name)
+    if not normalized:
+        raise ValidationError("Name must be non-empty")
+    playlist_id = str(uuid.uuid4())
+    row = repo.create(
+        user_id=user_id,
+        playlist_id=playlist_id,
+        name=body.name.strip(),
+        normalized_name=normalized,
+        description=body.description,
+        is_public=body.is_public,
+        now=utc_now(),
+    )
+    log_event(
+        "INFO", "playlist_created",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=row.id,
+    )
+    payload = _playlist_response(row)
+    payload["correlation_id"] = correlation_id
+    return _json_response(201, payload, correlation_id)
+
+
+def _handle_list_playlists(event, repo: PlaylistsRepository, user_id, correlation_id):
+    limit, offset = _parse_pagination(event)
+    rows, total = repo.list_all(user_id=user_id, limit=limit, offset=offset)
+    storage = _build_storage_if_needed(rows)
+    return _json_response(
+        200,
+        {
+            "items": [_playlist_response(r, storage) for r in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_get_playlist(event, repo: PlaylistsRepository, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    row = repo.get(user_id=user_id, playlist_id=pid)
+    if row is None:
+        raise PlaylistNotFoundError()
+    storage = _build_s3_storage() if row.cover_s3_key else None
+    payload = _playlist_response(row, storage)
+    payload["correlation_id"] = correlation_id
+    return _json_response(200, payload, correlation_id)
+
+
+def _handle_patch_playlist(event, repo: PlaylistsRepository, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = PatchPlaylistIn.model_validate(_parse_body(event))
+    name = body.name.strip() if body.name is not None else None
+    normalized = normalize_playlist_name(body.name) if body.name is not None else None
+    if body.name is not None:
+        validate_playlist_name(body.name)
+    if body.description is not None:
+        validate_description(body.description)
+    row = repo.patch(
+        user_id=user_id, playlist_id=pid,
+        name=name, normalized_name=normalized,
+        description=body.description, is_public=body.is_public,
+        now=utc_now(),
+    )
+    log_event(
+        "INFO", "playlist_patched",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+    )
+    storage = _build_s3_storage() if row.cover_s3_key else None
+    payload = _playlist_response(row, storage)
+    payload["correlation_id"] = correlation_id
+    return _json_response(200, payload, correlation_id)
+
+
+def _handle_delete_playlist(event, repo: PlaylistsRepository, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    ok = repo.soft_delete(user_id=user_id, playlist_id=pid, now=utc_now())
+    if not ok:
+        raise PlaylistNotFoundError()
+    log_event(
+        "INFO", "playlist_deleted",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+    )
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
+    }
+
+
+def _handle_list_playlist_tracks(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    limit, offset = _parse_pagination(event)
+    rows, total = repo.list_tracks(
+        user_id=user_id, playlist_id=pid, limit=limit, offset=offset,
+    )
+    return _json_response(
+        200,
+        {
+            "items": [_playlist_track_response(r) for r in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_add_playlist_tracks(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = AddTracksIn.model_validate(_parse_body(event))
+    visible = repo.validate_tracks_in_scope(
+        user_id=user_id, track_ids=body.track_ids,
+    )
+    missing = [t for t in body.track_ids if t not in visible]
+    if missing:
+        raise TrackNotInUserScopeError(
+            "Some tracks are not accessible to the user", missing,
+        )
+    result = repo.append_tracks(
+        user_id=user_id, playlist_id=pid,
+        track_ids=body.track_ids, now=utc_now(),
+    )
+    log_event(
+        "INFO", "playlist_track_added",
+        correlation_id=correlation_id, user_id=user_id,
+        playlist_id=pid, n=len(result.added_track_ids),
+    )
+    return _json_response(
+        201,
+        {
+            "added": result.added_track_ids,
+            "skipped_duplicates": result.skipped_duplicates,
+            "position_after": result.position_after,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_remove_playlist_track(event, repo, user_id, correlation_id):
+    pp = event.get("pathParameters") or {}
+    pid = pp.get("id")
+    track_id = pp.get("track_id")
+    if not pid or not track_id:
+        raise ValidationError("id and track_id are required in path")
+    ok = repo.remove_track(
+        user_id=user_id, playlist_id=pid, track_id=track_id, now=utc_now(),
+    )
+    if not ok:
+        raise PlaylistNotFoundError("Playlist or track not found")
+    log_event(
+        "INFO", "playlist_track_removed",
+        correlation_id=correlation_id, user_id=user_id,
+        playlist_id=pid, track_id=track_id,
+    )
+    return {
+        "statusCode": 204,
+        "headers": {"x-correlation-id": correlation_id},
+        "body": "",
+    }
+
+
+def _handle_reorder_playlist_tracks(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = ReorderPlaylistTracksIn.model_validate(_parse_body(event))
+    repo.reorder_tracks(
+        user_id=user_id, playlist_id=pid,
+        ordered_track_ids=body.track_ids, now=utc_now(),
+    )
+    log_event(
+        "INFO", "playlist_track_reordered",
+        correlation_id=correlation_id, user_id=user_id,
+        playlist_id=pid, size=len(body.track_ids),
+    )
+    return _json_response(200, {"correlation_id": correlation_id}, correlation_id)
+
+
+# ---------- Playlist cover handlers -----------------------------------------
+
+
+def _handle_cover_upload_url(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    CoverUploadUrlIn.model_validate(_parse_body(event))  # type validator
+    # Ownership check: 404 if not user's playlist.
+    if repo.get(user_id=user_id, playlist_id=pid) is None:
+        raise PlaylistNotFoundError()
+    storage = _build_s3_storage()
+    epoch_ms = int(utc_now().timestamp() * 1000)
+    s3_key = storage.cover_key(
+        user_id=user_id, playlist_id=pid, epoch_ms=epoch_ms,
+    )
+    url = storage.presigned_cover_put_url(
+        s3_key=s3_key, max_bytes=MAX_COVER_BYTES, expires_in=300,
+    )
+    log_event(
+        "INFO", "playlist_cover_upload_url_issued",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+    )
+    return _json_response(
+        200,
+        {"upload_url": url, "s3_key": s3_key, "expires_in": 300,
+         "correlation_id": correlation_id},
+        correlation_id,
+    )
+
+
+def _handle_cover_confirm(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = _parse_body(event)
+    s3_key = body.get("s3_key") if isinstance(body, dict) else None
+    if not isinstance(s3_key, str) or not s3_key.startswith(f"covers/{user_id}/"):
+        raise ValidationError("s3_key is required and must belong to the caller")
+    if repo.get(user_id=user_id, playlist_id=pid) is None:
+        raise PlaylistNotFoundError()
+    storage = _build_s3_storage()
+    info = storage.head_cover(s3_key)
+    if info is None:
+        raise CoverMissingError(f"No object at {s3_key}")
+    if info["size"] > MAX_COVER_BYTES:
+        raise CoverTooLargeError(
+            f"Cover exceeds {MAX_COVER_BYTES} bytes ({info['size']})"
+        )
+    ok = repo.set_cover(
+        user_id=user_id, playlist_id=pid, s3_key=s3_key, now=utc_now(),
+    )
+    if not ok:
+        raise PlaylistNotFoundError()
+    log_event(
+        "INFO", "playlist_cover_confirmed",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+    )
+    row = repo.get(user_id=user_id, playlist_id=pid)
+    # Storage already built above for HEAD; reuse for presigned GET URL.
+    payload = _playlist_response(row, storage)
+    payload["correlation_id"] = correlation_id
+    return _json_response(200, payload, correlation_id)
+
+
+def _handle_cover_delete(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    ok = repo.clear_cover(user_id=user_id, playlist_id=pid, now=utc_now())
+    if not ok:
+        raise PlaylistNotFoundError()
+    log_event(
+        "INFO", "playlist_cover_deleted",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+    )
+    row = repo.get(user_id=user_id, playlist_id=pid)
+    # Cover was just cleared; cover_url will be None regardless of storage.
+    payload = _playlist_response(row, None)
+    payload["correlation_id"] = correlation_id
+    return _json_response(200, payload, correlation_id)
+
+
+# ---------- Playlist import + publish handlers ------------------------------
+
+
+def _handle_import_spotify(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = ImportSpotifyTracksIn.model_validate(_parse_body(event))
+    if repo.get(user_id=user_id, playlist_id=pid) is None:
+        raise PlaylistNotFoundError()
+
+    # Parse refs; collect invalid for response.
+    spotify_ids: list[str] = []
+    skipped: list[dict] = []
+    for ref in body.spotify_refs:
+        try:
+            sid = parse_spotify_ref(ref)
+        except InvalidSpotifyRefError:
+            skipped.append({"ref": ref, "reason": "invalid_ref"})
+            continue
+        spotify_ids.append(sid)
+
+    log_event(
+        "INFO", "playlist_spotify_import_requested",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+        refs_count=len(body.spotify_refs),
+    )
+
+    sp_client = _build_spotify_user_client(user_id, correlation_id)
+
+    track_ids: list[str] = []
+    added_details: list[dict] = []
+    for sid in spotify_ids:
+        try:
+            payload = sp_client.get_track(sid)
+        except SpotifyNotFoundError as exc:
+            skipped.append({"ref": sid, "reason": "not_found"})
+            log_event(
+                "WARNING", "playlist_spotify_import_failed",
+                correlation_id=correlation_id, user_id=user_id,
+                spotify_id=sid, reason=str(exc),
+            )
+            continue
+        track_id = repo.upsert_imported_track(
+            user_id=user_id,
+            spotify_id=payload.id,
+            title=payload.name,
+            isrc=payload.isrc,
+            length_ms=payload.duration_ms,
+            now=utc_now(),
+        )
+        track_ids.append(track_id)
+        added_details.append({
+            "track_id": track_id,
+            "spotify_id": payload.id,
+            "title": payload.name,
+        })
+        log_event(
+            "INFO", "playlist_spotify_track_imported",
+            correlation_id=correlation_id, user_id=user_id,
+            spotify_id=payload.id,
+        )
+
+    if track_ids:
+        result = repo.append_tracks(
+            user_id=user_id, playlist_id=pid,
+            track_ids=track_ids, now=utc_now(),
+        )
+        position_after = result.position_after
+        # Tracks already in this playlist surface as skipped duplicates.
+        for dup in result.skipped_duplicates:
+            skipped.append({"ref": dup, "reason": "already_in_playlist"})
+    else:
+        position_after = 0
+
+    return _json_response(
+        201,
+        {
+            "added": added_details,
+            "skipped": skipped,
+            "position_after": position_after,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_publish(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = PublishPlaylistIn.model_validate(_parse_body(event))
+
+    sp_client = _build_spotify_user_client(user_id, correlation_id)
+    storage = _build_s3_storage()
+
+    from .curation.playlists_publish_service import (
+        PlaylistsPublishService,
+        UserSpotifyIdReader,
+    )
+
+    # Build user-id reader on top of the same Data API client the repo uses.
+    user_repo = UserSpotifyIdReader(repo.data_api)
+
+    svc = PlaylistsPublishService(
+        repo=repo, spotify_client=sp_client,
+        user_repo=user_repo, storage=storage,
+    )
+    result = svc.publish(
+        user_id=user_id, playlist_id=pid,
+        confirm_overwrite=body.confirm_overwrite,
+    )
+    return _json_response(
+        200,
+        {
+            "spotify_playlist_id": result.spotify_playlist_id,
+            "spotify_url": result.spotify_url,
+            "skipped_tracks": result.skipped,
+            "cover_failed": result.cover_failed,
+            "published_at": result.published_at,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
 
 
 # ---------- spec-D triage handlers ------------------------------------------
@@ -1074,6 +1553,71 @@ def _tags_factory() -> Any:
     return create_default_tags_repository()
 
 
+def _playlists_factory() -> Any:
+    return create_default_playlists_repository()
+
+
+def _build_s3_storage():
+    """Build an S3Storage for cover ops in the curation Lambda."""
+    import boto3
+    from collector.settings import get_api_settings
+    from collector.storage import S3Storage
+
+    settings = get_api_settings()
+    return S3Storage(
+        s3_client=boto3.client("s3"),
+        bucket_name=settings.raw_bucket_name,
+        raw_prefix=settings.raw_prefix,
+    )
+
+
+def _build_spotify_user_client(user_id: str, correlation_id: str):
+    """Build a SpotifyUserClient with a freshly-resolved user access token.
+
+    Lazy imports to keep cold-start lean. Token refresh + KMS decrypt go
+    through SpotifyTokenResolver. Raises SpotifyNotAuthorizedError if the
+    user has no token row or refresh fails — the handler's error envelope
+    surfaces it as 412.
+    """
+    import boto3
+    import requests as _requests
+    from collector.auth.auth_settings import (
+        get_auth_settings,
+        resolve_oauth_client_credentials,
+    )
+    from collector.auth.kms_envelope import KmsEnvelope
+    from collector.auth.spotify_oauth import SpotifyOAuthClient
+    from collector.curation.spotify_token_resolver import SpotifyTokenResolver
+    from collector.curation.spotify_user_client import SpotifyUserClient
+    from collector.data_api import create_default_data_api_client
+    from collector.settings import get_data_api_settings
+
+    db = get_data_api_settings()
+    auth = get_auth_settings()
+    cid, csec = resolve_oauth_client_credentials()
+    data_api = create_default_data_api_client(
+        resource_arn=str(db.aurora_cluster_arn),
+        secret_arn=str(db.aurora_secret_arn),
+        database=db.aurora_database,
+    )
+    envelope = KmsEnvelope(
+        kms_client=boto3.client("kms"),
+        key_arn=auth.kms_user_tokens_key_arn,
+    )
+    oauth = SpotifyOAuthClient(
+        client_id=cid, client_secret=csec,
+        redirect_uri=auth.spotify_oauth_redirect_uri,
+    )
+    resolver = SpotifyTokenResolver(
+        data_api=data_api, envelope=envelope, oauth_client=oauth,
+    )
+    token = resolver.resolve(user_id=user_id)
+    return SpotifyUserClient(
+        access_token=token.access_token,
+        session=_requests.Session(),
+    )
+
+
 _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]] = {
     "POST /styles/{style_id}/categories": (_handle_create_category, _categories_factory),
     "GET /styles/{style_id}/categories": (_handle_list_by_style, _categories_factory),
@@ -1102,4 +1646,32 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "PUT /tracks/{track_id}/tags": (_handle_set_track_tags, _tags_factory),
     "POST /tracks/{track_id}/tags": (_handle_add_track_tag, _tags_factory),
     "DELETE /tracks/{track_id}/tags/{tag_id}": (_handle_remove_track_tag, _tags_factory),
+    "POST /playlists": (_handle_create_playlist, _playlists_factory),
+    "GET /playlists": (_handle_list_playlists, _playlists_factory),
+    "GET /playlists/{id}": (_handle_get_playlist, _playlists_factory),
+    "PATCH /playlists/{id}": (_handle_patch_playlist, _playlists_factory),
+    "DELETE /playlists/{id}": (_handle_delete_playlist, _playlists_factory),
+    "GET /playlists/{id}/tracks": (_handle_list_playlist_tracks, _playlists_factory),
+    "POST /playlists/{id}/tracks": (_handle_add_playlist_tracks, _playlists_factory),
+    "DELETE /playlists/{id}/tracks/{track_id}": (
+        _handle_remove_playlist_track, _playlists_factory,
+    ),
+    "POST /playlists/{id}/tracks/order": (
+        _handle_reorder_playlist_tracks, _playlists_factory,
+    ),
+    "POST /playlists/{id}/cover/upload-url": (
+        _handle_cover_upload_url, _playlists_factory,
+    ),
+    "POST /playlists/{id}/cover/confirm": (
+        _handle_cover_confirm, _playlists_factory,
+    ),
+    "DELETE /playlists/{id}/cover": (
+        _handle_cover_delete, _playlists_factory,
+    ),
+    "POST /playlists/{id}/tracks/import-spotify": (
+        _handle_import_spotify, _playlists_factory,
+    ),
+    "POST /playlists/{id}/publish": (
+        _handle_publish, _playlists_factory,
+    ),
 }

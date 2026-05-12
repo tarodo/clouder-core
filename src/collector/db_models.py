@@ -183,8 +183,9 @@ class ClouderTrack(Base):
     __table_args__ = (
         Index("idx_tracks_isrc", "isrc", postgresql_where=text("isrc IS NOT NULL")),
         Index(
-            "idx_tracks_spotify_id",
+            "uq_tracks_spotify_id",
             "spotify_id",
+            unique=True,
             postgresql_where=text("spotify_id IS NOT NULL"),
         ),
         Index(
@@ -216,6 +217,9 @@ class ClouderTrack(Base):
     spotify_release_date: Mapped[date_type | None] = mapped_column(Date)
     is_ai_suspected: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("FALSE")
+    )
+    origin: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'beatport'")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -571,5 +575,111 @@ class TrackTag(Base):
         primary_key=True,
     )
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class Playlist(Base):
+    __tablename__ = "playlists"
+    __table_args__ = (
+        Index(
+            "idx_playlists_user_created",
+            "user_id",
+            text("created_at DESC"),
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "uq_playlists_user_normname",
+            "user_id",
+            "normalized_name",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "idx_playlists_spotify_playlist_id",
+            "spotify_playlist_id",
+            postgresql_where=text("spotify_playlist_id IS NOT NULL"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_public: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    cover_s3_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cover_uploaded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    spotify_playlist_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    needs_republish: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class PlaylistTrack(Base):
+    __tablename__ = "playlist_tracks"
+    __table_args__ = (
+        CheckConstraint("position >= 0", name="ck_playlist_tracks_position"),
+        UniqueConstraint(
+            "playlist_id",
+            "position",
+            name="uq_playlist_tracks_playlist_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        Index("idx_playlist_tracks_playlist_position", "playlist_id", "position"),
+    )
+
+    playlist_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("playlists.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    track_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("clouder_tracks.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class UserImportedTrack(Base):
+    __tablename__ = "user_imported_tracks"
+    __table_args__ = (
+        Index("idx_user_imported_tracks_user", "user_id"),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    track_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("clouder_tracks.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

@@ -1518,6 +1518,351 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
+    # ── playlists (spec 2026-05-11) ─────────────────────────────────
+    {
+        "method": "post",
+        "path": "/playlists",
+        "auth": AUTH,
+        "summary": "Create a playlist.",
+        "description": (
+            "Creates a new playlist for the authenticated user. `name` must be "
+            "unique per user (case-insensitive after trim). Hard cap on the "
+            "number of playlists per user enforced server-side."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                    "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                    "description": {"type": ["string", "null"], "maxLength": 300},
+                    "is_public": {"type": "boolean", "default": False},
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"name": "Saturday techno", "description": "rolling weekly mix", "is_public": False},
+        "responses": {
+            "201": _make_response(201, "Playlist created.", {"type": "object"}),
+            "400": _error(400, "validation_error."),
+            "409": _error(409, "playlist_name_conflict (case-insensitive duplicate)."),
+            "429": _error(429, "playlist_limit_reached."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/playlists",
+        "auth": AUTH,
+        "summary": "List the user's playlists (paginated, optional search).",
+        "parameters": PAGINATION_PARAMS,
+        "responses": {
+            "200": _make_response(200, "Paginated playlists.", LIST_RESPONSE_TEMPLATE),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/playlists/{id}",
+        "auth": AUTH,
+        "summary": "Fetch a single playlist by id.",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Playlist found.", {"type": "object"}),
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "patch",
+        "path": "/playlists/{id}",
+        "auth": AUTH,
+        "summary": "Rename or update playlist metadata (partial update).",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                    "description": {"type": ["string", "null"], "maxLength": 300},
+                    "is_public": {"type": "boolean"},
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"name": "Saturday techno v2"},
+        "responses": {
+            "200": _make_response(200, "Playlist updated.", {"type": "object"}),
+            "400": _error(400, "validation_error or invalid_payload."),
+            "404": _error(404, "playlist_not_found."),
+            "409": _error(409, "playlist_name_conflict."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "delete",
+        "path": "/playlists/{id}",
+        "auth": AUTH,
+        "summary": "Delete a playlist (cascades to tracks/cover/publish state).",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "204": {"description": "Playlist deleted."},
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/playlists/{id}/tracks",
+        "auth": AUTH,
+        "summary": "List tracks in a playlist (paginated, ordered by position).",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            *PAGINATION_PARAMS,
+        ],
+        "responses": {
+            "200": _make_response(200, "Paginated playlist tracks.", LIST_RESPONSE_TEMPLATE),
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/playlists/{id}/tracks",
+        "auth": AUTH,
+        "summary": "Append a track to the playlist.",
+        "description": (
+            "Track must be in the user's scope (category or triage block). "
+            "Adds at the end of the playlist; idempotent on duplicate add."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["track_id"],
+                "properties": {"track_id": {"type": "string", "format": "uuid"}},
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"track_id": "11111111-1111-1111-1111-111111111111"},
+        "responses": {
+            "201": _make_response(201, "Track appended.", {"type": "object"}),
+            "400": _error(400, "validation_error."),
+            "404": _error(404, "playlist_not_found or track_not_in_user_scope."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "delete",
+        "path": "/playlists/{id}/tracks/{track_id}",
+        "auth": AUTH,
+        "summary": "Remove a track from a playlist (idempotent — 204 either way).",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "204": {"description": "Track removed (or was already absent)."},
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/playlists/{id}/tracks/order",
+        "auth": AUTH,
+        "summary": "Reorder all tracks in a playlist (full-list reorder).",
+        "description": (
+            "Body must list every current track_id in the new desired order. "
+            "Rejected with 400 `order_mismatch` if the set of ids does not "
+            "match the current membership exactly."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["track_ids"],
+                "properties": {
+                    "track_ids": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"type": "string", "format": "uuid"},
+                    },
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"track_ids": [
+            "11111111-1111-1111-1111-111111111111",
+            "22222222-2222-2222-2222-222222222222",
+        ]},
+        "responses": {
+            "200": _make_response(200, "Reorder applied.", {"type": "object"}),
+            "400": _error(400, "validation_error or order_mismatch."),
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/playlists/{id}/cover/upload-url",
+        "auth": AUTH,
+        "summary": "Issue a presigned S3 PUT URL for cover upload.",
+        "description": (
+            "Returns a short-lived presigned PUT URL targeting `covers/<user>/<playlist>/...` "
+            "in the raw bucket. Client must follow up with `POST /cover/confirm` once the "
+            "upload completes."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["content_type"],
+                "properties": {
+                    "content_type": {"type": "string", "enum": ["image/jpeg", "image/png"]},
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"content_type": "image/jpeg"},
+        "responses": {
+            "200": _make_response(200, "Presigned upload URL issued.", {"type": "object"}),
+            "400": _error(400, "validation_error (invalid content_type)."),
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/playlists/{id}/cover/confirm",
+        "auth": AUTH,
+        "summary": "Confirm cover upload completed; persist S3 key on playlist.",
+        "description": (
+            "HEADs the S3 object to verify size/content-type, then stores the "
+            "cover key on the playlist. Rejects oversized or missing objects."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["s3_key"],
+                "properties": {"s3_key": {"type": "string"}},
+                "additionalProperties": False,
+            }}},
+        },
+        "responses": {
+            "200": _make_response(200, "Cover persisted.", {"type": "object"}),
+            "400": _error(400, "cover_missing or cover_too_large."),
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "delete",
+        "path": "/playlists/{id}/cover",
+        "auth": AUTH,
+        "summary": "Clear the playlist cover.",
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Cover cleared (idempotent).", {"type": "object"}),
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/playlists/{id}/tracks/import-spotify",
+        "auth": AUTH,
+        "summary": "Import tracks from a Spotify playlist URL/URI.",
+        "description": (
+            "Resolves the Spotify playlist via the user's stored OAuth token, "
+            "upserts vendor refs into clouder_tracks, and appends them to the "
+            "target playlist (deduped against existing membership)."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["spotify_ref"],
+                "properties": {
+                    "spotify_ref": {
+                        "type": "string",
+                        "description": "Spotify playlist URL, URI, or bare id.",
+                    },
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        "responses": {
+            "201": _make_response(201, "Import accepted; returns counts.", {"type": "object"}),
+            "400": _error(400, "invalid_spotify_ref."),
+            "404": _error(404, "playlist_not_found."),
+            "412": _error(412, "spotify_not_authorized (user has no Spotify OAuth token)."),
+            "502": _error(502, "spotify_upstream_error."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/playlists/{id}/publish",
+        "auth": AUTH,
+        "summary": "Publish the playlist to the user's Spotify account.",
+        "description": (
+            "Creates or overwrites the linked Spotify playlist with the current "
+            "track list and metadata (name, description, cover). On overwrite "
+            "the client must pass `confirm_overwrite=true` to acknowledge "
+            "destructive replacement of remote contents."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": False,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "properties": {
+                    "confirm_overwrite": {"type": "boolean", "default": False},
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"confirm_overwrite": True},
+        "responses": {
+            "200": _make_response(200, "Playlist published; returns Spotify playlist id.", {"type": "object"}),
+            "400": _error(400, "nothing_to_publish (playlist has no tracks)."),
+            "404": _error(404, "playlist_not_found."),
+            "409": _error(409, "confirm_overwrite_required."),
+            "412": _error(412, "spotify_not_authorized."),
+            "502": _error(502, "spotify_upstream_error."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
 ]
 
 

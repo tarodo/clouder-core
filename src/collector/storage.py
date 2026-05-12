@@ -176,6 +176,69 @@ class S3Storage:
             raise StorageError(f"Unexpected spotify results payload type in {key}")
         return [item for item in parsed if isinstance(item, dict)]
 
+    # ---------- Cover support (spec 2026-05-11) ------------------------------
+
+    @staticmethod
+    def cover_key(*, user_id: str, playlist_id: str, epoch_ms: int) -> str:
+        return f"covers/{user_id}/{playlist_id}/{epoch_ms}.jpg"
+
+    def presigned_cover_put_url(
+        self,
+        *,
+        s3_key: str,
+        max_bytes: int,
+        expires_in: int = 300,
+    ) -> str:
+        return self.s3_client.generate_presigned_url(
+            "put_object",
+            Params={
+                "Bucket": self.bucket_name,
+                "Key": s3_key,
+                "ContentType": "image/jpeg",
+                "ContentLength": max_bytes,
+            },
+            ExpiresIn=expires_in,
+        )
+
+    def presigned_cover_get_url(
+        self,
+        *,
+        s3_key: str,
+        expires_in: int = 3600,
+    ) -> str:
+        return self.s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": self.bucket_name, "Key": s3_key},
+            ExpiresIn=expires_in,
+        )
+
+    def head_cover(self, s3_key: str) -> dict | None:
+        try:
+            head = self.s3_client.head_object(
+                Bucket=self.bucket_name, Key=s3_key,
+            )
+        except Exception as exc:
+            code = ""
+            response = getattr(exc, "response", None)
+            if isinstance(response, dict):
+                code = (response.get("Error") or {}).get("Code", "")
+            if code in ("NoSuchKey", "404", "NotFound"):
+                return None
+            raise StorageError(f"Failed to HEAD cover: {s3_key}") from exc
+        return {
+            "size": int(head["ContentLength"]),
+            "content_type": head.get("ContentType") or "",
+        }
+
+    def read_cover_bytes(self, s3_key: str) -> bytes:
+        try:
+            response = self.s3_client.get_object(
+                Bucket=self.bucket_name, Key=s3_key,
+            )
+            return response["Body"].read()
+        except Exception as exc:
+            raise StorageError(f"Failed to read cover: {s3_key}") from exc
+
     def _base_key(self, style_id: int, iso_year: int, iso_week: int) -> str:
         return (
             f"{self.raw_prefix}/style_id={style_id}/year={iso_year}/week={iso_week:02d}"

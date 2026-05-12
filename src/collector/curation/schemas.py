@@ -79,3 +79,51 @@ class TransferTracksIn(BaseModel):
             if len(t) != 36:
                 raise ValueError(f"track_id must be 36 chars: {t!r}")
         return v
+
+
+# ----------------------- Playlists (spec 2026-05-11) -----------------------
+
+
+class CreatePlaylistIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., min_length=1, max_length=100)
+    description: str | None = Field(default=None, max_length=300)
+    is_public: bool = False
+
+
+class PatchPlaylistIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = Field(default=None, max_length=300)
+    is_public: bool | None = None
+
+    @model_validator(mode="after")
+    def _at_least_one_field(self) -> "PatchPlaylistIn":
+        if self.name is None and self.description is None and self.is_public is None:
+            raise ValueError("At least one of name/description/is_public must be set")
+        return self
+
+
+class AddTracksIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    track_ids: list[str] = Field(..., min_length=1, max_length=1000)
+
+
+class ReorderPlaylistTracksIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    track_ids: list[str]
+
+
+class ImportSpotifyTracksIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    spotify_refs: list[str] = Field(..., min_length=1, max_length=50)
+
+
+class PublishPlaylistIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    confirm_overwrite: bool = False
+
+
+class CoverUploadUrlIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    content_type: str = Field(..., pattern=r"^image/jpeg$")
