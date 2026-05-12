@@ -15,6 +15,7 @@
     "categories": "Categories",
     "triage": "Triage",
     "curate": "Curate",
+    "playlists": "Playlists",
     "profile": "Profile",
     "wordmark": "CLOUDER"
   },
@@ -167,7 +168,133 @@
       "move_empty": "No other categories",
       "remove_label": "Remove from category",
       "current_marker": "(current)",
-      "loading": "Loading categories…"
+      "loading": "Loading categories…",
+      "add_to_playlist_label": "Add to playlist",
+      "add_to_playlist_empty": "No playlists yet",
+      "manage_playlists": "Manage playlists…"
+    }
+  },
+  "playlists": {
+    "page_title": "Playlists",
+    "create_cta": "Create playlist",
+    "search_placeholder": "Search playlists",
+    "table": {
+      "col_cover": "",
+      "col_name": "Name",
+      "col_tracks": "Tracks",
+      "col_public": "Public",
+      "col_spotify": "Spotify",
+      "col_updated": "Updated",
+      "col_actions": ""
+    },
+    "empty": {
+      "title": "No playlists yet",
+      "body": "Create your first playlist to gather tracks across categories."
+    },
+    "form": {
+      "create_title": "Create playlist",
+      "rename_title": "Rename playlist",
+      "edit_description_title": "Edit description",
+      "name_label": "Name",
+      "description_label": "Description",
+      "is_public_label": "Public",
+      "is_public_description": "Other CLOUDER users see this is set; the Spotify playlist visibility is controlled separately when publishing.",
+      "submit_create": "Create",
+      "submit_save": "Save",
+      "cancel": "Cancel"
+    },
+    "detail": {
+      "back_to_list": "Back to playlists",
+      "stats": "{{count}} tracks · Updated {{when}}",
+      "delete_cta": "Delete playlist",
+      "clear_cover_cta": "Remove cover",
+      "add_tracks_cta": "Add tracks",
+      "import_spotify_cta": "Import from Spotify",
+      "tracks_search_placeholder": "Search loaded tracks",
+      "empty_tracks_title": "No tracks yet",
+      "empty_tracks_body": "Add tracks from a category or import from Spotify."
+    },
+    "cover": {
+      "replace": "Replace cover",
+      "remove": "Remove cover",
+      "help_text": "JPEG or PNG, up to 256 KB",
+      "uploading": "Uploading…",
+      "placeholder_alt": "No cover yet"
+    },
+    "publish": {
+      "first": "Publish to Spotify",
+      "again": "Re-publish to Spotify",
+      "confirm_title": "Re-publish to Spotify?",
+      "confirm_body": "This will overwrite the existing Spotify playlist \"{{name}}\". {{count}} CLOUDER tracks will fully replace its current contents, along with the cover and description.",
+      "confirm_cta": "Re-publish",
+      "cancel": "Cancel",
+      "result_skipped_title": "{{count}} tracks were skipped",
+      "result_skipped_body": "The following tracks could not be published to Spotify:",
+      "cover_failed": "Tracks updated. Spotify rejected the cover — try Replace and re-publish.",
+      "open_in_spotify": "Open in Spotify"
+    },
+    "drift_badge": {
+      "label": "Needs republish",
+      "tooltip": "Tracks or cover changed since the last Spotify publish. Re-publish to push the latest version."
+    },
+    "origin": {
+      "spotify": "Spotify"
+    },
+    "import": {
+      "title": "Import from Spotify",
+      "textarea_label": "Track URLs, URIs, or IDs",
+      "textarea_placeholder": "One per line. Supports https://open.spotify.com/track/...\nspotify:track:...\nor bare 22-character ID.",
+      "submit": "Import",
+      "added": "Added ({{count}})",
+      "skipped": "Skipped ({{count}})",
+      "reason_invalid_ref": "invalid format",
+      "reason_not_found": "not found",
+      "reason_already_in_playlist": "already in playlist",
+      "max_exceeded": "Maximum 50 refs per import."
+    },
+    "add_tracks": {
+      "title": "Add tracks",
+      "style_label": "Style",
+      "category_label": "Category",
+      "search_placeholder": "Search tracks",
+      "selected_count": "{{count}} selected",
+      "submit": "Add {{count}} tracks",
+      "empty_category": "No tracks in this category."
+    },
+    "toast": {
+      "created": "Playlist created",
+      "renamed": "Playlist renamed",
+      "deleted": "Playlist deleted",
+      "description_saved": "Description saved",
+      "visibility_saved": "Visibility updated",
+      "track_added": "Added to {{name}}",
+      "tracks_added": "Added {{count}} tracks",
+      "track_removed": "Track removed",
+      "undo_action": "Undo",
+      "undone": "Undone",
+      "undo_failed": "Undo failed",
+      "reorder_race": "Tracks changed, list refreshed.",
+      "published_first": "Playlist published to Spotify",
+      "published_again": "Playlist re-published to Spotify",
+      "cover_saved": "Cover updated",
+      "cover_removed": "Cover removed",
+      "cover_too_large": "Cover too large (max 256 KB).",
+      "cover_unsupported": "Unsupported image format (JPEG or PNG only).",
+      "cover_failed": "Cover upload failed.",
+      "import_done": "{{added}} imported · {{skipped}} skipped",
+      "generic_error": "Something went wrong."
+    },
+    "errors": {
+      "name_required": "Name is required.",
+      "name_too_long": "Name must be 100 characters or fewer.",
+      "name_control_chars": "Name cannot contain control characters.",
+      "description_too_long": "Description must be 300 characters or fewer.",
+      "name_conflict": "A playlist with that name already exists.",
+      "limit_reached": "Playlist limit reached (200 max).",
+      "spotify_not_authorized": "Spotify isn't linked. Re-link from Profile.",
+      "spotify_upstream_error": "Spotify is unreachable, retry in a moment.",
+      "tracks_not_accessible": "Some tracks are no longer accessible.",
+      "confirm_overwrite_required": "Someone else already published this playlist. Confirm to overwrite."
     }
   },
   "tags": {
