@@ -2,6 +2,8 @@
 
 export type PlaylistTrackOrigin = 'beatport' | 'spotify_user_import';
 
+export type PlaylistStatus = 'active' | 'completed';
+
 export interface Playlist {
   id: string;
   user_id: string;
@@ -15,6 +17,7 @@ export interface Playlist {
   last_published_at: string | null;
   needs_republish: boolean;
   track_count: number;
+  status: PlaylistStatus;
   created_at: string;
   updated_at: string;
 }

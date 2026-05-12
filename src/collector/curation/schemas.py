@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import List
+from typing import List, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -96,11 +96,19 @@ class PatchPlaylistIn(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=300)
     is_public: bool | None = None
+    status: Literal["active", "completed"] | None = None
 
     @model_validator(mode="after")
     def _at_least_one_field(self) -> "PatchPlaylistIn":
-        if self.name is None and self.description is None and self.is_public is None:
-            raise ValueError("At least one of name/description/is_public must be set")
+        if (
+            self.name is None
+            and self.description is None
+            and self.is_public is None
+            and self.status is None
+        ):
+            raise ValueError(
+                "At least one of name/description/is_public/status must be set"
+            )
         return self
 
 

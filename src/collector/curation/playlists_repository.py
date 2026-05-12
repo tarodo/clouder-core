@@ -44,6 +44,7 @@ class PlaylistRow:
     track_count: int
     created_at: str
     updated_at: str
+    status: str  # 'active' | 'completed'
 
 
 _PLAYLIST_SELECT = """
@@ -51,7 +52,7 @@ _PLAYLIST_SELECT = """
         p.id, p.user_id, p.name, p.normalized_name, p.description,
         p.is_public, p.cover_s3_key, p.cover_uploaded_at,
         p.spotify_playlist_id, p.last_published_at, p.needs_republish,
-        p.created_at, p.updated_at,
+        p.status, p.created_at, p.updated_at,
         COALESCE(t.cnt, 0) AS track_count
     FROM playlists p
     LEFT JOIN (
@@ -114,6 +115,7 @@ def _row(raw: Mapping[str, Any]) -> PlaylistRow:
         track_count=int(raw.get("track_count") or 0),
         created_at=str(raw["created_at"]),
         updated_at=str(raw["updated_at"]),
+        status=raw.get("status") or "active",
     )
 
 
@@ -189,7 +191,7 @@ class PlaylistsRepository:
                     RETURNING id, user_id, name, normalized_name, description,
                               is_public, cover_s3_key, cover_uploaded_at,
                               spotify_playlist_id, last_published_at,
-                              needs_republish, 0 AS track_count,
+                              needs_republish, status, 0 AS track_count,
                               created_at, updated_at
                     """,
                     {
@@ -221,19 +223,38 @@ class PlaylistsRepository:
         return _row(rows[0]) if rows else None
 
     def list_all(
-        self, *, user_id: str, limit: int, offset: int
+        self,
+        *,
+        user_id: str,
+        limit: int,
+        offset: int,
+        status: str | None = None,
     ) -> tuple[list[PlaylistRow], int]:
+        params: dict[str, Any] = {
+            "user_id": user_id,
+            "limit": limit,
+            "offset": offset,
+        }
+        status_clause = ""
+        if status is not None:
+            status_clause = " AND p.status = :status"
+            params["status"] = status
         rows = self._data_api.execute(
             _PLAYLIST_SELECT
-            + " WHERE p.user_id = :user_id AND p.deleted_at IS NULL "
+            + f" WHERE p.user_id = :user_id AND p.deleted_at IS NULL{status_clause} "
               "ORDER BY p.created_at DESC, p.id ASC "
               "LIMIT :limit OFFSET :offset",
-            {"user_id": user_id, "limit": limit, "offset": offset},
+            params,
         )
+        count_params: dict[str, Any] = {"user_id": user_id}
+        count_clause = ""
+        if status is not None:
+            count_clause = " AND status = :status"
+            count_params["status"] = status
         total_rows = self._data_api.execute(
             "SELECT COUNT(*) AS total FROM playlists "
-            "WHERE user_id = :user_id AND deleted_at IS NULL",
-            {"user_id": user_id},
+            f"WHERE user_id = :user_id AND deleted_at IS NULL{count_clause}",
+            count_params,
         )
         total = int(total_rows[0]["total"]) if total_rows else 0
         return [_row(r) for r in rows], total
@@ -247,12 +268,15 @@ class PlaylistsRepository:
         normalized_name: str | None,
         description: str | None,
         is_public: bool | None,
+        status: str | None,
         now: datetime,
     ) -> PlaylistRow:
         """Partial update. None values mean "leave as is".
 
-        If the row is already published (spotify_playlist_id IS NOT NULL),
-        marks needs_republish=TRUE inside the same statement.
+        If the row is already published (spotify_playlist_id IS NOT NULL)
+        and the user touches content (name/description/tracks/cover), marks
+        needs_republish=TRUE. Status flips alone do NOT trigger drift —
+        status is organizational, not Spotify-visible.
         """
         try:
             rows = self._data_api.execute(
@@ -262,8 +286,11 @@ class PlaylistsRepository:
                     normalized_name = COALESCE(:normalized_name, normalized_name),
                     description = CASE WHEN :description_set THEN :description ELSE description END,
                     is_public = COALESCE(:is_public, is_public),
+                    status = COALESCE(:status, status),
                     needs_republish = CASE
-                        WHEN spotify_playlist_id IS NOT NULL THEN TRUE
+                        WHEN spotify_playlist_id IS NOT NULL
+                             AND (:name IS NOT NULL OR :description_set OR :is_public IS NOT NULL)
+                        THEN TRUE
                         ELSE needs_republish
                     END,
                     updated_at = :now
@@ -271,7 +298,7 @@ class PlaylistsRepository:
                 RETURNING id, user_id, name, normalized_name, description,
                           is_public, cover_s3_key, cover_uploaded_at,
                           spotify_playlist_id, last_published_at, needs_republish,
-                          created_at, updated_at
+                          status, created_at, updated_at
                 """,
                 {
                     "id": playlist_id,
@@ -281,6 +308,7 @@ class PlaylistsRepository:
                     "description": description,
                     "description_set": description is not None,
                     "is_public": is_public,
+                    "status": status,
                     "now": now,
                 },
             )

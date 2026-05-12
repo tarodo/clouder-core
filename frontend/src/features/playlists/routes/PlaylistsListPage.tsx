@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Group, Stack, TextInput, Title } from '@mantine/core';
+import { Button, Group, Stack, Switch, TextInput, Title } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -20,7 +20,12 @@ export function PlaylistsListPage() {
   const { t } = useTranslation();
   const [rawSearch, setRawSearch] = useState('');
   const [search] = useDebouncedValue(rawSearch.trim(), 300);
-  const { data, isLoading, isError } = usePlaylists({ search, limit: 200 });
+  const [showCompleted, setShowCompleted] = useState(false);
+  const { data, isLoading, isError } = usePlaylists({
+    search,
+    limit: 200,
+    status: showCompleted ? undefined : 'active',
+  });
   const create = useCreatePlaylist();
   const deleteMut = useDeletePlaylist();
 
@@ -113,6 +118,11 @@ export function PlaylistsListPage() {
       <Group justify="space-between" align="center">
         <Title order={1}>{t('playlists.page_title')}</Title>
         <Group gap="sm">
+          <Switch
+            label={t('playlists.show_completed')}
+            checked={showCompleted}
+            onChange={(e) => setShowCompleted(e.currentTarget.checked)}
+          />
           <TextInput
             placeholder={t('playlists.search_placeholder')}
             leftSection={<IconSearch size={16} />}

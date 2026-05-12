@@ -56,6 +56,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
     name?: string;
     description?: string | null;
     is_public?: boolean;
+    status?: 'active' | 'completed';
   }) {
     try {
       await patchMut.mutateAsync(input);
