@@ -138,6 +138,7 @@ locals {
   api_gw_spa_aware_path_patterns = [
     "/categories*",
     "/admin/*",
+    "/playlists*",
   ]
   # API GW $default stage has no URL path prefix — strip the protocol only.
   api_gw_host = replace(aws_apigatewayv2_api.collector.api_endpoint, "https://", "")
