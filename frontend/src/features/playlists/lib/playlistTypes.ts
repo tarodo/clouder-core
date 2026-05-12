@@ -1,6 +1,6 @@
 // frontend/src/features/playlists/lib/playlistTypes.ts
 
-export type PlaylistTrackOrigin = 'beatport' | 'spotify';
+export type PlaylistTrackOrigin = 'beatport' | 'spotify_user_import';
 
 export interface Playlist {
   id: string;
