@@ -61,7 +61,7 @@ describe('useUploadCover', () => {
     const huge = new File([new Uint8Array(300_000)], 'big.jpg', { type: 'image/jpeg' });
     await expect(
       result.current.mutateAsync({ playlistId: 'p1', file: huge }),
-    ).rejects.toThrow(/too large/i);
+    ).rejects.toThrow(/cover_too_large/);
   });
 
   it('rejects non-jpeg/png types on the client', async () => {
@@ -70,6 +70,6 @@ describe('useUploadCover', () => {
     const gif = new File(['x'], 'a.gif', { type: 'image/gif' });
     await expect(
       result.current.mutateAsync({ playlistId: 'p1', file: gif }),
-    ).rejects.toThrow(/unsupported/i);
+    ).rejects.toThrow(/unsupported_content_type/);
   });
 });

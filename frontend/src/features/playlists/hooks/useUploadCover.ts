@@ -16,10 +16,10 @@ export function useUploadCover(): UseMutationResult<Playlist, Error, UploadCover
   return useMutation<Playlist, Error, UploadCoverInput>({
     mutationFn: async ({ playlistId, file }) => {
       if (!ACCEPTED_TYPES.has(file.type)) {
-        throw new Error('Unsupported content type');
+        throw new Error('unsupported_content_type');
       }
       if (file.size > MAX_COVER_BYTES) {
-        throw new Error('Cover too large');
+        throw new Error('cover_too_large');
       }
       const presign = await api<CoverUploadUrlResponse>(
         `/playlists/${playlistId}/cover/upload-url`,
