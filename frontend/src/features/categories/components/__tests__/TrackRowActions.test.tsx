@@ -88,7 +88,11 @@ describe('TrackRowActions', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: /Track actions/i }));
     const menu = await screen.findByRole('menu');
-    expect(within(menu).getByText('Move to')).toBeInTheDocument();
+    // Main view: Move-to entry + Remove are visible immediately;
+    // category list is hidden behind the Move-to submenu.
+    expect(within(menu).getByRole('menuitem', { name: /Move to/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: /Remove from category/ })).toBeInTheDocument();
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Move to/ }));
     expect(within(menu).getByText('Deep')).toBeInTheDocument();
     expect(within(menu).getByText('Sunset')).toBeInTheDocument();
     expect(within(menu).getByText(/Energetic.*current/i)).toBeInTheDocument();
@@ -96,7 +100,6 @@ describe('TrackRowActions', () => {
       'data-disabled',
       'true',
     );
-    expect(within(menu).getByRole('menuitem', { name: /Remove from category/ })).toBeInTheDocument();
   });
 
   it('shows "No other categories" when only the current category exists', async () => {
@@ -112,6 +115,7 @@ describe('TrackRowActions', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: /Track actions/i }));
     const menu = await screen.findByRole('menu');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Move to/ }));
     expect(within(menu).getByText(/No other categories/)).toBeInTheDocument();
   });
 
@@ -143,6 +147,7 @@ describe('TrackRowActions', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: /Track actions/i }));
     const menu = await screen.findByRole('menu');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Move to/ }));
     await userEvent.click(within(menu).getByRole('menuitem', { name: /Deep/ }));
     await waitFor(() => expect(postHit).toBe(true));
     await waitFor(() => expect(deleteHit).toBe(true));

@@ -166,6 +166,7 @@ describe('CategoryDetailPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /Track actions/i }));
     const menu = await screen.findByRole('menu');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Move to/ }));
     await userEvent.click(within(menu).getByRole('menuitem', { name: /Deep/ }));
 
     await waitFor(() => expect(postHit).toBe(true));
@@ -213,6 +214,7 @@ describe('CategoryDetailPage', () => {
     await waitFor(() => expect(screen.getByText('Lift Off')).toBeInTheDocument());
     await userEvent.click(screen.getByRole('button', { name: /Track actions/i }));
     const menu = await screen.findByRole('menu');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Move to/ }));
     await userEvent.click(within(menu).getByRole('menuitem', { name: /Deep/ }));
     expect(await screen.findByText(/Moved to Deep/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Undo/ }));
@@ -257,6 +259,7 @@ describe('CategoryDetailPage', () => {
     await waitFor(() => expect(screen.getByText('Lift Off')).toBeInTheDocument());
     await userEvent.click(screen.getByRole('button', { name: /Track actions/i }));
     const menu = await screen.findByRole('menu');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Move to/ }));
     await userEvent.click(within(menu).getByRole('menuitem', { name: /Deep/ }));
     expect(await screen.findByText(/Track is in both categories/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Retry/ }));
