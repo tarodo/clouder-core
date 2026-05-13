@@ -490,6 +490,7 @@ def _track_in_category_response(item) -> dict[str, Any]:
         {"id": t.tag_id, "name": t.name, "color": t.color}
         for t in getattr(item, "tags", ())
     ]
+    track["used_in_playlist"] = bool(track.get("used_in_playlist", False))
     return track
 
 
@@ -522,11 +523,15 @@ def _handle_list_tracks(event, repo, user_id, correlation_id):
             503, "db_not_configured", "Database not configured", correlation_id,
         )
 
+    fresh_raw = (qp.get("fresh") or "").strip()
+    fresh = fresh_raw == "1"
+
     result = repo.list_tracks(
         user_id=user_id, category_id=cid,
         limit=limit, offset=offset, search=search,
         sort=sort, order=order,
         tag_ids=tag_ids or None, tag_match=tag_match, tags_repo=tags_repo,
+        fresh=fresh,
     )
     return _paginated_response(
         result, _track_in_category_response, correlation_id
