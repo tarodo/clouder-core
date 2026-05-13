@@ -29,11 +29,9 @@ export interface PlaybackTrack {
   spotify_id: string | null;
 }
 
-export interface QueueSource {
-  type: 'bucket';
-  blockId: string;
-  bucketId: string;
-}
+export type QueueSource =
+  | { type: 'bucket'; blockId: string; bucketId: string }
+  | { type: 'category'; categoryId: string; styleId: string };
 
 export interface BindQueueArgs {
   source: QueueSource;

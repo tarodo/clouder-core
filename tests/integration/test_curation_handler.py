@@ -229,6 +229,7 @@ class FakeRepo:
         self, *, user_id, category_id, limit, offset, search,
         sort: str = "added_at", order: str = "desc",
         tag_ids=None, tag_match: str = "all", tags_repo=None,
+        fresh: bool = False,
     ):
         c = self.categories.get(category_id)
         if (

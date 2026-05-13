@@ -1,5 +1,16 @@
-import { useState } from 'react';
-import { Anchor, Breadcrumbs, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Anchor,
+  Breadcrumbs,
+  Button,
+  Flex,
+  Group,
+  Stack,
+  Text,
+  Title,
+  useMantineTheme,
+} from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
@@ -8,10 +19,15 @@ import { ApiError } from '../../../api/error';
 import { useCategoryDetail } from '../hooks/useCategoryDetail';
 import { useRenameCategory } from '../hooks/useRenameCategory';
 import { useDeleteCategory } from '../hooks/useDeleteCategory';
+import { useCategoryTracks, type CategoryTrack } from '../hooks/useCategoryTracks';
+import { useCategoryPlayerQueue } from '../hooks/useCategoryPlayerQueue';
 import { CategoryFormDialog } from '../components/CategoryFormDialog';
+import { CategoryPlayerPanel } from '../components/CategoryPlayerPanel';
 import { TracksTab } from '../components/TracksTab';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
 import { EmptyState } from '../../../components/EmptyState';
+import { usePlayback } from '../../playback/usePlayback';
+import type { PlaybackTrack } from '../../playback/lib/types';
 
 export function CategoryDetailPage() {
   const { styleId, id } = useParams<{ styleId: string; id: string }>();
@@ -28,6 +44,34 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
   const deleteMut = useDeleteCategory(styleId);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameServerError, setRenameServerError] = useState<string | undefined>();
+
+  const playback = usePlayback();
+  const theme = useMantineTheme();
+  const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
+
+  // Pre-warm SDK on mount so first play happens inside the user-gesture window.
+  useEffect(() => {
+    void playback.controls.prewarm();
+  }, [playback.controls]);
+
+  // Player queue = default fresh-on view of the category. UI filters (search,
+  // tags, sort) on TracksTab affect ONLY the visible table, not the queue.
+  const playerQuery = useCategoryTracks(id, '', 'added_at', 'desc', [], 'all', true);
+  const playerTracks = useMemo<PlaybackTrack[]>(
+    () =>
+      (playerQuery.data?.pages ?? []).flatMap((p) =>
+        p.items.map((t: CategoryTrack) => ({
+          id: t.id,
+          title: t.title,
+          artists: t.artists.map((a) => a.name).join(', '),
+          duration_ms: t.length_ms ?? 0,
+          spotify_id: t.spotify_id,
+          cover_url: null,
+        })),
+      ),
+    [playerQuery.data],
+  );
+  useCategoryPlayerQueue(id, styleId, playerTracks);
 
   if (isLoading) return <FullScreenLoader />;
   if (isError) {
@@ -107,7 +151,16 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
           </Button>
         </Group>
       </Group>
-      <TracksTab categoryId={id} styleId={styleId} />
+      {isDesktop ? (
+        <Flex gap="lg" align="flex-start" wrap="nowrap">
+          <CategoryPlayerPanel categoryId={id} styleId={styleId} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <TracksTab categoryId={id} styleId={styleId} />
+          </div>
+        </Flex>
+      ) : (
+        <TracksTab categoryId={id} styleId={styleId} />
+      )}
       <CategoryFormDialog
         mode="rename"
         opened={renameOpen}

@@ -128,11 +128,33 @@ describe('TracksTab', () => {
       ),
     );
     render(
-      <Wrapper>
+      <RouterWrapper initialUrl="/categories/c1?fresh=0">
         <TracksTab categoryId="c1" styleId="s1" />
-      </Wrapper>,
+      </RouterWrapper>,
     );
     await waitFor(() => expect(screen.getByText(/no tracks yet/i)).toBeInTheDocument());
+  });
+
+  it('shows no-fresh-tracks empty state by default and lets user disable fresh', async () => {
+    let lastFresh: string | null = null;
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', ({ request }) => {
+        lastFresh = new URL(request.url).searchParams.get('fresh');
+        return HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 });
+      }),
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
+    );
+    render(
+      <RouterWrapper initialUrl="/categories/c1">
+        <TracksTab categoryId="c1" styleId="s1" />
+      </RouterWrapper>,
+    );
+    await waitFor(() => expect(lastFresh).toBe('1'));
+    expect(await screen.findByText(/no fresh tracks/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /show all tracks/i }));
+    await waitFor(() => expect(lastFresh).toBe('0'));
   });
 
   it('renders Title and Released sortable headers with default sort', async () => {

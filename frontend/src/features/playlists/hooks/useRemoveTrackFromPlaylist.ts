@@ -44,6 +44,10 @@ export function useRemoveTrackFromPlaylist(): UseMutationResult<
     },
     onSuccess: (_data, { playlistId }) => {
       qc.invalidateQueries({ queryKey: playlistDetailKey(playlistId) });
+      // Removing from a playlist may flip used_in_playlist back to false on
+      // category-tracks views, but only if no OTHER playlist still holds the
+      // track. We cannot compute that locally, so invalidate.
+      qc.invalidateQueries({ queryKey: ['categories', 'tracks'] });
     },
   });
 }

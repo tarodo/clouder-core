@@ -29,6 +29,7 @@ function mkTracks(start: number, count: number) {
     spotify_id: null,
     release_type: null,
     is_ai_suspected: false,
+    used_in_playlist: false,
     added_at: '2026-01-01T00:00:00Z',
     source_triage_block_id: null,
     tags: [],
@@ -184,6 +185,7 @@ describe('useCategoryTracks', () => {
               spotify_id: null,
               release_type: null,
               is_ai_suspected: false,
+              used_in_playlist: false,
               added_at: 'now',
               source_triage_block_id: null,
               tags: [{ id: 'tg1', name: 'Vocal', color: '#ff8800' }],
@@ -203,5 +205,66 @@ describe('useCategoryTracks', () => {
     expect(result.current.data?.pages[0]?.items[0]?.tags).toEqual([
       { id: 'tg1', name: 'Vocal', color: '#ff8800' },
     ]);
+  });
+});
+
+describe('useCategoryTracks fresh slot', () => {
+  beforeEach(() => tokenStore.set('TOK'));
+
+  it('cache key has fresh as 9th element', async () => {
+    const { categoryTracksKey } = await import('../useCategoryTracks');
+    const key = categoryTracksKey('c', '', 'added_at', 'desc', [], 'all', true);
+    expect(key).toEqual([
+      'categories',
+      'tracks',
+      'c',
+      '',
+      'added_at',
+      'desc',
+      '',
+      'all',
+      true,
+    ]);
+  });
+
+  it('cache key defaults fresh slot to false', async () => {
+    const { categoryTracksKey } = await import('../useCategoryTracks');
+    const key = categoryTracksKey('c', '', 'added_at', 'desc');
+    expect(key).toHaveLength(9);
+    expect(key[key.length - 1]).toBe(false);
+  });
+
+  it('sends ?fresh=1 when fresh=true', async () => {
+    let captured: URL | null = null;
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', ({ request }) => {
+        captured = new URL(request.url);
+        return HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 });
+      }),
+    );
+    const { result } = renderHook(
+      () => useCategoryTracks('c1', '', 'added_at', 'desc', [], 'all', true),
+      { wrapper: wrap() },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(captured).not.toBeNull();
+    expect(captured!.searchParams.get('fresh')).toBe('1');
+  });
+
+  it('sends ?fresh=0 when fresh=false (default)', async () => {
+    let captured: URL | null = null;
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', ({ request }) => {
+        captured = new URL(request.url);
+        return HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 });
+      }),
+    );
+    const { result } = renderHook(
+      () => useCategoryTracks('c1', '', 'added_at', 'desc', [], 'all', false),
+      { wrapper: wrap() },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(captured).not.toBeNull();
+    expect(captured!.searchParams.get('fresh')).toBe('0');
   });
 });

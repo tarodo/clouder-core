@@ -667,6 +667,7 @@ class CategoriesRepository:
         tag_ids: list[str] | None = None,
         tag_match: str = "all",
         tags_repo: "TagsRepository | None" = None,
+        fresh: bool = False,
     ) -> PaginatedResult[TrackInCategoryRow]:
         cat_rows = self._data_api.execute(
             """
@@ -698,7 +699,6 @@ class CategoriesRepository:
             tag_placeholders = ", ".join(f":tag{i}" for i in range(len(tag_ids)))
             for i, tid in enumerate(tag_ids):
                 params[f"tag{i}"] = tid
-            params["user_id"] = user_id
             if tag_match == "all":
                 params["tag_count"] = len(tag_ids)
                 tag_clause = (
@@ -719,6 +719,22 @@ class CategoriesRepository:
                     ") "
                 )
 
+        # user_id is always bound: the EXISTS sub-select for used_in_playlist
+        # always references :user_id, and the optional fresh=True NOT EXISTS
+        # clause does too. Tag filter also reads it.
+        params["user_id"] = user_id
+        fresh_clause = ""
+        if fresh:
+            fresh_clause = (
+                " AND NOT EXISTS ("
+                "SELECT 1 FROM playlist_tracks pt "
+                "JOIN playlists p ON p.id = pt.playlist_id "
+                "WHERE pt.track_id = ct.track_id "
+                "AND p.user_id = :user_id "
+                "AND p.deleted_at IS NULL"
+                ") "
+            )
+
         column = _SORT_COLUMNS[sort]
         direction = _ORDER_DIRS[order]
         nulls = " NULLS LAST" if sort == "spotify_release_date" else ""
@@ -738,7 +754,14 @@ class CategoriesRepository:
                 ) AS artists_json,
                 l.id   AS label_id,
                 l.name AS label_name,
-                ct.added_at, ct.source_triage_block_id
+                ct.added_at, ct.source_triage_block_id,
+                EXISTS (
+                    SELECT 1 FROM playlist_tracks pt
+                    JOIN playlists p ON p.id = pt.playlist_id
+                    WHERE pt.track_id = ct.track_id
+                      AND p.user_id = :user_id
+                      AND p.deleted_at IS NULL
+                ) AS used_in_playlist
             FROM category_tracks ct
             JOIN clouder_tracks t ON t.id = ct.track_id
             LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
@@ -748,6 +771,7 @@ class CategoriesRepository:
             WHERE ct.category_id = :category_id
               {search_clause}
               {tag_clause}
+              {fresh_clause}
             GROUP BY t.id, ct.added_at, ct.source_triage_block_id, l.id, l.name
             ORDER BY {order_by}, t.id ASC
             LIMIT :limit OFFSET :offset
@@ -784,6 +808,18 @@ class CategoriesRepository:
                     f"AND tag_id IN ({tag_placeholders})"
                     ") "
                 )
+        count_fresh_clause = ""
+        if fresh:
+            count_params["user_id"] = user_id
+            count_fresh_clause = (
+                " AND NOT EXISTS ("
+                "SELECT 1 FROM playlist_tracks pt "
+                "JOIN playlists p ON p.id = pt.playlist_id "
+                "WHERE pt.track_id = ct.track_id "
+                "AND p.user_id = :user_id "
+                "AND p.deleted_at IS NULL"
+                ") "
+            )
         total_rows = self._data_api.execute(
             f"""
             SELECT COUNT(*) AS total
@@ -792,6 +828,7 @@ class CategoriesRepository:
             WHERE ct.category_id = :category_id
               {count_clause}
               {count_tag_clause}
+              {count_fresh_clause}
             """,
             count_params,
         )
@@ -816,6 +853,7 @@ class CategoriesRepository:
             track["artists"] = artists
             track["label"] = label
             track["spotify_release_date"] = spot_str
+            track["used_in_playlist"] = bool(track.get("used_in_playlist", False))
 
             added_at = track.pop("added_at")
             source_id = track.pop("source_triage_block_id")

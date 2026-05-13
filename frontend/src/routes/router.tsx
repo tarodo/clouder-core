@@ -7,6 +7,7 @@ import { HomePage } from '../features/home/routes/HomePage';
 import { CategoriesIndexRedirect } from '../features/categories/routes/CategoriesIndexRedirect';
 import { CategoriesListPage } from '../features/categories/routes/CategoriesListPage';
 import { CategoryDetailPage } from '../features/categories/routes/CategoryDetailPage';
+import { CategoryPlayerPage } from '../features/categories/routes/CategoryPlayerPage';
 import { TriageIndexRedirect } from '../features/triage/routes/TriageIndexRedirect';
 import { TriageListPage } from '../features/triage/routes/TriageListPage';
 import { TriageDetailPage } from '../features/triage/routes/TriageDetailPage';
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
           { index: true, element: <CategoriesIndexRedirect /> },
           { path: ':styleId', element: <CategoriesListPage /> },
           { path: ':styleId/:id', element: <CategoryDetailPage /> },
+          { path: ':styleId/:id/player', element: <CategoryPlayerPage /> },
         ],
       },
       {

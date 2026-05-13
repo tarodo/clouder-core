@@ -38,6 +38,7 @@ export interface CategoryTrack {
   spotify_id: string | null;
   release_type: string | null;
   is_ai_suspected: boolean;
+  used_in_playlist: boolean;
   added_at: string;
   source_triage_block_id: string | null;
   tags: CategoryTagRef[];
@@ -60,9 +61,10 @@ export const categoryTracksKey = (
   order: SortOrder,
   tagIds: readonly string[] = [],
   tagMatch: 'all' | 'any' = 'all',
+  fresh: boolean = false,
 ) =>
   ['categories', 'tracks', id, search, sort, order,
-   [...tagIds].sort().join(','), tagMatch] as const;
+   [...tagIds].sort().join(','), tagMatch, fresh] as const;
 
 export function useCategoryTracks(
   categoryId: string,
@@ -71,9 +73,10 @@ export function useCategoryTracks(
   order: SortOrder = 'desc',
   tagIds: readonly string[] = [],
   tagMatch: 'all' | 'any' = 'all',
+  fresh: boolean = false,
 ): UseInfiniteQueryResult<InfiniteData<PaginatedTracks>> {
   return useInfiniteQuery({
-    queryKey: categoryTracksKey(categoryId, search, sort, order, tagIds, tagMatch),
+    queryKey: categoryTracksKey(categoryId, search, sort, order, tagIds, tagMatch, fresh),
     queryFn: ({ pageParam = 0 }) => {
       const params = new URLSearchParams({
         limit: String(PAGE_SIZE),
@@ -86,6 +89,7 @@ export function useCategoryTracks(
         params.set('tags', [...tagIds].sort().join(','));
         if (tagMatch === 'any') params.set('match', 'any');
       }
+      params.set('fresh', fresh ? '1' : '0');
       return api<PaginatedTracks>(
         `/categories/${categoryId}/tracks?${params.toString()}`,
       );

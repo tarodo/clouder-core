@@ -139,7 +139,13 @@
       "no_tracks_title": "No tracks yet",
       "no_tracks_body": "Finalize a triage block to populate this category.",
       "no_search_results_title": "No tracks match '{{term}}'.",
-      "clear_search": "Clear search"
+      "clear_search": "Clear search",
+      "no_fresh_tracks_title": "No fresh tracks. All tracks in this category are already used in playlists.",
+      "disable_fresh": "Show all tracks"
+    },
+    "filters": {
+      "fresh_label": "Fresh only",
+      "fresh_tooltip": "Hide tracks already used in any playlist."
     },
     "no_styles": {
       "title": "No styles available",
@@ -173,6 +179,27 @@
       "add_to_playlist_empty": "No playlists yet",
       "manage_playlists": "Manage playlists…",
       "back": "Back"
+    }
+  },
+  "category_player": {
+    "sections": {
+      "tags": "Tags",
+      "playlists": "Playlists"
+    },
+    "actions": {
+      "back_aria": "Back to tracks",
+      "open_player_aria": "Open player",
+      "remove_from_category": "Remove from category"
+    },
+    "empty": {
+      "pick_track": "Pick a track to start playing"
+    },
+    "toasts": {
+      "tagged": "Tag added",
+      "untagged": "Tag removed",
+      "added_to_playlist": "Added to playlist",
+      "removed_from_playlist": "Removed from playlist",
+      "removed_from_category": "Removed from category"
     }
   },
   "playlists": {
