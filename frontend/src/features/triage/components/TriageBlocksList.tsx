@@ -1,4 +1,4 @@
-import { Button, Loader, Stack, Tabs, Text } from '@mantine/core';
+import { Button, Skeleton, Stack, Tabs, Text } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import {
 } from '../hooks/useTriageBlocksByStyle';
 import { useDeleteTriageBlock } from '../hooks/useDeleteTriageBlock';
 import { TriageBlockRow } from './TriageBlockRow';
+import { TriageBlocksSkeleton } from './TriageBlocksSkeleton';
 import { ApiError } from '../../../api/error';
 import { EmptyState } from '../../../components/EmptyState';
 import { IconLayoutColumns } from '../../../components/icons';
@@ -84,9 +85,16 @@ export function TriageBlocksList({ styleId }: TriageBlocksListProps) {
     });
   };
 
+  // Counter shows a 28×14 grey skeleton chip while the total is loading.
+  // Replaces the previous tiny spinner — same intent, calmer visual.
   const counterLabel = (label: string, value: number | undefined) =>
     value === undefined ? (
-      <Loader size="xs" />
+      <Stack gap={4} style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text component="span" inherit>
+          {label}
+        </Text>
+        <Skeleton height={14} width={28} radius="sm" />
+      </Stack>
     ) : (
       t('triage.tabs.counter', { label, count: value })
     );
@@ -114,7 +122,7 @@ export function TriageBlocksList({ styleId }: TriageBlocksListProps) {
         return (
           <Tabs.Panel value={key} key={key} pt="md">
             {q.isLoading ? (
-              <Loader />
+              <TriageBlocksSkeleton />
             ) : items.length === 0 ? (
               <EmptyState
                 icon={<IconLayoutColumns size={32} />}
