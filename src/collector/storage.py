@@ -186,16 +186,19 @@ class S3Storage:
         self,
         *,
         s3_key: str,
-        max_bytes: int,
+        content_type: str,
         expires_in: int = 300,
     ) -> str:
+        # We deliberately do NOT sign `ContentLength`: boto3 bakes it into
+        # the canonical request, and the browser sends the actual file size
+        # (not our cap), so the signatures never match. Size enforcement
+        # happens via `head_cover` on `/cover/confirm`.
         return self.s3_client.generate_presigned_url(
             "put_object",
             Params={
                 "Bucket": self.bucket_name,
                 "Key": s3_key,
-                "ContentType": "image/jpeg",
-                "ContentLength": max_bytes,
+                "ContentType": content_type,
             },
             ExpiresIn=expires_in,
         )

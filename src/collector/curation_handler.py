@@ -804,7 +804,7 @@ def _handle_cover_upload_url(event, repo, user_id, correlation_id):
     pid = (event.get("pathParameters") or {}).get("id")
     if not pid:
         raise ValidationError("id is required in path")
-    CoverUploadUrlIn.model_validate(_parse_body(event))  # type validator
+    body = CoverUploadUrlIn.model_validate(_parse_body(event))
     # Ownership check: 404 if not user's playlist.
     if repo.get(user_id=user_id, playlist_id=pid) is None:
         raise PlaylistNotFoundError()
@@ -814,7 +814,7 @@ def _handle_cover_upload_url(event, repo, user_id, correlation_id):
         user_id=user_id, playlist_id=pid, epoch_ms=epoch_ms,
     )
     url = storage.presigned_cover_put_url(
-        s3_key=s3_key, max_bytes=MAX_COVER_BYTES, expires_in=300,
+        s3_key=s3_key, content_type=body.content_type, expires_in=300,
     )
     log_event(
         "INFO", "playlist_cover_upload_url_issued",

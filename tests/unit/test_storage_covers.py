@@ -24,7 +24,7 @@ def test_presigned_put_url_calls_s3_generate() -> None:
     s = _storage(client)
     url = s.presigned_cover_put_url(
         s3_key="covers/u/p/1.jpg",
-        max_bytes=262144,
+        content_type="image/jpeg",
         expires_in=300,
     )
     assert url == "https://signed-put"
@@ -35,6 +35,27 @@ def test_presigned_put_url_calls_s3_generate() -> None:
     assert params["Bucket"] == "b"
     assert params["Key"] == "covers/u/p/1.jpg"
     assert params["ContentType"] == "image/jpeg"
+    # ContentLength must NOT be signed — see the regression note in
+    # storage.presigned_cover_put_url. Browser cannot pre-declare exact
+    # Content-Length and the signature would not match the actual file.
+    assert "ContentLength" not in params
+
+
+def test_presigned_put_url_signs_png_content_type() -> None:
+    """Browser may upload PNG instead of JPEG; the presign must reflect
+    whatever content_type the caller asks for so the browser PUT (which
+    sends matching Content-Type) does not break the signature."""
+    client = MagicMock()
+    client.generate_presigned_url.return_value = "https://signed-put-png"
+    s = _storage(client)
+    s.presigned_cover_put_url(
+        s3_key="covers/u/p/1.png",
+        content_type="image/png",
+        expires_in=300,
+    )
+    _, kwargs = client.generate_presigned_url.call_args
+    params = kwargs.get("Params") or {}
+    assert params["ContentType"] == "image/png"
 
 
 def test_presigned_get_url() -> None:
