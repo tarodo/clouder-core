@@ -181,6 +181,12 @@
       "back": "Back"
     }
   },
+  "category_player": {
+    "actions": {
+      "back_aria": "Back to tracks",
+      "open_player_aria": "Open player"
+    }
+  },
   "playlists": {
     "page_title": "Playlists",
     "create_cta": "Create playlist",

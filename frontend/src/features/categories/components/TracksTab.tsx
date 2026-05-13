@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Button, Group, Stack, Switch, Table, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Stack, Switch, Table, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
-import { IconSearch, IconSettings, IconX } from '@tabler/icons-react';
+import { IconPlayerPlayFilled, IconSearch, IconSettings, IconX } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import {
   useCategoryTracks,
   type CategoryTrackSort,
@@ -29,6 +29,7 @@ export interface TracksTabProps {
 
 export function TracksTab({ categoryId, styleId }: TracksTabProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 64em)');
   const [searchParams, setSearchParams] = useSearchParams();
   const tagFilter = readTagsUrlState(searchParams);
@@ -172,11 +173,20 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
             variant="mobile"
             categoryId={categoryId}
             actions={
-              <TrackRowActions
-                track={tr}
-                currentCategoryId={categoryId}
-                styleId={styleId}
-              />
+              <Group gap="xs">
+                <ActionIcon
+                  variant="subtle"
+                  onClick={() => navigate(`/categories/${styleId}/${categoryId}/player`)}
+                  aria-label={t('category_player.actions.open_player_aria')}
+                >
+                  <IconPlayerPlayFilled />
+                </ActionIcon>
+                <TrackRowActions
+                  track={tr}
+                  currentCategoryId={categoryId}
+                  styleId={styleId}
+                />
+              </Group>
             }
           />
         ))}
