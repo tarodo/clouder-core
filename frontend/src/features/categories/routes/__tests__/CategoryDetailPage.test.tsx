@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
@@ -10,6 +10,48 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
+
+// CategoryDetailPage now calls usePlayback() + useCategoryPlayerQueue() on
+// mount (T17). The PlaybackProvider lives in the authenticated layout, not
+// in this test harness, so stub usePlayback with a minimal noop value. The
+// desktop CategoryPlayerPanel branch is unreachable here because jsdom's
+// matchMedia stub returns matches:false → isDesktop is false → only TracksTab
+// is rendered, matching pre-T17 behaviour.
+vi.mock('../../../playback/usePlayback', () => ({
+  usePlayback: () => ({
+    queue: { source: null, tracks: [], cursor: 0, status: 'idle' as const },
+    track: { current: null, positionMs: 0, durationMs: 0 },
+    sdk: { ready: false, error: null },
+    controls: {
+      prewarm: async () => {},
+      play: async () => {},
+      pause: async () => {},
+      togglePlayPause: async () => {},
+      next: async () => {},
+      prev: async () => {},
+      seekMs: async () => {},
+      seekPct: async () => {},
+      bindQueue: () => {},
+      clearQueue: () => {},
+      cancelPendingAdvance: () => {},
+      openSpotifyExternal: () => {},
+    },
+    devices: {
+      list: [],
+      active: null,
+      cloderTabId: null,
+      isLoading: false,
+      error: null,
+      isOpen: false,
+      pickerAnchor: null,
+      open: () => {},
+      close: () => {},
+      refresh: async () => {},
+      pick: async () => {},
+    },
+  }),
+}));
+
 import { CategoryDetailPage } from '../CategoryDetailPage';
 import { testTheme } from '../../../../test/theme';
 
