@@ -772,7 +772,7 @@ class CategoriesRepository:
               {search_clause}
               {tag_clause}
               {fresh_clause}
-            GROUP BY t.id, ct.added_at, ct.source_triage_block_id, l.id, l.name, ct.track_id
+            GROUP BY t.id, ct.added_at, ct.source_triage_block_id, l.id, l.name
             ORDER BY {order_by}, t.id ASC
             LIMIT :limit OFFSET :offset
         """

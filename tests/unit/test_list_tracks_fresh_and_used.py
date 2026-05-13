@@ -61,6 +61,7 @@ def test_list_tracks_fresh_true_adds_not_exists_clause():
     assert "NOT EXISTS" in count_sql
     assert ":user_id" in rows_sql
     assert api.calls[1][1].get("user_id") == "u-1"
+    assert api.calls[2][1].get("user_id") == "u-1"
 
 
 def test_list_tracks_fresh_false_default_no_filter():
