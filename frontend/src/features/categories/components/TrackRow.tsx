@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/formatters';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
 import { TrackTagsCell } from '../../tags';
+import { UsedInPlaylistBadge } from './UsedInPlaylistBadge';
 
 function joinArtists(artists: CategoryTrack['artists']): string {
   return artists.map((a) => a.name).join(', ');
@@ -44,7 +45,12 @@ export function TrackRow({ track, variant, categoryId, actions }: TrackRowProps)
             </Stack>
           </Group>
         </Table.Td>
-        <Table.Td>{tagsCell}</Table.Td>
+        <Table.Td>
+          <Group gap="xs" wrap="wrap">
+            {tagsCell}
+            {track.used_in_playlist && <UsedInPlaylistBadge />}
+          </Group>
+        </Table.Td>
         <Table.Td>{joinArtists(track.artists)}</Table.Td>
         <Table.Td>{track.label?.name ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{track.bpm ?? '—'}</Table.Td>
@@ -67,6 +73,7 @@ export function TrackRow({ track, variant, categoryId, actions }: TrackRowProps)
         <Group gap="xs">
           {aiBadge}
           <Text fw={500}>{track.title}</Text>
+          {track.used_in_playlist && <UsedInPlaylistBadge />}
         </Group>
         {track.mix_name && (
           <Text size="xs" c="dimmed">{track.mix_name}</Text>

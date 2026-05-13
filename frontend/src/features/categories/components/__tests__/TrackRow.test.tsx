@@ -25,6 +25,18 @@ function W({ children }: { children: React.ReactNode }) {
   );
 }
 
+function WMobile({ children }: { children: React.ReactNode }) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return (
+    <MantineProvider theme={testTheme}>
+      <Notifications />
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    </MantineProvider>
+  );
+}
+
 const baseTrack: CategoryTrack = {
   id: 't1', title: 't1', mix_name: null, artists: [], label: null,
   bpm: null, length_ms: null, publish_date: null,
@@ -51,5 +63,56 @@ describe('TrackRow tag cell', () => {
       </W>,
     );
     expect(screen.getByText('Vocal')).toBeInTheDocument();
+  });
+});
+
+describe('TrackRow — used_in_playlist badge', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    server.use(
+      http.get('http://localhost/tags', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
+    );
+  });
+
+  it('renders badge when used_in_playlist=true (desktop)', () => {
+    const track: CategoryTrack = { ...baseTrack, used_in_playlist: true };
+    render(
+      <W>
+        <TrackRow track={track} variant="desktop" categoryId="c1" />
+      </W>,
+    );
+    expect(screen.getByText('In playlist')).toBeInTheDocument();
+  });
+
+  it('does not render badge when used_in_playlist=false (desktop)', () => {
+    const track: CategoryTrack = { ...baseTrack, used_in_playlist: false };
+    render(
+      <W>
+        <TrackRow track={track} variant="desktop" categoryId="c1" />
+      </W>,
+    );
+    expect(screen.queryByText('In playlist')).not.toBeInTheDocument();
+  });
+
+  it('renders badge when used_in_playlist=true (mobile)', () => {
+    const track: CategoryTrack = { ...baseTrack, used_in_playlist: true };
+    render(
+      <WMobile>
+        <TrackRow track={track} variant="mobile" categoryId="c1" />
+      </WMobile>,
+    );
+    expect(screen.getByText('In playlist')).toBeInTheDocument();
+  });
+
+  it('does not render badge when used_in_playlist=false (mobile)', () => {
+    const track: CategoryTrack = { ...baseTrack, used_in_playlist: false };
+    render(
+      <WMobile>
+        <TrackRow track={track} variant="mobile" categoryId="c1" />
+      </WMobile>,
+    );
+    expect(screen.queryByText('In playlist')).not.toBeInTheDocument();
   });
 });
