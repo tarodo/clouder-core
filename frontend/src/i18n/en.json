@@ -139,7 +139,13 @@
       "no_tracks_title": "No tracks yet",
       "no_tracks_body": "Finalize a triage block to populate this category.",
       "no_search_results_title": "No tracks match '{{term}}'.",
-      "clear_search": "Clear search"
+      "clear_search": "Clear search",
+      "no_fresh_tracks_title": "No fresh tracks. All tracks in this category are already used in playlists.",
+      "disable_fresh": "Show all tracks"
+    },
+    "filters": {
+      "fresh_label": "Fresh only",
+      "fresh_tooltip": "Hide tracks already used in any playlist."
     },
     "no_styles": {
       "title": "No styles available",

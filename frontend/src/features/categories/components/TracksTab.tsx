@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Group, Stack, Table, TextInput } from '@mantine/core';
+import { Button, Group, Stack, Switch, Table, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { IconSearch, IconSettings, IconX } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +20,7 @@ import {
   writeTagsUrlState,
   type TagsFilterState,
 } from '../../tags';
+import { readFresh, writeFresh } from '../lib/freshUrlState';
 
 export interface TracksTabProps {
   categoryId: string;
@@ -31,6 +32,10 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
   const isMobile = useMediaQuery('(max-width: 64em)');
   const [searchParams, setSearchParams] = useSearchParams();
   const tagFilter = readTagsUrlState(searchParams);
+  const fresh = readFresh(searchParams);
+  const setFresh = (value: boolean) => {
+    setSearchParams(writeFresh(searchParams, value), { replace: true });
+  };
 
   const [rawSearch, setRawSearch] = useState('');
   const [debounced] = useDebouncedValue(rawSearch.trim().toLowerCase(), 300);
@@ -59,6 +64,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
       sortDir,
       tagFilter.selectedIds,
       tagFilter.match,
+      fresh,
     );
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
@@ -96,6 +102,13 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
       >
         {t('tags.filter.manage_tags')}
       </Button>
+      <Tooltip label={t('categories.filters.fresh_tooltip')}>
+        <Switch
+          label={t('categories.filters.fresh_label')}
+          checked={fresh}
+          onChange={(e) => setFresh(e.currentTarget.checked)}
+        />
+      </Tooltip>
     </Group>
   );
 
@@ -113,6 +126,22 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
             body={
               <Button variant="default" onClick={() => setRawSearch('')}>
                 {t('categories.empty_state.clear_search')}
+              </Button>
+            }
+          />
+          {modal}
+        </Stack>
+      );
+    }
+    if (fresh) {
+      return (
+        <Stack gap="md">
+          {filterRow}
+          <EmptyState
+            title={t('categories.empty_state.no_fresh_tracks_title')}
+            body={
+              <Button variant="default" onClick={() => setFresh(false)}>
+                {t('categories.empty_state.disable_fresh')}
               </Button>
             }
           />
