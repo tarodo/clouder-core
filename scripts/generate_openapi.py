@@ -128,6 +128,10 @@ CATEGORY_TRACK_RESPONSE = {
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
         "source_triage_block_id": {"type": ["string", "null"]},
+        "used_in_playlist": {
+            "type": "boolean",
+            "description": "True if this track is already in at least one of the user's playlists.",
+        },
         "tags": {
             "type": "array",
             "description": "User-tags attached to this track (always present, may be empty).",
@@ -1051,6 +1055,12 @@ ROUTES: list[dict[str, Any]] = [
                     "Tag-set semantics. `all` (default) = every listed tag must "
                     "be present on the track. `any` = at least one match suffices."
                 ),
+            },
+            {
+                "name": "fresh",
+                "in": "query",
+                "schema": {"type": "integer", "enum": [0, 1]},
+                "description": "Hide tracks already used in any playlist. 1=on, 0/absent=off.",
             },
         ],
         "responses": {
