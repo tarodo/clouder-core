@@ -32,7 +32,7 @@ function seed(qc: QueryClient, categoryId: string): readonly unknown[] {
       id: 't1', title: 't1', mix_name: null, artists: [], label: null,
       bpm: null, length_ms: null, publish_date: null,
       spotify_release_date: null, isrc: null, spotify_id: null,
-      release_type: null, is_ai_suspected: false,
+      release_type: null, is_ai_suspected: false, used_in_playlist: false,
       added_at: 'now', source_triage_block_id: null,
       tags: [{ id: 'tg1', name: 'Vocal', color: '#ff8800' }],
     },

@@ -8,7 +8,7 @@ const clearQueue = vi.fn();
 const playback = {
   controls: { bindQueue, clearQueue },
   queue: { source: null, tracks: [] as PlaybackTrack[], cursor: 0, status: 'idle' as const },
-  track: { current: null, positionMs: 0, durationMs: 0 },
+  track: { current: null as PlaybackTrack | null, positionMs: 0, durationMs: 0 },
   sdk: { ready: false, error: null },
   devices: undefined as never,
 };
