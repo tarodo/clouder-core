@@ -1834,6 +1834,8 @@ export interface paths {
                     tags?: string;
                     /** @description Tag-set semantics. `all` (default) = every listed tag must be present on the track. `any` = at least one match suffices. */
                     match?: "all" | "any";
+                    /** @description Hide tracks already used in any playlist. 1=on, 0/absent=off. */
+                    fresh?: 0 | 1;
                 };
                 header?: never;
                 path: {
@@ -1865,6 +1867,8 @@ export interface paths {
                                 artists?: string[];
                                 added_at?: string;
                                 source_triage_block_id?: string | null;
+                                /** @description True if this track is already in at least one of the user's playlists. */
+                                used_in_playlist?: boolean;
                                 /** @description User-tags attached to this track (always present, may be empty). */
                                 tags?: {
                                     /** Format: uuid */
