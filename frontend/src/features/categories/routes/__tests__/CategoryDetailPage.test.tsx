@@ -110,7 +110,7 @@ describe('CategoryDetailPage', () => {
       </Wrapper>,
     );
     await waitFor(() => expect(screen.getByText('Deep')).toBeInTheDocument());
-    expect(screen.getByText(/no tracks yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/no fresh tracks/i)).toBeInTheDocument();
   });
 
   it('shows not-found on 404', async () => {
