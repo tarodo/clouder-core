@@ -50,3 +50,29 @@ describe('contextDifferent', () => {
     expect(contextDifferent('/curate/s/A/U', '/tracks')).toBe(false);
   });
 });
+
+describe('hasPlayerCard — category route', () => {
+  it('matches /categories/:styleId/:id', () => {
+    expect(hasPlayerCard('/categories/style-1/cat-1')).toBe(true);
+    expect(hasPlayerCard('/categories/style-1/cat-1/')).toBe(true);
+  });
+
+  it('does not match /categories list', () => {
+    expect(hasPlayerCard('/categories')).toBe(false);
+    expect(hasPlayerCard('/categories/style-1')).toBe(false);
+  });
+
+  it('continues to match curate session route', () => {
+    expect(hasPlayerCard('/curate/style-1/block-1/bucket-1')).toBe(true);
+  });
+});
+
+describe('contextOf — category', () => {
+  it('returns category context for category detail path', () => {
+    expect(contextOf('/categories/style-1/cat-1')).toEqual({
+      type: 'category',
+      styleId: 'style-1',
+      categoryId: 'cat-1',
+    });
+  });
+});
