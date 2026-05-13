@@ -123,9 +123,8 @@ describe('CategoryPlayerPanel', () => {
 
   it('shows Remove from category button', () => {
     render(ui());
-    // i18n key strings render as-is until Task 19 wires real translations.
     expect(
-      screen.getByRole('button', { name: /remove_from_category/i }),
+      screen.getByRole('button', { name: /remove from category/i }),
     ).toBeInTheDocument();
   });
 

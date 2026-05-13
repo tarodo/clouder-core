@@ -182,9 +182,24 @@
     }
   },
   "category_player": {
+    "sections": {
+      "tags": "Tags",
+      "playlists": "Playlists"
+    },
     "actions": {
       "back_aria": "Back to tracks",
-      "open_player_aria": "Open player"
+      "open_player_aria": "Open player",
+      "remove_from_category": "Remove from category"
+    },
+    "empty": {
+      "pick_track": "Pick a track to start playing"
+    },
+    "toasts": {
+      "tagged": "Tag added",
+      "untagged": "Tag removed",
+      "added_to_playlist": "Added to playlist",
+      "removed_from_playlist": "Removed from playlist",
+      "removed_from_category": "Removed from category"
     }
   },
   "playlists": {
