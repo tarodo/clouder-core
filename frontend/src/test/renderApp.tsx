@@ -4,15 +4,14 @@
 //
 //   - `renderApp(...)`: MemoryRouter + curate routes only, REAL
 //     PlaybackProvider, stub AuthContext. Used by batch 1 + batch 2 — minimal
-//     surface, no MiniBar / LeaveContextDialog.
+//     surface, no global chrome.
 //
-//   - `renderAppWithRouter(...)`: createMemoryRouter (data router, required by
-//     useBlocker) + extra placeholder routes (/tracks, /auth/premium-required,
-//     /) + the real PlaybackChrome (MiniBar + LeaveContextDialog). Returns the
-//     router instance so tests can drive navigations programmatically via
-//     `router.navigate(...)`. Used by batch 3 — exercises route nav with
-//     active queue, leave-context confirm, MiniBar close, and route-driven
-//     SDK error redirects.
+//   - `renderAppWithRouter(...)`: createMemoryRouter (data router) + extra
+//     placeholder routes (/tracks, /auth/premium-required, /) + the real
+//     PlaybackChrome (DevicePickerSurface). Returns the router instance so
+//     tests can drive navigations programmatically via `router.navigate(...)`.
+//     Used by batch 3 — exercises route-driven SDK error redirects + the
+//     empty-bucket / disconnected PlayerCard states.
 //
 // Pair with `installSpotifySdkMock()` from ./spotifySdk for tests that exercise
 // PlaybackProvider's SDK lifecycle.
@@ -130,9 +129,8 @@ function PremiumRequiredStub() {
 
 /**
  * Wrapper that mounts both an <Outlet /> (for matched routes) and the
- * PlaybackChrome (MiniBar + LeaveContextDialog). Used as the root data-router
- * route element so PlaybackChrome lives inside the router's location context
- * (required for useBlocker + useLocation).
+ * PlaybackChrome (DevicePickerSurface). Used as the root data-router route
+ * element so PlaybackChrome lives inside the router's location context.
  */
 function ChromeShell() {
   return (
@@ -145,10 +143,9 @@ function ChromeShell() {
 
 /**
  * Data-router variant of renderApp. Mounts createMemoryRouter +
- * RouterProvider with the real PlaybackChrome (MiniBar + LeaveContextDialog)
- * and returns the router instance so tests can drive navigation via
- * `router.navigate(...)` (required for `useBlocker` — `<Link>` clicks via
- * userEvent are racy against the blocker's async resolution).
+ * RouterProvider with the real PlaybackChrome (DevicePickerSurface) and
+ * returns the router instance so tests can drive navigation via
+ * `router.navigate(...)` and assert against `router.state.location.pathname`.
  */
 export function renderAppWithRouter(opts: RenderAppOpts): {
   result: RenderResult;

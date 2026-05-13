@@ -2,16 +2,7 @@
 //
 // F6 PlayerCard integration tests batch 3.
 //
-// Exercises the route-level chrome layered around the curate session:
-// MiniBar visibility on non-PlayerCard routes, LeaveContextDialog blocker
-// flow, MiniBar close → clearQueue, empty-bucket PlayerCard state, and the
-// SDK error → route redirect / disconnected state surfaces.
-//
 // Coverage:
-//    8. Route nav with active queue → PlayerCard unmounts → MiniBar appears.
-//    9. Leave-context confirm dialog (cancel keeps you on the current
-//       session, confirm proceeds + clears the queue).
-//   10. MiniBar close → queue cleared, MiniBar disappears.
 //   15. Empty bucket: 100% null spotify_id → empty-bucket PlayerCard state +
 //       Space hotkey is a no-op (PlaybackProvider.play short-circuits on null
 //       spotify_id).
@@ -19,6 +10,11 @@
 //       state (WifiOff icon + "Reconnect Spotify" subline).
 //   17. Premium required: SDK account_error → PlaybackProvider navigate(
 //       '/auth/premium-required').
+//
+// NOTE: Scenarios 8, 9a, 9b, 10 (MiniBar visibility + LeaveContextDialog
+// blocker) were retired alongside the global MiniBar / LeaveContextDialog
+// chrome — in-page players (curate, category) own their routes; navigating
+// away clears the queue.
 //
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
@@ -28,7 +24,6 @@ import { server } from '../../../test/setup';
 import {
   installSpotifySdkMock,
   uninstallSpotifySdkMock,
-  type FakeSpotifyPlayer,
 } from '../../../test/spotifySdk';
 import { __resetSdkLoaderForTests } from '../lib/sdkLoader';
 import { renderAppWithRouter } from '../../../test/renderApp';
@@ -153,21 +148,6 @@ function installHandlers(
   );
 }
 
-function emitReady(player: FakeSpotifyPlayer | null, deviceId = 'dev-1'): void {
-  player?.__emit('ready', { device_id: deviceId });
-}
-
-function emitPlayerState(
-  player: FakeSpotifyPlayer | null,
-  state: { position: number; duration: number; paused?: boolean },
-): void {
-  player?.__emit('player_state_changed', {
-    position: state.position,
-    duration: state.duration,
-    paused: state.paused ?? false,
-  });
-}
-
 /**
  * F6: CurateCard only renders on mobile (and has no Play button there). On
  * desktop the PlayerCard absorbs the title. Scope by curate-session.
@@ -190,29 +170,6 @@ function findPlayButton(): HTMLElement {
   return enabled;
 }
 
-/**
- * Pre-warm: click PlayerCard's Play button (CurateCard's was removed in F6),
- * emit `ready` while the click is awaiting deviceReadyRef so play() resolves,
- * then emit player_state_changed paused=false so MiniBar visibility kicks in.
- */
-async function preWarmAndPlay(
-  user: ReturnType<typeof userEvent.setup>,
-  handle: ReturnType<typeof installSpotifySdkMock>,
-  captures: ServerCaptures,
-): Promise<FakeSpotifyPlayer> {
-  const playBtn = findPlayButton();
-  const clickPromise = user.click(playBtn);
-  await waitFor(() => expect(handle.getLatest()).not.toBeNull());
-  await act(async () => emitReady(handle.getLatest()));
-  await clickPromise;
-  await waitFor(() => expect(captures.playCalls.length).toBeGreaterThanOrEqual(1));
-  const player = handle.getLatest()!;
-  await act(async () => {
-    emitPlayerState(player, { position: 1_000, duration: 360_000, paused: false });
-  });
-  return player;
-}
-
 /* ---------- suite ---------- */
 
 describe('F6 integration · batch 3', () => {
@@ -222,12 +179,6 @@ describe('F6 integration · batch 3', () => {
     captures = { playCalls: [], transferCalls: 0, moveCalls: 0 };
     __resetSdkLoaderForTests();
     document.head.querySelectorAll('script[data-spotify-sdk]').forEach((s) => s.remove());
-    // Ensure MiniBar's `Open in Curate` link gets a deterministic style slug.
-    try {
-      localStorage.setItem('clouder.lastCurateStyle', 's1');
-    } catch {
-      /* ignore */
-    }
   });
 
   afterEach(() => {
@@ -241,166 +192,6 @@ describe('F6 integration · batch 3', () => {
       /* ignore */
     }
   });
-
-  /**
-   * Scenario 8: Route nav with active queue.
-   *
-   * Mount at /curate/s1/b1/src, play track 0, navigate to /tracks. PlayerCard
-   * (rendered by CurateSession) unmounts when the curate route exits;
-   * PlaybackChrome's MiniBar appears because hasPlayerCard('/tracks') is
-   * false and queue.source !== null + queue.status === 'playing'.
-   *
-   * NOTE: navigation must NOT cross context boundaries (LeaveContextDialog
-   * blocks curate→curate). /tracks is not a curate route, so the blocker's
-   * `contextDifferent` check returns false and the navigation proceeds.
-   */
-  it('8. Curate playing → /tracks → PlayerCard unmounts, MiniBar appears', async () => {
-    installHandlers(
-      [{ blockId: 'b1', tracks: [{ id: 't1', spotifyId: 'spA' }] }],
-      captures,
-    );
-    const handle = installSpotifySdkMock();
-    const user = userEvent.setup();
-    const { router } = renderAppWithRouter({ initialEntries: ['/curate/s1/b1/src'] });
-
-    await waitForCurateCardTrack('Track t1');
-    await preWarmAndPlay(user, handle, captures);
-
-    // Sanity: PlayerCard is mounted on the curate route (data-state attr on
-    // its outer Paper). F6 dropped the "Now Playing" eyebrow text.
-    expect(document.querySelector('[data-state]')).not.toBeNull();
-    expect(screen.getByTestId('curate-session')).toBeInTheDocument();
-
-    // Navigate off curate → /tracks. Drive via router.navigate to bypass the
-    // SPA-link click race (none expected here since contextDifferent('/tracks')
-    // is false, but consistency with scenario 9 keeps the harness simple).
-    await act(async () => {
-      await router.navigate('/tracks');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId('tracks-page')).toBeInTheDocument();
-    });
-
-    // PlayerCard unmounts when CurateSession does.
-    expect(screen.queryByTestId('curate-session')).toBeNull();
-
-    // MiniBar is visible — the region's accessible name is the "Now playing —
-    // {{title}}" template (lower-case "Now playing", em-dash separator).
-    expect(
-      screen.getByRole('region', { name: /now playing — track t1/i }),
-    ).toBeInTheDocument();
-  }, 15000);
-
-  /**
-   * Scenario 9: Leave-context confirm dialog.
-   *
-   * Start at /curate/s1/b1/src playing track 0. Navigate to a different
-   * curate session — /curate/s1/b2/src. LeaveContextDialog blocks the
-   * navigation (contextDifferent returns true on different blockId). Cancel
-   * keeps us on /curate/s1/b1/src; confirm proceeds + clears the queue.
-   */
-  it('9a. switch curate sessions → confirm dialog opens; cancel stays', async () => {
-    installHandlers(
-      [
-        { blockId: 'b1', tracks: [{ id: 't1', spotifyId: 'spA' }] },
-        { blockId: 'b2', tracks: [{ id: 't2', spotifyId: 'spB' }] },
-      ],
-      captures,
-    );
-    const handle = installSpotifySdkMock();
-    const user = userEvent.setup();
-    const { router } = renderAppWithRouter({ initialEntries: ['/curate/s1/b1/src'] });
-
-    await waitForCurateCardTrack('Track t1');
-    await preWarmAndPlay(user, handle, captures);
-
-    // Cross-context navigation → blocker fires → dialog opens.
-    void router.navigate('/curate/s1/b2/src');
-    await waitFor(() => {
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
-
-    // Cancel → blocker.reset() → dialog closes + we stay on b1's session.
-    const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /Нет, остаться/i }));
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).toBeNull();
-    });
-    expect(router.state.location.pathname).toBe('/curate/s1/b1/src');
-  }, 15000);
-
-  it('9b. switch curate sessions → confirm dialog opens; confirm proceeds + clears queue', async () => {
-    installHandlers(
-      [
-        { blockId: 'b1', tracks: [{ id: 't1', spotifyId: 'spA' }] },
-        { blockId: 'b2', tracks: [{ id: 't2', spotifyId: 'spB' }] },
-      ],
-      captures,
-    );
-    const handle = installSpotifySdkMock();
-    const user = userEvent.setup();
-    const { router } = renderAppWithRouter({ initialEntries: ['/curate/s1/b1/src'] });
-
-    await waitForCurateCardTrack('Track t1');
-    const player = await preWarmAndPlay(user, handle, captures);
-
-    void router.navigate('/curate/s1/b2/src');
-    await waitFor(() => {
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
-
-    // Confirm → onConfirm(clearQueue) + blocker.proceed().
-    const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /Да, новый блок/i }));
-
-    await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/curate/s1/b2/src');
-    });
-
-    // clearQueue → SDK pause + queueDispatch CLEAR.
-    await waitFor(() => {
-      expect(player.pause).toHaveBeenCalled();
-    });
-  }, 15000);
-
-  /**
-   * Scenario 10: MiniBar close → clearQueue → MiniBar disappears.
-   *
-   * Pre-warm + play, navigate to /tracks (MiniBar mounts), click MiniBar's
-   * close button. clearQueue runs → queue.status='idle' → showMini becomes
-   * false → MiniBar unmounts.
-   */
-  it('10. MiniBar close button → clearQueue → MiniBar disappears', async () => {
-    installHandlers(
-      [{ blockId: 'b1', tracks: [{ id: 't1', spotifyId: 'spA' }] }],
-      captures,
-    );
-    const handle = installSpotifySdkMock();
-    const user = userEvent.setup();
-    const { router } = renderAppWithRouter({ initialEntries: ['/curate/s1/b1/src'] });
-
-    await waitForCurateCardTrack('Track t1');
-    const player = await preWarmAndPlay(user, handle, captures);
-
-    await act(async () => {
-      await router.navigate('/tracks');
-    });
-
-    const minibar = await screen.findByRole('region', {
-      name: /now playing — track t1/i,
-    });
-    const closeBtn = within(minibar).getByRole('button', { name: /close player/i });
-    await user.click(closeBtn);
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole('region', { name: /now playing/i }),
-      ).toBeNull();
-    });
-    // clearQueue's pause path runs through the SDK fake.
-    expect(player.pause).toHaveBeenCalled();
-  }, 15000);
 
   /**
    * Scenario 15: Empty bucket — 100% null spotify_id.
@@ -546,3 +337,4 @@ describe('F6 integration · batch 3', () => {
     expect(screen.getByTestId('premium-required-page')).toBeInTheDocument();
   }, 10000);
 });
+
