@@ -27,6 +27,50 @@ import { server } from '../../../test/setup';
 import { tokenStore } from '../../../auth/tokenStore';
 import { testTheme } from '../../../test/theme';
 import { TracksTab } from '../../categories/components/TracksTab';
+import { useState } from 'react';
+import { useDebouncedValue } from '@mantine/hooks';
+import { useSearchParams } from 'react-router';
+import {
+  useCategoryTracks,
+  type CategoryTrackSort,
+  type SortOrder,
+} from '../../categories/hooks/useCategoryTracks';
+import { readTagsUrlState } from '../index';
+import { readFresh } from '../../categories/lib/freshUrlState';
+
+function TracksTabHarness({ categoryId, styleId }: { categoryId: string; styleId: string }) {
+  const [rawSearch, setRawSearch] = useState('');
+  const [debounced] = useDebouncedValue(rawSearch.trim().toLowerCase(), 300);
+  const [sortKey, setSortKey] = useState<CategoryTrackSort>('added_at');
+  const [sortDir, setSortDir] = useState<SortOrder>('desc');
+  const [searchParams] = useSearchParams();
+  const tagFilter = readTagsUrlState(searchParams);
+  const fresh = readFresh(searchParams);
+  const q = useCategoryTracks(
+    categoryId, debounced, sortKey, sortDir,
+    tagFilter.selectedIds, tagFilter.match, fresh,
+  );
+  return (
+    <TracksTab
+      categoryId={categoryId}
+      styleId={styleId}
+      items={q.data?.pages.flatMap((p) => p.items) ?? []}
+      total={q.data?.pages[0]?.total ?? 0}
+      isLoading={q.isLoading}
+      hasNextPage={!!q.hasNextPage}
+      isFetchingNextPage={q.isFetchingNextPage}
+      fetchNextPage={() => void q.fetchNextPage()}
+      rawSearch={rawSearch}
+      setRawSearch={setRawSearch}
+      debounced={debounced}
+      sortKey={sortKey}
+      sortDir={sortDir}
+      setSortKey={setSortKey}
+      setSortDir={setSortDir}
+      onPlay={() => {}}
+    />
+  );
+}
 
 function W({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({
@@ -125,7 +169,7 @@ describe('Track-tags end-to-end', () => {
   it('create → assign → row pill appears', async () => {
     render(
       <W>
-        <TracksTab categoryId="c1" styleId="s1" />
+        <TracksTabHarness categoryId="c1" styleId="s1" />
       </W>,
     );
 

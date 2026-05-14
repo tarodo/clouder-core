@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { Button, Divider, Stack, Text } from '@mantine/core';
+import { Divider, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { usePlayback } from '../../playback/usePlayback';
@@ -9,7 +9,6 @@ import { useRemoveTrackTag } from '../../tags/hooks/useRemoveTrackTag';
 import { usePlaylists } from '../../playlists/hooks/usePlaylists';
 import { useAddTracksToPlaylist } from '../../playlists/hooks/useAddTracksToPlaylist';
 import { useRemoveTrackFromPlaylist } from '../../playlists/hooks/useRemoveTrackFromPlaylist';
-import { useRemoveTrackOptimistic } from '../hooks/useRemoveTrackOptimistic';
 import { useCategoryPlayerHotkeys } from '../hooks/useCategoryPlayerHotkeys';
 import { undoStack, useUndoStack } from '../hooks/useUndoStack';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
@@ -33,7 +32,6 @@ export function CategoryPlayerPanel({ categoryId }: CategoryPlayerPanelProps) {
   const removeTag = useRemoveTrackTag();
   const addToPlaylist = useAddTracksToPlaylist();
   const removeFromPlaylist = useRemoveTrackFromPlaylist();
-  const removeFromCat = useRemoveTrackOptimistic();
   const { entry } = useUndoStack();
 
   const current = playback.track.current;
@@ -130,16 +128,6 @@ export function CategoryPlayerPanel({ categoryId }: CategoryPlayerPanelProps) {
     [playlistsQuery.data, trackPlaylistIds, onAddPlaylist, onRemovePlaylist],
   );
 
-  const onRemoveFromCategory = useCallback(async () => {
-    if (!trackId) return;
-    await removeFromCat.mutateAsync({ categoryId, trackId });
-    pushUndo(t('category_player.toasts.removed_from_category'), () => {
-      // Server-side undo is not exposed; the cache snapshot inside the mutation
-      // hook restores the optimistic state on error. For an explicit Undo we
-      // would need a server "re-add" endpoint — not in scope for F-Player.
-    });
-  }, [trackId, categoryId, removeFromCat, pushUndo, t]);
-
   useCategoryPlayerHotkeys({
     active:
       playback.queue.source?.type === 'category' &&
@@ -208,10 +196,6 @@ export function CategoryPlayerPanel({ categoryId }: CategoryPlayerPanelProps) {
         onAdd={(id) => void onAddPlaylist(id)}
         onRemove={(id) => void onRemovePlaylist(id)}
       />
-      <Divider />
-      <Button color="red" variant="light" onClick={() => void onRemoveFromCategory()}>
-        {t('category_player.actions.remove_from_category')}
-      </Button>
     </Stack>
   );
 }

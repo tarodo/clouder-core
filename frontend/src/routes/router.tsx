@@ -51,8 +51,13 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <CategoriesIndexRedirect /> },
           { path: ':styleId', element: <CategoriesListPage /> },
-          { path: ':styleId/:id', element: <CategoryDetailPage /> },
-          { path: ':styleId/:id/player', element: <CategoryPlayerPage /> },
+          {
+            path: ':styleId/:id',
+            element: <CategoryDetailPage />,
+            children: [
+              { path: 'player', element: <CategoryPlayerPage /> },
+            ],
+          },
         ],
       },
       {
