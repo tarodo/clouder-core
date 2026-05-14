@@ -9,6 +9,10 @@ import { CategoryPlayerPanel } from '../components/CategoryPlayerPanel';
 export function CategoryPlayerPage() {
   const { styleId, id } = useParams<{ styleId: string; id: string }>();
   if (!styleId || !id) return <Navigate to="/categories" replace />;
+  return <CategoryPlayerPageInner styleId={styleId} id={id} />;
+}
+
+function CategoryPlayerPageInner({ styleId, id }: { styleId: string; id: string }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   return (
