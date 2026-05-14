@@ -1,5 +1,20 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+vi.mock('../../playback/usePlayback', () => ({
+  usePlayback: () => ({
+    controls: {
+      prewarm: vi.fn(() => Promise.resolve()),
+      play: vi.fn(() => Promise.resolve()),
+      bindQueue: vi.fn(),
+      clearQueue: vi.fn(),
+    },
+    queue: { source: null, tracks: [], cursor: 0, status: 'idle' },
+    track: { current: null, positionMs: 0, durationMs: 0 },
+    sdk: { ready: false, error: null },
+    devices: {} as never,
+  }),
+}));
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';

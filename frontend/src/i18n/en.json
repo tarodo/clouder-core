@@ -166,7 +166,9 @@
       "length": "Length",
       "released": "Released",
       "added": "Added",
-      "ai_suspected_aria": "AI-suspected"
+      "ai_suspected_aria": "AI-suspected",
+      "play_aria": "Play track",
+      "play_unavailable": "No Spotify match"
     },
     "row_actions": {
       "trigger_aria": "Track actions",

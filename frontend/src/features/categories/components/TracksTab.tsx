@@ -1,15 +1,18 @@
-import { useState } from 'react';
-import { ActionIcon, Button, Group, Stack, Switch, Table, TextInput, Tooltip } from '@mantine/core';
+import { useCallback, useState } from 'react';
+import { Button, Group, Stack, Switch, Table, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
-import { IconPlayerPlayFilled, IconSearch, IconSettings, IconX } from '@tabler/icons-react';
+import { IconSearch, IconSettings, IconX } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import {
   useCategoryTracks,
+  type CategoryTrack,
   type CategoryTrackSort,
   type SortOrder,
 } from '../hooks/useCategoryTracks';
 import { TrackRow } from './TrackRow';
+import { usePlayback } from '../../playback/usePlayback';
+import type { PlaybackTrack } from '../../playback/lib/types';
 import { TrackRowActions } from './TrackRowActions';
 import { SortableTh } from './SortableTh';
 import { EmptyState } from '../../../components/EmptyState';
@@ -27,9 +30,21 @@ export interface TracksTabProps {
   styleId: string;
 }
 
+function toPlaybackTrack(t: CategoryTrack): PlaybackTrack {
+  return {
+    id: t.id,
+    title: t.title,
+    artists: t.artists.map((a) => a.name).join(', '),
+    duration_ms: t.length_ms ?? 0,
+    spotify_id: t.spotify_id,
+    cover_url: null,
+  };
+}
+
 export function TracksTab({ categoryId, styleId }: TracksTabProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const playback = usePlayback();
   const isMobile = useMediaQuery('(max-width: 64em)');
   const [searchParams, setSearchParams] = useSearchParams();
   const tagFilter = readTagsUrlState(searchParams);
@@ -71,6 +86,26 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
   const remaining = Math.max(0, total - items.length);
+
+  const playTrack = useCallback(
+    (track: CategoryTrack) => {
+      if (!track.spotify_id) return;
+      void playback.controls.prewarm();
+      const queueIdx = playback.queue.tracks.findIndex((q) => q.id === track.id);
+      if (queueIdx >= 0) {
+        void playback.controls.play(queueIdx);
+      } else {
+        // Track not in the bound queue (e.g. it's "used" but user toggled
+        // fresh-off in the list). Play as a single-shot override; cursor
+        // stays in the queue so auto-advance picks up the bound list at end.
+        void playback.controls.play(undefined, toPlaybackTrack(track));
+      }
+      if (isMobile) {
+        navigate(`/categories/${styleId}/${categoryId}/player`);
+      }
+    },
+    [playback.controls, playback.queue.tracks, isMobile, navigate, styleId, categoryId],
+  );
 
   const filterRow = (
     <Group gap="sm" align="flex-end" wrap="wrap">
@@ -172,21 +207,13 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
             track={tr}
             variant="mobile"
             categoryId={categoryId}
+            onPlay={() => playTrack(tr)}
             actions={
-              <Group gap="xs">
-                <ActionIcon
-                  variant="subtle"
-                  onClick={() => navigate(`/categories/${styleId}/${categoryId}/player`)}
-                  aria-label={t('category_player.actions.open_player_aria')}
-                >
-                  <IconPlayerPlayFilled />
-                </ActionIcon>
-                <TrackRowActions
-                  track={tr}
-                  currentCategoryId={categoryId}
-                  styleId={styleId}
-                />
-              </Group>
+              <TrackRowActions
+                track={tr}
+                currentCategoryId={categoryId}
+                styleId={styleId}
+              />
             }
           />
         ))}
@@ -242,6 +269,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
               track={track}
               variant="desktop"
               categoryId={categoryId}
+              onPlay={() => playTrack(track)}
               actions={
                 <TrackRowActions
                   track={track}
