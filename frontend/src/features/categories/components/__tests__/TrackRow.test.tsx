@@ -1,6 +1,7 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MantineProvider, Table } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -114,5 +115,55 @@ describe('TrackRow — used_in_playlist badge', () => {
       </WMobile>,
     );
     expect(screen.queryByText('In playlist')).not.toBeInTheDocument();
+  });
+});
+
+describe('TrackRow — Play button', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    server.use(http.get('http://localhost/tags', () => HttpResponse.json([])));
+  });
+
+  it('does NOT render a play icon when onPlay is omitted', () => {
+    render(
+      <W>
+        <TrackRow track={baseTrack} variant="desktop" categoryId="c1" />
+      </W>,
+    );
+    expect(screen.queryByRole('button', { name: /play track/i })).not.toBeInTheDocument();
+  });
+
+  it('renders enabled play button when onPlay provided and spotify_id present', async () => {
+    const onPlay = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <W>
+        <TrackRow
+          track={{ ...baseTrack, spotify_id: 'sp1' }}
+          variant="desktop"
+          categoryId="c1"
+          onPlay={onPlay}
+        />
+      </W>,
+    );
+    const btn = screen.getByRole('button', { name: /play track/i });
+    expect(btn).toBeEnabled();
+    await user.click(btn);
+    expect(onPlay).toHaveBeenCalledOnce();
+  });
+
+  it('disables play button when spotify_id is null', () => {
+    const onPlay = vi.fn();
+    render(
+      <W>
+        <TrackRow
+          track={{ ...baseTrack, spotify_id: null }}
+          variant="desktop"
+          categoryId="c1"
+          onPlay={onPlay}
+        />
+      </W>,
+    );
+    expect(screen.getByRole('button', { name: /play track/i })).toBeDisabled();
   });
 });

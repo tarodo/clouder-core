@@ -1,5 +1,5 @@
-import { Card, Group, Stack, Table, Text } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { ActionIcon, Card, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { IconAlertTriangle, IconPlayerPlayFilled } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/formatters';
@@ -16,9 +16,10 @@ export interface TrackRowProps {
   variant: 'desktop' | 'mobile';
   categoryId: string;
   actions?: ReactNode;
+  onPlay?: () => void;
 }
 
-export function TrackRow({ track, variant, categoryId, actions }: TrackRowProps) {
+export function TrackRow({ track, variant, categoryId, actions, onPlay }: TrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
     <IconAlertTriangle
@@ -31,11 +32,33 @@ export function TrackRow({ track, variant, categoryId, actions }: TrackRowProps)
     <TrackTagsCell categoryId={categoryId} trackId={track.id} tags={track.tags} />
   );
 
+  const canPlay = !!onPlay && !!track.spotify_id;
+  const playButton = onPlay ? (
+    <Tooltip
+      label={
+        track.spotify_id
+          ? t('categories.tracks_table.play_aria')
+          : t('categories.tracks_table.play_unavailable')
+      }
+    >
+      <ActionIcon
+        variant="subtle"
+        size="md"
+        disabled={!canPlay}
+        onClick={canPlay ? onPlay : undefined}
+        aria-label={t('categories.tracks_table.play_aria')}
+      >
+        <IconPlayerPlayFilled size={16} />
+      </ActionIcon>
+    </Tooltip>
+  ) : null;
+
   if (variant === 'desktop') {
     return (
       <Table.Tr>
         <Table.Td>
           <Group gap="xs" wrap="nowrap">
+            {playButton}
             {aiBadge}
             <Stack gap={0}>
               <Text fw={500}>{track.title}</Text>
@@ -71,6 +94,7 @@ export function TrackRow({ track, variant, categoryId, actions }: TrackRowProps)
       )}
       <Stack gap={4}>
         <Group gap="xs">
+          {playButton}
           {aiBadge}
           <Text fw={500}>{track.title}</Text>
           {track.used_in_playlist && <UsedInPlaylistBadge />}
