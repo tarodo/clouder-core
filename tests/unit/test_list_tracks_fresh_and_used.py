@@ -78,6 +78,34 @@ def test_list_tracks_fresh_false_default_no_filter():
     assert "NOT EXISTS" not in count_sql
 
 
+def test_used_in_playlist_subquery_correlates_through_t_not_ct():
+    """Regression guard for the prod 500 on 2026-05-14.
+
+    The EXISTS sub-select in the SELECT list must correlate via `t.id`,
+    NOT `ct.track_id`. After GROUP BY t.id, ... Postgres rejects
+    correlated refs to outer columns that are not in the GROUP BY:
+        ERROR: subquery uses ungrouped column "ct.track_id" from outer
+        query; SQLState: 42803.
+
+    t.id and ct.track_id are equal by JOIN, but Postgres does not infer
+    functional dependency across joins for GROUP BY validation.
+    """
+    api = _FakeDataAPI([_category_exists(), [], [{"total": 0}]])
+    repo = CategoriesRepository(api)
+    repo.list_tracks(
+        user_id="u-1", category_id="cat-1", limit=50, offset=0,
+        search=None, sort="added_at", order="desc",
+        tag_ids=None, tag_match="all", tags_repo=None,
+    )
+    rows_sql = api.calls[1][0]
+    select_clause = rows_sql.split("FROM category_tracks", 1)[0]
+    exists_block = select_clause.split("EXISTS (", 1)[1]
+    assert "pt.track_id = t.id" in exists_block, (
+        f"used_in_playlist EXISTS must correlate via t.id; got: {exists_block!r}"
+    )
+    assert "pt.track_id = ct.track_id" not in exists_block
+
+
 def test_list_tracks_fresh_combines_with_search_and_tags():
     api = _FakeDataAPI([_category_exists(), [], [{"total": 0}]])
     repo = CategoriesRepository(api)

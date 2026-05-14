@@ -758,7 +758,7 @@ class CategoriesRepository:
                 EXISTS (
                     SELECT 1 FROM playlist_tracks pt
                     JOIN playlists p ON p.id = pt.playlist_id
-                    WHERE pt.track_id = ct.track_id
+                    WHERE pt.track_id = t.id
                       AND p.user_id = :user_id
                       AND p.deleted_at IS NULL
                 ) AS used_in_playlist
