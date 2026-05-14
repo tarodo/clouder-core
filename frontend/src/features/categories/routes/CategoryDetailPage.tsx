@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Anchor,
   Breadcrumbs,
@@ -10,16 +10,29 @@ import {
   Title,
   useMantineTheme,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
+import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
-import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import {
+  Link,
+  Navigate,
+  Outlet,
+  useMatch,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
 import { useCategoryDetail } from '../hooks/useCategoryDetail';
 import { useRenameCategory } from '../hooks/useRenameCategory';
 import { useDeleteCategory } from '../hooks/useDeleteCategory';
-import { useCategoryTracks, type CategoryTrack } from '../hooks/useCategoryTracks';
+import {
+  useCategoryTracks,
+  type CategoryTrack,
+  type CategoryTrackSort,
+  type SortOrder,
+} from '../hooks/useCategoryTracks';
 import { useCategoryPlayerQueue } from '../hooks/useCategoryPlayerQueue';
 import { CategoryFormDialog } from '../components/CategoryFormDialog';
 import { CategoryPlayerPanel } from '../components/CategoryPlayerPanel';
@@ -28,6 +41,19 @@ import { FullScreenLoader } from '../../../components/FullScreenLoader';
 import { EmptyState } from '../../../components/EmptyState';
 import { usePlayback } from '../../playback/usePlayback';
 import type { PlaybackTrack } from '../../playback/lib/types';
+import { readTagsUrlState } from '../../tags';
+import { readFresh } from '../lib/freshUrlState';
+
+function toPlaybackTrack(t: CategoryTrack): PlaybackTrack {
+  return {
+    id: t.id,
+    title: t.title,
+    artists: t.artists.map((a) => a.name).join(', '),
+    duration_ms: t.length_ms ?? 0,
+    spotify_id: t.spotify_id,
+    cover_url: null,
+  };
+}
 
 export function CategoryDetailPage() {
   const { styleId, id } = useParams<{ styleId: string; id: string }>();
@@ -48,30 +74,66 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
   const playback = usePlayback();
   const theme = useMantineTheme();
   const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
+  // Mobile uses a fullscreen player route nested under this one. When the
+  // nested /player route is active, render <Outlet> instead of the
+  // split/single layout — but parent stays mounted so queue + filter state
+  // survive the navigation.
+  const onPlayerSubpath = useMatch(
+    { path: '/categories/:styleId/:id/player', end: false },
+  );
+
+  // Filter state hoisted from TracksTab so the queue binding can mirror what
+  // the user actually sees (search + sort + tags + fresh). URL state owns
+  // tags + fresh; rawSearch + sort live here.
+  const [searchParams] = useSearchParams();
+  const tagFilter = readTagsUrlState(searchParams);
+  const fresh = readFresh(searchParams);
+  const [rawSearch, setRawSearch] = useState('');
+  const [debounced] = useDebouncedValue(rawSearch.trim().toLowerCase(), 300);
+  const [sortKey, setSortKey] = useState<CategoryTrackSort>('added_at');
+  const [sortDir, setSortDir] = useState<SortOrder>('desc');
 
   // Pre-warm SDK on mount so first play happens inside the user-gesture window.
   useEffect(() => {
     void playback.controls.prewarm();
   }, [playback.controls]);
 
-  // Player queue = default fresh-on view of the category. UI filters (search,
-  // tags, sort) on TracksTab affect ONLY the visible table, not the queue.
-  const playerQuery = useCategoryTracks(id, '', 'added_at', 'desc', [], 'all', true);
+  const tracksQuery = useCategoryTracks(
+    id,
+    debounced,
+    sortKey,
+    sortDir,
+    tagFilter.selectedIds,
+    tagFilter.match,
+    fresh,
+  );
+
+  const items: CategoryTrack[] = useMemo(
+    () => tracksQuery.data?.pages.flatMap((p) => p.items) ?? [],
+    [tracksQuery.data],
+  );
   const playerTracks = useMemo<PlaybackTrack[]>(
-    () =>
-      (playerQuery.data?.pages ?? []).flatMap((p) =>
-        p.items.map((t: CategoryTrack) => ({
-          id: t.id,
-          title: t.title,
-          artists: t.artists.map((a) => a.name).join(', '),
-          duration_ms: t.length_ms ?? 0,
-          spotify_id: t.spotify_id,
-          cover_url: null,
-        })),
-      ),
-    [playerQuery.data],
+    () => items.map(toPlaybackTrack),
+    [items],
   );
   useCategoryPlayerQueue(id, styleId, playerTracks);
+
+  const playTrack = useCallback(
+    (track: CategoryTrack) => {
+      if (!track.spotify_id) return;
+      void playback.controls.prewarm();
+      const queueIdx = playback.queue.tracks.findIndex((q) => q.id === track.id);
+      if (queueIdx >= 0) {
+        void playback.controls.play(queueIdx);
+      } else {
+        void playback.controls.play(undefined, toPlaybackTrack(track));
+      }
+      if (!isDesktop) {
+        navigate(`/categories/${styleId}/${id}/player`);
+      }
+    },
+    [playback.controls, playback.queue.tracks, isDesktop, navigate, styleId, id],
+  );
 
   if (isLoading) return <FullScreenLoader />;
   if (isError) {
@@ -127,6 +189,34 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
     }
   }
 
+  // When the nested /player route is active (mobile only), render just the
+  // outlet — the queue + filter state above already includes the user's
+  // visible list, so the player has the right context.
+  if (onPlayerSubpath) {
+    return <Outlet />;
+  }
+
+  const tracksTab = (
+    <TracksTab
+      categoryId={id}
+      styleId={styleId}
+      items={items}
+      total={tracksQuery.data?.pages[0]?.total ?? 0}
+      isLoading={tracksQuery.isLoading}
+      hasNextPage={!!tracksQuery.hasNextPage}
+      isFetchingNextPage={tracksQuery.isFetchingNextPage}
+      fetchNextPage={tracksQuery.fetchNextPage}
+      rawSearch={rawSearch}
+      setRawSearch={setRawSearch}
+      debounced={debounced}
+      sortKey={sortKey}
+      sortDir={sortDir}
+      setSortKey={setSortKey}
+      setSortDir={setSortDir}
+      onPlay={playTrack}
+    />
+  );
+
   return (
     <Stack gap="lg">
       <Breadcrumbs>
@@ -154,12 +244,10 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
       {isDesktop ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
           <CategoryPlayerPanel categoryId={id} styleId={styleId} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <TracksTab categoryId={id} styleId={styleId} />
-          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>{tracksTab}</div>
         </Flex>
       ) : (
-        <TracksTab categoryId={id} styleId={styleId} />
+        tracksTab
       )}
       <CategoryFormDialog
         mode="rename"

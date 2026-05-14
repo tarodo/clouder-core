@@ -1,18 +1,15 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { Button, Group, Stack, Switch, Table, TextInput, Tooltip } from '@mantine/core';
-import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconSearch, IconSettings, IconX } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import {
-  useCategoryTracks,
   type CategoryTrack,
   type CategoryTrackSort,
   type SortOrder,
 } from '../hooks/useCategoryTracks';
 import { TrackRow } from './TrackRow';
-import { usePlayback } from '../../playback/usePlayback';
-import type { PlaybackTrack } from '../../playback/lib/types';
 import { TrackRowActions } from './TrackRowActions';
 import { SortableTh } from './SortableTh';
 import { EmptyState } from '../../../components/EmptyState';
@@ -28,23 +25,41 @@ import { readFresh, writeFresh } from '../lib/freshUrlState';
 export interface TracksTabProps {
   categoryId: string;
   styleId: string;
+  items: CategoryTrack[];
+  total: number;
+  isLoading: boolean;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  fetchNextPage: () => void;
+  rawSearch: string;
+  setRawSearch: (s: string) => void;
+  debounced: string;
+  sortKey: CategoryTrackSort;
+  sortDir: SortOrder;
+  setSortKey: (k: CategoryTrackSort) => void;
+  setSortDir: (d: SortOrder | ((prev: SortOrder) => SortOrder)) => void;
+  onPlay: (track: CategoryTrack) => void;
 }
 
-function toPlaybackTrack(t: CategoryTrack): PlaybackTrack {
-  return {
-    id: t.id,
-    title: t.title,
-    artists: t.artists.map((a) => a.name).join(', '),
-    duration_ms: t.length_ms ?? 0,
-    spotify_id: t.spotify_id,
-    cover_url: null,
-  };
-}
-
-export function TracksTab({ categoryId, styleId }: TracksTabProps) {
+export function TracksTab({
+  categoryId,
+  styleId,
+  items,
+  total,
+  isLoading,
+  hasNextPage,
+  isFetchingNextPage,
+  fetchNextPage,
+  rawSearch,
+  setRawSearch,
+  debounced,
+  sortKey,
+  sortDir,
+  setSortKey,
+  setSortDir,
+  onPlay,
+}: TracksTabProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const playback = usePlayback();
   const isMobile = useMediaQuery('(max-width: 64em)');
   const [searchParams, setSearchParams] = useSearchParams();
   const tagFilter = readTagsUrlState(searchParams);
@@ -53,10 +68,6 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
     setSearchParams(writeFresh(searchParams, value), { replace: true });
   };
 
-  const [rawSearch, setRawSearch] = useState('');
-  const [debounced] = useDebouncedValue(rawSearch.trim().toLowerCase(), 300);
-  const [sortKey, setSortKey] = useState<CategoryTrackSort>('added_at');
-  const [sortDir, setSortDir] = useState<SortOrder>('desc');
   const [managerOpen, setManagerOpen] = useState(false);
 
   const handleSort = (key: CategoryTrackSort) => {
@@ -72,40 +83,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
     setSearchParams(writeTagsUrlState(searchParams, next), { replace: true });
   };
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useCategoryTracks(
-      categoryId,
-      debounced,
-      sortKey,
-      sortDir,
-      tagFilter.selectedIds,
-      tagFilter.match,
-      fresh,
-    );
-
-  const items = data?.pages.flatMap((p) => p.items) ?? [];
-  const total = data?.pages[0]?.total ?? 0;
   const remaining = Math.max(0, total - items.length);
-
-  const playTrack = useCallback(
-    (track: CategoryTrack) => {
-      if (!track.spotify_id) return;
-      void playback.controls.prewarm();
-      const queueIdx = playback.queue.tracks.findIndex((q) => q.id === track.id);
-      if (queueIdx >= 0) {
-        void playback.controls.play(queueIdx);
-      } else {
-        // Track not in the bound queue (e.g. it's "used" but user toggled
-        // fresh-off in the list). Play as a single-shot override; cursor
-        // stays in the queue so auto-advance picks up the bound list at end.
-        void playback.controls.play(undefined, toPlaybackTrack(track));
-      }
-      if (isMobile) {
-        navigate(`/categories/${styleId}/${categoryId}/player`);
-      }
-    },
-    [playback.controls, playback.queue.tracks, isMobile, navigate, styleId, categoryId],
-  );
 
   const filterRow = (
     <Group gap="sm" align="flex-end" wrap="wrap">
@@ -207,7 +185,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
             track={tr}
             variant="mobile"
             categoryId={categoryId}
-            onPlay={() => playTrack(tr)}
+            onPlay={() => onPlay(tr)}
             actions={
               <TrackRowActions
                 track={tr}
@@ -218,7 +196,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
           />
         ))}
         {hasNextPage && (
-          <Button onClick={() => fetchNextPage()} loading={isFetchingNextPage} variant="default">
+          <Button onClick={fetchNextPage} loading={isFetchingNextPage} variant="default">
             {t('categories.detail.tracks_load_more', { remaining })}
           </Button>
         )}
@@ -269,7 +247,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
               track={track}
               variant="desktop"
               categoryId={categoryId}
-              onPlay={() => playTrack(track)}
+              onPlay={() => onPlay(track)}
               actions={
                 <TrackRowActions
                   track={track}
@@ -283,7 +261,7 @@ export function TracksTab({ categoryId, styleId }: TracksTabProps) {
       </Table>
       {hasNextPage && (
         <Group justify="center">
-          <Button onClick={() => fetchNextPage()} loading={isFetchingNextPage} variant="default">
+          <Button onClick={fetchNextPage} loading={isFetchingNextPage} variant="default">
             {t('categories.detail.tracks_load_more', { remaining })}
           </Button>
         </Group>

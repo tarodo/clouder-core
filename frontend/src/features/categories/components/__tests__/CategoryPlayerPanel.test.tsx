@@ -121,11 +121,11 @@ describe('CategoryPlayerPanel', () => {
     expect(screen.getAllByText('Acid').length).toBeGreaterThan(0);
   });
 
-  it('shows Remove from category button', () => {
+  it('does not render a Remove-from-category button (UI removed)', () => {
     render(ui());
     expect(
-      screen.getByRole('button', { name: /remove from category/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: /remove from category/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('U-key triggers undo when stack has an entry', async () => {
