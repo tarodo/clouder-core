@@ -94,3 +94,21 @@ def test_run_returns_error_on_bad_json():
     resp = adapter.run(system="s", user="u", schema=LabelInfo)
     assert resp.parsed is None
     assert "parse error" in resp.error.lower()
+
+
+def test_run_returns_error_on_malformed_body():
+    """Server returns 200 with non-JSON body."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="<html>oops</html>", headers={"content-type": "text/html"})
+
+    transport = httpx.MockTransport(handler)
+    client = httpx.Client(transport=transport, base_url="https://api.perplexity.ai")
+    adapter = PerplexitySonarAdapter(
+        api_key="pplx-test",
+        default_model="sonar",
+        client=client,
+    )
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.parsed is None
+    assert resp.error is not None
+    assert "malformed response body" in resp.error.lower()

@@ -77,7 +77,18 @@ class PerplexitySonarAdapter:
             )
 
         latency_ms = int((time.monotonic() - started) * 1000)
-        body = response.json()
+        try:
+            body = response.json()
+        except Exception as exc:  # noqa: BLE001
+            return VendorResponse(
+                parsed=None,
+                raw={},
+                citations=[],
+                usage={"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0},
+                latency_ms=latency_ms,
+                model=chosen_model,
+                error=f"malformed response body: {type(exc).__name__}: {exc}",
+            )
 
         usage = body.get("usage", {}) or {}
         input_tokens = int(usage.get("prompt_tokens") or 0)
