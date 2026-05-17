@@ -15,13 +15,13 @@ flowchart LR
     end
 
     subgraph Lambdas["AWS Lambdas"]
-        AH[auth-handler]
-        CH[collector-api]
-        SH[ai-search-worker]
-        SPW[spotify-search-worker]
-        VMW[vendor-match-worker]
-        WH[canonicalization-worker]
-        MH[migration]
+        AH["auth-handler"]
+        CH["collector-api (API Lambda)"]
+        SH["ai-search-worker"]
+        SPW["spotify-search-worker"]
+        VMW["vendor-match-worker"]
+        WH["canonicalization-worker (Worker Lambda)"]
+        MH["migration"]
     end
 
     subgraph Storage

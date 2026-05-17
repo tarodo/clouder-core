@@ -54,9 +54,7 @@ These tests catch routing bugs, request parsing errors, and cross-component inte
 
 ### `FakeDataAPI`
 
-<!-- TODO: confirm the exact class name and location in tests/ if it exists as a shared fixture -->
-
-Used in unit tests that exercise DB-touching code (e.g., `Canonicalizer`). The fake records SQL strings and returns pre-configured rows. It performs simple substring matching on SQL text; it does not parse or execute SQL.
+Not a shared fixture — each test file that needs one defines a private `_FakeDataAPI` (see `tests/unit/test_list_tracks_fresh_and_used.py:7` for a representative example). The fake records SQL strings and returns pre-configured rows. It performs simple substring matching on SQL text; it does not parse or execute SQL.
 
 **What it misses:** Real Postgres SQL semantics. In particular:
 
