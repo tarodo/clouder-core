@@ -62,7 +62,7 @@ describe('useCategoryPlayerQueue', () => {
     );
   });
 
-  it('clamps cursor to len-1 when current track removed and list shorter', () => {
+  it('cursor = lastCursor - 1 when last track removed (advance(+1) → ended)', () => {
     playback.queue.tracks = [T('a'), T('b'), T('c')];
     playback.queue.cursor = 2;
     playback.track.current = T('c');
@@ -74,6 +74,44 @@ describe('useCategoryPlayerQueue', () => {
     rerender({ tracks: [T('a'), T('b')] });
     expect(bindQueue).toHaveBeenCalledWith(
       expect.objectContaining({ cursor: 1 }),
+    );
+  });
+
+  it('cursor = -1 when the FIRST (top) track is removed so advance(+1) lands on tracks[0]', () => {
+    // Reproduction for the prod bug: track A plays at top of fresh-on list,
+    // user assigns it to a playlist, optimistic shrink removes A from the
+    // queue. Natural-end advance(+1) must play B (now at index 0), not C.
+    // Old behaviour set cursor=0 (clamp), making advance(+1) skip to index 1
+    // and play C. New behaviour sets cursor=-1, so advance(+1) → index 0 = B.
+    playback.queue.tracks = [T('a'), T('b'), T('c')];
+    playback.queue.cursor = 0;
+    playback.track.current = T('a');
+    const { rerender } = renderHook(
+      ({ tracks }) => useCategoryPlayerQueue('cat-1', 'style-1', tracks),
+      { initialProps: { tracks: playback.queue.tracks as PlaybackTrack[] } },
+    );
+    bindQueue.mockReset();
+    rerender({ tracks: [T('b'), T('c')] });
+    expect(bindQueue).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: -1 }),
+    );
+  });
+
+  it('cursor = lastCursor - 1 when a middle track is removed (advance(+1) → successor)', () => {
+    // Track B at index 1 in [A, B, C, D]. User assigns B to playlist;
+    // shrink → [A, C, D]. C is now at index 1, so cursor should be 0
+    // (lastCursor 1 - 1) so advance(+1) lands on C.
+    playback.queue.tracks = [T('a'), T('b'), T('c'), T('d')];
+    playback.queue.cursor = 1;
+    playback.track.current = T('b');
+    const { rerender } = renderHook(
+      ({ tracks }) => useCategoryPlayerQueue('cat-1', 'style-1', tracks),
+      { initialProps: { tracks: playback.queue.tracks as PlaybackTrack[] } },
+    );
+    bindQueue.mockReset();
+    rerender({ tracks: [T('a'), T('c'), T('d')] });
+    expect(bindQueue).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: 0 }),
     );
   });
 
