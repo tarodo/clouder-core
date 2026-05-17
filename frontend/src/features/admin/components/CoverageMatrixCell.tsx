@@ -12,12 +12,15 @@ interface Props {
 }
 
 const COLORS: Record<CellState, string> = {
-  empty: 'var(--mantine-color-dark-6)',
+  // Empty cells get a transparent background with a subtle border (see render
+  // below) so the grid feels lighter — only loaded/failed/running states draw
+  // attention with solid colour.
+  empty: 'transparent',
   loaded: 'var(--mantine-color-green-7)',
   'loaded-custom': 'var(--mantine-color-green-7)',
   failed: 'var(--mantine-color-red-7)',
   running: 'var(--mantine-color-yellow-5)',
-  'n/a': 'var(--mantine-color-dark-8)',
+  'n/a': 'transparent',
 };
 
 function CoverageMatrixCellInner({
@@ -39,8 +42,12 @@ function CoverageMatrixCellInner({
         style={{
           width: 24,
           height: 24,
+          boxSizing: 'border-box',
           borderRadius: 4,
-          border: 'none',
+          border:
+            state === 'empty' || state === 'n/a'
+              ? '1px solid var(--mantine-color-dark-5)'
+              : 'none',
           padding: 0,
           background: COLORS[state],
           outline:
