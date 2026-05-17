@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from lab.schemas import (
     ActivityLevel,
     AIContentStatus,
@@ -46,13 +49,18 @@ def test_label_info_full():
 
 
 def test_confidence_bounds():
-    import pytest
-    from pydantic import ValidationError
-
     with pytest.raises(ValidationError):
         LabelInfo(
             label_name="x",
             ai_reasoning="x",
             summary="x",
             confidence=1.5,
+        )
+
+    with pytest.raises(ValidationError):
+        LabelInfo(
+            label_name="x",
+            ai_reasoning="x",
+            summary="x",
+            confidence=-0.1,
         )
