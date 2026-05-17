@@ -73,3 +73,22 @@ class LabelInfo(BaseModel):
     confidence: float = Field(ge=0, le=1)
     sources: list[str] = Field(default_factory=list)
     notes: str | None = None
+
+
+class GroundTruth(BaseModel):
+    founded_year: int | None = None
+    country: str | None = None
+    parent_label: str | None = None
+    ai_content_expected: AIContentStatus | None = None
+
+
+class Fixture(BaseModel):
+    id: str
+    label_name: str
+    style: str
+    release_name: str | None = None
+    ground_truth: GroundTruth | None = None
+
+
+class FixturesFile(BaseModel):
+    fixtures: list[Fixture]

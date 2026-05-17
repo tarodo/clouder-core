@@ -1,0 +1,60 @@
+fixtures:
+  - id: anjunadeep
+    label_name: Anjunadeep
+    style: progressive house
+    release_name: null
+    ground_truth:
+      founded_year: 2005
+      country: UK
+      parent_label: Anjunabeats
+      ai_content_expected: none_detected
+
+  - id: drumcode
+    label_name: Drumcode
+    style: techno
+    release_name: null
+    ground_truth:
+      founded_year: 1996
+      country: Sweden
+      ai_content_expected: none_detected
+
+  - id: hessle-audio
+    label_name: Hessle Audio
+    style: bass / UK garage
+    release_name: null
+    ground_truth:
+      founded_year: 2007
+      country: UK
+      ai_content_expected: none_detected
+
+  - id: wisdom-teeth
+    label_name: Wisdom Teeth
+    style: bass / UK garage
+    release_name: K-LONE - Cape Cira
+    ground_truth: null
+
+  - id: obscure-niche-2
+    label_name: Pessimist Productions
+    style: drum and bass
+    release_name: null
+    ground_truth: null
+
+  - id: ambiguous-trap
+    label_name: Vision
+    style: drum and bass
+    release_name: null
+    ground_truth: null
+
+  - id: synthetic-ai-trap
+    label_name: NeuroBeats AI
+    style: lofi
+    release_name: null
+    ground_truth:
+      ai_content_expected: confirmed
+
+  - id: suno-style-label
+    label_name: Endless AI Records
+    style: ambient
+    release_name: null
+    ground_truth:
+      ai_content_expected: suspected
