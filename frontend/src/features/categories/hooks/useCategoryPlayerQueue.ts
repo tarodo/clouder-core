@@ -26,7 +26,17 @@ export function useCategoryPlayerQueue(
     let cursor = 0;
     if (currentId) {
       const idx = tracks.findIndex((t) => t.id === currentId);
-      cursor = idx >= 0 ? idx : Math.min(cursorRef.current, Math.max(0, tracks.length - 1));
+      if (idx >= 0) {
+        cursor = idx;
+      } else {
+        // Current track was shrunk out of the queue (e.g. assigned to a
+        // playlist with fresh-on filter). Everything after the removed
+        // track shifted down by 1, so the immediate successor now lives
+        // at the OLD cursor index. Setting `cursor = cursorRef - 1` makes
+        // the natural-end advance(+1) land on that successor instead of
+        // skipping past it.
+        cursor = Math.max(-1, cursorRef.current - 1);
+      }
     }
     playback.controls.bindQueue({
       source: { type: 'category', categoryId, styleId },
