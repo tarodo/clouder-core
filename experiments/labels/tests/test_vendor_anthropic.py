@@ -6,6 +6,42 @@ from lab.schemas import LabelInfo
 from lab.vendors.anthropic_claude import AnthropicClaudeAdapter
 
 
+def test_run_retries_on_rate_limit(mocker):
+    class RateLimitError(Exception):
+        def __init__(self, message: str = "429"):
+            super().__init__(message)
+            self.response = SimpleNamespace(headers={"retry-after": "0"})
+
+    fake_client = mocker.MagicMock()
+    fake_client.messages.create.side_effect = [
+        RateLimitError(),
+        RateLimitError(),
+        _mock_response(_valid_payload()),
+    ]
+    mocker.patch("time.sleep")  # don't actually wait
+    adapter = AnthropicClaudeAdapter(api_key="x", default_model="claude-sonnet-4-6", client=fake_client)
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.error is None
+    assert resp.parsed.label_name == "Drumcode"
+    assert fake_client.messages.create.call_count == 3
+
+
+def test_run_gives_up_after_max_retries(mocker):
+    class RateLimitError(Exception):
+        def __init__(self):
+            super().__init__("429")
+            self.response = SimpleNamespace(headers={"retry-after": "0"})
+
+    fake_client = mocker.MagicMock()
+    fake_client.messages.create.side_effect = RateLimitError()  # always fails
+    mocker.patch("time.sleep")
+    adapter = AnthropicClaudeAdapter(api_key="x", default_model="claude-sonnet-4-6", client=fake_client)
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.parsed is None
+    assert resp.error is not None
+    assert "RateLimitError" in resp.error or "429" in resp.error
+
+
 def _mock_response(parsed_dict: dict) -> SimpleNamespace:
     """Mimic an anthropic.types.Message with a tool_use block."""
     tool_use = SimpleNamespace(
