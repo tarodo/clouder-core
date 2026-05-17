@@ -47,7 +47,6 @@ class XAIGrokAdapter:
         json_schema = {
             "name": "label_info",
             "schema": schema.model_json_schema(),
-            "strict": True,
         }
 
         started = time.monotonic()
