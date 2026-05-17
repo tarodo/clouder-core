@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     perplexity_model: str = "sonar"
 
     concurrency: int = 1
-    request_timeout: int = 60
+    request_timeout: int = 180
 
     model_config = SettingsConfigDict(
         env_file=".env",

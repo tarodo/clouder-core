@@ -142,6 +142,25 @@ def test_run_returns_error_when_no_tool_use(mocker):
     assert "no tool_use" in resp.error.lower()
 
 
+def test_run_retries_on_connection_error(mocker):
+    class APIConnectionError(Exception):
+        def __init__(self):
+            super().__init__("Connection error.")
+
+    fake_client = mocker.MagicMock()
+    fake_client.messages.create.side_effect = [
+        APIConnectionError(),
+        _mock_response(_valid_payload()),
+    ]
+    mocker.patch("time.sleep")
+    adapter = AnthropicClaudeAdapter(
+        api_key="x", default_model="claude-sonnet-4-6", client=fake_client
+    )
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.error is None
+    assert fake_client.messages.create.call_count == 2
+
+
 def test_run_returns_error_on_validation_failure(mocker):
     """Malformed tool_use input must NOT crash the adapter."""
     fake_client = mocker.MagicMock()

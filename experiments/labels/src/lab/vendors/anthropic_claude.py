@@ -53,6 +53,8 @@ class AnthropicClaudeAdapter:
             "max_uses": 5,
         }
 
+        RETRYABLE = {"RateLimitError", "APIConnectionError"}
+
         started = time.monotonic()
         try:
             attempts = 0
@@ -69,20 +71,21 @@ class AnthropicClaudeAdapter:
                     )
                     break
                 except Exception as exc:  # noqa: BLE001
-                    if type(exc).__name__ == "RateLimitError":
-                        attempts += 1
-                        if attempts > 5 or time.monotonic() >= deadline:
-                            raise
-                        retry_after = None
+                    exc_name = type(exc).__name__
+                    if exc_name not in RETRYABLE:
+                        raise
+                    attempts += 1
+                    if attempts > 5 or time.monotonic() >= deadline:
+                        raise
+                    retry_after = None
+                    if exc_name == "RateLimitError":
                         try:
                             retry_after = float(exc.response.headers.get("retry-after"))
                         except (TypeError, ValueError, AttributeError):
                             pass
-                        wait = retry_after if retry_after is not None else min(backoff, 60.0)
-                        time.sleep(wait)
-                        backoff = min(backoff * 2, 60.0)
-                    else:
-                        raise
+                    wait = retry_after if retry_after is not None else min(backoff, 60.0)
+                    time.sleep(wait)
+                    backoff = min(backoff * 2, 60.0)
         except Exception as exc:  # noqa: BLE001 — adapter contract: never raise
             return VendorResponse(
                 parsed=None,

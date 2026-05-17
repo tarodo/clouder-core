@@ -12,7 +12,7 @@ def test_settings_defaults(monkeypatch):
     assert s.xai_model == "grok-4"
     assert s.perplexity_model == "sonar"
     assert s.concurrency == 1
-    assert s.request_timeout == 60
+    assert s.request_timeout == 180
 
 
 def test_available_vendor_names(monkeypatch):
