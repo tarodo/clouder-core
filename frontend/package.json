@@ -18,7 +18,7 @@
     "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run",
     "test:watch": "NODE_OPTIONS=--no-experimental-webstorage vitest",
     "test:coverage": "NODE_OPTIONS=--no-experimental-webstorage vitest run --coverage",
-    "api:types": "openapi-typescript ../docs/openapi.yaml -o src/api/schema.d.ts"
+    "api:types": "openapi-typescript ../docs/api/openapi.yaml -o src/api/schema.d.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

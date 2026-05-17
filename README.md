@@ -6,10 +6,10 @@ The service performs weekly track collection from Beatport, stores raw snapshots
 
 ## Documentation
 
-- [Frontend integration guide](docs/frontend.md) — auth flow, user flows, quirks for frontend devs
-- [OpenAPI spec](docs/openapi.yaml) — import into Postman / Swagger UI / Insomnia
-- [Data model](docs/data-model.md) — canonical entities + triage tables
-- [Spotify search](docs/spotify-search.md) — vendor match details
+- [Frontend integration guide](docs/archive/legacy/frontend.md) — auth flow, user flows, quirks for frontend devs (legacy; full rewrite pending)
+- [OpenAPI spec](docs/api/openapi.yaml) — import into Postman / Swagger UI / Insomnia
+- [Data model](docs/archive/legacy/data-model.md) — canonical entities + triage tables (legacy; full rewrite pending)
+- [Spotify search](docs/archive/legacy/spotify-search.md) — vendor match details (legacy; full rewrite pending)
 
 ## Current Architecture
 
