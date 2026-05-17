@@ -9,7 +9,9 @@ PROMPTS: dict[str, PromptConfig] = {}
 
 def register(cfg: PromptConfig) -> None:
     if cfg.slug in PROMPTS:
-        raise ValueError(f"prompt {cfg.slug!r} already registered")
+        if PROMPTS[cfg.slug] is not cfg:
+            raise ValueError(f"prompt {cfg.slug!r} already registered")
+        return
     PROMPTS[cfg.slug] = cfg
 
 
