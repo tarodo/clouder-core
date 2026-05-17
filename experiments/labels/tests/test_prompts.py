@@ -51,3 +51,18 @@ def test_registry_rejects_duplicate():
     register(_make_prompt(slug="demo_b", version="v1"))
     with pytest.raises(ValueError, match="already registered"):
         register(_make_prompt(slug="demo_b", version="v1"))
+
+
+def test_builtin_prompts_register():
+    from lab.prompts import PROMPTS, load_builtin_prompts
+
+    PROMPTS.clear()
+    load_builtin_prompts()
+    assert set(PROMPTS) == {
+        "label_v1_baseline",
+        "label_v2_facts",
+        "label_v3_ai_focus",
+    }
+    # v3 extends v2's system prompt
+    assert "AI-content assessment" in PROMPTS["label_v3_ai_focus"].system
+    assert "AI-content assessment" not in PROMPTS["label_v2_facts"].system
