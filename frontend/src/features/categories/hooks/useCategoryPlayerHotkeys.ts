@@ -13,10 +13,10 @@ export interface UseCategoryPlayerHotkeysArgs {
 
 const SEEK_PCT: Record<string, number> = {
   KeyA: 0,
-  KeyS: 0.25,
-  KeyD: 0.5,
-  KeyF: 0.75,
-  KeyG: 1,
+  KeyS: 0.2,
+  KeyD: 0.4,
+  KeyF: 0.6,
+  KeyG: 0.8,
 };
 
 function isEditable(target: EventTarget | null): boolean {
