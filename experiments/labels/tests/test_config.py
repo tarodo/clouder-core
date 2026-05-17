@@ -11,7 +11,7 @@ def test_settings_defaults(monkeypatch):
     assert s.anthropic_model == "claude-sonnet-4-6"
     assert s.xai_model == "grok-4"
     assert s.perplexity_model == "sonar"
-    assert s.concurrency == 4
+    assert s.concurrency == 1
     assert s.request_timeout == 60
 
 

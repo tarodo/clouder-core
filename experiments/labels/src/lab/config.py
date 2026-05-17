@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     xai_model: str = "grok-4"
     perplexity_model: str = "sonar"
 
-    concurrency: int = 4
+    concurrency: int = 1
     request_timeout: int = 60
 
     model_config = SettingsConfigDict(

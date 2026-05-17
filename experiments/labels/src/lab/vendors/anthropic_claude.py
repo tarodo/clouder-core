@@ -55,13 +55,34 @@ class AnthropicClaudeAdapter:
 
         started = time.monotonic()
         try:
-            response = self._client.messages.create(
-                model=chosen_model,
-                max_tokens=4096,
-                system=system,
-                messages=[{"role": "user", "content": user}],
-                tools=[web_search_tool, emit_tool],
-            )
+            attempts = 0
+            deadline = time.monotonic() + self._timeout * 6
+            backoff = 10.0
+            while True:
+                try:
+                    response = self._client.messages.create(
+                        model=chosen_model,
+                        max_tokens=4096,
+                        system=system,
+                        messages=[{"role": "user", "content": user}],
+                        tools=[web_search_tool, emit_tool],
+                    )
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    if type(exc).__name__ == "RateLimitError":
+                        attempts += 1
+                        if attempts > 5 or time.monotonic() >= deadline:
+                            raise
+                        retry_after = None
+                        try:
+                            retry_after = float(exc.response.headers.get("retry-after"))
+                        except (TypeError, ValueError, AttributeError):
+                            pass
+                        wait = retry_after if retry_after is not None else min(backoff, 60.0)
+                        time.sleep(wait)
+                        backoff = min(backoff * 2, 60.0)
+                    else:
+                        raise
         except Exception as exc:  # noqa: BLE001 — adapter contract: never raise
             return VendorResponse(
                 parsed=None,

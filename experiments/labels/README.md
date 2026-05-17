@@ -18,6 +18,8 @@ cp .env.example .env
 
 ## Run
 
+Default concurrency is 1 to stay within Anthropic's basic-tier 30k input-tokens/min limit; pass `--concurrency N` explicitly for higher tiers.
+
 ```bash
 # full matrix
 .venv/bin/lab run

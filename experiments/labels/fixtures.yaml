@@ -5,7 +5,7 @@ fixtures:
     release_name: null
     ground_truth:
       founded_year: 2005
-      country: UK
+      country: GB
       parent_label: Anjunabeats
       ai_content_expected: none_detected
 
@@ -24,7 +24,7 @@ fixtures:
     release_name: null
     ground_truth:
       founded_year: 2007
-      country: UK
+      country: GB
       ai_content_expected: none_detected
 
   - id: wisdom-teeth
