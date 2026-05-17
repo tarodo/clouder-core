@@ -1,12 +1,11 @@
-"""xAI Grok adapter via the OpenAI-compatible API."""
+"""xAI Grok adapter via the Responses API."""
 
 from __future__ import annotations
 
-import json
 import time
 from typing import Any, Type
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from .base import VendorResponse
 from .pricing import estimate_cost
@@ -44,23 +43,17 @@ class XAIGrokAdapter:
         model: str | None = None,
     ) -> VendorResponse:
         chosen_model = model or self.default_model
-        json_schema = {
-            "name": "label_info",
-            "schema": schema.model_json_schema(),
-        }
 
         started = time.monotonic()
         try:
-            response = self._client.chat.completions.create(
+            response = self._client.responses.parse(
                 model=chosen_model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                response_format={"type": "json_schema", "json_schema": json_schema},
-                tools=[{"type": "live_search"}],
+                input=[{"role": "user", "content": user}],
+                instructions=system,
+                tools=[{"type": "web_search"}],
+                text_format=schema,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — never raise
             return VendorResponse(
                 parsed=None,
                 raw={},
@@ -73,41 +66,52 @@ class XAIGrokAdapter:
 
         latency_ms = int((time.monotonic() - started) * 1000)
 
-        # Defensive extraction — never raise from here on.
         input_tokens = 0
         output_tokens = 0
-        content = ""
         citations: list[str] = []
+        raw_dump: dict = {}
+        parse_error: str | None = None
+        parsed: BaseModel | None = None
+
         try:
-            usage = response.usage
-            input_tokens = getattr(usage, "prompt_tokens", 0) or 0
-            output_tokens = getattr(usage, "completion_tokens", 0) or 0
-            content = response.choices[0].message.content or ""
-            citations = list(getattr(response, "citations", []) or [])
+            usage = getattr(response, "usage", None)
+            if usage is not None:
+                input_tokens = (
+                    getattr(usage, "input_tokens", None)
+                    or getattr(usage, "prompt_tokens", None)
+                    or 0
+                )
+                output_tokens = (
+                    getattr(usage, "output_tokens", None)
+                    or getattr(usage, "completion_tokens", None)
+                    or 0
+                )
+
+            citations = list(getattr(response, "citations", None) or [])
+            # Some SDK versions surface citations inside output items.
+            if not citations:
+                for item in getattr(response, "output", None) or []:
+                    item_type = getattr(item, "type", None)
+                    if item_type and "search" in item_type.lower():
+                        for c in getattr(item, "citations", None) or []:
+                            url = getattr(c, "url", None) or (c.get("url") if isinstance(c, dict) else None)
+                            if url:
+                                citations.append(url)
+
+            parsed = getattr(response, "output_parsed", None)
+            raw_dump = _to_dict(response)
         except Exception as exc:  # noqa: BLE001
-            cost = estimate_cost(chosen_model, input_tokens, output_tokens)
-            return VendorResponse(
-                parsed=None,
-                raw={"content": content, "citations": citations},
-                citations=citations,
-                usage={"input_tokens": input_tokens, "output_tokens": output_tokens, "cost_usd": cost},
-                latency_ms=latency_ms,
-                model=chosen_model,
-                error=f"malformed response: {type(exc).__name__}: {exc}",
-            )
+            parse_error = f"parse error: {type(exc).__name__}: {exc}"
 
         cost = estimate_cost(chosen_model, input_tokens, output_tokens)
 
-        parsed: BaseModel | None = None
-        error: str | None = None
-        try:
-            parsed = schema.model_validate_json(content)
-        except (json.JSONDecodeError, ValidationError, ValueError) as exc:
-            error = f"parse error: {type(exc).__name__}: {exc}"
+        error: str | None = parse_error
+        if error is None and parsed is None:
+            error = "no output_parsed in Responses API response"
 
         return VendorResponse(
             parsed=parsed,
-            raw={"content": content, "citations": citations},
+            raw=raw_dump,
             citations=citations,
             usage={
                 "input_tokens": input_tokens,
@@ -118,3 +122,12 @@ class XAIGrokAdapter:
             model=chosen_model,
             error=error,
         )
+
+
+def _to_dict(obj: Any) -> dict:
+    """Best-effort serialization for the `raw` field."""
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()
+    if hasattr(obj, "__dict__"):
+        return {k: getattr(obj, k) for k in vars(obj) if not k.startswith("_")}
+    return {"repr": repr(obj)}
