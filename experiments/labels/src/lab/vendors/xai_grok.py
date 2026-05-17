@@ -58,7 +58,7 @@ class XAIGrokAdapter:
                     {"role": "user", "content": user},
                 ],
                 response_format={"type": "json_schema", "json_schema": json_schema},
-                tools=[{"type": "web_search"}],
+                tools=[{"type": "live_search"}],
             )
         except Exception as exc:  # noqa: BLE001
             return VendorResponse(
