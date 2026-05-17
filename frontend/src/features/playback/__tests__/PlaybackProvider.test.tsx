@@ -589,4 +589,93 @@ describe('PlaybackProvider SDK lifecycle', () => {
     act(() => { handle.getLatest()?.__emit('account_error', { message: 'free' }); });
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/auth/premium-required'));
   });
+
+  it('natural end auto-advances to next track when SDK pauses at position 0', async () => {
+    const onCursorChange = vi.fn();
+    const handle = installSpotifySdkMock();
+    const captured: { bodies: ({ uris?: string[] } | null)[] } = { bodies: [] };
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', async ({ request }) => {
+        captured.bodies.push((await request.json()) as { uris?: string[] });
+        return HttpResponse.json({}, { status: 204 });
+      }),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'category', categoryId: 'c1', styleId: 's1' },
+        tracks: [
+          { id: 'A', title: '', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spA' },
+          { id: 'B', title: '', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spB' },
+        ],
+        cursor: 0,
+        onCursorChange,
+      });
+    });
+    await playAndEmitReady(() => result.current.controls.play(0), handle);
+    await waitFor(() => expect(captured.bodies[0]?.uris).toEqual(['spotify:track:spA']));
+    // Confirm SDK heard our track and reported it playing.
+    act(() => {
+      handle.getLatest()?.__emit('player_state_changed', {
+        paused: false,
+        position: 500,
+        duration: 1000,
+        track_window: { current_track: { uri: 'spotify:track:spA' } },
+      });
+    });
+    // Track ends with nothing cued in the user's remote queue: SDK pauses
+    // at position 0 with the URI still equal to our expected track.
+    act(() => {
+      handle.getLatest()?.__emit('player_state_changed', {
+        paused: true,
+        position: 0,
+        duration: 1000,
+        track_window: { current_track: { uri: 'spotify:track:spA' } },
+      });
+    });
+    // Auto-advance fires: SDK should be asked to play track B.
+    await waitFor(() =>
+      expect(captured.bodies.at(-1)?.uris).toEqual(['spotify:track:spB']),
+    );
+    expect(onCursorChange).toHaveBeenLastCalledWith(1);
+  });
+
+  it('natural-end fallback does NOT fire on first paused event after play (no prior playing)', async () => {
+    const handle = installSpotifySdkMock();
+    const captured: { calls: number } = { calls: 0 };
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', () => {
+        captured.calls += 1;
+        return HttpResponse.json({}, { status: 204 });
+      }),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'category', categoryId: 'c1', styleId: 's1' },
+        tracks: [
+          { id: 'A', title: '', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spA' },
+          { id: 'B', title: '', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spB' },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    await playAndEmitReady(() => result.current.controls.play(0), handle);
+    await waitFor(() => expect(captured.calls).toBe(1));
+    // SDK emits paused=true+position=0 before any playing event (e.g. it's
+    // still loading the track on a remote device). MUST NOT advance.
+    act(() => {
+      handle.getLatest()?.__emit('player_state_changed', {
+        paused: true,
+        position: 0,
+        duration: 1000,
+        track_window: { current_track: { uri: 'spotify:track:spA' } },
+      });
+    });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(captured.calls).toBe(1);
+  });
 });
