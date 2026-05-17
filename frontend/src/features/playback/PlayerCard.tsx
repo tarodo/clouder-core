@@ -14,6 +14,7 @@ import classes from './PlayerCard.module.css';
 import type { PlaybackTrack } from './lib/types';
 import { useScrubDebounce } from './useScrubDebounce';
 import { pctToMs } from './lib/seekHotkeys';
+import { formatLength } from '../../lib/formatters';
 
 export type PlayerCardState =
   | 'idle'
@@ -63,6 +64,11 @@ export interface PlayerCardProps {
    * player's label + BPM band).
    */
   belowMainRow?: ReactNode;
+  /**
+   * When true, render `m:ss / m:ss` (current position / track duration)
+   * below the scrubber. Opt-in so curate's denser layout stays unchanged.
+   */
+  showTimes?: boolean;
   /** Spotify external open href; when set, renders an icon button at top-right. */
   spotifyHref?: string;
   /** Tooltip / aria text for the Spotify external icon. */
@@ -100,6 +106,7 @@ export function PlayerCard(props: PlayerCardProps) {
     mixName,
     deviceIndicator,
     belowMainRow,
+    showTimes = false,
     mobileSeekChips = false,
     spotifyHref,
     spotifyAriaLabel,
@@ -277,6 +284,16 @@ export function PlayerCard(props: PlayerCardProps) {
         style={{ opacity: SCRUB_OPACITY[state], marginTop: isMini ? 4 : mobileSeekChips ? 8 : 16 }}
         aria-label={t('playback.controls.scrub_aria')}
       />
+      {showTimes && !isMini ? (
+        <Group justify="space-between" mt={4}>
+          <Text size="xs" c="dimmed" className="font-mono">
+            {formatLength(Math.min(positionMs, progressMax))}
+          </Text>
+          <Text size="xs" c="dimmed" className="font-mono">
+            {formatLength(track?.duration_ms ?? null)}
+          </Text>
+        </Group>
+      ) : null}
       {mobileSeekChips ? (
         <Group gap={4} wrap="nowrap" mt={4} justify="space-between">
           {SEEK_CHIP_PCTS.map((pct) => {

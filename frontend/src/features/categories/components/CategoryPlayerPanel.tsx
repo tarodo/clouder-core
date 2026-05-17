@@ -239,6 +239,7 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
         positionMs={playback.track.positionMs}
         mixName={effectiveRich?.mix_name ?? null}
         belowMainRow={metaRow}
+        showTimes
         spotifyHref={spotifyHref}
         spotifyAriaLabel={t('category_player.actions.open_in_spotify_aria', {
           title: current.title,
