@@ -24,7 +24,7 @@ jobs:
           filters: |
             frontend:
               - 'frontend/**'
-              - 'docs/openapi.yaml'
+              - 'docs/api/openapi.yaml'
               - '.github/workflows/pr.yml'
             backend:
               - 'src/**'
@@ -170,7 +170,7 @@ jobs:
         run: |
           pnpm api:types
           if ! git diff --quiet src/api/schema.d.ts; then
-            echo "::error::src/api/schema.d.ts is out of sync with docs/openapi.yaml — run pnpm api:types"
+            echo "::error::src/api/schema.d.ts is out of sync with docs/api/openapi.yaml — run pnpm api:types"
             git --no-pager diff src/api/schema.d.ts
             exit 1
           fi

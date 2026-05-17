@@ -14,7 +14,7 @@ cp .env.example .env.local
 # edit .env.local — set VITE_API_BASE_URL to the prod API Gateway URL:
 #   echo "VITE_API_BASE_URL=$(cd ../infra && terraform output -raw api_endpoint)" > .env.local
 pnpm install
-pnpm api:types          # regenerate src/api/schema.d.ts from ../docs/openapi.yaml
+pnpm api:types          # regenerate src/api/schema.d.ts from ../docs/api/openapi.yaml
 pnpm dev
 # open http://127.0.0.1:5173/
 ```
@@ -48,7 +48,7 @@ pnpm dev
 | `pnpm test` | Vitest single run (jsdom + RTL + MSW) |
 | `pnpm test:watch` | Vitest watch mode |
 | `pnpm test:coverage` | Coverage report (no enforced threshold) |
-| `pnpm api:types` | Regenerate API types from `../docs/openapi.yaml` |
+| `pnpm api:types` | Regenerate API types from `../docs/api/openapi.yaml` |
 
 ---
 
