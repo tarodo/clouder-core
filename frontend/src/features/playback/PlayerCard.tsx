@@ -56,6 +56,13 @@ export interface PlayerCardProps {
    * <DeviceIndicator mode="full" ... /> here. When null/undefined, renders nothing.
    */
   deviceIndicator?: ReactNode;
+  /**
+   * Optional full-width slot rendered AFTER the main Group (cover + text +
+   * controls) and BEFORE the scrubber. Useful when the meta you want to show
+   * is wider than the text Stack next to the cover can fit (e.g. category
+   * player's label + BPM band).
+   */
+  belowMainRow?: ReactNode;
   /** Spotify external open href; when set, renders an icon button at top-right. */
   spotifyHref?: string;
   /** Tooltip / aria text for the Spotify external icon. */
@@ -92,6 +99,7 @@ export function PlayerCard(props: PlayerCardProps) {
     metaRow,
     mixName,
     deviceIndicator,
+    belowMainRow,
     mobileSeekChips = false,
     spotifyHref,
     spotifyAriaLabel,
@@ -250,6 +258,10 @@ export function PlayerCard(props: PlayerCardProps) {
           </ActionIcon>
         ) : null}
       </Group>
+
+      {belowMainRow && !isMini ? (
+        <div style={{ marginTop: 8 }}>{belowMainRow}</div>
+      ) : null}
 
       <Slider
         className={classes.scrub}
