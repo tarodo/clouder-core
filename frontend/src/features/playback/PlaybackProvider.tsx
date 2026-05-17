@@ -148,6 +148,13 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   // after transferMyPlayback (which still report the user's previously-cued
   // remote-queue track) trigger an infinite advance loop.
   const playbackConfirmedRef = useRef<boolean>(false);
+  // Natural-end detector: the URI-mismatch branch only fires when Spotify
+  // Connect auto-loads the next track from the user's REMOTE queue. When the
+  // remote queue is empty, SDK simply pauses our track at position 0 with the
+  // URI still equal to our expected one — no mismatch, no advance. Track the
+  // last-seen "playing" state so we can detect the playing → paused-at-zero
+  // transition that indicates the track ran to its end with nothing cued.
+  const wasPlayingExpectedRef = useRef<boolean>(false);
   const [sdkReady, setSdkReady] = useState(false);
   const [sdkError, setSdkError] = useState<SdkError | null>(null);
 
@@ -222,6 +229,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         // URI drift AFTER we've seen our requested track go live.
         if (sdkMatchesExpected && !sdkState.paused) {
           playbackConfirmedRef.current = true;
+          wasPlayingExpectedRef.current = true;
         }
         // Use SDK album cover when SDK URI matches the track currently in
         // state. Earlier the gate used `expectedSpotifyIdRef`, but that ref
@@ -276,6 +284,25 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
           // the next track's id, and confirmation must happen anew.
           expectedSpotifyIdRef.current = null;
           playbackConfirmedRef.current = false;
+          wasPlayingExpectedRef.current = false;
+          void advanceRef.current?.(+1);
+          return;
+        }
+        // Natural-end fallback: track ran out and Spotify Connect had no
+        // remote queue to advance into, so SDK paused at position 0 with the
+        // URI still set to our expected track. Require a prior playing→paused
+        // transition (wasPlayingExpectedRef) so we don't fire on the very
+        // first paused event after a fresh play().
+        if (
+          sdkMatchesExpected &&
+          sdkState.paused &&
+          sdkState.position === 0 &&
+          playbackConfirmedRef.current &&
+          wasPlayingExpectedRef.current
+        ) {
+          expectedSpotifyIdRef.current = null;
+          playbackConfirmedRef.current = false;
+          wasPlayingExpectedRef.current = false;
           void advanceRef.current?.(+1);
         }
       });
@@ -345,6 +372,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       queueDispatch({ type: 'STATUS', status: 'loading' });
       expectedSpotifyIdRef.current = track.spotify_id;
       playbackConfirmedRef.current = false;
+      wasPlayingExpectedRef.current = false;
       await spotifyApi.play(
         { uris: [`spotify:track:${track.spotify_id}`], deviceId },
         { onAuthExpired },
@@ -448,6 +476,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       }));
       expectedSpotifyIdRef.current = t.spotify_id;
       playbackConfirmedRef.current = false;
+      wasPlayingExpectedRef.current = false;
       await spotifyApi.play(
         { uris: [`spotify:track:${t.spotify_id}`], deviceId },
         { onAuthExpired },
@@ -538,6 +567,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     onCursorChangeRef.current = null;
     expectedSpotifyIdRef.current = null;
     playbackConfirmedRef.current = false;
+    wasPlayingExpectedRef.current = false;
   }, [cancelPendingAdvance]);
 
   // --- Devices slice (stub — real logic lands in Tasks 6–9) ---
