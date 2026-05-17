@@ -55,6 +55,10 @@ function toPlaybackTrack(t: CategoryTrack): PlaybackTrack {
   };
 }
 
+export type CategoryDetailOutletContext = {
+  items: CategoryTrack[];
+};
+
 export function CategoryDetailPage() {
   const { styleId, id } = useParams<{ styleId: string; id: string }>();
   if (!styleId || !id) return <Navigate to="/categories" replace />;
@@ -191,9 +195,11 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
 
   // When the nested /player route is active (mobile only), render just the
   // outlet — the queue + filter state above already includes the user's
-  // visible list, so the player has the right context.
+  // visible list, so the player has the right context. Items are forwarded
+  // via outlet context so the child page can pass them to CategoryPlayerPanel
+  // for rich metadata (label/BPM/mix_name) lookup.
   if (onPlayerSubpath) {
-    return <Outlet />;
+    return <Outlet context={{ items } satisfies CategoryDetailOutletContext} />;
   }
 
   const tracksTab = (
@@ -243,7 +249,7 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
       </Group>
       {isDesktop ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
-          <CategoryPlayerPanel categoryId={id} styleId={styleId} />
+          <CategoryPlayerPanel categoryId={id} styleId={styleId} items={items} />
           <div style={{ flex: 1, minWidth: 0 }}>{tracksTab}</div>
         </Flex>
       ) : (

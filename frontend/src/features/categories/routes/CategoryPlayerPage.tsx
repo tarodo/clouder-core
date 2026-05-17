@@ -1,8 +1,9 @@
 import { Stack, ActionIcon, Group } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useNavigate, useParams, Navigate } from 'react-router';
+import { useNavigate, useOutletContext, useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { CategoryPlayerPanel } from '../components/CategoryPlayerPanel';
+import type { CategoryDetailOutletContext } from './CategoryDetailPage';
 
 // This page is nested under CategoryDetailPage; the parent owns the queue
 // binding + filter state. We just render the panel and a back link.
@@ -15,6 +16,8 @@ export function CategoryPlayerPage() {
 function CategoryPlayerPageInner({ styleId, id }: { styleId: string; id: string }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const ctx = useOutletContext<CategoryDetailOutletContext | undefined>();
+  const items = ctx?.items ?? [];
   return (
     <Stack gap="md" p="md">
       <Group>
@@ -26,7 +29,7 @@ function CategoryPlayerPageInner({ styleId, id }: { styleId: string; id: string 
           <IconArrowLeft />
         </ActionIcon>
       </Group>
-      <CategoryPlayerPanel categoryId={id} styleId={styleId} />
+      <CategoryPlayerPanel categoryId={id} styleId={styleId} items={items} />
     </Stack>
   );
 }

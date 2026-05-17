@@ -96,7 +96,7 @@ function ui() {
     <QueryClientProvider client={qc}>
       <MantineProvider>
         <Notifications />
-        <CategoryPlayerPanel categoryId="c1" styleId="s1" />
+        <CategoryPlayerPanel categoryId="c1" styleId="s1" items={[]} />
       </MantineProvider>
     </QueryClientProvider>
   );

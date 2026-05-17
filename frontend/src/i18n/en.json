@@ -191,6 +191,7 @@
     "actions": {
       "back_aria": "Back to tracks",
       "open_player_aria": "Open player",
+      "open_in_spotify_aria": "Open {{title}} in Spotify (new tab)",
       "remove_from_category": "Remove from category"
     },
     "empty": {
