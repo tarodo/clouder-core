@@ -40,7 +40,9 @@ describe('useCategoryPlayerHotkeys', () => {
     expect(callbacks.onNext).toHaveBeenCalledOnce();
   });
 
-  it('A/S/D/F/G seek to 0/0.25/0.5/0.75/1.0', () => {
+  it('A/S/D/F/G seek to 0/20/40/60/80% (matches curate convention)', () => {
+    // G must NOT be 1.0 — seeking to the very end fires the natural-end
+    // detector and auto-advances away from the user's track.
     renderHook(() => useCategoryPlayerHotkeys({ ...callbacks, active: true, playlistCount: 10 }));
     press('KeyA');
     press('KeyS');
@@ -48,10 +50,10 @@ describe('useCategoryPlayerHotkeys', () => {
     press('KeyF');
     press('KeyG');
     expect(callbacks.onSeekPct).toHaveBeenNthCalledWith(1, 0);
-    expect(callbacks.onSeekPct).toHaveBeenNthCalledWith(2, 0.25);
-    expect(callbacks.onSeekPct).toHaveBeenNthCalledWith(3, 0.5);
-    expect(callbacks.onSeekPct).toHaveBeenNthCalledWith(4, 0.75);
-    expect(callbacks.onSeekPct).toHaveBeenNthCalledWith(5, 1);
+    expect(callbacks.onSeekPct).toHaveBeenNthCalledWith(2, 0.2);
+    expect(callbacks.onSeekPct).toHaveBeenNthCalledWith(3, 0.4);
+    expect(callbacks.onSeekPct).toHaveBeenNthCalledWith(4, 0.6);
+    expect(callbacks.onSeekPct).toHaveBeenNthCalledWith(5, 0.8);
   });
 
   it('Digit1..Digit9 map to indices 0..8', () => {
