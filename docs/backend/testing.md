@@ -92,9 +92,9 @@ Standard Python test run.
 
 ### `frontend` (schema drift check)
 
-`frontend/src/api/schema.d.ts` is auto-generated from `docs/openapi.yaml` by running `pnpm api:types` from the `frontend/` directory. The CI job regenerates the file and diffs it against the committed version. If the diff is non-empty, CI fails.
+`frontend/src/api/schema.d.ts` is auto-generated from `docs/api/openapi.yaml` by running `pnpm api:types` from the `frontend/` directory. The CI job regenerates the file and diffs it against the committed version. If the diff is non-empty, CI fails.
 
-**After editing the OpenAPI spec** (`docs/openapi.yaml` or `scripts/generate_openapi.py:ROUTES`), run:
+**After editing the OpenAPI spec** (`docs/api/openapi.yaml` or `scripts/generate_openapi.py:ROUTES`), run:
 
 ```bash
 cd frontend && pnpm api:types

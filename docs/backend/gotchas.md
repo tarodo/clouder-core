@@ -183,4 +183,4 @@ See also: [ADR-0014](../adr/0014-aurora-min-acu-zero.md).
 SELECT COUNT(*) FROM clouder_labels WHERE is_ai_suspected = true;
 ```
 
-Adding the column to the list responses requires updating the SQL in the repository and the OpenAPI spec (`docs/openapi.yaml`), then regenerating `frontend/src/api/schema.d.ts` via `pnpm api:types`.
+Adding the column to the list responses requires updating the SQL in the repository and the OpenAPI spec (`docs/api/openapi.yaml`), then regenerating `frontend/src/api/schema.d.ts` via `pnpm api:types`.
