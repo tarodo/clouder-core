@@ -56,7 +56,7 @@ def test_run_parses_json_content(mocker):
     assert call["messages"][0]["content"] == "sys"
     assert call["messages"][1]["content"] == "usr"
     assert call["response_format"]["type"] == "json_schema"
-    assert call["tools"] == [{"type": "web_search"}]
+    assert call["tools"] == [{"type": "live_search"}]
     assert "extra_body" not in call
 
 
