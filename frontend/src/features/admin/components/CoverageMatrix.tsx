@@ -29,7 +29,15 @@ export function CoverageMatrix({ data, onCellClick }: Props) {
           alignItems: 'center',
         }}
       >
-        <Box style={{ position: 'sticky', left: 0, background: 'var(--mantine-color-body)' }} />
+        <Box
+          style={{
+            position: 'sticky',
+            left: 0,
+            zIndex: 3,
+            alignSelf: 'stretch',
+            background: 'var(--mantine-color-body)',
+          }}
+        />
         {weeks.map((w) => (
           <Text key={w} size="xs" ta="center" c="dimmed">
             {w}
@@ -75,18 +83,25 @@ function Row({
 }) {
   return (
     <>
-      <Text
-        size="sm"
-        truncate
+      <Box
         style={{
           position: 'sticky',
           left: 0,
+          zIndex: 2,
+          alignSelf: 'stretch',
+          display: 'flex',
+          alignItems: 'center',
           background: 'var(--mantine-color-body)',
           paddingRight: 8,
+          // Cover the gap between rows so cells don't peek through when the
+          // user scrolls horizontally and rows slide under the sticky column.
+          boxShadow: '4px 0 4px -4px rgba(0, 0, 0, 0.6)',
         }}
       >
-        {styleName}
-      </Text>
+        <Text size="sm" truncate>
+          {styleName}
+        </Text>
+      </Box>
       {weeks.map((w) => {
         const cell = byWeek.get(w);
         const running = tracker.isRunning(styleIdNum, weekYear, w);
