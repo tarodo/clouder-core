@@ -104,3 +104,28 @@ def test_run_returns_error_when_no_tool_use(mocker):
     resp = adapter.run(system="s", user="u", schema=LabelInfo)
     assert resp.parsed is None
     assert "no tool_use" in resp.error.lower()
+
+
+def test_run_returns_error_on_validation_failure(mocker):
+    """Malformed tool_use input must NOT crash the adapter."""
+    fake_client = mocker.MagicMock()
+    tool_use = SimpleNamespace(
+        type="tool_use",
+        name="emit_label_info",
+        input={"label_name": "x"},  # missing required ai_reasoning/summary/confidence
+    )
+    fake_client.messages.create.return_value = SimpleNamespace(
+        content=[tool_use],
+        usage=SimpleNamespace(input_tokens=10, output_tokens=20),
+        model="claude-sonnet-4-6",
+        stop_reason="tool_use",
+    )
+    adapter = AnthropicClaudeAdapter(
+        api_key="sk-test",
+        default_model="claude-sonnet-4-6",
+        client=fake_client,
+    )
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.parsed is None
+    assert resp.error is not None
+    assert "parse error" in resp.error.lower()

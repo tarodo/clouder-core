@@ -80,17 +80,21 @@ class AnthropicClaudeAdapter:
 
         parsed: BaseModel | None = None
         citations: list[str] = []
-        for block in response.content:
-            if getattr(block, "type", None) == "tool_use" and getattr(block, "name", "") == "emit_label_info":
-                parsed = schema.model_validate(block.input)
-            elif getattr(block, "type", None) == "web_search_tool_result":
-                for item in getattr(block, "content", []) or []:
-                    url = getattr(item, "url", None) or (item.get("url") if isinstance(item, dict) else None)
-                    if url:
-                        citations.append(url)
+        parse_error: str | None = None
+        try:
+            for block in response.content:
+                if getattr(block, "type", None) == "tool_use" and getattr(block, "name", "") == "emit_label_info":
+                    parsed = schema.model_validate(block.input)
+                elif getattr(block, "type", None) == "web_search_tool_result":
+                    for item in getattr(block, "content", []) or []:
+                        url = getattr(item, "url", None) or (item.get("url") if isinstance(item, dict) else None)
+                        if url:
+                            citations.append(url)
+        except Exception as exc:  # noqa: BLE001 — adapter contract: never raise
+            parse_error = f"parse error: {type(exc).__name__}: {exc}"
 
-        error: str | None = None
-        if parsed is None:
+        error: str | None = parse_error
+        if error is None and parsed is None:
             error = "no tool_use(emit_label_info) block in response"
 
         return VendorResponse(
