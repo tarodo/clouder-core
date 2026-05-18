@@ -39,7 +39,6 @@ def load_builtin_prompts() -> None:
         before = set(PROMPTS)
         from . import label_v1_baseline  # noqa: F401
         from . import label_v2_facts  # noqa: F401
-        from . import label_v3_ai_focus  # noqa: F401
         _BUILTIN_CONFIGS = [cfg for slug, cfg in PROMPTS.items() if slug not in before]
 
     # Re-register any builtins that may have been evicted (e.g. PROMPTS.clear()).
