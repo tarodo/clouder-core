@@ -136,8 +136,6 @@ class ApiSettings(_SettingsBase):
             "CANONICALIZATION_QUEUE_URL", "CANONICALIZE_QUEUE_URL"
         ),
     )
-    ai_search_enabled: bool = Field(default=False, alias="AI_SEARCH_ENABLED")
-    ai_search_queue_url: str = Field(default="", alias="AI_SEARCH_QUEUE_URL")
     spotify_search_enabled: bool = Field(default=False, alias="SPOTIFY_SEARCH_ENABLED")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
 
@@ -145,15 +143,7 @@ class ApiSettings(_SettingsBase):
 class WorkerSettings(_SettingsBase):
     raw_bucket_name: str = Field(alias="RAW_BUCKET_NAME")
     raw_prefix: str = Field(default="raw/bp/releases", alias="RAW_PREFIX")
-    ai_search_queue_url: str = Field(default="", alias="AI_SEARCH_QUEUE_URL")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
-
-
-class SearchWorkerSettings(_SettingsBase):
-    perplexity_api_key: str = Field(default="")
-    ai_flag_confidence_threshold: float = Field(
-        default=0.6, alias="AI_FLAG_CONFIDENCE_THRESHOLD"
-    )
 
 
 class SpotifyWorkerSettings(_SettingsBase):
@@ -240,14 +230,6 @@ def get_logging_settings() -> LoggingSettings:
 
 
 @functools.lru_cache
-def get_search_worker_settings() -> SearchWorkerSettings:
-    key = _resolve_simple_secret(
-        "PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_SECRET_ARN"
-    )
-    return SearchWorkerSettings(perplexity_api_key=key)
-
-
-@functools.lru_cache
 def get_label_enrichment_worker_settings() -> LabelEnrichmentWorkerSettings:
     gemini = _resolve_simple_secret("GEMINI_API_KEY", "GEMINI_API_KEY_SECRET_ARN")
     openai = _resolve_simple_secret("OPENAI_API_KEY", "OPENAI_API_KEY_SECRET_ARN")
@@ -281,7 +263,6 @@ def reset_settings_cache() -> None:
     get_migration_settings.cache_clear()
     get_data_api_settings.cache_clear()
     get_logging_settings.cache_clear()
-    get_search_worker_settings.cache_clear()
     get_spotify_worker_settings.cache_clear()
     get_vendor_match_settings.cache_clear()
     get_label_enrichment_worker_settings.cache_clear()

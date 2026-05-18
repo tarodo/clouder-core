@@ -13,7 +13,6 @@ from .logging_utils import log_event
 from .normalize import normalize_tracks
 from .repositories import ClouderRepository, create_clouder_repository_from_env, utc_now
 from .schemas import CanonicalizationMessage, validation_error_message
-from .search.prompts import get_latest as get_latest_prompt
 from .settings import get_worker_settings
 from .storage import S3Storage, create_default_s3_client
 
