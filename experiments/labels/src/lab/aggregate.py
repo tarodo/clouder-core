@@ -46,6 +46,44 @@ LIST_FIELDS = (
 STRING_FIELDS = ("parent_label", "distribution", "last_release_date", "country")
 
 
+def _rank_list_round_robin(per_cell_items: list[list[str]], cap: int) -> tuple[list[str], int, int]:
+    """Rank list items: shared first (freq desc), then round-robin from each cell.
+
+    Returns (ranked_items, total_unique, shared_count).
+    """
+    counts: Counter[str] = Counter()
+    seen_original: dict[str, str] = {}
+    for items in per_cell_items:
+        for item in items:
+            if not isinstance(item, str) or not item.strip():
+                continue
+            k = item.strip().lower()
+            if k not in seen_original:
+                seen_original[k] = item.strip()
+            counts[k] += 1
+
+    # Shared first (freq > 1), sorted by freq desc then alphabetic
+    ranked = [k for k, _c in sorted(counts.items(), key=lambda x: (-x[1], x[0])) if counts[k] > 1]
+    seen_in_ranked = set(ranked)
+
+    # Round-robin through remaining items by position
+    max_len = max((len(items) for items in per_cell_items), default=0)
+    for i in range(max_len):
+        if len(ranked) >= cap:
+            break
+        for items in per_cell_items:
+            if i < len(items):
+                k = items[i].strip().lower() if isinstance(items[i], str) else ""
+                if k and k not in seen_in_ranked:
+                    ranked.append(k)
+                    seen_in_ranked.add(k)
+                    if len(ranked) >= cap:
+                        break
+
+    shared_count = sum(1 for c in counts.values() if c > 1)
+    return [seen_original[k] for k in ranked[:cap]], len(seen_original), shared_count
+
+
 def _filter_parseable(cells: list[dict]) -> list[dict]:
     """Return cells whose response.parsed is a non-null dict and error is None."""
     out = []
@@ -101,6 +139,15 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
             merged[field] = None if field == "status" else "unknown"
             prov[field] = "all null"
             continue
+        if len(vals) == 1:
+            merged[field] = vals[0]
+            contributing = None
+            for c in cells:
+                if c["response"]["parsed"].get(field) == vals[0]:
+                    contributing = c["vendor"]["name"]
+                    break
+            prov[field] = f"only source({contributing})"
+            continue
         counts = Counter(vals)
         top_count = max(counts.values())
         top_vals = [v for v, c in counts.items() if c == top_count]
@@ -121,15 +168,24 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
     # country: majority, tie → shortest
     country_vals = [p.get("country") for p in parseds if p.get("country")]
     if country_vals:
-        counts = Counter(country_vals)
-        top_count = max(counts.values())
-        top_vals = [v for v, c in counts.items() if c == top_count]
-        if len(top_vals) == 1:
-            merged["country"] = top_vals[0]
-            prov["country"] = f"majority({top_count}/{len(country_vals)})"
+        if len(country_vals) == 1:
+            merged["country"] = country_vals[0]
+            contributing = None
+            for c in cells:
+                if c["response"]["parsed"].get("country") == country_vals[0]:
+                    contributing = c["vendor"]["name"]
+                    break
+            prov["country"] = f"only source({contributing})"
         else:
-            merged["country"] = min(top_vals, key=len)
-            prov["country"] = f"tie → shortest({merged['country']})"
+            counts = Counter(country_vals)
+            top_count = max(counts.values())
+            top_vals = [v for v, c in counts.items() if c == top_count]
+            if len(top_vals) == 1:
+                merged["country"] = top_vals[0]
+                prov["country"] = f"majority({top_count}/{len(country_vals)})"
+            else:
+                merged["country"] = min(top_vals, key=len)
+                prov["country"] = f"tie → shortest({merged['country']})"
     else:
         merged["country"] = None
         prov["country"] = "all null"
@@ -140,6 +196,15 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
         if not vals:
             merged[field] = None
             prov[field] = "all null"
+            continue
+        if len(vals) == 1:
+            merged[field] = vals[0]
+            contributing = None
+            for c in cells:
+                if c["response"]["parsed"].get(field) == vals[0]:
+                    contributing = c["vendor"]["name"]
+                    break
+            prov[field] = f"only source({contributing})"
             continue
         counts = Counter(vals)
         top_count = max(counts.values())
@@ -170,8 +235,21 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
         merged[field] = chosen
         prov[field] = f"highest confidence({chosen_vendor})" if chosen else "all null"
 
-    # List fields: union + dedup; notable_artists capped top-5 by freq
+    # List fields: union + dedup; notable_artists capped top-5 by round-robin
+    # `confidences` is sorted desc by confidence (already computed earlier in the function).
+    cells_by_conf = [c for c, _ in confidences]
+
     for field in LIST_FIELDS:
+        if field == "notable_artists":
+            per_cell = [
+                (c["response"]["parsed"].get(field, []) or [])
+                for c in cells_by_conf
+            ]
+            ranked_items, unique_count, shared_count = _rank_list_round_robin(per_cell, cap=5)
+            merged[field] = ranked_items
+            prov[field] = f"union top-5 round-robin({unique_count} unique, {shared_count} shared)"
+            continue
+        # Other lists: union all, freq desc, alpha tie-break (existing logic)
         all_items: list[str] = []
         for p in parseds:
             for item in p.get(field, []) or []:
@@ -184,13 +262,8 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
             if key not in seen:
                 seen[key] = item
             counts[key] += 1
-        if field == "notable_artists":
-            ranked = sorted(seen.keys(), key=lambda k: (-counts[k], k))[:5]
-            merged[field] = [seen[k] for k in ranked]
-            prov[field] = f"union top-5 by freq({len(seen)} unique)"
-        else:
-            merged[field] = [seen[k] for k in sorted(seen.keys(), key=lambda k: -counts[k])]
-            prov[field] = f"union({len(seen)})"
+        merged[field] = [seen[k] for k in sorted(seen.keys(), key=lambda k: -counts[k])]
+        prov[field] = f"union({len(seen)})"
 
     # ai_signals: list of dicts, dedup by (kind, description normalized)
     seen_signals: dict[tuple[str, str], dict] = {}
