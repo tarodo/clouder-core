@@ -17,13 +17,15 @@ TABLE_FIELDS: list[str] = [
     "ai_content",
     "confidence",
     "notable_artists",
+    "tagline",          # NEW
+    "instagram_url",    # NEW
+    "twitter_url",      # NEW
 ]
 
 AGGREGATED_TABLE_FIELDS: list[str] = [
     "founded_year",
     "country",
     "parent_label",
-    "logo_url",
     "instagram_url",
     "twitter_url",
     "catalog_size_estimate",

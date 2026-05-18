@@ -138,7 +138,6 @@ def test_build_report_renders_aggregated_section(tmp_path):
             "ai_content": "none_detected",
             "confidence": 0.95,
             "notable_artists": ["Adam Beyer", "Amelie Lens"],
-            "logo_url": "https://example.com/drumcode.png",
             "instagram_url": "https://www.instagram.com/drumcode_se",
             "summary": "Merged summary.",
             "ai_reasoning": "—",
@@ -152,7 +151,6 @@ def test_build_report_renders_aggregated_section(tmp_path):
                 "founded_year": "median:1996",
                 "country": "majority(2/2)",
                 "tagline": "deepseek narrative",
-                "logo_url": "highest confidence(tavily_deepseek)",
             },
             "narrative_cost_usd": 0.0004,
             "narrative_latency_ms": 4200,
@@ -166,7 +164,6 @@ def test_build_report_renders_aggregated_section(tmp_path):
     assert "drumcode — label_v3_app_fields" in text
     assert "Swedish techno powerhouse since 1996." in text
     assert "median:1996" in text
-    assert "highest confidence(tavily_deepseek)" in text
     assert "1996 ✓" in text  # ground-truth match still annotated
     assert "Sweden ✓" in text
 

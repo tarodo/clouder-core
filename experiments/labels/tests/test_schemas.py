@@ -69,7 +69,6 @@ def test_confidence_bounds():
 def test_label_info_accepts_new_app_fields():
     info = LabelInfo(
         label_name="Drumcode",
-        logo_url="https://example.com/drumcode-avatar.png",
         tagline="Swedish techno powerhouse since 1996.",
         instagram_url="https://www.instagram.com/drumcode_se",
         twitter_url="https://x.com/drumcode",
@@ -77,7 +76,6 @@ def test_label_info_accepts_new_app_fields():
         summary="Swedish techno label.",
         confidence=0.9,
     )
-    assert info.logo_url == "https://example.com/drumcode-avatar.png"
     assert info.tagline == "Swedish techno powerhouse since 1996."
     assert info.instagram_url == "https://www.instagram.com/drumcode_se"
     assert info.twitter_url == "https://x.com/drumcode"
@@ -90,7 +88,6 @@ def test_label_info_new_fields_optional():
         summary="-",
         confidence=0.5,
     )
-    assert info.logo_url is None
     assert info.tagline is None
     assert info.instagram_url is None
     assert info.twitter_url is None

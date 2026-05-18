@@ -47,7 +47,6 @@ class LabelInfo(BaseModel):
     country: str | None = None
     founded_year: int | None = None
     status: Literal["active", "inactive", "unknown"] = "unknown"
-    logo_url: str | None = None
     tagline: str | None = None
 
     catalog_size_estimate: int | None = None

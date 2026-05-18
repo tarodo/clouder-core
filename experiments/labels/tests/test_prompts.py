@@ -67,7 +67,5 @@ def test_label_v3_app_fields_contains_app_directives():
     load_builtin_prompts()
     cfg = PROMPTS["label_v3_app_fields"]
     assert cfg.version == "v1"
-    assert "logo_url" in cfg.system
     assert "instagram_url" in cfg.system
     assert "tagline" in cfg.system
-    assert "label logo image URL" in cfg.user_template

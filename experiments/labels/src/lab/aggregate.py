@@ -19,7 +19,6 @@ from .vendors.pricing import estimate_cost
 
 NARRATIVE_FIELDS = ("tagline", "summary", "ai_reasoning", "notes")
 URL_FIELDS = (
-    "logo_url",
     "website",
     "bandcamp_url",
     "residentadvisor_url",
@@ -132,28 +131,30 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
             merged[field] = None
             prov[field] = "all null"
 
-    # Enum fields: majority vote, tie → highest confidence
+    # Enum fields: majority vote, tie → highest confidence; "unknown" is abstention
     for field in ENUM_FIELDS:
-        vals = [p.get(field) for p in parseds if p.get(field) is not None]
-        if not vals:
-            merged[field] = None if field == "status" else "unknown"
-            prov[field] = "all null"
+        raw_vals = [p.get(field) for p in parseds if p.get(field) is not None]
+        voting_vals = [v for v in raw_vals if v != "unknown"]
+        if not voting_vals:
+            # Either all unknown or all null → unknown
+            merged[field] = "unknown"
+            prov[field] = "all unknown" if raw_vals else "all null"
             continue
-        if len(vals) == 1:
-            merged[field] = vals[0]
+        if len(voting_vals) == 1:
+            merged[field] = voting_vals[0]
             contributing = None
             for c in cells:
-                if c["response"]["parsed"].get(field) == vals[0]:
+                if c["response"]["parsed"].get(field) == voting_vals[0]:
                     contributing = c["vendor"]["name"]
                     break
-            prov[field] = f"only source({contributing})"
+            prov[field] = f"only definitive source({contributing})"
             continue
-        counts = Counter(vals)
+        counts = Counter(voting_vals)
         top_count = max(counts.values())
         top_vals = [v for v, c in counts.items() if c == top_count]
         if len(top_vals) == 1:
             merged[field] = top_vals[0]
-            prov[field] = f"majority({top_count}/{len(vals)})"
+            prov[field] = f"majority({top_count}/{len(voting_vals)} definitive)"
         else:
             # Tie — pick value from highest-confidence cell whose value is in top_vals
             chosen = None
