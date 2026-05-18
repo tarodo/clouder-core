@@ -6,35 +6,67 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-# Fields shown in the per-fixture side-by-side table, in order
+# Fields rendered in the per-fixture side-by-side table (one column per vendor)
 TABLE_FIELDS: list[str] = [
+    # identity
     "founded_year",
     "country",
+    "status",
     "parent_label",
+    # size / timeline
     "catalog_size_estimate",
     "releases_last_12_months",
+    "last_release_date",
     "activity",
+    # assessment
     "ai_content",
     "confidence",
+    # taxonomy
+    "primary_styles",
     "notable_artists",
-    "tagline",          # NEW
-    "instagram_url",    # NEW
-    "twitter_url",      # NEW
-]
-
-AGGREGATED_TABLE_FIELDS: list[str] = [
-    "founded_year",
-    "country",
-    "parent_label",
+    # narrative
+    "tagline",
+    # channels
+    "website",
+    "bandcamp_url",
+    "residentadvisor_url",
+    "discogs_url",
+    "beatport_url",
+    "soundcloud_url",
     "instagram_url",
     "twitter_url",
+]
+
+
+# Fields rendered in the Aggregated (consensus) section
+AGGREGATED_TABLE_FIELDS: list[str] = [
+    # identity
+    "founded_year",
+    "country",
+    "status",
+    "parent_label",
+    # size / timeline
     "catalog_size_estimate",
     "releases_last_12_months",
+    "last_release_date",
     "activity",
+    # assessment
     "ai_content",
     "confidence",
-    "tagline",
+    # taxonomy
+    "primary_styles",
     "notable_artists",
+    # narrative
+    "tagline",
+    # channels
+    "website",
+    "bandcamp_url",
+    "residentadvisor_url",
+    "discogs_url",
+    "beatport_url",
+    "soundcloud_url",
+    "instagram_url",
+    "twitter_url",
 ]
 
 EMPTY = "—"
