@@ -249,6 +249,61 @@ def test_get_label_info_joins_label_name():
     assert "JOIN clouder_labels" in sql
 
 
+def test_get_run_parses_jsonb_strings_from_data_api():
+    """Regression: Data API returns JSONB columns as JSON-encoded strings.
+    The repository must parse vendors/models and cast cost_usd to float so
+    the API response matches openapi.yaml.
+    """
+    from decimal import Decimal as _Decimal
+
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = [{
+        "id": "r1", "status": "running", "prompt_slug": "label_v3_app_fields",
+        "prompt_version": "v1",
+        "vendors": '["gemini", "openai"]',
+        "models": '{"gemini": "gemini-3-flash-preview"}',
+        "merge_vendor": "deepseek", "merge_model": "deepseek-v4-flash",
+        "requested_labels": 1, "cells_total": 1, "cells_ok": 0, "cells_error": 0,
+        "cost_usd": _Decimal("0.0123"),
+    }]
+    row = repo.get_run("r1")
+    assert row["vendors"] == ["gemini", "openai"]
+    assert row["models"] == {"gemini": "gemini-3-flash-preview"}
+    assert isinstance(row["cost_usd"], float)
+    assert row["cost_usd"] == 0.0123
+
+
+def test_get_label_info_parses_jsonb_strings_from_data_api():
+    """Regression: Data API returns merged/provenance as JSON-encoded strings
+    and ai_confidence as Decimal. Parse + cast for API response correctness.
+    """
+    from decimal import Decimal as _Decimal
+
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = [{
+        "label_id": "lbl-1",
+        "label_name": "Drumcode",
+        "last_run_id": "run-1",
+        "prompt_slug": "label_v3_app_fields",
+        "prompt_version": "v1",
+        "merged": '{"label_name": "Drumcode", "confidence": 0.9}',
+        "provenance": '{"status": "majority(2/3 definitive)"}',
+        "ai_content": "none_detected",
+        "ai_confidence": _Decimal("0.9"),
+        "status": "active",
+        "primary_styles": ["techno"],
+        "tagline": None, "country": "Sweden",
+        "founded_year": 1996, "activity": "steady",
+        "last_release_date": None,
+        "updated_at": "2026-05-18T21:00:00+00:00",
+    }]
+    row = repo.get_label_info("lbl-1")
+    assert row["merged"] == {"label_name": "Drumcode", "confidence": 0.9}
+    assert row["provenance"] == {"status": "majority(2/3 definitive)"}
+    assert isinstance(row["ai_confidence"], float)
+    assert row["ai_confidence"] == 0.9
+
+
 def test_increment_run_counters_atomic_update_only():
     repo, data_api = _repo_with_fake()
     data_api.execute.return_value = []

@@ -17,7 +17,7 @@ from .label_enrichment.prompts import get_prompt, load_builtin_prompts
 from .label_enrichment.repository import LabelEnrichmentRepository
 from .label_enrichment.settings_provider import LabelEnrichmentSecrets
 from .logging_utils import log_event
-from .settings import get_label_enrichment_worker_settings
+from .settings import get_data_api_settings, get_label_enrichment_worker_settings
 
 try:
     from openai import OpenAI
@@ -26,9 +26,14 @@ except ImportError:  # pragma: no cover — module imported lazily in tests
 
 
 def _build_repository() -> LabelEnrichmentRepository:
-    client = create_default_data_api_client()
-    if client is None:
+    settings = get_data_api_settings()
+    if not settings.is_configured:
         raise RuntimeError("Aurora Data API not configured")
+    client = create_default_data_api_client(
+        resource_arn=str(settings.aurora_cluster_arn),
+        secret_arn=str(settings.aurora_secret_arn),
+        database=settings.aurora_database,
+    )
     return LabelEnrichmentRepository(data_api=client)
 
 
@@ -79,8 +84,12 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         if run_row is None:
             raise RuntimeError(f"run not found: {msg.run_id}")
 
-        vendors = list(run_row.get("vendors") or [])
-        models = dict(run_row.get("models") or {})
+        # Data API returns JSONB columns as JSON-encoded strings, while
+        # tests pass Python list/dict directly — handle both shapes.
+        vendors_raw = run_row.get("vendors") or []
+        models_raw = run_row.get("models") or {}
+        vendors = json.loads(vendors_raw) if isinstance(vendors_raw, str) else list(vendors_raw)
+        models = json.loads(models_raw) if isinstance(models_raw, str) else dict(models_raw)
         adapters = build_adapters_from_run_config(
             vendor_names=vendors,
             models=models,

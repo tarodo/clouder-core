@@ -15,14 +15,21 @@ from pydantic import ValidationError as PydanticValidationError
 
 from ..data_api import create_default_data_api_client
 from ..errors import ValidationError
+from ..settings import get_data_api_settings
 from .messages import EnrichLabelsRequestIn
+from .prompts import get_prompt, load_builtin_prompts
 from .repository import LabelEnrichmentRepository, RunSpec
 
 
 def _build_repository() -> LabelEnrichmentRepository:
-    client = create_default_data_api_client()
-    if client is None:
+    settings = get_data_api_settings()
+    if not settings.is_configured:
         raise RuntimeError("Aurora Data API not configured")
+    client = create_default_data_api_client(
+        resource_arn=str(settings.aurora_cluster_arn),
+        secret_arn=str(settings.aurora_secret_arn),
+        database=settings.aurora_database,
+    )
     return LabelEnrichmentRepository(data_api=client)
 
 
@@ -61,6 +68,12 @@ def handle_post_enrich(event: Mapping[str, Any]) -> tuple[int, dict]:
         req = EnrichLabelsRequestIn.model_validate(body)
     except PydanticValidationError as exc:
         raise ValidationError(exc.errors()[0]["msg"]) from exc
+
+    load_builtin_prompts()
+    try:
+        get_prompt(req.prompt_slug)
+    except KeyError as exc:
+        raise ValidationError(f"unknown prompt_slug: {req.prompt_slug}") from exc
 
     repo = _build_repository()
     sqs = _build_sqs_client()

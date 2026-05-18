@@ -124,7 +124,26 @@ class LabelEnrichmentRepository:
             """,
             {"id": run_id},
         )
-        return rows[0] if rows else None
+        if not rows:
+            return None
+        row = dict(rows[0])
+        # Data API returns JSONB columns as JSON-encoded strings; tests
+        # pass Python objects directly — handle both shapes.
+        vendors_raw = row.get("vendors")
+        if isinstance(vendors_raw, str):
+            row["vendors"] = json.loads(vendors_raw)
+        models_raw = row.get("models")
+        if isinstance(models_raw, str):
+            row["models"] = json.loads(models_raw)
+        cost_usd = row.get("cost_usd")
+        if isinstance(cost_usd, Decimal):
+            row["cost_usd"] = float(cost_usd)
+        elif isinstance(cost_usd, str):
+            try:
+                row["cost_usd"] = float(cost_usd)
+            except (TypeError, ValueError):
+                pass
+        return row
 
     # ── cells ───────────────────────────────────────────────────────
     def insert_cell(
@@ -293,7 +312,26 @@ class LabelEnrichmentRepository:
             """,
             {"id": label_id},
         )
-        return rows[0] if rows else None
+        if not rows:
+            return None
+        row = dict(rows[0])
+        # Data API returns JSONB columns as JSON-encoded strings; tests
+        # pass Python objects directly — handle both shapes.
+        merged_raw = row.get("merged")
+        if isinstance(merged_raw, str):
+            row["merged"] = json.loads(merged_raw)
+        provenance_raw = row.get("provenance")
+        if isinstance(provenance_raw, str):
+            row["provenance"] = json.loads(provenance_raw)
+        ai_conf = row.get("ai_confidence")
+        if isinstance(ai_conf, Decimal):
+            row["ai_confidence"] = float(ai_conf)
+        elif isinstance(ai_conf, str):
+            try:
+                row["ai_confidence"] = float(ai_conf)
+            except (TypeError, ValueError):
+                pass
+        return row
 
     def increment_run_counters(
         self,
