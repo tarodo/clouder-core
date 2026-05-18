@@ -57,7 +57,5 @@ def test_builtin_prompts_register():
     from lab.prompts import PROMPTS, load_builtin_prompts
 
     load_builtin_prompts()
-    assert {"label_v1_baseline", "label_v2_facts", "label_v3_ai_focus"} <= set(PROMPTS)
-    # v3 extends v2's system prompt
-    assert "AI-content assessment" in PROMPTS["label_v3_ai_focus"].system
-    assert "AI-content assessment" not in PROMPTS["label_v2_facts"].system
+    assert {"label_v1_baseline", "label_v2_facts"} <= set(PROMPTS)
+    assert "label_v3_ai_focus" not in PROMPTS

@@ -14,7 +14,7 @@ def test_list_prompts():
     assert result.exit_code == 0
     assert "label_v1_baseline" in result.stdout
     assert "label_v2_facts" in result.stdout
-    assert "label_v3_ai_focus" in result.stdout
+    assert "label_v3_ai_focus" not in result.stdout
 
 
 def test_list_fixtures():
