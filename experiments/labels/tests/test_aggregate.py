@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -165,3 +166,78 @@ def test_merge_deterministic_confidence_mean():
     merged, prov = _merge_deterministic(cells)
     assert merged["confidence"] == pytest.approx(0.8)
     assert prov["confidence"].startswith("mean")
+
+
+def _mock_deepseek_response(content: str, prompt_tokens: int = 800, completion_tokens: int = 300):
+    """Mimic openai SDK chat.completions.create return value."""
+    msg = SimpleNamespace(content=content)
+    choice = SimpleNamespace(message=msg, finish_reason="stop")
+    usage = SimpleNamespace(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=prompt_tokens + completion_tokens,
+    )
+    return SimpleNamespace(choices=[choice], usage=usage, model="deepseek-v4-flash")
+
+
+def test_merge_cells_narrative_through_deepseek():
+    payload = {
+        "tagline": "Swedish techno powerhouse since 1996.",
+        "summary": "Drumcode is a Swedish techno label founded in 1996 by Adam Beyer. It is widely respected for peak-time techno.",
+        "ai_reasoning": "No AI signals across multiple vendors.",
+        "notes": None,
+    }
+    fake_deepseek = MagicMock()
+    fake_deepseek.chat.completions.create.return_value = _mock_deepseek_response(
+        json.dumps(payload)
+    )
+
+    cells = [
+        _cell("a", "ma", parsed=_parsed(
+            tagline="Swedish techno legend.",
+            summary="Drumcode, Swedish techno.",
+            ai_reasoning="-",
+            confidence=0.9,
+        )),
+        _cell("b", "mb", parsed=_parsed(
+            tagline="Peak-time techno from Sweden.",
+            summary="Founded 1996 by Adam Beyer.",
+            ai_reasoning="-",
+            confidence=0.95,
+        )),
+    ]
+
+    merged, meta = merge_cells(cells, fake_deepseek, deepseek_model="deepseek-v4-flash")
+    assert isinstance(merged, LabelInfo)
+    assert merged.tagline == "Swedish techno powerhouse since 1996."
+    assert "Adam Beyer" in merged.summary
+    assert merged.country == "Sweden"
+    assert merged.founded_year == 1996
+    assert meta["narrative_cost_usd"] > 0
+    assert meta["narrative_latency_ms"] >= 0
+    assert "field_provenance" in meta
+    assert meta["field_provenance"]["tagline"] == "deepseek narrative"
+    fake_deepseek.chat.completions.create.assert_called_once()
+
+
+def test_merge_cells_narrative_fallback_on_deepseek_error():
+    fake_deepseek = MagicMock()
+    fake_deepseek.chat.completions.create.side_effect = RuntimeError("boom")
+    cells = [
+        _cell("a", "ma", parsed=_parsed(
+            tagline="Low-confidence tagline.",
+            summary="Low-conf summary.",
+            ai_reasoning="low",
+            confidence=0.4,
+        )),
+        _cell("b", "mb", parsed=_parsed(
+            tagline="High-confidence tagline.",
+            summary="High-conf summary.",
+            ai_reasoning="high",
+            confidence=0.95,
+        )),
+    ]
+    merged, meta = merge_cells(cells, fake_deepseek, deepseek_model="deepseek-v4-flash")
+    assert merged.tagline == "High-confidence tagline."
+    assert merged.summary == "High-conf summary."
+    assert meta["narrative_fallback"] == "max_confidence"

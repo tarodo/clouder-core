@@ -219,6 +219,164 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
     return merged, prov
 
 
-def merge_cells(cells, deepseek_client, deepseek_model="deepseek-v4-flash"):
-    """Placeholder — implemented in Task 4."""
-    raise NotImplementedError("merge_cells lands in Task 4")
+NARRATIVE_SYSTEM = (
+    "You are a music-industry data editor. You will receive multiple vendor-sourced JSON descriptions "
+    "of a record label. Synthesise them into a single, accurate, well-written set of narrative fields. "
+    "Return a JSON object with exactly these keys: tagline, summary, ai_reasoning, notes. "
+    "tagline: one punchy sentence (≤ 120 chars). "
+    "summary: 2-4 sentences, factual, no superlatives. "
+    "ai_reasoning: concise explanation of any AI-content signals found, or 'No AI signals detected.' "
+    "notes: any caveats about data quality or conflicts, or null. "
+    "Output ONLY valid JSON, no markdown fences."
+)
+
+
+def _build_narrative_prompt(label_name: str, cells: list[dict]) -> str:
+    """Assemble the user message from all parseable cells' narrative fields."""
+    parts = [f"Label: {label_name}\n"]
+    for i, cell in enumerate(cells, 1):
+        vendor = cell["vendor"]["name"]
+        p = cell["response"]["parsed"]
+        conf = p.get("confidence", 0.0)
+        parts.append(
+            f"--- Source {i} ({vendor}, confidence={conf}) ---\n"
+            f"tagline: {p.get('tagline')}\n"
+            f"summary: {p.get('summary')}\n"
+            f"ai_reasoning: {p.get('ai_reasoning')}\n"
+            f"notes: {p.get('notes')}\n"
+        )
+    parts.append("\nSynthesize the above into the required JSON.")
+    return "\n".join(parts)
+
+
+def _highest_confidence_cell(cells: list[dict]) -> dict:
+    """Return the cell with the highest confidence score."""
+    return max(cells, key=lambda c: c["response"]["parsed"].get("confidence", 0.0) or 0.0)
+
+
+def _merge_narrative(
+    cells: list[dict],
+    deepseek_client: Any,
+    deepseek_model: str,
+    label_name: str,
+) -> tuple[dict, dict]:
+    """Call DeepSeek to produce narrative fields; fall back to max-confidence cell on any error.
+
+    Returns (narrative_fields_dict, meta_dict).
+    meta_dict keys: narrative_cost_usd, narrative_latency_ms, and optionally narrative_fallback.
+    """
+    t0 = time.monotonic()
+    try:
+        user_msg = _build_narrative_prompt(label_name, cells)
+        resp = deepseek_client.chat.completions.create(
+            model=deepseek_model,
+            messages=[
+                {"role": "system", "content": NARRATIVE_SYSTEM},
+                {"role": "user", "content": user_msg},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+        )
+        latency_ms = (time.monotonic() - t0) * 1000
+        raw_content = resp.choices[0].message.content
+        parsed_narrative = json.loads(raw_content)
+        # Validate required keys present
+        for key in ("tagline", "summary", "ai_reasoning", "notes"):
+            if key not in parsed_narrative:
+                raise KeyError(f"Missing narrative key: {key}")
+        usage = resp.usage
+        cost = estimate_cost(deepseek_model, usage.prompt_tokens, usage.completion_tokens)
+        meta = {
+            "narrative_cost_usd": cost,
+            "narrative_latency_ms": latency_ms,
+        }
+        return {k: parsed_narrative[k] for k in ("tagline", "summary", "ai_reasoning", "notes")}, meta
+    except Exception:
+        latency_ms = (time.monotonic() - t0) * 1000
+        best = _highest_confidence_cell(cells)
+        p = best["response"]["parsed"]
+        fallback_fields = {k: p.get(k) for k in ("tagline", "summary", "ai_reasoning", "notes")}
+        meta = {
+            "narrative_cost_usd": 0.0,
+            "narrative_latency_ms": latency_ms,
+            "narrative_fallback": "max_confidence",
+        }
+        return fallback_fields, meta
+
+
+def merge_cells(
+    cells: list[dict],
+    deepseek_client: Any,
+    deepseek_model: str = "deepseek-v4-flash",
+) -> tuple[LabelInfo, dict]:
+    """Merge vendor cells into a single LabelInfo with DeepSeek narrative synthesis.
+
+    Returns (LabelInfo, meta).
+    """
+    parseable = _filter_parseable(cells)
+
+    # Case 1: no parseable cells
+    if not parseable:
+        # Derive label_name from first cell fixture if possible
+        label_name = ""
+        if cells:
+            label_name = cells[0].get("fixture", {}).get("label_name", "")
+        info = LabelInfo(
+            label_name=label_name or "unknown",
+            summary="All vendor sources failed.",
+            ai_reasoning="n/a",
+            confidence=0.0,
+        )
+        meta: dict[str, Any] = {
+            "all_failed": True,
+            "source_count": 0,
+            "narrative_cost_usd": 0.0,
+            "narrative_latency_ms": 0.0,
+            "field_provenance": {},
+        }
+        return info, meta
+
+    # Case 2: single parseable cell — skip merge
+    if len(parseable) == 1:
+        p = parseable[0]["response"]["parsed"]
+        info = LabelInfo.model_validate(p)
+        meta = {
+            "single_source": True,
+            "source_count": 1,
+            "narrative_cost_usd": 0.0,
+            "narrative_latency_ms": 0.0,
+            "field_provenance": {"tagline": "single source", "summary": "single source"},
+        }
+        return info, meta
+
+    # Case 3: multiple cells — deterministic + narrative merge
+    label_name = parseable[0].get("fixture", {}).get("label_name", "")
+    if not label_name:
+        label_name = parseable[0]["response"]["parsed"].get("label_name", "unknown")
+
+    det_payload, det_prov = _merge_deterministic(parseable)
+    narr_fields, narr_meta = _merge_narrative(parseable, deepseek_client, deepseek_model, label_name)
+
+    # Combine: start with deterministic result, overlay narrative fields
+    final: dict[str, Any] = {**det_payload}
+    for key in ("tagline", "summary", "ai_reasoning", "notes"):
+        final[key] = narr_fields.get(key)
+
+    # Build provenance for narrative fields
+    narr_prov_label = "max_confidence fallback" if "narrative_fallback" in narr_meta else "deepseek narrative"
+    narr_prov = {k: narr_prov_label for k in ("tagline", "summary", "ai_reasoning", "notes")}
+
+    combined_prov = {**det_prov, **narr_prov}
+
+    info = LabelInfo.model_validate(final)
+
+    meta = {
+        "source_count": len(parseable),
+        "narrative_cost_usd": narr_meta["narrative_cost_usd"],
+        "narrative_latency_ms": narr_meta["narrative_latency_ms"],
+        "field_provenance": combined_prov,
+    }
+    if "narrative_fallback" in narr_meta:
+        meta["narrative_fallback"] = narr_meta["narrative_fallback"]
+
+    return info, meta
