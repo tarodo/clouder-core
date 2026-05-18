@@ -277,3 +277,19 @@ def test_merge_cells_handles_malformed_deepseek_json():
     merged, meta = merge_cells(cells, fake_deepseek)
     assert meta["narrative_fallback"] == "max_confidence"
     assert merged.tagline == "B."
+
+
+def test_merge_deterministic_numeric_median_even_length_rounds_to_int():
+    """statistics.median of an even-length list yields a float; cast to int.
+
+    Regression: pydantic int fields rejected the 4.5 float coming from
+    statistics.median([4, 5]).
+    """
+    cells = [
+        _cell("a", "ma", parsed=_parsed(catalog_size_estimate=4)),
+        _cell("b", "mb", parsed=_parsed(catalog_size_estimate=5)),
+    ]
+    merged, prov = _merge_deterministic(cells)
+    assert isinstance(merged["catalog_size_estimate"], int)
+    assert merged["catalog_size_estimate"] in (4, 5)  # banker's rounding can go either way for .5
+    assert prov["catalog_size_estimate"].startswith("median:")
