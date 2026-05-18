@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from typing import Any, Type
 
@@ -22,10 +23,42 @@ def _lat(started: float) -> int:
 
 def _schema_hint(schema: Type[BaseModel]) -> str:
     return (
-        "\n\nIf you cannot use structured output, return ONLY a JSON object matching "
-        "this schema:\n"
+        "\n\nIMPORTANT — OUTPUT FORMAT:\n"
+        "Return ONLY a single JSON object that conforms to this schema. "
+        "No prose, no markdown fences, no explanation. Just the JSON.\n"
+        "Schema:\n"
         f"{json.dumps(schema.model_json_schema(), indent=2)}"
     )
+
+
+_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
+
+
+def _extract_json(text: str) -> str:
+    """Strip markdown fences and return the first balanced JSON object substring."""
+    m = _FENCE_RE.search(text)
+    if m:
+        text = m.group(1)
+    text = text.strip()
+    # Find first { and last }
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1]
+    return text
+
+
+_RETRY_DELAY_RE = re.compile(r"'retryDelay':\s*'(\d+(?:\.\d+)?)s'")
+
+
+def _parse_retry_delay(message: str) -> float:
+    m = _RETRY_DELAY_RE.search(message)
+    if m:
+        try:
+            return float(m.group(1))
+        except ValueError:
+            return 10.0
+    return 10.0
 
 
 class GeminiFlashAdapter:
@@ -60,17 +93,41 @@ class GeminiFlashAdapter:
         try:
             from google.genai import types  # lazy
 
+            # Bug fix: response_mime_type + response_schema are incompatible with
+            # tools=[google_search] (HTTP 400 INVALID_ARGUMENT). Drop both; rely on
+            # the schema hint in system_instruction and parse the raw text ourselves.
             config = types.GenerateContentConfig(
                 system_instruction=system + _schema_hint(schema),
                 tools=[types.Tool(google_search=types.GoogleSearch())],
-                response_mime_type="application/json",
-                response_schema=schema,
             )
-            response = self._client.models.generate_content(
-                model=chosen_model,
-                contents=user,
-                config=config,
-            )
+
+            attempts = 0
+            deadline = time.monotonic() + self._timeout * 6
+            backoff_floor = 10.0
+            while True:
+                try:
+                    response = self._client.models.generate_content(
+                        model=chosen_model,
+                        contents=user,
+                        config=config,
+                    )
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    exc_msg = str(exc)
+                    is_quota = (
+                        "RESOURCE_EXHAUSTED" in exc_msg
+                        or "429" in exc_msg
+                        or type(exc).__name__ == "ResourceExhausted"
+                    )
+                    if not is_quota:
+                        raise
+                    attempts += 1
+                    if attempts > 5 or time.monotonic() >= deadline:
+                        raise
+                    wait = max(_parse_retry_delay(exc_msg), backoff_floor)
+                    time.sleep(wait)
+                    backoff_floor = min(backoff_floor * 1.5, 60.0)
+
         except Exception as exc:  # noqa: BLE001
             return VendorResponse(
                 parsed=None,
@@ -112,7 +169,7 @@ class GeminiFlashAdapter:
         parsed: BaseModel | None = None
         error: str | None = None
         try:
-            parsed = schema.model_validate_json(text)
+            parsed = schema.model_validate_json(_extract_json(text))
         except (json.JSONDecodeError, ValidationError, ValueError) as exc:
             error = f"parse error: {type(exc).__name__}: {exc}"
 

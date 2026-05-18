@@ -9,7 +9,7 @@ from lab.schemas import LabelInfo
 from lab.vendors.gemini_flash import GeminiFlashAdapter
 
 
-def _valid_json() -> str:
+def _valid_payload_text() -> str:
     return json.dumps(
         {
             "label_name": "Drumcode",
@@ -19,6 +19,10 @@ def _valid_json() -> str:
             "sources": [],
         }
     )
+
+
+def _valid_json() -> str:
+    return _valid_payload_text()
 
 
 def _make_grounding_chunk(uri: str) -> SimpleNamespace:
@@ -39,9 +43,10 @@ def _mock_response(text: str, citations: list[str] | None = None) -> SimpleNames
 
 
 def test_run_happy_path():
-    valid_text = _valid_json()
+    # Wrap JSON in markdown fences to prove _extract_json works end to end
+    fenced_text = f"```json\n{_valid_json()}\n```"
     fake_response = _mock_response(
-        text=valid_text,
+        text=fenced_text,
         citations=["https://drumcode.se", "https://ra.co/labels/drumcode"],
     )
 
@@ -106,3 +111,32 @@ def test_run_exception_path():
     assert resp.error is not None
     assert "network failure" in resp.error
     assert resp.usage == {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+
+
+def test_run_retries_on_quota_exhausted(mocker):
+    """Quota errors are retried; success on the third attempt counts as ok."""
+
+    class ClientError(Exception):
+        pass
+
+    quota_err = ClientError(
+        "429 RESOURCE_EXHAUSTED. {'error': ..., 'details': [{'@type': 'RetryInfo', 'retryDelay': '0s'}]}"
+    )
+
+    fake_client = mocker.MagicMock()
+    fake_client.models.generate_content.side_effect = [
+        quota_err,
+        quota_err,
+        _mock_response(_valid_payload_text()),
+    ]
+    mocker.patch("time.sleep")
+
+    adapter = GeminiFlashAdapter(
+        api_key="x", default_model="gemini-2.5-flash", client=fake_client
+    )
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+
+    assert resp.error is None
+    assert resp.parsed is not None
+    assert resp.parsed.label_name == "Drumcode"
+    assert fake_client.models.generate_content.call_count == 3
