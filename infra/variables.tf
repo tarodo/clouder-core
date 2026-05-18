@@ -421,3 +421,21 @@ variable "cors_allowed_origins" {
   type        = list(string)
   default     = []
 }
+
+variable "label_enrichment_queue_visibility_timeout_seconds" {
+  description = "SQS visibility timeout in seconds (worker timeout + buffer)."
+  type        = number
+  default     = 1000
+}
+
+variable "label_enrichment_queue_retention_seconds" {
+  description = "SQS message retention in seconds."
+  type        = number
+  default     = 345600
+}
+
+variable "label_enrichment_queue_max_receive_count" {
+  description = "SQS receives before message moves to DLQ."
+  type        = number
+  default     = 3
+}

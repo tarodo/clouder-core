@@ -58,3 +58,21 @@ resource "aws_sqs_queue" "vendor_match" {
     maxReceiveCount     = var.vendor_match_max_receive_count
   })
 }
+
+# ── Label Enrichment queue ───────────────────────────────────────
+
+resource "aws_sqs_queue" "label_enrichment_dlq" {
+  name                      = local.label_enrichment_dlq_name
+  message_retention_seconds = var.label_enrichment_queue_retention_seconds
+}
+
+resource "aws_sqs_queue" "label_enrichment" {
+  name                       = local.label_enrichment_queue_name
+  visibility_timeout_seconds = var.label_enrichment_queue_visibility_timeout_seconds
+  message_retention_seconds  = var.label_enrichment_queue_retention_seconds
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.label_enrichment_dlq.arn
+    maxReceiveCount     = var.label_enrichment_queue_max_receive_count
+  })
+}
