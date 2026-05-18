@@ -241,3 +241,39 @@ def test_merge_cells_narrative_fallback_on_deepseek_error():
     assert merged.tagline == "High-confidence tagline."
     assert merged.summary == "High-conf summary."
     assert meta["narrative_fallback"] == "max_confidence"
+
+
+def test_merge_cells_single_source_skips_deepseek():
+    fake_deepseek = MagicMock()
+    cells = [_cell("a", "ma", parsed=_parsed(summary="Single-source summary.", tagline="Single."))]
+    merged, meta = merge_cells(cells, fake_deepseek)
+    assert merged.summary == "Single-source summary."
+    assert merged.tagline == "Single."
+    assert meta["single_source"] is True
+    assert meta["narrative_cost_usd"] == 0.0
+    fake_deepseek.chat.completions.create.assert_not_called()
+
+
+def test_merge_cells_all_failed_returns_placeholder():
+    fake_deepseek = MagicMock()
+    cells = [
+        _cell("a", "ma", parsed=None, error="boom"),
+        _cell("b", "mb", parsed=None),
+    ]
+    merged, meta = merge_cells(cells, fake_deepseek)
+    assert merged.summary == "All vendor sources failed."
+    assert merged.confidence == 0.0
+    assert meta["all_failed"] is True
+    fake_deepseek.chat.completions.create.assert_not_called()
+
+
+def test_merge_cells_handles_malformed_deepseek_json():
+    fake_deepseek = MagicMock()
+    fake_deepseek.chat.completions.create.return_value = _mock_deepseek_response("not json")
+    cells = [
+        _cell("a", "ma", parsed=_parsed(tagline="A.", summary="A.", confidence=0.8)),
+        _cell("b", "mb", parsed=_parsed(tagline="B.", summary="B.", confidence=0.95)),
+    ]
+    merged, meta = merge_cells(cells, fake_deepseek)
+    assert meta["narrative_fallback"] == "max_confidence"
+    assert merged.tagline == "B."
