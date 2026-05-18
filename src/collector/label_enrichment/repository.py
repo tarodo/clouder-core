@@ -125,3 +125,62 @@ class LabelEnrichmentRepository:
             {"id": run_id},
         )
         return rows[0] if rows else None
+
+    # ── cells ───────────────────────────────────────────────────────
+    def insert_cell(
+        self,
+        *,
+        run_id: str,
+        label_id: str,
+        vendor: str,
+        response: "VendorResponse",
+    ) -> None:
+        from .vendors.base import VendorResponse  # local — avoid cycle
+
+        assert isinstance(response, VendorResponse)
+        cell_id = str(uuid.uuid4())
+        ts = self._now()
+        status = "ok" if response.error is None and response.parsed is not None else "error"
+        parsed_payload = (
+            response.parsed.model_dump() if response.parsed is not None else None
+        )
+        error_payload = (
+            json.dumps({"message": response.error}) if response.error is not None else None
+        )
+        self._data_api.execute(
+            """
+            INSERT INTO clouder_label_enrichment_cells (
+                id, run_id, label_id, vendor, model, status,
+                parsed, citations, usage, latency_ms, error, created_at
+            ) VALUES (
+                :id, :run_id, :label_id, :vendor, :model, :status,
+                :parsed, :citations, :usage, :latency_ms, :error, :created_at
+            )
+            ON CONFLICT (run_id, label_id, vendor) DO NOTHING
+            """,
+            {
+                "id": cell_id,
+                "run_id": run_id,
+                "label_id": label_id,
+                "vendor": vendor,
+                "model": response.model,
+                "status": status,
+                "parsed": json.dumps(parsed_payload) if parsed_payload is not None else None,
+                "citations": json.dumps(response.citations),
+                "usage": json.dumps(response.usage),
+                "latency_ms": response.latency_ms,
+                "error": error_payload,
+                "created_at": ts,
+            },
+        )
+
+    def mark_run_running(self, run_id: str) -> None:
+        """Flip queued → running on first worker pickup. No-op when already running."""
+        self._data_api.execute(
+            """
+            UPDATE clouder_label_enrichment_runs
+            SET status = 'running', started_at = :ts
+            WHERE id = :id AND status = 'queued'
+            """,
+            {"id": run_id, "ts": self._now()},
+        )

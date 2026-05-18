@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
@@ -81,3 +82,68 @@ def test_get_run_returns_dict_or_none():
 
     data_api.execute.return_value = []
     assert repo.get_run("missing") is None
+
+
+from collector.label_enrichment.vendors.base import VendorResponse
+from collector.label_enrichment.schemas import LabelInfo
+
+
+def _ok_vendor_response() -> VendorResponse:
+    info = LabelInfo(
+        label_name="Drumcode",
+        ai_reasoning="none",
+        summary="techno",
+        confidence=0.9,
+    )
+    return VendorResponse(
+        parsed=info,
+        raw={"foo": "bar"},
+        citations=["https://example.com"],
+        usage={"input_tokens": 100, "output_tokens": 50, "cost_usd": 0.001},
+        latency_ms=1234,
+        model="gemini-3-flash-preview",
+    )
+
+
+def test_insert_cell_ok_uses_on_conflict_do_nothing():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    resp = _ok_vendor_response()
+    repo.insert_cell(run_id="r", label_id="l", vendor="gemini", response=resp)
+    sql, params = data_api.execute.call_args[0]
+    assert "ON CONFLICT" in sql
+    assert "DO NOTHING" in sql
+    assert params["status"] == "ok"
+    assert params["error"] is None
+    assert params["vendor"] == "gemini"
+    assert params["model"] == "gemini-3-flash-preview"
+
+
+def test_insert_cell_error_serialises_error_payload():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    resp = VendorResponse(
+        parsed=None,
+        raw={},
+        citations=[],
+        usage={"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0},
+        latency_ms=50,
+        model="openai-x",
+        error="RateLimitError: 429",
+    )
+    repo.insert_cell(run_id="r", label_id="l", vendor="openai", response=resp)
+    _, params = data_api.execute.call_args[0]
+    assert params["status"] == "error"
+    error_payload = json.loads(params["error"])
+    assert error_payload["message"] == "RateLimitError: 429"
+
+
+def test_mark_run_running_only_flips_queued_to_running():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    repo.mark_run_running("r-1")
+    sql, params = data_api.execute.call_args[0]
+    assert "status = 'running'" in sql
+    assert "started_at = :ts" in sql
+    assert "WHERE id = :id AND status = 'queued'" in sql
+    assert params["id"] == "r-1"
