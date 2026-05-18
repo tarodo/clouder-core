@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import typer
 
+from .aggregate import merge_cells
 from .config import Settings, available_vendor_names
 from .fixtures import load_fixtures
 from .prompts import PROMPTS, load_builtin_prompts
@@ -75,6 +79,111 @@ def _parse_csv(value: str | None) -> list[str] | None:
     if not value:
         return None
     return [v.strip() for v in value.split(",") if v.strip()]
+
+
+def build_deepseek_client(settings: Settings) -> tuple[Any, str]:
+    """Build a DeepSeek-pointed OpenAI client + return chosen model."""
+    if not settings.deepseek_api_key:
+        typer.echo("DEEPSEEK_API_KEY required for aggregation", err=True)
+        raise typer.Exit(2)
+    from openai import OpenAI
+    client = OpenAI(
+        api_key=settings.deepseek_api_key,
+        base_url="https://api.deepseek.com",
+        timeout=settings.request_timeout,
+    )
+    return client, settings.deepseek_model
+
+
+@app.command()
+def aggregate(
+    run_id: str,
+    prompts: str = typer.Option(None, "--prompts"),
+    vendors: str = typer.Option(None, "--vendors"),
+    fixtures: str = typer.Option(None, "--fixtures"),
+) -> None:
+    """Merge per-vendor cells in a run into consensus LabelInfo per fixture."""
+    run_dir = OUTPUTS_ROOT / run_id
+    if not run_dir.exists():
+        typer.echo(f"no such run: {run_id}", err=True)
+        raise typer.Exit(2)
+
+    settings = Settings()
+    client, model = build_deepseek_client(settings)
+
+    # Load cells
+    cells: list[dict] = []
+    for path in sorted(run_dir.glob("*.json")):
+        if path.name == "manifest.json":
+            continue
+        cells.append(json.loads(path.read_text(encoding="utf-8")))
+
+    # Filter
+    sel_prompts = _parse_csv(prompts)
+    sel_vendors = _parse_csv(vendors)
+    sel_fixtures = _parse_csv(fixtures)
+    if sel_prompts:
+        cells = [c for c in cells if c["prompt"]["slug"] in sel_prompts]
+    if sel_vendors:
+        cells = [c for c in cells if c["vendor"]["name"] in sel_vendors]
+    if sel_fixtures:
+        cells = [c for c in cells if c["fixture"]["id"] in sel_fixtures]
+
+    if not cells:
+        typer.echo("no cells match filters", err=True)
+        raise typer.Exit(2)
+
+    # Group by (prompt, fixture)
+    from collections import defaultdict as _dd
+    groups: dict[tuple[str, str], list[dict]] = _dd(list)
+    for c in cells:
+        groups[(c["prompt"]["slug"], c["fixture"]["id"])].append(c)
+
+    merged_dir = run_dir / "merged"
+    merged_dir.mkdir(exist_ok=True)
+    total_cost = 0.0
+
+    for (prompt_slug, fixture_id), group in groups.items():
+        merged_label, meta = merge_cells(group, client, model)
+        first = group[0]
+        payload = {
+            "run_id": run_id,
+            "merged_at": datetime.now(timezone.utc).isoformat(),
+            "prompt": first["prompt"],
+            "fixture": first["fixture"],
+            "source_cells": [
+                {
+                    "vendor": c["vendor"]["name"],
+                    "model": c["vendor"]["model"],
+                    "file": f"{prompt_slug}__{c['vendor']['name']}__{fixture_id}.json",
+                    "confidence": c["response"]["parsed"].get("confidence") if c["response"]["parsed"] else None,
+                }
+                for c in group
+            ],
+            "merged": merged_label.model_dump(),
+            "merge_meta": meta,
+            "aggregate_cost_usd": meta.get("narrative_cost_usd", 0.0),
+        }
+        out_path = merged_dir / f"{prompt_slug}__{fixture_id}.json"
+        out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+        total_cost += meta.get("narrative_cost_usd", 0.0)
+        typer.echo(f"merged {prompt_slug} × {fixture_id} ({len(group)} sources)")
+
+    # Update manifest
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["aggregates"] = {
+        "merged_at": datetime.now(timezone.utc).isoformat(),
+        "groups": len(groups),
+        "filters_applied": {"vendors": sel_vendors, "prompts": sel_prompts, "fixtures": sel_fixtures},
+        "total_aggregate_cost_usd": round(total_cost, 6),
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    # Regenerate report
+    out_path = build_report(run_dir, REPORTS_ROOT)
+    typer.echo(f"groups: {len(groups)}, cost: ${total_cost:.6f}")
+    typer.echo(f"report: {out_path}")
 
 
 @app.command()
