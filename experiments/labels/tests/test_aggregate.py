@@ -143,7 +143,7 @@ def test_merge_deterministic_list_union_top5_notable_artists():
     assert "Adam Beyer" == artists[0]  # most frequent first
     assert "Amelie Lens" in artists
     assert len(artists) <= 5
-    assert "union top-5" in prov["notable_artists"]
+    assert "union top-5 round-robin" in prov["notable_artists"]
 
 
 def test_merge_deterministic_url_max_confidence_wins():
@@ -293,3 +293,40 @@ def test_merge_deterministic_numeric_median_even_length_rounds_to_int():
     assert isinstance(merged["catalog_size_estimate"], int)
     assert merged["catalog_size_estimate"] in (4, 5)  # banker's rounding can go either way for .5
     assert prov["catalog_size_estimate"].startswith("median:")
+
+
+def test_merge_deterministic_notable_artists_no_overlap_round_robin():
+    """When vendors return disjoint top-5 lists, interleave from each.
+
+    Round-robin order: first item from highest-confidence vendor, then
+    first from next vendor, then second from first, ... up to 5.
+    """
+    cells = [
+        _cell("gemini", "mg", parsed=_parsed(
+            notable_artists=["Lane 8", "Ben Böhmer", "Yotto", "Tinlicker", "Marsh"],
+            confidence=1.0,
+        )),
+        _cell("tavily_deepseek", "mt", parsed=_parsed(
+            notable_artists=["Above & Beyond", "Franky Wah", "Durante", "OLAN", "Martin Roth"],
+            confidence=0.8,
+        )),
+    ]
+    merged, prov = _merge_deterministic(cells)
+    artists = merged["notable_artists"]
+    assert artists[0] == "Lane 8"            # gemini first (higher conf)
+    assert artists[1] == "Above & Beyond"    # tavily first
+    assert artists[2] == "Ben Böhmer"        # gemini second
+    assert artists[3] == "Franky Wah"        # tavily second
+    assert artists[4] == "Yotto"             # gemini third
+    assert "round-robin" in prov["notable_artists"]
+
+
+def test_merge_deterministic_only_source_provenance():
+    """Single-vendor-contributing fields should be labeled 'only source', not 'majority'."""
+    cells = [
+        _cell("gemini", "mg", parsed=_parsed(parent_label="Involved Productions", confidence=1.0)),
+        _cell("tavily_deepseek", "mt", parsed=_parsed(parent_label=None, confidence=1.0)),
+    ]
+    merged, prov = _merge_deterministic(cells)
+    assert merged["parent_label"] == "Involved Productions"
+    assert "only source(gemini)" == prov["parent_label"]
