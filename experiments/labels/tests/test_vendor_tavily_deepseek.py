@@ -35,6 +35,16 @@ _VALID_LABEL_JSON = json.dumps(
 )
 
 
+_VERBOSE_USER = (
+    'Research label "Drumcode" in style "techno".\n'
+    'Find: founding year, country, parent and sublabels, catalog and roster size, '
+    'releases in the last 12 months, last release date, official channels '
+    '(website, Bandcamp, Resident Advisor, Discogs, Beatport, SoundCloud), '
+    'notable artists, distributor.\n'
+    'Then assess AI-content status and explain your reasoning.'
+)
+
+
 def _tavily_ok_transport() -> httpx.MockTransport:
     """Handler that distinguishes general vs social pass by include_domains key."""
     general_body = json.dumps({"results": _SAMPLE_RESULTS}).encode()
@@ -42,6 +52,9 @@ def _tavily_ok_transport() -> httpx.MockTransport:
 
     def handler(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
+        # The query must be a short focused form, not the verbose user prompt
+        assert "Find: founding year" not in body["query"]
+        assert '"Drumcode"' in body["query"] or "Drumcode" in body["query"]
         if "include_domains" in body:
             return httpx.Response(200, content=social_body, headers={"Content-Type": "application/json"})
         return httpx.Response(200, content=general_body, headers={"Content-Type": "application/json"})
@@ -85,7 +98,7 @@ def test_happy_path():
         http_transport=_tavily_ok_transport(),
         llm_client=_make_llm_client(content=_VALID_LABEL_JSON),
     )
-    resp = adapter.run(system="sys", user="Drumcode techno label info", schema=LabelInfo)
+    resp = adapter.run(system="sys", user=_VERBOSE_USER, schema=LabelInfo)
 
     assert resp.error is None
     assert resp.parsed is not None
@@ -171,3 +184,20 @@ def test_run_survives_social_pass_failure():
     resp = adapter.run(system="s", user="u", schema=LabelInfo)
     assert resp.error is None
     assert "https://general.example.com" in resp.citations
+
+
+def test_build_search_query_extracts_label_and_style():
+    from lab.vendors.tavily_deepseek import _build_search_query
+
+    user = (
+        'Research label "Hessle Audio" in style "bass / UK garage".\n'
+        'Find: founding year, country...'
+    )
+    assert _build_search_query(user) == '"Hessle Audio" bass / UK garage music label'
+
+
+def test_build_search_query_falls_back_for_unquoted():
+    from lab.vendors.tavily_deepseek import _build_search_query
+
+    user = "no quoted strings here"
+    assert _build_search_query(user) == user

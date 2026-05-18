@@ -7,6 +7,7 @@ Stage 2: DeepSeek synthesises the snippets into a structured JSON response.
 from __future__ import annotations
 
 import json
+import re
 import time
 from typing import Any, Type
 
@@ -15,6 +16,25 @@ from pydantic import BaseModel, ValidationError
 
 from .base import VendorResponse
 from .pricing import estimate_cost
+
+_QUOTED_RE = re.compile(r'"([^"]+)"')
+
+
+def _build_search_query(user: str) -> str:
+    """Build a focused Tavily query from the rendered user prompt.
+
+    The current prompt templates quote the label_name and style. Pull them
+    out and assemble a Google-style query. Fall back to the full prompt
+    if extraction fails so the adapter still runs against future prompts.
+    """
+    matches = _QUOTED_RE.findall(user)
+    if len(matches) >= 2:
+        label_name, style = matches[0].strip(), matches[1].strip()
+        if label_name:
+            tail = f" {style}" if style else ""
+            return f'"{label_name}"{tail} music label'
+    return user
+
 
 SOCIAL_DOMAINS = [
     "youtube.com",
@@ -72,6 +92,7 @@ class TavilyDeepSeekAdapter:
         model: str | None = None,
     ) -> VendorResponse:
         chosen = model or self.default_model
+        search_query = _build_search_query(user)
         started = time.monotonic()
 
         # Stage 1 — Tavily search
@@ -80,7 +101,7 @@ class TavilyDeepSeekAdapter:
                 "https://api.tavily.com/search",
                 json={
                     "api_key": self._tavily_key,
-                    "query": user,
+                    "query": search_query,
                     "search_depth": "advanced",
                     "max_results": 8,
                     "include_answer": False,
@@ -112,7 +133,7 @@ class TavilyDeepSeekAdapter:
                 "https://api.tavily.com/search",
                 json={
                     "api_key": self._tavily_key,
-                    "query": user,
+                    "query": search_query,
                     "search_depth": "advanced",
                     "max_results": 5,
                     "include_answer": False,
