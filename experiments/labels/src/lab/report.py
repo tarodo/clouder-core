@@ -56,12 +56,12 @@ def _load_cells(run_dir: Path) -> list[dict]:
 
 def _summary_section(manifest: dict, cells: list[dict]) -> list[str]:
     totals = manifest["totals"]
-    by_vendor_latency: dict[str, list[int]] = defaultdict(list)
-    by_vendor_cost: dict[str, float] = defaultdict(float)
+    by_pair_latency: dict[tuple[str, str], list[int]] = defaultdict(list)
+    by_pair_cost: dict[tuple[str, str], float] = defaultdict(float)
     for cell in cells:
-        v = cell["vendor"]["name"]
-        by_vendor_latency[v].append(int(cell["response"]["latency_ms"]))
-        by_vendor_cost[v] += float(cell["response"]["usage"].get("cost_usd") or 0.0)
+        key = (cell["vendor"]["name"], cell["vendor"]["model"])
+        by_pair_latency[key].append(int(cell["response"]["latency_ms"]))
+        by_pair_cost[key] += float(cell["response"]["usage"].get("cost_usd") or 0.0)
     rows = []
     rows.append("## Summary")
     rows.append("")
@@ -70,11 +70,13 @@ def _summary_section(manifest: dict, cells: list[dict]) -> list[str]:
     rows.append(f"- error: {totals['error']}")
     rows.append(f"- total cost: ${totals['cost_usd']:.4f}")
     rows.append("")
-    rows.append("| Vendor | Mean latency (ms) | Total cost (USD) |")
-    rows.append("| --- | --- | --- |")
-    for v in sorted(by_vendor_latency):
-        mean = sum(by_vendor_latency[v]) / len(by_vendor_latency[v])
-        rows.append(f"| {v} | {mean:.0f} | {by_vendor_cost[v]:.4f} |")
+    rows.append("| Vendor | Model | Mean latency (ms) | Total cost (USD) |")
+    rows.append("| --- | --- | --- | --- |")
+    for (vendor, model) in sorted(by_pair_latency):
+        lats = by_pair_latency[(vendor, model)]
+        mean = sum(lats) / len(lats)
+        cost = by_pair_cost[(vendor, model)]
+        rows.append(f"| {vendor} | {model} | {mean:.0f} | {cost:.4f} |")
     rows.append("")
     return rows
 
@@ -97,7 +99,10 @@ def _fixture_section(fixture_id: str, cells: list[dict]) -> list[str]:
             rows.append(f"_Ground truth:_ {', '.join(bits)}")
     rows.append("")
 
-    headers = ["field"] + [f"{c['prompt']['slug']} / {c['vendor']['name']}" for c in cells]
+    headers = ["field"] + [
+        f"{c['prompt']['slug']} / {c['vendor']['name']} ({c['vendor']['model']})"
+        for c in cells
+    ]
     rows.append("| " + " | ".join(headers) + " |")
     rows.append("| " + " | ".join(["---"] * len(headers)) + " |")
     for field in TABLE_FIELDS:

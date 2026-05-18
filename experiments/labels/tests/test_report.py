@@ -90,3 +90,6 @@ def test_build_report_renders_sections(tmp_path):
     assert "<details>" in text
     # missing field renders as em dash
     assert "—" in text
+    # New: model id is shown in summary table
+    assert "anthropic-model" in text
+    assert "xai-model" in text

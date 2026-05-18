@@ -113,6 +113,31 @@ def test_run_exception_path():
     assert resp.usage == {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
 
 
+def test_run_retries_on_unavailable(mocker):
+    """503 UNAVAILABLE errors are retried with exponential backoff."""
+
+    class ServerError(Exception):
+        pass
+
+    unavailable_err = ServerError(
+        "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand.'}}"
+    )
+
+    fake_client = mocker.MagicMock()
+    fake_client.models.generate_content.side_effect = [
+        unavailable_err,
+        unavailable_err,
+        _mock_response(_valid_payload_text()),
+    ]
+    mocker.patch("time.sleep")
+    adapter = GeminiFlashAdapter(
+        api_key="x", default_model="gemini-2.5-flash", client=fake_client
+    )
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.error is None
+    assert fake_client.models.generate_content.call_count == 3
+
+
 def test_run_retries_on_quota_exhausted(mocker):
     """Quota errors are retried; success on the third attempt counts as ok."""
 
