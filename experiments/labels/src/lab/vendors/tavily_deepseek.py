@@ -16,6 +16,16 @@ from pydantic import BaseModel, ValidationError
 from .base import VendorResponse
 from .pricing import estimate_cost
 
+SOCIAL_DOMAINS = [
+    "youtube.com",
+    "soundcloud.com",
+    "bandcamp.com",
+    "beatport.com",
+    "discogs.com",
+    "ra.co",
+    "spotify.com",
+]
+
 
 def _zero_usage() -> dict:
     return {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
@@ -94,6 +104,41 @@ class TavilyDeepSeekAdapter:
             )
 
         results = tavily_body.get("results") or []
+
+        # Stage 1b — Tavily second pass restricted to social/music domains
+        social_results: list[dict] = []
+        try:
+            social_resp = self._http.post(
+                "https://api.tavily.com/search",
+                json={
+                    "api_key": self._tavily_key,
+                    "query": user,
+                    "search_depth": "advanced",
+                    "max_results": 5,
+                    "include_answer": False,
+                    "include_domains": SOCIAL_DOMAINS,
+                },
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+            )
+            social_resp.raise_for_status()
+            social_results = (social_resp.json().get("results") or [])
+        except Exception:  # noqa: BLE001 — second call is best-effort; failure leaves general results intact
+            social_results = []
+
+        # Merge + dedup by URL
+        seen_urls: set[str] = set()
+        merged: list[dict] = []
+        for r in (results or []) + social_results:
+            url = r.get("url")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            merged.append(r)
+        results = merged
+
         citations = [r.get("url") for r in results if r.get("url")]
         snippets_block = "\n\n".join(
             f"[{i + 1}] {r.get('title', '')}\nURL: {r.get('url', '')}\n{r.get('content', '')[:500]}"
