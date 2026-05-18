@@ -18,7 +18,7 @@ def test_settings_defaults(monkeypatch):
     assert s.openai_model == "gpt-5-mini"
     assert s.deepseek_model == "deepseek-v4-flash"
     assert s.perplexity_model == "sonar"
-    assert s.concurrency == 1
+    assert s.concurrency == 8
     assert s.request_timeout == 180
 
 

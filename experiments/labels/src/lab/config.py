@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     deepseek_model: str = "deepseek-v4-flash"
     perplexity_model: str = "sonar"
 
-    concurrency: int = 1
+    concurrency: int = 8
     request_timeout: int = 180
 
     model_config = SettingsConfigDict(
