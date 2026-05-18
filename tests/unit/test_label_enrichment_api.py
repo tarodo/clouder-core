@@ -87,3 +87,66 @@ def test_post_enrich_rejects_invalid_body(patched_deps):
     bad = {**_VALID_BODY, "labels": []}
     resp = lambda_handler(_admin_event("POST /admin/labels/enrich", bad), None)
     assert resp["statusCode"] == 400
+
+
+def test_get_enrich_run_returns_row(patched_deps):
+    repo, _ = patched_deps
+    repo.get_run.return_value = {
+        "id": "run-1", "status": "running", "cells_total": 6,
+        "cells_ok": 3, "cells_error": 0,
+    }
+    resp = lambda_handler(
+        _admin_event(
+            "GET /admin/labels/enrich-runs/{run_id}",
+            path_params={"run_id": "run-1"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 200
+    body = json.loads(resp["body"])
+    assert body["id"] == "run-1"
+
+
+def test_get_enrich_run_404(patched_deps):
+    repo, _ = patched_deps
+    repo.get_run.return_value = None
+    resp = lambda_handler(
+        _admin_event(
+            "GET /admin/labels/enrich-runs/{run_id}",
+            path_params={"run_id": "nope"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 404
+
+
+def test_get_label_info_returns_row(patched_deps):
+    repo, _ = patched_deps
+    repo.get_label_info.return_value = {
+        "label_id": "lbl-1", "label_name": "Drumcode",
+        "merged": {"label_name": "Drumcode"},
+        "status": "active", "ai_content": "none_detected",
+    }
+    resp = lambda_handler(
+        _admin_event(
+            "GET /admin/labels/{label_id}",
+            path_params={"label_id": "lbl-1"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 200
+    body = json.loads(resp["body"])
+    assert body["label_name"] == "Drumcode"
+
+
+def test_get_label_info_404(patched_deps):
+    repo, _ = patched_deps
+    repo.get_label_info.return_value = None
+    resp = lambda_handler(
+        _admin_event(
+            "GET /admin/labels/{label_id}",
+            path_params={"label_id": "lbl-9"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 404
