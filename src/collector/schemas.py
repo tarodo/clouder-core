@@ -22,7 +22,6 @@ class CollectRequestIn(BaseModel):
     style_id: StrictInt = Field(gt=0)
     iso_year: StrictInt = Field(ge=2000, le=2100)
     iso_week: StrictInt = Field(ge=1, le=53)
-    search_label_count: StrictInt | None = Field(default=None, ge=1, le=200)
 
     @field_validator("bp_token")
     @classmethod
