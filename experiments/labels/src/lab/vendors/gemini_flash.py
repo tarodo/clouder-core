@@ -119,12 +119,20 @@ class GeminiFlashAdapter:
                         or "429" in exc_msg
                         or type(exc).__name__ == "ResourceExhausted"
                     )
-                    if not is_quota:
+                    is_unavailable = (
+                        "UNAVAILABLE" in exc_msg
+                        or "503" in exc_msg
+                        or type(exc).__name__ == "ServerError"
+                    )
+                    if not (is_quota or is_unavailable):
                         raise
                     attempts += 1
                     if attempts > 5 or time.monotonic() >= deadline:
                         raise
-                    wait = max(_parse_retry_delay(exc_msg), backoff_floor)
+                    if is_quota:
+                        wait = max(_parse_retry_delay(exc_msg), backoff_floor)
+                    else:
+                        wait = backoff_floor
                     time.sleep(wait)
                     backoff_floor = min(backoff_floor * 1.5, 60.0)
 
