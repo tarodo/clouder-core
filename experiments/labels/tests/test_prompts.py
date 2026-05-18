@@ -57,5 +57,17 @@ def test_builtin_prompts_register():
     from lab.prompts import PROMPTS, load_builtin_prompts
 
     load_builtin_prompts()
-    assert {"label_v1_baseline", "label_v2_facts"} <= set(PROMPTS)
+    assert {"label_v1_baseline", "label_v2_facts", "label_v3_app_fields"} <= set(PROMPTS)
     assert "label_v3_ai_focus" not in PROMPTS
+
+
+def test_label_v3_app_fields_contains_app_directives():
+    from lab.prompts import PROMPTS, load_builtin_prompts
+
+    load_builtin_prompts()
+    cfg = PROMPTS["label_v3_app_fields"]
+    assert cfg.version == "v1"
+    assert "logo_url" in cfg.system
+    assert "instagram_url" in cfg.system
+    assert "tagline" in cfg.system
+    assert "label logo image URL" in cfg.user_template

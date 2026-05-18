@@ -43,6 +43,34 @@ Outputs land in:
 
 `outputs/` and `reports/` are gitignored.
 
+## Recommended pipeline
+
+For an end-to-end experiment producing a consensus label record:
+
+```bash
+# 1. Run two complementary vendors with the app-targeted prompt
+.venv/bin/lab run --prompts label_v3_app_fields --vendors tavily_deepseek,gemini
+
+# 2. Merge per-fixture cells into one consensus LabelInfo
+.venv/bin/lab aggregate <run_id>
+
+# 3. Inspect
+open reports/<run_id>.md
+```
+
+Approximate cost for 8 fixtures: $0.007 (Tavily+DeepSeek) + $0.04 (Gemini) +
+$0.003 (narrative merge) = **~$0.05** per full run.
+
+When a merged cell shows `confidence < 0.5` or `ai_content=unknown`, rerun
+that specific fixture against a higher-quality vendor and re-aggregate:
+
+```bash
+.venv/bin/lab run --fixtures <id> --vendors anthropic --prompts label_v3_app_fields
+.venv/bin/lab aggregate <newer_run_id>
+```
+
+Cheap baseline + on-demand expert arbiter pattern.
+
 ## Tests
 
 ```bash
