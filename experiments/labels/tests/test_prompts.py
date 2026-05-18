@@ -69,3 +69,7 @@ def test_label_v3_app_fields_contains_app_directives():
     assert cfg.version == "v1"
     assert "instagram_url" in cfg.system
     assert "tagline" in cfg.system
+    assert "status" in cfg.system            # NEW
+    assert "primary_styles" in cfg.system    # NEW
+    assert "primary style tags" in cfg.user_template  # NEW
+    assert "status (active/inactive)" in cfg.user_template  # NEW
