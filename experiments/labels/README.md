@@ -18,7 +18,7 @@ cp .env.example .env
 
 ## Run
 
-Default concurrency is 1 to stay within Anthropic's basic-tier 30k input-tokens/min limit; pass `--concurrency N` explicitly for higher tiers.
+Default concurrency is 8 (paid-tier quotas). See the Concurrency section below for details.
 
 ```bash
 # full matrix
@@ -70,6 +70,15 @@ that specific fixture against a higher-quality vendor and re-aggregate:
 ```
 
 Cheap baseline + on-demand expert arbiter pattern.
+
+### Concurrency
+
+`CONCURRENCY` (env var) controls how many vendor calls run in parallel.
+Default is 8 — fine for paid-tier OpenAI (500 RPM), Gemini (1000 RPM),
+and Anthropic basic-tier with the built-in 429 retry. Cells are submitted
+interleaved by vendor so a single vendor doesn't get all of one wave.
+Bump higher if you've raised your vendor quotas; the Anthropic adapter
+will retry 429s automatically with backoff.
 
 ## Tests
 

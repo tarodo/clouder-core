@@ -37,8 +37,8 @@ def run_matrix(spec: RunSpec) -> RunResult:
 
     cells: list[_Cell] = []
     for prompt_slug in spec.prompts:
-        for vendor in spec.vendors:
-            for fixture in spec.fixtures:
+        for fixture in spec.fixtures:
+            for vendor in spec.vendors:
                 cells.append(_Cell(prompt_slug=prompt_slug, vendor=vendor, fixture=fixture))
 
     started = datetime.now(timezone.utc)
