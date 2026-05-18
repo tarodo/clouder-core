@@ -66,6 +66,9 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/coverage",
     "GET /admin/runs",
     "GET /tracks/spotify-not-found",
+    "POST /admin/labels/enrich",
+    "GET /admin/labels/enrich-runs/{run_id}",
+    "GET /admin/labels/{label_id}",
 })
 
 
@@ -152,6 +155,18 @@ def _route(
         return _handle_admin_runs(event)
     if route_key == "GET /tracks/spotify-not-found":
         return _handle_spotify_not_found(event)
+    if route_key == "POST /admin/labels/enrich":
+        from .label_enrichment.routes import handle_post_enrich
+        status, body = handle_post_enrich(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/labels/enrich-runs/{run_id}":
+        from .label_enrichment.routes import handle_get_run
+        status, body = handle_get_run(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/labels/{label_id}":
+        from .label_enrichment.routes import handle_get_label
+        status, body = handle_get_label(event)
+        return _json_response(status, body, correlation_id)
     if route_key in _LIST_ROUTES:
         return _handle_list(event, route_key)
     return _json_response(
@@ -985,6 +1000,9 @@ def _extract_route_key(event: Mapping[str, Any]) -> str:
         route_key = request_context.get("routeKey")
         if isinstance(route_key, str):
             return route_key
+    top_level = event.get("routeKey")
+    if isinstance(top_level, str):
+        return top_level
     return ""
 
 
