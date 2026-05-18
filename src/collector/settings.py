@@ -198,6 +198,22 @@ class VendorMatchSettings(_SettingsBase):
     )
 
 
+class LabelEnrichmentWorkerSettings(_SettingsBase):
+    gemini_api_key: str = Field(default="")
+    openai_api_key: str = Field(default="")
+    tavily_api_key: str = Field(default="")
+    deepseek_api_key: str = Field(default="")
+    ai_flag_confidence_threshold: float = Field(
+        default=0.5, alias="AI_FLAG_CONFIDENCE_THRESHOLD", ge=0.0, le=1.0,
+    )
+    request_timeout_s: float = Field(
+        default=120.0, alias="LABEL_ENRICHMENT_REQUEST_TIMEOUT_S", ge=1.0,
+    )
+    label_enrichment_queue_url: str = Field(
+        default="", alias="LABEL_ENRICHMENT_QUEUE_URL",
+    )
+
+
 @functools.lru_cache
 def get_api_settings() -> ApiSettings:
     return ApiSettings()
@@ -232,6 +248,20 @@ def get_search_worker_settings() -> SearchWorkerSettings:
 
 
 @functools.lru_cache
+def get_label_enrichment_worker_settings() -> LabelEnrichmentWorkerSettings:
+    gemini = _resolve_simple_secret("GEMINI_API_KEY", "GEMINI_API_KEY_SECRET_ARN")
+    openai = _resolve_simple_secret("OPENAI_API_KEY", "OPENAI_API_KEY_SECRET_ARN")
+    tavily = _resolve_simple_secret("TAVILY_API_KEY", "TAVILY_API_KEY_SECRET_ARN")
+    deepseek = _resolve_simple_secret("DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY_SECRET_ARN")
+    return LabelEnrichmentWorkerSettings(
+        gemini_api_key=gemini,
+        openai_api_key=openai,
+        tavily_api_key=tavily,
+        deepseek_api_key=deepseek,
+    )
+
+
+@functools.lru_cache
 def get_vendor_match_settings() -> VendorMatchSettings:
     return VendorMatchSettings()
 
@@ -254,6 +284,7 @@ def reset_settings_cache() -> None:
     get_search_worker_settings.cache_clear()
     get_spotify_worker_settings.cache_clear()
     get_vendor_match_settings.cache_clear()
+    get_label_enrichment_worker_settings.cache_clear()
     if hasattr(_fetch_secret_string, "cache_clear"):
         _fetch_secret_string.cache_clear()
 
