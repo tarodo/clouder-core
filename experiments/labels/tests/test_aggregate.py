@@ -45,7 +45,6 @@ def _parsed(**overrides) -> dict:
         "country": "Sweden",
         "founded_year": 1996,
         "status": "active",
-        "logo_url": None,
         "tagline": None,
         "catalog_size_estimate": None,
         "roster_size_estimate": None,
@@ -330,3 +329,25 @@ def test_merge_deterministic_only_source_provenance():
     merged, prov = _merge_deterministic(cells)
     assert merged["parent_label"] == "Involved Productions"
     assert "only source(gemini)" == prov["parent_label"]
+
+
+def test_merge_deterministic_unknown_does_not_count_as_enum_vote():
+    """unknown is treated as abstention; definitive vendors win even if outnumbered."""
+    cells = [
+        _cell("gemini", "mg", parsed=_parsed(ai_content="none_detected", confidence=1.0)),
+        _cell("openai", "mo", parsed=_parsed(ai_content="unknown", confidence=0.6)),
+        _cell("tavily_deepseek", "mt", parsed=_parsed(ai_content="unknown", confidence=0.8)),
+    ]
+    merged, prov = _merge_deterministic(cells)
+    assert merged["ai_content"] == "none_detected"
+    assert "definitive" in prov["ai_content"]
+
+
+def test_merge_deterministic_all_unknown_returns_unknown():
+    cells = [
+        _cell("a", "ma", parsed=_parsed(ai_content="unknown")),
+        _cell("b", "mb", parsed=_parsed(ai_content="unknown")),
+    ]
+    merged, prov = _merge_deterministic(cells)
+    assert merged["ai_content"] == "unknown"
+    assert prov["ai_content"] == "all unknown"

@@ -113,7 +113,7 @@ def test_aggregate_writes_merged_and_updates_manifest(tmp_path, monkeypatch):
         "label_name": "Drumcode",
         "aliases": [], "parent_label": None, "sublabels": [],
         "country": "Sweden", "founded_year": 1996, "status": "active",
-        "logo_url": None, "tagline": "Swedish techno.",
+        "tagline": "Swedish techno.",
         "catalog_size_estimate": None, "roster_size_estimate": None,
         "releases_last_12_months": None, "last_release_date": None,
         "activity": "unknown",
