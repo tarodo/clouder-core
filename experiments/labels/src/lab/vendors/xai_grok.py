@@ -125,9 +125,16 @@ class XAIGrokAdapter:
 
 
 def _to_dict(obj: Any) -> dict:
-    """Best-effort serialization for the `raw` field."""
+    """Best-effort serialization for the `raw` field.
+
+    SDK Response objects use TypeVar-discriminated unions that pydantic
+    warns about during model_dump. Pass `warnings="none"` to silence them.
+    """
     if hasattr(obj, "model_dump"):
-        return obj.model_dump()
+        try:
+            return obj.model_dump(warnings="none")
+        except TypeError:
+            return obj.model_dump()
     if hasattr(obj, "__dict__"):
         return {k: getattr(obj, k) for k in vars(obj) if not k.startswith("_")}
     return {"repr": repr(obj)}
