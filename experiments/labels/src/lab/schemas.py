@@ -47,6 +47,8 @@ class LabelInfo(BaseModel):
     country: str | None = None
     founded_year: int | None = None
     status: Literal["active", "inactive", "unknown"] = "unknown"
+    logo_url: str | None = None
+    tagline: str | None = None
 
     catalog_size_estimate: int | None = None
     roster_size_estimate: int | None = None
@@ -60,6 +62,8 @@ class LabelInfo(BaseModel):
     discogs_url: str | None = None
     beatport_url: str | None = None
     soundcloud_url: str | None = None
+    instagram_url: str | None = None
+    twitter_url: str | None = None
 
     notable_artists: list[str] = Field(default_factory=list)
     primary_styles: list[str] = Field(default_factory=list)
