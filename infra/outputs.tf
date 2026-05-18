@@ -92,3 +92,13 @@ output "frontend_distribution_id" {
   description = "CloudFront distribution ID for invalidation"
   value       = aws_cloudfront_distribution.frontend.id
 }
+
+output "label_enricher_worker_lambda_function_name" {
+  description = "Name of the label-enrichment worker Lambda."
+  value       = aws_lambda_function.label_enricher_worker.function_name
+}
+
+output "label_enrichment_queue_url" {
+  description = "URL of the label-enrichment SQS queue."
+  value       = aws_sqs_queue.label_enrichment.url
+}

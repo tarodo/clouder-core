@@ -50,6 +50,7 @@ locals {
     canonicalization = aws_sqs_queue.canonicalization_dlq.name
     spotify_search   = aws_sqs_queue.spotify_search_dlq.name
     vendor_match     = aws_sqs_queue.vendor_match_dlq.name
+    label_enrichment = aws_sqs_queue.label_enrichment_dlq.name
   }
 }
 

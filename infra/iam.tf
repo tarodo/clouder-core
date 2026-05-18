@@ -30,6 +30,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       "${aws_cloudwatch_log_group.migration_lambda.arn}:*",
       "${aws_cloudwatch_log_group.spotify_search_worker.arn}:*",
       "${aws_cloudwatch_log_group.vendor_match_worker.arn}:*",
+      "${aws_cloudwatch_log_group.label_enricher_worker.arn}:*",
       "${aws_cloudwatch_log_group.auth_handler.arn}:*",
       "${aws_cloudwatch_log_group.curation.arn}:*",
     ]
@@ -88,6 +89,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.canonicalization.arn,
       aws_sqs_queue.spotify_search.arn,
       aws_sqs_queue.vendor_match.arn,
+      aws_sqs_queue.label_enrichment.arn,
     ]
   }
 
@@ -105,6 +107,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.canonicalization.arn,
       aws_sqs_queue.spotify_search.arn,
       aws_sqs_queue.vendor_match.arn,
+      aws_sqs_queue.label_enrichment.arn,
     ]
   }
 
@@ -138,6 +141,26 @@ data "aws_iam_policy_document" "collector_lambda" {
       actions = ["secretsmanager:GetSecretValue"]
       resources = compact([
         var.spotify_credentials_secret_arn,
+      ])
+    }
+  }
+
+  dynamic "statement" {
+    for_each = length(compact([
+      var.gemini_api_key_secret_arn,
+      var.openai_api_key_secret_arn,
+      var.tavily_api_key_secret_arn,
+      var.deepseek_api_key_secret_arn,
+    ])) > 0 ? [1] : []
+    content {
+      sid     = "AllowGetLabelEnrichmentSecrets"
+      effect  = "Allow"
+      actions = ["secretsmanager:GetSecretValue"]
+      resources = compact([
+        var.gemini_api_key_secret_arn,
+        var.openai_api_key_secret_arn,
+        var.tavily_api_key_secret_arn,
+        var.deepseek_api_key_secret_arn,
       ])
     }
   }

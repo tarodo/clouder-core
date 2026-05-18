@@ -15,6 +15,7 @@ locals {
     canonicalization = aws_lambda_function.canonicalization_worker.function_name
     spotify_search   = aws_lambda_function.spotify_search_worker.function_name
     vendor_match     = aws_lambda_function.vendor_match_worker.function_name
+    label_enricher   = aws_lambda_function.label_enricher_worker.function_name
   }
 
   all_lambdas = merge(local.api_lambdas, local.worker_lambdas)
@@ -66,6 +67,32 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration_p95" {
 
   dimensions = {
     FunctionName = each.value
+  }
+
+  alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
+  ok_actions    = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
+}
+
+# ── Lambda throttles (label_enricher) ────────────────────────────
+# Only meaningful when reserved concurrency caps the function — without
+# the cap, AWS won't throttle. Fires on the first throttled invocation
+# within 5 minutes so saturated vendor calls don't silently drop labels.
+resource "aws_cloudwatch_metric_alarm" "label_enricher_throttles" {
+  count = var.enable_lambda_reserved_concurrency ? 1 : 0
+
+  alarm_name          = "${aws_lambda_function.label_enricher_worker.function_name}-throttles"
+  namespace           = "AWS/Lambda"
+  metric_name         = "Throttles"
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 5
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "label_enricher throttled — reserved concurrency saturated"
+
+  dimensions = {
+    FunctionName = aws_lambda_function.label_enricher_worker.function_name
   }
 
   alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []

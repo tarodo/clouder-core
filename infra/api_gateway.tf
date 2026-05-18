@@ -110,6 +110,30 @@ resource "aws_apigatewayv2_route" "admin_runs" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "labels_enrich_post" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /admin/labels/enrich"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "labels_enrich_runs_get" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/labels/enrich-runs/{run_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "labels_get_info" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/labels/{label_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"
