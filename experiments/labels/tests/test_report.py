@@ -93,3 +93,95 @@ def test_build_report_renders_sections(tmp_path):
     # New: model id is shown in summary table
     assert "anthropic-model" in text
     assert "xai-model" in text
+
+
+def _write_merged(run_dir, prompt: str, fixture_id: str, merged_payload: dict, source_cells: list[dict], meta: dict) -> None:
+    """Write a merged/<file>.json record to a run dir."""
+    import json as _json
+    merged_dir = run_dir / "merged"
+    merged_dir.mkdir(exist_ok=True)
+    (merged_dir / f"{prompt}__{fixture_id}.json").write_text(_json.dumps({
+        "run_id": run_dir.name,
+        "merged_at": "2026-05-18T20:00:00+00:00",
+        "prompt": {"slug": prompt, "version": "v1"},
+        "fixture": {
+            "id": fixture_id, "label_name": merged_payload.get("label_name", fixture_id),
+            "style": "techno", "release_name": None,
+            "ground_truth": {"founded_year": 1996, "country": "Sweden", "parent_label": None, "ai_content_expected": "none_detected"} if fixture_id == "drumcode" else None,
+        },
+        "source_cells": source_cells,
+        "merged": merged_payload,
+        "merge_meta": meta,
+        "aggregate_cost_usd": meta.get("narrative_cost_usd", 0.0),
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def test_build_report_renders_aggregated_section(tmp_path):
+    from lab.report import build_report
+
+    run_dir = tmp_path / "outputs" / "20260518-200000-test"
+    reports_dir = tmp_path / "reports"
+
+    _write_cell(run_dir, "label_v3_app_fields", "gemini", "drumcode", {
+        "label_name": "Drumcode", "founded_year": 1996, "country": "Sweden",
+        "ai_content": "none_detected", "ai_reasoning": "—",
+        "summary": "Techno label.", "confidence": 0.9, "notable_artists": ["Adam Beyer"]
+    })
+    _write_manifest(run_dir, ok=1, err=0, cost=0.001)
+
+    _write_merged(run_dir, "label_v3_app_fields", "drumcode",
+        merged_payload={
+            "label_name": "Drumcode",
+            "tagline": "Swedish techno powerhouse since 1996.",
+            "founded_year": 1996,
+            "country": "Sweden",
+            "ai_content": "none_detected",
+            "confidence": 0.95,
+            "notable_artists": ["Adam Beyer", "Amelie Lens"],
+            "logo_url": "https://example.com/drumcode.png",
+            "instagram_url": "https://www.instagram.com/drumcode_se",
+            "summary": "Merged summary.",
+            "ai_reasoning": "—",
+        },
+        source_cells=[
+            {"vendor": "gemini", "model": "gemini-2.5-flash", "confidence": 0.9},
+            {"vendor": "tavily_deepseek", "model": "deepseek-v4-flash", "confidence": 1.0},
+        ],
+        meta={
+            "field_provenance": {
+                "founded_year": "median:1996",
+                "country": "majority(2/2)",
+                "tagline": "deepseek narrative",
+                "logo_url": "highest confidence(tavily_deepseek)",
+            },
+            "narrative_cost_usd": 0.0004,
+            "narrative_latency_ms": 4200,
+        },
+    )
+
+    out_path = build_report(run_dir, reports_dir)
+    text = out_path.read_text(encoding="utf-8")
+
+    assert "## Aggregated (consensus)" in text
+    assert "drumcode — label_v3_app_fields" in text
+    assert "Swedish techno powerhouse since 1996." in text
+    assert "median:1996" in text
+    assert "highest confidence(tavily_deepseek)" in text
+    assert "1996 ✓" in text  # ground-truth match still annotated
+    assert "Sweden ✓" in text
+
+
+def test_build_report_no_aggregated_section_when_merged_dir_absent(tmp_path):
+    from lab.report import build_report
+
+    run_dir = tmp_path / "outputs" / "20260518-201000-test"
+    reports_dir = tmp_path / "reports"
+    _write_cell(run_dir, "label_v1_baseline", "anthropic", "drumcode", {
+        "label_name": "Drumcode", "founded_year": 1996, "country": "Sweden",
+        "ai_content": "none_detected", "ai_reasoning": "—",
+        "summary": "x", "confidence": 0.9, "notable_artists": [],
+    })
+    _write_manifest(run_dir, ok=1, err=0, cost=0.001)
+
+    text = build_report(run_dir, reports_dir).read_text()
+    assert "## Aggregated" not in text

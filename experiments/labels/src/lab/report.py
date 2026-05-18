@@ -19,6 +19,22 @@ TABLE_FIELDS: list[str] = [
     "notable_artists",
 ]
 
+AGGREGATED_TABLE_FIELDS: list[str] = [
+    "founded_year",
+    "country",
+    "parent_label",
+    "logo_url",
+    "instagram_url",
+    "twitter_url",
+    "catalog_size_estimate",
+    "releases_last_12_months",
+    "activity",
+    "ai_content",
+    "confidence",
+    "tagline",
+    "notable_artists",
+]
+
 EMPTY = "—"
 
 
@@ -36,6 +52,7 @@ def build_report(run_dir: Path, reports_dir: Path) -> Path:
     lines.append(f"# Run report — `{run_id}`")
     lines.append("")
     lines.extend(_summary_section(manifest, cells))
+    lines.extend(_aggregated_section(run_dir))   # NEW
     for fixture_id in sorted(cells_by_fixture):
         lines.extend(_fixture_section(fixture_id, cells_by_fixture[fixture_id]))
     lines.extend(_details_section(cells))
@@ -77,6 +94,75 @@ def _summary_section(manifest: dict, cells: list[dict]) -> list[str]:
         mean = sum(lats) / len(lats)
         cost = by_pair_cost[(vendor, model)]
         rows.append(f"| {vendor} | {model} | {mean:.0f} | {cost:.4f} |")
+    rows.append("")
+    return rows
+
+
+def _aggregated_section(run_dir: Path) -> list[str]:
+    merged_dir = run_dir / "merged"
+    if not merged_dir.exists():
+        return []
+    files = sorted(merged_dir.glob("*.json"))
+    if not files:
+        return []
+
+    rows: list[str] = ["## Aggregated (consensus)", ""]
+    total_cost = 0.0
+    payloads = []
+    for f in files:
+        payload = json.loads(f.read_text(encoding="utf-8"))
+        payloads.append(payload)
+        total_cost += float(payload.get("aggregate_cost_usd") or 0.0)
+    rows.append(f"Merged via DeepSeek narrative + deterministic rules. Total aggregate cost: ${total_cost:.4f}.")
+    rows.append("")
+
+    for payload in payloads:
+        rows.extend(_aggregated_one(payload))
+
+    return rows
+
+
+def _aggregated_one(payload: dict) -> list[str]:
+    fixture_id = payload["fixture"]["id"]
+    prompt_slug = payload["prompt"]["slug"]
+    sources = payload.get("source_cells") or []
+    merged = payload.get("merged") or {}
+    prov = (payload.get("merge_meta") or {}).get("field_provenance") or {}
+    truth = (payload["fixture"].get("ground_truth")) or {}
+
+    rows: list[str] = []
+    rows.append(f"### {fixture_id} — {prompt_slug} ({len(sources)} sources)")
+    rows.append("")
+    rows.append("| field | value | provenance |")
+    rows.append("| --- | --- | --- |")
+
+    for field in AGGREGATED_TABLE_FIELDS:
+        raw_value = merged.get(field)
+        if raw_value is None or raw_value == [] or raw_value == "":
+            rendered = EMPTY
+        elif isinstance(raw_value, list):
+            rendered = ", ".join(str(v) for v in raw_value)
+        else:
+            rendered = str(raw_value)
+
+        # Ground-truth annotation, same logic as fixture section
+        expected = None
+        if field == "founded_year":
+            expected = truth.get("founded_year")
+        elif field == "country":
+            expected = truth.get("country")
+        elif field == "parent_label":
+            expected = truth.get("parent_label")
+        elif field == "ai_content":
+            expected = truth.get("ai_content_expected")
+        if expected is not None and rendered != EMPTY:
+            rendered += " ✓" if str(raw_value) == str(expected) else " ✗"
+
+        rows.append(f"| {field} | {rendered} | {prov.get(field, '—')} |")
+
+    rows.append("")
+    sources_line = ", ".join(f"{s['vendor']}/{s['model']}" for s in sources)
+    rows.append(f"**Sources:** {sources_line}")
     rows.append("")
     return rows
 
