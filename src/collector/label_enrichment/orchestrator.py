@@ -8,6 +8,7 @@ from typing import Any
 from .aggregator import merge_cells
 from .prompts.base import PromptConfig, render_user
 from .repository import LabelEnrichmentRepository
+from .settings_provider import LabelEnrichmentSecrets
 from .vendors.base import VendorAdapter, VendorResponse
 
 
@@ -152,3 +153,44 @@ def _response_from_cell(cell: dict, default_model: str) -> VendorResponse:
         model=cell["vendor"].get("model") or default_model,
         error=cell.get("error"),
     )
+
+
+def build_adapters_from_run_config(
+    *,
+    vendor_names: list[str],
+    models: dict[str, str],
+    secrets: "LabelEnrichmentSecrets",
+    request_timeout_s: float,
+) -> list[VendorAdapter]:
+    """Instantiate exactly the requested adapters with their per-run models."""
+    from .vendors.gemini import GeminiAdapter
+    from .vendors.openai_gpt import OpenAIAdapter
+    from .vendors.tavily_deepseek import TavilyDeepSeekAdapter
+
+    adapters: list[VendorAdapter] = []
+    for name in vendor_names:
+        model = models.get(name)
+        if not model:
+            raise ValueError(f"model missing for vendor {name!r}")
+        if name == "gemini":
+            adapters.append(GeminiAdapter(
+                api_key=secrets.gemini_api_key,
+                default_model=model,
+                timeout_s=request_timeout_s,
+            ))
+        elif name == "openai":
+            adapters.append(OpenAIAdapter(
+                api_key=secrets.openai_api_key,
+                default_model=model,
+                timeout_s=request_timeout_s,
+            ))
+        elif name == "tavily_deepseek":
+            adapters.append(TavilyDeepSeekAdapter(
+                tavily_api_key=secrets.tavily_api_key,
+                deepseek_api_key=secrets.deepseek_api_key,
+                default_model=model,
+                timeout_s=request_timeout_s,
+            ))
+        else:
+            raise ValueError(f"unknown vendor {name!r}")
+    return adapters

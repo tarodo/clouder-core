@@ -141,3 +141,43 @@ def test_enrich_label_for_run_counts_mixed_outcomes():
     assert kwargs["error_delta"] == 1
     # cost = 0.002 + 0.0 + 0.002 + (deepseek narrative cost)
     assert kwargs["cost_delta"] > 0.003
+
+
+def test_build_adapters_from_run_config_returns_three_adapters():
+    from collector.label_enrichment.orchestrator import build_adapters_from_run_config
+    from collector.label_enrichment.settings_provider import LabelEnrichmentSecrets
+
+    adapters = build_adapters_from_run_config(
+        vendor_names=["gemini", "openai", "tavily_deepseek"],
+        models={
+            "gemini": "gemini-3-flash-preview",
+            "openai": "gpt-5.4-mini",
+            "tavily_deepseek": "deepseek-v4-flash",
+        },
+        secrets=LabelEnrichmentSecrets(
+            gemini_api_key="g", openai_api_key="o",
+            tavily_api_key="t", deepseek_api_key="d",
+        ),
+        request_timeout_s=30.0,
+    )
+    names = {a.name for a in adapters}
+    assert names == {"gemini", "openai", "tavily_deepseek"}
+    by_name = {a.name: a for a in adapters}
+    assert by_name["gemini"].default_model == "gemini-3-flash-preview"
+
+
+def test_build_adapters_rejects_unknown_vendor():
+    import pytest
+    from collector.label_enrichment.orchestrator import build_adapters_from_run_config
+    from collector.label_enrichment.settings_provider import LabelEnrichmentSecrets
+
+    with pytest.raises(ValueError, match="unknown vendor"):
+        build_adapters_from_run_config(
+            vendor_names=["anthropic"],
+            models={"anthropic": "claude-opus"},
+            secrets=LabelEnrichmentSecrets(
+                gemini_api_key="g", openai_api_key="o",
+                tavily_api_key="t", deepseek_api_key="d",
+            ),
+            request_timeout_s=30.0,
+        )
