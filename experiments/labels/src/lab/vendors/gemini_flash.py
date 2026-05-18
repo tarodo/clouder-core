@@ -181,6 +181,11 @@ class GeminiFlashAdapter:
         except (json.JSONDecodeError, ValidationError, ValueError) as exc:
             error = f"parse error: {type(exc).__name__}: {exc}"
 
+        if not citations and parsed is not None:
+            src = getattr(parsed, "sources", None)
+            if isinstance(src, list):
+                citations = [s for s in src if isinstance(s, str) and s.strip()]
+
         return VendorResponse(
             parsed=parsed,
             raw={"text": text, "citations": citations},
