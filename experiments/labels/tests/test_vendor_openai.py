@@ -1,0 +1,73 @@
+"""Tests for OpenAIGPTAdapter using injected fake clients."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+import pytest
+
+from lab.schemas import LabelInfo
+from lab.vendors.openai_gpt import OpenAIGPTAdapter
+
+
+def _valid_parsed() -> LabelInfo:
+    return LabelInfo(
+        label_name="Drumcode",
+        ai_reasoning="No AI signals.",
+        summary="Swedish techno label.",
+        confidence=0.9,
+    )
+
+
+def _mock_response(parsed: LabelInfo | None, citations: list[str] | None = None) -> SimpleNamespace:
+    usage = SimpleNamespace(input_tokens=400, output_tokens=300, total_tokens=700)
+    return SimpleNamespace(
+        output_parsed=parsed,
+        output=[],
+        usage=usage,
+        model="gpt-5-mini",
+        citations=citations or [],
+    )
+
+
+def test_run_returns_parsed(mocker):
+    fake_client = mocker.MagicMock()
+    fake_client.responses.parse.return_value = _mock_response(
+        _valid_parsed(),
+        citations=["https://example.com/a", "https://example.com/b"],
+    )
+
+    adapter = OpenAIGPTAdapter(api_key="x", default_model="gpt-5-mini", client=fake_client)
+    resp = adapter.run(system="sys", user="usr", schema=LabelInfo)
+
+    assert resp.error is None
+    assert resp.parsed.label_name == "Drumcode"
+    assert resp.citations == ["https://example.com/a", "https://example.com/b"]
+    assert resp.usage["input_tokens"] == 400
+    assert resp.usage["output_tokens"] == 300
+    assert resp.usage["cost_usd"] > 0
+
+    call = fake_client.responses.parse.call_args.kwargs
+    assert call["model"] == "gpt-5-mini"
+    assert call["instructions"] == "sys"
+    assert call["input"] == [{"role": "user", "content": "usr"}]
+    assert call["tools"] == [{"type": "web_search"}]
+    assert call["text_format"] is LabelInfo
+
+
+def test_run_returns_error_when_no_parse(mocker):
+    fake_client = mocker.MagicMock()
+    fake_client.responses.parse.return_value = _mock_response(parsed=None)
+    adapter = OpenAIGPTAdapter(api_key="x", default_model="gpt-5-mini", client=fake_client)
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.parsed is None
+    assert "no output_parsed" in resp.error.lower()
+
+
+def test_run_returns_error_on_exception(mocker):
+    fake_client = mocker.MagicMock()
+    fake_client.responses.parse.side_effect = RuntimeError("boom")
+    adapter = OpenAIGPTAdapter(api_key="x", default_model="gpt-5-mini", client=fake_client)
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.parsed is None
+    assert "boom" in resp.error
