@@ -30,9 +30,15 @@ def _make_grounding_chunk(uri: str) -> SimpleNamespace:
     return SimpleNamespace(web=web)
 
 
-def _mock_response(text: str, citations: list[str] | None = None) -> SimpleNamespace:
+def _mock_response(
+    text: str,
+    citations: list[str] | None = None,
+    grounding_uris: list[str] | None = None,
+) -> SimpleNamespace:
+    # `grounding_uris` is an alias for `citations`; whichever is provided wins.
+    uris = grounding_uris if grounding_uris is not None else (citations or [])
     usage_meta = SimpleNamespace(prompt_token_count=400, candidates_token_count=300)
-    grounding_chunks = [_make_grounding_chunk(u) for u in (citations or [])]
+    grounding_chunks = [_make_grounding_chunk(u) for u in uris]
     grounding_metadata = SimpleNamespace(grounding_chunks=grounding_chunks)
     candidate = SimpleNamespace(grounding_metadata=grounding_metadata)
     return SimpleNamespace(
@@ -165,3 +171,26 @@ def test_run_retries_on_quota_exhausted(mocker):
     assert resp.parsed is not None
     assert resp.parsed.label_name == "Drumcode"
     assert fake_client.models.generate_content.call_count == 3
+
+
+def test_run_falls_back_to_parsed_sources_for_citations(mocker):
+    """When grounding_metadata has no URLs, copy parsed.sources into citations."""
+    fake_client = mocker.MagicMock()
+    # Response with empty grounding_chunks but populated `sources` in the JSON
+    payload_json = json.dumps({
+        "label_name": "Hessle Audio",
+        "ai_reasoning": "—",
+        "summary": "UK label",
+        "confidence": 0.9,
+        "sources": ["https://example.com/a", "https://example.com/b"],
+    })
+    fake_client.models.generate_content.return_value = _mock_response(
+        payload_json,
+        grounding_uris=[],  # no grounding chunks
+    )
+    adapter = GeminiFlashAdapter(
+        api_key="x", default_model="gemini-2.5-flash", client=fake_client
+    )
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.error is None
+    assert resp.citations == ["https://example.com/a", "https://example.com/b"]
