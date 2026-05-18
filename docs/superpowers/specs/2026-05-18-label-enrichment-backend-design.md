@@ -271,22 +271,50 @@ CREATE INDEX idx_label_enr_cells_label
 CREATE TABLE clouder_label_info (
   label_id varchar(36) PRIMARY KEY REFERENCES clouder_labels(id),
   last_run_id varchar(36) NOT NULL REFERENCES clouder_label_enrichment_runs(id),
-  prompt_slug text NOT NULL,
-  prompt_version text NOT NULL,
-  merged jsonb NOT NULL,         -- full LabelInfo, same schema as cell.parsed
-  provenance jsonb NOT NULL,     -- { <field_name>: { "value": <merged_value>, "source": "<provenance_string>" } }
+  prompt_slug text NOT NULL,           -- lineage; full text lives in git
+  prompt_version text NOT NULL,        -- lineage; full text lives in git
+  merged jsonb NOT NULL,               -- full LabelInfo, same schema as cell.parsed
+  provenance jsonb NOT NULL,           -- { <field_name>: { "value": <merged_value>, "source": "<provenance_string>" } }
+  -- Denormalized scalars for hot filter / sort paths (mirrored from merged):
   ai_content text NOT NULL,
   ai_confidence numeric(3,2) NOT NULL,
-  status text NOT NULL,
+  status text NOT NULL,                -- active | inactive | unknown
   primary_styles text[] NOT NULL DEFAULT '{}',
   tagline text,
   country text,
   founded_year int,
+  activity text,                       -- fire_hose | steady | low | dormant | unknown
+  last_release_date date,
   updated_at timestamptz NOT NULL
 );
 CREATE INDEX idx_label_info_updated_at
   ON clouder_label_info (updated_at DESC);
+CREATE INDEX idx_label_info_status
+  ON clouder_label_info (status);
+CREATE INDEX idx_label_info_primary_styles
+  ON clouder_label_info USING GIN (primary_styles);
 ```
+
+### Why hybrid (JSONB + denormalized scalars)
+
+`LabelInfo` has 21 fields and is expected to grow as the frontend exposes more (more social networks, additional vendor signals, future fields). Storing every field as its own column means a migration per addition — every "let's add Mixcloud URL" turns into an Alembic change + Data API SQL change + handler change. The single `merged jsonb` blob absorbs schema evolution without DB churn.
+
+Hybrid keeps both: the JSONB is the source of truth, and the columns mirrored from it (`ai_content`, `status`, `primary_styles`, `country`, `founded_year`, `activity`, `last_release_date`, `tagline`) are the fields the frontend will sort / filter / paginate by. Querying GIN on JSONB works but is slower and harder to read than a B-tree on a typed column. We pay one upsert-time copy for every read-time benefit.
+
+**Rule of thumb for what to denormalize**: a field is mirrored to a column only if a list / browse / filter UI is likely to need it. Narrative fields (`summary`, `tagline`, `ai_reasoning`, `notes`) and channel URLs stay JSONB-only.
+
+### Where prompts live
+
+Prompts live in code, not in the database. `src/collector/label_enrichment/prompts/label_v3_app_fields.py` defines a `PromptConfig` and self-registers into a process-wide registry at Lambda cold-start (same pattern as the experiment).
+
+The run row and label_info row carry only `(prompt_slug, prompt_version)` as a lineage tag. The full system + user template is always recoverable from git by checking out the commit that introduced `prompt_version`. Updating a prompt = new version = bump `prompt_version` to `v2` and register both side-by-side until the old version is retired.
+
+**Why not in DB?**
+- Versioning in git is stricter than a `prompts` table: diff review, blame, PR gates.
+- A Lambda cold-start doesn't need a DB round-trip just to load a template.
+- Re-running with a historical prompt is a deploy-by-tag, not a row-fetch — appropriate for a low-frequency operation.
+
+**Phase 2 option** (not in this scope): snapshot the rendered system + user prompts into `cells.rendered_system_prompt` / `cells.rendered_user_prompt` for forensic debugging. Adds ~5-20 KB per cell. Skip until a "why did Gemini answer X" question actually demands it.
 
 Two Alembic migrations:
 1. **drop**: `ai_search_results` table + `uq_search_result` index.
