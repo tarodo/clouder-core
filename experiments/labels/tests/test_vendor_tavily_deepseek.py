@@ -20,6 +20,10 @@ _SAMPLE_RESULTS = [
     {"title": "Drumcode Discogs", "url": "https://discogs.com/label/drumcode", "content": "Discogs page."},
 ]
 
+_SOCIAL_RESULTS = [
+    {"title": "Drumcode YouTube", "url": "https://youtube.com/channel/drumcode", "content": "Official YouTube."},
+]
+
 _VALID_LABEL_JSON = json.dumps(
     {
         "label_name": "Drumcode",
@@ -32,10 +36,15 @@ _VALID_LABEL_JSON = json.dumps(
 
 
 def _tavily_ok_transport() -> httpx.MockTransport:
-    body = json.dumps({"results": _SAMPLE_RESULTS}).encode()
+    """Handler that distinguishes general vs social pass by include_domains key."""
+    general_body = json.dumps({"results": _SAMPLE_RESULTS}).encode()
+    social_body = json.dumps({"results": _SOCIAL_RESULTS}).encode()
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=body, headers={"Content-Type": "application/json"})
+        body = json.loads(request.content)
+        if "include_domains" in body:
+            return httpx.Response(200, content=social_body, headers={"Content-Type": "application/json"})
+        return httpx.Response(200, content=general_body, headers={"Content-Type": "application/json"})
 
     return httpx.MockTransport(handler)
 
@@ -81,9 +90,12 @@ def test_happy_path():
     assert resp.error is None
     assert resp.parsed is not None
     assert resp.parsed.label_name == "Drumcode"
+    # General-pass citations
     assert "https://ra.co/labels/drumcode" in resp.citations
     assert "https://drumcode.se" in resp.citations
-    assert len(resp.citations) == 3
+    # Social-pass citation merged in
+    assert "https://youtube.com/channel/drumcode" in resp.citations
+    assert len(resp.citations) == 4  # 3 general + 1 social (deduped)
     assert resp.usage["input_tokens"] == 500
     assert resp.usage["output_tokens"] == 200
     assert resp.model == "deepseek-v4-flash"
@@ -112,8 +124,8 @@ def test_deepseek_exception():
     assert resp.parsed is None
     assert resp.error is not None
     assert "deepseek" in resp.error.lower()
-    # citations from tavily stage should be present
-    assert len(resp.citations) == 3
+    # citations from tavily stage (general + social merged) should be present
+    assert len(resp.citations) == 4
 
 
 def test_bad_json_from_deepseek():
@@ -126,5 +138,36 @@ def test_bad_json_from_deepseek():
     assert resp.parsed is None
     assert resp.error is not None
     assert "parse error" in resp.error
-    # citations from tavily stage should still be present
-    assert len(resp.citations) == 3
+    # citations from tavily stage (general + social merged) should still be present
+    assert len(resp.citations) == 4
+
+
+def test_run_survives_social_pass_failure():
+    """Second Tavily call fails — first-pass results still flow through."""
+    call_count = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if "include_domains" in body:
+            return httpx.Response(500, text="oops")
+        call_count["n"] += 1
+        return httpx.Response(
+            200,
+            json={"results": [{"title": "General", "url": "https://general.example.com", "content": "info"}]},
+            headers={"Content-Type": "application/json"},
+        )
+
+    transport = httpx.MockTransport(handler)
+    http_client = httpx.Client(transport=transport, base_url="https://api.tavily.com")
+    fake_llm = _make_llm_client(content=_VALID_LABEL_JSON)
+
+    adapter = TavilyDeepSeekAdapter(
+        tavily_api_key="t",
+        deepseek_api_key="d",
+        default_model="deepseek-v4-flash",
+        http_client=http_client,
+        llm_client=fake_llm,
+    )
+    resp = adapter.run(system="s", user="u", schema=LabelInfo)
+    assert resp.error is None
+    assert "https://general.example.com" in resp.citations
