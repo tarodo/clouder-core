@@ -294,3 +294,44 @@ class LabelEnrichmentRepository:
             {"id": label_id},
         )
         return rows[0] if rows else None
+
+    def increment_run_counters(
+        self,
+        *,
+        run_id: str,
+        ok_delta: int,
+        error_delta: int,
+        cost_delta: float,
+    ) -> None:
+        """Atomically bump counters and flip to 'completed' once cells_total is reached.
+
+        Single UPDATE so the (cells_ok + cells_error) check and the status
+        flip happen inside one transaction — race-safe across concurrent
+        worker invocations.
+        """
+        ts = self._now()
+        self._data_api.execute(
+            """
+            UPDATE clouder_label_enrichment_runs
+            SET
+                cells_ok = cells_ok + :ok,
+                cells_error = cells_error + :err,
+                cost_usd = cost_usd + :cost,
+                status = CASE WHEN cells_ok + cells_error + :ok + :err >= cells_total
+                    THEN 'completed'
+                    ELSE status
+                END,
+                finished_at = CASE WHEN cells_ok + cells_error + :ok + :err >= cells_total
+                    THEN :ts
+                    ELSE finished_at
+                END
+            WHERE id = :id
+            """,
+            {
+                "id": run_id,
+                "ok": ok_delta,
+                "err": error_delta,
+                "cost": Decimal(str(round(cost_delta, 4))),
+                "ts": ts,
+            },
+        )

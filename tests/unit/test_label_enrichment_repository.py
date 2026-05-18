@@ -247,3 +247,25 @@ def test_get_label_info_joins_label_name():
     assert row["label_name"] == "Drumcode"
     sql, _ = data_api.execute.call_args[0]
     assert "JOIN clouder_labels" in sql
+
+
+def test_increment_run_counters_atomic_update_only():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    repo.increment_run_counters(
+        run_id="r-1",
+        ok_delta=2,
+        error_delta=1,
+        cost_delta=0.03,
+    )
+    sql, params = data_api.execute.call_args[0]
+    assert sql.count("UPDATE clouder_label_enrichment_runs") == 1
+    assert "cells_ok = cells_ok + :ok" in sql
+    assert "cells_error = cells_error + :err" in sql
+    assert "cost_usd = cost_usd + :cost" in sql
+    assert "CASE WHEN cells_ok + cells_error + :ok + :err >= cells_total" in sql
+    assert "THEN 'completed'" in sql
+    assert "ELSE status" in sql
+    assert "finished_at = CASE" in sql
+    assert params["ok"] == 2
+    assert params["err"] == 1
