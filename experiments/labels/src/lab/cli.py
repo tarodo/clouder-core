@@ -13,7 +13,10 @@ from .report import build_report
 from .runner import RunSpec, run_matrix
 from .vendors.anthropic_claude import AnthropicClaudeAdapter
 from .vendors.base import VendorAdapter
+from .vendors.gemini_flash import GeminiFlashAdapter
+from .vendors.openai_gpt import OpenAIGPTAdapter
 from .vendors.perplexity_sonar import PerplexitySonarAdapter
+from .vendors.tavily_deepseek import TavilyDeepSeekAdapter
 from .vendors.xai_grok import XAIGrokAdapter
 
 ROOT = Path(__file__).resolve().parents[2]  # experiments/labels/
@@ -38,6 +41,25 @@ def build_vendors(settings: Settings, names: list[str]) -> list[VendorAdapter]:
         adapters.append(XAIGrokAdapter(
             api_key=settings.xai_api_key,
             default_model=settings.xai_model,
+            timeout_s=settings.request_timeout,
+        ))
+    if "gemini" in names and settings.gemini_api_key:
+        adapters.append(GeminiFlashAdapter(
+            api_key=settings.gemini_api_key,
+            default_model=settings.gemini_model,
+            timeout_s=settings.request_timeout,
+        ))
+    if "openai" in names and settings.openai_api_key:
+        adapters.append(OpenAIGPTAdapter(
+            api_key=settings.openai_api_key,
+            default_model=settings.openai_model,
+            timeout_s=settings.request_timeout,
+        ))
+    if "tavily_deepseek" in names and settings.tavily_api_key and settings.deepseek_api_key:
+        adapters.append(TavilyDeepSeekAdapter(
+            tavily_api_key=settings.tavily_api_key,
+            deepseek_api_key=settings.deepseek_api_key,
+            default_model=settings.deepseek_model,
             timeout_s=settings.request_timeout,
         ))
     if "perplexity" in names and settings.perplexity_api_key:
