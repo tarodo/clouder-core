@@ -13,7 +13,6 @@ locals {
   # 900s for canonicalization / spotify_search). Errors still matter.
   worker_lambdas = {
     canonicalization = aws_lambda_function.canonicalization_worker.function_name
-    ai_search        = aws_lambda_function.ai_search_worker.function_name
     spotify_search   = aws_lambda_function.spotify_search_worker.function_name
     vendor_match     = aws_lambda_function.vendor_match_worker.function_name
   }
@@ -67,30 +66,6 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration_p95" {
 
   dimensions = {
     FunctionName = each.value
-  }
-
-  alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
-  ok_actions    = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
-}
-
-# ── ai_search_worker throttles ───────────────────────────────────
-# With reserved_concurrent_executions = 2, sustained throttles signal
-# bulk ingest pressure (~1000 labels/week) — the exact failure mode
-# Task 3's concurrency cap was meant to surface, not silence.
-resource "aws_cloudwatch_metric_alarm" "ai_search_throttles" {
-  alarm_name          = "${aws_lambda_function.ai_search_worker.function_name}-throttles"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "Throttles"
-  namespace           = "AWS/Lambda"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 5
-  treat_missing_data  = "notBreaching"
-  alarm_description   = "ai_search_worker throttled — reserved concurrency saturated by sustained burst"
-
-  dimensions = {
-    FunctionName = aws_lambda_function.ai_search_worker.function_name
   }
 
   alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []

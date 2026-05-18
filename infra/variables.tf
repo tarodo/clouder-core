@@ -166,61 +166,6 @@ variable "enable_secretsmanager_vpc_endpoint" {
   default     = false
 }
 
-# ── AI Search ──────────────────────────────────────────────────────
-
-variable "ai_search_enabled" {
-  description = "Enable AI-powered label search via Perplexity"
-  type        = bool
-  default     = false
-}
-
-variable "ai_search_worker_lambda_timeout_seconds" {
-  description = "AI search worker Lambda timeout in seconds"
-  type        = number
-  default     = 60
-}
-
-variable "ai_search_worker_lambda_memory_mb" {
-  description = "AI search worker Lambda memory size in MB"
-  type        = number
-  default     = 256
-}
-
-variable "ai_search_batch_size" {
-  description = "SQS batch size for AI search worker lambda"
-  type        = number
-  default     = 1
-}
-
-variable "ai_search_worker_reserved_concurrency" {
-  description = "Reserved concurrent executions for ai_search_worker. Caps parallel Perplexity API calls (rate limit ~5 RPS on paid tier). 2 is a safe default. Only applied when var.enable_lambda_reserved_concurrency = true (requires account ConcurrentExecutions quota high enough that the sum of all reserved values does not push UnreservedConcurrentExecution below the AWS floor of 10)."
-  type        = number
-  default     = 2
-}
-
-variable "ai_search_queue_visibility_timeout_seconds" {
-  description = "Visibility timeout for AI search queue"
-  type        = number
-  default     = 90
-}
-
-variable "ai_search_queue_retention_seconds" {
-  description = "Message retention for AI search queue"
-  type        = number
-  default     = 1209600
-}
-
-variable "perplexity_api_key_secret_arn" {
-  description = "Legacy Secrets Manager ARN for the Perplexity API key. Empty when SSM is used."
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = var.perplexity_api_key_secret_arn == "" || can(regex("^arn:aws:secretsmanager:", var.perplexity_api_key_secret_arn))
-    error_message = "perplexity_api_key_secret_arn must be empty or a valid Secrets Manager ARN."
-  }
-}
-
 # ── Spotify Search ────────────────────────────────────────────────
 
 variable "spotify_search_enabled" {
@@ -288,12 +233,6 @@ variable "alarm_sns_topic_arn" {
   default     = ""
 }
 
-variable "perplexity_api_key_ssm_parameter" {
-  description = "SSM Parameter Store name (SecureString) holding the Perplexity API key. Takes precedence over perplexity_api_key_secret_arn."
-  type        = string
-  default     = ""
-}
-
 variable "spotify_client_id_ssm_parameter" {
   description = "SSM Parameter Store name (SecureString) holding the Spotify client_id."
   type        = string
@@ -339,7 +278,7 @@ variable "vendor_match_worker_reserved_concurrency" {
 }
 
 variable "enable_lambda_reserved_concurrency" {
-  description = "Apply per-Lambda reserved_concurrent_executions to Spotify/Perplexity workers. Disable when the AWS account ConcurrentExecutions quota is too low (sum of reserved values must leave ≥10 unreserved). Default false because new accounts ship with quota 10. Raise the quota via Service Quotas (L-B99A9384, target ≥ 17) before flipping this on."
+  description = "Apply per-Lambda reserved_concurrent_executions to Spotify workers. Disable when the AWS account ConcurrentExecutions quota is too low (sum of reserved values must leave ≥10 unreserved). Default false because new accounts ship with quota 10. Raise the quota via Service Quotas (L-B99A9384, target ≥ 17) before flipping this on."
   type        = bool
   default     = false
 }

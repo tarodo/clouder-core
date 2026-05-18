@@ -33,11 +33,6 @@ output "migration_lambda_function_name" {
   value       = aws_lambda_function.db_migration.function_name
 }
 
-output "ai_search_worker_lambda_function_name" {
-  description = "AI search worker Lambda function name"
-  value       = aws_lambda_function.ai_search_worker.function_name
-}
-
 output "spotify_search_worker_lambda_function_name" {
   description = "Spotify search worker Lambda function name"
   value       = aws_lambda_function.spotify_search_worker.function_name
