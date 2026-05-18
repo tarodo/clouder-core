@@ -67,9 +67,12 @@ resource "aws_sqs_queue" "label_enrichment_dlq" {
 }
 
 resource "aws_sqs_queue" "label_enrichment" {
-  name                       = local.label_enrichment_queue_name
-  visibility_timeout_seconds = var.label_enrichment_queue_visibility_timeout_seconds
-  message_retention_seconds  = var.label_enrichment_queue_retention_seconds
+  name = local.label_enrichment_queue_name
+  visibility_timeout_seconds = max(
+    var.label_enrichment_queue_visibility_timeout_seconds,
+    var.label_enrichment_worker_lambda_timeout_seconds
+  )
+  message_retention_seconds = var.label_enrichment_queue_retention_seconds
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.label_enrichment_dlq.arn

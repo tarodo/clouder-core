@@ -439,3 +439,57 @@ variable "label_enrichment_queue_max_receive_count" {
   type        = number
   default     = 3
 }
+
+variable "label_enrichment_worker_lambda_timeout_seconds" {
+  description = "Lambda timeout. Default 900s (15min) — single label, ThreadPool inside, vendor latency budget."
+  type        = number
+  default     = 900
+}
+
+variable "label_enrichment_worker_lambda_memory_mb" {
+  description = "Lambda memory MB."
+  type        = number
+  default     = 1024
+}
+
+variable "label_enrichment_worker_reserved_concurrency" {
+  description = "Max parallel Lambda invocations. Caps cross-label parallelism."
+  type        = number
+  default     = 10
+}
+
+variable "label_enrichment_batch_size" {
+  description = "SQS batch size. Keep at 1 — one label per invocation, ThreadPool fans out vendors."
+  type        = number
+  default     = 1
+}
+
+variable "gemini_api_key_secret_arn" {
+  description = "Secrets Manager ARN for the Gemini API key."
+  type        = string
+  default     = ""
+}
+
+variable "openai_api_key_secret_arn" {
+  description = "Secrets Manager ARN for the OpenAI API key."
+  type        = string
+  default     = ""
+}
+
+variable "tavily_api_key_secret_arn" {
+  description = "Secrets Manager ARN for the Tavily API key."
+  type        = string
+  default     = ""
+}
+
+variable "deepseek_api_key_secret_arn" {
+  description = "Secrets Manager ARN for the DeepSeek API key."
+  type        = string
+  default     = ""
+}
+
+variable "ai_flag_confidence_threshold" {
+  description = "Minimum merged.confidence required to project ai_content onto is_ai_suspected."
+  type        = number
+  default     = 0.5
+}

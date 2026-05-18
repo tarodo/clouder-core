@@ -38,6 +38,11 @@ resource "aws_cloudwatch_log_group" "curation" {
   retention_in_days = var.log_retention_days
 }
 
+resource "aws_cloudwatch_log_group" "label_enricher_worker" {
+  name              = "/aws/lambda/${local.label_enrichment_worker_lambda_name}"
+  retention_in_days = var.log_retention_days
+}
+
 # ── DLQ depth alarms ─────────────────────────────────────────────
 
 locals {
