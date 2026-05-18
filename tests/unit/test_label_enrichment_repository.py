@@ -147,3 +147,103 @@ def test_mark_run_running_only_flips_queued_to_running():
     assert "started_at = :ts" in sql
     assert "WHERE id = :id AND status = 'queued'" in sql
     assert params["id"] == "r-1"
+
+
+def test_upsert_label_info_writes_denormalized_columns():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    merged = LabelInfo(
+        label_name="Drumcode",
+        ai_reasoning="none",
+        summary="techno",
+        confidence=0.9,
+        country="Sweden",
+        founded_year=1996,
+        status="active",
+        primary_styles=["techno", "peak-time techno"],
+        tagline="Swedish techno powerhouse since 1996.",
+        last_release_date="2026-04-01",
+    )
+    provenance = {"status": "majority(2/3 definitive)"}
+    repo.upsert_label_info(
+        label_id="lbl-1",
+        last_run_id="run-1",
+        prompt_slug="label_v3_app_fields",
+        prompt_version="v1",
+        merged=merged,
+        provenance=provenance,
+    )
+    sql, params = data_api.execute.call_args[0]
+    assert "INSERT INTO clouder_label_info" in sql
+    assert "ON CONFLICT (label_id) DO UPDATE SET" in sql
+    assert params["status"] == "active"
+    assert params["country"] == "Sweden"
+    assert params["founded_year"] == 1996
+    assert params["primary_styles"] == ["techno", "peak-time techno"]
+    assert params["tagline"] == "Swedish techno powerhouse since 1996."
+    assert params["ai_content"] == "unknown"  # default
+    from decimal import Decimal
+    assert params["ai_confidence"] == Decimal("0.90") or float(params["ai_confidence"]) == 0.9
+    assert params["last_release_date"] == "2026-04-01"
+
+
+def test_project_ai_suspected_sets_true_when_confirmed_high_confidence():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    merged = LabelInfo(
+        label_name="X", ai_reasoning="r", summary="s", confidence=0.8,
+        ai_content="confirmed",
+    )
+    repo.project_ai_suspected("lbl-1", merged, threshold=0.5)
+    sql, params = data_api.execute.call_args[0]
+    assert "UPDATE clouder_labels" in sql
+    assert "is_ai_suspected = :value" in sql
+    assert params["value"] is True
+    assert params["id"] == "lbl-1"
+
+
+def test_project_ai_suspected_sets_false_when_none_detected_high_confidence():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    merged = LabelInfo(
+        label_name="X", ai_reasoning="r", summary="s", confidence=0.6,
+        ai_content="none_detected",
+    )
+    repo.project_ai_suspected("lbl-1", merged, threshold=0.5)
+    _, params = data_api.execute.call_args[0]
+    assert params["value"] is False
+
+
+def test_project_ai_suspected_no_op_when_below_threshold():
+    repo, data_api = _repo_with_fake()
+    merged = LabelInfo(
+        label_name="X", ai_reasoning="r", summary="s", confidence=0.3,
+        ai_content="confirmed",
+    )
+    repo.project_ai_suspected("lbl-1", merged, threshold=0.5)
+    data_api.execute.assert_not_called()
+
+
+def test_get_label_info_joins_label_name():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = [{
+        "label_id": "lbl-1",
+        "label_name": "Drumcode",
+        "last_run_id": "run-1",
+        "prompt_slug": "label_v3_app_fields",
+        "prompt_version": "v1",
+        "merged": {"label_name": "Drumcode"},
+        "provenance": {},
+        "ai_content": "none_detected",
+        "ai_confidence": 0.9,
+        "status": "active",
+        "primary_styles": ["techno"],
+        "tagline": None, "country": "Sweden",
+        "founded_year": 1996, "activity": "steady",
+        "last_release_date": None,
+        "updated_at": "2026-05-18T21:00:00+00:00",
+    }]
+    row = repo.get_label_info("lbl-1")
+    assert row["label_name"] == "Drumcode"
+    sql, _ = data_api.execute.call_args[0]
+    assert "JOIN clouder_labels" in sql

@@ -184,3 +184,113 @@ class LabelEnrichmentRepository:
             """,
             {"id": run_id, "ts": self._now()},
         )
+
+    # ── label_info ──────────────────────────────────────────────────
+    def upsert_label_info(
+        self,
+        *,
+        label_id: str,
+        last_run_id: str,
+        prompt_slug: str,
+        prompt_version: str,
+        merged: "LabelInfo",
+        provenance: Mapping[str, Any],
+    ) -> None:
+        ts = self._now()
+        payload = merged.model_dump()
+        self._data_api.execute(
+            """
+            INSERT INTO clouder_label_info (
+                label_id, last_run_id, prompt_slug, prompt_version,
+                merged, provenance,
+                ai_content, ai_confidence, status, primary_styles,
+                tagline, country, founded_year, activity, last_release_date,
+                updated_at
+            ) VALUES (
+                :label_id, :last_run_id, :prompt_slug, :prompt_version,
+                :merged, :provenance,
+                :ai_content, :ai_confidence, :status, :primary_styles,
+                :tagline, :country, :founded_year, :activity, :last_release_date,
+                :updated_at
+            )
+            ON CONFLICT (label_id) DO UPDATE SET
+                last_run_id = EXCLUDED.last_run_id,
+                prompt_slug = EXCLUDED.prompt_slug,
+                prompt_version = EXCLUDED.prompt_version,
+                merged = EXCLUDED.merged,
+                provenance = EXCLUDED.provenance,
+                ai_content = EXCLUDED.ai_content,
+                ai_confidence = EXCLUDED.ai_confidence,
+                status = EXCLUDED.status,
+                primary_styles = EXCLUDED.primary_styles,
+                tagline = EXCLUDED.tagline,
+                country = EXCLUDED.country,
+                founded_year = EXCLUDED.founded_year,
+                activity = EXCLUDED.activity,
+                last_release_date = EXCLUDED.last_release_date,
+                updated_at = EXCLUDED.updated_at
+            """,
+            {
+                "label_id": label_id,
+                "last_run_id": last_run_id,
+                "prompt_slug": prompt_slug,
+                "prompt_version": prompt_version,
+                "merged": json.dumps(payload),
+                "provenance": json.dumps(dict(provenance)),
+                "ai_content": payload.get("ai_content", "unknown"),
+                "ai_confidence": Decimal(str(round(payload.get("confidence", 0.0), 2))),
+                "status": payload.get("status", "unknown"),
+                "primary_styles": list(payload.get("primary_styles") or []),
+                "tagline": payload.get("tagline"),
+                "country": payload.get("country"),
+                "founded_year": payload.get("founded_year"),
+                "activity": payload.get("activity"),
+                "last_release_date": payload.get("last_release_date"),
+                "updated_at": ts,
+            },
+        )
+
+    def project_ai_suspected(
+        self,
+        label_id: str,
+        merged: "LabelInfo",
+        threshold: float,
+    ) -> None:
+        """Mirror merged.ai_content into clouder_labels.is_ai_suspected when confidence >= threshold."""
+        from .schemas import AIContentStatus  # local — avoid cycle at module load
+
+        if merged.confidence < threshold:
+            return
+        if merged.ai_content in (AIContentStatus.SUSPECTED, AIContentStatus.CONFIRMED):
+            value = True
+        elif merged.ai_content == AIContentStatus.NONE_DETECTED:
+            value = False
+        else:
+            return
+        self._data_api.execute(
+            """
+            UPDATE clouder_labels
+            SET is_ai_suspected = :value, updated_at = :ts
+            WHERE id = :id
+            """,
+            {"value": value, "ts": self._now(), "id": label_id},
+        )
+
+    def get_label_info(self, label_id: str) -> dict[str, Any] | None:
+        rows = self._data_api.execute(
+            """
+            SELECT
+                li.label_id, cl.name AS label_name, li.last_run_id,
+                li.prompt_slug, li.prompt_version,
+                li.merged, li.provenance,
+                li.ai_content, li.ai_confidence, li.status, li.primary_styles,
+                li.tagline, li.country, li.founded_year, li.activity,
+                li.last_release_date, li.updated_at
+            FROM clouder_label_info li
+            JOIN clouder_labels cl ON cl.id = li.label_id
+            WHERE li.label_id = :id
+            LIMIT 1
+            """,
+            {"id": label_id},
+        )
+        return rows[0] if rows else None
