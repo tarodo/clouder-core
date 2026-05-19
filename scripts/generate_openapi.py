@@ -658,6 +658,10 @@ LABEL_SUMMARY = {
                 "updated_at": {"type": "string", "format": "date-time"},
             },
         },
+        "my_preference": {
+            "type": ["string", "null"],
+            "enum": ["liked", "disliked", None],
+        },
     },
 }
 
@@ -677,8 +681,39 @@ LABELS_LIST_RESPONSE = {
 
 LABEL_DETAIL_RESPONSE = {
     "type": "object",
-    "description": "Sanitized LabelInfo (admin-only fields stripped).",
+    "description": "Sanitized LabelInfo (admin-only fields stripped) plus my_preference.",
+    "properties": {
+        "my_preference": {
+            "type": ["string", "null"],
+            "enum": ["liked", "disliked", None],
+        },
+    },
     "additionalProperties": True,
+}
+
+MY_LABEL_PREFERENCES_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total", "page", "limit"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["id", "name", "my_preference"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "my_preference": {
+                        "type": "string",
+                        "enum": ["liked", "disliked"],
+                    },
+                },
+            },
+        },
+        "total": {"type": "integer"},
+        "page": {"type": "integer"},
+        "limit": {"type": "integer"},
+    },
 }
 
 BACKLOG_LABEL = {
@@ -1242,6 +1277,15 @@ ROUTES: list[dict[str, Any]] = [
                     "minimum": 1,
                     "maximum": 200,
                     "default": 50,
+                },
+            },
+            {
+                "name": "my",
+                "in": "query",
+                "schema": {
+                    "type": "string",
+                    "enum": ["all", "liked", "disliked", "unrated"],
+                    "default": "all",
                 },
             },
         ],
@@ -2410,6 +2454,88 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
+    # ── user label preferences ───────────────────────────────────────
+    {
+        "method": "put",
+        "path": "/labels/{label_id}/preference",
+        "auth": AUTH,
+        "summary": "Set or clear the current user's label preference.",
+        "description": (
+            "Body: {\"status\": \"liked\" | \"disliked\" | \"none\"}. "
+            "\"none\" deletes the row. Returns 204."
+        ),
+        "parameters": [
+            {
+                "name": "label_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+            }
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["liked", "disliked", "none"],
+                            }
+                        },
+                    }
+                }
+            },
+        },
+        "responses": {
+            "204": {"description": "Preference updated."},
+            "404": _error(404, "label_not_found."),
+            "422": _error(422, "invalid status."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/me/label-preferences",
+        "auth": AUTH,
+        "summary": "List the current user's labelled labels.",
+        "parameters": [
+            {
+                "name": "status",
+                "in": "query",
+                "schema": {
+                    "type": "string",
+                    "enum": ["liked", "disliked"],
+                    "default": "liked",
+                },
+            },
+            {
+                "name": "page",
+                "in": "query",
+                "schema": {"type": "integer", "minimum": 1, "default": 1},
+            },
+            {
+                "name": "limit",
+                "in": "query",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "default": 50,
+                },
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Paginated user label preferences.",
+                {"$ref": "#/components/schemas/MyLabelPreferencesResponse"},
+            ),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
 ]
 
 
@@ -2558,6 +2684,7 @@ def build_openapi() -> dict[str, Any]:
                 "LabelSummary": LABEL_SUMMARY,
                 "LabelsListResponse": LABELS_LIST_RESPONSE,
                 "LabelDetail": LABEL_DETAIL_RESPONSE,
+                "MyLabelPreferencesResponse": MY_LABEL_PREFERENCES_RESPONSE,
                 "BacklogLabel": BACKLOG_LABEL,
                 "BacklogResponse": BACKLOG_RESPONSE,
                 "RunsListResponse": RUNS_LIST_RESPONSE,
