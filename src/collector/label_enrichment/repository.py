@@ -298,6 +298,70 @@ class LabelEnrichmentRepository:
 
         return items, next_cursor, total_estimate
 
+    def list_runs(
+        self,
+        *,
+        status: str | None,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """Admin runs list, sorted by created_at DESC."""
+        where = ["1=1"]
+        params: dict[str, Any] = {"lim": limit + 1}
+        if status:
+            where.append("status = :status")
+            params["status"] = status
+        if cursor:
+            try:
+                decoded = base64.urlsafe_b64decode(cursor.encode()).decode()
+                last_ts, last_id = decoded.rsplit("|", 1)
+                where.append("(created_at, id) < (CAST(:cur_ts AS timestamptz), :cur_id)")
+                params["cur_ts"] = last_ts
+                params["cur_id"] = last_id
+            except Exception:
+                pass
+
+        rows = self._data_api.execute(
+            f"""
+            SELECT id, status, prompt_slug, prompt_version, vendors, models,
+                   merge_vendor, merge_model, requested_labels, cells_total,
+                   cells_ok, cells_error, cost_usd, created_at, started_at, finished_at
+            FROM clouder_label_enrichment_runs
+            WHERE {' AND '.join(where)}
+            ORDER BY created_at DESC, id DESC
+            LIMIT :lim
+            """,
+            params,
+        )
+
+        has_more = len(rows) > limit
+        page = rows[:limit]
+
+        items = []
+        for r in page:
+            row = dict(r)
+            for json_col in ("vendors", "models"):
+                v = row.get(json_col)
+                if isinstance(v, str):
+                    row[json_col] = json.loads(v)
+            cost = row.get("cost_usd")
+            if isinstance(cost, Decimal):
+                row["cost_usd"] = float(cost)
+            items.append(row)
+
+        next_cursor = None
+        if has_more and page:
+            last = page[-1]
+            created_at_val = last.get("created_at")
+            if isinstance(created_at_val, datetime):
+                ts_str = created_at_val.isoformat()
+            else:
+                ts_str = str(created_at_val)
+            raw = f"{ts_str}|{last['id']}"
+            next_cursor = base64.urlsafe_b64encode(raw.encode()).decode()
+
+        return items, next_cursor
+
     def derive_style_for_label(self, label_id: str) -> str | None:
         """Most common style across the label's tracks. None if no tracks."""
         rows = self._data_api.execute(

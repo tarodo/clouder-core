@@ -182,6 +182,23 @@ def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
     return 200, {"items": items, "next_cursor": next_cursor, "total_estimate": total}
 
 
+def handle_get_runs_list(event: Mapping[str, Any]) -> tuple[int, dict]:
+    qs = event.get("queryStringParameters") or {}
+    status = (qs.get("status") or "").strip() or None
+    if status and status not in ("queued", "running", "completed", "failed"):
+        raise ValidationError("invalid status filter")
+    cursor = (qs.get("cursor") or "").strip() or None
+    try:
+        limit = int(qs.get("limit") or "50")
+    except (TypeError, ValueError):
+        raise ValidationError("limit must be an integer")
+    if limit < 1 or limit > 200:
+        raise ValidationError("limit must be between 1 and 200")
+    repo = _build_repository()
+    items, next_cursor = repo.list_runs(status=status, cursor=cursor, limit=limit)
+    return 200, {"items": items, "next_cursor": next_cursor}
+
+
 def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
     qs = event.get("queryStringParameters") or {}
     style = (qs.get("style") or "").strip() or None
