@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import uuid
@@ -85,8 +86,6 @@ class LabelEnrichmentRepository:
         Cursor format: opaque base64 of "<name>|<id>" for stable sort.
         Returns (items, next_cursor or None).
         """
-        import base64
-
         where = ["1=1"]
         params: dict[str, Any] = {"lim": limit + 1}
         if style:
@@ -108,7 +107,9 @@ class LabelEnrichmentRepository:
                 last_name, last_id = "", ""
             if sort == "recent":
                 # cursor is updated_at|id
-                where.append("(li.updated_at, lbl.id) < (:cur_ts, :cur_id)")
+                where.append(
+                    "(li.updated_at, lbl.id) < (CAST(:cur_ts AS timestamptz), :cur_id)"
+                )
                 params["cur_ts"] = last_name
                 params["cur_id"] = last_id
             else:
@@ -116,7 +117,7 @@ class LabelEnrichmentRepository:
                 params["cur_name"] = last_name
                 params["cur_id"] = last_id
 
-        order_by = "li.updated_at DESC, lbl.id DESC" if sort == "recent" else "lbl.name ASC, lbl.id ASC"
+        order_by = "li.updated_at DESC NULLS LAST, lbl.id DESC" if sort == "recent" else "lbl.name ASC, lbl.id ASC"
 
         rows = self._data_api.execute(
             f"""
@@ -146,13 +147,11 @@ class LabelEnrichmentRepository:
         for r in page:
             info = None
             if r.get("status") == "completed":
-                primary = r.get("primary_styles")
-                if isinstance(primary, str):
-                    primary = json.loads(primary)
+                primary = r.get("primary_styles") or []
                 info = {
                     "tagline": r.get("tagline"),
                     "country": r.get("country"),
-                    "primary_styles": primary or [],
+                    "primary_styles": primary,
                     "activity": r.get("activity") or "unknown",
                     "updated_at": r.get("updated_at"),
                 }
@@ -168,7 +167,12 @@ class LabelEnrichmentRepository:
         if has_more and page:
             last = page[-1]
             if sort == "recent":
-                raw = f"{last.get('updated_at')}|{last['id']}"
+                last_updated = last.get("updated_at")
+                if isinstance(last_updated, datetime):
+                    ts_str = last_updated.isoformat()
+                else:
+                    ts_str = str(last_updated)
+                raw = f"{ts_str}|{last['id']}"
             else:
                 raw = f"{last['name']}|{last['id']}"
             next_cursor = base64.urlsafe_b64encode(raw.encode()).decode()

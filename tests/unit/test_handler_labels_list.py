@@ -66,10 +66,49 @@ def test_list_labels_passes_q_and_sort(monkeypatch):
         lambda: fake_repo,
     )
 
-    handler.lambda_handler(
+    resp = handler.lambda_handler(
         _user_event({"style": "techno", "q": "fok", "sort": "recent", "cursor": "abc"}),
         None,
     )
+    body = json.loads(resp["body"])
+    assert body == {"items": [], "next_cursor": None}
     fake_repo.list_labels.assert_called_once_with(
         style="techno", q="fok", sort="recent", cursor="abc", limit=50,
     )
+
+
+def test_list_labels_rejects_bad_sort(monkeypatch):
+    from collector import handler
+
+    fake_repo = MagicMock()
+    monkeypatch.setattr(
+        "collector.label_enrichment.routes._build_repository",
+        lambda: fake_repo,
+    )
+    resp = handler.lambda_handler(_user_event({"sort": "bogus"}), None)
+    assert resp["statusCode"] == 400
+    fake_repo.list_labels.assert_not_called()
+
+
+def test_list_labels_rejects_bad_limit(monkeypatch):
+    from collector import handler
+
+    fake_repo = MagicMock()
+    monkeypatch.setattr(
+        "collector.label_enrichment.routes._build_repository",
+        lambda: fake_repo,
+    )
+    resp = handler.lambda_handler(_user_event({"limit": "0"}), None)
+    assert resp["statusCode"] == 400
+
+
+def test_list_labels_rejects_non_integer_limit(monkeypatch):
+    from collector import handler
+
+    fake_repo = MagicMock()
+    monkeypatch.setattr(
+        "collector.label_enrichment.routes._build_repository",
+        lambda: fake_repo,
+    )
+    resp = handler.lambda_handler(_user_event({"limit": "foo"}), None)
+    assert resp["statusCode"] == 400
