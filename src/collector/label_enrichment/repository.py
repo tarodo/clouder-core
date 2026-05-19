@@ -791,6 +791,38 @@ class LabelEnrichmentRepository:
                 pass
         return row
 
+    # ── user label preferences ──────────────────────────────────────
+    def upsert_user_label_pref(
+        self,
+        *,
+        user_id: str,
+        label_id: str,
+        status: str,
+    ) -> None:
+        if status not in ("liked", "disliked"):
+            raise ValueError(f"status must be 'liked' or 'disliked', got {status!r}")
+        self._data_api.execute(
+            """
+            INSERT INTO clouder_user_label_prefs (user_id, label_id, status, updated_at)
+            VALUES (:user_id, :label_id, :status, :ts)
+            ON CONFLICT (user_id, label_id) DO UPDATE
+            SET status = EXCLUDED.status,
+                updated_at = EXCLUDED.updated_at
+            """,
+            {
+                "user_id": user_id,
+                "label_id": label_id,
+                "status": status,
+                "ts": self._now(),
+            },
+        )
+
+    def delete_user_label_pref(self, *, user_id: str, label_id: str) -> None:
+        self._data_api.execute(
+            "DELETE FROM clouder_user_label_prefs WHERE user_id = :user_id AND label_id = :label_id",
+            {"user_id": user_id, "label_id": label_id},
+        )
+
     def get_label_info_for_user(self, label_id: str) -> dict[str, Any] | None:
         """Return decoded merged LabelInfo for a user-facing detail page.
 
