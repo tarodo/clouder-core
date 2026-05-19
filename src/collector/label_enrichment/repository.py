@@ -323,7 +323,7 @@ class LabelEnrichmentRepository:
             SELECT COUNT(*) AS c FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
-            WHERE {' AND '.join(total_where)}
+            WHERE {' AND '.join(total_where) if total_where else 'TRUE'}
             """,
             total_params,
         )
@@ -787,13 +787,19 @@ class LabelEnrichmentRepository:
         Returns the decoded `merged` JSONB blob (the full LabelInfo schema:
         label_name, country, tagline, summary, notable_artists, URL channels,
         primary/secondary_styles, ai_content, ai_reasoning, etc.) with
-        admin-only fields stripped. Returns None when status != 'completed'.
+        admin-only fields stripped. Returns None when no clouder_label_info
+        row exists for the label.
+
+        Note: clouder_label_info.status holds the LabelInfo schema's
+        operational status ("active"/"inactive"/"unknown"), not the
+        enrichment job state, so the mere existence of a row signals a
+        completed run.
         """
         rows = self._data_api.execute(
             """
             SELECT li.merged
             FROM clouder_label_info li
-            WHERE li.label_id = :id AND li.status = 'completed'
+            WHERE li.label_id = :id
             LIMIT 1
             """,
             {"id": label_id},
