@@ -103,7 +103,6 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             label_id=msg.label_id,
             label_name=msg.label_name,
             style=msg.style,
-            release_name=msg.release_name,
             adapters=adapters,
             merge_client=merge_client,
             merge_model=run_row["merge_model"],

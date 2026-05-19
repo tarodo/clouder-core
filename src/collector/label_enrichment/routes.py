@@ -79,10 +79,27 @@ def handle_post_enrich(event: Mapping[str, Any]) -> tuple[int, dict]:
     sqs = _build_sqs_client()
     queue_url = _queue_url()
 
-    label_ids: list[tuple[str, str, str, str | None]] = []
+    label_ids: list[tuple[str, str, str]] = []  # (label_id, label_name, style)
     for item in req.labels:
-        lid = repo.upsert_label_by_name(item.label_name)
-        label_ids.append((lid, item.label_name, item.style, item.release_name))
+        if item.label_id:
+            row = repo.get_label_by_id(item.label_id)
+            if row is None:
+                raise ValidationError(f"label_id not found: {item.label_id}")
+            resolved_id = row["id"]
+            resolved_name = row["name"]
+            # If caller passed style, prefer it. Otherwise derive from tracks.
+            # If no tracks, fall back to "music" so vendors get a non-empty hint.
+            resolved_style = (
+                item.style
+                or repo.derive_style_for_label(resolved_id)
+                or "music"
+            )
+        else:
+            # label_name path — must have style per the model_validator
+            resolved_id = repo.upsert_label_by_name(item.label_name)
+            resolved_name = item.label_name
+            resolved_style = item.style  # validated non-empty by model_validator
+        label_ids.append((resolved_id, resolved_name, resolved_style))
 
     spec = RunSpec(
         prompt_slug=req.prompt_slug,
@@ -96,13 +113,12 @@ def handle_post_enrich(event: Mapping[str, Any]) -> tuple[int, dict]:
     )
     run_id = repo.create_run(spec)
 
-    for lid, name, style, release in label_ids:
+    for lid, name, style in label_ids:
         msg = {
             "run_id": run_id,
             "label_id": lid,
             "label_name": name,
             "style": style,
-            "release_name": release,
         }
         sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(msg))
 

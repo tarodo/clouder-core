@@ -27,22 +27,10 @@ def test_label_v3_directives_present():
         assert directive in cfg.system
 
 
-def test_render_user_without_release():
+def test_render_user_renders_label_and_style():
     cfg = get_prompt("label_v2_facts")
-    out = render_user(cfg, label_name="Drumcode", style="techno", release_name=None)
+    out = render_user(cfg, label_name="Drumcode", style="techno")
     assert 'Research label "Drumcode" in style "techno".' in out
-    assert "Recent release" not in out
-
-
-def test_render_user_with_release():
-    cfg = get_prompt("label_v2_facts")
-    out = render_user(
-        cfg,
-        label_name="Wisdom Teeth",
-        style="bass",
-        release_name="K-LONE - Cape Cira",
-    )
-    assert "Recent release: K-LONE - Cape Cira" in out
 
 
 def test_get_prompt_unknown_raises():

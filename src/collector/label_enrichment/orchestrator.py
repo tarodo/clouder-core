@@ -36,11 +36,10 @@ def run_vendors_parallel(
     adapters: list[VendorAdapter],
     label_name: str,
     style: str,
-    release_name: str | None,
     prompt: PromptConfig,
 ) -> list[dict]:
     """Dispatch all adapters concurrently. One call per adapter, one cell per result."""
-    user = render_user(prompt, label_name=label_name, style=style, release_name=release_name)
+    user = render_user(prompt, label_name=label_name, style=style)
     results: list[tuple[VendorAdapter, VendorResponse]] = []
     with ThreadPoolExecutor(max_workers=max(1, len(adapters))) as pool:
         future_to_adapter = {
@@ -77,7 +76,6 @@ def enrich_label_for_run(
     label_id: str,
     label_name: str,
     style: str,
-    release_name: str | None,
     adapters: list[VendorAdapter],
     merge_client: Any,
     merge_model: str,
@@ -95,7 +93,6 @@ def enrich_label_for_run(
         adapters=adapters,
         label_name=label_name,
         style=style,
-        release_name=release_name,
         prompt=prompt,
     )
 

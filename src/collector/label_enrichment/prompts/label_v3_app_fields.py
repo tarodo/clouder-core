@@ -36,7 +36,7 @@ APP_FIELDS_BLOCK = (
 )
 
 USER_TEMPLATE = (
-    'Research label "{label_name}" in style "{style}".{release_block}\n'
+    'Research label "{label_name}" in style "{style}".\n'
     "Find: founding year, country, status (active/inactive), parent and "
     "sublabels, catalog and roster size, releases in the last 12 months, "
     "last release date, primary style tags, official channels (website, "
