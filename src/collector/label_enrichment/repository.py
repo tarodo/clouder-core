@@ -362,6 +362,42 @@ class LabelEnrichmentRepository:
 
         return items, next_cursor
 
+    def list_cells_for_run(self, run_id: str) -> list[dict[str, Any]]:
+        """Per-cell breakdown for a run. Joined with clouder_labels for label_name.
+
+        Schema notes:
+        - clouder_label_enrichment_cells stores `error` as JSONB ({"message": ...}),
+          not a flat text column — surface it as `error_message`.
+        - Per-cell cost is not a column; vendors report it inside `usage.cost_usd`,
+          so we project that as `cost_usd` for the frontend.
+        """
+        rows = self._data_api.execute(
+            """
+            SELECT c.id AS cell_id, c.label_id, lbl.name AS label_name,
+                   c.vendor, c.status, c.latency_ms,
+                   (c.usage->>'cost_usd')::numeric AS cost_usd,
+                   c.error->>'message' AS error_message
+            FROM clouder_label_enrichment_cells c
+            JOIN clouder_labels lbl ON lbl.id = c.label_id
+            WHERE c.run_id = :run_id
+            ORDER BY c.label_id, c.vendor
+            """,
+            {"run_id": run_id},
+        )
+        items = []
+        for r in rows:
+            row = dict(r)
+            cost = row.get("cost_usd")
+            if isinstance(cost, Decimal):
+                row["cost_usd"] = float(cost)
+            elif isinstance(cost, str):
+                try:
+                    row["cost_usd"] = float(cost)
+                except (TypeError, ValueError):
+                    row["cost_usd"] = None
+            items.append(row)
+        return items
+
     def derive_style_for_label(self, label_id: str) -> str | None:
         """Most common style across the label's tracks. None if no tracks."""
         rows = self._data_api.execute(

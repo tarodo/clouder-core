@@ -134,6 +134,7 @@ def handle_get_run(event: Mapping[str, Any]) -> tuple[int, dict]:
     row = repo.get_run(run_id)
     if row is None:
         return 404, {"error_code": "not_found", "message": "run not found"}
+    row["cells"] = repo.list_cells_for_run(run_id)
     return 200, row
 
 
