@@ -185,6 +185,10 @@ def test_upsert_label_info_writes_denormalized_columns():
     assert params["primary_styles"] == '{"techno","peak-time techno"}'
     assert params["tagline"] == "Swedish techno powerhouse since 1996."
     assert params["ai_content"] == "unknown"  # default
+    # Pin: enum fields must be wire-format strings (not Python 3.12 enum repr).
+    assert isinstance(params["ai_content"], str) and params["ai_content"] == "unknown"
+    # Activity defaults to UNKNOWN enum — must serialize to "unknown" str, not "ActivityLevel.UNKNOWN".
+    assert isinstance(params["activity"], str) and params["activity"] == "unknown"
     from decimal import Decimal
     assert params["ai_confidence"] == Decimal("0.90") or float(params["ai_confidence"]) == 0.9
     assert params["last_release_date"] == "2026-04-01"
@@ -193,6 +197,30 @@ def test_upsert_label_info_writes_denormalized_columns():
     assert isinstance(params["provenance"], dict)
     assert "CAST(:primary_styles AS text[])" in sql
     assert "CAST(:last_release_date AS date)" in sql
+
+
+def test_upsert_label_info_serialises_enum_values_as_wire_strings():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    merged = LabelInfo(
+        label_name="X",
+        ai_reasoning="r",
+        summary="s",
+        confidence=0.5,
+        ai_content="confirmed",  # not default
+    )
+    repo.upsert_label_info(
+        label_id="lbl",
+        last_run_id="run",
+        prompt_slug="p",
+        prompt_version="v1",
+        merged=merged,
+        provenance={},
+    )
+    _, params = data_api.execute.call_args[0]
+    assert params["ai_content"] == "confirmed"
+    # Defensive: ensure no enum repr leaked
+    assert "AIContentStatus" not in str(params["ai_content"])
 
 
 def test_project_ai_suspected_sets_true_when_confirmed_high_confidence():
