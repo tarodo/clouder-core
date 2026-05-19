@@ -5417,6 +5417,7 @@ export interface components {
             info?: {
                 tagline?: string | null;
                 country?: string | null;
+                founded_year?: number | null;
                 primary_styles?: string[];
                 /** @enum {string} */
                 activity?: "unknown" | "dormant" | "low" | "steady" | "high" | "fire_hose";

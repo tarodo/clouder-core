@@ -644,6 +644,7 @@ LABEL_SUMMARY = {
             "properties": {
                 "tagline": {"type": ["string", "null"]},
                 "country": {"type": ["string", "null"]},
+                "founded_year": {"type": ["integer", "null"]},
                 "primary_styles": {"type": "array", "items": {"type": "string"}},
                 "activity": {
                     "type": "string",
