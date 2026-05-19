@@ -15,7 +15,7 @@ def _user_event(qs: dict) -> dict:
     }
 
 
-def test_list_labels_returns_items_and_next_cursor(monkeypatch):
+def test_list_labels_returns_items_and_total(monkeypatch):
     from collector import handler
 
     fake_repo = MagicMock()
@@ -35,7 +35,7 @@ def test_list_labels_returns_items_and_next_cursor(monkeypatch):
                 },
             }
         ],
-        "cursor-2",
+        42,
     )
     monkeypatch.setattr(
         "collector.label_enrichment.routes._build_repository",
@@ -50,30 +50,32 @@ def test_list_labels_returns_items_and_next_cursor(monkeypatch):
     assert resp["statusCode"] == 200
     assert body["items"][0]["id"] == "lbl-1"
     assert body["items"][0]["info"]["tagline"] == "soulful d&b"
-    assert body["next_cursor"] == "cursor-2"
+    assert body["total"] == 42
+    assert body["page"] == 1
+    assert body["limit"] == 50
     fake_repo.list_labels.assert_called_once_with(
-        style="drum-and-bass", q=None, sort="name", cursor=None, limit=50,
+        style="drum-and-bass", q=None, sort="name", page=1, limit=50,
     )
 
 
-def test_list_labels_passes_q_and_sort(monkeypatch):
+def test_list_labels_passes_q_sort_and_page(monkeypatch):
     from collector import handler
 
     fake_repo = MagicMock()
-    fake_repo.list_labels.return_value = ([], None)
+    fake_repo.list_labels.return_value = ([], 0)
     monkeypatch.setattr(
         "collector.label_enrichment.routes._build_repository",
         lambda: fake_repo,
     )
 
     resp = handler.lambda_handler(
-        _user_event({"style": "techno", "q": "fok", "sort": "recent", "cursor": "abc"}),
+        _user_event({"style": "techno", "q": "fok", "sort": "recent", "page": "3"}),
         None,
     )
     body = json.loads(resp["body"])
-    assert body == {"items": [], "next_cursor": None}
+    assert body == {"items": [], "total": 0, "page": 3, "limit": 50}
     fake_repo.list_labels.assert_called_once_with(
-        style="techno", q="fok", sort="recent", cursor="abc", limit=50,
+        style="techno", q="fok", sort="recent", page=3, limit=50,
     )
 
 
@@ -111,4 +113,16 @@ def test_list_labels_rejects_non_integer_limit(monkeypatch):
         lambda: fake_repo,
     )
     resp = handler.lambda_handler(_user_event({"limit": "foo"}), None)
+    assert resp["statusCode"] == 400
+
+
+def test_list_labels_rejects_bad_page(monkeypatch):
+    from collector import handler
+
+    fake_repo = MagicMock()
+    monkeypatch.setattr(
+        "collector.label_enrichment.routes._build_repository",
+        lambda: fake_repo,
+    )
+    resp = handler.lambda_handler(_user_event({"page": "0"}), None)
     assert resp["statusCode"] == 400

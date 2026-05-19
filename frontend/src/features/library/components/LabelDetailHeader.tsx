@@ -1,4 +1,4 @@
-import { Group, Title, Badge, Text, Anchor } from '@mantine/core';
+import { Group, Title, Text, Anchor } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { LabelDetail } from '../../../api/labels';
@@ -13,7 +13,6 @@ export function LabelDetailHeader({ info, styleId }: Props) {
   const { t } = useTranslation();
   const rec = info as Record<string, unknown>;
   const labelName = typeof rec.label_name === 'string' ? rec.label_name : '';
-  const status = typeof rec.status === 'string' ? rec.status : 'unknown';
   const country = typeof rec.country === 'string' ? rec.country : '';
   const foundedYear =
     typeof rec.founded_year === 'number' ? rec.founded_year : null;
@@ -23,10 +22,9 @@ export function LabelDetailHeader({ info, styleId }: Props) {
       <Anchor component={Link} to={`/library/${styleId}`} size="sm">
         ← {t('library.detail.back_to_list', { style: styleId })}
       </Anchor>
-      <Group gap="md" mt="xs" align="center">
-        <Title order={2}>{labelName}</Title>
-        <Badge color={status === 'active' ? 'green' : 'gray'}>{status}</Badge>
-      </Group>
+      <Title order={2} mt="xs">
+        {labelName}
+      </Title>
       <Group gap="xs" mt="xs">
         {country && (
           <Text>

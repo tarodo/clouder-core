@@ -4,12 +4,11 @@ import {
   Group,
   Text,
   Center,
-  Button,
+  Pagination,
   Skeleton,
 } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useRef } from 'react';
 import type { LabelSummary } from '../../../api/labels';
 import { countryFlag } from '../lib/countryFlag';
 import { truncateTagline } from '../lib/formatLabel';
@@ -18,31 +17,16 @@ interface Props {
   items: LabelSummary[];
   styleId: string;
   isLoading: boolean;
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
-  onLoadMore: () => void;
+  page: number;
+  pageCount: number;
+  onPageChange: (page: number) => void;
 }
 
 export function LabelsTable(p: Props) {
   const { t } = useTranslation();
-  const sentinel = useRef<HTMLTableRowElement | null>(null);
 
-  useEffect(() => {
-    if (!p.hasNextPage) return;
-    const el = sentinel.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      (entries) => entries[0]?.isIntersecting && p.onLoadMore(),
-      { rootMargin: '200px' },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [p.hasNextPage, p.onLoadMore]);
-
-  if (p.isLoading) {
-    return (
-      <Skeleton height={320} />
-    );
+  if (p.isLoading && p.items.length === 0) {
+    return <Skeleton height={320} />;
   }
 
   if (p.items.length === 0) {
@@ -103,22 +87,16 @@ export function LabelsTable(p: Props) {
               </Table.Tr>
             );
           })}
-          {p.hasNextPage && (
-            <Table.Tr ref={sentinel}>
-              <Table.Td colSpan={4} />
-            </Table.Tr>
-          )}
         </Table.Tbody>
       </Table>
-      {p.hasNextPage && (
+      {p.pageCount > 1 && (
         <Center mt="md">
-          <Button
-            onClick={p.onLoadMore}
-            loading={p.isFetchingNextPage}
-            variant="default"
-          >
-            {t('library.list.load_more')}
-          </Button>
+          <Pagination
+            total={p.pageCount}
+            value={p.page}
+            onChange={p.onPageChange}
+            withEdges
+          />
         </Center>
       )}
     </>

@@ -1079,7 +1079,7 @@ export interface paths {
         };
         /**
          * List labels for browsing.
-         * @description Paginated label list. Filters: style (dominant style), q (name prefix), sort (name|recent). Cursor-paginated.
+         * @description Paginated label list. Filters: style (dominant style), q (name prefix), sort (name|recent). Page-based pagination.
          */
         get: {
             parameters: {
@@ -1087,7 +1087,7 @@ export interface paths {
                     style?: string;
                     q?: string;
                     sort?: "name" | "recent";
-                    cursor?: string;
+                    page?: number;
                     limit?: number;
                 };
                 header?: never;
@@ -5427,7 +5427,9 @@ export interface components {
         };
         LabelsListResponse: {
             items: components["schemas"]["LabelSummary"][];
-            next_cursor?: string | null;
+            total: number;
+            page: number;
+            limit: number;
         };
         /** @description Sanitized LabelInfo (admin-only fields stripped). */
         LabelDetail: {

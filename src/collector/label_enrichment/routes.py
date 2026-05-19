@@ -247,7 +247,12 @@ def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
     sort = (qs.get("sort") or "name").strip()
     if sort not in ("name", "recent"):
         raise ValidationError("sort must be 'name' or 'recent'")
-    cursor = (qs.get("cursor") or "").strip() or None
+    try:
+        page = int(qs.get("page") or "1")
+    except (TypeError, ValueError):
+        raise ValidationError("page must be an integer")
+    if page < 1:
+        raise ValidationError("page must be >= 1")
     try:
         limit = int(qs.get("limit") or "50")
     except (TypeError, ValueError):
@@ -256,7 +261,7 @@ def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
         raise ValidationError("limit must be between 1 and 200")
 
     repo = _build_repository()
-    items, next_cursor = repo.list_labels(
-        style=style, q=q, sort=sort, cursor=cursor, limit=limit,
+    items, total = repo.list_labels(
+        style=style, q=q, sort=sort, page=page, limit=limit,
     )
-    return 200, {"items": items, "next_cursor": next_cursor}
+    return 200, {"items": items, "total": total, "page": page, "limit": limit}

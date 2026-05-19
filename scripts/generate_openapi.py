@@ -658,13 +658,15 @@ LABEL_SUMMARY = {
 
 LABELS_LIST_RESPONSE = {
     "type": "object",
-    "required": ["items"],
+    "required": ["items", "total", "page", "limit"],
     "properties": {
         "items": {
             "type": "array",
             "items": {"$ref": "#/components/schemas/LabelSummary"},
         },
-        "next_cursor": {"type": ["string", "null"]},
+        "total": {"type": "integer"},
+        "page": {"type": "integer"},
+        "limit": {"type": "integer"},
     },
 }
 
@@ -1212,7 +1214,7 @@ ROUTES: list[dict[str, Any]] = [
         "summary": "List labels for browsing.",
         "description": (
             "Paginated label list. Filters: style (dominant style), q (name "
-            "prefix), sort (name|recent). Cursor-paginated."
+            "prefix), sort (name|recent). Page-based pagination."
         ),
         "parameters": [
             {"name": "style", "in": "query", "schema": {"type": "string"}},
@@ -1222,7 +1224,11 @@ ROUTES: list[dict[str, Any]] = [
                 "in": "query",
                 "schema": {"type": "string", "enum": ["name", "recent"]},
             },
-            {"name": "cursor", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "page",
+                "in": "query",
+                "schema": {"type": "integer", "minimum": 1, "default": 1},
+            },
             {
                 "name": "limit",
                 "in": "query",

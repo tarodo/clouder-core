@@ -96,74 +96,73 @@ class LabelEnrichmentRepository:
         style: str | None,
         q: str | None,
         sort: str,
-        cursor: str | None,
+        page: int,
         limit: int,
-    ) -> tuple[list[dict[str, Any]], str | None]:
-        """User-facing label list with cursor pagination.
+    ) -> tuple[list[dict[str, Any]], int]:
+        """User-facing label list with page-based pagination.
 
-        Cursor format: opaque base64 of "<name>|<id>" for stable sort.
-        Returns (items, next_cursor or None).
+        Returns (items, total). `page` is 1-indexed; offset = (page - 1) * limit.
+        Per-label dominant_style is precomputed in a CTE so we don't fire
+        a correlated subquery per row.
         """
-        where = ["1=1"]
-        params: dict[str, Any] = {"lim": limit + 1}
+        where: list[str] = []
+        params: dict[str, Any] = {"lim": limit, "off": max(page - 1, 0) * limit}
         if style:
             where.append(
-                "EXISTS (SELECT 1 FROM clouder_albums a "
-                "JOIN clouder_tracks t ON t.album_id = a.id "
-                "JOIN clouder_styles s ON s.id = t.style_id "
-                f"WHERE a.label_id = lbl.id AND {_STYLE_SLUG_EXPR} = LOWER(:style))"
+                "EXISTS (SELECT 1 FROM label_style_counts lsc "
+                "WHERE lsc.label_id = lbl.id AND lsc.style_slug = LOWER(:style))"
             )
             params["style"] = style
         if q:
             where.append("LOWER(lbl.name) LIKE :q")
             params["q"] = f"{q.lower()}%"
-        if cursor:
-            try:
-                decoded = base64.urlsafe_b64decode(cursor.encode()).decode()
-                last_name, last_id = decoded.rsplit("|", 1)
-            except Exception:
-                last_name, last_id = "", ""
-            if sort == "recent":
-                # cursor is updated_at|id
-                where.append(
-                    "(li.updated_at, lbl.id) < (CAST(:cur_ts AS timestamptz), :cur_id)"
-                )
-                params["cur_ts"] = last_name
-                params["cur_id"] = last_id
-            else:
-                where.append("(lbl.name, lbl.id) > (:cur_name, :cur_id)")
-                params["cur_name"] = last_name
-                params["cur_id"] = last_id
 
-        order_by = "li.updated_at DESC NULLS LAST, lbl.id DESC" if sort == "recent" else "lbl.name ASC, lbl.id ASC"
+        order_by = (
+            "li.updated_at DESC NULLS LAST, lbl.id DESC"
+            if sort == "recent"
+            else "lbl.name ASC, lbl.id ASC"
+        )
+        where_sql = " AND ".join(where) if where else "TRUE"
+
+        ctes = f"""
+            WITH label_style_counts AS (
+                SELECT
+                    a.label_id,
+                    {_STYLE_SLUG_EXPR} AS style_slug,
+                    COUNT(*) AS cnt
+                FROM clouder_albums a
+                JOIN clouder_tracks t ON t.album_id = a.id
+                JOIN clouder_styles s ON s.id = t.style_id
+                WHERE a.label_id IS NOT NULL
+                GROUP BY a.label_id, s.name
+            ),
+            label_dominant_style AS (
+                SELECT DISTINCT ON (label_id) label_id, style_slug
+                FROM label_style_counts
+                ORDER BY label_id, cnt DESC
+            )
+        """
 
         rows = self._data_api.execute(
             f"""
+            {ctes}
             SELECT lbl.id, lbl.name,
                    CASE WHEN li.label_id IS NULL THEN 'none' ELSE 'completed' END AS status,
                    li.tagline, li.country, li.founded_year, li.primary_styles,
                    li.activity, li.updated_at,
-                   (
-                     SELECT {_STYLE_SLUG_EXPR} FROM clouder_styles s
-                     JOIN clouder_tracks t ON t.style_id = s.id
-                     JOIN clouder_albums a ON a.id = t.album_id
-                     WHERE a.label_id = lbl.id
-                     GROUP BY s.name ORDER BY COUNT(*) DESC LIMIT 1
-                   ) AS dominant_style
+                   lds.style_slug AS dominant_style
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
-            WHERE {' AND '.join(where) if where else 'TRUE'}
+            LEFT JOIN label_dominant_style lds ON lds.label_id = lbl.id
+            WHERE {where_sql}
             ORDER BY {order_by}
-            LIMIT :lim
+            LIMIT :lim OFFSET :off
             """,
             params,
         )
 
-        has_more = len(rows) > limit
-        page = rows[:limit]
-
-        items = []
-        for r in page:
+        items: list[dict[str, Any]] = []
+        for r in rows:
             info = None
             if r.get("status") == "completed":
                 primary = r.get("primary_styles") or []
@@ -183,21 +182,19 @@ class LabelEnrichmentRepository:
                 "info": info,
             })
 
-        next_cursor = None
-        if has_more and page:
-            last = page[-1]
-            if sort == "recent":
-                last_updated = last.get("updated_at")
-                if isinstance(last_updated, datetime):
-                    ts_str = last_updated.isoformat()
-                else:
-                    ts_str = str(last_updated)
-                raw = f"{ts_str}|{last['id']}"
-            else:
-                raw = f"{last['name']}|{last['id']}"
-            next_cursor = base64.urlsafe_b64encode(raw.encode()).decode()
-
-        return items, next_cursor
+        count_params = {k: v for k, v in params.items() if k not in ("lim", "off")}
+        total_rows = self._data_api.execute(
+            f"""
+            {ctes}
+            SELECT COUNT(*) AS c
+            FROM clouder_labels lbl
+            LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            WHERE {where_sql}
+            """,
+            count_params,
+        )
+        total = int(total_rows[0]["c"]) if total_rows else 0
+        return items, total
 
     def list_backlog(
         self,
