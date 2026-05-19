@@ -13,11 +13,10 @@ import { getAuthSnapshot } from '../../../auth/AuthProvider';
 export function LabelDetailPage() {
   const { t } = useTranslation();
   const { styleId, labelId } = useParams<{ styleId: string; labelId: string }>();
-  if (!styleId || !labelId) return <Navigate to="/library" replace />;
-
-  const query = useLabelDetail(labelId);
+  const query = useLabelDetail(labelId ?? null);
   const auth = getAuthSnapshot();
   const isAdmin = auth.status === 'authenticated' && auth.user.is_admin;
+  if (!styleId || !labelId) return <Navigate to="/library" replace />;
 
   if (query.isLoading) return <FullScreenLoader />;
   if (query.isError) {

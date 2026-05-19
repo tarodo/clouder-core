@@ -10,8 +10,8 @@ import { RunJsonViewer } from '../components/enrichment/RunJsonViewer';
 export function AdminEnrichmentRunDetailPage() {
   const { t } = useTranslation();
   const { runId } = useParams<{ runId: string }>();
+  const query = useEnrichmentRunDetail(runId ?? null);
   if (!runId) return <Navigate to="/admin/labels/enrich/runs" replace />;
-  const query = useEnrichmentRunDetail(runId);
 
   if (query.isLoading) return <FullScreenLoader />;
   if (query.isError || !query.data) return <Text c="red">Run not found</Text>;

@@ -11,13 +11,13 @@ export function LibraryListPage() {
   const { styleId } = useParams<{ styleId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  if (!styleId) return <Navigate to="/library" replace />;
-
   const q = searchParams.get('q') ?? '';
   const rawSort = searchParams.get('sort');
   const sort: 'name' | 'recent' = rawSort === 'recent' ? 'recent' : 'name';
 
-  const query = useLabelsList({ styleId, q, sort });
+  const query = useLabelsList({ styleId: styleId ?? '', q, sort });
+
+  if (!styleId) return <Navigate to="/library" replace />;
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
 
   const updateParam = (key: string, value: string) => {

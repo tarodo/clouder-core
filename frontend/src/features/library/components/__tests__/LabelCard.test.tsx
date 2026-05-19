@@ -19,7 +19,7 @@ const PENDING = {
   id: 'l2', name: 'Unknown', style: 'dnb', status: 'none' as const, info: null,
 };
 
-function renderCard(item: any) {
+function renderCard(item: typeof COMPLETED | typeof PENDING) {
   return render(
     <MantineProvider>
       <I18nextProvider i18n={i18n}>

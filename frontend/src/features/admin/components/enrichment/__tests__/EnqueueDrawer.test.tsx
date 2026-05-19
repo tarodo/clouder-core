@@ -43,7 +43,7 @@ describe('EnqueueDrawer', () => {
         }),
       ),
       http.post('http://localhost/admin/labels/enrich', async ({ request }) => {
-        const body = await request.json() as any;
+        const body = (await request.json()) as { labels: unknown[]; prompt_slug: string };
         expect(body.labels).toHaveLength(2);
         expect(body.prompt_slug).toBe('label_v3_app_fields');
         return HttpResponse.json({ run_id: 'r-x', queued_labels: 2 }, { status: 202 });
