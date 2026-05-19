@@ -173,12 +173,22 @@ def handle_get_label_user(event: Mapping[str, Any]) -> tuple[int, dict]:
     return 200, row
 
 
+_BACKLOG_STATUSES = (
+    "all",
+    "none",
+    "completed",
+    "outdated",
+)
+
+
 def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
     qs = event.get("queryStringParameters") or {}
     style = (qs.get("style") or "").strip() or None
     status = (qs.get("status") or "").strip() or None
-    if status and status not in ("none", "failed", "outdated"):
-        raise ValidationError("status must be one of: none, failed, outdated")
+    if status and status not in _BACKLOG_STATUSES:
+        raise ValidationError(
+            "status must be one of: " + ", ".join(_BACKLOG_STATUSES)
+        )
     cursor = (qs.get("cursor") or "").strip() or None
     try:
         limit = int(qs.get("limit") or "100")

@@ -902,8 +902,9 @@ paths:
         schema:
           type: string
           enum:
+          - all
           - none
-          - failed
+          - completed
           - outdated
       - name: cursor
         in: query
@@ -3826,7 +3827,7 @@ components:
           type: string
           enum:
           - none
-          - failed
+          - completed
           - outdated
         track_count:
           type: integer

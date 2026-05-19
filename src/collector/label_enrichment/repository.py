@@ -151,7 +151,7 @@ class LabelEnrichmentRepository:
                    ) AS dominant_style
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
-            WHERE {' AND '.join(where)}
+            WHERE {' AND '.join(where) if where else 'TRUE'}
             ORDER BY {order_by}
             LIMIT :lim
             """,
@@ -206,16 +206,19 @@ class LabelEnrichmentRepository:
         limit: int,
         staleness_days: int = 180,
     ) -> tuple[list[dict[str, Any]], str | None, int]:
-        """Labels with status in {none, failed, outdated}. Returns (items, next_cursor, total_estimate).
+        """Admin label list with optional status filter.
 
-        Per-label stats (track_count, dominant style) are pre-aggregated in
-        CTEs so we don't fire correlated subqueries for each of the ~2.6k
-        labels on every request.
+        `status` accepts: `none`, `failed`, `outdated`, `completed`, `queued`,
+        `running`. When omitted (or `all`) the response covers every label,
+        which lets the admin browse already-enriched labels alongside the
+        backlog. Per-label stats (track_count, dominant style) are
+        pre-aggregated in CTEs so we don't fire correlated subqueries for
+        each of the ~2.6k labels on every request.
         """
-        where = [
-            "(li.status IS NULL OR li.status = 'failed' "
-            "OR (li.status = 'completed' AND li.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'))"
-        ]
+        stale_clause = (
+            "li.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'"
+        )
+        where: list[str] = []
         params: dict[str, Any] = {"lim": limit + 1}
         if style:
             where.append(
@@ -223,16 +226,14 @@ class LabelEnrichmentRepository:
                 "WHERE lsc.label_id = lbl.id AND lsc.style_slug = LOWER(:style))"
             )
             params["style"] = style
-        if status:
+        if status and status != "all":
             if status == "none":
-                where.append("li.status IS NULL")
-            elif status == "failed":
-                where.append("li.status = 'failed'")
+                # No clouder_label_info row at all.
+                where.append("li.label_id IS NULL")
+            elif status == "completed":
+                where.append(f"li.label_id IS NOT NULL AND NOT ({stale_clause})")
             elif status == "outdated":
-                where.append(
-                    "li.status = 'completed' AND li.updated_at < NOW() - INTERVAL '"
-                    + str(int(staleness_days)) + " days'"
-                )
+                where.append(f"li.label_id IS NOT NULL AND {stale_clause}")
 
         if cursor:
             try:
@@ -276,17 +277,16 @@ class LabelEnrichmentRepository:
                    lds.style_slug AS style,
                    COALESCE(ltc.cnt, 0) AS track_count,
                    CASE
-                     WHEN li.status IS NULL THEN 'none'
-                     WHEN li.status = 'failed' THEN 'failed'
-                     WHEN li.status = 'completed' THEN 'outdated'
-                     ELSE li.status
+                     WHEN li.label_id IS NULL THEN 'none'
+                     WHEN {stale_clause} THEN 'outdated'
+                     ELSE 'completed'
                    END AS status,
                    li.updated_at AS last_attempted_at
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
             LEFT JOIN label_dominant_style lds ON lds.label_id = lbl.id
-            WHERE {' AND '.join(where)}
+            WHERE {' AND '.join(where) if where else 'TRUE'}
             ORDER BY COALESCE(ltc.cnt, 0) DESC, lbl.id DESC
             LIMIT :lim
             """,
@@ -360,7 +360,7 @@ class LabelEnrichmentRepository:
                    merge_vendor, merge_model, requested_labels, cells_total,
                    cells_ok, cells_error, cost_usd, created_at, started_at, finished_at
             FROM clouder_label_enrichment_runs
-            WHERE {' AND '.join(where)}
+            WHERE {' AND '.join(where) if where else 'TRUE'}
             ORDER BY created_at DESC, id DESC
             LIMIT :lim
             """,

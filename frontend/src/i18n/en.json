@@ -866,7 +866,7 @@
   },
   "admin_enrichment": {
     "tabs": {
-      "backlog": "Label backlog",
+      "backlog": "Labels",
       "runs": "Label runs"
     },
     "history": {
@@ -875,11 +875,12 @@
       "no_payload": "No parsed payload."
     },
     "backlog": {
-      "title": "Labels missing info",
+      "title": "Labels info",
       "filter_style": "Style",
       "filter_status": "Status",
+      "status_all": "All",
       "status_none": "No info",
-      "status_failed": "Failed",
+      "status_completed": "Has info",
       "status_outdated": "Outdated",
       "col_name": "Label",
       "col_style": "Style",
@@ -929,7 +930,9 @@
       "queued": "Queued",
       "running": "Running",
       "completed": "Completed",
-      "failed": "Failed"
+      "failed": "Failed",
+      "none": "No info",
+      "outdated": "Outdated"
     }
   }
 }
