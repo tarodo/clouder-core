@@ -43,6 +43,14 @@ def _pg_text_array(items: list[str]) -> str:
     return "{" + ",".join(parts) + "}"
 
 
+# Admin-only fields stripped from user-facing responses.
+_USER_FACING_FORBIDDEN = frozenset({
+    "run_id", "prompt_slug", "prompt_version",
+    "vendors_used", "merged_at_run_id",
+    "token_cost", "cost_usd", "provenance",
+})
+
+
 @dataclass(frozen=True)
 class RunSpec:
     prompt_slug: str
@@ -481,6 +489,28 @@ class LabelEnrichmentRepository:
             except (TypeError, ValueError):
                 pass
         return row
+
+    def get_label_info_for_user(self, label_id: str) -> dict[str, Any] | None:
+        """Return label_info for a user-facing detail page, or None if not completed."""
+        rows = self._data_api.execute(
+            """
+            SELECT li.*
+            FROM clouder_label_info li
+            WHERE li.label_id = :id AND li.status = 'completed'
+            LIMIT 1
+            """,
+            {"id": label_id},
+        )
+        if not rows:
+            return None
+        row = dict(rows[0])
+        # Parse JSONB columns (Data API returns them as strings).
+        for json_col in ("notable_artists", "primary_styles", "secondary_styles",
+                         "ai_signals", "sublabels", "aliases", "sources"):
+            v = row.get(json_col)
+            if isinstance(v, str):
+                row[json_col] = json.loads(v)
+        return {k: v for k, v in row.items() if k not in _USER_FACING_FORBIDDEN}
 
     def increment_run_counters(
         self,

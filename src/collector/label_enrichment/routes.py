@@ -149,6 +149,18 @@ def handle_get_label(event: Mapping[str, Any]) -> tuple[int, dict]:
     return 200, row
 
 
+def handle_get_label_user(event: Mapping[str, Any]) -> tuple[int, dict]:
+    path = event.get("pathParameters") or {}
+    label_id = (path.get("label_id") or "").strip()
+    if not label_id:
+        raise ValidationError("label_id is required")
+    repo = _build_repository()
+    row = repo.get_label_info_for_user(label_id)
+    if row is None:
+        return 404, {"error_code": "label_not_found", "message": "label info not available"}
+    return 200, row
+
+
 def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
     qs = event.get("queryStringParameters") or {}
     style = (qs.get("style") or "").strip() or None
