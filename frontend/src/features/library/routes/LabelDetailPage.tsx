@@ -38,7 +38,7 @@ export function LabelDetailPage() {
       <Grid>
         <Grid.Col span={{ base: 12, lg: 9 }}>
           <Stack gap="md">
-            <LabelDetailHeader info={info} styleId={styleId} />
+            <LabelDetailHeader info={info} styleId={styleId} labelId={labelId} />
             <Divider />
             <LabelOverviewTab info={info} />
             <Divider />
