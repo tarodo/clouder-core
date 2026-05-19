@@ -183,6 +183,25 @@ def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
     return 200, {"items": items, "next_cursor": next_cursor, "total_estimate": total}
 
 
+def handle_get_options(event: Mapping[str, Any]) -> tuple[int, dict]:
+    """Static config for the admin enqueue form."""
+    del event  # unused — payload is static config
+    from .prompts import list_prompt_versions, load_builtin_prompts
+
+    load_builtin_prompts()
+    prompt_versions = list_prompt_versions()
+    return 200, {
+        "vendors": ["gemini", "openai", "tavily_deepseek"],
+        "prompt_versions": prompt_versions,
+        "default_models": {
+            "gemini": "gemini-2.5-pro",
+            "openai": "gpt-5.1",
+            "tavily_deepseek": "deepseek-chat",
+        },
+        "merge": {"vendor": "deepseek", "default_model": "deepseek-chat"},
+    }
+
+
 def handle_get_runs_list(event: Mapping[str, Any]) -> tuple[int, dict]:
     qs = event.get("queryStringParameters") or {}
     status = (qs.get("status") or "").strip() or None

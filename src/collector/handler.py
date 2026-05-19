@@ -65,6 +65,7 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/runs",
     "GET /tracks/spotify-not-found",
     "POST /admin/labels/enrich",
+    "GET /admin/labels/enrich/options",
     "GET /admin/labels/enrich-runs",
     "GET /admin/labels/enrich-runs/{run_id}",
     "GET /admin/labels/backlog",
@@ -158,6 +159,10 @@ def _route(
     if route_key == "POST /admin/labels/enrich":
         from .label_enrichment.routes import handle_post_enrich
         status, body = handle_post_enrich(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/labels/enrich/options":
+        from .label_enrichment.routes import handle_get_options
+        status, body = handle_get_options(event)
         return _json_response(status, body, correlation_id)
     if route_key == "GET /admin/labels/enrich-runs":
         from .label_enrichment.routes import handle_get_runs_list
