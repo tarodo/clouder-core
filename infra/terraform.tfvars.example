@@ -1,19 +1,18 @@
 # Copy this file to terraform.tfvars and fill in the values.
 # terraform.tfvars is in .gitignore and will NOT be committed.
 
-# ── AI Search (Perplexity) ────────────────────────────────────────
-ai_search_enabled             = false
-perplexity_api_key_secret_arn = "arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:perplexity-XXX"
-
 # ── Spotify Search ────────────────────────────────────────────────
 spotify_credentials_secret_arn = "arn:aws:secretsmanager:us-east-1:ACCOUNT:secret:spotify-XXX"
 
 # Optional: SNS topic for DLQ depth alarms. Empty disables notifications.
 alarm_sns_topic_arn = ""
 
-# --- New preferred path (SSM Parameter Store SecureString) ---
-# When these are set, the legacy _secret_arn variables can be empty.
-perplexity_api_key_ssm_parameter    = "/clouder/perplexity/api_key"
+# --- SSM Parameter Store (SecureString) — preferred vendor-key path ---
+# deploy.yml seeds these from GitHub environment secrets.
+gemini_api_key_ssm_parameter        = "/clouder/gemini/api_key"
+openai_api_key_ssm_parameter        = "/clouder/openai/api_key"
+tavily_api_key_ssm_parameter        = "/clouder/tavily/api_key"
+deepseek_api_key_ssm_parameter      = "/clouder/deepseek/api_key"
 spotify_client_id_ssm_parameter     = "/clouder/spotify/client_id"
 spotify_client_secret_ssm_parameter = "/clouder/spotify/client_secret"
 

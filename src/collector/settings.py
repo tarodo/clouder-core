@@ -35,10 +35,10 @@ def _fetch_secret_string(secret_arn: str) -> str:
 def _resolve_simple_secret(env_key: str, arn_env_key: str) -> str:
     """Resolve a scalar secret with precedence: direct env > SSM > Secrets Manager.
 
-    For a given env_key "PERPLEXITY_API_KEY" the helper checks:
-        1. env var PERPLEXITY_API_KEY (direct value)
-        2. env var PERPLEXITY_API_KEY_SSM_PARAMETER (SSM param name)
-        3. env var PERPLEXITY_API_KEY_SECRET_ARN (legacy Secrets Manager)
+    For a given env_key "GEMINI_API_KEY" the helper checks:
+        1. env var GEMINI_API_KEY (direct value)
+        2. env var GEMINI_API_KEY_SSM_PARAMETER (SSM param name)
+        3. env var GEMINI_API_KEY_SECRET_ARN (legacy Secrets Manager)
 
     Returns "" when none of them resolve.
     """
