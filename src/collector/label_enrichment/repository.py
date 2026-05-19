@@ -206,7 +206,12 @@ class LabelEnrichmentRepository:
         limit: int,
         staleness_days: int = 180,
     ) -> tuple[list[dict[str, Any]], str | None, int]:
-        """Labels with status in {none, failed, outdated}. Returns (items, next_cursor, total_estimate)."""
+        """Labels with status in {none, failed, outdated}. Returns (items, next_cursor, total_estimate).
+
+        Per-label stats (track_count, dominant style) are pre-aggregated in
+        CTEs so we don't fire correlated subqueries for each of the ~2.6k
+        labels on every request.
+        """
         where = [
             "(li.status IS NULL OR li.status = 'failed' "
             "OR (li.status = 'completed' AND li.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'))"
@@ -214,10 +219,8 @@ class LabelEnrichmentRepository:
         params: dict[str, Any] = {"lim": limit + 1}
         if style:
             where.append(
-                "EXISTS (SELECT 1 FROM clouder_albums a "
-                "JOIN clouder_tracks t ON t.album_id = a.id "
-                "JOIN clouder_styles s ON s.id = t.style_id "
-                f"WHERE a.label_id = lbl.id AND {_STYLE_SLUG_EXPR} = LOWER(:style))"
+                "EXISTS (SELECT 1 FROM label_style_counts lsc "
+                "WHERE lsc.label_id = lbl.id AND lsc.style_slug = LOWER(:style))"
             )
             params["style"] = style
         if status:
@@ -237,25 +240,41 @@ class LabelEnrichmentRepository:
                 last_count, last_id = decoded.rsplit("|", 1)
                 params["cur_count"] = int(last_count)
                 params["cur_id"] = last_id
-                where.append("(track_count, lbl.id) < (:cur_count, :cur_id)")
+                where.append("(COALESCE(ltc.cnt, 0), lbl.id) < (:cur_count, :cur_id)")
             except Exception:
                 pass
 
+        ctes = f"""
+            WITH label_track_counts AS (
+                SELECT a.label_id, COUNT(*) AS cnt
+                FROM clouder_albums a
+                JOIN clouder_tracks t ON t.album_id = a.id
+                WHERE a.label_id IS NOT NULL
+                GROUP BY a.label_id
+            ),
+            label_style_counts AS (
+                SELECT
+                    a.label_id,
+                    {_STYLE_SLUG_EXPR} AS style_slug,
+                    COUNT(*) AS cnt
+                FROM clouder_albums a
+                JOIN clouder_tracks t ON t.album_id = a.id
+                JOIN clouder_styles s ON s.id = t.style_id
+                WHERE a.label_id IS NOT NULL
+                GROUP BY a.label_id, s.name
+            ),
+            label_dominant_style AS (
+                SELECT DISTINCT ON (label_id) label_id, style_slug
+                FROM label_style_counts
+                ORDER BY label_id, cnt DESC
+            )
+        """
         rows = self._data_api.execute(
             f"""
+            {ctes}
             SELECT lbl.id, lbl.name,
-                   (
-                     SELECT {_STYLE_SLUG_EXPR} FROM clouder_styles s
-                     JOIN clouder_tracks t ON t.style_id = s.id
-                     JOIN clouder_albums a ON a.id = t.album_id
-                     WHERE a.label_id = lbl.id
-                     GROUP BY s.name ORDER BY COUNT(*) DESC LIMIT 1
-                   ) AS style,
-                   COALESCE(
-                     (SELECT COUNT(*) FROM clouder_albums a2
-                      JOIN clouder_tracks t2 ON t2.album_id = a2.id
-                      WHERE a2.label_id = lbl.id), 0
-                   ) AS track_count,
+                   lds.style_slug AS style,
+                   COALESCE(ltc.cnt, 0) AS track_count,
                    CASE
                      WHEN li.status IS NULL THEN 'none'
                      WHEN li.status = 'failed' THEN 'failed'
@@ -265,8 +284,10 @@ class LabelEnrichmentRepository:
                    li.updated_at AS last_attempted_at
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
+            LEFT JOIN label_dominant_style lds ON lds.label_id = lbl.id
             WHERE {' AND '.join(where)}
-            ORDER BY track_count DESC, lbl.id DESC
+            ORDER BY COALESCE(ltc.cnt, 0) DESC, lbl.id DESC
             LIMIT :lim
             """,
             params,
@@ -298,8 +319,10 @@ class LabelEnrichmentRepository:
         total_params = {k: v for k, v in params.items() if not k.startswith("cur_") and k != "lim"}
         total_rows = self._data_api.execute(
             f"""
+            {ctes}
             SELECT COUNT(*) AS c FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
             WHERE {' AND '.join(total_where)}
             """,
             total_params,
