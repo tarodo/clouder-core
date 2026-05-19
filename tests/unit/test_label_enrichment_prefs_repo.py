@@ -96,3 +96,63 @@ def test_list_user_label_prefs_paginates_and_filters_by_status():
         "lim": 2,
         "off": 2,  # (page-1)*limit = (2-1)*2
     }
+
+
+def test_list_labels_projects_my_preference_via_left_join():
+    api = FakeDataApi()
+    api.script(
+        [
+            {
+                "id": "lbl-1", "name": "Fokuz", "dominant_style": "drum-and-bass",
+                "track_count": 3, "status": "completed",
+                "tagline": "t", "country": "NL", "founded_year": 2007,
+                "primary_styles": ["liquid"], "activity": "steady",
+                "ai_content": "none_detected", "updated_at": _fixed_now(),
+                "my_preference": "liked",
+            },
+        ],
+        [{"c": 1}],
+    )
+    repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
+
+    items, total = repo.list_labels(
+        style=None, q=None, sort="name", page=1, limit=50,
+        user_id="u-1", my="all",
+    )
+
+    assert total == 1
+    assert items[0]["my_preference"] == "liked"
+
+    main_sql, _ = api.calls[0]
+    assert "LEFT JOIN clouder_user_label_prefs ulp" in main_sql
+    assert "ulp.user_id = :pref_user_id" in main_sql
+    assert "ulp.status AS my_preference" in main_sql
+
+
+def test_list_labels_my_liked_uses_inner_filter():
+    api = FakeDataApi()
+    api.script([], [{"c": 0}])
+    repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
+
+    repo.list_labels(
+        style=None, q=None, sort="name", page=1, limit=50,
+        user_id="u-1", my="liked",
+    )
+
+    main_sql, params = api.calls[0]
+    assert "ulp.status = 'liked'" in main_sql
+    assert params["pref_user_id"] == "u-1"
+
+
+def test_list_labels_my_unrated_uses_anti_join():
+    api = FakeDataApi()
+    api.script([], [{"c": 0}])
+    repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
+
+    repo.list_labels(
+        style=None, q=None, sort="name", page=1, limit=50,
+        user_id="u-1", my="unrated",
+    )
+
+    main_sql, _ = api.calls[0]
+    assert "ulp.user_id IS NULL" in main_sql

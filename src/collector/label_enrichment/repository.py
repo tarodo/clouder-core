@@ -98,13 +98,20 @@ class LabelEnrichmentRepository:
         sort: str,
         page: int,
         limit: int,
+        user_id: str | None = None,
+        my: str = "all",
     ) -> tuple[list[dict[str, Any]], int]:
         """User-facing label list with page-based pagination.
 
-        Returns (items, total). `page` is 1-indexed; offset = (page - 1) * limit.
-        Per-label dominant_style is precomputed in a CTE so we don't fire
-        a correlated subquery per row.
+        Includes a LEFT JOIN to `clouder_user_label_prefs` for the current user
+        so each item carries `my_preference`. When `my` is `"liked"` /
+        `"disliked"` / `"unrated"`, the join is narrowed accordingly. When
+        `user_id` is None the join contributes no rows; `my_preference` is
+        always None.
         """
+        if my not in ("all", "liked", "disliked", "unrated"):
+            raise ValueError(f"my must be one of all|liked|disliked|unrated, got {my!r}")
+
         where: list[str] = []
         params: dict[str, Any] = {"lim": limit, "off": max(page - 1, 0) * limit}
         if style:
@@ -116,6 +123,18 @@ class LabelEnrichmentRepository:
         if q:
             where.append("LOWER(lbl.name) LIKE :q")
             params["q"] = f"{q.lower()}%"
+
+        # `pref_user_id` is bound even when user_id is None so the LEFT JOIN's
+        # `ulp.user_id = :pref_user_id` predicate never matches — equivalent
+        # to leaving `my_preference` always-null.
+        params["pref_user_id"] = user_id or ""
+
+        if my == "liked":
+            where.append("ulp.status = 'liked'")
+        elif my == "disliked":
+            where.append("ulp.status = 'disliked'")
+        elif my == "unrated":
+            where.append("ulp.user_id IS NULL")
 
         order_by = (
             "li.updated_at DESC NULLS LAST, lbl.id DESC"
@@ -158,11 +177,14 @@ class LabelEnrichmentRepository:
                    li.tagline, li.country, li.founded_year, li.primary_styles,
                    li.activity, li.ai_content, li.updated_at,
                    lds.style_slug AS dominant_style,
-                   COALESCE(ltc.cnt, 0) AS track_count
+                   COALESCE(ltc.cnt, 0) AS track_count,
+                   ulp.status AS my_preference
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_dominant_style lds ON lds.label_id = lbl.id
             LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
+            LEFT JOIN clouder_user_label_prefs ulp
+                ON ulp.label_id = lbl.id AND ulp.user_id = :pref_user_id
             WHERE {where_sql}
             ORDER BY {order_by}
             LIMIT :lim OFFSET :off
@@ -191,6 +213,7 @@ class LabelEnrichmentRepository:
                 "status": r.get("status") or "none",
                 "track_count": int(r.get("track_count") or 0),
                 "info": info,
+                "my_preference": r.get("my_preference"),
             })
 
         count_params = {k: v for k, v in params.items() if k not in ("lim", "off")}
@@ -200,6 +223,8 @@ class LabelEnrichmentRepository:
             SELECT COUNT(*) AS c
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            LEFT JOIN clouder_user_label_prefs ulp
+                ON ulp.label_id = lbl.id AND ulp.user_id = :pref_user_id
             WHERE {where_sql}
             """,
             count_params,
