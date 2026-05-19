@@ -28,6 +28,20 @@ def _normalize_label(name: str) -> str:
     return _NORM_RE.sub(" ", name.strip().lower())
 
 
+def _pg_text_array(items: list[str]) -> str:
+    """Format a Python list as a PostgreSQL text[] array literal.
+
+    Each element is double-quoted with backslashes and inner double-quotes escaped.
+    """
+    parts = []
+    for item in items:
+        if not isinstance(item, str):
+            item = str(item)
+        escaped = item.replace("\\", "\\\\").replace('"', '\\"')
+        parts.append(f'"{escaped}"')
+    return "{" + ",".join(parts) + "}"
+
+
 @dataclass(frozen=True)
 class RunSpec:
     prompt_slug: str
@@ -99,8 +113,8 @@ class LabelEnrichmentRepository:
                 "status": "queued",
                 "prompt_slug": spec.prompt_slug,
                 "prompt_version": spec.prompt_version,
-                "vendors": json.dumps(spec.vendors),
-                "models": json.dumps(spec.models),
+                "vendors": list(spec.vendors),
+                "models": dict(spec.models),
                 "merge_vendor": spec.merge_vendor,
                 "merge_model": spec.merge_model,
                 "requested_labels": spec.requested_labels,
@@ -163,9 +177,6 @@ class LabelEnrichmentRepository:
         parsed_payload = (
             response.parsed.model_dump() if response.parsed is not None else None
         )
-        error_payload = (
-            json.dumps({"message": response.error}) if response.error is not None else None
-        )
         self._data_api.execute(
             """
             INSERT INTO clouder_label_enrichment_cells (
@@ -184,11 +195,11 @@ class LabelEnrichmentRepository:
                 "vendor": vendor,
                 "model": response.model,
                 "status": status,
-                "parsed": json.dumps(parsed_payload) if parsed_payload is not None else None,
-                "citations": json.dumps(response.citations),
-                "usage": json.dumps(response.usage),
+                "parsed": parsed_payload,
+                "citations": list(response.citations),
+                "usage": dict(response.usage),
                 "latency_ms": response.latency_ms,
-                "error": error_payload,
+                "error": {"message": response.error} if response.error is not None else None,
                 "created_at": ts,
             },
         )
@@ -228,7 +239,7 @@ class LabelEnrichmentRepository:
             ) VALUES (
                 :label_id, :last_run_id, :prompt_slug, :prompt_version,
                 :merged, :provenance,
-                :ai_content, :ai_confidence, :status, :primary_styles,
+                :ai_content, :ai_confidence, :status, CAST(:primary_styles AS text[]),
                 :tagline, :country, :founded_year, :activity, :last_release_date,
                 :updated_at
             )
@@ -254,12 +265,12 @@ class LabelEnrichmentRepository:
                 "last_run_id": last_run_id,
                 "prompt_slug": prompt_slug,
                 "prompt_version": prompt_version,
-                "merged": json.dumps(payload),
-                "provenance": json.dumps(dict(provenance)),
+                "merged": payload,
+                "provenance": dict(provenance),
                 "ai_content": payload.get("ai_content", "unknown"),
                 "ai_confidence": Decimal(str(round(payload.get("confidence", 0.0), 2))),
                 "status": payload.get("status", "unknown"),
-                "primary_styles": list(payload.get("primary_styles") or []),
+                "primary_styles": _pg_text_array(payload.get("primary_styles") or []),
                 "tagline": payload.get("tagline"),
                 "country": payload.get("country"),
                 "founded_year": payload.get("founded_year"),

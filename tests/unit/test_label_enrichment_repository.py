@@ -43,6 +43,8 @@ def test_create_run_inserts_with_correct_cells_total():
     assert params["cells_total"] == 4 * 3
     assert params["requested_labels"] == 4
     assert params["status"] == "queued"
+    assert params["vendors"] == ["gemini", "openai", "tavily_deepseek"]
+    assert params["models"]["gemini"] == "gemini-3-flash-preview"
 
 
 def test_upsert_label_by_name_returns_existing_id():
@@ -117,6 +119,8 @@ def test_insert_cell_ok_uses_on_conflict_do_nothing():
     assert params["error"] is None
     assert params["vendor"] == "gemini"
     assert params["model"] == "gemini-3-flash-preview"
+    assert isinstance(params["parsed"], dict)
+    assert params["parsed"]["label_name"] == "Drumcode"
 
 
 def test_insert_cell_error_serialises_error_payload():
@@ -134,8 +138,7 @@ def test_insert_cell_error_serialises_error_payload():
     repo.insert_cell(run_id="r", label_id="l", vendor="openai", response=resp)
     _, params = data_api.execute.call_args[0]
     assert params["status"] == "error"
-    error_payload = json.loads(params["error"])
-    assert error_payload["message"] == "RateLimitError: 429"
+    assert params["error"] == {"message": "RateLimitError: 429"}
 
 
 def test_mark_run_running_only_flips_queued_to_running():
@@ -179,12 +182,16 @@ def test_upsert_label_info_writes_denormalized_columns():
     assert params["status"] == "active"
     assert params["country"] == "Sweden"
     assert params["founded_year"] == 1996
-    assert params["primary_styles"] == ["techno", "peak-time techno"]
+    assert params["primary_styles"] == '{"techno","peak-time techno"}'
     assert params["tagline"] == "Swedish techno powerhouse since 1996."
     assert params["ai_content"] == "unknown"  # default
     from decimal import Decimal
     assert params["ai_confidence"] == Decimal("0.90") or float(params["ai_confidence"]) == 0.9
     assert params["last_release_date"] == "2026-04-01"
+    assert isinstance(params["merged"], dict)
+    assert params["merged"]["label_name"] == "Drumcode"
+    assert isinstance(params["provenance"], dict)
+    assert "CAST(:primary_styles AS text[])" in sql
 
 
 def test_project_ai_suspected_sets_true_when_confirmed_high_confidence():
