@@ -27,6 +27,7 @@ import { requireAdmin } from '../auth/requireAdmin';
 import { AdminLayout } from '../features/admin/routes/AdminLayout';
 import { AdminCoveragePage } from '../features/admin/routes/AdminCoveragePage';
 import { AdminSpotifyNotFoundPage } from '../features/admin/routes/AdminSpotifyNotFoundPage';
+import { LibraryIndexRedirect, LibraryListPage, LabelDetailPage } from '../features/library';
 
 export const router = createBrowserRouter([
   {
@@ -75,6 +76,14 @@ export const router = createBrowserRouter([
           { index: true, element: <CurateIndexRedirect /> },
           { path: ':styleId', element: <CurateStyleResume /> },
           { path: ':styleId/:blockId/:bucketId', element: <CurateSessionPage /> },
+        ],
+      },
+      {
+        path: 'library',
+        children: [
+          { index: true, element: <LibraryIndexRedirect /> },
+          { path: ':styleId', element: <LibraryListPage /> },
+          { path: ':styleId/labels/:labelId', element: <LabelDetailPage /> },
         ],
       },
       {
