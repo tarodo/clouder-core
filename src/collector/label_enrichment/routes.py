@@ -161,6 +161,27 @@ def handle_get_label_user(event: Mapping[str, Any]) -> tuple[int, dict]:
     return 200, row
 
 
+def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
+    qs = event.get("queryStringParameters") or {}
+    style = (qs.get("style") or "").strip() or None
+    status = (qs.get("status") or "").strip() or None
+    if status and status not in ("none", "failed", "outdated"):
+        raise ValidationError("status must be one of: none, failed, outdated")
+    cursor = (qs.get("cursor") or "").strip() or None
+    try:
+        limit = int(qs.get("limit") or "100")
+    except (TypeError, ValueError):
+        raise ValidationError("limit must be an integer")
+    if limit < 1 or limit > 200:
+        raise ValidationError("limit must be between 1 and 200")
+
+    repo = _build_repository()
+    items, next_cursor, total = repo.list_backlog(
+        style=style, status=status, cursor=cursor, limit=limit,
+    )
+    return 200, {"items": items, "next_cursor": next_cursor, "total_estimate": total}
+
+
 def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
     qs = event.get("queryStringParameters") or {}
     style = (qs.get("style") or "").strip() or None

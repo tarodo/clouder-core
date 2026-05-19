@@ -187,6 +187,117 @@ class LabelEnrichmentRepository:
 
         return items, next_cursor
 
+    def list_backlog(
+        self,
+        *,
+        style: str | None,
+        status: str | None,
+        cursor: str | None,
+        limit: int,
+        staleness_days: int = 180,
+    ) -> tuple[list[dict[str, Any]], str | None, int]:
+        """Labels with status in {none, failed, outdated}. Returns (items, next_cursor, total_estimate)."""
+        where = [
+            "(li.status IS NULL OR li.status = 'failed' "
+            "OR (li.status = 'completed' AND li.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'))"
+        ]
+        params: dict[str, Any] = {"lim": limit + 1}
+        if style:
+            where.append(
+                "EXISTS (SELECT 1 FROM clouder_albums a "
+                "JOIN clouder_tracks t ON t.album_id = a.id "
+                "JOIN clouder_styles s ON s.id = t.style_id "
+                "WHERE a.label_id = lbl.id AND s.name = :style)"
+            )
+            params["style"] = style
+        if status:
+            if status == "none":
+                where.append("li.status IS NULL")
+            elif status == "failed":
+                where.append("li.status = 'failed'")
+            elif status == "outdated":
+                where.append(
+                    "li.status = 'completed' AND li.updated_at < NOW() - INTERVAL '"
+                    + str(int(staleness_days)) + " days'"
+                )
+
+        if cursor:
+            try:
+                decoded = base64.urlsafe_b64decode(cursor.encode()).decode()
+                last_count, last_id = decoded.rsplit("|", 1)
+                params["cur_count"] = int(last_count)
+                params["cur_id"] = last_id
+                where.append("(track_count, lbl.id) < (:cur_count, :cur_id)")
+            except Exception:
+                pass
+
+        rows = self._data_api.execute(
+            f"""
+            SELECT lbl.id, lbl.name,
+                   (
+                     SELECT s.name FROM clouder_styles s
+                     JOIN clouder_tracks t ON t.style_id = s.id
+                     JOIN clouder_albums a ON a.id = t.album_id
+                     WHERE a.label_id = lbl.id
+                     GROUP BY s.name ORDER BY COUNT(*) DESC LIMIT 1
+                   ) AS style,
+                   COALESCE(
+                     (SELECT COUNT(*) FROM clouder_albums a2
+                      JOIN clouder_tracks t2 ON t2.album_id = a2.id
+                      WHERE a2.label_id = lbl.id), 0
+                   ) AS track_count,
+                   CASE
+                     WHEN li.status IS NULL THEN 'none'
+                     WHEN li.status = 'failed' THEN 'failed'
+                     WHEN li.status = 'completed' THEN 'outdated'
+                     ELSE li.status
+                   END AS status,
+                   li.updated_at AS last_attempted_at
+            FROM clouder_labels lbl
+            LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            WHERE {' AND '.join(where)}
+            ORDER BY track_count DESC, lbl.id DESC
+            LIMIT :lim
+            """,
+            params,
+        )
+
+        has_more = len(rows) > limit
+        page = rows[:limit]
+
+        items = [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "style": r.get("style") or "music",
+                "status": r["status"],
+                "track_count": int(r.get("track_count") or 0),
+                "last_attempted_at": r.get("last_attempted_at"),
+            }
+            for r in page
+        ]
+
+        next_cursor = None
+        if has_more and page:
+            last = page[-1]
+            raw = f"{last['track_count']}|{last['id']}"
+            next_cursor = base64.urlsafe_b64encode(raw.encode()).decode()
+
+        # Total estimate: same predicate set MINUS the cursor clauses.
+        total_where = [w for w in where if "cur_" not in w]
+        total_params = {k: v for k, v in params.items() if not k.startswith("cur_") and k != "lim"}
+        total_rows = self._data_api.execute(
+            f"""
+            SELECT COUNT(*) AS c FROM clouder_labels lbl
+            LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            WHERE {' AND '.join(total_where)}
+            """,
+            total_params,
+        )
+        total_estimate = int(total_rows[0]["c"]) if total_rows else 0
+
+        return items, next_cursor, total_estimate
+
     def derive_style_for_label(self, label_id: str) -> str | None:
         """Most common style across the label's tracks. None if no tracks."""
         rows = self._data_api.execute(
