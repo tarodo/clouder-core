@@ -93,7 +93,11 @@ export function LabelHistoryDrawer({ opened, onClose, labelId, labelName }: Prop
         <Text c="dimmed">{t('admin_enrichment.history.empty')}</Text>
       )}
       {query.data && groups.length > 0 && (
-        <Accordion multiple variant="separated">
+        <Accordion
+          multiple
+          variant="separated"
+          defaultValue={groups.map((g) => g.runId)}
+        >
           {groups.map((g) => (
             <Accordion.Item key={g.runId} value={g.runId}>
               <Accordion.Control>

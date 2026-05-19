@@ -386,11 +386,15 @@ def test_get_label_info_for_user_returns_decoded_merged_blob():
     assert "run_id" not in row
     assert "provenance" not in row
     sql, params = data_api.execute.call_args[0]
-    assert "li.status = 'completed'" in sql
+    # Presence of a clouder_label_info row signals completed enrichment.
+    # li.status holds operational state ("active"/"inactive"/"unknown"),
+    # not job state — do not gate on it.
+    assert "li.status" not in sql
+    assert "FROM clouder_label_info" in sql
     assert params == {"id": "lbl-1"}
 
 
-def test_get_label_info_for_user_returns_none_when_not_completed():
+def test_get_label_info_for_user_returns_none_when_no_row():
     repo, data_api = _repo_with_fake()
     data_api.execute.return_value = []
     assert repo.get_label_info_for_user("lbl-x") is None
