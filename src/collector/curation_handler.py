@@ -1098,6 +1098,7 @@ def _serialize_bucket_track(row) -> dict[str, Any]:
         "is_ai_suspected": row.is_ai_suspected,
         "artists": list(row.artists),
         "label_name": row.label_name,
+        "label_id": row.label_id,
         "added_at": row.added_at,
     }
 

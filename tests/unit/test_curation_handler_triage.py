@@ -355,6 +355,7 @@ def _fake_bucket_track_row(track_id: str = "trk-1") -> BucketTrackRowOut:
         is_ai_suspected=False,
         artists=("Alice", "Bob"),
         label_name="Anjunadeep",
+        label_id="lbl-anjuna",
         added_at="2026-04-28T12:05:00+00:00",
     )
 
