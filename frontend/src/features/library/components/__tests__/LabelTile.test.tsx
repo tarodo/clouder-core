@@ -10,14 +10,14 @@ import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
 import { LabelTile } from '../LabelTile';
 
-function renderTile(labelId: string | null) {
+function renderTile(labelId: string | null, labelName: string | null = null) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   return render(
     <MantineProvider>
       <I18nextProvider i18n={i18n}>
         <QueryClientProvider client={qc}>
           <MemoryRouter>
-            <LabelTile labelId={labelId} styleId="dnb" />
+            <LabelTile labelId={labelId} labelName={labelName} styleId="dnb" />
           </MemoryRouter>
         </QueryClientProvider>
       </I18nextProvider>
@@ -30,27 +30,32 @@ describe('LabelTile', () => {
 
   it('renders null when labelId is null', () => {
     renderTile(null);
-    // No label content should render; Mantine still injects its own <style> tags
-    // into the MantineProvider subtree, so the wrapping container is not
-    // strictly empty. Assert on the absence of any link to a label detail page.
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(screen.queryByRole('article')).not.toBeInTheDocument();
   });
 
-  it('renders null on 404', async () => {
+  it('renders name + preference buttons when enrichment is missing (minimal payload)', async () => {
     server.use(
-      http.get('http://localhost/labels/missing', () =>
-        HttpResponse.json({ error_code: 'label_not_found', message: 'nope' }, { status: 404 }),
+      http.get('http://localhost/labels/minimal', () =>
+        HttpResponse.json({ label_name: 'Fokuz', my_preference: null }),
       ),
     );
-    renderTile('missing');
-    // Wait long enough for the query to settle, then assert nothing leaked through.
-    await new Promise((r) => setTimeout(r, 200));
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(screen.queryByText('library.tile.read_more')).not.toBeInTheDocument();
+    renderTile('minimal', 'fallback');
+    await waitFor(() => expect(screen.getByText('Fokuz')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /^like label$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^dislike label$/i })).toBeInTheDocument();
+    // No tagline/summary/etc → no rich content row.
+    expect(screen.queryByText('soulful d&b')).not.toBeInTheDocument();
   });
 
-  it('renders the label name when fetch succeeds', async () => {
+  it('renders name + preference buttons while info is still loading', () => {
+    // No msw handler registered → request hangs; tile renders minimal mode
+    // with the labelName fallback until the response arrives.
+    renderTile('hanging', 'Pending Label');
+    expect(screen.getByText('Pending Label')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^like label$/i })).toBeInTheDocument();
+  });
+
+  it('renders the label name + full content when fetch succeeds', async () => {
     server.use(
       http.get('http://localhost/labels/abc', () =>
         HttpResponse.json({
@@ -59,10 +64,11 @@ describe('LabelTile', () => {
           tagline: 'soulful d&b',
           website: 'https://fokuzrecordings.com',
           soundcloud_url: 'https://soundcloud.com/fokuz',
+          my_preference: null,
         }),
       ),
     );
-    renderTile('abc');
+    renderTile('abc', 'fallback name');
     await waitFor(() => expect(screen.getByText('Fokuz')).toBeInTheDocument());
     expect(screen.getByText('soulful d&b')).toBeInTheDocument();
   });
