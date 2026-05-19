@@ -65,3 +65,34 @@ def test_delete_user_label_pref_emits_delete_sql():
     sql, params = api.calls[0]
     assert sql.strip().startswith("DELETE FROM clouder_user_label_prefs")
     assert params == {"user_id": "u-1", "label_id": "lbl-1"}
+
+
+def test_list_user_label_prefs_paginates_and_filters_by_status():
+    api = FakeDataApi()
+    api.script(
+        [
+            {"id": "lbl-1", "name": "Fokuz", "status": "liked"},
+            {"id": "lbl-2", "name": "Drumcode", "status": "liked"},
+        ],
+        [{"c": 7}],
+    )
+    repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
+
+    items, total = repo.list_user_label_prefs(
+        user_id="u-1", status="liked", page=2, limit=2,
+    )
+
+    assert total == 7
+    assert [it["id"] for it in items] == ["lbl-1", "lbl-2"]
+    assert all(it["my_preference"] == "liked" for it in items)
+
+    sql, params = api.calls[0]
+    assert "FROM clouder_user_label_prefs p" in sql
+    assert "JOIN clouder_labels lbl" in sql
+    assert "p.status = :status" in sql
+    assert params == {
+        "user_id": "u-1",
+        "status": "liked",
+        "lim": 2,
+        "off": 2,  # (page-1)*limit = (2-1)*2
+    }

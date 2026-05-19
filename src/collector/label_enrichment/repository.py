@@ -823,6 +823,43 @@ class LabelEnrichmentRepository:
             {"user_id": user_id, "label_id": label_id},
         )
 
+    def list_user_label_prefs(
+        self,
+        *,
+        user_id: str,
+        status: str,
+        page: int,
+        limit: int,
+    ) -> tuple[list[dict[str, Any]], int]:
+        if status not in ("liked", "disliked"):
+            raise ValueError(f"status must be 'liked' or 'disliked', got {status!r}")
+        offset = max(page - 1, 0) * limit
+        rows = self._data_api.execute(
+            """
+            SELECT lbl.id, lbl.name, p.status
+            FROM clouder_user_label_prefs p
+            JOIN clouder_labels lbl ON lbl.id = p.label_id
+            WHERE p.user_id = :user_id AND p.status = :status
+            ORDER BY p.updated_at DESC, lbl.id DESC
+            LIMIT :lim OFFSET :off
+            """,
+            {"user_id": user_id, "status": status, "lim": limit, "off": offset},
+        )
+        items = [
+            {"id": r["id"], "name": r["name"], "my_preference": r["status"]}
+            for r in rows
+        ]
+        total_rows = self._data_api.execute(
+            """
+            SELECT COUNT(*) AS c
+            FROM clouder_user_label_prefs p
+            WHERE p.user_id = :user_id AND p.status = :status
+            """,
+            {"user_id": user_id, "status": status},
+        )
+        total = int(total_rows[0]["c"]) if total_rows else 0
+        return items, total
+
     def get_label_info_for_user(self, label_id: str) -> dict[str, Any] | None:
         """Return decoded merged LabelInfo for a user-facing detail page.
 
