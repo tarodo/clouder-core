@@ -140,8 +140,9 @@ class LabelEnrichmentRepository:
         rows = self._data_api.execute(
             f"""
             SELECT lbl.id, lbl.name,
-                   COALESCE(li.status, 'none') AS status,
-                   li.tagline, li.country, li.primary_styles, li.activity, li.updated_at,
+                   CASE WHEN li.label_id IS NULL THEN 'none' ELSE 'completed' END AS status,
+                   li.tagline, li.country, li.founded_year, li.primary_styles,
+                   li.activity, li.updated_at,
                    (
                      SELECT {_STYLE_SLUG_EXPR} FROM clouder_styles s
                      JOIN clouder_tracks t ON t.style_id = s.id
@@ -169,6 +170,7 @@ class LabelEnrichmentRepository:
                 info = {
                     "tagline": r.get("tagline"),
                     "country": r.get("country"),
+                    "founded_year": r.get("founded_year"),
                     "primary_styles": primary,
                     "activity": r.get("activity") or "unknown",
                     "updated_at": r.get("updated_at"),

@@ -3775,6 +3775,10 @@ components:
               type:
               - string
               - 'null'
+            founded_year:
+              type:
+              - integer
+              - 'null'
             primary_styles:
               type: array
               items:

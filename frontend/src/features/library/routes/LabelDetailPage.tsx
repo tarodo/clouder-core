@@ -1,4 +1,4 @@
-import { Container, Grid, Tabs, Card, Title, Text, Button, Stack } from '@mantine/core';
+import { Container, Grid, Tabs, Card, Title, Text, Stack } from '@mantine/core';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
@@ -8,14 +8,11 @@ import { LabelChannelLinks } from '../components/LabelChannelLinks';
 import { LabelOverviewTab } from '../components/LabelOverviewTab';
 import { LabelStylesTab } from '../components/LabelStylesTab';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
-import { getAuthSnapshot } from '../../../auth/AuthProvider';
 
 export function LabelDetailPage() {
   const { t } = useTranslation();
   const { styleId, labelId } = useParams<{ styleId: string; labelId: string }>();
   const query = useLabelDetail(labelId ?? null);
-  const auth = getAuthSnapshot();
-  const isAdmin = auth.status === 'authenticated' && auth.user.is_admin;
   if (!styleId || !labelId) return <Navigate to="/library" replace />;
 
   if (query.isLoading) return <FullScreenLoader />;
@@ -27,11 +24,6 @@ export function LabelDetailPage() {
           <Stack gap="sm">
             <Title order={3}>{t('library.detail.no_info_title')}</Title>
             <Text c="dimmed">{t('library.detail.no_info_body')}</Text>
-            {isAdmin && (
-              <Button component="a" href={`/admin/labels/enrich?label_id=${labelId}`}>
-                {t('library.detail.admin_enqueue_cta')}
-              </Button>
-            )}
           </Stack>
         </Container>
       );
@@ -63,7 +55,9 @@ export function LabelDetailPage() {
         </Grid.Col>
         <Grid.Col span={{ base: 12, lg: 3 }}>
           <Card withBorder padding="md">
-            <Title order={5} mb="sm">{t('library.detail.tab_links')}</Title>
+            <Title order={5} mb="sm">
+              {t('library.detail.tab_links')}
+            </Title>
             <LabelChannelLinks info={info} />
           </Card>
         </Grid.Col>
