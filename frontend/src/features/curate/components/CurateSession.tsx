@@ -329,7 +329,8 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         style={{
           position: 'absolute',
           top: 'var(--mantine-spacing-md)',
-          right: 'var(--mantine-spacing-md)',
+          left: '50%',
+          marginLeft: 'calc(360px + var(--mantine-spacing-md))',
         }}
       >
         <LabelTile

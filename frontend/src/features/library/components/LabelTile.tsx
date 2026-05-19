@@ -131,9 +131,6 @@ export function LabelTile({ labelId, styleId }: Props) {
           ))}
         </Group>
       )}
-      <Anchor component={Link} to={detailUrl} size="sm">
-        {t('library.tile.read_more')}
-      </Anchor>
     </Stack>
   );
 }
