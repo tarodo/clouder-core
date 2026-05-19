@@ -1089,6 +1089,7 @@ export interface paths {
                     sort?: "name" | "recent";
                     page?: number;
                     limit?: number;
+                    my?: "all" | "liked" | "disliked" | "unrated";
                 };
                 header?: never;
                 path?: never;
@@ -5226,6 +5227,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/labels/{label_id}/preference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or clear the current user's label preference.
+         * @description Body: {"status": "liked" | "disliked" | "none"}. "none" deletes the row. Returns 204.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    label_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "liked" | "disliked" | "none";
+                    };
+                };
+            };
+            responses: {
+                /** @description Preference updated. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description label_not_found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description invalid status. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/label-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the current user's labelled labels. */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "liked" | "disliked";
+                    page?: number;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated user label preferences. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MyLabelPreferencesResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5427,6 +5568,8 @@ export interface components {
                 /** Format: date-time */
                 updated_at?: string;
             } | null;
+            /** @enum {string|null} */
+            my_preference?: "liked" | "disliked" | null;
         };
         LabelsListResponse: {
             items: components["schemas"]["LabelSummary"][];
@@ -5434,9 +5577,23 @@ export interface components {
             page: number;
             limit: number;
         };
-        /** @description Sanitized LabelInfo (admin-only fields stripped). */
+        /** @description Sanitized LabelInfo (admin-only fields stripped) plus my_preference. */
         LabelDetail: {
+            /** @enum {string|null} */
+            my_preference?: "liked" | "disliked" | null;
+        } & {
             [key: string]: unknown;
+        };
+        MyLabelPreferencesResponse: {
+            items: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                my_preference: "liked" | "disliked";
+            }[];
+            total: number;
+            page: number;
+            limit: number;
         };
         BacklogLabel: {
             id: string;
