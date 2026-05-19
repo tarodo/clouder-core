@@ -150,6 +150,17 @@ def handle_get_label(event: Mapping[str, Any]) -> tuple[int, dict]:
     return 200, row
 
 
+def handle_get_label_history(event: Mapping[str, Any]) -> tuple[int, dict]:
+    """All enrichment cells for one label across every run it appeared in."""
+    path = event.get("pathParameters") or {}
+    label_id = (path.get("label_id") or "").strip()
+    if not label_id:
+        raise ValidationError("label_id is required")
+    repo = _build_repository()
+    items = repo.list_history_for_label(label_id)
+    return 200, {"items": items}
+
+
 def handle_get_label_user(event: Mapping[str, Any]) -> tuple[int, dict]:
     path = event.get("pathParameters") or {}
     label_id = (path.get("label_id") or "").strip()

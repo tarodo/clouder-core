@@ -866,8 +866,13 @@
   },
   "admin_enrichment": {
     "tabs": {
-      "backlog": "Enrichment backlog",
-      "runs": "Enrichment runs"
+      "backlog": "Label backlog",
+      "runs": "Label runs"
+    },
+    "history": {
+      "title": "Enrichment history",
+      "empty": "No enrichment attempts yet.",
+      "no_payload": "No parsed payload."
     },
     "backlog": {
       "title": "Labels missing info",
@@ -883,7 +888,8 @@
       "col_last_try": "Last attempt",
       "selected_summary": "Selected: {{count}}",
       "enqueue_button": "Enqueue {{count}} labels",
-      "empty": "Caught up! No labels missing info."
+      "empty": "Caught up! No labels missing info.",
+      "load_more": "Load more"
     },
     "enqueue_drawer": {
       "title": "Enqueue {{count}} labels for enrichment",

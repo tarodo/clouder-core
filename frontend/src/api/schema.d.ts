@@ -1014,6 +1014,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/labels/{label_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: per-label enrichment history (every cell across every run). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    label_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Per-label cells, ordered by run created_at DESC. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LabelHistoryResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/labels": {
         parameters: {
             query?: never;
@@ -5409,6 +5465,33 @@ export interface components {
                 vendor?: string;
                 default_model?: string;
             };
+        };
+        LabelHistoryCell: {
+            /** Format: uuid */
+            cell_id: string;
+            /** Format: uuid */
+            run_id: string;
+            run_status?: string;
+            /** Format: date-time */
+            run_created_at?: string;
+            prompt_slug?: string;
+            prompt_version?: string;
+            vendor: string;
+            model?: string;
+            /** @enum {string} */
+            status: "ok" | "error";
+            latency_ms?: number | null;
+            cost_usd?: number | null;
+            error_message?: string | null;
+            parsed?: {
+                [key: string]: unknown;
+            } | null;
+            citations?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        LabelHistoryResponse: {
+            items: components["schemas"]["LabelHistoryCell"][];
         };
     };
     responses: never;

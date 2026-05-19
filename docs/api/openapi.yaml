@@ -775,6 +775,29 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/labels/{label_id}/history:
+    get:
+      summary: 'Admin: per-label enrichment history (every cell across every run).'
+      responses:
+        '200':
+          description: Per-label cells, ordered by run created_at DESC.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabelHistoryResponse'
+        '403': *id002
+        '401': *id001
+      parameters:
+      - name: label_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /labels:
     get:
       summary: List labels for browsing.
@@ -3875,3 +3898,68 @@ components:
               type: string
             default_model:
               type: string
+    LabelHistoryCell:
+      type: object
+      required:
+      - cell_id
+      - run_id
+      - vendor
+      - status
+      properties:
+        cell_id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        run_status:
+          type: string
+        run_created_at:
+          type: string
+          format: date-time
+        prompt_slug:
+          type: string
+        prompt_version:
+          type: string
+        vendor:
+          type: string
+        model:
+          type: string
+        status:
+          type: string
+          enum:
+          - ok
+          - error
+        latency_ms:
+          type:
+          - integer
+          - 'null'
+        cost_usd:
+          type:
+          - number
+          - 'null'
+        error_message:
+          type:
+          - string
+          - 'null'
+        parsed:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+        citations:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            additionalProperties: true
+    LabelHistoryResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelHistoryCell'

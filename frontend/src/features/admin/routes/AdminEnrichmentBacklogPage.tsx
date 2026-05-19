@@ -5,6 +5,7 @@ import { useLabelBacklog } from '../hooks/useLabelBacklog';
 import { BacklogToolbar, type StyleFilterOption } from '../components/enrichment/BacklogToolbar';
 import { BacklogTable } from '../components/enrichment/BacklogTable';
 import { EnqueueDrawer } from '../components/enrichment/EnqueueDrawer';
+import { LabelHistoryDrawer } from '../components/enrichment/LabelHistoryDrawer';
 import { useStyles } from '../../../hooks/useStyles';
 import { slugifyStyle } from '../../library/lib/slugifyStyle';
 
@@ -14,6 +15,7 @@ export function AdminEnrichmentBacklogPage() {
   const [status, setStatus] = useState<'all' | 'none' | 'failed' | 'outdated'>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
   const stylesQuery = useStyles();
   const styleOptions: ReadonlyArray<StyleFilterOption> = useMemo(
@@ -24,6 +26,13 @@ export function AdminEnrichmentBacklogPage() {
       })) ?? [],
     [stylesQuery.data],
   );
+  const styleNames: Record<string, string> = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const s of stylesQuery.data?.items ?? []) {
+      map[slugifyStyle(s.name)] = s.name;
+    }
+    return map;
+  }, [stylesQuery.data]);
 
   const query = useLabelBacklog({ style, status });
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
@@ -59,21 +68,43 @@ export function AdminEnrichmentBacklogPage() {
         stylesLoading={stylesQuery.isLoading}
       />
       {items.length === 0 && !query.isLoading ? (
-        <Center mt="lg"><Text c="dimmed">{t('admin_enrichment.backlog.empty')}</Text></Center>
+        <Center mt="lg">
+          <Text c="dimmed">{t('admin_enrichment.backlog.empty')}</Text>
+        </Center>
       ) : (
-        <BacklogTable items={items} selected={selected} onToggle={toggle} onToggleAll={toggleAll} />
+        <BacklogTable
+          items={items}
+          selected={selected}
+          onToggle={toggle}
+          onToggleAll={toggleAll}
+          styleNames={styleNames}
+          onShowHistory={(row) => setHistoryFor({ id: row.id, name: row.name })}
+        />
       )}
       {query.hasNextPage && (
         <Center mt="md">
-          <Button variant="default" loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
-            Load more
+          <Button
+            variant="default"
+            loading={query.isFetchingNextPage}
+            onClick={() => query.fetchNextPage()}
+          >
+            {t('admin_enrichment.backlog.load_more')}
           </Button>
         </Center>
       )}
       <EnqueueDrawer
         opened={drawerOpen}
-        onClose={() => { setDrawerOpen(false); setSelected(new Set()); }}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelected(new Set());
+        }}
         labelIds={Array.from(selected)}
+      />
+      <LabelHistoryDrawer
+        opened={historyFor !== null}
+        onClose={() => setHistoryFor(null)}
+        labelId={historyFor?.id ?? null}
+        labelName={historyFor?.name}
       />
     </Stack>
   );

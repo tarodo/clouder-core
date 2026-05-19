@@ -711,6 +711,38 @@ RUNS_LIST_RESPONSE = {
     },
 }
 
+LABEL_HISTORY_CELL = {
+    "type": "object",
+    "required": ["cell_id", "run_id", "vendor", "status"],
+    "properties": {
+        "cell_id": {"type": "string", "format": "uuid"},
+        "run_id": {"type": "string", "format": "uuid"},
+        "run_status": {"type": "string"},
+        "run_created_at": {"type": "string", "format": "date-time"},
+        "prompt_slug": {"type": "string"},
+        "prompt_version": {"type": "string"},
+        "vendor": {"type": "string"},
+        "model": {"type": "string"},
+        "status": {"type": "string", "enum": ["ok", "error"]},
+        "latency_ms": {"type": ["integer", "null"]},
+        "cost_usd": {"type": ["number", "null"]},
+        "error_message": {"type": ["string", "null"]},
+        "parsed": {"type": ["object", "null"], "additionalProperties": True},
+        "citations": {"type": ["array", "null"], "items": {"type": "object", "additionalProperties": True}},
+    },
+}
+
+LABEL_HISTORY_RESPONSE = {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/LabelHistoryCell"},
+        },
+    },
+}
+
 ENRICHMENT_OPTIONS = {
     "type": "object",
     "required": ["vendors", "prompt_versions", "default_models", "merge"],
@@ -1145,6 +1177,30 @@ ROUTES: list[dict[str, Any]] = [
             "404": _error(404, "Label not found."),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/labels/{label_id}/history",
+        "auth": ADMIN,
+        "tags": ["labels-admin"],
+        "summary": "Admin: per-label enrichment history (every cell across every run).",
+        "parameters": [
+            {
+                "name": "label_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Per-label cells, ordered by run created_at DESC.",
+                {"$ref": "#/components/schemas/LabelHistoryResponse"},
+            ),
+            "403": _error(403, "admin_required."),
+            **COMMON_AUTH_ERRORS,
         },
     },
     # ── user-facing label browse ──────────────────────────────────
@@ -2494,6 +2550,8 @@ def build_openapi() -> dict[str, Any]:
                 "BacklogResponse": BACKLOG_RESPONSE,
                 "RunsListResponse": RUNS_LIST_RESPONSE,
                 "EnrichmentOptions": ENRICHMENT_OPTIONS,
+                "LabelHistoryCell": LABEL_HISTORY_CELL,
+                "LabelHistoryResponse": LABEL_HISTORY_RESPONSE,
             },
         },
     }
