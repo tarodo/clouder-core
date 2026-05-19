@@ -27,6 +27,10 @@ import { requireAdmin } from '../auth/requireAdmin';
 import { AdminLayout } from '../features/admin/routes/AdminLayout';
 import { AdminCoveragePage } from '../features/admin/routes/AdminCoveragePage';
 import { AdminSpotifyNotFoundPage } from '../features/admin/routes/AdminSpotifyNotFoundPage';
+import { AdminEnrichmentBacklogPage } from '../features/admin/routes/AdminEnrichmentBacklogPage';
+import { AdminEnrichmentRunsPage } from '../features/admin/routes/AdminEnrichmentRunsPage';
+import { AdminEnrichmentRunDetailPage } from '../features/admin/routes/AdminEnrichmentRunDetailPage';
+import { LibraryIndexRedirect, LibraryListPage, LabelDetailPage } from '../features/library';
 
 export const router = createBrowserRouter([
   {
@@ -78,6 +82,14 @@ export const router = createBrowserRouter([
         ],
       },
       {
+        path: 'library',
+        children: [
+          { index: true, element: <LibraryIndexRedirect /> },
+          { path: ':styleId', element: <LibraryListPage /> },
+          { path: ':styleId/labels/:labelId', element: <LabelDetailPage /> },
+        ],
+      },
+      {
         path: 'playlists',
         children: [
           { index: true, element: <PlaylistsListPage /> },
@@ -93,6 +105,9 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="/admin/coverage" replace /> },
           { path: 'coverage', element: <AdminCoveragePage /> },
           { path: 'spotify-not-found', element: <AdminSpotifyNotFoundPage /> },
+          { path: 'labels/enrich', element: <AdminEnrichmentBacklogPage /> },
+          { path: 'labels/enrich/runs', element: <AdminEnrichmentRunsPage /> },
+          { path: 'labels/enrich/runs/:runId', element: <AdminEnrichmentRunDetailPage /> },
         ],
       },
     ],

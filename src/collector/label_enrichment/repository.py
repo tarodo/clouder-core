@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import uuid
@@ -42,6 +43,14 @@ def _pg_text_array(items: list[str]) -> str:
     return "{" + ",".join(parts) + "}"
 
 
+# Admin-only fields stripped from user-facing responses.
+_USER_FACING_FORBIDDEN = frozenset({
+    "run_id", "prompt_slug", "prompt_version",
+    "vendors_used", "merged_at_run_id",
+    "token_cost", "cost_usd", "provenance",
+})
+
+
 @dataclass(frozen=True)
 class RunSpec:
     prompt_slug: str
@@ -70,6 +79,324 @@ class LabelEnrichmentRepository:
             {"id": label_id},
         )
         return rows[0] if rows else None
+
+    def list_labels(
+        self,
+        *,
+        style: str | None,
+        q: str | None,
+        sort: str,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """User-facing label list with cursor pagination.
+
+        Cursor format: opaque base64 of "<name>|<id>" for stable sort.
+        Returns (items, next_cursor or None).
+        """
+        where = ["1=1"]
+        params: dict[str, Any] = {"lim": limit + 1}
+        if style:
+            where.append(
+                "EXISTS (SELECT 1 FROM clouder_albums a "
+                "JOIN clouder_tracks t ON t.album_id = a.id "
+                "JOIN clouder_styles s ON s.id = t.style_id "
+                "WHERE a.label_id = lbl.id AND s.name = :style)"
+            )
+            params["style"] = style
+        if q:
+            where.append("LOWER(lbl.name) LIKE :q")
+            params["q"] = f"{q.lower()}%"
+        if cursor:
+            try:
+                decoded = base64.urlsafe_b64decode(cursor.encode()).decode()
+                last_name, last_id = decoded.rsplit("|", 1)
+            except Exception:
+                last_name, last_id = "", ""
+            if sort == "recent":
+                # cursor is updated_at|id
+                where.append(
+                    "(li.updated_at, lbl.id) < (CAST(:cur_ts AS timestamptz), :cur_id)"
+                )
+                params["cur_ts"] = last_name
+                params["cur_id"] = last_id
+            else:
+                where.append("(lbl.name, lbl.id) > (:cur_name, :cur_id)")
+                params["cur_name"] = last_name
+                params["cur_id"] = last_id
+
+        order_by = "li.updated_at DESC NULLS LAST, lbl.id DESC" if sort == "recent" else "lbl.name ASC, lbl.id ASC"
+
+        rows = self._data_api.execute(
+            f"""
+            SELECT lbl.id, lbl.name,
+                   COALESCE(li.status, 'none') AS status,
+                   li.tagline, li.country, li.primary_styles, li.activity, li.updated_at,
+                   (
+                     SELECT s.name FROM clouder_styles s
+                     JOIN clouder_tracks t ON t.style_id = s.id
+                     JOIN clouder_albums a ON a.id = t.album_id
+                     WHERE a.label_id = lbl.id
+                     GROUP BY s.name ORDER BY COUNT(*) DESC LIMIT 1
+                   ) AS dominant_style
+            FROM clouder_labels lbl
+            LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            WHERE {' AND '.join(where)}
+            ORDER BY {order_by}
+            LIMIT :lim
+            """,
+            params,
+        )
+
+        has_more = len(rows) > limit
+        page = rows[:limit]
+
+        items = []
+        for r in page:
+            info = None
+            if r.get("status") == "completed":
+                primary = r.get("primary_styles") or []
+                info = {
+                    "tagline": r.get("tagline"),
+                    "country": r.get("country"),
+                    "primary_styles": primary,
+                    "activity": r.get("activity") or "unknown",
+                    "updated_at": r.get("updated_at"),
+                }
+            items.append({
+                "id": r["id"],
+                "name": r["name"],
+                "style": r.get("dominant_style") or "music",
+                "status": r.get("status") or "none",
+                "info": info,
+            })
+
+        next_cursor = None
+        if has_more and page:
+            last = page[-1]
+            if sort == "recent":
+                last_updated = last.get("updated_at")
+                if isinstance(last_updated, datetime):
+                    ts_str = last_updated.isoformat()
+                else:
+                    ts_str = str(last_updated)
+                raw = f"{ts_str}|{last['id']}"
+            else:
+                raw = f"{last['name']}|{last['id']}"
+            next_cursor = base64.urlsafe_b64encode(raw.encode()).decode()
+
+        return items, next_cursor
+
+    def list_backlog(
+        self,
+        *,
+        style: str | None,
+        status: str | None,
+        cursor: str | None,
+        limit: int,
+        staleness_days: int = 180,
+    ) -> tuple[list[dict[str, Any]], str | None, int]:
+        """Labels with status in {none, failed, outdated}. Returns (items, next_cursor, total_estimate)."""
+        where = [
+            "(li.status IS NULL OR li.status = 'failed' "
+            "OR (li.status = 'completed' AND li.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'))"
+        ]
+        params: dict[str, Any] = {"lim": limit + 1}
+        if style:
+            where.append(
+                "EXISTS (SELECT 1 FROM clouder_albums a "
+                "JOIN clouder_tracks t ON t.album_id = a.id "
+                "JOIN clouder_styles s ON s.id = t.style_id "
+                "WHERE a.label_id = lbl.id AND s.name = :style)"
+            )
+            params["style"] = style
+        if status:
+            if status == "none":
+                where.append("li.status IS NULL")
+            elif status == "failed":
+                where.append("li.status = 'failed'")
+            elif status == "outdated":
+                where.append(
+                    "li.status = 'completed' AND li.updated_at < NOW() - INTERVAL '"
+                    + str(int(staleness_days)) + " days'"
+                )
+
+        if cursor:
+            try:
+                decoded = base64.urlsafe_b64decode(cursor.encode()).decode()
+                last_count, last_id = decoded.rsplit("|", 1)
+                params["cur_count"] = int(last_count)
+                params["cur_id"] = last_id
+                where.append("(track_count, lbl.id) < (:cur_count, :cur_id)")
+            except Exception:
+                pass
+
+        rows = self._data_api.execute(
+            f"""
+            SELECT lbl.id, lbl.name,
+                   (
+                     SELECT s.name FROM clouder_styles s
+                     JOIN clouder_tracks t ON t.style_id = s.id
+                     JOIN clouder_albums a ON a.id = t.album_id
+                     WHERE a.label_id = lbl.id
+                     GROUP BY s.name ORDER BY COUNT(*) DESC LIMIT 1
+                   ) AS style,
+                   COALESCE(
+                     (SELECT COUNT(*) FROM clouder_albums a2
+                      JOIN clouder_tracks t2 ON t2.album_id = a2.id
+                      WHERE a2.label_id = lbl.id), 0
+                   ) AS track_count,
+                   CASE
+                     WHEN li.status IS NULL THEN 'none'
+                     WHEN li.status = 'failed' THEN 'failed'
+                     WHEN li.status = 'completed' THEN 'outdated'
+                     ELSE li.status
+                   END AS status,
+                   li.updated_at AS last_attempted_at
+            FROM clouder_labels lbl
+            LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            WHERE {' AND '.join(where)}
+            ORDER BY track_count DESC, lbl.id DESC
+            LIMIT :lim
+            """,
+            params,
+        )
+
+        has_more = len(rows) > limit
+        page = rows[:limit]
+
+        items = [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "style": r.get("style") or "music",
+                "status": r["status"],
+                "track_count": int(r.get("track_count") or 0),
+                "last_attempted_at": r.get("last_attempted_at"),
+            }
+            for r in page
+        ]
+
+        next_cursor = None
+        if has_more and page:
+            last = page[-1]
+            raw = f"{last['track_count']}|{last['id']}"
+            next_cursor = base64.urlsafe_b64encode(raw.encode()).decode()
+
+        # Total estimate: same predicate set MINUS the cursor clauses.
+        total_where = [w for w in where if "cur_" not in w]
+        total_params = {k: v for k, v in params.items() if not k.startswith("cur_") and k != "lim"}
+        total_rows = self._data_api.execute(
+            f"""
+            SELECT COUNT(*) AS c FROM clouder_labels lbl
+            LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            WHERE {' AND '.join(total_where)}
+            """,
+            total_params,
+        )
+        total_estimate = int(total_rows[0]["c"]) if total_rows else 0
+
+        return items, next_cursor, total_estimate
+
+    def list_runs(
+        self,
+        *,
+        status: str | None,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """Admin runs list, sorted by created_at DESC."""
+        where = ["1=1"]
+        params: dict[str, Any] = {"lim": limit + 1}
+        if status:
+            where.append("status = :status")
+            params["status"] = status
+        if cursor:
+            try:
+                decoded = base64.urlsafe_b64decode(cursor.encode()).decode()
+                last_ts, last_id = decoded.rsplit("|", 1)
+                where.append("(created_at, id) < (CAST(:cur_ts AS timestamptz), :cur_id)")
+                params["cur_ts"] = last_ts
+                params["cur_id"] = last_id
+            except Exception:
+                pass
+
+        rows = self._data_api.execute(
+            f"""
+            SELECT id, status, prompt_slug, prompt_version, vendors, models,
+                   merge_vendor, merge_model, requested_labels, cells_total,
+                   cells_ok, cells_error, cost_usd, created_at, started_at, finished_at
+            FROM clouder_label_enrichment_runs
+            WHERE {' AND '.join(where)}
+            ORDER BY created_at DESC, id DESC
+            LIMIT :lim
+            """,
+            params,
+        )
+
+        has_more = len(rows) > limit
+        page = rows[:limit]
+
+        items = []
+        for r in page:
+            row = dict(r)
+            for json_col in ("vendors", "models"):
+                v = row.get(json_col)
+                if isinstance(v, str):
+                    row[json_col] = json.loads(v)
+            cost = row.get("cost_usd")
+            if isinstance(cost, Decimal):
+                row["cost_usd"] = float(cost)
+            items.append(row)
+
+        next_cursor = None
+        if has_more and page:
+            last = page[-1]
+            created_at_val = last.get("created_at")
+            if isinstance(created_at_val, datetime):
+                ts_str = created_at_val.isoformat()
+            else:
+                ts_str = str(created_at_val)
+            raw = f"{ts_str}|{last['id']}"
+            next_cursor = base64.urlsafe_b64encode(raw.encode()).decode()
+
+        return items, next_cursor
+
+    def list_cells_for_run(self, run_id: str) -> list[dict[str, Any]]:
+        """Per-cell breakdown for a run. Joined with clouder_labels for label_name.
+
+        Schema notes:
+        - clouder_label_enrichment_cells stores `error` as JSONB ({"message": ...}),
+          not a flat text column — surface it as `error_message`.
+        - Per-cell cost is not a column; vendors report it inside `usage.cost_usd`,
+          so we project that as `cost_usd` for the frontend.
+        """
+        rows = self._data_api.execute(
+            """
+            SELECT c.id AS cell_id, c.label_id, lbl.name AS label_name,
+                   c.vendor, c.status, c.latency_ms,
+                   (c.usage->>'cost_usd')::numeric AS cost_usd,
+                   c.error->>'message' AS error_message
+            FROM clouder_label_enrichment_cells c
+            JOIN clouder_labels lbl ON lbl.id = c.label_id
+            WHERE c.run_id = :run_id
+            ORDER BY c.label_id, c.vendor
+            """,
+            {"run_id": run_id},
+        )
+        items = []
+        for r in rows:
+            row = dict(r)
+            cost = row.get("cost_usd")
+            if isinstance(cost, Decimal):
+                row["cost_usd"] = float(cost)
+            elif isinstance(cost, str):
+                try:
+                    row["cost_usd"] = float(cost)
+                except (TypeError, ValueError):
+                    row["cost_usd"] = None
+            items.append(row)
+        return items
 
     def derive_style_for_label(self, label_id: str) -> str | None:
         """Most common style across the label's tracks. None if no tracks."""
@@ -373,6 +700,32 @@ class LabelEnrichmentRepository:
             except (TypeError, ValueError):
                 pass
         return row
+
+    def get_label_info_for_user(self, label_id: str) -> dict[str, Any] | None:
+        """Return decoded merged LabelInfo for a user-facing detail page.
+
+        Returns the decoded `merged` JSONB blob (the full LabelInfo schema:
+        label_name, country, tagline, summary, notable_artists, URL channels,
+        primary/secondary_styles, ai_content, ai_reasoning, etc.) with
+        admin-only fields stripped. Returns None when status != 'completed'.
+        """
+        rows = self._data_api.execute(
+            """
+            SELECT li.merged
+            FROM clouder_label_info li
+            WHERE li.label_id = :id AND li.status = 'completed'
+            LIMIT 1
+            """,
+            {"id": label_id},
+        )
+        if not rows:
+            return None
+        merged = rows[0].get("merged")
+        if isinstance(merged, str):
+            merged = json.loads(merged)
+        if not isinstance(merged, dict):
+            return None
+        return {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
 
     def increment_run_counters(
         self,

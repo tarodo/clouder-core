@@ -954,36 +954,6 @@ class ClouderRepository:
         )
         return int(rows[0]["cnt"]) if rows else 0
 
-    def list_labels(
-        self, limit: int, offset: int, search: str | None = None
-    ) -> list[dict[str, Any]]:
-        params: dict[str, Any] = {"limit": limit, "offset": offset}
-        where = ""
-        if search:
-            where = "WHERE normalized_name LIKE :search"
-            params["search"] = f"%{search.lower()}%"
-        return self._data_api.execute(
-            f"""
-            SELECT id, name, normalized_name, created_at, updated_at
-            FROM clouder_labels
-            {where}
-            ORDER BY created_at DESC
-            LIMIT :limit OFFSET :offset
-            """,
-            params,
-        )
-
-    def count_labels(self, search: str | None = None) -> int:
-        params: dict[str, Any] = {}
-        where = ""
-        if search:
-            where = "WHERE normalized_name LIKE :search"
-            params["search"] = f"%{search.lower()}%"
-        rows = self._data_api.execute(
-            f"SELECT count(*) AS cnt FROM clouder_labels {where}", params
-        )
-        return int(rows[0]["cnt"]) if rows else 0
-
     def list_styles(
         self, limit: int, offset: int, search: str | None = None
     ) -> list[dict[str, Any]]:

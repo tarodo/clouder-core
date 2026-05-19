@@ -16,6 +16,7 @@ import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
 import { PlayerPanelTagCloud } from './PlayerPanelTagCloud';
 import { PlayerPanelPlaylistCloud } from './PlayerPanelPlaylistCloud';
+import { LabelTile } from '../../library/components/LabelTile';
 import classes from './CategoryPlayerPanel.module.css';
 
 export interface CategoryPlayerPanelProps {
@@ -31,7 +32,7 @@ export interface CategoryPlayerPanelProps {
 
 const TOAST_ID = 'category-player-undo';
 
-export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelProps) {
+export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlayerPanelProps) {
   const { t } = useTranslation();
   const playback = usePlayback();
   const playlistsQuery = usePlaylists({ status: 'active', limit: 100 });
@@ -259,6 +260,9 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
         onOpenDevicePicker={() => playback.devices.open(null)}
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
       />
+      {effectiveRich?.label?.id && (
+        <LabelTile labelId={effectiveRich.label.id} styleId={styleId} />
+      )}
       <Divider />
       <Text fw={500} size="sm">
         {t('category_player.sections.tags')}

@@ -876,6 +876,17 @@ export interface paths {
                             started_at?: string | null;
                             /** Format: date-time */
                             finished_at?: string | null;
+                            cells?: {
+                                cell_id: string;
+                                label_id: string;
+                                label_name: string;
+                                vendor: string;
+                                /** @enum {string} */
+                                status: "ok" | "error";
+                                latency_ms: number;
+                                cost_usd: number;
+                                error_message?: string | null;
+                            }[];
                         };
                     };
                 };
@@ -986,6 +997,311 @@ export interface paths {
                 };
                 /** @description Label not found. */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List labels for browsing.
+         * @description Paginated label list. Filters: style (dominant style), q (name prefix), sort (name|recent). Cursor-paginated.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    style?: string;
+                    q?: string;
+                    sort?: "name" | "recent";
+                    cursor?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated labels. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LabelsListResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/labels/{label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user-facing label detail.
+         * @description Returns sanitized LabelInfo for completed enrichments. 404 when info not available.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    label_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Label info. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LabelDetail"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description label_not_found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/labels/backlog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin: list labels missing enrichment.
+         * @description Labels with no info, failed, or completed-but-outdated. Cursor-paginated. Sorted by track_count DESC.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    style?: string;
+                    status?: "none" | "failed" | "outdated";
+                    cursor?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Backlog page. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BacklogResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/labels/enrich-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: list enrichment runs. */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "queued" | "running" | "completed" | "failed";
+                    cursor?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Runs list. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RunsListResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/labels/enrich/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: static config for the enqueue form. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Form options. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnrichmentOptions"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1177,89 +1493,6 @@ export interface paths {
             cookie?: never;
         };
         /** List albums (paginated). */
-        get: {
-            parameters: {
-                query?: {
-                    limit?: number;
-                    offset?: number;
-                    /** @description Substring match on normalized name/title (case-insensitive). */
-                    search?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Paginated items. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            items: Record<string, never>[];
-                            total: number;
-                            limit: number;
-                            offset: number;
-                            correlation_id?: string;
-                        };
-                    };
-                };
-                /** @description validation_error (limit/offset out of range). */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Missing or invalid bearer token. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Authenticated but lacks required role (admin). */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description db_not_configured. */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/labels": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List labels (paginated). */
         get: {
             parameters: {
                 query?: {
@@ -5082,6 +5315,100 @@ export interface components {
             processing_reason?: string | null;
             /** @description Count of labels sent to AI search SQS. Zero if `search_label_count` was omitted. */
             search_labels_enqueued?: number;
+        };
+        LabelEnrichRunResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "completed" | "failed";
+            prompt_slug?: string;
+            prompt_version?: string;
+            vendors?: string[];
+            models?: {
+                [key: string]: string;
+            };
+            merge_vendor?: string;
+            merge_model?: string;
+            requested_labels?: number;
+            cells_total: number;
+            cells_ok: number;
+            cells_error: number;
+            cost_usd?: number;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            started_at?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+            cells?: {
+                cell_id: string;
+                label_id: string;
+                label_name: string;
+                vendor: string;
+                /** @enum {string} */
+                status: "ok" | "error";
+                latency_ms: number;
+                cost_usd: number;
+                error_message?: string | null;
+            }[];
+        };
+        LabelSummary: {
+            id: string;
+            name: string;
+            style: string;
+            /** @enum {string} */
+            status: "none" | "queued" | "running" | "completed" | "failed" | "outdated";
+            info?: {
+                tagline?: string | null;
+                country?: string | null;
+                primary_styles?: string[];
+                /** @enum {string} */
+                activity?: "unknown" | "dormant" | "low" | "steady" | "high" | "fire_hose";
+                /** Format: date-time */
+                updated_at?: string;
+            } | null;
+        };
+        LabelsListResponse: {
+            items: components["schemas"]["LabelSummary"][];
+            next_cursor?: string | null;
+        };
+        /** @description Sanitized LabelInfo (admin-only fields stripped). */
+        LabelDetail: {
+            [key: string]: unknown;
+        };
+        BacklogLabel: {
+            id: string;
+            name: string;
+            style: string;
+            /** @enum {string} */
+            status: "none" | "failed" | "outdated";
+            track_count: number;
+            /** Format: date-time */
+            last_attempted_at?: string | null;
+        };
+        BacklogResponse: {
+            items: components["schemas"]["BacklogLabel"][];
+            next_cursor?: string | null;
+            total_estimate: number;
+        };
+        RunsListResponse: {
+            items: components["schemas"]["LabelEnrichRunResponse"][];
+            next_cursor?: string | null;
+        };
+        EnrichmentOptions: {
+            vendors: string[];
+            prompt_versions: {
+                slug?: string;
+                version?: string;
+                is_default?: boolean;
+            }[];
+            default_models: {
+                [key: string]: string;
+            };
+            merge: {
+                vendor?: string;
+                default_model?: string;
+            };
         };
     };
     responses: never;

@@ -19,6 +19,7 @@ const mkTrack = (overrides: Partial<BucketTrack> = {}): BucketTrack => ({
   release_type: 'single',
   is_ai_suspected: false,
   artists: ['Artist A', 'Artist B'],
+  label_id: 'lbl-x',
   label_name: 'Big Room Records',
   added_at: '2026-04-21T00:00:00Z',
   ...overrides,

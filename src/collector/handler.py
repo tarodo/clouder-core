@@ -55,7 +55,6 @@ _LIST_ROUTES = {
     "GET /tracks": ("tracks", "list_tracks", "count_tracks"),
     "GET /artists": ("artists", "list_artists", "count_artists"),
     "GET /albums": ("albums", "list_albums", "count_albums"),
-    "GET /labels": ("labels", "list_labels", "count_labels"),
     "GET /styles": ("styles", "list_styles", "count_styles"),
 }
 
@@ -66,7 +65,10 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/runs",
     "GET /tracks/spotify-not-found",
     "POST /admin/labels/enrich",
+    "GET /admin/labels/enrich/options",
+    "GET /admin/labels/enrich-runs",
     "GET /admin/labels/enrich-runs/{run_id}",
+    "GET /admin/labels/backlog",
     "GET /admin/labels/{label_id}",
 })
 
@@ -158,13 +160,33 @@ def _route(
         from .label_enrichment.routes import handle_post_enrich
         status, body = handle_post_enrich(event)
         return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/labels/enrich/options":
+        from .label_enrichment.routes import handle_get_options
+        status, body = handle_get_options(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/labels/enrich-runs":
+        from .label_enrichment.routes import handle_get_runs_list
+        status, body = handle_get_runs_list(event)
+        return _json_response(status, body, correlation_id)
     if route_key == "GET /admin/labels/enrich-runs/{run_id}":
         from .label_enrichment.routes import handle_get_run
         status, body = handle_get_run(event)
         return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/labels/backlog":
+        from .label_enrichment.routes import handle_get_backlog
+        status, body = handle_get_backlog(event)
+        return _json_response(status, body, correlation_id)
     if route_key == "GET /admin/labels/{label_id}":
         from .label_enrichment.routes import handle_get_label
         status, body = handle_get_label(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /labels":
+        from .label_enrichment.routes import handle_get_labels_list
+        status, body = handle_get_labels_list(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /labels/{label_id}":
+        from .label_enrichment.routes import handle_get_label_user
+        status, body = handle_get_label_user(event)
         return _json_response(status, body, correlation_id)
     if route_key in _LIST_ROUTES:
         return _handle_list(event, route_key)

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base import PromptConfig
 
 PROMPTS: dict[str, PromptConfig] = {}
 _BUILTIN_CONFIGS: list[PromptConfig] = []
+
+_DEFAULT_PROMPT_SLUG = "label_v3_app_fields"
 
 
 def register(cfg: PromptConfig) -> None:
@@ -34,3 +38,21 @@ def load_builtin_prompts() -> None:
 
     for cfg in _BUILTIN_CONFIGS:
         register(cfg)
+
+
+def list_prompt_versions() -> list[dict[str, Any]]:
+    """Return all loaded prompt registry entries as serializable dicts.
+
+    Default selection: prompt with slug == 'label_v3_app_fields'.
+    """
+    items: list[dict[str, Any]] = []
+    for slug, cfg in PROMPTS.items():
+        items.append(
+            {
+                "slug": slug,
+                "version": cfg.version,
+                "description": cfg.description,
+                "is_default": slug == _DEFAULT_PROMPT_SLUG,
+            }
+        )
+    return sorted(items, key=lambda p: (not p["is_default"], p["slug"]))

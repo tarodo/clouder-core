@@ -365,6 +365,37 @@ def test_get_label_info_parses_jsonb_strings_from_data_api():
     assert row["ai_confidence"] == 0.9
 
 
+def test_get_label_info_for_user_returns_decoded_merged_blob():
+    """User-facing endpoint must decode the merged JSONB and strip admin fields."""
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = [{
+        "merged": (
+            '{"label_name": "Fokuz", "country": "NL", "tagline": "soulful d&b", '
+            '"summary": "Rotterdam.", "primary_styles": ["liquid"], '
+            '"website": "https://fokuzrecordings.com", '
+            '"ai_content": "none_detected", "ai_reasoning": "no signals", '
+            '"confidence": 0.92, "run_id": "leaked-run", "provenance": "leaked"}'
+        ),
+    }]
+    row = repo.get_label_info_for_user("lbl-1")
+    assert row is not None
+    assert row["label_name"] == "Fokuz"
+    assert row["country"] == "NL"
+    assert row["primary_styles"] == ["liquid"]
+    # Admin-only fields stripped:
+    assert "run_id" not in row
+    assert "provenance" not in row
+    sql, params = data_api.execute.call_args[0]
+    assert "li.status = 'completed'" in sql
+    assert params == {"id": "lbl-1"}
+
+
+def test_get_label_info_for_user_returns_none_when_not_completed():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    assert repo.get_label_info_for_user("lbl-x") is None
+
+
 def test_increment_run_counters_atomic_update_only():
     repo, data_api = _repo_with_fake()
     data_api.execute.return_value = []

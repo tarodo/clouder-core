@@ -95,6 +95,7 @@ def test_get_enrich_run_returns_row(patched_deps):
         "id": "run-1", "status": "running", "cells_total": 6,
         "cells_ok": 3, "cells_error": 0,
     }
+    repo.list_cells_for_run.return_value = []
     resp = lambda_handler(
         _admin_event(
             "GET /admin/labels/enrich-runs/{run_id}",

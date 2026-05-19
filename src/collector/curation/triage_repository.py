@@ -88,6 +88,7 @@ class BucketTrackRowOut:
     is_ai_suspected: bool
     artists: tuple[str, ...]
     label_name: str | None
+    label_id: str | None
     added_at: str
 
 
@@ -960,6 +961,7 @@ class TriageRepository:
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type, t.is_ai_suspected,
                 tbt.added_at,
+                cl.id AS label_id,
                 cl.name AS label_name,
                 STRING_AGG(ca.name, ',' ORDER BY cta.role, ca.name) AS artist_names
             FROM triage_bucket_tracks tbt
@@ -974,7 +976,7 @@ class TriageRepository:
                 t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type, t.is_ai_suspected,
-                tbt.added_at, cl.name
+                tbt.added_at, cl.id, cl.name
             ORDER BY tbt.added_at DESC, t.id ASC
             LIMIT :limit OFFSET :offset
             """,
@@ -1027,6 +1029,7 @@ class TriageRepository:
                     is_ai_suspected=bool(r.get("is_ai_suspected", False)),
                     artists=artists,
                     label_name=r.get("label_name"),
+                    label_id=r.get("label_id"),
                     added_at=str(r["added_at"]),
                 )
             )

@@ -134,6 +134,7 @@ def handle_get_run(event: Mapping[str, Any]) -> tuple[int, dict]:
     row = repo.get_run(run_id)
     if row is None:
         return 404, {"error_code": "not_found", "message": "run not found"}
+    row["cells"] = repo.list_cells_for_run(run_id)
     return 200, row
 
 
@@ -147,3 +148,94 @@ def handle_get_label(event: Mapping[str, Any]) -> tuple[int, dict]:
     if row is None:
         return 404, {"error_code": "not_found", "message": "label info not found"}
     return 200, row
+
+
+def handle_get_label_user(event: Mapping[str, Any]) -> tuple[int, dict]:
+    path = event.get("pathParameters") or {}
+    label_id = (path.get("label_id") or "").strip()
+    if not label_id:
+        raise ValidationError("label_id is required")
+    repo = _build_repository()
+    row = repo.get_label_info_for_user(label_id)
+    if row is None:
+        return 404, {"error_code": "label_not_found", "message": "label info not available"}
+    return 200, row
+
+
+def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
+    qs = event.get("queryStringParameters") or {}
+    style = (qs.get("style") or "").strip() or None
+    status = (qs.get("status") or "").strip() or None
+    if status and status not in ("none", "failed", "outdated"):
+        raise ValidationError("status must be one of: none, failed, outdated")
+    cursor = (qs.get("cursor") or "").strip() or None
+    try:
+        limit = int(qs.get("limit") or "100")
+    except (TypeError, ValueError):
+        raise ValidationError("limit must be an integer")
+    if limit < 1 or limit > 200:
+        raise ValidationError("limit must be between 1 and 200")
+
+    repo = _build_repository()
+    items, next_cursor, total = repo.list_backlog(
+        style=style, status=status, cursor=cursor, limit=limit,
+    )
+    return 200, {"items": items, "next_cursor": next_cursor, "total_estimate": total}
+
+
+def handle_get_options(event: Mapping[str, Any]) -> tuple[int, dict]:
+    """Static config for the admin enqueue form."""
+    del event  # unused — payload is static config
+    from .prompts import list_prompt_versions, load_builtin_prompts
+
+    load_builtin_prompts()
+    prompt_versions = list_prompt_versions()
+    return 200, {
+        "vendors": ["gemini", "openai", "tavily_deepseek"],
+        "prompt_versions": prompt_versions,
+        "default_models": {
+            "gemini": "gemini-2.5-pro",
+            "openai": "gpt-5",
+            "tavily_deepseek": "deepseek-chat",
+        },
+        "merge": {"vendor": "deepseek", "default_model": "deepseek-chat"},
+    }
+
+
+def handle_get_runs_list(event: Mapping[str, Any]) -> tuple[int, dict]:
+    qs = event.get("queryStringParameters") or {}
+    status = (qs.get("status") or "").strip() or None
+    if status and status not in ("queued", "running", "completed", "failed"):
+        raise ValidationError("invalid status filter")
+    cursor = (qs.get("cursor") or "").strip() or None
+    try:
+        limit = int(qs.get("limit") or "50")
+    except (TypeError, ValueError):
+        raise ValidationError("limit must be an integer")
+    if limit < 1 or limit > 200:
+        raise ValidationError("limit must be between 1 and 200")
+    repo = _build_repository()
+    items, next_cursor = repo.list_runs(status=status, cursor=cursor, limit=limit)
+    return 200, {"items": items, "next_cursor": next_cursor}
+
+
+def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
+    qs = event.get("queryStringParameters") or {}
+    style = (qs.get("style") or "").strip() or None
+    q = (qs.get("q") or "").strip() or None
+    sort = (qs.get("sort") or "name").strip()
+    if sort not in ("name", "recent"):
+        raise ValidationError("sort must be 'name' or 'recent'")
+    cursor = (qs.get("cursor") or "").strip() or None
+    try:
+        limit = int(qs.get("limit") or "50")
+    except (TypeError, ValueError):
+        raise ValidationError("limit must be an integer")
+    if limit < 1 or limit > 200:
+        raise ValidationError("limit must be between 1 and 200")
+
+    repo = _build_repository()
+    items, next_cursor = repo.list_labels(
+        style=style, q=q, sort=sort, cursor=cursor, limit=limit,
+    )
+    return 200, {"items": items, "next_cursor": next_cursor}
