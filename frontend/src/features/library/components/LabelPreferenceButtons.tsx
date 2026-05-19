@@ -1,6 +1,11 @@
 import { ActionIcon, Group } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-import { IconHeart, IconHeartFilled, IconX } from '../../../components/icons';
+import {
+  IconHeart,
+  IconHeartFilled,
+  IconCircleX,
+  IconCircleXFilled,
+} from '../../../components/icons';
 import {
   useSetLabelPreference,
   type LabelPreference,
@@ -34,7 +39,7 @@ export function LabelPreferenceButtons({ labelId, current, size = 'sm' }: Props)
         aria-label={liked ? t('library.prefs.unset_aria') : t('library.prefs.like_aria')}
       >
         {liked ? (
-          <IconHeartFilled size={iconSize} color="var(--mantine-color-red-6)" />
+          <IconHeartFilled size={iconSize} color="var(--mantine-color-dark-9)" />
         ) : (
           <IconHeart size={iconSize} />
         )}
@@ -45,10 +50,11 @@ export function LabelPreferenceButtons({ labelId, current, size = 'sm' }: Props)
         onClick={onDislike}
         aria-label={disliked ? t('library.prefs.unset_aria') : t('library.prefs.dislike_aria')}
       >
-        <IconX
-          size={iconSize}
-          color={disliked ? 'var(--mantine-color-dark-9)' : undefined}
-        />
+        {disliked ? (
+          <IconCircleXFilled size={iconSize} color="var(--mantine-color-dark-9)" />
+        ) : (
+          <IconCircleX size={iconSize} />
+        )}
       </ActionIcon>
     </Group>
   );

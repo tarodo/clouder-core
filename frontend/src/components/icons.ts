@@ -31,4 +31,6 @@ export {
   IconBook,
   IconHeart,
   IconHeartFilled,
+  IconCircleX,
+  IconCircleXFilled,
 } from '@tabler/icons-react';
