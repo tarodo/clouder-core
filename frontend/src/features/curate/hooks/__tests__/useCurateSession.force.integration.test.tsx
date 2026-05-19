@@ -70,7 +70,7 @@ const tracksPage = {
       bpm: 124, length_ms: 360000, publish_date: '2026-04-15',
       spotify_release_date: '2026-04-15', spotify_id: 'sp-t1',
       release_type: 'single', is_ai_suspected: false,
-      artists: ['Artist'], label_name: 'Label', added_at: '2026-04-21T00:00:00Z',
+      artists: ['Artist'], label_id: null, label_name: 'Label', added_at: '2026-04-21T00:00:00Z',
     },
   ],
   total: 1, limit: 50, offset: 0,

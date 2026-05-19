@@ -103,6 +103,7 @@ function tracksPage(ids: string[]) {
       release_type: 'single',
       is_ai_suspected: false,
       artists: ['Artist A'],
+      label_id: null,
       label_name: 'Label X',
       added_at: '2026-04-21T00:00:00Z',
     })),

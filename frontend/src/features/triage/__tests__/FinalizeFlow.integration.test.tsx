@@ -95,6 +95,7 @@ function track(id: string) {
     release_type: null,
     is_ai_suspected: false,
     artists: [],
+    label_id: null,
     label_name: null,
     added_at: '2026-04-21T08:00:00Z',
   };
