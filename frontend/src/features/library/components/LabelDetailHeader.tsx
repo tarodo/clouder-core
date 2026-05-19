@@ -1,4 +1,4 @@
-import { Group, Title, Text, Anchor } from '@mantine/core';
+import { Group, Title, Text, Anchor, Badge, Tooltip } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { LabelDetail } from '../../../api/labels';
@@ -9,6 +9,17 @@ interface Props {
   styleId: string;
 }
 
+const AI_COLOR: Record<string, string> = {
+  none_detected: 'green',
+  unknown: 'gray',
+  suspected: 'yellow',
+  confirmed: 'red',
+};
+
+function formatAiContent(value: string): string {
+  return `AI ${value.toUpperCase()}`;
+}
+
 export function LabelDetailHeader({ info, styleId }: Props) {
   const { t } = useTranslation();
   const rec = info as Record<string, unknown>;
@@ -16,15 +27,37 @@ export function LabelDetailHeader({ info, styleId }: Props) {
   const country = typeof rec.country === 'string' ? rec.country : '';
   const foundedYear =
     typeof rec.founded_year === 'number' ? rec.founded_year : null;
+  const aiContent = typeof rec.ai_content === 'string' ? rec.ai_content : '';
+  const aiReasoning =
+    typeof rec.ai_reasoning === 'string' ? rec.ai_reasoning : '';
+
+  const aiBadge = aiContent ? (
+    <Tooltip
+      label={aiReasoning || t('library.detail.ai_reasoning_missing')}
+      multiline
+      w={320}
+      withinPortal
+      events={{ hover: true, focus: true, touch: true }}
+    >
+      <Badge
+        color={AI_COLOR[aiContent] ?? 'gray'}
+        variant="light"
+        style={{ cursor: 'help' }}
+      >
+        {formatAiContent(aiContent)}
+      </Badge>
+    </Tooltip>
+  ) : null;
 
   return (
     <>
       <Anchor component={Link} to={`/library/${styleId}`} size="sm">
         ← {t('library.detail.back_to_list', { style: styleId })}
       </Anchor>
-      <Title order={2} mt="xs">
-        {labelName}
-      </Title>
+      <Group gap="sm" mt="xs" align="center" wrap="wrap">
+        <Title order={2}>{labelName}</Title>
+        {aiBadge}
+      </Group>
       <Group gap="xs" mt="xs">
         {country && (
           <Text>

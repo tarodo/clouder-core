@@ -1,4 +1,4 @@
-import { Stack, Text, Title, Badge, Group } from '@mantine/core';
+import { Stack, Text, Title, List } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import type { LabelDetail } from '../../../api/labels';
 
@@ -20,9 +20,11 @@ export function LabelOverviewTab({ info }: { info: LabelDetail }) {
       {notable.length > 0 && (
         <>
           <Title order={5}>{t('library.detail.notable_artists')}</Title>
-          <Group gap={6}>
-            {notable.map((a) => <Badge key={a} variant="outline">{a}</Badge>)}
-          </Group>
+          <List size="sm" spacing={4} withPadding>
+            {notable.map((a) => (
+              <List.Item key={a}>{a}</List.Item>
+            ))}
+          </List>
         </>
       )}
     </Stack>

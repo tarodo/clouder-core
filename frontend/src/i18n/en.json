@@ -845,7 +845,8 @@
       "secondary_styles": "Secondary styles",
       "ai_content_label": "AI content",
       "ai_reasoning": "Reasoning",
-      "ai_reasoning_collapsed": "Show reasoning"
+      "ai_reasoning_collapsed": "Show reasoning",
+      "ai_reasoning_missing": "No reasoning available."
     },
     "tile": {
       "read_more": "Read more →"
