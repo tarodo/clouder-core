@@ -431,6 +431,53 @@ class LabelEnrichmentRepository:
             items.append(row)
         return items
 
+    def list_history_for_label(self, label_id: str) -> list[dict[str, Any]]:
+        """Per-label enrichment history.
+
+        Returns a list of cells joined with their parent run, ordered by run
+        created_at DESC. Each cell row carries enough context for the admin
+        to inspect what was tried, what came back, and what failed:
+        run_id, run_status, run_created_at, prompt_slug, prompt_version,
+        vendor, model, status, latency_ms, cost_usd, error_message, parsed.
+        """
+        rows = self._data_api.execute(
+            """
+            SELECT c.id AS cell_id,
+                   c.run_id, r.status AS run_status, r.created_at AS run_created_at,
+                   r.prompt_slug, r.prompt_version,
+                   c.vendor, c.model, c.status, c.latency_ms,
+                   (c.usage->>'cost_usd')::numeric AS cost_usd,
+                   c.error->>'message' AS error_message,
+                   c.parsed AS parsed,
+                   c.citations AS citations
+            FROM clouder_label_enrichment_cells c
+            JOIN clouder_label_enrichment_runs r ON r.id = c.run_id
+            WHERE c.label_id = :label_id
+            ORDER BY r.created_at DESC, c.vendor ASC
+            """,
+            {"label_id": label_id},
+        )
+        items: list[dict[str, Any]] = []
+        for r in rows:
+            row = dict(r)
+            cost = row.get("cost_usd")
+            if isinstance(cost, Decimal):
+                row["cost_usd"] = float(cost)
+            elif isinstance(cost, str):
+                try:
+                    row["cost_usd"] = float(cost)
+                except (TypeError, ValueError):
+                    row["cost_usd"] = None
+            for json_col in ("parsed", "citations"):
+                v = row.get(json_col)
+                if isinstance(v, str):
+                    try:
+                        row[json_col] = json.loads(v)
+                    except json.JSONDecodeError:
+                        pass
+            items.append(row)
+        return items
+
     def derive_style_for_label(self, label_id: str) -> str | None:
         """Most common style across the label's tracks. None if no tracks."""
         rows = self._data_api.execute(

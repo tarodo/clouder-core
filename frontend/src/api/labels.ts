@@ -11,3 +11,5 @@ export type RunDetail          = paths['/admin/labels/enrich-runs/{run_id}']['ge
 export type RunCell            = NonNullable<RunDetail['cells']>[number];
 export type EnrichmentOptions  = paths['/admin/labels/enrich/options']['get']['responses'][200]['content']['application/json'];
 export type EnrichBody         = paths['/admin/labels/enrich']['post']['requestBody']['content']['application/json'];
+export type LabelHistoryResponse = paths['/admin/labels/{label_id}/history']['get']['responses'][200]['content']['application/json'];
+export type LabelHistoryCell   = LabelHistoryResponse['items'][number];
