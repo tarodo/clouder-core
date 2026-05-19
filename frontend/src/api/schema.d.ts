@@ -738,6 +738,271 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/labels/enrich": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin: enqueue label enrichment for up to 100 labels.
+         * @description Creates a `label_enrich_runs` row, fans out per-(label, vendor) cells onto the label-enrichment SQS queue. Returns 202 with the run id and the count of queued labels.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        labels: {
+                            label_name: string;
+                            style: string;
+                            release_name?: string | null;
+                        }[];
+                        vendors: ("gemini" | "openai" | "tavily_deepseek")[];
+                        models: {
+                            [key: string]: string;
+                        };
+                        prompt_slug: string;
+                        prompt_version: string;
+                        /** @enum {string} */
+                        merge_vendor: "deepseek";
+                        merge_model: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Enrichment run accepted and queued. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            run_id: string;
+                            queued_labels: number;
+                        };
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/labels/enrich-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: get status + counters for a label-enrichment run. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    run_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Run row with progress counters. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** @enum {string} */
+                            status: "queued" | "running" | "completed" | "failed";
+                            prompt_slug?: string;
+                            prompt_version?: string;
+                            vendors?: string[];
+                            models?: {
+                                [key: string]: string;
+                            };
+                            merge_vendor?: string;
+                            merge_model?: string;
+                            requested_labels?: number;
+                            cells_total: number;
+                            cells_ok: number;
+                            cells_error: number;
+                            cost_usd?: number;
+                            /** Format: date-time */
+                            created_at?: string;
+                            /** Format: date-time */
+                            started_at?: string | null;
+                            /** Format: date-time */
+                            finished_at?: string | null;
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Run not found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/labels/{label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: get enriched label info (merged AI content + provenance). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    label_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Label info with merged enrichment fields. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            label_id: string;
+                            label_name: string;
+                            /** Format: uuid */
+                            last_run_id?: string;
+                            prompt_slug?: string;
+                            prompt_version?: string;
+                            merged: Record<string, never>;
+                            provenance?: Record<string, never>;
+                            ai_content: string;
+                            ai_confidence: number;
+                            status: string;
+                            primary_styles?: string[];
+                            tagline?: string | null;
+                            country?: string | null;
+                            founded_year?: number | null;
+                            activity?: string | null;
+                            /** Format: date */
+                            last_release_date?: string | null;
+                            /** Format: date-time */
+                            updated_at: string;
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Label not found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tracks": {
         parameters: {
             query?: never;
@@ -4696,11 +4961,6 @@ export interface components {
             period_end: string | null;
             /** Bp Token */
             bp_token: string;
-            /**
-             * Search Label Count
-             * @default null
-             */
-            search_label_count: number | null;
         };
         /** CollectRequestIn */
         CollectRequestIn: {
@@ -4712,11 +4972,6 @@ export interface components {
             iso_year: number;
             /** Iso Week */
             iso_week: number;
-            /**
-             * Search Label Count
-             * @default null
-             */
-            search_label_count: number | null;
         };
         /** CreateTriageBlockIn */
         CreateTriageBlockIn: {
