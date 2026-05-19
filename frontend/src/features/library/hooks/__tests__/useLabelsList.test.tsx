@@ -1,6 +1,5 @@
-import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
@@ -17,50 +16,52 @@ function wrap() {
 describe('useLabelsList', () => {
   beforeEach(() => tokenStore.set('TOK'));
 
-  it('fetches the first page with style + q + sort params', async () => {
+  it('fetches with style, q, sort, page and limit query params', async () => {
     let received = '';
     server.use(
       http.get('http://localhost/labels', ({ request }) => {
         received = request.url;
         return HttpResponse.json({
           items: [{ id: 'l1', name: 'A', style: 'dnb', status: 'completed', info: null }],
-          next_cursor: 'cur2',
+          total: 1,
+          page: 1,
+          limit: 25,
         });
       }),
     );
     const { result } = renderHook(
-      () => useLabelsList({ styleId: 'dnb', q: 'foo', sort: 'recent' }),
+      () => useLabelsList({ styleId: 'dnb', q: 'foo', sort: 'recent', page: 1, limit: 25 }),
       { wrapper: wrap() },
     );
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(received).toContain('style=dnb');
     expect(received).toContain('q=foo');
     expect(received).toContain('sort=recent');
+    expect(received).toContain('page=1');
+    expect(received).toContain('limit=25');
   });
 
-  it('forwards next_cursor as cursor query param on fetchNextPage', async () => {
+  it('refetches when page changes', async () => {
     const received: string[] = [];
     server.use(
       http.get('http://localhost/labels', ({ request }) => {
         received.push(request.url);
-        const url = new URL(request.url);
-        const cursor = url.searchParams.get('cursor');
         return HttpResponse.json({
-          items: [{ id: cursor ?? 'first', name: 'X', style: 'dnb', status: 'none', info: null }],
-          next_cursor: cursor ? null : 'cur2',
+          items: [],
+          total: 50,
+          page: Number(new URL(request.url).searchParams.get('page')),
+          limit: 25,
         });
       }),
     );
-    const { result } = renderHook(
-      () => useLabelsList({ styleId: 'dnb', q: '', sort: 'name' }),
-      { wrapper: wrap() },
+    const { result, rerender } = renderHook(
+      ({ page }: { page: number }) =>
+        useLabelsList({ styleId: 'dnb', q: '', sort: 'name', page, limit: 25 }),
+      { wrapper: wrap(), initialProps: { page: 1 } },
     );
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.hasNextPage).toBe(true);
-    await act(async () => {
-      await result.current.fetchNextPage();
-    });
+    rerender({ page: 2 });
     await waitFor(() => expect(received).toHaveLength(2));
-    expect(received[1]).toContain('cursor=cur2');
+    expect(received[1]).toContain('page=2');
   });
 });

@@ -1,4 +1,4 @@
-import { Container, Grid, Tabs, Card, Title, Text, Stack } from '@mantine/core';
+import { Container, Grid, Card, Title, Text, Stack, Divider } from '@mantine/core';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
@@ -39,18 +39,10 @@ export function LabelDetailPage() {
         <Grid.Col span={{ base: 12, lg: 9 }}>
           <Stack gap="md">
             <LabelDetailHeader info={info} styleId={styleId} />
-            <Tabs defaultValue="overview">
-              <Tabs.List>
-                <Tabs.Tab value="overview">{t('library.detail.tab_overview')}</Tabs.Tab>
-                <Tabs.Tab value="styles">{t('library.detail.tab_styles')}</Tabs.Tab>
-              </Tabs.List>
-              <Tabs.Panel value="overview" pt="md">
-                <LabelOverviewTab info={info} />
-              </Tabs.Panel>
-              <Tabs.Panel value="styles" pt="md">
-                <LabelStylesTab info={info} />
-              </Tabs.Panel>
-            </Tabs>
+            <Divider />
+            <LabelOverviewTab info={info} />
+            <Divider />
+            <LabelStylesTab info={info} />
           </Stack>
         </Grid.Col>
         <Grid.Col span={{ base: 12, lg: 3 }}>

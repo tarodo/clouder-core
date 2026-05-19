@@ -811,7 +811,7 @@ paths:
         '401': *id001
         '403': *id002
       description: 'Paginated label list. Filters: style (dominant style), q (name
-        prefix), sort (name|recent). Cursor-paginated.'
+        prefix), sort (name|recent). Page-based pagination.'
       parameters:
       - name: style
         in: query
@@ -828,10 +828,12 @@ paths:
           enum:
           - name
           - recent
-      - name: cursor
+      - name: page
         in: query
         schema:
-          type: string
+          type: integer
+          minimum: 1
+          default: 1
       - name: limit
         in: query
         schema:
@@ -3799,15 +3801,20 @@ components:
       type: object
       required:
       - items
+      - total
+      - page
+      - limit
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/LabelSummary'
-        next_cursor:
-          type:
-          - string
-          - 'null'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
     LabelDetail:
       type: object
       description: Sanitized LabelInfo (admin-only fields stripped).
