@@ -1,7 +1,7 @@
 import { Stack, Title, Button, Center, Text } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLabelBacklog } from '../hooks/useLabelBacklog';
+import { useLabelBacklog, type LabelStatusFilter } from '../hooks/useLabelBacklog';
 import { BacklogToolbar, type StyleFilterOption } from '../components/enrichment/BacklogToolbar';
 import { BacklogTable } from '../components/enrichment/BacklogTable';
 import { EnqueueDrawer } from '../components/enrichment/EnqueueDrawer';
@@ -12,7 +12,7 @@ import { slugifyStyle } from '../../library/lib/slugifyStyle';
 export function AdminEnrichmentBacklogPage() {
   const { t } = useTranslation();
   const [style, setStyle] = useState<string>('');
-  const [status, setStatus] = useState<'all' | 'none' | 'failed' | 'outdated'>('all');
+  const [status, setStatus] = useState<LabelStatusFilter>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);

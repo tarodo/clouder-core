@@ -2,9 +2,11 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { api } from '../../../api/client';
 import type { BacklogResponse } from '../../../api/labels';
 
+export type LabelStatusFilter = 'all' | 'none' | 'completed' | 'outdated';
+
 export interface UseLabelBacklogParams {
   style: string;
-  status: 'all' | 'none' | 'failed' | 'outdated';
+  status: LabelStatusFilter;
 }
 
 export const labelBacklogKey = (p: UseLabelBacklogParams) =>

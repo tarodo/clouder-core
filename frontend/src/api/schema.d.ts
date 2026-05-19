@@ -1216,7 +1216,7 @@ export interface paths {
             parameters: {
                 query?: {
                     style?: string;
-                    status?: "none" | "failed" | "outdated";
+                    status?: "all" | "none" | "completed" | "outdated";
                     cursor?: string;
                     limit?: number;
                 };
@@ -5437,7 +5437,7 @@ export interface components {
             name: string;
             style: string;
             /** @enum {string} */
-            status: "none" | "failed" | "outdated";
+            status: "none" | "completed" | "outdated";
             track_count: number;
             /** Format: date-time */
             last_attempted_at?: string | null;

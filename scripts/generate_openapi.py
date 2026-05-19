@@ -680,7 +680,7 @@ BACKLOG_LABEL = {
         "id": {"type": "string"},
         "name": {"type": "string"},
         "style": {"type": "string"},
-        "status": {"type": "string", "enum": ["none", "failed", "outdated"]},
+        "status": {"type": "string", "enum": ["none", "completed", "outdated"]},
         "track_count": {"type": "integer"},
         "last_attempted_at": {"type": ["string", "null"], "format": "date-time"},
     },
@@ -1283,7 +1283,7 @@ ROUTES: list[dict[str, Any]] = [
             {
                 "name": "status",
                 "in": "query",
-                "schema": {"type": "string", "enum": ["none", "failed", "outdated"]},
+                "schema": {"type": "string", "enum": ["all", "none", "completed", "outdated"]},
             },
             {"name": "cursor", "in": "query", "schema": {"type": "string"}},
             {
