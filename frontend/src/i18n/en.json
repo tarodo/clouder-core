@@ -808,5 +808,122 @@
       "open_in_spotify": "Open in Spotify",
       "no_spotify_match": "Нет Spotify match — слушай вручную"
     }
+  },
+  "library": {
+    "page_title": "Library",
+    "list": {
+      "title": "Labels",
+      "empty_filter": "No labels match these filters.",
+      "info_pending": "Info pending",
+      "search_placeholder": "Search labels...",
+      "sort_label": "Sort",
+      "sort_name": "Name (A→Z)",
+      "sort_recent": "Recently updated",
+      "load_more": "Load more"
+    },
+    "entity_tabs": {
+      "labels": "Labels",
+      "artists": "Artists",
+      "artists_coming_soon": "Coming soon"
+    },
+    "detail": {
+      "back_to_list": "Back to {{style}}",
+      "no_info_title": "Information not yet collected",
+      "no_info_body": "This label hasn't been enriched yet.",
+      "admin_enqueue_cta": "Enqueue enrichment",
+      "tab_overview": "Overview",
+      "tab_styles": "Styles",
+      "tab_links": "Links",
+      "founded": "Founded {{year}}",
+      "notable_artists": "Notable artists",
+      "primary_styles": "Primary styles",
+      "secondary_styles": "Secondary styles",
+      "ai_content_label": "AI content",
+      "ai_reasoning": "Reasoning",
+      "ai_reasoning_collapsed": "Show reasoning"
+    },
+    "tile": {
+      "read_more": "Read more →"
+    },
+    "channels": {
+      "website": "Website",
+      "bandcamp": "Bandcamp",
+      "soundcloud": "SoundCloud",
+      "beatport": "Beatport",
+      "residentadvisor": "Resident Advisor",
+      "discogs": "Discogs",
+      "instagram": "Instagram",
+      "twitter": "Twitter"
+    },
+    "activity": {
+      "unknown": "Unknown",
+      "dormant": "Dormant",
+      "low": "Low activity",
+      "steady": "Steady",
+      "high": "High activity",
+      "fire_hose": "Fire hose"
+    }
+  },
+  "admin_enrichment": {
+    "tabs": {
+      "backlog": "Enrichment backlog",
+      "runs": "Enrichment runs"
+    },
+    "backlog": {
+      "title": "Labels missing info",
+      "filter_style": "Style",
+      "filter_status": "Status",
+      "status_none": "No info",
+      "status_failed": "Failed",
+      "status_outdated": "Outdated",
+      "col_name": "Label",
+      "col_style": "Style",
+      "col_status": "Status",
+      "col_tracks": "Tracks",
+      "col_last_try": "Last attempt",
+      "selected_summary": "Selected: {{count}}",
+      "enqueue_button": "Enqueue {{count}} labels",
+      "empty": "Caught up! No labels missing info."
+    },
+    "enqueue_drawer": {
+      "title": "Enqueue {{count}} labels for enrichment",
+      "vendors_label": "Vendors",
+      "prompt_label": "Prompt version",
+      "models_label": "Models per vendor",
+      "merge_vendor_label": "Merge vendor",
+      "merge_model_label": "Merge model",
+      "submit": "Enqueue",
+      "submit_inflight": "Enqueueing...",
+      "success_notification": "Enqueued {{count}} labels. Run: {{run_id}}",
+      "error_notification": "Enqueue failed: {{message}}"
+    },
+    "runs": {
+      "title": "Enrichment runs",
+      "col_created": "Created",
+      "col_id": "Run id",
+      "col_status": "Status",
+      "col_cells": "Cells (ok/err/total)",
+      "col_cost": "Cost",
+      "filter_status": "Status",
+      "empty": "No runs yet."
+    },
+    "run_detail": {
+      "back_to_runs": "Back to runs",
+      "tab_summary": "Summary",
+      "tab_cells": "Cells",
+      "tab_json": "Raw JSON",
+      "counters_total": "Total",
+      "counters_ok": "Ok",
+      "counters_err": "Errors",
+      "vendor_breakdown": "Per-vendor breakdown",
+      "copy_json": "Copy JSON",
+      "json_copied": "Copied"
+    },
+    "status": {
+      "queued": "Queued",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed"
+    }
   }
 }
