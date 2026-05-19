@@ -166,6 +166,10 @@ def _route(
         from .label_enrichment.routes import handle_get_label
         status, body = handle_get_label(event)
         return _json_response(status, body, correlation_id)
+    if route_key == "GET /labels":
+        from .label_enrichment.routes import handle_get_labels_list
+        status, body = handle_get_labels_list(event)
+        return _json_response(status, body, correlation_id)
     if route_key in _LIST_ROUTES:
         return _handle_list(event, route_key)
     return _json_response(

@@ -147,3 +147,25 @@ def handle_get_label(event: Mapping[str, Any]) -> tuple[int, dict]:
     if row is None:
         return 404, {"error_code": "not_found", "message": "label info not found"}
     return 200, row
+
+
+def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
+    qs = event.get("queryStringParameters") or {}
+    style = (qs.get("style") or "").strip() or None
+    q = (qs.get("q") or "").strip() or None
+    sort = (qs.get("sort") or "name").strip()
+    if sort not in ("name", "recent"):
+        raise ValidationError("sort must be 'name' or 'recent'")
+    cursor = (qs.get("cursor") or "").strip() or None
+    try:
+        limit = int(qs.get("limit") or "50")
+    except (TypeError, ValueError):
+        raise ValidationError("limit must be an integer")
+    if limit < 1 or limit > 200:
+        raise ValidationError("limit must be between 1 and 200")
+
+    repo = _build_repository()
+    items, next_cursor = repo.list_labels(
+        style=style, q=q, sort=sort, cursor=cursor, limit=limit,
+    )
+    return 200, {"items": items, "next_cursor": next_cursor}

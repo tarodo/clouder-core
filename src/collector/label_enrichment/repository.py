@@ -71,6 +71,110 @@ class LabelEnrichmentRepository:
         )
         return rows[0] if rows else None
 
+    def list_labels(
+        self,
+        *,
+        style: str | None,
+        q: str | None,
+        sort: str,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """User-facing label list with cursor pagination.
+
+        Cursor format: opaque base64 of "<name>|<id>" for stable sort.
+        Returns (items, next_cursor or None).
+        """
+        import base64
+
+        where = ["1=1"]
+        params: dict[str, Any] = {"lim": limit + 1}
+        if style:
+            where.append(
+                "EXISTS (SELECT 1 FROM clouder_albums a "
+                "JOIN clouder_tracks t ON t.album_id = a.id "
+                "JOIN clouder_styles s ON s.id = t.style_id "
+                "WHERE a.label_id = lbl.id AND s.name = :style)"
+            )
+            params["style"] = style
+        if q:
+            where.append("LOWER(lbl.name) LIKE :q")
+            params["q"] = f"{q.lower()}%"
+        if cursor:
+            try:
+                decoded = base64.urlsafe_b64decode(cursor.encode()).decode()
+                last_name, last_id = decoded.rsplit("|", 1)
+            except Exception:
+                last_name, last_id = "", ""
+            if sort == "recent":
+                # cursor is updated_at|id
+                where.append("(li.updated_at, lbl.id) < (:cur_ts, :cur_id)")
+                params["cur_ts"] = last_name
+                params["cur_id"] = last_id
+            else:
+                where.append("(lbl.name, lbl.id) > (:cur_name, :cur_id)")
+                params["cur_name"] = last_name
+                params["cur_id"] = last_id
+
+        order_by = "li.updated_at DESC, lbl.id DESC" if sort == "recent" else "lbl.name ASC, lbl.id ASC"
+
+        rows = self._data_api.execute(
+            f"""
+            SELECT lbl.id, lbl.name,
+                   COALESCE(li.status, 'none') AS status,
+                   li.tagline, li.country, li.primary_styles, li.activity, li.updated_at,
+                   (
+                     SELECT s.name FROM clouder_styles s
+                     JOIN clouder_tracks t ON t.style_id = s.id
+                     JOIN clouder_albums a ON a.id = t.album_id
+                     WHERE a.label_id = lbl.id
+                     GROUP BY s.name ORDER BY COUNT(*) DESC LIMIT 1
+                   ) AS dominant_style
+            FROM clouder_labels lbl
+            LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            WHERE {' AND '.join(where)}
+            ORDER BY {order_by}
+            LIMIT :lim
+            """,
+            params,
+        )
+
+        has_more = len(rows) > limit
+        page = rows[:limit]
+
+        items = []
+        for r in page:
+            info = None
+            if r.get("status") == "completed":
+                primary = r.get("primary_styles")
+                if isinstance(primary, str):
+                    primary = json.loads(primary)
+                info = {
+                    "tagline": r.get("tagline"),
+                    "country": r.get("country"),
+                    "primary_styles": primary or [],
+                    "activity": r.get("activity") or "unknown",
+                    "updated_at": r.get("updated_at"),
+                }
+            items.append({
+                "id": r["id"],
+                "name": r["name"],
+                "style": r.get("dominant_style") or "music",
+                "status": r.get("status") or "none",
+                "info": info,
+            })
+
+        next_cursor = None
+        if has_more and page:
+            last = page[-1]
+            if sort == "recent":
+                raw = f"{last.get('updated_at')}|{last['id']}"
+            else:
+                raw = f"{last['name']}|{last['id']}"
+            next_cursor = base64.urlsafe_b64encode(raw.encode()).decode()
+
+        return items, next_cursor
+
     def derive_style_for_label(self, label_id: str) -> str | None:
         """Most common style across the label's tracks. None if no tracks."""
         rows = self._data_api.execute(
