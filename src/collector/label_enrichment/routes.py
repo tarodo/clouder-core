@@ -195,7 +195,7 @@ def handle_get_options(event: Mapping[str, Any]) -> tuple[int, dict]:
         "prompt_versions": prompt_versions,
         "default_models": {
             "gemini": "gemini-2.5-pro",
-            "openai": "gpt-5.1",
+            "openai": "gpt-5",
             "tavily_deepseek": "deepseek-chat",
         },
         "merge": {"vendor": "deepseek", "default_model": "deepseek-chat"},
