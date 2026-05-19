@@ -29,6 +29,16 @@ def _normalize_label(name: str) -> str:
     return _NORM_RE.sub(" ", name.strip().lower())
 
 
+# Postgres expression: slugify a style name for FE comparison.
+# Example: "Drum & Bass" -> "drum-and-bass". Maps "&" -> "and" before stripping
+# non-alphanumerics so the slug matches the form used by the frontend URLs.
+_STYLE_SLUG_EXPR = (
+    "TRIM(BOTH '-' FROM "
+    "LOWER(REGEXP_REPLACE(REPLACE(s.name, '&', 'and'), '[^a-zA-Z0-9]+', '-', 'g'))"
+    ")"
+)
+
+
 def _pg_text_array(items: list[str]) -> str:
     """Format a Python list as a PostgreSQL text[] array literal.
 
@@ -101,7 +111,7 @@ class LabelEnrichmentRepository:
                 "EXISTS (SELECT 1 FROM clouder_albums a "
                 "JOIN clouder_tracks t ON t.album_id = a.id "
                 "JOIN clouder_styles s ON s.id = t.style_id "
-                "WHERE a.label_id = lbl.id AND s.name = :style)"
+                f"WHERE a.label_id = lbl.id AND {_STYLE_SLUG_EXPR} = LOWER(:style))"
             )
             params["style"] = style
         if q:
@@ -133,7 +143,7 @@ class LabelEnrichmentRepository:
                    COALESCE(li.status, 'none') AS status,
                    li.tagline, li.country, li.primary_styles, li.activity, li.updated_at,
                    (
-                     SELECT s.name FROM clouder_styles s
+                     SELECT {_STYLE_SLUG_EXPR} FROM clouder_styles s
                      JOIN clouder_tracks t ON t.style_id = s.id
                      JOIN clouder_albums a ON a.id = t.album_id
                      WHERE a.label_id = lbl.id
@@ -166,7 +176,7 @@ class LabelEnrichmentRepository:
             items.append({
                 "id": r["id"],
                 "name": r["name"],
-                "style": r.get("dominant_style") or "music",
+                "style": r.get("dominant_style") or "",
                 "status": r.get("status") or "none",
                 "info": info,
             })
@@ -207,7 +217,7 @@ class LabelEnrichmentRepository:
                 "EXISTS (SELECT 1 FROM clouder_albums a "
                 "JOIN clouder_tracks t ON t.album_id = a.id "
                 "JOIN clouder_styles s ON s.id = t.style_id "
-                "WHERE a.label_id = lbl.id AND s.name = :style)"
+                f"WHERE a.label_id = lbl.id AND {_STYLE_SLUG_EXPR} = LOWER(:style))"
             )
             params["style"] = style
         if status:
@@ -235,7 +245,7 @@ class LabelEnrichmentRepository:
             f"""
             SELECT lbl.id, lbl.name,
                    (
-                     SELECT s.name FROM clouder_styles s
+                     SELECT {_STYLE_SLUG_EXPR} FROM clouder_styles s
                      JOIN clouder_tracks t ON t.style_id = s.id
                      JOIN clouder_albums a ON a.id = t.album_id
                      WHERE a.label_id = lbl.id
@@ -269,7 +279,7 @@ class LabelEnrichmentRepository:
             {
                 "id": r["id"],
                 "name": r["name"],
-                "style": r.get("style") or "music",
+                "style": r.get("style") or "",
                 "status": r["status"],
                 "track_count": int(r.get("track_count") or 0),
                 "last_attempted_at": r.get("last_attempted_at"),
