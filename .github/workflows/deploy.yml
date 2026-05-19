@@ -68,9 +68,7 @@ jobs:
           terraform apply -auto-approve -input=false \
             -var="environment=prod" \
             -var="canonicalization_enabled=true" \
-            -var="ai_search_enabled=true" \
             -var="spotify_search_enabled=true" \
-            -var="perplexity_api_key_ssm_parameter=/clouder/perplexity/api_key" \
             -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" \
             -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" \
             -var="migration_aurora_auth_mode=iam" \
