@@ -19,6 +19,7 @@ import { usePlaybackHotkeys } from '../../playback/usePlaybackHotkeys';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import { spotifyApi } from '../../playback/api/spotifyWebApi';
+import { LabelTile } from '../../library/components/LabelTile';
 
 export interface CurateSessionProps {
   styleId: string;
@@ -142,6 +143,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
   const hasOverflow = stagingOverflow(session.destinations).length > 0;
 
   return (
+    <Group align="flex-start" gap="md" wrap="nowrap" justify="center" style={{ width: '100%' }}>
     <Stack
       gap={isMobile ? 'xs' : 'sm'}
       p={isMobile ? 'sm' : 'md'}
@@ -149,7 +151,6 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
       style={{
         maxWidth: 720,
         width: '100%',
-        margin: '0 auto',
         // Fill the AppShell.Main height so the flex-1 spacer below the card
         // can push the destination strip down to the actual viewport bottom.
         minHeight: '100%',
@@ -323,5 +324,12 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         hasOverflow={hasOverflow}
       />
     </Stack>
+    {!isMobile && (
+      <LabelTile
+        labelId={session.currentTrack?.label_id ?? null}
+        styleId={styleId}
+      />
+    )}
+    </Group>
   );
 }
