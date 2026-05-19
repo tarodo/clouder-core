@@ -491,10 +491,16 @@ class LabelEnrichmentRepository:
         return row
 
     def get_label_info_for_user(self, label_id: str) -> dict[str, Any] | None:
-        """Return label_info for a user-facing detail page, or None if not completed."""
+        """Return decoded merged LabelInfo for a user-facing detail page.
+
+        Returns the decoded `merged` JSONB blob (the full LabelInfo schema:
+        label_name, country, tagline, summary, notable_artists, URL channels,
+        primary/secondary_styles, ai_content, ai_reasoning, etc.) with
+        admin-only fields stripped. Returns None when status != 'completed'.
+        """
         rows = self._data_api.execute(
             """
-            SELECT li.*
+            SELECT li.merged
             FROM clouder_label_info li
             WHERE li.label_id = :id AND li.status = 'completed'
             LIMIT 1
@@ -503,14 +509,12 @@ class LabelEnrichmentRepository:
         )
         if not rows:
             return None
-        row = dict(rows[0])
-        # Parse JSONB columns (Data API returns them as strings).
-        for json_col in ("notable_artists", "primary_styles", "secondary_styles",
-                         "ai_signals", "sublabels", "aliases", "sources"):
-            v = row.get(json_col)
-            if isinstance(v, str):
-                row[json_col] = json.loads(v)
-        return {k: v for k, v in row.items() if k not in _USER_FACING_FORBIDDEN}
+        merged = rows[0].get("merged")
+        if isinstance(merged, str):
+            merged = json.loads(merged)
+        if not isinstance(merged, dict):
+            return None
+        return {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
 
     def increment_run_counters(
         self,
