@@ -823,13 +823,9 @@
       "sort_recent": "Recently updated",
       "load_more": "Load more",
       "col_name": "Label",
-      "col_style": "Style",
       "col_country": "Country",
       "col_founded": "Founded",
-      "col_description": "Description",
-      "col_status": "Status",
-      "status_has_info": "Has info",
-      "status_pending": "Info pending"
+      "col_description": "Description"
     },
     "entity_tabs": {
       "labels": "Labels",

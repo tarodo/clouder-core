@@ -1,7 +1,6 @@
 import {
   Table,
   Anchor,
-  Badge,
   Group,
   Text,
   Center,
@@ -18,8 +17,6 @@ import { truncateTagline } from '../lib/formatLabel';
 interface Props {
   items: LabelSummary[];
   styleId: string;
-  /** Slug -> display name map for the Style column. */
-  styleNames?: Readonly<Record<string, string>>;
   isLoading: boolean;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
@@ -56,26 +53,20 @@ export function LabelsTable(p: Props) {
     );
   }
 
-  const displayStyle = (slug: string) =>
-    (p.styleNames && p.styleNames[slug]) || slug || '—';
-
   return (
     <>
       <Table verticalSpacing="sm" highlightOnHover>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>{t('library.list.col_name')}</Table.Th>
-            <Table.Th>{t('library.list.col_style')}</Table.Th>
             <Table.Th>{t('library.list.col_country')}</Table.Th>
             <Table.Th>{t('library.list.col_founded')}</Table.Th>
             <Table.Th>{t('library.list.col_description')}</Table.Th>
-            <Table.Th>{t('library.list.col_status')}</Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {p.items.map((it) => {
             const info = it.info ?? null;
-            const hasInfo = it.status === 'completed' && info != null;
             return (
               <Table.Tr key={it.id}>
                 <Table.Td>
@@ -83,7 +74,6 @@ export function LabelsTable(p: Props) {
                     {it.name}
                   </Anchor>
                 </Table.Td>
-                <Table.Td>{displayStyle(it.style)}</Table.Td>
                 <Table.Td>
                   {info?.country ? (
                     <Group gap={4} wrap="nowrap">
@@ -110,23 +100,12 @@ export function LabelsTable(p: Props) {
                     {info?.tagline ? truncateTagline(info.tagline, 220) : '—'}
                   </Text>
                 </Table.Td>
-                <Table.Td>
-                  {hasInfo ? (
-                    <Badge color="green" variant="light">
-                      {t('library.list.status_has_info')}
-                    </Badge>
-                  ) : (
-                    <Badge color="gray" variant="light">
-                      {t('library.list.status_pending')}
-                    </Badge>
-                  )}
-                </Table.Td>
               </Table.Tr>
             );
           })}
           {p.hasNextPage && (
             <Table.Tr ref={sentinel}>
-              <Table.Td colSpan={6} />
+              <Table.Td colSpan={4} />
             </Table.Tr>
           )}
         </Table.Tbody>
