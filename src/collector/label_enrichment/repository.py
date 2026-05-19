@@ -227,7 +227,11 @@ class LabelEnrichmentRepository:
         provenance: Mapping[str, Any],
     ) -> None:
         ts = self._now()
-        payload = merged.model_dump()
+        # mode="json" coerces enums (ai_content, activity) to their wire str
+        # values. Without it, Python 3.12's str(enum_member) returns
+        # "ClassName.MEMBER" (PEP 663), which leaks into denormalized columns
+        # via data_api._to_field's generic str() fallback.
+        payload = merged.model_dump(mode="json")
         self._data_api.execute(
             """
             INSERT INTO clouder_label_info (
