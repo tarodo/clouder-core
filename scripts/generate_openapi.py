@@ -605,6 +605,139 @@ LABEL_ENRICH_RUN_RESPONSE = {
         "created_at": {"type": "string", "format": "date-time"},
         "started_at": {"type": ["string", "null"], "format": "date-time"},
         "finished_at": {"type": ["string", "null"], "format": "date-time"},
+        "cells": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "cell_id", "label_id", "label_name", "vendor",
+                    "status", "latency_ms", "cost_usd",
+                ],
+                "properties": {
+                    "cell_id": {"type": "string"},
+                    "label_id": {"type": "string"},
+                    "label_name": {"type": "string"},
+                    "vendor": {"type": "string"},
+                    "status": {"type": "string", "enum": ["ok", "error"]},
+                    "latency_ms": {"type": "integer"},
+                    "cost_usd": {"type": "number"},
+                    "error_message": {"type": ["string", "null"]},
+                },
+            },
+        },
+    },
+}
+
+LABEL_SUMMARY = {
+    "type": "object",
+    "required": ["id", "name", "style", "status"],
+    "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "style": {"type": "string"},
+        "status": {
+            "type": "string",
+            "enum": ["none", "queued", "running", "completed", "failed", "outdated"],
+        },
+        "info": {
+            "type": ["object", "null"],
+            "properties": {
+                "tagline": {"type": ["string", "null"]},
+                "country": {"type": ["string", "null"]},
+                "primary_styles": {"type": "array", "items": {"type": "string"}},
+                "activity": {
+                    "type": "string",
+                    "enum": ["unknown", "dormant", "low", "steady", "high", "fire_hose"],
+                },
+                "updated_at": {"type": "string", "format": "date-time"},
+            },
+        },
+    },
+}
+
+LABELS_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/LabelSummary"},
+        },
+        "next_cursor": {"type": ["string", "null"]},
+    },
+}
+
+LABEL_DETAIL_RESPONSE = {
+    "type": "object",
+    "description": "Sanitized LabelInfo (admin-only fields stripped).",
+    "additionalProperties": True,
+}
+
+BACKLOG_LABEL = {
+    "type": "object",
+    "required": ["id", "name", "style", "status", "track_count"],
+    "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "style": {"type": "string"},
+        "status": {"type": "string", "enum": ["none", "failed", "outdated"]},
+        "track_count": {"type": "integer"},
+        "last_attempted_at": {"type": ["string", "null"], "format": "date-time"},
+    },
+}
+
+BACKLOG_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total_estimate"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/BacklogLabel"},
+        },
+        "next_cursor": {"type": ["string", "null"]},
+        "total_estimate": {"type": "integer"},
+    },
+}
+
+RUNS_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/LabelEnrichRunResponse"},
+        },
+        "next_cursor": {"type": ["string", "null"]},
+    },
+}
+
+ENRICHMENT_OPTIONS = {
+    "type": "object",
+    "required": ["vendors", "prompt_versions", "default_models", "merge"],
+    "properties": {
+        "vendors": {"type": "array", "items": {"type": "string"}},
+        "prompt_versions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "slug": {"type": "string"},
+                    "version": {"type": "string"},
+                    "is_default": {"type": "boolean"},
+                },
+            },
+        },
+        "default_models": {
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+        },
+        "merge": {
+            "type": "object",
+            "properties": {
+                "vendor": {"type": "string"},
+                "default_model": {"type": "string"},
+            },
+        },
     },
 }
 
@@ -1010,6 +1143,161 @@ ROUTES: list[dict[str, Any]] = [
                 LABEL_INFO_RESPONSE,
             ),
             "404": _error(404, "Label not found."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    # ── user-facing label browse ──────────────────────────────────
+    {
+        "method": "get",
+        "path": "/labels",
+        "auth": AUTH,
+        "summary": "List labels for browsing.",
+        "description": (
+            "Paginated label list. Filters: style (dominant style), q (name "
+            "prefix), sort (name|recent). Cursor-paginated."
+        ),
+        "parameters": [
+            {"name": "style", "in": "query", "schema": {"type": "string"}},
+            {"name": "q", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "sort",
+                "in": "query",
+                "schema": {"type": "string", "enum": ["name", "recent"]},
+            },
+            {"name": "cursor", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "limit",
+                "in": "query",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "default": 50,
+                },
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Paginated labels.",
+                {"$ref": "#/components/schemas/LabelsListResponse"},
+            ),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/labels/{label_id}",
+        "auth": AUTH,
+        "summary": "Get user-facing label detail.",
+        "description": (
+            "Returns sanitized LabelInfo for completed enrichments. "
+            "404 when info not available."
+        ),
+        "parameters": [
+            {
+                "name": "label_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+            }
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Label info.",
+                {"$ref": "#/components/schemas/LabelDetail"},
+            ),
+            "404": _error(404, "label_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/labels/backlog",
+        "auth": ADMIN,
+        "summary": "Admin: list labels missing enrichment.",
+        "description": (
+            "Labels with no info, failed, or completed-but-outdated. "
+            "Cursor-paginated. Sorted by track_count DESC."
+        ),
+        "parameters": [
+            {"name": "style", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "status",
+                "in": "query",
+                "schema": {"type": "string", "enum": ["none", "failed", "outdated"]},
+            },
+            {"name": "cursor", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "limit",
+                "in": "query",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "default": 100,
+                },
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Backlog page.",
+                {"$ref": "#/components/schemas/BacklogResponse"},
+            ),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/labels/enrich-runs",
+        "auth": ADMIN,
+        "summary": "Admin: list enrichment runs.",
+        "parameters": [
+            {
+                "name": "status",
+                "in": "query",
+                "schema": {
+                    "type": "string",
+                    "enum": ["queued", "running", "completed", "failed"],
+                },
+            },
+            {"name": "cursor", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "limit",
+                "in": "query",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "default": 50,
+                },
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Runs list.",
+                {"$ref": "#/components/schemas/RunsListResponse"},
+            ),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/labels/enrich/options",
+        "auth": ADMIN,
+        "summary": "Admin: static config for the enqueue form.",
+        "responses": {
+            "200": _make_response(
+                200,
+                "Form options.",
+                {"$ref": "#/components/schemas/EnrichmentOptions"},
+            ),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
         },
@@ -2198,6 +2486,14 @@ def build_openapi() -> dict[str, Any]:
                 "MeResponse": ME_RESPONSE,
                 "RunResponse": RUN_RESPONSE,
                 "CollectResponse": COLLECT_RESPONSE,
+                "LabelEnrichRunResponse": LABEL_ENRICH_RUN_RESPONSE,
+                "LabelSummary": LABEL_SUMMARY,
+                "LabelsListResponse": LABELS_LIST_RESPONSE,
+                "LabelDetail": LABEL_DETAIL_RESPONSE,
+                "BacklogLabel": BACKLOG_LABEL,
+                "BacklogResponse": BACKLOG_RESPONSE,
+                "RunsListResponse": RUNS_LIST_RESPONSE,
+                "EnrichmentOptions": ENRICHMENT_OPTIONS,
             },
         },
     }
