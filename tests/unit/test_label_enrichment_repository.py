@@ -192,6 +192,7 @@ def test_upsert_label_info_writes_denormalized_columns():
     assert params["merged"]["label_name"] == "Drumcode"
     assert isinstance(params["provenance"], dict)
     assert "CAST(:primary_styles AS text[])" in sql
+    assert "CAST(:last_release_date AS date)" in sql
 
 
 def test_project_ai_suspected_sets_true_when_confirmed_high_confidence():

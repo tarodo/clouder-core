@@ -240,7 +240,7 @@ class LabelEnrichmentRepository:
                 :label_id, :last_run_id, :prompt_slug, :prompt_version,
                 :merged, :provenance,
                 :ai_content, :ai_confidence, :status, CAST(:primary_styles AS text[]),
-                :tagline, :country, :founded_year, :activity, :last_release_date,
+                :tagline, :country, :founded_year, :activity, CAST(:last_release_date AS date),
                 :updated_at
             )
             ON CONFLICT (label_id) DO UPDATE SET
