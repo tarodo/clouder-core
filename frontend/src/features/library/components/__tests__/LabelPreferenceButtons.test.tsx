@@ -34,7 +34,7 @@ describe('LabelPreferenceButtons', () => {
 
   it('renders heart and cross icons with i18n aria labels', () => {
     renderButtons(null);
-    expect(screen.getByRole('button', { name: /like label/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^like label$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /dislike label/i })).toBeInTheDocument();
   });
 
@@ -47,7 +47,7 @@ describe('LabelPreferenceButtons', () => {
       }),
     );
     renderButtons(null);
-    fireEvent.click(screen.getByRole('button', { name: /like label/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^like label$/i }));
     await waitFor(() => expect(capturedBody).toEqual({ status: 'liked' }));
   });
 
