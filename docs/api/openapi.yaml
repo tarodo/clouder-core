@@ -3748,6 +3748,7 @@ components:
       - name
       - style
       - status
+      - track_count
       properties:
         id:
           type: string
@@ -3764,6 +3765,8 @@ components:
           - completed
           - failed
           - outdated
+        track_count:
+          type: integer
         info:
           type:
           - object
@@ -3794,6 +3797,16 @@ components:
               - steady
               - high
               - fire_hose
+            ai_content:
+              type:
+              - string
+              - 'null'
+              enum:
+              - unknown
+              - none_detected
+              - suspected
+              - confirmed
+              - null
             updated_at:
               type: string
               format: date-time

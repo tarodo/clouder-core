@@ -825,6 +825,8 @@
       "col_name": "Label",
       "col_country": "Country",
       "col_founded": "Founded",
+      "col_tracks": "Tracks",
+      "col_ai_detected": "AI detected",
       "col_description": "Description"
     },
     "entity_tabs": {
