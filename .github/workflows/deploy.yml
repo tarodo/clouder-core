@@ -53,8 +53,17 @@ jobs:
       - name: Sync GitHub secrets to SSM Parameter Store
         working-directory: .
         run: |
-          aws ssm put-parameter --name /clouder/perplexity/api_key \
-            --value "${{ secrets.PERPLEXITY_API_KEY }}" \
+          aws ssm put-parameter --name /clouder/gemini/api_key \
+            --value "${{ secrets.GEMINI_API_KEY }}" \
+            --type SecureString --overwrite
+          aws ssm put-parameter --name /clouder/openai/api_key \
+            --value "${{ secrets.OPENAI_API_KEY }}" \
+            --type SecureString --overwrite
+          aws ssm put-parameter --name /clouder/tavily/api_key \
+            --value "${{ secrets.TAVILY_API_KEY }}" \
+            --type SecureString --overwrite
+          aws ssm put-parameter --name /clouder/deepseek/api_key \
+            --value "${{ secrets.DEEPSEEK_API_KEY }}" \
             --type SecureString --overwrite
           aws ssm put-parameter --name /clouder/spotify/client_id \
             --value "${{ secrets.SPOTIFY_CLIENT_ID }}" \
@@ -68,6 +77,10 @@ jobs:
           terraform apply -auto-approve -input=false \
             -var="environment=prod" \
             -var="canonicalization_enabled=true" \
+            -var="gemini_api_key_ssm_parameter=/clouder/gemini/api_key" \
+            -var="openai_api_key_ssm_parameter=/clouder/openai/api_key" \
+            -var="tavily_api_key_ssm_parameter=/clouder/tavily/api_key" \
+            -var="deepseek_api_key_ssm_parameter=/clouder/deepseek/api_key" \
             -var="spotify_search_enabled=true" \
             -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" \
             -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" \

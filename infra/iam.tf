@@ -147,26 +147,13 @@ data "aws_iam_policy_document" "collector_lambda" {
 
   dynamic "statement" {
     for_each = length(compact([
-      var.gemini_api_key_secret_arn,
-      var.openai_api_key_secret_arn,
-      var.tavily_api_key_secret_arn,
-      var.deepseek_api_key_secret_arn,
+      var.spotify_client_id_ssm_parameter,
+      var.spotify_client_secret_ssm_parameter,
+      var.gemini_api_key_ssm_parameter,
+      var.openai_api_key_ssm_parameter,
+      var.tavily_api_key_ssm_parameter,
+      var.deepseek_api_key_ssm_parameter,
     ])) > 0 ? [1] : []
-    content {
-      sid     = "AllowGetLabelEnrichmentSecrets"
-      effect  = "Allow"
-      actions = ["secretsmanager:GetSecretValue"]
-      resources = compact([
-        var.gemini_api_key_secret_arn,
-        var.openai_api_key_secret_arn,
-        var.tavily_api_key_secret_arn,
-        var.deepseek_api_key_secret_arn,
-      ])
-    }
-  }
-
-  dynamic "statement" {
-    for_each = length(compact([var.spotify_client_id_ssm_parameter, var.spotify_client_secret_ssm_parameter])) > 0 ? [1] : []
     content {
       sid     = "AllowReadWorkerSsmParameters"
       effect  = "Allow"
@@ -174,12 +161,23 @@ data "aws_iam_policy_document" "collector_lambda" {
       resources = compact([
         var.spotify_client_id_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_client_id_ssm_parameter}" : "",
         var.spotify_client_secret_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_client_secret_ssm_parameter}" : "",
+        var.gemini_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.gemini_api_key_ssm_parameter}" : "",
+        var.openai_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.openai_api_key_ssm_parameter}" : "",
+        var.tavily_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.tavily_api_key_ssm_parameter}" : "",
+        var.deepseek_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.deepseek_api_key_ssm_parameter}" : "",
       ])
     }
   }
 
   dynamic "statement" {
-    for_each = length(compact([var.spotify_client_id_ssm_parameter, var.spotify_client_secret_ssm_parameter])) > 0 ? [1] : []
+    for_each = length(compact([
+      var.spotify_client_id_ssm_parameter,
+      var.spotify_client_secret_ssm_parameter,
+      var.gemini_api_key_ssm_parameter,
+      var.openai_api_key_ssm_parameter,
+      var.tavily_api_key_ssm_parameter,
+      var.deepseek_api_key_ssm_parameter,
+    ])) > 0 ? [1] : []
     content {
       sid       = "AllowWorkerSsmKmsDecrypt"
       effect    = "Allow"
