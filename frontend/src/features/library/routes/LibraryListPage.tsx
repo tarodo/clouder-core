@@ -28,14 +28,6 @@ export function LibraryListPage() {
       })) ?? [],
     [stylesQuery.data],
   );
-  const styleNames: Record<string, string> = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const s of stylesQuery.data?.items ?? []) {
-      map[slugifyStyle(s.name)] = s.name;
-    }
-    return map;
-  }, [stylesQuery.data]);
-
   const query = useLabelsList({ styleId: styleId ?? '', q, sort });
 
   if (!styleId) return <Navigate to="/library" replace />;
@@ -72,7 +64,6 @@ export function LibraryListPage() {
         <LabelsTable
           items={items}
           styleId={styleId}
-          styleNames={styleNames}
           isLoading={query.isLoading}
           hasNextPage={!!query.hasNextPage}
           isFetchingNextPage={query.isFetchingNextPage}
