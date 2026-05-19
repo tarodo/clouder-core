@@ -885,37 +885,59 @@ class LabelEnrichmentRepository:
         total = int(total_rows[0]["c"]) if total_rows else 0
         return items, total
 
-    def get_label_info_for_user(self, label_id: str) -> dict[str, Any] | None:
+    def get_label_info_for_user(
+        self,
+        label_id: str,
+        user_id: str | None = None,
+    ) -> dict[str, Any] | None:
         """Return decoded merged LabelInfo for a user-facing detail page.
 
-        Returns the decoded `merged` JSONB blob (the full LabelInfo schema:
-        label_name, country, tagline, summary, notable_artists, URL channels,
-        primary/secondary_styles, ai_content, ai_reasoning, etc.) with
-        admin-only fields stripped. Returns None when no clouder_label_info
-        row exists for the label.
-
-        Note: clouder_label_info.status holds the LabelInfo schema's
-        operational status ("active"/"inactive"/"unknown"), not the
-        enrichment job state, so the mere existence of a row signals a
-        completed run.
+        When `clouder_label_info` has a row, returns the decoded `merged`
+        JSONB blob with admin-only fields stripped, plus `my_preference`.
+        When the row is missing but the label exists, returns a minimal
+        `{label_name, my_preference}` payload so preference buttons can
+        still render on the detail page. Returns None only when the label
+        itself does not exist.
         """
         rows = self._data_api.execute(
             """
-            SELECT li.merged
+            SELECT li.merged, ulp.status AS my_preference
             FROM clouder_label_info li
+            LEFT JOIN clouder_user_label_prefs ulp
+                ON ulp.label_id = li.label_id AND ulp.user_id = :user_id
             WHERE li.label_id = :id
             LIMIT 1
             """,
-            {"id": label_id},
+            {"id": label_id, "user_id": user_id or ""},
         )
-        if not rows:
+        if rows:
+            merged = rows[0].get("merged")
+            if isinstance(merged, str):
+                merged = json.loads(merged)
+            if not isinstance(merged, dict):
+                return None
+            out = {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
+            out["my_preference"] = rows[0].get("my_preference")
+            return out
+
+        fallback = self._data_api.execute(
+            """
+            SELECT lbl.name AS label_name, ulp.status AS my_preference
+            FROM clouder_labels lbl
+            LEFT JOIN clouder_user_label_prefs ulp
+                ON ulp.label_id = lbl.id AND ulp.user_id = :user_id
+            WHERE lbl.id = :id
+            LIMIT 1
+            """,
+            {"id": label_id, "user_id": user_id or ""},
+        )
+        if not fallback:
             return None
-        merged = rows[0].get("merged")
-        if isinstance(merged, str):
-            merged = json.loads(merged)
-        if not isinstance(merged, dict):
-            return None
-        return {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
+        row = fallback[0]
+        return {
+            "label_name": row.get("label_name"),
+            "my_preference": row.get("my_preference"),
+        }
 
     def increment_run_counters(
         self,

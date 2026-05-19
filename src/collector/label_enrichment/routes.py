@@ -167,9 +167,9 @@ def handle_get_label_user(event: Mapping[str, Any]) -> tuple[int, dict]:
     if not label_id:
         raise ValidationError("label_id is required")
     repo = _build_repository()
-    row = repo.get_label_info_for_user(label_id)
+    row = repo.get_label_info_for_user(label_id, user_id=_extract_user_id(event))
     if row is None:
-        return 404, {"error_code": "label_not_found", "message": "label info not available"}
+        return 404, {"error_code": "label_not_found", "message": "label not found"}
     return 200, row
 
 

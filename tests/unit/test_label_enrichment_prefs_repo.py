@@ -156,3 +156,47 @@ def test_list_labels_my_unrated_uses_anti_join():
 
     main_sql, _ = api.calls[0]
     assert "ulp.user_id IS NULL" in main_sql
+
+
+def test_get_label_info_for_user_includes_my_preference_when_info_present():
+    api = FakeDataApi()
+    api.script(
+        [{
+            "merged": {
+                "label_name": "Fokuz",
+                "country": "NL",
+                "summary": "Rotterdam liquid label.",
+                "ai_content": "none_detected",
+            },
+            "my_preference": "liked",
+        }],
+    )
+    repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
+
+    out = repo.get_label_info_for_user("lbl-1", user_id="u-1")
+
+    assert out is not None
+    assert out["label_name"] == "Fokuz"
+    assert out["my_preference"] == "liked"
+
+
+def test_get_label_info_for_user_returns_minimal_payload_when_info_missing():
+    api = FakeDataApi()
+    # First call (merged JSONB) — no info row.
+    # Second call (fallback) — label exists; pref returned as None.
+    api.script(
+        [],
+        [{"label_name": "Drumcode", "my_preference": None}],
+    )
+    repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
+
+    out = repo.get_label_info_for_user("lbl-2", user_id="u-1")
+
+    assert out == {"label_name": "Drumcode", "my_preference": None}
+
+
+def test_get_label_info_for_user_returns_none_when_label_missing():
+    api = FakeDataApi()
+    api.script([], [])  # info miss, label miss
+    repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
+    assert repo.get_label_info_for_user("nope", user_id="u-1") is None

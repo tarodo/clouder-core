@@ -391,7 +391,8 @@ def test_get_label_info_for_user_returns_decoded_merged_blob():
     # not job state — do not gate on it.
     assert "li.status" not in sql
     assert "FROM clouder_label_info" in sql
-    assert params == {"id": "lbl-1"}
+    assert params["id"] == "lbl-1"
+    assert "user_id" in params  # new: preference join param
 
 
 def test_get_label_info_for_user_returns_none_when_no_row():

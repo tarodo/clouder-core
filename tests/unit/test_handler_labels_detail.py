@@ -41,7 +41,25 @@ def test_get_label_user_returns_sanitized_payload(monkeypatch):
         assert forbidden not in body, f"{forbidden} leaked to user-facing endpoint"
 
 
-def test_get_label_user_returns_404_when_not_completed(monkeypatch):
+def test_get_label_user_returns_minimal_payload_when_not_completed(monkeypatch):
+    from collector import handler
+
+    fake_repo = MagicMock()
+    fake_repo.get_label_info_for_user.return_value = {
+        "label_name": "Drumcode",
+        "my_preference": None,
+    }
+    monkeypatch.setattr(
+        "collector.label_enrichment.routes._build_repository",
+        lambda: fake_repo,
+    )
+    resp = handler.lambda_handler(_user_event("lbl-x"), None)
+    body = json.loads(resp["body"])
+    assert resp["statusCode"] == 200
+    assert body == {"label_name": "Drumcode", "my_preference": None}
+
+
+def test_get_label_user_returns_404_when_label_missing(monkeypatch):
     from collector import handler
 
     fake_repo = MagicMock()
@@ -50,5 +68,5 @@ def test_get_label_user_returns_404_when_not_completed(monkeypatch):
         "collector.label_enrichment.routes._build_repository",
         lambda: fake_repo,
     )
-    resp = handler.lambda_handler(_user_event("lbl-x"), None)
+    resp = handler.lambda_handler(_user_event("nope"), None)
     assert resp["statusCode"] == 404
