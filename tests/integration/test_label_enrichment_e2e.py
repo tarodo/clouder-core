@@ -169,3 +169,39 @@ def test_e2e_post_then_worker_writes_full_chain(repo_and_sqs):
     assert counters["ok_delta"] == 3
     assert counters["error_delta"] == 0
     assert counters["cost_delta"] > 0.0
+
+
+def test_e2e_post_by_label_id_writes_full_chain(repo_and_sqs):
+    real_repo, captured_messages = repo_and_sqs
+    real_repo.get_label_by_id.return_value = {
+        "id": "lbl-fokuz",
+        "name": "Fokuz Recordings",
+    }
+    real_repo.derive_style_for_label.return_value = "drum and bass"
+
+    body = {
+        "labels": [{"label_id": "lbl-fokuz"}],
+        "vendors": ["gemini", "openai", "tavily_deepseek"],
+        "models": {
+            "gemini": "gemini-3-flash-preview",
+            "openai": "gpt-5.4-mini",
+            "tavily_deepseek": "deepseek-v4-flash",
+        },
+        "prompt_slug": "label_v3_app_fields",
+        "prompt_version": "v1",
+        "merge_vendor": "deepseek",
+        "merge_model": "deepseek-v4-flash",
+    }
+    resp = api_handler(_admin_event(body), None)
+    assert resp["statusCode"] == 202
+    assert len(captured_messages) == 1
+    msg = json.loads(captured_messages[0])
+    assert msg["label_id"] == "lbl-fokuz"
+    assert msg["label_name"] == "Fokuz Recordings"
+    assert msg["style"] == "drum and bass"
+
+    sqs_event = {"Records": [{"body": captured_messages[0]}]}
+    result = worker_handler(sqs_event, None)
+    assert result == {"processed": 1}
+    assert real_repo.insert_cell.call_count == 3
+    real_repo.upsert_label_info.assert_called_once()

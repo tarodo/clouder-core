@@ -152,6 +152,41 @@ def test_get_label_info_404(patched_deps):
     assert resp["statusCode"] == 404
 
 
+def test_post_enrich_by_label_id(patched_deps):
+    repo, sqs = patched_deps
+    repo.get_label_by_id.return_value = {"id": "lbl-1", "name": "Drumcode"}
+    repo.derive_style_for_label.return_value = "techno"
+    body = {**_VALID_BODY, "labels": [{"label_id": "lbl-1"}]}
+    resp = lambda_handler(_admin_event("POST /admin/labels/enrich", body), None)
+    assert resp["statusCode"] == 202
+    assert sqs.send_message.call_count == 1
+    # Worker message should carry the resolved style
+    msg = json.loads(sqs.send_message.call_args.kwargs["MessageBody"])
+    assert msg["label_id"] == "lbl-1"
+    assert msg["label_name"] == "Drumcode"
+    assert msg["style"] == "techno"
+
+
+def test_post_enrich_by_label_id_400_when_missing(patched_deps):
+    repo, sqs = patched_deps
+    repo.get_label_by_id.return_value = None
+    body = {**_VALID_BODY, "labels": [{"label_id": "nonexistent"}]}
+    resp = lambda_handler(_admin_event("POST /admin/labels/enrich", body), None)
+    assert resp["statusCode"] == 400  # ValidationError → 400
+    assert sqs.send_message.call_count == 0
+
+
+def test_post_enrich_by_label_id_falls_back_to_music_when_no_tracks(patched_deps):
+    repo, sqs = patched_deps
+    repo.get_label_by_id.return_value = {"id": "lbl-1", "name": "Brand New"}
+    repo.derive_style_for_label.return_value = None
+    body = {**_VALID_BODY, "labels": [{"label_id": "lbl-1"}]}
+    resp = lambda_handler(_admin_event("POST /admin/labels/enrich", body), None)
+    assert resp["statusCode"] == 202
+    msg = json.loads(sqs.send_message.call_args.kwargs["MessageBody"])
+    assert msg["style"] == "music"
+
+
 def test_post_enrich_rejects_unknown_prompt_slug(patched_deps):
     bad = {**_VALID_BODY, "prompt_slug": "nonsense"}
     resp = lambda_handler(_admin_event("POST /admin/labels/enrich", bad), None)

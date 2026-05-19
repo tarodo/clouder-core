@@ -550,13 +550,13 @@ LABEL_ENRICH_REQUEST = {
             "maxItems": 100,
             "items": {
                 "type": "object",
-                "required": ["label_name", "style"],
                 "properties": {
+                    "label_id": {"type": "string"},
                     "label_name": {"type": "string", "minLength": 1, "maxLength": 256},
                     "style": {"type": "string", "minLength": 1, "maxLength": 128},
-                    "release_name": {"type": ["string", "null"], "maxLength": 256},
                 },
                 "additionalProperties": False,
+                "description": "Either label_id (resolves from clouder_labels) or label_name+style (creates if missing).",
             },
         },
         "vendors": {

@@ -23,13 +23,8 @@ def render_user(
     cfg: PromptConfig,
     label_name: str,
     style: str,
-    release_name: str | None,
 ) -> str:
-    release_block = (
-        f"\nRecent release: {release_name}" if release_name else ""
-    )
     return cfg.user_template.format(
         label_name=label_name,
         style=style,
-        release_block=release_block,
     )

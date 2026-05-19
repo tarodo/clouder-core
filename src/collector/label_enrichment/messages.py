@@ -19,15 +19,22 @@ class LabelEnrichmentMessage(BaseModel):
     label_id: str = Field(min_length=1)
     label_name: str = Field(min_length=1)
     style: str = Field(min_length=1)
-    release_name: str | None = None
 
 
 class EnrichLabelInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    label_name: str = Field(min_length=1, max_length=256)
-    style: str = Field(min_length=1, max_length=128)
-    release_name: str | None = Field(default=None, max_length=256)
+    label_id: str | None = Field(default=None, min_length=1)
+    label_name: str | None = Field(default=None, min_length=1, max_length=256)
+    style: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def _id_or_name_required(self) -> "EnrichLabelInput":
+        if not self.label_id and not self.label_name:
+            raise ValueError("either label_id or label_name is required")
+        if not self.label_id and not self.style:
+            raise ValueError("style is required when using label_name")
+        return self
 
 
 class EnrichLabelsRequestIn(BaseModel):

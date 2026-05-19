@@ -64,6 +64,32 @@ class LabelEnrichmentRepository:
         self._now = now
 
     # ── labels ──────────────────────────────────────────────────────
+    def get_label_by_id(self, label_id: str) -> dict[str, Any] | None:
+        rows = self._data_api.execute(
+            "SELECT id, name FROM clouder_labels WHERE id = :id LIMIT 1",
+            {"id": label_id},
+        )
+        return rows[0] if rows else None
+
+    def derive_style_for_label(self, label_id: str) -> str | None:
+        """Most common style across the label's tracks. None if no tracks."""
+        rows = self._data_api.execute(
+            """
+            SELECT s.name AS style_name, COUNT(*) AS cnt
+            FROM clouder_styles s
+            JOIN clouder_tracks t ON t.style_id = s.id
+            JOIN clouder_albums a ON a.id = t.album_id
+            WHERE a.label_id = :label_id
+            GROUP BY s.name
+            ORDER BY cnt DESC
+            LIMIT 1
+            """,
+            {"label_id": label_id},
+        )
+        if not rows:
+            return None
+        return rows[0].get("style_name")
+
     def upsert_label_by_name(self, name: str) -> str:
         normalized = _normalize_label(name)
         rows = self._data_api.execute(

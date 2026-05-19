@@ -29,7 +29,7 @@ SYSTEM = (
 )
 
 USER_TEMPLATE = (
-    'Research label "{label_name}" in style "{style}".{release_block}\n'
+    'Research label "{label_name}" in style "{style}".\n'
     "Find: founding year, country, parent and sublabels, catalog and "
     "roster size, releases in the last 12 months, last release date, "
     "official channels (website, Bandcamp, Resident Advisor, Discogs, "

@@ -76,7 +76,7 @@ def test_worker_dispatches_orchestrator(worker_patches):
     repo, enrich_calls = worker_patches
     event = _sqs_event({
         "run_id": "run-1", "label_id": "lbl-1",
-        "label_name": "Drumcode", "style": "techno", "release_name": None,
+        "label_name": "Drumcode", "style": "techno",
     })
     result = lambda_handler(event, None)
     assert result == {"processed": 1}
@@ -161,7 +161,7 @@ def test_worker_parses_jsonb_strings_from_data_api(monkeypatch):
 
     event = _sqs_event({
         "run_id": "run-1", "label_id": "lbl-1",
-        "label_name": "Drumcode", "style": "techno", "release_name": None,
+        "label_name": "Drumcode", "style": "techno",
     })
     result = lambda_handler(event, None)
     assert result == {"processed": 1}

@@ -57,7 +57,6 @@ def test_run_vendors_parallel_returns_one_cell_per_vendor():
         adapters=adapters,
         label_name="Drumcode",
         style="techno",
-        release_name=None,
         prompt=prompt,
     )
     assert len(cells) == 2
@@ -85,7 +84,6 @@ def test_enrich_label_for_run_writes_cells_upserts_info_and_increments():
         label_id="lbl-1",
         label_name="Drumcode",
         style="techno",
-        release_name=None,
         adapters=adapters,
         merge_client=merge_client,
         merge_model="deepseek-v4-flash",
@@ -128,7 +126,6 @@ def test_enrich_label_for_run_counts_mixed_outcomes():
         label_id="lbl-1",
         label_name="X",
         style="y",
-        release_name=None,
         adapters=adapters,
         merge_client=merge_client,
         merge_model="deepseek-v4-flash",

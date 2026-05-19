@@ -762,9 +762,9 @@ export interface paths {
                 content: {
                     "application/json": {
                         labels: {
-                            label_name: string;
-                            style: string;
-                            release_name?: string | null;
+                            label_id?: string;
+                            label_name?: string;
+                            style?: string;
                         }[];
                         vendors: ("gemini" | "openai" | "tavily_deepseek")[];
                         models: {

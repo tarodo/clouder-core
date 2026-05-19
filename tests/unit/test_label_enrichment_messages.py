@@ -13,10 +13,11 @@ def test_message_round_trip():
     msg = LabelEnrichmentMessage.model_validate({
         "run_id": "r1", "label_id": "l1",
         "label_name": "Drumcode", "style": "techno",
-        "release_name": None,
     })
     assert msg.run_id == "r1"
-    assert msg.release_name is None
+    assert msg.label_id == "l1"
+    assert msg.label_name == "Drumcode"
+    assert msg.style == "techno"
 
 
 def test_request_minimal_valid():
@@ -31,6 +32,47 @@ def test_request_minimal_valid():
     })
     assert len(req.labels) == 1
     assert req.vendors == ["gemini"]
+
+
+def test_request_accepts_label_id_without_style():
+    req = EnrichLabelsRequestIn.model_validate({
+        "labels": [{"label_id": "lbl-1"}],
+        "vendors": ["gemini"],
+        "models": {"gemini": "x"},
+        "prompt_slug": "label_v3_app_fields",
+        "prompt_version": "v1",
+        "merge_vendor": "deepseek",
+        "merge_model": "deepseek-v4-flash",
+    })
+    assert req.labels[0].label_id == "lbl-1"
+    assert req.labels[0].label_name is None
+    assert req.labels[0].style is None
+
+
+def test_request_rejects_label_name_without_style():
+    with pytest.raises(ValidationError, match="style is required"):
+        EnrichLabelsRequestIn.model_validate({
+            "labels": [{"label_name": "Drumcode"}],
+            "vendors": ["gemini"],
+            "models": {"gemini": "x"},
+            "prompt_slug": "label_v3_app_fields",
+            "prompt_version": "v1",
+            "merge_vendor": "deepseek",
+            "merge_model": "deepseek-v4-flash",
+        })
+
+
+def test_request_rejects_empty_label():
+    with pytest.raises(ValidationError, match="either label_id or label_name"):
+        EnrichLabelsRequestIn.model_validate({
+            "labels": [{}],
+            "vendors": ["gemini"],
+            "models": {"gemini": "x"},
+            "prompt_slug": "label_v3_app_fields",
+            "prompt_version": "v1",
+            "merge_vendor": "deepseek",
+            "merge_model": "deepseek-v4-flash",
+        })
 
 
 def test_request_rejects_unknown_vendor():

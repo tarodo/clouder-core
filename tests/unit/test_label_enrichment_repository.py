@@ -47,6 +47,31 @@ def test_create_run_inserts_with_correct_cells_total():
     assert params["models"]["gemini"] == "gemini-3-flash-preview"
 
 
+def test_get_label_by_id_returns_row():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = [{"id": "lbl-1", "name": "Drumcode"}]
+    row = repo.get_label_by_id("lbl-1")
+    assert row == {"id": "lbl-1", "name": "Drumcode"}
+
+
+def test_get_label_by_id_returns_none_when_missing():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    assert repo.get_label_by_id("missing") is None
+
+
+def test_derive_style_for_label_returns_most_common():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = [{"style_name": "drum and bass", "cnt": 42}]
+    assert repo.derive_style_for_label("lbl-1") == "drum and bass"
+
+
+def test_derive_style_for_label_returns_none_when_no_tracks():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    assert repo.derive_style_for_label("lbl-1") is None
+
+
 def test_upsert_label_by_name_returns_existing_id():
     repo, data_api = _repo_with_fake()
     data_api.execute.side_effect = [
