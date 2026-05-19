@@ -1,10 +1,12 @@
 import { Stack, Title, Button, Center, Text } from '@mantine/core';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLabelBacklog } from '../hooks/useLabelBacklog';
-import { BacklogToolbar } from '../components/enrichment/BacklogToolbar';
+import { BacklogToolbar, type StyleFilterOption } from '../components/enrichment/BacklogToolbar';
 import { BacklogTable } from '../components/enrichment/BacklogTable';
 import { EnqueueDrawer } from '../components/enrichment/EnqueueDrawer';
+import { useStyles } from '../../../hooks/useStyles';
+import { slugifyStyle } from '../../library/lib/slugifyStyle';
 
 export function AdminEnrichmentBacklogPage() {
   const { t } = useTranslation();
@@ -12,6 +14,16 @@ export function AdminEnrichmentBacklogPage() {
   const [status, setStatus] = useState<'all' | 'none' | 'failed' | 'outdated'>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const stylesQuery = useStyles();
+  const styleOptions: ReadonlyArray<StyleFilterOption> = useMemo(
+    () =>
+      stylesQuery.data?.items.map((s) => ({
+        value: slugifyStyle(s.name),
+        label: s.name,
+      })) ?? [],
+    [stylesQuery.data],
+  );
 
   const query = useLabelBacklog({ style, status });
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
@@ -43,6 +55,8 @@ export function AdminEnrichmentBacklogPage() {
         onStatusChange={setStatus}
         selectedCount={selected.size}
         onEnqueueClick={() => setDrawerOpen(true)}
+        styleOptions={styleOptions}
+        stylesLoading={stylesQuery.isLoading}
       />
       {items.length === 0 && !query.isLoading ? (
         <Center mt="lg"><Text c="dimmed">{t('admin_enrichment.backlog.empty')}</Text></Center>
