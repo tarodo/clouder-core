@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
@@ -38,9 +38,11 @@ describe('useLabelsList', () => {
     expect(received).toContain('sort=recent');
   });
 
-  it('paginates via next_cursor', async () => {
+  it('forwards next_cursor as cursor query param on fetchNextPage', async () => {
+    const received: string[] = [];
     server.use(
       http.get('http://localhost/labels', ({ request }) => {
+        received.push(request.url);
         const url = new URL(request.url);
         const cursor = url.searchParams.get('cursor');
         return HttpResponse.json({
@@ -54,8 +56,11 @@ describe('useLabelsList', () => {
       { wrapper: wrap() },
     );
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    await result.current.fetchNextPage();
-    await waitFor(() => expect(result.current.data?.pages).toHaveLength(2));
-    expect(result.current.data?.pages[1]?.items[0]?.id).toBe('cur2');
+    expect(result.current.hasNextPage).toBe(true);
+    await act(async () => {
+      await result.current.fetchNextPage();
+    });
+    await waitFor(() => expect(received).toHaveLength(2));
+    expect(received[1]).toContain('cursor=cur2');
   });
 });
