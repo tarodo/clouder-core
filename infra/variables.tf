@@ -464,26 +464,26 @@ variable "label_enrichment_batch_size" {
   default     = 1
 }
 
-variable "gemini_api_key_secret_arn" {
-  description = "Secrets Manager ARN for the Gemini API key."
+variable "gemini_api_key_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) for the Gemini API key."
   type        = string
   default     = ""
 }
 
-variable "openai_api_key_secret_arn" {
-  description = "Secrets Manager ARN for the OpenAI API key."
+variable "openai_api_key_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) for the OpenAI API key."
   type        = string
   default     = ""
 }
 
-variable "tavily_api_key_secret_arn" {
-  description = "Secrets Manager ARN for the Tavily API key."
+variable "tavily_api_key_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) for the Tavily API key."
   type        = string
   default     = ""
 }
 
-variable "deepseek_api_key_secret_arn" {
-  description = "Secrets Manager ARN for the DeepSeek API key."
+variable "deepseek_api_key_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) for the DeepSeek API key."
   type        = string
   default     = ""
 }

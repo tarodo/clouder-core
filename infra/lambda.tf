@@ -201,16 +201,16 @@ resource "aws_lambda_function" "label_enricher_worker" {
 
   environment {
     variables = {
-      GEMINI_API_KEY_SECRET_ARN    = var.gemini_api_key_secret_arn
-      OPENAI_API_KEY_SECRET_ARN    = var.openai_api_key_secret_arn
-      TAVILY_API_KEY_SECRET_ARN    = var.tavily_api_key_secret_arn
-      DEEPSEEK_API_KEY_SECRET_ARN  = var.deepseek_api_key_secret_arn
-      LABEL_ENRICHMENT_QUEUE_URL   = aws_sqs_queue.label_enrichment.url
-      AI_FLAG_CONFIDENCE_THRESHOLD = tostring(var.ai_flag_confidence_threshold)
-      AURORA_CLUSTER_ARN           = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN            = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE              = var.aurora_database_name
-      LOG_LEVEL                    = "INFO"
+      GEMINI_API_KEY_SSM_PARAMETER   = var.gemini_api_key_ssm_parameter
+      OPENAI_API_KEY_SSM_PARAMETER   = var.openai_api_key_ssm_parameter
+      TAVILY_API_KEY_SSM_PARAMETER   = var.tavily_api_key_ssm_parameter
+      DEEPSEEK_API_KEY_SSM_PARAMETER = var.deepseek_api_key_ssm_parameter
+      LABEL_ENRICHMENT_QUEUE_URL     = aws_sqs_queue.label_enrichment.url
+      AI_FLAG_CONFIDENCE_THRESHOLD   = tostring(var.ai_flag_confidence_threshold)
+      AURORA_CLUSTER_ARN             = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN              = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE                = var.aurora_database_name
+      LOG_LEVEL                      = "INFO"
     }
   }
 
