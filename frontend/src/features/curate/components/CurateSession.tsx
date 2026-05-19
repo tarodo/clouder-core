@@ -143,7 +143,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
   const hasOverflow = stagingOverflow(session.destinations).length > 0;
 
   return (
-    <Group align="flex-start" gap="md" wrap="nowrap" justify="center" style={{ width: '100%' }}>
+    <div style={{ position: 'relative', width: '100%', minHeight: '100%', display: 'flex', justifyContent: 'center' }}>
     <Stack
       gap={isMobile ? 'xs' : 'sm'}
       p={isMobile ? 'sm' : 'md'}
@@ -325,11 +325,19 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
       />
     </Stack>
     {!isMobile && (
-      <LabelTile
-        labelId={session.currentTrack?.label_id ?? null}
-        styleId={styleId}
-      />
+      <div
+        style={{
+          position: 'absolute',
+          top: 'var(--mantine-spacing-md)',
+          right: 'var(--mantine-spacing-md)',
+        }}
+      >
+        <LabelTile
+          labelId={session.currentTrack?.label_id ?? null}
+          styleId={styleId}
+        />
+      </div>
     )}
-    </Group>
+    </div>
   );
 }
