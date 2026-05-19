@@ -539,6 +539,100 @@ REFRESH_RESPONSE = {
     },
 }
 
+LABEL_ENRICH_REQUEST = {
+    "type": "object",
+    "required": ["labels", "vendors", "models", "prompt_slug",
+                 "prompt_version", "merge_vendor", "merge_model"],
+    "properties": {
+        "labels": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+                "type": "object",
+                "required": ["label_name", "style"],
+                "properties": {
+                    "label_name": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "style": {"type": "string", "minLength": 1, "maxLength": 128},
+                    "release_name": {"type": ["string", "null"], "maxLength": 256},
+                },
+                "additionalProperties": False,
+            },
+        },
+        "vendors": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "enum": ["gemini", "openai", "tavily_deepseek"]},
+        },
+        "models": {
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+        },
+        "prompt_slug": {"type": "string", "minLength": 1},
+        "prompt_version": {"type": "string", "minLength": 1},
+        "merge_vendor": {"type": "string", "enum": ["deepseek"]},
+        "merge_model": {"type": "string", "minLength": 1},
+    },
+    "additionalProperties": False,
+}
+
+LABEL_ENRICH_ACCEPTED_RESPONSE = {
+    "type": "object",
+    "required": ["run_id", "queued_labels"],
+    "properties": {
+        "run_id": {"type": "string", "format": "uuid"},
+        "queued_labels": {"type": "integer", "minimum": 1},
+    },
+}
+
+LABEL_ENRICH_RUN_RESPONSE = {
+    "type": "object",
+    "required": ["id", "status", "cells_total", "cells_ok", "cells_error"],
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "status": {"type": "string", "enum": ["queued", "running", "completed", "failed"]},
+        "prompt_slug": {"type": "string"},
+        "prompt_version": {"type": "string"},
+        "vendors": {"type": "array", "items": {"type": "string"}},
+        "models": {"type": "object", "additionalProperties": {"type": "string"}},
+        "merge_vendor": {"type": "string"},
+        "merge_model": {"type": "string"},
+        "requested_labels": {"type": "integer"},
+        "cells_total": {"type": "integer"},
+        "cells_ok": {"type": "integer"},
+        "cells_error": {"type": "integer"},
+        "cost_usd": {"type": "number"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "started_at": {"type": ["string", "null"], "format": "date-time"},
+        "finished_at": {"type": ["string", "null"], "format": "date-time"},
+    },
+}
+
+LABEL_INFO_RESPONSE = {
+    "type": "object",
+    "required": ["label_id", "label_name", "merged", "status",
+                 "ai_content", "ai_confidence", "updated_at"],
+    "properties": {
+        "label_id": {"type": "string", "format": "uuid"},
+        "label_name": {"type": "string"},
+        "last_run_id": {"type": "string", "format": "uuid"},
+        "prompt_slug": {"type": "string"},
+        "prompt_version": {"type": "string"},
+        "merged": {"type": "object"},
+        "provenance": {"type": "object"},
+        "ai_content": {"type": "string"},
+        "ai_confidence": {"type": "number"},
+        "status": {"type": "string"},
+        "primary_styles": {"type": "array", "items": {"type": "string"}},
+        "tagline": {"type": ["string", "null"]},
+        "country": {"type": ["string", "null"]},
+        "founded_year": {"type": ["integer", "null"]},
+        "activity": {"type": ["string", "null"]},
+        "last_release_date": {"type": ["string", "null"], "format": "date"},
+        "updated_at": {"type": "string", "format": "date-time"},
+    },
+}
+
 
 # ── routes ────────────────────────────────────────────────────────────────
 
@@ -840,6 +934,84 @@ ROUTES: list[dict[str, Any]] = [
             "404": _error(404, "Run not found."),
             "503": _error(503, "db_not_configured (AURORA_* env vars missing)."),
             **COMMON_AUTH_ERRORS,
+        },
+    },
+    # ── label enrichment (admin only) ──────────────────────────────
+    {
+        "method": "post",
+        "path": "/admin/labels/enrich",
+        "auth": ADMIN,
+        "summary": "Admin: enqueue label enrichment for up to 100 labels.",
+        "description": (
+            "Creates a `label_enrich_runs` row, fans out per-(label, vendor) cells "
+            "onto the label-enrichment SQS queue. Returns 202 with the run id and "
+            "the count of queued labels."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": LABEL_ENRICH_REQUEST,
+                }
+            },
+        },
+        "responses": {
+            "202": _make_response(
+                202,
+                "Enrichment run accepted and queued.",
+                LABEL_ENRICH_ACCEPTED_RESPONSE,
+            ),
+            "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/labels/enrich-runs/{run_id}",
+        "auth": ADMIN,
+        "summary": "Admin: get status + counters for a label-enrichment run.",
+        "parameters": [
+            {
+                "name": "run_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Run row with progress counters.",
+                LABEL_ENRICH_RUN_RESPONSE,
+            ),
+            "404": _error(404, "Run not found."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/labels/{label_id}",
+        "auth": ADMIN,
+        "summary": "Admin: get enriched label info (merged AI content + provenance).",
+        "parameters": [
+            {
+                "name": "label_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Label info with merged enrichment fields.",
+                LABEL_INFO_RESPONSE,
+            ),
+            "404": _error(404, "Label not found."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
         },
     },
     # ── canonical core (any authenticated user) ───────────────────

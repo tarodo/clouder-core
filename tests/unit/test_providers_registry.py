@@ -56,40 +56,17 @@ def test_list_enabled_exporters_filters(monkeypatch: pytest.MonkeyPatch) -> None
     assert names == ["deezer", "ytmusic"]
 
 
-def test_get_enricher_for_prompt_known(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("VENDORS_ENABLED", "perplexity_label")
-    enricher = registry.get_enricher_for_prompt("label_info")
-    assert enricher.prompt_slug == "label_info"
-
-
-def test_get_enricher_for_prompt_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("VENDORS_ENABLED", "")
-    with pytest.raises(VendorDisabledError):
-        registry.get_enricher_for_prompt("label_info")
-
-
-def test_get_enricher_for_prompt_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("VENDORS_ENABLED", "perplexity_label")
-    with pytest.raises(VendorDisabledError) as exc_info:
-        registry.get_enricher_for_prompt("totally_unknown_slug")
-    # Unrouted lookups carry the slug as `vendor` and reason="unrouted".
-    assert exc_info.value.reason == "unrouted"
-    assert exc_info.value.vendor == "totally_unknown_slug"
-
-
 def test_no_duplicate_prompt_slugs_across_registry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Regression guard: every enricher built from `_BUILDERS` must expose
-    a unique `prompt_slug`. Otherwise `get_enricher_for_prompt` would have
-    a non-deterministic winner across container restarts.
+    a unique `prompt_slug`.
     """
     monkeypatch.setenv(
         "VENDORS_ENABLED",
-        "beatport,spotify,perplexity_label,perplexity_artist,ytmusic,deezer,apple,tidal",
+        "beatport,spotify,ytmusic,deezer,apple,tidal",
     )
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
-    monkeypatch.setenv("PERPLEXITY_API_KEY", "test-key")
     registry.reset_cache()
 
     slugs: list[str] = []

@@ -456,6 +456,295 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /admin/labels/enrich:
+    post:
+      summary: 'Admin: enqueue label enrichment for up to 100 labels.'
+      responses:
+        '202':
+          description: Enrichment run accepted and queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - run_id
+                - queued_labels
+                properties:
+                  run_id:
+                    type: string
+                    format: uuid
+                  queued_labels:
+                    type: integer
+                    minimum: 1
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Creates a `label_enrich_runs` row, fans out per-(label, vendor)
+        cells onto the label-enrichment SQS queue. Returns 202 with the run id and
+        the count of queued labels.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - labels
+              - vendors
+              - models
+              - prompt_slug
+              - prompt_version
+              - merge_vendor
+              - merge_model
+              properties:
+                labels:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required:
+                    - label_name
+                    - style
+                    properties:
+                      label_name:
+                        type: string
+                        minLength: 1
+                        maxLength: 256
+                      style:
+                        type: string
+                        minLength: 1
+                        maxLength: 128
+                      release_name:
+                        type:
+                        - string
+                        - 'null'
+                        maxLength: 256
+                    additionalProperties: false
+                vendors:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    enum:
+                    - gemini
+                    - openai
+                    - tavily_deepseek
+                models:
+                  type: object
+                  additionalProperties:
+                    type: string
+                prompt_slug:
+                  type: string
+                  minLength: 1
+                prompt_version:
+                  type: string
+                  minLength: 1
+                merge_vendor:
+                  type: string
+                  enum:
+                  - deepseek
+                merge_model:
+                  type: string
+                  minLength: 1
+              additionalProperties: false
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/labels/enrich-runs/{run_id}:
+    get:
+      summary: 'Admin: get status + counters for a label-enrichment run.'
+      responses:
+        '200':
+          description: Run row with progress counters.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - status
+                - cells_total
+                - cells_ok
+                - cells_error
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                    - queued
+                    - running
+                    - completed
+                    - failed
+                  prompt_slug:
+                    type: string
+                  prompt_version:
+                    type: string
+                  vendors:
+                    type: array
+                    items:
+                      type: string
+                  models:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  merge_vendor:
+                    type: string
+                  merge_model:
+                    type: string
+                  requested_labels:
+                    type: integer
+                  cells_total:
+                    type: integer
+                  cells_ok:
+                    type: integer
+                  cells_error:
+                    type: integer
+                  cost_usd:
+                    type: number
+                  created_at:
+                    type: string
+                    format: date-time
+                  started_at:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+                  finished_at:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+        '404':
+          description: Run not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/labels/{label_id}:
+    get:
+      summary: 'Admin: get enriched label info (merged AI content + provenance).'
+      responses:
+        '200':
+          description: Label info with merged enrichment fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - label_id
+                - label_name
+                - merged
+                - status
+                - ai_content
+                - ai_confidence
+                - updated_at
+                properties:
+                  label_id:
+                    type: string
+                    format: uuid
+                  label_name:
+                    type: string
+                  last_run_id:
+                    type: string
+                    format: uuid
+                  prompt_slug:
+                    type: string
+                  prompt_version:
+                    type: string
+                  merged:
+                    type: object
+                  provenance:
+                    type: object
+                  ai_content:
+                    type: string
+                  ai_confidence:
+                    type: number
+                  status:
+                    type: string
+                  primary_styles:
+                    type: array
+                    items:
+                      type: string
+                  tagline:
+                    type:
+                    - string
+                    - 'null'
+                  country:
+                    type:
+                    - string
+                    - 'null'
+                  founded_year:
+                    type:
+                    - integer
+                    - 'null'
+                  activity:
+                    type:
+                    - string
+                    - 'null'
+                  last_release_date:
+                    type:
+                    - string
+                    - 'null'
+                    format: date
+                  updated_at:
+                    type: string
+                    format: date-time
+        '404':
+          description: Label not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: label_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /tracks:
     get:
       summary: List tracks (paginated).
@@ -2954,14 +3243,6 @@ components:
           minLength: 1
           title: Bp Token
           type: string
-        search_label_count:
-          anyOf:
-          - maximum: 200
-            minimum: 1
-            type: integer
-          - type: 'null'
-          default: null
-          title: Search Label Count
       required:
       - style_id
       - week_year
@@ -2990,14 +3271,6 @@ components:
           minimum: 1
           title: Iso Week
           type: integer
-        search_label_count:
-          anyOf:
-          - maximum: 200
-            minimum: 1
-            type: integer
-          - type: 'null'
-          default: null
-          title: Search Label Count
       required:
       - bp_token
       - style_id

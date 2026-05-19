@@ -17,27 +17,6 @@ resource "aws_sqs_queue" "canonicalization" {
   })
 }
 
-# ── AI Search queue ──────────────────────────────────────────────
-
-resource "aws_sqs_queue" "ai_search_dlq" {
-  name                      = local.ai_search_dlq_name
-  message_retention_seconds = var.ai_search_queue_retention_seconds
-}
-
-resource "aws_sqs_queue" "ai_search" {
-  name = local.ai_search_queue_name
-  visibility_timeout_seconds = max(
-    var.ai_search_queue_visibility_timeout_seconds,
-    var.ai_search_worker_lambda_timeout_seconds
-  )
-  message_retention_seconds = var.ai_search_queue_retention_seconds
-
-  redrive_policy = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.ai_search_dlq.arn
-    maxReceiveCount     = 5
-  })
-}
-
 # ── Spotify Search queue ─────────────────────────────────────────
 
 resource "aws_sqs_queue" "spotify_search_dlq" {
@@ -77,5 +56,26 @@ resource "aws_sqs_queue" "vendor_match" {
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.vendor_match_dlq.arn
     maxReceiveCount     = var.vendor_match_max_receive_count
+  })
+}
+
+# ── Label Enrichment queue ───────────────────────────────────────
+
+resource "aws_sqs_queue" "label_enrichment_dlq" {
+  name                      = local.label_enrichment_dlq_name
+  message_retention_seconds = var.label_enrichment_queue_retention_seconds
+}
+
+resource "aws_sqs_queue" "label_enrichment" {
+  name = local.label_enrichment_queue_name
+  visibility_timeout_seconds = max(
+    var.label_enrichment_queue_visibility_timeout_seconds,
+    var.label_enrichment_worker_lambda_timeout_seconds
+  )
+  message_retention_seconds = var.label_enrichment_queue_retention_seconds
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.label_enrichment_dlq.arn
+    maxReceiveCount     = var.label_enrichment_queue_max_receive_count
   })
 }

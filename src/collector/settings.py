@@ -136,8 +136,6 @@ class ApiSettings(_SettingsBase):
             "CANONICALIZATION_QUEUE_URL", "CANONICALIZE_QUEUE_URL"
         ),
     )
-    ai_search_enabled: bool = Field(default=False, alias="AI_SEARCH_ENABLED")
-    ai_search_queue_url: str = Field(default="", alias="AI_SEARCH_QUEUE_URL")
     spotify_search_enabled: bool = Field(default=False, alias="SPOTIFY_SEARCH_ENABLED")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
 
@@ -145,15 +143,7 @@ class ApiSettings(_SettingsBase):
 class WorkerSettings(_SettingsBase):
     raw_bucket_name: str = Field(alias="RAW_BUCKET_NAME")
     raw_prefix: str = Field(default="raw/bp/releases", alias="RAW_PREFIX")
-    ai_search_queue_url: str = Field(default="", alias="AI_SEARCH_QUEUE_URL")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
-
-
-class SearchWorkerSettings(_SettingsBase):
-    perplexity_api_key: str = Field(default="")
-    ai_flag_confidence_threshold: float = Field(
-        default=0.6, alias="AI_FLAG_CONFIDENCE_THRESHOLD"
-    )
 
 
 class SpotifyWorkerSettings(_SettingsBase):
@@ -198,6 +188,22 @@ class VendorMatchSettings(_SettingsBase):
     )
 
 
+class LabelEnrichmentWorkerSettings(_SettingsBase):
+    gemini_api_key: str = Field(default="")
+    openai_api_key: str = Field(default="")
+    tavily_api_key: str = Field(default="")
+    deepseek_api_key: str = Field(default="")
+    ai_flag_confidence_threshold: float = Field(
+        default=0.5, alias="AI_FLAG_CONFIDENCE_THRESHOLD", ge=0.0, le=1.0,
+    )
+    request_timeout_s: float = Field(
+        default=120.0, alias="LABEL_ENRICHMENT_REQUEST_TIMEOUT_S", ge=1.0,
+    )
+    label_enrichment_queue_url: str = Field(
+        default="", alias="LABEL_ENRICHMENT_QUEUE_URL",
+    )
+
+
 @functools.lru_cache
 def get_api_settings() -> ApiSettings:
     return ApiSettings()
@@ -224,11 +230,17 @@ def get_logging_settings() -> LoggingSettings:
 
 
 @functools.lru_cache
-def get_search_worker_settings() -> SearchWorkerSettings:
-    key = _resolve_simple_secret(
-        "PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_SECRET_ARN"
+def get_label_enrichment_worker_settings() -> LabelEnrichmentWorkerSettings:
+    gemini = _resolve_simple_secret("GEMINI_API_KEY", "GEMINI_API_KEY_SECRET_ARN")
+    openai = _resolve_simple_secret("OPENAI_API_KEY", "OPENAI_API_KEY_SECRET_ARN")
+    tavily = _resolve_simple_secret("TAVILY_API_KEY", "TAVILY_API_KEY_SECRET_ARN")
+    deepseek = _resolve_simple_secret("DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY_SECRET_ARN")
+    return LabelEnrichmentWorkerSettings(
+        gemini_api_key=gemini,
+        openai_api_key=openai,
+        tavily_api_key=tavily,
+        deepseek_api_key=deepseek,
     )
-    return SearchWorkerSettings(perplexity_api_key=key)
 
 
 @functools.lru_cache
@@ -251,9 +263,9 @@ def reset_settings_cache() -> None:
     get_migration_settings.cache_clear()
     get_data_api_settings.cache_clear()
     get_logging_settings.cache_clear()
-    get_search_worker_settings.cache_clear()
     get_spotify_worker_settings.cache_clear()
     get_vendor_match_settings.cache_clear()
+    get_label_enrichment_worker_settings.cache_clear()
     if hasattr(_fetch_secret_string, "cache_clear"):
         _fetch_secret_string.cache_clear()
 

@@ -57,30 +57,6 @@ def _build_spotify() -> ProviderBundle:
     )
 
 
-def _build_perplexity_label() -> ProviderBundle:
-    """Construct the Perplexity label bundle. Imports inlined to avoid import cycles."""
-    from .perplexity.label import PerplexityLabelEnricher
-    from ..settings import get_search_worker_settings
-
-    return ProviderBundle(
-        enrich=PerplexityLabelEnricher(
-            api_key=get_search_worker_settings().perplexity_api_key,
-        ),
-    )
-
-
-def _build_perplexity_artist() -> ProviderBundle:
-    """Construct the Perplexity artist bundle. Imports inlined to avoid import cycles."""
-    from .perplexity.artist import PerplexityArtistEnricher
-    from ..settings import get_search_worker_settings
-
-    return ProviderBundle(
-        enrich=PerplexityArtistEnricher(
-            api_key=get_search_worker_settings().perplexity_api_key,
-        ),
-    )
-
-
 def _build_ytmusic() -> ProviderBundle:
     from .ytmusic.lookup import YTMusicLookup
     from .ytmusic.export import YTMusicExporter
@@ -112,8 +88,6 @@ def _build_tidal() -> ProviderBundle:
 _BUILDERS: dict[str, Callable[[], ProviderBundle]] = {
     "beatport": _build_beatport,
     "spotify": _build_spotify,
-    "perplexity_label": _build_perplexity_label,
-    "perplexity_artist": _build_perplexity_artist,
     "ytmusic": _build_ytmusic,
     "deezer": _build_deezer,
     "apple": _build_apple,
@@ -177,25 +151,6 @@ def get_enricher(name: str) -> EnrichProvider:
     if bundle.enrich is None:
         raise VendorDisabledError(name, reason="not_implemented")
     return bundle.enrich
-
-
-def get_enricher_for_prompt(prompt_slug: str) -> EnrichProvider:
-    """Find an enabled enricher that handles the given prompt_slug.
-
-    Only builds bundles for enabled vendors — disabled vendors are skipped
-    without instantiation. Iteration order is deterministic (sorted by
-    vendor name) so that if two enabled enrichers ever expose the same
-    slug, resolution is reproducible across container restarts. Raises
-    VendorDisabledError(reason="unrouted") if no enabled vendor exposes
-    this slug.
-    """
-    for name in sorted(_enabled_vendors()):
-        bundle = _get_bundle(name)
-        if bundle is None or bundle.enrich is None:
-            continue
-        if bundle.enrich.prompt_slug == prompt_slug:
-            return bundle.enrich
-    raise VendorDisabledError(prompt_slug, reason="unrouted")
 
 
 def get_exporter(name: str) -> ExportProvider:

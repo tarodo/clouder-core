@@ -28,9 +28,9 @@ data "aws_iam_policy_document" "collector_lambda" {
       "${aws_cloudwatch_log_group.collector.arn}:*",
       "${aws_cloudwatch_log_group.canonicalization_worker.arn}:*",
       "${aws_cloudwatch_log_group.migration_lambda.arn}:*",
-      "${aws_cloudwatch_log_group.ai_search_worker.arn}:*",
       "${aws_cloudwatch_log_group.spotify_search_worker.arn}:*",
       "${aws_cloudwatch_log_group.vendor_match_worker.arn}:*",
+      "${aws_cloudwatch_log_group.label_enricher_worker.arn}:*",
       "${aws_cloudwatch_log_group.auth_handler.arn}:*",
       "${aws_cloudwatch_log_group.curation.arn}:*",
     ]
@@ -87,9 +87,9 @@ data "aws_iam_policy_document" "collector_lambda" {
     ]
     resources = [
       aws_sqs_queue.canonicalization.arn,
-      aws_sqs_queue.ai_search.arn,
       aws_sqs_queue.spotify_search.arn,
       aws_sqs_queue.vendor_match.arn,
+      aws_sqs_queue.label_enrichment.arn,
     ]
   }
 
@@ -105,9 +105,9 @@ data "aws_iam_policy_document" "collector_lambda" {
     ]
     resources = [
       aws_sqs_queue.canonicalization.arn,
-      aws_sqs_queue.ai_search.arn,
       aws_sqs_queue.spotify_search.arn,
       aws_sqs_queue.vendor_match.arn,
+      aws_sqs_queue.label_enrichment.arn,
     ]
   }
 
@@ -134,26 +134,44 @@ data "aws_iam_policy_document" "collector_lambda" {
   }
 
   dynamic "statement" {
-    for_each = length(compact([var.perplexity_api_key_secret_arn, var.spotify_credentials_secret_arn])) > 0 ? [1] : []
+    for_each = length(compact([var.spotify_credentials_secret_arn])) > 0 ? [1] : []
     content {
       sid     = "ReadExternalApiSecrets"
       effect  = "Allow"
       actions = ["secretsmanager:GetSecretValue"]
       resources = compact([
-        var.perplexity_api_key_secret_arn,
         var.spotify_credentials_secret_arn,
       ])
     }
   }
 
   dynamic "statement" {
-    for_each = length(compact([var.perplexity_api_key_ssm_parameter, var.spotify_client_id_ssm_parameter, var.spotify_client_secret_ssm_parameter])) > 0 ? [1] : []
+    for_each = length(compact([
+      var.gemini_api_key_secret_arn,
+      var.openai_api_key_secret_arn,
+      var.tavily_api_key_secret_arn,
+      var.deepseek_api_key_secret_arn,
+    ])) > 0 ? [1] : []
+    content {
+      sid     = "AllowGetLabelEnrichmentSecrets"
+      effect  = "Allow"
+      actions = ["secretsmanager:GetSecretValue"]
+      resources = compact([
+        var.gemini_api_key_secret_arn,
+        var.openai_api_key_secret_arn,
+        var.tavily_api_key_secret_arn,
+        var.deepseek_api_key_secret_arn,
+      ])
+    }
+  }
+
+  dynamic "statement" {
+    for_each = length(compact([var.spotify_client_id_ssm_parameter, var.spotify_client_secret_ssm_parameter])) > 0 ? [1] : []
     content {
       sid     = "AllowReadWorkerSsmParameters"
       effect  = "Allow"
       actions = ["ssm:GetParameter"]
       resources = compact([
-        var.perplexity_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.perplexity_api_key_ssm_parameter}" : "",
         var.spotify_client_id_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_client_id_ssm_parameter}" : "",
         var.spotify_client_secret_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_client_secret_ssm_parameter}" : "",
       ])
@@ -161,7 +179,7 @@ data "aws_iam_policy_document" "collector_lambda" {
   }
 
   dynamic "statement" {
-    for_each = length(compact([var.perplexity_api_key_ssm_parameter, var.spotify_client_id_ssm_parameter, var.spotify_client_secret_ssm_parameter])) > 0 ? [1] : []
+    for_each = length(compact([var.spotify_client_id_ssm_parameter, var.spotify_client_secret_ssm_parameter])) > 0 ? [1] : []
     content {
       sid       = "AllowWorkerSsmKmsDecrypt"
       effect    = "Allow"
