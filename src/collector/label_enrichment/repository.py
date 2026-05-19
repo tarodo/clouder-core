@@ -125,7 +125,14 @@ class LabelEnrichmentRepository:
         where_sql = " AND ".join(where) if where else "TRUE"
 
         ctes = f"""
-            WITH label_style_counts AS (
+            WITH label_track_counts AS (
+                SELECT a.label_id, COUNT(*) AS cnt
+                FROM clouder_albums a
+                JOIN clouder_tracks t ON t.album_id = a.id
+                WHERE a.label_id IS NOT NULL
+                GROUP BY a.label_id
+            ),
+            label_style_counts AS (
                 SELECT
                     a.label_id,
                     {_STYLE_SLUG_EXPR} AS style_slug,
@@ -149,11 +156,13 @@ class LabelEnrichmentRepository:
             SELECT lbl.id, lbl.name,
                    CASE WHEN li.label_id IS NULL THEN 'none' ELSE 'completed' END AS status,
                    li.tagline, li.country, li.founded_year, li.primary_styles,
-                   li.activity, li.updated_at,
-                   lds.style_slug AS dominant_style
+                   li.activity, li.ai_content, li.updated_at,
+                   lds.style_slug AS dominant_style,
+                   COALESCE(ltc.cnt, 0) AS track_count
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_dominant_style lds ON lds.label_id = lbl.id
+            LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
             WHERE {where_sql}
             ORDER BY {order_by}
             LIMIT :lim OFFSET :off
@@ -172,6 +181,7 @@ class LabelEnrichmentRepository:
                     "founded_year": r.get("founded_year"),
                     "primary_styles": primary,
                     "activity": r.get("activity") or "unknown",
+                    "ai_content": r.get("ai_content"),
                     "updated_at": r.get("updated_at"),
                 }
             items.append({
@@ -179,6 +189,7 @@ class LabelEnrichmentRepository:
                 "name": r["name"],
                 "style": r.get("dominant_style") or "",
                 "status": r.get("status") or "none",
+                "track_count": int(r.get("track_count") or 0),
                 "info": info,
             })
 

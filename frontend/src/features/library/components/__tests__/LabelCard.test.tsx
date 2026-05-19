@@ -8,6 +8,7 @@ import { LabelCard } from '../LabelCard';
 
 const COMPLETED = {
   id: 'l1', name: 'Fokuz', style: 'dnb', status: 'completed' as const,
+  track_count: 142,
   info: {
     tagline: 'soulful d&b', country: 'NL',
     primary_styles: ['liquid', 'jazzstep'], activity: 'steady' as const,
@@ -16,7 +17,8 @@ const COMPLETED = {
 };
 
 const PENDING = {
-  id: 'l2', name: 'Unknown', style: 'dnb', status: 'none' as const, info: null,
+  id: 'l2', name: 'Unknown', style: 'dnb', status: 'none' as const,
+  track_count: 0, info: null,
 };
 
 function renderCard(item: typeof COMPLETED | typeof PENDING) {

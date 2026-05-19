@@ -630,7 +630,7 @@ LABEL_ENRICH_RUN_RESPONSE = {
 
 LABEL_SUMMARY = {
     "type": "object",
-    "required": ["id", "name", "style", "status"],
+    "required": ["id", "name", "style", "status", "track_count"],
     "properties": {
         "id": {"type": "string"},
         "name": {"type": "string"},
@@ -639,6 +639,7 @@ LABEL_SUMMARY = {
             "type": "string",
             "enum": ["none", "queued", "running", "completed", "failed", "outdated"],
         },
+        "track_count": {"type": "integer"},
         "info": {
             "type": ["object", "null"],
             "properties": {
@@ -649,6 +650,10 @@ LABEL_SUMMARY = {
                 "activity": {
                     "type": "string",
                     "enum": ["unknown", "dormant", "low", "steady", "high", "fire_hose"],
+                },
+                "ai_content": {
+                    "type": ["string", "null"],
+                    "enum": ["unknown", "none_detected", "suspected", "confirmed", None],
                 },
                 "updated_at": {"type": "string", "format": "date-time"},
             },

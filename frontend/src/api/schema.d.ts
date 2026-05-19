@@ -5414,6 +5414,7 @@ export interface components {
             style: string;
             /** @enum {string} */
             status: "none" | "queued" | "running" | "completed" | "failed" | "outdated";
+            track_count: number;
             info?: {
                 tagline?: string | null;
                 country?: string | null;
@@ -5421,6 +5422,8 @@ export interface components {
                 primary_styles?: string[];
                 /** @enum {string} */
                 activity?: "unknown" | "dormant" | "low" | "steady" | "high" | "fire_hose";
+                /** @enum {string|null} */
+                ai_content?: "unknown" | "none_detected" | "suspected" | "confirmed" | null;
                 /** Format: date-time */
                 updated_at?: string;
             } | null;
