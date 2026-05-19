@@ -35,9 +35,19 @@ export function LabelDetailHeader({ info, styleId }: Props) {
     <Tooltip
       label={aiReasoning || t('library.detail.ai_reasoning_missing')}
       multiline
-      w={320}
+      w={340}
       withinPortal
       events={{ hover: true, focus: true, touch: true }}
+      styles={{
+        tooltip: {
+          backgroundColor: 'white',
+          color: 'black',
+          padding: '12px 16px',
+          lineHeight: 1.5,
+          border: '1px solid var(--mantine-color-gray-3)',
+          boxShadow: 'var(--mantine-shadow-md)',
+        },
+      }}
     >
       <Badge
         color={AI_COLOR[aiContent] ?? 'gray'}
