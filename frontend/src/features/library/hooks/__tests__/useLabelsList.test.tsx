@@ -30,7 +30,7 @@ describe('useLabelsList', () => {
       }),
     );
     const { result } = renderHook(
-      () => useLabelsList({ styleId: 'dnb', q: 'foo', sort: 'recent', page: 1, limit: 25 }),
+      () => useLabelsList({ styleId: 'dnb', q: 'foo', sort: 'recent', page: 1, limit: 25, my: 'all' }),
       { wrapper: wrap() },
     );
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -56,7 +56,7 @@ describe('useLabelsList', () => {
     );
     const { result, rerender } = renderHook(
       ({ page }: { page: number }) =>
-        useLabelsList({ styleId: 'dnb', q: '', sort: 'name', page, limit: 25 }),
+        useLabelsList({ styleId: 'dnb', q: '', sort: 'name', page, limit: 25, my: 'all' }),
       { wrapper: wrap(), initialProps: { page: 1 } },
     );
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
