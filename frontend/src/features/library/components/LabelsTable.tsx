@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import type { LabelSummary } from '../../../api/labels';
 import { countryFlag } from '../lib/countryFlag';
 import { truncateTagline } from '../lib/formatLabel';
+import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 
 interface Props {
   items: LabelSummary[];
@@ -47,6 +48,7 @@ export function LabelsTable(p: Props) {
             <Table.Th>{t('library.list.col_founded')}</Table.Th>
             <Table.Th>{t('library.list.col_tracks')}</Table.Th>
             <Table.Th>{t('library.list.col_ai_detected')}</Table.Th>
+            <Table.Th>{t('library.list.col_my')}</Table.Th>
             <Table.Th>{t('library.list.col_description')}</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -54,6 +56,10 @@ export function LabelsTable(p: Props) {
           {p.items.map((it) => {
             const info = it.info ?? null;
             const aiContent = info?.ai_content ? info.ai_content.toUpperCase() : null;
+            const myPref =
+              it.my_preference === 'liked' || it.my_preference === 'disliked'
+                ? it.my_preference
+                : null;
             return (
               <Table.Tr key={it.id}>
                 <Table.Td>
@@ -93,6 +99,9 @@ export function LabelsTable(p: Props) {
                       —
                     </Text>
                   )}
+                </Table.Td>
+                <Table.Td>
+                  <LabelPreferenceButtons labelId={it.id} current={myPref} size="sm" />
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" lineClamp={2} maw={420}>
