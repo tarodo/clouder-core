@@ -6,9 +6,10 @@ import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '../../../../i18n';
 import { tokenStore } from '../../../../auth/tokenStore';
+import type { LabelSummary } from '../../../../api/labels';
 import { LabelsTable } from '../LabelsTable';
 
-function renderTable(items: any[]) {
+function renderTable(items: LabelSummary[]) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   return render(
     <MantineProvider>
