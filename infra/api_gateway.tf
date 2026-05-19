@@ -174,6 +174,22 @@ resource "aws_apigatewayv2_route" "label_history" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "label_preference_put" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "PUT /labels/{label_id}/preference"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "my_label_preferences" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /me/label-preferences"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"

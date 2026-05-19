@@ -98,13 +98,20 @@ class LabelEnrichmentRepository:
         sort: str,
         page: int,
         limit: int,
+        user_id: str | None = None,
+        my: str = "all",
     ) -> tuple[list[dict[str, Any]], int]:
         """User-facing label list with page-based pagination.
 
-        Returns (items, total). `page` is 1-indexed; offset = (page - 1) * limit.
-        Per-label dominant_style is precomputed in a CTE so we don't fire
-        a correlated subquery per row.
+        Includes a LEFT JOIN to `clouder_user_label_prefs` for the current user
+        so each item carries `my_preference`. When `my` is `"liked"` /
+        `"disliked"` / `"unrated"`, the join is narrowed accordingly. When
+        `user_id` is None the join contributes no rows; `my_preference` is
+        always None.
         """
+        if my not in ("all", "liked", "disliked", "unrated"):
+            raise ValueError(f"my must be one of all|liked|disliked|unrated, got {my!r}")
+
         where: list[str] = []
         params: dict[str, Any] = {"lim": limit, "off": max(page - 1, 0) * limit}
         if style:
@@ -116,6 +123,18 @@ class LabelEnrichmentRepository:
         if q:
             where.append("LOWER(lbl.name) LIKE :q")
             params["q"] = f"{q.lower()}%"
+
+        # `pref_user_id` is bound even when user_id is None so the LEFT JOIN's
+        # `ulp.user_id = :pref_user_id` predicate never matches — equivalent
+        # to leaving `my_preference` always-null.
+        params["pref_user_id"] = user_id or ""
+
+        if my == "liked":
+            where.append("ulp.status = 'liked'")
+        elif my == "disliked":
+            where.append("ulp.status = 'disliked'")
+        elif my == "unrated":
+            where.append("ulp.user_id IS NULL")
 
         order_by = (
             "li.updated_at DESC NULLS LAST, lbl.id DESC"
@@ -158,11 +177,14 @@ class LabelEnrichmentRepository:
                    li.tagline, li.country, li.founded_year, li.primary_styles,
                    li.activity, li.ai_content, li.updated_at,
                    lds.style_slug AS dominant_style,
-                   COALESCE(ltc.cnt, 0) AS track_count
+                   COALESCE(ltc.cnt, 0) AS track_count,
+                   ulp.status AS my_preference
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_dominant_style lds ON lds.label_id = lbl.id
             LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
+            LEFT JOIN clouder_user_label_prefs ulp
+                ON ulp.label_id = lbl.id AND ulp.user_id = :pref_user_id
             WHERE {where_sql}
             ORDER BY {order_by}
             LIMIT :lim OFFSET :off
@@ -191,6 +213,7 @@ class LabelEnrichmentRepository:
                 "status": r.get("status") or "none",
                 "track_count": int(r.get("track_count") or 0),
                 "info": info,
+                "my_preference": r.get("my_preference"),
             })
 
         count_params = {k: v for k, v in params.items() if k not in ("lim", "off")}
@@ -200,6 +223,8 @@ class LabelEnrichmentRepository:
             SELECT COUNT(*) AS c
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
+            LEFT JOIN clouder_user_label_prefs ulp
+                ON ulp.label_id = lbl.id AND ulp.user_id = :pref_user_id
             WHERE {where_sql}
             """,
             count_params,
@@ -791,37 +816,128 @@ class LabelEnrichmentRepository:
                 pass
         return row
 
-    def get_label_info_for_user(self, label_id: str) -> dict[str, Any] | None:
+    # ── user label preferences ──────────────────────────────────────
+    def upsert_user_label_pref(
+        self,
+        *,
+        user_id: str,
+        label_id: str,
+        status: str,
+    ) -> None:
+        if status not in ("liked", "disliked"):
+            raise ValueError(f"status must be 'liked' or 'disliked', got {status!r}")
+        self._data_api.execute(
+            """
+            INSERT INTO clouder_user_label_prefs (user_id, label_id, status, updated_at)
+            VALUES (:user_id, :label_id, :status, :ts)
+            ON CONFLICT (user_id, label_id) DO UPDATE
+            SET status = EXCLUDED.status,
+                updated_at = EXCLUDED.updated_at
+            """,
+            {
+                "user_id": user_id,
+                "label_id": label_id,
+                "status": status,
+                "ts": self._now(),
+            },
+        )
+
+    def delete_user_label_pref(self, *, user_id: str, label_id: str) -> None:
+        self._data_api.execute(
+            "DELETE FROM clouder_user_label_prefs WHERE user_id = :user_id AND label_id = :label_id",
+            {"user_id": user_id, "label_id": label_id},
+        )
+
+    def list_user_label_prefs(
+        self,
+        *,
+        user_id: str,
+        status: str,
+        page: int,
+        limit: int,
+    ) -> tuple[list[dict[str, Any]], int]:
+        if status not in ("liked", "disliked"):
+            raise ValueError(f"status must be 'liked' or 'disliked', got {status!r}")
+        offset = max(page - 1, 0) * limit
+        rows = self._data_api.execute(
+            """
+            SELECT lbl.id, lbl.name, p.status
+            FROM clouder_user_label_prefs p
+            JOIN clouder_labels lbl ON lbl.id = p.label_id
+            WHERE p.user_id = :user_id AND p.status = :status
+            ORDER BY p.updated_at DESC, lbl.id DESC
+            LIMIT :lim OFFSET :off
+            """,
+            {"user_id": user_id, "status": status, "lim": limit, "off": offset},
+        )
+        items = [
+            {"id": r["id"], "name": r["name"], "my_preference": r["status"]}
+            for r in rows
+        ]
+        total_rows = self._data_api.execute(
+            """
+            SELECT COUNT(*) AS c
+            FROM clouder_user_label_prefs p
+            WHERE p.user_id = :user_id AND p.status = :status
+            """,
+            {"user_id": user_id, "status": status},
+        )
+        total = int(total_rows[0]["c"]) if total_rows else 0
+        return items, total
+
+    def get_label_info_for_user(
+        self,
+        label_id: str,
+        user_id: str | None = None,
+    ) -> dict[str, Any] | None:
         """Return decoded merged LabelInfo for a user-facing detail page.
 
-        Returns the decoded `merged` JSONB blob (the full LabelInfo schema:
-        label_name, country, tagline, summary, notable_artists, URL channels,
-        primary/secondary_styles, ai_content, ai_reasoning, etc.) with
-        admin-only fields stripped. Returns None when no clouder_label_info
-        row exists for the label.
-
-        Note: clouder_label_info.status holds the LabelInfo schema's
-        operational status ("active"/"inactive"/"unknown"), not the
-        enrichment job state, so the mere existence of a row signals a
-        completed run.
+        When `clouder_label_info` has a row, returns the decoded `merged`
+        JSONB blob with admin-only fields stripped, plus `my_preference`.
+        When the row is missing but the label exists, returns a minimal
+        `{label_name, my_preference}` payload so preference buttons can
+        still render on the detail page. Returns None only when the label
+        itself does not exist.
         """
         rows = self._data_api.execute(
             """
-            SELECT li.merged
+            SELECT li.merged, ulp.status AS my_preference
             FROM clouder_label_info li
+            LEFT JOIN clouder_user_label_prefs ulp
+                ON ulp.label_id = li.label_id AND ulp.user_id = :user_id
             WHERE li.label_id = :id
             LIMIT 1
             """,
-            {"id": label_id},
+            {"id": label_id, "user_id": user_id or ""},
         )
-        if not rows:
+        if rows:
+            merged = rows[0].get("merged")
+            if isinstance(merged, str):
+                merged = json.loads(merged)
+            if not isinstance(merged, dict):
+                return None
+            out = {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
+            out["my_preference"] = rows[0].get("my_preference")
+            return out
+
+        fallback = self._data_api.execute(
+            """
+            SELECT lbl.name AS label_name, ulp.status AS my_preference
+            FROM clouder_labels lbl
+            LEFT JOIN clouder_user_label_prefs ulp
+                ON ulp.label_id = lbl.id AND ulp.user_id = :user_id
+            WHERE lbl.id = :id
+            LIMIT 1
+            """,
+            {"id": label_id, "user_id": user_id or ""},
+        )
+        if not fallback:
             return None
-        merged = rows[0].get("merged")
-        if isinstance(merged, str):
-            merged = json.loads(merged)
-        if not isinstance(merged, dict):
-            return None
-        return {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
+        row = fallback[0]
+        return {
+            "label_name": row.get("label_name"),
+            "my_preference": row.get("my_preference"),
+        }
 
     def increment_run_counters(
         self,

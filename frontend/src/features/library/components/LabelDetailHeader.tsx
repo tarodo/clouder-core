@@ -3,10 +3,12 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { LabelDetail } from '../../../api/labels';
 import { countryFlag } from '../lib/countryFlag';
+import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 
 interface Props {
   info: LabelDetail;
   styleId: string;
+  labelId: string;
 }
 
 const AI_COLOR: Record<string, string> = {
@@ -20,7 +22,7 @@ function formatAiContent(value: string): string {
   return `AI ${value.toUpperCase()}`;
 }
 
-export function LabelDetailHeader({ info, styleId }: Props) {
+export function LabelDetailHeader({ info, styleId, labelId }: Props) {
   const { t } = useTranslation();
   const rec = info as Record<string, unknown>;
   const labelName = typeof rec.label_name === 'string' ? rec.label_name : '';
@@ -30,6 +32,10 @@ export function LabelDetailHeader({ info, styleId }: Props) {
   const aiContent = typeof rec.ai_content === 'string' ? rec.ai_content : '';
   const aiReasoning =
     typeof rec.ai_reasoning === 'string' ? rec.ai_reasoning : '';
+  const myPreference =
+    rec.my_preference === 'liked' || rec.my_preference === 'disliked'
+      ? rec.my_preference
+      : null;
 
   const aiBadge = aiContent ? (
     <Tooltip
@@ -67,6 +73,7 @@ export function LabelDetailHeader({ info, styleId }: Props) {
       <Group gap="sm" mt="xs" align="center" wrap="wrap">
         <Title order={2}>{labelName}</Title>
         {aiBadge}
+        <LabelPreferenceButtons labelId={labelId} current={myPreference} size="md" />
       </Group>
       <Group gap="xs" mt="xs">
         {country && (

@@ -167,9 +167,9 @@ def handle_get_label_user(event: Mapping[str, Any]) -> tuple[int, dict]:
     if not label_id:
         raise ValidationError("label_id is required")
     repo = _build_repository()
-    row = repo.get_label_info_for_user(label_id)
+    row = repo.get_label_info_for_user(label_id, user_id=_extract_user_id(event))
     if row is None:
-        return 404, {"error_code": "label_not_found", "message": "label info not available"}
+        return 404, {"error_code": "label_not_found", "message": "label not found"}
     return 200, row
 
 
@@ -202,6 +202,65 @@ def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
         style=style, status=status, cursor=cursor, limit=limit,
     )
     return 200, {"items": items, "next_cursor": next_cursor, "total_estimate": total}
+
+
+def handle_put_label_preference(event: Mapping[str, Any]) -> tuple[int, dict]:
+    path = event.get("pathParameters") or {}
+    label_id = (path.get("label_id") or "").strip()
+    if not label_id:
+        raise ValidationError("label_id is required")
+    user_id = _extract_user_id(event)
+    if not user_id:
+        raise ValidationError("user_id is required")
+
+    body_raw = event.get("body") or "{}"
+    try:
+        body = json.loads(body_raw)
+    except json.JSONDecodeError as exc:
+        raise ValidationError(f"invalid JSON body: {exc}")
+    status = body.get("status")
+    if status not in ("liked", "disliked", "none"):
+        raise ValidationError("status must be one of: liked, disliked, none")
+
+    repo = _build_repository()
+    if repo.get_label_by_id(label_id) is None:
+        return 404, {"error_code": "label_not_found", "message": "label not found"}
+
+    if status == "none":
+        repo.delete_user_label_pref(user_id=user_id, label_id=label_id)
+    else:
+        repo.upsert_user_label_pref(
+            user_id=user_id, label_id=label_id, status=status,
+        )
+    return 204, {}
+
+
+def handle_get_my_label_preferences(event: Mapping[str, Any]) -> tuple[int, dict]:
+    qs = event.get("queryStringParameters") or {}
+    status = (qs.get("status") or "liked").strip()
+    if status not in ("liked", "disliked"):
+        raise ValidationError("status must be 'liked' or 'disliked'")
+    try:
+        page = int(qs.get("page") or "1")
+    except (TypeError, ValueError):
+        raise ValidationError("page must be an integer")
+    try:
+        limit = int(qs.get("limit") or "50")
+    except (TypeError, ValueError):
+        raise ValidationError("limit must be an integer")
+    if page < 1:
+        raise ValidationError("page must be >= 1")
+    if limit < 1 or limit > 200:
+        raise ValidationError("limit must be between 1 and 200")
+
+    user_id = _extract_user_id(event)
+    if not user_id:
+        raise ValidationError("user_id is required")
+    repo = _build_repository()
+    items, total = repo.list_user_label_prefs(
+        user_id=user_id, status=status, page=page, limit=limit,
+    )
+    return 200, {"items": items, "total": total, "page": page, "limit": limit}
 
 
 def handle_get_options(event: Mapping[str, Any]) -> tuple[int, dict]:
@@ -247,6 +306,9 @@ def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
     sort = (qs.get("sort") or "name").strip()
     if sort not in ("name", "recent"):
         raise ValidationError("sort must be 'name' or 'recent'")
+    my = (qs.get("my") or "all").strip()
+    if my not in ("all", "liked", "disliked", "unrated"):
+        raise ValidationError("my must be one of: all, liked, disliked, unrated")
     try:
         page = int(qs.get("page") or "1")
     except (TypeError, ValueError):
@@ -261,7 +323,9 @@ def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
         raise ValidationError("limit must be between 1 and 200")
 
     repo = _build_repository()
+    user_id = _extract_user_id(event)
     items, total = repo.list_labels(
         style=style, q=q, sort=sort, page=page, limit=limit,
+        user_id=user_id, my=my,
     )
     return 200, {"items": items, "total": total, "page": page, "limit": limit}

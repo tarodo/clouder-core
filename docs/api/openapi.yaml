@@ -841,6 +841,16 @@ paths:
           minimum: 1
           maximum: 200
           default: 50
+      - name: my
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - liked
+          - disliked
+          - unrated
+          default: all
       security:
       - BearerAuth: []
       tags:
@@ -3413,6 +3423,91 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /labels/{label_id}/preference:
+    put:
+      summary: Set or clear the current user's label preference.
+      responses:
+        '204':
+          description: Preference updated.
+        '404':
+          description: label_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: invalid status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: 'Body: {"status": "liked" | "disliked" | "none"}. "none" deletes
+        the row. Returns 204.'
+      parameters:
+      - name: label_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - liked
+                  - disliked
+                  - none
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /me/label-preferences:
+    get:
+      summary: List the current user's labelled labels.
+      responses:
+        '200':
+          description: Paginated user label preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyLabelPreferencesResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - liked
+          - disliked
+          default: liked
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      security:
+      - BearerAuth: []
+      tags:
+      - user
 components:
   securitySchemes:
     BearerAuth:
@@ -3810,6 +3905,14 @@ components:
             updated_at:
               type: string
               format: date-time
+        my_preference:
+          type:
+          - string
+          - 'null'
+          enum:
+          - liked
+          - disliked
+          - null
     LabelsListResponse:
       type: object
       required:
@@ -3830,8 +3933,49 @@ components:
           type: integer
     LabelDetail:
       type: object
-      description: Sanitized LabelInfo (admin-only fields stripped).
+      description: Sanitized LabelInfo (admin-only fields stripped) plus my_preference.
+      properties:
+        my_preference:
+          type:
+          - string
+          - 'null'
+          enum:
+          - liked
+          - disliked
+          - null
       additionalProperties: true
+    MyLabelPreferencesResponse:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - limit
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - name
+            - my_preference
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              my_preference:
+                type: string
+                enum:
+                - liked
+                - disliked
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
     BacklogLabel:
       type: object
       required:

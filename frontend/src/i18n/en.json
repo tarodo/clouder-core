@@ -16,6 +16,7 @@
     "triage": "Triage",
     "curate": "Curate",
     "playlists": "Playlists",
+    "library": "Library",
     "profile": "Profile",
     "wordmark": "CLOUDER"
   },
@@ -827,12 +828,23 @@
       "col_founded": "Founded",
       "col_tracks": "Tracks",
       "col_ai_detected": "AI detected",
-      "col_description": "Description"
+      "col_my": "My",
+      "col_description": "Description",
+      "my_filter_label": "My",
+      "my_all": "All",
+      "my_liked": "Liked",
+      "my_disliked": "Disliked",
+      "my_unrated": "Unrated"
     },
     "entity_tabs": {
       "labels": "Labels",
       "artists": "Artists",
       "artists_coming_soon": "Coming soon"
+    },
+    "prefs": {
+      "like_aria": "Like label",
+      "dislike_aria": "Dislike label",
+      "unset_aria": "Remove preference"
     },
     "detail": {
       "back_to_list": "Back to {{style}}",

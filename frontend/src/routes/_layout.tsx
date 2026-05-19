@@ -10,6 +10,7 @@ import {
   IconLayoutColumns,
   IconAdjustments,
   IconPlaylist,
+  IconBook,
   IconUser,
   IconShield,
 } from '../components/icons';
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/triage', labelKey: 'appshell.triage', Icon: IconLayoutColumns },
   { path: '/curate', labelKey: 'appshell.curate', Icon: IconAdjustments },
   { path: '/playlists', labelKey: 'appshell.playlists', Icon: IconPlaylist },
+  { path: '/library', labelKey: 'appshell.library', Icon: IconBook },
   { path: '/profile', labelKey: 'appshell.profile', Icon: IconUser },
 ];
 

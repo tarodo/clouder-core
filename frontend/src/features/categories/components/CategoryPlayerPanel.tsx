@@ -261,7 +261,11 @@ export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlay
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
       />
       {effectiveRich?.label?.id && (
-        <LabelTile labelId={effectiveRich.label.id} styleId={styleId} />
+        <LabelTile
+          labelId={effectiveRich.label.id}
+          labelName={effectiveRich.label.name ?? null}
+          styleId={styleId}
+        />
       )}
       <Divider />
       <Text fw={500} size="sm">

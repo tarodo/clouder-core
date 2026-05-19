@@ -2,7 +2,7 @@ import { Container, Stack, Title } from '@mantine/core';
 import { useParams, useSearchParams, Navigate, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useMemo } from 'react';
-import { useLabelsList } from '../hooks/useLabelsList';
+import { useLabelsList, type LabelsListMy } from '../hooks/useLabelsList';
 import { EntityTabs } from '../components/EntityTabs';
 import { LibraryFilters, type StyleOption } from '../components/LibraryFilters';
 import { LabelsTable } from '../components/LabelsTable';
@@ -10,6 +10,12 @@ import { useStyles } from '../../../hooks/useStyles';
 import { slugifyStyle } from '../lib/slugifyStyle';
 
 const PAGE_SIZE = 25;
+const MY_VALUES: ReadonlySet<LabelsListMy> = new Set(['all', 'liked', 'disliked', 'unrated']);
+
+function readMy(raw: string | null): LabelsListMy {
+  if (raw && MY_VALUES.has(raw as LabelsListMy)) return raw as LabelsListMy;
+  return 'all';
+}
 
 export function LibraryListPage() {
   const { t } = useTranslation();
@@ -20,6 +26,7 @@ export function LibraryListPage() {
   const q = searchParams.get('q') ?? '';
   const rawSort = searchParams.get('sort');
   const sort: 'name' | 'recent' = rawSort === 'recent' ? 'recent' : 'name';
+  const my = readMy(searchParams.get('my'));
   const pageParam = Number(searchParams.get('page') ?? '1');
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
 
@@ -38,6 +45,7 @@ export function LibraryListPage() {
     sort,
     page,
     limit: PAGE_SIZE,
+    my,
   });
 
   if (!styleId) return <Navigate to="/library" replace />;
@@ -79,9 +87,11 @@ export function LibraryListPage() {
           styleId={styleId}
           styleOptions={styleOptions}
           stylesLoading={stylesQuery.isLoading}
+          my={my}
           onQChange={(v) => updateParam('q', v, true)}
           onSortChange={(v) => updateParam('sort', v, true)}
           onStyleChange={onStyleChange}
+          onMyChange={(v) => updateParam('my', v === 'all' ? '' : v, true)}
         />
         <LabelsTable
           items={items}

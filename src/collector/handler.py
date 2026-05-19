@@ -185,6 +185,20 @@ def _route(
         from .label_enrichment.routes import handle_get_label
         status, body = handle_get_label(event)
         return _json_response(status, body, correlation_id)
+    if route_key == "PUT /labels/{label_id}/preference":
+        from .label_enrichment.routes import handle_put_label_preference
+        status, body = handle_put_label_preference(event)
+        if status == 204:
+            return {
+                "statusCode": 204,
+                "headers": {"x-correlation-id": correlation_id},
+                "body": "",
+            }
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /me/label-preferences":
+        from .label_enrichment.routes import handle_get_my_label_preferences
+        status, body = handle_get_my_label_preferences(event)
+        return _json_response(status, body, correlation_id)
     if route_key == "GET /labels":
         from .label_enrichment.routes import handle_get_labels_list
         status, body = handle_get_labels_list(event)

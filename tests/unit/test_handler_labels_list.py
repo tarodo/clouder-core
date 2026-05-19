@@ -55,6 +55,7 @@ def test_list_labels_returns_items_and_total(monkeypatch):
     assert body["limit"] == 50
     fake_repo.list_labels.assert_called_once_with(
         style="drum-and-bass", q=None, sort="name", page=1, limit=50,
+        user_id="u-1", my="all",
     )
 
 
@@ -76,6 +77,7 @@ def test_list_labels_passes_q_sort_and_page(monkeypatch):
     assert body == {"items": [], "total": 0, "page": 3, "limit": 50}
     fake_repo.list_labels.assert_called_once_with(
         style="techno", q="fok", sort="recent", page=3, limit=50,
+        user_id="u-1", my="all",
     )
 
 

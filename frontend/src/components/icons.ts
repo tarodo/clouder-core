@@ -28,4 +28,7 @@ export {
   IconExternalLink,
   IconShield,
   IconBolt,
+  IconBook,
+  IconHeart,
+  IconHeartFilled,
 } from '@tabler/icons-react';
