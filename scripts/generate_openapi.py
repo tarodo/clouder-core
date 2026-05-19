@@ -1033,7 +1033,7 @@ ROUTES: list[dict[str, Any]] = [
                 **COMMON_AUTH_ERRORS,
             },
         }
-        for entity in ("tracks", "artists", "albums", "labels", "styles")
+        for entity in ("tracks", "artists", "albums", "styles")
     ],
     {
         "method": "get",

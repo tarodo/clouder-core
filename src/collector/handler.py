@@ -55,7 +55,6 @@ _LIST_ROUTES = {
     "GET /tracks": ("tracks", "list_tracks", "count_tracks"),
     "GET /artists": ("artists", "list_artists", "count_artists"),
     "GET /albums": ("albums", "list_albums", "count_albums"),
-    "GET /labels": ("labels", "list_labels", "count_labels"),
     "GET /styles": ("styles", "list_styles", "count_styles"),
 }
 

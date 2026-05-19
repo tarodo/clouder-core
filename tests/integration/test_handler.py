@@ -390,28 +390,6 @@ def test_list_artists_returns_results(monkeypatch, context) -> None:
     assert body["items"][0]["name"] == "Test Artist"
 
 
-def test_list_with_search_param(monkeypatch, context) -> None:
-    class FakeRepo:
-        def list_labels(self, limit, offset, search):
-            assert search == "deep"
-            return []
-
-        def count_labels(self, search):
-            assert search == "deep"
-            return 0
-
-    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: FakeRepo())
-
-    response = lambda_handler(
-        _list_event("GET /labels", {"search": "deep"}), context
-    )
-
-    assert response["statusCode"] == 200
-    body = json.loads(response["body"])
-    assert body["total"] == 0
-    assert body["items"] == []
-
-
 def test_list_styles_returns_results(monkeypatch, context) -> None:
     class FakeRepo:
         def list_styles(self, limit, offset, search):
