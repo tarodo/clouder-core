@@ -134,6 +134,38 @@ resource "aws_apigatewayv2_route" "labels_get_info" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "label_detail_user" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /labels/{label_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "labels_backlog" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/labels/backlog"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "labels_enrich_runs_list" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/labels/enrich-runs"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "labels_enrich_options" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/labels/enrich/options"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"
