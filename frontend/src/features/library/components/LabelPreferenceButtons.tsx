@@ -1,10 +1,10 @@
 import { ActionIcon, Group } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import {
-  IconHeart,
-  IconHeartFilled,
-  IconCircleX,
-  IconCircleXFilled,
+  IconThumbUp,
+  IconThumbUpFilled,
+  IconThumbDown,
+  IconThumbDownFilled,
 } from '../../../components/icons';
 import {
   useSetLabelPreference,
@@ -39,9 +39,9 @@ export function LabelPreferenceButtons({ labelId, current, size = 'sm' }: Props)
         aria-label={liked ? t('library.prefs.unset_aria') : t('library.prefs.like_aria')}
       >
         {liked ? (
-          <IconHeartFilled size={iconSize} color="var(--mantine-color-dark-9)" />
+          <IconThumbUpFilled size={iconSize} color="var(--mantine-color-dark-9)" />
         ) : (
-          <IconHeart size={iconSize} />
+          <IconThumbUp size={iconSize} />
         )}
       </ActionIcon>
       <ActionIcon
@@ -51,9 +51,9 @@ export function LabelPreferenceButtons({ labelId, current, size = 'sm' }: Props)
         aria-label={disliked ? t('library.prefs.unset_aria') : t('library.prefs.dislike_aria')}
       >
         {disliked ? (
-          <IconCircleXFilled size={iconSize} color="var(--mantine-color-dark-9)" />
+          <IconThumbDownFilled size={iconSize} color="var(--mantine-color-dark-9)" />
         ) : (
-          <IconCircleX size={iconSize} />
+          <IconThumbDown size={iconSize} />
         )}
       </ActionIcon>
     </Group>

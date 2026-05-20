@@ -29,8 +29,8 @@ export {
   IconShield,
   IconBolt,
   IconBook,
-  IconHeart,
-  IconHeartFilled,
-  IconCircleX,
-  IconCircleXFilled,
+  IconThumbUp,
+  IconThumbUpFilled,
+  IconThumbDown,
+  IconThumbDownFilled,
 } from '@tabler/icons-react';
