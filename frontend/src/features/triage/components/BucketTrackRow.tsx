@@ -72,7 +72,7 @@ export function BucketTrackRow({
 
   if (variant === 'desktop') {
     return (
-      <Table.Tr data-current={isCurrent ? 'true' : undefined}>
+      <Table.Tr data-current={isCurrent ? 'true' : undefined} bg={isCurrent ? 'var(--mantine-color-default-hover)' : undefined}>
         <Table.Td>
           <Group gap="xs" wrap="nowrap">
             {playButton}
@@ -98,7 +98,7 @@ export function BucketTrackRow({
   }
 
   return (
-    <Card withBorder padding="sm" data-current={isCurrent ? 'true' : undefined}>
+    <Card withBorder padding="sm" data-current={isCurrent ? 'true' : undefined} bg={isCurrent ? 'var(--mantine-color-default-hover)' : undefined}>
       <Stack gap={4}>
         <Group justify="space-between" wrap="nowrap" align="flex-start">
           <Group gap="xs">
