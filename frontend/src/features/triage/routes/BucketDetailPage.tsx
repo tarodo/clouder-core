@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { Link, Navigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
@@ -44,6 +45,8 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   const move = useMoveTracks(blockId, styleId);
   const undoInflight = useRef(false);
   const [transferTrackId, setTransferTrackId] = useState<string | null>(null);
+  const [rawSearch, setRawSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(rawSearch.trim(), 300);
   const tracksQuery = useBucketTracks(blockId, bucketId, '');
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
   const [bulkTrackIds, setBulkTrackIds] = useState<string[] | null>(null);
@@ -241,6 +244,9 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
         onMove={handleMove}
         onTransfer={(trackId) => setTransferTrackId(trackId)}
         blockStatus={block.status}
+        rawSearch={rawSearch}
+        onRawSearchChange={setRawSearch}
+        debouncedSearch={debouncedSearch}
       />
       {transferTrackId && (
         <TransferModal

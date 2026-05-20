@@ -1,15 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
 import '../../../../i18n';
 import { BucketTracksList } from '../BucketTracksList';
 import type { TriageBucket } from '../../lib/bucketLabels';
+
+function Harness(props: Omit<
+  React.ComponentProps<typeof BucketTracksList>,
+  'rawSearch' | 'onRawSearchChange' | 'debouncedSearch'
+>) {
+  const [rawSearch, setRawSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(rawSearch.trim(), 0);
+  return (
+    <BucketTracksList
+      {...props}
+      rawSearch={rawSearch}
+      onRawSearchChange={setRawSearch}
+      debouncedSearch={debouncedSearch}
+    />
+  );
+}
 
 function wrap(qc: QueryClient) {
   return ({ children }: { children: React.ReactNode }) => (
@@ -58,7 +75,7 @@ describe('BucketTracksList', () => {
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
     render(
-      <BucketTracksList
+      <Harness
         blockId="b1"
         bucket={buckets[0]!}
         buckets={buckets}
@@ -79,7 +96,7 @@ describe('BucketTracksList', () => {
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
     render(
-      <BucketTracksList
+      <Harness
         blockId="b1"
         bucket={{ ...buckets[0]!, bucket_type: 'UNCLASSIFIED' }}
         buckets={buckets}
@@ -101,7 +118,7 @@ describe('BucketTracksList', () => {
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
     render(
-      <BucketTracksList
+      <Harness
         blockId="b1"
         bucket={buckets[0]!}
         buckets={buckets}
@@ -128,7 +145,7 @@ describe('BucketTracksList', () => {
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
     render(
-      <BucketTracksList
+      <Harness
         blockId="b1"
         bucket={buckets[0]!}
         buckets={buckets}
@@ -152,7 +169,7 @@ describe('BucketTracksList', () => {
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
     render(
-      <BucketTracksList
+      <Harness
         blockId="b1"
         bucket={buckets[0]!}
         buckets={buckets}
