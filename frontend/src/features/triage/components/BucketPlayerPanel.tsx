@@ -7,6 +7,7 @@ import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import type { BucketTrack } from '../hooks/useBucketTracks';
 
 export interface BucketPlayerPanelProps {
+  /** Reserved for the caller's queue-source contract / future hotkey scoping. */
   blockId: string;
   bucketId: string;
   /** Visible bucket tracks, used to look up label/BPM for the playing track. */
@@ -30,7 +31,9 @@ export function BucketPlayerPanel({ items }: BucketPlayerPanelProps) {
   useEffect(() => {
     if (!current) lastRichRef.current = null;
   }, [current]);
-  const effectiveRich = richTrack ?? lastRichRef.current;
+  const effectiveRich =
+    richTrack ??
+    (lastRichRef.current?.track_id === current?.id ? lastRichRef.current : null);
 
   const playerState: PlayerCardState = (() => {
     if (playback.sdk.error?.kind === 'init') return 'disconnected';

@@ -69,5 +69,16 @@ describe('BucketPlayerPanel', () => {
     r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[item]} />);
     expect(screen.getByText('Test Track')).toBeInTheDocument();
     expect(screen.getByText('Anjunadeep')).toBeInTheDocument();
+    expect(screen.getByText('124 BPM')).toBeInTheDocument();
+  });
+
+  it('does not show stale label meta when the playing track is not in items', () => {
+    current = {
+      id: 'other', title: 'Other Track', artists: 'Z',
+      duration_ms: 200000, spotify_id: 'sp2', cover_url: null,
+    };
+    r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[item]} />);
+    expect(screen.getByText('Other Track')).toBeInTheDocument();
+    expect(screen.queryByText('Anjunadeep')).not.toBeInTheDocument();
   });
 });
