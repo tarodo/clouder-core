@@ -242,6 +242,23 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
     });
   };
 
+  const tracksList = (
+    <BucketTracksList
+      blockId={blockId}
+      bucket={bucket}
+      buckets={block.buckets}
+      showMoveMenu={showMoveMenu}
+      onMove={handleMove}
+      onTransfer={(trackId) => setTransferTrackId(trackId)}
+      blockStatus={block.status}
+      rawSearch={rawSearch}
+      onRawSearchChange={setRawSearch}
+      debouncedSearch={debouncedSearch}
+      onPlay={playTrack}
+      currentTrackId={playback.track.current?.id ?? null}
+    />
+  );
+
   return (
     <Stack gap="lg">
       <Anchor
@@ -290,38 +307,10 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
       {isDesktop ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
           <BucketPlayerPanel blockId={blockId} bucketId={bucketId} items={playerItems} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <BucketTracksList
-              blockId={blockId}
-              bucket={bucket}
-              buckets={block.buckets}
-              showMoveMenu={showMoveMenu}
-              onMove={handleMove}
-              onTransfer={(trackId) => setTransferTrackId(trackId)}
-              blockStatus={block.status}
-              rawSearch={rawSearch}
-              onRawSearchChange={setRawSearch}
-              debouncedSearch={debouncedSearch}
-              onPlay={playTrack}
-              currentTrackId={playback.track.current?.id ?? null}
-            />
-          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>{tracksList}</div>
         </Flex>
       ) : (
-        <BucketTracksList
-          blockId={blockId}
-          bucket={bucket}
-          buckets={block.buckets}
-          showMoveMenu={showMoveMenu}
-          onMove={handleMove}
-          onTransfer={(trackId) => setTransferTrackId(trackId)}
-          blockStatus={block.status}
-          rawSearch={rawSearch}
-          onRawSearchChange={setRawSearch}
-          debouncedSearch={debouncedSearch}
-          onPlay={playTrack}
-          currentTrackId={playback.track.current?.id ?? null}
-        />
+        tracksList
       )}
       {transferTrackId && (
         <TransferModal
