@@ -82,4 +82,30 @@ describe('useBucketPlayerQueue', () => {
     unmount();
     expect(clearQueue).toHaveBeenCalledOnce();
   });
+
+  it('cursor = lastCursor - 1 when the tail track is removed', () => {
+    playback.queue.tracks = [T('a'), T('b'), T('c')];
+    playback.queue.cursor = 2;
+    playback.track.current = T('c');
+    const { rerender } = renderHook(
+      ({ tracks }) => useBucketPlayerQueue('blk-1', 'bk-1', tracks),
+      { initialProps: { tracks: playback.queue.tracks as PlaybackTrack[] } },
+    );
+    bindQueue.mockReset();
+    rerender({ tracks: [T('a'), T('b')] });
+    expect(bindQueue).toHaveBeenCalledWith(expect.objectContaining({ cursor: 1 }));
+  });
+
+  it('cursor = lastCursor - 1 when a middle track is removed (advance lands on successor)', () => {
+    playback.queue.tracks = [T('a'), T('b'), T('c'), T('d')];
+    playback.queue.cursor = 1;
+    playback.track.current = T('b');
+    const { rerender } = renderHook(
+      ({ tracks }) => useBucketPlayerQueue('blk-1', 'bk-1', tracks),
+      { initialProps: { tracks: playback.queue.tracks as PlaybackTrack[] } },
+    );
+    bindQueue.mockReset();
+    rerender({ tracks: [T('a'), T('c'), T('d')] });
+    expect(bindQueue).toHaveBeenCalledWith(expect.objectContaining({ cursor: 0 }));
+  });
 });
