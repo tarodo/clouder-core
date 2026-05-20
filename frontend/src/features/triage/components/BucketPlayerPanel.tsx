@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Group, Stack, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { usePlayback } from '../../playback/usePlayback';
+import { usePlaybackHotkeys } from '../../playback/usePlaybackHotkeys';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import type { BucketTrack } from '../hooks/useBucketTracks';
@@ -44,6 +45,15 @@ export function BucketPlayerPanel({ items }: BucketPlayerPanelProps) {
     if (status === 'disconnected') return 'disconnected';
     return status; // 'playing' | 'paused'
   })();
+
+  usePlaybackHotkeys({
+    onTogglePlayPause: () => void playback.controls.togglePlayPause(),
+    onPrev: () => void playback.controls.prev(),
+    onNext: () => void playback.controls.next(),
+    onSeekRelative: (deltaMs) =>
+      void playback.controls.seekMs(playback.track.positionMs + deltaMs),
+    onSeekPct: (p) => void playback.controls.seekPct(p),
+  });
 
   if (!current) {
     return (
