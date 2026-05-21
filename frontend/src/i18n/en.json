@@ -18,7 +18,8 @@
     "playlists": "Playlists",
     "library": "Library",
     "profile": "Profile",
-    "wordmark": "CLOUDER"
+    "wordmark": "CLOUDER",
+    "toggle_nav": "Toggle navigation"
   },
   "user_menu": {
     "signed_in_as": "Signed in as {{name}}",
