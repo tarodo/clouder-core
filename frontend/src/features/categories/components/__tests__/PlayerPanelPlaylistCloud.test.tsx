@@ -34,23 +34,28 @@ describe('PlayerPanelPlaylistCloud', () => {
     expect(screen.queryByText('11')).not.toBeInTheDocument();
   });
 
-  it('marks chips for playlists already containing the track', () => {
+  it('marks the selected playlist button as filled', () => {
     render(
       ui({ trackId: 't-1', trackPlaylistIds: ['pl-2'], onAdd: vi.fn(), onRemove: vi.fn() }),
     );
-    const root = screen.getByText('Playlist 2').closest('.mantine-Chip-root')!;
-    const input = root.querySelector('input')! as HTMLInputElement;
-    expect(input.checked).toBe(true);
+    const btn = screen.getByText('Playlist 2').closest('button')!;
+    expect(btn).toHaveAttribute('data-variant', 'filled');
   });
 
-  it('click on outline chip calls onAdd', async () => {
+  it('renders an unselected playlist button as default variant', () => {
+    render(ui({ trackId: 't-1', trackPlaylistIds: [], onAdd: vi.fn(), onRemove: vi.fn() }));
+    const btn = screen.getByText('Playlist 0').closest('button')!;
+    expect(btn).toHaveAttribute('data-variant', 'default');
+  });
+
+  it('click on a default button calls onAdd', async () => {
     const onAdd = vi.fn();
     render(ui({ trackId: 't-1', trackPlaylistIds: [], onAdd, onRemove: vi.fn() }));
     await userEvent.click(screen.getByText('Playlist 0'));
     expect(onAdd).toHaveBeenCalledWith('pl-0');
   });
 
-  it('click on filled chip calls onRemove', async () => {
+  it('click on a filled button calls onRemove', async () => {
     const onRemove = vi.fn();
     render(ui({ trackId: 't-1', trackPlaylistIds: ['pl-0'], onAdd: vi.fn(), onRemove }));
     await userEvent.click(screen.getByText('Playlist 0'));
