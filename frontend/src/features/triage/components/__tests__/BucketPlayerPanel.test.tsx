@@ -46,6 +46,9 @@ vi.mock('../../hooks/useTriageBlock', () => ({
 vi.mock('../../hooks/useBucketDistribute', () => ({
   useBucketDistribute: () => distributeSpy,
 }));
+vi.mock('../../../library/components/LabelTile', () => ({
+  LabelTile: () => <div data-testid="label-tile" />,
+}));
 
 import { BucketPlayerPanel } from '../BucketPlayerPanel';
 
@@ -109,10 +112,10 @@ describe('BucketPlayerPanel', () => {
     current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
     r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[item]} />);
     expect(screen.getByText('Move current track to')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Techno' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'DISCARD' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'NEW' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Cur' })).not.toBeInTheDocument();
+    expect(screen.getByText('Techno')).toBeInTheDocument();
+    expect(screen.getByText('DISCARD')).toBeInTheDocument();
+    expect(screen.queryByText('NEW')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cur')).not.toBeInTheDocument();
   });
 
   it('hides distribute buttons when the block is FINALIZED', () => {
@@ -126,7 +129,17 @@ describe('BucketPlayerPanel', () => {
     const userEvent = (await import('@testing-library/user-event')).default;
     current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
     r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[item]} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Techno' }));
+    await userEvent.click(screen.getByText('Techno'));
     expect(distributeSpy).toHaveBeenCalledWith('bk2');
+  });
+
+  it('renders the LabelTile after the distribute buttons when playing', () => {
+    current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
+    r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[item]} />);
+    const heading = screen.getByText('Move current track to');
+    const labelTile = screen.getByTestId('label-tile');
+    expect(
+      heading.compareDocumentPosition(labelTile) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });
