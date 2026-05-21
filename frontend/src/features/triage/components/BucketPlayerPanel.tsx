@@ -6,19 +6,37 @@ import { usePlaybackHotkeys } from '../../playback/usePlaybackHotkeys';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import type { BucketTrack } from '../hooks/useBucketTracks';
+import { useTriageBlock } from '../hooks/useTriageBlock';
+import { useBucketDistribute } from '../hooks/useBucketDistribute';
+import { BucketDistributeButtons } from './BucketDistributeButtons';
+import { moveDestinationsFor } from '../lib/bucketLabels';
 
 export interface BucketPlayerPanelProps {
-  /** Reserved for the caller's queue-source contract / future hotkey scoping. */
   blockId: string;
   bucketId: string;
   /** Visible bucket tracks, used to look up label/BPM for the playing track. */
   items: BucketTrack[];
 }
 
-export function BucketPlayerPanel({ items }: BucketPlayerPanelProps) {
+export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPanelProps) {
   const { t } = useTranslation();
   const playback = usePlayback();
   const current = playback.track.current;
+
+  const { data: block } = useTriageBlock(blockId);
+  const blockBuckets = block?.buckets ?? [];
+  const distribute = useBucketDistribute({
+    blockId,
+    bucketId,
+    styleId: block?.style_id ?? '',
+    buckets: blockBuckets,
+  });
+  const destinations =
+    block?.status === 'IN_PROGRESS'
+      ? moveDestinationsFor(blockBuckets, bucketId).filter(
+          (b) => b.bucket_type === 'STAGING' || b.bucket_type === 'DISCARD',
+        )
+      : [];
 
   const richTrack = useMemo<BucketTrack | null>(() => {
     const id = current?.id;
@@ -112,6 +130,7 @@ export function BucketPlayerPanel({ items }: BucketPlayerPanelProps) {
         onOpenDevicePicker={() => playback.devices.open(null)}
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
       />
+      <BucketDistributeButtons destinations={destinations} onDistribute={distribute} />
     </Stack>
   );
 }
