@@ -1,5 +1,5 @@
 .root {
-  width: 520px;
+  width: 442px;
   flex-shrink: 0;
   padding: var(--mantine-spacing-md);
   border-right: 1px solid var(--mantine-color-default-border);
