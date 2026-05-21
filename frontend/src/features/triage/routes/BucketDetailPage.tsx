@@ -20,7 +20,7 @@ import {
 import { useBucketTracks, type BucketTrack } from '../hooks/useBucketTracks';
 import { BucketTracksList } from '../components/BucketTracksList';
 import { TransferModal } from '../components/TransferModal';
-import { bucketLabel, type TriageBucket } from '../lib/bucketLabels';
+import { bucketLabel, isTechnical, type TriageBucket } from '../lib/bucketLabels';
 import { useBucketPlayerQueue } from '../hooks/useBucketPlayerQueue';
 import { toPlaybackTrack } from '../lib/toPlaybackTrack';
 import { usePlayback } from '../../playback/usePlayback';
@@ -60,8 +60,10 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   const [bulkTrackIds, setBulkTrackIds] = useState<string[] | null>(null);
   const [collecting, setCollecting] = useState(false);
 
-  const isStagingBucket =
-    block?.buckets.find((b) => b.id === bucketId)?.bucket_type === 'STAGING';
+  // While `block` is loading this is undefined → false → player suppressed
+  // (safe default; no flicker of a broken player). Re-enables once loaded.
+  const playerBucket = block?.buckets.find((b) => b.id === bucketId);
+  const isStagingBucket = !!playerBucket && !isTechnical(playerBucket);
 
   // Playback wiring — all hooks BEFORE early returns (Rules of Hooks)
   const navigate = useNavigate();
