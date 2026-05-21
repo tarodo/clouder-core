@@ -21,17 +21,17 @@ const discard: TriageBucket = {
 };
 
 describe('BucketDistributeButtons', () => {
-  it('renders a chip per destination with bucket labels', () => {
+  it('renders a button per destination with bucket labels', () => {
     r(<BucketDistributeButtons destinations={[staging, discard]} onDistribute={vi.fn()} />);
     expect(screen.getByText('Move current track to')).toBeInTheDocument();
-    expect(screen.getByText('Techno')).toBeInTheDocument();
-    expect(screen.getByText('DISCARD')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Techno' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'DISCARD' })).toBeInTheDocument();
   });
 
   it('calls onDistribute with the bucket id on click', async () => {
     const onDistribute = vi.fn();
     r(<BucketDistributeButtons destinations={[staging, discard]} onDistribute={onDistribute} />);
-    await userEvent.click(screen.getByText('Techno'));
+    await userEvent.click(screen.getByRole('button', { name: 'Techno' }));
     expect(onDistribute).toHaveBeenCalledWith('bk2');
   });
 
