@@ -39,6 +39,7 @@ export interface TracksTabProps {
   setSortKey: (k: CategoryTrackSort) => void;
   setSortDir: (d: SortOrder | ((prev: SortOrder) => SortOrder)) => void;
   onPlay: (track: CategoryTrack) => void;
+  currentTrackId?: string | null;
 }
 
 export function TracksTab({
@@ -58,6 +59,7 @@ export function TracksTab({
   setSortKey,
   setSortDir,
   onPlay,
+  currentTrackId,
 }: TracksTabProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
@@ -186,6 +188,7 @@ export function TracksTab({
             variant="mobile"
             categoryId={categoryId}
             onPlay={() => onPlay(tr)}
+            isCurrent={currentTrackId != null && tr.id === currentTrackId}
             actions={
               <TrackRowActions
                 track={tr}
@@ -248,6 +251,7 @@ export function TracksTab({
               variant="desktop"
               categoryId={categoryId}
               onPlay={() => onPlay(track)}
+              isCurrent={currentTrackId != null && track.id === currentTrackId}
               actions={
                 <TrackRowActions
                   track={track}

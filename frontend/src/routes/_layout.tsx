@@ -1,6 +1,6 @@
-import { AppShell, Group, NavLink, Stack, Text, useMantineTheme } from '@mantine/core';
+import { AppShell, Burger, Group, NavLink, Stack, Text, useMantineTheme } from '@mantine/core';
 import { Outlet, NavLink as RouterLink, useLocation } from 'react-router';
-import { useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { useContext, useMemo } from 'react';
 import type { ComponentType } from 'react';
@@ -44,10 +44,11 @@ export function AppShellLayout() {
   );
 }
 
-function AppShellInner() {
+export function AppShellInner() {
   const { t } = useTranslation();
   const theme = useMantineTheme();
   const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
+  const [navCollapsed, { toggle: toggleNav }] = useDisclosure(false);
   const location = useLocation();
   const auth = useContext(AuthContext);
   const isAdmin =
@@ -63,15 +64,30 @@ function AppShellInner() {
   return (
     <AppShell
       header={{ height: 56 }}
-      navbar={isDesktop ? { width: 240, breakpoint: 'md' } : undefined}
+      navbar={
+        isDesktop
+          ? { width: 240, breakpoint: 'md', collapsed: { desktop: navCollapsed, mobile: true } }
+          : undefined
+      }
       footer={isDesktop ? undefined : { height: 64 }}
       padding="md"
     >
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
-          <Text fw={700} size="lg">
-            {t('appshell.wordmark')}
-          </Text>
+          <Group gap="sm">
+            {isDesktop && (
+              <Burger
+                opened={!navCollapsed}
+                onClick={toggleNav}
+                size="sm"
+                aria-label={t('appshell.toggle_nav')}
+                aria-expanded={!navCollapsed}
+              />
+            )}
+            <Text fw={700} size="lg">
+              {t('appshell.wordmark')}
+            </Text>
+          </Group>
           <UserMenu />
         </Group>
       </AppShell.Header>

@@ -220,6 +220,7 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
       setSortKey={setSortKey}
       setSortDir={setSortDir}
       onPlay={playTrack}
+      currentTrackId={playback.track.current?.id ?? null}
     />
   );
 
