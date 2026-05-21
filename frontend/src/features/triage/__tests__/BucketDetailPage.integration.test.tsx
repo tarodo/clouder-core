@@ -273,6 +273,31 @@ describe('BucketDetailPage integration', () => {
     await userEvent.click(playBtn);
     await waitFor(() => expect(playSpy).toHaveBeenCalled());
   });
+
+  it('hides per-row Play on a technical bucket', async () => {
+    const playable = { ...track('t1'), spotify_id: 'sp-t1' };
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(inProgressBlock)),
+      http.get('http://localhost/triage/blocks/b1/buckets/bk1/tracks', () =>
+        HttpResponse.json({ items: [playable], total: 1, limit: 50, offset: 0 }),
+      ),
+    );
+    renderAt('/triage/s1/b1/buckets/bk1');
+    await screen.findByText('Track t1');
+    expect(screen.queryByRole('button', { name: /Play track/i })).not.toBeInTheDocument();
+  });
+
+  it('shows per-row Play on a staging bucket', async () => {
+    const playable = { ...track('t1'), spotify_id: 'sp-t1' };
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(inProgressBlock)),
+      http.get('http://localhost/triage/blocks/b1/buckets/bk3/tracks', () =>
+        HttpResponse.json({ items: [playable], total: 1, limit: 50, offset: 0 }),
+      ),
+    );
+    renderAt('/triage/s1/b1/buckets/bk3');
+    expect(await screen.findByRole('button', { name: /Play track/i })).toBeInTheDocument();
+  });
 });
 
 describe('BucketDetailPage — bulk transfer CTA', () => {

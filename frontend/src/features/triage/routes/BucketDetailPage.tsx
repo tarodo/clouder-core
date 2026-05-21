@@ -26,6 +26,9 @@ import { toPlaybackTrack } from '../lib/toPlaybackTrack';
 import { usePlayback } from '../../playback/usePlayback';
 import { BucketPlayerPanel } from '../components/BucketPlayerPanel';
 import type { BucketDetailOutletContext } from './BucketPlayerPage';
+import type { PlaybackTrack } from '../../playback/lib/types';
+
+const EMPTY_TRACKS: PlaybackTrack[] = [];
 
 export function BucketDetailPage() {
   const { styleId, id, bucketId } = useParams<{
@@ -57,6 +60,9 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   const [bulkTrackIds, setBulkTrackIds] = useState<string[] | null>(null);
   const [collecting, setCollecting] = useState(false);
 
+  const isStagingBucket =
+    block?.buckets.find((b) => b.id === bucketId)?.bucket_type === 'STAGING';
+
   // Playback wiring — all hooks BEFORE early returns (Rules of Hooks)
   const navigate = useNavigate();
   const playback = usePlayback();
@@ -73,7 +79,7 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
     [playerQuery.data],
   );
   const playerTracks = useMemo(() => playerItems.map(toPlaybackTrack), [playerItems]);
-  useBucketPlayerQueue(blockId, bucketId, playerTracks);
+  useBucketPlayerQueue(blockId, bucketId, isStagingBucket ? playerTracks : EMPTY_TRACKS);
 
   useEffect(() => {
     void playback.controls.prewarm();
@@ -81,6 +87,7 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
 
   const playTrack = useCallback(
     (tr: BucketTrack) => {
+      if (!isStagingBucket) return;
       if (!tr.spotify_id) return;
       void playback.controls.prewarm();
       const queueIdx = playback.queue.tracks.findIndex((q) => q.id === tr.track_id);
@@ -93,7 +100,7 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
         navigate(`/triage/${styleId}/${blockId}/buckets/${bucketId}/player`);
       }
     },
-    [playback.controls, playback.queue.tracks, isDesktop, navigate, styleId, blockId, bucketId],
+    [isStagingBucket, playback.controls, playback.queue.tracks, isDesktop, navigate, styleId, blockId, bucketId],
   );
 
   if (isLoading) return <FullScreenLoader />;
@@ -140,6 +147,11 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
 
   // Mobile player outlet short-circuit
   if (onPlayerSubpath) {
+    if (!isStagingBucket) {
+      return (
+        <Navigate to={`/triage/${styleId}/${blockId}/buckets/${bucketId}`} replace />
+      );
+    }
     return (
       <Outlet context={{ items: playerItems } satisfies BucketDetailOutletContext} />
     );
@@ -254,8 +266,8 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
       rawSearch={rawSearch}
       onRawSearchChange={setRawSearch}
       debouncedSearch={debouncedSearch}
-      onPlay={playTrack}
-      currentTrackId={playback.track.current?.id ?? null}
+      onPlay={isStagingBucket ? playTrack : undefined}
+      currentTrackId={isStagingBucket ? (playback.track.current?.id ?? null) : null}
     />
   );
 
@@ -304,7 +316,7 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
           })}
         </Text>
       </Stack>
-      {isDesktop ? (
+      {isDesktop && isStagingBucket ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
           <BucketPlayerPanel blockId={blockId} bucketId={bucketId} items={playerItems} />
           <div style={{ flex: 1, minWidth: 0 }}>{tracksList}</div>
