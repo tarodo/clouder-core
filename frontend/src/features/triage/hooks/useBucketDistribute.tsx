@@ -115,6 +115,11 @@ export function useBucketDistribute({
         },
       });
 
+      // Advance optimistically, independent of the move outcome — the snappy
+      // "quick distribution" feel matches Curate. If the move fails, the error
+      // toast + cache rollback restore the track to the bucket, but playback
+      // stays on the successor (lean: no rewind). play(undefined, successor)
+      // uses the override-track path so it doesn't depend on the queue rebind.
       if (successor) {
         void playback.controls.play(undefined, successor);
       }
