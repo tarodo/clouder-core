@@ -118,6 +118,35 @@ describe('TrackRow — used_in_playlist badge', () => {
   });
 });
 
+describe('TrackRow — isCurrent highlight', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    server.use(
+      http.get('http://localhost/tags', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
+    );
+  });
+
+  it('marks the row data-current when isCurrent', () => {
+    const { container } = render(
+      <W>
+        <TrackRow track={baseTrack} variant="desktop" categoryId="c1" isCurrent />
+      </W>,
+    );
+    expect(container.querySelector('[data-current="true"]')).not.toBeNull();
+  });
+
+  it('has no data-current when not current', () => {
+    const { container } = render(
+      <W>
+        <TrackRow track={baseTrack} variant="desktop" categoryId="c1" />
+      </W>,
+    );
+    expect(container.querySelector('[data-current="true"]')).toBeNull();
+  });
+});
+
 describe('TrackRow — Play button', () => {
   beforeEach(() => {
     tokenStore.set('TOK');

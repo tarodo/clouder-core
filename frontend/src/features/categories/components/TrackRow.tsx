@@ -17,9 +17,10 @@ export interface TrackRowProps {
   categoryId: string;
   actions?: ReactNode;
   onPlay?: () => void;
+  isCurrent?: boolean;
 }
 
-export function TrackRow({ track, variant, categoryId, actions, onPlay }: TrackRowProps) {
+export function TrackRow({ track, variant, categoryId, actions, onPlay, isCurrent }: TrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
     <IconAlertTriangle
@@ -55,7 +56,10 @@ export function TrackRow({ track, variant, categoryId, actions, onPlay }: TrackR
 
   if (variant === 'desktop') {
     return (
-      <Table.Tr>
+      <Table.Tr
+        data-current={isCurrent ? 'true' : undefined}
+        bg={isCurrent ? 'var(--mantine-color-default-hover)' : undefined}
+      >
         <Table.Td>
           <Group gap="xs" wrap="nowrap">
             {playButton}
@@ -88,7 +92,13 @@ export function TrackRow({ track, variant, categoryId, actions, onPlay }: TrackR
   }
 
   return (
-    <Card withBorder padding="sm" style={{ position: 'relative' }}>
+    <Card
+      withBorder
+      padding="sm"
+      style={{ position: 'relative' }}
+      data-current={isCurrent ? 'true' : undefined}
+      bg={isCurrent ? 'var(--mantine-color-default-hover)' : undefined}
+    >
       {actions && (
         <div style={{ position: 'absolute', top: 8, right: 8 }}>{actions}</div>
       )}
