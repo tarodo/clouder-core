@@ -501,7 +501,10 @@
         "pick_track": "Pick a track to start playing"
       },
       "back_aria": "Back to tracks",
-      "open_in_spotify_aria": "Open {{title}} in Spotify (new tab)"
+      "open_in_spotify_aria": "Open {{title}} in Spotify (new tab)",
+      "distribute": {
+        "heading": "Move current track to"
+      }
     },
     "bucket_type": {
       "STAGING_label": "{{name}}",
