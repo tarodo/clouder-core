@@ -6,6 +6,7 @@ import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CategoryPlayerPanel } from '../CategoryPlayerPanel';
 import { undoStack } from '../../hooks/useUndoStack';
+import type { CategoryTrack } from '../../hooks/useCategoryTracks';
 
 const playback = {
   controls: {
@@ -89,14 +90,17 @@ vi.mock('../../../playlists/hooks/useRemoveTrackFromPlaylist', () => ({
 vi.mock('../../hooks/useRemoveTrackOptimistic', () => ({
   useRemoveTrackOptimistic: () => ({ mutateAsync: vi.fn(() => Promise.resolve()) }),
 }));
+vi.mock('../../../library/components/LabelTile', () => ({
+  LabelTile: () => <div data-testid="label-tile" />,
+}));
 
-function ui() {
+function ui(items: CategoryTrack[] = []) {
   const qc = new QueryClient();
   return (
     <QueryClientProvider client={qc}>
       <MantineProvider>
         <Notifications />
-        <CategoryPlayerPanel categoryId="c1" styleId="s1" items={[]} />
+        <CategoryPlayerPanel categoryId="c1" styleId="s1" items={items} />
       </MantineProvider>
     </QueryClientProvider>
   );
@@ -134,5 +138,23 @@ describe('CategoryPlayerPanel', () => {
     render(ui());
     await userEvent.keyboard('u');
     expect(undo).toHaveBeenCalledOnce();
+  });
+
+  const labeledTrack: CategoryTrack = {
+    id: 't1', title: 'X', mix_name: null, artists: [{ id: 'a1', name: 'A' }],
+    label: { id: 'lbl1', name: 'L' }, bpm: 120, length_ms: 200000,
+    publish_date: null, spotify_release_date: null, isrc: null,
+    spotify_id: 'sp1', release_type: null, is_ai_suspected: false,
+    used_in_playlist: false, added_at: '2026-01-01T00:00:00Z',
+    source_triage_block_id: null, tags: [],
+  };
+
+  it('renders the LabelTile after the playlists section', () => {
+    render(ui([labeledTrack]));
+    const playlistsHeading = screen.getByText('Playlists');
+    const labelTile = screen.getByTestId('label-tile');
+    expect(
+      playlistsHeading.compareDocumentPosition(labelTile) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

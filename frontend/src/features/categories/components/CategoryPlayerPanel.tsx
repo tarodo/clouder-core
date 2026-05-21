@@ -260,13 +260,6 @@ export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlay
         onOpenDevicePicker={() => playback.devices.open(null)}
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
       />
-      {effectiveRich?.label?.id && (
-        <LabelTile
-          labelId={effectiveRich.label.id}
-          labelName={effectiveRich.label.name ?? null}
-          styleId={styleId}
-        />
-      )}
       <Divider />
       <Text fw={500} size="sm">
         {t('category_player.sections.tags')}
@@ -287,6 +280,13 @@ export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlay
         onAdd={(id) => void onAddPlaylist(id)}
         onRemove={(id) => void onRemovePlaylist(id)}
       />
+      {effectiveRich?.label?.id && (
+        <LabelTile
+          labelId={effectiveRich.label.id}
+          labelName={effectiveRich.label.name ?? null}
+          styleId={styleId}
+        />
+      )}
     </Stack>
   );
 }
