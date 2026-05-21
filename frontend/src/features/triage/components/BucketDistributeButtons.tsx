@@ -1,4 +1,4 @@
-import { Button, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Chip, Group, Stack, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { bucketLabel, type TriageBucket } from '../lib/bucketLabels';
 
@@ -24,24 +24,20 @@ export function BucketDistributeButtons({
       >
         {t('triage.bucket_player.distribute.heading')}
       </Text>
-      <SimpleGrid cols={{ base: 2, md: 3 }} spacing="xs" verticalSpacing="xs">
-        {destinations.map((b) => {
-          const label = bucketLabel(b, t);
-          return (
-            <Button
-              key={b.id}
-              variant={b.bucket_type === 'DISCARD' ? 'light' : 'default'}
-              color={b.bucket_type === 'DISCARD' ? 'red' : undefined}
-              size="sm"
-              onClick={() => onDistribute(b.id)}
-              aria-label={label}
-              styles={{ label: { whiteSpace: 'normal' } }}
-            >
-              {label}
-            </Button>
-          );
-        })}
-      </SimpleGrid>
+      <Group gap="xs" wrap="wrap">
+        {destinations.map((b) => (
+          <Chip
+            key={b.id}
+            checked={false}
+            size="sm"
+            variant="outline"
+            color={b.bucket_type === 'DISCARD' ? 'red' : undefined}
+            onChange={() => onDistribute(b.id)}
+          >
+            {bucketLabel(b, t)}
+          </Chip>
+        ))}
+      </Group>
     </Stack>
   );
 }
