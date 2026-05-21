@@ -124,6 +124,84 @@ describe('BucketTrackRow desktop', () => {
     await userEvent.click(await screen.findByRole('menuitem', { name: /Transfer to other block/ }));
     expect(onTransfer).toHaveBeenCalledTimes(1);
   });
+
+  it('renders an enabled Play button and calls onPlay when track has spotify_id', async () => {
+    const onPlay = vi.fn();
+    r(
+      <Table>
+        <Table.Tbody>
+          <BucketTrackRow
+            track={{ ...track, spotify_id: 'sp1' }}
+            variant="desktop"
+            buckets={buckets}
+            currentBucketId="src"
+            onMove={vi.fn()}
+            showMoveMenu
+            onPlay={onPlay}
+          />
+        </Table.Tbody>
+      </Table>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Play track/i }));
+    expect(onPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables the Play button when spotify_id is null', () => {
+    r(
+      <Table>
+        <Table.Tbody>
+          <BucketTrackRow
+            track={track}
+            variant="desktop"
+            buckets={buckets}
+            currentBucketId="src"
+            onMove={vi.fn()}
+            showMoveMenu
+            onPlay={vi.fn()}
+          />
+        </Table.Tbody>
+      </Table>,
+    );
+    expect(screen.getByRole('button', { name: /Play track/i })).toBeDisabled();
+  });
+
+  it('marks the row data-current when isCurrent', () => {
+    const { container } = r(
+      <Table>
+        <Table.Tbody>
+          <BucketTrackRow
+            track={{ ...track, spotify_id: 'sp1' }}
+            variant="desktop"
+            buckets={buckets}
+            currentBucketId="src"
+            onMove={vi.fn()}
+            showMoveMenu
+            onPlay={vi.fn()}
+            isCurrent
+          />
+        </Table.Tbody>
+      </Table>,
+    );
+    expect(container.querySelector('[data-current="true"]')).not.toBeNull();
+  });
+
+  it('renders no Play button when onPlay is omitted', () => {
+    r(
+      <Table>
+        <Table.Tbody>
+          <BucketTrackRow
+            track={{ ...track, spotify_id: 'sp1' }}
+            variant="desktop"
+            buckets={buckets}
+            currentBucketId="src"
+            onMove={vi.fn()}
+            showMoveMenu
+          />
+        </Table.Tbody>
+      </Table>,
+    );
+    expect(screen.queryByRole('button', { name: /Play track/i })).not.toBeInTheDocument();
+  });
 });
 
 describe('BucketTrackRow mobile', () => {

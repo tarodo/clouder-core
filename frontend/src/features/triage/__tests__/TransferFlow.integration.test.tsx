@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
@@ -11,6 +11,34 @@ import { server } from '../../../test/setup';
 import { testTheme } from '../../../test/theme';
 import { tokenStore } from '../../../auth/tokenStore';
 import '../../../i18n';
+
+vi.mock('../../playback/usePlayback', () => ({
+  usePlayback: () => ({
+    queue: { source: null, tracks: [], cursor: 0, status: 'idle' as const },
+    track: { current: null, positionMs: 0, durationMs: 0 },
+    sdk: { ready: true, error: null },
+    controls: {
+      prewarm: async () => {},
+      play: async () => {},
+      pause: async () => {},
+      togglePlayPause: async () => {},
+      next: async () => {},
+      prev: async () => {},
+      seekMs: async () => {},
+      seekPct: async () => {},
+      bindQueue: () => {},
+      clearQueue: () => {},
+      cancelPendingAdvance: () => {},
+      openSpotifyExternal: () => {},
+    },
+    devices: {
+      list: [], active: null, cloderTabId: null, isLoading: false, error: null,
+      isOpen: false, pickerAnchor: null,
+      open: () => {}, close: () => {}, refresh: async () => {}, pick: async () => {},
+    },
+  }),
+}));
+
 import { BucketDetailPage } from '../routes/BucketDetailPage';
 
 const SRC_BLOCK = {

@@ -496,6 +496,13 @@
         "search_miss_clear": "Clear search"
       }
     },
+    "bucket_player": {
+      "empty": {
+        "pick_track": "Pick a track to start playing"
+      },
+      "back_aria": "Back to tracks",
+      "open_in_spotify_aria": "Open {{title}} in Spotify (new tab)"
+    },
     "bucket_type": {
       "STAGING_label": "{{name}}",
       "STAGING_inactive_label": "{{name}} (inactive)",
@@ -526,7 +533,9 @@
       "length_header": "Length",
       "released_header": "Released",
       "ai_suspected_aria": "AI-suspected track",
-      "actions_header": "Actions"
+      "actions_header": "Actions",
+      "play_aria": "Play track",
+      "play_unavailable": "No Spotify track available"
     },
     "transfer": {
       "menu_item": "Transfer to other block…",

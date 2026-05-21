@@ -1,11 +1,10 @@
-import { useState } from 'react';
 import { Button, Group, Stack, Table, TextInput } from '@mantine/core';
-import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
+import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { IconSearch, IconX } from '../../../components/icons';
 import { EmptyState } from '../../../components/EmptyState';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
-import { useBucketTracks } from '../hooks/useBucketTracks';
+import { useBucketTracks, type BucketTrack } from '../hooks/useBucketTracks';
 import { BucketTrackRow } from './BucketTrackRow';
 import type { TriageBucket } from '../lib/bucketLabels';
 
@@ -17,6 +16,11 @@ export interface BucketTracksListProps {
   onMove: (trackId: string, toBucket: TriageBucket) => void;
   onTransfer?: (trackId: string) => void;
   blockStatus?: 'IN_PROGRESS' | 'FINALIZED';
+  rawSearch: string;
+  onRawSearchChange: (value: string) => void;
+  debouncedSearch: string;
+  onPlay?: (track: BucketTrack) => void;
+  currentTrackId?: string | null;
 }
 
 export function BucketTracksList({
@@ -27,15 +31,18 @@ export function BucketTracksList({
   onMove,
   onTransfer,
   blockStatus,
+  rawSearch,
+  onRawSearchChange,
+  debouncedSearch,
+  onPlay,
+  currentTrackId,
 }: BucketTracksListProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
-  const [rawSearch, setRawSearch] = useState('');
-  const [debounced] = useDebouncedValue(rawSearch.trim(), 300);
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useBucketTracks(
     blockId,
     bucket.id,
-    debounced,
+    debouncedSearch,
   );
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
@@ -47,13 +54,13 @@ export function BucketTracksList({
       placeholder={t('triage.bucket.search_placeholder')}
       leftSection={<IconSearch size={16} />}
       value={rawSearch}
-      onChange={(e) => setRawSearch(e.currentTarget.value)}
+      onChange={(e) => onRawSearchChange(e.currentTarget.value)}
       rightSection={
         rawSearch ? (
           <IconX
             size={16}
             role="button"
-            onClick={() => setRawSearch('')}
+            onClick={() => onRawSearchChange('')}
             style={{ cursor: 'pointer' }}
             aria-label={t('triage.bucket.empty.search_miss_clear')}
           />
@@ -72,14 +79,14 @@ export function BucketTracksList({
   }
 
   if (items.length === 0) {
-    if (debounced) {
+    if (debouncedSearch) {
       return (
         <Stack gap="md">
           {searchInput}
           <EmptyState
             title={t('triage.bucket.empty.search_miss_title')}
             body={
-              <Button variant="default" onClick={() => setRawSearch('')}>
+              <Button variant="default" onClick={() => onRawSearchChange('')}>
                 {t('triage.bucket.empty.search_miss_clear')}
               </Button>
             }
@@ -113,6 +120,8 @@ export function BucketTracksList({
       onTransfer={onTransfer ? () => onTransfer(tr.track_id) : undefined}
       showMoveMenu={showMoveMenu}
       blockStatus={blockStatus}
+      onPlay={onPlay ? () => onPlay(tr) : undefined}
+      isCurrent={currentTrackId != null && tr.track_id === currentTrackId}
     />
   ));
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,6 +10,38 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../../../test/setup';
 import { tokenStore } from '../../../auth/tokenStore';
 import '../../../i18n';
+
+const playSpy = vi.fn();
+const bindQueueSpy = vi.fn();
+const playbackState = {
+  queue: { source: null as unknown, tracks: [] as unknown[], cursor: 0, status: 'idle' as const },
+  track: { current: null as { id: string } | null, positionMs: 0, durationMs: 0 },
+  sdk: { ready: true, error: null },
+  controls: {
+    prewarm: async () => {},
+    play: playSpy,
+    pause: async () => {},
+    togglePlayPause: async () => {},
+    next: async () => {},
+    prev: async () => {},
+    seekMs: async () => {},
+    seekPct: async () => {},
+    bindQueue: bindQueueSpy,
+    clearQueue: () => {},
+    cancelPendingAdvance: () => {},
+    openSpotifyExternal: () => {},
+  },
+  devices: {
+    list: [], active: null, cloderTabId: null, isLoading: false, error: null,
+    isOpen: false, pickerAnchor: null,
+    open: () => {}, close: () => {}, refresh: async () => {}, pick: async () => {},
+  },
+};
+
+vi.mock('../../playback/usePlayback', () => ({
+  usePlayback: () => playbackState,
+}));
+
 import { BucketDetailPage } from '../routes/BucketDetailPage';
 
 function renderAt(path: string) {
@@ -18,7 +50,9 @@ function renderAt(path: string) {
   });
   const router = createMemoryRouter(
     [
-      { path: '/triage/:styleId/:id/buckets/:bucketId', element: <BucketDetailPage /> },
+      { path: '/triage/:styleId/:id/buckets/:bucketId', element: <BucketDetailPage />, children: [
+        { path: 'player', element: <div data-testid="player-page" /> },
+      ] },
       { path: '/triage/:styleId/:id', element: <div data-testid="block-page" /> },
       { path: '/triage/:styleId', element: <div data-testid="list-page" /> },
     ],
@@ -76,6 +110,9 @@ describe('BucketDetailPage integration', () => {
   beforeEach(() => {
     tokenStore.set('TOK');
     notifications.clean();
+    playSpy.mockReset();
+    bindQueueSpy.mockReset();
+    playbackState.track.current = null;
   });
   afterEach(() => notifications.clean());
 
@@ -221,6 +258,20 @@ describe('BucketDetailPage integration', () => {
     );
     renderAt('/triage/s1/b1/buckets/no-such-id');
     expect(await screen.findByText(/Bucket not found/)).toBeInTheDocument();
+  });
+
+  it('plays a track when its Play button is clicked', async () => {
+    const playable = { ...track('t1'), spotify_id: 'sp-t1' };
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(inProgressBlock)),
+      http.get('http://localhost/triage/blocks/b1/buckets/bk3/tracks', () =>
+        HttpResponse.json({ items: [playable], total: 1, limit: 50, offset: 0 }),
+      ),
+    );
+    renderAt('/triage/s1/b1/buckets/bk3');
+    const playBtn = await screen.findByRole('button', { name: /Play track/i });
+    await userEvent.click(playBtn);
+    await waitFor(() => expect(playSpy).toHaveBeenCalled());
   });
 });
 

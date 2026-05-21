@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
-import { Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
-import { Link, Navigate, useParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Anchor, Button, Flex, Group, Stack, Text, Title, useMantineTheme } from '@mantine/core';
+import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
+import { Link, Navigate, Outlet, useMatch, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
@@ -16,10 +17,15 @@ import {
   type MoveInput,
   type MoveSnapshot,
 } from '../hooks/useMoveTracks';
-import { useBucketTracks } from '../hooks/useBucketTracks';
+import { useBucketTracks, type BucketTrack } from '../hooks/useBucketTracks';
 import { BucketTracksList } from '../components/BucketTracksList';
 import { TransferModal } from '../components/TransferModal';
 import { bucketLabel, type TriageBucket } from '../lib/bucketLabels';
+import { useBucketPlayerQueue } from '../hooks/useBucketPlayerQueue';
+import { toPlaybackTrack } from '../lib/toPlaybackTrack';
+import { usePlayback } from '../../playback/usePlayback';
+import { BucketPlayerPanel } from '../components/BucketPlayerPanel';
+import type { BucketDetailOutletContext } from './BucketPlayerPage';
 
 export function BucketDetailPage() {
   const { styleId, id, bucketId } = useParams<{
@@ -44,10 +50,51 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   const move = useMoveTracks(blockId, styleId);
   const undoInflight = useRef(false);
   const [transferTrackId, setTransferTrackId] = useState<string | null>(null);
+  const [rawSearch, setRawSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(rawSearch.trim(), 300);
   const tracksQuery = useBucketTracks(blockId, bucketId, '');
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
   const [bulkTrackIds, setBulkTrackIds] = useState<string[] | null>(null);
   const [collecting, setCollecting] = useState(false);
+
+  // Playback wiring — all hooks BEFORE early returns (Rules of Hooks)
+  const navigate = useNavigate();
+  const playback = usePlayback();
+  const theme = useMantineTheme();
+  const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
+  const onPlayerSubpath = useMatch({
+    path: '/triage/:styleId/:id/buckets/:bucketId/player',
+    end: false,
+  });
+
+  const playerQuery = useBucketTracks(blockId, bucketId, debouncedSearch);
+  const playerItems = useMemo(
+    () => playerQuery.data?.pages.flatMap((p) => p.items) ?? [],
+    [playerQuery.data],
+  );
+  const playerTracks = useMemo(() => playerItems.map(toPlaybackTrack), [playerItems]);
+  useBucketPlayerQueue(blockId, bucketId, playerTracks);
+
+  useEffect(() => {
+    void playback.controls.prewarm();
+  }, [playback.controls]);
+
+  const playTrack = useCallback(
+    (tr: BucketTrack) => {
+      if (!tr.spotify_id) return;
+      void playback.controls.prewarm();
+      const queueIdx = playback.queue.tracks.findIndex((q) => q.id === tr.track_id);
+      if (queueIdx >= 0) {
+        void playback.controls.play(queueIdx);
+      } else {
+        void playback.controls.play(undefined, toPlaybackTrack(tr));
+      }
+      if (!isDesktop) {
+        navigate(`/triage/${styleId}/${blockId}/buckets/${bucketId}/player`);
+      }
+    },
+    [playback.controls, playback.queue.tracks, isDesktop, navigate, styleId, blockId, bucketId],
+  );
 
   if (isLoading) return <FullScreenLoader />;
   if (isError) {
@@ -88,6 +135,13 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
           </Anchor>
         }
       />
+    );
+  }
+
+  // Mobile player outlet short-circuit
+  if (onPlayerSubpath) {
+    return (
+      <Outlet context={{ items: playerItems } satisfies BucketDetailOutletContext} />
     );
   }
 
@@ -188,6 +242,23 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
     });
   };
 
+  const tracksList = (
+    <BucketTracksList
+      blockId={blockId}
+      bucket={bucket}
+      buckets={block.buckets}
+      showMoveMenu={showMoveMenu}
+      onMove={handleMove}
+      onTransfer={(trackId) => setTransferTrackId(trackId)}
+      blockStatus={block.status}
+      rawSearch={rawSearch}
+      onRawSearchChange={setRawSearch}
+      debouncedSearch={debouncedSearch}
+      onPlay={playTrack}
+      currentTrackId={playback.track.current?.id ?? null}
+    />
+  );
+
   return (
     <Stack gap="lg">
       <Anchor
@@ -233,15 +304,14 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
           })}
         </Text>
       </Stack>
-      <BucketTracksList
-        blockId={blockId}
-        bucket={bucket}
-        buckets={block.buckets}
-        showMoveMenu={showMoveMenu}
-        onMove={handleMove}
-        onTransfer={(trackId) => setTransferTrackId(trackId)}
-        blockStatus={block.status}
-      />
+      {isDesktop ? (
+        <Flex gap="lg" align="flex-start" wrap="nowrap">
+          <BucketPlayerPanel blockId={blockId} bucketId={bucketId} items={playerItems} />
+          <div style={{ flex: 1, minWidth: 0 }}>{tracksList}</div>
+        </Flex>
+      ) : (
+        tracksList
+      )}
       {transferTrackId && (
         <TransferModal
           opened

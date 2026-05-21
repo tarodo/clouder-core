@@ -12,6 +12,7 @@ import { TriageIndexRedirect } from '../features/triage/routes/TriageIndexRedire
 import { TriageListPage } from '../features/triage/routes/TriageListPage';
 import { TriageDetailPage } from '../features/triage/routes/TriageDetailPage';
 import { BucketDetailPage } from '../features/triage/routes/BucketDetailPage';
+import { BucketPlayerPage } from '../features/triage/routes/BucketPlayerPage';
 import {
   CurateIndexRedirect,
   CurateStyleResume,
@@ -70,7 +71,11 @@ export const router = createBrowserRouter([
           { index: true, element: <TriageIndexRedirect /> },
           { path: ':styleId', element: <TriageListPage /> },
           { path: ':styleId/:id', element: <TriageDetailPage /> },
-          { path: ':styleId/:id/buckets/:bucketId', element: <BucketDetailPage /> },
+          {
+            path: ':styleId/:id/buckets/:bucketId',
+            element: <BucketDetailPage />,
+            children: [{ path: 'player', element: <BucketPlayerPage /> }],
+          },
         ],
       },
       {
