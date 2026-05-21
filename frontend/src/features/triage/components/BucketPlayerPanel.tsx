@@ -10,6 +10,7 @@ import { useTriageBlock } from '../hooks/useTriageBlock';
 import { useBucketDistribute } from '../hooks/useBucketDistribute';
 import { BucketDistributeButtons } from './BucketDistributeButtons';
 import { moveDestinationsFor } from '../lib/bucketLabels';
+import { LabelTile } from '../../library/components/LabelTile';
 
 export interface BucketPlayerPanelProps {
   blockId: string;
@@ -75,7 +76,7 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
 
   if (!current) {
     return (
-      <Stack gap="md" style={{ minWidth: 0, flex: '0 0 360px', maxWidth: 360 }}>
+      <Stack gap="md" style={{ width: 520, flexShrink: 0, minWidth: 0 }}>
         <Text c="dimmed">{t('triage.bucket_player.empty.pick_track')}</Text>
       </Stack>
     );
@@ -102,7 +103,7 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
     ) : null;
 
   return (
-    <Stack gap="md" style={{ minWidth: 0, flex: '0 0 360px', maxWidth: 360 }}>
+    <Stack gap="md" style={{ width: 520, flexShrink: 0, minWidth: 0 }}>
       <PlayerCard
         variant="full"
         state={playerState}
@@ -131,6 +132,11 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
       />
       <BucketDistributeButtons destinations={destinations} onDistribute={distribute} />
+      <LabelTile
+        labelId={effectiveRich?.label_id ?? null}
+        labelName={effectiveRich?.label_name ?? null}
+        styleId={block?.style_id ?? ''}
+      />
     </Stack>
   );
 }

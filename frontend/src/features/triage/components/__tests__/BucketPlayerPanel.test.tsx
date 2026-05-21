@@ -46,6 +46,9 @@ vi.mock('../../hooks/useTriageBlock', () => ({
 vi.mock('../../hooks/useBucketDistribute', () => ({
   useBucketDistribute: () => distributeSpy,
 }));
+vi.mock('../../../library/components/LabelTile', () => ({
+  LabelTile: () => <div data-testid="label-tile" />,
+}));
 
 import { BucketPlayerPanel } from '../BucketPlayerPanel';
 
@@ -128,5 +131,15 @@ describe('BucketPlayerPanel', () => {
     r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[item]} />);
     await userEvent.click(screen.getByText('Techno'));
     expect(distributeSpy).toHaveBeenCalledWith('bk2');
+  });
+
+  it('renders the LabelTile after the distribute buttons when playing', () => {
+    current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
+    r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[item]} />);
+    const heading = screen.getByText('Move current track to');
+    const labelTile = screen.getByTestId('label-tile');
+    expect(
+      heading.compareDocumentPosition(labelTile) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });
