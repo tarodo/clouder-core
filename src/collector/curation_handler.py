@@ -1023,6 +1023,8 @@ def _serialize_triage_block(row, correlation_id: str) -> dict[str, Any]:
         "date_from": row.date_from,
         "date_to": row.date_to,
         "status": row.status,
+        "old_offset_weeks": row.old_offset_weeks,
+        "include_disliked_labels": row.include_disliked_labels,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
         "finalized_at": row.finalized_at,
@@ -1051,6 +1053,8 @@ def _create_triage_block(
         name=schema.name,
         date_from=schema.date_from,
         date_to=schema.date_to,
+        old_offset_weeks=schema.old_offset_weeks,
+        include_disliked_labels=schema.include_disliked_labels,
     )
     log_event(
         "INFO",
