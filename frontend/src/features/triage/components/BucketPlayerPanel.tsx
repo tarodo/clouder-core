@@ -76,7 +76,19 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
 
   if (!current) {
     return (
-      <Stack gap="md" style={{ width: 442, flexShrink: 0, minWidth: 0 }}>
+      <Stack
+      gap="md"
+      style={{
+        width: 442,
+        flexShrink: 0,
+        minWidth: 0,
+        alignSelf: 'flex-start',
+        position: 'sticky',
+        top: 'calc(var(--app-shell-header-offset, 3.5rem) + var(--mantine-spacing-sm))',
+        maxHeight: 'calc(100vh - var(--app-shell-header-offset, 3.5rem) - var(--mantine-spacing-md))',
+        overflowY: 'auto',
+      }}
+    >
         <Text c="dimmed">{t('triage.bucket_player.empty.pick_track')}</Text>
       </Stack>
     );
@@ -103,7 +115,19 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
     ) : null;
 
   return (
-    <Stack gap="md" style={{ width: 442, flexShrink: 0, minWidth: 0 }}>
+    <Stack
+      gap="md"
+      style={{
+        width: 442,
+        flexShrink: 0,
+        minWidth: 0,
+        alignSelf: 'flex-start',
+        position: 'sticky',
+        top: 'calc(var(--app-shell-header-offset, 3.5rem) + var(--mantine-spacing-sm))',
+        maxHeight: 'calc(100vh - var(--app-shell-header-offset, 3.5rem) - var(--mantine-spacing-md))',
+        overflowY: 'auto',
+      }}
+    >
       <PlayerCard
         variant="full"
         state={playerState}
