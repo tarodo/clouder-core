@@ -152,34 +152,67 @@ class TestBucketConstants:
 
 
 class TestClassifyBucketType:
-    """Mirrors the SQL CASE in §6.1; used by repository tests as a fixture."""
+    """Mirrors the SQL CASE; used by repository tests as a fixture."""
+
+    def test_disliked_is_highest_priority(self) -> None:
+        # Disliked wins over OLD, compilation, and NULL date.
+        assert (
+            classify_bucket_type(
+                spotify_release_date=None,
+                release_type="compilation",
+                old_cutoff=date(2026, 4, 1),
+                is_disliked=True,
+            )
+            == BUCKET_TYPE_NOT
+        )
+        assert (
+            classify_bucket_type(
+                spotify_release_date=date(2020, 1, 1),
+                release_type="single",
+                old_cutoff=date(2026, 4, 1),
+                is_disliked=True,
+            )
+            == BUCKET_TYPE_NOT
+        )
 
     def test_null_release_date(self) -> None:
         assert (
             classify_bucket_type(
                 spotify_release_date=None,
                 release_type="single",
-                date_from=date(2026, 4, 1),
+                old_cutoff=date(2026, 4, 1),
             )
             == BUCKET_TYPE_UNCLASSIFIED
         )
 
-    def test_release_before_window(self) -> None:
+    def test_release_before_cutoff(self) -> None:
         assert (
             classify_bucket_type(
                 spotify_release_date=date(2025, 1, 1),
                 release_type="single",
-                date_from=date(2026, 4, 1),
+                old_cutoff=date(2026, 4, 1),
             )
             == BUCKET_TYPE_OLD
         )
 
-    def test_compilation_in_window(self) -> None:
+    def test_buffer_between_cutoff_and_date_from_is_new(self) -> None:
+        # old_cutoff is date_from shifted back; a release inside the buffer
+        # window (>= cutoff) is NEW, not OLD.
+        assert (
+            classify_bucket_type(
+                spotify_release_date=date(2026, 3, 25),
+                release_type="single",
+                old_cutoff=date(2026, 3, 18),
+            )
+            == BUCKET_TYPE_NEW
+        )
+
+    def test_compilation_after_cutoff(self) -> None:
         assert (
             classify_bucket_type(
                 spotify_release_date=date(2026, 4, 15),
                 release_type="compilation",
-                date_from=date(2026, 4, 1),
+                old_cutoff=date(2026, 4, 1),
             )
             == BUCKET_TYPE_NOT
         )
@@ -189,7 +222,7 @@ class TestClassifyBucketType:
             classify_bucket_type(
                 spotify_release_date=date(2025, 12, 1),
                 release_type="compilation",
-                date_from=date(2026, 4, 1),
+                old_cutoff=date(2026, 4, 1),
             )
             == BUCKET_TYPE_OLD
         )
@@ -199,18 +232,18 @@ class TestClassifyBucketType:
             classify_bucket_type(
                 spotify_release_date=date(2026, 4, 15),
                 release_type="single",
-                date_from=date(2026, 4, 1),
+                old_cutoff=date(2026, 4, 1),
             )
             == BUCKET_TYPE_NEW
         )
 
-    def test_release_equal_to_date_from_is_new(self) -> None:
+    def test_release_equal_to_cutoff_is_new(self) -> None:
         # `<` not `<=`
         assert (
             classify_bucket_type(
                 spotify_release_date=date(2026, 4, 1),
                 release_type="single",
-                date_from=date(2026, 4, 1),
+                old_cutoff=date(2026, 4, 1),
             )
             == BUCKET_TYPE_NEW
         )
