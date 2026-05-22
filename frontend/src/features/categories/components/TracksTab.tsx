@@ -186,7 +186,6 @@ export function TracksTab({
             key={tr.id}
             track={tr}
             variant="mobile"
-            categoryId={categoryId}
             onPlay={() => onPlay(tr)}
             isCurrent={currentTrackId != null && tr.id === currentTrackId}
             actions={
@@ -249,7 +248,6 @@ export function TracksTab({
               key={track.id}
               track={track}
               variant="desktop"
-              categoryId={categoryId}
               onPlay={() => onPlay(track)}
               isCurrent={currentTrackId != null && track.id === currentTrackId}
               actions={

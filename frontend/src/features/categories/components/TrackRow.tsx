@@ -14,13 +14,12 @@ function joinArtists(artists: CategoryTrack['artists']): string {
 export interface TrackRowProps {
   track: CategoryTrack;
   variant: 'desktop' | 'mobile';
-  categoryId: string;
   actions?: ReactNode;
   onPlay?: () => void;
   isCurrent?: boolean;
 }
 
-export function TrackRow({ track, variant, categoryId: _categoryId, actions, onPlay, isCurrent }: TrackRowProps) {
+export function TrackRow({ track, variant, actions, onPlay, isCurrent }: TrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
     <IconAlertTriangle
