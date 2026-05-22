@@ -27,6 +27,7 @@ import { server } from '../../../test/setup';
 import { tokenStore } from '../../../auth/tokenStore';
 import { testTheme } from '../../../test/theme';
 import { TracksTab } from '../../categories/components/TracksTab';
+import { PlayerPanelTagCloud } from '../../categories/components/PlayerPanelTagCloud';
 import { useState } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useSearchParams } from 'react-router';
@@ -170,6 +171,13 @@ describe('Track-tags end-to-end', () => {
     render(
       <W>
         <TracksTabHarness categoryId="c1" styleId="s1" />
+        <PlayerPanelTagCloud
+          categoryId="c1"
+          trackId="t1"
+          assignedTagIds={[]}
+          onAdd={() => {}}
+          onRemove={() => {}}
+        />
       </W>,
     );
 
@@ -184,8 +192,8 @@ describe('Track-tags end-to-end', () => {
     // 2. close manager, attach to track via popover
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    const cellAddBtn = await screen.findByRole('button', { name: /add tag/i });
-    await userEvent.click(cellAddBtn);
+    const playerAddBtn = await screen.findByRole('button', { name: /add tag/i });
+    await userEvent.click(playerAddBtn);
     await userEvent.click(await screen.findByRole('checkbox', { name: /vocal/i }));
 
     // 3. row pill appears (track row eventually carries the Vocal pill after refetch)

@@ -60,7 +60,7 @@ describe('TrackRow tag cell', () => {
   it('renders existing tag pills (desktop)', () => {
     render(
       <W>
-        <TrackRow track={baseTrack} variant="desktop" categoryId="c1" />
+        <TrackRow track={baseTrack} variant="desktop" />
       </W>,
     );
     expect(screen.getByText('Vocal')).toBeInTheDocument();
@@ -81,7 +81,7 @@ describe('TrackRow — used_in_playlist badge', () => {
     const track: CategoryTrack = { ...baseTrack, used_in_playlist: true };
     render(
       <W>
-        <TrackRow track={track} variant="desktop" categoryId="c1" />
+        <TrackRow track={track} variant="desktop" />
       </W>,
     );
     expect(screen.getByText('In playlist')).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('TrackRow — used_in_playlist badge', () => {
     const track: CategoryTrack = { ...baseTrack, used_in_playlist: false };
     render(
       <W>
-        <TrackRow track={track} variant="desktop" categoryId="c1" />
+        <TrackRow track={track} variant="desktop" />
       </W>,
     );
     expect(screen.queryByText('In playlist')).not.toBeInTheDocument();
@@ -101,7 +101,7 @@ describe('TrackRow — used_in_playlist badge', () => {
     const track: CategoryTrack = { ...baseTrack, used_in_playlist: true };
     render(
       <WMobile>
-        <TrackRow track={track} variant="mobile" categoryId="c1" />
+        <TrackRow track={track} variant="mobile" />
       </WMobile>,
     );
     expect(screen.getByText('In playlist')).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe('TrackRow — used_in_playlist badge', () => {
     const track: CategoryTrack = { ...baseTrack, used_in_playlist: false };
     render(
       <WMobile>
-        <TrackRow track={track} variant="mobile" categoryId="c1" />
+        <TrackRow track={track} variant="mobile" />
       </WMobile>,
     );
     expect(screen.queryByText('In playlist')).not.toBeInTheDocument();
@@ -131,7 +131,7 @@ describe('TrackRow — isCurrent highlight', () => {
   it('marks the row data-current when isCurrent', () => {
     const { container } = render(
       <W>
-        <TrackRow track={baseTrack} variant="desktop" categoryId="c1" isCurrent />
+        <TrackRow track={baseTrack} variant="desktop" isCurrent />
       </W>,
     );
     expect(container.querySelector('[data-current="true"]')).not.toBeNull();
@@ -140,7 +140,7 @@ describe('TrackRow — isCurrent highlight', () => {
   it('has no data-current when not current', () => {
     const { container } = render(
       <W>
-        <TrackRow track={baseTrack} variant="desktop" categoryId="c1" />
+        <TrackRow track={baseTrack} variant="desktop" />
       </W>,
     );
     expect(container.querySelector('[data-current="true"]')).toBeNull();
@@ -156,7 +156,7 @@ describe('TrackRow — Play button', () => {
   it('does NOT render a play icon when onPlay is omitted', () => {
     render(
       <W>
-        <TrackRow track={baseTrack} variant="desktop" categoryId="c1" />
+        <TrackRow track={baseTrack} variant="desktop" />
       </W>,
     );
     expect(screen.queryByRole('button', { name: /play track/i })).not.toBeInTheDocument();
@@ -170,8 +170,7 @@ describe('TrackRow — Play button', () => {
         <TrackRow
           track={{ ...baseTrack, spotify_id: 'sp1' }}
           variant="desktop"
-          categoryId="c1"
-          onPlay={onPlay}
+                   onPlay={onPlay}
         />
       </W>,
     );
@@ -188,8 +187,7 @@ describe('TrackRow — Play button', () => {
         <TrackRow
           track={{ ...baseTrack, spotify_id: null }}
           variant="desktop"
-          categoryId="c1"
-          onPlay={onPlay}
+                   onPlay={onPlay}
         />
       </W>,
     );

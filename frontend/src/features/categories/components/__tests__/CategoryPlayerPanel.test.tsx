@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -63,6 +64,7 @@ vi.mock('../../../tags', () => ({
     data: [{ id: 'tag-1', name: 'Acid', color: 'red' }],
     isLoading: false,
   }),
+  TrackTagsPopover: ({ target }: { target: React.ReactNode }) => <>{target}</>,
 }));
 vi.mock('../../../playlists/hooks/usePlaylists', () => ({
   usePlaylists: () => ({

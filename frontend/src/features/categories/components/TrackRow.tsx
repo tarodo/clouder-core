@@ -14,13 +14,12 @@ function joinArtists(artists: CategoryTrack['artists']): string {
 export interface TrackRowProps {
   track: CategoryTrack;
   variant: 'desktop' | 'mobile';
-  categoryId: string;
   actions?: ReactNode;
   onPlay?: () => void;
   isCurrent?: boolean;
 }
 
-export function TrackRow({ track, variant, categoryId, actions, onPlay, isCurrent }: TrackRowProps) {
+export function TrackRow({ track, variant, actions, onPlay, isCurrent }: TrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
     <IconAlertTriangle
@@ -29,9 +28,7 @@ export function TrackRow({ track, variant, categoryId, actions, onPlay, isCurren
       color="var(--color-warning)"
     />
   ) : null;
-  const tagsCell = (
-    <TrackTagsCell categoryId={categoryId} trackId={track.id} tags={track.tags} />
-  );
+  const tagsCell = <TrackTagsCell tags={track.tags} />;
 
   const canPlay = !!onPlay && !!track.spotify_id;
   const playButton = onPlay ? (
