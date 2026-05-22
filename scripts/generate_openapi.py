@@ -295,6 +295,8 @@ TRIAGE_BLOCK_DETAIL = {
         "created_at": {"type": "string"},
         "updated_at": {"type": "string"},
         "finalized_at": {"type": ["string", "null"]},
+        "old_offset_weeks": {"type": "integer"},
+        "include_disliked_labels": {"type": "boolean"},
         "buckets": {
             "type": "array",
             "items": TRIAGE_BUCKET_ROW,
