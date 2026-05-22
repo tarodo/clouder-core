@@ -37,7 +37,12 @@ class OpenAIAdapter:
         else:
             from openai import OpenAI
 
-            self._client = OpenAI(api_key=api_key, timeout=timeout_s)
+            # web_search runs are long; the SDK's default retries (2) compound
+            # the timeout to ~3x and re-run the web search each time. Disable
+            # them — the SQS/worker layer owns retry.
+            self._client = OpenAI(
+                api_key=api_key, timeout=timeout_s, max_retries=0
+            )
 
     def run(
         self,

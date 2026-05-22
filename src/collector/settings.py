@@ -197,7 +197,7 @@ class LabelEnrichmentWorkerSettings(_SettingsBase):
         default=0.5, alias="AI_FLAG_CONFIDENCE_THRESHOLD", ge=0.0, le=1.0,
     )
     request_timeout_s: float = Field(
-        default=120.0, alias="LABEL_ENRICHMENT_REQUEST_TIMEOUT_S", ge=1.0,
+        default=300.0, alias="LABEL_ENRICHMENT_REQUEST_TIMEOUT_S", ge=1.0,
     )
     label_enrichment_queue_url: str = Field(
         default="", alias="LABEL_ENRICHMENT_QUEUE_URL",
