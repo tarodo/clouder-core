@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date as date_type, datetime
+from datetime import date as date_type, datetime, timedelta
 from typing import Any, Iterable, Sequence
 from uuid import uuid4
 
@@ -122,8 +122,11 @@ class TriageRepository:
         name: str,
         date_from: date_type,
         date_to: date_type,
+        old_offset_weeks: int = 0,
+        include_disliked_labels: bool = False,
     ) -> TriageBlockRow:
         now = utc_now()
+        old_cutoff = date_from - timedelta(weeks=old_offset_weeks)
 
         with self._data_api.transaction() as tx_id:
             # 1. Verify style exists (and grab name for response shape).
@@ -148,10 +151,12 @@ class TriageRepository:
                 INSERT INTO triage_blocks (
                     id, user_id, style_id, name,
                     date_from, date_to, status,
+                    old_offset_weeks, include_disliked_labels,
                     created_at, updated_at
                 ) VALUES (
                     :id, :user_id, :style_id, :name,
                     :date_from, :date_to, 'IN_PROGRESS',
+                    :old_offset_weeks, :include_disliked_labels,
                     :now, :now
                 )
                 """,
@@ -162,6 +167,8 @@ class TriageRepository:
                     "name": name,
                     "date_from": date_from,
                     "date_to": date_to,
+                    "old_offset_weeks": old_offset_weeks,
+                    "include_disliked_labels": include_disliked_labels,
                     "now": now,
                 },
                 transaction_id=tx_id,
@@ -230,16 +237,33 @@ class TriageRepository:
                     transaction_id=tx_id,
                 )
 
-            # 5. Classify and insert tracks (R4 in one INSERT FROM SELECT).
-            self._data_api.execute(
+            # 5. Classify and insert tracks (one INSERT FROM SELECT).
+            #    Disliked-label branch is highest priority and only present
+            #    when the toggle is on (built as a SQL string fragment so we
+            #    avoid binding a no-op subquery when off).
+            disliked_when = ""
+            if include_disliked_labels:
+                disliked_when = """
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM clouder_albums a
+                            JOIN clouder_user_label_prefs ulp
+                              ON ulp.label_id = a.label_id
+                            WHERE a.id = t.album_id
+                              AND ulp.user_id = :user_id
+                              AND ulp.status = 'disliked'
+                        ) THEN :not_bucket_id
                 """
+            self._data_api.execute(
+                f"""
                 INSERT INTO triage_bucket_tracks
                     (triage_bucket_id, track_id, added_at)
                 SELECT
                     CASE
+                        {disliked_when}
                         WHEN t.spotify_release_date IS NULL
                             THEN :unclassified_bucket_id
-                        WHEN t.spotify_release_date < :date_from
+                        WHEN t.spotify_release_date < :old_cutoff
                             THEN :old_bucket_id
                         WHEN t.release_type = 'compilation'
                             THEN :not_bucket_id
@@ -265,6 +289,7 @@ class TriageRepository:
                     "style_id": style_id,
                     "date_from": date_from,
                     "date_to": date_to,
+                    "old_cutoff": old_cutoff,
                     "now": now,
                     "new_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_NEW],
                     "old_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_OLD],

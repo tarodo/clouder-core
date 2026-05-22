@@ -231,19 +231,76 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
     assert "INSERT INTO triage_bucket_tracks" in sql
     assert "FROM clouder_tracks t" in sql
     assert "spotify_release_date IS NULL" in sql
-    assert "t.spotify_release_date < :date_from" in sql
+    assert "t.spotify_release_date < :old_cutoff" in sql
     assert "release_type = 'compilation'" in sql
     assert "NOT EXISTS" in sql
     assert "categories c" in sql
     assert "c.deleted_at IS NULL" in sql
+    # Disliked branch is omitted unless the toggle is on (default off here).
+    assert "clouder_user_label_prefs" not in sql
     assert params["user_id"] == "u-1"
     assert params["style_id"] == "s-1"
     assert params["date_from"] == date(2026, 4, 20)
-    assert params["date_to"] == date(2026, 4, 26)
+    # offset 0 -> cutoff equals date_from.
+    assert params["old_cutoff"] == date(2026, 4, 20)
     assert "new_bucket_id" in params
     assert "old_bucket_id" in params
     assert "not_bucket_id" in params
     assert "unclassified_bucket_id" in params
+
+
+def test_create_block_classify_sql_includes_disliked_branch_and_offset() -> None:
+    """Spot-check the disliked-label branch and old_offset_weeks calculation."""
+    api = _api_with_responses(
+        [
+            [{"id": "s-1", "name": "House"}],
+            [{"id": "b-1"}],
+            [
+                {"id": f"t-{i}", "bucket_type": t}
+                for i, t in enumerate(
+                    ["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED"]
+                )
+            ],
+            [],  # no alive categories
+            [],  # classify INSERT
+            [
+                {
+                    "id": "b-1",
+                    "user_id": "u-1",
+                    "style_id": "s-1",
+                    "style_name": "House",
+                    "name": "X",
+                    "date_from": "2026-04-20",
+                    "date_to": "2026-04-26",
+                    "status": "IN_PROGRESS",
+                    "created_at": "2026-04-28T00:00:00+00:00",
+                    "updated_at": "2026-04-28T00:00:00+00:00",
+                    "finalized_at": None,
+                }
+            ],
+            [],  # buckets-with-counts (5 technical, no staging)
+        ]
+    )
+    repo = TriageRepository(api)
+    repo.create_block(
+        user_id="u-1",
+        style_id="s-1",
+        name="X",
+        date_from=date(2026, 4, 20),
+        date_to=date(2026, 4, 26),
+        old_offset_weeks=2,
+        include_disliked_labels=True,
+    )
+
+    classify_call = api.execute.call_args_list[4]
+    sql = classify_call.args[0]
+    params = classify_call.args[1]
+    assert "clouder_user_label_prefs" in sql
+    assert "ulp.status = 'disliked'" in sql
+    assert "a.id = t.album_id" in sql
+    assert "t.spotify_release_date < :old_cutoff" in sql
+    assert params["old_cutoff"] == date(2026, 4, 6)  # 2026-04-20 minus 2 weeks
+    assert params["user_id"] == "u-1"
 
 
 def test_get_block_returns_full_detail() -> None:
