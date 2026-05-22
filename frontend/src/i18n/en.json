@@ -420,6 +420,11 @@
       "date_range_label": "Window",
       "date_range_description": "First and last release date covered by this block.",
       "date_range_placeholder": "Pick range",
+      "advanced_toggle": "Advanced options",
+      "old_offset_weeks_label": "OLD depth (weeks)",
+      "old_offset_weeks_description": "Tracks released more than this many weeks before the block start date go to OLD. Set to 0 to send everything before the start date to OLD.",
+      "include_disliked_labels_label": "Send disliked-label tracks to NOT",
+      "include_disliked_labels_description": "Tracks on labels you disliked are placed in NOT, regardless of release date.",
       "create_submit": "Create",
       "cancel": "Cancel"
     },

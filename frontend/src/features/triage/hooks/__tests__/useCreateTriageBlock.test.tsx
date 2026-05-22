@@ -39,6 +39,50 @@ function makeWrapper() {
 }
 
 describe('useCreateTriageBlock', () => {
+  it('sends populate options in the request body', async () => {
+    let capturedBody: Record<string, unknown> = {};
+    server.use(
+      http.post('http://localhost/triage/blocks', async ({ request }) => {
+        capturedBody = await request.clone().json() as Record<string, unknown>;
+        return HttpResponse.json(
+          {
+            id: 'b1',
+            style_name: 'House',
+            style_id: 's-1',
+            name: 'House',
+            date_from: '2026-04-20',
+            date_to: '2026-04-26',
+            status: 'IN_PROGRESS',
+            created_at: 'now',
+            updated_at: 'now',
+            finalized_at: null,
+            buckets: [],
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const { Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useCreateTriageBlock('s-1'), {
+      wrapper: Wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        style_id: 's-1',
+        name: 'House',
+        date_from: '2026-04-20',
+        date_to: '2026-04-26',
+        old_offset_weeks: 2,
+        include_disliked_labels: true,
+      });
+    });
+
+    expect(capturedBody.old_offset_weeks).toBe(2);
+    expect(capturedBody.include_disliked_labels).toBe(true);
+  });
+
   it('happy 201 → invalidates all 3 caches', async () => {
     server.use(
       http.post('http://localhost/triage/blocks', () =>

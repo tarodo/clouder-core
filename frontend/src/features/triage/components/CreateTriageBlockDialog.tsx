@@ -1,16 +1,20 @@
 import { useEffect, useRef } from 'react';
 import {
+  Anchor,
   Button,
+  Collapse,
   Drawer,
   Group,
   Modal,
+  NumberInput,
   Stack,
+  Switch,
   TextInput,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import { useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
@@ -40,6 +44,7 @@ export function CreateTriageBlockDialog({
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
   const userEditedName = useRef(false);
+  const [advancedOpen, advanced] = useDisclosure(false);
 
   const form = useForm<ZodInput>({
     initialValues: {
@@ -47,6 +52,8 @@ export function CreateTriageBlockDialog({
       // Use null placeholders; Zod coercion handles the string conversion on submit.
       name: '',
       dateRange: [null as unknown as Date, null as unknown as Date],
+      oldOffsetWeeks: 0,
+      includeDislikedLabels: false,
     },
     validate: zodResolver(createTriageBlockSchema),
   });
@@ -77,6 +84,7 @@ export function CreateTriageBlockDialog({
   const handleClose = () => {
     form.reset();
     userEditedName.current = false;
+    advanced.close();
     onClose();
   };
 
@@ -88,6 +96,8 @@ export function CreateTriageBlockDialog({
         name: values.name.trim(),
         date_from: dayjs(from).format('YYYY-MM-DD'),
         date_to: dayjs(to).format('YYYY-MM-DD'),
+        old_offset_weeks: values.oldOffsetWeeks,
+        include_disliked_labels: values.includeDislikedLabels,
       });
       notifications.show({
         message: t('triage.toast.created'),
@@ -157,6 +167,26 @@ export function CreateTriageBlockDialog({
           }}
           error={nameError}
         />
+        <Anchor component="button" type="button" size="sm" onClick={advanced.toggle}>
+          {t('triage.form.advanced_toggle')}
+        </Anchor>
+        <Collapse expanded={advancedOpen}>
+          <Stack gap="md">
+            <NumberInput
+              label={t('triage.form.old_offset_weeks_label')}
+              description={t('triage.form.old_offset_weeks_description')}
+              min={0}
+              max={520}
+              allowDecimal={false}
+              {...form.getInputProps('oldOffsetWeeks')}
+            />
+            <Switch
+              label={t('triage.form.include_disliked_labels_label')}
+              description={t('triage.form.include_disliked_labels_description')}
+              {...form.getInputProps('includeDislikedLabels', { type: 'checkbox' })}
+            />
+          </Stack>
+        </Collapse>
         <Group justify="flex-end" gap="sm">
           <Button variant="subtle" onClick={handleClose} disabled={create.isPending}>
             {t('triage.form.cancel')}

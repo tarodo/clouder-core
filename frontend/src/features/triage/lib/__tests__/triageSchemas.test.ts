@@ -61,4 +61,39 @@ describe('createTriageBlockSchema', () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it('defaults oldOffsetWeeks and includeDislikedLabels', () => {
+    const result = createTriageBlockSchema.safeParse({
+      name: 'Tech House W17',
+      dateRange: [new Date('2026-04-20'), new Date('2026-04-26')],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.oldOffsetWeeks).toBe(0);
+      expect(result.data.includeDislikedLabels).toBe(false);
+    }
+  });
+
+  it('accepts provided populate options', () => {
+    const result = createTriageBlockSchema.safeParse({
+      name: 'Tech House W17',
+      dateRange: [new Date('2026-04-20'), new Date('2026-04-26')],
+      oldOffsetWeeks: 3,
+      includeDislikedLabels: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.oldOffsetWeeks).toBe(3);
+      expect(result.data.includeDislikedLabels).toBe(true);
+    }
+  });
+
+  it('rejects negative oldOffsetWeeks', () => {
+    const result = createTriageBlockSchema.safeParse({
+      name: 'Tech House W17',
+      dateRange: [new Date('2026-04-20'), new Date('2026-04-26')],
+      oldOffsetWeeks: -1,
+    });
+    expect(result.success).toBe(false);
+  });
 });

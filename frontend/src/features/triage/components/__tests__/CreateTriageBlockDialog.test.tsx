@@ -165,6 +165,51 @@ describe('CreateTriageBlockDialog', () => {
     expect(await screen.findByText(/End date must be on or after start date/i)).toBeInTheDocument();
   });
 
+  it('submits populate options from the advanced section', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    server.use(
+      http.post('http://localhost/triage/blocks', async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        expect(body.old_offset_weeks).toBe(2);
+        expect(body.include_disliked_labels).toBe(true);
+        return HttpResponse.json(
+          {
+            id: 'b1',
+            style_id: 's1',
+            style_name: 'House',
+            name: 'House W17',
+            date_from: '2026-04-20',
+            date_to: '2026-04-26',
+            status: 'IN_PROGRESS',
+            created_at: 'now',
+            updated_at: 'now',
+            finalized_at: null,
+            buckets: [],
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderDialog({ onClose });
+    const dateInput = screen.getByLabelText('Window');
+    await user.click(dateInput);
+    await user.type(dateInput, '2026-04-20 – 2026-04-26');
+    await waitFor(() => {
+      expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('House W17');
+    });
+
+    await user.click(screen.getByText(/advanced options/i));
+    const weeks = screen.getByLabelText(/OLD depth \(weeks\)/i);
+    await user.clear(weeks);
+    await user.type(weeks, '2');
+    await user.click(screen.getByLabelText(/Send disliked-label tracks to NOT/i));
+    await user.click(screen.getByRole('button', { name: /create/i }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
   it('shows yellow toast on 503 and closes modal', async () => {
     const onClose = vi.fn();
     server.use(

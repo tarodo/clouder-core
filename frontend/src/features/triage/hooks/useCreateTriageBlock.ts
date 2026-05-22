@@ -29,6 +29,8 @@ export interface CreateTriageBlockInput {
   name: string;
   date_from: string;
   date_to: string;
+  old_offset_weeks?: number;
+  include_disliked_labels?: boolean;
 }
 
 export interface TriageBlockDetail {
