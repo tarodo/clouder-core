@@ -34,7 +34,7 @@ def test_settings_resolve_from_direct_env(monkeypatch):
     assert s.tavily_api_key == "t"
     assert s.deepseek_api_key == "d"
     assert s.ai_flag_confidence_threshold == 0.5
-    assert s.request_timeout_s == 120.0
+    assert s.request_timeout_s == 300.0
 
 
 def test_threshold_override(monkeypatch):
