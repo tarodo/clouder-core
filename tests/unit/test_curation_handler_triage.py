@@ -101,6 +101,8 @@ def _fake_block_row() -> TriageBlockRow:
         date_from="2026-04-20",
         date_to="2026-04-26",
         status="IN_PROGRESS",
+        old_offset_weeks=0,
+        include_disliked_labels=False,
         created_at="2026-04-28T12:00:00+00:00",
         updated_at="2026-04-28T12:00:00+00:00",
         finalized_at=None,
@@ -132,7 +134,8 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
 
     class FakeTriageRepo:
         def create_block(
-            self, *, user_id, style_id, name, date_from, date_to
+            self, *, user_id, style_id, name, date_from, date_to,
+            old_offset_weeks=0, include_disliked_labels=False,
         ):
             captured.update(
                 user_id=user_id,
@@ -140,6 +143,8 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
                 name=name,
                 date_from=date_from,
                 date_to=date_to,
+                old_offset_weeks=old_offset_weeks,
+                include_disliked_labels=include_disliked_labels,
             )
             return fake_row
 

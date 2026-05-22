@@ -28,6 +28,8 @@ export const triageDateRangeSchema = z
 export const createTriageBlockSchema = z.object({
   name: triageNameSchema,
   dateRange: triageDateRangeSchema,
+  oldOffsetWeeks: z.number().int().min(0).max(520).default(0),
+  includeDislikedLabels: z.boolean().default(false),
 });
 
 // Use `z.input` (not `z.infer`) so the form's value type matches what Mantine

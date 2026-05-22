@@ -2785,6 +2785,8 @@ export interface paths {
                             created_at: string;
                             updated_at: string;
                             finalized_at?: string | null;
+                            old_offset_weeks?: number;
+                            include_disliked_labels?: boolean;
                             buckets: {
                                 /** Format: uuid */
                                 id: string;
@@ -2984,6 +2986,8 @@ export interface paths {
                             created_at: string;
                             updated_at: string;
                             finalized_at?: string | null;
+                            old_offset_weeks?: number;
+                            include_disliked_labels?: boolean;
                             buckets: {
                                 /** Format: uuid */
                                 id: string;
@@ -3442,6 +3446,8 @@ export interface paths {
                                 created_at: string;
                                 updated_at: string;
                                 finalized_at?: string | null;
+                                old_offset_weeks?: number;
+                                include_disliked_labels?: boolean;
                                 buckets: {
                                     /** Format: uuid */
                                     id: string;
@@ -5419,6 +5425,16 @@ export interface components {
              * Format: date
              */
             date_to: string;
+            /**
+             * Old Offset Weeks
+             * @default 0
+             */
+            old_offset_weeks: number;
+            /**
+             * Include Disliked Labels
+             * @default false
+             */
+            include_disliked_labels: boolean;
         };
         /** MoveTracksIn */
         MoveTracksIn: {

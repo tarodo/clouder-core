@@ -391,6 +391,10 @@ class TriageBlock(Base):
             "status IN ('IN_PROGRESS','FINALIZED')",
             name="ck_triage_blocks_status",
         ),
+        CheckConstraint(
+            "old_offset_weeks >= 0",
+            name="ck_triage_blocks_old_offset_weeks_nonneg",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -405,6 +409,12 @@ class TriageBlock(Base):
     date_to: Mapped[date_type] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, server_default=text("'IN_PROGRESS'")
+    )
+    old_offset_weeks: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    include_disliked_labels: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

@@ -90,19 +90,23 @@ def classify_bucket_type(
     *,
     spotify_release_date: date | None,
     release_type: str | None,
-    date_from: date,
+    old_cutoff: date,
+    is_disliked: bool = False,
 ) -> str:
-    """R4 classification mirror of the SQL CASE.
+    """Pure mirror of the SQL CASE in create_block.
 
-    Matches the ordering in §6.1 of the spec:
-        NULL date -> UNCLASSIFIED
-        date < date_from -> OLD
-        release_type == 'compilation' -> NOT
-        else -> NEW
+    Ordering (first match wins):
+        is_disliked          -> NOT   (highest priority)
+        NULL date            -> UNCLASSIFIED
+        date < old_cutoff    -> OLD
+        compilation          -> NOT
+        else                 -> NEW
     """
+    if is_disliked:
+        return BUCKET_TYPE_NOT
     if spotify_release_date is None:
         return BUCKET_TYPE_UNCLASSIFIED
-    if spotify_release_date < date_from:
+    if spotify_release_date < old_cutoff:
         return BUCKET_TYPE_OLD
     if release_type == "compilation":
         return BUCKET_TYPE_NOT

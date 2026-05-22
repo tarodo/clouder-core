@@ -108,6 +108,46 @@ class TestTransferTracksIn:
         assert len(m.track_ids) == 1
 
 
+class TestCreateTriageBlockInPopulateOptions:
+    def test_defaults_populate_options(self) -> None:
+        m = CreateTriageBlockIn.model_validate(
+            {
+                "style_id": "00000000-0000-0000-0000-000000000001",
+                "name": "House",
+                "date_from": "2026-04-20",
+                "date_to": "2026-04-26",
+            }
+        )
+        assert m.old_offset_weeks == 0
+        assert m.include_disliked_labels is False
+
+    def test_accepts_populate_options(self) -> None:
+        m = CreateTriageBlockIn.model_validate(
+            {
+                "style_id": "00000000-0000-0000-0000-000000000001",
+                "name": "House",
+                "date_from": "2026-04-20",
+                "date_to": "2026-04-26",
+                "old_offset_weeks": 3,
+                "include_disliked_labels": True,
+            }
+        )
+        assert m.old_offset_weeks == 3
+        assert m.include_disliked_labels is True
+
+    def test_rejects_negative_offset(self) -> None:
+        with pytest.raises(ValidationError):
+            CreateTriageBlockIn.model_validate(
+                {
+                    "style_id": "00000000-0000-0000-0000-000000000001",
+                    "name": "House",
+                    "date_from": "2026-04-20",
+                    "date_to": "2026-04-26",
+                    "old_offset_weeks": -1,
+                }
+            )
+
+
 class TestExtraFieldsRejected:
     def test_create_triage_block_in_rejects_unknown_field(self) -> None:
         from datetime import date

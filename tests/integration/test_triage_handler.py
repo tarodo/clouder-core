@@ -119,6 +119,8 @@ class FakeTriageRepo:
             date_from=str(b["date_from"]),
             date_to=str(b["date_to"]),
             status=b["status"],
+            old_offset_weeks=int(b.get("old_offset_weeks", 0)),
+            include_disliked_labels=bool(b.get("include_disliked_labels", False)),
             created_at=b["created_at"],
             updated_at=b["updated_at"],
             finalized_at=b.get("finalized_at"),
@@ -150,6 +152,8 @@ class FakeTriageRepo:
     def create_block(
         self, *, user_id: str, style_id: str, name: str,
         date_from: date, date_to: date,
+        old_offset_weeks: int = 0,
+        include_disliked_labels: bool = False,
     ) -> TriageBlockRow:
         if style_id not in self.styles:
             raise NotFoundError(
@@ -166,6 +170,8 @@ class FakeTriageRepo:
             "date_from": date_from,
             "date_to": date_to,
             "status": "IN_PROGRESS",
+            "old_offset_weeks": old_offset_weeks,
+            "include_disliked_labels": include_disliked_labels,
             "created_at": now,
             "updated_at": now,
             "finalized_at": None,
@@ -438,6 +444,66 @@ def test_create_triage_block_201(fake_triage_repo, context):
         BUCKET_TYPE_NEW, BUCKET_TYPE_OLD, BUCKET_TYPE_NOT,
         BUCKET_TYPE_DISCARD, BUCKET_TYPE_UNCLASSIFIED,
     }
+
+
+def test_create_block_forwards_and_echoes_populate_options(
+    fake_triage_repo, context
+):
+    """Handler must forward old_offset_weeks/include_disliked_labels to
+    create_block and the serializer must echo them in the response body."""
+    # Spy: capture the kwargs passed to create_block and return a row
+    # with the expected field values baked in.
+    captured_kwargs: dict = {}
+    original_create = fake_triage_repo.create_block
+
+    def spy_create_block(**kwargs):
+        captured_kwargs.update(kwargs)
+        # Delegate to the real fake implementation so the block is stored
+        # and the TriageBlockRow is built; then override the two new fields.
+        row = original_create(**kwargs)
+        # Return a new TriageBlockRow with the desired field values.
+        return TriageBlockRow(
+            id=row.id,
+            user_id=row.user_id,
+            style_id=row.style_id,
+            style_name=row.style_name,
+            name=row.name,
+            date_from=row.date_from,
+            date_to=row.date_to,
+            status=row.status,
+            old_offset_weeks=2,
+            include_disliked_labels=True,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            finalized_at=row.finalized_at,
+            buckets=row.buckets,
+        )
+
+    fake_triage_repo.create_block = spy_create_block
+
+    resp = lambda_handler(
+        _event(
+            method="POST",
+            route="/triage/blocks",
+            body={
+                "style_id": STYLE_HOUSE,
+                "name": "House",
+                "date_from": "2026-04-20",
+                "date_to": "2026-04-26",
+                "old_offset_weeks": 2,
+                "include_disliked_labels": True,
+            },
+        ),
+        context,
+    )
+    status, payload = _read(resp)
+    assert status == 201
+    # Assert the handler forwarded the new kwargs to create_block.
+    assert captured_kwargs["old_offset_weeks"] == 2
+    assert captured_kwargs["include_disliked_labels"] is True
+    # Assert the serializer echoes them in the response body.
+    assert payload["old_offset_weeks"] == 2
+    assert payload["include_disliked_labels"] is True
 
 
 def test_create_triage_block_validation_422(fake_triage_repo, context):

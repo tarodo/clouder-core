@@ -37,6 +37,8 @@ class CreateTriageBlockIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
     date_from: date
     date_to: date
+    old_offset_weeks: int = Field(default=0, ge=0, le=520)
+    include_disliked_labels: bool = Field(default=False)
 
     @field_validator("name")
     @classmethod

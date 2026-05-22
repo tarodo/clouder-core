@@ -1827,6 +1827,10 @@ paths:
                     type:
                     - string
                     - 'null'
+                  old_offset_weeks:
+                    type: integer
+                  include_disliked_labels:
+                    type: boolean
                   buckets:
                     type: array
                     items:
@@ -3607,6 +3611,16 @@ components:
           format: date
           title: Date To
           type: string
+        old_offset_weeks:
+          default: 0
+          maximum: 520
+          minimum: 0
+          title: Old Offset Weeks
+          type: integer
+        include_disliked_labels:
+          default: false
+          title: Include Disliked Labels
+          type: boolean
       required:
       - style_id
       - name
