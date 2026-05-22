@@ -20,7 +20,7 @@ export interface TrackRowProps {
   isCurrent?: boolean;
 }
 
-export function TrackRow({ track, variant, categoryId, actions, onPlay, isCurrent }: TrackRowProps) {
+export function TrackRow({ track, variant, categoryId: _categoryId, actions, onPlay, isCurrent }: TrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
     <IconAlertTriangle
@@ -29,9 +29,7 @@ export function TrackRow({ track, variant, categoryId, actions, onPlay, isCurren
       color="var(--color-warning)"
     />
   ) : null;
-  const tagsCell = (
-    <TrackTagsCell categoryId={categoryId} trackId={track.id} tags={track.tags} />
-  );
+  const tagsCell = <TrackTagsCell tags={track.tags} />;
 
   const canPlay = !!onPlay && !!track.spotify_id;
   const playButton = onPlay ? (
