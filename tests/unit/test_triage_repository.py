@@ -40,6 +40,8 @@ def test_dataclasses_have_expected_fields() -> None:
         date_from="2026-04-20",
         date_to="2026-04-26",
         status="IN_PROGRESS",
+        old_offset_weeks=0,
+        include_disliked_labels=False,
         created_at="2026-04-28T00:00:00+00:00",
         updated_at="2026-04-28T00:00:00+00:00",
         finalized_at=None,
@@ -114,6 +116,8 @@ def test_create_block_happy_path() -> None:
             "date_from": "2026-04-20",
             "date_to": "2026-04-26",
             "status": "IN_PROGRESS",
+            "old_offset_weeks": 0,
+            "include_disliked_labels": False,
             "created_at": "2026-04-28T00:00:00+00:00",
             "updated_at": "2026-04-28T00:00:00+00:00",
             "finalized_at": None,
@@ -185,7 +189,7 @@ def test_create_block_style_not_found() -> None:
 
 
 def test_create_block_classify_sql_includes_filters_and_case() -> None:
-    """Spot-check the R4 INSERT-FROM-SELECT statement."""
+    """Spot-check the classify INSERT-FROM-SELECT statement."""
     api = _api_with_responses(
         [
             [{"id": "s-1", "name": "House"}],
@@ -208,6 +212,8 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
                     "date_from": "2026-04-20",
                     "date_to": "2026-04-26",
                     "status": "IN_PROGRESS",
+                    "old_offset_weeks": 0,
+                    "include_disliked_labels": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T00:00:00+00:00",
                     "finalized_at": None,
@@ -273,6 +279,8 @@ def test_create_block_classify_sql_includes_disliked_branch_and_offset() -> None
                     "date_from": "2026-04-20",
                     "date_to": "2026-04-26",
                     "status": "IN_PROGRESS",
+                    "old_offset_weeks": 2,
+                    "include_disliked_labels": True,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T00:00:00+00:00",
                     "finalized_at": None,
@@ -302,6 +310,16 @@ def test_create_block_classify_sql_includes_disliked_branch_and_offset() -> None
     assert params["old_cutoff"] == date(2026, 4, 6)  # 2026-04-20 minus 2 weeks
     assert params["user_id"] == "u-1"
 
+    # Verify the INSERT INTO triage_blocks persisted the new columns.
+    (block_insert_call,) = [
+        c
+        for c in api.execute.call_args_list
+        if "INSERT INTO triage_blocks" in c.args[0]
+    ]
+    block_params = block_insert_call.args[1]
+    assert block_params["old_offset_weeks"] == 2
+    assert block_params["include_disliked_labels"] is True
+
 
 def test_get_block_returns_full_detail() -> None:
     api = _api_with_responses(
@@ -316,6 +334,8 @@ def test_get_block_returns_full_detail() -> None:
                     "date_from": "2026-04-20",
                     "date_to": "2026-04-26",
                     "status": "IN_PROGRESS",
+                    "old_offset_weeks": 0,
+                    "include_disliked_labels": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T00:00:00+00:00",
                     "finalized_at": None,
@@ -334,6 +354,37 @@ def test_get_block_missing_returns_none() -> None:
     api = _api_with_responses([[]])
     repo = TriageRepository(api)
     assert repo.get_block(user_id="u-1", block_id="missing") is None
+
+
+def test_fetch_block_detail_exposes_populate_options() -> None:
+    """Block detail row surfaces old_offset_weeks and include_disliked_labels."""
+    api = _api_with_responses(
+        [
+            [
+                {
+                    "id": "b-1",
+                    "user_id": "u-1",
+                    "style_id": "s-1",
+                    "style_name": "House",
+                    "name": "X",
+                    "date_from": "2026-04-20",
+                    "date_to": "2026-04-26",
+                    "status": "IN_PROGRESS",
+                    "old_offset_weeks": 2,
+                    "include_disliked_labels": True,
+                    "created_at": "2026-04-28T00:00:00+00:00",
+                    "updated_at": "2026-04-28T00:00:00+00:00",
+                    "finalized_at": None,
+                }
+            ],
+            [],
+        ]
+    )
+    repo = TriageRepository(api)
+    row = repo.get_block(user_id="u-1", block_id="b-1")
+    assert row is not None
+    assert row.old_offset_weeks == 2
+    assert row.include_disliked_labels is True
 
 
 def test_list_blocks_by_style_status_filter_in_sql() -> None:
@@ -744,6 +795,8 @@ def test_finalize_block_calls_add_tracks_bulk_per_staging() -> None:
                     "date_from": "2026-04-20",
                     "date_to": "2026-04-26",
                     "status": "FINALIZED",
+                    "old_offset_weeks": 0,
+                    "include_disliked_labels": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T01:00:00+00:00",
                     "finalized_at": "2026-04-28T01:00:00+00:00",
@@ -787,6 +840,8 @@ def test_finalize_block_chunks_above_500() -> None:
                     "date_from": "2026-04-20",
                     "date_to": "2026-04-26",
                     "status": "FINALIZED",
+                    "old_offset_weeks": 0,
+                    "include_disliked_labels": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T01:00:00+00:00",
                     "finalized_at": "2026-04-28T01:00:00+00:00",

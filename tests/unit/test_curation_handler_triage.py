@@ -101,6 +101,8 @@ def _fake_block_row() -> TriageBlockRow:
         date_from="2026-04-20",
         date_to="2026-04-26",
         status="IN_PROGRESS",
+        old_offset_weeks=0,
+        include_disliked_labels=False,
         created_at="2026-04-28T12:00:00+00:00",
         updated_at="2026-04-28T12:00:00+00:00",
         finalized_at=None,

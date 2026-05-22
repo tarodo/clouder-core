@@ -49,6 +49,8 @@ class TriageBlockRow:
     date_from: str  # ISO YYYY-MM-DD as returned by Data API
     date_to: str
     status: str
+    old_offset_weeks: int
+    include_disliked_labels: bool
     created_at: str  # ISO datetime
     updated_at: str
     finalized_at: str | None
@@ -1077,6 +1079,7 @@ class TriageRepository:
                 tb.name,
                 tb.date_from, tb.date_to,
                 tb.status,
+                tb.old_offset_weeks, tb.include_disliked_labels,
                 tb.created_at, tb.updated_at, tb.finalized_at
             FROM triage_blocks tb
             JOIN clouder_styles cs ON tb.style_id = cs.id
@@ -1150,6 +1153,8 @@ class TriageRepository:
             date_from=str(b["date_from"]),
             date_to=str(b["date_to"]),
             status=b["status"],
+            old_offset_weeks=int(b["old_offset_weeks"]),
+            include_disliked_labels=bool(b["include_disliked_labels"]),
             created_at=str(b["created_at"]),
             updated_at=str(b["updated_at"]),
             finalized_at=(

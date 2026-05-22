@@ -119,6 +119,8 @@ class FakeTriageRepo:
             date_from=str(b["date_from"]),
             date_to=str(b["date_to"]),
             status=b["status"],
+            old_offset_weeks=int(b.get("old_offset_weeks", 0)),
+            include_disliked_labels=bool(b.get("include_disliked_labels", False)),
             created_at=b["created_at"],
             updated_at=b["updated_at"],
             finalized_at=b.get("finalized_at"),
