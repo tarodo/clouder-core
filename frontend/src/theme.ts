@@ -67,6 +67,7 @@ export const clouderTheme: MantineThemeOverride = createTheme({
   colors: { neutral, magenta },
   primaryColor: "neutral",
   primaryShade: { light: 9, dark: 0 }, // dark inverts the ramp
+  focusRing: "never", // mouse + hotkey app — the ring is noise, not navigation
   white: "#ffffff",
   black: "#0a0a0a",
 
