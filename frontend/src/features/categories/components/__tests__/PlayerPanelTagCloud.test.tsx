@@ -80,6 +80,14 @@ describe('PlayerPanelTagCloud', () => {
     expect(screen.getByPlaceholderText(/search or create/i)).toBeInTheDocument();
   });
 
+  it('hides the checkmark on assigned chips (color conveys selection)', () => {
+    render(ui({ ...base, assignedTagIds: ['tg-a'] }));
+    const acidChip = screen.getByText('acid').closest('.mantine-Chip-root')! as HTMLElement;
+    const iconWrapper = acidChip.querySelector('.mantine-Chip-iconWrapper') as HTMLElement | null;
+    expect(iconWrapper).not.toBeNull();
+    expect(iconWrapper!.style.display).toBe('none');
+  });
+
   it('assigned chip shows a soft tint, unassigned chip is transparent', () => {
     render(ui({ ...base, assignedTagIds: ['tg-a'] }));
     const acidLabel = screen

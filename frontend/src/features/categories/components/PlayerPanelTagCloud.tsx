@@ -61,7 +61,7 @@ export function PlayerPanelTagCloud(props: PlayerPanelTagCloudProps) {
                       color: 'var(--mantine-color-dimmed)',
                       border: '1px solid var(--mantine-color-default-border)',
                     },
-                iconWrapper: { color: selected ? sc.fg : 'var(--mantine-color-dimmed)' },
+                iconWrapper: { display: 'none' },
               }}
             >
               {tg.name}
