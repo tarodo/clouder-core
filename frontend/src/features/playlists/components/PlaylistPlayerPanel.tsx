@@ -9,7 +9,6 @@ import { undoStack, useUndoStack } from '../../categories/hooks/useUndoStack';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import { PlayerPanelTagCloud } from '../../categories/components/PlayerPanelTagCloud';
-import { LabelTile } from '../../library/components/LabelTile';
 import type { PlaylistTrack } from '../lib/playlistTypes';
 import classes from './PlaylistPlayerPanel.module.css';
 
@@ -211,21 +210,11 @@ export function PlaylistPlayerPanel({ playlistId, items }: PlaylistPlayerPanelPr
         onAdd={(id) => void onAddTag(id)}
         onRemove={(id) => void onRemoveTag(id)}
       />
-      {effectiveRich?.label?.id && (
-        <>
-          <Divider />
-          {/*
-           * LabelTile requires styleId for the /library/:styleId/labels/:id URL.
-           * Playlist tracks have no associated styleId — we pass '' which yields
-           * /library//labels/:id (a degraded but non-crashing link).
-           */}
-          <LabelTile
-            labelId={effectiveRich.label.id}
-            labelName={effectiveRich.label.name ?? null}
-            styleId=""
-          />
-        </>
-      )}
+      {/*
+       * No LabelTile here: it links to /library/:styleId/labels/:id and a
+       * playlist track has no associated styleId. The label name is already
+       * shown in the PlayerCard meta row above, so we don't repeat it.
+       */}
     </Stack>
   );
 }
