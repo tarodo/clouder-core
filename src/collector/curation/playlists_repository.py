@@ -6,8 +6,9 @@ Cross-user access yields no rows → handler maps to 404.
 
 from __future__ import annotations
 
+import json
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any, Mapping
 
@@ -129,6 +130,13 @@ class PlaylistTrackRow:
     isrc: str | None
     length_ms: int | None
     origin: str
+    mix_name: str | None = None
+    bpm: int | None = None
+    spotify_release_date: str | None = None
+    is_ai_suspected: bool = False
+    artists: tuple[dict, ...] = ()
+    label: dict | None = None
+    tags: tuple = ()  # TrackTagRow tuple; kept untyped to avoid an import cycle
 
 
 @dataclass(frozen=True)
@@ -540,6 +548,7 @@ class PlaylistsRepository:
         playlist_id: str,
         limit: int,
         offset: int,
+        tags_repo=None,
     ) -> tuple[list[PlaylistTrackRow], int]:
         owner = self._data_api.execute(
             "SELECT 1 AS ok FROM playlists "
@@ -550,11 +559,27 @@ class PlaylistsRepository:
             raise PlaylistNotFoundError()
         rows = self._data_api.execute(
             """
-            SELECT pt.track_id, pt.position, pt.added_at,
-                   t.title, t.spotify_id, t.isrc, t.length_ms, t.origin
+            SELECT
+                pt.track_id, pt.position, pt.added_at,
+                t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
+                t.spotify_id, t.is_ai_suspected, t.spotify_release_date, t.origin,
+                COALESCE(
+                    JSON_AGG(
+                        JSON_BUILD_OBJECT('id', a.id, 'name', a.name)
+                        ORDER BY cta.role, a.name
+                    ) FILTER (WHERE a.id IS NOT NULL),
+                    '[]'::json
+                ) AS artists_json,
+                l.id   AS label_id,
+                l.name AS label_name
             FROM playlist_tracks pt
             JOIN clouder_tracks t ON t.id = pt.track_id
+            LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
+            LEFT JOIN clouder_artists       a   ON a.id  = cta.artist_id
+            LEFT JOIN clouder_albums        alb ON alb.id = t.album_id
+            LEFT JOIN clouder_labels        l   ON l.id   = alb.label_id
             WHERE pt.playlist_id = :id
+            GROUP BY pt.track_id, pt.position, pt.added_at, t.id, l.id, l.name
             ORDER BY pt.position ASC
             LIMIT :limit OFFSET :offset
             """,
@@ -566,19 +591,43 @@ class PlaylistsRepository:
             {"id": playlist_id},
         )
         total = int(total_rows[0]["total"]) if total_rows else 0
-        out = [
-            PlaylistTrackRow(
-                track_id=r["track_id"],
-                position=int(r["position"]),
-                added_at=str(r["added_at"]),
-                title=r["title"],
-                spotify_id=r.get("spotify_id"),
-                isrc=r.get("isrc"),
-                length_ms=(int(r["length_ms"]) if r.get("length_ms") else None),
-                origin=r.get("origin") or "beatport",
+
+        out: list[PlaylistTrackRow] = []
+        for r in rows:
+            artists_raw = r.get("artists_json", "[]")
+            artists = (
+                json.loads(artists_raw) if isinstance(artists_raw, str) else (artists_raw or [])
             )
-            for r in rows
-        ]
+            label_id = r.get("label_id")
+            label = {"id": label_id, "name": r.get("label_name")} if label_id else None
+            spot = r.get("spotify_release_date")
+            out.append(
+                PlaylistTrackRow(
+                    track_id=r["track_id"],
+                    position=int(r["position"]),
+                    added_at=str(r["added_at"]),
+                    title=r["title"],
+                    spotify_id=r.get("spotify_id"),
+                    isrc=r.get("isrc"),
+                    length_ms=(int(r["length_ms"]) if r.get("length_ms") else None),
+                    origin=r.get("origin") or "beatport",
+                    mix_name=r.get("mix_name"),
+                    bpm=(int(r["bpm"]) if r.get("bpm") is not None else None),
+                    spotify_release_date=(str(spot) if spot is not None else None),
+                    is_ai_suspected=bool(r.get("is_ai_suspected", False)),
+                    artists=tuple(artists),
+                    label=label,
+                )
+            )
+
+        if tags_repo is not None and out:
+            grouped = tags_repo.list_tags_for_tracks(
+                user_id=user_id, track_ids=[row.track_id for row in out],
+            )
+            out = [
+                replace(row, tags=tuple(grouped.get(row.track_id, [])))
+                for row in out
+            ]
         return out, total
 
     # ---------- Cover --------------------------------------------------------

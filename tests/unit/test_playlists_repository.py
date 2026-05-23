@@ -163,6 +163,7 @@ from collector.curation import (
     PlaylistTrackLimitError,
 )
 from collector.curation.playlists_repository import PlaylistTrackRow
+from collector.curation.tags_repository import TrackTagRow
 
 
 def test_append_tracks_uses_max_position_plus_one() -> None:
@@ -752,3 +753,98 @@ def test_patch_sql_has_explicit_param_casts() -> None:
                  ":description::text", ":description_set::boolean",
                  ":is_public::boolean", ":status::text"):
         assert cast in update_sql, f"missing explicit cast {cast}"
+
+
+# ---- enrich list_tracks (artists, label, bpm, tags) ---------------------
+
+
+def test_list_tracks_enrich_returns_artists_label_bpm_and_tags() -> None:
+    """list_tracks with tags_repo attaches artists, label, bpm, mix_name,
+    spotify_release_date, is_ai_suspected, and tags from the fan-in repo."""
+    api = _make_data_api({
+        "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
+        "SELECT COUNT(*) AS total FROM playlist_tracks pt2": [{"total": 1}],
+        "FROM playlist_tracks pt": [
+            {
+                "track_id": "tr1",
+                "position": 0,
+                "added_at": _utc().isoformat(),
+                "title": "Acid Trip",
+                "spotify_id": "sp1",
+                "isrc": "USABC123456",
+                "length_ms": 360000,
+                "origin": "beatport",
+                "mix_name": "Original Mix",
+                "bpm": 140,
+                "spotify_release_date": "2026-01-15",
+                "is_ai_suspected": False,
+                "artists_json": '[{"id": "a1", "name": "Artist"}]',
+                "label_id": "l1",
+                "label_name": "Label",
+            },
+        ],
+    })
+
+    tags_repo = MagicMock()
+    tags_repo.list_tags_for_tracks.return_value = {
+        "tr1": [TrackTagRow(track_id="tr1", tag_id="tg1", name="acid", color="#ff0000")]
+    }
+
+    repo = PlaylistsRepository(api)
+    rows, total = repo.list_tracks(
+        user_id="u-1", playlist_id="p-1", limit=50, offset=0, tags_repo=tags_repo,
+    )
+
+    assert total == 1
+    row = rows[0]
+    assert isinstance(row, PlaylistTrackRow)
+    assert row.mix_name == "Original Mix"
+    assert row.bpm == 140
+    assert row.spotify_release_date == "2026-01-15"
+    assert row.is_ai_suspected is False
+    assert row.artists == ({"id": "a1", "name": "Artist"},)
+    assert row.label == {"id": "l1", "name": "Label"}
+    assert len(row.tags) == 1
+    assert row.tags[0].tag_id == "tg1"
+    assert row.tags[0].name == "acid"
+    assert row.tags[0].color == "#ff0000"
+
+    tags_repo.list_tags_for_tracks.assert_called_once_with(
+        user_id="u-1", track_ids=["tr1"],
+    )
+
+
+def test_list_tracks_enrich_no_tags_repo_returns_empty_tags_tuple() -> None:
+    """When tags_repo is omitted, tags field defaults to empty tuple."""
+    api = _make_data_api({
+        "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
+        "SELECT COUNT(*) AS total FROM playlist_tracks pt2": [{"total": 1}],
+        "FROM playlist_tracks pt": [
+            {
+                "track_id": "tr1",
+                "position": 0,
+                "added_at": _utc().isoformat(),
+                "title": "Acid Trip",
+                "spotify_id": None,
+                "isrc": None,
+                "length_ms": None,
+                "origin": "beatport",
+                "mix_name": None,
+                "bpm": None,
+                "spotify_release_date": None,
+                "is_ai_suspected": False,
+                "artists_json": "[]",
+                "label_id": None,
+                "label_name": None,
+            },
+        ],
+    })
+
+    repo = PlaylistsRepository(api)
+    rows, total = repo.list_tracks(
+        user_id="u-1", playlist_id="p-1", limit=50, offset=0,
+    )
+    assert total == 1
+    assert rows[0].tags == ()
+    assert rows[0].artists == ()
+    assert rows[0].label is None
