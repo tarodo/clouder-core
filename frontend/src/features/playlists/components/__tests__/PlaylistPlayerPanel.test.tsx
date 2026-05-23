@@ -82,10 +82,6 @@ vi.mock('../../hooks/usePlaylistTrackTag', () => ({
   usePlaylistRemoveTrackTag: () => ({ mutateAsync: vi.fn(() => Promise.resolve()) }),
 }));
 
-vi.mock('../../../library/components/LabelTile', () => ({
-  LabelTile: () => <div data-testid="label-tile" />,
-}));
-
 const seedTrack: PlaylistTrack = {
   track_id: 't1',
   position: 0,
