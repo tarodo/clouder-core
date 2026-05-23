@@ -1,6 +1,7 @@
 // frontend/src/features/curate/hooks/useCurateHotkeys.ts
 import { useEffect } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
+import { isEditableTarget } from '../../../lib/isEditableTarget';
 import type { TriageBucket } from '../../triage/lib/bucketLabels';
 import { byDiscard, byPosition, byTechType } from '../lib/destinationMap';
 
@@ -26,14 +27,6 @@ const DIGIT_CODES: Record<string, number> = {
   Digit8: 7,
   Digit9: 8,
 };
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (target.isContentEditable) return true;
-  return false;
-}
 
 export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
   const isMobile = useMediaQuery('(max-width: 64em)');

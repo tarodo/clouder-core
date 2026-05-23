@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isEditableTarget } from '../../../lib/isEditableTarget';
 
 export interface UseCategoryPlayerHotkeysArgs {
   active: boolean;
@@ -18,32 +19,6 @@ const SEEK_PCT: Record<string, number> = {
   KeyF: 0.6,
   KeyG: 0.8,
 };
-
-// <input> types that are widgets, not text entry — they should NOT suppress
-// shortcuts (e.g. a Mantine Chip is a focusable <input type="checkbox">).
-const NON_EDITABLE_INPUT_TYPES = new Set([
-  'checkbox',
-  'radio',
-  'button',
-  'submit',
-  'reset',
-  'file',
-  'range',
-  'color',
-  'image',
-]);
-
-function isEditable(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (tag === 'INPUT') {
-    const type = (target as HTMLInputElement).type.toLowerCase();
-    return !NON_EDITABLE_INPUT_TYPES.has(type);
-  }
-  if (target.isContentEditable) return true;
-  return false;
-}
 
 function digitIndex(code: string): number | null {
   if (code === 'Digit0') return 9;
@@ -66,7 +41,7 @@ export function useCategoryPlayerHotkeys(args: UseCategoryPlayerHotkeysArgs): vo
   useEffect(() => {
     if (!active) return;
     const handler = (event: KeyboardEvent) => {
-      if (isEditable(event.target)) return;
+      if (isEditableTarget(event.target)) return;
 
       if (event.code === 'Space') {
         event.preventDefault();

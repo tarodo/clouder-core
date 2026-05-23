@@ -1,5 +1,6 @@
 // frontend/src/features/playback/usePlaybackHotkeys.ts
 import { useEffect } from 'react';
+import { isEditableTarget } from '../../lib/isEditableTarget';
 
 export interface UsePlaybackHotkeysArgs {
   onTogglePlayPause: () => void;
@@ -17,20 +18,12 @@ const PCT_KEYS: Record<string, number> = {
   KeyG: 0.8,
 };
 
-function isEditable(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (target.isContentEditable) return true;
-  return false;
-}
-
 export function usePlaybackHotkeys(args: UsePlaybackHotkeysArgs): void {
   const { onTogglePlayPause, onPrev, onNext, onSeekRelative, onSeekPct } = args;
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (isEditable(event.target)) return;
+      if (isEditableTarget(event.target)) return;
       if (event.code === 'Space') {
         event.preventDefault();
         onTogglePlayPause();
