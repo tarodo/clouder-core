@@ -1,27 +1,55 @@
-import { useMemo, useState } from 'react';
-import { Anchor, Breadcrumbs, Button, Group, Stack, TextInput } from '@mantine/core';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Anchor, Breadcrumbs, Button, Flex, Group, Stack, TextInput, useMantineTheme } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconBrandSpotify, IconPlus, IconSearch } from '@tabler/icons-react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import {
+  Link,
+  Navigate,
+  Outlet,
+  useMatch,
+  useNavigate,
+  useParams,
+} from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
 import { EmptyState } from '../../../components/EmptyState';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { usePlayback } from '../../playback/usePlayback';
+import type { PlaybackTrack } from '../../playback/lib/types';
 import { usePlaylistDetail } from '../hooks/usePlaylistDetail';
 import { usePlaylistTracks } from '../hooks/usePlaylistTracks';
 import { usePatchPlaylist } from '../hooks/usePatchPlaylist';
 import { useDeletePlaylist } from '../hooks/useDeletePlaylist';
 import { useRemoveTrackFromPlaylist } from '../hooks/useRemoveTrackFromPlaylist';
 import { useReorderPlaylistTracks } from '../hooks/useReorderPlaylistTracks';
+import { usePlaylistPlayerQueue } from '../hooks/usePlaylistPlayerQueue';
+import { usePlaylistAddTrackTag, usePlaylistRemoveTrackTag } from '../hooks/usePlaylistTrackTag';
 import { PlaylistMetaPanel } from '../components/PlaylistMetaPanel';
 import { PlaylistTracksList } from '../components/PlaylistTracksList';
+import { PlaylistPlayerPanel } from '../components/PlaylistPlayerPanel';
 import { PublishButton } from '../components/PublishButton';
 import { AddTracksModal } from '../components/AddTracksModal';
 import { ImportSpotifyModal } from '../components/ImportSpotifyModal';
 import { playlistTracksKey } from '../lib/queryKeys';
-import type { PaginatedPlaylistTracks, PlaylistTrack } from '../lib/playlistTypes';
+import type { PaginatedPlaylistTracks, PlaylistTrack, PlaylistTrackTag } from '../lib/playlistTypes';
+
+function toPlaybackTrack(t: PlaylistTrack): PlaybackTrack {
+  return {
+    id: t.track_id,
+    title: t.title,
+    artists: t.artists.map((a) => a.name).join(', '),
+    duration_ms: t.length_ms ?? 0,
+    spotify_id: t.spotify_id,
+    cover_url: null,
+  };
+}
+
+export type PlaylistDetailOutletContext = {
+  items: PlaylistTrack[];
+};
 
 export function PlaylistDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -40,10 +68,25 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   const deleteMut = useDeletePlaylist();
   const removeTrackMut = useRemoveTrackFromPlaylist();
   const reorder = useReorderPlaylistTracks(id);
+  const addTagMut = usePlaylistAddTrackTag(id);
+  const removeTagMut = usePlaylistRemoveTrackTag(id);
+
+  const playback = usePlayback();
+  const theme = useMantineTheme();
+  const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
+  // Mobile uses a fullscreen player route nested under this one. When the
+  // nested /player route is active, render <Outlet> instead of the layout —
+  // parent stays mounted so queue state survives navigation.
+  const onPlayerSubpath = useMatch({ path: '/playlists/:id/player', end: false });
 
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+
+  // Pre-warm SDK on mount so first play happens inside the user-gesture window.
+  useEffect(() => {
+    void playback.controls.prewarm();
+  }, [playback.controls]);
 
   const tracks = useMemo(() => tracksQ.data?.items ?? [], [tracksQ.data?.items]);
   const filtered = useMemo(() => {
@@ -51,6 +94,40 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
     if (!q) return tracks;
     return tracks.filter((tr) => tr.title.toLowerCase().includes(q));
   }, [tracks, search]);
+
+  const playerTracks = useMemo<PlaybackTrack[]>(() => tracks.map(toPlaybackTrack), [tracks]);
+  usePlaylistPlayerQueue(id, playerTracks);
+
+  const onPlay = useCallback(
+    (track: PlaylistTrack) => {
+      if (!track.spotify_id) return;
+      void playback.controls.prewarm();
+      const queueIdx = playback.queue.tracks.findIndex((q) => q.id === track.track_id);
+      if (queueIdx >= 0) {
+        void playback.controls.play(queueIdx);
+      } else {
+        void playback.controls.play(undefined, toPlaybackTrack(track));
+      }
+      if (!isDesktop) {
+        navigate(`/playlists/${id}/player`);
+      }
+    },
+    [playback.controls, playback.queue.tracks, isDesktop, navigate, id],
+  );
+
+  const onAddTag = useCallback(
+    (track: PlaylistTrack, tag: PlaylistTrackTag) => {
+      void addTagMut.mutateAsync({ trackId: track.track_id, tag });
+    },
+    [addTagMut],
+  );
+
+  const onRemoveTag = useCallback(
+    (track: PlaylistTrack, tagId: string) => {
+      void removeTagMut.mutateAsync({ trackId: track.track_id, tagId });
+    },
+    [removeTagMut],
+  );
 
   async function handlePatch(input: {
     name?: string;
@@ -132,28 +209,16 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   if (!detailQ.data) return null;
   const playlist = detailQ.data;
 
-  return (
-    <Stack gap="lg">
-      <Breadcrumbs>
-        <Anchor component={Link} to="/playlists">
-          {t('playlists.page_title')}
-        </Anchor>
-        <span>{playlist.name}</span>
-      </Breadcrumbs>
+  // When the nested /player route is active (mobile only), render just the
+  // outlet — the queue + state above already includes the user's visible list,
+  // so the player has the right context. Items are forwarded via outlet context
+  // so the child page can pass them to PlaylistPlayerPanel for rich metadata lookup.
+  if (onPlayerSubpath) {
+    return <Outlet context={{ items: tracks } satisfies PlaylistDetailOutletContext} />;
+  }
 
-      <PlaylistMetaPanel
-        playlist={playlist}
-        onPatch={handlePatch}
-        publishSlot={
-          <Group gap="sm" align="center">
-            <PublishButton playlist={playlist} />
-            <Button color="red" variant="subtle" onClick={openDelete}>
-              {t('playlists.detail.delete_cta')}
-            </Button>
-          </Group>
-        }
-      />
-
+  const tilesList = (
+    <>
       <Group gap="sm" wrap="wrap">
         <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
           {t('playlists.detail.add_tracks_cta')}
@@ -184,6 +249,10 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
           onReorder={search.trim() === '' ? handleReorder : () => {}}
           onRemove={handleRemoveTrack}
           reorderDisabled={search.trim() !== ''}
+          onPlayTrack={onPlay}
+          currentTrackId={playback.track.current?.id ?? null}
+          onAddTag={onAddTag}
+          onRemoveTag={onRemoveTag}
         />
       )}
 
@@ -200,6 +269,39 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
         onClose={() => setImportOpen(false)}
         playlistId={id}
       />
+    </>
+  );
+
+  return (
+    <Stack gap="lg">
+      <Breadcrumbs>
+        <Anchor component={Link} to="/playlists">
+          {t('playlists.page_title')}
+        </Anchor>
+        <span>{playlist.name}</span>
+      </Breadcrumbs>
+
+      <PlaylistMetaPanel
+        playlist={playlist}
+        onPatch={handlePatch}
+        publishSlot={
+          <Group gap="sm" align="center">
+            <PublishButton playlist={playlist} />
+            <Button color="red" variant="subtle" onClick={openDelete}>
+              {t('playlists.detail.delete_cta')}
+            </Button>
+          </Group>
+        }
+      />
+
+      {isDesktop ? (
+        <Flex gap="lg" align="flex-start" wrap="nowrap">
+          <PlaylistPlayerPanel playlistId={id} items={tracks} />
+          <div style={{ flex: 1, minWidth: 0 }}>{tilesList}</div>
+        </Flex>
+      ) : (
+        tilesList
+      )}
     </Stack>
   );
 }

@@ -1,32 +1,76 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { createMemoryRouter, RouterProvider } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
+
+// PlaylistDetailPage now calls usePlayback() + usePlaylistPlayerQueue() on
+// mount. The PlaybackProvider lives in the authenticated layout, not in this
+// test harness, so stub usePlayback with a minimal noop value.
+// jsdom's matchMedia stub returns matches:false → isDesktop is false → only
+// the tiles list renders (not the desktop split/panel), matching pre-split
+// behaviour and avoiding the need to stub the PlayerPanel hooks.
+vi.mock('../../../playback/usePlayback', () => ({
+  usePlayback: () => ({
+    queue: { source: null, tracks: [], cursor: 0, status: 'idle' as const },
+    track: { current: null, positionMs: 0, durationMs: 0 },
+    sdk: { ready: false, error: null },
+    controls: {
+      prewarm: async () => {},
+      play: async () => {},
+      pause: async () => {},
+      togglePlayPause: async () => {},
+      next: async () => {},
+      prev: async () => {},
+      seekMs: async () => {},
+      seekPct: async () => {},
+      bindQueue: () => {},
+      clearQueue: () => {},
+      cancelPendingAdvance: () => {},
+      openSpotifyExternal: () => {},
+    },
+    devices: {
+      list: [],
+      active: null,
+      cloderTabId: null,
+      isLoading: false,
+      error: null,
+      isOpen: false,
+      pickerAnchor: null,
+      open: () => {},
+      close: () => {},
+      refresh: async () => {},
+      pick: async () => {},
+    },
+  }),
+}));
+
 import { PlaylistDetailPage } from '../PlaylistDetailPage';
 import { testTheme } from '../../../../test/theme';
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
+  });
+  const router = createMemoryRouter(
+    [{ path: '/playlists/:id', element: children }],
+    { initialEntries: ['/playlists/p1'] },
+  );
   return (
-    <MantineProvider theme={testTheme}>
-      <ModalsProvider>
-        <Notifications />
-        <QueryClientProvider client={qc}>
-          <MemoryRouter initialEntries={['/playlists/p1']}>
-            <Routes>
-              <Route path="/playlists/:id" element={children} />
-            </Routes>
-          </MemoryRouter>
-        </QueryClientProvider>
-      </ModalsProvider>
-    </MantineProvider>
+    <QueryClientProvider client={qc}>
+      <MantineProvider theme={testTheme}>
+        <ModalsProvider>
+          <Notifications position="top-right" />
+          <RouterProvider router={router} />
+        </ModalsProvider>
+      </MantineProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -43,6 +87,7 @@ const seedPlaylist = {
   last_published_at: null,
   needs_republish: false,
   track_count: 1,
+  status: 'active' as const,
   created_at: '2026-05-12T00:00:00Z',
   updated_at: '2026-05-12T00:00:00Z',
 };
