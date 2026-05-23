@@ -117,9 +117,13 @@ def test_get_playlist_returns_200_with_full_payload() -> None:
     assert body["track_count"] == 5
 
 
-def test_list_playlist_tracks_returns_paginated() -> None:
+def test_list_playlist_tracks_returns_paginated(monkeypatch) -> None:
     repo = MagicMock()
     repo.list_tracks.return_value = ([], 0)
+    monkeypatch.setattr(
+        "collector.curation_handler.create_default_tags_repository",
+        lambda: MagicMock(),
+    )
     with _patch_factory(repo):
         resp = lambda_handler(
             _event("GET", "/playlists/{id}/tracks",
@@ -231,6 +235,62 @@ def test_cover_confirm_400_when_missing() -> None:
         )
     assert resp["statusCode"] == 400
     assert json.loads(resp["body"])["error_code"] == "cover_missing"
+
+
+def _track_row(**overrides) -> MagicMock:
+    """Build a fake PlaylistTrackRow with all enriched fields."""
+    tag = MagicMock()
+    tag.configure_mock(tag_id="tag-1", name="House", color="#FF0000")
+    base = dict(
+        track_id="t-1",
+        position=1,
+        added_at="2026-05-01T00:00:00+00:00",
+        title="Test Track",
+        spotify_id="sp-1",
+        isrc="ISRC001",
+        length_ms=180000,
+        origin="beatport",
+        mix_name="Original Mix",
+        bpm=128,
+        spotify_release_date="2026-04-01",
+        is_ai_suspected=False,
+        artists=[{"id": "a-1", "name": "DJ Test"}],
+        label={"id": "l-1", "name": "Test Label"},
+        tags=(tag,),
+    )
+    base.update(overrides)
+    m = MagicMock()
+    m.configure_mock(**base)
+    return m
+
+
+def test_list_playlist_tracks_returns_enriched_fields(monkeypatch) -> None:
+    """The response must include artists, label, bpm, mix_name, etc. and tags."""
+    repo = MagicMock()
+    row = _track_row()
+    repo.list_tracks.return_value = ([row], 1)
+    fake_tags_repo = MagicMock()
+    monkeypatch.setattr(
+        "collector.curation_handler.create_default_tags_repository",
+        lambda: fake_tags_repo,
+    )
+    with _patch_factory(repo):
+        resp = lambda_handler(
+            _event("GET", "/playlists/{id}/tracks",
+                   path_params={"id": "p-1"}),
+            None,
+        )
+    assert resp["statusCode"] == 200
+    body = json.loads(resp["body"])
+    assert body["total"] == 1
+    item = body["items"][0]
+    assert item["mix_name"] == "Original Mix"
+    assert item["bpm"] == 128
+    assert item["spotify_release_date"] == "2026-04-01"
+    assert item["is_ai_suspected"] is False
+    assert item["artists"] == [{"id": "a-1", "name": "DJ Test"}]
+    assert item["label"] == {"id": "l-1", "name": "Test Label"}
+    assert item["tags"] == [{"id": "tag-1", "name": "House", "color": "#FF0000"}]
 
 
 def test_publish_returns_412_when_no_spotify_token() -> None:
