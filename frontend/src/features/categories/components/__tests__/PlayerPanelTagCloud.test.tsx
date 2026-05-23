@@ -101,4 +101,21 @@ describe('PlayerPanelTagCloud', () => {
     expect(acidLabel.style.backgroundColor).toBe('rgba(255, 0, 0, 0.13)');
     expect(bangerLabel.style.backgroundColor).toBe('transparent');
   });
+
+  it('both selected and unselected chip labels carry pinned padding', () => {
+    render(ui({ ...base, assignedTagIds: ['tg-a'] }));
+    const acidLabel = screen
+      .getByText('acid')
+      .closest('.mantine-Chip-root')!
+      .querySelector('.mantine-Chip-label')! as HTMLElement;
+    const bangerLabel = screen
+      .getByText('banger')
+      .closest('.mantine-Chip-root')!
+      .querySelector('.mantine-Chip-label')! as HTMLElement;
+    // selected and unselected chips carry the SAME pinned inline padding
+    expect(acidLabel.style.paddingLeft).toBe('var(--chip-padding)');
+    expect(acidLabel.style.paddingRight).toBe('var(--chip-padding)');
+    expect(bangerLabel.style.paddingLeft).toBe('var(--chip-padding)');
+    expect(bangerLabel.style.paddingRight).toBe('var(--chip-padding)');
+  });
 });

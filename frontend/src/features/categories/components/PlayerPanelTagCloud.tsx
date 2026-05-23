@@ -55,11 +55,16 @@ export function PlayerPanelTagCloud(props: PlayerPanelTagCloudProps) {
                       backgroundColor: sc.bg,
                       color: sc.fg,
                       border: `1px solid ${sc.border}`,
+                      // pin padding so the checked-state rule can't resize the chip
+                      paddingLeft: 'var(--chip-padding)',
+                      paddingRight: 'var(--chip-padding)',
                     }
                   : {
                       backgroundColor: 'transparent',
                       color: 'var(--mantine-color-dimmed)',
                       border: '1px solid var(--mantine-color-default-border)',
+                      paddingLeft: 'var(--chip-padding)',
+                      paddingRight: 'var(--chip-padding)',
                     },
                 iconWrapper: { display: 'none' },
               }}
