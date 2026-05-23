@@ -8,6 +8,11 @@ import { softTagColors } from '../../tags/lib/tagPalette';
 export interface PlayerPanelTagCloudProps {
   trackId: string;
   assignedTagIds: readonly string[];
+  /**
+   * Called with a tag id only. If the consuming mutation needs the full tag
+   * (name/color) for an optimistic cache patch — e.g. the playlist tag hooks —
+   * the caller must resolve id → full tag (see CategoryPlayerPanel's tagsById).
+   */
   onAdd: (tagId: string) => void;
   onRemove: (tagId: string) => void;
 }
