@@ -78,24 +78,26 @@ export function PlaylistTrackRow({
         {position}.
       </Text>
 
-      {/* Play button */}
-      <Tooltip
-        label={
-          track.spotify_id
-            ? t('categories.tracks_table.play_aria')
-            : t('categories.tracks_table.play_unavailable')
-        }
-      >
-        <ActionIcon
-          variant="subtle"
-          size="md"
-          disabled={!canPlay}
-          onClick={canPlay ? onPlay : undefined}
-          aria-label={t('categories.tracks_table.play_aria')}
+      {/* Play button (only when the page wires playback) */}
+      {onPlay !== undefined && (
+        <Tooltip
+          label={
+            track.spotify_id
+              ? t('categories.tracks_table.play_aria')
+              : t('categories.tracks_table.play_unavailable')
+          }
         >
-          <IconPlayerPlayFilled size={16} />
-        </ActionIcon>
-      </Tooltip>
+          <ActionIcon
+            variant="subtle"
+            size="md"
+            disabled={!canPlay}
+            onClick={canPlay ? onPlay : undefined}
+            aria-label={t('categories.tracks_table.play_aria')}
+          >
+            <IconPlayerPlayFilled size={16} />
+          </ActionIcon>
+        </Tooltip>
+      )}
 
       {/* Track info */}
       <Stack gap={2} flex={1} style={{ minWidth: 0 }}>
@@ -148,7 +150,7 @@ export function PlaylistTrackRow({
               <ActionIcon
                 variant="subtle"
                 size="xs"
-                aria-label="Add tag"
+                aria-label={t('tags.cell.add_aria')}
                 onClick={() => setPopoverOpen((o) => !o)}
               >
                 +
@@ -175,7 +177,7 @@ export function PlaylistTrackRow({
           target="_blank"
           rel="noopener noreferrer"
           variant="subtle"
-          aria-label="Open in Spotify"
+          aria-label={t('playlists.publish.open_in_spotify')}
         >
           <IconExternalLink size={16} />
         </ActionIcon>

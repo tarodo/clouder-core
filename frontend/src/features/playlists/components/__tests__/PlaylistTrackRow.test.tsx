@@ -85,10 +85,12 @@ describe('PlaylistTrackRow', () => {
     // Position number
     expect(screen.getByText('3.')).toBeInTheDocument();
 
-    // Play button present and ENABLED (spotify_id set)
+    // Play button present and ENABLED (spotify_id set), and fires onPlay
     const playBtn = screen.getByRole('button', { name: /play track/i });
     expect(playBtn).toBeInTheDocument();
     expect(playBtn).not.toBeDisabled();
+    await userEvent.click(playBtn);
+    expect(onPlay).toHaveBeenCalledTimes(1);
 
     // Title and mix name
     expect(screen.getByText('Deep Horizon')).toBeInTheDocument();
