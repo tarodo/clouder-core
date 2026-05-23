@@ -256,7 +256,8 @@
       "import_spotify_cta": "Import from Spotify",
       "tracks_search_placeholder": "Search loaded tracks",
       "empty_tracks_title": "No tracks yet",
-      "empty_tracks_body": "Add tracks from a category or import from Spotify."
+      "empty_tracks_body": "Add tracks from a category or import from Spotify.",
+      "remove_track_cta": "Remove"
     },
     "cover": {
       "replace": "Replace cover",
