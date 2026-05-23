@@ -38,6 +38,38 @@ import {
 } from '../../categories/hooks/useCategoryTracks';
 import { readTagsUrlState } from '../index';
 import { readFresh } from '../../categories/lib/freshUrlState';
+import { useTags } from '../../tags';
+import { useAddTrackTag } from '../../tags/hooks/useAddTrackTag';
+import { useRemoveTrackTag } from '../../tags/hooks/useRemoveTrackTag';
+
+// A thin harness that wires PlayerPanelTagCloud with the real category-scoped
+// add/remove mutations, mirroring how CategoryPlayerPanel works.
+function TagCloudHarness({ categoryId, trackId, assignedTagIds }: { categoryId: string; trackId: string; assignedTagIds: readonly string[] }) {
+  const tagsQuery = useTags();
+  const addTag = useAddTrackTag();
+  const removeTag = useRemoveTrackTag();
+  const tagsById = React.useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string | null }>();
+    for (const tg of tagsQuery.data ?? []) map.set(tg.id, tg);
+    return map;
+  }, [tagsQuery.data]);
+  const onAdd = (tagId: string) => {
+    const tag = tagsById.get(tagId);
+    if (!tag) return;
+    void addTag.mutateAsync({ categoryId, trackId, tag });
+  };
+  const onRemove = (tagId: string) => {
+    void removeTag.mutateAsync({ categoryId, trackId, tagId });
+  };
+  return (
+    <PlayerPanelTagCloud
+      trackId={trackId}
+      assignedTagIds={assignedTagIds}
+      onAdd={onAdd}
+      onRemove={onRemove}
+    />
+  );
+}
 
 function TracksTabHarness({ categoryId, styleId }: { categoryId: string; styleId: string }) {
   const [rawSearch, setRawSearch] = useState('');
@@ -171,13 +203,7 @@ describe('Track-tags end-to-end', () => {
     render(
       <W>
         <TracksTabHarness categoryId="c1" styleId="s1" />
-        <PlayerPanelTagCloud
-          categoryId="c1"
-          trackId="t1"
-          assignedTagIds={[]}
-          onAdd={() => {}}
-          onRemove={() => {}}
-        />
+        <TagCloudHarness categoryId="c1" trackId="t1" assignedTagIds={[]} />
       </W>,
     );
 

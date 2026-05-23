@@ -265,7 +265,6 @@ export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlay
         {t('category_player.sections.tags')}
       </Text>
       <PlayerPanelTagCloud
-        categoryId={categoryId}
         trackId={current.id}
         assignedTagIds={assignedTagIds}
         onAdd={(id) => void onAddTag(id)}

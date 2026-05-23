@@ -6,7 +6,6 @@ import { useTags, TrackTagsPopover } from '../../tags';
 import { softTagColors } from '../../tags/lib/tagPalette';
 
 export interface PlayerPanelTagCloudProps {
-  categoryId: string;
   trackId: string;
   assignedTagIds: readonly string[];
   onAdd: (tagId: string) => void;
@@ -14,7 +13,7 @@ export interface PlayerPanelTagCloudProps {
 }
 
 export function PlayerPanelTagCloud(props: PlayerPanelTagCloudProps) {
-  const { categoryId, trackId, assignedTagIds, onAdd, onRemove } = props;
+  const { trackId, assignedTagIds, onAdd, onRemove } = props;
   const { t } = useTranslation();
   const tagsQuery = useTags();
   const [opened, setOpened] = useState(false);
@@ -24,6 +23,14 @@ export function PlayerPanelTagCloud(props: PlayerPanelTagCloudProps) {
     () => (tagsQuery.data ?? []).slice().sort((a, b) => a.name.localeCompare(b.name)),
     [tagsQuery.data],
   );
+
+  const onToggle = (tag: { id: string; name: string; color: string | null }, checked: boolean) => {
+    if (checked) {
+      onAdd(tag.id);
+    } else {
+      onRemove(tag.id);
+    }
+  };
 
   const addButton = (
     <ActionIcon
@@ -82,9 +89,9 @@ export function PlayerPanelTagCloud(props: PlayerPanelTagCloudProps) {
           opened={opened}
           onClose={() => setOpened(false)}
           target={addButton}
-          categoryId={categoryId}
           trackId={trackId}
           currentTagIds={assignedTagIds}
+          onToggle={onToggle}
         />
       </Group>
     </Stack>
