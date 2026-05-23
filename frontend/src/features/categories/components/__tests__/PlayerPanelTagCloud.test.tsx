@@ -102,7 +102,7 @@ describe('PlayerPanelTagCloud', () => {
     expect(bangerLabel.style.backgroundColor).toBe('transparent');
   });
 
-  it('pins label padding so selecting a tag does not resize it', () => {
+  it('both selected and unselected chip labels carry pinned padding', () => {
     render(ui({ ...base, assignedTagIds: ['tg-a'] }));
     const acidLabel = screen
       .getByText('acid')

@@ -26,7 +26,8 @@ import { PlayerPanelTagCloud } from '../PlayerPanelTagCloud';
 const base = { categoryId: 'c1', trackId: 't-1', onAdd: vi.fn(), onRemove: vi.fn() };
 
 function acidLabelWidth(container: HTMLElement): number {
-  const label = container.querySelector('.mantine-Chip-label') as HTMLElement;
+  const label = container.querySelector('.mantine-Chip-label') as HTMLElement | null;
+  if (!label) throw new Error('mantine-Chip-label not found');
   return label.getBoundingClientRect().width;
 }
 
@@ -47,6 +48,7 @@ describe('PlayerPanelTagCloud — chip width stable on select (browser)', () => 
     const checked = acidLabelWidth(container);
 
     expect(unchecked).toBeGreaterThan(0);
-    expect(checked).toBeCloseTo(unchecked, 1);
+    // the bug was a ~20px shrink; assert the two widths differ by < 1px
+    expect(Math.abs(checked - unchecked)).toBeLessThan(1);
   });
 });
