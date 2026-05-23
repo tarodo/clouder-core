@@ -42,3 +42,43 @@ export function pickPillTextColor(bg: string | null | undefined): string {
   const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return L > 0.5 ? '#000000' : '#ffffff';
 }
+
+export interface SoftTagColors {
+  /** Low-alpha tint for the pill background. */
+  bg: string;
+  /** Darkened, readable foreground text colour. */
+  fg: string;
+  /** Subtle hairline border colour. */
+  border: string;
+}
+
+const NEUTRAL_SOFT: SoftTagColors = {
+  bg: 'rgba(100, 116, 139, 0.12)',
+  fg: '#475569',
+  border: 'rgba(100, 116, 139, 0.3)',
+};
+
+/**
+ * Derives a soft "label" treatment from a stored tag colour: a light tint
+ * background, a darkened readable text colour, and a subtle border. Computed
+ * client-side so existing tags soften without any data migration.
+ */
+export function softTagColors(hex: string | null | undefined): SoftTagColors {
+  const m =
+    typeof hex === 'string'
+      ? /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+      : null;
+  if (!m) return NEUTRAL_SOFT;
+  const r = parseInt(m[1]!, 16);
+  const g = parseInt(m[2]!, 16);
+  const b = parseInt(m[3]!, 16);
+  const darken = (c: number) =>
+    Math.round(c * 0.55)
+      .toString(16)
+      .padStart(2, '0');
+  return {
+    bg: `rgba(${r}, ${g}, ${b}, 0.13)`,
+    fg: `#${darken(r)}${darken(g)}${darken(b)}`,
+    border: `rgba(${r}, ${g}, ${b}, 0.3)`,
+  };
+}

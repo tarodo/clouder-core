@@ -3,6 +3,7 @@ import { ActionIcon, Chip, Group, Stack, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useTags, TrackTagsPopover } from '../../tags';
+import { softTagColors } from '../../tags/lib/tagPalette';
 
 export interface PlayerPanelTagCloudProps {
   categoryId: string;
@@ -40,14 +41,28 @@ export function PlayerPanelTagCloud(props: PlayerPanelTagCloudProps) {
       <Group gap="xs" wrap="wrap" align="center">
         {tags.map((tg) => {
           const selected = assigned.has(tg.id);
+          const sc = softTagColors(tg.color);
           return (
             <Chip
               key={tg.id}
               checked={selected}
               size="sm"
-              variant={selected ? 'filled' : 'outline'}
-              color={tg.color ?? 'gray'}
+              variant="outline"
               onChange={() => (selected ? onRemove(tg.id) : onAdd(tg.id))}
+              styles={{
+                label: selected
+                  ? {
+                      backgroundColor: sc.bg,
+                      color: sc.fg,
+                      border: `1px solid ${sc.border}`,
+                    }
+                  : {
+                      backgroundColor: 'transparent',
+                      color: 'var(--mantine-color-dimmed)',
+                      border: '1px solid var(--mantine-color-default-border)',
+                    },
+                iconWrapper: { color: selected ? sc.fg : 'var(--mantine-color-dimmed)' },
+              }}
             >
               {tg.name}
             </Chip>
