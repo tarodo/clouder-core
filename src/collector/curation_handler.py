@@ -258,7 +258,7 @@ def _playlist_track_response(row) -> dict[str, Any]:
         "bpm": getattr(row, "bpm", None),
         "spotify_release_date": getattr(row, "spotify_release_date", None),
         "is_ai_suspected": bool(getattr(row, "is_ai_suspected", False)),
-        "artists": list(getattr(row, "artists", ()) or ()),
+        "artists": list(getattr(row, "artists", ())),
         "label": getattr(row, "label", None),
         "tags": [
             {"id": t.tag_id, "name": t.name, "color": t.color}
