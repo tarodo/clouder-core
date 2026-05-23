@@ -309,7 +309,6 @@
       "renamed": "Playlist renamed",
       "deleted": "Playlist deleted",
       "description_saved": "Description saved",
-      "visibility_saved": "Visibility updated",
       "track_added": "Added to {{name}}",
       "tracks_added": "Added {{count}} tracks",
       "track_removed": "Track removed",

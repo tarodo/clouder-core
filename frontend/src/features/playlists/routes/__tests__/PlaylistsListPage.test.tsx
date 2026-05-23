@@ -107,13 +107,14 @@ describe('PlaylistsListPage', () => {
     await waitFor(() => expect(posted?.name).toBe('Sunday house'));
   });
 
-  it('renders no lock icon in the playlist row', async () => {
+  it('renders no public/visibility column in the playlist table', async () => {
     render(
       <Wrapper>
         <PlaylistsListPage />
       </Wrapper>,
     );
     await waitFor(() => expect(screen.getByText('Saturday techno')).toBeInTheDocument());
-    expect(screen.queryByRole('img', { name: /lock/i })).toBeNull();
+    // the lock icon lived in a "Public" column that is now removed entirely
+    expect(screen.queryByRole('columnheader', { name: /public/i })).toBeNull();
   });
 });
