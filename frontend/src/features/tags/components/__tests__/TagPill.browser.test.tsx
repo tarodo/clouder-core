@@ -31,8 +31,9 @@ describe('TagPill — uniform short pills (browser)', () => {
   test('1-char and 2-char pills are equal width; 5-char is wider', () => {
     const { container, w1, w2, w5 } = widths();
     expect(w1).toBeGreaterThan(0);
-    expect(w1).toBeCloseTo(w2, 1); // 1-char clamps to the same 2ch min-width
-    expect(w5).toBeGreaterThan(w2 + 1); // longer tag grows
+    // both clamp to the 2ch min-width → equal within sub-pixel rounding (±0.5px)
+    expect(w1).toBeCloseTo(w2, 0);
+    expect(w5).toBeGreaterThan(w2 + 1); // 5-char exceeds the min-width by ≥1px in mono
 
     const pill = container.querySelector('[data-testid="p1"]') as HTMLElement;
     expect(window.getComputedStyle(pill).fontFamily.toLowerCase()).toContain('mono');

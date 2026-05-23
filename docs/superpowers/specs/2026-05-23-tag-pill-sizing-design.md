@@ -44,7 +44,7 @@ In `frontend/src/features/categories/components/PlayerPanelTagCloud.tsx`, add `p
 In `frontend/src/features/tags/components/TagPill.tsx`, add to the pill `Box`'s inline `style`:
 
 - `fontFamily: 'var(--font-mono)'`
-- `minWidth: 'calc(2ch + 16px)'` — 2 chars of mono text plus the existing `px={8}` (8px × 2). The global `*{ box-sizing: border-box }` (tokens.css) makes `min-width` include padding, so the padding must be added explicitly to reserve 2ch of *content*.
+- `minWidth: 'calc(2ch + 18px)'` — 2 chars of mono text plus the existing `px={8}` (8px × 2 = 16px) plus the `1px` border (× 2 = 2px). The global `*{ box-sizing: border-box }` (tokens.css) makes `min-width` include both padding and border, so both must be added explicitly to reserve 2ch of *content*. (The first implementation used `+ 16px` and the 1px border made 2-char pills 2px wider than 1-char ones — the browser test caught it; corrected to `+ 18px`.)
 - `justifyContent: 'center'` — center the text within the min-width box (the `×` remove button, when present, stays right-aligned within the centered flex content; acceptable — remove is only used in the popover/manager, not the table).
 
 Result: any tag ≤2 chars renders at the same `calc(2ch + 16px)` width, centered; tags of 3+ chars grow naturally. `px={8}`, radius, colors, the optional `onRemove` `×` are unchanged.

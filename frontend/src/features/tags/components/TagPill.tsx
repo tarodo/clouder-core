@@ -24,6 +24,8 @@ export function TagPill({ name, color, onRemove, ...rest }: TagPillProps) {
         fontFamily: 'var(--font-mono)',
         fontSize: 12,
         lineHeight: 1.4,
+        // 2ch content + px×2 (8px) + border×2 (1px), box-sizing: border-box.
+        // Makes 1- and 2-char tags one width; longer tags grow. Update if px/border change.
         minWidth: 'calc(2ch + 18px)',
         backgroundColor: bg,
         color: fg,
