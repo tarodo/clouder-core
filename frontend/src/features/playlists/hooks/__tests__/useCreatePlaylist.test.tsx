@@ -44,7 +44,7 @@ describe('useCreatePlaylist', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
     const { result } = renderHook(() => useCreatePlaylist(), { wrapper: makeWrapper(qc) });
-    await result.current.mutateAsync({ name: 'Hello', is_public: false });
+    await result.current.mutateAsync({ name: 'Hello' });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(
       invalidateSpy.mock.calls.some(

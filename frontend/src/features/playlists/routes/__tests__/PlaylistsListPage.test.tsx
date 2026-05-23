@@ -101,8 +101,19 @@ describe('PlaylistsListPage', () => {
     await waitFor(() => expect(screen.getByText('Saturday techno')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Create playlist/i }));
     const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByLabelText(/public/i)).toBeNull();
     await user.type(within(dialog).getByLabelText('Name'), 'Sunday house');
     await user.click(within(dialog).getByRole('button', { name: 'Create' }));
     await waitFor(() => expect(posted?.name).toBe('Sunday house'));
+  });
+
+  it('renders no lock icon in the playlist row', async () => {
+    render(
+      <Wrapper>
+        <PlaylistsListPage />
+      </Wrapper>,
+    );
+    await waitFor(() => expect(screen.getByText('Saturday techno')).toBeInTheDocument());
+    expect(screen.queryByRole('img', { name: /lock/i })).toBeNull();
   });
 });

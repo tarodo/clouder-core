@@ -132,7 +132,6 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   async function handlePatch(input: {
     name?: string;
     description?: string | null;
-    is_public?: boolean;
     status?: 'active' | 'completed';
   }) {
     try {

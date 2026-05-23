@@ -41,14 +41,12 @@ export function PlaylistsListPage() {
   async function handleCreate(input: {
     name?: string;
     description?: string | null;
-    is_public?: boolean;
   }) {
     setCreateServerError(undefined);
     try {
       await create.mutateAsync({
         name: input.name!,
         description: input.description ?? null,
-        is_public: input.is_public ?? false,
       });
       notifications.show({ message: t('playlists.toast.created'), color: 'green' });
       setCreateOpen(false);
@@ -152,7 +150,7 @@ export function PlaylistsListPage() {
       <PlaylistFormDialog
         mode="create"
         opened={createOpen}
-        initial={{ name: '', description: null, is_public: false }}
+        initial={{ name: '', description: null }}
         submitting={create.isPending}
         onClose={() => {
           setCreateOpen(false);
@@ -166,8 +164,8 @@ export function PlaylistsListPage() {
         opened={!!renameTarget}
         initial={
           renameTarget
-            ? { name: renameTarget.name, description: renameTarget.description, is_public: renameTarget.is_public }
-            : { name: '', description: null, is_public: false }
+            ? { name: renameTarget.name, description: renameTarget.description }
+            : { name: '', description: null }
         }
         submitting={renameMut.isPending}
         onClose={() => {
@@ -182,8 +180,8 @@ export function PlaylistsListPage() {
         opened={!!descTarget}
         initial={
           descTarget
-            ? { name: descTarget.name, description: descTarget.description, is_public: descTarget.is_public }
-            : { name: '', description: null, is_public: false }
+            ? { name: descTarget.name, description: descTarget.description }
+            : { name: '', description: null }
         }
         submitting={descMut.isPending}
         onClose={() => setDescTarget(null)}

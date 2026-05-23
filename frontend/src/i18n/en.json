@@ -225,7 +225,6 @@
       "col_cover": "",
       "col_name": "Name",
       "col_tracks": "Tracks",
-      "col_public": "Public",
       "col_status": "Status",
       "col_spotify": "Spotify",
       "col_updated": "Updated",
@@ -241,8 +240,6 @@
       "edit_description_title": "Edit description",
       "name_label": "Name",
       "description_label": "Description",
-      "is_public_label": "Public",
-      "is_public_description": "Other CLOUDER users see this is set; the Spotify playlist visibility is controlled separately when publishing.",
       "submit_create": "Create",
       "submit_save": "Save",
       "cancel": "Cancel"

@@ -20,7 +20,7 @@ export const playlistDescriptionSchema = z
 export const createPlaylistSchema = z.object({
   name: playlistNameSchema,
   description: playlistDescriptionSchema.optional(),
-  is_public: z.boolean().default(false),
+  is_public: z.boolean().optional().default(false),
 });
 
 export const playlistStatusSchema = z.enum(['active', 'completed']);
@@ -41,5 +41,5 @@ export const patchPlaylistSchema = z
     { message: 'at_least_one_field' },
   );
 
-export type CreatePlaylistInput = z.infer<typeof createPlaylistSchema>;
+export type CreatePlaylistInput = z.input<typeof createPlaylistSchema>;
 export type PatchPlaylistInput = z.infer<typeof patchPlaylistSchema>;

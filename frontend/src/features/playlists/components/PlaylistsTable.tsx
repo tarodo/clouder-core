@@ -24,7 +24,6 @@ export function PlaylistsTable({
           <Table.Th>{t('playlists.table.col_cover')}</Table.Th>
           <Table.Th>{t('playlists.table.col_name')}</Table.Th>
           <Table.Th>{t('playlists.table.col_tracks')}</Table.Th>
-          <Table.Th>{t('playlists.table.col_public')}</Table.Th>
           <Table.Th>{t('playlists.table.col_status')}</Table.Th>
           <Table.Th>{t('playlists.table.col_spotify')}</Table.Th>
           <Table.Th>{t('playlists.table.col_updated')}</Table.Th>

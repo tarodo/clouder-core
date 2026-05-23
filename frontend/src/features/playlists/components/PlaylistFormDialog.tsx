@@ -5,7 +5,6 @@ import {
   Group,
   Modal,
   Stack,
-  Switch,
   Textarea,
   TextInput,
 } from '@mantine/core';
@@ -26,13 +25,12 @@ export type PlaylistFormMode = 'create' | 'rename' | 'edit-description';
 export interface PlaylistFormDialogProps {
   mode: PlaylistFormMode;
   opened: boolean;
-  initial: { name: string; description: string | null; is_public: boolean };
+  initial: { name: string; description: string | null };
   submitting: boolean;
   onClose: () => void;
   onSubmit: (input: {
     name?: string;
     description?: string | null;
-    is_public?: boolean;
   }) => void;
   serverNameError?: string;
 }
@@ -43,7 +41,6 @@ const editDescriptionSchema = z.object({ description: playlistDescriptionSchema 
 type FormValues = {
   name: string;
   description: string;
-  is_public: boolean;
 };
 
 export function PlaylistFormDialog({
@@ -69,7 +66,6 @@ export function PlaylistFormDialog({
     initialValues: {
       name: initial.name,
       description: initial.description ?? '',
-      is_public: initial.is_public,
     },
     validate: resolver,
   });
@@ -79,11 +75,10 @@ export function PlaylistFormDialog({
       form.setValues({
         name: initial.name,
         description: initial.description ?? '',
-        is_public: initial.is_public,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, initial.name, initial.description, initial.is_public]);
+  }, [opened, initial.name, initial.description]);
 
   const title =
     mode === 'create'
@@ -104,12 +99,11 @@ export function PlaylistFormDialog({
   );
 
   function handleSubmit(values: FormValues) {
-    const out: { name?: string; description?: string | null; is_public?: boolean } = {};
+    const out: { name?: string; description?: string | null } = {};
     if (mode === 'create' || mode === 'rename') out.name = values.name.trim();
     if (mode === 'create' || mode === 'edit-description') {
       out.description = values.description.trim() === '' ? null : values.description.trim();
     }
-    if (mode === 'create') out.is_public = values.is_public;
     onSubmit(out);
   }
 
@@ -135,13 +129,6 @@ export function PlaylistFormDialog({
             maxRows={6}
             {...form.getInputProps('description')}
             error={descriptionError}
-          />
-        )}
-        {mode === 'create' && (
-          <Switch
-            label={t('playlists.form.is_public_label')}
-            description={t('playlists.form.is_public_description')}
-            {...form.getInputProps('is_public', { type: 'checkbox' })}
           />
         )}
         <Group justify="flex-end" gap="sm">
