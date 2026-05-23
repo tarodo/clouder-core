@@ -18,24 +18,26 @@ describe('TagPill', () => {
     expect(screen.getByText('Vocal')).toBeInTheDocument();
   });
 
-  it('uses the colour as background when provided', () => {
+  it('renders a soft tint background derived from the colour', () => {
     render(
       <W>
         <TagPill name="Vocal" color="#ff8800" data-testid="pill" />
       </W>,
     );
     const el = screen.getByTestId('pill');
-    expect(el.style.backgroundColor).toBe('rgb(255, 136, 0)');
+    expect(el.style.backgroundColor).toBe('rgba(255, 136, 0, 0.13)');
+    // fg darkened: 255*.55=140, 136*.55=75, 0 → #8c4b00
+    expect(el.style.color).toBe('rgb(140, 75, 0)');
   });
 
-  it('falls back to a neutral outline when colour is null', () => {
+  it('falls back to a neutral grey tint when colour is null', () => {
     render(
       <W>
         <TagPill name="Vocal" color={null} data-testid="pill" />
       </W>,
     );
     const el = screen.getByTestId('pill');
-    expect(el.style.backgroundColor).toBe('transparent');
-    expect(el.style.borderStyle).toBe('solid');
+    expect(el.style.backgroundColor).toBe('rgba(100, 116, 139, 0.12)');
+    expect(el.style.color).toBe('rgb(71, 85, 105)'); // #475569
   });
 });

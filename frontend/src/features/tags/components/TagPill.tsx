@@ -1,5 +1,5 @@
 import { Box, type BoxProps } from '@mantine/core';
-import { pickPillTextColor } from '../lib/tagPalette';
+import { softTagColors } from '../lib/tagPalette';
 
 export interface TagPillProps extends BoxProps {
   name: string;
@@ -9,19 +9,7 @@ export interface TagPillProps extends BoxProps {
 }
 
 export function TagPill({ name, color, onRemove, ...rest }: TagPillProps) {
-  const fg = pickPillTextColor(color);
-  const baseStyle: React.CSSProperties = color
-    ? {
-        backgroundColor: color,
-        color: fg,
-        border: '1px solid transparent',
-      }
-    : {
-        backgroundColor: 'transparent',
-        color: 'var(--mantine-color-text)',
-        border: '1px solid var(--mantine-color-default-border)',
-        borderStyle: 'solid',
-      };
+  const { bg, fg, border } = softTagColors(color);
   return (
     <Box
       component="span"
@@ -34,7 +22,9 @@ export function TagPill({ name, color, onRemove, ...rest }: TagPillProps) {
         borderRadius: 999,
         fontSize: 12,
         lineHeight: 1.4,
-        ...baseStyle,
+        backgroundColor: bg,
+        color: fg,
+        border: `1px solid ${border}`,
       }}
       {...rest}
     >
