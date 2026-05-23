@@ -18,10 +18,13 @@ export function TagPill({ name, color, onRemove, ...rest }: TagPillProps) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 4,
         borderRadius: 999,
+        fontFamily: 'var(--font-mono)',
         fontSize: 12,
         lineHeight: 1.4,
+        minWidth: 'calc(2ch + 18px)',
         backgroundColor: bg,
         color: fg,
         border: `1px solid ${border}`,

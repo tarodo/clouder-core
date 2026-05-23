@@ -40,4 +40,16 @@ describe('TagPill', () => {
     expect(el.style.backgroundColor).toBe('rgba(100, 116, 139, 0.12)');
     expect(el.style.color).toBe('rgb(71, 85, 105)'); // #475569
   });
+
+  it('renders mono, centered, with a 2-char min-width for uniform short pills', () => {
+    render(
+      <W>
+        <TagPill name="A" color="#ff8800" data-testid="pill" />
+      </W>,
+    );
+    const el = screen.getByTestId('pill');
+    expect(el.style.fontFamily).toBe('var(--font-mono)');
+    expect(el.style.minWidth).toBe('calc(2ch + 18px)');
+    expect(el.style.justifyContent).toBe('center');
+  });
 });
