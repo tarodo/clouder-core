@@ -22,4 +22,8 @@ def test_enrich_options_payload_shape():
     assert "prompt_versions" in body and len(body["prompt_versions"]) >= 1
     assert any(p.get("is_default") for p in body["prompt_versions"])
     assert "default_models" in body
+    # Cost guard: form must default to the cheap experiment-validated models,
+    # not the pro tiers (gpt-5 / gemini-*-pro) — see the gpt-5 cost incident.
+    assert body["default_models"]["openai"] == "gpt-5.4-mini"
+    assert body["default_models"]["gemini"] == "gemini-3.5-flash"
     assert body["merge"]["vendor"] == "deepseek"
