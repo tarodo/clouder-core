@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +14,11 @@ class Settings(BaseSettings):
     tavily_api_key: str | None = None
     deepseek_api_key: str | None = None
     perplexity_api_key: str | None = None
+    # Accepts MOONSHOT_API_KEY (canonical Moonshot env var) or KIMI_API_KEY.
+    kimi_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("MOONSHOT_API_KEY", "kimi_api_key", "KIMI_API_KEY"),
+    )
 
     anthropic_model: str = "claude-sonnet-4-6"
     xai_model: str = "grok-4"
@@ -20,6 +26,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-5-mini"
     deepseek_model: str = "deepseek-v4-flash"
     perplexity_model: str = "sonar"
+    kimi_model: str = "kimi-k2.6"
 
     concurrency: int = 8
     request_timeout: int = 180
@@ -47,4 +54,6 @@ def available_vendor_names(s: Settings) -> list[str]:
         out.append("tavily_deepseek")
     if s.perplexity_api_key:
         out.append("perplexity")
+    if s.kimi_api_key:
+        out.append("kimi")
     return out

@@ -18,6 +18,7 @@ from .runner import RunSpec, run_matrix
 from .vendors.anthropic_claude import AnthropicClaudeAdapter
 from .vendors.base import VendorAdapter
 from .vendors.gemini_flash import GeminiFlashAdapter
+from .vendors.kimi_k2 import KimiAdapter
 from .vendors.openai_gpt import OpenAIGPTAdapter
 from .vendors.perplexity_sonar import PerplexitySonarAdapter
 from .vendors.tavily_deepseek import TavilyDeepSeekAdapter
@@ -70,6 +71,12 @@ def build_vendors(settings: Settings, names: list[str]) -> list[VendorAdapter]:
         adapters.append(PerplexitySonarAdapter(
             api_key=settings.perplexity_api_key,
             default_model=settings.perplexity_model,
+            timeout_s=settings.request_timeout,
+        ))
+    if "kimi" in names and settings.kimi_api_key:
+        adapters.append(KimiAdapter(
+            api_key=settings.kimi_api_key,
+            default_model=settings.kimi_model,
             timeout_s=settings.request_timeout,
         ))
     return adapters

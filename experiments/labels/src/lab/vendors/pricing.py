@@ -40,6 +40,15 @@ PRICING: dict[str, tuple[float, float]] = {
     # Perplexity
     "sonar":     (1.0, 1.0),
     "sonar-pro": (3.0, 15.0),
+
+    # Kimi / Moonshot AI — rates from https://platform.kimi.ai/docs/pricing/chat-k26.md (2026-05-23)
+    # Input: $0.95/1M (cache miss) / $0.16/1M (cache hit). Using cache-miss rate as conservative estimate.
+    # Output: $4.00/1M tokens.
+    # NOTE: The $web_search builtin costs $0.005 per successful search call (finish_reason="tool_calls")
+    # on top of token charges; this per-call cost is NOT captured by estimate_cost().
+    "kimi-k2.6": (0.95, 4.00),
+    "kimi-k2.5": (0.95, 4.00),   # estimated — same tier as k2.6; no separate pricing page consulted
+    "kimi-k2-thinking": (0.95, 4.00),  # estimated — no dedicated pricing found
 }
 
 
