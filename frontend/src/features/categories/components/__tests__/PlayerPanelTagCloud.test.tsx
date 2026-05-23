@@ -11,8 +11,8 @@ import '../../../../i18n';
 vi.mock('../../../tags', () => ({
   useTags: () => ({
     data: [
-      { id: 'tg-a', name: 'acid', color: '#f00' },
-      { id: 'tg-b', name: 'banger', color: '#0f0' },
+      { id: 'tg-a', name: 'acid', color: '#ff0000' },
+      { id: 'tg-b', name: 'banger', color: '#00ff00' },
     ],
     isLoading: false,
   }),
@@ -78,5 +78,19 @@ describe('PlayerPanelTagCloud', () => {
     expect(add).toBeInTheDocument();
     await userEvent.click(add);
     expect(screen.getByPlaceholderText(/search or create/i)).toBeInTheDocument();
+  });
+
+  it('assigned chip shows a soft tint, unassigned chip is transparent', () => {
+    render(ui({ ...base, assignedTagIds: ['tg-a'] }));
+    const acidLabel = screen
+      .getByText('acid')
+      .closest('.mantine-Chip-root')!
+      .querySelector('.mantine-Chip-label')! as HTMLElement;
+    const bangerLabel = screen
+      .getByText('banger')
+      .closest('.mantine-Chip-root')!
+      .querySelector('.mantine-Chip-label')! as HTMLElement;
+    expect(acidLabel.style.backgroundColor).toBe('rgba(255, 0, 0, 0.13)');
+    expect(bangerLabel.style.backgroundColor).toBe('transparent');
   });
 });
