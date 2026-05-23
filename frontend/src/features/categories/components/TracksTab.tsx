@@ -111,20 +111,25 @@ export function TracksTab({
         match={tagFilter.match}
         onChange={handleTagFilterChange}
       />
-      <Button
-        variant="default"
-        leftSection={<IconSettings size={14} />}
-        onClick={() => setManagerOpen(true)}
-      >
-        {t('tags.filter.manage_tags')}
-      </Button>
-      <Tooltip label={t('categories.filters.fresh_tooltip')}>
-        <Switch
-          label={t('categories.filters.fresh_label')}
-          checked={fresh}
-          onChange={(e) => setFresh(e.currentTarget.checked)}
-        />
-      </Tooltip>
+      {/* Group the toggle with the Manage-tags button and center them to each
+          other, so "Fresh only" sits at the button's mid-height rather than the
+          row's bottom edge (the outer row aligns to flex-end). */}
+      <Group gap="sm" align="center">
+        <Button
+          variant="default"
+          leftSection={<IconSettings size={14} />}
+          onClick={() => setManagerOpen(true)}
+        >
+          {t('tags.filter.manage_tags')}
+        </Button>
+        <Tooltip label={t('categories.filters.fresh_tooltip')}>
+          <Switch
+            label={t('categories.filters.fresh_label')}
+            checked={fresh}
+            onChange={(e) => setFresh(e.currentTarget.checked)}
+          />
+        </Tooltip>
+      </Group>
     </Group>
   );
 
