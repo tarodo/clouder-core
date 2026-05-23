@@ -6,6 +6,11 @@ def test_known_model():
     assert estimate_cost("gemini-3-flash-preview", 1_000_000, 1_000_000) == 3.50
 
 
+def test_gemini_3_5_flash_pricing():
+    # gemini-3.5-flash: 1.50 in, 9.00 out per 1M tokens
+    assert estimate_cost("gemini-3.5-flash", 1_000_000, 1_000_000) == 10.50
+
+
 def test_unknown_model_zero():
     assert estimate_cost("unknown-xyz", 1_000_000, 1_000_000) == 0.0
 
