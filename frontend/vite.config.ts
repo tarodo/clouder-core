@@ -62,6 +62,7 @@ export default defineConfig(({ mode }) => {
       setupFiles: ['./src/test/setup.ts'],
       css: false,
       include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      exclude: ['src/**/*.browser.test.tsx'],
       // jsdom URL must be 'http://localhost/' — MSW handlers and apiClient
       // both expect that origin (added in Phase C, kept verbatim).
       environmentOptions: {

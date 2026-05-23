@@ -237,3 +237,16 @@ body {
 :focus-visible {
   outline: none !important;
 }
+
+/* Chip focus ring — additional suppression.
+   Mantine Chip renders a hidden <input> + visible <label>. The focus ring is
+   painted via the CSS adjacent-sibling selector in Mantine's Chip.css:
+     .m_bde07329:focus-visible + .m_be049a53 { outline: 2px solid ...; }
+   (where those hashed classes map to .mantine-Chip-input and .mantine-Chip-label)
+   The generic `:focus-visible { outline: none !important }` above targets the
+   INPUT element only — it does NOT suppress the sibling-derived outline on
+   the LABEL. This rule targets the label directly via the same combinator
+   pattern, with enough specificity to win. */
+.mantine-Chip-input:focus-visible + .mantine-Chip-label {
+  outline: none !important;
+}
