@@ -228,11 +228,12 @@ body {
 
 /* Focus outline — suppressed app-wide.
    This is a mouse + global-hotkey app (no Tab navigation), so the focus
-   outline is noise. theme.focusRing="never" removes Mantine's own ring;
-   this clears the browser's native :focus-visible outline that still
-   appears on native focusable elements — e.g. the dark ring around a tag
-   Chip's checkbox <input> when a key (Space) is pressed while it's focused. */
+   outline is noise. Mantine draws its ring as
+   `.mantine-focus-auto:focus-visible { outline: 2px solid ... }` (specificity
+   0,2,0), which beats a plain `:focus-visible` reset — so this needs
+   `!important` to win. Triggered by a keypress while a control is focused
+   (e.g. pressing Space while a tag Chip's checkbox <input> is focused). */
 :focus,
 :focus-visible {
-  outline: none;
+  outline: none !important;
 }
