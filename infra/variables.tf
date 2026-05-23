@@ -464,6 +464,17 @@ variable "label_enrichment_batch_size" {
   default     = 1
 }
 
+variable "label_enrichment_worker_max_concurrency" {
+  description = "SQS event-source maximum_concurrency for the label-enrichment worker (range 2-1000). Caps the worker's SQS-driven parallelism WITHOUT reserving from the account pool, so it works on the low new-account ConcurrentExecutions quota (10). Leaves headroom for interactive Lambdas (auth/api). Raise once the account quota is increased."
+  type        = number
+  default     = 8
+
+  validation {
+    condition     = var.label_enrichment_worker_max_concurrency >= 2 && var.label_enrichment_worker_max_concurrency <= 1000
+    error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
+  }
+}
+
 variable "gemini_api_key_ssm_parameter" {
   description = "SSM Parameter Store name (SecureString) for the Gemini API key."
   type        = string

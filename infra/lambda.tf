@@ -223,4 +223,12 @@ resource "aws_lambda_event_source_mapping" "label_enrichment_queue" {
   event_source_arn = aws_sqs_queue.label_enrichment.arn
   function_name    = aws_lambda_function.label_enricher_worker.arn
   batch_size       = var.label_enrichment_batch_size
+
+  # Cap the worker's SQS-driven parallelism so a label batch can't monopolise
+  # the account ConcurrentExecutions pool and starve interactive Lambdas
+  # (auth/login). Unlike reserved_concurrent_executions, this does NOT reserve
+  # from the account pool, so it works even on the low new-account quota (10).
+  scaling_config {
+    maximum_concurrency = var.label_enrichment_worker_max_concurrency
+  }
 }
