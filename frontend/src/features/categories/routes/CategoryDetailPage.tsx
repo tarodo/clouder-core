@@ -1,15 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Anchor,
-  Breadcrumbs,
-  Button,
-  Flex,
-  Group,
-  Stack,
-  Text,
-  Title,
-  useMantineTheme,
-} from '@mantine/core';
+import { Anchor, Breadcrumbs, Flex, Stack, useMantineTheme } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
@@ -35,6 +25,7 @@ import {
 } from '../hooks/useCategoryTracks';
 import { useCategoryPlayerQueue } from '../hooks/useCategoryPlayerQueue';
 import { CategoryFormDialog } from '../components/CategoryFormDialog';
+import { CategoryDetailHeader } from '../components/CategoryDetailHeader';
 import { CategoryPlayerPanel } from '../components/CategoryPlayerPanel';
 import { TracksTab } from '../components/TracksTab';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
@@ -234,20 +225,12 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
           {data.style_name}
         </Anchor>
       </Breadcrumbs>
-      <Group justify="space-between" align="flex-end">
-        <Stack gap={2}>
-          <Title order={1}>{data.name}</Title>
-          <Text c="dimmed">{trackCountLabel}</Text>
-        </Stack>
-        <Group gap="sm">
-          <Button variant="default" onClick={() => setRenameOpen(true)}>
-            {t('categories.detail.actions.rename')}
-          </Button>
-          <Button color="red" variant="light" onClick={openDelete}>
-            {t('categories.detail.actions.delete')}
-          </Button>
-        </Group>
-      </Group>
+      <CategoryDetailHeader
+        name={data.name}
+        trackCountLabel={trackCountLabel}
+        onRename={() => setRenameOpen(true)}
+        onDelete={openDelete}
+      />
       {isDesktop ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
           <CategoryPlayerPanel categoryId={id} styleId={styleId} items={items} />
