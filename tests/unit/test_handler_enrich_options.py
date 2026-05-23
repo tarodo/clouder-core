@@ -25,7 +25,7 @@ def test_enrich_options_payload_shape():
     # Cost guard: form must default to the cheap experiment-validated models,
     # not the pro tiers (gpt-5 / gemini-*-pro) — see the gpt-5 cost incident.
     assert body["default_models"]["openai"] == "gpt-5.4-mini"
-    assert body["default_models"]["gemini"] == "gemini-3.5-flash"
+    assert body["default_models"]["gemini"] == "gemini-3-flash-preview"
     # deepseek-chat is a deprecated alias — default to the explicit current id.
     assert body["default_models"]["tavily_deepseek"] == "deepseek-v4-flash"
     assert body["merge"]["vendor"] == "deepseek"
