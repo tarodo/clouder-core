@@ -90,4 +90,14 @@ describe('useCategoryPlayerHotkeys', () => {
     expect(callbacks.onTogglePlayPause).not.toHaveBeenCalled();
     document.body.removeChild(input);
   });
+
+  it('fires shortcuts when the target is a checkbox input (e.g. a tag chip)', () => {
+    renderHook(() => useCategoryPlayerHotkeys({ ...callbacks, active: true, playlistCount: 10 }));
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    document.body.appendChild(checkbox);
+    checkbox.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyJ', bubbles: true }));
+    expect(callbacks.onPrev).toHaveBeenCalledOnce();
+    document.body.removeChild(checkbox);
+  });
 });
