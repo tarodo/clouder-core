@@ -10,11 +10,14 @@ import json
 import uuid
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from collector.data_api import DataAPIClient
 from collector.models import normalize_text
 from collector.settings import get_data_api_settings
+
+if TYPE_CHECKING:
+    from .tags_repository import TagsRepository, TrackTagRow
 
 from . import (
     PlaylistLimitReachedError,
@@ -136,7 +139,7 @@ class PlaylistTrackRow:
     is_ai_suspected: bool = False
     artists: tuple[dict, ...] = ()
     label: dict | None = None
-    tags: tuple = ()  # TrackTagRow tuple; kept untyped to avoid an import cycle
+    tags: tuple[TrackTagRow, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -548,7 +551,7 @@ class PlaylistsRepository:
         playlist_id: str,
         limit: int,
         offset: int,
-        tags_repo=None,
+        tags_repo: TagsRepository | None = None,
     ) -> tuple[list[PlaylistTrackRow], int]:
         owner = self._data_api.execute(
             "SELECT 1 AS ok FROM playlists "
