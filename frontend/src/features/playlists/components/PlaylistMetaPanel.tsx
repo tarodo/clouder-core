@@ -85,7 +85,7 @@ export function PlaylistMetaPanel({
   }
 
   return (
-    <Group align="flex-start" gap="lg" wrap="nowrap">
+    <Group align="stretch" gap="lg" wrap="nowrap">
       <CoverPicker playlistId={playlist.id} coverUrl={playlist.cover_url} />
       <Stack gap="sm" flex={1}>
         {editingName ? (
