@@ -93,9 +93,10 @@ export function PlaylistTracksList({
         </Stack>
       </SortableContext>
       {/* The dragged tile lives in its own layer: immune to list re-renders
-          (e.g. playback ticks) so the drop animates smoothly instead of
-          snapping. */}
-      <DragOverlay>
+          (e.g. playback ticks). dropAnimation={null} makes the overlay vanish
+          on release — no "spring back to the source slot" animation, since the
+          list has already reordered to the drop position underneath. */}
+      <DragOverlay dropAnimation={null}>
         {activeTrack ? (
           <PlaylistTrackRowView
             track={activeTrack}
