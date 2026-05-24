@@ -262,7 +262,8 @@
       "remove": "Remove cover",
       "help_text": "JPEG or PNG, up to 256 KB",
       "uploading": "Uploading…",
-      "placeholder_alt": "No cover yet"
+      "placeholder_alt": "No cover yet",
+      "upload_hint": "Click to upload"
     },
     "publish": {
       "first": "Publish to Spotify",
