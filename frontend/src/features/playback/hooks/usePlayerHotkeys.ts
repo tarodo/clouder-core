@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { isEditableTarget } from '../../../lib/isEditableTarget';
 
-export interface UseCategoryPlayerHotkeysArgs {
+export interface UsePlayerHotkeysArgs {
   active: boolean;
+  /** Number of playlists addressable by the digit keys (0 disables them). */
   playlistCount: number;
   onTogglePlayPause: () => void;
   onPrev: () => void;
@@ -26,7 +27,13 @@ function digitIndex(code: string): number | null {
   return m ? Number(m[1]) - 1 : null;
 }
 
-export function useCategoryPlayerHotkeys(args: UseCategoryPlayerHotkeysArgs): void {
+/**
+ * Player keyboard shortcuts shared by the category and playlist players:
+ *   Space = play/pause, j/k = prev/next, a/s/d/f/g = seek 0/20/40/60/80%,
+ *   u = undo, digits 1-9/0 = toggle playlist by index (when playlistCount > 0).
+ * Only active when `active` is true (i.e. this player owns the current queue).
+ */
+export function usePlayerHotkeys(args: UsePlayerHotkeysArgs): void {
   const {
     active,
     playlistCount,

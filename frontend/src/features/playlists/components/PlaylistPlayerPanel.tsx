@@ -3,6 +3,7 @@ import { Badge, Divider, Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { usePlayback } from '../../playback/usePlayback';
+import { usePlayerHotkeys } from '../../playback/hooks/usePlayerHotkeys';
 import { useTags } from '../../tags';
 import { usePlaylistAddTrackTag, usePlaylistRemoveTrackTag } from '../hooks/usePlaylistTrackTag';
 import { undoStack, useUndoStack } from '../../categories/hooks/useUndoStack';
@@ -85,6 +86,22 @@ export function PlaylistPlayerPanel({ playlistId, items }: PlaylistPlayerPanelPr
   useEffect(() => {
     if (!entry) notifications.hide(TOAST_ID);
   }, [entry]);
+
+  // Player transport hotkeys (Space play/pause, a/s/d/f/g seek, j/k prev/next,
+  // u undo) — active only while this playlist owns the queue. No playlist-toggle
+  // digits here (playlistCount = 0).
+  usePlayerHotkeys({
+    active:
+      playback.queue.source?.type === 'playlist' &&
+      playback.queue.source.playlistId === playlistId,
+    playlistCount: 0,
+    onTogglePlayPause: () => void playback.controls.togglePlayPause(),
+    onPrev: () => void playback.controls.prev(),
+    onNext: () => void playback.controls.next(),
+    onSeekPct: (p) => void playback.controls.seekPct(p),
+    onTogglePlaylist: () => {},
+    onUndo: () => void undoStack.popAndRun(),
+  });
 
   // SEAM FIX: PlayerPanelTagCloud.onAdd gives a tag id only; resolve to full
   // tag before calling usePlaylistAddTrackTag which needs id+name+color for

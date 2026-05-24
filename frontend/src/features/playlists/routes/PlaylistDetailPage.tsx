@@ -26,7 +26,7 @@ import { useDeletePlaylist } from '../hooks/useDeletePlaylist';
 import { useRemoveTrackFromPlaylist } from '../hooks/useRemoveTrackFromPlaylist';
 import { useReorderPlaylistTracks } from '../hooks/useReorderPlaylistTracks';
 import { usePlaylistPlayerQueue } from '../hooks/usePlaylistPlayerQueue';
-import { usePlaylistAddTrackTag, usePlaylistRemoveTrackTag } from '../hooks/usePlaylistTrackTag';
+import { usePlaylistRemoveTrackTag } from '../hooks/usePlaylistTrackTag';
 import { PlaylistMetaPanel } from '../components/PlaylistMetaPanel';
 import { PlaylistTracksList } from '../components/PlaylistTracksList';
 import { PlaylistPlayerPanel } from '../components/PlaylistPlayerPanel';
@@ -34,7 +34,7 @@ import { PublishButton } from '../components/PublishButton';
 import { AddTracksModal } from '../components/AddTracksModal';
 import { ImportSpotifyModal } from '../components/ImportSpotifyModal';
 import { playlistTracksKey } from '../lib/queryKeys';
-import type { PaginatedPlaylistTracks, PlaylistTrack, PlaylistTrackTag } from '../lib/playlistTypes';
+import type { PaginatedPlaylistTracks, PlaylistTrack } from '../lib/playlistTypes';
 
 function toPlaybackTrack(t: PlaylistTrack): PlaybackTrack {
   return {
@@ -68,7 +68,6 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   const deleteMut = useDeletePlaylist();
   const removeTrackMut = useRemoveTrackFromPlaylist();
   const reorder = useReorderPlaylistTracks(id);
-  const addTagMut = usePlaylistAddTrackTag(id);
   const removeTagMut = usePlaylistRemoveTrackTag(id);
 
   const playback = usePlayback();
@@ -113,13 +112,6 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
       }
     },
     [playback.controls, playback.queue.tracks, isDesktop, navigate, id],
-  );
-
-  const onAddTag = useCallback(
-    (track: PlaylistTrack, tag: PlaylistTrackTag) => {
-      void addTagMut.mutateAsync({ trackId: track.track_id, tag });
-    },
-    [addTagMut],
   );
 
   const onRemoveTag = useCallback(
@@ -253,7 +245,6 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
         reorderDisabled={search.trim() !== ''}
         onPlayTrack={onPlay}
         currentTrackId={playback.track.current?.id ?? null}
-        onAddTag={onAddTag}
         onRemoveTag={onRemoveTag}
       />
     );
@@ -286,7 +277,8 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
       {isDesktop ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
           <PlaylistPlayerPanel playlistId={id} items={tracks} />
-          <div style={{ flex: 1, minWidth: 0 }}>{tilesList}</div>
+          {/* List capped at ~2× the player width (player .root is 442px). */}
+          <div style={{ flex: 1, minWidth: 0, maxWidth: 884 }}>{tilesList}</div>
         </Flex>
       ) : (
         tilesList

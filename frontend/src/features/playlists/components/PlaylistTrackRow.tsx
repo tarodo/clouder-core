@@ -1,6 +1,9 @@
-import { useState } from 'react';
 import { ActionIcon, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { useSortable } from '@dnd-kit/sortable';
+import {
+  defaultAnimateLayoutChanges,
+  useSortable,
+  type AnimateLayoutChanges,
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
   IconExternalLink,
@@ -8,9 +11,9 @@ import {
   IconPlayerPlayFilled,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import type { PlaylistTrack, PlaylistTrackTag } from '../lib/playlistTypes';
+import type { PlaylistTrack } from '../lib/playlistTypes';
 import { formatLength, formatReleaseDate } from '../../../lib/formatters';
-import { TagPill, TrackTagsPopover } from '../../tags';
+import { TagPill } from '../../tags';
 
 export interface PlaylistTrackRowProps {
   track: PlaylistTrack;
@@ -19,7 +22,6 @@ export interface PlaylistTrackRowProps {
   reorderDisabled?: boolean;
   onPlay?: () => void;
   isCurrent?: boolean;
-  onAddTag?: (tag: PlaylistTrackTag) => void;
   onRemoveTag?: (tagId: string) => void;
 }
 
@@ -30,12 +32,16 @@ export function PlaylistTrackRow({
   reorderDisabled = false,
   onPlay,
   isCurrent,
-  onAddTag,
   onRemoveTag,
 }: PlaylistTrackRowProps) {
   const { t } = useTranslation();
+  // Animate the dropped item into its new slot instead of snapping (the default
+  // suppresses the layout animation for the item that was just dragged).
+  const animateLayoutChanges: AnimateLayoutChanges = (args) =>
+    defaultAnimateLayoutChanges({ ...args, wasDragging: true });
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: track.track_id,
+    animateLayoutChanges,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -43,8 +49,6 @@ export function PlaylistTrackRow({
     opacity: isDragging ? 0.5 : 1,
     borderRadius: 'var(--mantine-radius-md)',
   };
-
-  const [popoverOpen, setPopoverOpen] = useState(false);
 
   const canPlay = !!onPlay && !!track.spotify_id;
   const artistNames = track.artists.map((a) => a.name).join(', ');
@@ -131,6 +135,8 @@ export function PlaylistTrackRow({
           <Text size="xs" c="dimmed" className="font-mono">
             {formatReleaseDate(track.spotify_release_date)}
           </Text>
+          {/* Tags are display + click-to-remove only; adding tags happens in
+              the player (the "+" affordance was removed from the list). */}
           {track.tags.map((tag) => (
             <TagPill
               key={tag.id}
@@ -139,29 +145,6 @@ export function PlaylistTrackRow({
               onRemove={onRemoveTag ? () => onRemoveTag(tag.id) : undefined}
             />
           ))}
-          <TrackTagsPopover
-            opened={popoverOpen}
-            onClose={() => setPopoverOpen(false)}
-            target={
-              <ActionIcon
-                variant="subtle"
-                size="xs"
-                aria-label={t('tags.cell.add_aria')}
-                onClick={() => setPopoverOpen((o) => !o)}
-              >
-                +
-              </ActionIcon>
-            }
-            trackId={track.track_id}
-            currentTagIds={track.tags.map((t) => t.id)}
-            onToggle={(tag, checked) => {
-              if (checked) {
-                onAddTag?.(tag);
-              } else {
-                onRemoveTag?.(tag.id);
-              }
-            }}
-          />
         </Group>
       </Stack>
 

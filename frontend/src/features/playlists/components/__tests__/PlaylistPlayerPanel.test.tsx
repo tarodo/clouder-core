@@ -138,4 +138,26 @@ describe('PlaylistPlayerPanel', () => {
     render(ui([], playbackEmpty));
     expect(screen.getByText(/pick a track/i)).toBeInTheDocument();
   });
+
+  it('wires player transport hotkeys (asdfg jk) while the playlist owns the queue', () => {
+    render(ui([seedTrack]));
+    const press = (code: string) =>
+      window.dispatchEvent(new KeyboardEvent('keydown', { code }));
+    press('Space');
+    expect(playbackWithTrack.controls.togglePlayPause).toHaveBeenCalledOnce();
+    press('KeyJ');
+    expect(playbackWithTrack.controls.prev).toHaveBeenCalledOnce();
+    press('KeyK');
+    expect(playbackWithTrack.controls.next).toHaveBeenCalledOnce();
+    press('KeyA');
+    press('KeyG');
+    expect(playbackWithTrack.controls.seekPct).toHaveBeenNthCalledWith(1, 0);
+    expect(playbackWithTrack.controls.seekPct).toHaveBeenNthCalledWith(2, 0.8);
+  });
+
+  it('does not fire hotkeys when another source owns the queue', () => {
+    render(ui([seedTrack], { ...playbackWithTrack, queue: { ...playbackWithTrack.queue, source: { type: 'category' as const, categoryId: 'c1', styleId: 's1' } } }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyK' }));
+    expect(playbackWithTrack.controls.next).not.toHaveBeenCalled();
+  });
 });
