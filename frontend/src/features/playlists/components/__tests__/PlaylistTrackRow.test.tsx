@@ -146,4 +146,25 @@ describe('PlaylistTrackRow', () => {
     const playBtn = screen.getByRole('button', { name: /play track/i });
     expect(playBtn).toBeDisabled();
   });
+
+  it('removes a tag by clicking the colored pill (no × icon)', async () => {
+    const onRemoveTag = vi.fn();
+    render(
+      <W>
+        <PlaylistTrackRow
+          track={richTrack}
+          position={1}
+          onRemove={vi.fn()}
+          onPlay={vi.fn()}
+          onRemoveTag={onRemoveTag}
+        />
+      </W>,
+    );
+
+    // The pill itself is the remove control; there is no separate "×" button.
+    expect(screen.queryByText('×')).toBeNull();
+    const darkPill = screen.getByRole('button', { name: 'Remove Dark' });
+    await userEvent.click(darkPill);
+    expect(onRemoveTag).toHaveBeenCalledWith('tg1');
+  });
 });
