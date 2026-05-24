@@ -66,6 +66,9 @@ export const handlers = [
   http.get('http://localhost/me', () =>
     HttpResponse.json({ id: 'u1', spotify_id: 'sp1', display_name: 'Roman', is_admin: false }),
   ),
+  http.get('http://localhost/tags', () =>
+    HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+  ),
   http.get('http://localhost/admin/coverage', ({ request }) => {
     const url = new URL(request.url);
     const year = Number(url.searchParams.get('week_year') ?? '0');

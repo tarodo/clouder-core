@@ -31,7 +31,8 @@ export interface PlaybackTrack {
 
 export type QueueSource =
   | { type: 'bucket'; blockId: string; bucketId: string }
-  | { type: 'category'; categoryId: string; styleId: string };
+  | { type: 'category'; categoryId: string; styleId: string }
+  | { type: 'playlist'; playlistId: string };
 
 export interface BindQueueArgs {
   source: QueueSource;

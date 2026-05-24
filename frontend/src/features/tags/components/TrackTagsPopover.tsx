@@ -6,8 +6,6 @@ import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { useTags, type Tag } from '../hooks/useTags';
 import { useCreateTag } from '../hooks/useCreateTag';
-import { useAddTrackTag } from '../hooks/useAddTrackTag';
-import { useRemoveTrackTag } from '../hooks/useRemoveTrackTag';
 import { normalizeTagName } from '../lib/normalizeTagName';
 import { ColorSwatchPicker } from './ColorSwatchPicker';
 import { TagPill } from './TagPill';
@@ -18,18 +16,16 @@ export interface TrackTagsPopoverProps {
   opened: boolean;
   onClose: () => void;
   target: React.ReactElement;
-  categoryId: string;
   trackId: string;
   currentTagIds: readonly string[];
+  onToggle: (tag: { id: string; name: string; color: string | null }, checked: boolean) => void | Promise<void>;
 }
 
 export function TrackTagsPopover({
-  opened, onClose, target, categoryId, trackId, currentTagIds,
+  opened, onClose, target, trackId: _trackId, currentTagIds, onToggle,
 }: TrackTagsPopoverProps) {
   const { t } = useTranslation();
   const tagsQ = useTags();
-  const addMut = useAddTrackTag();
-  const removeMut = useRemoveTrackTag();
   const createMut = useCreateTag();
   const [search, setSearch] = useState('');
   const [creatingColor, setCreatingColor] = useState<string | null>(null);
@@ -48,14 +44,7 @@ export function TrackTagsPopover({
 
   const toggle = async (tag: Tag, checked: boolean) => {
     try {
-      if (checked) {
-        await addMut.mutateAsync({
-          categoryId, trackId,
-          tag: { id: tag.id, name: tag.name, color: tag.color },
-        });
-      } else {
-        await removeMut.mutateAsync({ categoryId, trackId, tagId: tag.id });
-      }
+      await onToggle({ id: tag.id, name: tag.name, color: tag.color }, checked);
     } catch {
       notifications.show({ color: 'red', message: t('tags.toast.update_failed') });
     }
@@ -66,10 +55,7 @@ export function TrackTagsPopover({
     if (!name) return;
     try {
       const tag = await createMut.mutateAsync({ name, color: creatingColor });
-      await addMut.mutateAsync({
-        categoryId, trackId,
-        tag: { id: tag.id, name: tag.name, color: tag.color },
-      });
+      await onToggle({ id: tag.id, name: tag.name, color: tag.color }, true);
       setSearch('');
       setCreatingMode(false);
       setCreatingColor(null);

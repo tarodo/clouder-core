@@ -8,6 +8,8 @@ import '../../../../i18n';
 // Mock the tags barrel: real-ish useTags + a stub TrackTagsPopover that renders
 // its target and a marker input when opened (so we can assert the "+" opens it
 // without pulling React Query / the popover's own mutations).
+// The stub also exposes an "Attach acid" button to simulate toggling a tag via
+// the popover's onToggle callback (not a category-scoped mutation).
 vi.mock('../../../tags', () => ({
   useTags: () => ({
     data: [
@@ -19,13 +21,29 @@ vi.mock('../../../tags', () => ({
   TrackTagsPopover: ({
     opened,
     target,
+    onToggle,
   }: {
     opened: boolean;
     target: React.ReactNode;
+    onToggle: (tag: { id: string; name: string; color: string | null }, checked: boolean) => void;
   }) => (
     <div data-testid="tags-popover">
       {target}
-      {opened && <input placeholder="search or create" />}
+      {opened && (
+        <>
+          <input placeholder="search or create" />
+          <button
+            onClick={() => onToggle({ id: 'tg-a', name: 'acid', color: '#ff0000' }, true)}
+          >
+            Attach acid
+          </button>
+          <button
+            onClick={() => onToggle({ id: 'tg-a', name: 'acid', color: '#ff0000' }, false)}
+          >
+            Detach acid
+          </button>
+        </>
+      )}
     </div>
   ),
 }));
@@ -40,7 +58,7 @@ function ui(props: Parameters<typeof PlayerPanelTagCloud>[0]) {
   );
 }
 
-const base = { categoryId: 'c1', trackId: 't-1', onAdd: vi.fn(), onRemove: vi.fn() };
+const base = { trackId: 't-1', onAdd: vi.fn(), onRemove: vi.fn() };
 
 describe('PlayerPanelTagCloud', () => {
   it('renders all user tags', () => {
@@ -117,5 +135,19 @@ describe('PlayerPanelTagCloud', () => {
     expect(acidLabel.style.paddingRight).toBe('var(--chip-padding)');
     expect(bangerLabel.style.paddingLeft).toBe('var(--chip-padding)');
     expect(bangerLabel.style.paddingRight).toBe('var(--chip-padding)');
+  });
+
+  it('toggling a tag via the popover onToggle callback calls onAdd/onRemove (not a category mutation)', async () => {
+    const onAdd = vi.fn();
+    const onRemove = vi.fn();
+    render(ui({ ...base, assignedTagIds: [], onAdd, onRemove }));
+    // Open popover
+    await userEvent.click(screen.getByRole('button', { name: /add tag/i }));
+    // Simulate adding via the popover's onToggle
+    await userEvent.click(screen.getByRole('button', { name: /attach acid/i }));
+    expect(onAdd).toHaveBeenCalledWith('tg-a');
+    // Simulate removing via the popover's onToggle
+    await userEvent.click(screen.getByRole('button', { name: /detach acid/i }));
+    expect(onRemove).toHaveBeenCalledWith('tg-a');
   });
 });

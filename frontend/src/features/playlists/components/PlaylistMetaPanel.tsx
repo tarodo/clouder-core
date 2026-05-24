@@ -11,7 +11,6 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconPencil, IconX } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import type { Playlist } from '../lib/playlistTypes';
 import { playlistNameSchema, playlistDescriptionSchema } from '../lib/playlistSchemas';
@@ -23,7 +22,6 @@ export interface PlaylistMetaPanelProps {
   onPatch: (input: {
     name?: string;
     description?: string | null;
-    is_public?: boolean;
     status?: 'active' | 'completed';
   }) => Promise<void>;
   publishSlot?: React.ReactNode;
@@ -83,15 +81,6 @@ export function PlaylistMetaPanel({
     setDescDraft(playlist.description ?? '');
     setDescError(undefined);
     setEditingDescription(false);
-  }
-
-  async function togglePublic(checked: boolean) {
-    try {
-      await onPatch({ is_public: checked });
-      notifications.show({ message: t('playlists.toast.visibility_saved'), color: 'green' });
-    } catch {
-      notifications.show({ message: t('playlists.toast.generic_error'), color: 'red' });
-    }
   }
 
   return (
@@ -174,11 +163,6 @@ export function PlaylistMetaPanel({
         )}
 
         <Group gap="md" wrap="wrap">
-          <Switch
-            label={t('playlists.form.is_public_label')}
-            checked={playlist.is_public}
-            onChange={(e) => void togglePublic(e.currentTarget.checked)}
-          />
           <Switch
             label={
               playlist.status === 'completed'

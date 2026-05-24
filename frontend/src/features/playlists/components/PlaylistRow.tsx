@@ -10,8 +10,6 @@ import {
 import {
   IconBrandSpotify,
   IconDotsVertical,
-  IconLock,
-  IconLockOpen,
   IconPhoto,
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
@@ -80,9 +78,6 @@ export function PlaylistRow({
         </Anchor>
       </Table.Td>
       <Table.Td>{playlist.track_count}</Table.Td>
-      <Table.Td>
-        {playlist.is_public ? <IconLockOpen size={16} /> : <IconLock size={16} />}
-      </Table.Td>
       <Table.Td>
         <StatusBadge status={playlist.status} />
       </Table.Td>

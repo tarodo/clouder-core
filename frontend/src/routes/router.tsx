@@ -20,6 +20,7 @@ import {
 } from '../features/curate';
 import { PlaylistsListPage } from '../features/playlists/routes/PlaylistsListPage';
 import { PlaylistDetailPage } from '../features/playlists/routes/PlaylistDetailPage';
+import { PlaylistPlayerPage } from '../features/playlists/routes/PlaylistPlayerPage';
 import { ProfilePage } from './profile';
 import { NotFoundPage } from './not-found';
 import { RouteErrorBoundary } from '../components/RouteErrorBoundary';
@@ -98,7 +99,11 @@ export const router = createBrowserRouter([
         path: 'playlists',
         children: [
           { index: true, element: <PlaylistsListPage /> },
-          { path: ':id', element: <PlaylistDetailPage /> },
+          {
+            path: ':id',
+            element: <PlaylistDetailPage />,
+            children: [{ path: 'player', element: <PlaylistPlayerPage /> }],
+          },
         ],
       },
       { path: 'profile', element: <ProfilePage /> },

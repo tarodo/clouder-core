@@ -22,6 +22,10 @@ export interface Playlist {
   updated_at: string;
 }
 
+export interface PlaylistTrackArtist { id: string; name: string }
+export interface PlaylistTrackLabel { id: string; name: string }
+export interface PlaylistTrackTag { id: string; name: string; color: string | null }
+
 export interface PlaylistTrack {
   track_id: string;
   position: number;
@@ -31,6 +35,13 @@ export interface PlaylistTrack {
   isrc: string | null;
   length_ms: number | null;
   origin: PlaylistTrackOrigin;
+  mix_name: string | null;
+  artists: PlaylistTrackArtist[];
+  label: PlaylistTrackLabel | null;
+  bpm: number | null;
+  spotify_release_date: string | null;
+  is_ai_suspected: boolean;
+  tags: PlaylistTrackTag[];
 }
 
 export interface PaginatedPlaylists {

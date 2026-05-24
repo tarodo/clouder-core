@@ -75,6 +75,7 @@ describe('Playlists integration smoke', () => {
     await waitFor(() => expect(screen.getByText(/No playlists yet/i)).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Create playlist/i }));
     const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByLabelText(/public/i)).toBeNull();
     await user.type(within(dialog).getByLabelText('Name'), 'Sunday house');
     await user.click(within(dialog).getByRole('button', { name: 'Create' }));
     await waitFor(() => expect(posted?.name).toBe('Sunday house'));

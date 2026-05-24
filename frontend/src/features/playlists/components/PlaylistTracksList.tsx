@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from '@dnd-kit/sortable';
-import type { PlaylistTrack } from '../lib/playlistTypes';
+import type { PlaylistTrack, PlaylistTrackTag } from '../lib/playlistTypes';
 import { PlaylistTrackRow } from './PlaylistTrackRow';
 
 export interface PlaylistTracksListProps {
@@ -23,6 +23,14 @@ export interface PlaylistTracksListProps {
   onReorder: (orderedIds: string[]) => void;
   onRemove: (track: PlaylistTrack) => void;
   reorderDisabled?: boolean;
+  /** Called when the user clicks play on a track row. */
+  onPlayTrack?: (track: PlaylistTrack) => void;
+  /** track_id of the currently playing track for highlight. */
+  currentTrackId?: string | null;
+  /** Called when a tag is added to a track row. */
+  onAddTag?: (track: PlaylistTrack, tag: PlaylistTrackTag) => void;
+  /** Called when a tag is removed from a track row. */
+  onRemoveTag?: (track: PlaylistTrack, tagId: string) => void;
 }
 
 export function PlaylistTracksList({
@@ -30,6 +38,10 @@ export function PlaylistTracksList({
   onReorder,
   onRemove,
   reorderDisabled = false,
+  onPlayTrack,
+  currentTrackId,
+  onAddTag,
+  onRemoveTag,
 }: PlaylistTracksListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -58,6 +70,10 @@ export function PlaylistTracksList({
               position={i + 1}
               onRemove={onRemove}
               reorderDisabled={reorderDisabled}
+              onPlay={onPlayTrack ? () => onPlayTrack(t) : undefined}
+              isCurrent={t.track_id === currentTrackId}
+              onAddTag={onAddTag ? (tag) => onAddTag(t, tag) : undefined}
+              onRemoveTag={onRemoveTag ? (tagId) => onRemoveTag(t, tagId) : undefined}
             />
           ))}
         </Stack>

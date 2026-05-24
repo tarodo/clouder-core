@@ -1,0 +1,11 @@
+.root {
+  width: 442px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  position: sticky;
+  top: calc(var(--app-shell-header-offset, 3.5rem) + var(--mantine-spacing-sm));
+  max-height: calc(100vh - var(--app-shell-header-offset, 3.5rem) - var(--mantine-spacing-md));
+  padding: var(--mantine-spacing-md);
+  border-right: 1px solid var(--mantine-color-default-border);
+  overflow-y: auto;
+}

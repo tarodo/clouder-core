@@ -254,6 +254,16 @@ def _playlist_track_response(row) -> dict[str, Any]:
         "isrc": row.isrc,
         "length_ms": row.length_ms,
         "origin": row.origin,
+        "mix_name": getattr(row, "mix_name", None),
+        "bpm": getattr(row, "bpm", None),
+        "spotify_release_date": getattr(row, "spotify_release_date", None),
+        "is_ai_suspected": bool(getattr(row, "is_ai_suspected", False)),
+        "artists": list(getattr(row, "artists", ())),
+        "label": getattr(row, "label", None),
+        "tags": [
+            {"id": t.tag_id, "name": t.name, "color": t.color}
+            for t in getattr(row, "tags", ())
+        ],
     }
 
 
@@ -712,8 +722,12 @@ def _handle_list_playlist_tracks(event, repo, user_id, correlation_id):
     if not pid:
         raise ValidationError("id is required in path")
     limit, offset = _parse_pagination(event)
+    tags_repo = create_default_tags_repository()
+    if tags_repo is None:
+        return _error(503, "db_not_configured", "Database not configured", correlation_id)
     rows, total = repo.list_tracks(
         user_id=user_id, playlist_id=pid, limit=limit, offset=offset,
+        tags_repo=tags_repo,
     )
     return _json_response(
         200,

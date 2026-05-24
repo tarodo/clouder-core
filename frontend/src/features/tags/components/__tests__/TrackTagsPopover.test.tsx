@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
@@ -51,9 +51,9 @@ describe('TrackTagsPopover', () => {
           opened
           onClose={() => {}}
           target={<button>open</button>}
-          categoryId="c1"
           trackId="t1"
           currentTagIds={['tg1']}
+          onToggle={vi.fn()}
         />
       </W>,
     );
@@ -63,30 +63,25 @@ describe('TrackTagsPopover', () => {
     expect(darkRow).not.toBeChecked();
   });
 
-  it('calls POST /tracks/{id}/tags when an unchecked tag is clicked', async () => {
-    let captured: unknown = null;
-    server.use(
-      http.post('http://localhost/tracks/t1/tags', async ({ request }) => {
-        captured = await request.json();
-        return HttpResponse.json(
-          { tags: [] }, { status: 201 },
-        );
-      }),
-    );
+  it('calls onToggle with (tag, true) when an unchecked tag is clicked', async () => {
+    const onToggle = vi.fn();
     render(
       <W>
         <TrackTagsPopover
           opened
           onClose={() => {}}
           target={<button>open</button>}
-          categoryId="c1"
           trackId="t1"
           currentTagIds={[]}
+          onToggle={onToggle}
         />
       </W>,
     );
     await userEvent.click(await screen.findByRole('checkbox', { name: /vocal/i }));
-    expect(captured).toEqual({ tag_id: 'tg1' });
+    expect(onToggle).toHaveBeenCalledWith(
+      { id: 'tg1', name: 'Vocal', color: '#ff8800' },
+      true,
+    );
   });
 
   it('shows "Create" suggestion when search has no exact match', async () => {
@@ -96,9 +91,9 @@ describe('TrackTagsPopover', () => {
           opened
           onClose={() => {}}
           target={<button>open</button>}
-          categoryId="c1"
           trackId="t1"
           currentTagIds={[]}
+          onToggle={vi.fn()}
         />
       </W>,
     );
@@ -116,9 +111,9 @@ describe('TrackTagsPopover', () => {
           opened
           onClose={() => {}}
           target={<button>open</button>}
-          categoryId="c1"
           trackId="t1"
           currentTagIds={[]}
+          onToggle={vi.fn()}
         />
       </W>,
     );
@@ -137,9 +132,9 @@ describe('TrackTagsPopover', () => {
           opened
           onClose={() => {}}
           target={<button>open</button>}
-          categoryId="c1"
           trackId="t1"
           currentTagIds={manyIds}
+          onToggle={vi.fn()}
         />
       </W>,
     );
