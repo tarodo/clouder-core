@@ -26,7 +26,6 @@ import { useDeletePlaylist } from '../hooks/useDeletePlaylist';
 import { useRemoveTrackFromPlaylist } from '../hooks/useRemoveTrackFromPlaylist';
 import { useReorderPlaylistTracks } from '../hooks/useReorderPlaylistTracks';
 import { usePlaylistPlayerQueue } from '../hooks/usePlaylistPlayerQueue';
-import { usePlaylistRemoveTrackTag } from '../hooks/usePlaylistTrackTag';
 import { PlaylistMetaPanel } from '../components/PlaylistMetaPanel';
 import { PlaylistTracksList } from '../components/PlaylistTracksList';
 import { PlaylistPlayerPanel } from '../components/PlaylistPlayerPanel';
@@ -68,8 +67,6 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   const deleteMut = useDeletePlaylist();
   const removeTrackMut = useRemoveTrackFromPlaylist();
   const reorder = useReorderPlaylistTracks(id);
-  const removeTagMut = usePlaylistRemoveTrackTag(id);
-
   const playback = usePlayback();
   const theme = useMantineTheme();
   const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
@@ -112,13 +109,6 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
       }
     },
     [playback.controls, playback.queue.tracks, isDesktop, navigate, id],
-  );
-
-  const onRemoveTag = useCallback(
-    (track: PlaylistTrack, tagId: string) => {
-      void removeTagMut.mutateAsync({ trackId: track.track_id, tagId });
-    },
-    [removeTagMut],
   );
 
   async function handlePatch(input: {
@@ -211,7 +201,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   // Shared playlist-wide controls — live above the player + list split.
   const controls = (
     <Group gap="sm" wrap="wrap">
-      <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
+      <Button leftSection={<IconPlus size={16} />} variant="light" onClick={() => setAddOpen(true)}>
         {t('playlists.detail.add_tracks_cta')}
       </Button>
       <Button
@@ -226,28 +216,31 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
         leftSection={<IconSearch size={16} />}
         value={search}
         onChange={(e) => setSearch(e.currentTarget.value)}
-        style={{ flex: 1, minWidth: 200 }}
+        style={{ width: 280 }}
       />
     </Group>
   );
 
-  const tilesList =
-    tracks.length === 0 ? (
-      <EmptyState
-        title={t('playlists.detail.empty_tracks_title')}
-        body={t('playlists.detail.empty_tracks_body')}
-      />
-    ) : (
-      <PlaylistTracksList
-        tracks={filtered}
-        onReorder={search.trim() === '' ? handleReorder : () => {}}
-        onRemove={handleRemoveTrack}
-        reorderDisabled={search.trim() !== ''}
-        onPlayTrack={onPlay}
-        currentTrackId={playback.track.current?.id ?? null}
-        onRemoveTag={onRemoveTag}
-      />
-    );
+  const tilesList = (
+    <Stack gap="md">
+      {controls}
+      {tracks.length === 0 ? (
+        <EmptyState
+          title={t('playlists.detail.empty_tracks_title')}
+          body={t('playlists.detail.empty_tracks_body')}
+        />
+      ) : (
+        <PlaylistTracksList
+          tracks={filtered}
+          onReorder={search.trim() === '' ? handleReorder : () => {}}
+          onRemove={handleRemoveTrack}
+          reorderDisabled={search.trim() !== ''}
+          onPlayTrack={onPlay}
+          currentTrackId={playback.track.current?.id ?? null}
+        />
+      )}
+    </Stack>
+  );
 
   return (
     <Stack gap="lg">
@@ -270,9 +263,6 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
           </Group>
         }
       />
-
-      {/* Shared controls above both the player and the track list */}
-      {controls}
 
       {isDesktop ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">

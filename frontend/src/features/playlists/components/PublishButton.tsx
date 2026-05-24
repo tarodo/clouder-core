@@ -87,6 +87,8 @@ export function PublishButton({ playlist }: PublishButtonProps) {
         <Button
           leftSection={<IconBrandSpotify size={16} />}
           color="green"
+          variant="light"
+          style={{ border: '1px solid var(--mantine-color-green-3)' }}
           loading={publishMut.isPending}
           onClick={handleClick}
         >

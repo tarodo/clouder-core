@@ -1,10 +1,19 @@
 import { useRef } from 'react';
-import { Avatar, Button, FileButton, Group, Stack, Text } from '@mantine/core';
+import {
+  ActionIcon,
+  Avatar,
+  Box,
+  FileButton,
+  LoadingOverlay,
+  Stack,
+  Text,
+  UnstyledButton,
+} from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
-import { IconPhoto, IconUpload, IconTrash } from '@tabler/icons-react';
+import { IconPhoto, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { useUploadCover, MAX_COVER_BYTES } from '../hooks/useUploadCover';
+import { useUploadCover } from '../hooks/useUploadCover';
 import { useClearCover } from '../hooks/useClearCover';
 
 export interface CoverPickerProps {
@@ -58,49 +67,50 @@ export function CoverPicker({ playlistId, coverUrl }: CoverPickerProps) {
 
   return (
     <Stack gap="xs" align="center">
-      <Avatar
-        src={coverUrl}
-        alt={t('playlists.cover.placeholder_alt')}
-        size={160}
-        radius="md"
-        color="gray"
-      >
-        <IconPhoto size={48} />
-      </Avatar>
-      <Group gap="xs" wrap="nowrap">
-        <FileButton
-          accept="image/jpeg,image/png"
-          onChange={handleFile}
-          resetRef={resetRef}
-        >
+      <Box style={{ position: 'relative', width: 160 }}>
+        <FileButton accept="image/jpeg,image/png" onChange={handleFile} resetRef={resetRef}>
           {(props) => (
-            <Button
+            <UnstyledButton
               {...props}
-              leftSection={<IconUpload size={14} />}
-              variant="default"
-              size="xs"
-              loading={upload.isPending}
+              aria-label={t('playlists.cover.replace')}
+              style={{ display: 'block', borderRadius: 'var(--mantine-radius-md)' }}
             >
-              {t('playlists.cover.replace')}
-            </Button>
+              <Avatar
+                src={coverUrl}
+                alt={t('playlists.cover.placeholder_alt')}
+                size={160}
+                radius="md"
+                color="gray"
+                style={{ cursor: 'pointer' }}
+              >
+                <Stack gap={4} align="center" justify="center" px="xs">
+                  <IconPhoto size={36} />
+                  <Text size="xs" c="dimmed" ta="center">
+                    {t('playlists.cover.help_text')}
+                  </Text>
+                  <Text size="xs" c="dimmed" ta="center">
+                    {t('playlists.cover.upload_hint')}
+                  </Text>
+                </Stack>
+              </Avatar>
+            </UnstyledButton>
           )}
         </FileButton>
         {coverUrl ? (
-          <Button
-            leftSection={<IconTrash size={14} />}
-            variant="default"
-            color="red"
-            size="xs"
+          <ActionIcon
+            variant="filled"
+            color="dark"
+            size="sm"
             onClick={handleRemove}
             loading={clear.isPending}
+            aria-label={t('playlists.cover.remove')}
+            style={{ position: 'absolute', top: 6, right: 6 }}
           >
-            {t('playlists.cover.remove')}
-          </Button>
+            <IconTrash size={14} />
+          </ActionIcon>
         ) : null}
-      </Group>
-      <Text size="xs" c="dimmed">
-        {t('playlists.cover.help_text')} ({Math.floor(MAX_COVER_BYTES / 1024)} KB)
-      </Text>
+        <LoadingOverlay visible={upload.isPending} overlayProps={{ radius: 'md' }} />
+      </Box>
     </Stack>
   );
 }

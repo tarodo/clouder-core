@@ -126,7 +126,7 @@ export function PlaylistMetaPanel({
         )}
 
         {editingDescription ? (
-          <Group gap="xs" wrap="nowrap" align="flex-start">
+          <Group gap="xs" wrap="nowrap" align="flex-start" style={{ maxWidth: 520 }}>
             <Textarea
               value={descDraft}
               onChange={(e) => setDescDraft(e.currentTarget.value)}
@@ -156,6 +156,7 @@ export function PlaylistMetaPanel({
               borderRadius: 'var(--mantine-radius-sm)',
               padding: '8px 40px 8px 12px',
               minHeight: 40,
+              maxWidth: 520,
             }}
           >
             <Text c={playlist.description ? undefined : 'dimmed'} size="sm">

@@ -19,7 +19,6 @@ export interface PlaylistTrackRowProps {
   reorderDisabled?: boolean;
   onPlay?: () => void;
   isCurrent?: boolean;
-  onRemoveTag?: (tagId: string) => void;
 }
 
 interface ViewProps extends PlaylistTrackRowProps {
@@ -43,7 +42,6 @@ export function PlaylistTrackRowView({
   reorderDisabled = false,
   onPlay,
   isCurrent,
-  onRemoveTag,
   rootRef,
   rootStyle,
   handleProps,
@@ -124,28 +122,22 @@ export function PlaylistTrackRowView({
         </Group>
         <Group gap="xs" wrap="wrap" align="center">
           <Text size="xs" c="dimmed">
-            {track.label?.name ?? '—'}
+            {[
+              track.label?.name ?? '—',
+              track.bpm != null ? `${track.bpm} BPM` : null,
+              // formatLength/formatReleaseDate return '—' for null, so guard
+              // here to truly omit missing parts (no "| — | —" gaps).
+              track.length_ms ? formatLength(track.length_ms) : null,
+              track.spotify_release_date
+                ? formatReleaseDate(track.spotify_release_date)
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' | ')}
           </Text>
-          {track.bpm != null && (
-            <Text size="xs" c="dimmed" className="font-mono">
-              {track.bpm}
-            </Text>
-          )}
-          <Text size="xs" c="dimmed" className="font-mono">
-            {formatLength(track.length_ms)}
-          </Text>
-          <Text size="xs" c="dimmed" className="font-mono">
-            {formatReleaseDate(track.spotify_release_date)}
-          </Text>
-          {/* Tags are display + click-to-remove only; adding tags happens in
-              the player (the "+" affordance was removed from the list). */}
+          {/* Read-only in the list — tags are edited in the player. */}
           {track.tags.map((tag) => (
-            <TagPill
-              key={tag.id}
-              name={tag.name}
-              color={tag.color}
-              onRemove={onRemoveTag ? () => onRemoveTag(tag.id) : undefined}
-            />
+            <TagPill key={tag.id} name={tag.name} color={tag.color} />
           ))}
         </Group>
       </Stack>
@@ -164,8 +156,8 @@ export function PlaylistTrackRowView({
         </ActionIcon>
       )}
 
-      {/* Remove button */}
-      <Button color="red" variant="light" size="xs" onClick={() => onRemove(track)}>
+      {/* Remove track — pale-red text, low emphasis */}
+      <Button variant="subtle" color="red" size="xs" onClick={() => onRemove(track)}>
         {t('playlists.detail.remove_track_cta')}
       </Button>
     </Group>
