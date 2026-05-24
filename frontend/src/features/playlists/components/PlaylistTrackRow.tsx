@@ -125,8 +125,12 @@ export function PlaylistTrackRowView({
             {[
               track.label?.name ?? '—',
               track.bpm != null ? `${track.bpm} BPM` : null,
-              formatLength(track.length_ms),
-              formatReleaseDate(track.spotify_release_date),
+              // formatLength/formatReleaseDate return '—' for null, so guard
+              // here to truly omit missing parts (no "| — | —" gaps).
+              track.length_ms ? formatLength(track.length_ms) : null,
+              track.spotify_release_date
+                ? formatReleaseDate(track.spotify_release_date)
+                : null,
             ]
               .filter(Boolean)
               .join(' | ')}
