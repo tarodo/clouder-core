@@ -13,7 +13,7 @@ import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { IconPhoto, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { useUploadCover, MAX_COVER_BYTES } from '../hooks/useUploadCover';
+import { useUploadCover } from '../hooks/useUploadCover';
 import { useClearCover } from '../hooks/useClearCover';
 
 export interface CoverPickerProps {
@@ -86,7 +86,7 @@ export function CoverPicker({ playlistId, coverUrl }: CoverPickerProps) {
                 <Stack gap={4} align="center" justify="center" px="xs">
                   <IconPhoto size={36} />
                   <Text size="xs" c="dimmed" ta="center">
-                    {t('playlists.cover.help_text')} ({Math.floor(MAX_COVER_BYTES / 1024)} KB)
+                    {t('playlists.cover.help_text')}
                   </Text>
                   <Text size="xs" c="dimmed" ta="center">
                     {t('playlists.cover.upload_hint')}
