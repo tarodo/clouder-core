@@ -9,7 +9,7 @@ import { useRemoveTrackTag } from '../../tags/hooks/useRemoveTrackTag';
 import { usePlaylists } from '../../playlists/hooks/usePlaylists';
 import { useAddTracksToPlaylist } from '../../playlists/hooks/useAddTracksToPlaylist';
 import { useRemoveTrackFromPlaylist } from '../../playlists/hooks/useRemoveTrackFromPlaylist';
-import { useCategoryPlayerHotkeys } from '../hooks/useCategoryPlayerHotkeys';
+import { usePlayerHotkeys } from '../../playback/hooks/usePlayerHotkeys';
 import { undoStack, useUndoStack } from '../hooks/useUndoStack';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
@@ -160,7 +160,7 @@ export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlay
     [playlistsQuery.data, trackPlaylistIds, onAddPlaylist, onRemovePlaylist],
   );
 
-  useCategoryPlayerHotkeys({
+  usePlayerHotkeys({
     active:
       playback.queue.source?.type === 'category' &&
       playback.queue.source.categoryId === categoryId,
