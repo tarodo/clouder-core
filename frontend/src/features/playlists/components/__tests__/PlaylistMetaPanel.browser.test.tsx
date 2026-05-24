@@ -32,7 +32,7 @@ const playlist: Playlist = {
 };
 
 describe('PlaylistMetaPanel — cover matches content height (browser)', () => {
-  test('cover is square and as tall as the content block', () => {
+  test('cover is square and as tall as the content block', async () => {
     const qc = new QueryClient();
     const { container } = render(
       <QueryClientProvider client={qc}>
@@ -45,19 +45,18 @@ describe('PlaylistMetaPanel — cover matches content height (browser)', () => {
     );
 
     const group = container.querySelector('.mantine-Group-root') as HTMLElement;
-    const cover = container.querySelector('.mantine-Avatar-root') as HTMLElement;
     expect(group).not.toBeNull();
-    expect(cover).not.toBeNull();
     const content = group.children[1] as HTMLElement; // the content Stack column
 
-    const c = cover.getBoundingClientRect();
-    const k = content.getBoundingClientRect();
-
-    // The content is taller than the old fixed 160px cover, so the cover grew.
-    expect(c.height).toBeGreaterThan(160);
-    // Square.
-    expect(Math.abs(c.width - c.height)).toBeLessThan(2);
-    // Cover height matches the content column height.
-    expect(Math.abs(c.height - k.height)).toBeLessThan(4);
+    // The cover is sized via a ResizeObserver on the content block, so wait for
+    // it to settle, then assert it is square and matches the content height.
+    await vi.waitFor(() => {
+      const cover = container.querySelector('.mantine-Avatar-root') as HTMLElement;
+      const c = cover.getBoundingClientRect();
+      const k = content.getBoundingClientRect();
+      expect(c.height).toBeGreaterThan(160); // taller than the old fixed 160px cover
+      expect(Math.abs(c.width - c.height)).toBeLessThan(2); // square
+      expect(Math.abs(c.height - k.height)).toBeLessThan(4); // matches content height
+    });
   });
 });
