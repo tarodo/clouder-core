@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActionIcon,
+  Box,
   Group,
   Stack,
   Switch,
@@ -146,20 +147,34 @@ export function PlaylistMetaPanel({
             </ActionIcon>
           </Group>
         ) : (
-          <Group gap="xs" wrap="nowrap" align="flex-start">
-            <Text c="dimmed" style={{ minHeight: 24 }} flex={1}>
-              {playlist.description ?? '—'}
+          <Box
+            onClick={() => setEditingDescription(true)}
+            style={{
+              position: 'relative',
+              cursor: 'pointer',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--mantine-radius-sm)',
+              padding: '8px 40px 8px 12px',
+              minHeight: 40,
+            }}
+          >
+            <Text c={playlist.description ? undefined : 'dimmed'} size="sm">
+              {playlist.description ?? t('playlists.detail.description_empty')}
             </Text>
             <Tooltip label={t('playlists.form.edit_description_title')} withinPortal>
               <ActionIcon
                 variant="subtle"
-                onClick={() => setEditingDescription(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingDescription(true);
+                }}
                 aria-label={t('playlists.form.edit_description_title')}
+                style={{ position: 'absolute', top: 4, right: 4 }}
               >
                 <IconPencil size={16} />
               </ActionIcon>
             </Tooltip>
-          </Group>
+          </Box>
         )}
 
         <Group gap="md" wrap="wrap">

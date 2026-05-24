@@ -216,60 +216,47 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
     return <Outlet context={{ items: tracks } satisfies PlaylistDetailOutletContext} />;
   }
 
-  const tilesList = (
-    <>
-      <Group gap="sm" wrap="wrap">
-        <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
-          {t('playlists.detail.add_tracks_cta')}
-        </Button>
-        <Button
-          leftSection={<IconBrandSpotify size={16} />}
-          variant="default"
-          onClick={() => setImportOpen(true)}
-        >
-          {t('playlists.detail.import_spotify_cta')}
-        </Button>
-        <TextInput
-          placeholder={t('playlists.detail.tracks_search_placeholder')}
-          leftSection={<IconSearch size={16} />}
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-        />
-      </Group>
-
-      {tracks.length === 0 ? (
-        <EmptyState
-          title={t('playlists.detail.empty_tracks_title')}
-          body={t('playlists.detail.empty_tracks_body')}
-        />
-      ) : (
-        <PlaylistTracksList
-          tracks={filtered}
-          onReorder={search.trim() === '' ? handleReorder : () => {}}
-          onRemove={handleRemoveTrack}
-          reorderDisabled={search.trim() !== ''}
-          onPlayTrack={onPlay}
-          currentTrackId={playback.track.current?.id ?? null}
-          onAddTag={onAddTag}
-          onRemoveTag={onRemoveTag}
-        />
-      )}
-
-      <AddTracksModal
-        opened={addOpen}
-        onClose={() => setAddOpen(false)}
-        playlistId={id}
-        onAdded={() => {
-          /* invalidations happen inside the hook */
-        }}
+  // Shared playlist-wide controls — live above the player + list split.
+  const controls = (
+    <Group gap="sm" wrap="wrap">
+      <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpen(true)}>
+        {t('playlists.detail.add_tracks_cta')}
+      </Button>
+      <Button
+        leftSection={<IconBrandSpotify size={16} />}
+        variant="default"
+        onClick={() => setImportOpen(true)}
+      >
+        {t('playlists.detail.import_spotify_cta')}
+      </Button>
+      <TextInput
+        placeholder={t('playlists.detail.tracks_search_placeholder')}
+        leftSection={<IconSearch size={16} />}
+        value={search}
+        onChange={(e) => setSearch(e.currentTarget.value)}
+        style={{ flex: 1, minWidth: 200 }}
       />
-      <ImportSpotifyModal
-        opened={importOpen}
-        onClose={() => setImportOpen(false)}
-        playlistId={id}
-      />
-    </>
+    </Group>
   );
+
+  const tilesList =
+    tracks.length === 0 ? (
+      <EmptyState
+        title={t('playlists.detail.empty_tracks_title')}
+        body={t('playlists.detail.empty_tracks_body')}
+      />
+    ) : (
+      <PlaylistTracksList
+        tracks={filtered}
+        onReorder={search.trim() === '' ? handleReorder : () => {}}
+        onRemove={handleRemoveTrack}
+        reorderDisabled={search.trim() !== ''}
+        onPlayTrack={onPlay}
+        currentTrackId={playback.track.current?.id ?? null}
+        onAddTag={onAddTag}
+        onRemoveTag={onRemoveTag}
+      />
+    );
 
   return (
     <Stack gap="lg">
@@ -293,6 +280,9 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
         }
       />
 
+      {/* Shared controls above both the player and the track list */}
+      {controls}
+
       {isDesktop ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
           <PlaylistPlayerPanel playlistId={id} items={tracks} />
@@ -301,6 +291,20 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
       ) : (
         tilesList
       )}
+
+      <AddTracksModal
+        opened={addOpen}
+        onClose={() => setAddOpen(false)}
+        playlistId={id}
+        onAdded={() => {
+          /* invalidations happen inside the hook */
+        }}
+      />
+      <ImportSpotifyModal
+        opened={importOpen}
+        onClose={() => setImportOpen(false)}
+        playlistId={id}
+      />
     </Stack>
   );
 }

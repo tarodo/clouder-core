@@ -56,7 +56,7 @@ export function PlaylistTrackRow({
       data-current={isCurrent ? 'true' : undefined}
       gap="sm"
       wrap="nowrap"
-      p="sm"
+      p="xs"
       bg={isCurrent ? 'var(--mantine-color-default-hover)' : 'var(--color-bg-elevated)'}
       bd="1px solid var(--color-border)"
     >
@@ -99,9 +99,9 @@ export function PlaylistTrackRow({
         </Tooltip>
       )}
 
-      {/* Track info */}
+      {/* Track info — two lines: title/mix/artists, then meta + editable tags */}
       <Stack gap={2} flex={1} style={{ minWidth: 0 }}>
-        <Group gap="xs" wrap="nowrap">
+        <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
           <Text fw={500} truncate>
             {track.title}
           </Text>
@@ -110,13 +110,13 @@ export function PlaylistTrackRow({
               {track.mix_name}
             </Text>
           )}
+          {artistNames && (
+            <Text size="sm" c="dimmed" truncate>
+              {artistNames}
+            </Text>
+          )}
         </Group>
-        {artistNames && (
-          <Text size="sm" truncate>
-            {artistNames}
-          </Text>
-        )}
-        <Group gap="xs" wrap="wrap">
+        <Group gap="xs" wrap="wrap" align="center">
           <Text size="xs" c="dimmed">
             {track.label?.name ?? '—'}
           </Text>
@@ -131,10 +131,6 @@ export function PlaylistTrackRow({
           <Text size="xs" c="dimmed" className="font-mono">
             {formatReleaseDate(track.spotify_release_date)}
           </Text>
-        </Group>
-
-        {/* Editable tags */}
-        <Group gap={4} wrap="wrap" mt={2}>
           {track.tags.map((tag) => (
             <TagPill
               key={tag.id}
