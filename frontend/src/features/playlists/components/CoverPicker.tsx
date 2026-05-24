@@ -19,9 +19,11 @@ import { useClearCover } from '../hooks/useClearCover';
 export interface CoverPickerProps {
   playlistId: string;
   coverUrl: string | null;
+  /** Square cover side in px (the meta panel sizes this to its content height). */
+  size?: number;
 }
 
-export function CoverPicker({ playlistId, coverUrl }: CoverPickerProps) {
+export function CoverPicker({ playlistId, coverUrl, size = 200 }: CoverPickerProps) {
   const { t } = useTranslation();
   const upload = useUploadCover();
   const clear = useClearCover();
@@ -66,10 +68,10 @@ export function CoverPicker({ playlistId, coverUrl }: CoverPickerProps) {
   }
 
   return (
-    // Stretches to the meta-panel row height (Group align="stretch") and renders
-    // a square cover of that height, so the cover matches the content block.
-    <Box style={{ alignSelf: 'stretch', display: 'flex' }}>
-      <Box style={{ position: 'relative', height: '100%', aspectRatio: '1 / 1' }}>
+    // Explicit square (the meta panel passes size = its content-block height),
+    // so the cover is reliably square AND matches the block — CSS aspect-ratio
+    // can't derive a width from a flex-stretched height.
+    <Box style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
         <FileButton accept="image/jpeg,image/png" onChange={handleFile} resetRef={resetRef}>
           {(props) => (
             <UnstyledButton
@@ -111,7 +113,6 @@ export function CoverPicker({ playlistId, coverUrl }: CoverPickerProps) {
           </ActionIcon>
         ) : null}
         <LoadingOverlay visible={upload.isPending} overlayProps={{ radius: 'md' }} />
-      </Box>
     </Box>
   );
 }

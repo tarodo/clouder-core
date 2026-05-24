@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActionIcon,
   Box,
@@ -40,6 +40,21 @@ export function PlaylistMetaPanel({
   const [editingDescription, setEditingDescription] = useState(false);
   const [descDraft, setDescDraft] = useState(playlist.description ?? '');
   const [descError, setDescError] = useState<string | undefined>();
+
+  // Size the (square) cover to match the content block's height. The
+  // description is width-capped (520px), so the content height doesn't depend
+  // on the cover width → no resize feedback loop.
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [coverSize, setCoverSize] = useState(200);
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      setCoverSize(Math.min(280, Math.max(160, Math.round(el.getBoundingClientRect().height))));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   async function commitName() {
     const parsed = playlistNameSchema.safeParse(nameDraft);
@@ -85,9 +100,9 @@ export function PlaylistMetaPanel({
   }
 
   return (
-    <Group align="stretch" gap="lg" wrap="nowrap">
-      <CoverPicker playlistId={playlist.id} coverUrl={playlist.cover_url} />
-      <Stack gap="sm" flex={1}>
+    <Group align="flex-start" gap="lg" wrap="nowrap">
+      <CoverPicker playlistId={playlist.id} coverUrl={playlist.cover_url} size={coverSize} />
+      <Stack gap="sm" flex={1} ref={contentRef}>
         {editingName ? (
           <Group gap="xs" wrap="nowrap">
             <TextInput
