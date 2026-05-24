@@ -66,22 +66,23 @@ export function CoverPicker({ playlistId, coverUrl }: CoverPickerProps) {
   }
 
   return (
-    <Stack gap="xs" align="center">
-      <Box style={{ position: 'relative', width: 160 }}>
+    // Stretches to the meta-panel row height (Group align="stretch") and renders
+    // a square cover of that height, so the cover matches the content block.
+    <Box style={{ alignSelf: 'stretch', display: 'flex' }}>
+      <Box style={{ position: 'relative', height: '100%', aspectRatio: '1 / 1' }}>
         <FileButton accept="image/jpeg,image/png" onChange={handleFile} resetRef={resetRef}>
           {(props) => (
             <UnstyledButton
               {...props}
               aria-label={t('playlists.cover.replace')}
-              style={{ display: 'block', borderRadius: 'var(--mantine-radius-md)' }}
+              style={{ display: 'block', width: '100%', height: '100%', borderRadius: 'var(--mantine-radius-md)' }}
             >
               <Avatar
                 src={coverUrl}
                 alt={t('playlists.cover.placeholder_alt')}
-                size={160}
                 radius="md"
                 color="gray"
-                style={{ cursor: 'pointer' }}
+                style={{ width: '100%', height: '100%', cursor: 'pointer' }}
               >
                 <Stack gap={4} align="center" justify="center" px="xs">
                   <IconPhoto size={36} />
@@ -111,6 +112,6 @@ export function CoverPicker({ playlistId, coverUrl }: CoverPickerProps) {
         ) : null}
         <LoadingOverlay visible={upload.isPending} overlayProps={{ radius: 'md' }} />
       </Box>
-    </Stack>
+    </Box>
   );
 }
