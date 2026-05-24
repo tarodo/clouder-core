@@ -1,6 +1,6 @@
 import type { CSSProperties, HTMLAttributes } from 'react';
 import { ActionIcon, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { useSortable } from '@dnd-kit/sortable';
+import { useSortable, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
   IconExternalLink,
@@ -174,10 +174,17 @@ export function PlaylistTrackRowView({
 
 /** Sortable wrapper: the dragged tile is shown via DragOverlay (see the list),
  *  so the in-list tile just fades to a placeholder while dragging. */
+// No layout animation on reorder: the drop is instant in both directions
+// (the dragged tile would otherwise slide in from its old slot — visible as a
+// "jump from above" when moving a track up). Items still shift smoothly while
+// dragging — that is the strategy transform, not a layout change.
+const noLayoutAnimation: AnimateLayoutChanges = () => false;
+
 export function PlaylistTrackRow(props: PlaylistTrackRowProps) {
   const { track, reorderDisabled = false } = props;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: track.track_id,
+    animateLayoutChanges: noLayoutAnimation,
   });
   const rootStyle: CSSProperties = {
     transform: CSS.Transform.toString(transform),
