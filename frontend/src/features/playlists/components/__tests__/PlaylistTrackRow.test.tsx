@@ -67,7 +67,7 @@ beforeEach(() => {
 });
 
 describe('PlaylistTrackRow', () => {
-  it('renders position, play button (enabled), artists, label, bpm, length, release date, tag pills, and Remove button', async () => {
+  it('renders position, play button (enabled), artists, meta line, tag pills (read-only), and Remove button', async () => {
     const onRemove = vi.fn();
     const onPlay = vi.fn();
 
@@ -99,23 +99,15 @@ describe('PlaylistTrackRow', () => {
     // Artists
     expect(screen.getByText('Ben Klock, Blawan')).toBeInTheDocument();
 
-    // Label
-    expect(screen.getByText('Ostgut Ton')).toBeInTheDocument();
+    // Meta line: single pipe-joined string
+    expect(screen.getByText(/Ostgut Ton \| 140 BPM \| 6:30 \| 2024-03-15/)).toBeInTheDocument();
 
-    // BPM
-    expect(screen.getByText('140')).toBeInTheDocument();
-
-    // Length: 6:30
-    expect(screen.getByText('6:30')).toBeInTheDocument();
-
-    // Release date
-    expect(screen.getByText('2024-03-15')).toBeInTheDocument();
-
-    // Tag pills
+    // Tag pills present (read-only — no remove button for individual tags)
     expect(screen.getByText('Dark')).toBeInTheDocument();
     expect(screen.getByText('Vocal')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /remove dark/i })).toBeNull();
 
-    // Remove button
+    // Remove track button (subtle text) fires onRemove
     const removeBtn = screen.getByRole('button', { name: /remove/i });
     expect(removeBtn).toBeInTheDocument();
     await userEvent.click(removeBtn);
@@ -147,8 +139,7 @@ describe('PlaylistTrackRow', () => {
     expect(playBtn).toBeDisabled();
   });
 
-  it('removes a tag by clicking the colored pill (no × icon)', async () => {
-    const onRemoveTag = vi.fn();
+  it('tags are read-only in the list (no remove button on pill)', () => {
     render(
       <W>
         <PlaylistTrackRow
@@ -156,15 +147,13 @@ describe('PlaylistTrackRow', () => {
           position={1}
           onRemove={vi.fn()}
           onPlay={vi.fn()}
-          onRemoveTag={onRemoveTag}
         />
       </W>,
     );
 
-    // The pill itself is the remove control; there is no separate "×" button.
-    expect(screen.queryByText('×')).toBeNull();
-    const darkPill = screen.getByRole('button', { name: 'Remove Dark' });
-    await userEvent.click(darkPill);
-    expect(onRemoveTag).toHaveBeenCalledWith('tg1');
+    // Tag text still renders
+    expect(screen.getByText('Dark')).toBeInTheDocument();
+    // But the pill is NOT an interactive remove button
+    expect(screen.queryByRole('button', { name: /remove dark/i })).toBeNull();
   });
 });

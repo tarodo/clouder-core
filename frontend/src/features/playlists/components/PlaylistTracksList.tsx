@@ -29,8 +29,6 @@ export interface PlaylistTracksListProps {
   onPlayTrack?: (track: PlaylistTrack) => void;
   /** track_id of the currently playing track for highlight. */
   currentTrackId?: string | null;
-  /** Called when a tag is removed (by clicking its pill) on a track row. */
-  onRemoveTag?: (track: PlaylistTrack, tagId: string) => void;
 }
 
 export function PlaylistTracksList({
@@ -40,7 +38,6 @@ export function PlaylistTracksList({
   reorderDisabled = false,
   onPlayTrack,
   currentTrackId,
-  onRemoveTag,
 }: PlaylistTracksListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -87,7 +84,6 @@ export function PlaylistTracksList({
               reorderDisabled={reorderDisabled}
               onPlay={onPlayTrack ? () => onPlayTrack(t) : undefined}
               isCurrent={t.track_id === currentTrackId}
-              onRemoveTag={onRemoveTag ? (tagId) => onRemoveTag(t, tagId) : undefined}
             />
           ))}
         </Stack>
