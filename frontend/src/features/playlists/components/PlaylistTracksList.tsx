@@ -1,13 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Stack } from '@mantine/core';
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -16,7 +18,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import type { PlaylistTrack } from '../lib/playlistTypes';
-import { PlaylistTrackRow } from './PlaylistTrackRow';
+import { PlaylistTrackRow, PlaylistTrackRowView } from './PlaylistTrackRow';
 
 export interface PlaylistTracksListProps {
   tracks: PlaylistTrack[];
@@ -45,8 +47,15 @@ export function PlaylistTracksList({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const ids = useMemo(() => tracks.map((t) => t.track_id), [tracks]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  function onDragStart(event: DragStartEvent) {
+    if (reorderDisabled) return;
+    setActiveId(String(event.active.id));
+  }
 
   function onDragEnd(event: DragEndEvent) {
+    setActiveId(null);
     if (reorderDisabled) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -56,8 +65,17 @@ export function PlaylistTracksList({
     onReorder(arrayMove(ids, oldIndex, newIndex));
   }
 
+  const activeIndex = activeId ? ids.indexOf(activeId) : -1;
+  const activeTrack = activeIndex >= 0 ? tracks[activeIndex] : null;
+
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         <Stack gap="xs">
           {tracks.map((t, i) => (
@@ -74,6 +92,21 @@ export function PlaylistTracksList({
           ))}
         </Stack>
       </SortableContext>
+      {/* The dragged tile lives in its own layer: immune to list re-renders
+          (e.g. playback ticks) so the drop animates smoothly instead of
+          snapping. */}
+      <DragOverlay>
+        {activeTrack ? (
+          <PlaylistTrackRowView
+            track={activeTrack}
+            position={activeIndex + 1}
+            onRemove={() => {}}
+            onPlay={onPlayTrack ? () => {} : undefined}
+            isCurrent={activeTrack.track_id === currentTrackId}
+            overlay
+          />
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

@@ -1,9 +1,6 @@
+import type { CSSProperties, HTMLAttributes } from 'react';
 import { ActionIcon, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
-import {
-  defaultAnimateLayoutChanges,
-  useSortable,
-  type AnimateLayoutChanges,
-} from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
   IconExternalLink,
@@ -25,7 +22,21 @@ export interface PlaylistTrackRowProps {
   onRemoveTag?: (tagId: string) => void;
 }
 
-export function PlaylistTrackRow({
+interface ViewProps extends PlaylistTrackRowProps {
+  /** Sortable node ref + transform style (omitted for the drag-overlay clone). */
+  rootRef?: (el: HTMLElement | null) => void;
+  rootStyle?: CSSProperties;
+  /** Drag-handle listeners/attributes (omitted for the overlay clone). */
+  handleProps?: HTMLAttributes<HTMLButtonElement>;
+  /** True when rendered inside the DragOverlay (lifts the tile visually). */
+  overlay?: boolean;
+}
+
+/**
+ * Presentational track tile. Shared by the sortable row and the DragOverlay
+ * clone so the dragged tile is visually identical while living in its own layer.
+ */
+export function PlaylistTrackRowView({
   track,
   position,
   onRemove,
@@ -33,30 +44,22 @@ export function PlaylistTrackRow({
   onPlay,
   isCurrent,
   onRemoveTag,
-}: PlaylistTrackRowProps) {
+  rootRef,
+  rootStyle,
+  handleProps,
+  overlay = false,
+}: ViewProps) {
   const { t } = useTranslation();
-  // Animate the dropped item into its new slot instead of snapping (the default
-  // suppresses the layout animation for the item that was just dragged).
-  const animateLayoutChanges: AnimateLayoutChanges = (args) =>
-    defaultAnimateLayoutChanges({ ...args, wasDragging: true });
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: track.track_id,
-    animateLayoutChanges,
-  });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    borderRadius: 'var(--mantine-radius-md)',
-  };
-
   const canPlay = !!onPlay && !!track.spotify_id;
   const artistNames = track.artists.map((a) => a.name).join(', ');
+  const groupStyle: CSSProperties = overlay
+    ? { ...rootStyle, boxShadow: 'var(--mantine-shadow-md)', cursor: 'grabbing' }
+    : rootStyle ?? {};
 
   return (
     <Group
-      ref={setNodeRef}
-      style={style}
+      ref={rootRef}
+      style={groupStyle}
       data-current={isCurrent ? 'true' : undefined}
       gap="sm"
       wrap="nowrap"
@@ -69,10 +72,9 @@ export function PlaylistTrackRow({
         variant="subtle"
         aria-label="Drag handle"
         disabled={reorderDisabled}
-        {...(reorderDisabled ? {} : attributes)}
-        {...(reorderDisabled ? {} : listeners)}
         aria-roledescription="sortable"
         style={{ cursor: reorderDisabled ? 'not-allowed' : 'grab', touchAction: 'none' }}
+        {...handleProps}
       >
         <IconGripVertical size={18} />
       </ActionIcon>
@@ -163,14 +165,36 @@ export function PlaylistTrackRow({
       )}
 
       {/* Remove button */}
-      <Button
-        color="red"
-        variant="light"
-        size="xs"
-        onClick={() => onRemove(track)}
-      >
+      <Button color="red" variant="light" size="xs" onClick={() => onRemove(track)}>
         {t('playlists.detail.remove_track_cta')}
       </Button>
     </Group>
+  );
+}
+
+/** Sortable wrapper: the dragged tile is shown via DragOverlay (see the list),
+ *  so the in-list tile just fades to a placeholder while dragging. */
+export function PlaylistTrackRow(props: PlaylistTrackRowProps) {
+  const { track, reorderDisabled = false } = props;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: track.track_id,
+  });
+  const rootStyle: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    borderRadius: 'var(--mantine-radius-md)',
+  };
+  const handleProps = reorderDisabled
+    ? undefined
+    : ({ ...attributes, ...listeners } as HTMLAttributes<HTMLButtonElement>);
+
+  return (
+    <PlaylistTrackRowView
+      {...props}
+      rootRef={setNodeRef}
+      rootStyle={rootStyle}
+      handleProps={handleProps}
+    />
   );
 }
