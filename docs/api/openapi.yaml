@@ -611,6 +611,11 @@ paths:
                     type: integer
                   cost_usd:
                     type: number
+                  source:
+                    type: string
+                    enum:
+                    - manual
+                    - auto
                   created_at:
                     type: string
                     format: date-time
@@ -971,6 +976,14 @@ paths:
           minimum: 1
           maximum: 200
           default: 50
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - manual
+          - auto
       security:
       - BearerAuth: []
       tags:

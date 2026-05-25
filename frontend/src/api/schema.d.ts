@@ -870,6 +870,8 @@ export interface paths {
                             cells_ok: number;
                             cells_error: number;
                             cost_usd?: number;
+                            /** @enum {string} */
+                            source?: "manual" | "auto";
                             /** Format: date-time */
                             created_at?: string;
                             /** Format: date-time */
@@ -1278,6 +1280,7 @@ export interface paths {
                     status?: "queued" | "running" | "completed" | "failed";
                     cursor?: string;
                     limit?: number;
+                    source?: "manual" | "auto";
                 };
                 header?: never;
                 path?: never;
@@ -5674,6 +5677,8 @@ export interface components {
             cells_ok: number;
             cells_error: number;
             cost_usd?: number;
+            /** @enum {string} */
+            source?: "manual" | "auto";
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */

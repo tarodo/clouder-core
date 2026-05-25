@@ -604,6 +604,7 @@ LABEL_ENRICH_RUN_RESPONSE = {
         "cells_ok": {"type": "integer"},
         "cells_error": {"type": "integer"},
         "cost_usd": {"type": "number"},
+        "source": {"type": "string", "enum": ["manual", "auto"]},
         "created_at": {"type": "string", "format": "date-time"},
         "started_at": {"type": ["string", "null"], "format": "date-time"},
         "finished_at": {"type": ["string", "null"], "format": "date-time"},
@@ -1389,6 +1390,12 @@ ROUTES: list[dict[str, Any]] = [
                     "maximum": 200,
                     "default": 50,
                 },
+            },
+            {
+                "name": "source",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "enum": ["manual", "auto"]},
             },
         ],
         "responses": {
