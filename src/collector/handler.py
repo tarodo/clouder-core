@@ -71,6 +71,8 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/labels/backlog",
     "GET /admin/labels/{label_id}",
     "GET /admin/labels/{label_id}/history",
+    "GET /admin/auto-enrich/labels",
+    "PUT /admin/auto-enrich/labels",
 })
 
 
@@ -184,6 +186,20 @@ def _route(
     if route_key == "GET /admin/labels/{label_id}":
         from .label_enrichment.routes import handle_get_label
         status, body = handle_get_label(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/auto-enrich/labels":
+        from .label_enrichment.auto_routes import handle_get_auto_config
+        status, body = handle_get_auto_config(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "PUT /admin/auto-enrich/labels":
+        from .label_enrichment.auto_routes import handle_put_auto_config
+        status, body = handle_put_auto_config(event)
+        if status == 204:
+            return {
+                "statusCode": 204,
+                "headers": {"x-correlation-id": correlation_id},
+                "body": "",
+            }
         return _json_response(status, body, correlation_id)
     if route_key == "PUT /labels/{label_id}/preference":
         from .label_enrichment.routes import handle_put_label_preference
