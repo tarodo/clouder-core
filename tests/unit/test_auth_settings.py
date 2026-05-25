@@ -64,6 +64,19 @@ def test_allowed_redirect_check(monkeypatch) -> None:
     assert settings.allows_redirect("/evil") is False
 
 
+def test_allowed_redirects_optional_when_unset(monkeypatch) -> None:
+    # The curation Lambda reuses get_auth_settings() for KMS + redirect URI but
+    # never sets ALLOWED_FRONTEND_REDIRECTS — it must not raise KeyError there.
+    monkeypatch.delenv("ALLOWED_FRONTEND_REDIRECTS", raising=False)
+    monkeypatch.setenv("KMS_USER_TOKENS_KEY_ARN", "arn:k")
+    monkeypatch.setenv("SPOTIFY_OAUTH_REDIRECT_URI", "https://x/cb")
+
+    settings = mod.get_auth_settings()
+
+    assert settings.allowed_frontend_redirects == frozenset()
+    assert settings.allows_redirect("/") is False
+
+
 def test_resolve_jwt_signing_key_via_env(monkeypatch) -> None:
     monkeypatch.setenv("JWT_SIGNING_KEY", "raw-secret-32-bytes-here-please-ok")
 

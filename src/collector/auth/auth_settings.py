@@ -32,7 +32,9 @@ def get_auth_settings() -> AuthSettings:
     return AuthSettings(
         kms_user_tokens_key_arn=os.environ["KMS_USER_TOKENS_KEY_ARN"],
         spotify_oauth_redirect_uri=os.environ["SPOTIFY_OAUTH_REDIRECT_URI"],
-        allowed_frontend_redirects=_parse_csv(os.environ["ALLOWED_FRONTEND_REDIRECTS"]),
+        allowed_frontend_redirects=_parse_csv(
+            os.environ.get("ALLOWED_FRONTEND_REDIRECTS", "")
+        ),
         admin_spotify_ids=_parse_csv(os.environ.get("ADMIN_SPOTIFY_IDS", "")),
         access_token_ttl_seconds=int(
             os.environ.get("JWT_ACCESS_TOKEN_TTL_SECONDS", "1800")
