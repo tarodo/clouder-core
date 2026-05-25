@@ -104,8 +104,9 @@ def test_mark_outcome_completed_on_success():
     data_api.execute.return_value = []
     repo.mark_auto_enrich_outcome("lbl-1", True)
     sql, params = data_api.execute.call_args[0]
-    assert "status = 'completed'" in sql
+    assert "SET status = :new_status" in sql
     assert "WHERE label_id = :label_id AND status = 'queued'" in sql
+    assert params["new_status"] == "completed"
     assert params["label_id"] == "lbl-1"
 
 
@@ -113,8 +114,8 @@ def test_mark_outcome_failed_on_failure():
     repo, data_api = _repo()
     data_api.execute.return_value = []
     repo.mark_auto_enrich_outcome("lbl-1", False)
-    sql, _ = data_api.execute.call_args[0]
-    assert "status = 'failed'" in sql
+    _, params = data_api.execute.call_args[0]
+    assert params["new_status"] == "failed"
 
 
 def test_label_id_for_track():
@@ -136,3 +137,15 @@ def test_label_ids_for_triage_block():
     sql, params = data_api.execute.call_args[0]
     assert "source_triage_block_id = :block_id" in sql
     assert params["block_id"] == "blk-1"
+
+
+def test_claim_reclaims_stale_queued_via_update():
+    repo, data_api = _repo()
+    # UPDATE reclaims the stale-queued row → no INSERT attempted
+    data_api.execute.side_effect = [[{"label_id": "lbl-7"}]]
+    claimed = repo.claim_labels(["lbl-7"])
+    assert claimed == ["lbl-7"]
+    assert data_api.execute.call_count == 1
+    sql, params = data_api.execute.call_args_list[0][0]
+    assert "status = 'queued' AND updated_at < :stale_cutoff" in sql
+    assert "stale_cutoff" in params

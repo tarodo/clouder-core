@@ -8,7 +8,7 @@ from typing import Any, Callable
 
 from ..data_api import DataAPIClient
 
-_MAX_ATTEMPTS = 2
+_MAX_ATTEMPTS = 2  # total attempts allowed per label: 1 initial + 1 retry
 _STALE_QUEUED_HOURS = 6
 
 
@@ -172,6 +172,12 @@ class AutoEnrichRepository:
         return claimed
 
     def attach_run(self, label_ids: list[str], run_id: str) -> None:
+        """Stamp last_run_id on the given state rows.
+
+        Intended to be called with the output of `claim_labels`; a label with
+        no state row is silently skipped (no row matches the UPDATE).
+        """
+        ts = self._now()
         for label_id in label_ids:
             self._data_api.execute(
                 """
@@ -179,7 +185,7 @@ class AutoEnrichRepository:
                 SET last_run_id = :run_id, updated_at = :ts
                 WHERE label_id = :label_id
                 """,
-                {"run_id": run_id, "label_id": label_id, "ts": self._now()},
+                {"run_id": run_id, "label_id": label_id, "ts": ts},
             )
 
     def mark_auto_enrich_outcome(self, label_id: str, success: bool) -> None:
@@ -190,12 +196,12 @@ class AutoEnrichRepository:
         """
         new_status = "completed" if success else "failed"
         self._data_api.execute(
-            f"""
+            """
             UPDATE label_auto_enrich_state
-            SET status = '{new_status}', updated_at = :ts
+            SET status = :new_status, updated_at = :ts
             WHERE label_id = :label_id AND status = 'queued'
             """,
-            {"label_id": label_id, "ts": self._now()},
+            {"new_status": new_status, "label_id": label_id, "ts": self._now()},
         )
 
     # ── label lookups ───────────────────────────────────────────────
