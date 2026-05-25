@@ -102,3 +102,126 @@ class AutoEnrichRepository:
                 "updated_by_user_id": user_id,
             },
         )
+
+    # ── claim / state ───────────────────────────────────────────────
+    def claim_labels(self, label_ids: list[str]) -> list[str]:
+        """Atomically claim labels eligible for an auto-search.
+
+        Per label, two independent statements:
+          1. Reclaim an existing row that is `failed` (retry, capped at
+             _MAX_ATTEMPTS) or a stale `queued` (worker likely died / enqueue
+             failed). Returns the row when it claims it.
+          2. Only if (1) claimed nothing: insert a brand-new row, but skip if a
+             clouder_label_info row already exists (label was searched before,
+             e.g. manually).
+        `completed` rows and fresh `queued` rows match neither → skipped.
+        ON CONFLICT DO NOTHING + the row-level UPDATE make concurrent adds of
+        the same label race-safe: exactly one writer claims.
+        """
+        if not label_ids:
+            return []
+        now = self._now()
+        stale_cutoff = now - timedelta(hours=_STALE_QUEUED_HOURS)
+        claimed: list[str] = []
+        for label_id in label_ids:
+            params = {
+                "label_id": label_id,
+                "ts": now,
+                "max_attempts": _MAX_ATTEMPTS,
+                "stale_cutoff": stale_cutoff,
+            }
+            reclaimed = self._data_api.execute(
+                """
+                UPDATE label_auto_enrich_state
+                SET attempts = attempts + 1,
+                    status = 'queued',
+                    last_run_id = NULL,
+                    updated_at = :ts
+                WHERE label_id = :label_id
+                  AND attempts < :max_attempts
+                  AND (
+                        status = 'failed'
+                     OR (status = 'queued' AND updated_at < :stale_cutoff)
+                  )
+                RETURNING label_id
+                """,
+                params,
+            )
+            if reclaimed:
+                claimed.append(label_id)
+                continue
+            inserted = self._data_api.execute(
+                """
+                INSERT INTO label_auto_enrich_state (
+                    label_id, attempts, status, first_enqueued_at, updated_at
+                )
+                SELECT :label_id, 1, 'queued', :ts, :ts
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM label_auto_enrich_state WHERE label_id = :label_id
+                )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM clouder_label_info WHERE label_id = :label_id
+                )
+                ON CONFLICT (label_id) DO NOTHING
+                RETURNING label_id
+                """,
+                {"label_id": label_id, "ts": now},
+            )
+            if inserted:
+                claimed.append(label_id)
+        return claimed
+
+    def attach_run(self, label_ids: list[str], run_id: str) -> None:
+        for label_id in label_ids:
+            self._data_api.execute(
+                """
+                UPDATE label_auto_enrich_state
+                SET last_run_id = :run_id, updated_at = :ts
+                WHERE label_id = :label_id
+                """,
+                {"run_id": run_id, "label_id": label_id, "ts": self._now()},
+            )
+
+    def mark_auto_enrich_outcome(self, label_id: str, success: bool) -> None:
+        """Worker touch: flip a queued auto-state row to completed/failed.
+
+        No-op for labels with no auto-state row (manual runs) or already
+        resolved rows — the `status = 'queued'` guard handles that.
+        """
+        new_status = "completed" if success else "failed"
+        self._data_api.execute(
+            f"""
+            UPDATE label_auto_enrich_state
+            SET status = '{new_status}', updated_at = :ts
+            WHERE label_id = :label_id AND status = 'queued'
+            """,
+            {"label_id": label_id, "ts": self._now()},
+        )
+
+    # ── label lookups ───────────────────────────────────────────────
+    def label_id_for_track(self, track_id: str) -> str | None:
+        rows = self._data_api.execute(
+            """
+            SELECT a.label_id
+            FROM clouder_tracks t
+            JOIN clouder_albums a ON a.id = t.album_id
+            WHERE t.id = :track_id AND a.label_id IS NOT NULL
+            LIMIT 1
+            """,
+            {"track_id": track_id},
+        )
+        return rows[0]["label_id"] if rows else None
+
+    def label_ids_for_triage_block(self, block_id: str) -> list[str]:
+        rows = self._data_api.execute(
+            """
+            SELECT DISTINCT a.label_id
+            FROM category_tracks ct
+            JOIN clouder_tracks t ON t.id = ct.track_id
+            JOIN clouder_albums a ON a.id = t.album_id
+            WHERE ct.source_triage_block_id = :block_id
+              AND a.label_id IS NOT NULL
+            """,
+            {"block_id": block_id},
+        )
+        return [r["label_id"] for r in rows]

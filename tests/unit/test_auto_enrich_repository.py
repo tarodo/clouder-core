@@ -50,3 +50,89 @@ def test_upsert_config_writes_all_columns():
     assert params["vendors"] == ["gemini"]
     assert params["models"] == {"gemini": "g"}
     assert params["updated_by_user_id"] == "user-1"
+
+
+def test_claim_inserts_brand_new_label():
+    repo, data_api = _repo()
+    # 1st call: UPDATE (reclaim/retry) → no rows; 2nd call: INSERT → claimed
+    data_api.execute.side_effect = [[], [{"label_id": "lbl-1"}]]
+    claimed = repo.claim_labels(["lbl-1"])
+    assert claimed == ["lbl-1"]
+    update_sql = data_api.execute.call_args_list[0][0][0]
+    insert_sql = data_api.execute.call_args_list[1][0][0]
+    assert "UPDATE label_auto_enrich_state" in update_sql
+    assert "INSERT INTO label_auto_enrich_state" in insert_sql
+    assert "NOT EXISTS" in insert_sql and "clouder_label_info" in insert_sql
+
+
+def test_claim_retries_failed_label_via_update():
+    repo, data_api = _repo()
+    # UPDATE claims it → INSERT not attempted for this label
+    data_api.execute.side_effect = [[{"label_id": "lbl-2"}]]
+    claimed = repo.claim_labels(["lbl-2"])
+    assert claimed == ["lbl-2"]
+    assert data_api.execute.call_count == 1  # update claimed; no insert
+    sql, params = data_api.execute.call_args_list[0][0]
+    assert "attempts < :max_attempts" in sql
+    assert params["max_attempts"] == 2
+
+
+def test_claim_skips_when_neither_update_nor_insert_match():
+    repo, data_api = _repo()
+    data_api.execute.side_effect = [[], []]  # update no-match, insert no-match
+    assert repo.claim_labels(["lbl-3"]) == []
+
+
+def test_claim_empty_input_is_noop():
+    repo, data_api = _repo()
+    assert repo.claim_labels([]) == []
+    data_api.execute.assert_not_called()
+
+
+def test_attach_run_updates_last_run_id():
+    repo, data_api = _repo()
+    data_api.execute.return_value = []
+    repo.attach_run(["lbl-1"], "run-9")
+    sql, params = data_api.execute.call_args[0]
+    assert "SET last_run_id = :run_id" in sql
+    assert params["run_id"] == "run-9"
+    assert params["label_id"] == "lbl-1"
+
+
+def test_mark_outcome_completed_on_success():
+    repo, data_api = _repo()
+    data_api.execute.return_value = []
+    repo.mark_auto_enrich_outcome("lbl-1", True)
+    sql, params = data_api.execute.call_args[0]
+    assert "status = 'completed'" in sql
+    assert "WHERE label_id = :label_id AND status = 'queued'" in sql
+    assert params["label_id"] == "lbl-1"
+
+
+def test_mark_outcome_failed_on_failure():
+    repo, data_api = _repo()
+    data_api.execute.return_value = []
+    repo.mark_auto_enrich_outcome("lbl-1", False)
+    sql, _ = data_api.execute.call_args[0]
+    assert "status = 'failed'" in sql
+
+
+def test_label_id_for_track():
+    repo, data_api = _repo()
+    data_api.execute.return_value = [{"label_id": "lbl-1"}]
+    assert repo.label_id_for_track("trk-1") == "lbl-1"
+
+
+def test_label_id_for_track_none_when_no_label():
+    repo, data_api = _repo()
+    data_api.execute.return_value = []
+    assert repo.label_id_for_track("trk-1") is None
+
+
+def test_label_ids_for_triage_block():
+    repo, data_api = _repo()
+    data_api.execute.return_value = [{"label_id": "a"}, {"label_id": "b"}]
+    assert repo.label_ids_for_triage_block("blk-1") == ["a", "b"]
+    sql, params = data_api.execute.call_args[0]
+    assert "source_triage_block_id = :block_id" in sql
+    assert params["block_id"] == "blk-1"
