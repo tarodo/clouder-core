@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any
+from typing import Any, Callable
 
 from .aggregator import merge_cells
 from .prompts.base import PromptConfig, render_user
@@ -82,6 +82,7 @@ def enrich_label_for_run(
     prompt: PromptConfig,
     repository: LabelEnrichmentRepository,
     ai_flag_threshold: float,
+    on_outcome: "Callable[[str, bool], None] | None" = None,
 ) -> None:
     """End-to-end: flip run status, run vendors, persist cells + merged + counters.
 
@@ -131,6 +132,9 @@ def enrich_label_for_run(
         error_delta=err,
         cost_delta=cost,
     )
+
+    if on_outcome is not None:
+        on_outcome(label_id, ok > 0)
 
 
 def _response_from_cell(cell: dict, default_model: str) -> VendorResponse:

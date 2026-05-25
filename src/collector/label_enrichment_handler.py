@@ -8,6 +8,7 @@ from typing import Any, Mapping
 from pydantic import ValidationError as PydanticValidationError
 
 from .data_api import create_default_data_api_client
+from .label_enrichment.auto_repository import AutoEnrichRepository
 from .label_enrichment.messages import LabelEnrichmentMessage
 from .label_enrichment.orchestrator import (
     build_adapters_from_run_config,
@@ -37,6 +38,18 @@ def _build_repository() -> LabelEnrichmentRepository:
     return LabelEnrichmentRepository(data_api=client)
 
 
+def _build_clients() -> tuple[LabelEnrichmentRepository, AutoEnrichRepository]:
+    settings = get_data_api_settings()
+    if not settings.is_configured:
+        raise RuntimeError("Aurora Data API not configured")
+    client = create_default_data_api_client(
+        resource_arn=str(settings.aurora_cluster_arn),
+        secret_arn=str(settings.aurora_secret_arn),
+        database=settings.aurora_database,
+    )
+    return LabelEnrichmentRepository(data_api=client), AutoEnrichRepository(data_api=client)
+
+
 def _build_merge_client(api_key: str, timeout_s: float):
     if OpenAI is None:
         raise RuntimeError("openai SDK not installed")
@@ -53,7 +66,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     load_builtin_prompts()
 
     settings = get_label_enrichment_worker_settings()
-    repository = _build_repository()
+    repository, auto_repository = _build_clients()
     secrets = LabelEnrichmentSecrets(
         gemini_api_key=settings.gemini_api_key,
         openai_api_key=settings.openai_api_key,
@@ -109,6 +122,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             prompt=prompt,
             repository=repository,
             ai_flag_threshold=settings.ai_flag_confidence_threshold,
+            on_outcome=auto_repository.mark_auto_enrich_outcome,
         )
         processed += 1
         log_event(
