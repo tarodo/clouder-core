@@ -53,6 +53,8 @@ def test_login_returns_302_with_state_and_verifier_cookies() -> None:
     assert "state" in qs
     assert "user-read-email" in qs["scope"][0]
     assert "streaming" in qs["scope"][0]
+    # Cover upload (PUT /playlists/{id}/images) needs ugc-image-upload.
+    assert "ugc-image-upload" in qs["scope"][0]
 
     cookies = response.get("cookies") or []
     cookie_pairs = {c.split("=")[0]: c for c in cookies}
