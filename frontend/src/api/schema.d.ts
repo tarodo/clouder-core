@@ -1376,6 +1376,133 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/auto-enrich/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: get auto-enrichment config for labels + form options. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Saved config (or defaults) plus the model/prompt options. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            config: {
+                                enabled: boolean;
+                                vendors: string[];
+                                models: {
+                                    [key: string]: string;
+                                };
+                                prompt_slug?: string | null;
+                                prompt_version?: string | null;
+                                merge_vendor: string;
+                                merge_model?: string | null;
+                            };
+                            options: components["schemas"]["EnrichmentOptions"];
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        /** Admin: upsert auto-enrichment config for labels. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        vendors?: string[];
+                        models?: {
+                            [key: string]: string;
+                        };
+                        prompt_slug?: string | null;
+                        prompt_version?: string | null;
+                        /** @enum {string} */
+                        merge_vendor?: "deepseek";
+                        merge_model?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Config saved. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tracks": {
         parameters: {
             query?: never;

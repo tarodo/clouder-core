@@ -996,6 +996,116 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/auto-enrich/labels:
+    get:
+      summary: 'Admin: get auto-enrichment config for labels + form options.'
+      responses:
+        '200':
+          description: Saved config (or defaults) plus the model/prompt options.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - config
+                - options
+                properties:
+                  config:
+                    type: object
+                    required:
+                    - enabled
+                    - vendors
+                    - models
+                    - merge_vendor
+                    properties:
+                      enabled:
+                        type: boolean
+                      vendors:
+                        type: array
+                        items:
+                          type: string
+                      models:
+                        type: object
+                        additionalProperties:
+                          type: string
+                      prompt_slug:
+                        type: string
+                        nullable: true
+                      prompt_version:
+                        type: string
+                        nullable: true
+                      merge_vendor:
+                        type: string
+                      merge_model:
+                        type: string
+                        nullable: true
+                  options:
+                    $ref: '#/components/schemas/EnrichmentOptions'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+    put:
+      summary: 'Admin: upsert auto-enrichment config for labels.'
+      responses:
+        '204':
+          description: Config saved.
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - enabled
+              properties:
+                enabled:
+                  type: boolean
+                vendors:
+                  type: array
+                  items:
+                    type: string
+                models:
+                  type: object
+                  additionalProperties:
+                    type: string
+                prompt_slug:
+                  type: string
+                  nullable: true
+                prompt_version:
+                  type: string
+                  nullable: true
+                merge_vendor:
+                  type: string
+                  enum:
+                  - deepseek
+                merge_model:
+                  type: string
+                  nullable: true
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /tracks:
     get:
       summary: List tracks (paginated).

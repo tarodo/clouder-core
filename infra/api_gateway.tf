@@ -196,6 +196,22 @@ resource "aws_apigatewayv2_stage" "default" {
   auto_deploy = true
 }
 
+resource "aws_apigatewayv2_route" "auto_enrich_labels_get" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/auto-enrich/labels"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "auto_enrich_labels_put" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "PUT /admin/auto-enrich/labels"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_lambda_permission" "allow_apigw" {
   statement_id  = "AllowExecutionFromApiGateway"
   action        = "lambda:InvokeFunction"

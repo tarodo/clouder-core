@@ -1416,6 +1416,72 @@ ROUTES: list[dict[str, Any]] = [
             "403": _error(403, "admin_required."),
         },
     },
+    {
+        "method": "get",
+        "path": "/admin/auto-enrich/labels",
+        "auth": ADMIN,
+        "summary": "Admin: get auto-enrichment config for labels + form options.",
+        "responses": {
+            "200": _make_response(
+                200,
+                "Saved config (or defaults) plus the model/prompt options.",
+                {
+                    "type": "object",
+                    "required": ["config", "options"],
+                    "properties": {
+                        "config": {
+                            "type": "object",
+                            "required": ["enabled", "vendors", "models", "merge_vendor"],
+                            "properties": {
+                                "enabled": {"type": "boolean"},
+                                "vendors": {"type": "array", "items": {"type": "string"}},
+                                "models": {"type": "object", "additionalProperties": {"type": "string"}},
+                                "prompt_slug": {"type": "string", "nullable": True},
+                                "prompt_version": {"type": "string", "nullable": True},
+                                "merge_vendor": {"type": "string"},
+                                "merge_model": {"type": "string", "nullable": True},
+                            },
+                        },
+                        "options": {"$ref": "#/components/schemas/EnrichmentOptions"},
+                    },
+                },
+            ),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "put",
+        "path": "/admin/auto-enrich/labels",
+        "auth": ADMIN,
+        "summary": "Admin: upsert auto-enrichment config for labels.",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["enabled"],
+                        "properties": {
+                            "enabled": {"type": "boolean"},
+                            "vendors": {"type": "array", "items": {"type": "string"}},
+                            "models": {"type": "object", "additionalProperties": {"type": "string"}},
+                            "prompt_slug": {"type": "string", "nullable": True},
+                            "prompt_version": {"type": "string", "nullable": True},
+                            "merge_vendor": {"type": "string", "enum": ["deepseek"]},
+                            "merge_model": {"type": "string", "nullable": True},
+                        },
+                    },
+                }
+            },
+        },
+        "responses": {
+            "204": {"description": "Config saved."},
+            "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
     # ── canonical core (any authenticated user) ───────────────────
     *[
         {
