@@ -1,9 +1,10 @@
-import { Drawer, Stack, Title, Checkbox, Select, TextInput, Button, Badge, Group, Skeleton, Alert } from '@mantine/core';
+import { Drawer, Stack, Title, Button, Skeleton, Alert } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useEnrichmentOptions } from '../../hooks/useEnrichmentOptions';
 import { useEnqueueEnrichment } from '../../hooks/useEnqueueEnrichment';
+import { EnrichConfigForm } from './EnrichConfigForm';
 
 interface Props {
   opened: boolean;
@@ -74,53 +75,21 @@ export function EnqueueDrawer({ opened, onClose, labelIds }: Props) {
       {options.isError && <Alert color="red">{String(options.error)}</Alert>}
       {options.data && (
         <Stack gap="md">
-          <Stack gap="xs">
-            <Title order={6}>{t('admin_enrichment.enqueue_drawer.vendors_label')}</Title>
-            {options.data.vendors.map((v) => (
-              <Checkbox
-                key={v}
-                label={v}
-                checked={vendors.includes(v)}
-                onChange={(e) =>
-                  setVendors((cur) =>
-                    e.currentTarget.checked ? [...cur, v] : cur.filter((x) => x !== v),
-                  )
-                }
-              />
-            ))}
-          </Stack>
-          <Select
-            label={t('admin_enrichment.enqueue_drawer.prompt_label')}
-            value={promptSlug}
-            data={options.data.prompt_versions.map((p) => ({ value: p.slug ?? '', label: `${p.slug}@${p.version}` }))}
-            onChange={(v) => v && setPromptSlug(v)}
+          <EnrichConfigForm
+            options={options.data}
+            value={{ vendors, promptSlug, models, mergeModel }}
+            onChange={(next) => {
+              setVendors(next.vendors);
+              setPromptSlug(next.promptSlug);
+              setModels(next.models);
+              setMergeModel(next.mergeModel);
+            }}
           />
-          <Stack gap="xs">
-            <Title order={6}>{t('admin_enrichment.enqueue_drawer.models_label')}</Title>
-            {vendors.map((v) => (
-              <TextInput
-                key={v}
-                label={v}
-                value={models[v] ?? ''}
-                onChange={(e) =>
-                  setModels((cur) => ({ ...cur, [v]: e.currentTarget.value }))
-                }
-              />
-            ))}
-          </Stack>
-          <Group gap="xs" align="end">
-            <Stack gap={4}>
-              <Title order={6}>{t('admin_enrichment.enqueue_drawer.merge_vendor_label')}</Title>
-              <Badge>deepseek</Badge>
-            </Stack>
-            <TextInput
-              label={t('admin_enrichment.enqueue_drawer.merge_model_label')}
-              value={mergeModel}
-              onChange={(e) => setMergeModel(e.currentTarget.value)}
-              style={{ flex: 1 }}
-            />
-          </Group>
-          <Button onClick={submit} loading={enqueue.isPending} disabled={labelIds.length === 0 || vendors.length === 0}>
+          <Button
+            onClick={submit}
+            loading={enqueue.isPending}
+            disabled={labelIds.length === 0 || vendors.length === 0}
+          >
             {enqueue.isPending
               ? t('admin_enrichment.enqueue_drawer.submit_inflight')
               : t('admin_enrichment.enqueue_drawer.submit')}
