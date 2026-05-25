@@ -30,3 +30,30 @@ def test_add_track_no_dispatch_when_already_present():
     with patch.object(ch, "try_dispatch_for_track") as dispatch:
         ch._handle_add_track(_add_track_event(), repo, "u1", "corr-1")
     dispatch.assert_not_called()
+
+
+def _finalize_event(block_id="blk-1"):
+    return {
+        "routeKey": "POST /triage/blocks/{id}/finalize",
+        "pathParameters": {"id": block_id},
+        "requestContext": {"authorizer": {"lambda": {"user_id": "u1"}}},
+    }
+
+
+def test_finalize_triggers_dispatch_for_block():
+    from collector import curation_handler as ch
+
+    repo = MagicMock()
+    finalize_result = MagicMock()
+    finalize_result.block = MagicMock(finalized_at="t")
+    finalize_result.promoted = {"cat-1": 3}
+    repo.finalize_block.return_value = finalize_result
+
+    cat_repo = MagicMock()
+    with patch.object(ch, "try_dispatch_for_triage_block") as dispatch, \
+         patch.object(ch, "create_default_categories_repository", return_value=cat_repo), \
+         patch.object(ch, "_serialize_triage_block", return_value={}):
+        ch._finalize_triage_block(_finalize_event(), repo, "u1", "corr-1")
+    dispatch.assert_called_once()
+    assert dispatch.call_args.kwargs["block_id"] == "blk-1"
+    assert dispatch.call_args.kwargs["user_id"] == "u1"

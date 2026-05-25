@@ -1340,6 +1340,7 @@ def _finalize_triage_block(
         block_id=block_id,
         promoted_count=sum(out.promoted.values()),
     )
+    try_dispatch_for_triage_block(block_id=block_id, user_id=user_id)
     return _json_response(
         200,
         {
