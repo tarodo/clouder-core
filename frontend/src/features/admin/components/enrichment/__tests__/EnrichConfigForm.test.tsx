@@ -1,16 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
-import { EnrichConfigForm } from '../EnrichConfigForm';
+import { EnrichConfigForm, type EnrichConfigValue } from '../EnrichConfigForm';
+import type { EnrichmentOptions } from '../../../../../api/labels';
 
-const options = {
+const options: EnrichmentOptions = {
   vendors: ['gemini', 'openai', 'tavily_deepseek'],
   prompt_versions: [{ slug: 'label_v3', version: 'v1', is_default: true }],
   default_models: { gemini: 'g', openai: 'o', tavily_deepseek: 'd' },
   merge: { vendor: 'deepseek', default_model: 'deepseek-v4-flash' },
-} as any;
+};
 
-function setup(value: any, onChange = vi.fn()) {
+function setup(value: EnrichConfigValue, onChange = vi.fn()) {
   render(
     <MantineProvider>
       <EnrichConfigForm options={options} value={value} onChange={onChange} />
