@@ -901,6 +901,17 @@
       "fire_hose": "Fire hose"
     }
   },
+  "admin_auto_enrich": {
+    "title": "Automatic search",
+    "tab_labels": "Labels",
+    "tab_artists": "Artists",
+    "tab_tracks": "Tracks",
+    "enabled_label": "Enabled",
+    "save": "Save",
+    "saved": "Settings saved",
+    "save_error": "Save failed: {{message}}",
+    "coming_soon": "Coming soon"
+  },
   "admin_enrichment": {
     "tabs": {
       "backlog": "Labels",
