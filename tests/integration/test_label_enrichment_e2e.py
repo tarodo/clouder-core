@@ -83,8 +83,12 @@ def repo_and_sqs(monkeypatch):
     monkeypatch.setattr(
         "collector.label_enrichment.routes._build_sqs_client", lambda: FakeSqs(),
     )
+    # The worker builds both the label repo and an auto-enrich repo via
+    # _build_clients(); the auto repo only stamps label_auto_enrich_state
+    # outcomes, which this e2e doesn't assert on — a bare mock suffices.
     monkeypatch.setattr(
-        "collector.label_enrichment_handler._build_repository", lambda: real_repo,
+        "collector.label_enrichment_handler._build_clients",
+        lambda: (real_repo, MagicMock()),
     )
     monkeypatch.setenv("LABEL_ENRICHMENT_QUEUE_URL", "https://sqs.example/q")
 
