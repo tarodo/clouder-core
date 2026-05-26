@@ -4,6 +4,7 @@ import type { RunsListResponse } from '../../../api/labels';
 
 export interface UseRunsParams {
   status: 'all' | 'queued' | 'running' | 'completed' | 'failed';
+  source?: 'manual' | 'auto';
 }
 
 export function useEnrichmentRuns(p: UseRunsParams) {
@@ -13,10 +14,11 @@ export function useEnrichmentRuns(p: UseRunsParams) {
     ) ?? false;
 
   return useInfiniteQuery<RunsListResponse, Error>({
-    queryKey: ['admin', 'enrichmentRuns', p.status] as const,
+    queryKey: ['admin', 'enrichmentRuns', p.status, p.source ?? null] as const,
     queryFn: ({ pageParam }) => {
       const qs = new URLSearchParams();
       if (p.status !== 'all') qs.set('status', p.status);
+      if (p.source) qs.set('source', p.source);
       qs.set('limit', '50');
       if (pageParam) qs.set('cursor', String(pageParam));
       return api<RunsListResponse>(`/admin/labels/enrich-runs?${qs.toString()}`);

@@ -957,9 +957,14 @@
       "col_created": "Created",
       "col_id": "Run id",
       "col_status": "Status",
+      "col_source": "Source",
       "col_cells": "Cells (ok/err/total)",
       "col_cost": "Cost",
       "filter_status": "Status",
+      "filter_source": "Source",
+      "source_all": "All",
+      "source_manual": "Manual",
+      "source_auto": "Auto",
       "empty": "No runs yet."
     },
     "run_detail": {
