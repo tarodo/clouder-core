@@ -30,10 +30,11 @@ def _run_row() -> dict:
 def worker_patches(monkeypatch):
     repo = MagicMock()
     repo.get_run.return_value = _run_row()
+    auto_repo = MagicMock()
 
     monkeypatch.setattr(
-        "collector.label_enrichment_handler._build_repository",
-        lambda: repo,
+        "collector.label_enrichment_handler._build_clients",
+        lambda: (repo, auto_repo),
     )
 
     settings_obj = MagicMock(
@@ -124,9 +125,10 @@ def test_worker_parses_jsonb_strings_from_data_api(monkeypatch):
         "merge_vendor": "deepseek",
         "merge_model": "deepseek-v4-flash",
     }
+    auto_repo = MagicMock()
     monkeypatch.setattr(
-        "collector.label_enrichment_handler._build_repository",
-        lambda: repo,
+        "collector.label_enrichment_handler._build_clients",
+        lambda: (repo, auto_repo),
     )
     settings_obj = MagicMock(
         gemini_api_key="g", openai_api_key="o",

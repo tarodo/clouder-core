@@ -163,6 +163,65 @@ def test_build_adapters_from_run_config_returns_three_adapters():
     assert by_name["gemini"].default_model == "gemini-3-flash-preview"
 
 
+def _run_enrich_label_for_run_with(on_outcome, all_vendors_ok: bool) -> None:
+    """Helper that mirrors test_enrich_label_for_run_writes_cells_upserts_info_and_increments
+    but controls whether adapters succeed or fail, and passes on_outcome."""
+    from types import SimpleNamespace
+
+    if all_vendors_ok:
+        vendor_response = _ok("gemini", "g")
+    else:
+        vendor_response = _err("gemini", "g")
+
+    adapters = [_make_adapter("gemini", "g", vendor_response)]
+    prompt = get_prompt("label_v3_app_fields")
+    repo = MagicMock()
+    merge_client = MagicMock()
+    merge_client.chat.completions.create.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(
+            content='{"tagline":"t","summary":"s","ai_reasoning":"r","notes":null}'
+        ))],
+        usage=SimpleNamespace(prompt_tokens=200, completion_tokens=80),
+    )
+
+    enrich_label_for_run(
+        run_id="run-1",
+        label_id="lbl-1",
+        label_name="L",
+        style="techno",
+        adapters=adapters,
+        merge_client=merge_client,
+        merge_model="deepseek-v4-flash",
+        prompt=prompt,
+        repository=repo,
+        ai_flag_threshold=0.5,
+        on_outcome=on_outcome,
+    )
+
+
+def test_enrich_label_invokes_on_outcome_success():
+    captured = []
+    _run_enrich_label_for_run_with(
+        on_outcome=lambda label_id, success: captured.append((label_id, success)),
+        all_vendors_ok=True,
+    )
+    assert captured == [("lbl-1", True)]
+
+
+def test_enrich_label_invokes_on_outcome_failure():
+    captured = []
+    _run_enrich_label_for_run_with(
+        on_outcome=lambda label_id, success: captured.append((label_id, success)),
+        all_vendors_ok=False,
+    )
+    assert captured == [("lbl-1", False)]
+
+
+def test_enrich_label_without_on_outcome_does_not_crash():
+    # on_outcome defaults to None — must work exactly as before
+    _run_enrich_label_for_run_with(on_outcome=None, all_vendors_ok=True)
+
+
 def test_build_adapters_rejects_unknown_vendor():
     import pytest
     from collector.label_enrichment.orchestrator import build_adapters_from_run_config

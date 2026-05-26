@@ -421,3 +421,39 @@ def test_increment_run_counters_atomic_update_only():
     assert "finished_at = CASE" in sql
     assert params["ok"] == 2
     assert params["err"] == 1
+
+
+def test_create_run_defaults_source_manual():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    spec = RunSpec(
+        prompt_slug="s", prompt_version="v", vendors=["gemini"],
+        models={"gemini": "g"}, merge_vendor="deepseek", merge_model="m",
+        requested_labels=1,
+    )
+    repo.create_run(spec)
+    _, params = data_api.execute.call_args[0]
+    assert params["source"] == "manual"
+
+
+def test_create_run_accepts_source_auto():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    spec = RunSpec(
+        prompt_slug="s", prompt_version="v", vendors=["gemini"],
+        models={"gemini": "g"}, merge_vendor="deepseek", merge_model="m",
+        requested_labels=1, source="auto",
+    )
+    repo.create_run(spec)
+    sql, params = data_api.execute.call_args[0]
+    assert "source" in sql
+    assert params["source"] == "auto"
+
+
+def test_list_runs_source_filter_adds_predicate():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    repo.list_runs(status=None, cursor=None, limit=10, source="auto")
+    sql, params = data_api.execute.call_args[0]
+    assert "source = :source" in sql
+    assert params["source"] == "auto"

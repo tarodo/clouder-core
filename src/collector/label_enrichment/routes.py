@@ -294,8 +294,11 @@ def handle_get_runs_list(event: Mapping[str, Any]) -> tuple[int, dict]:
         raise ValidationError("limit must be an integer")
     if limit < 1 or limit > 200:
         raise ValidationError("limit must be between 1 and 200")
+    source = (qs.get("source") or "").strip() or None
+    if source and source not in ("manual", "auto"):
+        raise ValidationError("source must be 'manual' or 'auto'")
     repo = _build_repository()
-    items, next_cursor = repo.list_runs(status=status, cursor=cursor, limit=limit)
+    items, next_cursor = repo.list_runs(status=status, cursor=cursor, limit=limit, source=source)
     return 200, {"items": items, "next_cursor": next_cursor}
 
 

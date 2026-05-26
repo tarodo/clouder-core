@@ -10,6 +10,7 @@ const TAB_VALUES = [
   '/admin/labels/enrich',
   '/admin/coverage',
   '/admin/spotify-not-found',
+  '/admin/auto-enrich',
 ] as const;
 
 export function AdminLayout() {
@@ -22,6 +23,7 @@ export function AdminLayout() {
     { value: '/admin/spotify-not-found', label: t('admin.tabs.spotify_not_found') },
     { value: '/admin/labels/enrich', label: t('admin_enrichment.tabs.backlog') },
     { value: '/admin/labels/enrich/runs', label: t('admin_enrichment.tabs.runs') },
+    { value: '/admin/auto-enrich', label: t('admin_auto_enrich.title') },
   ];
 
   const active =

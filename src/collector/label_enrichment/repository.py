@@ -71,6 +71,7 @@ class RunSpec:
     merge_model: str
     requested_labels: int
     created_by_user_id: str | None = None
+    source: str = "manual"
 
 
 class LabelEnrichmentRepository:
@@ -372,6 +373,7 @@ class LabelEnrichmentRepository:
         status: str | None,
         cursor: str | None,
         limit: int,
+        source: str | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]:
         """Admin runs list, sorted by created_at DESC."""
         where = ["1=1"]
@@ -379,6 +381,9 @@ class LabelEnrichmentRepository:
         if status:
             where.append("status = :status")
             params["status"] = status
+        if source:
+            where.append("source = :source")
+            params["source"] = source
         if cursor:
             try:
                 decoded = base64.urlsafe_b64decode(cursor.encode()).decode()
@@ -393,7 +398,7 @@ class LabelEnrichmentRepository:
             f"""
             SELECT id, status, prompt_slug, prompt_version, vendors, models,
                    merge_vendor, merge_model, requested_labels, cells_total,
-                   cells_ok, cells_error, cost_usd, created_at, started_at, finished_at
+                   cells_ok, cells_error, cost_usd, created_at, started_at, finished_at, source
             FROM clouder_label_enrichment_runs
             WHERE {' AND '.join(where) if where else 'TRUE'}
             ORDER BY created_at DESC, id DESC
@@ -569,11 +574,11 @@ class LabelEnrichmentRepository:
             INSERT INTO clouder_label_enrichment_runs (
                 id, status, prompt_slug, prompt_version, vendors, models,
                 merge_vendor, merge_model, requested_labels, cells_total,
-                cells_ok, cells_error, cost_usd, created_by_user_id, created_at
+                cells_ok, cells_error, cost_usd, created_by_user_id, created_at, source
             ) VALUES (
                 :id, :status, :prompt_slug, :prompt_version, :vendors, :models,
                 :merge_vendor, :merge_model, :requested_labels, :cells_total,
-                0, 0, 0, :created_by_user_id, :created_at
+                0, 0, 0, :created_by_user_id, :created_at, :source
             )
             """,
             {
@@ -589,6 +594,7 @@ class LabelEnrichmentRepository:
                 "cells_total": spec.requested_labels * len(spec.vendors),
                 "created_by_user_id": spec.created_by_user_id,
                 "created_at": ts,
+                "source": spec.source,
             },
         )
         return run_id

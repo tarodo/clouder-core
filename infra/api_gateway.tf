@@ -6,7 +6,7 @@ resource "aws_apigatewayv2_api" "collector" {
     for_each = length(var.cors_allowed_origins) > 0 ? [1] : []
     content {
       allow_origins     = var.cors_allowed_origins
-      allow_methods     = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+      allow_methods     = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
       allow_headers     = ["authorization", "content-type", "x-correlation-id"]
       expose_headers    = ["x-correlation-id"]
       max_age           = 600
@@ -194,6 +194,22 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"
   auto_deploy = true
+}
+
+resource "aws_apigatewayv2_route" "auto_enrich_labels_get" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/auto-enrich/labels"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "auto_enrich_labels_put" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "PUT /admin/auto-enrich/labels"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_lambda_permission" "allow_apigw" {

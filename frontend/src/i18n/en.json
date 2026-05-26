@@ -901,6 +901,17 @@
       "fire_hose": "Fire hose"
     }
   },
+  "admin_auto_enrich": {
+    "title": "Automatic search",
+    "tab_labels": "Labels",
+    "tab_artists": "Artists",
+    "tab_tracks": "Tracks",
+    "enabled_label": "Enabled",
+    "save": "Save",
+    "saved": "Settings saved",
+    "save_error": "Save failed: {{message}}",
+    "coming_soon": "Coming soon"
+  },
   "admin_enrichment": {
     "tabs": {
       "backlog": "Labels",
@@ -946,9 +957,14 @@
       "col_created": "Created",
       "col_id": "Run id",
       "col_status": "Status",
+      "col_source": "Source",
       "col_cells": "Cells (ok/err/total)",
       "col_cost": "Cost",
       "filter_status": "Status",
+      "filter_source": "Source",
+      "source_all": "All",
+      "source_manual": "Manual",
+      "source_auto": "Auto",
       "empty": "No runs yet."
     },
     "run_detail": {
