@@ -6,7 +6,7 @@ resource "aws_apigatewayv2_api" "collector" {
     for_each = length(var.cors_allowed_origins) > 0 ? [1] : []
     content {
       allow_origins     = var.cors_allowed_origins
-      allow_methods     = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+      allow_methods     = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
       allow_headers     = ["authorization", "content-type", "x-correlation-id"]
       expose_headers    = ["x-correlation-id"]
       max_age           = 600
