@@ -358,7 +358,7 @@ def _fake_bucket_track_row(track_id: str = "trk-1") -> BucketTrackRowOut:
         spotify_id="spot-1",
         release_type="single",
         is_ai_suspected=False,
-        artists=("Alice", "Bob"),
+        artists=[{"id": "a-alice", "name": "Alice", "role": "artist"}, {"id": "a-bob", "name": "Bob", "role": "artist"}],
         label_name="Anjunadeep",
         label_id="lbl-anjuna",
         added_at="2026-04-28T12:05:00+00:00",
@@ -599,7 +599,7 @@ def test_list_bucket_tracks_happy_path(monkeypatch, context) -> None:
     assert item["bpm"] == 128
     assert item["release_type"] == "single"
     assert item["is_ai_suspected"] is False
-    assert item["artists"] == ["Alice", "Bob"]
+    assert item["artists"] == [{"id": "a-alice", "name": "Alice", "role": "artist"}, {"id": "a-bob", "name": "Bob", "role": "artist"}]
     assert item["label_name"] == "Anjunadeep"
     assert item["added_at"] == "2026-04-28T12:05:00+00:00"
 

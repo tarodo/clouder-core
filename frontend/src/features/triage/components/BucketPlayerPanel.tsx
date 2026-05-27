@@ -11,6 +11,7 @@ import { useBucketDistribute } from '../hooks/useBucketDistribute';
 import { BucketDistributeButtons } from './BucketDistributeButtons';
 import { moveDestinationsFor } from '../lib/bucketLabels';
 import { LabelTile } from '../../library/components/LabelTile';
+import { ArtistsPanel } from '../../library/components/ArtistsPanel';
 
 export interface BucketPlayerPanelProps {
   blockId: string;
@@ -161,6 +162,7 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
         labelName={effectiveRich?.label_name ?? null}
         styleId={block?.style_id ?? ''}
       />
+      <ArtistsPanel artists={effectiveRich?.artists ?? []} styleId={block?.style_id ?? ''} />
     </Stack>
   );
 }

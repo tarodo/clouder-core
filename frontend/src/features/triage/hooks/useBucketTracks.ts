@@ -17,7 +17,7 @@ export interface BucketTrack {
   spotify_id: string | null;
   release_type: string | null;
   is_ai_suspected: boolean;
-  artists: string[];
+  artists: { id: string; name: string; role: string }[];
   label_id: string | null;
   label_name: string | null;
   added_at: string;

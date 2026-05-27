@@ -33,7 +33,10 @@ import { AdminEnrichmentBacklogPage } from '../features/admin/routes/AdminEnrich
 import { AdminEnrichmentRunsPage } from '../features/admin/routes/AdminEnrichmentRunsPage';
 import { AdminEnrichmentRunDetailPage } from '../features/admin/routes/AdminEnrichmentRunDetailPage';
 import { AdminAutoEnrichPage } from '../features/admin/routes/AdminAutoEnrichPage';
-import { LibraryIndexRedirect, LibraryListPage, LabelDetailPage } from '../features/library';
+import { AdminArtistEnrichmentBacklogPage } from '../features/admin/routes/AdminArtistEnrichmentBacklogPage';
+import { AdminArtistEnrichmentRunsPage } from '../features/admin/routes/AdminArtistEnrichmentRunsPage';
+import { AdminArtistEnrichmentRunDetailPage } from '../features/admin/routes/AdminArtistEnrichmentRunDetailPage';
+import { LibraryIndexRedirect, LibraryListPage, ArtistsListPage, LabelDetailPage, ArtistDetailPage } from '../features/library';
 
 export const router = createBrowserRouter([
   {
@@ -94,6 +97,8 @@ export const router = createBrowserRouter([
           { index: true, element: <LibraryIndexRedirect /> },
           { path: ':styleId', element: <LibraryListPage /> },
           { path: ':styleId/labels/:labelId', element: <LabelDetailPage /> },
+          { path: ':styleId/artists', element: <ArtistsListPage /> },
+          { path: ':styleId/artists/:artistId', element: <ArtistDetailPage /> },
         ],
       },
       {
@@ -119,6 +124,9 @@ export const router = createBrowserRouter([
           { path: 'labels/enrich', element: <AdminEnrichmentBacklogPage /> },
           { path: 'labels/enrich/runs', element: <AdminEnrichmentRunsPage /> },
           { path: 'labels/enrich/runs/:runId', element: <AdminEnrichmentRunDetailPage /> },
+          { path: 'artists/enrich', element: <AdminArtistEnrichmentBacklogPage /> },
+          { path: 'artists/enrich/runs', element: <AdminArtistEnrichmentRunsPage /> },
+          { path: 'artists/enrich/runs/:runId', element: <AdminArtistEnrichmentRunDetailPage /> },
           { path: 'auto-enrich', element: <AdminAutoEnrichPage /> },
         ],
       },

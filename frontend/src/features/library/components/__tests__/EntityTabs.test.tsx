@@ -22,9 +22,14 @@ describe('EntityTabs', () => {
     expect(screen.getByText('Labels')).toBeInTheDocument();
     expect(screen.getByText('Artists')).toBeInTheDocument();
   });
-  it('disables the Artists tab', () => {
+  it('artists tab is enabled (not data-disabled)', () => {
     renderWith('labels');
     const artistsTab = screen.getByText('Artists').closest('button');
-    expect(artistsTab).toHaveAttribute('data-disabled');
+    expect(artistsTab).not.toHaveAttribute('data-disabled');
+  });
+  it('marks active tab as selected', () => {
+    renderWith('artists');
+    const artistsTab = screen.getByText('Artists').closest('button');
+    expect(artistsTab).toHaveAttribute('data-active');
   });
 });

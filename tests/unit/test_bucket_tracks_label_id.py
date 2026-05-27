@@ -1,4 +1,4 @@
-"""Triage bucket tracks must expose label_id (FE label tile prerequisite)."""
+"""Triage bucket tracks must expose label_id and artist id/name/role objects."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def test_bucket_tracks_response_includes_label_id(monkeypatch) -> None:
         spotify_id=None,
         release_type="single",
         is_ai_suspected=False,
-        artists=("Artist A",),
+        artists=[{"id": "a-10", "name": "Artist A", "role": "artist"}],
         label_name="Cool Label",
         label_id="lbl-1",
         added_at="2026-04-01T08:00:00Z",
@@ -76,3 +76,53 @@ def test_bucket_tracks_response_includes_label_id(monkeypatch) -> None:
     body = json.loads(resp["body"])
     assert body["items"][0]["label_id"] == "lbl-1"
     assert body["items"][0]["label_name"] == "Cool Label"
+
+
+def test_bucket_tracks_response_includes_artist_objects(monkeypatch) -> None:
+    """GET bucket tracks must return artists as {id, name, role} dicts, not plain strings."""
+    row = BucketTrackRowOut(
+        track_id="t-2",
+        title="Orbit",
+        mix_name=None,
+        isrc=None,
+        bpm=128,
+        length_ms=420_000,
+        publish_date="2026-05-01",
+        spotify_release_date="2026-05-01",
+        spotify_id=None,
+        release_type="single",
+        is_ai_suspected=False,
+        artists=[{"id": "a-1", "name": "Raabe", "role": "artist"}, {"id": "a-2", "name": "Zander", "role": "remixer"}],
+        label_name="Deep Label",
+        label_id="lbl-2",
+        added_at="2026-05-01T08:00:00Z",
+    )
+
+    class FakeRepo:
+        def list_bucket_tracks(
+            self,
+            *,
+            user_id: str,
+            block_id: str,
+            bucket_id: str,
+            limit: int,
+            offset: int,
+            search: Any = None,
+        ):
+            return [row], 1
+
+    monkeypatch.setattr(
+        curation_handler,
+        "create_default_triage_repository",
+        lambda: FakeRepo(),
+    )
+
+    context = SimpleNamespace(aws_request_id="lambda-req-artist-obj-1")
+    resp = curation_handler.lambda_handler(_event(), context)
+    assert resp["statusCode"] == 200
+    body = json.loads(resp["body"])
+    artists = body["items"][0]["artists"]
+    assert isinstance(artists, list)
+    assert len(artists) == 2
+    assert artists[0] == {"id": "a-1", "name": "Raabe", "role": "artist"}
+    assert artists[1] == {"id": "a-2", "name": "Zander", "role": "remixer"}

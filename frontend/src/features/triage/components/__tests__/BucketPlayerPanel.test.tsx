@@ -49,6 +49,9 @@ vi.mock('../../hooks/useBucketDistribute', () => ({
 vi.mock('../../../library/components/LabelTile', () => ({
   LabelTile: () => <div data-testid="label-tile" />,
 }));
+vi.mock('../../../library/components/ArtistsPanel', () => ({
+  ArtistsPanel: () => <div data-testid="artists-panel" />,
+}));
 
 import { BucketPlayerPanel } from '../BucketPlayerPanel';
 
@@ -60,7 +63,7 @@ const item: BucketTrack = {
   track_id: 't1', title: 'Test Track', mix_name: null, isrc: null, bpm: 124,
   length_ms: 200000, publish_date: null, spotify_release_date: null,
   spotify_id: 'sp1', release_type: null, is_ai_suspected: false,
-  artists: ['Artist A'], label_id: null, label_name: 'Anjunadeep',
+  artists: [{ id: 'a-1', name: 'Artist A', role: 'artist' }], label_id: null, label_name: 'Anjunadeep',
   added_at: '2026-04-21T00:00:00Z',
 };
 

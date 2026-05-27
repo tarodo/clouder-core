@@ -37,7 +37,7 @@ export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateC
 
   const titleSize = isMobile ? 'h2' : 'h1';
   const titleOrder: 1 | 2 = isMobile ? 2 : 1;
-  const artists = track.artists.join(', ') || '—';
+  const artists = track.artists.map(a => a.name).join(', ') || '—';
 
   return (
     <Stack

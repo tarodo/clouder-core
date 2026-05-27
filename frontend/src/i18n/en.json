@@ -858,10 +858,17 @@
       "artists": "Artists",
       "artists_coming_soon": "Coming soon"
     },
+    "artists_list": {
+      "title": "Artists",
+      "col_active_since": "Active since",
+      "col_preference": "Preference"
+    },
     "prefs": {
       "like_aria": "Like label",
       "dislike_aria": "Dislike label",
-      "unset_aria": "Remove preference"
+      "unset_aria": "Remove preference",
+      "like_artist_aria": "Like artist",
+      "dislike_artist_aria": "Dislike artist"
     },
     "detail": {
       "back_to_list": "Back to {{style}}",
@@ -871,7 +878,9 @@
       "tab_styles": "Styles",
       "tab_links": "Links",
       "founded": "Founded {{year}}",
+      "active_since": "Active since {{year}}",
       "notable_artists": "Notable artists",
+      "notable_collaborators": "Notable collaborators",
       "primary_styles": "Primary styles",
       "secondary_styles": "Secondary styles",
       "ai_content_label": "AI content",
@@ -882,8 +891,13 @@
     "tile": {
       "read_more": "Read more →"
     },
+    "artists_panel": {
+      "heading": "Artists",
+      "expand_aria": "Show {{name}} details"
+    },
     "channels": {
       "website": "Website",
+      "spotify": "Spotify",
       "bandcamp": "Bandcamp",
       "soundcloud": "SoundCloud",
       "beatport": "Beatport",
@@ -915,7 +929,9 @@
   "admin_enrichment": {
     "tabs": {
       "backlog": "Labels",
-      "runs": "Label runs"
+      "runs": "Label runs",
+      "artist_backlog": "Artists",
+      "artist_runs": "Artist runs"
     },
     "history": {
       "title": "Enrichment history",

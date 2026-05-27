@@ -10,6 +10,7 @@ import { undoStack, useUndoStack } from '../../categories/hooks/useUndoStack';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import { PlayerPanelTagCloud } from '../../categories/components/PlayerPanelTagCloud';
+import { ArtistsPanel } from '../../library/components/ArtistsPanel';
 import type { PlaylistTrack } from '../lib/playlistTypes';
 import classes from './PlaylistPlayerPanel.module.css';
 
@@ -232,6 +233,7 @@ export function PlaylistPlayerPanel({ playlistId, items }: PlaylistPlayerPanelPr
        * playlist track has no associated styleId. The label name is already
        * shown in the PlayerCard meta row above, so we don't repeat it.
        */}
+      <ArtistsPanel artists={effectiveRich?.artists ?? []} />
     </Stack>
   );
 }

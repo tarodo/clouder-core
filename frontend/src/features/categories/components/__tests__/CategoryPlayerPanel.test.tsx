@@ -95,6 +95,9 @@ vi.mock('../../hooks/useRemoveTrackOptimistic', () => ({
 vi.mock('../../../library/components/LabelTile', () => ({
   LabelTile: () => <div data-testid="label-tile" />,
 }));
+vi.mock('../../../library/components/ArtistsPanel', () => ({
+  ArtistsPanel: () => <div data-testid="artists-panel" />,
+}));
 
 function ui(items: CategoryTrack[] = []) {
   const qc = new QueryClient();
