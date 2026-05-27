@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import date as date_type, datetime, timedelta
 from typing import Any, Iterable, Sequence
@@ -88,7 +89,7 @@ class BucketTrackRowOut:
     spotify_id: str | None
     release_type: str | None
     is_ai_suspected: bool
-    artists: tuple[str, ...]
+    artists: list[dict]
     label_name: str | None
     label_id: str | None
     added_at: str
@@ -990,7 +991,12 @@ class TriageRepository:
                 tbt.added_at,
                 cl.id AS label_id,
                 cl.name AS label_name,
-                STRING_AGG(ca.name, ',' ORDER BY cta.role, ca.name) AS artist_names
+                COALESCE(
+                    json_agg(json_build_object('id', ca.id, 'name', ca.name, 'role', cta.role)
+                             ORDER BY cta.role, ca.name)
+                    FILTER (WHERE ca.id IS NOT NULL),
+                    '[]'
+                ) AS artists
             FROM triage_bucket_tracks tbt
             JOIN clouder_tracks t ON t.id = tbt.track_id
             LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
@@ -1023,11 +1029,9 @@ class TriageRepository:
 
         items = []
         for r in rows:
-            artists_raw = r.get("artist_names")
+            artists_raw = r.get("artists", "[]")
             artists = (
-                tuple(n.strip() for n in artists_raw.split(",") if n.strip())
-                if artists_raw
-                else ()
+                json.loads(artists_raw) if isinstance(artists_raw, str) else (artists_raw or [])
             )
             items.append(
                 BucketTrackRowOut(

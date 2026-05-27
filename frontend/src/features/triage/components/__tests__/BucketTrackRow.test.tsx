@@ -24,7 +24,7 @@ const track: BucketTrack = {
   spotify_id: null,
   release_type: null,
   is_ai_suspected: false,
-  artists: ['Artist A', 'Artist B'],
+  artists: [{ id: 'a-1', name: 'Artist A', role: 'artist' }, { id: 'a-2', name: 'Artist B', role: 'artist' }],
   label_id: null,
   label_name: 'Anjunadeep',
   added_at: '2026-04-21T08:00:00Z',
@@ -105,7 +105,7 @@ describe('BucketTrackRow desktop', () => {
               track_id: 'tk1', title: 't', mix_name: null, isrc: null, bpm: null,
               length_ms: null, publish_date: null, spotify_release_date: null,
               spotify_id: null, release_type: null, is_ai_suspected: false,
-              artists: ['a'], label_id: null, label_name: null, added_at: '2026-04-21T00:00:00Z',
+              artists: [{ id: 'a-1', name: 'a', role: 'artist' }], label_id: null, label_name: null, added_at: '2026-04-21T00:00:00Z',
             }}
             variant="desktop"
             buckets={[
