@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
@@ -104,9 +104,13 @@ describe('AdminArtistEnrichmentBacklogPage', () => {
     const enqueueBtn = screen.getByRole('button', { name: /Enqueue 1/ });
     await userEvent.click(enqueueBtn);
 
-    // ArtistEnqueueDrawer should open (shows submit button)
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Enqueue/ })).toBeTruthy(),
-    );
+    // ArtistEnqueueDrawer should open and, once its options load, show the
+    // submit button. Use the EXACT name 'Enqueue' so it can't collide with the
+    // toolbar's "Enqueue 1" button, and findBy with a generous timeout so the
+    // async options fetch + render isn't raced under full-suite CPU load
+    // (the old regex `/Enqueue/` + default-timeout waitFor was flaky).
+    expect(
+      await screen.findByRole('button', { name: 'Enqueue' }, { timeout: 3000 }),
+    ).toBeTruthy();
   });
 });
