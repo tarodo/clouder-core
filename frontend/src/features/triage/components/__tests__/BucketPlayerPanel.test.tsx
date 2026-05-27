@@ -49,6 +49,9 @@ vi.mock('../../hooks/useBucketDistribute', () => ({
 vi.mock('../../../library/components/LabelTile', () => ({
   LabelTile: () => <div data-testid="label-tile" />,
 }));
+vi.mock('../../../library/components/ArtistsPanel', () => ({
+  ArtistsPanel: () => <div data-testid="artists-panel" />,
+}));
 
 import { BucketPlayerPanel } from '../BucketPlayerPanel';
 

@@ -17,6 +17,7 @@ import type { CategoryTrack } from '../hooks/useCategoryTracks';
 import { PlayerPanelTagCloud } from './PlayerPanelTagCloud';
 import { PlayerPanelPlaylistCloud } from './PlayerPanelPlaylistCloud';
 import { LabelTile } from '../../library/components/LabelTile';
+import { ArtistsPanel } from '../../library/components/ArtistsPanel';
 import classes from './CategoryPlayerPanel.module.css';
 
 export interface CategoryPlayerPanelProps {
@@ -287,6 +288,7 @@ export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlay
           styleId={styleId}
         />
       )}
+      <ArtistsPanel artists={effectiveRich?.artists ?? []} styleId={styleId} />
     </Stack>
   );
 }
