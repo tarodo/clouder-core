@@ -20,18 +20,21 @@ BUCKET_TYPE_NOT = "NOT"
 BUCKET_TYPE_DISCARD = "DISCARD"
 BUCKET_TYPE_UNCLASSIFIED = "UNCLASSIFIED"
 BUCKET_TYPE_STAGING = "STAGING"
+BUCKET_TYPE_FAV = "FAV"
 
-# The five technical bucket types created at block-create time.
+# The technical bucket types created at block-create time.
 TECHNICAL_BUCKET_TYPES: tuple[str, ...] = (
     BUCKET_TYPE_NEW,
     BUCKET_TYPE_OLD,
     BUCKET_TYPE_NOT,
     BUCKET_TYPE_DISCARD,
     BUCKET_TYPE_UNCLASSIFIED,
+    BUCKET_TYPE_FAV,
 )
 
 # UI sort order for technical buckets in detail responses.
 TECHNICAL_BUCKET_DISPLAY_ORDER: tuple[str, ...] = (
+    BUCKET_TYPE_FAV,
     BUCKET_TYPE_NEW,
     BUCKET_TYPE_OLD,
     BUCKET_TYPE_NOT,
@@ -91,23 +94,28 @@ def classify_bucket_type(
     spotify_release_date: date | None,
     release_type: str | None,
     old_cutoff: date,
+    is_favorite: bool = False,
     is_disliked: bool = False,
+    compilation_to_not: bool = True,
 ) -> str:
     """Pure mirror of the SQL CASE in create_block.
 
     Ordering (first match wins):
-        is_disliked          -> NOT   (highest priority)
-        NULL date            -> UNCLASSIFIED
-        date < old_cutoff    -> OLD
-        compilation          -> NOT
-        else                 -> NEW
+        is_favorite                       -> FAV   (likes beat dislikes)
+        is_disliked                       -> NOT
+        NULL date                         -> UNCLASSIFIED
+        date < old_cutoff                 -> OLD
+        compilation & compilation_to_not  -> NOT
+        else                              -> NEW
     """
+    if is_favorite:
+        return BUCKET_TYPE_FAV
     if is_disliked:
         return BUCKET_TYPE_NOT
     if spotify_release_date is None:
         return BUCKET_TYPE_UNCLASSIFIED
     if spotify_release_date < old_cutoff:
         return BUCKET_TYPE_OLD
-    if release_type == "compilation":
+    if release_type == "compilation" and compilation_to_not:
         return BUCKET_TYPE_NOT
     return BUCKET_TYPE_NEW

@@ -19,6 +19,7 @@ from collector.curation.triage_service import (
     BUCKET_TYPE_DISCARD,
     BUCKET_TYPE_UNCLASSIFIED,
     BUCKET_TYPE_STAGING,
+    BUCKET_TYPE_FAV,
     TECHNICAL_BUCKET_TYPES,
     classify_bucket_type,
     validate_block_input,
@@ -149,6 +150,7 @@ class TestBucketConstants:
         assert BUCKET_TYPE_NOT in TECHNICAL_BUCKET_TYPES
         assert BUCKET_TYPE_DISCARD in TECHNICAL_BUCKET_TYPES
         assert BUCKET_TYPE_UNCLASSIFIED in TECHNICAL_BUCKET_TYPES
+        assert BUCKET_TYPE_FAV in TECHNICAL_BUCKET_TYPES
 
 
 class TestClassifyBucketType:
@@ -244,6 +246,51 @@ class TestClassifyBucketType:
                 spotify_release_date=date(2026, 4, 1),
                 release_type="single",
                 old_cutoff=date(2026, 4, 1),
+            )
+            == BUCKET_TYPE_NEW
+        )
+
+    def test_favorite_is_highest_priority(self) -> None:
+        # Favorite wins over disliked, OLD, compilation, and NULL date.
+        assert (
+            classify_bucket_type(
+                spotify_release_date=None,
+                release_type="compilation",
+                old_cutoff=date(2026, 4, 1),
+                is_favorite=True,
+                is_disliked=True,
+            )
+            == BUCKET_TYPE_FAV
+        )
+        assert (
+            classify_bucket_type(
+                spotify_release_date=date(2020, 1, 1),
+                release_type="single",
+                old_cutoff=date(2026, 4, 1),
+                is_favorite=True,
+            )
+            == BUCKET_TYPE_FAV
+        )
+
+    def test_disliked_beats_date_when_not_favorite(self) -> None:
+        assert (
+            classify_bucket_type(
+                spotify_release_date=date(2020, 1, 1),
+                release_type="single",
+                old_cutoff=date(2026, 4, 1),
+                is_favorite=False,
+                is_disliked=True,
+            )
+            == BUCKET_TYPE_NOT
+        )
+
+    def test_compilation_to_not_false_routes_to_new(self) -> None:
+        assert (
+            classify_bucket_type(
+                spotify_release_date=date(2026, 4, 15),
+                release_type="compilation",
+                old_cutoff=date(2026, 4, 1),
+                compilation_to_not=False,
             )
             == BUCKET_TYPE_NEW
         )
