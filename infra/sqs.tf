@@ -79,3 +79,24 @@ resource "aws_sqs_queue" "label_enrichment" {
     maxReceiveCount     = var.label_enrichment_queue_max_receive_count
   })
 }
+
+# ── Artist Enrichment queue ──────────────────────────────────────
+
+resource "aws_sqs_queue" "artist_enrichment_dlq" {
+  name                      = local.artist_enrichment_dlq_name
+  message_retention_seconds = var.artist_enrichment_queue_retention_seconds
+}
+
+resource "aws_sqs_queue" "artist_enrichment" {
+  name = local.artist_enrichment_queue_name
+  visibility_timeout_seconds = max(
+    var.artist_enrichment_queue_visibility_timeout_seconds,
+    var.artist_enrichment_worker_lambda_timeout_seconds
+  )
+  message_retention_seconds = var.artist_enrichment_queue_retention_seconds
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.artist_enrichment_dlq.arn
+    maxReceiveCount     = var.artist_enrichment_queue_max_receive_count
+  })
+}

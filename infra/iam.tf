@@ -90,6 +90,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.spotify_search.arn,
       aws_sqs_queue.vendor_match.arn,
       aws_sqs_queue.label_enrichment.arn,
+      aws_sqs_queue.artist_enrichment.arn,
     ]
   }
 
@@ -108,6 +109,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.spotify_search.arn,
       aws_sqs_queue.vendor_match.arn,
       aws_sqs_queue.label_enrichment.arn,
+      aws_sqs_queue.artist_enrichment.arn,
     ]
   }
 

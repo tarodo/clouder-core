@@ -364,32 +364,6 @@ def test_list_tracks_returns_paginated_results(monkeypatch, context) -> None:
     assert "artist_names" not in item
 
 
-def test_list_artists_returns_results(monkeypatch, context) -> None:
-    class FakeRepo:
-        def list_artists(self, limit, offset, search):
-            return [
-                {
-                    "id": "art-1",
-                    "name": "Test Artist",
-                    "normalized_name": "test artist",
-                    "created_at": "2026-03-01T10:00:00Z",
-                    "updated_at": "2026-03-01T10:00:00Z",
-                },
-            ]
-
-        def count_artists(self, search):
-            return 1
-
-    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: FakeRepo())
-
-    response = lambda_handler(_list_event("GET /artists"), context)
-
-    assert response["statusCode"] == 200
-    body = json.loads(response["body"])
-    assert body["total"] == 1
-    assert body["items"][0]["name"] == "Test Artist"
-
-
 def test_list_styles_returns_results(monkeypatch, context) -> None:
     class FakeRepo:
         def list_styles(self, limit, offset, search):

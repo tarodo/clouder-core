@@ -11,19 +11,20 @@ resource "aws_lambda_function" "collector" {
 
   environment {
     variables = {
-      RAW_BUCKET_NAME            = aws_s3_bucket.raw.bucket
-      RAW_PREFIX                 = var.raw_prefix
-      BEATPORT_API_BASE_URL      = var.beatport_api_base_url
-      CANONICALIZATION_ENABLED   = var.canonicalization_enabled ? "true" : "false"
-      CANONICALIZATION_QUEUE_URL = aws_sqs_queue.canonicalization.url
-      SPOTIFY_SEARCH_ENABLED     = var.spotify_search_enabled ? "true" : "false"
-      SPOTIFY_SEARCH_QUEUE_URL   = aws_sqs_queue.spotify_search.url
-      LABEL_ENRICHMENT_QUEUE_URL = aws_sqs_queue.label_enrichment.url
-      AURORA_CLUSTER_ARN         = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN          = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE            = var.aurora_database_name
-      LOG_LEVEL                  = "INFO"
-      VENDORS_ENABLED            = "beatport"
+      RAW_BUCKET_NAME             = aws_s3_bucket.raw.bucket
+      RAW_PREFIX                  = var.raw_prefix
+      BEATPORT_API_BASE_URL       = var.beatport_api_base_url
+      CANONICALIZATION_ENABLED    = var.canonicalization_enabled ? "true" : "false"
+      CANONICALIZATION_QUEUE_URL  = aws_sqs_queue.canonicalization.url
+      SPOTIFY_SEARCH_ENABLED      = var.spotify_search_enabled ? "true" : "false"
+      SPOTIFY_SEARCH_QUEUE_URL    = aws_sqs_queue.spotify_search.url
+      LABEL_ENRICHMENT_QUEUE_URL  = aws_sqs_queue.label_enrichment.url
+      ARTIST_ENRICHMENT_QUEUE_URL = aws_sqs_queue.artist_enrichment.url
+      AURORA_CLUSTER_ARN          = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN           = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE             = var.aurora_database_name
+      LOG_LEVEL                   = "INFO"
+      VENDORS_ENABLED             = "beatport"
     }
   }
 
@@ -230,5 +231,54 @@ resource "aws_lambda_event_source_mapping" "label_enrichment_queue" {
   # from the account pool, so it works even on the low new-account quota (10).
   scaling_config {
     maximum_concurrency = var.label_enrichment_worker_max_concurrency
+  }
+}
+
+# ── Artist enrichment worker ─────────────────────────────────────
+
+resource "aws_lambda_function" "artist_enricher_worker" {
+  function_name = local.artist_enrichment_worker_lambda_name
+  role          = aws_iam_role.collector_lambda.arn
+  runtime       = "python3.12"
+  handler       = "collector.artist_enrichment_handler.lambda_handler"
+  filename      = local.lambda_zip_file
+  timeout       = var.artist_enrichment_worker_lambda_timeout_seconds
+  memory_size   = var.artist_enrichment_worker_lambda_memory_mb
+
+  reserved_concurrent_executions = var.enable_lambda_reserved_concurrency ? var.artist_enrichment_worker_reserved_concurrency : -1
+
+  source_code_hash = filebase64sha256(local.lambda_zip_file)
+
+  environment {
+    variables = {
+      GEMINI_API_KEY_SSM_PARAMETER   = var.gemini_api_key_ssm_parameter
+      OPENAI_API_KEY_SSM_PARAMETER   = var.openai_api_key_ssm_parameter
+      TAVILY_API_KEY_SSM_PARAMETER   = var.tavily_api_key_ssm_parameter
+      DEEPSEEK_API_KEY_SSM_PARAMETER = var.deepseek_api_key_ssm_parameter
+      ARTIST_ENRICHMENT_QUEUE_URL    = aws_sqs_queue.artist_enrichment.url
+      AI_FLAG_CONFIDENCE_THRESHOLD   = tostring(var.ai_flag_confidence_threshold)
+      AURORA_CLUSTER_ARN             = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN              = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE                = var.aurora_database_name
+      LOG_LEVEL                      = "INFO"
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.artist_enricher_worker,
+  ]
+}
+
+resource "aws_lambda_event_source_mapping" "artist_enrichment_queue" {
+  event_source_arn = aws_sqs_queue.artist_enrichment.arn
+  function_name    = aws_lambda_function.artist_enricher_worker.arn
+  batch_size       = var.artist_enrichment_batch_size
+
+  # Cap the worker's SQS-driven parallelism so an artist batch can't monopolise
+  # the account ConcurrentExecutions pool and starve interactive Lambdas
+  # (auth/login). Unlike reserved_concurrent_executions, this does NOT reserve
+  # from the account pool, so it works even on the low new-account quota (10).
+  scaling_config {
+    maximum_concurrency = var.artist_enrichment_worker_max_concurrency
   }
 }

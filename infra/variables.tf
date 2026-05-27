@@ -475,6 +475,59 @@ variable "label_enrichment_worker_max_concurrency" {
   }
 }
 
+variable "artist_enrichment_queue_visibility_timeout_seconds" {
+  description = "SQS visibility timeout in seconds (worker timeout + buffer)."
+  type        = number
+  default     = 1000
+}
+
+variable "artist_enrichment_queue_retention_seconds" {
+  description = "SQS message retention in seconds."
+  type        = number
+  default     = 345600
+}
+
+variable "artist_enrichment_queue_max_receive_count" {
+  description = "SQS receives before message moves to DLQ."
+  type        = number
+  default     = 3
+}
+
+variable "artist_enrichment_worker_lambda_timeout_seconds" {
+  description = "Lambda timeout. Default 900s (15min) — single artist, ThreadPool inside, vendor latency budget."
+  type        = number
+  default     = 900
+}
+
+variable "artist_enrichment_worker_lambda_memory_mb" {
+  description = "Lambda memory MB."
+  type        = number
+  default     = 1024
+}
+
+variable "artist_enrichment_worker_reserved_concurrency" {
+  description = "Max parallel Lambda invocations. Caps cross-artist parallelism."
+  type        = number
+  default     = 10
+}
+
+variable "artist_enrichment_batch_size" {
+  description = "SQS batch size. Keep at 1 — one artist per invocation, ThreadPool fans out vendors."
+  type        = number
+  default     = 1
+}
+
+variable "artist_enrichment_worker_max_concurrency" {
+  description = "SQS event-source maximum_concurrency for the artist-enrichment worker (range 2-1000). Caps the worker's SQS-driven parallelism WITHOUT reserving from the account pool, so it works on the low new-account ConcurrentExecutions quota (10). Leaves headroom for interactive Lambdas (auth/api). Raise once the account quota is increased."
+  type        = number
+  default     = 8
+
+  validation {
+    condition     = var.artist_enrichment_worker_max_concurrency >= 2 && var.artist_enrichment_worker_max_concurrency <= 1000
+    error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
+  }
+}
+
 variable "gemini_api_key_ssm_parameter" {
   description = "SSM Parameter Store name (SecureString) for the Gemini API key."
   type        = string

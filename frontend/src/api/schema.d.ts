@@ -1589,89 +1589,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/artists": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List artists (paginated). */
-        get: {
-            parameters: {
-                query?: {
-                    limit?: number;
-                    offset?: number;
-                    /** @description Substring match on normalized name/title (case-insensitive). */
-                    search?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Paginated items. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            items: Record<string, never>[];
-                            total: number;
-                            limit: number;
-                            offset: number;
-                            correlation_id?: string;
-                        };
-                    };
-                };
-                /** @description validation_error (limit/offset out of range). */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Missing or invalid bearer token. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Authenticated but lacks required role (admin). */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description db_not_configured. */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/albums": {
         parameters: {
             query?: never;
@@ -5503,6 +5420,912 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/artists/enrich": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin: enqueue artist enrichment for up to 100 artists.
+         * @description Creates an `artist_enrich_runs` row, fans out per-(artist, vendor) cells onto the artist-enrichment SQS queue. Returns 202 with the run id and the count of queued artists.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        artists: {
+                            artist_id?: string;
+                            artist_name?: string;
+                            style?: string;
+                        }[];
+                        vendors: ("gemini" | "openai" | "tavily_deepseek")[];
+                        models: {
+                            [key: string]: string;
+                        };
+                        prompt_slug: string;
+                        prompt_version: string;
+                        /** @enum {string} */
+                        merge_vendor: "deepseek";
+                        merge_model: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Enrichment run accepted and queued. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            run_id: string;
+                            queued_artists: number;
+                        };
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/artists/enrich-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: get status + counters for an artist-enrichment run. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    run_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Run row with progress counters. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            /** @enum {string} */
+                            status: "queued" | "running" | "completed" | "failed";
+                            prompt_slug?: string;
+                            prompt_version?: string;
+                            vendors?: string[];
+                            models?: {
+                                [key: string]: string;
+                            };
+                            merge_vendor?: string;
+                            merge_model?: string;
+                            requested_artists?: number;
+                            cells_total: number;
+                            cells_ok: number;
+                            cells_error: number;
+                            cost_usd?: number;
+                            /** @enum {string} */
+                            source?: "manual" | "auto";
+                            /** Format: date-time */
+                            created_at?: string;
+                            /** Format: date-time */
+                            started_at?: string | null;
+                            /** Format: date-time */
+                            finished_at?: string | null;
+                            cells?: {
+                                cell_id: string;
+                                artist_id: string;
+                                artist_name: string;
+                                vendor: string;
+                                /** @enum {string} */
+                                status: "ok" | "error";
+                                latency_ms: number;
+                                cost_usd: number;
+                                error_message?: string | null;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Run not found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/artists/{artist_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: get enriched artist info (merged AI content + provenance). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    artist_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Artist info with merged enrichment fields. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            artist_id: string;
+                            artist_name: string;
+                            /** Format: uuid */
+                            last_run_id?: string;
+                            prompt_slug?: string;
+                            prompt_version?: string;
+                            merged: Record<string, never>;
+                            provenance?: Record<string, never>;
+                            ai_content: string;
+                            ai_confidence: number;
+                            status: string;
+                            primary_styles?: string[];
+                            tagline?: string | null;
+                            country?: string | null;
+                            active_since?: number | null;
+                            artist_type?: string | null;
+                            /** Format: date-time */
+                            updated_at: string;
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Artist not found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/artists/{artist_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: per-artist enrichment history (every cell across every run). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    artist_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Per-artist cells, ordered by run created_at DESC. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ArtistHistoryResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/artists/backlog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin: list artists missing enrichment.
+         * @description Artists with no info, failed, or completed-but-outdated. Cursor-paginated. Sorted by track_count DESC.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    style?: string;
+                    status?: "all" | "none" | "completed" | "outdated";
+                    cursor?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Backlog page. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BacklogArtistResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/artists/enrich-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: list artist enrichment runs. */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "queued" | "running" | "completed" | "failed";
+                    cursor?: string;
+                    limit?: number;
+                    source?: "manual" | "auto";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Artist runs list. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ArtistRunsListResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/artists/enrich/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: static config for the artist enqueue form. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Form options. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EnrichmentOptions"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/auto-enrich/artists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: get auto-enrichment config for artists + form options. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Saved config (or defaults) plus the model/prompt options. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            config: {
+                                enabled: boolean;
+                                vendors: string[];
+                                models: {
+                                    [key: string]: string;
+                                };
+                                prompt_slug?: string | null;
+                                prompt_version?: string | null;
+                                merge_vendor: string;
+                                merge_model?: string | null;
+                            };
+                            options: components["schemas"]["EnrichmentOptions"];
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        /** Admin: upsert auto-enrichment config for artists. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        vendors?: string[];
+                        models?: {
+                            [key: string]: string;
+                        };
+                        prompt_slug?: string | null;
+                        prompt_version?: string | null;
+                        /** @enum {string} */
+                        merge_vendor?: "deepseek";
+                        merge_model?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Config saved. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List artists for browsing.
+         * @description Paginated artist list. Filters: style (dominant style), q (name prefix), sort (name|recent). Page-based pagination.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    style?: string;
+                    q?: string;
+                    sort?: "name" | "recent";
+                    page?: number;
+                    limit?: number;
+                    my?: "all" | "liked" | "disliked" | "unrated";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated artists. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ArtistsListResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artists/{artist_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user-facing artist detail.
+         * @description Returns sanitized ArtistInfo for completed enrichments. 404 when info not available.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    artist_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Artist info. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ArtistDetail"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description artist_not_found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artists/{artist_id}/preference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or clear the current user's artist preference.
+         * @description Body: {"status": "liked" | "disliked" | "none"}. "none" deletes the row. Returns 204.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    artist_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "liked" | "disliked" | "none";
+                    };
+                };
+            };
+            responses: {
+                /** @description Preference updated. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description artist_not_found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description invalid status. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/artist-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the current user's rated artists. */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "liked" | "disliked";
+                    page?: number;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Paginated user artist preferences. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MyArtistPreferencesResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5803,6 +6626,136 @@ export interface components {
         };
         LabelHistoryResponse: {
             items: components["schemas"]["LabelHistoryCell"][];
+        };
+        ArtistEnrichRunResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "completed" | "failed";
+            prompt_slug?: string;
+            prompt_version?: string;
+            vendors?: string[];
+            models?: {
+                [key: string]: string;
+            };
+            merge_vendor?: string;
+            merge_model?: string;
+            requested_artists?: number;
+            cells_total: number;
+            cells_ok: number;
+            cells_error: number;
+            cost_usd?: number;
+            /** @enum {string} */
+            source?: "manual" | "auto";
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            started_at?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+            cells?: {
+                cell_id: string;
+                artist_id: string;
+                artist_name: string;
+                vendor: string;
+                /** @enum {string} */
+                status: "ok" | "error";
+                latency_ms: number;
+                cost_usd: number;
+                error_message?: string | null;
+            }[];
+        };
+        ArtistSummary: {
+            id: string;
+            name: string;
+            style: string;
+            /** @enum {string} */
+            status: "none" | "queued" | "running" | "completed" | "failed" | "outdated";
+            track_count: number;
+            info?: {
+                tagline?: string | null;
+                country?: string | null;
+                active_since?: number | null;
+                primary_styles?: string[];
+                /** @enum {string} */
+                artist_type?: "solo" | "duo" | "group" | "alias_project" | "unknown";
+                /** @enum {string|null} */
+                ai_content?: "unknown" | "none_detected" | "suspected" | "confirmed" | null;
+                /** Format: date-time */
+                updated_at?: string;
+            } | null;
+            /** @enum {string|null} */
+            my_preference?: "liked" | "disliked" | null;
+        };
+        ArtistsListResponse: {
+            items: components["schemas"]["ArtistSummary"][];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        /** @description Sanitized ArtistInfo (admin-only fields stripped) plus my_preference. */
+        ArtistDetail: {
+            /** @enum {string|null} */
+            my_preference?: "liked" | "disliked" | null;
+        } & {
+            [key: string]: unknown;
+        };
+        MyArtistPreferencesResponse: {
+            items: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                my_preference: "liked" | "disliked";
+            }[];
+            total: number;
+            page: number;
+            limit: number;
+        };
+        BacklogArtist: {
+            id: string;
+            name: string;
+            style: string;
+            /** @enum {string} */
+            status: "none" | "completed" | "outdated";
+            track_count: number;
+            /** Format: date-time */
+            last_attempted_at?: string | null;
+        };
+        BacklogArtistResponse: {
+            items: components["schemas"]["BacklogArtist"][];
+            next_cursor?: string | null;
+            total_estimate: number;
+        };
+        ArtistRunsListResponse: {
+            items: components["schemas"]["ArtistEnrichRunResponse"][];
+            next_cursor?: string | null;
+        };
+        ArtistHistoryCell: {
+            /** Format: uuid */
+            cell_id: string;
+            /** Format: uuid */
+            run_id: string;
+            run_status?: string;
+            /** Format: date-time */
+            run_created_at?: string;
+            prompt_slug?: string;
+            prompt_version?: string;
+            vendor: string;
+            model?: string;
+            /** @enum {string} */
+            status: "ok" | "error";
+            latency_ms?: number | null;
+            cost_usd?: number | null;
+            error_message?: string | null;
+            parsed?: {
+                [key: string]: unknown;
+            } | null;
+            citations?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        ArtistHistoryResponse: {
+            items: components["schemas"]["ArtistHistoryCell"][];
         };
     };
     responses: never;

@@ -844,6 +844,280 @@ LABEL_INFO_RESPONSE = {
     },
 }
 
+# ── artist enrichment schemas ──────────────────────────────────────────────
+
+ARTIST_ENRICH_REQUEST = {
+    "type": "object",
+    "required": ["artists", "vendors", "models", "prompt_slug",
+                 "prompt_version", "merge_vendor", "merge_model"],
+    "properties": {
+        "artists": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "artist_id": {"type": "string"},
+                    "artist_name": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "style": {"type": "string", "minLength": 1, "maxLength": 128},
+                },
+                "additionalProperties": False,
+                "description": "Either artist_id (resolves from clouder_artists) or artist_name+style (creates if missing).",
+            },
+        },
+        "vendors": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "enum": ["gemini", "openai", "tavily_deepseek"]},
+        },
+        "models": {
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+        },
+        "prompt_slug": {"type": "string", "minLength": 1},
+        "prompt_version": {"type": "string", "minLength": 1},
+        "merge_vendor": {"type": "string", "enum": ["deepseek"]},
+        "merge_model": {"type": "string", "minLength": 1},
+    },
+    "additionalProperties": False,
+}
+
+ARTIST_ENRICH_ACCEPTED_RESPONSE = {
+    "type": "object",
+    "required": ["run_id", "queued_artists"],
+    "properties": {
+        "run_id": {"type": "string", "format": "uuid"},
+        "queued_artists": {"type": "integer", "minimum": 1},
+    },
+}
+
+ARTIST_ENRICH_RUN_RESPONSE = {
+    "type": "object",
+    "required": ["id", "status", "cells_total", "cells_ok", "cells_error"],
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "status": {"type": "string", "enum": ["queued", "running", "completed", "failed"]},
+        "prompt_slug": {"type": "string"},
+        "prompt_version": {"type": "string"},
+        "vendors": {"type": "array", "items": {"type": "string"}},
+        "models": {"type": "object", "additionalProperties": {"type": "string"}},
+        "merge_vendor": {"type": "string"},
+        "merge_model": {"type": "string"},
+        "requested_artists": {"type": "integer"},
+        "cells_total": {"type": "integer"},
+        "cells_ok": {"type": "integer"},
+        "cells_error": {"type": "integer"},
+        "cost_usd": {"type": "number"},
+        "source": {"type": "string", "enum": ["manual", "auto"]},
+        "created_at": {"type": "string", "format": "date-time"},
+        "started_at": {"type": ["string", "null"], "format": "date-time"},
+        "finished_at": {"type": ["string", "null"], "format": "date-time"},
+        "cells": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "cell_id", "artist_id", "artist_name", "vendor",
+                    "status", "latency_ms", "cost_usd",
+                ],
+                "properties": {
+                    "cell_id": {"type": "string"},
+                    "artist_id": {"type": "string"},
+                    "artist_name": {"type": "string"},
+                    "vendor": {"type": "string"},
+                    "status": {"type": "string", "enum": ["ok", "error"]},
+                    "latency_ms": {"type": "integer"},
+                    "cost_usd": {"type": "number"},
+                    "error_message": {"type": ["string", "null"]},
+                },
+            },
+        },
+    },
+}
+
+ARTIST_SUMMARY = {
+    "type": "object",
+    "required": ["id", "name", "style", "status", "track_count"],
+    "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "style": {"type": "string"},
+        "status": {
+            "type": "string",
+            "enum": ["none", "queued", "running", "completed", "failed", "outdated"],
+        },
+        "track_count": {"type": "integer"},
+        "info": {
+            "type": ["object", "null"],
+            "properties": {
+                "tagline": {"type": ["string", "null"]},
+                "country": {"type": ["string", "null"]},
+                "active_since": {"type": ["integer", "null"]},
+                "primary_styles": {"type": "array", "items": {"type": "string"}},
+                "artist_type": {
+                    "type": "string",
+                    "enum": ["solo", "duo", "group", "alias_project", "unknown"],
+                },
+                "ai_content": {
+                    "type": ["string", "null"],
+                    "enum": ["unknown", "none_detected", "suspected", "confirmed", None],
+                },
+                "updated_at": {"type": "string", "format": "date-time"},
+            },
+        },
+        "my_preference": {
+            "type": ["string", "null"],
+            "enum": ["liked", "disliked", None],
+        },
+    },
+}
+
+ARTISTS_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total", "page", "limit"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/ArtistSummary"},
+        },
+        "total": {"type": "integer"},
+        "page": {"type": "integer"},
+        "limit": {"type": "integer"},
+    },
+}
+
+ARTIST_DETAIL_RESPONSE = {
+    "type": "object",
+    "description": "Sanitized ArtistInfo (admin-only fields stripped) plus my_preference.",
+    "properties": {
+        "my_preference": {
+            "type": ["string", "null"],
+            "enum": ["liked", "disliked", None],
+        },
+    },
+    "additionalProperties": True,
+}
+
+MY_ARTIST_PREFERENCES_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total", "page", "limit"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["id", "name", "my_preference"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "my_preference": {
+                        "type": "string",
+                        "enum": ["liked", "disliked"],
+                    },
+                },
+            },
+        },
+        "total": {"type": "integer"},
+        "page": {"type": "integer"},
+        "limit": {"type": "integer"},
+    },
+}
+
+BACKLOG_ARTIST = {
+    "type": "object",
+    "required": ["id", "name", "style", "status", "track_count"],
+    "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "style": {"type": "string"},
+        "status": {"type": "string", "enum": ["none", "completed", "outdated"]},
+        "track_count": {"type": "integer"},
+        "last_attempted_at": {"type": ["string", "null"], "format": "date-time"},
+    },
+}
+
+BACKLOG_ARTIST_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total_estimate"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/BacklogArtist"},
+        },
+        "next_cursor": {"type": ["string", "null"]},
+        "total_estimate": {"type": "integer"},
+    },
+}
+
+ARTIST_RUNS_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/ArtistEnrichRunResponse"},
+        },
+        "next_cursor": {"type": ["string", "null"]},
+    },
+}
+
+ARTIST_HISTORY_CELL = {
+    "type": "object",
+    "required": ["cell_id", "run_id", "vendor", "status"],
+    "properties": {
+        "cell_id": {"type": "string", "format": "uuid"},
+        "run_id": {"type": "string", "format": "uuid"},
+        "run_status": {"type": "string"},
+        "run_created_at": {"type": "string", "format": "date-time"},
+        "prompt_slug": {"type": "string"},
+        "prompt_version": {"type": "string"},
+        "vendor": {"type": "string"},
+        "model": {"type": "string"},
+        "status": {"type": "string", "enum": ["ok", "error"]},
+        "latency_ms": {"type": ["integer", "null"]},
+        "cost_usd": {"type": ["number", "null"]},
+        "error_message": {"type": ["string", "null"]},
+        "parsed": {"type": ["object", "null"], "additionalProperties": True},
+        "citations": {"type": ["array", "null"], "items": {"type": "object", "additionalProperties": True}},
+    },
+}
+
+ARTIST_HISTORY_RESPONSE = {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/ArtistHistoryCell"},
+        },
+    },
+}
+
+ARTIST_INFO_RESPONSE = {
+    "type": "object",
+    "required": ["artist_id", "artist_name", "merged", "status",
+                 "ai_content", "ai_confidence", "updated_at"],
+    "properties": {
+        "artist_id": {"type": "string", "format": "uuid"},
+        "artist_name": {"type": "string"},
+        "last_run_id": {"type": "string", "format": "uuid"},
+        "prompt_slug": {"type": "string"},
+        "prompt_version": {"type": "string"},
+        "merged": {"type": "object"},
+        "provenance": {"type": "object"},
+        "ai_content": {"type": "string"},
+        "ai_confidence": {"type": "number"},
+        "status": {"type": "string"},
+        "primary_styles": {"type": "array", "items": {"type": "string"}},
+        "tagline": {"type": ["string", "null"]},
+        "country": {"type": ["string", "null"]},
+        "active_since": {"type": ["integer", "null"]},
+        "artist_type": {"type": ["string", "null"]},
+        "updated_at": {"type": "string", "format": "date-time"},
+    },
+}
+
 
 # ── routes ────────────────────────────────────────────────────────────────
 
@@ -1508,7 +1782,7 @@ ROUTES: list[dict[str, Any]] = [
                 **COMMON_AUTH_ERRORS,
             },
         }
-        for entity in ("tracks", "artists", "albums", "styles")
+        for entity in ("tracks", "albums", "styles")
     ],
     {
         "method": "get",
@@ -2611,6 +2885,430 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
+    # ── artist enrichment (admin only) ──────────────────────────────
+    {
+        "method": "post",
+        "path": "/admin/artists/enrich",
+        "auth": ADMIN,
+        "summary": "Admin: enqueue artist enrichment for up to 100 artists.",
+        "description": (
+            "Creates an `artist_enrich_runs` row, fans out per-(artist, vendor) cells "
+            "onto the artist-enrichment SQS queue. Returns 202 with the run id and "
+            "the count of queued artists."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": ARTIST_ENRICH_REQUEST,
+                }
+            },
+        },
+        "responses": {
+            "202": _make_response(
+                202,
+                "Enrichment run accepted and queued.",
+                ARTIST_ENRICH_ACCEPTED_RESPONSE,
+            ),
+            "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/artists/enrich-runs/{run_id}",
+        "auth": ADMIN,
+        "summary": "Admin: get status + counters for an artist-enrichment run.",
+        "parameters": [
+            {
+                "name": "run_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Run row with progress counters.",
+                ARTIST_ENRICH_RUN_RESPONSE,
+            ),
+            "404": _error(404, "Run not found."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/artists/{artist_id}",
+        "auth": ADMIN,
+        "summary": "Admin: get enriched artist info (merged AI content + provenance).",
+        "parameters": [
+            {
+                "name": "artist_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Artist info with merged enrichment fields.",
+                ARTIST_INFO_RESPONSE,
+            ),
+            "404": _error(404, "Artist not found."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/artists/{artist_id}/history",
+        "auth": ADMIN,
+        "tags": ["artists-admin"],
+        "summary": "Admin: per-artist enrichment history (every cell across every run).",
+        "parameters": [
+            {
+                "name": "artist_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Per-artist cells, ordered by run created_at DESC.",
+                {"$ref": "#/components/schemas/ArtistHistoryResponse"},
+            ),
+            "403": _error(403, "admin_required."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/artists/backlog",
+        "auth": ADMIN,
+        "summary": "Admin: list artists missing enrichment.",
+        "description": (
+            "Artists with no info, failed, or completed-but-outdated. "
+            "Cursor-paginated. Sorted by track_count DESC."
+        ),
+        "parameters": [
+            {"name": "style", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "status",
+                "in": "query",
+                "schema": {"type": "string", "enum": ["all", "none", "completed", "outdated"]},
+            },
+            {"name": "cursor", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "limit",
+                "in": "query",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "default": 100,
+                },
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Backlog page.",
+                {"$ref": "#/components/schemas/BacklogArtistResponse"},
+            ),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/artists/enrich-runs",
+        "auth": ADMIN,
+        "summary": "Admin: list artist enrichment runs.",
+        "parameters": [
+            {
+                "name": "status",
+                "in": "query",
+                "schema": {
+                    "type": "string",
+                    "enum": ["queued", "running", "completed", "failed"],
+                },
+            },
+            {"name": "cursor", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "limit",
+                "in": "query",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "default": 50,
+                },
+            },
+            {
+                "name": "source",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "enum": ["manual", "auto"]},
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Artist runs list.",
+                {"$ref": "#/components/schemas/ArtistRunsListResponse"},
+            ),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/artists/enrich/options",
+        "auth": ADMIN,
+        "summary": "Admin: static config for the artist enqueue form.",
+        "responses": {
+            "200": _make_response(
+                200,
+                "Form options.",
+                {"$ref": "#/components/schemas/EnrichmentOptions"},
+            ),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/auto-enrich/artists",
+        "auth": ADMIN,
+        "summary": "Admin: get auto-enrichment config for artists + form options.",
+        "responses": {
+            "200": _make_response(
+                200,
+                "Saved config (or defaults) plus the model/prompt options.",
+                {
+                    "type": "object",
+                    "required": ["config", "options"],
+                    "properties": {
+                        "config": {
+                            "type": "object",
+                            "required": ["enabled", "vendors", "models", "merge_vendor"],
+                            "properties": {
+                                "enabled": {"type": "boolean"},
+                                "vendors": {"type": "array", "items": {"type": "string"}},
+                                "models": {"type": "object", "additionalProperties": {"type": "string"}},
+                                "prompt_slug": {"type": "string", "nullable": True},
+                                "prompt_version": {"type": "string", "nullable": True},
+                                "merge_vendor": {"type": "string"},
+                                "merge_model": {"type": "string", "nullable": True},
+                            },
+                        },
+                        "options": {"$ref": "#/components/schemas/EnrichmentOptions"},
+                    },
+                },
+            ),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "put",
+        "path": "/admin/auto-enrich/artists",
+        "auth": ADMIN,
+        "summary": "Admin: upsert auto-enrichment config for artists.",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["enabled"],
+                        "properties": {
+                            "enabled": {"type": "boolean"},
+                            "vendors": {"type": "array", "items": {"type": "string"}},
+                            "models": {"type": "object", "additionalProperties": {"type": "string"}},
+                            "prompt_slug": {"type": "string", "nullable": True},
+                            "prompt_version": {"type": "string", "nullable": True},
+                            "merge_vendor": {"type": "string", "enum": ["deepseek"]},
+                            "merge_model": {"type": "string", "nullable": True},
+                        },
+                    },
+                }
+            },
+        },
+        "responses": {
+            "204": {"description": "Config saved."},
+            "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    # ── user-facing artist browse ──────────────────────────────────
+    {
+        "method": "get",
+        "path": "/artists",
+        "auth": AUTH,
+        "summary": "List artists for browsing.",
+        "description": (
+            "Paginated artist list. Filters: style (dominant style), q (name "
+            "prefix), sort (name|recent). Page-based pagination."
+        ),
+        "parameters": [
+            {"name": "style", "in": "query", "schema": {"type": "string"}},
+            {"name": "q", "in": "query", "schema": {"type": "string"}},
+            {
+                "name": "sort",
+                "in": "query",
+                "schema": {"type": "string", "enum": ["name", "recent"]},
+            },
+            {
+                "name": "page",
+                "in": "query",
+                "schema": {"type": "integer", "minimum": 1, "default": 1},
+            },
+            {
+                "name": "limit",
+                "in": "query",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "default": 50,
+                },
+            },
+            {
+                "name": "my",
+                "in": "query",
+                "schema": {
+                    "type": "string",
+                    "enum": ["all", "liked", "disliked", "unrated"],
+                    "default": "all",
+                },
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Paginated artists.",
+                {"$ref": "#/components/schemas/ArtistsListResponse"},
+            ),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/artists/{artist_id}",
+        "auth": AUTH,
+        "summary": "Get user-facing artist detail.",
+        "description": (
+            "Returns sanitized ArtistInfo for completed enrichments. "
+            "404 when info not available."
+        ),
+        "parameters": [
+            {
+                "name": "artist_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+            }
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Artist info.",
+                {"$ref": "#/components/schemas/ArtistDetail"},
+            ),
+            "404": _error(404, "artist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    # ── user artist preferences ───────────────────────────────────────
+    {
+        "method": "put",
+        "path": "/artists/{artist_id}/preference",
+        "auth": AUTH,
+        "summary": "Set or clear the current user's artist preference.",
+        "description": (
+            "Body: {\"status\": \"liked\" | \"disliked\" | \"none\"}. "
+            "\"none\" deletes the row. Returns 204."
+        ),
+        "parameters": [
+            {
+                "name": "artist_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string"},
+            }
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["liked", "disliked", "none"],
+                            }
+                        },
+                    }
+                }
+            },
+        },
+        "responses": {
+            "204": {"description": "Preference updated."},
+            "404": _error(404, "artist_not_found."),
+            "422": _error(422, "invalid status."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/me/artist-preferences",
+        "auth": AUTH,
+        "summary": "List the current user's rated artists.",
+        "parameters": [
+            {
+                "name": "status",
+                "in": "query",
+                "schema": {
+                    "type": "string",
+                    "enum": ["liked", "disliked"],
+                    "default": "liked",
+                },
+            },
+            {
+                "name": "page",
+                "in": "query",
+                "schema": {"type": "integer", "minimum": 1, "default": 1},
+            },
+            {
+                "name": "limit",
+                "in": "query",
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "default": 50,
+                },
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Paginated user artist preferences.",
+                {"$ref": "#/components/schemas/MyArtistPreferencesResponse"},
+            ),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
 ]
 
 
@@ -2766,6 +3464,16 @@ def build_openapi() -> dict[str, Any]:
                 "EnrichmentOptions": ENRICHMENT_OPTIONS,
                 "LabelHistoryCell": LABEL_HISTORY_CELL,
                 "LabelHistoryResponse": LABEL_HISTORY_RESPONSE,
+                "ArtistEnrichRunResponse": ARTIST_ENRICH_RUN_RESPONSE,
+                "ArtistSummary": ARTIST_SUMMARY,
+                "ArtistsListResponse": ARTISTS_LIST_RESPONSE,
+                "ArtistDetail": ARTIST_DETAIL_RESPONSE,
+                "MyArtistPreferencesResponse": MY_ARTIST_PREFERENCES_RESPONSE,
+                "BacklogArtist": BACKLOG_ARTIST,
+                "BacklogArtistResponse": BACKLOG_ARTIST_RESPONSE,
+                "ArtistRunsListResponse": ARTIST_RUNS_LIST_RESPONSE,
+                "ArtistHistoryCell": ARTIST_HISTORY_CELL,
+                "ArtistHistoryResponse": ARTIST_HISTORY_RESPONSE,
             },
         },
     }

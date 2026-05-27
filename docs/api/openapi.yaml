@@ -1187,34 +1187,6 @@ paths:
       - BearerAuth: []
       tags:
       - user
-  /artists:
-    get:
-      summary: List artists (paginated).
-      responses:
-        '200':
-          description: Paginated items.
-          content:
-            application/json:
-              schema: *id003
-        '400':
-          description: validation_error (limit/offset out of range).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '503':
-          description: db_not_configured.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401': *id001
-        '403': *id002
-      parameters: *id004
-      security:
-      - BearerAuth: []
-      tags:
-      - user
   /albums:
     get:
       summary: List albums (paginated).
@@ -3635,6 +3607,749 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /admin/artists/enrich:
+    post:
+      summary: 'Admin: enqueue artist enrichment for up to 100 artists.'
+      responses:
+        '202':
+          description: Enrichment run accepted and queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - run_id
+                - queued_artists
+                properties:
+                  run_id:
+                    type: string
+                    format: uuid
+                  queued_artists:
+                    type: integer
+                    minimum: 1
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Creates an `artist_enrich_runs` row, fans out per-(artist, vendor)
+        cells onto the artist-enrichment SQS queue. Returns 202 with the run id and
+        the count of queued artists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - artists
+              - vendors
+              - models
+              - prompt_slug
+              - prompt_version
+              - merge_vendor
+              - merge_model
+              properties:
+                artists:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    properties:
+                      artist_id:
+                        type: string
+                      artist_name:
+                        type: string
+                        minLength: 1
+                        maxLength: 256
+                      style:
+                        type: string
+                        minLength: 1
+                        maxLength: 128
+                    additionalProperties: false
+                    description: Either artist_id (resolves from clouder_artists)
+                      or artist_name+style (creates if missing).
+                vendors:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    enum:
+                    - gemini
+                    - openai
+                    - tavily_deepseek
+                models:
+                  type: object
+                  additionalProperties:
+                    type: string
+                prompt_slug:
+                  type: string
+                  minLength: 1
+                prompt_version:
+                  type: string
+                  minLength: 1
+                merge_vendor:
+                  type: string
+                  enum:
+                  - deepseek
+                merge_model:
+                  type: string
+                  minLength: 1
+              additionalProperties: false
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/artists/enrich-runs/{run_id}:
+    get:
+      summary: 'Admin: get status + counters for an artist-enrichment run.'
+      responses:
+        '200':
+          description: Run row with progress counters.
+          content:
+            application/json:
+              schema: &id016
+                type: object
+                required:
+                - id
+                - status
+                - cells_total
+                - cells_ok
+                - cells_error
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                    - queued
+                    - running
+                    - completed
+                    - failed
+                  prompt_slug:
+                    type: string
+                  prompt_version:
+                    type: string
+                  vendors:
+                    type: array
+                    items:
+                      type: string
+                  models:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  merge_vendor:
+                    type: string
+                  merge_model:
+                    type: string
+                  requested_artists:
+                    type: integer
+                  cells_total:
+                    type: integer
+                  cells_ok:
+                    type: integer
+                  cells_error:
+                    type: integer
+                  cost_usd:
+                    type: number
+                  source:
+                    type: string
+                    enum:
+                    - manual
+                    - auto
+                  created_at:
+                    type: string
+                    format: date-time
+                  started_at:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+                  finished_at:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+                  cells:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - cell_id
+                      - artist_id
+                      - artist_name
+                      - vendor
+                      - status
+                      - latency_ms
+                      - cost_usd
+                      properties:
+                        cell_id:
+                          type: string
+                        artist_id:
+                          type: string
+                        artist_name:
+                          type: string
+                        vendor:
+                          type: string
+                        status:
+                          type: string
+                          enum:
+                          - ok
+                          - error
+                        latency_ms:
+                          type: integer
+                        cost_usd:
+                          type: number
+                        error_message:
+                          type:
+                          - string
+                          - 'null'
+        '404':
+          description: Run not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/artists/{artist_id}:
+    get:
+      summary: 'Admin: get enriched artist info (merged AI content + provenance).'
+      responses:
+        '200':
+          description: Artist info with merged enrichment fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - artist_id
+                - artist_name
+                - merged
+                - status
+                - ai_content
+                - ai_confidence
+                - updated_at
+                properties:
+                  artist_id:
+                    type: string
+                    format: uuid
+                  artist_name:
+                    type: string
+                  last_run_id:
+                    type: string
+                    format: uuid
+                  prompt_slug:
+                    type: string
+                  prompt_version:
+                    type: string
+                  merged:
+                    type: object
+                  provenance:
+                    type: object
+                  ai_content:
+                    type: string
+                  ai_confidence:
+                    type: number
+                  status:
+                    type: string
+                  primary_styles:
+                    type: array
+                    items:
+                      type: string
+                  tagline:
+                    type:
+                    - string
+                    - 'null'
+                  country:
+                    type:
+                    - string
+                    - 'null'
+                  active_since:
+                    type:
+                    - integer
+                    - 'null'
+                  artist_type:
+                    type:
+                    - string
+                    - 'null'
+                  updated_at:
+                    type: string
+                    format: date-time
+        '404':
+          description: Artist not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: artist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/artists/{artist_id}/history:
+    get:
+      summary: 'Admin: per-artist enrichment history (every cell across every run).'
+      responses:
+        '200':
+          description: Per-artist cells, ordered by run created_at DESC.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtistHistoryResponse'
+        '403': *id002
+        '401': *id001
+      parameters:
+      - name: artist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/artists/backlog:
+    get:
+      summary: 'Admin: list artists missing enrichment.'
+      responses:
+        '200':
+          description: Backlog page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacklogArtistResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Artists with no info, failed, or completed-but-outdated. Cursor-paginated.
+        Sorted by track_count DESC.
+      parameters:
+      - name: style
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - none
+          - completed
+          - outdated
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/artists/enrich-runs:
+    get:
+      summary: 'Admin: list artist enrichment runs.'
+      responses:
+        '200':
+          description: Artist runs list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtistRunsListResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - queued
+          - running
+          - completed
+          - failed
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - manual
+          - auto
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/artists/enrich/options:
+    get:
+      summary: 'Admin: static config for the artist enqueue form.'
+      responses:
+        '200':
+          description: Form options.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichmentOptions'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/auto-enrich/artists:
+    get:
+      summary: 'Admin: get auto-enrichment config for artists + form options.'
+      responses:
+        '200':
+          description: Saved config (or defaults) plus the model/prompt options.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - config
+                - options
+                properties:
+                  config:
+                    type: object
+                    required:
+                    - enabled
+                    - vendors
+                    - models
+                    - merge_vendor
+                    properties:
+                      enabled:
+                        type: boolean
+                      vendors:
+                        type: array
+                        items:
+                          type: string
+                      models:
+                        type: object
+                        additionalProperties:
+                          type: string
+                      prompt_slug:
+                        type: string
+                        nullable: true
+                      prompt_version:
+                        type: string
+                        nullable: true
+                      merge_vendor:
+                        type: string
+                      merge_model:
+                        type: string
+                        nullable: true
+                  options:
+                    $ref: '#/components/schemas/EnrichmentOptions'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+    put:
+      summary: 'Admin: upsert auto-enrichment config for artists.'
+      responses:
+        '204':
+          description: Config saved.
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - enabled
+              properties:
+                enabled:
+                  type: boolean
+                vendors:
+                  type: array
+                  items:
+                    type: string
+                models:
+                  type: object
+                  additionalProperties:
+                    type: string
+                prompt_slug:
+                  type: string
+                  nullable: true
+                prompt_version:
+                  type: string
+                  nullable: true
+                merge_vendor:
+                  type: string
+                  enum:
+                  - deepseek
+                merge_model:
+                  type: string
+                  nullable: true
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /artists:
+    get:
+      summary: List artists for browsing.
+      responses:
+        '200':
+          description: Paginated artists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtistsListResponse'
+        '401': *id001
+        '403': *id002
+      description: 'Paginated artist list. Filters: style (dominant style), q (name
+        prefix), sort (name|recent). Page-based pagination.'
+      parameters:
+      - name: style
+        in: query
+        schema:
+          type: string
+      - name: q
+        in: query
+        schema:
+          type: string
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - name
+          - recent
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: my
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - liked
+          - disliked
+          - unrated
+          default: all
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /artists/{artist_id}:
+    get:
+      summary: Get user-facing artist detail.
+      responses:
+        '200':
+          description: Artist info.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtistDetail'
+        '404':
+          description: artist_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Returns sanitized ArtistInfo for completed enrichments. 404 when
+        info not available.
+      parameters:
+      - name: artist_id
+        in: path
+        required: true
+        schema:
+          type: string
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /artists/{artist_id}/preference:
+    put:
+      summary: Set or clear the current user's artist preference.
+      responses:
+        '204':
+          description: Preference updated.
+        '404':
+          description: artist_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: invalid status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: 'Body: {"status": "liked" | "disliked" | "none"}. "none" deletes
+        the row. Returns 204.'
+      parameters:
+      - name: artist_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - liked
+                  - disliked
+                  - none
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /me/artist-preferences:
+    get:
+      summary: List the current user's rated artists.
+      responses:
+        '200':
+          description: Paginated user artist preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyArtistPreferencesResponse'
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - liked
+          - disliked
+          default: liked
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      security:
+      - BearerAuth: []
+      tags:
+      - user
 components:
   securitySchemes:
     BearerAuth:
@@ -4269,3 +4984,265 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
+    ArtistEnrichRunResponse: *id016
+    ArtistSummary:
+      type: object
+      required:
+      - id
+      - name
+      - style
+      - status
+      - track_count
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        style:
+          type: string
+        status:
+          type: string
+          enum:
+          - none
+          - queued
+          - running
+          - completed
+          - failed
+          - outdated
+        track_count:
+          type: integer
+        info:
+          type:
+          - object
+          - 'null'
+          properties:
+            tagline:
+              type:
+              - string
+              - 'null'
+            country:
+              type:
+              - string
+              - 'null'
+            active_since:
+              type:
+              - integer
+              - 'null'
+            primary_styles:
+              type: array
+              items:
+                type: string
+            artist_type:
+              type: string
+              enum:
+              - solo
+              - duo
+              - group
+              - alias_project
+              - unknown
+            ai_content:
+              type:
+              - string
+              - 'null'
+              enum:
+              - unknown
+              - none_detected
+              - suspected
+              - confirmed
+              - null
+            updated_at:
+              type: string
+              format: date-time
+        my_preference:
+          type:
+          - string
+          - 'null'
+          enum:
+          - liked
+          - disliked
+          - null
+    ArtistsListResponse:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtistSummary'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+    ArtistDetail:
+      type: object
+      description: Sanitized ArtistInfo (admin-only fields stripped) plus my_preference.
+      properties:
+        my_preference:
+          type:
+          - string
+          - 'null'
+          enum:
+          - liked
+          - disliked
+          - null
+      additionalProperties: true
+    MyArtistPreferencesResponse:
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - limit
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - name
+            - my_preference
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              my_preference:
+                type: string
+                enum:
+                - liked
+                - disliked
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+    BacklogArtist:
+      type: object
+      required:
+      - id
+      - name
+      - style
+      - status
+      - track_count
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        style:
+          type: string
+        status:
+          type: string
+          enum:
+          - none
+          - completed
+          - outdated
+        track_count:
+          type: integer
+        last_attempted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    BacklogArtistResponse:
+      type: object
+      required:
+      - items
+      - total_estimate
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BacklogArtist'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+        total_estimate:
+          type: integer
+    ArtistRunsListResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtistEnrichRunResponse'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+    ArtistHistoryCell:
+      type: object
+      required:
+      - cell_id
+      - run_id
+      - vendor
+      - status
+      properties:
+        cell_id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        run_status:
+          type: string
+        run_created_at:
+          type: string
+          format: date-time
+        prompt_slug:
+          type: string
+        prompt_version:
+          type: string
+        vendor:
+          type: string
+        model:
+          type: string
+        status:
+          type: string
+          enum:
+          - ok
+          - error
+        latency_ms:
+          type:
+          - integer
+          - 'null'
+        cost_usd:
+          type:
+          - number
+          - 'null'
+        error_message:
+          type:
+          - string
+          - 'null'
+        parsed:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+        citations:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            additionalProperties: true
+    ArtistHistoryResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtistHistoryCell'
