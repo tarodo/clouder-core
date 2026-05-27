@@ -886,7 +886,11 @@
       "ai_content_label": "AI content",
       "ai_reasoning": "Reasoning",
       "ai_reasoning_collapsed": "Show reasoning",
-      "ai_reasoning_missing": "No reasoning available."
+      "ai_reasoning_missing": "No reasoning available.",
+      "admin_search_now": "Search now",
+      "admin_search_queued": "Search queued.",
+      "admin_search_failed": "Could not start the search.",
+      "admin_search_not_configured": "Auto-search is not configured yet."
     },
     "tile": {
       "read_more": "Read more →"

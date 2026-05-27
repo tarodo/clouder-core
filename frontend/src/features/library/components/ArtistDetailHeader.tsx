@@ -1,10 +1,12 @@
-import { Group, Title, Text, Anchor } from '@mantine/core';
+import { Group, Title, Text, Anchor, Button } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { ArtistDetail } from '../../../api/artists';
 import { countryFlag } from '../lib/countryFlag';
 import { AiContentBadge } from '../lib/aiContent';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
+import { useAuth } from '../../../auth/useAuth';
+import { useEnrichArtistAuto } from '../hooks/useEnrichArtistAuto';
 
 interface Props {
   info: ArtistDetail;
@@ -14,6 +16,9 @@ interface Props {
 
 export function ArtistDetailHeader({ info, styleId, artistId }: Props) {
   const { t } = useTranslation();
+  const { state } = useAuth();
+  const isAdmin = state.status === 'authenticated' && state.user.is_admin;
+  const enrich = useEnrichArtistAuto();
   const rec = info as Record<string, unknown>;
   const artistName = typeof rec.artist_name === 'string' ? rec.artist_name : '';
   const country = typeof rec.country === 'string' ? rec.country : '';
@@ -36,6 +41,16 @@ export function ArtistDetailHeader({ info, styleId, artistId }: Props) {
         <Title order={2}>{artistName}</Title>
         <AiContentBadge content={aiContent} reasoning={aiReasoning} variant="colored" />
         <ArtistPreferenceButtons artistId={artistId} current={myPreference} size="md" />
+        {isAdmin && (
+          <Button
+            size="xs"
+            variant="light"
+            loading={enrich.isPending}
+            onClick={() => enrich.mutate({ artistId })}
+          >
+            {t('library.detail.admin_search_now')}
+          </Button>
+        )}
       </Group>
       <Group gap="xs" mt="xs">
         {country && (
