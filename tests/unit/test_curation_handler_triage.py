@@ -103,6 +103,9 @@ def _fake_block_row() -> TriageBlockRow:
         status="IN_PROGRESS",
         old_offset_weeks=0,
         include_disliked_labels=False,
+        include_disliked_artists=True,
+        compilations_to_not=True,
+        include_favorites=True,
         created_at="2026-04-28T12:00:00+00:00",
         updated_at="2026-04-28T12:00:00+00:00",
         finalized_at=None,
@@ -136,6 +139,8 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
         def create_block(
             self, *, user_id, style_id, name, date_from, date_to,
             old_offset_weeks=0, include_disliked_labels=False,
+            include_disliked_artists=True, compilations_to_not=True,
+            include_favorites=True,
         ):
             captured.update(
                 user_id=user_id,
@@ -1122,3 +1127,55 @@ def test_soft_delete_triage_block_returns_404_when_missing(
     status, payload = _read(resp)
     assert status == 404
     assert payload["error_code"] == "triage_block_not_found"
+
+
+def test_create_triage_block_forwards_and_serializes_flags() -> None:
+    from collector.curation_handler import (
+        _create_triage_block,
+        _serialize_triage_block,
+    )
+    from collector.curation.triage_repository import TriageBlockRow
+
+    captured = {}
+
+    class _Repo:
+        def create_block(self, **kwargs):
+            captured.update(kwargs)
+            return TriageBlockRow(
+                id="b-1",
+                user_id="u-1",
+                style_id="00000000-0000-0000-0000-000000000001",
+                style_name="House",
+                name="X",
+                date_from="2026-04-20",
+                date_to="2026-04-26",
+                status="IN_PROGRESS",
+                old_offset_weeks=0,
+                include_disliked_labels=True,
+                include_disliked_artists=False,
+                compilations_to_not=True,
+                include_favorites=False,
+                created_at="2026-04-28T00:00:00+00:00",
+                updated_at="2026-04-28T00:00:00+00:00",
+                finalized_at=None,
+                buckets=(),
+            )
+
+    event = {
+        "body": (
+            '{"style_id":"00000000-0000-0000-0000-000000000001",'
+            '"name":"X","date_from":"2026-04-20","date_to":"2026-04-26",'
+            '"include_disliked_artists":false,"include_favorites":false}'
+        )
+    }
+    resp = _create_triage_block(event, _Repo(), "u-1", "corr-1")
+    assert captured["include_disliked_labels"] is True
+    assert captured["include_disliked_artists"] is False
+    assert captured["compilations_to_not"] is True
+    assert captured["include_favorites"] is False
+
+    body = json.loads(resp["body"])
+    assert body["include_disliked_labels"] is True
+    assert body["include_disliked_artists"] is False
+    assert body["compilations_to_not"] is True
+    assert body["include_favorites"] is False

@@ -54,6 +54,7 @@ from collector.curation.triage_repository import (
 )
 from collector.curation.triage_service import (
     BUCKET_TYPE_DISCARD,
+    BUCKET_TYPE_FAV,
     BUCKET_TYPE_NEW,
     BUCKET_TYPE_NOT,
     BUCKET_TYPE_OLD,
@@ -121,6 +122,9 @@ class FakeTriageRepo:
             status=b["status"],
             old_offset_weeks=int(b.get("old_offset_weeks", 0)),
             include_disliked_labels=bool(b.get("include_disliked_labels", False)),
+            include_disliked_artists=bool(b.get("include_disliked_artists", True)),
+            compilations_to_not=bool(b.get("compilations_to_not", True)),
+            include_favorites=bool(b.get("include_favorites", True)),
             created_at=b["created_at"],
             updated_at=b["updated_at"],
             finalized_at=b.get("finalized_at"),
@@ -154,6 +158,9 @@ class FakeTriageRepo:
         date_from: date, date_to: date,
         old_offset_weeks: int = 0,
         include_disliked_labels: bool = False,
+        include_disliked_artists: bool = True,
+        compilations_to_not: bool = True,
+        include_favorites: bool = True,
     ) -> TriageBlockRow:
         if style_id not in self.styles:
             raise NotFoundError(
@@ -172,6 +179,9 @@ class FakeTriageRepo:
             "status": "IN_PROGRESS",
             "old_offset_weeks": old_offset_weeks,
             "include_disliked_labels": include_disliked_labels,
+            "include_disliked_artists": include_disliked_artists,
+            "compilations_to_not": compilations_to_not,
+            "include_favorites": include_favorites,
             "created_at": now,
             "updated_at": now,
             "finalized_at": None,
@@ -438,11 +448,11 @@ def test_create_triage_block_201(fake_triage_repo, context):
     assert body["style_id"] == STYLE_HOUSE
     assert body["style_name"] == "House"
     assert body["correlation_id"] == "cid-1"
-    # All five technical bucket types must be present.
+    # All technical bucket types must be present.
     bucket_types = {b["bucket_type"] for b in body["buckets"]}
     assert bucket_types == {
         BUCKET_TYPE_NEW, BUCKET_TYPE_OLD, BUCKET_TYPE_NOT,
-        BUCKET_TYPE_DISCARD, BUCKET_TYPE_UNCLASSIFIED,
+        BUCKET_TYPE_DISCARD, BUCKET_TYPE_UNCLASSIFIED, BUCKET_TYPE_FAV,
     }
 
 
@@ -473,6 +483,9 @@ def test_create_block_forwards_and_echoes_populate_options(
             status=row.status,
             old_offset_weeks=2,
             include_disliked_labels=True,
+            include_disliked_artists=True,
+            compilations_to_not=True,
+            include_favorites=True,
             created_at=row.created_at,
             updated_at=row.updated_at,
             finalized_at=row.finalized_at,
