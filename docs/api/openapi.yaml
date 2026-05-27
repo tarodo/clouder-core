@@ -1928,6 +1928,12 @@ paths:
                     type: integer
                   include_disliked_labels:
                     type: boolean
+                  include_disliked_artists:
+                    type: boolean
+                  compilations_to_not:
+                    type: boolean
+                  include_favorites:
+                    type: boolean
                   buckets:
                     type: array
                     items:
@@ -4460,8 +4466,20 @@ components:
           title: Old Offset Weeks
           type: integer
         include_disliked_labels:
-          default: false
+          default: true
           title: Include Disliked Labels
+          type: boolean
+        include_disliked_artists:
+          default: true
+          title: Include Disliked Artists
+          type: boolean
+        compilations_to_not:
+          default: true
+          title: Compilations To Not
+          type: boolean
+        include_favorites:
+          default: true
+          title: Include Favorites
           type: boolean
       required:
       - style_id

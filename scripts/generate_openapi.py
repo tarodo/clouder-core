@@ -297,6 +297,9 @@ TRIAGE_BLOCK_DETAIL = {
         "finalized_at": {"type": ["string", "null"]},
         "old_offset_weeks": {"type": "integer"},
         "include_disliked_labels": {"type": "boolean"},
+        "include_disliked_artists": {"type": "boolean"},
+        "compilations_to_not": {"type": "boolean"},
+        "include_favorites": {"type": "boolean"},
         "buckets": {
             "type": "array",
             "items": TRIAGE_BUCKET_ROW,
