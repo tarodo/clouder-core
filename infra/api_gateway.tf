@@ -118,6 +118,14 @@ resource "aws_apigatewayv2_route" "labels_enrich_post" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "labels_enrich_auto_post" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /admin/labels/{label_id}/enrich-auto"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_route" "labels_enrich_runs_get" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /admin/labels/enrich-runs/{run_id}"
@@ -217,6 +225,14 @@ resource "aws_apigatewayv2_route" "auto_enrich_labels_put" {
 resource "aws_apigatewayv2_route" "artists_enrich_post" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "POST /admin/artists/enrich"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "artists_enrich_auto_post" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /admin/artists/{artist_id}/enrich-auto"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id

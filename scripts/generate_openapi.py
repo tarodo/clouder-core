@@ -1452,6 +1452,28 @@ ROUTES: list[dict[str, Any]] = [
         },
     },
     {
+        "method": "post",
+        "path": "/admin/labels/{label_id}/enrich-auto",
+        "auth": ADMIN,
+        "summary": "Admin: enqueue one label using saved auto-search settings.",
+        "description": (
+            "Reads the registered auto-enrich config for labels, creates a run, "
+            "and enqueues this label onto the label-enrichment SQS queue. Returns "
+            "202 with the run id. 409 if no auto-enrich config is set up."
+        ),
+        "responses": {
+            "202": _make_response(
+                202,
+                "Enrichment run accepted and queued.",
+                LABEL_ENRICH_ACCEPTED_RESPONSE,
+            ),
+            "404": _error(404, "label_not_found."),
+            "409": _error(409, "auto_config_missing."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
         "method": "get",
         "path": "/admin/labels/enrich-runs/{run_id}",
         "auth": ADMIN,
@@ -2913,6 +2935,28 @@ ROUTES: list[dict[str, Any]] = [
                 ARTIST_ENRICH_ACCEPTED_RESPONSE,
             ),
             "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "post",
+        "path": "/admin/artists/{artist_id}/enrich-auto",
+        "auth": ADMIN,
+        "summary": "Admin: enqueue one artist using saved auto-search settings.",
+        "description": (
+            "Reads the registered auto-enrich config for artists, creates a run, "
+            "and enqueues this artist onto the artist-enrichment SQS queue. Returns "
+            "202 with the run id. 409 if no auto-enrich config is set up."
+        ),
+        "responses": {
+            "202": _make_response(
+                202,
+                "Enrichment run accepted and queued.",
+                ARTIST_ENRICH_ACCEPTED_RESPONSE,
+            ),
+            "404": _error(404, "artist_not_found."),
+            "409": _error(409, "auto_config_missing."),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
         },
