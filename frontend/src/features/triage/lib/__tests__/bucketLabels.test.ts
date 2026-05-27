@@ -58,6 +58,18 @@ describe('isTechnical', () => {
   it('false for STAGING', () => {
     expect(isTechnical({ bucket_type: 'STAGING' })).toBe(false);
   });
+  it('treats FAV as a technical bucket and labels it FAV', () => {
+    const fav = {
+      id: 'b-fav',
+      bucket_type: 'FAV' as const,
+      category_id: null,
+      category_name: null,
+      inactive: false,
+      track_count: 0,
+    };
+    expect(isTechnical(fav)).toBe(true);
+    expect(bucketLabel(fav, t)).toBe('FAV');
+  });
 });
 
 describe('moveDestinationsFor', () => {
