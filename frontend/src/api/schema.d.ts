@@ -1145,7 +1145,7 @@ export interface paths {
         };
         /**
          * Get user-facing label detail.
-         * @description Returns sanitized LabelInfo for completed enrichments. 404 when info not available.
+         * @description Returns sanitized LabelInfo for completed enrichments. For an existing label without an enrichment row, returns a minimal {label_name, my_preference} payload so preference buttons still render. 404 only when the label does not exist.
          */
         get: {
             parameters: {
@@ -6127,7 +6127,7 @@ export interface paths {
         };
         /**
          * Get user-facing artist detail.
-         * @description Returns sanitized ArtistInfo for completed enrichments. 404 when info not available.
+         * @description Returns sanitized ArtistInfo for completed enrichments. For an existing artist without an enrichment row, returns a minimal {artist_name, my_preference} payload so preference buttons still render. 404 only when the artist does not exist.
          */
         get: {
             parameters: {
