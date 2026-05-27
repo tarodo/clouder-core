@@ -923,7 +923,8 @@
     "tabs": {
       "backlog": "Labels",
       "runs": "Label runs",
-      "artist_backlog": "Artists"
+      "artist_backlog": "Artists",
+      "artist_runs": "Artist runs"
     },
     "history": {
       "title": "Enrichment history",

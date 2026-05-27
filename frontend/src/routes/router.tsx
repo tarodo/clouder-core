@@ -34,6 +34,8 @@ import { AdminEnrichmentRunsPage } from '../features/admin/routes/AdminEnrichmen
 import { AdminEnrichmentRunDetailPage } from '../features/admin/routes/AdminEnrichmentRunDetailPage';
 import { AdminAutoEnrichPage } from '../features/admin/routes/AdminAutoEnrichPage';
 import { AdminArtistEnrichmentBacklogPage } from '../features/admin/routes/AdminArtistEnrichmentBacklogPage';
+import { AdminArtistEnrichmentRunsPage } from '../features/admin/routes/AdminArtistEnrichmentRunsPage';
+import { AdminArtistEnrichmentRunDetailPage } from '../features/admin/routes/AdminArtistEnrichmentRunDetailPage';
 import { LibraryIndexRedirect, LibraryListPage, ArtistsListPage, LabelDetailPage, ArtistDetailPage } from '../features/library';
 
 export const router = createBrowserRouter([
@@ -123,6 +125,8 @@ export const router = createBrowserRouter([
           { path: 'labels/enrich/runs', element: <AdminEnrichmentRunsPage /> },
           { path: 'labels/enrich/runs/:runId', element: <AdminEnrichmentRunDetailPage /> },
           { path: 'artists/enrich', element: <AdminArtistEnrichmentBacklogPage /> },
+          { path: 'artists/enrich/runs', element: <AdminArtistEnrichmentRunsPage /> },
+          { path: 'artists/enrich/runs/:runId', element: <AdminArtistEnrichmentRunDetailPage /> },
           { path: 'auto-enrich', element: <AdminAutoEnrichPage /> },
         ],
       },

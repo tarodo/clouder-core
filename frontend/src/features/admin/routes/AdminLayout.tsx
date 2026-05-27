@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { RunProgressToast } from '../components/RunProgressToast';
 
 // Order longest-first so /admin/labels/enrich/runs matches before /admin/labels/enrich
+// and /admin/artists/enrich/runs matches before /admin/artists/enrich
 // when computing the active tab via startsWith.
 const TAB_VALUES = [
   '/admin/labels/enrich/runs',
   '/admin/labels/enrich',
+  '/admin/artists/enrich/runs',
   '/admin/artists/enrich',
   '/admin/coverage',
   '/admin/spotify-not-found',
@@ -25,6 +27,7 @@ export function AdminLayout() {
     { value: '/admin/labels/enrich', label: t('admin_enrichment.tabs.backlog') },
     { value: '/admin/labels/enrich/runs', label: t('admin_enrichment.tabs.runs') },
     { value: '/admin/artists/enrich', label: t('admin_enrichment.tabs.artist_backlog') },
+    { value: '/admin/artists/enrich/runs', label: t('admin_enrichment.tabs.artist_runs') },
     { value: '/admin/auto-enrich', label: t('admin_auto_enrich.title') },
   ];
 
