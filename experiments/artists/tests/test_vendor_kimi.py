@@ -49,7 +49,7 @@ def _stop_response(content: str, model: str = "kimi-k2.6") -> SimpleNamespace:
     return SimpleNamespace(choices=[choice], usage=usage, model=model)
 
 
-def _valid_label_json() -> str:
+def _valid_artist_json() -> str:
     return json.dumps({
         "artist_name": "Drumcode",
         "ai_reasoning": "No AI signals detected.",
@@ -66,7 +66,7 @@ def test_run_with_web_search_loop(mocker):
     """Happy path: first call returns tool_calls, second returns stop with JSON."""
     tc = _tool_call("tc-001", "$web_search", {"query": "Drumcode label info"})
     first_response = _tool_calls_response([tc])
-    second_response = _stop_response(_valid_label_json())
+    second_response = _stop_response(_valid_artist_json())
 
     fake_completions = mocker.MagicMock()
     fake_completions.create.side_effect = [first_response, second_response]
@@ -99,7 +99,7 @@ def test_run_with_web_search_loop(mocker):
 
 def test_run_no_search_stop_immediately(mocker):
     """When the model answers directly (finish_reason=stop on first call), no loop needed."""
-    response = _stop_response(_valid_label_json())
+    response = _stop_response(_valid_artist_json())
 
     fake_completions = mocker.MagicMock()
     fake_completions.create.return_value = response
@@ -153,7 +153,7 @@ def test_run_captures_parse_error(mocker):
 
 def test_run_extracts_json_from_fenced_content(mocker):
     """JSON wrapped in markdown fences is extracted and parsed correctly."""
-    fenced = f"Sure! Here is the result:\n```json\n{_valid_label_json()}\n```"
+    fenced = f"Sure! Here is the result:\n```json\n{_valid_artist_json()}\n```"
     response = _stop_response(fenced)
 
     fake_completions = mocker.MagicMock()
@@ -171,7 +171,7 @@ def test_run_extracts_json_from_fenced_content(mocker):
 
 def test_run_tools_in_api_call(mocker):
     """The $web_search builtin tool is passed as tools in every API call."""
-    response = _stop_response(_valid_label_json())
+    response = _stop_response(_valid_artist_json())
 
     fake_completions = mocker.MagicMock()
     fake_completions.create.return_value = response
@@ -194,7 +194,7 @@ def test_run_accumulates_tokens_across_loop_iterations(mocker):
     """Token counts from all loop iterations are summed."""
     tc = _tool_call("tc-002", "$web_search", {"query": "test"})
     first_response = _tool_calls_response([tc])   # 200 input + 50 output
-    second_response = _stop_response(_valid_label_json())  # 400 input + 180 output
+    second_response = _stop_response(_valid_artist_json())  # 400 input + 180 output
 
     fake_completions = mocker.MagicMock()
     fake_completions.create.side_effect = [first_response, second_response]

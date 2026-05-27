@@ -186,14 +186,14 @@ def test_run_survives_social_pass_failure():
     assert "https://general.example.com" in resp.citations
 
 
-def test_build_search_query_extracts_label_and_style():
+def test_build_search_query_extracts_artist():
     from artlab.vendors.tavily_deepseek import _build_search_query
 
     user = (
-        'Research label "Hessle Audio" in style "bass / UK garage".\n'
-        'Find: founding year, country...'
+        'Research the electronic-music artist "ANNA".\n'
+        'Find: aliases and real name, country and city, years active...'
     )
-    assert _build_search_query(user) == '"Hessle Audio" bass / UK garage music artist'
+    assert _build_search_query(user) == '"ANNA" music artist'
 
 
 def test_build_search_query_falls_back_for_unquoted():

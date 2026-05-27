@@ -151,7 +151,7 @@ def aggregate(
     total_cost = 0.0
 
     for (prompt_slug, fixture_id), group in groups.items():
-        merged_label, meta = merge_cells(group, client, model)
+        merged_artist, meta = merge_cells(group, client, model)
         first = group[0]
         payload = {
             "run_id": run_id,
@@ -167,7 +167,7 @@ def aggregate(
                 }
                 for c in group
             ],
-            "merged": merged_label.model_dump(),
+            "merged": merged_artist.model_dump(),
             "merge_meta": meta,
             "aggregate_cost_usd": meta.get("narrative_cost_usd", 0.0),
         }
