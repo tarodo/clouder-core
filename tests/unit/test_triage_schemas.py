@@ -150,11 +150,12 @@ class TestCreateTriageBlockInPopulateOptions:
                 "date_from": "2026-04-20",
                 "date_to": "2026-04-26",
                 "old_offset_weeks": 3,
-                "include_disliked_labels": True,
+                "include_disliked_labels": False,
             }
         )
         assert m.old_offset_weeks == 3
-        assert m.include_disliked_labels is True
+        # Explicit False overrides the now-True default.
+        assert m.include_disliked_labels is False
 
     def test_rejects_negative_offset(self) -> None:
         with pytest.raises(ValidationError):
