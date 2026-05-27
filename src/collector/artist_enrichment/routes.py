@@ -16,6 +16,7 @@ from pydantic import ValidationError as PydanticValidationError
 from ..data_api import create_default_data_api_client
 from ..errors import ValidationError
 from ..settings import get_data_api_settings
+from .auto_repository import AutoEnrichRepository
 from .messages import EnrichArtistsRequestIn
 from .prompts import get_prompt, load_builtin_prompts
 from .repository import ArtistEnrichmentRepository, RunSpec
@@ -31,6 +32,18 @@ def _build_repository() -> ArtistEnrichmentRepository:
         database=settings.aurora_database,
     )
     return ArtistEnrichmentRepository(data_api=client)
+
+
+def _build_auto_repository() -> AutoEnrichRepository:
+    settings = get_data_api_settings()
+    if not settings.is_configured:
+        raise RuntimeError("Aurora Data API not configured")
+    client = create_default_data_api_client(
+        resource_arn=str(settings.aurora_cluster_arn),
+        secret_arn=str(settings.aurora_secret_arn),
+        database=settings.aurora_database,
+    )
+    return AutoEnrichRepository(data_api=client)
 
 
 def _build_sqs_client():
@@ -114,6 +127,51 @@ def handle_post_enrich(event: Mapping[str, Any]) -> tuple[int, dict]:
         sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(msg))
 
     return 202, {"run_id": run_id, "queued_artists": len(req.artists)}
+
+
+def handle_post_enrich_auto(event: Mapping[str, Any]) -> tuple[int, dict]:
+    """Admin: enqueue one artist using the registered auto-search settings."""
+    path = event.get("pathParameters") or {}
+    artist_id = (path.get("artist_id") or "").strip()
+    if not artist_id:
+        raise ValidationError("artist_id is required")
+
+    repo = _build_repository()
+    row = repo.get_artist_by_id(artist_id)
+    if row is None:
+        return 404, {"error_code": "artist_not_found", "message": "artist not found"}
+
+    cfg = _build_auto_repository().get_config("artists")
+    if not cfg or not cfg.get("vendors") or not cfg.get("prompt_slug") \
+            or not cfg.get("prompt_version") or not cfg.get("merge_vendor") \
+            or not cfg.get("merge_model"):
+        return 409, {
+            "error_code": "auto_config_missing",
+            "message": "auto-enrich config is not set up",
+        }
+
+    spec = RunSpec(
+        prompt_slug=cfg["prompt_slug"],
+        prompt_version=cfg["prompt_version"],
+        vendors=list(cfg["vendors"]),
+        models=dict(cfg.get("models") or {}),
+        merge_vendor=cfg["merge_vendor"],
+        merge_model=cfg["merge_model"],
+        requested_artists=1,
+        created_by_user_id=_extract_user_id(event),
+    )
+    run_id = repo.create_run(spec)
+
+    sqs = _build_sqs_client()
+    sqs.send_message(
+        QueueUrl=_queue_url(),
+        MessageBody=json.dumps({
+            "run_id": run_id,
+            "artist_id": artist_id,
+            "artist_name": row["name"],
+        }),
+    )
+    return 202, {"run_id": run_id, "queued_artists": 1}
 
 
 def handle_get_run(event: Mapping[str, Any]) -> tuple[int, dict]:
