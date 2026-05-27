@@ -1,0 +1,60 @@
+"""artist_v1 — facts-discipline + disambiguation + AI detection."""
+
+from __future__ import annotations
+
+from . import register
+from .base import PromptConfig
+from ..schemas import ArtistInfo
+
+SYSTEM = (
+    "You research electronic-music artists. Output structured facts only.\n"
+    "Rules:\n"
+    "- Use the disambiguation context (sample releases + labels + style) to "
+    "lock onto the CORRECT artist. Many artists share a name. If the context "
+    "does not resolve which artist this is, set confidence <= 0.4 and explain "
+    "the ambiguity in `notes`.\n"
+    "- Every URL must clearly belong to THIS artist: the profile name must "
+    "match and it should reference at least one of the known releases or "
+    "labels. If a link cannot be tied to this artist, omit it.\n"
+    "- active_since and any year require a supporting URL in `sources`. Never "
+    "guess years.\n"
+    "- aliases / real_name: list everything you find; mark uncertain ones in "
+    "`notes`.\n"
+    "- artist_type: solo unless there is evidence of a duo / group / alias "
+    "project.\n"
+    "- labels: labels the artist has actually released on, most relevant "
+    "first.\n"
+    "- notable_collaborators: frequent co-authors and remixers, not one-offs.\n"
+    "- notable_releases: at most 5 anchor tracks/EPs that confirm identity.\n"
+    "- primary_styles: 2-5 specific genre tags, no umbrella terms.\n"
+    "- AI detection: assess whether this may be an AI-generated artist "
+    "(synthetic persona, no live presence, AI imagery, impossible output "
+    "velocity, voice cloning, credited AI tools). Record evidence in "
+    "`ai_signals`. ai_content=confirmed only with strong evidence (the artist "
+    "or press explicitly states AI generation). ai_reasoning is always "
+    "required, even when none_detected — explain why.\n"
+    "- summary is always required.\n"
+    "- confidence: 1.0 only if identity is confirmed via the context match "
+    "AND country is sourced AND there are >=3 supporting sources."
+)
+
+USER_TEMPLATE = (
+    'Research the electronic-music artist "{artist_name}".{context_block}\n'
+    "Find: aliases and real name, country and city, years active, labels they "
+    "release on, frequent collaborators and remixers, notable releases, "
+    "streaming and social profiles (Spotify, SoundCloud, Bandcamp, Beatport, "
+    "Resident Advisor, Discogs, Instagram), primary styles, and a short bio.\n"
+    "Then assess AI-content status and explain your reasoning."
+)
+
+
+register(
+    PromptConfig(
+        slug="artist_v1",
+        version="v1",
+        description="Facts-discipline + disambiguation + AI detection for artists.",
+        system=SYSTEM,
+        user_template=USER_TEMPLATE,
+        schema=ArtistInfo,
+    )
+)
