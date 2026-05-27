@@ -102,3 +102,13 @@ output "label_enrichment_queue_url" {
   description = "URL of the label-enrichment SQS queue."
   value       = aws_sqs_queue.label_enrichment.url
 }
+
+output "artist_enricher_worker_lambda_function_name" {
+  description = "Name of the artist-enrichment worker Lambda."
+  value       = aws_lambda_function.artist_enricher_worker.function_name
+}
+
+output "artist_enrichment_queue_url" {
+  description = "URL of the artist-enrichment SQS queue."
+  value       = aws_sqs_queue.artist_enrichment.url
+}
