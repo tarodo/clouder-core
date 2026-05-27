@@ -107,15 +107,35 @@ def upgrade() -> None:
 
     op.create_table(
         "clouder_user_artist_prefs",
-        sa.Column("user_id", sa.String(36), nullable=False),
-        sa.Column("artist_id", sa.String(36), sa.ForeignKey("clouder_artists.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("status", sa.Text, nullable=False),
+        sa.Column("user_id", sa.String(length=36), nullable=False),
+        sa.Column("artist_id", sa.String(length=36), nullable=False),
+        sa.Column("status", sa.Text(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("user_id", "artist_id", name="pk_user_artist_prefs"),
+        sa.ForeignKeyConstraint(
+            ["user_id"], ["users.id"],
+            name="fk_user_artist_prefs_user",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["artist_id"], ["clouder_artists.id"],
+            name="fk_user_artist_prefs_artist",
+            ondelete="CASCADE",
+        ),
+        sa.CheckConstraint(
+            "status IN ('liked', 'disliked')",
+            name="ck_user_artist_prefs_status",
+        ),
+    )
+    op.create_index(
+        "idx_user_artist_prefs_user_status",
+        "clouder_user_artist_prefs",
+        ["user_id", "status"],
     )
 
 
 def downgrade() -> None:
+    op.drop_index("idx_user_artist_prefs_user_status", table_name="clouder_user_artist_prefs")
     op.drop_table("clouder_user_artist_prefs")
     op.drop_index("ix_artist_auto_enrich_state_status", table_name="artist_auto_enrich_state")
     op.drop_table("artist_auto_enrich_state")
