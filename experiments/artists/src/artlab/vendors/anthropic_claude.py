@@ -40,9 +40,9 @@ class AnthropicClaudeAdapter:
     ) -> VendorResponse:
         chosen_model = model or self.default_model
         emit_tool = {
-            "name": "emit_label_info",
+            "name": "emit_artist_info",
             "description": (
-                "Return the requested label info by invoking this tool exactly "
+                "Return the requested artist info by invoking this tool exactly "
                 "once with the full structured payload."
             ),
             "input_schema": schema.model_json_schema(),
@@ -107,7 +107,7 @@ class AnthropicClaudeAdapter:
         parse_error: str | None = None
         try:
             for block in response.content:
-                if getattr(block, "type", None) == "tool_use" and getattr(block, "name", "") == "emit_label_info":
+                if getattr(block, "type", None) == "tool_use" and getattr(block, "name", "") == "emit_artist_info":
                     parsed = schema.model_validate(block.input)
                 elif getattr(block, "type", None) == "web_search_tool_result":
                     for item in getattr(block, "content", []) or []:
@@ -119,7 +119,7 @@ class AnthropicClaudeAdapter:
 
         error: str | None = parse_error
         if error is None and parsed is None:
-            error = "no tool_use(emit_label_info) block in response"
+            error = "no tool_use(emit_artist_info) block in response"
 
         return VendorResponse(
             parsed=parsed,

@@ -23,16 +23,16 @@ _QUOTED_RE = re.compile(r'"([^"]+)"')
 def _build_search_query(user: str) -> str:
     """Build a focused Tavily query from the rendered user prompt.
 
-    The current prompt templates quote the label_name and style. Pull them
+    The current prompt templates quote the artist_name and style. Pull them
     out and assemble a Google-style query. Fall back to the full prompt
     if extraction fails so the adapter still runs against future prompts.
     """
     matches = _QUOTED_RE.findall(user)
     if len(matches) >= 2:
-        label_name, style = matches[0].strip(), matches[1].strip()
-        if label_name:
+        artist_name, style = matches[0].strip(), matches[1].strip()
+        if artist_name:
             tail = f" {style}" if style else ""
-            return f'"{label_name}"{tail} music label'
+            return f'"{artist_name}"{tail} music artist'
     return user
 
 
