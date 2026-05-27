@@ -875,7 +875,9 @@
       "tab_styles": "Styles",
       "tab_links": "Links",
       "founded": "Founded {{year}}",
+      "active_since": "Active since {{year}}",
       "notable_artists": "Notable artists",
+      "notable_collaborators": "Notable collaborators",
       "primary_styles": "Primary styles",
       "secondary_styles": "Secondary styles",
       "ai_content_label": "AI content",
@@ -888,6 +890,7 @@
     },
     "channels": {
       "website": "Website",
+      "spotify": "Spotify",
       "bandcamp": "Bandcamp",
       "soundcloud": "SoundCloud",
       "beatport": "Beatport",
