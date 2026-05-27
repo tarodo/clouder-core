@@ -865,7 +865,9 @@
     "prefs": {
       "like_aria": "Like label",
       "dislike_aria": "Dislike label",
-      "unset_aria": "Remove preference"
+      "unset_aria": "Remove preference",
+      "like_artist_aria": "Like artist",
+      "dislike_artist_aria": "Dislike artist"
     },
     "detail": {
       "back_to_list": "Back to {{style}}",
