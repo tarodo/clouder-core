@@ -119,7 +119,28 @@ class TestCreateTriageBlockInPopulateOptions:
             }
         )
         assert m.old_offset_weeks == 0
+        assert m.include_disliked_labels is True
+        assert m.include_disliked_artists is True
+        assert m.compilations_to_not is True
+        assert m.include_favorites is True
+
+    def test_accepts_classification_flags_off(self) -> None:
+        m = CreateTriageBlockIn.model_validate(
+            {
+                "style_id": "00000000-0000-0000-0000-000000000001",
+                "name": "House",
+                "date_from": "2026-04-20",
+                "date_to": "2026-04-26",
+                "include_disliked_labels": False,
+                "include_disliked_artists": False,
+                "compilations_to_not": False,
+                "include_favorites": False,
+            }
+        )
         assert m.include_disliked_labels is False
+        assert m.include_disliked_artists is False
+        assert m.compilations_to_not is False
+        assert m.include_favorites is False
 
     def test_accepts_populate_options(self) -> None:
         m = CreateTriageBlockIn.model_validate(
