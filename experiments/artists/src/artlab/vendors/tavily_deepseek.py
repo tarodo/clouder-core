@@ -44,6 +44,7 @@ SOCIAL_DOMAINS = [
     "discogs.com",
     "ra.co",
     "spotify.com",
+    "instagram.com",
 ]
 
 

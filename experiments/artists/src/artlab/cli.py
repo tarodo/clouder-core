@@ -1,4 +1,4 @@
-"""`lab` CLI."""
+"""`artlab` CLI."""
 
 from __future__ import annotations
 
