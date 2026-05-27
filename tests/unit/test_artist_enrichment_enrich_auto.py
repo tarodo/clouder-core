@@ -59,6 +59,7 @@ def test_enrich_auto_enqueues_with_config_settings(patched):
     assert spec.vendors == _CONFIG["vendors"]
     assert spec.prompt_slug == "artist_v1_facts"
     assert spec.requested_artists == 1
+    assert spec.source == "manual"
     assert spec.created_by_user_id == "user-1"
     msg = json.loads(sqs.send_message.call_args.kwargs["MessageBody"])
     assert msg == {"run_id": "run-1", "artist_id": "art-1", "artist_name": "Joja"}

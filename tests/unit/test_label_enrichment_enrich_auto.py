@@ -60,6 +60,7 @@ def test_enrich_auto_enqueues_with_config_settings(patched):
     assert spec.vendors == _CONFIG["vendors"]
     assert spec.prompt_slug == "label_v3_app_fields"
     assert spec.requested_labels == 1
+    assert spec.source == "manual"
     assert spec.created_by_user_id == "user-1"
     sqs.send_message.assert_called_once()
     msg = json.loads(sqs.send_message.call_args.kwargs["MessageBody"])
