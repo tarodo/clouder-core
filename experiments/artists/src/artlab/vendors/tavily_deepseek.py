@@ -18,22 +18,29 @@ from .base import VendorResponse
 from .pricing import estimate_cost
 
 _QUOTED_RE = re.compile(r'"([^"]+)"')
+_LABELS_RE = re.compile(r"on labels:\s*(.+?);")
 
 
 def _build_search_query(user: str) -> str:
     """Build a focused Tavily query from the rendered user prompt.
 
     The artist prompt quotes the artist name; the disambiguation context
-    (tracks, labels, genre) is unquoted. Extract the first quoted string as
-    the artist name and build a focused query. Fall back to the full prompt
-    if no quoted name is found.
+    (tracks, labels, genre) is unquoted. Extract the artist name (first
+    quoted string) plus any known labels from the disambiguation line to
+    build a query that disambiguates colliding artist names. Fall back to
+    the full prompt if no quoted name is found.
     """
     matches = _QUOTED_RE.findall(user)
-    if matches:
-        artist_name = matches[0].strip()
-        if artist_name:
-            return f'"{artist_name}" music artist'
-    return user
+    if not matches:
+        return user
+    artist_name = matches[0].strip()
+    if not artist_name:
+        return user
+    label_match = _LABELS_RE.search(user)
+    labels = label_match.group(1).strip() if label_match else ""
+    if labels and labels.lower() != "unknown":
+        return f'"{artist_name}" {labels} music artist'
+    return f'"{artist_name}" music artist'
 
 
 SOCIAL_DOMAINS = [
