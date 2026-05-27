@@ -53,7 +53,10 @@ export function CreateTriageBlockDialog({
       name: '',
       dateRange: [null as unknown as Date, null as unknown as Date],
       oldOffsetWeeks: 0,
-      includeDislikedLabels: false,
+      includeDislikedLabels: true,
+      includeDislikedArtists: true,
+      compilationsToNot: true,
+      includeFavorites: true,
     },
     validate: zodResolver(createTriageBlockSchema),
   });
@@ -98,6 +101,9 @@ export function CreateTriageBlockDialog({
         date_to: dayjs(to).format('YYYY-MM-DD'),
         old_offset_weeks: values.oldOffsetWeeks,
         include_disliked_labels: values.includeDislikedLabels,
+        include_disliked_artists: values.includeDislikedArtists,
+        compilations_to_not: values.compilationsToNot,
+        include_favorites: values.includeFavorites,
       });
       notifications.show({
         message: t('triage.toast.created'),
@@ -184,6 +190,21 @@ export function CreateTriageBlockDialog({
               label={t('triage.form.include_disliked_labels_label')}
               description={t('triage.form.include_disliked_labels_description')}
               {...form.getInputProps('includeDislikedLabels', { type: 'checkbox' })}
+            />
+            <Switch
+              label={t('triage.form.include_disliked_artists_label')}
+              description={t('triage.form.include_disliked_artists_description')}
+              {...form.getInputProps('includeDislikedArtists', { type: 'checkbox' })}
+            />
+            <Switch
+              label={t('triage.form.compilations_to_not_label')}
+              description={t('triage.form.compilations_to_not_description')}
+              {...form.getInputProps('compilationsToNot', { type: 'checkbox' })}
+            />
+            <Switch
+              label={t('triage.form.include_favorites_label')}
+              description={t('triage.form.include_favorites_description')}
+              {...form.getInputProps('includeFavorites', { type: 'checkbox' })}
             />
           </Stack>
         </Collapse>
