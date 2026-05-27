@@ -891,6 +891,10 @@
     "tile": {
       "read_more": "Read more →"
     },
+    "artists_panel": {
+      "heading": "Artists",
+      "expand_aria": "Show {{name}} details"
+    },
     "channels": {
       "website": "Website",
       "spotify": "Spotify",
