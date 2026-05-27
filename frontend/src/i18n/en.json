@@ -428,9 +428,9 @@
       "include_disliked_artists_label": "Send disliked-artist tracks to NOT",
       "include_disliked_artists_description": "Tracks by artists you disliked are placed in NOT, regardless of release date.",
       "compilations_to_not_label": "Send compilation tracks to NOT",
-      "compilations_to_not_description": "Tracks released on compilations are placed in NOT. Turn off to sort them by release date like any other track.",
+      "compilations_to_not_description": "Tracks released on compilations are placed in NOT. When off, they are sorted by release date like any other track.",
       "include_favorites_label": "Collect liked label/artist tracks into FAV",
-      "include_favorites_description": "Tracks from labels or artists you liked are collected into the FAV bucket. Likes take priority over dislikes.",
+      "include_favorites_description": "Tracks from labels or artists you liked are collected into the FAV bucket. Likes take priority over dislikes — a liked label overrides a disliked one.",
       "create_submit": "Create",
       "cancel": "Cancel"
     },
