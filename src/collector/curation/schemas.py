@@ -38,7 +38,10 @@ class CreateTriageBlockIn(BaseModel):
     date_from: date
     date_to: date
     old_offset_weeks: int = Field(default=0, ge=0, le=520)
-    include_disliked_labels: bool = Field(default=False)
+    include_disliked_labels: bool = Field(default=True)
+    include_disliked_artists: bool = Field(default=True)
+    compilations_to_not: bool = Field(default=True)
+    include_favorites: bool = Field(default=True)
 
     @field_validator("name")
     @classmethod

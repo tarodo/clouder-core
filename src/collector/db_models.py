@@ -416,6 +416,15 @@ class TriageBlock(Base):
     include_disliked_labels: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("FALSE")
     )
+    include_disliked_artists: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    compilations_to_not: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("TRUE")
+    )
+    include_favorites: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -454,7 +463,7 @@ class TriageBucket(Base):
             postgresql_where=text("bucket_type <> 'STAGING'"),
         ),
         CheckConstraint(
-            "bucket_type IN ('NEW','OLD','NOT','DISCARD','UNCLASSIFIED','STAGING')",
+            "bucket_type IN ('NEW','OLD','NOT','DISCARD','UNCLASSIFIED','STAGING','FAV')",
             name="ck_triage_buckets_type",
         ),
         CheckConstraint(

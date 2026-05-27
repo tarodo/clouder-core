@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 
-export type TechnicalBucketType = 'NEW' | 'OLD' | 'NOT' | 'DISCARD' | 'UNCLASSIFIED';
+export type TechnicalBucketType = 'NEW' | 'OLD' | 'NOT' | 'DISCARD' | 'UNCLASSIFIED' | 'FAV';
 export type BucketType = TechnicalBucketType | 'STAGING';
 
 export interface TriageBucket {
@@ -18,6 +18,7 @@ const TECHNICAL_TYPES: ReadonlySet<BucketType> = new Set([
   'NOT',
   'DISCARD',
   'UNCLASSIFIED',
+  'FAV',
 ]);
 
 export function isTechnical(bucket: Pick<TriageBucket, 'bucket_type'>): boolean {

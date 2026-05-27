@@ -2834,6 +2834,9 @@ export interface paths {
                             finalized_at?: string | null;
                             old_offset_weeks?: number;
                             include_disliked_labels?: boolean;
+                            include_disliked_artists?: boolean;
+                            compilations_to_not?: boolean;
+                            include_favorites?: boolean;
                             buckets: {
                                 /** Format: uuid */
                                 id: string;
@@ -3035,6 +3038,9 @@ export interface paths {
                             finalized_at?: string | null;
                             old_offset_weeks?: number;
                             include_disliked_labels?: boolean;
+                            include_disliked_artists?: boolean;
+                            compilations_to_not?: boolean;
+                            include_favorites?: boolean;
                             buckets: {
                                 /** Format: uuid */
                                 id: string;
@@ -3495,6 +3501,9 @@ export interface paths {
                                 finalized_at?: string | null;
                                 old_offset_weeks?: number;
                                 include_disliked_labels?: boolean;
+                                include_disliked_artists?: boolean;
+                                compilations_to_not?: boolean;
+                                include_favorites?: boolean;
                                 buckets: {
                                     /** Format: uuid */
                                     id: string;
@@ -6385,9 +6394,24 @@ export interface components {
             old_offset_weeks: number;
             /**
              * Include Disliked Labels
-             * @default false
+             * @default true
              */
             include_disliked_labels: boolean;
+            /**
+             * Include Disliked Artists
+             * @default true
+             */
+            include_disliked_artists: boolean;
+            /**
+             * Compilations To Not
+             * @default true
+             */
+            compilations_to_not: boolean;
+            /**
+             * Include Favorites
+             * @default true
+             */
+            include_favorites: boolean;
         };
         /** MoveTracksIn */
         MoveTracksIn: {

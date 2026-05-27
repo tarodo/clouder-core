@@ -20,6 +20,7 @@ from collector.curation import (
 )
 from collector.curation.triage_service import (
     BUCKET_TYPE_DISCARD,
+    BUCKET_TYPE_FAV,
     BUCKET_TYPE_NEW,
     BUCKET_TYPE_NOT,
     BUCKET_TYPE_OLD,
@@ -52,6 +53,9 @@ class TriageBlockRow:
     status: str
     old_offset_weeks: int
     include_disliked_labels: bool
+    include_disliked_artists: bool
+    compilations_to_not: bool
+    include_favorites: bool
     created_at: str  # ISO datetime
     updated_at: str
     finalized_at: str | None
@@ -126,7 +130,10 @@ class TriageRepository:
         date_from: date_type,
         date_to: date_type,
         old_offset_weeks: int = 0,
-        include_disliked_labels: bool = False,
+        include_disliked_labels: bool = True,
+        include_disliked_artists: bool = True,
+        compilations_to_not: bool = True,
+        include_favorites: bool = True,
     ) -> TriageBlockRow:
         now = utc_now()
         old_cutoff = date_from - timedelta(weeks=old_offset_weeks)
@@ -155,11 +162,15 @@ class TriageRepository:
                     id, user_id, style_id, name,
                     date_from, date_to, status,
                     old_offset_weeks, include_disliked_labels,
+                    include_disliked_artists, compilations_to_not,
+                    include_favorites,
                     created_at, updated_at
                 ) VALUES (
                     :id, :user_id, :style_id, :name,
                     :date_from, :date_to, 'IN_PROGRESS',
                     :old_offset_weeks, :include_disliked_labels,
+                    :include_disliked_artists, :compilations_to_not,
+                    :include_favorites,
                     :now, :now
                 )
                 """,
@@ -172,6 +183,9 @@ class TriageRepository:
                     "date_to": date_to,
                     "old_offset_weeks": old_offset_weeks,
                     "include_disliked_labels": include_disliked_labels,
+                    "include_disliked_artists": include_disliked_artists,
+                    "compilations_to_not": compilations_to_not,
+                    "include_favorites": include_favorites,
                     "now": now,
                 },
                 transaction_id=tx_id,
@@ -241,12 +255,28 @@ class TriageRepository:
                 )
 
             # 5. Classify and insert tracks (one INSERT FROM SELECT).
-            #    Disliked-label branch is highest priority and only present
-            #    when the toggle is on (built as a SQL string fragment so we
-            #    avoid binding a no-op subquery when off).
-            disliked_when = ""
-            if include_disliked_labels:
-                disliked_when = """
+            #    Branch order (first match wins): FAV, NOT(disliked),
+            #    date branches, NOT(compilation), else NEW. Likes beat
+            #    dislikes. Optional branches are emitted as SQL fragments so
+            #    disabled toggles bind no parameters.
+            fav_when = ""
+            compilation_when = ""
+            classify_params: dict[str, Any] = {
+                "user_id": user_id,
+                "style_id": style_id,
+                "date_from": date_from,
+                "date_to": date_to,
+                "old_cutoff": old_cutoff,
+                "now": now,
+                "new_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_NEW],
+                "old_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_OLD],
+                "unclassified_bucket_id": tech_bucket_id_by_type[
+                    BUCKET_TYPE_UNCLASSIFIED
+                ],
+            }
+
+            if include_favorites:
+                fav_when = """
                         WHEN EXISTS (
                             SELECT 1
                             FROM clouder_albums a
@@ -254,22 +284,76 @@ class TriageRepository:
                               ON ulp.label_id = a.label_id
                             WHERE a.id = t.album_id
                               AND ulp.user_id = :user_id
-                              AND ulp.status = 'disliked'
-                        ) THEN :not_bucket_id
+                              AND ulp.status = 'liked'
+                        ) OR EXISTS (
+                            SELECT 1
+                            FROM clouder_track_artists cta
+                            JOIN clouder_user_artist_prefs uap
+                              ON uap.artist_id = cta.artist_id
+                            WHERE cta.track_id = t.id
+                              AND uap.user_id = :user_id
+                              AND uap.status = 'liked'
+                        ) THEN :fav_bucket_id
                 """
+                classify_params["fav_bucket_id"] = tech_bucket_id_by_type[
+                    BUCKET_TYPE_FAV
+                ]
+
+            disliked_terms: list[str] = []
+            if include_disliked_labels:
+                disliked_terms.append(
+                    """EXISTS (
+                            SELECT 1
+                            FROM clouder_albums a
+                            JOIN clouder_user_label_prefs ulp
+                              ON ulp.label_id = a.label_id
+                            WHERE a.id = t.album_id
+                              AND ulp.user_id = :user_id
+                              AND ulp.status = 'disliked'
+                        )"""
+                )
+            if include_disliked_artists:
+                disliked_terms.append(
+                    """EXISTS (
+                            SELECT 1
+                            FROM clouder_track_artists cta
+                            JOIN clouder_user_artist_prefs uap
+                              ON uap.artist_id = cta.artist_id
+                            WHERE cta.track_id = t.id
+                              AND uap.user_id = :user_id
+                              AND uap.status = 'disliked'
+                        )"""
+                )
+            disliked_when = ""
+            if disliked_terms:
+                disliked_when = (
+                    "WHEN "
+                    + " OR ".join(disliked_terms)
+                    + " THEN :not_bucket_id"
+                )
+            if compilations_to_not:
+                compilation_when = (
+                    "WHEN t.release_type = 'compilation' "
+                    "THEN :not_bucket_id"
+                )
+            if disliked_when or compilation_when:
+                classify_params["not_bucket_id"] = tech_bucket_id_by_type[
+                    BUCKET_TYPE_NOT
+                ]
+
             self._data_api.execute(
                 f"""
                 INSERT INTO triage_bucket_tracks
                     (triage_bucket_id, track_id, added_at)
                 SELECT
                     CASE
+                        {fav_when}
                         {disliked_when}
                         WHEN t.spotify_release_date IS NULL
                             THEN :unclassified_bucket_id
                         WHEN t.spotify_release_date < :old_cutoff
                             THEN :old_bucket_id
-                        WHEN t.release_type = 'compilation'
-                            THEN :not_bucket_id
+                        {compilation_when}
                         ELSE :new_bucket_id
                     END,
                     t.id,
@@ -287,20 +371,7 @@ class TriageRepository:
                       AND ct.track_id = t.id
                   )
                 """,
-                {
-                    "user_id": user_id,
-                    "style_id": style_id,
-                    "date_from": date_from,
-                    "date_to": date_to,
-                    "old_cutoff": old_cutoff,
-                    "now": now,
-                    "new_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_NEW],
-                    "old_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_OLD],
-                    "not_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_NOT],
-                    "unclassified_bucket_id": tech_bucket_id_by_type[
-                        BUCKET_TYPE_UNCLASSIFIED
-                    ],
-                },
+                classify_params,
                 transaction_id=tx_id,
             )
 
@@ -1084,6 +1155,8 @@ class TriageRepository:
                 tb.date_from, tb.date_to,
                 tb.status,
                 tb.old_offset_weeks, tb.include_disliked_labels,
+                tb.include_disliked_artists, tb.compilations_to_not,
+                tb.include_favorites,
                 tb.created_at, tb.updated_at, tb.finalized_at
             FROM triage_blocks tb
             JOIN clouder_styles cs ON tb.style_id = cs.id
@@ -1120,12 +1193,13 @@ class TriageRepository:
             WHERE tbk.triage_block_id = :block_id
             ORDER BY
                 CASE tbk.bucket_type
-                    WHEN 'NEW' THEN 0
-                    WHEN 'OLD' THEN 1
-                    WHEN 'NOT' THEN 2
-                    WHEN 'UNCLASSIFIED' THEN 3
-                    WHEN 'DISCARD' THEN 4
-                    WHEN 'STAGING' THEN 5
+                    WHEN 'FAV' THEN 0
+                    WHEN 'NEW' THEN 1
+                    WHEN 'OLD' THEN 2
+                    WHEN 'NOT' THEN 3
+                    WHEN 'UNCLASSIFIED' THEN 4
+                    WHEN 'DISCARD' THEN 5
+                    WHEN 'STAGING' THEN 6
                 END,
                 c.position ASC NULLS LAST,
                 c.created_at DESC NULLS LAST,
@@ -1159,6 +1233,9 @@ class TriageRepository:
             status=b["status"],
             old_offset_weeks=int(b["old_offset_weeks"]),
             include_disliked_labels=bool(b["include_disliked_labels"]),
+            include_disliked_artists=bool(b["include_disliked_artists"]),
+            compilations_to_not=bool(b["compilations_to_not"]),
+            include_favorites=bool(b["include_favorites"]),
             created_at=str(b["created_at"]),
             updated_at=str(b["updated_at"]),
             finalized_at=(
