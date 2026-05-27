@@ -1,4 +1,4 @@
-import { Drawer, Stack, Title, Button, Skeleton, Alert } from '@mantine/core';
+import { Drawer, Stack, Text, Button, Skeleton, Alert } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
@@ -67,7 +67,7 @@ export function ArtistEnqueueDrawer({ opened, onClose, artistIds }: Props) {
     <Drawer
       opened={opened}
       onClose={onClose}
-      title={<Title order={4}>{t('admin_enrichment.enqueue_drawer.title', { count: artistIds.length })}</Title>}
+      title={<Text span fw={600} size="lg">{t('admin_enrichment.enqueue_drawer.title', { count: artistIds.length })}</Text>}
       position="right"
       size="md"
     >
