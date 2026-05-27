@@ -89,7 +89,12 @@ def _filter_parseable(cells: list[dict]) -> list[dict]:
 
 
 def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
-    """Apply deterministic merge rules to all non-narrative fields."""
+    """Apply deterministic merge rules to all non-narrative fields.
+
+    Returns (merged_payload, field_provenance). Narrative fields
+    (tagline, bio, summary, ai_reasoning, notes) are left absent from
+    merged_payload — they're filled by _merge_narrative.
+    """
     parseds = [c["response"]["parsed"] for c in cells]
     confidences = [(c, c["response"]["parsed"].get("confidence", 0.0) or 0.0) for c in cells]
     confidences.sort(key=lambda x: (-x[1], x[0]["vendor"]["name"]))
@@ -236,7 +241,7 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
             for item in p.get(field, []) or []:
                 if isinstance(item, str) and item.strip():
                     all_items.append(item.strip())
-        seen: dict[str, str] = {}
+        seen: dict[str, str] = {}  # lowercase → first-cased value
         counts2: Counter[str] = Counter()
         for item in all_items:
             key = item.lower()
@@ -287,6 +292,7 @@ NARRATIVE_SYSTEM = (
 
 
 def _build_narrative_prompt(artist_name: str, cells: list[dict]) -> str:
+    """Assemble the user message from all parseable cells' narrative fields."""
     parts = [f"Artist: {artist_name}\n"]
     for i, cell in enumerate(cells, 1):
         vendor = cell["vendor"]["name"]
@@ -305,6 +311,7 @@ def _build_narrative_prompt(artist_name: str, cells: list[dict]) -> str:
 
 
 def _highest_confidence_cell(cells: list[dict]) -> dict:
+    """Return the cell with the highest confidence score."""
     return max(cells, key=lambda c: c["response"]["parsed"].get("confidence", 0.0) or 0.0)
 
 
@@ -385,7 +392,7 @@ def merge_cells(
             "source_count": 1,
             "narrative_cost_usd": 0.0,
             "narrative_latency_ms": 0.0,
-            "field_provenance": {"tagline": "single source", "summary": "single source"},
+            "field_provenance": {k: "single source" for k in NARRATIVE_FIELDS},
         }
         return info, meta
 

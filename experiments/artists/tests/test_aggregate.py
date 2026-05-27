@@ -251,3 +251,17 @@ def test_merge_cells_handles_malformed_deepseek_json():
     merged, meta = merge_cells(cells, fake)
     assert meta["narrative_fallback"] == "max_confidence"
     assert merged.tagline == "B"
+
+
+def test_merge_cells_narrative_fallback_on_missing_key():
+    fake = MagicMock()
+    fake.chat.completions.create.return_value = _mock_deepseek_response(
+        json.dumps({"tagline": "only tagline"})  # missing bio/summary/ai_reasoning/notes
+    )
+    cells = [
+        _cell("a", "ma", parsed=_parsed(tagline="A", summary="A", confidence=0.8)),
+        _cell("b", "mb", parsed=_parsed(tagline="B", summary="B", confidence=0.95)),
+    ]
+    merged, meta = merge_cells(cells, fake)
+    assert meta["narrative_fallback"] == "max_confidence"
+    assert merged.tagline == "B"
