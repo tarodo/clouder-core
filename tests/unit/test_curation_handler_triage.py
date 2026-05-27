@@ -150,6 +150,9 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
                 date_to=date_to,
                 old_offset_weeks=old_offset_weeks,
                 include_disliked_labels=include_disliked_labels,
+                include_disliked_artists=include_disliked_artists,
+                compilations_to_not=compilations_to_not,
+                include_favorites=include_favorites,
             )
             return fake_row
 
@@ -198,6 +201,10 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
     assert captured["name"] == "Week 17"
     assert captured["date_from"] == date(2026, 4, 20)
     assert captured["date_to"] == date(2026, 4, 26)
+    # Classification flags: body omits all three -> schema defaults (True).
+    assert captured["include_disliked_artists"] is True
+    assert captured["compilations_to_not"] is True
+    assert captured["include_favorites"] is True
 
 
 def test_create_triage_block_returns_503_when_db_not_configured(
@@ -1151,10 +1158,10 @@ def test_create_triage_block_forwards_and_serializes_flags() -> None:
                 date_to="2026-04-26",
                 status="IN_PROGRESS",
                 old_offset_weeks=0,
-                include_disliked_labels=True,
-                include_disliked_artists=False,
-                compilations_to_not=True,
-                include_favorites=False,
+                include_disliked_labels=kwargs["include_disliked_labels"],
+                include_disliked_artists=kwargs["include_disliked_artists"],
+                compilations_to_not=kwargs["compilations_to_not"],
+                include_favorites=kwargs["include_favorites"],
                 created_at="2026-04-28T00:00:00+00:00",
                 updated_at="2026-04-28T00:00:00+00:00",
                 finalized_at=None,
@@ -1165,17 +1172,18 @@ def test_create_triage_block_forwards_and_serializes_flags() -> None:
         "body": (
             '{"style_id":"00000000-0000-0000-0000-000000000001",'
             '"name":"X","date_from":"2026-04-20","date_to":"2026-04-26",'
-            '"include_disliked_artists":false,"include_favorites":false}'
+            '"include_disliked_artists":false,"compilations_to_not":false,'
+            '"include_favorites":false}'
         )
     }
     resp = _create_triage_block(event, _Repo(), "u-1", "corr-1")
-    assert captured["include_disliked_labels"] is True
+    assert captured["include_disliked_labels"] is True   # default, not sent
     assert captured["include_disliked_artists"] is False
-    assert captured["compilations_to_not"] is True
+    assert captured["compilations_to_not"] is False
     assert captured["include_favorites"] is False
 
     body = json.loads(resp["body"])
-    assert body["include_disliked_labels"] is True
+    assert body["include_disliked_labels"] is True   # default, not sent
     assert body["include_disliked_artists"] is False
-    assert body["compilations_to_not"] is True
+    assert body["compilations_to_not"] is False
     assert body["include_favorites"] is False
