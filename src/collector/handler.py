@@ -53,7 +53,6 @@ class EnqueueResult:
 
 _LIST_ROUTES = {
     "GET /tracks": ("tracks", "list_tracks", "count_tracks"),
-    "GET /artists": ("artists", "list_artists", "count_artists"),
     "GET /albums": ("albums", "list_albums", "count_albums"),
     "GET /styles": ("styles", "list_styles", "count_styles"),
 }
@@ -73,6 +72,15 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/labels/{label_id}/history",
     "GET /admin/auto-enrich/labels",
     "PUT /admin/auto-enrich/labels",
+    "POST /admin/artists/enrich",
+    "GET /admin/artists/enrich/options",
+    "GET /admin/artists/enrich-runs",
+    "GET /admin/artists/enrich-runs/{run_id}",
+    "GET /admin/artists/backlog",
+    "GET /admin/artists/{artist_id}",
+    "GET /admin/artists/{artist_id}/history",
+    "GET /admin/auto-enrich/artists",
+    "PUT /admin/auto-enrich/artists",
 })
 
 
@@ -222,6 +230,70 @@ def _route(
     if route_key == "GET /labels/{label_id}":
         from .label_enrichment.routes import handle_get_label_user
         status, body = handle_get_label_user(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "POST /admin/artists/enrich":
+        from .artist_enrichment.routes import handle_post_enrich
+        status, body = handle_post_enrich(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/artists/enrich/options":
+        from .artist_enrichment.routes import handle_get_options
+        status, body = handle_get_options(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/artists/enrich-runs":
+        from .artist_enrichment.routes import handle_get_runs_list
+        status, body = handle_get_runs_list(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/artists/enrich-runs/{run_id}":
+        from .artist_enrichment.routes import handle_get_run
+        status, body = handle_get_run(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/artists/backlog":
+        from .artist_enrichment.routes import handle_get_backlog
+        status, body = handle_get_backlog(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/artists/{artist_id}/history":
+        from .artist_enrichment.routes import handle_get_artist_history
+        status, body = handle_get_artist_history(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/artists/{artist_id}":
+        from .artist_enrichment.routes import handle_get_artist
+        status, body = handle_get_artist(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /admin/auto-enrich/artists":
+        from .artist_enrichment.auto_routes import handle_get_auto_config
+        status, body = handle_get_auto_config(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "PUT /admin/auto-enrich/artists":
+        from .artist_enrichment.auto_routes import handle_put_auto_config
+        status, body = handle_put_auto_config(event)
+        if status == 204:
+            return {
+                "statusCode": 204,
+                "headers": {"x-correlation-id": correlation_id},
+                "body": "",
+            }
+        return _json_response(status, body, correlation_id)
+    if route_key == "PUT /artists/{artist_id}/preference":
+        from .artist_enrichment.routes import handle_put_artist_preference
+        status, body = handle_put_artist_preference(event)
+        if status == 204:
+            return {
+                "statusCode": 204,
+                "headers": {"x-correlation-id": correlation_id},
+                "body": "",
+            }
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /me/artist-preferences":
+        from .artist_enrichment.routes import handle_get_my_artist_preferences
+        status, body = handle_get_my_artist_preferences(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /artists":
+        from .artist_enrichment.routes import handle_get_artists_list
+        status, body = handle_get_artists_list(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /artists/{artist_id}":
+        from .artist_enrichment.routes import handle_get_artist_user
+        status, body = handle_get_artist_user(event)
         return _json_response(status, body, correlation_id)
     if route_key in _LIST_ROUTES:
         return _handle_list(event, route_key)
