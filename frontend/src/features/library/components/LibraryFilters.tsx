@@ -19,6 +19,7 @@ interface Props {
   onSortChange: (sort: 'name' | 'recent') => void;
   onStyleChange: (styleId: string) => void;
   onMyChange: (my: LabelsListMy) => void;
+  hideMyFilter?: boolean;
 }
 
 export function LibraryFilters({
@@ -32,6 +33,7 @@ export function LibraryFilters({
   onSortChange,
   onStyleChange,
   onMyChange,
+  hideMyFilter = false,
 }: Props) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(q);
@@ -71,21 +73,23 @@ export function LibraryFilters({
         onChange={(v) => v && onSortChange(v as 'name' | 'recent')}
         style={{ minWidth: 180 }}
       />
-      <Stack gap={4}>
-        <Text size="xs" c="dimmed">
-          {t('library.list.my_filter_label')}
-        </Text>
-        <SegmentedControl
-          value={my}
-          onChange={(v) => onMyChange(v as LabelsListMy)}
-          data={[
-            { value: 'all', label: t('library.list.my_all') },
-            { value: 'liked', label: t('library.list.my_liked') },
-            { value: 'disliked', label: t('library.list.my_disliked') },
-            { value: 'unrated', label: t('library.list.my_unrated') },
-          ]}
-        />
-      </Stack>
+      {!hideMyFilter && (
+        <Stack gap={4}>
+          <Text size="xs" c="dimmed">
+            {t('library.list.my_filter_label')}
+          </Text>
+          <SegmentedControl
+            value={my}
+            onChange={(v) => onMyChange(v as LabelsListMy)}
+            data={[
+              { value: 'all', label: t('library.list.my_all') },
+              { value: 'liked', label: t('library.list.my_liked') },
+              { value: 'disliked', label: t('library.list.my_disliked') },
+              { value: 'unrated', label: t('library.list.my_unrated') },
+            ]}
+          />
+        </Stack>
+      )}
     </Group>
   );
 }

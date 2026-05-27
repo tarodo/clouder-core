@@ -858,6 +858,10 @@
       "artists": "Artists",
       "artists_coming_soon": "Coming soon"
     },
+    "artists_list": {
+      "title": "Artists",
+      "col_active_since": "Active since"
+    },
     "prefs": {
       "like_aria": "Like label",
       "dislike_aria": "Dislike label",
