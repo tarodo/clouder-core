@@ -56,6 +56,8 @@ def test_enrich_auto_enqueues_with_config_settings(patched):
     assert body == {"run_id": "run-1", "queued_artists": 1}
     auto.get_config.assert_called_once_with("artists")
     spec = repo.create_run.call_args[0][0]
+    assert spec.vendors == _CONFIG["vendors"]
+    assert spec.prompt_slug == "artist_v1_facts"
     assert spec.requested_artists == 1
     assert spec.created_by_user_id == "user-1"
     msg = json.loads(sqs.send_message.call_args.kwargs["MessageBody"])
@@ -74,3 +76,10 @@ def test_enrich_auto_409_when_no_config(patched):
     auto.get_config.return_value = None
     resp = lambda_handler(_admin_event("art-1"), None)
     assert resp["statusCode"] == 409
+
+
+def test_enrich_auto_rejects_non_admin(patched):
+    event = _admin_event("art-1")
+    event["requestContext"]["authorizer"]["lambda"]["is_admin"] = False
+    resp = lambda_handler(event, None)
+    assert resp["statusCode"] == 403

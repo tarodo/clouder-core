@@ -168,6 +168,9 @@ def handle_post_enrich_auto(event: Mapping[str, Any]) -> tuple[int, dict]:
         merge_model=cfg["merge_model"],
         requested_labels=1,
         created_by_user_id=_extract_user_id(event),
+        # Admin button = an out-of-band manual trigger (config's `enabled`
+        # flag governs auto-dispatch only), so this is a manual-source run.
+        source="manual",
     )
     run_id = repo.create_run(spec)
 
