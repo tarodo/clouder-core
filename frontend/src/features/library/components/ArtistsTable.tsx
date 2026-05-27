@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import type { ArtistSummary } from '../../../api/artists';
 import { countryFlag } from '../lib/countryFlag';
 import { truncateTagline } from '../lib/formatLabel';
+import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 
 interface Props {
   items: ArtistSummary[];
@@ -47,6 +48,7 @@ export function ArtistsTable(p: Props) {
             <Table.Th>{t('library.artists_list.col_active_since')}</Table.Th>
             <Table.Th>{t('library.list.col_tracks')}</Table.Th>
             <Table.Th>{t('library.list.col_ai_detected')}</Table.Th>
+            <Table.Th>{t('library.artists_list.col_preference')}</Table.Th>
             <Table.Th>{t('library.list.col_description')}</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -93,6 +95,13 @@ export function ArtistsTable(p: Props) {
                       —
                     </Text>
                   )}
+                </Table.Td>
+                <Table.Td>
+                  <ArtistPreferenceButtons
+                    artistId={it.id}
+                    current={it.my_preference ?? null}
+                    size="sm"
+                  />
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" lineClamp={2} maw={420}>

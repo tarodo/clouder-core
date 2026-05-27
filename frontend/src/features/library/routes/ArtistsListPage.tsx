@@ -2,7 +2,7 @@ import { Container, Stack, Title } from '@mantine/core';
 import { useParams, useSearchParams, Navigate, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useMemo } from 'react';
-import { useArtistsList } from '../hooks/useArtistsList';
+import { useArtistsList, type ArtistsListMy } from '../hooks/useArtistsList';
 import { EntityTabs } from '../components/EntityTabs';
 import { LibraryFilters, type StyleOption } from '../components/LibraryFilters';
 import { ArtistsTable } from '../components/ArtistsTable';
@@ -10,6 +10,13 @@ import { useStyles } from '../../../hooks/useStyles';
 import { slugifyStyle } from '../lib/slugifyStyle';
 
 const PAGE_SIZE = 25;
+
+const MY_VALUES: ReadonlySet<ArtistsListMy> = new Set(['all', 'liked', 'disliked', 'unrated']);
+
+function readMy(raw: string | null): ArtistsListMy {
+  if (raw && MY_VALUES.has(raw as ArtistsListMy)) return raw as ArtistsListMy;
+  return 'all';
+}
 
 export function ArtistsListPage() {
   const { t } = useTranslation();
@@ -22,6 +29,7 @@ export function ArtistsListPage() {
   const sort: 'name' | 'recent' = rawSort === 'recent' ? 'recent' : 'name';
   const pageParam = Number(searchParams.get('page') ?? '1');
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const my = readMy(searchParams.get('my'));
 
   const stylesQuery = useStyles();
   const styleOptions: ReadonlyArray<StyleOption> = useMemo(
@@ -38,7 +46,7 @@ export function ArtistsListPage() {
     sort,
     page,
     limit: PAGE_SIZE,
-    my: 'all',
+    my,
   });
 
   if (!styleId) return <Navigate to="/library" replace />;
@@ -80,12 +88,11 @@ export function ArtistsListPage() {
           styleId={styleId}
           styleOptions={styleOptions}
           stylesLoading={stylesQuery.isLoading}
-          my="all"
+          my={my}
           onQChange={(v) => updateParam('q', v, true)}
           onSortChange={(v) => updateParam('sort', v, true)}
           onStyleChange={onStyleChange}
-          onMyChange={() => {}}
-          hideMyFilter
+          onMyChange={(v) => updateParam('my', v === 'all' ? '' : v, true)}
         />
         <ArtistsTable
           items={items}

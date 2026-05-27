@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { ArtistDetail } from '../../../api/artists';
 import { countryFlag } from '../lib/countryFlag';
+import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 
 interface Props {
   info: ArtistDetail;
@@ -21,7 +22,7 @@ function formatAiContent(value: string): string {
   return `AI ${value.toUpperCase()}`;
 }
 
-export function ArtistDetailHeader({ info, styleId }: Props) {
+export function ArtistDetailHeader({ info, styleId, artistId }: Props) {
   const { t } = useTranslation();
   const rec = info as Record<string, unknown>;
   const artistName = typeof rec.artist_name === 'string' ? rec.artist_name : '';
@@ -31,6 +32,10 @@ export function ArtistDetailHeader({ info, styleId }: Props) {
   const aiContent = typeof rec.ai_content === 'string' ? rec.ai_content : '';
   const aiReasoning =
     typeof rec.ai_reasoning === 'string' ? rec.ai_reasoning : '';
+  const myPreference =
+    rec.my_preference === 'liked' || rec.my_preference === 'disliked'
+      ? rec.my_preference
+      : null;
 
   const aiBadge = aiContent ? (
     <Tooltip
@@ -68,6 +73,7 @@ export function ArtistDetailHeader({ info, styleId }: Props) {
       <Group gap="sm" mt="xs" align="center" wrap="wrap">
         <Title order={2}>{artistName}</Title>
         {aiBadge}
+        <ArtistPreferenceButtons artistId={artistId} current={myPreference} size="md" />
       </Group>
       <Group gap="xs" mt="xs">
         {country && (

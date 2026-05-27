@@ -860,7 +860,8 @@
     },
     "artists_list": {
       "title": "Artists",
-      "col_active_since": "Active since"
+      "col_active_since": "Active since",
+      "col_preference": "Preference"
     },
     "prefs": {
       "like_aria": "Like label",
