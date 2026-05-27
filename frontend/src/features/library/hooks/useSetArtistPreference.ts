@@ -63,6 +63,7 @@ export function useSetArtistPreference() {
     onSettled: (_data, _err, { artistId }) => {
       void qc.invalidateQueries({ queryKey: artistInfoKey(artistId) });
       void qc.invalidateQueries({ queryKey: artistDetailKey(artistId) });
+      void qc.invalidateQueries({ queryKey: ['library', 'artists'] });
     },
   });
 }
