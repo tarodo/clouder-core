@@ -42,6 +42,9 @@ def test_dataclasses_have_expected_fields() -> None:
         status="IN_PROGRESS",
         old_offset_weeks=0,
         include_disliked_labels=False,
+        include_disliked_artists=False,
+        compilations_to_not=True,
+        include_favorites=False,
         created_at="2026-04-28T00:00:00+00:00",
         updated_at="2026-04-28T00:00:00+00:00",
         finalized_at=None,
@@ -97,7 +100,7 @@ def test_create_block_happy_path() -> None:
     block_response = [{"id": "b-1"}]
     tech_buckets_response = [
         {"id": f"buck-tech-{i}", "bucket_type": t}
-        for i, t in enumerate(["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED"])
+        for i, t in enumerate(["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"])
     ]
     categories_response = [
         {"id": "c-1", "name": "Tech House", "position": 0},
@@ -118,6 +121,9 @@ def test_create_block_happy_path() -> None:
             "status": "IN_PROGRESS",
             "old_offset_weeks": 0,
             "include_disliked_labels": False,
+            "include_disliked_artists": False,
+            "compilations_to_not": True,
+            "include_favorites": False,
             "created_at": "2026-04-28T00:00:00+00:00",
             "updated_at": "2026-04-28T00:00:00+00:00",
             "finalized_at": None,
@@ -132,7 +138,7 @@ def test_create_block_happy_path() -> None:
             "inactive": False,
             "track_count": 0,
         }
-        for i, t in enumerate(["NEW", "OLD", "NOT", "UNCLASSIFIED", "DISCARD"])
+        for i, t in enumerate(["FAV", "NEW", "OLD", "NOT", "UNCLASSIFIED", "DISCARD"])
     ] + [
         {
             "id": "buck-stg-1",
@@ -168,10 +174,10 @@ def test_create_block_happy_path() -> None:
     assert isinstance(out, TriageBlockRow)
     assert out.style_name == "House"
     assert out.status == "IN_PROGRESS"
-    assert len(out.buckets) == 6
+    assert len(out.buckets) == 7
     types = [b.bucket_type for b in out.buckets]
-    assert types[:5] == ["NEW", "OLD", "NOT", "UNCLASSIFIED", "DISCARD"]
-    assert types[5] == "STAGING"
+    assert types[:6] == ["FAV", "NEW", "OLD", "NOT", "UNCLASSIFIED", "DISCARD"]
+    assert types[6] == "STAGING"
 
 
 def test_create_block_style_not_found() -> None:
@@ -197,7 +203,7 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
             [
                 {"id": f"t-{i}", "bucket_type": t}
                 for i, t in enumerate(
-                    ["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED"]
+                    ["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"]
                 )
             ],
             [],  # no alive categories
@@ -214,6 +220,9 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
                     "status": "IN_PROGRESS",
                     "old_offset_weeks": 0,
                     "include_disliked_labels": False,
+                    "include_disliked_artists": False,
+                    "compilations_to_not": True,
+                    "include_favorites": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T00:00:00+00:00",
                     "finalized_at": None,
@@ -229,6 +238,9 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
         name="X",
         date_from=date(2026, 4, 20),
         date_to=date(2026, 4, 26),
+        include_disliked_labels=False,
+        include_disliked_artists=False,
+        include_favorites=False,
     )
 
     classify_call = api.execute.call_args_list[4]
@@ -242,7 +254,8 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
     assert "NOT EXISTS" in sql
     assert "categories c" in sql
     assert "c.deleted_at IS NULL" in sql
-    # Disliked branch is omitted unless the toggle is on (default off here).
+    # Pref tables are omitted unless a label/artist toggle is on
+    # (all favorite/disliked toggles passed off here).
     assert "clouder_user_label_prefs" not in sql
     assert params["user_id"] == "u-1"
     assert params["style_id"] == "s-1"
@@ -264,7 +277,7 @@ def test_create_block_classify_sql_includes_disliked_branch_and_offset() -> None
             [
                 {"id": f"t-{i}", "bucket_type": t}
                 for i, t in enumerate(
-                    ["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED"]
+                    ["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"]
                 )
             ],
             [],  # no alive categories
@@ -281,6 +294,9 @@ def test_create_block_classify_sql_includes_disliked_branch_and_offset() -> None
                     "status": "IN_PROGRESS",
                     "old_offset_weeks": 2,
                     "include_disliked_labels": True,
+                    "include_disliked_artists": False,
+                    "compilations_to_not": True,
+                    "include_favorites": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T00:00:00+00:00",
                     "finalized_at": None,
@@ -336,6 +352,9 @@ def test_get_block_returns_full_detail() -> None:
                     "status": "IN_PROGRESS",
                     "old_offset_weeks": 0,
                     "include_disliked_labels": False,
+                    "include_disliked_artists": False,
+                    "compilations_to_not": True,
+                    "include_favorites": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T00:00:00+00:00",
                     "finalized_at": None,
@@ -372,6 +391,9 @@ def test_fetch_block_detail_exposes_populate_options() -> None:
                     "status": "IN_PROGRESS",
                     "old_offset_weeks": 2,
                     "include_disliked_labels": True,
+                    "include_disliked_artists": False,
+                    "compilations_to_not": True,
+                    "include_favorites": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T00:00:00+00:00",
                     "finalized_at": None,
@@ -797,6 +819,9 @@ def test_finalize_block_calls_add_tracks_bulk_per_staging() -> None:
                     "status": "FINALIZED",
                     "old_offset_weeks": 0,
                     "include_disliked_labels": False,
+                    "include_disliked_artists": False,
+                    "compilations_to_not": True,
+                    "include_favorites": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T01:00:00+00:00",
                     "finalized_at": "2026-04-28T01:00:00+00:00",
@@ -842,6 +867,9 @@ def test_finalize_block_chunks_above_500() -> None:
                     "status": "FINALIZED",
                     "old_offset_weeks": 0,
                     "include_disliked_labels": False,
+                    "include_disliked_artists": False,
+                    "compilations_to_not": True,
+                    "include_favorites": False,
                     "created_at": "2026-04-28T00:00:00+00:00",
                     "updated_at": "2026-04-28T01:00:00+00:00",
                     "finalized_at": "2026-04-28T01:00:00+00:00",
@@ -939,3 +967,124 @@ def test_mark_staging_inactive_updates_only_staging() -> None:
     assert "UPDATE triage_buckets" in sql
     assert "SET inactive = TRUE" in sql
     assert "bucket_type = 'STAGING'" in sql
+
+
+def _create_block_responses(detail_overrides: dict[str, Any]) -> list[list[dict[str, Any]]]:
+    detail = {
+        "id": "b-1",
+        "user_id": "u-1",
+        "style_id": "s-1",
+        "style_name": "House",
+        "name": "X",
+        "date_from": "2026-04-20",
+        "date_to": "2026-04-26",
+        "status": "IN_PROGRESS",
+        "old_offset_weeks": 0,
+        "include_disliked_labels": True,
+        "include_disliked_artists": True,
+        "compilations_to_not": True,
+        "include_favorites": True,
+        "created_at": "2026-04-28T00:00:00+00:00",
+        "updated_at": "2026-04-28T00:00:00+00:00",
+        "finalized_at": None,
+    }
+    detail.update(detail_overrides)
+    return [
+        [{"id": "s-1", "name": "House"}],
+        [{"id": "b-1"}],
+        [
+            {"id": f"t-{i}", "bucket_type": t}
+            for i, t in enumerate(
+                ["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"]
+            )
+        ],
+        [],   # no alive categories
+        [],   # classify INSERT
+        [detail],
+        [],   # buckets-with-counts
+    ]
+
+
+def test_create_block_favorites_branch_present() -> None:
+    api = _api_with_responses(_create_block_responses({}))
+    repo = TriageRepository(api)
+    repo.create_block(
+        user_id="u-1",
+        style_id="s-1",
+        name="X",
+        date_from=date(2026, 4, 20),
+        date_to=date(2026, 4, 26),
+        include_favorites=True,
+    )
+    classify_call = api.execute.call_args_list[4]
+    sql, params = classify_call.args[0], classify_call.args[1]
+    assert "clouder_user_label_prefs" in sql
+    assert "clouder_user_artist_prefs" in sql
+    assert "ulp.status = 'liked'" in sql
+    assert "uap.status = 'liked'" in sql
+    assert ":fav_bucket_id" in sql
+    assert "fav_bucket_id" in params
+
+
+def test_create_block_disliked_artists_branch_present() -> None:
+    api = _api_with_responses(_create_block_responses({}))
+    repo = TriageRepository(api)
+    repo.create_block(
+        user_id="u-1",
+        style_id="s-1",
+        name="X",
+        date_from=date(2026, 4, 20),
+        date_to=date(2026, 4, 26),
+        include_disliked_artists=True,
+    )
+    sql = api.execute.call_args_list[4].args[0]
+    assert "clouder_user_artist_prefs" in sql
+    assert "uap.status = 'disliked'" in sql
+    assert "cta.track_id = t.id" in sql
+
+
+def test_create_block_compilation_toggle_off_omits_branch() -> None:
+    api = _api_with_responses(_create_block_responses({"compilations_to_not": False}))
+    repo = TriageRepository(api)
+    repo.create_block(
+        user_id="u-1",
+        style_id="s-1",
+        name="X",
+        date_from=date(2026, 4, 20),
+        date_to=date(2026, 4, 26),
+        include_disliked_labels=False,
+        include_disliked_artists=False,
+        include_favorites=False,
+        compilations_to_not=False,
+    )
+    sql = api.execute.call_args_list[4].args[0]
+    params = api.execute.call_args_list[4].args[1]
+    assert "release_type = 'compilation'" not in sql
+    assert "fav_bucket_id" not in params
+    assert "not_bucket_id" not in params
+
+
+def test_create_block_persists_all_flags() -> None:
+    api = _api_with_responses(_create_block_responses({}))
+    repo = TriageRepository(api)
+    repo.create_block(
+        user_id="u-1",
+        style_id="s-1",
+        name="X",
+        date_from=date(2026, 4, 20),
+        date_to=date(2026, 4, 26),
+        include_disliked_labels=True,
+        include_disliked_artists=False,
+        compilations_to_not=True,
+        include_favorites=False,
+    )
+    (block_insert_call,) = [
+        c
+        for c in api.execute.call_args_list
+        if "INSERT INTO triage_blocks" in c.args[0]
+    ]
+    p = block_insert_call.args[1]
+    assert p["include_disliked_labels"] is True
+    assert p["include_disliked_artists"] is False
+    assert p["compilations_to_not"] is True
+    assert p["include_favorites"] is False
