@@ -1,9 +1,11 @@
-import { Group, Title, Text, Anchor, Badge, Tooltip } from '@mantine/core';
+import { Group, Title, Text, Anchor, Badge, Tooltip, Button } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { LabelDetail } from '../../../api/labels';
 import { countryFlag } from '../lib/countryFlag';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
+import { useAuth } from '../../../auth/useAuth';
+import { useEnrichLabelAuto } from '../hooks/useEnrichLabelAuto';
 
 interface Props {
   info: LabelDetail;
@@ -24,6 +26,9 @@ function formatAiContent(value: string): string {
 
 export function LabelDetailHeader({ info, styleId, labelId }: Props) {
   const { t } = useTranslation();
+  const { state } = useAuth();
+  const isAdmin = state.status === 'authenticated' && state.user.is_admin;
+  const enrich = useEnrichLabelAuto();
   const rec = info as Record<string, unknown>;
   const labelName = typeof rec.label_name === 'string' ? rec.label_name : '';
   const country = typeof rec.country === 'string' ? rec.country : '';
@@ -74,6 +79,16 @@ export function LabelDetailHeader({ info, styleId, labelId }: Props) {
         <Title order={2}>{labelName}</Title>
         {aiBadge}
         <LabelPreferenceButtons labelId={labelId} current={myPreference} size="md" />
+        {isAdmin && (
+          <Button
+            size="xs"
+            variant="light"
+            loading={enrich.isPending}
+            onClick={() => enrich.mutate({ labelId })}
+          >
+            {t('library.detail.admin_search_now')}
+          </Button>
+        )}
       </Group>
       <Group gap="xs" mt="xs">
         {country && (

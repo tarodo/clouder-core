@@ -9,7 +9,8 @@ import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 interface Props {
   labelId: string | null | undefined;
   labelName?: string | null | undefined;
-  styleId: string;
+  /** Present on bucket/category/curate players → name links to detail. Absent on playlists. */
+  styleId?: string;
 }
 
 interface LabelInfoView {
@@ -35,7 +36,6 @@ export function LabelTile({ labelId, labelName, styleId }: Props) {
   if (!labelId) return null;
 
   const info = query.data as LabelInfoView | undefined;
-  const detailUrl = `/library/${styleId}/labels/${labelId}`;
   const displayName = info?.label_name ?? labelName ?? '';
   const preference = pickPreference(info?.my_preference ?? null);
 
@@ -68,9 +68,15 @@ export function LabelTile({ labelId, labelName, styleId }: Props) {
   return (
     <Stack gap="sm" w={320}>
       <Group gap="sm" align="center" wrap="wrap">
-        <Anchor component={Link} to={detailUrl} fw={600} size="lg">
-          {displayName || labelId}
-        </Anchor>
+        {styleId ? (
+          <Anchor component={Link} to={`/library/${styleId}/labels/${labelId}`} fw={600} size="lg">
+            {displayName || labelId}
+          </Anchor>
+        ) : (
+          <Text fw={600} size="lg">
+            {displayName || labelId}
+          </Text>
+        )}
         {showFullCard && aiContent && (
           <Tooltip
             label={aiReasoning || t('library.detail.ai_reasoning_missing')}

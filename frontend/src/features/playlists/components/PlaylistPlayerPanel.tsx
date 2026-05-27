@@ -11,6 +11,7 @@ import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import { PlayerPanelTagCloud } from '../../categories/components/PlayerPanelTagCloud';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { LabelTile } from '../../library/components/LabelTile';
 import type { PlaylistTrack } from '../lib/playlistTypes';
 import classes from './PlaylistPlayerPanel.module.css';
 
@@ -228,11 +229,10 @@ export function PlaylistPlayerPanel({ playlistId, items }: PlaylistPlayerPanelPr
         onAdd={(id) => void onAddTag(id)}
         onRemove={(id) => void onRemoveTag(id)}
       />
-      {/*
-       * No LabelTile here: it links to /library/:styleId/labels/:id and a
-       * playlist track has no associated styleId. The label name is already
-       * shown in the PlayerCard meta row above, so we don't repeat it.
-       */}
+      <LabelTile
+        labelId={effectiveRich?.label?.id ?? null}
+        labelName={effectiveRich?.label?.name ?? null}
+      />
       <ArtistsPanel artists={effectiveRich?.artists ?? []} />
     </Stack>
   );

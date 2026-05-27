@@ -464,7 +464,7 @@ paths:
           description: Enrichment run accepted and queued.
           content:
             application/json:
-              schema:
+              schema: &id003
                 type: object
                 required:
                 - run_id
@@ -558,6 +558,48 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/labels/{label_id}/enrich-auto:
+    post:
+      summary: 'Admin: enqueue one label using saved auto-search settings.'
+      responses:
+        '202':
+          description: Enrichment run accepted and queued.
+          content:
+            application/json:
+              schema: *id003
+        '404':
+          description: label_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: auto_config_missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Reads the registered auto-enrich config for labels, creates a run,
+        and enqueues this label onto the label-enrichment SQS queue. Returns 202 with
+        the run id. 409 if no auto-enrich config is set up.
+      parameters:
+      - name: label_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /admin/labels/enrich-runs/{run_id}:
     get:
       summary: 'Admin: get status + counters for a label-enrichment run.'
@@ -566,7 +608,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id015
+              schema: &id017
                 type: object
                 required:
                 - id
@@ -1129,7 +1171,7 @@ paths:
           description: Paginated items.
           content:
             application/json:
-              schema: &id003
+              schema: &id004
                 type: object
                 required:
                 - items
@@ -1163,8 +1205,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401': *id001
         '403': *id002
-      parameters: &id004
-      - &id006
+      parameters: &id005
+      - &id007
         name: limit
         in: query
         schema:
@@ -1172,14 +1214,14 @@ paths:
           minimum: 1
           maximum: 200
           default: 50
-      - &id007
+      - &id008
         name: offset
         in: query
         schema:
           type: integer
           minimum: 0
           default: 0
-      - &id008
+      - &id009
         name: search
         in: query
         schema:
@@ -1197,7 +1239,7 @@ paths:
           description: Paginated items.
           content:
             application/json:
-              schema: *id003
+              schema: *id004
         '400':
           description: validation_error (limit/offset out of range).
           content:
@@ -1212,7 +1254,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401': *id001
         '403': *id002
-      parameters: *id004
+      parameters: *id005
       security:
       - BearerAuth: []
       tags:
@@ -1225,7 +1267,7 @@ paths:
           description: Paginated items.
           content:
             application/json:
-              schema: *id003
+              schema: *id004
         '400':
           description: validation_error (limit/offset out of range).
           content:
@@ -1240,7 +1282,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401': *id001
         '403': *id002
-      parameters: *id004
+      parameters: *id005
       security:
       - BearerAuth: []
       tags:
@@ -1253,7 +1295,7 @@ paths:
           description: Paginated items.
           content:
             application/json:
-              schema: *id003
+              schema: *id004
         '401': *id001
         '403':
           description: admin_required.
@@ -1261,7 +1303,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      parameters: *id004
+      parameters: *id005
       security:
       - BearerAuth: []
       tags:
@@ -1274,7 +1316,7 @@ paths:
           description: Category created.
           content:
             application/json:
-              schema: &id005
+              schema: &id006
                 type: object
                 required:
                 - id
@@ -1362,7 +1404,7 @@ paths:
           description: Paginated categories.
           content:
             application/json:
-              schema: &id009
+              schema: &id010
                 type: object
                 required:
                 - items
@@ -1372,7 +1414,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: *id005
+                    items: *id006
                   total:
                     type: integer
                   limit:
@@ -1402,9 +1444,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
       - *id007
       - *id008
+      - *id009
       security:
       - BearerAuth: []
       tags:
@@ -1424,7 +1466,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: *id005
+                    items: *id006
                   correlation_id:
                     type: string
         '404':
@@ -1482,7 +1524,7 @@ paths:
           description: Paginated categories.
           content:
             application/json:
-              schema: *id009
+              schema: *id010
         '422':
           description: validation_error (limit/offset out of range).
           content:
@@ -1491,7 +1533,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401': *id001
         '403': *id002
-      parameters: *id004
+      parameters: *id005
       security:
       - BearerAuth: []
       tags:
@@ -1504,7 +1546,7 @@ paths:
           description: Category.
           content:
             application/json:
-              schema: *id005
+              schema: *id006
         '404':
           description: category_not_found.
           content:
@@ -1531,7 +1573,7 @@ paths:
           description: Renamed category.
           content:
             application/json:
-              schema: *id005
+              schema: *id006
         '404':
           description: category_not_found.
           content:
@@ -1731,9 +1773,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
       - *id007
       - *id008
+      - *id009
       - name: search
         in: query
         schema:
@@ -1775,7 +1817,7 @@ paths:
           description: Track added.
           content:
             application/json:
-              schema: &id010
+              schema: &id011
                 type: object
                 required:
                 - result
@@ -1798,7 +1840,7 @@ paths:
           description: Track already in category (no change).
           content:
             application/json:
-              schema: *id010
+              schema: *id011
         '404':
           description: category_not_found or track_not_found.
           content:
@@ -1881,7 +1923,7 @@ paths:
           description: Block created.
           content:
             application/json:
-              schema: &id012
+              schema: &id013
                 type: object
                 required:
                 - id
@@ -2015,7 +2057,7 @@ paths:
           description: Paginated triage block summaries.
           content:
             application/json:
-              schema: &id011
+              schema: &id012
                 type: object
                 required:
                 - items
@@ -2087,9 +2129,9 @@ paths:
         '401': *id001
         '403': *id002
       parameters:
-      - *id006
       - *id007
       - *id008
+      - *id009
       - name: status
         in: query
         schema:
@@ -2110,7 +2152,7 @@ paths:
           description: Paginated triage block summaries.
           content:
             application/json:
-              schema: *id011
+              schema: *id012
         '422':
           description: validation_error (limit/offset/status invalid).
           content:
@@ -2126,9 +2168,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
       - *id007
       - *id008
+      - *id009
       - name: status
         in: query
         schema:
@@ -2149,7 +2191,7 @@ paths:
           description: Triage block detail.
           content:
             application/json:
-              schema: *id012
+              schema: *id013
         '404':
           description: triage_block_not_found.
           content:
@@ -2303,9 +2345,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
       - *id007
       - *id008
+      - *id009
       security:
       - BearerAuth: []
       tags:
@@ -2449,7 +2491,7 @@ paths:
                 - block
                 - promoted
                 properties:
-                  block: *id012
+                  block: *id013
                   promoted:
                     type: object
                     additionalProperties:
@@ -2501,7 +2543,7 @@ paths:
           description: Tag created.
           content:
             application/json:
-              schema: &id013
+              schema: &id014
                 type: object
                 required:
                 - id
@@ -2583,7 +2625,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: *id013
+                    items: *id014
                   total:
                     type: integer
                   limit:
@@ -2593,9 +2635,9 @@ paths:
         '401': *id001
         '403': *id002
       parameters:
-      - *id006
       - *id007
       - *id008
+      - *id009
       - name: search
         in: query
         schema:
@@ -2613,7 +2655,7 @@ paths:
           description: Tag updated.
           content:
             application/json:
-              schema: *id013
+              schema: *id014
         '400':
           description: invalid_name, invalid_color, or invalid_payload.
           content:
@@ -2740,14 +2782,14 @@ paths:
           description: Updated tag set.
           content:
             application/json:
-              schema: &id014
+              schema: &id015
                 type: object
                 required:
                 - tags
                 properties:
                   tags:
                     type: array
-                    items: *id013
+                    items: *id014
         '400':
           description: invalid_tag_ids or too_many_tags.
           content:
@@ -2810,7 +2852,7 @@ paths:
           description: Updated tag set (idempotent on conflict).
           content:
             application/json:
-              schema: *id014
+              schema: *id015
         '400':
           description: invalid_tag_ids.
           content:
@@ -2952,13 +2994,13 @@ paths:
           description: Paginated playlists.
           content:
             application/json:
-              schema: *id003
+              schema: *id004
         '401': *id001
         '403': *id002
       parameters:
-      - *id006
       - *id007
       - *id008
+      - *id009
       - name: status
         in: query
         required: false
@@ -3099,7 +3141,7 @@ paths:
           description: Paginated playlist tracks.
           content:
             application/json:
-              schema: *id003
+              schema: *id004
         '404':
           description: playlist_not_found.
           content:
@@ -3115,9 +3157,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
       - *id007
       - *id008
+      - *id009
       security:
       - BearerAuth: []
       tags:
@@ -3623,7 +3665,7 @@ paths:
           description: Enrichment run accepted and queued.
           content:
             application/json:
-              schema:
+              schema: &id016
                 type: object
                 required:
                 - run_id
@@ -3717,6 +3759,48 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/artists/{artist_id}/enrich-auto:
+    post:
+      summary: 'Admin: enqueue one artist using saved auto-search settings.'
+      responses:
+        '202':
+          description: Enrichment run accepted and queued.
+          content:
+            application/json:
+              schema: *id016
+        '404':
+          description: artist_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: auto_config_missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Reads the registered auto-enrich config for artists, creates a
+        run, and enqueues this artist onto the artist-enrichment SQS queue. Returns
+        202 with the run id. 409 if no auto-enrich config is set up.
+      parameters:
+      - name: artist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /admin/artists/enrich-runs/{run_id}:
     get:
       summary: 'Admin: get status + counters for an artist-enrichment run.'
@@ -3725,7 +3809,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id016
+              schema: &id018
                 type: object
                 required:
                 - id
@@ -4709,7 +4793,7 @@ components:
           type: integer
           description: Count of labels sent to AI search SQS. Zero if `search_label_count`
             was omitted.
-    LabelEnrichRunResponse: *id015
+    LabelEnrichRunResponse: *id017
     LabelSummary:
       type: object
       required:
@@ -5006,7 +5090,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
-    ArtistEnrichRunResponse: *id016
+    ArtistEnrichRunResponse: *id018
     ArtistSummary:
       type: object
       required:

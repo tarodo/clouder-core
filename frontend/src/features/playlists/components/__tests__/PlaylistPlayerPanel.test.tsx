@@ -1,11 +1,20 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { server } from '../../../../test/setup';
 import { PlaylistPlayerPanel } from '../PlaylistPlayerPanel';
 import type { PlaylistTrack } from '../../lib/playlistTypes';
+
+// ArtistsPanel fires GET /artists/:id for each artist in the track.
+// This file tests panel-level behaviour, not tile internals — mock it out
+// exactly as BucketPlayerPanel.test.tsx does for its sibling panel.
+vi.mock('../../../library/components/ArtistsPanel', () => ({
+  ArtistsPanel: () => <div data-testid="artists-panel" />,
+}));
 
 // Stub usePlayback — mirrors CategoryDetailPage.test.tsx:20-53
 const playbackWithTrack = {
@@ -120,6 +129,14 @@ beforeEach(() => {
     if (typeof m === 'function' && 'mockReset' in m)
       (m as { mockReset: () => void }).mockReset();
   });
+  // Silence the GET /labels/lbl1 that LabelTile fires for seedTrack. Tests that
+  // exercise real LabelTile behaviour use a different label id (lbl-1) and
+  // register their own handler via server.use().
+  server.use(
+    http.get('http://localhost/labels/lbl1', () =>
+      HttpResponse.json({ label_name: 'Techno Label', my_preference: null }),
+    ),
+  );
 });
 
 describe('PlaylistPlayerPanel', () => {
@@ -159,5 +176,22 @@ describe('PlaylistPlayerPanel', () => {
     render(ui([seedTrack], { ...playbackWithTrack, queue: { ...playbackWithTrack.queue, source: { type: 'category' as const, categoryId: 'c1', styleId: 's1' } } }));
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyK' }));
     expect(playbackWithTrack.controls.next).not.toHaveBeenCalled();
+  });
+
+  it('renders LabelTile with label name as plain text (no link)', async () => {
+    const fokuzTrack: PlaylistTrack = {
+      ...seedTrack,
+      label: { id: 'lbl-1', name: 'Fokuz Recordings' },
+    };
+    server.use(
+      http.get('http://localhost/labels/lbl-1', () =>
+        HttpResponse.json({ label_name: 'Fokuz Recordings', my_preference: null }),
+      ),
+    );
+    render(ui([fokuzTrack]));
+    // LabelTile renders LabelPreferenceButtons — "Like label" is specific to the tile.
+    expect(await screen.findByRole('button', { name: 'Like label' })).toBeInTheDocument();
+    // Linkless in the playlist player: the label name is not a router link.
+    expect(screen.queryByRole('link', { name: 'Fokuz Recordings' })).not.toBeInTheDocument();
   });
 });

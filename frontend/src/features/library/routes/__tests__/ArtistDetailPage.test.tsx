@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { I18nextProvider } from 'react-i18next';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
 import i18n from '../../../../i18n';
 import { tokenStore } from '../../../../auth/tokenStore';
+import { AuthContext, type AuthContextValue } from '../../../../auth/AuthProvider';
+import { server } from '../../../../test/setup';
 import { ArtistDetailPage } from '../ArtistDetailPage';
 
 const MOCK_ARTIST = {
@@ -32,7 +36,21 @@ vi.mock('../../hooks/useArtistDetail', () => ({
   }),
 }));
 
-function renderPage() {
+function makeAuth(is_admin = false): AuthContextValue {
+  return {
+    state: {
+      status: 'authenticated',
+      user: { id: 'u', spotify_id: 's', display_name: 'Test User', is_admin },
+      expiresAt: Date.now() + 1_800_000,
+      spotifyAccessToken: null,
+    },
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    refresh: vi.fn(),
+  };
+}
+
+function renderPage(auth: AuthContextValue = makeAuth()) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
@@ -40,14 +58,16 @@ function renderPage() {
     <MantineProvider>
       <I18nextProvider i18n={i18n}>
         <QueryClientProvider client={qc}>
-          <MemoryRouter initialEntries={['/library/dnb/artists/artist-1']}>
-            <Routes>
-              <Route
-                path="/library/:styleId/artists/:artistId"
-                element={<ArtistDetailPage />}
-              />
-            </Routes>
-          </MemoryRouter>
+          <AuthContext.Provider value={auth}>
+            <MemoryRouter initialEntries={['/library/dnb/artists/artist-1']}>
+              <Routes>
+                <Route
+                  path="/library/:styleId/artists/:artistId"
+                  element={<ArtistDetailPage />}
+                />
+              </Routes>
+            </MemoryRouter>
+          </AuthContext.Provider>
         </QueryClientProvider>
       </I18nextProvider>
     </MantineProvider>,
@@ -94,5 +114,25 @@ describe('ArtistDetailPage', () => {
     renderPage();
     const ig = screen.getByRole('link', { name: /instagram/i });
     expect(ig).toHaveAttribute('href', 'https://instagram.com/noisia');
+  });
+
+  it('shows no "Search now" button for non-admins', async () => {
+    renderPage(makeAuth(false));
+    await screen.findByRole('heading', { level: 2 });
+    expect(screen.queryByRole('button', { name: /search now/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a working "Search now" button for admins', async () => {
+    let posted = false;
+    server.use(
+      http.post('http://localhost/admin/artists/:id/enrich-auto', () => {
+        posted = true;
+        return HttpResponse.json({ run_id: 'run-1', queued_artists: 1 }, { status: 202 });
+      }),
+    );
+    renderPage(makeAuth(true));
+    const btn = await screen.findByRole('button', { name: /search now/i });
+    await userEvent.click(btn);
+    await waitFor(() => expect(posted).toBe(true));
   });
 });

@@ -64,6 +64,7 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/runs",
     "GET /tracks/spotify-not-found",
     "POST /admin/labels/enrich",
+    "POST /admin/labels/{label_id}/enrich-auto",
     "GET /admin/labels/enrich/options",
     "GET /admin/labels/enrich-runs",
     "GET /admin/labels/enrich-runs/{run_id}",
@@ -73,6 +74,7 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/auto-enrich/labels",
     "PUT /admin/auto-enrich/labels",
     "POST /admin/artists/enrich",
+    "POST /admin/artists/{artist_id}/enrich-auto",
     "GET /admin/artists/enrich/options",
     "GET /admin/artists/enrich-runs",
     "GET /admin/artists/enrich-runs/{run_id}",
@@ -171,6 +173,10 @@ def _route(
         from .label_enrichment.routes import handle_post_enrich
         status, body = handle_post_enrich(event)
         return _json_response(status, body, correlation_id)
+    if route_key == "POST /admin/labels/{label_id}/enrich-auto":
+        from .label_enrichment.routes import handle_post_enrich_auto
+        status, body = handle_post_enrich_auto(event)
+        return _json_response(status, body, correlation_id)
     if route_key == "GET /admin/labels/enrich/options":
         from .label_enrichment.routes import handle_get_options
         status, body = handle_get_options(event)
@@ -234,6 +240,10 @@ def _route(
     if route_key == "POST /admin/artists/enrich":
         from .artist_enrichment.routes import handle_post_enrich
         status, body = handle_post_enrich(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "POST /admin/artists/{artist_id}/enrich-auto":
+        from .artist_enrichment.routes import handle_post_enrich_auto
+        status, body = handle_post_enrich_auto(event)
         return _json_response(status, body, correlation_id)
     if route_key == "GET /admin/artists/enrich/options":
         from .artist_enrichment.routes import handle_get_options

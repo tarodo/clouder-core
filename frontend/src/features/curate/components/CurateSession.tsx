@@ -20,6 +20,7 @@ import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import { spotifyApi } from '../../playback/api/spotifyWebApi';
 import { LabelTile } from '../../library/components/LabelTile';
+import { ArtistsPanel } from '../../library/components/ArtistsPanel';
 
 export interface CurateSessionProps {
   styleId: string;
@@ -336,6 +337,10 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         <LabelTile
           labelId={session.currentTrack?.label_id ?? null}
           labelName={session.currentTrack?.label_name ?? null}
+          styleId={styleId}
+        />
+        <ArtistsPanel
+          artists={session.currentTrack?.artists ?? []}
           styleId={styleId}
         />
       </div>
