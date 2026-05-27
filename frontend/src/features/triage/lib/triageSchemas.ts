@@ -29,7 +29,10 @@ export const createTriageBlockSchema = z.object({
   name: triageNameSchema,
   dateRange: triageDateRangeSchema,
   oldOffsetWeeks: z.number().int().min(0).max(520).default(0),
-  includeDislikedLabels: z.boolean().default(false),
+  includeDislikedLabels: z.boolean().default(true),
+  includeDislikedArtists: z.boolean().default(true),
+  compilationsToNot: z.boolean().default(true),
+  includeFavorites: z.boolean().default(true),
 });
 
 // Use `z.input` (not `z.infer`) so the form's value type matches what Mantine
