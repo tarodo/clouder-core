@@ -1461,6 +1461,14 @@ ROUTES: list[dict[str, Any]] = [
             "and enqueues this label onto the label-enrichment SQS queue. Returns "
             "202 with the run id. 409 if no auto-enrich config is set up."
         ),
+        "parameters": [
+            {
+                "name": "label_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
         "responses": {
             "202": _make_response(
                 202,
@@ -2949,6 +2957,14 @@ ROUTES: list[dict[str, Any]] = [
             "and enqueues this artist onto the artist-enrichment SQS queue. Returns "
             "202 with the run id. 409 if no auto-enrich config is set up."
         ),
+        "parameters": [
+            {
+                "name": "artist_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
         "responses": {
             "202": _make_response(
                 202,

@@ -844,7 +844,9 @@ export interface paths {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    label_id: string;
+                };
                 cookie?: never;
             };
             requestBody?: never;
@@ -5605,7 +5607,9 @@ export interface paths {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    artist_id: string;
+                };
                 cookie?: never;
             };
             requestBody?: never;

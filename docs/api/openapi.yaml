@@ -589,6 +589,13 @@ paths:
       description: Reads the registered auto-enrich config for labels, creates a run,
         and enqueues this label onto the label-enrichment SQS queue. Returns 202 with
         the run id. 409 if no auto-enrich config is set up.
+      parameters:
+      - name: label_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       security:
       - BearerAuth: []
       tags:
@@ -3777,6 +3784,13 @@ paths:
       description: Reads the registered auto-enrich config for artists, creates a
         run, and enqueues this artist onto the artist-enrichment SQS queue. Returns
         202 with the run id. 409 if no auto-enrich config is set up.
+      parameters:
+      - name: artist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       security:
       - BearerAuth: []
       tags:
