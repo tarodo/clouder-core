@@ -86,6 +86,10 @@ from .label_enrichment.auto_dispatch import (
     try_dispatch_for_track,
     try_dispatch_for_triage_block,
 )
+from .artist_enrichment.auto_dispatch import (
+    try_dispatch_artists_for_track,
+    try_dispatch_artists_for_triage_block,
+)
 from .logging_utils import log_event
 
 
@@ -572,6 +576,7 @@ def _handle_add_track(event, repo, user_id, correlation_id):
     )
     if was_new:
         try_dispatch_for_track(track_id=body.track_id, user_id=user_id)
+        try_dispatch_artists_for_track(track_id=body.track_id, user_id=user_id)
     payload = {
         "result": "added" if was_new else "already_present",
         "added_at": result["added_at"],
@@ -1341,6 +1346,7 @@ def _finalize_triage_block(
         promoted_count=sum(out.promoted.values()),
     )
     try_dispatch_for_triage_block(block_id=block_id, user_id=user_id)
+    try_dispatch_artists_for_triage_block(block_id=block_id, user_id=user_id)
     return _json_response(
         200,
         {
