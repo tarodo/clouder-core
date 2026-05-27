@@ -196,6 +196,18 @@ def test_build_search_query_extracts_artist():
     assert _build_search_query(user) == '"ANNA" music artist'
 
 
+def test_build_search_query_includes_labels():
+    from artlab.vendors.tavily_deepseek import _build_search_query
+
+    user = (
+        'Research the electronic-music artist "ANNA".\n'
+        'Disambiguation context — this is the artist who released: Hidden Beauties; '
+        'on labels: Drumcode, Kompakt; genre hint: techno.\n'
+        'Find: aliases and real name...'
+    )
+    assert _build_search_query(user) == '"ANNA" Drumcode, Kompakt music artist'
+
+
 def test_build_search_query_falls_back_for_unquoted():
     from artlab.vendors.tavily_deepseek import _build_search_query
 
