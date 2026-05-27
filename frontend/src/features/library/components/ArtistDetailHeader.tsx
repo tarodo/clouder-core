@@ -1,25 +1,15 @@
-import { Group, Title, Text, Anchor, Badge, Tooltip } from '@mantine/core';
+import { Group, Title, Text, Anchor } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { ArtistDetail } from '../../../api/artists';
 import { countryFlag } from '../lib/countryFlag';
+import { AiContentBadge } from '../lib/aiContent';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 
 interface Props {
   info: ArtistDetail;
   styleId: string;
   artistId: string;
-}
-
-const AI_COLOR: Record<string, string> = {
-  none_detected: 'green',
-  unknown: 'gray',
-  suspected: 'yellow',
-  confirmed: 'red',
-};
-
-function formatAiContent(value: string): string {
-  return `AI ${value.toUpperCase()}`;
 }
 
 export function ArtistDetailHeader({ info, styleId, artistId }: Props) {
@@ -37,34 +27,6 @@ export function ArtistDetailHeader({ info, styleId, artistId }: Props) {
       ? rec.my_preference
       : null;
 
-  const aiBadge = aiContent ? (
-    <Tooltip
-      label={aiReasoning || t('library.detail.ai_reasoning_missing')}
-      multiline
-      w={340}
-      withinPortal
-      events={{ hover: true, focus: true, touch: true }}
-      styles={{
-        tooltip: {
-          backgroundColor: 'white',
-          color: 'black',
-          padding: '12px 16px',
-          lineHeight: 1.5,
-          border: '1px solid var(--mantine-color-gray-3)',
-          boxShadow: 'var(--mantine-shadow-md)',
-        },
-      }}
-    >
-      <Badge
-        color={AI_COLOR[aiContent] ?? 'gray'}
-        variant="light"
-        style={{ cursor: 'help' }}
-      >
-        {formatAiContent(aiContent)}
-      </Badge>
-    </Tooltip>
-  ) : null;
-
   return (
     <>
       <Anchor component={Link} to={`/library/${styleId}/artists`} size="sm">
@@ -72,7 +34,7 @@ export function ArtistDetailHeader({ info, styleId, artistId }: Props) {
       </Anchor>
       <Group gap="sm" mt="xs" align="center" wrap="wrap">
         <Title order={2}>{artistName}</Title>
-        {aiBadge}
+        <AiContentBadge content={aiContent} reasoning={aiReasoning} variant="colored" />
         <ArtistPreferenceButtons artistId={artistId} current={myPreference} size="md" />
       </Group>
       <Group gap="xs" mt="xs">
