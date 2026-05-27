@@ -212,6 +212,104 @@ resource "aws_apigatewayv2_route" "auto_enrich_labels_put" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+# ── artist enrichment routes ──────────────────────────────────────────────
+
+resource "aws_apigatewayv2_route" "artists_enrich_post" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /admin/artists/enrich"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "artists_enrich_runs_get" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/artists/enrich-runs/{run_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "artists_enrich_runs_list" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/artists/enrich-runs"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "artists_enrich_options" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/artists/enrich/options"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "artists_backlog" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/artists/backlog"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "artists_get_info" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/artists/{artist_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "artist_history" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/artists/{artist_id}/history"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "auto_enrich_artists_get" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/auto-enrich/artists"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "auto_enrich_artists_put" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "PUT /admin/auto-enrich/artists"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "artist_detail_user" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /artists/{artist_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "artist_preference_put" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "PUT /artists/{artist_id}/preference"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "my_artist_preferences" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /me/artist-preferences"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_lambda_permission" "allow_apigw" {
   statement_id  = "AllowExecutionFromApiGateway"
   action        = "lambda:InvokeFunction"
