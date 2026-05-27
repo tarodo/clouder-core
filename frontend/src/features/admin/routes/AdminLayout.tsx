@@ -8,6 +8,7 @@ import { RunProgressToast } from '../components/RunProgressToast';
 const TAB_VALUES = [
   '/admin/labels/enrich/runs',
   '/admin/labels/enrich',
+  '/admin/artists/enrich',
   '/admin/coverage',
   '/admin/spotify-not-found',
   '/admin/auto-enrich',
@@ -23,6 +24,7 @@ export function AdminLayout() {
     { value: '/admin/spotify-not-found', label: t('admin.tabs.spotify_not_found') },
     { value: '/admin/labels/enrich', label: t('admin_enrichment.tabs.backlog') },
     { value: '/admin/labels/enrich/runs', label: t('admin_enrichment.tabs.runs') },
+    { value: '/admin/artists/enrich', label: t('admin_enrichment.tabs.artist_backlog') },
     { value: '/admin/auto-enrich', label: t('admin_auto_enrich.title') },
   ];
 

@@ -922,7 +922,8 @@
   "admin_enrichment": {
     "tabs": {
       "backlog": "Labels",
-      "runs": "Label runs"
+      "runs": "Label runs",
+      "artist_backlog": "Artists"
     },
     "history": {
       "title": "Enrichment history",
