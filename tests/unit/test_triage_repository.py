@@ -257,6 +257,7 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
     # Pref tables are omitted unless a label/artist toggle is on
     # (all favorite/disliked toggles passed off here).
     assert "clouder_user_label_prefs" not in sql
+    assert "clouder_user_artist_prefs" not in sql
     assert params["user_id"] == "u-1"
     assert params["style_id"] == "s-1"
     assert params["date_from"] == date(2026, 4, 20)
@@ -1038,9 +1039,11 @@ def test_create_block_disliked_artists_branch_present() -> None:
         include_disliked_artists=True,
     )
     sql = api.execute.call_args_list[4].args[0]
+    params = api.execute.call_args_list[4].args[1]
     assert "clouder_user_artist_prefs" in sql
     assert "uap.status = 'disliked'" in sql
     assert "cta.track_id = t.id" in sql
+    assert "not_bucket_id" in params
 
 
 def test_create_block_compilation_toggle_off_omits_branch() -> None:
