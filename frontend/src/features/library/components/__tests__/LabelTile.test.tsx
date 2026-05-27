@@ -72,6 +72,24 @@ describe('LabelTile', () => {
     await waitFor(() => expect(screen.getByText('Fokuz')).toBeInTheDocument());
     expect(screen.getByText('soulful d&b')).toBeInTheDocument();
   });
+
+  it('renders the name as plain text (no link) when styleId is absent', () => {
+    renderTileNoStyle('hanging', 'Linkless Label');
+    expect(screen.getByText('Linkless Label')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^like label$/i })).toBeInTheDocument();
+  });
+
+  it('renders the name as a link when styleId is present', async () => {
+    server.use(
+      http.get('http://localhost/labels/linked', () =>
+        HttpResponse.json({ label_name: 'Linked', my_preference: null }),
+      ),
+    );
+    renderTile('linked', 'fallback');
+    await waitFor(() => expect(screen.getByText('Linked')).toBeInTheDocument());
+    expect(screen.getByRole('link', { name: 'Linked' })).toBeInTheDocument();
+  });
 });
 
 function renderTileNoStyle(labelId: string | null, labelName: string | null = null) {
@@ -88,21 +106,3 @@ function renderTileNoStyle(labelId: string | null, labelName: string | null = nu
     </MantineProvider>
   );
 }
-
-it('renders the name as plain text (no link) when styleId is absent', () => {
-  renderTileNoStyle('hanging', 'Linkless Label');
-  expect(screen.getByText('Linkless Label')).toBeInTheDocument();
-  expect(screen.queryByRole('link')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /^like label$/i })).toBeInTheDocument();
-});
-
-it('renders the name as a link when styleId is present', async () => {
-  server.use(
-    http.get('http://localhost/labels/linked', () =>
-      HttpResponse.json({ label_name: 'Linked', my_preference: null }),
-    ),
-  );
-  renderTile('linked', 'fallback');
-  await waitFor(() => expect(screen.getByText('Linked')).toBeInTheDocument());
-  expect(screen.getByRole('link', { name: 'Linked' })).toBeInTheDocument();
-});
