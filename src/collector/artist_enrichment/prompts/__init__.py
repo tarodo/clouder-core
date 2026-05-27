@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base import PromptConfig
 
 PROMPTS: dict[str, PromptConfig] = {}
@@ -9,6 +11,8 @@ PROMPTS: dict[str, PromptConfig] = {}
 # Populated by load_builtin_prompts() on first call; used to re-register
 # builtins if PROMPTS is cleared between test runs.
 _BUILTIN_CONFIGS: list[PromptConfig] = []
+
+_DEFAULT_PROMPT_SLUG = "artist_v1"
 
 
 def register(cfg: PromptConfig) -> None:
@@ -36,3 +40,21 @@ def load_builtin_prompts() -> None:
 
     for cfg in _BUILTIN_CONFIGS:
         register(cfg)
+
+
+def list_prompt_versions() -> list[dict[str, Any]]:
+    """Return all loaded prompt registry entries as serializable dicts.
+
+    Default selection: prompt with slug == 'artist_v1'.
+    """
+    items: list[dict[str, Any]] = []
+    for slug, cfg in PROMPTS.items():
+        items.append(
+            {
+                "slug": slug,
+                "version": cfg.version,
+                "description": cfg.description,
+                "is_default": slug == _DEFAULT_PROMPT_SLUG,
+            }
+        )
+    return sorted(items, key=lambda p: (not p["is_default"], p["slug"]))
