@@ -1,0 +1,52 @@
+fixtures:
+  - id: anna
+    artist_name: ANNA
+    style: techno
+    sample_tracks:
+      - "Hidden Beauties"
+      - "Forsaken"
+    known_labels:
+      - Drumcode
+      - Kompakt
+    ground_truth:
+      country: Brazil
+      active_since: 2008
+      ai_content_expected: none_detected
+
+  - id: aphex-twin
+    artist_name: Aphex Twin
+    style: idm
+    sample_tracks:
+      - "Windowlicker"
+      - "Avril 14th"
+    known_labels:
+      - Warp Records
+    ground_truth:
+      country: GB
+      ai_content_expected: none_detected
+
+  - id: name-collision-vision
+    artist_name: Vision
+    style: drum and bass
+    sample_tracks: []
+    known_labels:
+      - Hospital Records
+    ground_truth: null
+
+  - id: obscure-niche
+    artist_name: Pessimist
+    style: drum and bass / techno
+    sample_tracks:
+      - "Through Stims"
+    known_labels:
+      - Pessimist Productions
+      - Ilian Tape
+    ground_truth: null
+
+  - id: synthetic-ai-artist
+    artist_name: Aiva Nova
+    style: lofi
+    sample_tracks: []
+    known_labels: []
+    ground_truth:
+      ai_content_expected: suspected
