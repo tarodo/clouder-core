@@ -144,7 +144,21 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
   const hasOverflow = stagingOverflow(session.destinations).length > 0;
 
   return (
-    <div style={{ position: 'relative', width: '100%', minHeight: '100%', display: 'flex', justifyContent: 'center' }}>
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        minHeight: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        // Center the player relative to the viewport, not to AppShell.Main —
+        // Main has padding-left = navbar-offset, so without this shift the
+        // whole layout slides right by half the navbar width when the side
+        // navigation opens. The var is 0 on mobile / when the navbar is
+        // hidden, so this is a no-op there.
+        transform: 'translateX(calc(-1 * var(--app-shell-navbar-offset) / 2))',
+      }}
+    >
     <Stack
       gap={isMobile ? 'xs' : 'sm'}
       p={isMobile ? 'sm' : 'md'}
