@@ -33,7 +33,12 @@ SYSTEM = (
     "`ai_signals`. ai_content=confirmed only with strong evidence (the artist "
     "or press explicitly states AI generation). ai_reasoning is always "
     "required, even when none_detected — explain why.\n"
-    "- summary is always required.\n"
+    "- Narrative fields are three DISTINCT outputs, all required:\n"
+    "    - tagline: ONE punchy sentence (≤100 chars) capturing the artist's "
+    "identity (style / scene / era). Never leave it empty — derive it from "
+    "your strongest signal.\n"
+    "    - summary: 2–4 factual sentences, no superlatives.\n"
+    "    - bio: 1–3 additional factual sentences (history or scene context).\n"
     "- confidence: 1.0 only if identity is confirmed via the context match "
     "AND country is sourced AND there are >=3 supporting sources."
 )
@@ -43,7 +48,9 @@ USER_TEMPLATE = (
     "Find: aliases and real name, country and city, years active, labels they "
     "release on, frequent collaborators and remixers, notable releases, "
     "streaming and social profiles (Spotify, SoundCloud, Bandcamp, Beatport, "
-    "Resident Advisor, Discogs, Instagram), primary styles, and a short bio.\n"
+    "Resident Advisor, Discogs, Instagram), primary styles, a tagline (one "
+    "punchy sentence ≤100 chars), a summary (2–4 sentences), and a short bio "
+    "(1–3 factual sentences).\n"
     "Then assess AI-content status and explain your reasoning."
 )
 
