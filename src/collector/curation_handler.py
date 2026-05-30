@@ -278,10 +278,12 @@ def _playlist_track_response(row) -> dict[str, Any]:
     }
 
 
-def _project_candidate(c: dict) -> dict[str, Any]:
+def _project_candidate(c: dict) -> dict[str, Any] | None:
     ref = c.get("ref") or {}
     vt = result_to_ref(ref)
     vid = vt.vendor_track_id if vt else str(ref.get("videoId") or "")
+    if not vid:
+        return None
     return {
         "vendor_track_id": vid,
         "title": vt.title if vt else str(ref.get("title") or ""),
@@ -319,7 +321,8 @@ def _handle_match_candidates(event, repo, user_id, correlation_id):
     return _json_response(
         200,
         {"vendor": vendor,
-         "candidates": [_project_candidate(c) for c in review.candidates]},
+         "candidates": [p for c in review.candidates
+                        if (p := _project_candidate(c)) is not None]},
         correlation_id,
     )
 
@@ -361,12 +364,12 @@ def _handle_resolve_match(event, repo, user_id, correlation_id):
             clouder_track_id=track_id, vendor=body.vendor, now=utc_now(),
         )
 
-    status = repo.fetch_ytmusic_status([track_id]).get(track_id)
     log_event(
         "INFO", "match_review_resolved",
         correlation_id=correlation_id, user_id=user_id,
-        track_id=track_id, vendor=body.vendor, action=body.action,
+        playlist_id=pid, track_id=track_id, vendor=body.vendor, action=body.action,
     )
+    status = repo.fetch_ytmusic_status([track_id]).get(track_id)
     return _json_response(200, {"ytmusic": _ytmusic_status_dict(status)}, correlation_id)
 
 

@@ -40,7 +40,7 @@ def _event(pid="pl1", tid="t1", body=None, qs=None):
     return e
 
 
-def test_candidates_projects_top5():
+def test_candidates_projects_each():
     repo = Repo(review=ReviewRow(candidates=[_candidate()]))
     resp = ch._handle_match_candidates(_event(qs={"vendor": "ytmusic"}), repo, "u1", "c1")
     body = json.loads(resp["body"])
@@ -103,3 +103,12 @@ def test_resolve_out_of_scope_raises():
         assert False, "expected TrackNotInUserScopeError"
     except ch.TrackNotInUserScopeError:
         pass
+
+
+def test_candidates_skips_ref_without_video_id():
+    bad = {"ref": {"title": "no id", "artists": []}, "score": 0.4}
+    good = _candidate()
+    repo = Repo(review=ReviewRow(candidates=[bad, good]))
+    resp = ch._handle_match_candidates(_event(qs={"vendor": "ytmusic"}), repo, "u1", "c1")
+    body = json.loads(resp["body"])
+    assert [c["vendor_track_id"] for c in body["candidates"]] == ["dQw4w9WgXcQ"]
