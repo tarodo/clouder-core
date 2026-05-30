@@ -3807,8 +3807,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '403': *id002
         '401': *id001
+        '403':
+          description: track_not_in_scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       description: Resolves the open match-review for the given track. `action=accept`
         requires `vendor_track_id`. 400 on invalid payload; 403 if the track is not
         in scope for this user.

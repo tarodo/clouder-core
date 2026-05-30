@@ -3010,8 +3010,8 @@ ROUTES: list[dict[str, Any]] = [
                 },
             ),
             "400": _error(400, "invalid_payload (missing vendor_track_id for accept, or unknown action)."),
-            "403": _error(403, "track_not_in_scope."),
             **COMMON_AUTH_ERRORS,
+            "403": _error(403, "track_not_in_scope."),
         },
     },
     # ── user label preferences ───────────────────────────────────────

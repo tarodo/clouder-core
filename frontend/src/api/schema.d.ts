@@ -5558,7 +5558,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Authenticated but lacks required role (admin). */
+                /** @description track_not_in_scope. */
                 403: {
                     headers: {
                         [name: string]: unknown;
