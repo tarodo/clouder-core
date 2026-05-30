@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActionIcon, Anchor, Button, Group, Popover, Stack, Text, TextInput, Tooltip,
 } from '@mantine/core';
@@ -22,6 +22,13 @@ export function YtMusicReviewPopover({ playlistId, trackId, track }: YtMusicRevi
   const [linkError, setLinkError] = useState<string | null>(null);
   const candidates = useMatchCandidates(playlistId, trackId, opened);
   const resolve = useResolveMatch(playlistId, trackId);
+
+  useEffect(() => {
+    if (!opened) {
+      setLink('');
+      setLinkError(null);
+    }
+  }, [opened]);
 
   const accept = (vendorTrackId: string) =>
     resolve.mutate({ action: 'accept', vendorTrackId }, { onSuccess: () => setOpened(false) });
@@ -49,7 +56,12 @@ export function YtMusicReviewPopover({ playlistId, trackId, track }: YtMusicRevi
           <Text fw={600} size="sm">{track.title}</Text>
           <Text c="dimmed" size="xs">{track.artists.map((a) => a.name).join(', ')}</Text>
 
-          {candidates.isLoading && <Text size="xs" c="dimmed">{t('common.loading', 'Loading…')}</Text>}
+          {candidates.isLoading && <Text size="xs" c="dimmed">{t('playlists.ytmusic.loading', 'Loading…')}</Text>}
+          {candidates.isError && (
+            <Text size="xs" c="red">
+              {t('playlists.ytmusic.loadError', 'Could not load candidates')}
+            </Text>
+          )}
           {candidates.data?.candidates.map((c) => (
             <Group key={c.vendor_track_id} justify="space-between" wrap="nowrap" gap="xs">
               <Stack gap={0} style={{ minWidth: 0 }}>
@@ -59,11 +71,13 @@ export function YtMusicReviewPopover({ playlistId, trackId, track }: YtMusicRevi
                 </Text>
               </Stack>
               <Group gap={4} wrap="nowrap">
-                <Anchor href={c.url} target="_blank" rel="noopener noreferrer" aria-label="open">
+                <Anchor href={c.url} target="_blank" rel="noopener noreferrer"
+                  aria-label={t('playlists.ytmusic.openOnYt', 'Open on YT Music')}>
                   <IconExternalLink size={16} />
                 </Anchor>
-                <Button size="compact-xs" onClick={() => accept(c.vendor_track_id)}>
-                  {t('common.accept', 'Accept')}
+                <Button size="compact-xs" disabled={resolve.isPending}
+                  onClick={() => accept(c.vendor_track_id)}>
+                  {t('playlists.ytmusic.accept', 'Accept')}
                 </Button>
               </Group>
             </Group>
@@ -73,10 +87,11 @@ export function YtMusicReviewPopover({ playlistId, trackId, track }: YtMusicRevi
             value={link} error={linkError ?? undefined}
             onChange={(e) => setLink(e.currentTarget.value)} />
           <Group justify="space-between">
-            <Button size="compact-xs" variant="light" onClick={acceptLink} disabled={!link.trim()}>
+            <Button size="compact-xs" variant="light" onClick={acceptLink}
+              disabled={resolve.isPending || !link.trim()}>
               {t('playlists.ytmusic.useLink', 'Use link')}
             </Button>
-            <Button size="compact-xs" variant="subtle" color="gray"
+            <Button size="compact-xs" variant="subtle" color="gray" disabled={resolve.isPending}
               onClick={() => resolve.mutate({ action: 'reject' }, { onSuccess: () => setOpened(false) })}>
               {t('playlists.ytmusic.notOnYt', 'Not on YT')}
             </Button>

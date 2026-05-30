@@ -23,7 +23,7 @@ function setup() {
     <MantineProvider>
       <QueryClientProvider client={qc}>
         <YtMusicReviewPopover playlistId="pl1" trackId="t1"
-          track={{ title: 'Hold Me In Heaven', artists: [{ id: 'a', name: 'ARTYS' }] } as any} />
+          track={{ title: 'Hold Me In Heaven', artists: [{ id: 'a', name: 'ARTYS' }] }} />
       </QueryClientProvider>
     </MantineProvider>,
   );
