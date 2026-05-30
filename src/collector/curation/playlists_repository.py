@@ -839,14 +839,18 @@ class PlaylistsRepository:
                 t.isrc,
                 t.length_ms,
                 alb.title AS album_title,
-                COALESCE(STRING_AGG(DISTINCT a.name, ', '), '') AS artist_names
+                COALESCE(STRING_AGG(DISTINCT a.name, ', ' ORDER BY a.name), '') AS artist_names
             FROM clouder_tracks t
             LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
             LEFT JOIN clouder_artists       a   ON a.id = cta.artist_id
             LEFT JOIN clouder_albums        alb ON alb.id = t.album_id
             LEFT JOIN vendor_track_map      vtm
                 ON vtm.clouder_track_id = t.id AND vtm.vendor = :vendor
-            WHERE t.id IN ({placeholders}) AND vtm.clouder_track_id IS NULL
+            LEFT JOIN match_review_queue    mrq
+                ON mrq.clouder_track_id = t.id AND mrq.vendor = :vendor
+            WHERE t.id IN ({placeholders})
+              AND vtm.clouder_track_id IS NULL
+              AND mrq.clouder_track_id IS NULL
             GROUP BY t.id, t.title, t.isrc, t.length_ms, alb.title
             """,
             params,
@@ -860,7 +864,7 @@ class PlaylistsRepository:
                     artist=r.get("artist_names") or "",
                     title=r.get("title") or "",
                     isrc=r.get("isrc"),
-                    duration_ms=int(length) if length else None,
+                    duration_ms=int(length) if length is not None else None,
                     album=r.get("album_title"),
                 )
             )

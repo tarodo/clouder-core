@@ -41,3 +41,39 @@ def test_fetch_unmatched_match_inputs_filters_and_joins():
 def test_fetch_unmatched_match_inputs_empty_returns_empty():
     repo = PlaylistsRepository(FakeDataAPI([]))
     assert repo.fetch_unmatched_match_inputs(track_ids=[], vendor="ytmusic") == []
+
+
+def test_fetch_unmatched_excludes_already_attempted_in_sql():
+    api = FakeDataAPI([("FROM clouder_tracks t", [])])
+    repo = PlaylistsRepository(api)
+    repo.fetch_unmatched_match_inputs(track_ids=["t1"], vendor="ytmusic")
+    sql, _ = api.calls[-1]
+    # must anti-join BOTH vendor_track_map and match_review_queue
+    assert "vendor_track_map" in sql and "vtm.clouder_track_id IS NULL" in sql
+    assert "match_review_queue" in sql and "mrq.clouder_track_id IS NULL" in sql
+
+
+def test_fetch_unmatched_maps_null_fields():
+    api = FakeDataAPI([("FROM clouder_tracks t", [
+        {"track_id": "t1", "title": "Solo", "isrc": None,
+         "length_ms": None, "artist_names": "", "album_title": None},
+    ])])
+    repo = PlaylistsRepository(api)
+    inp = repo.fetch_unmatched_match_inputs(track_ids=["t1"], vendor="ytmusic")[0]
+    assert inp.isrc is None
+    assert inp.duration_ms is None
+    assert inp.album is None
+    assert inp.artist == ""
+
+
+def test_fetch_unmatched_maps_multiple_rows():
+    api = FakeDataAPI([("FROM clouder_tracks t", [
+        {"track_id": "t1", "title": "A", "isrc": "X1", "length_ms": 1000,
+         "artist_names": "Guri", "album_title": "AlbA"},
+        {"track_id": "t2", "title": "B", "isrc": "X2", "length_ms": 2000,
+         "artist_names": "Eider", "album_title": "AlbB"},
+    ])])
+    repo = PlaylistsRepository(api)
+    inputs = repo.fetch_unmatched_match_inputs(track_ids=["t1", "t2"], vendor="ytmusic")
+    assert [i.track_id for i in inputs] == ["t1", "t2"]
+    assert [i.duration_ms for i in inputs] == [1000, 2000]
