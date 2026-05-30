@@ -190,6 +190,11 @@ def _process_one(
             candidate_count=len(top5),
         )
     else:
+        repository.mark_no_match(
+            clouder_track_id=message.clouder_track_id,
+            vendor=message.vendor,
+            created_at=now,
+        )
         log_event(
             "WARNING",
             "vendor_match_no_candidates",
