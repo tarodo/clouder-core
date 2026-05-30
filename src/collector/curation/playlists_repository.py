@@ -10,7 +10,7 @@ import json
 import uuid
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Literal, Mapping
 
 from collector.data_api import DataAPIClient
 from collector.models import normalize_text
@@ -145,7 +145,7 @@ class PlaylistTrackRow:
 
 @dataclass(frozen=True)
 class YtmusicStatus:
-    status: str  # matched | pending | needs_review | not_found
+    status: Literal["matched", "pending", "needs_review", "not_found"]
     video_id: str | None = None
     url: str | None = None
     confidence: float | None = None
@@ -924,7 +924,14 @@ class PlaylistsRepository:
         )
 
         matched = {r["clouder_track_id"]: r for r in matched_rows}
-        review = {r["clouder_track_id"]: r["status"] for r in review_rows}
+        # A track may have both a 'pending' and a 'no_match' row (separate
+        # partial indexes). needs_review outranks not_found, so 'pending' wins.
+        review: dict[str, str] = {}
+        for r in review_rows:
+            tid = r["clouder_track_id"]
+            if review.get(tid) == "pending":
+                continue
+            review[tid] = r["status"]
 
         out: dict[str, YtmusicStatus] = {}
         for tid in track_ids:

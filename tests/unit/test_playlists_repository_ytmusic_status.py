@@ -102,3 +102,24 @@ def test_fetch_ytmusic_status_derives_all_states():
     assert status["t_review"].status == "needs_review"
     assert status["t_none"].status == "not_found"
     assert status["t_pending"].status == "pending"
+
+
+def test_fetch_ytmusic_status_empty_returns_empty():
+    from collector.curation.playlists_repository import PlaylistsRepository
+    repo = PlaylistsRepository(FakeDataAPI([]))
+    assert repo.fetch_ytmusic_status([]) == {}
+
+
+def test_fetch_ytmusic_status_pending_wins_over_no_match():
+    from collector.curation.playlists_repository import PlaylistsRepository
+    # both rows present for the same track, in either DB order
+    api = FakeDataAPI([
+        ("FROM vendor_track_map", []),
+        ("FROM match_review_queue", [
+            {"clouder_track_id": "t1", "status": "no_match"},
+            {"clouder_track_id": "t1", "status": "pending"},
+        ]),
+    ])
+    repo = PlaylistsRepository(api)
+    status = repo.fetch_ytmusic_status(["t1"])
+    assert status["t1"].status == "needs_review"
