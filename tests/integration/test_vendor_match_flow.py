@@ -253,3 +253,4 @@ def test_scenario_no_candidates(monkeypatch) -> None:
 
     assert repo.upserts == []
     assert repo.reviews == []
+    assert repo.no_matches == [("track-1", "spotify")]
