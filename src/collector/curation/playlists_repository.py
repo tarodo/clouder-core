@@ -26,6 +26,7 @@ from . import (
     PlaylistNotFoundError,
     PlaylistTrackLimitError,
 )
+from ..repositories import ClouderRepository, UpsertVendorMatchCmd
 from .playlists_service import (
     MAX_PLAYLISTS_PER_USER,
     MAX_TRACKS_PER_PLAYLIST,
@@ -171,7 +172,7 @@ class MatchInput:
 
 @dataclass(frozen=True)
 class ReviewRow:
-    candidates: list[dict]
+    candidates: list[dict[str, Any]]
 
 
 class PlaylistsRepository:
@@ -978,10 +979,8 @@ class PlaylistsRepository:
 
     def resolve_review_accept(
         self, *, clouder_track_id: str, vendor: str, vendor_track_id: str,
-        payload: dict, now,
+        payload: dict, now: datetime,
     ) -> None:
-        from ..repositories import ClouderRepository, UpsertVendorMatchCmd
-
         with self._data_api.transaction() as tx:
             ClouderRepository(self._data_api).upsert_vendor_match(
                 UpsertVendorMatchCmd(
@@ -1005,7 +1004,7 @@ class PlaylistsRepository:
                 transaction_id=tx,
             )
 
-    def resolve_review_reject(self, *, clouder_track_id: str, vendor: str, now) -> None:
+    def resolve_review_reject(self, *, clouder_track_id: str, vendor: str, now: datetime) -> None:
         with self._data_api.transaction() as tx:
             self._data_api.execute(
                 """

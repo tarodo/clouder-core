@@ -60,3 +60,13 @@ def test_resolve_reject_sets_no_match():
     sqls = " ".join(c[0] for c in api.calls)
     assert "DELETE FROM match_review_queue" in sqls
     assert "'no_match'" in sqls
+    txids = {c[2] for c in api.calls if c[2] is not None}
+    assert txids == {"tx-1"}
+
+
+def test_get_open_review_parses_string_json_candidates():
+    api = FakeDataAPI([{"candidates": '[{"ref": {"videoId": "v2"}, "score": 0.5}]'}])
+    repo = PlaylistsRepository(api)
+    row = repo.get_open_review(track_id="t1", vendor="ytmusic")
+    assert row is not None
+    assert row.candidates[0]["ref"]["videoId"] == "v2"
