@@ -76,6 +76,7 @@ from .curation.schemas import (
     RenameCategoryIn,
     ReorderCategoriesIn,
     ReorderPlaylistTracksIn,
+    ResolveMatchIn,
     TransferTracksIn,
 )
 from .curation.triage_repository import (
@@ -91,6 +92,7 @@ from .artist_enrichment.auto_dispatch import (
     try_dispatch_artists_for_triage_block,
 )
 from .logging_utils import log_event
+from .providers.ytmusic.normalize import result_to_ref
 
 
 # ---------- Constants -------------------------------------------------------
@@ -274,6 +276,98 @@ def _playlist_track_response(row) -> dict[str, Any]:
         ],
         "ytmusic": getattr(row, "ytmusic", None),
     }
+
+
+def _project_candidate(c: dict) -> dict[str, Any]:
+    ref = c.get("ref") or {}
+    vt = result_to_ref(ref)
+    vid = vt.vendor_track_id if vt else str(ref.get("videoId") or "")
+    return {
+        "vendor_track_id": vid,
+        "title": vt.title if vt else str(ref.get("title") or ""),
+        "artists": list(vt.artist_names) if vt else [],
+        "album": vt.album_name if vt else None,
+        "duration_ms": vt.duration_ms if vt else None,
+        "url": f"https://music.youtube.com/watch?v={vid}",
+        "score": c.get("score"),
+    }
+
+
+def _vendor_from_query(event) -> str:
+    qp = event.get("queryStringParameters") or {}
+    return (qp.get("vendor") or "ytmusic").strip() or "ytmusic"
+
+
+def _scope_check(repo, user_id, pid, track_id):
+    if repo.get(user_id=user_id, playlist_id=pid) is None:
+        raise PlaylistNotFoundError("Playlist not found")
+    visible = repo.validate_tracks_in_scope(user_id=user_id, track_ids=[track_id])
+    if track_id not in visible:
+        raise TrackNotInUserScopeError("Track not accessible to the user", [track_id])
+
+
+def _handle_match_candidates(event, repo, user_id, correlation_id):
+    pp = event.get("pathParameters") or {}
+    pid, track_id = pp.get("id"), pp.get("track_id")
+    if not pid or not track_id:
+        raise ValidationError("id and track_id are required in path")
+    vendor = _vendor_from_query(event)
+    _scope_check(repo, user_id, pid, track_id)
+    review = repo.get_open_review(track_id=track_id, vendor=vendor)
+    if review is None:
+        raise NotFoundError("no_open_review", "No open review for this track")
+    return _json_response(
+        200,
+        {"vendor": vendor,
+         "candidates": [_project_candidate(c) for c in review.candidates]},
+        correlation_id,
+    )
+
+
+def _ytmusic_status_dict(status) -> dict[str, Any] | None:
+    if status is None:
+        return None
+    return {"status": status.status, "video_id": status.video_id,
+            "url": status.url, "confidence": status.confidence}
+
+
+def _handle_resolve_match(event, repo, user_id, correlation_id):
+    pp = event.get("pathParameters") or {}
+    pid, track_id = pp.get("id"), pp.get("track_id")
+    if not pid or not track_id:
+        raise ValidationError("id and track_id are required in path")
+    body = ResolveMatchIn.model_validate(_parse_body(event))
+    _scope_check(repo, user_id, pid, track_id)
+
+    if body.action == "accept":
+        review = repo.get_open_review(track_id=track_id, vendor=body.vendor)
+        payload: dict[str, Any] = {
+            "videoId": body.vendor_track_id,
+            "url": f"https://music.youtube.com/watch?v={body.vendor_track_id}",
+            "source": "manual_url",
+        }
+        if review is not None:
+            for c in review.candidates:
+                ref = c.get("ref") or {}
+                if str(ref.get("videoId") or "") == body.vendor_track_id:
+                    payload = ref
+                    break
+        repo.resolve_review_accept(
+            clouder_track_id=track_id, vendor=body.vendor,
+            vendor_track_id=body.vendor_track_id, payload=payload, now=utc_now(),
+        )
+    else:
+        repo.resolve_review_reject(
+            clouder_track_id=track_id, vendor=body.vendor, now=utc_now(),
+        )
+
+    status = repo.fetch_ytmusic_status([track_id]).get(track_id)
+    log_event(
+        "INFO", "match_review_resolved",
+        correlation_id=correlation_id, user_id=user_id,
+        track_id=track_id, vendor=body.vendor, action=body.action,
+    )
+    return _json_response(200, {"ytmusic": _ytmusic_status_dict(status)}, correlation_id)
 
 
 def _enqueue_ytmusic(repo, added_track_ids, correlation_id) -> None:
@@ -1763,5 +1857,11 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     ),
     "POST /playlists/{id}/publish": (
         _handle_publish, _playlists_factory,
+    ),
+    "GET /playlists/{id}/tracks/{track_id}/match-candidates": (
+        _handle_match_candidates, _playlists_factory,
+    ),
+    "POST /playlists/{id}/tracks/{track_id}/match-resolve": (
+        _handle_resolve_match, _playlists_factory,
     ),
 }
