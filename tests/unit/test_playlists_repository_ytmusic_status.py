@@ -77,3 +77,28 @@ def test_fetch_unmatched_maps_multiple_rows():
     inputs = repo.fetch_unmatched_match_inputs(track_ids=["t1", "t2"], vendor="ytmusic")
     assert [i.track_id for i in inputs] == ["t1", "t2"]
     assert [i.duration_ms for i in inputs] == [1000, 2000]
+
+
+def test_fetch_ytmusic_status_derives_all_states():
+    from collector.curation.playlists_repository import PlaylistsRepository
+
+    api = FakeDataAPI([
+        ("FROM vendor_track_map", [
+            {"clouder_track_id": "t_matched", "vendor_track_id": "vid1",
+             "confidence": "0.970"},
+        ]),
+        ("FROM match_review_queue", [
+            {"clouder_track_id": "t_review", "status": "pending"},
+            {"clouder_track_id": "t_none", "status": "no_match"},
+        ]),
+    ])
+    repo = PlaylistsRepository(api)
+    status = repo.fetch_ytmusic_status(["t_matched", "t_review", "t_none", "t_pending"])
+
+    assert status["t_matched"].status == "matched"
+    assert status["t_matched"].video_id == "vid1"
+    assert status["t_matched"].url == "https://music.youtube.com/watch?v=vid1"
+    assert abs(status["t_matched"].confidence - 0.97) < 1e-6
+    assert status["t_review"].status == "needs_review"
+    assert status["t_none"].status == "not_found"
+    assert status["t_pending"].status == "pending"
