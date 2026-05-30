@@ -78,3 +78,14 @@ def test_no_duplicate_prompt_slugs_across_registry(
     assert len(slugs) == len(set(slugs)), (
         f"duplicate prompt_slug across enabled enrichers: {slugs}"
     )
+
+
+def test_get_lookup_ytmusic_returns_real_impl(monkeypatch):
+    from collector.providers import registry
+    from collector.providers.ytmusic.lookup import YTMusicLookup
+
+    monkeypatch.setenv("VENDORS_ENABLED", "ytmusic")
+    registry.reset_cache()
+    lookup = registry.get_lookup("ytmusic")
+    assert isinstance(lookup, YTMusicLookup)
+    assert lookup.lookup_by_isrc("US1234567890") is None
