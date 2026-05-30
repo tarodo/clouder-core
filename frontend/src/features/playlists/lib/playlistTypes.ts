@@ -99,3 +99,22 @@ export interface CoverUploadUrlResponse {
   expires_in: number;
   correlation_id?: string;
 }
+
+export interface YtMusicCandidate {
+  vendor_track_id: string;
+  title: string;
+  artists: string[];
+  album?: string | null;
+  duration_ms?: number | null;
+  url: string;
+  score?: number | null;
+}
+
+export interface MatchCandidatesResponse {
+  vendor: string;
+  candidates: YtMusicCandidate[];
+}
+
+export type ResolveMatchVars =
+  | { action: 'accept'; vendorTrackId: string }
+  | { action: 'reject' };
