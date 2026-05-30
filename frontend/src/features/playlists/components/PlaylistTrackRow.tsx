@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import type { PlaylistTrack } from '../lib/playlistTypes';
 import { formatLength, formatReleaseDate } from '../../../lib/formatters';
 import { TagPill } from '../../tags';
+import { YtMusicBadge } from './YtMusicBadge';
 
 export interface PlaylistTrackRowProps {
   track: PlaylistTrack;
@@ -155,6 +156,9 @@ export function PlaylistTrackRowView({
           <IconExternalLink size={16} />
         </ActionIcon>
       )}
+
+      {/* YT Music match badge */}
+      <YtMusicBadge match={track.ytmusic} />
 
       {/* Remove track — pale-red text, low emphasis */}
       <Button variant="subtle" color="red" size="xs" onClick={() => onRemove(track)}>
