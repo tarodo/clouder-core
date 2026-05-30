@@ -2,17 +2,20 @@ import { ActionIcon, Text, Tooltip } from '@mantine/core';
 import {
   IconBrandYoutube,
   IconClock,
-  IconHelpCircle,
   IconMusicOff,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import type { YtMusicMatch } from '../lib/playlistTypes';
+import type { PlaylistTrack, YtMusicMatch } from '../lib/playlistTypes';
+import { YtMusicReviewPopover } from './YtMusicReviewPopover';
 
 export interface YtMusicBadgeProps {
   match: YtMusicMatch | null | undefined;
+  playlistId: string;
+  trackId: string;
+  track: Pick<PlaylistTrack, 'title' | 'artists'>;
 }
 
-export function YtMusicBadge({ match }: YtMusicBadgeProps) {
+export function YtMusicBadge({ match, playlistId, trackId, track }: YtMusicBadgeProps) {
   const { t } = useTranslation();
   if (!match) return null;
 
@@ -35,12 +38,14 @@ export function YtMusicBadge({ match }: YtMusicBadgeProps) {
     );
   }
 
+  if (match.status === 'needs_review') {
+    return <YtMusicReviewPopover playlistId={playlistId} trackId={trackId} track={track} />;
+  }
+
   const { icon, label, color } =
-    match.status === 'needs_review'
-      ? { icon: <IconHelpCircle size={18} />, label: t('playlists.ytmusic.needsReview', 'Needs review'), color: 'yellow' }
-      : match.status === 'not_found'
-        ? { icon: <IconMusicOff size={18} />, label: t('playlists.ytmusic.notFound', 'Not on YT Music'), color: 'gray' }
-        : { icon: <IconClock size={18} />, label: t('playlists.ytmusic.pending', 'Searching YT Music…'), color: 'gray' };
+    match.status === 'not_found'
+      ? { icon: <IconMusicOff size={18} />, label: t('playlists.ytmusic.notFound', 'Not on YT Music'), color: 'gray' }
+      : { icon: <IconClock size={18} />, label: t('playlists.ytmusic.pending', 'Searching YT Music…'), color: 'gray' };
 
   return (
     <Tooltip label={label}>
