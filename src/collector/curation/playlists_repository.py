@@ -10,6 +10,7 @@ import json
 import uuid
 from dataclasses import dataclass, replace
 from datetime import datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal, Mapping
 
 from collector.data_api import DataAPIClient
@@ -166,6 +167,11 @@ class MatchInput:
     isrc: str | None
     duration_ms: int | None
     album: str | None
+
+
+@dataclass(frozen=True)
+class ReviewRow:
+    candidates: list[dict]
 
 
 class PlaylistsRepository:
@@ -951,6 +957,73 @@ class PlaylistsRepository:
             else:
                 out[tid] = YtmusicStatus(status="pending")
         return out
+
+    # ---------- Match review resolve -----------------------------------------
+
+    def get_open_review(self, *, track_id: str, vendor: str) -> "ReviewRow | None":
+        rows = self._data_api.execute(
+            """
+            SELECT candidates
+            FROM match_review_queue
+            WHERE clouder_track_id = :t AND vendor = :v AND status = 'pending'
+            LIMIT 1
+            """,
+            {"t": track_id, "v": vendor},
+        )
+        if not rows:
+            return None
+        raw = rows[0].get("candidates")
+        candidates = json.loads(raw) if isinstance(raw, str) else (raw or [])
+        return ReviewRow(candidates=list(candidates))
+
+    def resolve_review_accept(
+        self, *, clouder_track_id: str, vendor: str, vendor_track_id: str,
+        payload: dict, now,
+    ) -> None:
+        from ..repositories import ClouderRepository, UpsertVendorMatchCmd
+
+        with self._data_api.transaction() as tx:
+            ClouderRepository(self._data_api).upsert_vendor_match(
+                UpsertVendorMatchCmd(
+                    clouder_track_id=clouder_track_id,
+                    vendor=vendor,
+                    vendor_track_id=vendor_track_id,
+                    match_type="manual",
+                    confidence=Decimal("1.000"),
+                    matched_at=now,
+                    payload=payload,
+                ),
+                transaction_id=tx,
+            )
+            self._data_api.execute(
+                """
+                UPDATE match_review_queue
+                SET status = 'resolved', resolved_at = :now
+                WHERE clouder_track_id = :t AND vendor = :v AND status = 'pending'
+                """,
+                {"t": clouder_track_id, "v": vendor, "now": now},
+                transaction_id=tx,
+            )
+
+    def resolve_review_reject(self, *, clouder_track_id: str, vendor: str, now) -> None:
+        with self._data_api.transaction() as tx:
+            self._data_api.execute(
+                """
+                DELETE FROM match_review_queue
+                WHERE clouder_track_id = :t AND vendor = :v AND status = 'no_match'
+                """,
+                {"t": clouder_track_id, "v": vendor},
+                transaction_id=tx,
+            )
+            self._data_api.execute(
+                """
+                UPDATE match_review_queue
+                SET status = 'no_match', resolved_at = :now
+                WHERE clouder_track_id = :t AND vendor = :v AND status = 'pending'
+                """,
+                {"t": clouder_track_id, "v": vendor, "now": now},
+                transaction_id=tx,
+            )
 
     # ---------- Helpers ------------------------------------------------------
 
