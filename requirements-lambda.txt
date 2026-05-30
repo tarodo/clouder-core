@@ -9,3 +9,4 @@ pydantic-settings>=2.3
 pyjwt>=2.10
 sqlalchemy>=2.0
 structlog
+ytmusicapi>=1.7

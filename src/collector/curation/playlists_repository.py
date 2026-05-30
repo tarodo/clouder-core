@@ -10,7 +10,7 @@ import json
 import uuid
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Literal, Mapping
 
 from collector.data_api import DataAPIClient
 from collector.models import normalize_text
@@ -140,6 +140,15 @@ class PlaylistTrackRow:
     artists: tuple[dict, ...] = ()
     label: dict | None = None
     tags: tuple[TrackTagRow, ...] = ()
+    ytmusic: dict | None = None
+
+
+@dataclass(frozen=True)
+class YtmusicStatus:
+    status: Literal["matched", "pending", "needs_review", "not_found"]
+    video_id: str | None = None
+    url: str | None = None
+    confidence: float | None = None
 
 
 @dataclass(frozen=True)
@@ -147,6 +156,16 @@ class AppendTracksResult:
     added_track_ids: list[str]
     skipped_duplicates: list[str]
     position_after: int
+
+
+@dataclass(frozen=True)
+class MatchInput:
+    track_id: str
+    artist: str
+    title: str
+    isrc: str | None
+    duration_ms: int | None
+    album: str | None
 
 
 class PlaylistsRepository:
@@ -631,6 +650,20 @@ class PlaylistsRepository:
                 replace(row, tags=tuple(grouped.get(row.track_id, [])))
                 for row in out
             ]
+        if out:
+            statuses = self.fetch_ytmusic_status([row.track_id for row in out])
+            out = [
+                replace(
+                    row,
+                    ytmusic={
+                        "status": s.status,
+                        "video_id": s.video_id,
+                        "url": s.url,
+                        "confidence": s.confidence,
+                    } if (s := statuses.get(row.track_id)) else None,
+                )
+                for row in out
+            ]
         return out, total
 
     # ---------- Cover --------------------------------------------------------
@@ -808,6 +841,116 @@ class PlaylistsRepository:
                 transaction_id=tx_id,
             )
             return track_id
+
+    # ---------- Vendor match inputs ------------------------------------------
+
+    def fetch_unmatched_match_inputs(
+        self, *, track_ids: list[str], vendor: str
+    ) -> list[MatchInput]:
+        """Metadata for tracks not yet matched to `vendor`, ready to enqueue."""
+        if not track_ids:
+            return []
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {"vendor": vendor}
+        for i, tid in enumerate(track_ids):
+            params[f"t{i}"] = tid
+        rows = self._data_api.execute(
+            f"""
+            SELECT
+                t.id AS track_id,
+                t.title,
+                t.isrc,
+                t.length_ms,
+                alb.title AS album_title,
+                COALESCE(STRING_AGG(DISTINCT a.name, ', ' ORDER BY a.name), '') AS artist_names
+            FROM clouder_tracks t
+            LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
+            LEFT JOIN clouder_artists       a   ON a.id = cta.artist_id
+            LEFT JOIN clouder_albums        alb ON alb.id = t.album_id
+            LEFT JOIN vendor_track_map      vtm
+                ON vtm.clouder_track_id = t.id AND vtm.vendor = :vendor
+            LEFT JOIN match_review_queue    mrq
+                ON mrq.clouder_track_id = t.id AND mrq.vendor = :vendor
+            WHERE t.id IN ({placeholders})
+              AND vtm.clouder_track_id IS NULL
+              AND mrq.clouder_track_id IS NULL
+            GROUP BY t.id, t.title, t.isrc, t.length_ms, alb.title
+            """,
+            params,
+        )
+        out: list[MatchInput] = []
+        for r in rows:
+            length = r.get("length_ms")
+            out.append(
+                MatchInput(
+                    track_id=r["track_id"],
+                    artist=r.get("artist_names") or "",
+                    title=r.get("title") or "",
+                    isrc=r.get("isrc"),
+                    duration_ms=int(length) if length is not None else None,
+                    album=r.get("album_title"),
+                )
+            )
+        return out
+
+    def fetch_ytmusic_status(
+        self, track_ids: list[str]
+    ) -> dict[str, "YtmusicStatus"]:
+        """Per-track YT Music status. matched > needs_review > not_found > pending."""
+        if not track_ids:
+            return {}
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {"vendor": "ytmusic"}
+        for i, tid in enumerate(track_ids):
+            params[f"t{i}"] = tid
+
+        matched_rows = self._data_api.execute(
+            f"""
+            SELECT clouder_track_id, vendor_track_id, confidence
+            FROM vendor_track_map
+            WHERE vendor = :vendor AND clouder_track_id IN ({placeholders})
+            """,
+            params,
+        )
+        review_rows = self._data_api.execute(
+            f"""
+            SELECT clouder_track_id, status
+            FROM match_review_queue
+            WHERE vendor = :vendor
+              AND status IN ('pending', 'no_match')
+              AND clouder_track_id IN ({placeholders})
+            """,
+            params,
+        )
+
+        matched = {r["clouder_track_id"]: r for r in matched_rows}
+        # A track may have both a 'pending' and a 'no_match' row (separate
+        # partial indexes). needs_review outranks not_found, so 'pending' wins.
+        review: dict[str, str] = {}
+        for r in review_rows:
+            tid = r["clouder_track_id"]
+            if review.get(tid) == "pending":
+                continue
+            review[tid] = r["status"]
+
+        out: dict[str, YtmusicStatus] = {}
+        for tid in track_ids:
+            if tid in matched:
+                row = matched[tid]
+                vid = row["vendor_track_id"]
+                out[tid] = YtmusicStatus(
+                    status="matched",
+                    video_id=vid,
+                    url=f"https://music.youtube.com/watch?v={vid}",
+                    confidence=float(row["confidence"]),
+                )
+            elif review.get(tid) == "pending":
+                out[tid] = YtmusicStatus(status="needs_review")
+            elif review.get(tid) == "no_match":
+                out[tid] = YtmusicStatus(status="not_found")
+            else:
+                out[tid] = YtmusicStatus(status="pending")
+        return out
 
     # ---------- Helpers ------------------------------------------------------
 

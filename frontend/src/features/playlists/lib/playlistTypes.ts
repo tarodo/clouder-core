@@ -26,6 +26,15 @@ export interface PlaylistTrackArtist { id: string; name: string }
 export interface PlaylistTrackLabel { id: string; name: string }
 export interface PlaylistTrackTag { id: string; name: string; color: string | null }
 
+export type YtMusicMatchStatus = 'matched' | 'pending' | 'needs_review' | 'not_found';
+
+export interface YtMusicMatch {
+  status: YtMusicMatchStatus;
+  video_id?: string | null;
+  url?: string | null;
+  confidence?: number | null;
+}
+
 export interface PlaylistTrack {
   track_id: string;
   position: number;
@@ -42,6 +51,7 @@ export interface PlaylistTrack {
   spotify_release_date: string | null;
   is_ai_suspected: boolean;
   tags: PlaylistTrackTag[];
+  ytmusic?: YtMusicMatch | null;
 }
 
 export interface PaginatedPlaylists {

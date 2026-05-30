@@ -8,3 +8,4 @@ cryptography>=44
 google-genai>=0.4.0
 httpx>=0.27.0
 openai>=1.50.0
+ytmusicapi>=1.7

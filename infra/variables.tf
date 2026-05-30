@@ -304,7 +304,7 @@ variable "vendor_match_max_receive_count" {
 variable "vendor_match_vendors_enabled" {
   description = "Comma-separated list of vendors enabled for the vendor_match worker"
   type        = string
-  default     = ""
+  default     = "ytmusic"
 }
 
 variable "fuzzy_match_threshold" {

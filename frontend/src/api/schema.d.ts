@@ -4637,7 +4637,37 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items: Record<string, never>[];
+                            items: {
+                                /** Format: uuid */
+                                track_id: string;
+                                position?: number;
+                                title: string;
+                                mix_name?: string | null;
+                                isrc?: string | null;
+                                bpm?: number | null;
+                                length_ms?: number | null;
+                                spotify_release_date?: string | null;
+                                spotify_id?: string | null;
+                                origin?: string;
+                                is_ai_suspected: boolean;
+                                artists: Record<string, never>[];
+                                added_at: string;
+                                label?: Record<string, never> | null;
+                                /** @description User-tags attached to this track (always present, may be empty). */
+                                tags?: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    color: string | null;
+                                }[];
+                                ytmusic?: {
+                                    /** @enum {string} */
+                                    status: "matched" | "pending" | "needs_review" | "not_found";
+                                    video_id?: string | null;
+                                    url?: string | null;
+                                    confidence?: number | null;
+                                } | null;
+                            }[];
                             total: number;
                             limit: number;
                             offset: number;
@@ -6942,6 +6972,37 @@ export interface components {
         };
         ArtistHistoryResponse: {
             items: components["schemas"]["ArtistHistoryCell"][];
+        };
+        PlaylistTrackResponse: {
+            /** Format: uuid */
+            track_id: string;
+            position?: number;
+            title: string;
+            mix_name?: string | null;
+            isrc?: string | null;
+            bpm?: number | null;
+            length_ms?: number | null;
+            spotify_release_date?: string | null;
+            spotify_id?: string | null;
+            origin?: string;
+            is_ai_suspected: boolean;
+            artists: Record<string, never>[];
+            added_at: string;
+            label?: Record<string, never> | null;
+            /** @description User-tags attached to this track (always present, may be empty). */
+            tags?: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                color: string | null;
+            }[];
+            ytmusic?: {
+                /** @enum {string} */
+                status: "matched" | "pending" | "needs_review" | "not_found";
+                video_id?: string | null;
+                url?: string | null;
+                confidence?: number | null;
+            } | null;
         };
     };
     responses: never;

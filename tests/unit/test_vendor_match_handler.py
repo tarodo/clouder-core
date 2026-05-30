@@ -28,6 +28,7 @@ class FakeRepo:
         self._cache: dict[tuple[str, str], VendorTrackMatch] = cache or {}
         self.upserts: list[UpsertVendorMatchCmd] = []
         self.reviews: list[dict[str, Any]] = []
+        self.no_matches: list[tuple[str, str]] = []
 
     def get_vendor_match(
         self, clouder_track_id: str, vendor: str, transaction_id: str | None = None
@@ -58,6 +59,15 @@ class FakeRepo:
                 "created_at": created_at,
             }
         )
+
+    def mark_no_match(
+        self,
+        *,
+        clouder_track_id: str,
+        vendor: str,
+        created_at: datetime,
+    ) -> None:
+        self.no_matches.append((clouder_track_id, vendor))
 
 
 class FakeLookup:
@@ -277,3 +287,41 @@ def test_repo_missing_raises(monkeypatch) -> None:
     )
     with pytest.raises(RuntimeError):
         vendor_match_handler.lambda_handler(_event(_base_message()), None)
+
+
+def test_process_one_records_no_match_when_no_candidates(monkeypatch):
+    from collector import vendor_match_handler as h
+    from collector.schemas import VendorMatchMessage
+
+    class Lookup:
+        def lookup_by_isrc(self, isrc):
+            return None
+
+        def lookup_by_metadata(self, artist, title, duration_ms, album):
+            return []
+
+    monkeypatch.setattr(h.registry, "get_lookup", lambda vendor: Lookup())
+
+    class Repo:
+        def __init__(self):
+            self.no_match = []
+
+        def get_vendor_match(self, track_id, vendor):
+            return None
+
+        def upsert_vendor_match(self, cmd):
+            raise AssertionError("should not upsert a match")
+
+        def insert_review_candidate(self, **kw):
+            raise AssertionError("should not queue review with no candidates")
+
+        def mark_no_match(self, *, clouder_track_id, vendor, created_at):
+            self.no_match.append((clouder_track_id, vendor))
+
+    repo = Repo()
+    msg = VendorMatchMessage(
+        clouder_track_id="t1", vendor="ytmusic",
+        artist="Guri", title="Lost Track",
+    )
+    assert h._process_one(msg, repo) is True
+    assert repo.no_match == [("t1", "ytmusic")]

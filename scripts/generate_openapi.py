@@ -379,6 +379,74 @@ BUCKET_TRACKS_LIST_RESPONSE = {
     },
 }
 
+PLAYLIST_TRACK_RESPONSE = {
+    "type": "object",
+    "required": [
+        "track_id", "title", "is_ai_suspected", "artists", "added_at",
+    ],
+    "properties": {
+        "track_id": {"type": "string", "format": "uuid"},
+        "position": {"type": "integer"},
+        "title": {"type": "string"},
+        "mix_name": {"type": ["string", "null"]},
+        "isrc": {"type": ["string", "null"]},
+        "bpm": {"type": ["integer", "null"]},
+        "length_ms": {"type": ["integer", "null"]},
+        "spotify_release_date": {"type": ["string", "null"]},
+        "spotify_id": {"type": ["string", "null"]},
+        "origin": {"type": "string"},
+        "is_ai_suspected": {"type": "boolean"},
+        "artists": {"type": "array", "items": {"type": "object"}},
+        "added_at": {"type": "string"},
+        "label": {
+            "type": "object",
+            "nullable": True,
+        },
+        "tags": {
+            "type": "array",
+            "description": "User-tags attached to this track (always present, may be empty).",
+            "items": {
+                "type": "object",
+                "required": ["id", "name", "color"],
+                "properties": {
+                    "id": {"type": "string", "format": "uuid"},
+                    "name": {"type": "string"},
+                    "color": {
+                        "type": ["string", "null"],
+                        "pattern": "^#[0-9A-Fa-f]{6}$",
+                    },
+                },
+            },
+        },
+        "ytmusic": {
+            "type": "object",
+            "nullable": True,
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["matched", "pending", "needs_review", "not_found"],
+                },
+                "video_id": {"type": "string", "nullable": True},
+                "url": {"type": "string", "nullable": True},
+                "confidence": {"type": "number", "nullable": True},
+            },
+            "required": ["status"],
+        },
+    },
+}
+
+PLAYLIST_TRACKS_LIST_RESPONSE = {
+    "type": "object",
+    "required": ["items", "total", "limit", "offset"],
+    "properties": {
+        "items": {"type": "array", "items": PLAYLIST_TRACK_RESPONSE},
+        "total": {"type": "integer"},
+        "limit": {"type": "integer"},
+        "offset": {"type": "integer"},
+        "correlation_id": {"type": "string"},
+    },
+}
+
 MOVE_TRACKS_OUT = {
     "type": "object",
     "required": ["moved"],
@@ -2604,7 +2672,7 @@ ROUTES: list[dict[str, Any]] = [
             *PAGINATION_PARAMS,
         ],
         "responses": {
-            "200": _make_response(200, "Paginated playlist tracks.", LIST_RESPONSE_TEMPLATE),
+            "200": _make_response(200, "Paginated playlist tracks.", PLAYLIST_TRACKS_LIST_RESPONSE),
             "404": _error(404, "playlist_not_found."),
             **COMMON_AUTH_ERRORS,
         },
@@ -3541,6 +3609,7 @@ def build_openapi() -> dict[str, Any]:
                 "ArtistRunsListResponse": ARTIST_RUNS_LIST_RESPONSE,
                 "ArtistHistoryCell": ARTIST_HISTORY_CELL,
                 "ArtistHistoryResponse": ARTIST_HISTORY_RESPONSE,
+                "PlaylistTrackResponse": PLAYLIST_TRACK_RESPONSE,
             },
         },
     }

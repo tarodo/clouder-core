@@ -257,6 +257,7 @@ def _track_row(**overrides) -> MagicMock:
         artists=[{"id": "a-1", "name": "DJ Test"}],
         label={"id": "l-1", "name": "Test Label"},
         tags=(tag,),
+        ytmusic=None,
     )
     base.update(overrides)
     m = MagicMock()

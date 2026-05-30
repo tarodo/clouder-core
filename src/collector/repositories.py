@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Mapping
+from uuid import uuid4
 
 from .data_api import DataAPIClient, create_default_data_api_client
 from .models import RunStatus
@@ -1151,6 +1152,38 @@ class ClouderRepository:
                 "clouder_track_id": clouder_track_id,
                 "vendor": vendor,
                 "candidates": candidates,
+                "created_at": created_at,
+            },
+            transaction_id=transaction_id,
+        )
+
+    def mark_no_match(
+        self,
+        *,
+        clouder_track_id: str,
+        vendor: str,
+        created_at: datetime,
+        transaction_id: str | None = None,
+    ) -> None:
+        """Record a terminal 'no match found' outcome so the read surface can
+        return not_found (distinct from pending). Idempotent via the partial
+        unique index uq_review_no_match."""
+        self._data_api.execute(
+            """
+            INSERT INTO match_review_queue (
+                id, clouder_track_id, vendor, candidates, status, created_at
+            ) VALUES (
+                :id, :clouder_track_id, :vendor, :candidates, 'no_match', :created_at
+            )
+            ON CONFLICT (clouder_track_id, vendor)
+                WHERE status = 'no_match'
+                DO NOTHING
+            """,
+            {
+                "id": str(uuid4()),
+                "clouder_track_id": clouder_track_id,
+                "vendor": vendor,
+                "candidates": [],
                 "created_at": created_at,
             },
             transaction_id=transaction_id,

@@ -41,6 +41,7 @@ class FakeRepo:
         self._cache: dict[tuple[str, str], VendorTrackMatch] = {}
         self.upserts: list[UpsertVendorMatchCmd] = []
         self.reviews: list[dict[str, Any]] = []
+        self.no_matches: list[tuple[str, str]] = []
 
     def get_vendor_match(
         self, clouder_track_id: str, vendor: str, transaction_id: str | None = None
@@ -80,6 +81,16 @@ class FakeRepo:
                 "created_at": created_at,
             }
         )
+
+    def mark_no_match(
+        self,
+        *,
+        clouder_track_id: str,
+        vendor: str,
+        created_at: datetime,
+        transaction_id: str | None = None,
+    ) -> None:
+        self.no_matches.append((clouder_track_id, vendor))
 
 
 class FakeLookup:
@@ -242,3 +253,4 @@ def test_scenario_no_candidates(monkeypatch) -> None:
 
     assert repo.upserts == []
     assert repo.reviews == []
+    assert repo.no_matches == [("track-1", "spotify")]

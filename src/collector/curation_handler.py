@@ -272,7 +272,44 @@ def _playlist_track_response(row) -> dict[str, Any]:
             {"id": t.tag_id, "name": t.name, "color": t.color}
             for t in getattr(row, "tags", ())
         ],
+        "ytmusic": getattr(row, "ytmusic", None),
     }
+
+
+def _enqueue_ytmusic(repo, added_track_ids, correlation_id) -> None:
+    """Best-effort: enqueue YT Music match jobs for newly added tracks.
+
+    Never raises — a failure here must not fail the track-add request.
+    """
+    if not added_track_ids:
+        return
+    try:
+        import boto3
+
+        from collector.settings import get_api_settings
+        from collector.vendor_match.enqueue import (
+            YTMUSIC_VENDOR,
+            enqueue_vendor_matches,
+        )
+
+        queue_url = get_api_settings().vendor_match_queue_url
+        if not queue_url:
+            return
+        inputs = repo.fetch_unmatched_match_inputs(
+            track_ids=list(added_track_ids), vendor=YTMUSIC_VENDOR,
+        )
+        enqueue_vendor_matches(
+            track_inputs=inputs,
+            vendor=YTMUSIC_VENDOR,
+            queue_url=queue_url,
+            sqs=boto3.client("sqs"),
+            correlation_id=correlation_id,
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        log_event(
+            "ERROR", "vendor_match_enqueue_unexpected",
+            correlation_id=correlation_id, error_message=str(exc),
+        )
 
 
 def _paginated_response(
@@ -775,6 +812,7 @@ def _handle_add_playlist_tracks(event, repo, user_id, correlation_id):
         correlation_id=correlation_id, user_id=user_id,
         playlist_id=pid, n=len(result.added_track_ids),
     )
+    _enqueue_ytmusic(repo, result.added_track_ids, correlation_id)
     return _json_response(
         201,
         {
@@ -982,6 +1020,7 @@ def _handle_import_spotify(event, repo, user_id, correlation_id):
         # Tracks already in this playlist surface as skipped duplicates.
         for dup in result.skipped_duplicates:
             skipped.append({"ref": dup, "reason": "already_in_playlist"})
+        _enqueue_ytmusic(repo, result.added_track_ids, correlation_id)
     else:
         position_after = 0
 

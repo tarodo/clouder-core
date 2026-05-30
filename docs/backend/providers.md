@@ -90,6 +90,14 @@ These vendors wrap real client implementations. Provider classes are thin adapte
 - **`prompt_slug`:** Used by `get_enricher_for_prompt` to route search messages. The label enricher handles `"label_info"`; the artist enricher is a stub.
 - **Settings:** `get_search_worker_settings().perplexity_api_key` (resolved from `PERPLEXITY_API_KEY` / `PERPLEXITY_API_KEY_SSM_PARAMETER` / `PERPLEXITY_API_KEY_SECRET_ARN`).
 
+### YT Music (`lookup`)
+
+- **Bundle:** `ProviderBundle(lookup=YTMusicLookup(), export=YTMusicExporter())`
+- **Adapter:** `src/collector/providers/ytmusic/lookup.py`
+- **Underlying client:** `ytmusicapi.YTMusic` (unauthenticated search, built lazily)
+- **Lookup role:** `LookupProvider` — `lookup_by_isrc` always returns `None` (YT has no public ISRC search); `lookup_by_metadata` runs a multi-pass search (`songs`, then `videos` fallback) and returns `VendorTrackRef` candidates for the shared fuzzy scorer. `lookup_batch_by_isrc` raises `not_implemented`.
+- **Export role:** still a stub (playlist creation is out of scope).
+
 ---
 
 ## Stubbed Vendors
@@ -98,7 +106,6 @@ The following vendors satisfy the `LookupProvider` and/or `ExportProvider` Proto
 
 | Vendor name | Roles stubbed | Directory |
 |---|---|---|
-| `ytmusic` | `lookup`, `export` | `src/collector/providers/ytmusic/` |
 | `deezer` | `lookup`, `export` | `src/collector/providers/deezer/` |
 | `apple` | `lookup`, `export` | `src/collector/providers/apple/` |
 | `tidal` | `lookup`, `export` | `src/collector/providers/tidal/` |
