@@ -26,3 +26,4 @@ def test_mark_no_match_inserts_no_match_row():
     assert "ON CONFLICT" in sql and "status = 'no_match'" in sql
     assert params["clouder_track_id"] == "t1"
     assert params["vendor"] == "ytmusic"
+    assert params["candidates"] == []

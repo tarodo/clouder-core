@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Mapping
+from uuid import uuid4
 
 from .data_api import DataAPIClient, create_default_data_api_client
 from .models import RunStatus
@@ -1167,8 +1168,6 @@ class ClouderRepository:
         """Record a terminal 'no match found' outcome so the read surface can
         return not_found (distinct from pending). Idempotent via the partial
         unique index uq_review_no_match."""
-        from uuid import uuid4
-
         self._data_api.execute(
             """
             INSERT INTO match_review_queue (
