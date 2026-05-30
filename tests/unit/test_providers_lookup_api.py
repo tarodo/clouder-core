@@ -82,7 +82,7 @@ def test_spotify_lookup_by_metadata_returns_empty_for_now() -> None:
 
 @pytest.mark.parametrize(
     "cls",
-    [YTMusicLookup, DeezerLookup, AppleLookup, TidalLookup],
+    [DeezerLookup, AppleLookup, TidalLookup],
 )
 def test_stub_lookup_by_isrc_raises_vendor_disabled(cls) -> None:
     lookup = cls()
@@ -93,13 +93,18 @@ def test_stub_lookup_by_isrc_raises_vendor_disabled(cls) -> None:
 
 @pytest.mark.parametrize(
     "cls",
-    [YTMusicLookup, DeezerLookup, AppleLookup, TidalLookup],
+    [DeezerLookup, AppleLookup, TidalLookup],
 )
 def test_stub_lookup_by_metadata_raises_vendor_disabled(cls) -> None:
     lookup = cls()
     with pytest.raises(VendorDisabledError) as exc:
         lookup.lookup_by_metadata("Foo", "Bar", 200_000, "Baz")
     assert exc.value.reason == "not_implemented"
+
+
+def test_ytmusic_lookup_by_isrc_returns_none_not_stub() -> None:
+    """YTMusicLookup is implemented (not a stub): no ISRC search on YT Music."""
+    assert YTMusicLookup(client=object()).lookup_by_isrc("US1234567890") is None
 
 
 def test_spotify_lookup_is_lookup_provider() -> None:
