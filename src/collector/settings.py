@@ -138,6 +138,7 @@ class ApiSettings(_SettingsBase):
     )
     spotify_search_enabled: bool = Field(default=False, alias="SPOTIFY_SEARCH_ENABLED")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
+    vendor_match_queue_url: str = Field(default="", alias="VENDOR_MATCH_QUEUE_URL")
 
 
 class WorkerSettings(_SettingsBase):
