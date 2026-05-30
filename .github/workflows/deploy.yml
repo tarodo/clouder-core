@@ -82,6 +82,7 @@ jobs:
             -var="tavily_api_key_ssm_parameter=/clouder/tavily/api_key" \
             -var="deepseek_api_key_ssm_parameter=/clouder/deepseek/api_key" \
             -var="spotify_search_enabled=true" \
+            -var="vendor_match_enabled=true" \
             -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" \
             -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" \
             -var="migration_aurora_auth_mode=iam" \
