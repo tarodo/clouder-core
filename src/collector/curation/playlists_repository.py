@@ -149,6 +149,16 @@ class AppendTracksResult:
     position_after: int
 
 
+@dataclass(frozen=True)
+class MatchInput:
+    track_id: str
+    artist: str
+    title: str
+    isrc: str | None
+    duration_ms: int | None
+    album: str | None
+
+
 class PlaylistsRepository:
     def __init__(self, data_api: DataAPIClient) -> None:
         self._data_api = data_api
@@ -808,6 +818,53 @@ class PlaylistsRepository:
                 transaction_id=tx_id,
             )
             return track_id
+
+    # ---------- Vendor match inputs ------------------------------------------
+
+    def fetch_unmatched_match_inputs(
+        self, *, track_ids: list[str], vendor: str
+    ) -> list[MatchInput]:
+        """Metadata for tracks not yet matched to `vendor`, ready to enqueue."""
+        if not track_ids:
+            return []
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {"vendor": vendor}
+        for i, tid in enumerate(track_ids):
+            params[f"t{i}"] = tid
+        rows = self._data_api.execute(
+            f"""
+            SELECT
+                t.id AS track_id,
+                t.title,
+                t.isrc,
+                t.length_ms,
+                alb.title AS album_title,
+                COALESCE(STRING_AGG(DISTINCT a.name, ', '), '') AS artist_names
+            FROM clouder_tracks t
+            LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
+            LEFT JOIN clouder_artists       a   ON a.id = cta.artist_id
+            LEFT JOIN clouder_albums        alb ON alb.id = t.album_id
+            LEFT JOIN vendor_track_map      vtm
+                ON vtm.clouder_track_id = t.id AND vtm.vendor = :vendor
+            WHERE t.id IN ({placeholders}) AND vtm.clouder_track_id IS NULL
+            GROUP BY t.id, t.title, t.isrc, t.length_ms, alb.title
+            """,
+            params,
+        )
+        out: list[MatchInput] = []
+        for r in rows:
+            length = r.get("length_ms")
+            out.append(
+                MatchInput(
+                    track_id=r["track_id"],
+                    artist=r.get("artist_names") or "",
+                    title=r.get("title") or "",
+                    isrc=r.get("isrc"),
+                    duration_ms=int(length) if length else None,
+                    album=r.get("album_title"),
+                )
+            )
+        return out
 
     # ---------- Helpers ------------------------------------------------------
 
