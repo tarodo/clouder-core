@@ -43,5 +43,6 @@ def test_metadata_falls_back_to_videos_when_songs_empty():
 def test_metadata_skips_results_without_video_id():
     fake = FakeYT({"songs": [{"title": "no id", "artists": []}]})
     lookup = YTMusicLookup(client=fake)
-    # songs pass produced no playable ref -> falls back to (empty) videos pass
+    # songs pass yields no playable ref (no videoId) -> falls back to videos pass
     assert lookup.lookup_by_metadata("A", "B", None, None) == []
+    assert [c[1] for c in fake.calls] == ["songs", "videos"]
