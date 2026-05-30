@@ -151,7 +151,7 @@ class CoverUploadUrlIn(BaseModel):
 class ResolveMatchIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    vendor: str = Field(min_length=1)
+    vendor: str = Field(..., min_length=1)
     action: Literal["accept", "reject"]
     vendor_track_id: str | None = None
 

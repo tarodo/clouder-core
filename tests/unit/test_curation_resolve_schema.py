@@ -33,3 +33,25 @@ def test_reject_needs_no_video_id():
 def test_regex_matches_11_char_id():
     assert YT_VIDEO_ID_RE.match("dQw4w9WgXcQ")
     assert not YT_VIDEO_ID_RE.match("dQw4w9WgXc")  # 10 chars
+
+
+def test_accept_rejects_12_char_id():
+    with pytest.raises(ValidationError):
+        ResolveMatchIn.model_validate(
+            {"vendor": "ytmusic", "action": "accept", "vendor_track_id": "dQw4w9WgXcQX"}
+        )
+
+
+def test_extra_field_forbidden():
+    with pytest.raises(ValidationError):
+        ResolveMatchIn.model_validate(
+            {"vendor": "ytmusic", "action": "reject", "bogus": 1}
+        )
+
+
+def test_reject_ignores_supplied_video_id():
+    m = ResolveMatchIn.model_validate(
+        {"vendor": "ytmusic", "action": "reject", "vendor_track_id": "dQw4w9WgXcQ"}
+    )
+    assert m.action == "reject"
+    assert m.vendor_track_id == "dQw4w9WgXcQ"
