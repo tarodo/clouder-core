@@ -49,7 +49,7 @@ def result_to_ref(raw: dict[str, Any]) -> VendorTrackRef | None:
     album_name = album.get("name") if isinstance(album, dict) else None
 
     seconds = raw.get("duration_seconds")
-    duration_ms = int(seconds) * 1000 if isinstance(seconds, (int, float)) else None
+    duration_ms = round(seconds * 1000) if isinstance(seconds, (int, float)) else None
 
     return VendorTrackRef(
         vendor="ytmusic",

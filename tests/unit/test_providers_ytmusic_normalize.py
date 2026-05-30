@@ -35,3 +35,11 @@ def test_result_to_ref_handles_missing_album_and_duration():
 
 def test_result_to_ref_returns_none_without_video_id():
     assert result_to_ref({"title": "No id", "artists": []}) is None
+
+
+def test_result_to_ref_rounds_float_duration_seconds():
+    raw = {"videoId": "v1", "title": "T", "artists": [{"name": "A"}],
+           "duration_seconds": 225.9}
+    ref = result_to_ref(raw)
+    assert ref is not None
+    assert ref.duration_ms == 225_900
