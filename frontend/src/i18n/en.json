@@ -278,7 +278,8 @@
       "open_in_spotify": "Open in Spotify",
       "ytmusic": "Publish to YT Music",
       "ytmusic_again": "Re-publish to YT Music",
-      "open_in_ytmusic": "Open in YouTube Music"
+      "open_in_ytmusic": "Open in YouTube Music",
+      "ytmusic_cover_failed": "Tracks published. YouTube rejected the cover image (needs a square JPEG/PNG under 2 MB)."
     },
     "drift_badge": {
       "label": "Needs republish",

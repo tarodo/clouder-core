@@ -2,7 +2,8 @@
 
 Mirror of PlaylistsPublishService. Matched video_ids come from
 fetch_ytmusic_status; unmatched tracks are skipped with reason
-'no_ytmusic_match'. No cover (YouTube Music has no custom-cover API).
+'no_ytmusic_match'. Cover is best-effort via playlistImages.insert — a
+failure flags cover_failed and never blocks the publish.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ class YtmusicPublishResult:
     ytmusic_url: str | None
     skipped: list[dict]
     published_at: str
+    cover_failed: bool = False
 
 
 class YtmusicPublishService:
@@ -38,10 +40,12 @@ class YtmusicPublishService:
         *,
         repo,
         ytmusic_client,
+        storage=None,
         now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     ) -> None:
         self._repo = repo
         self._yt = ytmusic_client
+        self._storage = storage
         self._now = now
 
     def publish(
@@ -115,6 +119,21 @@ class YtmusicPublishService:
 
         self._yt.add_items(target_id, video_ids)
 
+        cover_failed = False
+        cover_key = getattr(playlist, "cover_s3_key", None)
+        if cover_key and self._storage is not None:
+            try:
+                image_bytes = self._storage.read_cover_bytes(cover_key)
+                self._yt.set_cover(target_id, image_bytes)
+            except Exception as exc:  # noqa: BLE001
+                cover_failed = True
+                log_event(
+                    "WARNING", "ytmusic_publish_partial_fail",
+                    user_id=user_id, playlist_id=playlist_id,
+                    stage="cover", error_message=str(exc),
+                    error_type=type(exc).__name__,
+                )
+
         now = self._now()
         self._repo.set_ytmusic_publish_state(
             user_id=user_id, playlist_id=playlist_id,
@@ -124,10 +143,12 @@ class YtmusicPublishService:
             "INFO", "ytmusic_publish_succeeded",
             user_id=user_id, playlist_id=playlist_id,
             ytmusic_playlist_id=target_id, skipped=len(skipped),
+            cover_failed=cover_failed,
         )
         return YtmusicPublishResult(
             ytmusic_playlist_id=target_id,
             ytmusic_url=_YTMUSIC_PLAYLIST_URL.format(target_id),
             skipped=skipped,
             published_at=now.isoformat(),
+            cover_failed=cover_failed,
         )

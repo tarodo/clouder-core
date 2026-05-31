@@ -27,11 +27,16 @@ class FakeSession:
         self.calls = []
 
     def request(self, *, method, url, params=None, data=None, headers=None):
+        parsed = None
+        if isinstance(data, (str, bytes, bytearray)):
+            try:
+                parsed = json.loads(data)
+            except Exception:
+                parsed = None
         self.calls.append(
             {
                 "method": method, "url": url, "params": params,
-                "json": json.loads(data) if data else None,
-                "headers": headers,
+                "data": data, "json": parsed, "headers": headers,
             }
         )
         if self._responses:
@@ -109,6 +114,33 @@ def test_edit_meta_puts_playlist():
     assert call["json"]["id"] == "PL"
     assert call["json"]["snippet"]["title"] == "N2"
     assert call["json"]["status"] == {"privacyStatus": "public"}
+
+
+def test_set_cover_multipart_upload():
+    s = FakeSession([FakeResp(200, {"id": "img1"})])
+    _client(s).set_cover("PL", b"\xff\xd8\xffJPEGDATA")
+    call = s.calls[0]
+    assert call["method"] == "POST"
+    assert call["url"] == "https://www.googleapis.com/upload/youtube/v3/playlistImages"
+    assert call["params"] == {"part": "snippet", "uploadType": "multipart"}
+    assert call["headers"]["Content-Type"].startswith("multipart/related; boundary=")
+    body = call["data"]
+    assert b'"playlistId": "PL"' in body
+    assert b'"type": "hero"' in body
+    assert b"image/jpeg" in body
+    assert b"JPEGDATA" in body
+
+
+def test_set_cover_detects_png():
+    s = FakeSession([FakeResp(200, {})])
+    _client(s).set_cover("PL", b"\x89PNG\r\n\x1a\nDATA")
+    assert b"image/png" in s.calls[0]["data"]
+
+
+def test_set_cover_error_raises():
+    s = FakeSession([FakeResp(400, {"error": {"message": "Invalid value for type"}})])
+    with pytest.raises(YtmusicApiError):
+        _client(s).set_cover("PL", b"\xff\xd8\xffX")
 
 
 def test_error_mapping():
