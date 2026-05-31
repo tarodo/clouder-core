@@ -1,12 +1,16 @@
 import json
 from unittest.mock import patch
 
+import pytest
+
 from collector import auth_handler
 from collector.auth.ytmusic_oauth import (
+    YtmusicAuthExpired,
     YtmusicAuthPending,
     YtmusicDeviceCode,
     YtmusicTokenSet,
 )
+from collector.errors import ValidationError
 
 
 def _event(route, body=None, user_id="u1"):
@@ -103,3 +107,25 @@ def test_poll_success_stores_token_and_returns_200():
     assert json.loads(resp["body"])["connected"] is True
     assert len(repo.upserts) == 1
     assert repo.upserts[0].vendor == "ytmusic"
+
+
+def test_disconnect_deletes_vendor_token():
+    repo = FakeRepo()
+    with patch.object(auth_handler, "_build_auth_repository", return_value=repo):
+        resp = auth_handler._handle_ytmusic_disconnect(
+            _event("DELETE /auth/ytmusic"), "corr"
+        )
+    assert resp["statusCode"] == 200
+    assert json.loads(resp["body"])["connected"] is False
+    assert ("u1", "ytmusic") in repo.deleted
+
+
+def test_poll_expired_raises_validation_error():
+    with patch.object(auth_handler, "resolve_ytmusic_oauth_credentials",
+                      return_value=("cid", "csec")), \
+         patch.object(auth_handler, "YtmusicOAuthClient",
+                      return_value=FakeOAuth(raises=YtmusicAuthExpired("expired"))):
+        with pytest.raises(ValidationError):
+            auth_handler._handle_ytmusic_poll(
+                _event("POST /auth/ytmusic/poll", {"device_code": "dc"}), "corr"
+            )

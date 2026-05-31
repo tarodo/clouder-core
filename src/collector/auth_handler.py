@@ -722,6 +722,10 @@ def _handle_ytmusic_disconnect(
         raise RefreshInvalidError("authorizer context missing user_id")
     repo = _build_auth_repository()
     repo.delete_vendor_token(user_id=str(user_id), vendor="ytmusic")
+    log_event(
+        "INFO", "ytmusic_disconnect",
+        correlation_id=correlation_id, user_id=str(user_id),
+    )
     return _json_response(
         200, {"connected": False, "correlation_id": correlation_id}, correlation_id
     )
