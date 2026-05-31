@@ -36,7 +36,7 @@ describe('useResolveMatch', () => {
     result.current.mutate({ action: 'accept', vendorTrackId: 'dQw4w9WgXcQ' });
     await waitFor(() => {
       const data = qc.getQueryData<PaginatedPlaylistTracks>(playlistTracksKey('pl1'));
-      expect(data!.items[0].ytmusic!.status).toBe('matched');
+      expect(data?.items[0]?.ytmusic?.status).toBe('matched');
     });
   });
 });
