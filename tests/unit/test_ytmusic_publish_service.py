@@ -134,8 +134,8 @@ def test_skips_unmatched_tracks():
     client = FakeClient()
     svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
     result = svc.publish(user_id="u", playlist_id="p", confirm_overwrite=False)
-    # Privacy honours the CLOUDER is_public flag: private playlist -> PRIVATE.
-    assert client.created[2] == "PRIVATE"
+    # Playlists are always published PUBLIC.
+    assert client.created[2] == "PUBLIC"
     assert result.skipped == [{"track_id": "t2", "title": "T2", "reason": "no_ytmusic_match"}]
     assert client.added == [("PLnew", ["v1"])]
 

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Anchor, Breadcrumbs, Button, Flex, Group, Stack, Switch, TextInput, Tooltip, useMantineTheme } from '@mantine/core';
+import { ActionIcon, Anchor, Breadcrumbs, Button, Flex, Group, Stack, TextInput, Tooltip, useMantineTheme } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
-import { IconBrandSpotify, IconPlus, IconSearch } from '@tabler/icons-react';
+import { IconBrandSpotify, IconBrandYoutube, IconPlus, IconSearch } from '@tabler/icons-react';
 import {
   Link,
   Navigate,
@@ -31,6 +31,7 @@ import { PlaylistTracksList } from '../components/PlaylistTracksList';
 import { PlaylistPlayerPanel } from '../components/PlaylistPlayerPanel';
 import { PublishButton } from '../components/PublishButton';
 import { PublishYtMusicButton } from '../components/PublishYtMusicButton';
+import { DriftBadge } from '../components/DriftBadge';
 import { AddTracksModal } from '../components/AddTracksModal';
 import { ImportSpotifyModal } from '../components/ImportSpotifyModal';
 import { playlistTracksKey } from '../lib/queryKeys';
@@ -257,21 +258,50 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
       <PlaylistMetaPanel
         playlist={playlist}
         onPatch={handlePatch}
-        publishSlot={
-          <Group gap="sm" align="center">
-            <Tooltip label={t('playlists.privacy.hint')} multiline w={240}>
-              <Switch
-                checked={playlist.is_public}
-                onChange={(e) => void handlePatch({ is_public: e.currentTarget.checked })}
-                label={t('playlists.privacy.public_label')}
-                size="md"
-              />
-            </Tooltip>
-            <PublishButton playlist={playlist} />
-            <PublishYtMusicButton playlist={playlist} />
-            <Button color="red" variant="subtle" onClick={openDelete}>
+        titleSlot={
+          <Group gap="xs" align="center">
+            {playlist.needs_republish ? <DriftBadge /> : null}
+            <Button color="red" variant="subtle" size="xs" onClick={openDelete}>
               {t('playlists.detail.delete_cta')}
             </Button>
+          </Group>
+        }
+        publishSlot={
+          <Group gap="sm" align="center">
+            <PublishButton playlist={playlist} />
+            <PublishYtMusicButton playlist={playlist} />
+            {playlist.spotify_playlist_id ? (
+              <Tooltip label={t('playlists.detail.open_spotify')} withinPortal>
+                <ActionIcon
+                  component="a"
+                  href={`https://open.spotify.com/playlist/${playlist.spotify_playlist_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="subtle"
+                  color="green"
+                  size="lg"
+                  aria-label={t('playlists.detail.open_spotify')}
+                >
+                  <IconBrandSpotify size={22} />
+                </ActionIcon>
+              </Tooltip>
+            ) : null}
+            {playlist.ytmusic_playlist_id ? (
+              <Tooltip label={t('playlists.detail.open_ytmusic')} withinPortal>
+                <ActionIcon
+                  component="a"
+                  href={`https://music.youtube.com/playlist?list=${playlist.ytmusic_playlist_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="subtle"
+                  color="red"
+                  size="lg"
+                  aria-label={t('playlists.detail.open_ytmusic')}
+                >
+                  <IconBrandYoutube size={22} />
+                </ActionIcon>
+              </Tooltip>
+            ) : null}
           </Group>
         }
       />

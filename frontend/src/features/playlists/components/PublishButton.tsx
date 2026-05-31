@@ -8,7 +8,6 @@ import type { Playlist, PublishResult } from '../lib/playlistTypes';
 import { usePublishPlaylist } from '../hooks/usePublishPlaylist';
 import { PublishConfirmModal } from './PublishConfirmModal';
 import { PublishResultModal } from './PublishResultModal';
-import { DriftBadge } from './DriftBadge';
 
 export interface PublishButtonProps {
   playlist: Playlist;
@@ -83,18 +82,15 @@ export function PublishButton({ playlist }: PublishButtonProps) {
 
   return (
     <>
-      <Group gap="sm" align="center">
-        <Button
-          leftSection={<IconBrandSpotify size={16} />}
-          color="green"
-          variant="outline"
-          loading={publishMut.isPending}
-          onClick={handleClick}
-        >
-          {alreadyPublished ? t('playlists.publish.again') : t('playlists.publish.first')}
-        </Button>
-        {playlist.needs_republish ? <DriftBadge /> : null}
-      </Group>
+      <Button
+        leftSection={<IconBrandSpotify size={16} />}
+        color="green"
+        variant="outline"
+        loading={publishMut.isPending}
+        onClick={handleClick}
+      >
+        {alreadyPublished ? t('playlists.publish.again') : t('playlists.publish.first')}
+      </Button>
       <PublishConfirmModal
         opened={confirmOpen}
         onClose={() => setConfirmOpen(false)}
