@@ -7,6 +7,7 @@ from collector.curation import (
     ConfirmOverwriteRequiredError,
     NothingToPublishError,
     PlaylistNotFoundError,
+    YtmusicApiError,
     YtmusicNotFoundError,
 )
 from collector.curation.playlists_repository import YtmusicStatus
@@ -162,3 +163,27 @@ def test_orphan_recreates_when_edit_404s():
     assert result.ytmusic_playlist_id == "PLnew"
     assert client.created is not None
     assert repo.published_state[0] == "PLnew"
+
+
+def test_non_404_edit_error_propagates():
+    # A generic upstream error during republish must propagate, NOT trigger a
+    # silent orphan recreate.
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    rows = [FakeTrackRow("t1", "T1")]
+    statuses = {"t1": _matched("v1")}
+    client = FakeClient(edit_raises=YtmusicApiError("network timeout"))
+    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
+    with pytest.raises(YtmusicApiError):
+        svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
+    assert client.created is None  # did not recreate
+
+
+def test_orphan_404_wraps_when_not_treating_as_orphan():
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLgone")
+    rows = [FakeTrackRow("t1", "T1")]
+    statuses = {"t1": _matched("v1")}
+    client = FakeClient(edit_raises=YtmusicNotFoundError("gone"))
+    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
+    with pytest.raises(YtmusicApiError):
+        svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True, treat_404_as_orphan=False)
+    assert client.created is None

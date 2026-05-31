@@ -17,6 +17,7 @@ from . import (
     ConfirmOverwriteRequiredError,
     NothingToPublishError,
     PlaylistNotFoundError,
+    YtmusicApiError,
     YtmusicNotFoundError,
 )
 
@@ -97,9 +98,9 @@ class YtmusicPublishService:
                 )
                 existing = self._yt.get_existing_items(target_id)
                 self._yt.remove_items(target_id, existing)
-            except YtmusicNotFoundError:
+            except YtmusicNotFoundError as exc:
                 if not treat_404_as_orphan:
-                    raise
+                    raise YtmusicApiError(str(exc)) from exc
                 log_event(
                     "WARNING", "ytmusic_publish_orphan_recreated",
                     user_id=user_id, playlist_id=playlist_id,
