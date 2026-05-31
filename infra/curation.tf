@@ -28,6 +28,8 @@ resource "aws_lambda_function" "curation" {
       SPOTIFY_OAUTH_CLIENT_ID_SSM_PARAMETER     = var.spotify_client_id_ssm_parameter
       SPOTIFY_OAUTH_CLIENT_SECRET_SSM_PARAMETER = var.spotify_client_secret_ssm_parameter
       SPOTIFY_OAUTH_REDIRECT_URI                = coalesce(var.spotify_oauth_redirect_uri, "https://${aws_cloudfront_distribution.frontend.domain_name}/auth/return")
+      YTMUSIC_OAUTH_CLIENT_ID_SSM_PARAMETER     = var.ytmusic_client_id_ssm_parameter
+      YTMUSIC_OAUTH_CLIENT_SECRET_SSM_PARAMETER = var.ytmusic_client_secret_ssm_parameter
       LOG_LEVEL                                 = "INFO"
     }
   }
