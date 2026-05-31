@@ -46,13 +46,11 @@ export function YtMusicReviewPopover({ playlistId, trackId, track, status }: YtM
 
   const trigger = isReview
     ? {
-        icon: <IconHelpCircle size={18} />,
-        color: 'yellow',
+        icon: <IconHelpCircle size={18} color="var(--mantine-color-yellow-6)" />,
         label: t('playlists.ytmusic.needsReview', 'Needs review'),
       }
     : {
-        icon: <IconMusicOff size={18} />,
-        color: 'gray',
+        icon: <IconMusicOff size={18} color="var(--mantine-color-gray-5)" />,
         label: t('playlists.ytmusic.addManually', 'Not on YT Music — add a link'),
       };
 
@@ -60,7 +58,7 @@ export function YtMusicReviewPopover({ playlistId, trackId, track, status }: YtM
     <Popover opened={opened} onChange={setOpened} width={360} position="bottom-end" withArrow>
       <Popover.Target>
         <Tooltip label={trigger.label}>
-          <ActionIcon variant="subtle" color={trigger.color}
+          <ActionIcon variant="subtle"
             aria-label={t('playlists.ytmusic.review', 'Review YT Music match')}
             onClick={() => setOpened((o) => !o)}>
             {trigger.icon}
