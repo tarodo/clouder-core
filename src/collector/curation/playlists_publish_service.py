@@ -96,7 +96,7 @@ class PlaylistsPublishService:
                     spotify_playlist_id=target_id,
                     name=playlist.name,
                     description=playlist.description,
-                    public=playlist.is_public,
+                    public=True,  # playlists are always published public
                 )
             except SpotifyNotFoundError as exc:
                 if not treat_404_as_orphan:
@@ -112,7 +112,7 @@ class PlaylistsPublishService:
                 user_spotify_id=user_spotify_id,
                 name=playlist.name,
                 description=playlist.description,
-                public=playlist.is_public,
+                public=True,  # playlists are always published public
             )
             target_id = ref.id
             spotify_url = ref.url

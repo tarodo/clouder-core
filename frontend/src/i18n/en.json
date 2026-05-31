@@ -247,7 +247,9 @@
     "detail": {
       "back_to_list": "Back to playlists",
       "stats": "{{count}} tracks · Updated {{when}}",
-      "delete_cta": "Delete playlist",
+      "delete_cta": "Delete",
+      "open_spotify": "Open on Spotify",
+      "open_ytmusic": "Open on YouTube Music",
       "clear_cover_cta": "Remove cover",
       "add_tracks_cta": "Add tracks",
       "import_spotify_cta": "Import from Spotify",
@@ -280,10 +282,6 @@
       "ytmusic_again": "Re-publish to YT Music",
       "open_in_ytmusic": "Open in YouTube Music",
       "ytmusic_cover_failed": "Tracks published. YouTube rejected the cover image (needs a square JPEG/PNG under 2 MB)."
-    },
-    "privacy": {
-      "public_label": "Public",
-      "hint": "When public, the playlist is visible to everyone on Spotify and YouTube Music. Turn off to keep it private. Applies on the next publish."
     },
     "drift_badge": {
       "label": "Needs republish",

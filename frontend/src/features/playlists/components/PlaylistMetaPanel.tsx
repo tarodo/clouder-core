@@ -26,12 +26,14 @@ export interface PlaylistMetaPanelProps {
     status?: 'active' | 'completed';
   }) => Promise<void>;
   publishSlot?: React.ReactNode;
+  titleSlot?: React.ReactNode;
 }
 
 export function PlaylistMetaPanel({
   playlist,
   onPatch,
   publishSlot,
+  titleSlot,
 }: PlaylistMetaPanelProps) {
   const { t } = useTranslation();
   const [editingName, setEditingName] = useState(false);
@@ -126,7 +128,7 @@ export function PlaylistMetaPanel({
             </ActionIcon>
           </Group>
         ) : (
-          <Group gap="xs" wrap="nowrap">
+          <Group gap="xs" wrap="wrap" align="center">
             <Title order={1}>{playlist.name}</Title>
             <Tooltip label={t('playlists.form.rename_title')} withinPortal>
               <ActionIcon
@@ -137,6 +139,7 @@ export function PlaylistMetaPanel({
                 <IconPencil size={16} />
               </ActionIcon>
             </Tooltip>
+            {titleSlot}
           </Group>
         )}
 
