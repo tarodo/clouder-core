@@ -1,9 +1,5 @@
-import { ActionIcon, Text, Tooltip } from '@mantine/core';
-import {
-  IconBrandYoutube,
-  IconClock,
-  IconMusicOff,
-} from '@tabler/icons-react';
+import { ActionIcon, Tooltip } from '@mantine/core';
+import { IconBrandYoutube, IconClock } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { PlaylistTrack, YtMusicMatch } from '../lib/playlistTypes';
 import { YtMusicReviewPopover } from './YtMusicReviewPopover';
@@ -15,6 +11,7 @@ export interface YtMusicBadgeProps {
   track: Pick<PlaylistTrack, 'title' | 'artists'>;
 }
 
+// Every state renders as a same-sized ActionIcon so the column never shifts.
 export function YtMusicBadge({ match, playlistId, trackId, track }: YtMusicBadgeProps) {
   const { t } = useTranslation();
   if (!match) return null;
@@ -29,7 +26,7 @@ export function YtMusicBadge({ match, playlistId, trackId, track }: YtMusicBadge
           target="_blank"
           rel="noopener noreferrer"
           variant="subtle"
-          color="red"
+          color="dark"
           aria-label={t('playlists.ytmusic.matched', 'YT Music')}
         >
           <IconBrandYoutube size={18} />
@@ -39,19 +36,32 @@ export function YtMusicBadge({ match, playlistId, trackId, track }: YtMusicBadge
   }
 
   if (match.status === 'needs_review') {
-    return <YtMusicReviewPopover playlistId={playlistId} trackId={trackId} track={track} />;
+    return (
+      <YtMusicReviewPopover
+        playlistId={playlistId} trackId={trackId} track={track} status="needs_review"
+      />
+    );
   }
 
-  const { icon, label, color } =
-    match.status === 'not_found'
-      ? { icon: <IconMusicOff size={18} />, label: t('playlists.ytmusic.notFound', 'Not on YT Music'), color: 'gray' }
-      : { icon: <IconClock size={18} />, label: t('playlists.ytmusic.pending', 'Searching YT Music…'), color: 'gray' };
+  if (match.status === 'not_found') {
+    return (
+      <YtMusicReviewPopover
+        playlistId={playlistId} trackId={trackId} track={track} status="not_found"
+      />
+    );
+  }
 
+  // pending — same-sized disabled icon
   return (
-    <Tooltip label={label}>
-      <Text c={color} component="span" aria-label={label} style={{ display: 'inline-flex' }}>
-        {icon}
-      </Text>
+    <Tooltip label={t('playlists.ytmusic.pending', 'Searching YT Music…')}>
+      <ActionIcon
+        variant="subtle"
+        color="gray"
+        disabled
+        aria-label={t('playlists.ytmusic.pending', 'Searching YT Music…')}
+      >
+        <IconClock size={18} />
+      </ActionIcon>
     </Tooltip>
   );
 }
