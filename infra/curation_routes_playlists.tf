@@ -18,6 +18,8 @@ locals {
     "DELETE /playlists/{id}/cover",
     "POST /playlists/{id}/tracks/import-spotify",
     "POST /playlists/{id}/publish",
+    "GET /playlists/{id}/tracks/{track_id}/match-candidates",
+    "POST /playlists/{id}/tracks/{track_id}/match-resolve",
   ]
 }
 
