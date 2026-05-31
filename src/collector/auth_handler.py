@@ -18,6 +18,14 @@ from .auth.auth_settings import (
     get_auth_settings,
     resolve_jwt_signing_key,
     resolve_oauth_client_credentials,
+    resolve_ytmusic_oauth_credentials,
+)
+from .auth.ytmusic_oauth import (
+    YtmusicAuthError,
+    YtmusicAuthExpired,
+    YtmusicAuthPending,
+    YtmusicAuthSlowDown,
+    YtmusicOAuthClient,
 )
 from .auth.jwt_utils import (
     InvalidTokenError,
@@ -138,6 +146,12 @@ def _route(
         return _handle_me(event, correlation_id)
     if route == "DELETE /me/sessions/{session_id}":
         return _handle_revoke_session(event, correlation_id)
+    if route == "POST /auth/ytmusic/device-code":
+        return _handle_ytmusic_device_code(event, correlation_id)
+    if route == "POST /auth/ytmusic/poll":
+        return _handle_ytmusic_poll(event, correlation_id)
+    if route == "DELETE /auth/ytmusic":
+        return _handle_ytmusic_disconnect(event, correlation_id)
     return _json_response(
         404,
         {"error_code": "not_found", "message": "Route not found",
@@ -545,6 +559,9 @@ def _handle_me(
     if user is None:
         raise RefreshInvalidError("user not found")
 
+    ytmusic_connected = (
+        repo.get_vendor_token(user_id=str(user_id), vendor="ytmusic") is not None
+    )
     sessions = repo.list_active_sessions(user_id=str(user_id), now=_now())
     return _json_response(
         200,
@@ -554,6 +571,7 @@ def _handle_me(
             "display_name": user.display_name,
             "email": user.email,
             "is_admin": user.is_admin,
+            "ytmusic_connected": ytmusic_connected,
             "sessions": [
                 {
                     "id": s.id,
@@ -610,6 +628,107 @@ def _handle_revoke_session(
         "headers": {"x-correlation-id": correlation_id},
         "body": "",
     }
+
+
+def _handle_ytmusic_device_code(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    ctx = _authorizer_context(event)
+    user_id = ctx.get("user_id")
+    if not user_id:
+        raise RefreshInvalidError("authorizer context missing user_id")
+
+    cid, csec = resolve_ytmusic_oauth_credentials()
+    oauth = YtmusicOAuthClient(client_id=cid, client_secret=csec)
+    code = oauth.request_device_code()
+    return _json_response(
+        200,
+        {
+            "device_code": code.device_code,
+            "user_code": code.user_code,
+            "verification_url": code.verification_url,
+            "interval": code.interval,
+            "expires_in": code.expires_in,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
+def _handle_ytmusic_poll(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    ctx = _authorizer_context(event)
+    user_id = ctx.get("user_id")
+    if not user_id:
+        raise RefreshInvalidError("authorizer context missing user_id")
+
+    body = json.loads(event.get("body") or "{}")
+    device_code = body.get("device_code")
+    if not device_code:
+        raise ValidationError("device_code is required")
+
+    cid, csec = resolve_ytmusic_oauth_credentials()
+    oauth = YtmusicOAuthClient(client_id=cid, client_secret=csec)
+    try:
+        tokens = oauth.exchange_device_code(device_code=device_code)
+    except (YtmusicAuthPending, YtmusicAuthSlowDown) as exc:
+        return _json_response(
+            202,
+            {
+                "status": "authorization_pending"
+                if isinstance(exc, YtmusicAuthPending) else "slow_down",
+                "correlation_id": correlation_id,
+            },
+            correlation_id,
+        )
+    except YtmusicAuthExpired as exc:
+        raise ValidationError("device code expired, restart connect") from exc
+    except YtmusicAuthError as exc:
+        raise OAuthExchangeFailedError(str(exc)) from exc
+
+    repo = _build_auth_repository()
+    envelope = _build_kms_envelope()
+    now = _now()
+    access_payload = envelope.encrypt(tokens.access_token.encode("utf-8"))
+    refresh_payload = envelope.encrypt(tokens.refresh_token.encode("utf-8"))
+    repo.upsert_vendor_token(
+        UpsertVendorTokenCmd(
+            user_id=str(user_id),
+            vendor="ytmusic",
+            access_token_enc=access_payload.serialize(),
+            refresh_token_enc=refresh_payload.serialize(),
+            data_key_enc=access_payload.data_key_enc,
+            scope=tokens.scope,
+            expires_at=now + timedelta(seconds=tokens.expires_in),
+            updated_at=now,
+        )
+    )
+    log_event(
+        "INFO", "ytmusic_connect_success",
+        correlation_id=correlation_id, user_id=str(user_id),
+    )
+    return _json_response(
+        200, {"connected": True, "correlation_id": correlation_id}, correlation_id
+    )
+
+
+def _handle_ytmusic_disconnect(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    ctx = _authorizer_context(event)
+    user_id = ctx.get("user_id")
+    if not user_id:
+        raise RefreshInvalidError("authorizer context missing user_id")
+    repo = _build_auth_repository()
+    repo.delete_vendor_token(user_id=str(user_id), vendor="ytmusic")
+    log_event(
+        "INFO", "ytmusic_disconnect",
+        correlation_id=correlation_id, user_id=str(user_id),
+    )
+    return _json_response(
+        200, {"connected": False, "correlation_id": correlation_id}, correlation_id
+    )
 
 
 def _resolve_user_id(repo: AuthRepository, spotify_id: str) -> str:

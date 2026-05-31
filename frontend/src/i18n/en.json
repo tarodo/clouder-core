@@ -273,9 +273,12 @@
       "confirm_cta": "Re-publish",
       "cancel": "Cancel",
       "result_skipped_title": "{{count}} tracks were skipped",
-      "result_skipped_body": "The following tracks could not be published to Spotify:",
+      "result_skipped_body": "The following tracks could not be published:",
       "cover_failed": "Tracks updated. Spotify rejected the cover — try Replace and re-publish.",
-      "open_in_spotify": "Open in Spotify"
+      "open_in_spotify": "Open in Spotify",
+      "ytmusic": "Publish to YT Music",
+      "ytmusic_again": "Re-publish to YT Music",
+      "open_in_ytmusic": "Open in YouTube Music"
     },
     "drift_badge": {
       "label": "Needs republish",
@@ -326,7 +329,9 @@
       "cover_unsupported": "Unsupported image format (JPEG or PNG only).",
       "cover_failed": "Cover upload failed.",
       "import_done": "{{added}} imported · {{skipped}} skipped",
-      "generic_error": "Something went wrong."
+      "generic_error": "Something went wrong.",
+      "ytmusic_published_first": "Playlist published to YouTube Music",
+      "ytmusic_published_again": "Playlist re-published to YouTube Music"
     },
     "errors": {
       "name_required": "Name is required.",
@@ -339,7 +344,17 @@
       "spotify_upstream_error": "Spotify is unreachable, retry in a moment.",
       "tracks_not_accessible": "Some tracks are no longer accessible.",
       "tracks_not_accessible_count": "{{count}} tracks are no longer accessible.",
-      "confirm_overwrite_required": "Someone else already published this playlist. Confirm to overwrite."
+      "confirm_overwrite_required": "Someone else already published this playlist. Confirm to overwrite.",
+      "ytmusic_not_authorized": "YouTube Music isn't connected.",
+      "ytmusic_api_error": "YouTube Music is unreachable, retry in a moment."
+    },
+    "ytmusic_connect": {
+      "title": "Connect YouTube Music",
+      "body": "Open the link, sign in with the YouTube Music account you want to publish to, and enter this code:",
+      "open_link": "Open google.com/device",
+      "waiting": "Waiting for you to approve…",
+      "expired": "The code expired. Close and try again.",
+      "error": "Could not connect. Close and try again."
     }
   },
   "tags": {

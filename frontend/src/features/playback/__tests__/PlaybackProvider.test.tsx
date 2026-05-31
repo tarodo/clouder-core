@@ -57,7 +57,7 @@ function makeStubAuth(refresh: AuthContextValue['refresh'] = vi.fn().mockResolve
   return {
     state: {
       status: 'authenticated',
-      user: { id: 'u', spotify_id: 's', display_name: 'Test', is_admin: false },
+      user: { id: 'u', spotify_id: 's', display_name: 'Test', is_admin: false, ytmusic_connected: false },
       expiresAt: Date.now() + 1_800_000,
       spotifyAccessToken: 'SPTOK',
     },

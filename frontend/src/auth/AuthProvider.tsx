@@ -18,6 +18,7 @@ export interface Me {
   spotify_id: string;
   display_name: string;
   is_admin: boolean;
+  ytmusic_connected: boolean;
 }
 
 interface CallbackResponse {

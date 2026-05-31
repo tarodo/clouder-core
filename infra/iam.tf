@@ -151,6 +151,8 @@ data "aws_iam_policy_document" "collector_lambda" {
     for_each = length(compact([
       var.spotify_client_id_ssm_parameter,
       var.spotify_client_secret_ssm_parameter,
+      var.ytmusic_client_id_ssm_parameter,
+      var.ytmusic_client_secret_ssm_parameter,
       var.gemini_api_key_ssm_parameter,
       var.openai_api_key_ssm_parameter,
       var.tavily_api_key_ssm_parameter,
@@ -163,6 +165,8 @@ data "aws_iam_policy_document" "collector_lambda" {
       resources = compact([
         var.spotify_client_id_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_client_id_ssm_parameter}" : "",
         var.spotify_client_secret_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.spotify_client_secret_ssm_parameter}" : "",
+        var.ytmusic_client_id_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ytmusic_client_id_ssm_parameter}" : "",
+        var.ytmusic_client_secret_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ytmusic_client_secret_ssm_parameter}" : "",
         var.gemini_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.gemini_api_key_ssm_parameter}" : "",
         var.openai_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.openai_api_key_ssm_parameter}" : "",
         var.tavily_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.tavily_api_key_ssm_parameter}" : "",
@@ -175,6 +179,8 @@ data "aws_iam_policy_document" "collector_lambda" {
     for_each = length(compact([
       var.spotify_client_id_ssm_parameter,
       var.spotify_client_secret_ssm_parameter,
+      var.ytmusic_client_id_ssm_parameter,
+      var.ytmusic_client_secret_ssm_parameter,
       var.gemini_api_key_ssm_parameter,
       var.openai_api_key_ssm_parameter,
       var.tavily_api_key_ssm_parameter,

@@ -60,6 +60,8 @@ resource "aws_lambda_function" "auth_handler" {
       SPOTIFY_OAUTH_CLIENT_ID_SSM_PARAMETER     = var.spotify_client_id_ssm_parameter
       SPOTIFY_OAUTH_CLIENT_SECRET_SSM_PARAMETER = var.spotify_client_secret_ssm_parameter
       SPOTIFY_OAUTH_REDIRECT_URI                = coalesce(var.spotify_oauth_redirect_uri, "https://${aws_cloudfront_distribution.frontend.domain_name}/auth/return")
+      YTMUSIC_OAUTH_CLIENT_ID_SSM_PARAMETER     = var.ytmusic_client_id_ssm_parameter
+      YTMUSIC_OAUTH_CLIENT_SECRET_SSM_PARAMETER = var.ytmusic_client_secret_ssm_parameter
       ALLOWED_FRONTEND_REDIRECTS                = var.allowed_frontend_redirects
       ADMIN_SPOTIFY_IDS                         = var.admin_spotify_ids
       JWT_ACCESS_TOKEN_TTL_SECONDS              = tostring(var.jwt_access_token_ttl_seconds)
@@ -201,6 +203,30 @@ resource "aws_apigatewayv2_route" "me" {
 resource "aws_apigatewayv2_route" "me_session_revoke" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "DELETE /me/sessions/{session_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "ytmusic_device_code" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /auth/ytmusic/device-code"
+  target             = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "ytmusic_poll" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /auth/ytmusic/poll"
+  target             = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "ytmusic_disconnect" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "DELETE /auth/ytmusic"
   target             = "integrations/${aws_apigatewayv2_integration.auth_lambda.id}"
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id

@@ -51,6 +51,9 @@ class PlaylistRow:
     created_at: str
     updated_at: str
     status: str  # 'active' | 'completed'
+    ytmusic_playlist_id: str | None = None
+    ytmusic_last_published_at: str | None = None
+    ytmusic_needs_republish: bool = False
 
 
 _PLAYLIST_SELECT = """
@@ -58,6 +61,8 @@ _PLAYLIST_SELECT = """
         p.id, p.user_id, p.name, p.normalized_name, p.description,
         p.is_public, p.cover_s3_key, p.cover_uploaded_at,
         p.spotify_playlist_id, p.last_published_at, p.needs_republish,
+        p.ytmusic_playlist_id, p.ytmusic_last_published_at,
+        p.ytmusic_needs_republish,
         p.status, p.created_at, p.updated_at,
         COALESCE(t.cnt, 0) AS track_count
     FROM playlists p
@@ -121,6 +126,12 @@ def _row(raw: Mapping[str, Any]) -> PlaylistRow:
         track_count=int(raw.get("track_count") or 0),
         created_at=str(raw["created_at"]),
         updated_at=str(raw["updated_at"]),
+        ytmusic_playlist_id=raw.get("ytmusic_playlist_id"),
+        ytmusic_last_published_at=(
+            str(raw["ytmusic_last_published_at"])
+            if raw.get("ytmusic_last_published_at") else None
+        ),
+        ytmusic_needs_republish=bool(raw.get("ytmusic_needs_republish")),
         status=raw.get("status") or "active",
     )
 
@@ -758,6 +769,36 @@ class PlaylistsRepository:
                 "user_id": user_id,
                 "spotify_playlist_id": spotify_playlist_id,
                 "needs_republish": mark_dirty,
+                "now": now,
+            },
+        )
+        return bool(rows)
+
+    def set_ytmusic_publish_state(
+        self,
+        *,
+        user_id: str,
+        playlist_id: str,
+        ytmusic_playlist_id: str,
+        now: datetime,
+    ) -> bool:
+        """Record the YouTube Music playlist id + publish timestamp and clear
+        the ytmusic drift flag. Mirror of ``set_publish_state`` for the
+        ytmusic target."""
+        rows = self._data_api.execute(
+            """
+            UPDATE playlists SET
+                ytmusic_playlist_id = :ytmusic_playlist_id,
+                ytmusic_last_published_at = :now,
+                ytmusic_needs_republish = FALSE,
+                updated_at = :now
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
+            RETURNING id
+            """,
+            {
+                "id": playlist_id,
+                "user_id": user_id,
+                "ytmusic_playlist_id": ytmusic_playlist_id,
                 "now": now,
             },
         )

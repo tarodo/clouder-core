@@ -240,3 +240,19 @@ class CoverTooLargeError(CurationError):
 class NothingToPublishError(CurationError):
     error_code = "nothing_to_publish"
     http_status = 400
+
+
+class YtmusicNotAuthorizedError(CurationError):
+    error_code = "ytmusic_not_authorized"
+    http_status = 412
+
+
+class YtmusicApiError(CurationError):
+    error_code = "ytmusic_api_error"
+    http_status = 502
+
+
+class YtmusicNotFoundError(YtmusicApiError):
+    """ytmusicapi reported the playlist does not exist (orphan recreate path)."""
+
+    error_code = "ytmusic_not_found"

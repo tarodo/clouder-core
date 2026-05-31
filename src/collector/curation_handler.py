@@ -1133,6 +1133,34 @@ def _handle_import_spotify(event, repo, user_id, correlation_id):
     )
 
 
+def _handle_publish_ytmusic(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    body = PublishPlaylistIn.model_validate(_parse_body(event))
+
+    yt_client = _build_ytmusic_user_client(user_id, correlation_id)
+
+    from .curation.ytmusic_publish_service import YtmusicPublishService
+
+    svc = YtmusicPublishService(repo=repo, ytmusic_client=yt_client)
+    result = svc.publish(
+        user_id=user_id, playlist_id=pid,
+        confirm_overwrite=body.confirm_overwrite,
+    )
+    return _json_response(
+        200,
+        {
+            "ytmusic_playlist_id": result.ytmusic_playlist_id,
+            "ytmusic_url": result.ytmusic_url,
+            "skipped_tracks": result.skipped,
+            "published_at": result.published_at,
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
 def _handle_publish(event, repo, user_id, correlation_id):
     pid = (event.get("pathParameters") or {}).get("id")
     if not pid:
@@ -1805,6 +1833,48 @@ def _build_spotify_user_client(user_id: str, correlation_id: str):
     )
 
 
+def _build_ytmusic_user_client(user_id: str, correlation_id: str):
+    """Build an authenticated YouTube Music client for the user.
+
+    Token refresh + KMS decrypt go through YtmusicTokenResolver. Raises
+    YtmusicNotAuthorizedError (-> 412) if the user has not connected YT Music.
+    """
+    import boto3
+    from collector.auth.auth_settings import (
+        get_auth_settings,
+        resolve_ytmusic_oauth_credentials,
+    )
+    from collector.auth.kms_envelope import KmsEnvelope
+    from collector.auth.ytmusic_oauth import YtmusicOAuthClient
+    from collector.curation.ytmusic_token_resolver import YtmusicTokenResolver
+    from collector.curation.ytmusic_user_client import (
+        YtmusicUserClient,
+        build_authenticated_ytmusic,
+    )
+    from collector.data_api import create_default_data_api_client
+    from collector.settings import get_data_api_settings
+
+    db = get_data_api_settings()
+    auth = get_auth_settings()
+    cid, csec = resolve_ytmusic_oauth_credentials()
+    data_api = create_default_data_api_client(
+        resource_arn=str(db.aurora_cluster_arn),
+        secret_arn=str(db.aurora_secret_arn),
+        database=db.aurora_database,
+    )
+    envelope = KmsEnvelope(
+        kms_client=boto3.client("kms"),
+        key_arn=auth.kms_user_tokens_key_arn,
+    )
+    oauth = YtmusicOAuthClient(client_id=cid, client_secret=csec)
+    resolver = YtmusicTokenResolver(
+        data_api=data_api, envelope=envelope, oauth_client=oauth,
+    )
+    token = resolver.resolve(user_id=user_id)
+    yt = build_authenticated_ytmusic(token.token_dict, cid, csec)
+    return YtmusicUserClient(yt=yt)
+
+
 _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]] = {
     "POST /styles/{style_id}/categories": (_handle_create_category, _categories_factory),
     "GET /styles/{style_id}/categories": (_handle_list_by_style, _categories_factory),
@@ -1860,6 +1930,9 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     ),
     "POST /playlists/{id}/publish": (
         _handle_publish, _playlists_factory,
+    ),
+    "POST /playlists/{id}/publish-ytmusic": (
+        _handle_publish_ytmusic, _playlists_factory,
     ),
     "GET /playlists/{id}/tracks/{track_id}/match-candidates": (
         _handle_match_candidates, _playlists_factory,

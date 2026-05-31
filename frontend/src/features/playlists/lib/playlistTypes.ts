@@ -16,6 +16,9 @@ export interface Playlist {
   spotify_playlist_id: string | null;
   last_published_at: string | null;
   needs_republish: boolean;
+  ytmusic_playlist_id: string | null;
+  ytmusic_last_published_at: string | null;
+  ytmusic_needs_republish: boolean;
   track_count: number;
   status: PlaylistStatus;
   created_at: string;
@@ -89,6 +92,14 @@ export interface PublishResult {
   spotify_url: string;
   skipped_tracks: { track_id: string; title: string; reason: string }[];
   cover_failed: boolean;
+  published_at: string;
+  correlation_id?: string;
+}
+
+export interface YtmusicPublishResult {
+  ytmusic_playlist_id: string;
+  ytmusic_url: string;
+  skipped_tracks: { track_id: string; title: string; reason: string }[];
   published_at: string;
   correlation_id?: string;
 }

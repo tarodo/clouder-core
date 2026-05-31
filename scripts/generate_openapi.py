@@ -590,12 +590,13 @@ ME_RESPONSE = {
         {"$ref": "#/components/schemas/UserProfile"},
         {
             "type": "object",
-            "required": ["sessions"],
+            "required": ["sessions", "ytmusic_connected"],
             "properties": {
                 "sessions": {
                     "type": "array",
                     "items": {"$ref": "#/components/schemas/SessionRow"},
                 },
+                "ytmusic_connected": {"type": "boolean"},
             },
         },
     ]
@@ -1348,6 +1349,49 @@ ROUTES: list[dict[str, Any]] = [
                 404,
                 "Session does not belong to the calling user (or does not exist).",
             ),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/auth/ytmusic/device-code",
+        "auth": AUTH,
+        "summary": "Start YouTube Music device-flow OAuth.",
+        "description": "Returns a user_code + verification_url; client shows it and polls /auth/ytmusic/poll.",
+        "responses": {
+            "200": _make_response(200, "Device code issued.", {"type": "object"}),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/auth/ytmusic/poll",
+        "auth": AUTH,
+        "summary": "Poll for YouTube Music device-flow completion.",
+        "description": "Exchanges the device_code. 202 while pending; 200 once the account is linked.",
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "properties": {"device_code": {"type": "string"}},
+                "required": ["device_code"],
+                "additionalProperties": False,
+            }}},
+        },
+        "responses": {
+            "200": _make_response(200, "Account linked.", {"type": "object"}),
+            "202": {"description": "authorization_pending or slow_down — keep polling."},
+            "422": _error(422, "device code expired — restart."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "delete",
+        "path": "/auth/ytmusic",
+        "auth": AUTH,
+        "summary": "Disconnect the user's YouTube Music account.",
+        "responses": {
+            "200": _make_response(200, "Disconnected.", {"type": "object"}),
             **COMMON_AUTH_ERRORS,
         },
     },
@@ -2903,6 +2947,41 @@ ROUTES: list[dict[str, Any]] = [
             "409": _error(409, "confirm_overwrite_required."),
             "412": _error(412, "spotify_not_authorized."),
             "502": _error(502, "spotify_upstream_error."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/playlists/{id}/publish-ytmusic",
+        "auth": AUTH,
+        "summary": "Publish the playlist to the user's YouTube Music account.",
+        "description": (
+            "Creates or overwrites the linked YouTube Music playlist with the "
+            "current matched tracks (video ids from vendor_track_map) and "
+            "metadata (name, description, privacy). Unmatched tracks are "
+            "skipped. On overwrite the client must pass `confirm_overwrite=true`."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "requestBody": {
+            "required": False,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "properties": {
+                    "confirm_overwrite": {"type": "boolean", "default": False},
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"confirm_overwrite": True},
+        "responses": {
+            "200": _make_response(200, "Playlist published; returns YouTube Music playlist id.", {"type": "object"}),
+            "400": _error(400, "nothing_to_publish (no matched YouTube Music tracks)."),
+            "404": _error(404, "playlist_not_found."),
+            "409": _error(409, "confirm_overwrite_required."),
+            "412": _error(412, "ytmusic_not_authorized (YouTube Music not connected)."),
+            "502": _error(502, "ytmusic_api_error."),
             **COMMON_AUTH_ERRORS,
         },
     },
