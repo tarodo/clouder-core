@@ -270,6 +270,8 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
       debouncedSearch={debouncedSearch}
       onPlay={isStagingBucket ? playTrack : undefined}
       currentTrackId={isStagingBucket ? (playback.track.current?.id ?? null) : null}
+      playing={playback.queue.status === 'playing'}
+      onTogglePlay={playback.controls.togglePlayPause}
     />
   );
 

@@ -1,9 +1,10 @@
-import { ActionIcon, Card, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { Card, Group, Stack, Table, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-import { IconAlertTriangle, IconPlayerPlayFilled } from '../../../components/icons';
+import { IconAlertTriangle } from '../../../components/icons';
 import { formatLength, formatReleaseDate } from '../../../lib/formatters';
 import type { BucketTrack } from '../hooks/useBucketTracks';
 import type { TriageBucket } from '../lib/bucketLabels';
+import { PlayPauseButton } from '../../playback/PlayPauseButton';
 import { MoveToMenu } from './MoveToMenu';
 import { TrackKey } from '../../playback/TrackKey';
 
@@ -18,6 +19,8 @@ export interface BucketTrackRowProps {
   blockStatus?: 'IN_PROGRESS' | 'FINALIZED';
   onPlay?: () => void;
   isCurrent?: boolean;
+  isPlaying?: boolean;
+  onToggle?: () => void;
 }
 
 export function BucketTrackRow({
@@ -31,6 +34,8 @@ export function BucketTrackRow({
   blockStatus,
   onPlay,
   isCurrent,
+  isPlaying,
+  onToggle,
 }: BucketTrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
@@ -52,23 +57,16 @@ export function BucketTrackRow({
 
   const canPlay = !!onPlay && !!track.spotify_id;
   const playButton = onPlay ? (
-    <Tooltip
-      label={
-        track.spotify_id
-          ? t('triage.tracks_table.play_aria')
-          : t('triage.tracks_table.play_unavailable')
-      }
-    >
-      <ActionIcon
-        variant="subtle"
-        size="md"
-        disabled={!canPlay}
-        onClick={canPlay ? onPlay : undefined}
-        aria-label={t('triage.tracks_table.play_aria')}
-      >
-        <IconPlayerPlayFilled size={16} />
-      </ActionIcon>
-    </Tooltip>
+    <PlayPauseButton
+      isCurrent={!!isCurrent}
+      isPlaying={!!isPlaying}
+      canPlay={canPlay}
+      onPlay={onPlay}
+      onToggle={onToggle ?? onPlay}
+      playLabel={t('triage.tracks_table.play_aria')}
+      pauseLabel={t('triage.tracks_table.pause_aria')}
+      unavailableLabel={t('triage.tracks_table.play_unavailable')}
+    />
   ) : null;
 
   if (variant === 'desktop') {
