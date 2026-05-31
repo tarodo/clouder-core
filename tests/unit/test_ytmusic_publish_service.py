@@ -52,10 +52,11 @@ class FakeRepo:
 
 
 class FakeClient:
-    def __init__(self, *, create_ret="PLnew", edit_raises=None, cover_raises=None):
+    def __init__(self, *, create_ret="PLnew", edit_raises=None, cover_raises=None, existing=None):
         self.create_ret = create_ret
         self.edit_raises = edit_raises
         self.cover_raises = cover_raises
+        self._existing = existing if existing is not None else [{"videoId": "old", "itemId": "i_old"}]
         self.created = None
         self.edited = None
         self.added = []
@@ -77,7 +78,7 @@ class FakeClient:
         self.edited = (playlist_id, name, description, privacy)
 
     def get_existing_items(self, playlist_id):
-        return [{"videoId": "old", "setVideoId": "s"}]
+        return list(self._existing)
 
     def add_items(self, playlist_id, video_ids):
         self.added.append((playlist_id, list(video_ids)))
@@ -167,8 +168,34 @@ def test_republish_edits_in_place():
     result = svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
     assert result.ytmusic_playlist_id == "PLold"
     assert client.edited == ("PLold", "N2", "D2", "PUBLIC")
-    assert client.removed == [("PLold", [{"videoId": "old", "setVideoId": "s"}])]
+    # diff: existing "old" not desired -> remove its itemId; "v1" not present -> add.
+    assert client.removed == [("PLold", ["i_old"])]
     assert client.added == [("PLold", ["v1"])]
+
+
+def test_republish_unchanged_skips_track_ops():
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    rows = [FakeTrackRow("t1", "T1"), FakeTrackRow("t2", "T2")]
+    statuses = {"t1": _matched("v1"), "t2": _matched("v2")}
+    client = FakeClient(existing=[{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}])
+    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
+    svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
+    # Existing == desired -> no quota-costly inserts/deletes.
+    assert client.removed == []
+    assert client.added == []
+    assert client.edited is not None  # metadata still synced
+
+
+def test_republish_incremental_diff_touches_only_delta():
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    rows = [FakeTrackRow("t1", "T1"), FakeTrackRow("t3", "T3")]
+    statuses = {"t1": _matched("v1"), "t3": _matched("v3")}
+    # existing has v1 + v2; desired is v1 + v3 -> remove v2's item, add v3.
+    client = FakeClient(existing=[{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}])
+    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
+    svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
+    assert client.removed == [("PLold", ["i2"])]
+    assert client.added == [("PLold", ["v3"])]
 
 
 def test_orphan_recreates_when_edit_404s():
