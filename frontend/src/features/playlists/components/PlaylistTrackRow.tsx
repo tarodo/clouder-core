@@ -1,11 +1,10 @@
 import type { CSSProperties, HTMLAttributes } from 'react';
-import { ActionIcon, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Stack, Text } from '@mantine/core';
 import { useSortable, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
   IconBrandSpotify,
   IconGripVertical,
-  IconPlayerPlayFilled,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { PlaylistTrack } from '../lib/playlistTypes';
@@ -13,6 +12,7 @@ import { formatLength, formatReleaseDate } from '../../../lib/formatters';
 import { TagPill } from '../../tags';
 import { YtMusicBadge } from './YtMusicBadge';
 import { TrackKey } from '../../playback/TrackKey';
+import { PlayPauseButton } from '../../playback/PlayPauseButton';
 
 export interface PlaylistTrackRowProps {
   track: PlaylistTrack;
@@ -21,6 +21,8 @@ export interface PlaylistTrackRowProps {
   reorderDisabled?: boolean;
   onPlay?: () => void;
   isCurrent?: boolean;
+  isPlaying?: boolean;
+  onToggle?: () => void;
   playlistId: string;
 }
 
@@ -45,6 +47,8 @@ export function PlaylistTrackRowView({
   reorderDisabled = false,
   onPlay,
   isCurrent,
+  isPlaying,
+  onToggle,
   playlistId,
   rootRef,
   rootStyle,
@@ -86,25 +90,18 @@ export function PlaylistTrackRowView({
         {position}.
       </Text>
 
-      {/* Play button (only when the page wires playback) */}
+      {/* Play / Pause button (only when the page wires playback) */}
       {onPlay !== undefined && (
-        <Tooltip
-          label={
-            track.spotify_id
-              ? t('categories.tracks_table.play_aria')
-              : t('categories.tracks_table.play_unavailable')
-          }
-        >
-          <ActionIcon
-            variant="subtle"
-            size="md"
-            disabled={!canPlay}
-            onClick={canPlay ? onPlay : undefined}
-            aria-label={t('categories.tracks_table.play_aria')}
-          >
-            <IconPlayerPlayFilled size={16} />
-          </ActionIcon>
-        </Tooltip>
+        <PlayPauseButton
+          isCurrent={!!isCurrent}
+          isPlaying={!!isPlaying}
+          canPlay={canPlay}
+          onPlay={onPlay}
+          onToggle={onToggle ?? onPlay}
+          playLabel={t('categories.tracks_table.play_aria')}
+          pauseLabel={t('categories.tracks_table.pause_aria')}
+          unavailableLabel={t('categories.tracks_table.play_unavailable')}
+        />
       )}
 
       {/* Track info — two lines: title/mix/artists, then meta + editable tags */}
