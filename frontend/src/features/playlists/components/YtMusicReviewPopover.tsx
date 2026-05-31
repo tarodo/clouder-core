@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   ActionIcon, Anchor, Button, Group, Popover, Stack, Text, TextInput, Tooltip,
 } from '@mantine/core';
-import { IconHelpCircle, IconExternalLink } from '@tabler/icons-react';
+import { IconHelpCircle, IconExternalLink, IconMusicOff } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { PlaylistTrack } from '../lib/playlistTypes';
 import { useMatchCandidates } from '../hooks/useMatchCandidates';
@@ -13,14 +13,18 @@ export interface YtMusicReviewPopoverProps {
   playlistId: string;
   trackId: string;
   track: Pick<PlaylistTrack, 'title' | 'artists'>;
+  /** Which actionable state opened the popover. */
+  status: 'needs_review' | 'not_found';
 }
 
-export function YtMusicReviewPopover({ playlistId, trackId, track }: YtMusicReviewPopoverProps) {
+export function YtMusicReviewPopover({ playlistId, trackId, track, status }: YtMusicReviewPopoverProps) {
   const { t } = useTranslation();
   const [opened, setOpened] = useState(false);
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
-  const candidates = useMatchCandidates(playlistId, trackId, opened);
+  // not_found has no pending review row, so there are no candidates to fetch.
+  const isReview = status === 'needs_review';
+  const candidates = useMatchCandidates(playlistId, trackId, opened && isReview);
   const resolve = useResolveMatch(playlistId, trackId);
 
   useEffect(() => {
@@ -40,14 +44,26 @@ export function YtMusicReviewPopover({ playlistId, trackId, track }: YtMusicRevi
     accept(id);
   };
 
+  const trigger = isReview
+    ? {
+        icon: <IconHelpCircle size={18} />,
+        color: 'yellow',
+        label: t('playlists.ytmusic.needsReview', 'Needs review'),
+      }
+    : {
+        icon: <IconMusicOff size={18} />,
+        color: 'gray',
+        label: t('playlists.ytmusic.addManually', 'Not on YT Music — add a link'),
+      };
+
   return (
     <Popover opened={opened} onChange={setOpened} width={360} position="bottom-end" withArrow>
       <Popover.Target>
-        <Tooltip label={t('playlists.ytmusic.needsReview', 'Needs review')}>
-          <ActionIcon variant="subtle" color="yellow"
+        <Tooltip label={trigger.label}>
+          <ActionIcon variant="subtle" color={trigger.color}
             aria-label={t('playlists.ytmusic.review', 'Review YT Music match')}
             onClick={() => setOpened((o) => !o)}>
-            <IconHelpCircle size={18} />
+            {trigger.icon}
           </ActionIcon>
         </Tooltip>
       </Popover.Target>
@@ -56,13 +72,15 @@ export function YtMusicReviewPopover({ playlistId, trackId, track }: YtMusicRevi
           <Text fw={600} size="sm">{track.title}</Text>
           <Text c="dimmed" size="xs">{track.artists.map((a) => a.name).join(', ')}</Text>
 
-          {candidates.isLoading && <Text size="xs" c="dimmed">{t('playlists.ytmusic.loading', 'Loading…')}</Text>}
-          {candidates.isError && (
+          {isReview && candidates.isLoading && (
+            <Text size="xs" c="dimmed">{t('playlists.ytmusic.loading', 'Loading…')}</Text>
+          )}
+          {isReview && candidates.isError && (
             <Text size="xs" c="red">
               {t('playlists.ytmusic.loadError', 'Could not load candidates')}
             </Text>
           )}
-          {candidates.data?.candidates.map((c) => (
+          {isReview && candidates.data?.candidates.map((c) => (
             <Group key={c.vendor_track_id} justify="space-between" wrap="nowrap" gap="xs">
               <Stack gap={0} style={{ minWidth: 0 }}>
                 <Text size="sm" truncate>{c.title}</Text>
@@ -83,6 +101,12 @@ export function YtMusicReviewPopover({ playlistId, trackId, track }: YtMusicRevi
             </Group>
           ))}
 
+          {!isReview && (
+            <Text size="xs" c="dimmed">
+              {t('playlists.ytmusic.noAutoMatch', 'No automatic match. Paste a YT Music link:')}
+            </Text>
+          )}
+
           <TextInput size="xs" placeholder="https://music.youtube.com/watch?v=…"
             value={link} error={linkError ?? undefined}
             onChange={(e) => setLink(e.currentTarget.value)} />
@@ -91,10 +115,12 @@ export function YtMusicReviewPopover({ playlistId, trackId, track }: YtMusicRevi
               disabled={resolve.isPending || !link.trim()}>
               {t('playlists.ytmusic.useLink', 'Use link')}
             </Button>
-            <Button size="compact-xs" variant="subtle" color="gray" disabled={resolve.isPending}
-              onClick={() => resolve.mutate({ action: 'reject' }, { onSuccess: () => setOpened(false) })}>
-              {t('playlists.ytmusic.notOnYt', 'Not on YT')}
-            </Button>
+            {isReview && (
+              <Button size="compact-xs" variant="subtle" color="gray" disabled={resolve.isPending}
+                onClick={() => resolve.mutate({ action: 'reject' }, { onSuccess: () => setOpened(false) })}>
+                {t('playlists.ytmusic.notOnYt', 'Not on YT')}
+              </Button>
+            )}
           </Group>
         </Stack>
       </Popover.Dropdown>

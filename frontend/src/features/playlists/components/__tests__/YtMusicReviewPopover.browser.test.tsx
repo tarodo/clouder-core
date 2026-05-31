@@ -17,12 +17,12 @@ vi.mock('../../../../api/client', () => ({
           url: 'https://music.youtube.com/watch?v=dQw4w9WgXcQ', confidence: 1 } }),
 }));
 
-function setup() {
+function setup(status: 'needs_review' | 'not_found') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MantineProvider>
       <QueryClientProvider client={qc}>
-        <YtMusicReviewPopover playlistId="pl1" trackId="t1"
+        <YtMusicReviewPopover playlistId="pl1" trackId="t1" status={status}
           track={{ title: 'Hold Me In Heaven', artists: [{ id: 'a', name: 'ARTYS' }] }} />
       </QueryClientProvider>
     </MantineProvider>,
@@ -30,10 +30,24 @@ function setup() {
 }
 
 describe('YtMusicReviewPopover', () => {
-  it('opens, lists a candidate, and accepts it', async () => {
-    setup();
+  it('needs_review: opens, lists a candidate, and accepts it', async () => {
+    setup('needs_review');
     await userEvent.click(screen.getByRole('button', { name: /review/i }));
     await waitFor(() => expect(screen.getByText('Hold Me')).toBeInTheDocument());
     await userEvent.click(screen.getByRole('button', { name: /accept/i }));
+  });
+
+  it('not_found: opens a manual-link form with no candidate fetch', async () => {
+    setup('not_found');
+    await userEvent.click(screen.getByRole('button', { name: /review/i }));
+    // no candidate list for a not_found track
+    await waitFor(() => expect(screen.getByPlaceholderText(/music\.youtube\.com/i)).toBeInTheDocument());
+    expect(screen.queryByText('Hold Me')).toBeNull();
+    // a valid pasted link enables "Use link" and submits
+    await userEvent.type(
+      screen.getByPlaceholderText(/music\.youtube\.com/i),
+      'https://music.youtube.com/watch?v=dQw4w9WgXcQ',
+    );
+    await userEvent.click(screen.getByRole('button', { name: /use link/i }));
   });
 });
