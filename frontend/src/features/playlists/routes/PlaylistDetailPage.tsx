@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Anchor, Breadcrumbs, Button, Flex, Group, Stack, TextInput, useMantineTheme } from '@mantine/core';
+import { Anchor, Breadcrumbs, Button, Flex, Group, Stack, Switch, TextInput, Tooltip, useMantineTheme } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
@@ -115,6 +115,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   async function handlePatch(input: {
     name?: string;
     description?: string | null;
+    is_public?: boolean;
     status?: 'active' | 'completed';
   }) {
     try {
@@ -258,6 +259,14 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
         onPatch={handlePatch}
         publishSlot={
           <Group gap="sm" align="center">
+            <Tooltip label={t('playlists.privacy.hint')} multiline w={240}>
+              <Switch
+                checked={playlist.is_public}
+                onChange={(e) => void handlePatch({ is_public: e.currentTarget.checked })}
+                label={t('playlists.privacy.public_label')}
+                size="md"
+              />
+            </Tooltip>
             <PublishButton playlist={playlist} />
             <PublishYtMusicButton playlist={playlist} />
             <Button color="red" variant="subtle" onClick={openDelete}>

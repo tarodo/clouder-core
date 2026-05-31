@@ -17,7 +17,8 @@ from collector.curation.schemas import (
 def test_create_playlist_minimum() -> None:
     body = CreatePlaylistIn.model_validate({"name": "My Set"})
     assert body.description is None
-    assert body.is_public is False
+    # New playlists are public by default.
+    assert body.is_public is True
 
 
 def test_create_playlist_full() -> None:

@@ -133,20 +133,10 @@ def test_skips_unmatched_tracks():
     client = FakeClient()
     svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
     result = svc.publish(user_id="u", playlist_id="p", confirm_overwrite=False)
-    # YT playlists are always PUBLIC, even when the CLOUDER playlist is private.
-    assert client.created[2] == "PUBLIC"
+    # Privacy honours the CLOUDER is_public flag: private playlist -> PRIVATE.
+    assert client.created[2] == "PRIVATE"
     assert result.skipped == [{"track_id": "t2", "title": "T2", "reason": "no_ytmusic_match"}]
     assert client.added == [("PLnew", ["v1"])]
-
-
-def test_always_public_even_for_private_playlist():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=False)
-    rows = [FakeTrackRow("t1", "T1")]
-    statuses = {"t1": _matched("v1")}
-    client = FakeClient()
-    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
-    svc.publish(user_id="u", playlist_id="p", confirm_overwrite=False)
-    assert client.created[2] == "PUBLIC"
 
 
 def test_nothing_to_publish():

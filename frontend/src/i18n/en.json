@@ -281,6 +281,10 @@
       "open_in_ytmusic": "Open in YouTube Music",
       "ytmusic_cover_failed": "Tracks published. YouTube rejected the cover image (needs a square JPEG/PNG under 2 MB)."
     },
+    "privacy": {
+      "public_label": "Public",
+      "hint": "When public, the playlist is visible to everyone on Spotify and YouTube Music. Turn off to keep it private. Applies on the next publish."
+    },
     "drift_badge": {
       "label": "Needs republish",
       "tooltip": "Tracks or cover changed since the last Spotify publish. Re-publish to push the latest version."

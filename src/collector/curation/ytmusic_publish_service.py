@@ -84,9 +84,7 @@ class YtmusicPublishService:
         if not video_ids:
             raise NothingToPublishError("Playlist has no matched YouTube Music tracks")
 
-        # YouTube Music playlists are created PUBLIC by default (shareable),
-        # regardless of the CLOUDER is_public flag.
-        privacy = "PUBLIC"
+        privacy = "PUBLIC" if playlist.is_public else "PRIVATE"
 
         log_event(
             "INFO", "ytmusic_publish_started",

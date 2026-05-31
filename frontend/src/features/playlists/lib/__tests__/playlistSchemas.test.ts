@@ -43,9 +43,9 @@ describe('playlistDescriptionSchema', () => {
 });
 
 describe('createPlaylistSchema', () => {
-  it('defaults is_public to false', () => {
+  it('defaults is_public to true', () => {
     const r = createPlaylistSchema.safeParse({ name: 'My' });
     expect(r.success).toBe(true);
-    if (r.success) expect(r.data.is_public).toBe(false);
+    if (r.success) expect(r.data.is_public).toBe(true);
   });
 });

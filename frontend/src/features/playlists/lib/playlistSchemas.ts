@@ -20,7 +20,7 @@ export const playlistDescriptionSchema = z
 export const createPlaylistSchema = z.object({
   name: playlistNameSchema,
   description: playlistDescriptionSchema.optional(),
-  is_public: z.boolean().optional().default(false),
+  is_public: z.boolean().optional().default(true),
 });
 
 export const playlistStatusSchema = z.enum(['active', 'completed']);
