@@ -35,9 +35,12 @@ class YtmusicUserClient:
         self._yt = yt
 
     def create_playlist(self, *, name: str, description: str | None, privacy: str) -> str:
-        result = self._yt.create_playlist(
-            name, description or "", privacy_status=privacy
-        )
+        try:
+            result = self._yt.create_playlist(
+                name, description or "", privacy_status=privacy
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise self._classify(exc) from exc
         if not isinstance(result, str):
             raise YtmusicApiError(f"create_playlist failed: {result!r}")
         return result
