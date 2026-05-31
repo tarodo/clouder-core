@@ -236,6 +236,78 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /auth/ytmusic/device-code:
+    post:
+      summary: Start YouTube Music device-flow OAuth.
+      responses:
+        '200':
+          description: Device code issued.
+          content:
+            application/json:
+              schema:
+                type: object
+        '401': *id001
+        '403': *id002
+      description: Returns a user_code + verification_url; client shows it and polls
+        /auth/ytmusic/poll.
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /auth/ytmusic/poll:
+    post:
+      summary: Poll for YouTube Music device-flow completion.
+      responses:
+        '200':
+          description: Account linked.
+          content:
+            application/json:
+              schema:
+                type: object
+        '202':
+          description: authorization_pending or slow_down — keep polling.
+        '422':
+          description: device code expired — restart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Exchanges the device_code. 202 while pending; 200 once the account
+        is linked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                device_code:
+                  type: string
+              required:
+              - device_code
+              additionalProperties: false
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /auth/ytmusic:
+    delete:
+      summary: Disconnect the user's YouTube Music account.
+      responses:
+        '200':
+          description: Disconnected.
+          content:
+            application/json:
+              schema:
+                type: object
+        '401': *id001
+        '403': *id002
+      security:
+      - BearerAuth: []
+      tags:
+      - user
   /collect_bp_releases:
     post:
       summary: Trigger Beatport weekly releases ingest.
@@ -3661,6 +3733,76 @@ paths:
         track list and metadata (name, description, cover). On overwrite the client
         must pass `confirm_overwrite=true` to acknowledge destructive replacement
         of remote contents.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm_overwrite:
+                  type: boolean
+                  default: false
+              additionalProperties: false
+            example:
+              confirm_overwrite: true
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /playlists/{id}/publish-ytmusic:
+    post:
+      summary: Publish the playlist to the user's YouTube Music account.
+      responses:
+        '200':
+          description: Playlist published; returns YouTube Music playlist id.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: nothing_to_publish (no matched YouTube Music tracks).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: playlist_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: confirm_overwrite_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          description: ytmusic_not_authorized (YouTube Music not connected).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: ytmusic_api_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Creates or overwrites the linked YouTube Music playlist with the
+        current matched tracks (video ids from vendor_track_map) and metadata (name,
+        description, privacy). Unmatched tracks are skipped. On overwrite the client
+        must pass `confirm_overwrite=true`.
       parameters:
       - name: id
         in: path
