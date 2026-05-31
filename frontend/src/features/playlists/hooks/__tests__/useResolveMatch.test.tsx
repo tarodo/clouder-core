@@ -25,7 +25,7 @@ describe('useResolveMatch', () => {
       items: [{ track_id: 't1', position: 0, added_at: '', title: 'X', spotify_id: null,
         isrc: null, length_ms: null, origin: 'beatport', mix_name: null, artists: [],
         label: null, bpm: null, spotify_release_date: null, is_ai_suspected: false, tags: [],
-        ytmusic: { status: 'needs_review' } }] as any,
+        ytmusic: { status: 'needs_review' } }],
       total: 1, limit: 200, offset: 0,
     };
     qc.setQueryData(playlistTracksKey('pl1'), seed);
