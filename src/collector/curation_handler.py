@@ -1834,12 +1834,15 @@ def _build_spotify_user_client(user_id: str, correlation_id: str):
 
 
 def _build_ytmusic_user_client(user_id: str, correlation_id: str):
-    """Build an authenticated YouTube Music client for the user.
+    """Build a YouTube Data API v3 client bound to the user's OAuth token.
 
     Token refresh + KMS decrypt go through YtmusicTokenResolver. Raises
     YtmusicNotAuthorizedError (-> 412) if the user has not connected YT Music.
+    Publishing uses the official Data API (not ytmusicapi) because ytmusicapi's
+    OAuth path is rejected by YouTube on writes (HTTP 400).
     """
     import boto3
+    import requests as _requests
     from collector.auth.auth_settings import (
         get_auth_settings,
         resolve_ytmusic_oauth_credentials,
@@ -1847,10 +1850,7 @@ def _build_ytmusic_user_client(user_id: str, correlation_id: str):
     from collector.auth.kms_envelope import KmsEnvelope
     from collector.auth.ytmusic_oauth import YtmusicOAuthClient
     from collector.curation.ytmusic_token_resolver import YtmusicTokenResolver
-    from collector.curation.ytmusic_user_client import (
-        YtmusicUserClient,
-        build_authenticated_ytmusic,
-    )
+    from collector.curation.youtube_data_api_client import YoutubeDataApiClient
     from collector.data_api import create_default_data_api_client
     from collector.settings import get_data_api_settings
 
@@ -1871,8 +1871,10 @@ def _build_ytmusic_user_client(user_id: str, correlation_id: str):
         data_api=data_api, envelope=envelope, oauth_client=oauth,
     )
     token = resolver.resolve(user_id=user_id)
-    yt = build_authenticated_ytmusic(token.token_dict, cid, csec)
-    return YtmusicUserClient(yt=yt)
+    return YoutubeDataApiClient(
+        access_token=token.token_dict["access_token"],
+        session=_requests.Session(),
+    )
 
 
 _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]] = {
