@@ -148,6 +148,8 @@ class PlaylistTrackRow:
     origin: str
     mix_name: str | None = None
     bpm: int | None = None
+    key_name: str | None = None
+    key_camelot: str | None = None
     spotify_release_date: str | None = None
     is_ai_suspected: bool = False
     artists: tuple[dict, ...] = ()
@@ -602,6 +604,7 @@ class PlaylistsRepository:
             SELECT
                 pt.track_id, pt.position, pt.added_at,
                 t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
+                t.key_name, t.key_camelot,
                 t.spotify_id, t.is_ai_suspected, t.spotify_release_date, t.origin,
                 COALESCE(
                     JSON_AGG(
@@ -653,6 +656,8 @@ class PlaylistsRepository:
                     origin=r.get("origin") or "beatport",
                     mix_name=r.get("mix_name"),
                     bpm=(int(r["bpm"]) if r.get("bpm") is not None else None),
+                    key_name=r.get("key_name"),
+                    key_camelot=r.get("key_camelot"),
                     spotify_release_date=(str(spot) if spot is not None else None),
                     is_ai_suspected=bool(r.get("is_ai_suspected", False)),
                     artists=tuple(artists),

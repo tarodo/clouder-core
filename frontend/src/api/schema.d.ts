@@ -2733,6 +2733,8 @@ export interface paths {
                                 isrc?: string | null;
                                 bpm?: number | null;
                                 length_ms?: number | null;
+                                key_name?: string | null;
+                                key_camelot?: string | null;
                                 publish_date?: string | null;
                                 spotify_id?: string | null;
                                 release_type?: string | null;
@@ -3458,6 +3460,8 @@ export interface paths {
                                 isrc?: string | null;
                                 bpm?: number | null;
                                 length_ms?: number | null;
+                                key_name?: string | null;
+                                key_camelot?: string | null;
                                 publish_date?: string | null;
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
@@ -4836,6 +4840,8 @@ export interface paths {
                                 isrc?: string | null;
                                 bpm?: number | null;
                                 length_ms?: number | null;
+                                key_name?: string | null;
+                                key_camelot?: string | null;
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
                                 origin?: string;
@@ -7473,6 +7479,8 @@ export interface components {
             isrc?: string | null;
             bpm?: number | null;
             length_ms?: number | null;
+            key_name?: string | null;
+            key_camelot?: string | null;
             spotify_release_date?: string | null;
             spotify_id?: string | null;
             origin?: string;

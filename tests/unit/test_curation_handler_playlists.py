@@ -254,6 +254,8 @@ def _track_row(**overrides) -> MagicMock:
         origin="beatport",
         mix_name="Original Mix",
         bpm=128,
+        key_name=None,
+        key_camelot=None,
         spotify_release_date="2026-04-01",
         is_ai_suspected=False,
         artists=[{"id": "a-1", "name": "DJ Test"}],
