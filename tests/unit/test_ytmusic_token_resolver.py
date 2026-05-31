@@ -90,3 +90,26 @@ def test_expired_token_refreshes_and_persists():
     assert token.token_dict["access_token"] == "NEW"
     assert oauth.refreshed is True
     assert len(api.updates) == 1
+
+
+def test_token_dict_has_all_ytmusicapi_oauth_keys():
+    # ytmusicapi 1.12 OAuthToken.is_oauth requires ALL of Token.members():
+    # scope, token_type, access_token, refresh_token, expires_at, expires_in.
+    # Omitting expires_in (the original bug) made ytmusicapi treat the dict as
+    # browser headers -> YT Music writes failed with HTTP 400 "invalid argument".
+    future = datetime.now(timezone.utc) + timedelta(hours=1)
+    rows = [{
+        "access_token_enc": _enc("AT"),
+        "refresh_token_enc": _enc("RT"),
+        "data_key_enc": "", "expires_at": future,
+    }]
+    resolver = YtmusicTokenResolver(
+        data_api=FakeDataApi(rows), envelope=FakeEnvelope(), oauth_client=FakeOAuth()
+    )
+    td = resolver.resolve(user_id="u1").token_dict
+    required = {
+        "scope", "token_type", "access_token",
+        "refresh_token", "expires_at", "expires_in",
+    }
+    assert required <= set(td.keys())
+    assert isinstance(td["expires_in"], int) and td["expires_in"] > 0

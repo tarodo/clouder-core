@@ -144,10 +144,20 @@ class YtmusicTokenResolver:
     def _token_dict(
         access_token: str, refresh_token: str, expires_at: datetime
     ) -> dict:
+        # ytmusicapi recognises an OAuth token only when the dict carries ALL of
+        # Token.members() — scope, token_type, access_token, refresh_token,
+        # expires_at AND expires_in (ytmusicapi.auth.oauth.token.OAuthToken.is_oauth).
+        # Omit expires_in and ytmusicapi falls back to browser-header auth: the
+        # dict keys are sent as raw HTTP headers, the request reaches YT Music
+        # with no valid Authorization, and writes fail with HTTP 400
+        # "Request contains an invalid argument".
+        now = datetime.now(timezone.utc)
+        expires_in = max(0, int((expires_at - now).total_seconds()))
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "scope": _SCOPE,
             "token_type": "Bearer",
             "expires_at": int(expires_at.timestamp()),
+            "expires_in": expires_in,
         }

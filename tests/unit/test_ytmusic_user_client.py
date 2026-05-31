@@ -42,6 +42,18 @@ def test_create_playlist_non_str_raises():
         client.create_playlist(name="n", description="d", privacy="PUBLIC")
 
 
+def test_create_playlist_wraps_client_exception():
+    # A YTMusicServerError (or any error) from the underlying client must
+    # surface as YtmusicApiError (-> 502), not an opaque 500.
+    class BoomYt:
+        def create_playlist(self, *a, **k):
+            raise RuntimeError("Server returned HTTP 400: Bad Request")
+
+    client = YtmusicUserClient(yt=BoomYt())
+    with pytest.raises(YtmusicApiError):
+        client.create_playlist(name="n", description="d", privacy="PRIVATE")
+
+
 def test_add_items_chunks_by_100():
     yt = FakeYt()
     client = YtmusicUserClient(yt=yt)
