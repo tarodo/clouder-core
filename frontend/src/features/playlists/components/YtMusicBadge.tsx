@@ -26,10 +26,9 @@ export function YtMusicBadge({ match, playlistId, trackId, track }: YtMusicBadge
           target="_blank"
           rel="noopener noreferrer"
           variant="subtle"
-          color="dark"
           aria-label={t('playlists.ytmusic.matched', 'YT Music')}
         >
-          <IconBrandYoutube size={18} />
+          <IconBrandYoutube size={18} color="var(--mantine-color-black)" />
         </ActionIcon>
       </Tooltip>
     );
@@ -56,11 +55,10 @@ export function YtMusicBadge({ match, playlistId, trackId, track }: YtMusicBadge
     <Tooltip label={t('playlists.ytmusic.pending', 'Searching YT Music…')}>
       <ActionIcon
         variant="subtle"
-        color="gray"
         disabled
         aria-label={t('playlists.ytmusic.pending', 'Searching YT Music…')}
       >
-        <IconClock size={18} />
+        <IconClock size={18} color="var(--mantine-color-gray-5)" />
       </ActionIcon>
     </Tooltip>
   );
