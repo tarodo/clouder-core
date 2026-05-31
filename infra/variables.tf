@@ -248,13 +248,13 @@ variable "spotify_client_secret_ssm_parameter" {
 variable "ytmusic_client_id_ssm_parameter" {
   type        = string
   description = "SSM parameter name holding the YouTube Music (Google TV-device) OAuth client_id."
-  default     = "/beatport-prod/ytmusic/oauth_client_id"
+  default     = "/clouder/ytmusic/client_id"
 }
 
 variable "ytmusic_client_secret_ssm_parameter" {
   type        = string
   description = "SSM parameter name holding the YouTube Music OAuth client_secret."
-  default     = "/beatport-prod/ytmusic/oauth_client_secret"
+  default     = "/clouder/ytmusic/client_secret"
 }
 
 # ── Vendor Match ──────────────────────────────────────────────────

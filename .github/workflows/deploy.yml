@@ -71,6 +71,12 @@ jobs:
           aws ssm put-parameter --name /clouder/spotify/client_secret \
             --value "${{ secrets.SPOTIFY_CLIENT_SECRET }}" \
             --type SecureString --overwrite
+          aws ssm put-parameter --name /clouder/ytmusic/client_id \
+            --value "${{ secrets.YTMUSIC_CLIENT_ID }}" \
+            --type SecureString --overwrite
+          aws ssm put-parameter --name /clouder/ytmusic/client_secret \
+            --value "${{ secrets.YTMUSIC_CLIENT_SECRET }}" \
+            --type SecureString --overwrite
 
       - name: Terraform apply
         run: |
@@ -85,6 +91,8 @@ jobs:
             -var="vendor_match_enabled=true" \
             -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" \
             -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" \
+            -var="ytmusic_client_id_ssm_parameter=/clouder/ytmusic/client_id" \
+            -var="ytmusic_client_secret_ssm_parameter=/clouder/ytmusic/client_secret" \
             -var="migration_aurora_auth_mode=iam" \
             -var="enable_secretsmanager_vpc_endpoint=false" \
             -var="spotify_oauth_redirect_uri=${{ vars.SPOTIFY_OAUTH_REDIRECT_URI }}" \
