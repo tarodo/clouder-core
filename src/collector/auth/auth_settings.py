@@ -83,3 +83,27 @@ def resolve_oauth_client_credentials() -> tuple[str, str]:
         "Spotify OAuth credentials not configured: set "
         "SPOTIFY_OAUTH_CLIENT_ID/SECRET or *_SSM_PARAMETER pair"
     )
+
+
+def resolve_ytmusic_oauth_credentials() -> tuple[str, str]:
+    from collector import secrets
+
+    cid = os.environ.get("YTMUSIC_OAUTH_CLIENT_ID", "").strip()
+    csec = os.environ.get("YTMUSIC_OAUTH_CLIENT_SECRET", "").strip()
+    if cid and csec:
+        return cid, csec
+
+    ssm_id = os.environ.get("YTMUSIC_OAUTH_CLIENT_ID_SSM_PARAMETER", "").strip()
+    ssm_sec = os.environ.get(
+        "YTMUSIC_OAUTH_CLIENT_SECRET_SSM_PARAMETER", ""
+    ).strip()
+    if ssm_id and ssm_sec:
+        return (
+            cid or secrets._fetch_ssm_parameter(ssm_id),
+            csec or secrets._fetch_ssm_parameter(ssm_sec),
+        )
+
+    raise RuntimeError(
+        "YouTube Music OAuth credentials not configured: set "
+        "YTMUSIC_OAUTH_CLIENT_ID/SECRET or *_SSM_PARAMETER pair"
+    )
