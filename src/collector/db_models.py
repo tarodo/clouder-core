@@ -213,6 +213,8 @@ class ClouderTrack(Base):
         DateTime(timezone=True)
     )
     release_type: Mapped[str | None] = mapped_column(String(16))
+    key_name: Mapped[str | None] = mapped_column(Text)
+    key_camelot: Mapped[str | None] = mapped_column(String(8))
     spotify_release_date: Mapped[date_type | None] = mapped_column(Date)
     is_ai_suspected: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("FALSE")
