@@ -52,14 +52,19 @@ def test_resolve_accept_upserts_and_resolves():
     assert txids == {"tx-1"}
 
 
-def test_resolve_reject_sets_no_match():
+def test_resolve_reject_deletes_pending_and_marks_no_match():
     api = FakeDataAPI([])
     repo = PlaylistsRepository(api)
     now = datetime(2026, 5, 30, tzinfo=timezone.utc)
     repo.resolve_review_reject(clouder_track_id="t1", vendor="ytmusic", now=now)
-    sqls = " ".join(c[0] for c in api.calls)
-    assert "DELETE FROM match_review_queue" in sqls
-    assert "'no_match'" in sqls
+    sqls = [c[0] for c in api.calls]
+    joined = " ".join(sqls)
+    # deletes the open needs_review (pending) row...
+    assert any("DELETE FROM match_review_queue" in s and "status = 'pending'" in s for s in sqls)
+    # ...and idempotently inserts a no_match row via mark_no_match (ON CONFLICT DO NOTHING)
+    assert "INSERT INTO match_review_queue" in joined and "'no_match'" in joined
+    assert "ON CONFLICT" in joined
+    # all within one transaction
     txids = {c[2] for c in api.calls if c[2] is not None}
     assert txids == {"tx-1"}
 

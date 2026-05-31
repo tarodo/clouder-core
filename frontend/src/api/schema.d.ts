@@ -5463,7 +5463,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description no_open_review (no pending match-review record for this track). */
+                /** @description no_open_review, playlist_not_found, or track_not_in_user_scope. */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -5493,7 +5493,7 @@ export interface paths {
         put?: never;
         /**
          * Accept or reject a YT Music match candidate.
-         * @description Resolves the open match-review for the given track. `action=accept` requires `vendor_track_id`. 400 on invalid payload; 403 if the track is not in scope for this user.
+         * @description Resolves the open match-review for the given track. `action=accept` requires `vendor_track_id`. 422 on invalid payload; 404 if the playlist or track is not in scope for this user.
          */
         post: {
             parameters: {
@@ -5540,15 +5540,6 @@ export interface paths {
                         };
                     };
                 };
-                /** @description invalid_payload (missing vendor_track_id for accept, or unknown action). */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
                 /** @description Missing or invalid bearer token. */
                 401: {
                     headers: {
@@ -5558,8 +5549,26 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description track_not_in_scope. */
+                /** @description Authenticated but lacks required role (admin). */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description playlist_not_found or track_not_in_user_scope. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description validation_error (invalid body, or missing/invalid vendor_track_id for accept). */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };

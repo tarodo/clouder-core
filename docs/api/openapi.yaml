@@ -3734,7 +3734,7 @@ paths:
                           - number
                           - 'null'
         '404':
-          description: no_open_review (no pending match-review record for this track).
+          description: no_open_review, playlist_not_found, or track_not_in_user_scope.
           content:
             application/json:
               schema:
@@ -3800,23 +3800,24 @@ paths:
                         type:
                         - number
                         - 'null'
-        '400':
-          description: invalid_payload (missing vendor_track_id for accept, or unknown
-            action).
+        '404':
+          description: playlist_not_found or track_not_in_user_scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: validation_error (invalid body, or missing/invalid vendor_track_id
+            for accept).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401': *id001
-        '403':
-          description: track_not_in_scope.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        '403': *id002
       description: Resolves the open match-review for the given track. `action=accept`
-        requires `vendor_track_id`. 400 on invalid payload; 403 if the track is not
-        in scope for this user.
+        requires `vendor_track_id`. 422 on invalid payload; 404 if the playlist or
+        track is not in scope for this user.
       parameters:
       - name: id
         in: path

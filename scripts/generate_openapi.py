@@ -2954,7 +2954,7 @@ ROUTES: list[dict[str, Any]] = [
                     },
                 },
             ),
-            "404": _error(404, "no_open_review (no pending match-review record for this track)."),
+            "404": _error(404, "no_open_review, playlist_not_found, or track_not_in_user_scope."),
             **COMMON_AUTH_ERRORS,
         },
     },
@@ -2966,7 +2966,8 @@ ROUTES: list[dict[str, Any]] = [
         "description": (
             "Resolves the open match-review for the given track. "
             "`action=accept` requires `vendor_track_id`. "
-            "400 on invalid payload; 403 if the track is not in scope for this user."
+            "422 on invalid payload; 404 if the playlist or track is not in scope "
+            "for this user."
         ),
         "parameters": [
             {"name": "id", "in": "path", "required": True, "schema": {"type": "string"}},
@@ -3009,9 +3010,9 @@ ROUTES: list[dict[str, Any]] = [
                     },
                 },
             ),
-            "400": _error(400, "invalid_payload (missing vendor_track_id for accept, or unknown action)."),
+            "404": _error(404, "playlist_not_found or track_not_in_user_scope."),
+            "422": _error(422, "validation_error (invalid body, or missing/invalid vendor_track_id for accept)."),
             **COMMON_AUTH_ERRORS,
-            "403": _error(403, "track_not_in_scope."),
         },
     },
     # ── user label preferences ───────────────────────────────────────

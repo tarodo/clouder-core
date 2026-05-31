@@ -1006,21 +1006,22 @@ class PlaylistsRepository:
 
     def resolve_review_reject(self, *, clouder_track_id: str, vendor: str, now: datetime) -> None:
         with self._data_api.transaction() as tx:
+            # Remove the open needs_review row, if any.
             self._data_api.execute(
                 """
                 DELETE FROM match_review_queue
-                WHERE clouder_track_id = :t AND vendor = :v AND status = 'no_match'
+                WHERE clouder_track_id = :t AND vendor = :v AND status = 'pending'
                 """,
                 {"t": clouder_track_id, "v": vendor},
                 transaction_id=tx,
             )
-            self._data_api.execute(
-                """
-                UPDATE match_review_queue
-                SET status = 'no_match', resolved_at = :now
-                WHERE clouder_track_id = :t AND vendor = :v AND status = 'pending'
-                """,
-                {"t": clouder_track_id, "v": vendor, "now": now},
+            # Idempotently ensure a single no_match row (ON CONFLICT DO NOTHING),
+            # so a repeated/concurrent reject never leaves zero rows — which would
+            # otherwise read back as 'pending' instead of 'not_found'.
+            ClouderRepository(self._data_api).mark_no_match(
+                clouder_track_id=clouder_track_id,
+                vendor=vendor,
+                created_at=now,
                 transaction_id=tx,
             )
 
