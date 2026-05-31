@@ -215,3 +215,52 @@ describe('TrackRow — Play button', () => {
     expect(screen.getByRole('button', { name: /no spotify match/i })).toBeDisabled();
   });
 });
+
+describe('TrackRow — active track Play/Pause', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    server.use(
+      http.get('http://localhost/tags', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
+    );
+  });
+
+  it('shows Pause on the current, playing row', () => {
+    render(
+      <W>
+        <TrackRow
+          track={{ ...baseTrack, spotify_id: 'sp1' }}
+          variant="desktop"
+          onPlay={vi.fn()}
+          onToggle={vi.fn()}
+          isCurrent
+          isPlaying
+        />
+      </W>,
+    );
+    expect(screen.getByRole('button', { name: /pause track/i })).toBeInTheDocument();
+  });
+
+  it('shows Play on the current, paused row and toggles (not restarts) on click', async () => {
+    const onPlay = vi.fn();
+    const onToggle = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <W>
+        <TrackRow
+          track={{ ...baseTrack, spotify_id: 'sp1' }}
+          variant="desktop"
+          onPlay={onPlay}
+          onToggle={onToggle}
+          isCurrent
+          isPlaying={false}
+        />
+      </W>,
+    );
+    const btn = screen.getByRole('button', { name: /play track/i });
+    await user.click(btn);
+    expect(onToggle).toHaveBeenCalledOnce();
+    expect(onPlay).not.toHaveBeenCalled();
+  });
+});
