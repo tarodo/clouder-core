@@ -212,6 +212,8 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
       setSortDir={setSortDir}
       onPlay={playTrack}
       currentTrackId={playback.track.current?.id ?? null}
+      playing={playback.queue.status === 'playing'}
+      onTogglePlay={playback.controls.togglePlayPause}
     />
   );
 

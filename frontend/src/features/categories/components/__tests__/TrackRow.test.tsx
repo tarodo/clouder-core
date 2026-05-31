@@ -212,6 +212,6 @@ describe('TrackRow — Play button', () => {
         />
       </W>,
     );
-    expect(screen.getByRole('button', { name: /play track/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /no spotify match/i })).toBeDisabled();
   });
 });

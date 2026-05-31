@@ -40,6 +40,8 @@ export interface TracksTabProps {
   setSortDir: (d: SortOrder | ((prev: SortOrder) => SortOrder)) => void;
   onPlay: (track: CategoryTrack) => void;
   currentTrackId?: string | null;
+  playing?: boolean;
+  onTogglePlay?: () => void;
 }
 
 export function TracksTab({
@@ -60,6 +62,8 @@ export function TracksTab({
   setSortDir,
   onPlay,
   currentTrackId,
+  playing,
+  onTogglePlay,
 }: TracksTabProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
@@ -193,6 +197,8 @@ export function TracksTab({
             variant="mobile"
             onPlay={() => onPlay(tr)}
             isCurrent={currentTrackId != null && tr.id === currentTrackId}
+            isPlaying={!!playing && currentTrackId != null && tr.id === currentTrackId}
+            onToggle={onTogglePlay}
             actions={
               <TrackRowActions
                 track={tr}
@@ -256,6 +262,8 @@ export function TracksTab({
               variant="desktop"
               onPlay={() => onPlay(track)}
               isCurrent={currentTrackId != null && track.id === currentTrackId}
+              isPlaying={!!playing && currentTrackId != null && track.id === currentTrackId}
+              onToggle={onTogglePlay}
               actions={
                 <TrackRowActions
                   track={track}
