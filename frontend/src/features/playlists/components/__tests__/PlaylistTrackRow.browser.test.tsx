@@ -47,7 +47,7 @@ describe('PlaylistTrackRow — browser smoke', () => {
       <MantineProvider defaultColorScheme="light">
         <DndContext>
           <SortableContext items={['tr-1']}>
-            <PlaylistTrackRow track={track} position={1} onRemove={vi.fn()} onPlay={vi.fn()} />
+            <PlaylistTrackRow track={track} position={1} onRemove={vi.fn()} onPlay={vi.fn()} playlistId="pl1" />
           </SortableContext>
         </DndContext>
       </MantineProvider>,

@@ -5400,6 +5400,190 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/playlists/{id}/tracks/{track_id}/match-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List YT Music match candidates for a playlist track.
+         * @description Returns vendor-specific match candidates for the given track. 404 if no open match-review record exists for this track.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    vendor?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Match candidates for the vendor. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            vendor: string;
+                            candidates: {
+                                vendor_track_id: string;
+                                title: string;
+                                artists: string[];
+                                album?: string | null;
+                                duration_ms?: number | null;
+                                url: string;
+                                score?: number | null;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description no_open_review, playlist_not_found, or track_not_in_user_scope. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playlists/{id}/tracks/{track_id}/match-resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept or reject a YT Music match candidate.
+         * @description Resolves the open match-review for the given track. `action=accept` requires `vendor_track_id`. 422 on invalid payload; 404 if the playlist or track is not in scope for this user.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    /**
+                     * @example {
+                     *       "vendor": "ytmusic",
+                     *       "action": "accept",
+                     *       "vendor_track_id": "dQw4w9WgXcQ"
+                     *     }
+                     */
+                    "application/json": {
+                        vendor: string;
+                        /** @enum {string} */
+                        action: "accept" | "reject";
+                        vendor_track_id?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Match resolved. Returns updated ytmusic vendor link. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ytmusic: {
+                                /** @enum {string} */
+                                status?: "matched" | "pending" | "needs_review" | "not_found";
+                                video_id?: string | null;
+                                url?: string | null;
+                                confidence?: number | null;
+                            } | null;
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description playlist_not_found or track_not_in_user_scope. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description validation_error (invalid body, or missing/invalid vendor_track_id for accept). */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/labels/{label_id}/preference": {
         parameters: {
             query?: never;

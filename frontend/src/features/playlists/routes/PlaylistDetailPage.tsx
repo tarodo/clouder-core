@@ -237,6 +237,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
           reorderDisabled={search.trim() !== ''}
           onPlayTrack={onPlay}
           currentTrackId={playback.track.current?.id ?? null}
+          playlistId={id}
         />
       )}
     </Stack>

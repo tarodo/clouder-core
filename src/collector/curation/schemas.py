@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import List, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+YT_VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
 
 class CreateCategoryIn(BaseModel):
@@ -140,3 +143,21 @@ class PublishPlaylistIn(BaseModel):
 class CoverUploadUrlIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     content_type: str = Field(..., pattern=r"^image/jpeg$")
+
+
+# ----------------------- YT Music match review -----------------------
+
+
+class ResolveMatchIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    vendor: str = Field(..., min_length=1)
+    action: Literal["accept", "reject"]
+    vendor_track_id: str | None = None
+
+    @model_validator(mode="after")
+    def _check_accept_has_valid_id(self) -> "ResolveMatchIn":
+        if self.action == "accept":
+            if not self.vendor_track_id or not YT_VIDEO_ID_RE.match(self.vendor_track_id):
+                raise ValueError("accept requires a valid 11-char vendor_track_id")
+        return self

@@ -2906,6 +2906,115 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
+    # ── ytmusic match review (spec 2026-05-30) ──────────────────────
+    {
+        "method": "get",
+        "path": "/playlists/{id}/tracks/{track_id}/match-candidates",
+        "auth": AUTH,
+        "summary": "List YT Music match candidates for a playlist track.",
+        "description": (
+            "Returns vendor-specific match candidates for the given track. "
+            "404 if no open match-review record exists for this track."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {
+                "name": "vendor",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "default": "ytmusic"},
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200,
+                "Match candidates for the vendor.",
+                {
+                    "type": "object",
+                    "required": ["vendor", "candidates"],
+                    "properties": {
+                        "vendor": {"type": "string"},
+                        "candidates": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": ["vendor_track_id", "title", "artists", "url"],
+                                "properties": {
+                                    "vendor_track_id": {"type": "string"},
+                                    "title": {"type": "string"},
+                                    "artists": {"type": "array", "items": {"type": "string"}},
+                                    "album": {"type": ["string", "null"]},
+                                    "duration_ms": {"type": ["integer", "null"]},
+                                    "url": {"type": "string"},
+                                    "score": {"type": ["number", "null"]},
+                                },
+                            },
+                        },
+                    },
+                },
+            ),
+            "404": _error(404, "no_open_review, playlist_not_found, or track_not_in_user_scope."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/playlists/{id}/tracks/{track_id}/match-resolve",
+        "auth": AUTH,
+        "summary": "Accept or reject a YT Music match candidate.",
+        "description": (
+            "Resolves the open match-review for the given track. "
+            "`action=accept` requires `vendor_track_id`. "
+            "422 on invalid payload; 404 if the playlist or track is not in scope "
+            "for this user."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string"}},
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["vendor", "action"],
+                "properties": {
+                    "vendor": {"type": "string"},
+                    "action": {"type": "string", "enum": ["accept", "reject"]},
+                    "vendor_track_id": {"type": ["string", "null"]},
+                },
+            }}},
+        },
+        "request_example": {"vendor": "ytmusic", "action": "accept", "vendor_track_id": "dQw4w9WgXcQ"},
+        "responses": {
+            "200": _make_response(
+                200,
+                "Match resolved. Returns updated ytmusic vendor link.",
+                {
+                    "type": "object",
+                    "required": ["ytmusic"],
+                    "properties": {
+                        "ytmusic": {
+                            "type": "object",
+                            "nullable": True,
+                            "properties": {
+                                "status": {
+                                    "type": "string",
+                                    "enum": ["matched", "pending", "needs_review", "not_found"],
+                                },
+                                "video_id": {"type": ["string", "null"]},
+                                "url": {"type": ["string", "null"]},
+                                "confidence": {"type": ["number", "null"]},
+                            },
+                        },
+                    },
+                },
+            ),
+            "404": _error(404, "playlist_not_found or track_not_in_user_scope."),
+            "422": _error(422, "validation_error (invalid body, or missing/invalid vendor_track_id for accept)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
     # ── user label preferences ───────────────────────────────────────
     {
         "method": "put",

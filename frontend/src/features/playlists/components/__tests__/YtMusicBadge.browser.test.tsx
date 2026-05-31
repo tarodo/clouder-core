@@ -12,7 +12,12 @@ import type { YtMusicMatch } from '../../lib/playlistTypes';
 function renderBadge(match: YtMusicMatch | null | undefined) {
   return render(
     <MantineProvider defaultColorScheme="light">
-      <YtMusicBadge match={match} />
+      <YtMusicBadge
+        match={match}
+        playlistId="pl1"
+        trackId="t1"
+        track={{ title: 'Test Track', artists: [] }}
+      />
     </MantineProvider>,
   );
 }

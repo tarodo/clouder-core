@@ -20,6 +20,7 @@ export interface PlaylistTrackRowProps {
   reorderDisabled?: boolean;
   onPlay?: () => void;
   isCurrent?: boolean;
+  playlistId: string;
 }
 
 interface ViewProps extends PlaylistTrackRowProps {
@@ -43,6 +44,7 @@ export function PlaylistTrackRowView({
   reorderDisabled = false,
   onPlay,
   isCurrent,
+  playlistId,
   rootRef,
   rootStyle,
   handleProps,
@@ -158,7 +160,7 @@ export function PlaylistTrackRowView({
       )}
 
       {/* YT Music match badge */}
-      <YtMusicBadge match={track.ytmusic} />
+      <YtMusicBadge match={track.ytmusic} playlistId={playlistId} trackId={track.track_id} track={track} />
 
       {/* Remove track — pale-red text, low emphasis */}
       <Button variant="subtle" color="red" size="xs" onClick={() => onRemove(track)}>

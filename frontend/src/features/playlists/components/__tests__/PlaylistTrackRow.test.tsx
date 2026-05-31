@@ -78,6 +78,7 @@ describe('PlaylistTrackRow', () => {
           position={3}
           onRemove={onRemove}
           onPlay={onPlay}
+          playlistId="pl1"
         />
       </W>,
     );
@@ -131,6 +132,7 @@ describe('PlaylistTrackRow', () => {
           position={1}
           onRemove={vi.fn()}
           onPlay={vi.fn()}
+          playlistId="pl1"
         />
       </W>,
     );
@@ -147,6 +149,7 @@ describe('PlaylistTrackRow', () => {
           position={1}
           onRemove={vi.fn()}
           onPlay={vi.fn()}
+          playlistId="pl1"
         />
       </W>,
     );

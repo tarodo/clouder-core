@@ -29,6 +29,8 @@ export interface PlaylistTracksListProps {
   onPlayTrack?: (track: PlaylistTrack) => void;
   /** track_id of the currently playing track for highlight. */
   currentTrackId?: string | null;
+  /** Playlist id — forwarded to each row so the YT Music badge can call the API. */
+  playlistId: string;
 }
 
 export function PlaylistTracksList({
@@ -38,6 +40,7 @@ export function PlaylistTracksList({
   reorderDisabled = false,
   onPlayTrack,
   currentTrackId,
+  playlistId,
 }: PlaylistTracksListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -84,6 +87,7 @@ export function PlaylistTracksList({
               reorderDisabled={reorderDisabled}
               onPlay={onPlayTrack ? () => onPlayTrack(t) : undefined}
               isCurrent={t.track_id === currentTrackId}
+              playlistId={playlistId}
             />
           ))}
         </Stack>
@@ -100,6 +104,7 @@ export function PlaylistTracksList({
             onRemove={() => {}}
             onPlay={onPlayTrack ? () => {} : undefined}
             isCurrent={activeTrack.track_id === currentTrackId}
+            playlistId={playlistId}
             overlay
           />
         ) : null}
