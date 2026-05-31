@@ -30,6 +30,7 @@ import { PlaylistMetaPanel } from '../components/PlaylistMetaPanel';
 import { PlaylistTracksList } from '../components/PlaylistTracksList';
 import { PlaylistPlayerPanel } from '../components/PlaylistPlayerPanel';
 import { PublishButton } from '../components/PublishButton';
+import { PublishYtMusicButton } from '../components/PublishYtMusicButton';
 import { AddTracksModal } from '../components/AddTracksModal';
 import { ImportSpotifyModal } from '../components/ImportSpotifyModal';
 import { playlistTracksKey } from '../lib/queryKeys';
@@ -258,6 +259,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
         publishSlot={
           <Group gap="sm" align="center">
             <PublishButton playlist={playlist} />
+            <PublishYtMusicButton playlist={playlist} />
             <Button color="red" variant="subtle" onClick={openDelete}>
               {t('playlists.detail.delete_cta')}
             </Button>

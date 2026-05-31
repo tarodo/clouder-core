@@ -106,7 +106,9 @@ export function PublishButton({ playlist }: PublishButtonProps) {
       <PublishResultModal
         opened={resultModal !== null}
         onClose={() => setResultModal(null)}
-        result={resultModal}
+        skippedTracks={resultModal?.skipped_tracks ?? null}
+        openUrl={resultModal?.spotify_url ?? ''}
+        openLabelKey="playlists.publish.open_in_spotify"
       />
     </>
   );
