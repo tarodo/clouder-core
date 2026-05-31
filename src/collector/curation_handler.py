@@ -1140,10 +1140,11 @@ def _handle_publish_ytmusic(event, repo, user_id, correlation_id):
     body = PublishPlaylistIn.model_validate(_parse_body(event))
 
     yt_client = _build_ytmusic_user_client(user_id, correlation_id)
+    storage = _build_s3_storage()
 
     from .curation.ytmusic_publish_service import YtmusicPublishService
 
-    svc = YtmusicPublishService(repo=repo, ytmusic_client=yt_client)
+    svc = YtmusicPublishService(repo=repo, ytmusic_client=yt_client, storage=storage)
     result = svc.publish(
         user_id=user_id, playlist_id=pid,
         confirm_overwrite=body.confirm_overwrite,
@@ -1154,6 +1155,7 @@ def _handle_publish_ytmusic(event, repo, user_id, correlation_id):
             "ytmusic_playlist_id": result.ytmusic_playlist_id,
             "ytmusic_url": result.ytmusic_url,
             "skipped_tracks": result.skipped,
+            "cover_failed": result.cover_failed,
             "published_at": result.published_at,
             "correlation_id": correlation_id,
         },

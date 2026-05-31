@@ -56,6 +56,9 @@ export function PublishYtMusicButton({ playlist }: PublishYtMusicButtonProps) {
           </Group>
         ),
       });
+      if (r.cover_failed) {
+        notifications.show({ message: t('playlists.publish.ytmusic_cover_failed'), color: 'yellow' });
+      }
       if (r.skipped_tracks.length > 0) setResultModal(r);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409 && err.code === 'confirm_overwrite_required') {

@@ -26,6 +26,7 @@ def test_handle_publish_ytmusic_returns_payload():
             return result
 
     with patch.object(curation_handler, "_build_ytmusic_user_client", return_value=object()), \
+         patch.object(curation_handler, "_build_s3_storage", return_value=object()), \
          patch("collector.curation.ytmusic_publish_service.YtmusicPublishService",
                return_value=FakeSvc()):
         resp = curation_handler._handle_publish_ytmusic(
@@ -33,6 +34,7 @@ def test_handle_publish_ytmusic_returns_payload():
             user_id="u1", correlation_id="corr",
         )
     assert resp["statusCode"] == 200
+    assert json.loads(resp["body"])["cover_failed"] is False
     body = json.loads(resp["body"])
     assert body["ytmusic_playlist_id"] == "PLabc"
     assert body["ytmusic_url"].endswith("PLabc")

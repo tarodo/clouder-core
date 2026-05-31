@@ -100,6 +100,7 @@ export interface YtmusicPublishResult {
   ytmusic_playlist_id: string;
   ytmusic_url: string;
   skipped_tracks: { track_id: string; title: string; reason: string }[];
+  cover_failed?: boolean;
   published_at: string;
   correlation_id?: string;
 }

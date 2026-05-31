@@ -21,6 +21,7 @@ class FakePlaylist:
     description: str | None
     is_public: bool
     ytmusic_playlist_id: str | None = None
+    cover_s3_key: str | None = None
 
 
 @dataclass
@@ -51,17 +52,24 @@ class FakeRepo:
 
 
 class FakeClient:
-    def __init__(self, *, create_ret="PLnew", edit_raises=None):
+    def __init__(self, *, create_ret="PLnew", edit_raises=None, cover_raises=None):
         self.create_ret = create_ret
         self.edit_raises = edit_raises
+        self.cover_raises = cover_raises
         self.created = None
         self.edited = None
         self.added = []
         self.removed = []
+        self.cover = None
 
     def create_playlist(self, *, name, description, privacy):
         self.created = (name, description, privacy)
         return self.create_ret
+
+    def set_cover(self, playlist_id, image_bytes):
+        if self.cover_raises:
+            raise self.cover_raises
+        self.cover = (playlist_id, image_bytes)
 
     def edit_meta(self, *, playlist_id, name, description, privacy):
         if self.edit_raises:
@@ -76,6 +84,16 @@ class FakeClient:
 
     def remove_items(self, playlist_id, items):
         self.removed.append((playlist_id, items))
+
+
+class FakeStorage:
+    def __init__(self, data=b"IMG"):
+        self.data = data
+        self.reads = []
+
+    def read_cover_bytes(self, key):
+        self.reads.append(key)
+        return self.data
 
 
 def _now():
@@ -187,3 +205,42 @@ def test_orphan_404_wraps_when_not_treating_as_orphan():
     with pytest.raises(YtmusicApiError):
         svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True, treat_404_as_orphan=False)
     assert client.created is None
+
+
+def test_cover_uploaded_when_present():
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, cover_s3_key="covers/p.jpg")
+    rows = [FakeTrackRow("t1", "T1")]
+    statuses = {"t1": _matched("v1")}
+    client = FakeClient()
+    storage = FakeStorage(b"IMG")
+    svc = YtmusicPublishService(
+        repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, storage=storage, now=_now
+    )
+    result = svc.publish(user_id="u", playlist_id="p", confirm_overwrite=False)
+    assert storage.reads == ["covers/p.jpg"]
+    assert client.cover == ("PLnew", b"IMG")
+    assert result.cover_failed is False
+
+
+def test_cover_failure_does_not_break_publish():
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, cover_s3_key="covers/p.jpg")
+    rows = [FakeTrackRow("t1", "T1")]
+    statuses = {"t1": _matched("v1")}
+    client = FakeClient(cover_raises=RuntimeError("YouTube 400: invalid type"))
+    svc = YtmusicPublishService(
+        repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, storage=FakeStorage(), now=_now
+    )
+    result = svc.publish(user_id="u", playlist_id="p", confirm_overwrite=False)
+    assert result.cover_failed is True
+    assert result.ytmusic_playlist_id == "PLnew"  # publish still succeeded
+
+
+def test_no_cover_when_storage_absent():
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, cover_s3_key="covers/p.jpg")
+    rows = [FakeTrackRow("t1", "T1")]
+    statuses = {"t1": _matched("v1")}
+    client = FakeClient()
+    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
+    result = svc.publish(user_id="u", playlist_id="p", confirm_overwrite=False)
+    assert client.cover is None
+    assert result.cover_failed is False
