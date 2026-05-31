@@ -71,6 +71,8 @@ def _full_bundle() -> NormalizedBundle:
                 isrc=None,
                 bpm=None,
                 length_ms=None,
+                key_name=None,
+                key_camelot=None,
                 publish_date=None,
                 bp_release_id=30,
                 bp_genre_id=10,

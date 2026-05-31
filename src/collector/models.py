@@ -102,6 +102,8 @@ class NormalizedTrack:
     isrc: str | None
     bpm: int | None
     length_ms: int | None
+    key_name: str | None
+    key_camelot: str | None
     publish_date: str | None
     bp_release_id: int | None
     bp_genre_id: int | None

@@ -83,6 +83,8 @@ class CreateTrackCmd:
     isrc: str | None
     bpm: int | None
     length_ms: int | None
+    key_name: str | None
+    key_camelot: str | None
     publish_date: date | None
     album_id: str | None
     style_id: str | None
@@ -96,6 +98,8 @@ class ConservativeUpdateTrackCmd:
     isrc: str | None
     bpm: int | None
     length_ms: int | None
+    key_name: str | None
+    key_camelot: str | None
     publish_date: date | None
     album_id: str | None
     style_id: str | None
@@ -613,9 +617,11 @@ class ClouderRepository:
             """
             INSERT INTO clouder_tracks (
                 id, title, normalized_title, mix_name, isrc, bpm, length_ms,
+                key_name, key_camelot,
                 publish_date, album_id, style_id, created_at, updated_at
             ) VALUES (
                 :id, :title, :normalized_title, :mix_name, :isrc, :bpm, :length_ms,
+                :key_name, :key_camelot,
                 :publish_date, :album_id, :style_id, :at, :at
             )
             ON CONFLICT (id) DO NOTHING
@@ -628,6 +634,8 @@ class ClouderRepository:
                 "isrc": cmd.isrc,
                 "bpm": cmd.bpm,
                 "length_ms": cmd.length_ms,
+                "key_name": cmd.key_name,
+                "key_camelot": cmd.key_camelot,
                 "publish_date": cmd.publish_date,
                 "album_id": cmd.album_id,
                 "style_id": cmd.style_id,
@@ -661,6 +669,8 @@ class ClouderRepository:
                     WHEN length_ms <> :length_ms THEN :length_ms
                     ELSE length_ms
                 END,
+                key_name = COALESCE(:key_name, key_name),
+                key_camelot = COALESCE(:key_camelot, key_camelot),
                 publish_date = COALESCE(:publish_date, publish_date),
                 album_id = COALESCE(:album_id, album_id),
                 style_id = COALESCE(:style_id, style_id),
@@ -673,6 +683,8 @@ class ClouderRepository:
                 "isrc": cmd.isrc,
                 "bpm": cmd.bpm,
                 "length_ms": cmd.length_ms,
+                "key_name": cmd.key_name,
+                "key_camelot": cmd.key_camelot,
                 "publish_date": cmd.publish_date,
                 "album_id": cmd.album_id,
                 "style_id": cmd.style_id,
