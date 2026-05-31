@@ -1,9 +1,11 @@
 import json
 import io
+from urllib.error import HTTPError
 
 import pytest
 
 from collector.auth.ytmusic_oauth import (
+    YtmusicAuthDenied,
     YtmusicAuthError,
     YtmusicAuthExpired,
     YtmusicAuthPending,
@@ -24,6 +26,19 @@ class FakeResp:
 
     def __exit__(self, *a):
         return False
+
+
+def _raising_client(status, body):
+    """Return a client whose urlopen always raises HTTPError with a JSON body."""
+    def fake_urlopen(req, timeout):
+        raise HTTPError(
+            url="https://oauth2.googleapis.com/token",
+            code=status,
+            msg="error",
+            hdrs=None,
+            fp=io.BytesIO(json.dumps(body).encode("utf-8")),
+        )
+    return YtmusicOAuthClient(client_id="cid", client_secret="csec", urlopen=fake_urlopen)
 
 
 def make_client(responses):
@@ -91,7 +106,29 @@ def test_refresh_keeps_old_refresh_token_when_absent():
     assert tokens.refresh_token == "rt-old"
 
 
-def test_unknown_error_raises_autherror():
+def test_access_denied_raises_denied():
     client = make_client([(403, {"error": "access_denied"})])
+    with pytest.raises(YtmusicAuthDenied):
+        client.exchange_device_code(device_code="dc")
+
+
+def test_unknown_error_raises_autherror():
+    client = make_client([(403, {"error": "some_unexpected_thing"})])
     with pytest.raises(YtmusicAuthError):
         client.exchange_device_code(device_code="dc")
+
+
+def test_exchange_httperror_pending_is_parsed():
+    # Real urllib raises HTTPError for 4xx; with allow_error=True the body is
+    # parsed and the flow error is surfaced.
+    client = _raising_client(428, {"error": "authorization_pending"})
+    with pytest.raises(YtmusicAuthPending):
+        client.exchange_device_code(device_code="dc")
+
+
+def test_device_code_httperror_without_allow_error_raises_autherror():
+    # request_device_code uses allow_error=False, so an HTTPError becomes a
+    # generic YtmusicAuthError.
+    client = _raising_client(400, {"error": "invalid_client"})
+    with pytest.raises(YtmusicAuthError):
+        client.request_device_code()
