@@ -87,13 +87,22 @@ def test_add_items_one_insert_per_video():
         }
 
 
-def test_get_existing_items_paginates_returning_item_ids():
+def _pi(item_id, video_id):
+    return {"id": item_id, "snippet": {"resourceId": {"videoId": video_id}}}
+
+
+def test_get_existing_items_paginates_returning_video_and_item_ids():
     s = FakeSession([
-        FakeResp(200, {"items": [{"id": "i1"}, {"id": "i2"}], "nextPageToken": "p2"}),
-        FakeResp(200, {"items": [{"id": "i3"}]}),
+        FakeResp(200, {"items": [_pi("i1", "v1"), _pi("i2", "v2")], "nextPageToken": "p2"}),
+        FakeResp(200, {"items": [_pi("i3", "v3")]}),
     ])
     items = _client(s).get_existing_items("PL")
-    assert items == ["i1", "i2", "i3"]
+    assert items == [
+        {"videoId": "v1", "itemId": "i1"},
+        {"videoId": "v2", "itemId": "i2"},
+        {"videoId": "v3", "itemId": "i3"},
+    ]
+    assert s.calls[0]["params"]["part"] == "snippet"
     assert s.calls[1]["params"]["pageToken"] == "p2"
 
 

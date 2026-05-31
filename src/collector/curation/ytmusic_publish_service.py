@@ -94,6 +94,7 @@ class YtmusicPublishService:
         )
 
         target_id = playlist.ytmusic_playlist_id
+        existing: list[dict] | None = None
         if target_id:
             try:
                 self._yt.edit_meta(
@@ -101,7 +102,6 @@ class YtmusicPublishService:
                     description=playlist.description, privacy=privacy,
                 )
                 existing = self._yt.get_existing_items(target_id)
-                self._yt.remove_items(target_id, existing)
             except YtmusicNotFoundError as exc:
                 if not treat_404_as_orphan:
                     raise YtmusicApiError(str(exc)) from exc
@@ -116,8 +116,22 @@ class YtmusicPublishService:
             target_id = self._yt.create_playlist(
                 name=playlist.name, description=playlist.description, privacy=privacy
             )
-
-        self._yt.add_items(target_id, video_ids)
+            self._yt.add_items(target_id, video_ids)
+        else:
+            # Incremental sync — touch only the delta. Each playlistItems
+            # insert/delete costs 50 YouTube quota units, so a full wipe +
+            # re-add was ~100*N per republish even when nothing changed.
+            # NOTE: new tracks are appended; a pure CLOUDER reorder is not
+            # reflected on YouTube (avoids paying 50 units per moved item).
+            existing_items = existing or []
+            existing_vids = [it["videoId"] for it in existing_items]
+            if existing_vids != video_ids:
+                desired = set(video_ids)
+                present = set(existing_vids)
+                to_remove = [it["itemId"] for it in existing_items if it["videoId"] not in desired]
+                to_add = [v for v in video_ids if v not in present]
+                self._yt.remove_items(target_id, to_remove)
+                self._yt.add_items(target_id, to_add)
 
         cover_failed = False
         cover_key = getattr(playlist, "cover_s3_key", None)

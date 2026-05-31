@@ -63,21 +63,25 @@ class YoutubeDataApiClient:
             params={"part": "snippet,status"}, json_body=body,
         )
 
-    def get_existing_items(self, playlist_id: str) -> list[str]:
-        item_ids: list[str] = []
+    def get_existing_items(self, playlist_id: str) -> list[dict]:
+        """Return [{videoId, itemId}] in playlist order. videoId is used to
+        diff against the desired set; itemId is the playlistItem id needed for
+        removal. ``part=snippet`` carries resourceId.videoId (list = 1 unit)."""
+        items: list[dict] = []
         page_token: str | None = None
         while True:
-            params = {"part": "id", "playlistId": playlist_id, "maxResults": "50"}
+            params = {"part": "snippet", "playlistId": playlist_id, "maxResults": "50"}
             if page_token:
                 params["pageToken"] = page_token
             data = self._request("GET", f"{_BASE}/playlistItems", params=params)
             for item in data.get("items", []):
-                if item.get("id"):
-                    item_ids.append(item["id"])
+                video_id = ((item.get("snippet") or {}).get("resourceId") or {}).get("videoId")
+                if item.get("id") and video_id:
+                    items.append({"videoId": video_id, "itemId": item["id"]})
             page_token = data.get("nextPageToken")
             if not page_token:
                 break
-        return item_ids
+        return items
 
     def remove_items(self, playlist_id: str, items: list[str]) -> None:
         for item_id in items:
