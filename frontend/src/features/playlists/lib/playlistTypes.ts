@@ -104,15 +104,6 @@ export interface YtmusicPublishResult {
   correlation_id?: string;
 }
 
-export interface MeResponse {
-  id: string;
-  spotify_id: string;
-  display_name: string | null;
-  email: string | null;
-  is_admin: boolean;
-  ytmusic_connected: boolean;
-}
-
 export interface CoverUploadUrlResponse {
   upload_url: string;
   s3_key: string;

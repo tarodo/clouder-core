@@ -273,7 +273,7 @@
       "confirm_cta": "Re-publish",
       "cancel": "Cancel",
       "result_skipped_title": "{{count}} tracks were skipped",
-      "result_skipped_body": "The following tracks could not be published to Spotify:",
+      "result_skipped_body": "The following tracks could not be published:",
       "cover_failed": "Tracks updated. Spotify rejected the cover — try Replace and re-publish.",
       "open_in_spotify": "Open in Spotify",
       "ytmusic": "Publish to YT Music",

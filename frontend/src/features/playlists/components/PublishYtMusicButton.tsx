@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
 import type { Playlist, YtmusicPublishResult } from '../lib/playlistTypes';
 import { usePublishYtmusic } from '../hooks/usePublishYtmusic';
-import { useMe } from '../hooks/useMe';
+import { useMe } from '../../../api/queries/useMe';
 import { PublishConfirmModal } from './PublishConfirmModal';
 import { PublishResultModal } from './PublishResultModal';
 import { YtMusicConnectModal } from './YtMusicConnectModal';

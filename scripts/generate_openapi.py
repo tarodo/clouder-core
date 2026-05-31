@@ -590,12 +590,13 @@ ME_RESPONSE = {
         {"$ref": "#/components/schemas/UserProfile"},
         {
             "type": "object",
-            "required": ["sessions"],
+            "required": ["sessions", "ytmusic_connected"],
             "properties": {
                 "sessions": {
                     "type": "array",
                     "items": {"$ref": "#/components/schemas/SessionRow"},
                 },
+                "ytmusic_connected": {"type": "boolean"},
             },
         },
     ]

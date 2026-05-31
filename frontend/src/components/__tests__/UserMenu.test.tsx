@@ -13,7 +13,7 @@ function makeAuth(signOut: AuthContextValue['signOut'] = vi.fn(), is_admin = fal
   return {
     state: {
       status: 'authenticated',
-      user: { id: 'u', spotify_id: 's', display_name: 'Roman', is_admin },
+      user: { id: 'u', spotify_id: 's', display_name: 'Roman', is_admin, ytmusic_connected: false },
       expiresAt: Date.now() + 1_800_000,
       spotifyAccessToken: 'SPTOK',
     },

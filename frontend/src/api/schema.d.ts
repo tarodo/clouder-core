@@ -7152,6 +7152,7 @@ export interface components {
         };
         MeResponse: components["schemas"]["UserProfile"] & {
             sessions: components["schemas"]["SessionRow"][];
+            ytmusic_connected: boolean;
         };
         RunResponse: {
             /** Format: uuid */

@@ -59,7 +59,7 @@ function makeStubAuth(refresh: AuthContextValue['refresh']): AuthContextValue {
   return {
     state: {
       status: 'authenticated',
-      user: { id: 'u1', spotify_id: 'sp1', display_name: 'Roman', is_admin: false },
+      user: { id: 'u1', spotify_id: 'sp1', display_name: 'Roman', is_admin: false, ytmusic_connected: false },
       expiresAt: Date.now() + 1_800_000,
       spotifyAccessToken: 'SPTOK',
     },

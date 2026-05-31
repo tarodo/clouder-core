@@ -5142,11 +5142,14 @@ components:
       - type: object
         required:
         - sessions
+        - ytmusic_connected
         properties:
           sessions:
             type: array
             items:
               $ref: '#/components/schemas/SessionRow'
+          ytmusic_connected:
+            type: boolean
     RunResponse:
       type: object
       required:
