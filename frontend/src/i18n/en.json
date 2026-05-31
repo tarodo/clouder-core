@@ -171,6 +171,7 @@
       "added": "Added",
       "ai_suspected_aria": "AI-suspected",
       "play_aria": "Play track",
+      "pause_aria": "Pause track",
       "play_unavailable": "No Spotify match"
     },
     "row_actions": {
@@ -569,6 +570,7 @@
       "ai_suspected_aria": "AI-suspected track",
       "actions_header": "Actions",
       "play_aria": "Play track",
+      "pause_aria": "Pause track",
       "play_unavailable": "No Spotify track available"
     },
     "transfer": {
