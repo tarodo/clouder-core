@@ -147,6 +147,27 @@ describe('TrackRow — isCurrent highlight', () => {
   });
 });
 
+describe('TrackRow — Key column', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    server.use(
+      http.get('http://localhost/tags', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
+    );
+  });
+
+  it('renders the Camelot code when key_camelot is provided (desktop)', () => {
+    const track: CategoryTrack = { ...baseTrack, key_camelot: '7B', key_name: 'F Major' };
+    render(
+      <W>
+        <TrackRow track={track} variant="desktop" />
+      </W>,
+    );
+    expect(screen.getByText('7B')).toBeInTheDocument();
+  });
+});
+
 describe('TrackRow — Play button', () => {
   beforeEach(() => {
     tokenStore.set('TOK');

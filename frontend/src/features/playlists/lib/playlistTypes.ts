@@ -55,6 +55,8 @@ export interface PlaylistTrack {
   is_ai_suspected: boolean;
   tags: PlaylistTrackTag[];
   ytmusic?: YtMusicMatch | null;
+  key_name?: string | null;
+  key_camelot?: string | null;
 }
 
 export interface PaginatedPlaylists {

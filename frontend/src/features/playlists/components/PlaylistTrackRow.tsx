@@ -12,6 +12,7 @@ import type { PlaylistTrack } from '../lib/playlistTypes';
 import { formatLength, formatReleaseDate } from '../../../lib/formatters';
 import { TagPill } from '../../tags';
 import { YtMusicBadge } from './YtMusicBadge';
+import { TrackKey } from '../../playback/TrackKey';
 
 export interface PlaylistTrackRowProps {
   track: PlaylistTrack;
@@ -124,6 +125,7 @@ export function PlaylistTrackRowView({
           )}
         </Group>
         <Group gap="xs" wrap="wrap" align="center">
+          <TrackKey camelot={track.key_camelot} name={track.key_name} size="xs" />
           <Text size="xs" c="dimmed">
             {[
               track.label?.name ?? '—',

@@ -228,6 +228,7 @@ export function TracksTab({
             <Table.Th>{t('categories.tracks_table.tags')}</Table.Th>
             <Table.Th>{t('categories.tracks_table.artists')}</Table.Th>
             <Table.Th>{t('categories.tracks_table.label')}</Table.Th>
+            <Table.Th>{t('categories.tracks_table.key')}</Table.Th>
             <Table.Th>{t('categories.tracks_table.bpm')}</Table.Th>
             <Table.Th>{t('categories.tracks_table.length')}</Table.Th>
             <SortableTh

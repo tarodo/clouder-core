@@ -42,6 +42,8 @@ export interface CategoryTrack {
   added_at: string;
   source_triage_block_id: string | null;
   tags: CategoryTagRef[];
+  key_name?: string | null;
+  key_camelot?: string | null;
 }
 
 export interface PaginatedTracks {

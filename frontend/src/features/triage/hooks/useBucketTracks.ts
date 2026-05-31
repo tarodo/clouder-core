@@ -21,6 +21,8 @@ export interface BucketTrack {
   label_id: string | null;
   label_name: string | null;
   added_at: string;
+  key_name?: string | null;
+  key_camelot?: string | null;
 }
 
 export interface PaginatedBucketTracks {
