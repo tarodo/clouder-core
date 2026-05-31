@@ -3,7 +3,7 @@ import { ActionIcon, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useSortable, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  IconExternalLink,
+  IconBrandSpotify,
   IconGripVertical,
   IconPlayerPlayFilled,
 } from '@tabler/icons-react';
@@ -153,9 +153,10 @@ export function PlaylistTrackRowView({
           target="_blank"
           rel="noopener noreferrer"
           variant="subtle"
+          color="gray"
           aria-label={t('playlists.publish.open_in_spotify')}
         >
-          <IconExternalLink size={16} />
+          <IconBrandSpotify size={16} />
         </ActionIcon>
       )}
 

@@ -278,7 +278,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   variant="subtle"
-                  color="green"
+                  color="gray"
                   size="lg"
                   aria-label={t('playlists.detail.open_spotify')}
                 >
@@ -294,7 +294,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   variant="subtle"
-                  color="red"
+                  color="gray"
                   size="lg"
                   aria-label={t('playlists.detail.open_ytmusic')}
                 >
