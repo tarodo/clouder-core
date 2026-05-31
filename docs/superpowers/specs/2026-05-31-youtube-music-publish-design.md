@@ -189,12 +189,19 @@ Repository:
 
 ## Error model (HTTP)
 
-- `400 confirm_overwrite_required` — already published, `confirm_overwrite` false.
-- `409 nothing_to_publish` — no matched YouTube Music tracks.
-- `412 ytmusic_not_connected` — no `ytmusic` token on file.
-- `502 ytmusic_upstream` — ytmusicapi / YouTube error.
+Matches the real codes used by the Spotify publish path (verified in
+`curation/__init__.py`):
 
-(Match the existing Spotify handler's status codes where they overlap.)
+- `409 confirm_overwrite_required` — already published, `confirm_overwrite` false.
+  Reuses the existing vendor-agnostic `ConfirmOverwriteRequiredError`.
+- `400 nothing_to_publish` — no matched YouTube Music tracks. Reuses the
+  existing `NothingToPublishError`.
+- `404 playlist_not_found` — reuses `PlaylistNotFoundError`.
+- `412 ytmusic_not_authorized` — no `ytmusic` token on file (treated by the
+  frontend as "not connected" → opens the connect modal). New
+  `YtmusicNotAuthorizedError`.
+- `502 ytmusic_api_error` — ytmusicapi / YouTube upstream error. New
+  `YtmusicApiError` (`YtmusicNotFoundError` is a subclass).
 
 ## Testing strategy
 
