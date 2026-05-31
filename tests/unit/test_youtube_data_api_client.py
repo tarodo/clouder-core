@@ -1,0 +1,124 @@
+import json
+
+import pytest
+
+from collector.curation import (
+    YtmusicApiError,
+    YtmusicNotAuthorizedError,
+    YtmusicNotFoundError,
+)
+from collector.curation.youtube_data_api_client import YoutubeDataApiClient
+
+
+class FakeResp:
+    def __init__(self, status_code, body):
+        self.status_code = status_code
+        self._body = body
+
+    def json(self):
+        return self._body
+
+
+class FakeSession:
+    """Records requests; returns queued responses in order (or a default 200)."""
+
+    def __init__(self, responses=None):
+        self._responses = list(responses or [])
+        self.calls = []
+
+    def request(self, *, method, url, params=None, data=None, headers=None):
+        self.calls.append(
+            {
+                "method": method, "url": url, "params": params,
+                "json": json.loads(data) if data else None,
+                "headers": headers,
+            }
+        )
+        if self._responses:
+            return self._responses.pop(0)
+        return FakeResp(200, {})
+
+
+def _client(session):
+    return YoutubeDataApiClient(access_token="AT", session=session)
+
+
+def test_create_playlist_posts_and_returns_id():
+    s = FakeSession([FakeResp(200, {"id": "PLnew"})])
+    pid = _client(s).create_playlist(name="N", description="D", privacy="PRIVATE")
+    assert pid == "PLnew"
+    call = s.calls[0]
+    assert call["method"] == "POST"
+    assert call["url"].endswith("/youtube/v3/playlists")
+    assert call["params"] == {"part": "snippet,status"}
+    assert call["json"]["snippet"] == {"title": "N", "description": "D"}
+    assert call["json"]["status"] == {"privacyStatus": "private"}
+    assert call["headers"]["Authorization"] == "Bearer AT"
+
+
+def test_create_playlist_public_maps_privacy():
+    s = FakeSession([FakeResp(200, {"id": "PL"})])
+    _client(s).create_playlist(name="N", description=None, privacy="PUBLIC")
+    assert s.calls[0]["json"]["status"] == {"privacyStatus": "public"}
+    assert s.calls[0]["json"]["snippet"]["description"] == ""
+
+
+def test_create_playlist_no_id_raises():
+    s = FakeSession([FakeResp(200, {})])
+    with pytest.raises(YtmusicApiError):
+        _client(s).create_playlist(name="N", description="D", privacy="PRIVATE")
+
+
+def test_add_items_one_insert_per_video():
+    s = FakeSession()
+    _client(s).add_items("PL", ["v1", "v2", "v3"])
+    assert len(s.calls) == 3
+    for call, vid in zip(s.calls, ["v1", "v2", "v3"]):
+        assert call["method"] == "POST"
+        assert call["url"].endswith("/youtube/v3/playlistItems")
+        assert call["json"]["snippet"]["playlistId"] == "PL"
+        assert call["json"]["snippet"]["resourceId"] == {
+            "kind": "youtube#video", "videoId": vid,
+        }
+
+
+def test_get_existing_items_paginates_returning_item_ids():
+    s = FakeSession([
+        FakeResp(200, {"items": [{"id": "i1"}, {"id": "i2"}], "nextPageToken": "p2"}),
+        FakeResp(200, {"items": [{"id": "i3"}]}),
+    ])
+    items = _client(s).get_existing_items("PL")
+    assert items == ["i1", "i2", "i3"]
+    assert s.calls[1]["params"]["pageToken"] == "p2"
+
+
+def test_remove_items_deletes_each_and_noop_when_empty():
+    s = FakeSession()
+    _client(s).remove_items("PL", [])
+    assert s.calls == []
+    _client(s).remove_items("PL", ["i1", "i2"])
+    assert [c["method"] for c in s.calls] == ["DELETE", "DELETE"]
+    assert s.calls[0]["params"] == {"id": "i1"}
+
+
+def test_edit_meta_puts_playlist():
+    s = FakeSession([FakeResp(200, {"id": "PL"})])
+    _client(s).edit_meta(playlist_id="PL", name="N2", description="D2", privacy="PUBLIC")
+    call = s.calls[0]
+    assert call["method"] == "PUT"
+    assert call["json"]["id"] == "PL"
+    assert call["json"]["snippet"]["title"] == "N2"
+    assert call["json"]["status"] == {"privacyStatus": "public"}
+
+
+def test_error_mapping():
+    with pytest.raises(YtmusicNotFoundError):
+        _client(FakeSession([FakeResp(404, {})])).edit_meta(
+            playlist_id="PL", name="N", description=None, privacy="PRIVATE"
+        )
+    with pytest.raises(YtmusicNotAuthorizedError):
+        _client(FakeSession([FakeResp(401, {})])).get_existing_items("PL")
+    with pytest.raises(YtmusicApiError):
+        _client(
+            FakeSession([FakeResp(403, {"error": {"message": "quotaExceeded"}})])
+        ).create_playlist(name="N", description="D", privacy="PRIVATE")
