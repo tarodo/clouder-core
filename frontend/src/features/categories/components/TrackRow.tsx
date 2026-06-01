@@ -1,5 +1,5 @@
-import { ActionIcon, Card, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
-import { IconAlertTriangle, IconPlayerPlayFilled } from '@tabler/icons-react';
+import { Card, Group, Stack, Table, Text } from '@mantine/core';
+import { IconAlertTriangle } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/formatters';
@@ -7,6 +7,7 @@ import type { CategoryTrack } from '../hooks/useCategoryTracks';
 import { TrackTagsCell } from '../../tags';
 import { UsedInPlaylistBadge } from './UsedInPlaylistBadge';
 import { TrackKey } from '../../playback/TrackKey';
+import { PlayPauseButton } from '../../playback/PlayPauseButton';
 
 function joinArtists(artists: CategoryTrack['artists']): string {
   return artists.map((a) => a.name).join(', ');
@@ -18,9 +19,11 @@ export interface TrackRowProps {
   actions?: ReactNode;
   onPlay?: () => void;
   isCurrent?: boolean;
+  isPlaying?: boolean;
+  onToggle?: () => void;
 }
 
-export function TrackRow({ track, variant, actions, onPlay, isCurrent }: TrackRowProps) {
+export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying, onToggle }: TrackRowProps) {
   const { t } = useTranslation();
   const aiBadge = track.is_ai_suspected ? (
     <IconAlertTriangle
@@ -33,23 +36,16 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent }: TrackRo
 
   const canPlay = !!onPlay && !!track.spotify_id;
   const playButton = onPlay ? (
-    <Tooltip
-      label={
-        track.spotify_id
-          ? t('categories.tracks_table.play_aria')
-          : t('categories.tracks_table.play_unavailable')
-      }
-    >
-      <ActionIcon
-        variant="subtle"
-        size="md"
-        disabled={!canPlay}
-        onClick={canPlay ? onPlay : undefined}
-        aria-label={t('categories.tracks_table.play_aria')}
-      >
-        <IconPlayerPlayFilled size={16} />
-      </ActionIcon>
-    </Tooltip>
+    <PlayPauseButton
+      isCurrent={!!isCurrent}
+      isPlaying={!!isPlaying}
+      canPlay={canPlay}
+      onPlay={onPlay}
+      onToggle={onToggle ?? onPlay}
+      playLabel={t('categories.tracks_table.play_aria')}
+      pauseLabel={t('categories.tracks_table.pause_aria')}
+      unavailableLabel={t('categories.tracks_table.play_unavailable')}
+    />
   ) : null;
 
   if (variant === 'desktop') {

@@ -21,6 +21,8 @@ export interface BucketTracksListProps {
   debouncedSearch: string;
   onPlay?: (track: BucketTrack) => void;
   currentTrackId?: string | null;
+  playing?: boolean;
+  onTogglePlay?: () => void;
 }
 
 export function BucketTracksList({
@@ -36,6 +38,8 @@ export function BucketTracksList({
   debouncedSearch,
   onPlay,
   currentTrackId,
+  playing,
+  onTogglePlay,
 }: BucketTracksListProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 64em)');
@@ -122,6 +126,8 @@ export function BucketTracksList({
       blockStatus={blockStatus}
       onPlay={onPlay ? () => onPlay(tr) : undefined}
       isCurrent={currentTrackId != null && tr.track_id === currentTrackId}
+      isPlaying={!!playing && currentTrackId != null && tr.track_id === currentTrackId}
+      onToggle={onTogglePlay}
     />
   ));
 

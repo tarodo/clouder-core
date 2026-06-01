@@ -137,7 +137,7 @@ describe('PlaylistTrackRow', () => {
       </W>,
     );
 
-    const playBtn = screen.getByRole('button', { name: /play track/i });
+    const playBtn = screen.getByRole('button', { name: /no spotify match/i });
     expect(playBtn).toBeDisabled();
   });
 

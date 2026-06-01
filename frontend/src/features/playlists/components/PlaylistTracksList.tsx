@@ -29,6 +29,10 @@ export interface PlaylistTracksListProps {
   onPlayTrack?: (track: PlaylistTrack) => void;
   /** track_id of the currently playing track for highlight. */
   currentTrackId?: string | null;
+  /** True when the current track is actively playing. */
+  playing?: boolean;
+  /** Toggle play/pause of the current track. */
+  onTogglePlay?: () => void;
   /** Playlist id — forwarded to each row so the YT Music badge can call the API. */
   playlistId: string;
 }
@@ -40,6 +44,8 @@ export function PlaylistTracksList({
   reorderDisabled = false,
   onPlayTrack,
   currentTrackId,
+  playing,
+  onTogglePlay,
   playlistId,
 }: PlaylistTracksListProps) {
   const sensors = useSensors(
@@ -87,6 +93,8 @@ export function PlaylistTracksList({
               reorderDisabled={reorderDisabled}
               onPlay={onPlayTrack ? () => onPlayTrack(t) : undefined}
               isCurrent={t.track_id === currentTrackId}
+              isPlaying={!!playing && t.track_id === currentTrackId}
+              onToggle={onTogglePlay}
               playlistId={playlistId}
             />
           ))}

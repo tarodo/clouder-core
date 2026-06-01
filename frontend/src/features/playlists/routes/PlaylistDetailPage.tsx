@@ -240,6 +240,8 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
           reorderDisabled={search.trim() !== ''}
           onPlayTrack={onPlay}
           currentTrackId={playback.track.current?.id ?? null}
+          playing={playback.queue.status === 'playing'}
+          onTogglePlay={playback.controls.togglePlayPause}
           playlistId={id}
         />
       )}

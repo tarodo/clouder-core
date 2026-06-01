@@ -162,7 +162,7 @@ describe('BucketTrackRow desktop', () => {
         </Table.Tbody>
       </Table>,
     );
-    expect(screen.getByRole('button', { name: /Play track/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /no spotify track available/i })).toBeDisabled();
   });
 
   it('marks the row data-current when isCurrent', () => {
