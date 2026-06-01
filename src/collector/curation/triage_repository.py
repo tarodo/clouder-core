@@ -88,6 +88,8 @@ class BucketTrackRowOut:
     isrc: str | None
     bpm: int | None
     length_ms: int | None
+    key_name: str | None
+    key_camelot: str | None
     publish_date: str | None
     spotify_release_date: str | None
     spotify_id: str | None
@@ -1057,6 +1059,7 @@ class TriageRepository:
             SELECT
                 t.id AS track_id,
                 t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
+                t.key_name, t.key_camelot,
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type, t.is_ai_suspected,
                 tbt.added_at,
@@ -1078,6 +1081,7 @@ class TriageRepository:
               {search_clause}
             GROUP BY
                 t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
+                t.key_name, t.key_camelot,
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type, t.is_ai_suspected,
                 tbt.added_at, cl.id, cl.name
@@ -1116,6 +1120,8 @@ class TriageRepository:
                         if r.get("length_ms") is not None
                         else None
                     ),
+                    key_name=r.get("key_name"),
+                    key_camelot=r.get("key_camelot"),
                     publish_date=(
                         str(r["publish_date"])
                         if r.get("publish_date") is not None

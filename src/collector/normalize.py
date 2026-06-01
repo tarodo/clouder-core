@@ -141,6 +141,7 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
         if not title:
             continue
 
+        key_name, key_camelot = _as_key(item.get("key"))
         track = NormalizedTrack(
             bp_track_id=bp_track_id,
             title=title,
@@ -149,6 +150,8 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
             isrc=_as_non_empty_str(item.get("isrc")),
             bpm=_as_positive_int(item.get("bpm")),
             length_ms=_as_positive_int(item.get("length_ms")),
+            key_name=key_name,
+            key_camelot=key_camelot,
             publish_date=_as_date_str(
                 item.get("publish_date") or item.get("new_release_date")
             ),
@@ -224,6 +227,23 @@ def _as_non_empty_str(value: Any) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _as_key(value: Any) -> tuple[str | None, str | None]:
+    """Extract (key_name, key_camelot) from a Beatport item's `key` object.
+
+    key_name is the musical notation ("F Major"); key_camelot is the Camelot
+    wheel code ("7B"). Either is None when absent. key_camelot requires both
+    camelot_number and camelot_letter.
+    """
+    if not isinstance(value, dict):
+        return None, None
+    key_name = _as_non_empty_str(value.get("name"))
+    number = value.get("camelot_number")
+    letter = _as_non_empty_str(value.get("camelot_letter"))
+    if isinstance(number, bool) or not isinstance(number, int) or letter is None:
+        return key_name, None
+    return key_name, f"{number}{letter}"
 
 
 def _as_list(value: Any) -> list[Any]:

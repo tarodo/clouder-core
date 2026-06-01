@@ -5,6 +5,7 @@ import { formatLength, formatReleaseDate } from '../../../lib/formatters';
 import type { BucketTrack } from '../hooks/useBucketTracks';
 import type { TriageBucket } from '../lib/bucketLabels';
 import { MoveToMenu } from './MoveToMenu';
+import { TrackKey } from '../../playback/TrackKey';
 
 export interface BucketTrackRowProps {
   track: BucketTrack;
@@ -89,6 +90,7 @@ export function BucketTrackRow({
         </Table.Td>
         <Table.Td>{track.artists.map(a => a.name).join(', ') || '—'}</Table.Td>
         <Table.Td>{track.label_name ?? '—'}</Table.Td>
+        <Table.Td><TrackKey camelot={track.key_camelot} name={track.key_name} /></Table.Td>
         <Table.Td className="font-mono">{track.bpm ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{formatLength(track.length_ms)}</Table.Td>
         <Table.Td className="font-mono">{formatReleaseDate(track.spotify_release_date)}</Table.Td>
@@ -123,6 +125,7 @@ export function BucketTrackRow({
           <Text size="xs" c="dimmed" className="font-mono">
             {track.bpm ?? '—'} BPM
           </Text>
+          <TrackKey camelot={track.key_camelot} name={track.key_name} size="xs" />
           <Text size="xs" c="dimmed" className="font-mono">
             {formatLength(track.length_ms)}
           </Text>

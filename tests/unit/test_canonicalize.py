@@ -24,6 +24,7 @@ class FakeRepo:
         self.created_artists: list[str] = []
         self.created_albums: list[str] = []
         self.created_tracks: list[str] = []
+        self.created_track_cmds: list[CreateTrackCmd] = []
         self.updated_tracks: list[str] = []
         self.track_artists: set[tuple[str, str, str]] = set()
 
@@ -129,6 +130,7 @@ class FakeRepo:
     ) -> None:
         del transaction_id
         self.created_tracks.append(cmd.track_id)
+        self.created_track_cmds.append(cmd)
 
     def conservative_update_track(
         self, cmd: ConservativeUpdateTrackCmd, transaction_id: str | None = None
@@ -284,3 +286,18 @@ def test_same_name_different_beatport_ids_create_separate_entities() -> None:
 
     assert len(repo.created_labels) == 1
     assert len(repo.created_tracks) == 2
+
+
+def test_canonicalizer_threads_key_into_create_track_cmd() -> None:
+    repo = FakeRepo()
+    canonicalizer = Canonicalizer(repo)
+    raw = _raw_track()
+    raw[0]["key"] = {"name": "F Major", "camelot_number": 7, "camelot_letter": "B"}
+    bundle = normalize_tracks(raw)
+
+    canonicalizer.process_run(run_id="run-key", bundle=bundle)
+
+    assert len(repo.created_track_cmds) == 1
+    cmd = repo.created_track_cmds[0]
+    assert cmd.key_name == "F Major"
+    assert cmd.key_camelot == "7B"

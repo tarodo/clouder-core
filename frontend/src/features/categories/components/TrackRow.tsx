@@ -6,6 +6,7 @@ import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/forma
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
 import { TrackTagsCell } from '../../tags';
 import { UsedInPlaylistBadge } from './UsedInPlaylistBadge';
+import { TrackKey } from '../../playback/TrackKey';
 
 function joinArtists(artists: CategoryTrack['artists']): string {
   return artists.map((a) => a.name).join(', ');
@@ -77,6 +78,7 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent }: TrackRo
         </Table.Td>
         <Table.Td>{joinArtists(track.artists)}</Table.Td>
         <Table.Td>{track.label?.name ?? '—'}</Table.Td>
+        <Table.Td><TrackKey camelot={track.key_camelot} name={track.key_name} /></Table.Td>
         <Table.Td className="font-mono">{track.bpm ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{formatLength(track.length_ms)}</Table.Td>
         <Table.Td className="font-mono">
@@ -118,6 +120,7 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent }: TrackRo
           <Text size="xs" c="dimmed" className="font-mono">
             {track.bpm ?? '—'} BPM
           </Text>
+          <TrackKey camelot={track.key_camelot} name={track.key_name} size="xs" />
           <Text size="xs" c="dimmed" className="font-mono">
             {formatLength(track.length_ms)}
           </Text>

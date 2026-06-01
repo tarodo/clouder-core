@@ -153,6 +153,7 @@ export function BucketTracksList({
             <Table.Th>{t('triage.tracks_table.title_header')}</Table.Th>
             <Table.Th>{t('triage.tracks_table.artists_header')}</Table.Th>
             <Table.Th>{t('triage.tracks_table.label_header')}</Table.Th>
+            <Table.Th>{t('triage.tracks_table.key_header')}</Table.Th>
             <Table.Th>{t('triage.tracks_table.bpm_header')}</Table.Th>
             <Table.Th>{t('triage.tracks_table.length_header')}</Table.Th>
             <Table.Th>{t('triage.tracks_table.released_header')}</Table.Th>

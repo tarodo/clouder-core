@@ -1761,6 +1761,14 @@ paths:
                           type:
                           - integer
                           - 'null'
+                        key_name:
+                          type:
+                          - string
+                          - 'null'
+                        key_camelot:
+                          type:
+                          - string
+                          - 'null'
                         publish_date:
                           type:
                           - string
@@ -2357,6 +2365,14 @@ paths:
                         length_ms:
                           type:
                           - integer
+                          - 'null'
+                        key_name:
+                          type:
+                          - string
+                          - 'null'
+                        key_camelot:
+                          type:
+                          - string
                           - 'null'
                         publish_date:
                           type:
@@ -3254,6 +3270,14 @@ paths:
                         length_ms:
                           type:
                           - integer
+                          - 'null'
+                        key_name:
+                          type:
+                          - string
+                          - 'null'
+                        key_camelot:
+                          type:
+                          - string
                           - 'null'
                         spotify_release_date:
                           type:
