@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { testTheme } from '../../../../test/theme';
 import { CopyPlaylistButton } from '../CopyPlaylistButton';
 import type { PlaylistTrack } from '../../lib/playlistTypes';
@@ -57,7 +58,6 @@ describe('CopyPlaylistButton', () => {
     expect(writeText).toHaveBeenCalledTimes(1);
     const call = writeText.mock.calls[0];
     expect(call).toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const parsed = JSON.parse(call![0] as string);
     expect(parsed.playlist).toBe('My set');
     expect(parsed.track_count).toBe(1);
@@ -65,6 +65,24 @@ describe('CopyPlaylistButton', () => {
       'https://www.beatport.com/track/strobe/123456',
     );
     expect(parsed.tracks[0].spotify_url).toBe('https://open.spotify.com/track/sp1');
+  });
+
+  it('shows an error notification when the clipboard write fails', async () => {
+    writeText.mockRejectedValueOnce(new Error('denied'));
+    const showSpy = vi.spyOn(notifications, 'show').mockImplementation(() => '');
+
+    render(
+      <W>
+        <CopyPlaylistButton playlistName="My set" tracks={oneTrack} />
+      </W>,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /copy playlist/i }));
+
+    expect(showSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ color: 'red' }),
+    );
+    showSpy.mockRestore();
   });
 
   it('is disabled when the playlist has no tracks', () => {
