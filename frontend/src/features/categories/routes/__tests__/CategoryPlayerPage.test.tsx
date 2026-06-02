@@ -20,9 +20,9 @@ vi.mock('../../../playback/usePlayback', () => ({
   }),
 }));
 vi.mock('../../components/CategoryPlayerPanel', () => ({
-  CategoryPlayerPanel: ({ categoryId, styleId }: { categoryId: string; styleId: string }) => (
+  CategoryPlayerPanel: ({ categoryId }: { categoryId: string }) => (
     <div data-testid="panel">
-      {categoryId}/{styleId}
+      {categoryId}
     </div>
   ),
 }));
@@ -47,7 +47,7 @@ describe('CategoryPlayerPage', () => {
         </MantineProvider>
       </QueryClientProvider>,
     );
-    expect(screen.getByTestId('panel')).toHaveTextContent('c1/s1');
+    expect(screen.getByTestId('panel')).toHaveTextContent('c1');
   });
 
   it('back button navigates to the detail page', () => {

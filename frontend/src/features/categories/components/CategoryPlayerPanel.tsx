@@ -22,7 +22,6 @@ import classes from './CategoryPlayerPanel.module.css';
 
 export interface CategoryPlayerPanelProps {
   categoryId: string;
-  styleId: string;
   /**
    * Visible tracks list from the parent page. Used to look up rich metadata
    * (label, BPM, mix_name, AI flag) for the currently playing track so the

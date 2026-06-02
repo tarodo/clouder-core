@@ -235,7 +235,7 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
       />
       {isDesktop ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
-          <CategoryPlayerPanel categoryId={id} styleId={styleId} items={items} />
+          <CategoryPlayerPanel categoryId={id} items={items} />
           <div style={{ flex: 1, minWidth: 0 }}>{tracksTab}</div>
         </Flex>
       ) : (

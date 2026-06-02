@@ -105,7 +105,7 @@ function ui(items: CategoryTrack[] = []) {
     <QueryClientProvider client={qc}>
       <MantineProvider>
         <Notifications />
-        <CategoryPlayerPanel categoryId="c1" styleId="s1" items={items} />
+        <CategoryPlayerPanel categoryId="c1" items={items} />
       </MantineProvider>
     </QueryClientProvider>
   );
