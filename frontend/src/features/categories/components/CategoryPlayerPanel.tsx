@@ -22,7 +22,6 @@ import classes from './CategoryPlayerPanel.module.css';
 
 export interface CategoryPlayerPanelProps {
   categoryId: string;
-  styleId: string;
   /**
    * Visible tracks list from the parent page. Used to look up rich metadata
    * (label, BPM, mix_name, AI flag) for the currently playing track so the
@@ -33,7 +32,7 @@ export interface CategoryPlayerPanelProps {
 
 const TOAST_ID = 'category-player-undo';
 
-export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlayerPanelProps) {
+export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelProps) {
   const { t } = useTranslation();
   const playback = usePlayback();
   const playlistsQuery = usePlaylists({ status: 'active', limit: 100 });
@@ -285,10 +284,9 @@ export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlay
         <LabelTile
           labelId={effectiveRich.label.id}
           labelName={effectiveRich.label.name ?? null}
-          styleId={styleId}
         />
       )}
-      <ArtistsPanel artists={effectiveRich?.artists ?? []} styleId={styleId} />
+      <ArtistsPanel artists={effectiveRich?.artists ?? []} />
     </Stack>
   );
 }

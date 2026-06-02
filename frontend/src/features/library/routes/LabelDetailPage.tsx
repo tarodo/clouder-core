@@ -11,9 +11,9 @@ import { FullScreenLoader } from '../../../components/FullScreenLoader';
 
 export function LabelDetailPage() {
   const { t } = useTranslation();
-  const { styleId, labelId } = useParams<{ styleId: string; labelId: string }>();
+  const { labelId } = useParams<{ labelId: string }>();
   const query = useLabelDetail(labelId ?? null);
-  if (!styleId || !labelId) return <Navigate to="/library" replace />;
+  if (!labelId) return <Navigate to="/library" replace />;
 
   if (query.isLoading) return <FullScreenLoader />;
   if (query.isError) {
@@ -38,7 +38,7 @@ export function LabelDetailPage() {
       <Grid>
         <Grid.Col span={{ base: 12, lg: 9 }}>
           <Stack gap="md">
-            <LabelDetailHeader info={info} styleId={styleId} labelId={labelId} />
+            <LabelDetailHeader info={info} labelId={labelId} />
             <Divider />
             <LabelOverviewTab info={info} />
             <Divider />

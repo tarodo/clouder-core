@@ -16,7 +16,6 @@ import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 
 interface Props {
   items: ArtistSummary[];
-  styleId: string;
   isLoading: boolean;
   page: number;
   pageCount: number;
@@ -59,7 +58,7 @@ export function ArtistsTable(p: Props) {
             return (
               <Table.Tr key={it.id}>
                 <Table.Td>
-                  <Anchor component={Link} to={`/library/${p.styleId}/artists/${it.id}`} fw={500}>
+                  <Anchor component={Link} to={`/artists/${it.id}`} fw={500}>
                     {it.name}
                   </Anchor>
                 </Table.Td>

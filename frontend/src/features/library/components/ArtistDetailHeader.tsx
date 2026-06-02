@@ -1,6 +1,6 @@
 import { Group, Title, Text, Anchor, Button } from '@mantine/core';
-import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { useBackOrFallback } from '../hooks/useBackOrFallback';
 import type { ArtistDetail } from '../../../api/artists';
 import { countryFlag } from '../lib/countryFlag';
 import { AiContentBadge } from '../lib/aiContent';
@@ -10,12 +10,12 @@ import { useEnrichArtistAuto } from '../hooks/useEnrichArtistAuto';
 
 interface Props {
   info: ArtistDetail;
-  styleId: string;
   artistId: string;
 }
 
-export function ArtistDetailHeader({ info, styleId, artistId }: Props) {
+export function ArtistDetailHeader({ info, artistId }: Props) {
   const { t } = useTranslation();
+  const goBack = useBackOrFallback('/library');
   const { state } = useAuth();
   const isAdmin = state.status === 'authenticated' && state.user.is_admin;
   const enrich = useEnrichArtistAuto();
@@ -34,8 +34,8 @@ export function ArtistDetailHeader({ info, styleId, artistId }: Props) {
 
   return (
     <>
-      <Anchor component={Link} to={`/library/${styleId}/artists`} size="sm">
-        ← {t('library.detail.back_to_list', { style: styleId })}
+      <Anchor component="button" type="button" onClick={goBack} size="sm">
+        {t('library.detail.back')}
       </Anchor>
       <Group gap="sm" mt="xs" align="center" wrap="wrap">
         <Title order={2}>{artistName}</Title>

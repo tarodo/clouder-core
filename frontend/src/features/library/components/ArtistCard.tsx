@@ -7,10 +7,9 @@ import { truncateTagline } from '../lib/formatLabel';
 
 interface Props {
   item: ArtistSummary;
-  styleId: string;
 }
 
-export function ArtistCard({ item, styleId }: Props) {
+export function ArtistCard({ item }: Props) {
   const { t } = useTranslation();
   const hasInfo = item.status === 'completed' && item.info != null;
   const primary = item.info?.primary_styles ?? [];
@@ -20,7 +19,7 @@ export function ArtistCard({ item, styleId }: Props) {
   return (
     <Card
       component={Link}
-      to={`/library/${styleId}/artists/${item.id}`}
+      to={`/artists/${item.id}`}
       withBorder
       padding="md"
       style={{ cursor: 'pointer', textDecoration: 'none' }}

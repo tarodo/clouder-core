@@ -7,13 +7,13 @@ import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { ArtistsPanel } from '../ArtistsPanel';
 import * as client from '../../../../api/client';
 
-function renderPanel(artists: { id: string; name: string; role?: string }[], styleId?: string) {
+function renderPanel(artists: { id: string; name: string; role?: string }[]) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <MantineProvider defaultColorScheme="light">
         <MemoryRouter>
-          <ArtistsPanel artists={artists} styleId={styleId} />
+          <ArtistsPanel artists={artists} />
         </MemoryRouter>
       </MantineProvider>
     </QueryClientProvider>,
@@ -39,7 +39,6 @@ describe('ArtistsPanel', () => {
         { id: 'a2', name: 'Second', role: 'main' },
         { id: 'a3', name: 'Third', role: 'main' },
       ],
-      'techno',
     );
     expect(screen.getByText('Main Artist')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show Second details' })).toBeInTheDocument();
@@ -54,12 +53,11 @@ describe('ArtistsPanel', () => {
         { id: 'a1', name: 'Main Artist' },
         { id: 'a2', name: 'Second' },
       ],
-      'techno',
     );
     await user.click(screen.getByRole('button', { name: 'Show Second details' }));
     expect(await screen.findByRole('link', { name: 'Second' })).toHaveAttribute(
       'href',
-      '/library/techno/artists/a2',
+      '/artists/a2',
     );
   });
 });

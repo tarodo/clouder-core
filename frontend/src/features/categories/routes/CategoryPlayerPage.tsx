@@ -29,7 +29,7 @@ function CategoryPlayerPageInner({ styleId, id }: { styleId: string; id: string 
           <IconArrowLeft />
         </ActionIcon>
       </Group>
-      <CategoryPlayerPanel categoryId={id} styleId={styleId} items={items} />
+      <CategoryPlayerPanel categoryId={id} items={items} />
     </Stack>
   );
 }

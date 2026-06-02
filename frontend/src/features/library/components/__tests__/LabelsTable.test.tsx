@@ -18,7 +18,6 @@ function renderTable(items: LabelSummary[]) {
           <MemoryRouter>
             <LabelsTable
               items={items}
-              styleId="dnb"
               isLoading={false}
               page={1}
               pageCount={1}

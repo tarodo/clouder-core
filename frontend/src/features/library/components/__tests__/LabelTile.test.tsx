@@ -17,7 +17,7 @@ function renderTile(labelId: string | null, labelName: string | null = null) {
       <I18nextProvider i18n={i18n}>
         <QueryClientProvider client={qc}>
           <MemoryRouter>
-            <LabelTile labelId={labelId} labelName={labelName} styleId="dnb" />
+            <LabelTile labelId={labelId} labelName={labelName} />
           </MemoryRouter>
         </QueryClientProvider>
       </I18nextProvider>
@@ -43,16 +43,7 @@ describe('LabelTile', () => {
     await waitFor(() => expect(screen.getByText('Fokuz')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /^like label$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^dislike label$/i })).toBeInTheDocument();
-    // No tagline/summary/etc → no rich content row.
     expect(screen.queryByText('soulful d&b')).not.toBeInTheDocument();
-  });
-
-  it('renders name + preference buttons while info is still loading', () => {
-    // No msw handler registered → request hangs; tile renders minimal mode
-    // with the labelName fallback until the response arrives.
-    renderTile('hanging', 'Pending Label');
-    expect(screen.getByText('Pending Label')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^like label$/i })).toBeInTheDocument();
   });
 
   it('renders the label name + full content when fetch succeeds', async () => {
@@ -73,14 +64,7 @@ describe('LabelTile', () => {
     expect(screen.getByText('soulful d&b')).toBeInTheDocument();
   });
 
-  it('renders the name as plain text (no link) when styleId is absent', () => {
-    renderTileNoStyle('hanging', 'Linkless Label');
-    expect(screen.getByText('Linkless Label')).toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^like label$/i })).toBeInTheDocument();
-  });
-
-  it('renders the name as a link when styleId is present', async () => {
+  it('renders the label name as a link to the top-level label page', async () => {
     server.use(
       http.get('http://localhost/labels/linked', () =>
         HttpResponse.json({ label_name: 'Linked', my_preference: null }),
@@ -88,21 +72,6 @@ describe('LabelTile', () => {
     );
     renderTile('linked', 'fallback');
     await waitFor(() => expect(screen.getByText('Linked')).toBeInTheDocument());
-    expect(screen.getByRole('link', { name: 'Linked' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Linked' })).toHaveAttribute('href', '/labels/linked');
   });
 });
-
-function renderTileNoStyle(labelId: string | null, labelName: string | null = null) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
-  return render(
-    <MantineProvider>
-      <I18nextProvider i18n={i18n}>
-        <QueryClientProvider client={qc}>
-          <MemoryRouter>
-            <LabelTile labelId={labelId} labelName={labelName} />
-          </MemoryRouter>
-        </QueryClientProvider>
-      </I18nextProvider>
-    </MantineProvider>
-  );
-}

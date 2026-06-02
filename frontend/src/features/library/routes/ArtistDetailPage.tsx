@@ -11,9 +11,9 @@ import { FullScreenLoader } from '../../../components/FullScreenLoader';
 
 export function ArtistDetailPage() {
   const { t } = useTranslation();
-  const { styleId, artistId } = useParams<{ styleId: string; artistId: string }>();
+  const { artistId } = useParams<{ artistId: string }>();
   const query = useArtistDetail(artistId ?? null);
-  if (!styleId || !artistId) return <Navigate to="/library" replace />;
+  if (!artistId) return <Navigate to="/library" replace />;
 
   if (query.isLoading) return <FullScreenLoader />;
   if (query.isError) {
@@ -38,7 +38,7 @@ export function ArtistDetailPage() {
       <Grid>
         <Grid.Col span={{ base: 12, lg: 9 }}>
           <Stack gap="md">
-            <ArtistDetailHeader info={info} styleId={styleId} artistId={artistId} />
+            <ArtistDetailHeader info={info} artistId={artistId} />
             <Divider />
             <ArtistOverviewTab info={info} />
             <Divider />

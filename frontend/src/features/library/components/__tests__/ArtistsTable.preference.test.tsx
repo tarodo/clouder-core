@@ -14,7 +14,6 @@ function renderTable(items: ArtistSummary[]) {
         <MemoryRouter>
           <ArtistsTable
             items={items}
-            styleId="techno"
             isLoading={false}
             page={1}
             pageCount={1}

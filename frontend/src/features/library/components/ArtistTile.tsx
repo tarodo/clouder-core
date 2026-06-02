@@ -10,8 +10,6 @@ import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 interface Props {
   artistId: string | null | undefined;
   artistName?: string | null | undefined;
-  /** Present on bucket/category players → name links to library detail. Absent on playlists. */
-  styleId?: string;
 }
 
 interface ArtistInfoView {
@@ -31,7 +29,7 @@ function pickPreference(value: unknown): 'liked' | 'disliked' | null {
   return value === 'liked' || value === 'disliked' ? value : null;
 }
 
-export function ArtistTile({ artistId, artistName, styleId }: Props) {
+export function ArtistTile({ artistId, artistName }: Props) {
   const { t } = useTranslation();
   const query = useArtistInfo(artistId);
 
@@ -64,14 +62,10 @@ export function ArtistTile({ artistId, artistName, styleId }: Props) {
       })
     : [];
 
-  const nameNode = styleId ? (
-    <Anchor component={Link} to={`/library/${styleId}/artists/${artistId}`} fw={600} size="lg">
+  const nameNode = (
+    <Anchor component={Link} to={`/artists/${artistId}`} fw={600} size="lg">
       {displayName || artistId}
     </Anchor>
-  ) : (
-    <Text fw={600} size="lg">
-      {displayName || artistId}
-    </Text>
   );
 
   return (
