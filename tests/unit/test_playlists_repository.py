@@ -848,3 +848,72 @@ def test_list_tracks_enrich_no_tags_repo_returns_empty_tags_tuple() -> None:
     assert rows[0].tags == ()
     assert rows[0].artists == ()
     assert rows[0].label is None
+
+
+def _beatport_track_row(**overrides) -> dict:
+    row = {
+        "track_id": "t1",
+        "position": 0,
+        "added_at": "2026-01-01T00:00:00Z",
+        "title": "Strobe",
+        "mix_name": "Extended Mix",
+        "isrc": "US1234567890",
+        "bpm": 128,
+        "length_ms": 600000,
+        "key_name": None,
+        "key_camelot": None,
+        "spotify_id": "sp1",
+        "is_ai_suspected": False,
+        "spotify_release_date": None,
+        "origin": "beatport",
+        "artists_json": "[]",
+        "label_id": None,
+        "label_name": None,
+        "beatport_track_id": "123456",
+        "beatport_slug": "strobe",
+    }
+    row.update(overrides)
+    return row
+
+
+def test_list_tracks_exposes_beatport_id_and_slug() -> None:
+    api = _make_data_api(
+        {
+            "SELECT 1 AS ok": [{"ok": 1}],
+            "JSON_AGG": [_beatport_track_row()],
+            "COUNT(*) AS total": [{"total": 1}],
+        }
+    )
+    repo = _make_repo(api)
+
+    rows, total = repo.list_tracks(
+        user_id="u1", playlist_id="p1", limit=200, offset=0,
+    )
+
+    assert total == 1
+    assert rows[0].beatport_track_id == "123456"
+    assert rows[0].beatport_slug == "strobe"
+
+
+def test_list_tracks_null_beatport_for_non_beatport_track() -> None:
+    api = _make_data_api(
+        {
+            "SELECT 1 AS ok": [{"ok": 1}],
+            "JSON_AGG": [
+                _beatport_track_row(
+                    origin="spotify_user_import",
+                    beatport_track_id=None,
+                    beatport_slug=None,
+                )
+            ],
+            "COUNT(*) AS total": [{"total": 1}],
+        }
+    )
+    repo = _make_repo(api)
+
+    rows, _total = repo.list_tracks(
+        user_id="u1", playlist_id="p1", limit=200, offset=0,
+    )
+
+    assert rows[0].beatport_track_id is None
+    assert rows[0].beatport_slug is None
