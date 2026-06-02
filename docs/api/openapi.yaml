@@ -3300,6 +3300,14 @@ paths:
                         label:
                           type: object
                           nullable: true
+                        beatport_track_id:
+                          type:
+                          - string
+                          - 'null'
+                        beatport_slug:
+                          type:
+                          - string
+                          - 'null'
                         tags:
                           type: array
                           description: User-tags attached to this track (always present,
