@@ -57,6 +57,8 @@ export interface PlaylistTrack {
   ytmusic?: YtMusicMatch | null;
   key_name?: string | null;
   key_camelot?: string | null;
+  beatport_track_id?: string | null;
+  beatport_slug?: string | null;
 }
 
 export interface PaginatedPlaylists {
