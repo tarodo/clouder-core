@@ -1,6 +1,6 @@
 import { Group, Title, Text, Anchor, Badge, Tooltip, Button } from '@mantine/core';
-import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { useBackOrFallback } from '../hooks/useBackOrFallback';
 import type { LabelDetail } from '../../../api/labels';
 import { countryFlag } from '../lib/countryFlag';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
@@ -9,7 +9,6 @@ import { useEnrichLabelAuto } from '../hooks/useEnrichLabelAuto';
 
 interface Props {
   info: LabelDetail;
-  styleId: string;
   labelId: string;
 }
 
@@ -24,8 +23,9 @@ function formatAiContent(value: string): string {
   return `AI ${value.toUpperCase()}`;
 }
 
-export function LabelDetailHeader({ info, styleId, labelId }: Props) {
+export function LabelDetailHeader({ info, labelId }: Props) {
   const { t } = useTranslation();
+  const goBack = useBackOrFallback('/library');
   const { state } = useAuth();
   const isAdmin = state.status === 'authenticated' && state.user.is_admin;
   const enrich = useEnrichLabelAuto();
@@ -72,8 +72,8 @@ export function LabelDetailHeader({ info, styleId, labelId }: Props) {
 
   return (
     <>
-      <Anchor component={Link} to={`/library/${styleId}`} size="sm">
-        ← {t('library.detail.back_to_list', { style: styleId })}
+      <Anchor component="button" type="button" onClick={goBack} size="sm">
+        {t('library.detail.back')}
       </Anchor>
       <Group gap="sm" mt="xs" align="center" wrap="wrap">
         <Title order={2}>{labelName}</Title>

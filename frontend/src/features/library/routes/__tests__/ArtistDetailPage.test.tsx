@@ -59,12 +59,10 @@ function renderPage(auth: AuthContextValue = makeAuth()) {
       <I18nextProvider i18n={i18n}>
         <QueryClientProvider client={qc}>
           <AuthContext.Provider value={auth}>
-            <MemoryRouter initialEntries={['/library/dnb/artists/artist-1']}>
+            <MemoryRouter initialEntries={['/artists/artist-1']}>
               <Routes>
-                <Route
-                  path="/library/:styleId/artists/:artistId"
-                  element={<ArtistDetailPage />}
-                />
+                <Route path="/artists/:artistId" element={<ArtistDetailPage />} />
+                <Route path="/library" element={<div>LIBRARY</div>} />
               </Routes>
             </MemoryRouter>
           </AuthContext.Provider>
@@ -80,6 +78,11 @@ describe('ArtistDetailPage', () => {
   it('renders the artist name', () => {
     renderPage();
     expect(screen.getByRole('heading', { name: 'Noisia' })).toBeInTheDocument();
+  });
+
+  it('renders a back control', () => {
+    renderPage();
+    expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
   });
 
   it('renders the AI badge with confirmed status', () => {

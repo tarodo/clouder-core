@@ -96,11 +96,11 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <LibraryIndexRedirect /> },
           { path: ':styleId', element: <LibraryListPage /> },
-          { path: ':styleId/labels/:labelId', element: <LabelDetailPage /> },
           { path: ':styleId/artists', element: <ArtistsListPage /> },
-          { path: ':styleId/artists/:artistId', element: <ArtistDetailPage /> },
         ],
       },
+      { path: 'artists/:artistId', element: <ArtistDetailPage /> },
+      { path: 'labels/:labelId', element: <LabelDetailPage /> },
       {
         path: 'playlists',
         children: [
