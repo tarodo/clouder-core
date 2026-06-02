@@ -31,6 +31,7 @@ import { PlaylistTracksList } from '../components/PlaylistTracksList';
 import { PlaylistPlayerPanel } from '../components/PlaylistPlayerPanel';
 import { PublishButton } from '../components/PublishButton';
 import { PublishYtMusicButton } from '../components/PublishYtMusicButton';
+import { CopyPlaylistButton } from '../components/CopyPlaylistButton';
 import { DriftBadge } from '../components/DriftBadge';
 import { AddTracksModal } from '../components/AddTracksModal';
 import { ImportSpotifyModal } from '../components/ImportSpotifyModal';
@@ -272,6 +273,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
           <Group gap="sm" align="center">
             <PublishButton playlist={playlist} />
             <PublishYtMusicButton playlist={playlist} />
+            <CopyPlaylistButton playlistName={playlist.name} tracks={tracks} />
             {playlist.spotify_playlist_id ? (
               <Tooltip label={t('playlists.detail.open_spotify')} withinPortal>
                 <ActionIcon
