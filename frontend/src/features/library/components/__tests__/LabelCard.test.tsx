@@ -25,7 +25,7 @@ function renderCard(item: typeof COMPLETED | typeof PENDING) {
   return render(
     <MantineProvider>
       <I18nextProvider i18n={i18n}>
-        <MemoryRouter><LabelCard item={item} styleId="dnb" /></MemoryRouter>
+        <MemoryRouter><LabelCard item={item} /></MemoryRouter>
       </I18nextProvider>
     </MantineProvider>
   );

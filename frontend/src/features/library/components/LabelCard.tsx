@@ -7,10 +7,9 @@ import { truncateTagline } from '../lib/formatLabel';
 
 interface Props {
   item: LabelSummary;
-  styleId: string;
 }
 
-export function LabelCard({ item, styleId }: Props) {
+export function LabelCard({ item }: Props) {
   const { t } = useTranslation();
   const hasInfo = item.status === 'completed' && item.info != null;
   const primary = item.info?.primary_styles ?? [];
@@ -20,7 +19,7 @@ export function LabelCard({ item, styleId }: Props) {
   return (
     <Card
       component={Link}
-      to={`/library/${styleId}/labels/${item.id}`}
+      to={`/labels/${item.id}`}
       withBorder
       padding="md"
       style={{ cursor: 'pointer', textDecoration: 'none' }}

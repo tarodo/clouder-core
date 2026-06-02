@@ -49,7 +49,7 @@ export function BacklogTable(p: Props) {
               />
             </Table.Td>
             <Table.Td>
-              <Anchor component={Link} to={`/library/${row.style}/labels/${row.id}`}>
+              <Anchor component={Link} to={`/labels/${row.id}`}>
                 {row.name}
               </Anchor>
             </Table.Td>
