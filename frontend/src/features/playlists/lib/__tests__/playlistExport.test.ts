@@ -53,7 +53,7 @@ describe('buildPlaylistExport', () => {
   });
 
   it('maps all fields for a complete track', () => {
-    const [t] = buildPlaylistExport('My set', [track()]).tracks;
+    const t = buildPlaylistExport('My set', [track()]).tracks[0]!;
     expect(t).toEqual({
       title: 'Strobe',
       mix_name: 'Extended Mix',
@@ -67,7 +67,7 @@ describe('buildPlaylistExport', () => {
   });
 
   it('emits nulls for missing data and joins multiple artists', () => {
-    const [t] = buildPlaylistExport('My set', [
+    const t = buildPlaylistExport('My set', [
       track({
         mix_name: null,
         isrc: null,
@@ -81,7 +81,7 @@ describe('buildPlaylistExport', () => {
           { id: 'a2', name: 'B' },
         ],
       }),
-    ]).tracks;
+    ]).tracks[0]!;
     expect(t.artists).toEqual(['A', 'B']);
     expect(t.mix_name).toBeNull();
     expect(t.label).toBeNull();
@@ -92,16 +92,16 @@ describe('buildPlaylistExport', () => {
   });
 
   it('omits the YouTube URL when the match is not "matched"', () => {
-    const [t] = buildPlaylistExport('My set', [
+    const t = buildPlaylistExport('My set', [
       track({ ytmusic: { status: 'needs_review', url: null } }),
-    ]).tracks;
+    ]).tracks[0]!;
     expect(t.youtube_music_url).toBeNull();
   });
 
   it('emits null YouTube URL when matched but url is missing', () => {
-    const [t] = buildPlaylistExport('My set', [
+    const t = buildPlaylistExport('My set', [
       track({ ytmusic: { status: 'matched', url: null } }),
-    ]).tracks;
+    ]).tracks[0]!;
     expect(t.youtube_music_url).toBeNull();
   });
 });
