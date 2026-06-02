@@ -355,7 +355,6 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         />
         <ArtistsPanel
           artists={session.currentTrack?.artists ?? []}
-          styleId={styleId}
         />
       </div>
     )}

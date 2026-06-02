@@ -24,7 +24,6 @@ function renderPanel() {
               { id: 'a2', name: 'Second' },
               { id: 'a3', name: 'Third' },
             ]}
-            styleId="techno"
           />
         </MemoryRouter>
       </MantineProvider>

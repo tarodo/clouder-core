@@ -288,7 +288,7 @@ export function CategoryPlayerPanel({ categoryId, styleId, items }: CategoryPlay
           styleId={styleId}
         />
       )}
-      <ArtistsPanel artists={effectiveRich?.artists ?? []} styleId={styleId} />
+      <ArtistsPanel artists={effectiveRich?.artists ?? []} />
     </Stack>
   );
 }

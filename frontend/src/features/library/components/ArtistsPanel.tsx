@@ -11,11 +11,9 @@ export interface PanelArtist {
 
 interface Props {
   artists: ReadonlyArray<PanelArtist>;
-  /** Present on bucket/category players; absent on playlists (no style context). */
-  styleId?: string;
 }
 
-export function ArtistsPanel({ artists, styleId }: Props) {
+export function ArtistsPanel({ artists }: Props) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
@@ -37,12 +35,12 @@ export function ArtistsPanel({ artists, styleId }: Props) {
       <Text fw={600} size="sm">
         {t('library.artists_panel.heading')}
       </Text>
-      <ArtistTile artistId={main.id} artistName={main.name} styleId={styleId} />
+      <ArtistTile artistId={main.id} artistName={main.name} />
       {others.length > 0 && (
         <Group gap="xs" wrap="wrap">
           {others.map((a) =>
             expanded.has(a.id) ? (
-              <ArtistTile key={a.id} artistId={a.id} artistName={a.name} styleId={styleId} />
+              <ArtistTile key={a.id} artistId={a.id} artistName={a.name} />
             ) : (
               <Badge
                 key={a.id}
