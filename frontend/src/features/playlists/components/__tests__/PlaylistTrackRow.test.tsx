@@ -159,4 +159,43 @@ describe('PlaylistTrackRow', () => {
     // But the pill is NOT an interactive remove button
     expect(screen.queryByRole('button', { name: /remove dark/i })).toBeNull();
   });
+
+  it('renders a Beatport link when beatport_track_id is present', () => {
+    const bpTrack: PlaylistTrack = {
+      ...richTrack,
+      beatport_track_id: '123456',
+      beatport_slug: 'deep-horizon',
+    };
+
+    render(
+      <W>
+        <PlaylistTrackRow
+          track={bpTrack}
+          position={1}
+          onRemove={vi.fn()}
+          onPlay={vi.fn()}
+          playlistId="pl1"
+        />
+      </W>,
+    );
+
+    const link = screen.getByRole('link', { name: /open on beatport/i });
+    expect(link).toHaveAttribute('href', 'https://www.beatport.com/track/deep-horizon/123456');
+  });
+
+  it('omits the Beatport link when beatport_track_id is absent', () => {
+    render(
+      <W>
+        <PlaylistTrackRow
+          track={richTrack}
+          position={1}
+          onRemove={vi.fn()}
+          onPlay={vi.fn()}
+          playlistId="pl1"
+        />
+      </W>,
+    );
+
+    expect(screen.queryByRole('link', { name: /open on beatport/i })).toBeNull();
+  });
 });
