@@ -9,8 +9,6 @@ import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 interface Props {
   labelId: string | null | undefined;
   labelName?: string | null | undefined;
-  /** Present on bucket/category/curate players → name links to detail. Absent on playlists. */
-  styleId?: string;
 }
 
 interface LabelInfoView {
@@ -29,7 +27,7 @@ function pickPreference(value: unknown): 'liked' | 'disliked' | null {
   return value === 'liked' || value === 'disliked' ? value : null;
 }
 
-export function LabelTile({ labelId, labelName, styleId }: Props) {
+export function LabelTile({ labelId, labelName }: Props) {
   const { t } = useTranslation();
   const query = useLabelInfo(labelId);
 
@@ -68,15 +66,9 @@ export function LabelTile({ labelId, labelName, styleId }: Props) {
   return (
     <Stack gap="sm" w={320}>
       <Group gap="sm" align="center" wrap="wrap">
-        {styleId ? (
-          <Anchor component={Link} to={`/library/${styleId}/labels/${labelId}`} fw={600} size="lg">
-            {displayName || labelId}
-          </Anchor>
-        ) : (
-          <Text fw={600} size="lg">
-            {displayName || labelId}
-          </Text>
-        )}
+        <Anchor component={Link} to={`/labels/${labelId}`} fw={600} size="lg">
+          {displayName || labelId}
+        </Anchor>
         {showFullCard && aiContent && (
           <Tooltip
             label={aiReasoning || t('library.detail.ai_reasoning_missing')}

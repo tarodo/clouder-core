@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
@@ -114,12 +115,14 @@ function ui(items: PlaylistTrack[] = [], playback: any = playbackWithTrack) {
   mockPlayback = playback;
   const qc = new QueryClient();
   return (
-    <QueryClientProvider client={qc}>
-      <MantineProvider>
-        <Notifications />
-        <PlaylistPlayerPanel playlistId="p1" items={items} />
-      </MantineProvider>
-    </QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={qc}>
+        <MantineProvider>
+          <Notifications />
+          <PlaylistPlayerPanel playlistId="p1" items={items} />
+        </MantineProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 }
 
@@ -178,7 +181,7 @@ describe('PlaylistPlayerPanel', () => {
     expect(playbackWithTrack.controls.next).not.toHaveBeenCalled();
   });
 
-  it('renders LabelTile with label name as plain text (no link)', async () => {
+  it('renders the LabelTile label name as a link to the label page', async () => {
     const fokuzTrack: PlaylistTrack = {
       ...seedTrack,
       label: { id: 'lbl-1', name: 'Fokuz Recordings' },
@@ -189,9 +192,7 @@ describe('PlaylistPlayerPanel', () => {
       ),
     );
     render(ui([fokuzTrack]));
-    // LabelTile renders LabelPreferenceButtons — "Like label" is specific to the tile.
-    expect(await screen.findByRole('button', { name: 'Like label' })).toBeInTheDocument();
-    // Linkless in the playlist player: the label name is not a router link.
-    expect(screen.queryByRole('link', { name: 'Fokuz Recordings' })).not.toBeInTheDocument();
+    const link = await screen.findByRole('link', { name: 'Fokuz Recordings' });
+    expect(link).toHaveAttribute('href', '/labels/lbl-1');
   });
 });

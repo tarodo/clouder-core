@@ -351,7 +351,6 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         <LabelTile
           labelId={session.currentTrack?.label_id ?? null}
           labelName={session.currentTrack?.label_name ?? null}
-          styleId={styleId}
         />
         <ArtistsPanel
           artists={session.currentTrack?.artists ?? []}

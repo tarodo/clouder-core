@@ -160,7 +160,6 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
       <LabelTile
         labelId={effectiveRich?.label_id ?? null}
         labelName={effectiveRich?.label_name ?? null}
-        styleId={block?.style_id ?? ''}
       />
       <ArtistsPanel artists={effectiveRich?.artists ?? []} />
     </Stack>
