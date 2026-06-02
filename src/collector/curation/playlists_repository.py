@@ -154,6 +154,8 @@ class PlaylistTrackRow:
     is_ai_suspected: bool = False
     artists: tuple[dict, ...] = ()
     label: dict | None = None
+    beatport_track_id: str | None = None
+    beatport_slug: str | None = None
     tags: tuple[TrackTagRow, ...] = ()
     ytmusic: dict | None = None
 
@@ -614,13 +616,23 @@ class PlaylistsRepository:
                     '[]'::json
                 ) AS artists_json,
                 l.id   AS label_id,
-                l.name AS label_name
+                l.name AS label_name,
+                MAX(im.external_id)            AS beatport_track_id,
+                MAX(se.payload->>'slug')       AS beatport_slug
             FROM playlist_tracks pt
             JOIN clouder_tracks t ON t.id = pt.track_id
             LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
             LEFT JOIN clouder_artists       a   ON a.id  = cta.artist_id
             LEFT JOIN clouder_albums        alb ON alb.id = t.album_id
             LEFT JOIN clouder_labels        l   ON l.id   = alb.label_id
+            LEFT JOIN identity_map          im
+                   ON im.clouder_id = t.id
+                  AND im.clouder_entity_type = 'track'
+                  AND im.source = 'beatport'
+            LEFT JOIN source_entities       se
+                   ON se.source = 'beatport'
+                  AND se.entity_type = 'track'
+                  AND se.external_id = im.external_id
             WHERE pt.playlist_id = :id
             GROUP BY pt.track_id, pt.position, pt.added_at, t.id, l.id, l.name
             ORDER BY pt.position ASC
@@ -662,6 +674,8 @@ class PlaylistsRepository:
                     is_ai_suspected=bool(r.get("is_ai_suspected", False)),
                     artists=tuple(artists),
                     label=label,
+                    beatport_track_id=r.get("beatport_track_id"),
+                    beatport_slug=r.get("beatport_slug"),
                 )
             )
 

@@ -5,9 +5,11 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   IconBrandSpotify,
   IconGripVertical,
+  IconLink,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { PlaylistTrack } from '../lib/playlistTypes';
+import { beatportTrackUrl } from '../lib/playlistExport';
 import { formatLength, formatReleaseDate } from '../../../lib/formatters';
 import { TagPill } from '../../tags';
 import { YtMusicBadge } from './YtMusicBadge';
@@ -156,6 +158,21 @@ export function PlaylistTrackRowView({
           aria-label={t('playlists.publish.open_in_spotify')}
         >
           <IconBrandSpotify size={16} />
+        </ActionIcon>
+      )}
+
+      {/* Beatport external link */}
+      {track.beatport_track_id && (
+        <ActionIcon
+          component="a"
+          href={beatportTrackUrl(track.beatport_track_id, track.beatport_slug) ?? undefined}
+          target="_blank"
+          rel="noopener noreferrer"
+          variant="subtle"
+          color="gray"
+          aria-label={t('playlists.detail.open_beatport')}
+        >
+          <IconLink size={16} />
         </ActionIcon>
       )}
 

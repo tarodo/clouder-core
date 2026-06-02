@@ -4849,6 +4849,8 @@ export interface paths {
                                 artists: Record<string, never>[];
                                 added_at: string;
                                 label?: Record<string, never> | null;
+                                beatport_track_id?: string | null;
+                                beatport_slug?: string | null;
                                 /** @description User-tags attached to this track (always present, may be empty). */
                                 tags?: {
                                     /** Format: uuid */
@@ -7488,6 +7490,8 @@ export interface components {
             artists: Record<string, never>[];
             added_at: string;
             label?: Record<string, never> | null;
+            beatport_track_id?: string | null;
+            beatport_slug?: string | null;
             /** @description User-tags attached to this track (always present, may be empty). */
             tags?: {
                 /** Format: uuid */

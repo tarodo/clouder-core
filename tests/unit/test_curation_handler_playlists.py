@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-from collector.curation_handler import lambda_handler
+from collector.curation_handler import lambda_handler, _playlist_track_response
 
 
 def _event(method: str, path: str, body: dict | None = None,
@@ -260,6 +260,8 @@ def _track_row(**overrides) -> MagicMock:
         is_ai_suspected=False,
         artists=[{"id": "a-1", "name": "DJ Test"}],
         label={"id": "l-1", "name": "Test Label"},
+        beatport_track_id=None,
+        beatport_slug=None,
         tags=(tag,),
         ytmusic=None,
     )
@@ -313,3 +315,25 @@ def test_publish_returns_412_when_no_spotify_token() -> None:
             None,
         )
     assert resp["statusCode"] == 412
+
+
+def test_playlist_track_response_includes_beatport_fields() -> None:
+    from collector.curation.playlists_repository import PlaylistTrackRow
+
+    row = PlaylistTrackRow(
+        track_id="t1",
+        position=0,
+        added_at="2026-01-01T00:00:00Z",
+        title="Strobe",
+        spotify_id="sp1",
+        isrc="US1234567890",
+        length_ms=600000,
+        origin="beatport",
+        beatport_track_id="123456",
+        beatport_slug="strobe",
+    )
+
+    body = _playlist_track_response(row)
+
+    assert body["beatport_track_id"] == "123456"
+    assert body["beatport_slug"] == "strobe"

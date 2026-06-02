@@ -408,6 +408,8 @@ PLAYLIST_TRACK_RESPONSE = {
             "type": "object",
             "nullable": True,
         },
+        "beatport_track_id": {"type": ["string", "null"]},
+        "beatport_slug": {"type": ["string", "null"]},
         "tags": {
             "type": "array",
             "description": "User-tags attached to this track (always present, may be empty).",
