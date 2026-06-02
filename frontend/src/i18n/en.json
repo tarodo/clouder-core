@@ -899,7 +899,7 @@
       "dislike_artist_aria": "Dislike artist"
     },
     "detail": {
-      "back_to_list": "Back to {{style}}",
+      "back": "← Back",
       "no_info_title": "Information not yet collected",
       "no_info_body": "This label hasn't been enriched yet.",
       "tab_overview": "Overview",
