@@ -95,7 +95,6 @@ export function LibraryListPage() {
         />
         <LabelsTable
           items={items}
-          styleId={styleId}
           isLoading={query.isLoading}
           page={page}
           pageCount={pageCount}

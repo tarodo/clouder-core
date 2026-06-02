@@ -96,7 +96,6 @@ export function ArtistsListPage() {
         />
         <ArtistsTable
           items={items}
-          styleId={styleId}
           isLoading={query.isLoading}
           page={page}
           pageCount={pageCount}
