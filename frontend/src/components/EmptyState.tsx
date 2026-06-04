@@ -6,14 +6,21 @@ export interface EmptyStateProps {
   body?: ReactNode;
   icon?: ReactNode;
   action?: { label: string; onClick: () => void };
+  /** 'page' = full-height (404 / route-level). 'inline' = compact, fits inside a table/section. */
+  variant?: 'page' | 'inline';
 }
 
-export function EmptyState({ title, body, icon, action }: EmptyStateProps) {
+export function EmptyState({ title, body, icon, action, variant = 'page' }: EmptyStateProps) {
+  const isInline = variant === 'inline';
   return (
-    <Center mih="60vh" p="xl">
+    <Center
+      mih={isInline ? undefined : '60vh'}
+      p={isInline ? undefined : 'xl'}
+      py={isInline ? 'xl' : undefined}
+    >
       <Stack align="center" gap="md" maw={420}>
         {icon}
-        <Title order={2} ta="center">
+        <Title order={isInline ? 3 : 2} ta="center">
           {title}
         </Title>
         {body &&
