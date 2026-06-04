@@ -54,14 +54,15 @@ export function LibraryFilters({
         onChange={(v) => v && onStyleChange(v)}
         data={styleOptions as StyleOption[]}
         disabled={stylesLoading}
-        style={{ minWidth: 200 }}
+        miw={200}
       />
       <TextInput
         label={t('library.list.search_label')}
         placeholder={t('library.list.search_placeholder')}
         value={draft}
         onChange={(e) => setDraft(e.currentTarget.value)}
-        style={{ minWidth: 240, flex: 1 }}
+        miw={240}
+        style={{ flex: 1 }}
       />
       <Select
         label={t('library.list.sort_label')}
@@ -71,7 +72,7 @@ export function LibraryFilters({
           { value: 'recent', label: t('library.list.sort_recent') },
         ]}
         onChange={(v) => v && onSortChange(v as 'name' | 'recent')}
-        style={{ minWidth: 180 }}
+        miw={180}
       />
       {!hideMyFilter && (
         <Stack gap={4}>

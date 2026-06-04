@@ -1,8 +1,9 @@
-import { Group, Title, Text, Anchor, Badge, Tooltip, Button } from '@mantine/core';
+import { Group, Title, Text, Anchor, Button } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { useBackOrFallback } from '../hooks/useBackOrFallback';
 import type { LabelDetail } from '../../../api/labels';
 import { countryFlag } from '../lib/countryFlag';
+import { AiContentBadge } from '../lib/aiContent';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 import { useAuth } from '../../../auth/useAuth';
 import { useEnrichLabelAuto } from '../hooks/useEnrichLabelAuto';
@@ -10,17 +11,6 @@ import { useEnrichLabelAuto } from '../hooks/useEnrichLabelAuto';
 interface Props {
   info: LabelDetail;
   labelId: string;
-}
-
-const AI_COLOR: Record<string, string> = {
-  none_detected: 'green',
-  unknown: 'gray',
-  suspected: 'yellow',
-  confirmed: 'red',
-};
-
-function formatAiContent(value: string): string {
-  return `AI ${value.toUpperCase()}`;
 }
 
 export function LabelDetailHeader({ info, labelId }: Props) {
@@ -32,43 +22,11 @@ export function LabelDetailHeader({ info, labelId }: Props) {
   const rec = info as Record<string, unknown>;
   const labelName = typeof rec.label_name === 'string' ? rec.label_name : '';
   const country = typeof rec.country === 'string' ? rec.country : '';
-  const foundedYear =
-    typeof rec.founded_year === 'number' ? rec.founded_year : null;
+  const foundedYear = typeof rec.founded_year === 'number' ? rec.founded_year : null;
   const aiContent = typeof rec.ai_content === 'string' ? rec.ai_content : '';
-  const aiReasoning =
-    typeof rec.ai_reasoning === 'string' ? rec.ai_reasoning : '';
+  const aiReasoning = typeof rec.ai_reasoning === 'string' ? rec.ai_reasoning : '';
   const myPreference =
-    rec.my_preference === 'liked' || rec.my_preference === 'disliked'
-      ? rec.my_preference
-      : null;
-
-  const aiBadge = aiContent ? (
-    <Tooltip
-      label={aiReasoning || t('library.detail.ai_reasoning_missing')}
-      multiline
-      w={340}
-      withinPortal
-      events={{ hover: true, focus: true, touch: true }}
-      styles={{
-        tooltip: {
-          backgroundColor: 'white',
-          color: 'black',
-          padding: '12px 16px',
-          lineHeight: 1.5,
-          border: '1px solid var(--mantine-color-gray-3)',
-          boxShadow: 'var(--mantine-shadow-md)',
-        },
-      }}
-    >
-      <Badge
-        color={AI_COLOR[aiContent] ?? 'gray'}
-        variant="light"
-        style={{ cursor: 'help' }}
-      >
-        {formatAiContent(aiContent)}
-      </Badge>
-    </Tooltip>
-  ) : null;
+    rec.my_preference === 'liked' || rec.my_preference === 'disliked' ? rec.my_preference : null;
 
   return (
     <>
@@ -77,7 +35,7 @@ export function LabelDetailHeader({ info, labelId }: Props) {
       </Anchor>
       <Group gap="sm" mt="xs" align="center" wrap="wrap">
         <Title order={2}>{labelName}</Title>
-        {aiBadge}
+        <AiContentBadge content={aiContent} reasoning={aiReasoning} variant="colored" />
         <LabelPreferenceButtons labelId={labelId} current={myPreference} size="md" />
         {isAdmin && (
           <Button
@@ -97,9 +55,7 @@ export function LabelDetailHeader({ info, labelId }: Props) {
           </Text>
         )}
         {foundedYear !== null && (
-          <Text c="dimmed">
-            · {t('library.detail.founded', { year: foundedYear })}
-          </Text>
+          <Text c="dimmed">· {t('library.detail.founded', { year: foundedYear })}</Text>
         )}
       </Group>
     </>

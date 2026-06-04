@@ -1,9 +1,10 @@
-import { Anchor, ActionIcon, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Anchor, ActionIcon, Group, Stack, Text } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useLabelInfo } from '../hooks/useLabelInfo';
 import { countryFlag } from '../lib/countryFlag';
 import { CHANNELS } from '../lib/channelMeta';
+import { AiContentBadge } from '../lib/aiContent';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 
 interface Props {
@@ -64,41 +65,13 @@ export function LabelTile({ labelId, labelName }: Props) {
     : [];
 
   return (
-    <Stack gap="sm" w={320}>
+    <Stack gap="sm" maw={320}>
       <Group gap="sm" align="center" wrap="wrap">
         <Anchor component={Link} to={`/labels/${labelId}`} fw={600} size="lg">
           {displayName || labelId}
         </Anchor>
-        {showFullCard && aiContent && (
-          <Tooltip
-            label={aiReasoning || t('library.detail.ai_reasoning_missing')}
-            multiline
-            w={280}
-            withinPortal
-            events={{ hover: true, focus: true, touch: true }}
-            styles={{
-              tooltip: {
-                backgroundColor: 'white',
-                color: 'black',
-                padding: '12px 16px',
-                lineHeight: 1.5,
-                border: '1px solid var(--mantine-color-gray-3)',
-                boxShadow: 'var(--mantine-shadow-md)',
-              },
-            }}
-          >
-            <Badge
-              variant="outline"
-              style={{
-                cursor: 'help',
-                backgroundColor: 'white',
-                color: 'black',
-                borderColor: 'black',
-              }}
-            >
-              AI {aiContent.toUpperCase()}
-            </Badge>
-          </Tooltip>
+        {showFullCard && (
+          <AiContentBadge content={aiContent} reasoning={aiReasoning} variant="outline" />
         )}
         <LabelPreferenceButtons labelId={labelId} current={preference} size="sm" />
       </Group>
@@ -122,7 +95,7 @@ export function LabelTile({ labelId, labelName }: Props) {
         </Text>
       )}
       {showFullCard && info?.summary && (
-        <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+        <Text size="sm" className="prewrap">
           {info.summary}
         </Text>
       )}

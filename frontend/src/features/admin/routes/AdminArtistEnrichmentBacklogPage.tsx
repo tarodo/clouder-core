@@ -1,4 +1,4 @@
-import { Stack, Title, Button, Center, Text } from '@mantine/core';
+import { Stack, Button, Center, Skeleton } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useArtistBacklog, type ArtistStatusFilter } from '../hooks/useArtistBacklog';
@@ -8,6 +8,8 @@ import { ArtistEnqueueDrawer } from '../components/enrichment/ArtistEnqueueDrawe
 import { ArtistHistoryDrawer } from '../components/enrichment/ArtistHistoryDrawer';
 import { useStyles } from '../../../hooks/useStyles';
 import { slugifyStyle } from '../../library/lib/slugifyStyle';
+import { PageHeader } from '../../../components/PageHeader';
+import { EmptyState } from '../../../components/EmptyState';
 
 export function AdminArtistEnrichmentBacklogPage() {
   const { t } = useTranslation();
@@ -56,21 +58,25 @@ export function AdminArtistEnrichmentBacklogPage() {
 
   return (
     <Stack gap="md">
-      <Title order={3}>{t('admin_enrichment.backlog.title')}</Title>
-      <BacklogToolbar
-        style={style}
-        onStyleChange={setStyle}
-        status={status}
-        onStatusChange={setStatus}
-        selectedCount={selected.size}
-        onEnqueueClick={() => setDrawerOpen(true)}
-        styleOptions={styleOptions}
-        stylesLoading={stylesQuery.isLoading}
-      />
-      {items.length === 0 && !query.isLoading ? (
-        <Center mt="lg">
-          <Text c="dimmed">{t('admin_enrichment.backlog.empty')}</Text>
-        </Center>
+      <PageHeader
+        title={t('admin_enrichment.backlog.title')}
+        subtitle={t('admin_enrichment.backlog.subtitle')}
+      >
+        <BacklogToolbar
+          style={style}
+          onStyleChange={setStyle}
+          status={status}
+          onStatusChange={setStatus}
+          selectedCount={selected.size}
+          onEnqueueClick={() => setDrawerOpen(true)}
+          styleOptions={styleOptions}
+          stylesLoading={stylesQuery.isLoading}
+        />
+      </PageHeader>
+      {query.isLoading ? (
+        <Skeleton height={320} radius="md" />
+      ) : items.length === 0 ? (
+        <EmptyState variant="inline" title={t('admin_enrichment.backlog.empty')} />
       ) : (
         <BacklogTable
           items={items as Parameters<typeof BacklogTable>[0]['items']}

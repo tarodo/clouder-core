@@ -250,3 +250,10 @@ body {
 .mantine-Chip-input:focus-visible + .mantine-Chip-label {
   outline: none !important;
 }
+
+/* ── Utilities ─────────────────────────────────────────── */
+/* Preserve newlines in AI-generated prose (summaries, bios).
+   Replaces 5× inline style={{ whiteSpace: 'pre-wrap' }}. */
+.prewrap {
+  white-space: pre-wrap;
+}

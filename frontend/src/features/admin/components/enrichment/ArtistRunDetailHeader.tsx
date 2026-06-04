@@ -12,7 +12,7 @@ export function ArtistRunDetailHeader({ run }: { run: RunDetail }) {
         ← {t('admin_enrichment.run_detail.back_to_runs')}
       </Anchor>
       <Group gap="md" align="center">
-        <Title order={3}>Run {run.id.slice(0, 8)}…</Title>
+        <Title order={2}>Run {run.id.slice(0, 8)}…</Title>
         <RunStatusBadge status={run.status} />
       </Group>
       <Group gap="md">
