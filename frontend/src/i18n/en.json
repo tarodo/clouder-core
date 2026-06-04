@@ -773,13 +773,11 @@
     "ingest": {
       "start": "Start ingest",
       "override": "Override date range",
-      "advanced": "Advanced",
       "token_loaded": "Beatport token loaded",
       "reset": "Reset",
       "token_label": "Beatport token",
       "token_placeholder": "Paste bp_token",
       "standard_week": "Standard week: {{start}} – {{end}}",
-      "search_label_count": "search_label_count",
       "failed_title": "Ingest failed",
       "unknown_error": "Unknown error"
     },

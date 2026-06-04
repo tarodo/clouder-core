@@ -338,8 +338,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       description: Fetches Beatport releases for the given ISO week + style, writes
-        raw snapshot to S3, enqueues canonicalization (and optionally AI label search
-        if `search_label_count` provided).
+        raw snapshot to S3, enqueues canonicalization.
       requestBody:
         required: true
         content:
@@ -351,7 +350,6 @@ paths:
               iso_week: 17
               style_id: 90
               bp_token: REDACTED
-              search_label_count: 10
       security:
       - BearerAuth: []
       tags:
@@ -5252,10 +5250,6 @@ components:
         processing_reason:
           type: string
           nullable: true
-        search_labels_enqueued:
-          type: integer
-          description: Count of labels sent to AI search SQS. Zero if `search_label_count`
-            was omitted.
     LabelEnrichRunResponse: *id017
     LabelSummary:
       type: object

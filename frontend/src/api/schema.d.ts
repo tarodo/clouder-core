@@ -540,7 +540,7 @@ export interface paths {
         put?: never;
         /**
          * Trigger Beatport weekly releases ingest.
-         * @description Fetches Beatport releases for the given ISO week + style, writes raw snapshot to S3, enqueues canonicalization (and optionally AI label search if `search_label_count` provided).
+         * @description Fetches Beatport releases for the given ISO week + style, writes raw snapshot to S3, enqueues canonicalization.
          */
         post: {
             parameters: {
@@ -556,8 +556,7 @@ export interface paths {
                      *       "iso_year": 2026,
                      *       "iso_week": 17,
                      *       "style_id": 90,
-                     *       "bp_token": "REDACTED",
-                     *       "search_label_count": 10
+                     *       "bp_token": "REDACTED"
                      *     }
                      */
                     "application/json": components["schemas"]["CollectRequestIn"];
@@ -7194,8 +7193,6 @@ export interface components {
             processing_status?: "QUEUED" | "FAILED_TO_QUEUE";
             processing_outcome?: string;
             processing_reason?: string | null;
-            /** @description Count of labels sent to AI search SQS. Zero if `search_label_count` was omitted. */
-            search_labels_enqueued?: number;
         };
         LabelEnrichRunResponse: {
             /** Format: uuid */

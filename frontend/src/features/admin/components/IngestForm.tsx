@@ -33,8 +33,6 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
   const [stdStart, stdEnd] = saturdayWeekRange(weekYear, weekNumber);
   const [start, setStart] = useState(fmt(stdStart));
   const [end, setEnd] = useState(fmt(stdEnd));
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [labelCount, setLabelCount] = useState<number | ''>('');
   const [styleIdValue, setStyleIdValue] = useState<number>(styleId);
   const token = useBpToken();
   const mutation = useStartIngest();
@@ -48,7 +46,6 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
       week_number: weekNumber,
       bp_token: token,
       ...(override ? { period_start: start, period_end: end } : {}),
-      ...(typeof labelCount === 'number' ? { search_label_count: labelCount } : {}),
     };
     mutation.mutate(payload, {
       onSuccess: (data) => onStarted(data.run_id),
@@ -96,23 +93,6 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
           </Group>
         </Stack>
       </Collapse>
-      <Stack gap={2}>
-        <Switch
-          size="xs"
-          label={t('admin.ingest.advanced')}
-          checked={advancedOpen}
-          onChange={(e) => setAdvancedOpen(e.currentTarget.checked)}
-        />
-        <Collapse expanded={advancedOpen}>
-          <NumberInput
-            label={t('admin.ingest.search_label_count')}
-            min={1}
-            max={200}
-            value={labelCount}
-            onChange={(v) => setLabelCount(typeof v === 'number' ? v : '')}
-          />
-        </Collapse>
-      </Stack>
       {mutation.isError && (
         <Alert color="red" title={t('admin.ingest.failed_title')}>
           {(mutation.error as Error)?.message ?? t('admin.ingest.unknown_error')}
