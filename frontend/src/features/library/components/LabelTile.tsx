@@ -65,7 +65,7 @@ export function LabelTile({ labelId, labelName }: Props) {
     : [];
 
   return (
-    <Stack gap="sm" w={320}>
+    <Stack gap="sm" maw={320}>
       <Group gap="sm" align="center" wrap="wrap">
         <Anchor component={Link} to={`/labels/${labelId}`} fw={600} size="lg">
           {displayName || labelId}

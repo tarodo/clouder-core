@@ -69,7 +69,7 @@ export function ArtistTile({ artistId, artistName }: Props) {
   );
 
   return (
-    <Stack gap="sm" w={320}>
+    <Stack gap="sm" maw={320}>
       <Group gap="sm" align="center" wrap="wrap">
         {nameNode}
         {showFullCard && (
