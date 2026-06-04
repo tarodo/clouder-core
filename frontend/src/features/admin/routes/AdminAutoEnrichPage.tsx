@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Tabs, Stack, Switch, Button, Title, Skeleton, Alert, Text } from '@mantine/core';
+import { Tabs, Stack, Switch, Button, Skeleton, Alert, Text } from '@mantine/core';
+import { PageHeader } from '../../../components/PageHeader';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { useAutoEnrichConfig } from '../hooks/useAutoEnrichConfig';
@@ -152,23 +153,24 @@ export function AdminAutoEnrichPage() {
   const { t } = useTranslation();
   return (
     <Stack gap="md">
-      <Title order={3}>{t('admin_auto_enrich.title')}</Title>
-      <Tabs defaultValue="labels">
-        <Tabs.List>
-          <Tabs.Tab value="labels">{t('admin_auto_enrich.tab_labels')}</Tabs.Tab>
-          <Tabs.Tab value="artists">{t('admin_auto_enrich.tab_artists')}</Tabs.Tab>
-          <Tabs.Tab value="tracks" disabled>{t('admin_auto_enrich.tab_tracks')}</Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="labels">
-          <LabelsTab />
-        </Tabs.Panel>
-        <Tabs.Panel value="artists">
-          <ArtistsTab />
-        </Tabs.Panel>
-        <Tabs.Panel value="tracks">
-          <Text c="dimmed" mt="md">{t('admin_auto_enrich.coming_soon')}</Text>
-        </Tabs.Panel>
-      </Tabs>
+      <PageHeader title={t('admin_auto_enrich.title')} subtitle={t('admin_auto_enrich.subtitle')}>
+        <Tabs defaultValue="labels">
+          <Tabs.List>
+            <Tabs.Tab value="labels">{t('admin_auto_enrich.tab_labels')}</Tabs.Tab>
+            <Tabs.Tab value="artists">{t('admin_auto_enrich.tab_artists')}</Tabs.Tab>
+            <Tabs.Tab value="tracks" disabled>{t('admin_auto_enrich.tab_tracks')}</Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="labels">
+            <LabelsTab />
+          </Tabs.Panel>
+          <Tabs.Panel value="artists">
+            <ArtistsTab />
+          </Tabs.Panel>
+          <Tabs.Panel value="tracks">
+            <Text c="dimmed" mt="md">{t('admin_auto_enrich.coming_soon')}</Text>
+          </Tabs.Panel>
+        </Tabs>
+      </PageHeader>
     </Stack>
   );
 }

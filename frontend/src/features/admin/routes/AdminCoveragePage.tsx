@@ -1,4 +1,4 @@
-import { Alert, Stack, Title } from '@mantine/core';
+import { Alert, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCoverage } from '../hooks/useCoverage';
@@ -8,6 +8,7 @@ import { CellDetailDrawer } from '../components/CellDetailDrawer';
 import { YearNavigator } from '../components/YearNavigator';
 import { cellState, type CoverageCell } from '../lib/cellState';
 import { runsTrackerStore } from '../lib/runsTracker';
+import { PageHeader } from '../../../components/PageHeader';
 
 export function AdminCoveragePage() {
   const { t } = useTranslation();
@@ -34,8 +35,9 @@ export function AdminCoveragePage() {
 
   return (
     <Stack>
-      <Title order={2}>{t('admin.coverage.title')}</Title>
-      <YearNavigator year={year} onChange={setYear} />
+      <PageHeader title={t('admin.coverage.title')} subtitle={t('admin.coverage.subtitle')}>
+        <YearNavigator year={year} onChange={setYear} />
+      </PageHeader>
       {q.isError && <Alert color="red">{t('admin.coverage.load_failed')}</Alert>}
       {q.data && (
         <CoverageMatrix
