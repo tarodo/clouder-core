@@ -30,10 +30,10 @@ export function LabelDetailHeader({ info, labelId }: Props) {
 
   return (
     <>
-      <Anchor component="button" type="button" onClick={goBack} size="sm">
-        {t('library.detail.back')}
-      </Anchor>
-      <Group gap="sm" mt="xs" align="center" wrap="wrap">
+      <Group gap="sm" align="center" wrap="wrap">
+        <Anchor component="button" type="button" onClick={goBack} size="sm">
+          {t('library.detail.back')}
+        </Anchor>
         <Title order={2}>{labelName}</Title>
         <AiContentBadge content={aiContent} reasoning={aiReasoning} variant="colored" />
         <LabelPreferenceButtons labelId={labelId} current={myPreference} size="md" />

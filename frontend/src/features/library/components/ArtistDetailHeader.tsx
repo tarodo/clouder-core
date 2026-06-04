@@ -34,10 +34,10 @@ export function ArtistDetailHeader({ info, artistId }: Props) {
 
   return (
     <>
-      <Anchor component="button" type="button" onClick={goBack} size="sm">
-        {t('library.detail.back')}
-      </Anchor>
-      <Group gap="sm" mt="xs" align="center" wrap="wrap">
+      <Group gap="sm" align="center" wrap="wrap">
+        <Anchor component="button" type="button" onClick={goBack} size="sm">
+          {t('library.detail.back')}
+        </Anchor>
         <Title order={2}>{artistName}</Title>
         <AiContentBadge content={aiContent} reasoning={aiReasoning} variant="colored" />
         <ArtistPreferenceButtons artistId={artistId} current={myPreference} size="md" />
