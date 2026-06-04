@@ -1,4 +1,4 @@
-import { Stack, Tabs } from '@mantine/core';
+import { Container, Stack, Tabs } from '@mantine/core';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { RunProgressToast } from '../components/RunProgressToast';
@@ -35,18 +35,20 @@ export function AdminLayout() {
     TAB_VALUES.find((v) => location.pathname.startsWith(v)) ?? '/admin/coverage';
 
   return (
-    <Stack gap="md">
-      <Tabs value={active} onChange={(v) => v && navigate(v)} keepMounted={false}>
-        <Tabs.List>
-          {TABS.map((tab) => (
-            <Tabs.Tab key={tab.value} value={tab.value}>
-              {tab.label}
-            </Tabs.Tab>
-          ))}
-        </Tabs.List>
-      </Tabs>
-      <Outlet />
-      <RunProgressToast />
-    </Stack>
+    <Container size="xl" py="md">
+      <Stack gap="md">
+        <Tabs value={active} onChange={(v) => v && navigate(v)} keepMounted={false}>
+          <Tabs.List>
+            {TABS.map((tab) => (
+              <Tabs.Tab key={tab.value} value={tab.value}>
+                {tab.label}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs>
+        <Outlet />
+        <RunProgressToast />
+      </Stack>
+    </Container>
   );
 }
