@@ -1,4 +1,4 @@
-import { Stack, Button, Center } from '@mantine/core';
+import { Stack, Button, Center, Skeleton } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLabelBacklog, type LabelStatusFilter } from '../hooks/useLabelBacklog';
@@ -73,7 +73,9 @@ export function AdminEnrichmentBacklogPage() {
           stylesLoading={stylesQuery.isLoading}
         />
       </PageHeader>
-      {items.length === 0 && !query.isLoading ? (
+      {query.isLoading ? (
+        <Skeleton height={320} radius="md" />
+      ) : items.length === 0 ? (
         <EmptyState variant="inline" title={t('admin_enrichment.backlog.empty')} />
       ) : (
         <BacklogTable
