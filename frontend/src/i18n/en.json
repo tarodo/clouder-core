@@ -1018,7 +1018,8 @@
       "source_all": "All",
       "source_manual": "Manual",
       "source_auto": "Auto",
-      "empty": "No runs yet."
+      "empty": "No runs yet.",
+      "load_failed": "Failed to load runs."
     },
     "run_detail": {
       "back_to_runs": "Back to runs",
