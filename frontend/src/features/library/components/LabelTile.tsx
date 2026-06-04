@@ -122,7 +122,7 @@ export function LabelTile({ labelId, labelName }: Props) {
         </Text>
       )}
       {showFullCard && info?.summary && (
-        <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+        <Text size="sm" className="prewrap">
           {info.summary}
         </Text>
       )}

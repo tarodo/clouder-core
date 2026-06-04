@@ -15,7 +15,7 @@ export function LabelOverviewTab({ info }: { info: LabelDetail }) {
     <Stack gap="md">
       {tagline && <Text fw={500}>{tagline}</Text>}
       {summary && (
-        <Text style={{ whiteSpace: 'pre-wrap' }}>{summary}</Text>
+        <Text className="prewrap">{summary}</Text>
       )}
       {notable.length > 0 && (
         <>

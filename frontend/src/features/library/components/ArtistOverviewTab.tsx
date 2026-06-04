@@ -16,10 +16,10 @@ export function ArtistOverviewTab({ info }: { info: ArtistDetail }) {
     <Stack gap="md">
       {tagline && <Text fw={500}>{tagline}</Text>}
       {summary && (
-        <Text style={{ whiteSpace: 'pre-wrap' }}>{summary}</Text>
+        <Text className="prewrap">{summary}</Text>
       )}
       {bio && (
-        <Text style={{ whiteSpace: 'pre-wrap' }}>{bio}</Text>
+        <Text className="prewrap">{bio}</Text>
       )}
       {collaborators.length > 0 && (
         <>
