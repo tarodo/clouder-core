@@ -8,7 +8,7 @@ ADRs capture the *why* behind load-bearing architectural choices in CLOUDER. The
 
 ## Numbering
 
-Four-digit, monotonic, never reused. The next free number is `0016`.
+Four-digit, monotonic, never reused. The next free number is `0021`.
 
 ## Template
 
@@ -46,3 +46,8 @@ Trade-offs accepted. What becomes harder. Cross-references to topical docs.
 | 0013 | [PlaybackProvider in authenticated layout, SDK lazy-loaded](0013-playback-lazy-load.md) |
 | 0014 | [Aurora Serverless v2 `min_acu=0`](0014-aurora-min-acu-zero.md)                         |
 | 0015 | [Refresh-cookie replay = revoke all sessions](0015-refresh-cookie-replay.md)            |
+| 0016 | [Label enrichment subsystem (multi-vendor consensus, async)](0016-label-enrichment.md) |
+| 0017 | [Artist enrichment mirrors label enrichment](0017-artist-enrichment.md)                  |
+| 0018 | [Triage bucket auditioning + create-time classification](0018-triage-buckets.md)         |
+| 0019 | [YouTube Music as a second vendor (match + publish)](0019-youtube-music-vendor.md)       |
+| 0020 | [Canonical top-level artist/label routes](0020-canonical-entity-routes.md)               |

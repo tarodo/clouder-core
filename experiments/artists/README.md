@@ -4,7 +4,7 @@ Local-only experiment harness for comparing AI vendors and prompts on the
 "music artist info enrichment" task. Production code under `src/collector/`
 is not touched by this directory.
 
-Design spec: `docs/superpowers/specs/2026-05-26-artist-search-design.md`
+Design spec: `docs/archive/specs/2026-05-26-artist-search-design.md`
 
 ## Setup
 
