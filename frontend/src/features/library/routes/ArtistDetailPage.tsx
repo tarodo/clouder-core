@@ -1,4 +1,4 @@
-import { Container, Grid, Card, Title, Text, Stack, Divider } from '@mantine/core';
+import { Container, Grid, Card, Title, Stack, Divider } from '@mantine/core';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
@@ -8,6 +8,7 @@ import { ArtistChannelLinks } from '../components/ArtistChannelLinks';
 import { ArtistOverviewTab } from '../components/ArtistOverviewTab';
 import { ArtistStylesTab } from '../components/ArtistStylesTab';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { EmptyState } from '../../../components/EmptyState';
 
 export function ArtistDetailPage() {
   const { t } = useTranslation();
@@ -20,12 +21,11 @@ export function ArtistDetailPage() {
     const is404 = query.error instanceof ApiError && query.error.status === 404;
     if (is404) {
       return (
-        <Container py="md">
-          <Stack gap="sm">
-            <Title order={3}>{t('library.detail.no_info_title')}</Title>
-            <Text c="dimmed">{t('library.detail.no_info_body')}</Text>
-          </Stack>
-        </Container>
+        <EmptyState
+          variant="page"
+          title={t('library.detail.no_info_title')}
+          body={t('library.detail.no_info_body')}
+        />
       );
     }
     throw query.error;
