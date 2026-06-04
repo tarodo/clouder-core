@@ -1,4 +1,4 @@
-import { Container, Stack, Title } from '@mantine/core';
+import { Container, Stack } from '@mantine/core';
 import { useParams, useSearchParams, Navigate, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useMemo } from 'react';
@@ -7,6 +7,8 @@ import { EntityTabs } from '../components/EntityTabs';
 import { LibraryFilters, type StyleOption } from '../components/LibraryFilters';
 import { ArtistsTable } from '../components/ArtistsTable';
 import { useStyles } from '../../../hooks/useStyles';
+import { PageHeader } from '../../../components/PageHeader';
+import { EmptyState } from '../../../components/EmptyState';
 import { slugifyStyle } from '../lib/slugifyStyle';
 
 const PAGE_SIZE = 25;
@@ -80,8 +82,9 @@ export function ArtistsListPage() {
   return (
     <Container size="xl" py="md">
       <Stack gap="md">
-        <Title order={2}>{t('library.artists_list.title')}</Title>
-        <EntityTabs active="artists" styleId={styleId} />
+        <PageHeader title={t('library.artists_list.title')}>
+          <EntityTabs active="artists" styleId={styleId} />
+        </PageHeader>
         <LibraryFilters
           q={q}
           sort={sort}
@@ -94,13 +97,17 @@ export function ArtistsListPage() {
           onStyleChange={onStyleChange}
           onMyChange={(v) => updateParam('my', v === 'all' ? '' : v, true)}
         />
-        <ArtistsTable
-          items={items}
-          isLoading={query.isLoading}
-          page={page}
-          pageCount={pageCount}
-          onPageChange={onPageChange}
-        />
+        {!query.isLoading && items.length === 0 ? (
+          <EmptyState variant="inline" title={t('library.list.empty')} />
+        ) : (
+          <ArtistsTable
+            items={items}
+            isLoading={query.isLoading}
+            page={page}
+            pageCount={pageCount}
+            onPageChange={onPageChange}
+          />
+        )}
       </Stack>
     </Container>
   );

@@ -879,7 +879,8 @@
       "my_all": "All",
       "my_liked": "Liked",
       "my_disliked": "Disliked",
-      "my_unrated": "Unrated"
+      "my_unrated": "Unrated",
+      "empty": "Nothing here yet for this style."
     },
     "entity_tabs": {
       "labels": "Labels",
