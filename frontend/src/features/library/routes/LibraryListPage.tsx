@@ -8,7 +8,6 @@ import { LibraryFilters, type StyleOption } from '../components/LibraryFilters';
 import { LabelsTable } from '../components/LabelsTable';
 import { useStyles } from '../../../hooks/useStyles';
 import { PageHeader } from '../../../components/PageHeader';
-import { EmptyState } from '../../../components/EmptyState';
 import { slugifyStyle } from '../lib/slugifyStyle';
 
 const PAGE_SIZE = 25;
@@ -96,17 +95,13 @@ export function LibraryListPage() {
           onStyleChange={onStyleChange}
           onMyChange={(v) => updateParam('my', v === 'all' ? '' : v, true)}
         />
-        {!query.isLoading && items.length === 0 ? (
-          <EmptyState variant="inline" title={t('library.list.empty')} />
-        ) : (
-          <LabelsTable
-            items={items}
-            isLoading={query.isLoading}
-            page={page}
-            pageCount={pageCount}
-            onPageChange={onPageChange}
-          />
-        )}
+        <LabelsTable
+          items={items}
+          isLoading={query.isLoading}
+          page={page}
+          pageCount={pageCount}
+          onPageChange={onPageChange}
+        />
       </Stack>
     </Container>
   );

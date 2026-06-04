@@ -10,6 +10,7 @@ import {
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { ArtistSummary } from '../../../api/artists';
+import { EmptyState } from '../../../components/EmptyState';
 import { countryFlag } from '../lib/countryFlag';
 import { truncateTagline } from '../lib/formatLabel';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
@@ -30,11 +31,7 @@ export function ArtistsTable(p: Props) {
   }
 
   if (p.items.length === 0) {
-    return (
-      <Center mt="lg">
-        <Text c="dimmed">{t('library.list.empty_filter')}</Text>
-      </Center>
-    );
+    return <EmptyState variant="inline" title={t('library.list.empty_filter')} />;
   }
 
   return (
