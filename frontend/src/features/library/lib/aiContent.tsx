@@ -12,6 +12,18 @@ export function formatAiContent(value: string): string {
   return `AI ${value.toUpperCase()}`;
 }
 
+/** Tooltip surface for AI reasoning — token-based so dark mode + accent flow through. */
+const aiTooltipStyles = {
+  tooltip: {
+    backgroundColor: 'var(--color-bg-elevated)',
+    color: 'var(--color-fg)',
+    padding: '12px 16px',
+    lineHeight: 1.5,
+    border: '1px solid var(--color-border)',
+    boxShadow: 'var(--mantine-shadow-md)',
+  },
+} as const;
+
 interface AiContentBadgeProps {
   /** ai_content enum value; empty string renders nothing. */
   content: string;
@@ -27,10 +39,7 @@ export function AiContentBadge({ content, reasoning = '', variant = 'colored' }:
 
   const badge =
     variant === 'outline' ? (
-      <Badge
-        variant="outline"
-        style={{ cursor: 'help', backgroundColor: 'white', color: 'black', borderColor: 'black' }}
-      >
+      <Badge variant="outline" style={{ cursor: 'help' }}>
         {formatAiContent(content)}
       </Badge>
     ) : (
@@ -46,16 +55,7 @@ export function AiContentBadge({ content, reasoning = '', variant = 'colored' }:
       w={300}
       withinPortal
       events={{ hover: true, focus: true, touch: true }}
-      styles={{
-        tooltip: {
-          backgroundColor: 'white',
-          color: 'black',
-          padding: '12px 16px',
-          lineHeight: 1.5,
-          border: '1px solid var(--mantine-color-gray-3)',
-          boxShadow: 'var(--mantine-shadow-md)',
-        },
-      }}
+      styles={aiTooltipStyles}
     >
       {badge}
     </Tooltip>
