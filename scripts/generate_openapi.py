@@ -586,10 +586,6 @@ COLLECT_RESPONSE = {
         },
         "processing_outcome": {"type": "string"},
         "processing_reason": {"type": "string", "nullable": True},
-        "search_labels_enqueued": {
-            "type": "integer",
-            "description": "Count of labels sent to AI search SQS. Zero if `search_label_count` was omitted.",
-        },
     },
 }
 
@@ -1411,8 +1407,7 @@ ROUTES: list[dict[str, Any]] = [
         "summary": "Trigger Beatport weekly releases ingest.",
         "description": (
             "Fetches Beatport releases for the given ISO week + style, writes raw "
-            "snapshot to S3, enqueues canonicalization (and optionally AI label search "
-            "if `search_label_count` provided)."
+            "snapshot to S3, enqueues canonicalization."
         ),
         "requestBody": {
             "required": True,
@@ -1427,7 +1422,6 @@ ROUTES: list[dict[str, Any]] = [
             "iso_week": 17,
             "style_id": 90,
             "bp_token": "REDACTED",
-            "search_label_count": 10,
         },
         "responses": {
             "200": _make_response(

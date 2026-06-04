@@ -57,8 +57,7 @@ Body parsing is handled by `_parse_json_body`: base64-decodes when `isBase64Enco
 2. Write raw JSON + metadata to S3 (`RAW_BUCKET_NAME`, `RAW_PREFIX`).
 3. Optionally create an `ingest_runs` DB row via `ClouderRepository.create_ingest_run` (skipped when `AURORA_*` vars are absent — this is a known degraded mode, not a bug).
 4. Enqueue a canonicalization SQS message (`CANONICALIZATION_QUEUE_URL`).
-5. Optionally enqueue label AI-search messages (`AI_SEARCH_QUEUE_URL`) when `search_label_count` is set and `AI_SEARCH_ENABLED=true`.
-6. Return 200 JSON with `run_id`, `s3_object_key`, and processing status.
+5. Return 200 JSON with `run_id`, `s3_object_key`, and processing status.
 
 The `bp_token` from the request body must never be logged or written to S3. Structlog calls in this path deliberately exclude it.
 

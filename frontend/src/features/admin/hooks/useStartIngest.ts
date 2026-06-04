@@ -9,7 +9,6 @@ export interface IngestInput {
   bp_token: string;
   period_start?: string;
   period_end?: string;
-  search_label_count?: number;
 }
 
 export interface IngestResponse {
