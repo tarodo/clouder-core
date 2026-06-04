@@ -3,6 +3,7 @@ import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useArtistEnrichmentRunDetail } from '../hooks/useArtistEnrichmentRunDetail';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { EmptyState } from '../../../components/EmptyState';
 import { ArtistRunDetailHeader } from '../components/enrichment/ArtistRunDetailHeader';
 import { ArtistRunDetailCellsTable } from '../components/enrichment/ArtistRunDetailCellsTable';
 import { RunJsonViewer } from '../components/enrichment/RunJsonViewer';
@@ -14,7 +15,7 @@ export function AdminArtistEnrichmentRunDetailPage() {
   if (!runId) return <Navigate to="/admin/artists/enrich/runs" replace />;
 
   if (query.isLoading) return <FullScreenLoader />;
-  if (query.isError || !query.data) return <Text c="red">Run not found</Text>;
+  if (query.isError || !query.data) return <EmptyState variant="page" title={t('admin_enrichment.run_detail.not_found')} />;
 
   const run = query.data;
   const cells = run.cells ?? [];
