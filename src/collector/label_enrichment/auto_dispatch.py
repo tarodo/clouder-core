@@ -1,9 +1,11 @@
 """Best-effort auto-enrichment dispatch from curation actions.
 
-Called inline from the curation handlers AFTER their DB writes commit. Only
-enqueues work onto the existing label-enrichment SQS queue — the worker runs
-the searches in the background, so curation never waits for results. Every
-public entrypoint swallows exceptions: auto-search must never break curation.
+The single-track entrypoint runs inline from the curation handler after its DB
+write commits; the triage-block entrypoint runs in the auto-enrich-dispatch
+worker (off the finalize request path). Either way this only enqueues work onto
+the existing label-enrichment SQS queue — the enricher worker runs the searches
+in the background, so curation never waits for results. Every public entrypoint
+swallows exceptions: auto-search must never break curation.
 """
 
 from __future__ import annotations
