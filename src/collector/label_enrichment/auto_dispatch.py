@@ -18,6 +18,7 @@ from .auto_repository import AutoEnrichRepository
 from .repository import LabelEnrichmentRepository, RunSpec
 
 _KIND = "labels"
+_SQS_BATCH = 10
 
 
 def _build_data_api() -> DataAPIClient:
@@ -76,13 +77,13 @@ def _dispatch_labels(*, label_ids: list[str], source_hint: str, user_id: str | N
         return
 
     le_repo = _build_label_repository()
-    resolved: list[tuple[str, str, str]] = []
-    for label_id in claimed:
-        row = le_repo.get_label_by_id(label_id)
-        if row is None:
-            continue
-        style = le_repo.derive_style_for_label(label_id) or "music"
-        resolved.append((label_id, row["name"], style))
+    names = le_repo.get_labels_by_ids(claimed)
+    styles = le_repo.derive_styles_for_labels(claimed)
+    resolved: list[tuple[str, str, str]] = [
+        (label_id, names[label_id], styles.get(label_id) or "music")
+        for label_id in claimed
+        if label_id in names
+    ]
 
     if not resolved:
         # Labels vanished between claim and resolve — leave state queued; the
@@ -105,15 +106,24 @@ def _dispatch_labels(*, label_ids: list[str], source_hint: str, user_id: str | N
 
     sqs = _build_sqs_client()
     queue_url = _queue_url()
-    for label_id, name, style in resolved:
-        sqs.send_message(
-            QueueUrl=queue_url,
-            MessageBody=json.dumps({
-                "run_id": run_id,
-                "label_id": label_id,
-                "label_name": name,
-                "style": style,
-            }),
+    entries = [
+        {
+            "Id": str(idx),
+            "MessageBody": json.dumps(
+                {"run_id": run_id, "label_id": label_id, "label_name": name, "style": style}
+            ),
+        }
+        for idx, (label_id, name, style) in enumerate(resolved)
+    ]
+    failed = 0
+    for start in range(0, len(entries), _SQS_BATCH):
+        batch = entries[start : start + _SQS_BATCH]
+        resp = sqs.send_message_batch(QueueUrl=queue_url, Entries=batch)
+        failed += len(resp.get("Failed", []))
+    if failed:
+        log_event(
+            "ERROR", "auto_enrich_enqueue_partial_failure",
+            run_id=run_id, error_message=f"{failed} of {len(entries)} sqs entries failed",
         )
 
     log_event(

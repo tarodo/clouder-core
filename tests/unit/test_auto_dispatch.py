@@ -23,7 +23,7 @@ def test_dispatch_disabled_does_nothing():
             label_ids=["lbl-1"], source_hint="single", user_id="u1",
         )
     auto_repo.claim_labels.assert_not_called()
-    sqs.send_message.assert_not_called()
+    sqs.send_message_batch.assert_not_called()
 
 
 def test_dispatch_no_config_does_nothing():
@@ -44,10 +44,11 @@ def test_dispatch_claims_creates_run_and_enqueues():
     }
     auto_repo.claim_labels.return_value = ["lbl-1", "lbl-2"]
     le_repo = MagicMock()
-    le_repo.get_label_by_id.side_effect = lambda i: {"id": i, "name": f"name-{i}"}
-    le_repo.derive_style_for_label.return_value = "techno"
+    le_repo.get_labels_by_ids.return_value = {"lbl-1": "name-lbl-1", "lbl-2": "name-lbl-2"}
+    le_repo.derive_styles_for_labels.return_value = {"lbl-1": "techno", "lbl-2": "techno"}
     le_repo.create_run.return_value = "run-1"
     sqs = MagicMock()
+    sqs.send_message_batch.return_value = {"Successful": [], "Failed": []}
     with _patch_clients(auto_repo, le_repo, sqs):
         auto_dispatch._dispatch_labels(
             label_ids=["lbl-1", "lbl-2"], source_hint="triage", user_id="u1",
@@ -57,8 +58,10 @@ def test_dispatch_claims_creates_run_and_enqueues():
     assert spec.requested_labels == 2
     assert spec.vendors == ["gemini"]
     auto_repo.attach_run.assert_called_once_with(["lbl-1", "lbl-2"], "run-1")
-    assert sqs.send_message.call_count == 2
-    body = json.loads(sqs.send_message.call_args_list[0].kwargs["MessageBody"])
+    assert sqs.send_message_batch.call_count == 1
+    entries = sqs.send_message_batch.call_args.kwargs["Entries"]
+    assert len(entries) == 2
+    body = json.loads(entries[0]["MessageBody"])
     assert body["run_id"] == "run-1"
     assert body["label_id"] == "lbl-1"
     assert body["style"] == "techno"
@@ -76,7 +79,7 @@ def test_dispatch_no_claims_skips_run():
     with _patch_clients(auto_repo, le_repo, sqs):
         auto_dispatch._dispatch_labels(label_ids=["lbl-1"], source_hint="x", user_id=None)
     le_repo.create_run.assert_not_called()
-    sqs.send_message.assert_not_called()
+    sqs.send_message_batch.assert_not_called()
 
 
 def test_try_dispatch_for_track_swallows_errors():
