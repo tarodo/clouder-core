@@ -18,6 +18,7 @@ from .auto_repository import AutoEnrichRepository
 from .repository import ArtistEnrichmentRepository, RunSpec
 
 _KIND = "artists"
+_SQS_BATCH = 10
 
 
 def _build_data_api() -> DataAPIClient:
@@ -76,12 +77,10 @@ def _dispatch_artists(*, artist_ids: list[str], source_hint: str, user_id: str |
         return
 
     ae_repo = _build_artist_repository()
-    resolved: list[tuple[str, str]] = []  # (artist_id, name)
-    for artist_id in claimed:
-        row = ae_repo.get_artist_by_id(artist_id)
-        if row is None:
-            continue
-        resolved.append((artist_id, row["name"]))
+    names = ae_repo.get_artists_by_ids(claimed)
+    resolved: list[tuple[str, str]] = [
+        (artist_id, names[artist_id]) for artist_id in claimed if artist_id in names
+    ]
 
     if not resolved:
         # Artists vanished between claim and resolve — leave state queued; the
@@ -104,14 +103,24 @@ def _dispatch_artists(*, artist_ids: list[str], source_hint: str, user_id: str |
 
     sqs = _build_sqs_client()
     queue_url = _queue_url()
-    for artist_id, name in resolved:
-        sqs.send_message(
-            QueueUrl=queue_url,
-            MessageBody=json.dumps({
-                "run_id": run_id,
-                "artist_id": artist_id,
-                "artist_name": name,
-            }),
+    entries = [
+        {
+            "Id": str(idx),
+            "MessageBody": json.dumps(
+                {"run_id": run_id, "artist_id": artist_id, "artist_name": name}
+            ),
+        }
+        for idx, (artist_id, name) in enumerate(resolved)
+    ]
+    failed = 0
+    for start in range(0, len(entries), _SQS_BATCH):
+        batch = entries[start : start + _SQS_BATCH]
+        resp = sqs.send_message_batch(QueueUrl=queue_url, Entries=batch)
+        failed += len(resp.get("Failed", []))
+    if failed:
+        log_event(
+            "ERROR", "auto_enrich_artists_enqueue_partial_failure",
+            run_id=run_id, error_message=f"{failed} of {len(entries)} sqs entries failed",
         )
 
     log_event(
