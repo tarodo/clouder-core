@@ -569,3 +569,38 @@ variable "ai_flag_confidence_threshold" {
   type        = number
   default     = 0.5
 }
+
+variable "auto_enrich_dispatch_queue_visibility_timeout_seconds" {
+  type    = number
+  default = 360
+}
+
+variable "auto_enrich_dispatch_queue_retention_seconds" {
+  type    = number
+  default = 86400
+}
+
+variable "auto_enrich_dispatch_queue_max_receive_count" {
+  type    = number
+  default = 3
+}
+
+variable "auto_enrich_dispatch_worker_lambda_timeout_seconds" {
+  type    = number
+  default = 300
+}
+
+variable "auto_enrich_dispatch_worker_lambda_memory_mb" {
+  type    = number
+  default = 512
+}
+
+variable "auto_enrich_dispatch_batch_size" {
+  type    = number
+  default = 1
+}
+
+variable "auto_enrich_dispatch_worker_max_concurrency" {
+  type    = number
+  default = 2
+}
