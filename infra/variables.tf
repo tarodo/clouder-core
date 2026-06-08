@@ -571,36 +571,48 @@ variable "ai_flag_confidence_threshold" {
 }
 
 variable "auto_enrich_dispatch_queue_visibility_timeout_seconds" {
-  type    = number
-  default = 360
+  description = "SQS visibility timeout for the auto-enrich-dispatch queue. Effective value is max() with the worker timeout so a message can't reappear mid-fan-out."
+  type        = number
+  default     = 360
 }
 
 variable "auto_enrich_dispatch_queue_retention_seconds" {
-  type    = number
-  default = 86400
+  description = "Message retention for the auto-enrich-dispatch queue (and its DLQ). 1 day is plenty for a best-effort block-level fan-out trigger."
+  type        = number
+  default     = 86400
 }
 
 variable "auto_enrich_dispatch_queue_max_receive_count" {
-  type    = number
-  default = 3
+  description = "Receives before a dispatch message is redriven to the DLQ. Only unparseable messages reach the cap — the fan-out itself is best-effort."
+  type        = number
+  default     = 3
 }
 
 variable "auto_enrich_dispatch_worker_lambda_timeout_seconds" {
-  type    = number
-  default = 300
+  description = "Timeout for the auto-enrich-dispatch worker. Generous (vs the 29s API-GW limit that timed out the inline fan-out) so a large block's label+artist dispatch always completes off the request path."
+  type        = number
+  default     = 300
 }
 
 variable "auto_enrich_dispatch_worker_lambda_memory_mb" {
-  type    = number
-  default = 512
+  description = "Memory for the auto-enrich-dispatch worker Lambda."
+  type        = number
+  default     = 512
 }
 
 variable "auto_enrich_dispatch_batch_size" {
-  type    = number
-  default = 1
+  description = "SQS batch size for the dispatch worker. Keep at 1 so a partial-batch retry can't re-dispatch already-processed blocks."
+  type        = number
+  default     = 1
 }
 
 variable "auto_enrich_dispatch_worker_max_concurrency" {
-  type    = number
-  default = 2
+  description = "SQS event-source maximum_concurrency for the auto-enrich-dispatch worker (range 2-1000). Caps SQS-driven parallelism WITHOUT reserving from the account pool. Low default — block finalizes are infrequent."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.auto_enrich_dispatch_worker_max_concurrency >= 2 && var.auto_enrich_dispatch_worker_max_concurrency <= 1000
+    error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
+  }
 }
