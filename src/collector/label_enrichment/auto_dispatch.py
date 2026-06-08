@@ -54,6 +54,10 @@ def _queue_url() -> str:
 def _dispatch_labels(*, label_ids: list[str], source_hint: str, user_id: str | None) -> None:
     if not label_ids:
         return
+    log_event(
+        "INFO", "auto_enrich_dispatch_started",
+        source_hint=source_hint, candidate_labels=len(label_ids),
+    )
     auto_repo = _build_auto_repository()
     cfg = auto_repo.get_config(_KIND)
     if not cfg or not cfg.get("enabled"):

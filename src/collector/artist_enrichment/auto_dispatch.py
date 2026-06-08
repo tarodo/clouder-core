@@ -54,6 +54,10 @@ def _queue_url() -> str:
 def _dispatch_artists(*, artist_ids: list[str], source_hint: str, user_id: str | None) -> None:
     if not artist_ids:
         return
+    log_event(
+        "INFO", "auto_enrich_artists_dispatch_started",
+        source_hint=source_hint, candidate_artists=len(artist_ids),
+    )
     auto_repo = _build_auto_repository()
     cfg = auto_repo.get_config(_KIND)
     if not cfg or not cfg.get("enabled"):
