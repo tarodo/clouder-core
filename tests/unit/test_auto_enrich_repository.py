@@ -67,11 +67,12 @@ def test_claim_inserts_brand_new_label():
 
 def test_claim_retries_failed_label_via_update():
     repo, data_api = _repo()
-    # UPDATE claims it → INSERT not attempted for this label
-    data_api.execute.side_effect = [[{"label_id": "lbl-2"}]]
+    # UPDATE claims it; INSERT is still issued but returns nothing (NOT EXISTS
+    # on the state row excludes the already-reclaimed id at DB level).
+    data_api.execute.side_effect = [[{"label_id": "lbl-2"}], []]
     claimed = repo.claim_labels(["lbl-2"])
     assert claimed == ["lbl-2"]
-    assert data_api.execute.call_count == 1  # update claimed; no insert
+    assert data_api.execute.call_count == 2
     sql, params = data_api.execute.call_args_list[0][0]
     assert "attempts < :max_attempts" in sql
     assert params["max_attempts"] == 2
@@ -141,11 +142,39 @@ def test_label_ids_for_triage_block():
 
 def test_claim_reclaims_stale_queued_via_update():
     repo, data_api = _repo()
-    # UPDATE reclaims the stale-queued row → no INSERT attempted
-    data_api.execute.side_effect = [[{"label_id": "lbl-7"}]]
+    # UPDATE reclaims the stale-queued row; INSERT is still issued but the
+    # NOT EXISTS(state) guard at DB level returns nothing for the same id.
+    data_api.execute.side_effect = [[{"label_id": "lbl-7"}], []]
     claimed = repo.claim_labels(["lbl-7"])
     assert claimed == ["lbl-7"]
-    assert data_api.execute.call_count == 1
+    assert data_api.execute.call_count == 2
     sql, params = data_api.execute.call_args_list[0][0]
     assert "status = 'queued' AND updated_at < :stale_cutoff" in sql
     assert "stale_cutoff" in params
+
+
+def test_claim_labels_uses_two_statements_regardless_of_count():
+    calls = []
+
+    class FakeDataAPI:
+        def execute(self, sql, params=None, transaction_id=None):
+            calls.append(sql.strip().split()[0].upper())
+            if sql.strip().upper().startswith("UPDATE"):
+                return [{"label_id": "l1"}]
+            return [{"label_id": "l3"}]
+
+    from collector.label_enrichment.auto_repository import AutoEnrichRepository
+    repo = AutoEnrichRepository(data_api=FakeDataAPI())
+    claimed = repo.claim_labels(["l1", "l2", "l3"])
+    assert calls.count("UPDATE") == 1
+    assert calls.count("INSERT") == 1
+    assert set(claimed) == {"l1", "l3"}
+
+
+def test_claim_labels_empty_returns_empty_no_query():
+    class FakeDataAPI:
+        def execute(self, *a, **k):  # pragma: no cover
+            raise AssertionError("no query for empty input")
+
+    from collector.label_enrichment.auto_repository import AutoEnrichRepository
+    assert AutoEnrichRepository(data_api=FakeDataAPI()).claim_labels([]) == []
