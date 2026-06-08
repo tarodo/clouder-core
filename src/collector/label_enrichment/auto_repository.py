@@ -108,16 +108,18 @@ class AutoEnrichRepository:
     def claim_labels(self, label_ids: list[str]) -> list[str]:
         """Atomically claim labels eligible for an auto-search.
 
-        Per label, two independent statements:
-          1. Reclaim an existing row that is `failed` (retry, capped at
-             _MAX_ATTEMPTS) or a stale `queued` (worker likely died / enqueue
-             failed). Returns the row when it claims it.
-          2. Only if (1) claimed nothing: insert a brand-new row, but skip if a
-             clouder_label_info row already exists (label was searched before,
-             e.g. manually).
+        Two set-based statements per chunk (≤_IN_CHUNK ids):
+          1. Reclaim existing rows that are `failed` (retry, capped at
+             _MAX_ATTEMPTS) or stale `queued` (worker likely died / enqueue
+             failed). Returns each row it claims.
+          2. Insert brand-new rows: the INSERT always runs, but its NOT EXISTS
+             guards exclude ids that already have a state row (including the ones
+             just reclaimed by (1)) or a clouder_label_info row (label searched
+             before, e.g. manually).
         `completed` rows and fresh `queued` rows match neither → skipped.
         ON CONFLICT DO NOTHING + the row-level UPDATE make concurrent adds of
-        the same label race-safe: exactly one writer claims.
+        the same label race-safe: exactly one writer claims. The two result
+        sets cannot overlap, so `claimed` never double-counts an id.
         """
         if not label_ids:
             return []
