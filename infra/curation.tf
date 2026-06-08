@@ -22,6 +22,7 @@ resource "aws_lambda_function" "curation" {
       LABEL_ENRICHMENT_QUEUE_URL                = aws_sqs_queue.label_enrichment.url
       ARTIST_ENRICHMENT_QUEUE_URL               = aws_sqs_queue.artist_enrichment.url
       VENDOR_MATCH_QUEUE_URL                    = aws_sqs_queue.vendor_match.url
+      AUTO_ENRICH_DISPATCH_QUEUE_URL            = aws_sqs_queue.auto_enrich_dispatch.url
       RAW_BUCKET_NAME                           = aws_s3_bucket.raw.bucket
       RAW_PREFIX                                = var.raw_prefix
       KMS_USER_TOKENS_KEY_ARN                   = aws_kms_key.user_tokens.arn
