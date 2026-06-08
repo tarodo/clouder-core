@@ -282,3 +282,42 @@ resource "aws_lambda_event_source_mapping" "artist_enrichment_queue" {
     maximum_concurrency = var.artist_enrichment_worker_max_concurrency
   }
 }
+
+# ── Auto-enrich dispatch worker ──────────────────────────────────
+
+resource "aws_lambda_function" "auto_enrich_dispatch_worker" {
+  function_name = local.auto_enrich_dispatch_worker_lambda_name
+  role          = aws_iam_role.collector_lambda.arn
+  runtime       = "python3.12"
+  handler       = "collector.auto_enrich_dispatch_handler.lambda_handler"
+  filename      = local.lambda_zip_file
+  timeout       = var.auto_enrich_dispatch_worker_lambda_timeout_seconds
+  memory_size   = var.auto_enrich_dispatch_worker_lambda_memory_mb
+
+  source_code_hash = filebase64sha256(local.lambda_zip_file)
+
+  environment {
+    variables = {
+      AURORA_CLUSTER_ARN          = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN           = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE             = var.aurora_database_name
+      LABEL_ENRICHMENT_QUEUE_URL  = aws_sqs_queue.label_enrichment.url
+      ARTIST_ENRICHMENT_QUEUE_URL = aws_sqs_queue.artist_enrichment.url
+      LOG_LEVEL                   = "INFO"
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.auto_enrich_dispatch_worker,
+  ]
+}
+
+resource "aws_lambda_event_source_mapping" "auto_enrich_dispatch_queue" {
+  event_source_arn = aws_sqs_queue.auto_enrich_dispatch.arn
+  function_name    = aws_lambda_function.auto_enrich_dispatch_worker.arn
+  batch_size       = var.auto_enrich_dispatch_batch_size
+
+  scaling_config {
+    maximum_concurrency = var.auto_enrich_dispatch_worker_max_concurrency
+  }
+}
