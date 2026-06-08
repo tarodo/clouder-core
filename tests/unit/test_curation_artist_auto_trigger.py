@@ -40,7 +40,7 @@ def _finalize_event(block_id="blk-1"):
     }
 
 
-def test_finalize_triggers_artist_dispatch_for_block():
+def test_finalize_enqueues_block_auto_enrich():
     from collector import curation_handler as ch
 
     repo = MagicMock()
@@ -50,10 +50,14 @@ def test_finalize_triggers_artist_dispatch_for_block():
     repo.finalize_block.return_value = finalize_result
 
     cat_repo = MagicMock()
-    with patch.object(ch, "try_dispatch_artists_for_triage_block") as dispatch, \
+    with patch.object(ch, "enqueue_block_auto_enrich") as enqueue, \
+         patch.object(ch, "try_dispatch_for_triage_block") as labels_inline, \
+         patch.object(ch, "try_dispatch_artists_for_triage_block") as artists_inline, \
          patch.object(ch, "create_default_categories_repository", return_value=cat_repo), \
          patch.object(ch, "_serialize_triage_block", return_value={}):
         ch._finalize_triage_block(_finalize_event(), repo, "u1", "corr-1")
-    dispatch.assert_called_once()
-    assert dispatch.call_args.kwargs["block_id"] == "blk-1"
-    assert dispatch.call_args.kwargs["user_id"] == "u1"
+    enqueue.assert_called_once()
+    assert enqueue.call_args.kwargs["block_id"] == "blk-1"
+    assert enqueue.call_args.kwargs["user_id"] == "u1"
+    labels_inline.assert_not_called()
+    artists_inline.assert_not_called()

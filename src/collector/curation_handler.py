@@ -91,6 +91,7 @@ from .artist_enrichment.auto_dispatch import (
     try_dispatch_artists_for_track,
     try_dispatch_artists_for_triage_block,
 )
+from .curation.auto_enrich_dispatch import enqueue_block_auto_enrich
 from .logging_utils import log_event
 from .providers.ytmusic.normalize import result_to_ref
 
@@ -1526,8 +1527,7 @@ def _finalize_triage_block(
         block_id=block_id,
         promoted_count=sum(out.promoted.values()),
     )
-    try_dispatch_for_triage_block(block_id=block_id, user_id=user_id)
-    try_dispatch_artists_for_triage_block(block_id=block_id, user_id=user_id)
+    enqueue_block_auto_enrich(block_id=block_id, user_id=user_id)
     return _json_response(
         200,
         {
