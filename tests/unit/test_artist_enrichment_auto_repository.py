@@ -86,3 +86,17 @@ def test_claim_artists_empty_returns_empty_no_query():
 
     from collector.artist_enrichment.auto_repository import AutoEnrichRepository
     assert AutoEnrichRepository(data_api=FakeDataAPI()).claim_artists([]) == []
+
+
+def test_attach_run_single_update_for_many_ids():
+    calls = []
+
+    class FakeDataAPI:
+        def execute(self, sql, params=None, transaction_id=None):
+            calls.append((sql, params))
+            return []
+
+    from collector.artist_enrichment.auto_repository import AutoEnrichRepository
+    AutoEnrichRepository(data_api=FakeDataAPI()).attach_run(["a1", "a2", "a3"], "run-9")
+    assert len(calls) == 1
+    assert calls[0][1]["run_id"] == "run-9"

@@ -186,15 +186,21 @@ class AutoEnrichRepository:
         Intended to be called with the output of `claim_labels`; a label with
         no state row is silently skipped (no row matches the UPDATE).
         """
+        if not label_ids:
+            return
         ts = self._now()
-        for label_id in label_ids:
+        unique = list(dict.fromkeys(label_ids))
+        for start in range(0, len(unique), _IN_CHUNK):
+            chunk = unique[start : start + _IN_CHUNK]
+            placeholders = ", ".join(f":t{i}" for i in range(len(chunk)))
+            id_params = {f"t{i}": v for i, v in enumerate(chunk)}
             self._data_api.execute(
-                """
+                f"""
                 UPDATE label_auto_enrich_state
                 SET last_run_id = :run_id, updated_at = :ts
-                WHERE label_id = :label_id
+                WHERE label_id IN ({placeholders})
                 """,
-                {"run_id": run_id, "label_id": label_id, "ts": ts},
+                {**id_params, "run_id": run_id, "ts": ts},
             )
 
     def mark_auto_enrich_outcome(self, label_id: str, success: bool) -> None:

@@ -186,15 +186,21 @@ class AutoEnrichRepository:
         Intended to be called with the output of `claim_artists`; an artist with
         no state row is silently skipped (no row matches the UPDATE).
         """
+        if not artist_ids:
+            return
         ts = self._now()
-        for artist_id in artist_ids:
+        unique = list(dict.fromkeys(artist_ids))
+        for start in range(0, len(unique), _IN_CHUNK):
+            chunk = unique[start : start + _IN_CHUNK]
+            placeholders = ", ".join(f":t{i}" for i in range(len(chunk)))
+            id_params = {f"t{i}": v for i, v in enumerate(chunk)}
             self._data_api.execute(
-                """
+                f"""
                 UPDATE artist_auto_enrich_state
                 SET last_run_id = :run_id, updated_at = :ts
-                WHERE artist_id = :artist_id
+                WHERE artist_id IN ({placeholders})
                 """,
-                {"run_id": run_id, "artist_id": artist_id, "ts": ts},
+                {**id_params, "run_id": run_id, "ts": ts},
             )
 
     def mark_auto_enrich_outcome(self, artist_id: str, success: bool) -> None:

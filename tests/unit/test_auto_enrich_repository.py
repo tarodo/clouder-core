@@ -97,7 +97,7 @@ def test_attach_run_updates_last_run_id():
     sql, params = data_api.execute.call_args[0]
     assert "SET last_run_id = :run_id" in sql
     assert params["run_id"] == "run-9"
-    assert params["label_id"] == "lbl-1"
+    assert params["t0"] == "lbl-1"
 
 
 def test_mark_outcome_completed_on_success():
@@ -178,3 +178,17 @@ def test_claim_labels_empty_returns_empty_no_query():
 
     from collector.label_enrichment.auto_repository import AutoEnrichRepository
     assert AutoEnrichRepository(data_api=FakeDataAPI()).claim_labels([]) == []
+
+
+def test_attach_run_single_update_for_many_ids():
+    calls = []
+
+    class FakeDataAPI:
+        def execute(self, sql, params=None, transaction_id=None):
+            calls.append((sql, params))
+            return []
+
+    from collector.label_enrichment.auto_repository import AutoEnrichRepository
+    AutoEnrichRepository(data_api=FakeDataAPI()).attach_run(["l1", "l2"], "run-7")
+    assert len(calls) == 1
+    assert calls[0][1]["run_id"] == "run-7"
