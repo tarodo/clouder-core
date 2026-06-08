@@ -58,3 +58,31 @@ def test_claim_artists_skips_when_info_exists():
     assert claimed == []
     assert "artist_auto_enrich_state" in api.calls[0][0]
     assert "clouder_artist_info" in api.calls[1][0]
+
+
+def test_claim_artists_uses_two_statements_regardless_of_count():
+    calls = []
+
+    class FakeDataAPI:
+        def execute(self, sql, params=None, transaction_id=None):
+            calls.append(sql.strip().split()[0].upper())  # first keyword
+            if sql.strip().upper().startswith("UPDATE"):
+                return [{"artist_id": "a1"}]      # reclaim a1
+            return [{"artist_id": "a3"}]          # insert a3
+
+    from collector.artist_enrichment.auto_repository import AutoEnrichRepository
+    repo = AutoEnrichRepository(data_api=FakeDataAPI())
+    claimed = repo.claim_artists(["a1", "a2", "a3"])
+    # exactly one UPDATE + one INSERT, not 2 per id
+    assert calls.count("UPDATE") == 1
+    assert calls.count("INSERT") == 1
+    assert set(claimed) == {"a1", "a3"}
+
+
+def test_claim_artists_empty_returns_empty_no_query():
+    class FakeDataAPI:
+        def execute(self, *a, **k):  # pragma: no cover
+            raise AssertionError("no query for empty input")
+
+    from collector.artist_enrichment.auto_repository import AutoEnrichRepository
+    assert AutoEnrichRepository(data_api=FakeDataAPI()).claim_artists([]) == []
