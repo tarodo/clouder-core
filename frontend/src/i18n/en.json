@@ -296,6 +296,10 @@
       "label": "Needs republish",
       "tooltip": "Tracks or cover changed since the last Spotify publish. Re-publish to push the latest version."
     },
+    "ytmusic_drift_badge": {
+      "label": "YT Music · needs republish",
+      "tooltip": "Tracks or cover changed since the last YouTube Music publish. Re-publish to push the latest version."
+    },
     "origin": {
       "spotify": "Spotify"
     },

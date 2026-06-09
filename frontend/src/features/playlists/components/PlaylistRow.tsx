@@ -85,6 +85,7 @@ export function PlaylistRow({
         <Group gap="xs" wrap="nowrap">
           {playlist.spotify_playlist_id ? <IconBrandSpotify size={16} /> : null}
           {playlist.needs_republish ? <DriftBadge /> : null}
+          {playlist.ytmusic_needs_republish ? <DriftBadge target="ytmusic" /> : null}
         </Group>
       </Table.Td>
       <Table.Td>

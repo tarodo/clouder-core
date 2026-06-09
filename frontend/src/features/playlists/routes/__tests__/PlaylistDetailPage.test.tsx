@@ -86,6 +86,9 @@ const seedPlaylist = {
   spotify_playlist_id: null,
   last_published_at: null,
   needs_republish: false,
+  ytmusic_playlist_id: null,
+  ytmusic_last_published_at: null,
+  ytmusic_needs_republish: false,
   track_count: 1,
   status: 'active' as const,
   created_at: '2026-05-12T00:00:00Z',
@@ -162,5 +165,29 @@ describe('PlaylistDetailPage', () => {
       expect(screen.getByRole('button', { name: /Re-publish to Spotify/i })).toBeInTheDocument(),
     );
     expect(screen.getByText(/Needs republish/i)).toBeInTheDocument();
+  });
+
+  it('renders YT Music drift badge when ytmusic_needs_republish is true', async () => {
+    server.use(
+      http.get('http://localhost/playlists/p1', () =>
+        HttpResponse.json({
+          ...seedPlaylist,
+          ytmusic_playlist_id: 'yt1',
+          ytmusic_last_published_at: '2026-05-12T00:00:00Z',
+          ytmusic_needs_republish: true,
+          needs_republish: false,
+        }),
+      ),
+    );
+    render(
+      <Wrapper>
+        <PlaylistDetailPage />
+      </Wrapper>,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Saturday techno' })).toBeInTheDocument(),
+    );
+    expect(screen.getByText('YT Music · needs republish')).toBeInTheDocument();
+    expect(screen.queryByText('Needs republish')).not.toBeInTheDocument();
   });
 });
