@@ -101,6 +101,22 @@ class YoutubeDataApiClient:
                 params={"part": "snippet"}, json_body=body,
             )
 
+    def move_item(self, playlist_id: str, item_id: str, video_id: str, position: int) -> None:
+        # Reorder one playlistItem to an absolute index (50 quota units).
+        # YouTube shifts the other items to accommodate the new position.
+        body = {
+            "id": item_id,
+            "snippet": {
+                "playlistId": playlist_id,
+                "resourceId": {"kind": "youtube#video", "videoId": video_id},
+                "position": position,
+            },
+        }
+        self._request(
+            "PUT", f"{_BASE}/playlistItems",
+            params={"part": "snippet"}, json_body=body,
+        )
+
     def set_cover(self, playlist_id: str, image_bytes: bytes) -> None:
         """Set/replace a custom playlist cover. Tries playlistImages.insert
         (POST); if that fails for a reason other than auth (most commonly the

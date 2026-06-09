@@ -183,6 +183,19 @@ def test_set_cover_401_does_not_retry():
     assert [c["method"] for c in s.calls] == ["POST"]
 
 
+def test_move_item_puts_with_position():
+    s = FakeSession([FakeResp(200, {"id": "i1"})])
+    _client(s).move_item("PL", "i1", "v1", 2)
+    call = s.calls[0]
+    assert call["method"] == "PUT"
+    assert call["url"].endswith("/youtube/v3/playlistItems")
+    assert call["params"] == {"part": "snippet"}
+    assert call["json"]["id"] == "i1"
+    assert call["json"]["snippet"]["playlistId"] == "PL"
+    assert call["json"]["snippet"]["resourceId"] == {"kind": "youtube#video", "videoId": "v1"}
+    assert call["json"]["snippet"]["position"] == 2
+
+
 def test_error_mapping():
     with pytest.raises(YtmusicNotFoundError):
         _client(FakeSession([FakeResp(404, {})])).edit_meta(
