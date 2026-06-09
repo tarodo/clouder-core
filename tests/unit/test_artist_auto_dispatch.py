@@ -21,13 +21,19 @@ class FakeAutoRepo:
 
 class FakeArtistRepo:
     def __init__(self): self.created = None
-    def get_artist_by_id(self, aid): return {"id": aid, "name": f"name-{aid}"}
+    def get_artists_by_ids(self, ids): return {aid: f"name-{aid}" for aid in ids}
     def create_run(self, spec): self.created = spec; return "run-1"
 
 
 class FakeSQS:
-    def __init__(self): self.sent = []
-    def send_message(self, **kw): self.sent.append(kw)
+    def __init__(self): self.batches = []
+    def send_message_batch(self, **kw):
+        self.batches.append(kw)
+        return {"Successful": [{"Id": e["Id"]} for e in kw["Entries"]], "Failed": []}
+
+    @property
+    def sent(self):
+        return [e for b in self.batches for e in b["Entries"]]
 
 
 def _wire(monkeypatch, auto_repo, artist_repo=None, sqs=None):
@@ -66,6 +72,7 @@ def test_happy_path_creates_run_and_enqueues_per_artist(monkeypatch):
     msg = json.loads(sqs.sent[0]["MessageBody"])
     assert msg["run_id"] == "run-1" and msg["artist_id"] == "a1" and msg["artist_name"] == "name-a1"
     assert "style" not in msg
+
 
 
 def test_track_dispatch_resolves_all_roles(monkeypatch):

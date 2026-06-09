@@ -65,3 +65,31 @@ def test_list_backlog_joins_track_artists():
     items, cursor, total = repo.list_backlog(style=None, status="none", cursor=None, limit=100)
     assert "clouder_track_artists" in api.calls[0][0]
     assert items[0]["id"] == "a" and total == 1
+
+
+def test_get_artists_by_ids_one_query_returns_name_map():
+    captured = []
+
+    class FakeDataAPI:
+        def execute(self, sql, params=None, transaction_id=None):
+            captured.append((sql, params))
+            return [
+                {"id": "a1", "name": "Artist One"},
+                {"id": "a2", "name": "Artist Two"},
+            ]
+
+    from collector.artist_enrichment.repository import ArtistEnrichmentRepository
+    repo = ArtistEnrichmentRepository(data_api=FakeDataAPI())
+    result = repo.get_artists_by_ids(["a1", "a2"])
+    assert result == {"a1": "Artist One", "a2": "Artist Two"}
+    assert len(captured) == 1  # single round-trip, not one per id
+    assert ":t0" in captured[0][0] and ":t1" in captured[0][0]
+
+
+def test_get_artists_by_ids_empty_input_no_query():
+    class FakeDataAPI:
+        def execute(self, *a, **k):  # pragma: no cover - must not be called
+            raise AssertionError("should not query for empty input")
+
+    from collector.artist_enrichment.repository import ArtistEnrichmentRepository
+    assert ArtistEnrichmentRepository(data_api=FakeDataAPI()).get_artists_by_ids([]) == {}

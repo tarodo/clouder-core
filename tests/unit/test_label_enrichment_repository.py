@@ -457,3 +457,41 @@ def test_list_runs_source_filter_adds_predicate():
     sql, params = data_api.execute.call_args[0]
     assert "source = :source" in sql
     assert params["source"] == "auto"
+
+
+def test_get_labels_by_ids_single_query_name_map():
+    captured = []
+
+    class FakeDataAPI:
+        def execute(self, sql, params=None, transaction_id=None):
+            captured.append(sql)
+            return [{"id": "l1", "name": "Label One"}, {"id": "l2", "name": "Label Two"}]
+
+    from collector.label_enrichment.repository import LabelEnrichmentRepository
+    repo = LabelEnrichmentRepository(data_api=FakeDataAPI())
+    assert repo.get_labels_by_ids(["l1", "l2"]) == {"l1": "Label One", "l2": "Label Two"}
+    assert len(captured) == 1
+
+
+def test_derive_styles_for_labels_top_style_per_label():
+    class FakeDataAPI:
+        def execute(self, sql, params=None, transaction_id=None):
+            return [
+                {"label_id": "l1", "style_name": "techno"},
+                {"label_id": "l2", "style_name": "house"},
+            ]
+
+    from collector.label_enrichment.repository import LabelEnrichmentRepository
+    repo = LabelEnrichmentRepository(data_api=FakeDataAPI())
+    assert repo.derive_styles_for_labels(["l1", "l2"]) == {"l1": "techno", "l2": "house"}
+
+
+def test_resolve_helpers_empty_input_no_query():
+    class FakeDataAPI:
+        def execute(self, *a, **k):  # pragma: no cover
+            raise AssertionError("no query for empty input")
+
+    from collector.label_enrichment.repository import LabelEnrichmentRepository
+    repo = LabelEnrichmentRepository(data_api=FakeDataAPI())
+    assert repo.get_labels_by_ids([]) == {}
+    assert repo.derive_styles_for_labels([]) == {}

@@ -53,6 +53,8 @@ def _pg_text_array(items: list[str]) -> str:
     return "{" + ",".join(parts) + "}"
 
 
+_IN_CHUNK = 500
+
 # Admin-only fields stripped from user-facing responses.
 _USER_FACING_FORBIDDEN = frozenset({
     "run_id", "prompt_slug", "prompt_version",
@@ -90,6 +92,54 @@ class LabelEnrichmentRepository:
             {"id": label_id},
         )
         return rows[0] if rows else None
+
+    def get_labels_by_ids(self, label_ids: list[str]) -> dict[str, str]:
+        """Resolve {label_id: name} for many ids in chunked set-based queries."""
+        out: dict[str, str] = {}
+        unique = list(dict.fromkeys(label_ids))
+        for start in range(0, len(unique), _IN_CHUNK):
+            chunk = unique[start : start + _IN_CHUNK]
+            placeholders = ", ".join(f":t{i}" for i in range(len(chunk)))
+            params = {f"t{i}": v for i, v in enumerate(chunk)}
+            rows = self._data_api.execute(
+                f"SELECT id, name FROM clouder_labels WHERE id IN ({placeholders})",
+                params,
+            )
+            for r in rows:
+                out[r["id"]] = r["name"]
+        return out
+
+    def derive_styles_for_labels(self, label_ids: list[str]) -> dict[str, str]:
+        """Most common style per label, in one chunked query. Absent => no tracks."""
+        out: dict[str, str] = {}
+        unique = list(dict.fromkeys(label_ids))
+        for start in range(0, len(unique), _IN_CHUNK):
+            chunk = unique[start : start + _IN_CHUNK]
+            placeholders = ", ".join(f":t{i}" for i in range(len(chunk)))
+            params = {f"t{i}": v for i, v in enumerate(chunk)}
+            rows = self._data_api.execute(
+                f"""
+                SELECT label_id, style_name FROM (
+                    SELECT a.label_id AS label_id,
+                           s.name AS style_name,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY a.label_id
+                               ORDER BY COUNT(*) DESC, s.name ASC
+                           ) AS rn
+                    FROM clouder_styles s
+                    JOIN clouder_tracks t ON t.style_id = s.id
+                    JOIN clouder_albums a ON a.id = t.album_id
+                    WHERE a.label_id IN ({placeholders})
+                    GROUP BY a.label_id, s.name
+                ) ranked
+                WHERE rn = 1
+                """,
+                params,
+            )
+            for r in rows:
+                if r.get("style_name") is not None:
+                    out[r["label_id"]] = r["style_name"]
+        return out
 
     def list_labels(
         self,

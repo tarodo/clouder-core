@@ -24,6 +24,8 @@ def _utc_now() -> datetime:
 
 _NORM_RE = re.compile(r"\s+")
 
+_IN_CHUNK = 500
+
 # Postgres expression: slugify a style name for FE comparison.
 # Example: "Drum & Bass" -> "drum-and-bass". Maps "&" -> "and" before stripping
 # non-alphanumerics so the slug matches the form used by the frontend URLs.
@@ -87,6 +89,22 @@ class ArtistEnrichmentRepository:
             {"id": artist_id},
         )
         return rows[0] if rows else None
+
+    def get_artists_by_ids(self, artist_ids: list[str]) -> dict[str, str]:
+        """Resolve {artist_id: name} for many ids in chunked set-based queries."""
+        out: dict[str, str] = {}
+        unique = list(dict.fromkeys(artist_ids))
+        for start in range(0, len(unique), _IN_CHUNK):
+            chunk = unique[start : start + _IN_CHUNK]
+            placeholders = ", ".join(f":t{i}" for i in range(len(chunk)))
+            params = {f"t{i}": v for i, v in enumerate(chunk)}
+            rows = self._data_api.execute(
+                f"SELECT id, name FROM clouder_artists WHERE id IN ({placeholders})",
+                params,
+            )
+            for r in rows:
+                out[r["id"]] = r["name"]
+        return out
 
     def upsert_artist_by_name(self, name: str) -> str:
         normalized = _normalize_name(name)

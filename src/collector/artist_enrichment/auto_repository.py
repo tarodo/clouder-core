@@ -10,6 +10,7 @@ from ..data_api import DataAPIClient
 
 _MAX_ATTEMPTS = 2  # total attempts allowed per artist: 1 initial + 1 retry
 _STALE_QUEUED_HOURS = 6
+_IN_CHUNK = 500
 
 
 def _utc_now() -> datetime:
@@ -107,37 +108,38 @@ class AutoEnrichRepository:
     def claim_artists(self, artist_ids: list[str]) -> list[str]:
         """Atomically claim artists eligible for an auto-search.
 
-        Per artist, two independent statements:
-          1. Reclaim an existing row that is `failed` (retry, capped at
-             _MAX_ATTEMPTS) or a stale `queued` (worker likely died / enqueue
-             failed). Returns the row when it claims it.
-          2. Only if (1) claimed nothing: insert a brand-new row, but skip if a
-             clouder_artist_info row already exists (artist was searched before,
-             e.g. manually).
+        Two set-based statements per chunk (≤_IN_CHUNK ids):
+          1. Reclaim existing rows that are `failed` (retry, capped at
+             _MAX_ATTEMPTS) or stale `queued` (worker likely died / enqueue
+             failed). Returns each row it claims.
+          2. Insert brand-new rows: the INSERT always runs, but its NOT EXISTS
+             guards exclude ids that already have a state row (including the ones
+             just reclaimed by (1)) or a clouder_artist_info row (artist searched
+             before, e.g. manually).
         `completed` rows and fresh `queued` rows match neither → skipped.
         ON CONFLICT DO NOTHING + the row-level UPDATE make concurrent adds of
-        the same artist race-safe: exactly one writer claims.
+        the same artist race-safe: exactly one writer claims. The two result
+        sets cannot overlap, so `claimed` never double-counts an id.
         """
         if not artist_ids:
             return []
         now = self._now()
         stale_cutoff = now - timedelta(hours=_STALE_QUEUED_HOURS)
+        unique = list(dict.fromkeys(artist_ids))
         claimed: list[str] = []
-        for artist_id in artist_ids:
-            params = {
-                "artist_id": artist_id,
-                "ts": now,
-                "max_attempts": _MAX_ATTEMPTS,
-                "stale_cutoff": stale_cutoff,
-            }
+        for start in range(0, len(unique), _IN_CHUNK):
+            chunk = unique[start : start + _IN_CHUNK]
+            placeholders = ", ".join(f":t{i}" for i in range(len(chunk)))
+            id_params = {f"t{i}": v for i, v in enumerate(chunk)}
+
             reclaimed = self._data_api.execute(
-                """
+                f"""
                 UPDATE artist_auto_enrich_state
                 SET attempts = attempts + 1,
                     status = 'queued',
                     last_run_id = NULL,
                     updated_at = :ts
-                WHERE artist_id = :artist_id
+                WHERE artist_id IN ({placeholders})
                   AND attempts < :max_attempts
                   AND (
                         status = 'failed'
@@ -145,30 +147,37 @@ class AutoEnrichRepository:
                   )
                 RETURNING artist_id
                 """,
-                params,
+                {
+                    **id_params,
+                    "ts": now,
+                    "max_attempts": _MAX_ATTEMPTS,
+                    "stale_cutoff": stale_cutoff,
+                },
             )
-            if reclaimed:
-                claimed.append(artist_id)
-                continue
+
+            values = ", ".join(f"(:t{i})" for i in range(len(chunk)))
             inserted = self._data_api.execute(
-                """
+                f"""
                 INSERT INTO artist_auto_enrich_state (
                     artist_id, attempts, status, first_enqueued_at, updated_at
                 )
-                SELECT :artist_id, 1, 'queued', :ts, :ts
+                SELECT v.artist_id, 1, 'queued', :ts, :ts
+                FROM (VALUES {values}) AS v(artist_id)
                 WHERE NOT EXISTS (
-                    SELECT 1 FROM artist_auto_enrich_state WHERE artist_id = :artist_id
+                    SELECT 1 FROM artist_auto_enrich_state s
+                    WHERE s.artist_id = v.artist_id
                 )
                   AND NOT EXISTS (
-                    SELECT 1 FROM clouder_artist_info WHERE artist_id = :artist_id
+                    SELECT 1 FROM clouder_artist_info i
+                    WHERE i.artist_id = v.artist_id
                 )
                 ON CONFLICT (artist_id) DO NOTHING
                 RETURNING artist_id
                 """,
-                {"artist_id": artist_id, "ts": now},
+                {**id_params, "ts": now},
             )
-            if inserted:
-                claimed.append(artist_id)
+            claimed.extend(r["artist_id"] for r in reclaimed)
+            claimed.extend(r["artist_id"] for r in inserted)
         return claimed
 
     def attach_run(self, artist_ids: list[str], run_id: str) -> None:
@@ -177,15 +186,21 @@ class AutoEnrichRepository:
         Intended to be called with the output of `claim_artists`; an artist with
         no state row is silently skipped (no row matches the UPDATE).
         """
+        if not artist_ids:
+            return
         ts = self._now()
-        for artist_id in artist_ids:
+        unique = list(dict.fromkeys(artist_ids))
+        for start in range(0, len(unique), _IN_CHUNK):
+            chunk = unique[start : start + _IN_CHUNK]
+            placeholders = ", ".join(f":t{i}" for i in range(len(chunk)))
+            id_params = {f"t{i}": v for i, v in enumerate(chunk)}
             self._data_api.execute(
-                """
+                f"""
                 UPDATE artist_auto_enrich_state
                 SET last_run_id = :run_id, updated_at = :ts
-                WHERE artist_id = :artist_id
+                WHERE artist_id IN ({placeholders})
                 """,
-                {"run_id": run_id, "artist_id": artist_id, "ts": ts},
+                {**id_params, "run_id": run_id, "ts": ts},
             )
 
     def mark_auto_enrich_outcome(self, artist_id: str, success: bool) -> None:

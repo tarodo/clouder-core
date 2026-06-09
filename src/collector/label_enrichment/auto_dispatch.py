@@ -1,9 +1,11 @@
 """Best-effort auto-enrichment dispatch from curation actions.
 
-Called inline from the curation handlers AFTER their DB writes commit. Only
-enqueues work onto the existing label-enrichment SQS queue — the worker runs
-the searches in the background, so curation never waits for results. Every
-public entrypoint swallows exceptions: auto-search must never break curation.
+The single-track entrypoint runs inline from the curation handler after its DB
+write commits; the triage-block entrypoint runs in the auto-enrich-dispatch
+worker (off the finalize request path). Either way this only enqueues work onto
+the existing label-enrichment SQS queue — the enricher worker runs the searches
+in the background, so curation never waits for results. Every public entrypoint
+swallows exceptions: auto-search must never break curation.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from .auto_repository import AutoEnrichRepository
 from .repository import LabelEnrichmentRepository, RunSpec
 
 _KIND = "labels"
+_SQS_BATCH = 10
 
 
 def _build_data_api() -> DataAPIClient:
@@ -54,6 +57,10 @@ def _queue_url() -> str:
 def _dispatch_labels(*, label_ids: list[str], source_hint: str, user_id: str | None) -> None:
     if not label_ids:
         return
+    log_event(
+        "INFO", "auto_enrich_dispatch_started",
+        source_hint=source_hint, candidate_labels=len(label_ids),
+    )
     auto_repo = _build_auto_repository()
     cfg = auto_repo.get_config(_KIND)
     if not cfg or not cfg.get("enabled"):
@@ -72,13 +79,13 @@ def _dispatch_labels(*, label_ids: list[str], source_hint: str, user_id: str | N
         return
 
     le_repo = _build_label_repository()
-    resolved: list[tuple[str, str, str]] = []
-    for label_id in claimed:
-        row = le_repo.get_label_by_id(label_id)
-        if row is None:
-            continue
-        style = le_repo.derive_style_for_label(label_id) or "music"
-        resolved.append((label_id, row["name"], style))
+    names = le_repo.get_labels_by_ids(claimed)
+    styles = le_repo.derive_styles_for_labels(claimed)
+    resolved: list[tuple[str, str, str]] = [
+        (label_id, names[label_id], styles.get(label_id) or "music")
+        for label_id in claimed
+        if label_id in names
+    ]
 
     if not resolved:
         # Labels vanished between claim and resolve — leave state queued; the
@@ -101,15 +108,24 @@ def _dispatch_labels(*, label_ids: list[str], source_hint: str, user_id: str | N
 
     sqs = _build_sqs_client()
     queue_url = _queue_url()
-    for label_id, name, style in resolved:
-        sqs.send_message(
-            QueueUrl=queue_url,
-            MessageBody=json.dumps({
-                "run_id": run_id,
-                "label_id": label_id,
-                "label_name": name,
-                "style": style,
-            }),
+    entries = [
+        {
+            "Id": str(idx),
+            "MessageBody": json.dumps(
+                {"run_id": run_id, "label_id": label_id, "label_name": name, "style": style}
+            ),
+        }
+        for idx, (label_id, name, style) in enumerate(resolved)
+    ]
+    failed = 0
+    for start in range(0, len(entries), _SQS_BATCH):
+        batch = entries[start : start + _SQS_BATCH]
+        resp = sqs.send_message_batch(QueueUrl=queue_url, Entries=batch)
+        failed += len(resp.get("Failed", []))
+    if failed:
+        log_event(
+            "ERROR", "auto_enrich_enqueue_partial_failure",
+            run_id=run_id, error_message=f"{failed} of {len(entries)} sqs entries failed",
         )
 
     log_event(

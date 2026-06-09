@@ -48,15 +48,21 @@ resource "aws_cloudwatch_log_group" "artist_enricher_worker" {
   retention_in_days = var.log_retention_days
 }
 
+resource "aws_cloudwatch_log_group" "auto_enrich_dispatch_worker" {
+  name              = "/aws/lambda/${local.auto_enrich_dispatch_worker_lambda_name}"
+  retention_in_days = var.log_retention_days
+}
+
 # ── DLQ depth alarms ─────────────────────────────────────────────
 
 locals {
   dlq_queues = {
-    canonicalization  = aws_sqs_queue.canonicalization_dlq.name
-    spotify_search    = aws_sqs_queue.spotify_search_dlq.name
-    vendor_match      = aws_sqs_queue.vendor_match_dlq.name
-    label_enrichment  = aws_sqs_queue.label_enrichment_dlq.name
-    artist_enrichment = aws_sqs_queue.artist_enrichment_dlq.name
+    canonicalization     = aws_sqs_queue.canonicalization_dlq.name
+    spotify_search       = aws_sqs_queue.spotify_search_dlq.name
+    vendor_match         = aws_sqs_queue.vendor_match_dlq.name
+    label_enrichment     = aws_sqs_queue.label_enrichment_dlq.name
+    artist_enrichment    = aws_sqs_queue.artist_enrichment_dlq.name
+    auto_enrich_dispatch = aws_sqs_queue.auto_enrich_dispatch_dlq.name
   }
 }
 
