@@ -106,19 +106,19 @@ class YoutubeDataApiClient:
         (POST); if that fails for a reason other than auth (most commonly the
         playlist already has an image), retries playlistImages.update (PUT) on
         the same media-upload endpoint. Raises only if both fail."""
-        resp = self._upload_cover("POST", playlist_id, image_bytes)
-        status = getattr(resp, "status_code", 0)
-        if 200 <= status < 300:
+        insert_resp = self._upload_cover("POST", playlist_id, image_bytes)
+        insert_status = getattr(insert_resp, "status_code", 0)
+        if 200 <= insert_status < 300:
             return
-        if status == 401:
+        if insert_status == 401:
             raise YtmusicNotAuthorizedError("YouTube returned 401 (token rejected)")
-        resp2 = self._upload_cover("PUT", playlist_id, image_bytes)
-        status2 = getattr(resp2, "status_code", 0)
-        if 200 <= status2 < 300:
+        update_resp = self._upload_cover("PUT", playlist_id, image_bytes)
+        update_status = getattr(update_resp, "status_code", 0)
+        if 200 <= update_status < 300:
             return
         raise YtmusicApiError(
-            f"YouTube cover insert {status} / update {status2}: "
-            f"{self._error_message(resp2)}"
+            f"YouTube cover insert {insert_status} / update {update_status}: "
+            f"{self._error_message(update_resp)}"
         )
 
     def _upload_cover(self, method: str, playlist_id: str, image_bytes: bytes) -> Any:

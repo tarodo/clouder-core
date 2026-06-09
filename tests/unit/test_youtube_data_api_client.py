@@ -149,7 +149,9 @@ def test_set_cover_detects_png():
 def test_set_cover_insert_succeeds_no_update():
     s = FakeSession([FakeResp(200, {"id": "img1"})])
     _client(s).set_cover("PL", b"\xff\xd8\xffJPEG")
+    # Insert succeeded -> the update (PUT) fallback must NOT be attempted.
     assert [c["method"] for c in s.calls] == ["POST"]
+    assert len(s.calls) == 1
 
 
 def test_set_cover_insert_conflict_falls_back_to_update():
