@@ -2,8 +2,11 @@
 
 Mirror of PlaylistsPublishService. Matched video_ids come from
 fetch_ytmusic_status; unmatched tracks are skipped with reason
-'no_ytmusic_match'. Cover is best-effort via playlistImages.insert — a
-failure flags cover_failed and never blocks the publish.
+'no_ytmusic_match'. Existing playlists are synced incrementally: membership
+delta plus a minimal-move reorder pass so YouTube order matches CLOUDER. Cover
+is best-effort via playlistImages.insert, falling back to update when the
+playlist already has one — a failure flags cover_failed and never blocks the
+publish.
 """
 
 from __future__ import annotations
