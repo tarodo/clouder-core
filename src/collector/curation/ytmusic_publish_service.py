@@ -185,7 +185,7 @@ class YtmusicPublishService:
                 continue
             j = next((k for k in range(i, len(work)) if work[k][0] == vid), None)
             if j is None:
-                continue  # not present (e.g. stale read) — nothing to move
+                continue  # not in items (skipped or video unavailable) — nothing to move
             moved = work.pop(j)
             work.insert(i, moved)
             self._yt.move_item(target_id, moved[1], moved[0], i)

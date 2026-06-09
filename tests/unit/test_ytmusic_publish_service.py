@@ -179,6 +179,7 @@ def test_republish_edits_in_place():
     # diff: existing "old" not desired -> remove its itemId; "v1" not present -> add.
     assert client.removed == [("PLold", ["i_old"])]
     assert client.added == [("PLold", ["v1"])]
+    assert client.moves == []  # membership-only change must not emit reorders
 
 
 def test_republish_unchanged_skips_track_ops():
@@ -204,6 +205,7 @@ def test_republish_incremental_diff_touches_only_delta():
     svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
     assert client.removed == [("PLold", ["i2"])]
     assert client.added == [("PLold", ["v3"])]
+    assert client.moves == []  # delta swap, no surviving track changed slot
 
 
 def test_orphan_recreates_when_edit_404s():
