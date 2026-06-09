@@ -52,15 +52,18 @@ class FakeRepo:
 
 
 class FakeClient:
-    def __init__(self, *, create_ret="PLnew", edit_raises=None, cover_raises=None, existing=None):
+    def __init__(self, *, create_ret="PLnew", edit_raises=None, cover_raises=None,
+                 existing=None, existing_seq=None):
         self.create_ret = create_ret
         self.edit_raises = edit_raises
         self.cover_raises = cover_raises
         self._existing = existing if existing is not None else [{"videoId": "old", "itemId": "i_old"}]
+        self._existing_seq = list(existing_seq) if existing_seq is not None else None
         self.created = None
         self.edited = None
         self.added = []
         self.removed = []
+        self.moves = []
         self.cover = None
 
     def create_playlist(self, *, name, description, privacy):
@@ -78,6 +81,8 @@ class FakeClient:
         self.edited = (playlist_id, name, description, privacy)
 
     def get_existing_items(self, playlist_id):
+        if self._existing_seq:
+            return list(self._existing_seq.pop(0))
         return list(self._existing)
 
     def add_items(self, playlist_id, video_ids):
@@ -85,6 +90,9 @@ class FakeClient:
 
     def remove_items(self, playlist_id, items):
         self.removed.append((playlist_id, items))
+
+    def move_item(self, playlist_id, item_id, video_id, position):
+        self.moves.append((playlist_id, item_id, video_id, position))
 
 
 class FakeStorage:
@@ -272,3 +280,44 @@ def test_no_cover_when_storage_absent():
     result = svc.publish(user_id="u", playlist_id="p", confirm_overwrite=False)
     assert client.cover is None
     assert result.cover_failed is False
+
+
+def test_pure_reorder_emits_moves():
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    rows = [FakeTrackRow("t1", "T1"), FakeTrackRow("t2", "T2")]
+    statuses = {"t1": _matched("v1"), "t2": _matched("v2")}
+    # YouTube currently has v2 then v1; desired is v1 then v2.
+    client = FakeClient(existing=[{"videoId": "v2", "itemId": "i2"}, {"videoId": "v1", "itemId": "i1"}])
+    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
+    svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
+    # Same membership -> no add/remove; one move puts v1 at index 0.
+    assert client.removed == []
+    assert client.added == []
+    assert client.moves == [("PLold", "i1", "v1", 0)]
+
+
+def test_correct_order_emits_no_moves():
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    rows = [FakeTrackRow("t1", "T1"), FakeTrackRow("t2", "T2")]
+    statuses = {"t1": _matched("v1"), "t2": _matched("v2")}
+    client = FakeClient(existing=[{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}])
+    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
+    svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
+    assert client.moves == []
+
+
+def test_membership_change_then_reorder_refetches_and_moves():
+    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    rows = [FakeTrackRow("t3", "T3"), FakeTrackRow("t1", "T1")]
+    statuses = {"t3": _matched("v3"), "t1": _matched("v1")}
+    # First read: v1 + v2. Desired: v3 then v1 -> remove v2, add v3.
+    # Re-fetch after add: YouTube appended v3 at the end (new itemId i3).
+    pre = [{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}]
+    post = [{"videoId": "v1", "itemId": "i1"}, {"videoId": "v3", "itemId": "i3"}]
+    client = FakeClient(existing_seq=[pre, post])
+    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
+    svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
+    assert client.removed == [("PLold", ["i2"])]
+    assert client.added == [("PLold", ["v3"])]
+    # v3 must move to index 0; v1 then falls into place at index 1.
+    assert client.moves == [("PLold", "i3", "v3", 0)]
