@@ -917,3 +917,33 @@ def test_list_tracks_null_beatport_for_non_beatport_track() -> None:
 
     assert rows[0].beatport_track_id is None
     assert rows[0].beatport_slug is None
+
+
+def test_reorder_marks_ytmusic_needs_republish() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+    sqls: list[str] = []
+
+    def _execute(sql, params=None, transaction_id=None):
+        sqls.append(sql)
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT track_id FROM playlist_tracks" in sql:
+            return [{"track_id": "t-1"}, {"track_id": "t-2"}]
+        return []
+
+    api.execute.side_effect = _execute
+    api.batch_execute.side_effect = lambda *a, **k: None
+    repo = PlaylistsRepository(api)
+    repo.reorder_tracks(
+        user_id="u-1", playlist_id="p-1",
+        ordered_track_ids=["t-2", "t-1"], now=_utc(),
+    )
+    joined = " | ".join(sqls)
+    # Spotify dirty-mark preserved...
+    assert "needs_republish = TRUE" in joined
+    assert "spotify_playlist_id IS NOT NULL" in joined
+    # ...and ytmusic dirty-mark added.
+    assert "ytmusic_needs_republish = TRUE" in joined
+    assert "ytmusic_playlist_id IS NOT NULL" in joined
