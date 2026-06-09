@@ -146,10 +146,39 @@ def test_set_cover_detects_png():
     assert b"image/png" in s.calls[0]["data"]
 
 
-def test_set_cover_error_raises():
-    s = FakeSession([FakeResp(400, {"error": {"message": "Invalid value for type"}})])
+def test_set_cover_insert_succeeds_no_update():
+    s = FakeSession([FakeResp(200, {"id": "img1"})])
+    _client(s).set_cover("PL", b"\xff\xd8\xffJPEG")
+    assert [c["method"] for c in s.calls] == ["POST"]
+
+
+def test_set_cover_insert_conflict_falls_back_to_update():
+    s = FakeSession([
+        FakeResp(400, {"error": {"message": "image already exists"}}),
+        FakeResp(200, {"id": "img1"}),
+    ])
+    _client(s).set_cover("PL", b"\xff\xd8\xffJPEG")
+    assert [c["method"] for c in s.calls] == ["POST", "PUT"]
+    # Both hit the same media-upload endpoint with the same multipart body.
+    assert s.calls[1]["url"] == "https://www.googleapis.com/upload/youtube/v3/playlistImages"
+    assert b'"playlistId": "PL"' in s.calls[1]["data"]
+
+
+def test_set_cover_both_fail_raises():
+    s = FakeSession([
+        FakeResp(400, {"error": {"message": "bad type"}}),
+        FakeResp(400, {"error": {"message": "still bad"}}),
+    ])
     with pytest.raises(YtmusicApiError):
         _client(s).set_cover("PL", b"\xff\xd8\xffX")
+    assert [c["method"] for c in s.calls] == ["POST", "PUT"]
+
+
+def test_set_cover_401_does_not_retry():
+    s = FakeSession([FakeResp(401, {})])
+    with pytest.raises(YtmusicNotAuthorizedError):
+        _client(s).set_cover("PL", b"\xff\xd8\xffX")
+    assert [c["method"] for c in s.calls] == ["POST"]
 
 
 def test_error_mapping():

@@ -102,8 +102,29 @@ class YoutubeDataApiClient:
             )
 
     def set_cover(self, playlist_id: str, image_bytes: bytes) -> None:
-        """Set a custom playlist cover via playlistImages.insert (multipart
-        media upload). YouTube requires a square (1:1) JPEG/PNG <= 2 MB."""
+        """Set/replace a custom playlist cover. Tries playlistImages.insert
+        (POST); if that fails for a reason other than auth (most commonly the
+        playlist already has an image), retries playlistImages.update (PUT) on
+        the same media-upload endpoint. Raises only if both fail."""
+        resp = self._upload_cover("POST", playlist_id, image_bytes)
+        status = getattr(resp, "status_code", 0)
+        if 200 <= status < 300:
+            return
+        if status == 401:
+            raise YtmusicNotAuthorizedError("YouTube returned 401 (token rejected)")
+        resp2 = self._upload_cover("PUT", playlist_id, image_bytes)
+        status2 = getattr(resp2, "status_code", 0)
+        if 200 <= status2 < 300:
+            return
+        raise YtmusicApiError(
+            f"YouTube cover insert {status} / update {status2}: "
+            f"{self._error_message(resp2)}"
+        )
+
+    def _upload_cover(self, method: str, playlist_id: str, image_bytes: bytes) -> Any:
+        """Build the multipart/related body and send it with the given HTTP
+        method (POST = insert, PUT = update). YouTube requires a square (1:1)
+        JPEG/PNG <= 2 MB."""
         content_type = "image/png" if image_bytes[:8].startswith(_PNG_MAGIC) else "image/jpeg"
         metadata = json.dumps(
             {"snippet": {"playlistId": playlist_id, "type": _COVER_TYPE}}
@@ -120,16 +141,13 @@ class YoutubeDataApiClient:
             "Content-Type": f"multipart/related; boundary={_COVER_BOUNDARY}",
             "Accept": "application/json",
         }
-        resp = self._session.request(
-            method="POST",
+        return self._session.request(
+            method=method,
             url=f"{_UPLOAD_BASE}/playlistImages",
             params={"part": "snippet", "uploadType": "multipart"},
             data=body,
             headers=headers,
         )
-        status = getattr(resp, "status_code", 0)
-        if not (200 <= status < 300):
-            raise YtmusicApiError(f"YouTube {status}: {self._error_message(resp)}")
 
     # ---------- core HTTP ----------------------------------------------------
 
