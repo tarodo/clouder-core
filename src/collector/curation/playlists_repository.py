@@ -1096,6 +1096,12 @@ class PlaylistsRepository:
             {"id": playlist_id, "now": now},
             transaction_id=tx_id,
         )
+        self._data_api.execute(
+            "UPDATE playlists SET ytmusic_needs_republish = TRUE, updated_at = :now "
+            "WHERE id = :id AND ytmusic_playlist_id IS NOT NULL",
+            {"id": playlist_id, "now": now},
+            transaction_id=tx_id,
+        )
 
 
 def create_default_playlists_repository() -> PlaylistsRepository | None:

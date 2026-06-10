@@ -264,6 +264,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
         titleSlot={
           <Group gap="xs" align="center">
             {playlist.needs_republish ? <DriftBadge /> : null}
+            {playlist.ytmusic_needs_republish ? <DriftBadge target="ytmusic" /> : null}
             <Button color="red" variant="subtle" size="xs" onClick={openDelete}>
               {t('playlists.detail.delete_cta')}
             </Button>

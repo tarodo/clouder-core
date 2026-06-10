@@ -2,8 +2,11 @@
 
 Mirror of PlaylistsPublishService. Matched video_ids come from
 fetch_ytmusic_status; unmatched tracks are skipped with reason
-'no_ytmusic_match'. Cover is best-effort via playlistImages.insert — a
-failure flags cover_failed and never blocks the publish.
+'no_ytmusic_match'. Existing playlists are synced incrementally: membership
+delta plus a minimal-move reorder pass so YouTube order matches CLOUDER. Cover
+is best-effort via playlistImages.insert, falling back to update when the
+playlist already has one — a failure flags cover_failed and never blocks the
+publish.
 """
 
 from __future__ import annotations
@@ -119,19 +122,26 @@ class YtmusicPublishService:
             self._yt.add_items(target_id, video_ids)
         else:
             # Incremental sync — touch only the delta. Each playlistItems
-            # insert/delete costs 50 YouTube quota units, so a full wipe +
-            # re-add was ~100*N per republish even when nothing changed.
-            # NOTE: new tracks are appended; a pure CLOUDER reorder is not
-            # reflected on YouTube (avoids paying 50 units per moved item).
+            # insert/delete/update costs 50 YouTube quota units.
             existing_items = existing or []
             existing_vids = [it["videoId"] for it in existing_items]
-            if existing_vids != video_ids:
+            to_remove: list[str] = []
+            to_add: list[str] = []
+            if set(existing_vids) != set(video_ids):
                 desired = set(video_ids)
                 present = set(existing_vids)
                 to_remove = [it["itemId"] for it in existing_items if it["videoId"] not in desired]
                 to_add = [v for v in video_ids if v not in present]
                 self._yt.remove_items(target_id, to_remove)
                 self._yt.add_items(target_id, to_add)
+            # Reorder pass. New items get YouTube-assigned itemIds, so re-fetch
+            # once when membership changed; otherwise reuse what we already have.
+            items_for_order = (
+                self._yt.get_existing_items(target_id)
+                if (to_add or to_remove)
+                else existing_items
+            )
+            self._reorder_items(target_id, video_ids, items_for_order)
 
         cover_failed = False
         cover_key = getattr(playlist, "cover_s3_key", None)
@@ -166,3 +176,19 @@ class YtmusicPublishService:
             published_at=now.isoformat(),
             cover_failed=cover_failed,
         )
+
+    def _reorder_items(self, target_id: str, desired_vids: list[str], items: list[dict]) -> None:
+        """Move only out-of-place items so YouTube order matches desired_vids.
+        Selection-style: walk desired left-to-right; if the slot already holds
+        the right video, skip; otherwise move the matching item to that index.
+        ``work`` mirrors YouTube's post-move order so positions stay correct."""
+        work = [(it["videoId"], it["itemId"]) for it in items]
+        for i, vid in enumerate(desired_vids):
+            if i < len(work) and work[i][0] == vid:
+                continue
+            j = next((k for k in range(i, len(work)) if work[k][0] == vid), None)
+            if j is None:
+                continue  # not in items (skipped or video unavailable) — nothing to move
+            moved = work.pop(j)
+            work.insert(i, moved)
+            self._yt.move_item(target_id, moved[1], moved[0], i)
