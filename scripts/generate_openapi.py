@@ -179,7 +179,7 @@ TAG_RESPONSE = {
 
 COMMENT_RESPONSE: dict[str, Any] = {
     "type": "object",
-    "required": ["author_name", "text", "like_count"],
+    "required": ["author_name", "author_avatar_url", "text", "like_count", "published_at"],
     "properties": {
         "author_name": {"type": "string"},
         "author_avatar_url": {"type": "string", "nullable": True},
@@ -191,7 +191,7 @@ COMMENT_RESPONSE: dict[str, Any] = {
 
 TRACK_COMMENTS_RESPONSE: dict[str, Any] = {
     "type": "object",
-    "required": ["status", "comment_count", "comments"],
+    "required": ["status", "comment_count", "video_url", "comments"],
     "properties": {
         "status": {
             "type": "string",

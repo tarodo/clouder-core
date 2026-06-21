@@ -4434,14 +4434,14 @@ export interface paths {
                             /** @enum {string} */
                             status: "pending" | "collected" | "empty" | "disabled" | "failed";
                             comment_count: number;
-                            video_url?: string | null;
+                            video_url: string | null;
                             comments: {
                                 author_name: string;
-                                author_avatar_url?: string | null;
+                                author_avatar_url: string | null;
                                 text: string;
                                 like_count: number;
                                 /** Format: date-time */
-                                published_at?: string | null;
+                                published_at: string | null;
                             }[];
                         };
                     };

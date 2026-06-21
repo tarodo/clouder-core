@@ -2998,6 +2998,7 @@ paths:
                 required:
                 - status
                 - comment_count
+                - video_url
                 - comments
                 properties:
                   status:
@@ -3019,8 +3020,10 @@ paths:
                       type: object
                       required:
                       - author_name
+                      - author_avatar_url
                       - text
                       - like_count
+                      - published_at
                       properties:
                         author_name:
                           type: string
