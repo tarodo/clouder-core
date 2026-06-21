@@ -56,3 +56,13 @@ def test_dispatch_never_raises(monkeypatch):
     monkeypatch.setenv("COMMENT_COLLECT_QUEUE_URL", "https://q")
     # must not raise
     dispatch.try_dispatch_comment_collection(track_id="t1", video_id="vidA", platform="youtube")
+
+
+def test_dispatch_no_queue_url_does_not_raise_and_sends_nothing(monkeypatch):
+    repo, sqs = FakeRepo("col1"), FakeSqs()
+    monkeypatch.setattr(dispatch, "_build_repository", lambda: repo)
+    monkeypatch.setattr(dispatch, "_build_sqs_client", lambda: sqs)
+    monkeypatch.delenv("COMMENT_COLLECT_QUEUE_URL", raising=False)
+    # _queue_url() raises RuntimeError; _safe swallows it — must not propagate
+    dispatch.try_dispatch_comment_collection(track_id="t1", video_id="vidA", platform="youtube")
+    assert sqs.sent == []

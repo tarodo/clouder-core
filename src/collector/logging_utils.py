@@ -67,6 +67,8 @@ ALLOWED_LOG_FIELDS = {
     "attempt",
     "sleep_seconds",
     "track_id",
+    "collection_id",
+    "platform",
     "user_id",
     "category_id",
     "blocks_snapshot_into",
