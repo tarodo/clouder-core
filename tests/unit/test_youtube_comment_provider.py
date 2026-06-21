@@ -121,74 +121,70 @@ class FakeYtClient:
         return self._results
 
 
-def _video(video_id, title, artist, seconds=200):
-    return {
-        "videoId": video_id,
-        "title": title,
-        "artists": [{"name": artist}],
-        "duration_seconds": seconds,
-    }
+def _video(video_id, title):
+    # artists is the uploading channel on purpose — the matcher must ignore it.
+    return {"videoId": video_id, "title": title,
+            "artists": [{"name": "Some Channel"}], "duration_seconds": 200}
 
 
-def _provider_with(results, threshold=0.5):
-    # session is unused by the resolver; pass a dummy.
-    return YouTubeCommentProvider(
-        api_key="K",
-        session=object(),
-        ytmusic_client=FakeYtClient(results),
-        threshold=threshold,
-    )
+def _provider(results):
+    return YouTubeCommentProvider(api_key="K", session=object(),
+                                  ytmusic_client=FakeYtClient(results))
 
 
-def test_resolve_returns_scored_videos_best_first():
+def test_resolve_returns_matching_videos_in_search_order():
     results = [
-        _video("good1", "Lost Track", "Guri"),     # strong match
-        _video("weakX", "Totally Different", "Nobody"),  # below threshold
-        _video("good2", "Lost Track (Extended)", "Guri"),
+        _video("good1", "Lychee - Back in Time"),
+        _video("bad", "Totally Different Song"),
+        _video("good2", "Lychee - Back in Time (Official Video)"),
     ]
-    provider = _provider_with(results, threshold=0.5)
+    provider = _provider(results)
     out = provider.resolve_alternate_videos(
-        artist="Guri", title="Lost Track", duration_ms=200_000, exclude_video_id="art1"
+        artist="Lychee", title="Back In Time", duration_ms=200000, exclude_video_id="art1"
     )
-    assert "good1" in out and "good2" in out
-    assert "weakX" not in out
-    assert out[0] == "good1"  # exact title ranks first
-    # request shape
+    assert out == ["good1", "good2"]
     q, flt, _ = provider._ytmusic_client.calls[-1]
     assert flt == "videos"
-    assert "Guri" in q and "Lost Track" in q
+    assert q == "Lychee - Back In Time"
 
 
-def test_resolve_excludes_the_art_track_id():
-    results = [_video("art1", "Lost Track", "Guri"), _video("good1", "Lost Track", "Guri")]
-    provider = _provider_with(results, threshold=0.5)
+def test_resolve_excludes_art_track():
+    results = [_video("art1", "Lychee - Back in Time"), _video("good1", "Lychee - Back in Time")]
+    provider = _provider(results)
     out = provider.resolve_alternate_videos(
-        artist="Guri", title="Lost Track", duration_ms=200_000, exclude_video_id="art1"
+        artist="Lychee", title="Back In Time", duration_ms=None, exclude_video_id="art1"
     )
     assert out == ["good1"]
 
 
 def test_resolve_caps_at_three():
-    results = [_video(f"v{i}", "Lost Track", "Guri") for i in range(6)]
-    provider = _provider_with(results, threshold=0.5)
+    results = [_video(f"v{i}", "Lychee - Back in Time") for i in range(6)]
+    provider = _provider(results)
     out = provider.resolve_alternate_videos(
-        artist="Guri", title="Lost Track", duration_ms=None, exclude_video_id="art1"
+        artist="Lychee", title="Back In Time", duration_ms=None, exclude_video_id="art1"
     )
-    assert len(out) == 3
+    assert out == ["v0", "v1", "v2"]
 
 
-def test_resolve_empty_when_nothing_clears_threshold():
-    results = [_video("v1", "Totally Different", "Nobody")]
-    provider = _provider_with(results, threshold=0.9)
+def test_resolve_empty_when_nothing_matches():
+    provider = _provider([_video("v1", "Completely Unrelated Mix 2026")])
     out = provider.resolve_alternate_videos(
-        artist="Guri", title="Lost Track", duration_ms=None, exclude_video_id="art1"
+        artist="Lychee", title="Back In Time", duration_ms=None, exclude_video_id="art1"
+    )
+    assert out == []
+
+
+def test_resolve_rejects_remix_for_original():
+    provider = _provider([_video("rmx", "Lychee - Back in Time (Klute Remix)")])
+    out = provider.resolve_alternate_videos(
+        artist="Lychee", title="Back In Time", duration_ms=None, exclude_video_id="art1"
     )
     assert out == []
 
 
 def test_resolve_tolerates_malformed_results():
-    provider = _provider_with(["junk", {}, {"title": "no id"}], threshold=0.1)
+    provider = _provider(["junk", {}, {"title": "no id"}])
     out = provider.resolve_alternate_videos(
-        artist="Guri", title="Lost Track", duration_ms=None, exclude_video_id="art1"
+        artist="Lychee", title="Back In Time", duration_ms=None, exclude_video_id="art1"
     )
     assert out == []
