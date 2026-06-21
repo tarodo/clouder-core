@@ -27,6 +27,37 @@ def _build_repository() -> CommentsRepository:
     return repo
 
 
+def _resolve_and_collect(provider: Any, *, primary_video_id: str, meta: Any) -> tuple[str, list, str]:
+    """Collect from the primary video; on CommentsDisabledError, fall back to up to
+    3 resolver-provided regular videos. Returns (status, comments, video_id).
+
+    Raises are left to the caller (generic/platform errors -> 'failed')."""
+    try:
+        comments = provider.collect(primary_video_id, limit=100)
+        return ("collected" if comments else "empty", comments, primary_video_id)
+    except CommentsDisabledError:
+        pass
+
+    resolver = getattr(provider, "resolve_alternate_videos", None)
+    if meta is None or resolver is None:
+        return ("disabled", [], primary_video_id)
+
+    alts = resolver(
+        artist=meta.artist, title=meta.title,
+        duration_ms=meta.duration_ms, exclude_video_id=primary_video_id,
+    )
+    saw_empty = False
+    for alt in (alts or [])[:3]:
+        try:
+            comments = provider.collect(alt, limit=100)
+        except CommentsDisabledError:
+            continue
+        if comments:
+            return ("collected", comments, alt)
+        saw_empty = True
+    return ("empty" if saw_empty else "disabled", [], primary_video_id)
+
+
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     del context
     records = event.get("Records") or []
@@ -60,16 +91,13 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             provider = get_comment_provider(
                 msg.platform, api_key=settings.youtube_api_key, session=session
             )
-            comments = provider.collect(msg.video_id, limit=100)
-            status = "collected" if comments else "empty"
-            repo.store_comments(
-                collection_id=msg.collection_id, platform=msg.platform,
-                comments=comments, status=status, now=now,
+            meta = repo.fetch_track_meta([msg.track_id]).get(msg.track_id)
+            status, comments, video_id = _resolve_and_collect(
+                provider, primary_video_id=msg.video_id, meta=meta
             )
-        except CommentsDisabledError:
             repo.store_comments(
                 collection_id=msg.collection_id, platform=msg.platform,
-                comments=[], status="disabled", now=now,
+                comments=comments, status=status, now=now, external_video_id=video_id,
             )
         # Platform not enabled is an ops/config gate (not per-video state); store
         # as "failed" so it is visible in the DB and not silently dropped.

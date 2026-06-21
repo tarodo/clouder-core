@@ -4,6 +4,7 @@ import json
 
 import collector.comments_collect_handler as worker
 from collector.comments.registry import CommentPlatformDisabledError
+from collector.comments.repository import TrackMeta
 from collector.providers.base import CollectedComment
 from collector.providers.youtube.comments import CommentsDisabledError
 
@@ -12,9 +13,14 @@ class FakeRepo:
     def __init__(self):
         self.stored = []
 
-    def store_comments(self, *, collection_id, platform, comments, status, now, error=None):
+    def fetch_track_meta(self, track_ids):
+        return {}
+
+    def store_comments(self, *, collection_id, platform, comments, status, now,
+                       error=None, external_video_id=None):
         self.stored.append({"collection_id": collection_id, "status": status,
-                            "count": len(comments), "error": error})
+                            "count": len(comments), "error": error,
+                            "external_video_id": external_video_id})
 
 
 class FakeProvider:
@@ -133,3 +139,121 @@ def test_two_records_first_fails_second_succeeds(monkeypatch):
     assert len(repo.stored) == 2
     assert repo.stored[0]["status"] == "failed"
     assert repo.stored[1]["status"] == "collected"
+
+
+# ---------------------------------------------------------------------------
+# Fallback tests (Task 5)
+# ---------------------------------------------------------------------------
+
+class FallbackFakeRepo:
+    def __init__(self, meta=None):
+        self.stored = []
+        self._meta = meta or {"t1": TrackMeta("t1", "Guri", "Lost Track", 200_000)}
+
+    def fetch_track_meta(self, track_ids):
+        return {k: v for k, v in self._meta.items() if k in track_ids}
+
+    def store_comments(self, *, collection_id, platform, comments, status, now,
+                       error=None, external_video_id=None):
+        self.stored.append({
+            "status": status, "count": len(comments),
+            "external_video_id": external_video_id, "error": error,
+        })
+
+
+class FallbackProvider:
+    """Primary collect raises/returns per script; resolver returns alts; each
+    alt's collect behavior is scripted by id."""
+    def __init__(self, *, primary, alts, alt_behavior):
+        self._primary = primary            # list or Exception
+        self._alts = alts                  # list[str]
+        self._alt_behavior = alt_behavior  # dict[id] -> list or Exception
+        self.resolve_calls = []
+
+    def collect(self, video_ref, *, limit=100):
+        if video_ref == "art1":
+            if isinstance(self._primary, Exception):
+                raise self._primary
+            return self._primary
+        beh = self._alt_behavior[video_ref]
+        if isinstance(beh, Exception):
+            raise beh
+        return beh
+
+    def resolve_alternate_videos(self, *, artist, title, duration_ms, exclude_video_id):
+        self.resolve_calls.append((artist, title, duration_ms, exclude_video_id))
+        return self._alts
+
+
+def _fb_event():
+    return {"Records": [{"body": json.dumps(
+        {"track_id": "t1", "platform": "youtube", "video_id": "art1", "collection_id": "col1"}
+    )}]}
+
+
+def _patch_fb(monkeypatch, repo, provider):
+    monkeypatch.setattr(worker, "_build_repository", lambda: repo)
+    monkeypatch.setattr(worker, "get_comment_provider", lambda *a, **k: provider)
+    monkeypatch.setenv("YOUTUBE_API_KEY", "K")
+
+
+def test_primary_has_comments_does_not_call_resolver(monkeypatch):
+    repo = FallbackFakeRepo()
+    provider = FallbackProvider(
+        primary=[CollectedComment("c1", "A", None, "hi", 1, None, 0)],
+        alts=["x"], alt_behavior={},
+    )
+    _patch_fb(monkeypatch, repo, provider)
+    worker.lambda_handler(_fb_event(), None)
+    assert provider.resolve_calls == []
+    assert repo.stored[0]["status"] == "collected"
+    assert repo.stored[0]["external_video_id"] == "art1"
+
+
+def test_disabled_primary_falls_back_to_alternate(monkeypatch):
+    repo = FallbackFakeRepo()
+    provider = FallbackProvider(
+        primary=CommentsDisabledError("art1"),
+        alts=["alt_disabled", "alt_good"],
+        alt_behavior={
+            "alt_disabled": CommentsDisabledError("alt_disabled"),
+            "alt_good": [CollectedComment("c1", "A", None, "hi", 2, None, 0)],
+        },
+    )
+    _patch_fb(monkeypatch, repo, provider)
+    worker.lambda_handler(_fb_event(), None)
+    assert repo.stored[0]["status"] == "collected"
+    assert repo.stored[0]["external_video_id"] == "alt_good"
+
+
+def test_disabled_primary_no_alternates_marks_disabled(monkeypatch):
+    repo = FallbackFakeRepo()
+    provider = FallbackProvider(
+        primary=CommentsDisabledError("art1"), alts=[], alt_behavior={},
+    )
+    _patch_fb(monkeypatch, repo, provider)
+    worker.lambda_handler(_fb_event(), None)
+    assert repo.stored[0]["status"] == "disabled"
+
+
+def test_disabled_primary_all_alternates_disabled(monkeypatch):
+    repo = FallbackFakeRepo()
+    provider = FallbackProvider(
+        primary=CommentsDisabledError("art1"),
+        alts=["a", "b"],
+        alt_behavior={"a": CommentsDisabledError("a"), "b": CommentsDisabledError("b")},
+    )
+    _patch_fb(monkeypatch, repo, provider)
+    worker.lambda_handler(_fb_event(), None)
+    assert repo.stored[0]["status"] == "disabled"
+
+
+def test_disabled_primary_alternate_empty_marks_empty(monkeypatch):
+    repo = FallbackFakeRepo()
+    provider = FallbackProvider(
+        primary=CommentsDisabledError("art1"),
+        alts=["a"], alt_behavior={"a": []},
+    )
+    _patch_fb(monkeypatch, repo, provider)
+    worker.lambda_handler(_fb_event(), None)
+    assert repo.stored[0]["status"] == "empty"
