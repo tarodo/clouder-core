@@ -177,6 +177,32 @@ TAG_RESPONSE = {
     },
 }
 
+COMMENT_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["author_name", "text", "like_count"],
+    "properties": {
+        "author_name": {"type": "string"},
+        "author_avatar_url": {"type": "string", "nullable": True},
+        "text": {"type": "string"},
+        "like_count": {"type": "integer"},
+        "published_at": {"type": "string", "format": "date-time", "nullable": True},
+    },
+}
+
+TRACK_COMMENTS_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["status", "comment_count", "comments"],
+    "properties": {
+        "status": {
+            "type": "string",
+            "enum": ["pending", "collected", "empty", "disabled", "failed"],
+        },
+        "comment_count": {"type": "integer"},
+        "video_url": {"type": "string", "nullable": True},
+        "comments": {"type": "array", "items": COMMENT_RESPONSE},
+    },
+}
+
 TAG_LIST_RESPONSE = {
     "type": "object",
     "required": ["items", "total", "limit", "offset"],
@@ -2514,6 +2540,26 @@ ROUTES: list[dict[str, Any]] = [
         ],
         "responses": {
             "200": _make_response(200, "Tag list (may be empty).", TRACK_TAGS_RESPONSE),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/tracks/{track_id}/comments",
+        "auth": AUTH,
+        "summary": "List collected external comments for a track (first N).",
+        "description": (
+            "Returns YouTube comments collected for the track's matched video. "
+            "`status` is pending until collection completes. Query: `platform` "
+            "(default youtube), `limit` (default 5, max 100)."
+        ),
+        "parameters": [
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {"name": "platform", "in": "query", "required": False, "schema": {"type": "string"}},
+            {"name": "limit", "in": "query", "required": False, "schema": {"type": "integer"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Track comments.", TRACK_COMMENTS_RESPONSE),
             **COMMON_AUTH_ERRORS,
         },
     },

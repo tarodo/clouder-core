@@ -2985,6 +2985,82 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /tracks/{track_id}/comments:
+    get:
+      summary: List collected external comments for a track (first N).
+      responses:
+        '200':
+          description: Track comments.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - status
+                - comment_count
+                - comments
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - pending
+                    - collected
+                    - empty
+                    - disabled
+                    - failed
+                  comment_count:
+                    type: integer
+                  video_url:
+                    type: string
+                    nullable: true
+                  comments:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - author_name
+                      - text
+                      - like_count
+                      properties:
+                        author_name:
+                          type: string
+                        author_avatar_url:
+                          type: string
+                          nullable: true
+                        text:
+                          type: string
+                        like_count:
+                          type: integer
+                        published_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+        '401': *id001
+        '403': *id002
+      description: 'Returns YouTube comments collected for the track''s matched video.
+        `status` is pending until collection completes. Query: `platform` (default
+        youtube), `limit` (default 5, max 100).'
+      parameters:
+      - name: track_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: platform
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      security:
+      - BearerAuth: []
+      tags:
+      - user
   /tracks/{track_id}/tags/{tag_id}:
     delete:
       summary: Detach a tag from a track (idempotent — 204 either way).
