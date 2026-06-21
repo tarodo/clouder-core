@@ -1,0 +1,87 @@
+"""YouTube Data API v3 comment provider.
+
+Reads public top-level comments via commentThreads.list with a shared
+developer key. One request per video (maxResults<=100, single page) = 1
+quota unit. The requests session is injected so tests can stub HTTP.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any
+
+from ..base import CollectedComment
+
+_BASE = "https://www.googleapis.com/youtube/v3/commentThreads"
+
+
+class CommentsDisabledError(Exception):
+    """Raised when the video has comments disabled (HTTP 403 commentsDisabled)."""
+
+
+class YouTubeCommentProvider:
+    platform = "youtube"
+
+    def __init__(self, *, api_key: str, session: Any) -> None:
+        self._api_key = api_key
+        self._session = session
+
+    def collect(self, video_ref: str, *, limit: int = 100) -> list[CollectedComment]:
+        resp = self._session.get(
+            _BASE,
+            params={
+                "part": "snippet",
+                "videoId": video_ref,
+                "maxResults": min(int(limit), 100),
+                "order": "relevance",
+                "textFormat": "plainText",
+                "key": self._api_key,
+            },
+            timeout=20,
+        )
+        if getattr(resp, "status_code", 200) == 403:
+            if _first_error_reason(_safe_json(resp)) == "commentsDisabled":
+                raise CommentsDisabledError(video_ref)
+            resp.raise_for_status()
+        resp.raise_for_status()
+
+        data = resp.json() or {}
+        out: list[CollectedComment] = []
+        for rank, item in enumerate((data.get("items") or [])[:limit]):
+            top = ((item.get("snippet") or {}).get("topLevelComment") or {})
+            sn = top.get("snippet") or {}
+            out.append(
+                CollectedComment(
+                    external_id=str(top.get("id") or item.get("id") or ""),
+                    author_name=str(sn.get("authorDisplayName") or ""),
+                    author_avatar_url=sn.get("authorProfileImageUrl"),
+                    text=str(sn.get("textDisplay") or ""),
+                    like_count=int(sn.get("likeCount") or 0),
+                    published_at=_parse_iso(sn.get("publishedAt")),
+                    rank=rank,
+                )
+            )
+        return out
+
+
+def _safe_json(resp: Any) -> dict:
+    try:
+        return resp.json() or {}
+    except Exception:  # noqa: BLE001 — defensive on error bodies
+        return {}
+
+
+def _first_error_reason(data: dict) -> str | None:
+    errors = ((data.get("error") or {}).get("errors") or [])
+    if errors and isinstance(errors[0], dict):
+        return errors[0].get("reason")
+    return None
+
+
+def _parse_iso(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return None
