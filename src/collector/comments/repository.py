@@ -42,6 +42,10 @@ class CommentsRepository:
     ) -> str | None:
         """Insert/refresh a pending collection. Returns the collection id, or
         None if a completed collection for the same video already exists."""
+        # Best-effort skip guard: two concurrent dispatchers can both pass this
+        # SELECT, but the INSERT ... ON CONFLICT below keeps the write safe (last
+        # writer wins, same id returned); worst case is a redundant re-collection,
+        # which is acceptable given the worker's 1-request budget.
         existing = self._data_api.execute(
             "SELECT id, external_video_id, status FROM comment_collections "
             "WHERE track_id = :t AND platform = :p",

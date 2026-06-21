@@ -15,7 +15,7 @@ class FakeDataAPI:
         self.batch_calls = []
 
     def execute(self, sql, params=None, transaction_id=None):
-        self.calls.append((sql, params))
+        self.calls.append((sql, params, transaction_id))
         for marker, rows in self.rows_by_marker:
             if marker in sql:
                 return rows
@@ -23,7 +23,7 @@ class FakeDataAPI:
 
     def batch_execute(self, sql, parameter_sets, transaction_id=None):
         sets = list(parameter_sets)
-        self.batch_calls.append((sql, sets))
+        self.batch_calls.append((sql, sets, transaction_id))
 
     class _Tx:
         def __enter__(self_inner):
@@ -48,7 +48,7 @@ def test_start_collection_skips_when_already_collected_same_video():
     result = repo.start_collection(track_id="t1", platform="youtube", video_id="vidA", now=NOW)
     assert result is None
     # no INSERT issued
-    assert all("INSERT INTO comment_collections" not in sql for sql, _ in api.calls)
+    assert all("INSERT INTO comment_collections" not in sql for sql, *_ in api.calls)
 
 
 def test_start_collection_inserts_when_new():
@@ -59,7 +59,7 @@ def test_start_collection_inserts_when_new():
     repo = CommentsRepository(api)
     result = repo.start_collection(track_id="t1", platform="youtube", video_id="vidA", now=NOW)
     assert result == "colNEW"
-    insert_sql, params = [c for c in api.calls if "INSERT INTO comment_collections" in c[0]][0]
+    insert_sql, params, _ = [c for c in api.calls if "INSERT INTO comment_collections" in c[0]][0]
     assert params["t"] == "t1" and params["p"] == "youtube" and params["v"] == "vidA"
 
 
@@ -82,11 +82,11 @@ def test_store_comments_deletes_then_batch_inserts_and_marks_collected():
     ]
     repo.store_comments(collection_id="col1", platform="youtube", comments=comments,
                         status="collected", now=NOW)
-    assert any("DELETE FROM external_comments" in sql for sql, _ in api.calls)
+    assert any("DELETE FROM external_comments" in sql for sql, *_ in api.calls)
     assert len(api.batch_calls) == 1
-    _, sets = api.batch_calls[0]
+    _, sets, _ = api.batch_calls[0]
     assert [s["eid"] for s in sets] == ["c1", "c2"]
-    update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][0]
+    update_sql, params, _ = [c for c in api.calls if "UPDATE comment_collections" in c[0]][0]
     assert params["s"] == "collected" and params["n"] == 2
 
 
@@ -96,7 +96,7 @@ def test_store_comments_empty_skips_batch_and_marks_status():
     repo.store_comments(collection_id="col1", platform="youtube", comments=[],
                         status="empty", now=NOW)
     assert api.batch_calls == []
-    update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][0]
+    update_sql, params, _ = [c for c in api.calls if "UPDATE comment_collections" in c[0]][0]
     assert params["s"] == "empty" and params["n"] == 0
 
 
@@ -122,3 +122,21 @@ def test_list_comments_none_when_no_collection():
     repo = CommentsRepository(api)
     collection, comments = repo.list_comments(track_id="t1", platform="youtube", limit=5)
     assert collection is None and comments == []
+
+
+def test_store_comments_all_writes_share_transaction_id():
+    """DELETE, batch INSERT, and UPDATE must all run under the same transaction."""
+    api = FakeDataAPI()
+    repo = CommentsRepository(api)
+    comments = [CollectedComment("c1", "A", None, "hi", 1, NOW, 0)]
+    repo.store_comments(collection_id="col1", platform="youtube", comments=comments,
+                        status="collected", now=NOW)
+    # All execute() calls that are writes (DELETE and UPDATE) must carry tx "tx-1".
+    write_calls = [c for c in api.calls if "SELECT" not in c[0]]
+    assert write_calls, "expected at least one non-SELECT execute call"
+    for sql, params, tx_id in write_calls:
+        assert tx_id == "tx-1", f"write call missing transaction_id: {sql!r}"
+    # The batch insert must also carry tx "tx-1".
+    assert len(api.batch_calls) == 1
+    _, _, batch_tx_id = api.batch_calls[0]
+    assert batch_tx_id == "tx-1", "batch_execute call missing transaction_id"
