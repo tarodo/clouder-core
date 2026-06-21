@@ -203,6 +203,30 @@ TRACK_COMMENTS_RESPONSE: dict[str, Any] = {
     },
 }
 
+PLAYLIST_TRACK_COMMENTS: dict[str, Any] = {
+    "type": "object",
+    "required": ["track_id", "status", "comment_count", "video_url", "comments"],
+    "properties": {
+        "track_id": {"type": "string"},
+        "status": {
+            "type": "string",
+            "enum": ["pending", "collected", "empty", "disabled", "failed"],
+        },
+        "comment_count": {"type": "integer"},
+        "video_url": {"type": "string", "nullable": True},
+        "comments": {"type": "array", "items": COMMENT_RESPONSE},
+    },
+}
+
+PLAYLIST_COMMENTS_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["tracks"],
+    "properties": {
+        "tracks": {"type": "array", "items": PLAYLIST_TRACK_COMMENTS},
+        "correlation_id": {"type": "string"},
+    },
+}
+
 TAG_LIST_RESPONSE = {
     "type": "object",
     "required": ["items", "total", "limit", "offset"],
@@ -2770,6 +2794,26 @@ ROUTES: list[dict[str, Any]] = [
         },
     },
     {
+        "method": "get",
+        "path": "/playlists/{id}/comments",
+        "auth": AUTH,
+        "summary": "Bulk-fetch collected comments for all tracks in a playlist.",
+        "description": (
+            "Returns one entry per playlist track with its comment status, count, "
+            "video URL, and the collected comments. `status` is pending until "
+            "collection completes for that track. Query: `platform` (default youtube)."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {"name": "platform", "in": "query", "required": False, "schema": {"type": "string"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Per-track comments for the playlist.", PLAYLIST_COMMENTS_RESPONSE),
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
         "method": "post",
         "path": "/playlists/{id}/tracks",
         "auth": AUTH,
@@ -3846,6 +3890,8 @@ def build_openapi() -> dict[str, Any]:
                 "ArtistHistoryCell": ARTIST_HISTORY_CELL,
                 "ArtistHistoryResponse": ARTIST_HISTORY_RESPONSE,
                 "PlaylistTrackResponse": PLAYLIST_TRACK_RESPONSE,
+                "PlaylistTrackComments": PLAYLIST_TRACK_COMMENTS,
+                "PlaylistCommentsResponse": PLAYLIST_COMMENTS_RESPONSE,
             },
         },
     }
