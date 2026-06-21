@@ -144,6 +144,6 @@ class CollectedComment:
 class CommentProvider(Protocol):
     platform: str
 
-    def collect(self, video_ref: str, *, limit: int = 100) -> list["CollectedComment"]:
+    def collect(self, video_ref: str, *, limit: int = 100) -> list[CollectedComment]:
         """Return up to `limit` top-level comments for `video_ref`."""
         ...

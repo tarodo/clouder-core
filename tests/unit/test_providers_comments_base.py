@@ -20,7 +20,7 @@ def test_collected_comment_is_frozen() -> None:
     )
     assert c.external_id == "c1"
     assert c.rank == 0
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         c.text = "other"  # frozen dataclass
 
 
