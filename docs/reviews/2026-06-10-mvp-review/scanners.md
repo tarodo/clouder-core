@@ -1,6 +1,6 @@
 # CLOUDER MVP review — automated scanner results
 
-**Status:** IN PROGRESS (finalized in synthesis phase)
+**Status:** FINAL
 **Reviewed commit:** 1614a1d007f677f6f69c5d1567443f004a03a097
 
 Raw JSON outputs live in `/tmp` (not committed). Kept hits are converted to the
