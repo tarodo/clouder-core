@@ -96,6 +96,7 @@ jobs:
             -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" \
             -var="ytmusic_client_id_ssm_parameter=/clouder/ytmusic/client_id" \
             -var="ytmusic_client_secret_ssm_parameter=/clouder/ytmusic/client_secret" \
+            -var="youtube_api_key_ssm_parameter=/clouder/youtube/api_key" \
             -var="migration_aurora_auth_mode=iam" \
             -var="enable_secretsmanager_vpc_endpoint=false" \
             -var="spotify_oauth_redirect_uri=${{ vars.SPOTIFY_OAUTH_REDIRECT_URI }}" \
