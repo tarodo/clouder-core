@@ -63,6 +63,9 @@ const PLAYLIST_DEFAULTS = [
 ];
 
 export const handlers = [
+  http.get('http://localhost/tracks/:track_id/comments', () =>
+    HttpResponse.json({ status: 'pending', comment_count: 0, video_url: null, comments: [] }),
+  ),
   http.get('http://localhost/me', () =>
     HttpResponse.json({ id: 'u1', spotify_id: 'sp1', display_name: 'Roman', is_admin: false }),
   ),
