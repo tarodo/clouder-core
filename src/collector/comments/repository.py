@@ -127,6 +127,89 @@ class CommentsRepository:
                 transaction_id=tx,
             )
 
+    def list_comments_for_tracks(
+        self,
+        *,
+        track_ids: list[str],
+        platform: str,
+        limit_per_track: int = 100,
+    ) -> dict[str, tuple[CollectionRow | None, list[CommentRow]]]:
+        """Return ALL comments (up to limit_per_track) for many tracks at once.
+
+        Returns a dict keyed by track_id.  Tracks with no collection row are
+        absent from the result (callers treat a missing key as "no comments").
+        """
+        if not track_ids:
+            return {}
+
+        # --- Query 1: collections for the requested track_ids + platform ---
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {"p": platform}
+        for i, tid in enumerate(track_ids):
+            params[f"t{i}"] = tid
+
+        coll_rows = self._data_api.execute(
+            f"SELECT id, track_id, platform, external_video_id, status, comment_count, collected_at "
+            f"FROM comment_collections "
+            f"WHERE platform = :p AND track_id IN ({placeholders})",
+            params,
+        )
+        if not coll_rows:
+            return {}
+
+        collections: dict[str, CollectionRow] = {}
+        coll_id_to_track_id: dict[str, str] = {}
+        for r in coll_rows:
+            col = CollectionRow(
+                id=r["id"],
+                track_id=r["track_id"],
+                platform=r["platform"],
+                external_video_id=r["external_video_id"],
+                status=r["status"],
+                comment_count=int(r["comment_count"]),
+                collected_at=r["collected_at"],
+            )
+            collections[r["track_id"]] = col
+            coll_id_to_track_id[r["id"]] = r["track_id"]
+
+        # --- Query 2: comments for all found collection ids ---
+        coll_ids = list(coll_id_to_track_id.keys())
+        coll_placeholders = ", ".join(f":c{i}" for i in range(len(coll_ids)))
+        coll_params: dict[str, Any] = {}
+        for i, cid in enumerate(coll_ids):
+            coll_params[f"c{i}"] = cid
+
+        comment_rows = self._data_api.execute(
+            f"SELECT author_name, author_avatar_url, text, like_count, published_at, rank, collection_id "
+            f"FROM external_comments "
+            f"WHERE collection_id IN ({coll_placeholders}) "
+            f"ORDER BY collection_id, rank ASC",
+            coll_params,
+        )
+
+        # Group comments by track_id, preserving ORDER BY rank from the query
+        comments_by_track: dict[str, list[CommentRow]] = {tid: [] for tid in collections}
+        for r in comment_rows:
+            track_id = coll_id_to_track_id.get(r["collection_id"])
+            if track_id is None:
+                continue
+            comments_by_track[track_id].append(
+                CommentRow(
+                    author_name=r["author_name"],
+                    author_avatar_url=r["author_avatar_url"],
+                    text=r["text"],
+                    like_count=int(r["like_count"]),
+                    published_at=r["published_at"],
+                    rank=int(r["rank"]),
+                )
+            )
+
+        # Build result, applying per-track cap
+        result: dict[str, tuple[CollectionRow | None, list[CommentRow]]] = {}
+        for tid, col in collections.items():
+            result[tid] = (col, comments_by_track[tid][:limit_per_track])
+        return result
+
     def list_comments(
         self, *, track_id: str, platform: str, limit: int
     ) -> tuple[CollectionRow | None, list[CommentRow]]:

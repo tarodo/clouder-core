@@ -140,3 +140,133 @@ def test_store_comments_all_writes_share_transaction_id():
     assert len(api.batch_calls) == 1
     _, _, batch_tx_id = api.batch_calls[0]
     assert batch_tx_id == "tx-1", "batch_execute call missing transaction_id"
+
+
+# ---------------------------------------------------------------------------
+# list_comments_for_tracks
+# ---------------------------------------------------------------------------
+
+def _coll_row(track_id: str, coll_id: str) -> dict:
+    return {
+        "id": coll_id,
+        "track_id": track_id,
+        "platform": "youtube",
+        "external_video_id": f"vid-{track_id}",
+        "status": "collected",
+        "comment_count": 2,
+        "collected_at": None,
+    }
+
+
+def _comment_row(collection_id: str, rank: int) -> dict:
+    return {
+        "author_name": f"Author-{rank}",
+        "author_avatar_url": None,
+        "text": f"comment {rank}",
+        "like_count": rank,
+        "published_at": None,
+        "rank": rank,
+        "collection_id": collection_id,
+    }
+
+
+def test_list_comments_for_tracks_empty_input_returns_empty_dict():
+    """Empty track_ids → {} with no SQL calls."""
+    api = FakeDataAPI()
+    repo = CommentsRepository(api)
+    result = repo.list_comments_for_tracks(track_ids=[], platform="youtube")
+    assert result == {}
+    assert api.calls == []
+
+
+def test_list_comments_for_tracks_two_tracks_grouping():
+    """Two tracks: t1 has 2 comments, t2 has a collection but 0 comments."""
+    col1 = _coll_row("t1", "col-1")
+    col2 = _coll_row("t2", "col-2")
+    c1 = _comment_row("col-1", 0)
+    c2 = _comment_row("col-1", 1)
+
+    api = FakeDataAPI([
+        # collections query is identified by the SELECT with comment_collections + IN
+        ("FROM comment_collections", [col1, col2]),
+        # comments query is identified by collection_id IN
+        ("FROM external_comments", [c1, c2]),
+    ])
+    repo = CommentsRepository(api)
+    result = repo.list_comments_for_tracks(track_ids=["t1", "t2"], platform="youtube")
+
+    # t1 has a collection and 2 comments ordered by rank
+    assert "t1" in result
+    t1_col, t1_comments = result["t1"]
+    assert t1_col is not None
+    assert t1_col.track_id == "t1"
+    assert [c.rank for c in t1_comments] == [0, 1]
+
+    # t2 has a collection row but no comments
+    assert "t2" in result
+    t2_col, t2_comments = result["t2"]
+    assert t2_col is not None
+    assert t2_col.track_id == "t2"
+    assert t2_comments == []
+
+
+def test_list_comments_for_tracks_no_collection_track_absent():
+    """Track with no collection row is absent from the result dict."""
+    col1 = _coll_row("t1", "col-1")
+    c1 = _comment_row("col-1", 0)
+
+    api = FakeDataAPI([
+        ("FROM comment_collections", [col1]),   # only t1 has a collection
+        ("FROM external_comments", [c1]),
+    ])
+    repo = CommentsRepository(api)
+    result = repo.list_comments_for_tracks(track_ids=["t1", "t2-missing"], platform="youtube")
+
+    assert "t1" in result
+    assert "t2-missing" not in result
+
+
+def test_list_comments_for_tracks_limit_per_track():
+    """limit_per_track caps the returned comment list."""
+    col1 = _coll_row("t1", "col-1")
+    comments = [_comment_row("col-1", r) for r in range(5)]
+
+    api = FakeDataAPI([
+        ("FROM comment_collections", [col1]),
+        ("FROM external_comments", comments),
+    ])
+    repo = CommentsRepository(api)
+    result = repo.list_comments_for_tracks(track_ids=["t1"], platform="youtube", limit_per_track=3)
+
+    _, t1_comments = result["t1"]
+    assert len(t1_comments) == 3
+    assert [c.rank for c in t1_comments] == [0, 1, 2]
+
+
+def test_list_comments_for_tracks_in_clause_params():
+    """The params dict contains track-id placeholders t0, t1, ... and platform."""
+    api = FakeDataAPI([
+        ("FROM comment_collections", []),
+    ])
+    repo = CommentsRepository(api)
+    repo.list_comments_for_tracks(track_ids=["track-A", "track-B"], platform="youtube")
+
+    coll_call = next(
+        (sql, params) for sql, params, _ in api.calls if "comment_collections" in sql
+    )
+    _, params = coll_call
+    assert params["t0"] == "track-A"
+    assert params["t1"] == "track-B"
+    assert params["p"] == "youtube"
+
+
+def test_list_comments_for_tracks_no_collections_skips_second_query():
+    """If query 1 returns no collections, query 2 (external_comments) is never issued."""
+    api = FakeDataAPI([
+        ("FROM comment_collections", []),
+    ])
+    repo = CommentsRepository(api)
+    result = repo.list_comments_for_tracks(track_ids=["t1"], platform="youtube")
+
+    assert result == {}
+    assert all("external_comments" not in sql for sql, *_ in api.calls)
