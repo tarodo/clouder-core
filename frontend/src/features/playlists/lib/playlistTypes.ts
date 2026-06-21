@@ -156,3 +156,16 @@ export interface TrackCommentsResponse {
   video_url: string | null;
   comments: TrackComment[];
 }
+
+export interface PlaylistTrackComments {
+  track_id: string;
+  status: TrackCommentsStatus;
+  comment_count: number;
+  video_url: string | null;
+  comments: TrackComment[];
+}
+
+export interface PlaylistCommentsResponse {
+  tracks: PlaylistTrackComments[];
+  correlation_id?: string;
+}
