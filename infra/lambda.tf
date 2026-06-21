@@ -170,6 +170,7 @@ resource "aws_lambda_function" "vendor_match_worker" {
       VENDORS_ENABLED                     = var.vendor_match_vendors_enabled
       FUZZY_MATCH_THRESHOLD               = tostring(var.fuzzy_match_threshold)
       FUZZY_DURATION_TOLERANCE_MS         = tostring(var.fuzzy_duration_tolerance_ms)
+      COMMENT_COLLECT_QUEUE_URL           = aws_sqs_queue.comments_collect.url
     }
   }
 
@@ -320,4 +321,53 @@ resource "aws_lambda_event_source_mapping" "auto_enrich_dispatch_queue" {
   scaling_config {
     maximum_concurrency = var.auto_enrich_dispatch_worker_max_concurrency
   }
+}
+
+# ── Comments collect worker ──────────────────────────────────────
+
+# Shared developer key for the YouTube Data API v3 comment provider.
+# Placeholder value seeded here; the real key is set out-of-band (console/CLI)
+# and ignored on drift below — mirrors the jwt_signing_key SSM convention.
+resource "aws_ssm_parameter" "youtube_api_key" {
+  name        = "/${local.name_prefix}/youtube-api-key"
+  description = "Shared YouTube Data API v3 key used by the comments-collect worker."
+  type        = "SecureString"
+  value       = "REPLACE_ME"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_lambda_function" "comments_collect_worker" {
+  function_name = local.comments_collect_worker_lambda_name
+  role          = aws_iam_role.collector_lambda.arn
+  runtime       = "python3.12"
+  handler       = "collector.comments_collect_handler.lambda_handler"
+  filename      = local.lambda_zip_file
+  timeout       = var.comments_collect_worker_lambda_timeout_seconds
+  memory_size   = var.comments_collect_worker_lambda_memory_mb
+
+  source_code_hash = filebase64sha256(local.lambda_zip_file)
+
+  environment {
+    variables = {
+      AURORA_CLUSTER_ARN            = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN             = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE               = var.aurora_database_name
+      COMMENT_PLATFORMS_ENABLED     = "youtube"
+      YOUTUBE_API_KEY_SSM_PARAMETER = aws_ssm_parameter.youtube_api_key.name
+      LOG_LEVEL                     = "INFO"
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.comments_collect_worker,
+  ]
+}
+
+resource "aws_lambda_event_source_mapping" "comments_collect_queue" {
+  event_source_arn = aws_sqs_queue.comments_collect.arn
+  function_name    = aws_lambda_function.comments_collect_worker.arn
+  batch_size       = var.comments_collect_batch_size
 }

@@ -640,3 +640,15 @@ variable "comments_collect_worker_lambda_timeout_seconds" {
   type        = number
   default     = 60
 }
+
+variable "comments_collect_worker_lambda_memory_mb" {
+  description = "Comments-collect worker Lambda memory size in MB."
+  type        = number
+  default     = 512
+}
+
+variable "comments_collect_batch_size" {
+  description = "SQS batch size for the comments-collect worker lambda."
+  type        = number
+  default     = 1
+}

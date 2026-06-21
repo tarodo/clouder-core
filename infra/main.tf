@@ -21,6 +21,7 @@ locals {
   auto_enrich_dispatch_worker_lambda_name = "${local.name_prefix}-auto-enrich-dispatch-worker"
   auto_enrich_dispatch_queue_name         = "${local.name_prefix}-auto-enrich-dispatch"
   auto_enrich_dispatch_dlq_name           = "${local.name_prefix}-auto-enrich-dispatch-dlq"
+  comments_collect_worker_lambda_name     = "${local.name_prefix}-comments-collect-worker"
   comments_collect_queue_name             = "${local.name_prefix}-comments-collect"
   comments_collect_dlq_name               = "${local.name_prefix}-comments-collect-dlq"
   db_cluster_identifier                   = "${local.name_prefix}-aurora"

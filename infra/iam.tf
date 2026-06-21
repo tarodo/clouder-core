@@ -32,6 +32,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       "${aws_cloudwatch_log_group.vendor_match_worker.arn}:*",
       "${aws_cloudwatch_log_group.label_enricher_worker.arn}:*",
       "${aws_cloudwatch_log_group.auto_enrich_dispatch_worker.arn}:*",
+      "${aws_cloudwatch_log_group.comments_collect_worker.arn}:*",
       "${aws_cloudwatch_log_group.auth_handler.arn}:*",
       "${aws_cloudwatch_log_group.curation.arn}:*",
     ]
@@ -93,6 +94,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.label_enrichment.arn,
       aws_sqs_queue.artist_enrichment.arn,
       aws_sqs_queue.auto_enrich_dispatch.arn,
+      aws_sqs_queue.comments_collect.arn,
     ]
   }
 
@@ -113,6 +115,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.label_enrichment.arn,
       aws_sqs_queue.artist_enrichment.arn,
       aws_sqs_queue.auto_enrich_dispatch.arn,
+      aws_sqs_queue.comments_collect.arn,
     ]
   }
 
@@ -214,6 +217,20 @@ data "aws_iam_policy_document" "collector_lambda" {
     resources = [
       "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.jwt_signing_key_ssm_parameter}",
     ]
+  }
+
+  statement {
+    sid       = "AllowReadYouTubeApiKeySsmParameter"
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${aws_ssm_parameter.youtube_api_key.name}"]
+  }
+
+  statement {
+    sid       = "AllowYouTubeApiKeySsmKmsDecrypt"
+    effect    = "Allow"
+    actions   = ["kms:Decrypt"]
+    resources = ["arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:alias/aws/ssm"]
   }
 
   statement {
