@@ -36,14 +36,12 @@ class YouTubeCommentProvider:
         ytmusic_client: Any | None = None,
         ytmusic_client_factory: Any = _default_ytmusic_factory,
         search_limit: int = 10,
-        threshold: float | None = None,
     ) -> None:
         self._api_key = api_key
         self._session = session
         self._ytmusic_client = ytmusic_client
         self._ytmusic_client_factory = ytmusic_client_factory
         self._search_limit = search_limit
-        self._threshold = threshold
 
     def collect(self, video_ref: str, *, limit: int = 100) -> list[CollectedComment]:
         resp = self._session.get(
@@ -95,34 +93,25 @@ class YouTubeCommentProvider:
         duration_ms: int | None,
         exclude_video_id: str,
     ) -> list[str]:
-        from ..ytmusic.normalize import build_query, result_to_ref
-        from ...vendor_match.scorer import score_candidate
-        from ...settings import get_vendor_match_settings
+        from ..ytmusic.normalize import result_to_ref
+        from .video_match import video_matches
 
-        threshold = (
-            self._threshold
-            if self._threshold is not None
-            else get_vendor_match_settings().fuzzy_match_threshold
-        )
-        query = build_query(artist, title)
+        query = f"{artist} - {title}".strip()
         raw_results = self._get_ytmusic().search(
             query, filter="videos", limit=self._search_limit
         )
-        scored: list[tuple[float, str]] = []
+        out: list[str] = []
         for raw in raw_results or []:
             if not isinstance(raw, dict):
                 continue
             ref = result_to_ref(raw)
             if ref is None or ref.vendor_track_id == exclude_video_id:
                 continue
-            score = score_candidate(
-                candidate=ref, artist=artist, title=title,
-                duration_ms=duration_ms, album=None,
-            )
-            if score.total >= threshold:
-                scored.append((score.total, ref.vendor_track_id))
-        scored.sort(key=lambda t: t[0], reverse=True)
-        return [vid for _, vid in scored[:3]]
+            if video_matches(artist, title, ref.title):
+                out.append(ref.vendor_track_id)
+                if len(out) >= 3:
+                    break
+        return out
 
 
 def _safe_json(resp: Any) -> dict:
