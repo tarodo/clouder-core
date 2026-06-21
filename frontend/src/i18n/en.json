@@ -966,6 +966,12 @@
     "save_error": "Save failed: {{message}}",
     "coming_soon": "Coming soon"
   },
+  "comments": {
+    "title": "Comments",
+    "pending": "Collecting comments…",
+    "empty": "No comments yet",
+    "watch_on_youtube": "Watch on YouTube ({{count}})"
+  },
   "admin_enrichment": {
     "tabs": {
       "backlog": "Labels",
