@@ -33,4 +33,22 @@ def test_comment_provider_is_runtime_checkable() -> None:
         def collect(self, video_ref, *, limit=100):
             return []
 
+        def resolve_alternate_videos(self, *, artist, title, duration_ms, exclude_video_id):
+            return []
+
     assert isinstance(Dummy(), CommentProvider)
+
+
+def test_comment_provider_protocol_includes_resolver() -> None:
+    from collector.providers.base import CommentProvider
+
+    class Full:
+        platform = "youtube"
+
+        def collect(self, video_ref, *, limit=100):
+            return []
+
+        def resolve_alternate_videos(self, *, artist, title, duration_ms, exclude_video_id):
+            return []
+
+    assert isinstance(Full(), CommentProvider)

@@ -33,6 +33,14 @@ class CommentRow:
     rank: int
 
 
+@dataclass(frozen=True)
+class TrackMeta:
+    track_id: str
+    artist: str
+    title: str
+    duration_ms: int | None
+
+
 class CommentsRepository:
     def __init__(self, data_api: DataAPIClient) -> None:
         self._data_api = data_api
@@ -83,6 +91,7 @@ class CommentsRepository:
         status: str,
         now: datetime,
         error: str | None = None,
+        external_video_id: str | None = None,
     ) -> None:
         with self._data_api.transaction() as tx:
             self._data_api.execute(
@@ -116,14 +125,20 @@ class CommentsRepository:
                     ],
                     transaction_id=tx,
                 )
+            set_evid = ", external_video_id = :evid" if external_video_id is not None else ""
+            update_params: dict[str, Any] = {
+                "s": status, "n": len(comments), "e": error, "now": now, "c": collection_id,
+            }
+            if external_video_id is not None:
+                update_params["evid"] = external_video_id
             self._data_api.execute(
-                """
+                f"""
                 UPDATE comment_collections
                 SET status = :s, comment_count = :n, error = :e,
-                    collected_at = :now, updated_at = :now
+                    collected_at = :now, updated_at = :now{set_evid}
                 WHERE id = :c
                 """,
-                {"s": status, "n": len(comments), "e": error, "now": now, "c": collection_id},
+                update_params,
                 transaction_id=tx,
             )
 
@@ -209,6 +224,44 @@ class CommentsRepository:
         for tid, col in collections.items():
             result[tid] = (col, comments_by_track[tid][:limit_per_track])
         return result
+
+    def fetch_track_meta(self, track_ids: list[str]) -> dict[str, "TrackMeta"]:
+        """artist/title/duration for the given tracks (for fallback search).
+
+        Unlike playlists_repository.fetch_unmatched_match_inputs, this does NOT
+        anti-join vendor_track_map/match_review_queue — our tracks are already
+        matched."""
+        if not track_ids:
+            return {}
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        params: dict[str, Any] = {}
+        for i, tid in enumerate(track_ids):
+            params[f"t{i}"] = tid
+        rows = self._data_api.execute(
+            f"""
+            SELECT
+                t.id AS track_id,
+                t.title,
+                t.length_ms,
+                COALESCE(STRING_AGG(DISTINCT a.name, ', ' ORDER BY a.name), '') AS artist_names
+            FROM clouder_tracks t
+            LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
+            LEFT JOIN clouder_artists       a   ON a.id = cta.artist_id
+            WHERE t.id IN ({placeholders})
+            GROUP BY t.id, t.title, t.length_ms
+            """,
+            params,
+        )
+        out: dict[str, TrackMeta] = {}
+        for r in rows:
+            length = r.get("length_ms")
+            out[r["track_id"]] = TrackMeta(
+                track_id=r["track_id"],
+                artist=r.get("artist_names") or "",
+                title=r.get("title") or "",
+                duration_ms=int(length) if length is not None else None,
+            )
+        return out
 
     def list_comments(
         self, *, track_id: str, platform: str, limit: int

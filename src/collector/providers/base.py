@@ -147,3 +147,15 @@ class CommentProvider(Protocol):
     def collect(self, video_ref: str, *, limit: int = 100) -> list[CollectedComment]:
         """Return up to `limit` top-level comments for `video_ref`."""
         ...
+
+    def resolve_alternate_videos(
+        self,
+        *,
+        artist: str,
+        title: str,
+        duration_ms: int | None,
+        exclude_video_id: str,
+    ) -> list[str]:
+        """Best-first regular-video ids likely to have comments enabled, when
+        the primary video's comments are disabled. Empty when none/unsupported."""
+        ...

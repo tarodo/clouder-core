@@ -291,3 +291,66 @@ def test_list_comments_for_tracks_no_collections_skips_second_query():
 
     assert result == {}
     assert all("external_comments" not in sql for sql, *_ in api.calls)
+
+
+# ---------------------------------------------------------------------------
+# fetch_track_meta
+# ---------------------------------------------------------------------------
+
+def test_fetch_track_meta_maps_rows():
+    api = FakeDataAPI([
+        ("FROM clouder_tracks t", [
+            {"track_id": "t1", "title": "Lost Track",
+             "length_ms": 225000, "artist_names": "Guri, Eider"},
+        ]),
+    ])
+    repo = CommentsRepository(api)
+    meta = repo.fetch_track_meta(["t1"])
+    assert "t1" in meta
+    assert meta["t1"].title == "Lost Track"
+    assert meta["t1"].artist == "Guri, Eider"
+    assert meta["t1"].duration_ms == 225000
+
+
+def test_fetch_track_meta_empty_input():
+    repo = CommentsRepository(FakeDataAPI([]))
+    assert repo.fetch_track_meta([]) == {}
+
+
+def test_fetch_track_meta_maps_null_duration():
+    api = FakeDataAPI([
+        ("FROM clouder_tracks t", [
+            {"track_id": "t1", "title": "Solo", "length_ms": None, "artist_names": ""},
+        ]),
+    ])
+    repo = CommentsRepository(api)
+    meta = repo.fetch_track_meta(["t1"])["t1"]
+    assert meta.duration_ms is None and meta.artist == ""
+
+
+# ---------------------------------------------------------------------------
+# store_comments with external_video_id
+# ---------------------------------------------------------------------------
+
+def test_store_comments_updates_external_video_id_when_provided():
+    api = FakeDataAPI()
+    repo = CommentsRepository(api)
+    repo.store_comments(
+        collection_id="col1", platform="youtube", comments=[],
+        status="collected", now=NOW, external_video_id="alt-vid",
+    )
+    update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][:1][0][:2]
+    assert "external_video_id = :evid" in update_sql
+    assert params["evid"] == "alt-vid"
+
+
+def test_store_comments_omits_external_video_id_when_not_provided():
+    api = FakeDataAPI()
+    repo = CommentsRepository(api)
+    repo.store_comments(
+        collection_id="col1", platform="youtube", comments=[],
+        status="empty", now=NOW,
+    )
+    update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][:1][0][:2]
+    assert "external_video_id" not in update_sql
+    assert "evid" not in params
