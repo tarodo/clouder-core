@@ -9,6 +9,7 @@ export in Plan 4).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 
@@ -124,3 +125,25 @@ class ProviderBundle:
     lookup: LookupProvider | None = None
     enrich: EnrichProvider | None = None
     export: ExportProvider | None = None
+
+
+@dataclass(frozen=True)
+class CollectedComment:
+    """Platform-agnostic comment captured from an external video/track."""
+
+    external_id: str
+    author_name: str
+    author_avatar_url: str | None
+    text: str
+    like_count: int
+    published_at: datetime | None
+    rank: int  # 0-based position in the provider's returned order
+
+
+@runtime_checkable
+class CommentProvider(Protocol):
+    platform: str
+
+    def collect(self, video_ref: str, *, limit: int = 100) -> list["CollectedComment"]:
+        """Return up to `limit` top-level comments for `video_ref`."""
+        ...
