@@ -326,3 +326,31 @@ def test_fetch_track_meta_maps_null_duration():
     repo = CommentsRepository(api)
     meta = repo.fetch_track_meta(["t1"])["t1"]
     assert meta.duration_ms is None and meta.artist == ""
+
+
+# ---------------------------------------------------------------------------
+# store_comments with external_video_id
+# ---------------------------------------------------------------------------
+
+def test_store_comments_updates_external_video_id_when_provided():
+    api = FakeDataAPI()
+    repo = CommentsRepository(api)
+    repo.store_comments(
+        collection_id="col1", platform="youtube", comments=[],
+        status="collected", now=NOW, external_video_id="alt-vid",
+    )
+    update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][:1][0][:2]
+    assert "external_video_id = :evid" in update_sql
+    assert params["evid"] == "alt-vid"
+
+
+def test_store_comments_omits_external_video_id_when_not_provided():
+    api = FakeDataAPI()
+    repo = CommentsRepository(api)
+    repo.store_comments(
+        collection_id="col1", platform="youtube", comments=[],
+        status="empty", now=NOW,
+    )
+    update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][:1][0][:2]
+    assert "external_video_id" not in update_sql
+    assert "evid" not in params

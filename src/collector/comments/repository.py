@@ -91,6 +91,7 @@ class CommentsRepository:
         status: str,
         now: datetime,
         error: str | None = None,
+        external_video_id: str | None = None,
     ) -> None:
         with self._data_api.transaction() as tx:
             self._data_api.execute(
@@ -124,14 +125,20 @@ class CommentsRepository:
                     ],
                     transaction_id=tx,
                 )
+            set_evid = ", external_video_id = :evid" if external_video_id is not None else ""
+            update_params: dict[str, Any] = {
+                "s": status, "n": len(comments), "e": error, "now": now, "c": collection_id,
+            }
+            if external_video_id is not None:
+                update_params["evid"] = external_video_id
             self._data_api.execute(
-                """
+                f"""
                 UPDATE comment_collections
                 SET status = :s, comment_count = :n, error = :e,
-                    collected_at = :now, updated_at = :now
+                    collected_at = :now, updated_at = :now{set_evid}
                 WHERE id = :c
                 """,
-                {"s": status, "n": len(comments), "e": error, "now": now, "c": collection_id},
+                update_params,
                 transaction_id=tx,
             )
 
