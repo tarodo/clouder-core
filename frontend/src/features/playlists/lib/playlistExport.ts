@@ -41,6 +41,8 @@ export function beatportTrackUrl(
 }
 
 function mapComments(comments: TrackComment[]): PlaylistExportComment[] {
+  // author_avatar_url is intentionally dropped — avatar URLs are noise in a
+  // shareable text/JSON export.
   return comments.map((c) => ({
     author: c.author_name,
     text: c.text,

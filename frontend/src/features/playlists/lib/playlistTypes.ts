@@ -157,13 +157,9 @@ export interface TrackCommentsResponse {
   comments: TrackComment[];
 }
 
-export interface PlaylistTrackComments {
+export type PlaylistTrackComments = TrackCommentsResponse & {
   track_id: string;
-  status: TrackCommentsStatus;
-  comment_count: number;
-  video_url: string | null;
-  comments: TrackComment[];
-}
+};
 
 export interface PlaylistCommentsResponse {
   tracks: PlaylistTrackComments[];
