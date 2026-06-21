@@ -546,6 +546,12 @@ variable "gemini_api_key_ssm_parameter" {
   default     = ""
 }
 
+variable "youtube_api_key_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) for the YouTube Data API key (comments-collect worker)."
+  type        = string
+  default     = ""
+}
+
 variable "openai_api_key_ssm_parameter" {
   description = "SSM Parameter Store name (SecureString) for the OpenAI API key."
   type        = string

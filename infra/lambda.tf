@@ -326,19 +326,6 @@ resource "aws_lambda_event_source_mapping" "auto_enrich_dispatch_queue" {
 # ── Comments collect worker ──────────────────────────────────────
 
 # Shared developer key for the YouTube Data API v3 comment provider.
-# Placeholder value seeded here; the real key is set out-of-band (console/CLI)
-# and ignored on drift below — mirrors the jwt_signing_key SSM convention.
-resource "aws_ssm_parameter" "youtube_api_key" {
-  name        = "/${local.name_prefix}/youtube-api-key"
-  description = "Shared YouTube Data API v3 key used by the comments-collect worker."
-  type        = "SecureString"
-  value       = "REPLACE_ME"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}
-
 resource "aws_lambda_function" "comments_collect_worker" {
   function_name = local.comments_collect_worker_lambda_name
   role          = aws_iam_role.collector_lambda.arn
@@ -356,7 +343,7 @@ resource "aws_lambda_function" "comments_collect_worker" {
       AURORA_SECRET_ARN             = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
       AURORA_DATABASE               = var.aurora_database_name
       COMMENT_PLATFORMS_ENABLED     = "youtube"
-      YOUTUBE_API_KEY_SSM_PARAMETER = aws_ssm_parameter.youtube_api_key.name
+      YOUTUBE_API_KEY_SSM_PARAMETER = var.youtube_api_key_ssm_parameter
       LOG_LEVEL                     = "INFO"
     }
   }

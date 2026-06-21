@@ -163,6 +163,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       var.openai_api_key_ssm_parameter,
       var.tavily_api_key_ssm_parameter,
       var.deepseek_api_key_ssm_parameter,
+      var.youtube_api_key_ssm_parameter,
     ])) > 0 ? [1] : []
     content {
       sid     = "AllowReadWorkerSsmParameters"
@@ -177,6 +178,7 @@ data "aws_iam_policy_document" "collector_lambda" {
         var.openai_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.openai_api_key_ssm_parameter}" : "",
         var.tavily_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.tavily_api_key_ssm_parameter}" : "",
         var.deepseek_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.deepseek_api_key_ssm_parameter}" : "",
+        var.youtube_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.youtube_api_key_ssm_parameter}" : "",
       ])
     }
   }
@@ -191,6 +193,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       var.openai_api_key_ssm_parameter,
       var.tavily_api_key_ssm_parameter,
       var.deepseek_api_key_ssm_parameter,
+      var.youtube_api_key_ssm_parameter,
     ])) > 0 ? [1] : []
     content {
       sid       = "AllowWorkerSsmKmsDecrypt"
@@ -217,20 +220,6 @@ data "aws_iam_policy_document" "collector_lambda" {
     resources = [
       "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.jwt_signing_key_ssm_parameter}",
     ]
-  }
-
-  statement {
-    sid       = "AllowReadYouTubeApiKeySsmParameter"
-    effect    = "Allow"
-    actions   = ["ssm:GetParameter"]
-    resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${aws_ssm_parameter.youtube_api_key.name}"]
-  }
-
-  statement {
-    sid       = "AllowYouTubeApiKeySsmKmsDecrypt"
-    effect    = "Allow"
-    actions   = ["kms:Decrypt"]
-    resources = ["arn:aws:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:alias/aws/ssm"]
   }
 
   statement {
