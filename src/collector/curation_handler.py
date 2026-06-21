@@ -1715,6 +1715,20 @@ def _handle_list_track_tags(
     )
 
 
+def _serialize_comment(c) -> dict[str, Any]:
+    return {
+        "author_name": c.author_name,
+        "author_avatar_url": c.author_avatar_url,
+        "text": c.text,
+        "like_count": c.like_count,
+        "published_at": (
+            c.published_at.isoformat()
+            if hasattr(c.published_at, "isoformat")
+            else c.published_at
+        ),
+    }
+
+
 def _handle_list_track_comments(event, repo, user_id, correlation_id):
     pp = event.get("pathParameters") or {}
     track_id = pp.get("track_id")
@@ -1750,21 +1764,62 @@ def _handle_list_track_comments(event, repo, user_id, correlation_id):
             "status": collection.status,
             "comment_count": collection.comment_count,
             "video_url": video_url,
-            "comments": [
-                {
-                    "author_name": c.author_name,
-                    "author_avatar_url": c.author_avatar_url,
-                    "text": c.text,
-                    "like_count": c.like_count,
-                    "published_at": (
-                        c.published_at.isoformat()
-                        if hasattr(c.published_at, "isoformat")
-                        else c.published_at
-                    ),
-                }
-                for c in comments
-            ],
+            "comments": [_serialize_comment(c) for c in comments],
         },
+        correlation_id,
+    )
+
+
+def _handle_list_playlist_comments(event, repo, user_id, correlation_id):
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+
+    qs = event.get("queryStringParameters") or {}
+    platform = (qs.get("platform") or "youtube").strip() or "youtube"
+
+    rows, _total = repo.list_tracks(
+        user_id=user_id, playlist_id=pid, limit=10_000, offset=0
+    )
+
+    comments_repo = _comments_factory()
+    if comments_repo is None:
+        return _error(503, "db_not_configured", "Database not configured", correlation_id)
+
+    track_ids = [r.track_id for r in rows]
+    by_track = comments_repo.list_comments_for_tracks(
+        track_ids=track_ids, platform=platform, limit_per_track=100
+    )
+
+    tracks_out = []
+    for r in rows:
+        tid = r.track_id
+        if tid not in by_track:
+            tracks_out.append({
+                "track_id": tid,
+                "status": "pending",
+                "comment_count": 0,
+                "video_url": None,
+                "comments": [],
+            })
+        else:
+            collection, comments = by_track[tid]
+            video_url = (
+                f"https://www.youtube.com/watch?v={collection.external_video_id}"
+                if platform == "youtube"
+                else None
+            )
+            tracks_out.append({
+                "track_id": tid,
+                "status": collection.status,
+                "comment_count": collection.comment_count,
+                "video_url": video_url,
+                "comments": [_serialize_comment(c) for c in comments],
+            })
+
+    return _json_response(
+        200,
+        {"tracks": tracks_out, "correlation_id": correlation_id},
         correlation_id,
     )
 
@@ -2022,5 +2077,8 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     ),
     "POST /playlists/{id}/tracks/{track_id}/match-resolve": (
         _handle_resolve_match, _playlists_factory,
+    ),
+    "GET /playlists/{id}/comments": (
+        _handle_list_playlist_comments, _playlists_factory,
     ),
 }
