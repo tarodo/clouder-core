@@ -257,3 +257,20 @@ def test_disabled_primary_alternate_empty_marks_empty(monkeypatch):
     _patch_fb(monkeypatch, repo, provider)
     worker.lambda_handler(_fb_event(), None)
     assert repo.stored[0]["status"] == "empty"
+    # external_video_id points at the real alt video reached (not the disabled art track).
+    assert repo.stored[0]["external_video_id"] == "a"
+
+
+def test_disabled_primary_alternate_generic_error_marks_failed(monkeypatch):
+    """A generic (non-disabled) error while collecting an alternate aborts the
+    record to 'failed' (never re-raised) — it is not swallowed as disabled."""
+    repo = FallbackFakeRepo()
+    provider = FallbackProvider(
+        primary=CommentsDisabledError("art1"),
+        alts=["a"], alt_behavior={"a": RuntimeError("network")},
+    )
+    _patch_fb(monkeypatch, repo, provider)
+    out = worker.lambda_handler(_fb_event(), None)
+    assert out["processed"] == 1
+    assert repo.stored[0]["status"] == "failed"
+    assert "network" in repo.stored[0]["error"]

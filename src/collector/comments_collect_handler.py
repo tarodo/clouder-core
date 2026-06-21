@@ -10,8 +10,13 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .comments.messages import CommentCollectMessage
 from .comments.registry import CommentPlatformDisabledError, get_comment_provider
-from .comments.repository import CommentsRepository, create_default_comments_repository
+from .comments.repository import (
+    CommentsRepository,
+    TrackMeta,
+    create_default_comments_repository,
+)
 from .logging_utils import log_event
+from .providers.base import CollectedComment, CommentProvider
 from .providers.youtube.comments import CommentsDisabledError
 from .settings import get_comment_collection_worker_settings
 
@@ -27,9 +32,13 @@ def _build_repository() -> CommentsRepository:
     return repo
 
 
-def _resolve_and_collect(provider: Any, *, primary_video_id: str, meta: Any) -> tuple[str, list, str]:
+def _resolve_and_collect(
+    provider: CommentProvider, *, primary_video_id: str, meta: TrackMeta | None
+) -> tuple[str, list[CollectedComment], str]:
     """Collect from the primary video; on CommentsDisabledError, fall back to up to
-    3 resolver-provided regular videos. Returns (status, comments, video_id).
+    3 resolver-provided regular videos. Returns (status, comments, video_id), where
+    video_id is the video actually reached (the collected-from one, or the first
+    real alternate even when it had no comments).
 
     Raises are left to the caller (generic/platform errors -> 'failed')."""
     try:
@@ -38,15 +47,16 @@ def _resolve_and_collect(provider: Any, *, primary_video_id: str, meta: Any) -> 
     except CommentsDisabledError:
         pass
 
-    resolver = getattr(provider, "resolve_alternate_videos", None)
-    if meta is None or resolver is None:
+    # Need track metadata to build the fallback search query.
+    if meta is None:
         return ("disabled", [], primary_video_id)
 
-    alts = resolver(
+    alts = provider.resolve_alternate_videos(
         artist=meta.artist, title=meta.title,
         duration_ms=meta.duration_ms, exclude_video_id=primary_video_id,
     )
-    saw_empty = False
+    first_empty_alt: str | None = None
+    # belt-and-suspenders: the resolver already caps at 3 best-scored ids.
     for alt in (alts or [])[:3]:
         try:
             comments = provider.collect(alt, limit=100)
@@ -54,8 +64,12 @@ def _resolve_and_collect(provider: Any, *, primary_video_id: str, meta: Any) -> 
             continue
         if comments:
             return ("collected", comments, alt)
-        saw_empty = True
-    return ("empty" if saw_empty else "disabled", [], primary_video_id)
+        if first_empty_alt is None:
+            first_empty_alt = alt
+    # A real video was reached but had no comments -> point at it; else disabled.
+    if first_empty_alt is not None:
+        return ("empty", [], first_empty_alt)
+    return ("disabled", [], primary_video_id)
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
