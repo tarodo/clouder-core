@@ -616,3 +616,27 @@ variable "auto_enrich_dispatch_worker_max_concurrency" {
     error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
   }
 }
+
+variable "comments_collect_queue_visibility_timeout_seconds" {
+  description = "SQS visibility timeout in seconds (worker timeout + buffer)."
+  type        = number
+  default     = 120
+}
+
+variable "comments_collect_queue_retention_seconds" {
+  description = "SQS message retention in seconds."
+  type        = number
+  default     = 1209600
+}
+
+variable "comments_collect_queue_max_receive_count" {
+  description = "SQS receives before message moves to DLQ."
+  type        = number
+  default     = 3
+}
+
+variable "comments_collect_worker_lambda_timeout_seconds" {
+  description = "Lambda timeout for the comments-collect worker."
+  type        = number
+  default     = 60
+}
