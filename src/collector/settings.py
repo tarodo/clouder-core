@@ -221,6 +221,10 @@ class ArtistEnrichmentWorkerSettings(_SettingsBase):
     )
 
 
+class CommentCollectionWorkerSettings(_SettingsBase):
+    youtube_api_key: str = Field(default="")
+
+
 @functools.lru_cache
 def get_api_settings() -> ApiSettings:
     return ApiSettings()
@@ -275,6 +279,12 @@ def get_artist_enrichment_worker_settings() -> ArtistEnrichmentWorkerSettings:
 
 
 @functools.lru_cache
+def get_comment_collection_worker_settings() -> CommentCollectionWorkerSettings:
+    youtube = _resolve_simple_secret("YOUTUBE_API_KEY", "YOUTUBE_API_KEY_SECRET_ARN")
+    return CommentCollectionWorkerSettings(youtube_api_key=youtube)
+
+
+@functools.lru_cache
 def get_vendor_match_settings() -> VendorMatchSettings:
     return VendorMatchSettings()
 
@@ -298,6 +308,7 @@ def reset_settings_cache() -> None:
     get_vendor_match_settings.cache_clear()
     get_label_enrichment_worker_settings.cache_clear()
     get_artist_enrichment_worker_settings.cache_clear()
+    get_comment_collection_worker_settings.cache_clear()
     if hasattr(_fetch_secret_string, "cache_clear"):
         _fetch_secret_string.cache_clear()
 

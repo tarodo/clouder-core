@@ -546,6 +546,12 @@ variable "gemini_api_key_ssm_parameter" {
   default     = ""
 }
 
+variable "youtube_api_key_ssm_parameter" {
+  description = "SSM Parameter Store name (SecureString) for the YouTube Data API key (comments-collect worker)."
+  type        = string
+  default     = ""
+}
+
 variable "openai_api_key_ssm_parameter" {
   description = "SSM Parameter Store name (SecureString) for the OpenAI API key."
   type        = string
@@ -615,4 +621,40 @@ variable "auto_enrich_dispatch_worker_max_concurrency" {
     condition     = var.auto_enrich_dispatch_worker_max_concurrency >= 2 && var.auto_enrich_dispatch_worker_max_concurrency <= 1000
     error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
   }
+}
+
+variable "comments_collect_queue_visibility_timeout_seconds" {
+  description = "SQS visibility timeout in seconds (worker timeout + buffer)."
+  type        = number
+  default     = 120
+}
+
+variable "comments_collect_queue_retention_seconds" {
+  description = "SQS message retention in seconds."
+  type        = number
+  default     = 1209600
+}
+
+variable "comments_collect_queue_max_receive_count" {
+  description = "SQS receives before message moves to DLQ."
+  type        = number
+  default     = 3
+}
+
+variable "comments_collect_worker_lambda_timeout_seconds" {
+  description = "Lambda timeout for the comments-collect worker."
+  type        = number
+  default     = 60
+}
+
+variable "comments_collect_worker_lambda_memory_mb" {
+  description = "Comments-collect worker Lambda memory size in MB."
+  type        = number
+  default     = 512
+}
+
+variable "comments_collect_batch_size" {
+  description = "SQS batch size for the comments-collect worker lambda."
+  type        = number
+  default     = 1
 }

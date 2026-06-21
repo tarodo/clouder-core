@@ -11,6 +11,7 @@ import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import { PlayerPanelTagCloud } from '../../categories/components/PlayerPanelTagCloud';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { CommentsPanel } from './CommentsPanel';
 import { LabelTile } from '../../library/components/LabelTile';
 import type { PlaylistTrack } from '../lib/playlistTypes';
 import classes from './PlaylistPlayerPanel.module.css';
@@ -234,6 +235,7 @@ export function PlaylistPlayerPanel({ playlistId, items }: PlaylistPlayerPanelPr
         labelName={effectiveRich?.label?.name ?? null}
       />
       <ArtistsPanel artists={effectiveRich?.artists ?? []} />
+      <CommentsPanel trackId={current.id} />
     </Stack>
   );
 }

@@ -274,7 +274,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
           <Group gap="sm" align="center">
             <PublishButton playlist={playlist} />
             <PublishYtMusicButton playlist={playlist} />
-            <CopyPlaylistButton playlistName={playlist.name} tracks={tracks} />
+            <CopyPlaylistButton playlistName={playlist.name} tracks={tracks} playlistId={playlist.id} />
             {playlist.spotify_playlist_id ? (
               <Tooltip label={t('playlists.detail.open_spotify')} withinPortal>
                 <ActionIcon

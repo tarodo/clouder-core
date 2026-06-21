@@ -63,6 +63,7 @@ describe('buildPlaylistExport', () => {
       beatport_url: 'https://www.beatport.com/track/strobe/123456',
       spotify_url: 'https://open.spotify.com/track/sp1',
       youtube_music_url: 'https://music.youtube.com/watch?v=yt1',
+      comments: [],
     });
   });
 
@@ -89,6 +90,7 @@ describe('buildPlaylistExport', () => {
     expect(t.beatport_url).toBeNull();
     expect(t.spotify_url).toBeNull();
     expect(t.youtube_music_url).toBeNull();
+    expect(t.comments).toEqual([]);
   });
 
   it('omits the YouTube URL when the match is not "matched"', () => {
@@ -103,5 +105,30 @@ describe('buildPlaylistExport', () => {
       track({ ytmusic: { status: 'matched', url: null } }),
     ]).tracks[0]!;
     expect(t.youtube_music_url).toBeNull();
+  });
+
+  it('includes mapped comments when commentsByTrack is provided', () => {
+    const tr = track({ track_id: 't1' });
+    const commentsByTrack = {
+      t1: [
+        {
+          author_name: 'Alice',
+          author_avatar_url: 'https://example.com/avatar.jpg',
+          text: 'Great track!',
+          like_count: 42,
+          published_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+    };
+    const out = buildPlaylistExport('My set', [tr], commentsByTrack);
+    expect(out.tracks[0]!.comments).toEqual([
+      { author: 'Alice', text: 'Great track!', like_count: 42, published_at: '2026-01-01T00:00:00Z' },
+    ]);
+  });
+
+  it('falls back to empty comments for tracks missing from commentsByTrack', () => {
+    const tr = track({ track_id: 't1' });
+    const out = buildPlaylistExport('My set', [tr], {});
+    expect(out.tracks[0]!.comments).toEqual([]);
   });
 });

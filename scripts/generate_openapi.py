@@ -177,6 +177,56 @@ TAG_RESPONSE = {
     },
 }
 
+COMMENT_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["author_name", "author_avatar_url", "text", "like_count", "published_at"],
+    "properties": {
+        "author_name": {"type": "string"},
+        "author_avatar_url": {"type": "string", "nullable": True},
+        "text": {"type": "string"},
+        "like_count": {"type": "integer"},
+        "published_at": {"type": "string", "format": "date-time", "nullable": True},
+    },
+}
+
+TRACK_COMMENTS_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["status", "comment_count", "video_url", "comments"],
+    "properties": {
+        "status": {
+            "type": "string",
+            "enum": ["pending", "collected", "empty", "disabled", "failed"],
+        },
+        "comment_count": {"type": "integer"},
+        "video_url": {"type": "string", "nullable": True},
+        "comments": {"type": "array", "items": COMMENT_RESPONSE},
+    },
+}
+
+PLAYLIST_TRACK_COMMENTS: dict[str, Any] = {
+    "type": "object",
+    "required": ["track_id", "status", "comment_count", "video_url", "comments"],
+    "properties": {
+        "track_id": {"type": "string"},
+        "status": {
+            "type": "string",
+            "enum": ["pending", "collected", "empty", "disabled", "failed"],
+        },
+        "comment_count": {"type": "integer"},
+        "video_url": {"type": "string", "nullable": True},
+        "comments": {"type": "array", "items": COMMENT_RESPONSE},
+    },
+}
+
+PLAYLIST_COMMENTS_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["tracks"],
+    "properties": {
+        "tracks": {"type": "array", "items": PLAYLIST_TRACK_COMMENTS},
+        "correlation_id": {"type": "string"},
+    },
+}
+
 TAG_LIST_RESPONSE = {
     "type": "object",
     "required": ["items", "total", "limit", "offset"],
@@ -2518,6 +2568,26 @@ ROUTES: list[dict[str, Any]] = [
         },
     },
     {
+        "method": "get",
+        "path": "/tracks/{track_id}/comments",
+        "auth": AUTH,
+        "summary": "List collected external comments for a track (first N).",
+        "description": (
+            "Returns YouTube comments collected for the track's matched video. "
+            "`status` is pending until collection completes. Query: `platform` "
+            "(default youtube), `limit` (default 5, max 100)."
+        ),
+        "parameters": [
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {"name": "platform", "in": "query", "required": False, "schema": {"type": "string"}},
+            {"name": "limit", "in": "query", "required": False, "schema": {"type": "integer"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Track comments.", TRACK_COMMENTS_RESPONSE),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
         "method": "put",
         "path": "/tracks/{track_id}/tags",
         "auth": AUTH,
@@ -2719,6 +2789,26 @@ ROUTES: list[dict[str, Any]] = [
         ],
         "responses": {
             "200": _make_response(200, "Paginated playlist tracks.", PLAYLIST_TRACKS_LIST_RESPONSE),
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/playlists/{id}/comments",
+        "auth": AUTH,
+        "summary": "Bulk-fetch collected comments for all tracks in a playlist.",
+        "description": (
+            "Returns one entry per playlist track with its comment status, count, "
+            "video URL, and the collected comments. `status` is pending until "
+            "collection completes for that track. Query: `platform` (default youtube)."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {"name": "platform", "in": "query", "required": False, "schema": {"type": "string"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Per-track comments for the playlist.", PLAYLIST_COMMENTS_RESPONSE),
             "404": _error(404, "playlist_not_found."),
             **COMMON_AUTH_ERRORS,
         },
@@ -3800,6 +3890,8 @@ def build_openapi() -> dict[str, Any]:
                 "ArtistHistoryCell": ARTIST_HISTORY_CELL,
                 "ArtistHistoryResponse": ARTIST_HISTORY_RESPONSE,
                 "PlaylistTrackResponse": PLAYLIST_TRACK_RESPONSE,
+                "PlaylistTrackComments": PLAYLIST_TRACK_COMMENTS,
+                "PlaylistCommentsResponse": PLAYLIST_COMMENTS_RESPONSE,
             },
         },
     }

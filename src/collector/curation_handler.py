@@ -96,6 +96,7 @@ from .artist_enrichment.auto_dispatch import (
     try_dispatch_artists_for_triage_block,
 )
 from .curation.auto_enrich_dispatch import enqueue_block_auto_enrich
+from .comments.dispatch import try_dispatch_comment_collection
 from .logging_utils import log_event
 from .providers.ytmusic.normalize import result_to_ref
 
@@ -371,6 +372,10 @@ def _handle_resolve_match(event, repo, user_id, correlation_id):
             clouder_track_id=track_id, vendor=body.vendor,
             vendor_track_id=body.vendor_track_id, payload=payload, now=utc_now(),
         )
+        if body.vendor == "ytmusic":
+            try_dispatch_comment_collection(
+                track_id=track_id, video_id=body.vendor_track_id, platform="youtube"
+            )
     else:
         repo.resolve_review_reject(
             clouder_track_id=track_id, vendor=body.vendor, now=utc_now(),
@@ -1710,6 +1715,120 @@ def _handle_list_track_tags(
     )
 
 
+def _serialize_comment(c) -> dict[str, Any]:
+    return {
+        "author_name": c.author_name,
+        "author_avatar_url": c.author_avatar_url,
+        "text": c.text,
+        "like_count": c.like_count,
+        "published_at": (
+            c.published_at.isoformat()
+            if hasattr(c.published_at, "isoformat")
+            else c.published_at
+        ),
+    }
+
+
+def _handle_list_track_comments(event, repo, user_id, correlation_id):
+    pp = event.get("pathParameters") or {}
+    track_id = pp.get("track_id")
+    if not track_id:
+        raise ValidationError("track_id is required in path")
+
+    qs = event.get("queryStringParameters") or {}
+    platform = (qs.get("platform") or "youtube").strip() or "youtube"
+    try:
+        limit = int(qs.get("limit") or 5)
+    except (TypeError, ValueError):
+        limit = 5
+    limit = max(1, min(limit, 100))
+
+    collection, comments = repo.list_comments(
+        track_id=track_id, platform=platform, limit=limit
+    )
+    if collection is None:
+        return _json_response(
+            200,
+            {"status": "pending", "comment_count": 0, "video_url": None, "comments": []},
+            correlation_id,
+        )
+
+    video_url = (
+        f"https://www.youtube.com/watch?v={collection.external_video_id}"
+        if platform == "youtube"
+        else None
+    )
+    return _json_response(
+        200,
+        {
+            "status": collection.status,
+            "comment_count": collection.comment_count,
+            "video_url": video_url,
+            "comments": [_serialize_comment(c) for c in comments],
+        },
+        correlation_id,
+    )
+
+
+def _handle_list_playlist_comments(event, playlists_repo, user_id, correlation_id):
+    # Two-repo handler (cf. _handle_publish_ytmusic): the route's factory is
+    # _playlists_factory, so the injected repo is the PlaylistsRepository (used
+    # for the user-scoped track listing). The comments repo is built separately
+    # via _comments_factory() below. Note: in the single-track sibling
+    # _handle_list_track_comments the injected repo IS the comments repo.
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+
+    qs = event.get("queryStringParameters") or {}
+    platform = (qs.get("platform") or "youtube").strip() or "youtube"
+
+    rows, _total = playlists_repo.list_tracks(
+        user_id=user_id, playlist_id=pid, limit=10_000, offset=0
+    )
+
+    comments_repo = _comments_factory()
+    if comments_repo is None:
+        return _error(503, "db_not_configured", "Database not configured", correlation_id)
+
+    track_ids = [r.track_id for r in rows]
+    by_track = comments_repo.list_comments_for_tracks(
+        track_ids=track_ids, platform=platform, limit_per_track=100
+    )
+
+    tracks_out = []
+    for r in rows:
+        tid = r.track_id
+        if tid not in by_track:
+            tracks_out.append({
+                "track_id": tid,
+                "status": "pending",
+                "comment_count": 0,
+                "video_url": None,
+                "comments": [],
+            })
+        else:
+            collection, comments = by_track[tid]
+            video_url = (
+                f"https://www.youtube.com/watch?v={collection.external_video_id}"
+                if platform == "youtube"
+                else None
+            )
+            tracks_out.append({
+                "track_id": tid,
+                "status": collection.status,
+                "comment_count": collection.comment_count,
+                "video_url": video_url,
+                "comments": [_serialize_comment(c) for c in comments],
+            })
+
+    return _json_response(
+        200,
+        {"tracks": tracks_out, "correlation_id": correlation_id},
+        correlation_id,
+    )
+
+
 def _handle_set_track_tags(
     event, repo: TagsRepository, user_id: str, correlation_id: str
 ):
@@ -1781,6 +1900,12 @@ def _triage_factory() -> Any:
 
 def _tags_factory() -> Any:
     return create_default_tags_repository()
+
+
+def _comments_factory() -> Any:
+    from collector.comments.repository import create_default_comments_repository
+
+    return create_default_comments_repository()
 
 
 def _playlists_factory() -> Any:
@@ -1917,6 +2042,7 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "PATCH /tags/{tag_id}": (_handle_rename_tag, _tags_factory),
     "DELETE /tags/{tag_id}": (_handle_delete_tag, _tags_factory),
     "GET /tracks/{track_id}/tags": (_handle_list_track_tags, _tags_factory),
+    "GET /tracks/{track_id}/comments": (_handle_list_track_comments, _comments_factory),
     "PUT /tracks/{track_id}/tags": (_handle_set_track_tags, _tags_factory),
     "POST /tracks/{track_id}/tags": (_handle_add_track_tag, _tags_factory),
     "DELETE /tracks/{track_id}/tags/{tag_id}": (_handle_remove_track_tag, _tags_factory),
@@ -1956,5 +2082,8 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     ),
     "POST /playlists/{id}/tracks/{track_id}/match-resolve": (
         _handle_resolve_match, _playlists_factory,
+    ),
+    "GET /playlists/{id}/comments": (
+        _handle_list_playlist_comments, _playlists_factory,
     ),
 }

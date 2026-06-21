@@ -77,6 +77,9 @@ jobs:
           aws ssm put-parameter --name /clouder/ytmusic/client_secret \
             --value "${{ secrets.YTMUSIC_CLIENT_SECRET }}" \
             --type SecureString --overwrite
+          aws ssm put-parameter --name /clouder/youtube/api_key \
+            --value "${{ secrets.YOUTUBE_API_KEY }}" \
+            --type SecureString --overwrite
 
       - name: Terraform apply
         run: |

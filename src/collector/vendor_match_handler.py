@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError as PydanticValidationError
 
+from .comments.dispatch import try_dispatch_comment_collection
 from .errors import VendorDisabledError
 from .logging_utils import log_event
 from .providers import registry
@@ -64,6 +65,17 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             processed += 1
 
     return {"processed": processed}
+
+
+def _maybe_dispatch_comments(vendor: str, track_id: str, video_id: str) -> None:
+    """Trigger comment collection only for the YouTube (ytmusic) vendor."""
+    from .vendor_match.enqueue import YTMUSIC_VENDOR
+
+    if vendor != YTMUSIC_VENDOR:
+        return
+    try_dispatch_comment_collection(
+        track_id=track_id, video_id=video_id, platform="youtube"
+    )
 
 
 def _process_one(
@@ -121,6 +133,7 @@ def _process_one(
                 match_type="isrc",
                 confidence=1.0,
             )
+            _maybe_dispatch_comments(message.vendor, message.clouder_track_id, ref.vendor_track_id)
             return True
 
     candidates = _try_metadata(lookup, message) or []
@@ -161,6 +174,7 @@ def _process_one(
             match_type="fuzzy",
             confidence=float(best_score.total),
         )
+        _maybe_dispatch_comments(message.vendor, message.clouder_track_id, best_cand.vendor_track_id)
         return True
 
     top5 = [

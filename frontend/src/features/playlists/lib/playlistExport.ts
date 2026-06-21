@@ -1,5 +1,12 @@
 // frontend/src/features/playlists/lib/playlistExport.ts
-import type { PlaylistTrack } from './playlistTypes';
+import type { PlaylistTrack, TrackComment } from './playlistTypes';
+
+export interface PlaylistExportComment {
+  author: string;
+  text: string;
+  like_count: number;
+  published_at: string | null;
+}
 
 export interface PlaylistExportTrack {
   title: string;
@@ -10,6 +17,7 @@ export interface PlaylistExportTrack {
   beatport_url: string | null;
   spotify_url: string | null;
   youtube_music_url: string | null;
+  comments: PlaylistExportComment[];
 }
 
 export interface PlaylistExport {
@@ -32,9 +40,21 @@ export function beatportTrackUrl(
   return `https://www.beatport.com/track/${s}/${id}`;
 }
 
+function mapComments(comments: TrackComment[]): PlaylistExportComment[] {
+  // author_avatar_url is intentionally dropped — avatar URLs are noise in a
+  // shareable text/JSON export.
+  return comments.map((c) => ({
+    author: c.author_name,
+    text: c.text,
+    like_count: c.like_count,
+    published_at: c.published_at,
+  }));
+}
+
 export function buildPlaylistExport(
   playlistName: string,
   tracks: PlaylistTrack[],
+  commentsByTrack?: Record<string, TrackComment[]>,
 ): PlaylistExport {
   return {
     playlist: playlistName,
@@ -49,6 +69,7 @@ export function buildPlaylistExport(
       spotify_url: t.spotify_id ? `https://open.spotify.com/track/${t.spotify_id}` : null,
       youtube_music_url:
         t.ytmusic?.status === 'matched' ? (t.ytmusic.url ?? null) : null,
+      comments: mapComments(commentsByTrack?.[t.track_id] ?? []),
     })),
   };
 }

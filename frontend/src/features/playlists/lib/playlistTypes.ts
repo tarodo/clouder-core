@@ -134,3 +134,34 @@ export interface MatchCandidatesResponse {
 export type ResolveMatchVars =
   | { action: 'accept'; vendorTrackId: string }
   | { action: 'reject' };
+
+export interface TrackComment {
+  author_name: string;
+  author_avatar_url: string | null;
+  text: string;
+  like_count: number;
+  published_at: string | null;
+}
+
+export type TrackCommentsStatus =
+  | 'pending'
+  | 'collected'
+  | 'empty'
+  | 'disabled'
+  | 'failed';
+
+export interface TrackCommentsResponse {
+  status: TrackCommentsStatus;
+  comment_count: number;
+  video_url: string | null;
+  comments: TrackComment[];
+}
+
+export type PlaylistTrackComments = TrackCommentsResponse & {
+  track_id: string;
+};
+
+export interface PlaylistCommentsResponse {
+  tracks: PlaylistTrackComments[];
+  correlation_id?: string;
+}

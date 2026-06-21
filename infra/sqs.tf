@@ -101,6 +101,27 @@ resource "aws_sqs_queue" "artist_enrichment" {
   })
 }
 
+# ── Comments Collect queue ───────────────────────────────────────
+
+resource "aws_sqs_queue" "comments_collect_dlq" {
+  name                      = local.comments_collect_dlq_name
+  message_retention_seconds = var.comments_collect_queue_retention_seconds
+}
+
+resource "aws_sqs_queue" "comments_collect" {
+  name = local.comments_collect_queue_name
+  visibility_timeout_seconds = max(
+    var.comments_collect_queue_visibility_timeout_seconds,
+    var.comments_collect_worker_lambda_timeout_seconds
+  )
+  message_retention_seconds = var.comments_collect_queue_retention_seconds
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.comments_collect_dlq.arn
+    maxReceiveCount     = var.comments_collect_queue_max_receive_count
+  })
+}
+
 # ── Auto-enrich dispatch queue ───────────────────────────────────
 
 resource "aws_sqs_queue" "auto_enrich_dispatch_dlq" {

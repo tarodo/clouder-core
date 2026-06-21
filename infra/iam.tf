@@ -32,6 +32,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       "${aws_cloudwatch_log_group.vendor_match_worker.arn}:*",
       "${aws_cloudwatch_log_group.label_enricher_worker.arn}:*",
       "${aws_cloudwatch_log_group.auto_enrich_dispatch_worker.arn}:*",
+      "${aws_cloudwatch_log_group.comments_collect_worker.arn}:*",
       "${aws_cloudwatch_log_group.auth_handler.arn}:*",
       "${aws_cloudwatch_log_group.curation.arn}:*",
     ]
@@ -93,6 +94,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.label_enrichment.arn,
       aws_sqs_queue.artist_enrichment.arn,
       aws_sqs_queue.auto_enrich_dispatch.arn,
+      aws_sqs_queue.comments_collect.arn,
     ]
   }
 
@@ -113,6 +115,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       aws_sqs_queue.label_enrichment.arn,
       aws_sqs_queue.artist_enrichment.arn,
       aws_sqs_queue.auto_enrich_dispatch.arn,
+      aws_sqs_queue.comments_collect.arn,
     ]
   }
 
@@ -160,6 +163,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       var.openai_api_key_ssm_parameter,
       var.tavily_api_key_ssm_parameter,
       var.deepseek_api_key_ssm_parameter,
+      var.youtube_api_key_ssm_parameter,
     ])) > 0 ? [1] : []
     content {
       sid     = "AllowReadWorkerSsmParameters"
@@ -174,6 +178,7 @@ data "aws_iam_policy_document" "collector_lambda" {
         var.openai_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.openai_api_key_ssm_parameter}" : "",
         var.tavily_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.tavily_api_key_ssm_parameter}" : "",
         var.deepseek_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.deepseek_api_key_ssm_parameter}" : "",
+        var.youtube_api_key_ssm_parameter != "" ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.youtube_api_key_ssm_parameter}" : "",
       ])
     }
   }
@@ -188,6 +193,7 @@ data "aws_iam_policy_document" "collector_lambda" {
       var.openai_api_key_ssm_parameter,
       var.tavily_api_key_ssm_parameter,
       var.deepseek_api_key_ssm_parameter,
+      var.youtube_api_key_ssm_parameter,
     ])) > 0 ? [1] : []
     content {
       sid       = "AllowWorkerSsmKmsDecrypt"
