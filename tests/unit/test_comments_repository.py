@@ -260,6 +260,27 @@ def test_list_comments_for_tracks_in_clause_params():
     assert params["p"] == "youtube"
 
 
+def test_list_comments_for_tracks_query2_collection_id_params():
+    """Query 2 (external_comments) binds c0, c1, ... to the found collection ids.
+
+    The FakeDataAPI routes by SQL substring and ignores params, so a
+    placeholder/param mismatch on this second query would be invisible without
+    this assertion (it only surfaces against a real DB)."""
+    api = FakeDataAPI([
+        ("FROM comment_collections", [_coll_row("t1", "col-1"), _coll_row("t2", "col-2")]),
+        ("FROM external_comments", [_comment_row("col-1", 0)]),
+    ])
+    repo = CommentsRepository(api)
+    repo.list_comments_for_tracks(track_ids=["t1", "t2"], platform="youtube")
+
+    comments_call = next(
+        (sql, params) for sql, params, _ in api.calls if "external_comments" in sql
+    )
+    _, params = comments_call
+    assert params["c0"] == "col-1"
+    assert params["c1"] == "col-2"
+
+
 def test_list_comments_for_tracks_no_collections_skips_second_query():
     """If query 1 returns no collections, query 2 (external_comments) is never issued."""
     api = FakeDataAPI([
