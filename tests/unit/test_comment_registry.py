@@ -24,5 +24,6 @@ def test_disabled_platform_raises(monkeypatch):
 
 def test_unknown_platform_raises(monkeypatch):
     monkeypatch.setenv("COMMENT_PLATFORMS_ENABLED", "youtube,tiktok")
-    with pytest.raises(CommentPlatformDisabledError):
+    with pytest.raises(CommentPlatformDisabledError) as exc_info:
         get_comment_provider("tiktok", api_key="K", session=object())
+    assert exc_info.value.platform == "tiktok"
