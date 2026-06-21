@@ -109,3 +109,86 @@ def test_collect_missing_top_level_comment_does_not_crash():
     assert len(out) == 1
     assert out[0].external_id == ""
     assert out[0].text == ""
+
+
+class FakeYtClient:
+    def __init__(self, results):
+        self._results = results
+        self.calls = []
+
+    def search(self, query, filter=None, limit=None):
+        self.calls.append((query, filter, limit))
+        return self._results
+
+
+def _video(video_id, title, artist, seconds=200):
+    return {
+        "videoId": video_id,
+        "title": title,
+        "artists": [{"name": artist}],
+        "duration_seconds": seconds,
+    }
+
+
+def _provider_with(results, threshold=0.5):
+    # session is unused by the resolver; pass a dummy.
+    return YouTubeCommentProvider(
+        api_key="K",
+        session=object(),
+        ytmusic_client=FakeYtClient(results),
+        threshold=threshold,
+    )
+
+
+def test_resolve_returns_scored_videos_best_first():
+    results = [
+        _video("good1", "Lost Track", "Guri"),     # strong match
+        _video("weakX", "Totally Different", "Nobody"),  # below threshold
+        _video("good2", "Lost Track (Extended)", "Guri"),
+    ]
+    provider = _provider_with(results, threshold=0.5)
+    out = provider.resolve_alternate_videos(
+        artist="Guri", title="Lost Track", duration_ms=200_000, exclude_video_id="art1"
+    )
+    assert "good1" in out and "good2" in out
+    assert "weakX" not in out
+    assert out[0] == "good1"  # exact title ranks first
+    # request shape
+    q, flt, _ = provider._ytmusic_client.calls[-1]
+    assert flt == "videos"
+    assert "Guri" in q and "Lost Track" in q
+
+
+def test_resolve_excludes_the_art_track_id():
+    results = [_video("art1", "Lost Track", "Guri"), _video("good1", "Lost Track", "Guri")]
+    provider = _provider_with(results, threshold=0.5)
+    out = provider.resolve_alternate_videos(
+        artist="Guri", title="Lost Track", duration_ms=200_000, exclude_video_id="art1"
+    )
+    assert out == ["good1"]
+
+
+def test_resolve_caps_at_three():
+    results = [_video(f"v{i}", "Lost Track", "Guri") for i in range(6)]
+    provider = _provider_with(results, threshold=0.5)
+    out = provider.resolve_alternate_videos(
+        artist="Guri", title="Lost Track", duration_ms=None, exclude_video_id="art1"
+    )
+    assert len(out) == 3
+
+
+def test_resolve_empty_when_nothing_clears_threshold():
+    results = [_video("v1", "Totally Different", "Nobody")]
+    provider = _provider_with(results, threshold=0.9)
+    out = provider.resolve_alternate_videos(
+        artist="Guri", title="Lost Track", duration_ms=None, exclude_video_id="art1"
+    )
+    assert out == []
+
+
+def test_resolve_tolerates_malformed_results():
+    provider = _provider_with(["junk", {}, {"title": "no id"}], threshold=0.1)
+    out = provider.resolve_alternate_videos(
+        artist="Guri", title="Lost Track", duration_ms=None, exclude_video_id="art1"
+    )
+    assert out == []
