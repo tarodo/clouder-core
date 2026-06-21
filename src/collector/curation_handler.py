@@ -96,6 +96,7 @@ from .artist_enrichment.auto_dispatch import (
     try_dispatch_artists_for_triage_block,
 )
 from .curation.auto_enrich_dispatch import enqueue_block_auto_enrich
+from .comments.dispatch import try_dispatch_comment_collection
 from .logging_utils import log_event
 from .providers.ytmusic.normalize import result_to_ref
 
@@ -371,6 +372,10 @@ def _handle_resolve_match(event, repo, user_id, correlation_id):
             clouder_track_id=track_id, vendor=body.vendor,
             vendor_track_id=body.vendor_track_id, payload=payload, now=utc_now(),
         )
+        if body.vendor == "ytmusic":
+            try_dispatch_comment_collection(
+                track_id=track_id, video_id=body.vendor_track_id, platform="youtube"
+            )
     else:
         repo.resolve_review_reject(
             clouder_track_id=track_id, vendor=body.vendor, now=utc_now(),
