@@ -4399,6 +4399,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tracks/{track_id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List collected external comments for a track (first N).
+         * @description Returns YouTube comments collected for the track's matched video. `status` is pending until collection completes. Query: `platform` (default youtube), `limit` (default 5, max 100).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    platform?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Track comments. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            status: "pending" | "collected" | "empty" | "disabled" | "failed";
+                            comment_count: number;
+                            video_url?: string | null;
+                            comments: {
+                                author_name: string;
+                                author_avatar_url?: string | null;
+                                text: string;
+                                like_count: number;
+                                /** Format: date-time */
+                                published_at?: string | null;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tracks/{track_id}/tags/{tag_id}": {
         parameters: {
             query?: never;

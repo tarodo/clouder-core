@@ -8,3 +8,6 @@ export const playlistDetailKey = (id: string) =>
 
 export const playlistTracksKey = (id: string) =>
   ['playlists', 'tracks', id] as const;
+
+export const trackCommentsKey = (trackId: string, limit: number) =>
+  ['tracks', 'comments', trackId, limit] as const;
