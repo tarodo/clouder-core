@@ -4,6 +4,7 @@
 locals {
   curation_comments_routes = [
     "GET /tracks/{track_id}/comments",
+    "GET /playlists/{id}/comments",
   ]
 }
 
