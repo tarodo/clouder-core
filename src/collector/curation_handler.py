@@ -1715,6 +1715,60 @@ def _handle_list_track_tags(
     )
 
 
+def _handle_list_track_comments(event, repo, user_id, correlation_id):
+    pp = event.get("pathParameters") or {}
+    track_id = pp.get("track_id")
+    if not track_id:
+        raise ValidationError("track_id is required in path")
+
+    qs = event.get("queryStringParameters") or {}
+    platform = (qs.get("platform") or "youtube").strip() or "youtube"
+    try:
+        limit = int(qs.get("limit") or 5)
+    except (TypeError, ValueError):
+        limit = 5
+    limit = max(1, min(limit, 100))
+
+    collection, comments = repo.list_comments(
+        track_id=track_id, platform=platform, limit=limit
+    )
+    if collection is None:
+        return _json_response(
+            200,
+            {"status": "pending", "comment_count": 0, "video_url": None, "comments": []},
+            correlation_id,
+        )
+
+    video_url = (
+        f"https://www.youtube.com/watch?v={collection.external_video_id}"
+        if platform == "youtube"
+        else None
+    )
+    return _json_response(
+        200,
+        {
+            "status": collection.status,
+            "comment_count": collection.comment_count,
+            "video_url": video_url,
+            "comments": [
+                {
+                    "author_name": c.author_name,
+                    "author_avatar_url": c.author_avatar_url,
+                    "text": c.text,
+                    "like_count": c.like_count,
+                    "published_at": (
+                        c.published_at.isoformat()
+                        if hasattr(c.published_at, "isoformat")
+                        else c.published_at
+                    ),
+                }
+                for c in comments
+            ],
+        },
+        correlation_id,
+    )
+
+
 def _handle_set_track_tags(
     event, repo: TagsRepository, user_id: str, correlation_id: str
 ):
@@ -1786,6 +1840,12 @@ def _triage_factory() -> Any:
 
 def _tags_factory() -> Any:
     return create_default_tags_repository()
+
+
+def _comments_factory() -> Any:
+    from collector.comments.repository import create_default_comments_repository
+
+    return create_default_comments_repository()
 
 
 def _playlists_factory() -> Any:
@@ -1922,6 +1982,7 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "PATCH /tags/{tag_id}": (_handle_rename_tag, _tags_factory),
     "DELETE /tags/{tag_id}": (_handle_delete_tag, _tags_factory),
     "GET /tracks/{track_id}/tags": (_handle_list_track_tags, _tags_factory),
+    "GET /tracks/{track_id}/comments": (_handle_list_track_comments, _comments_factory),
     "PUT /tracks/{track_id}/tags": (_handle_set_track_tags, _tags_factory),
     "POST /tracks/{track_id}/tags": (_handle_add_track_tag, _tags_factory),
     "DELETE /tracks/{track_id}/tags/{tag_id}": (_handle_remove_track_tag, _tags_factory),
