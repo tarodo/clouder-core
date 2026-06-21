@@ -223,9 +223,6 @@ class ArtistEnrichmentWorkerSettings(_SettingsBase):
 
 class CommentCollectionWorkerSettings(_SettingsBase):
     youtube_api_key: str = Field(default="")
-    request_timeout_s: float = Field(
-        default=30.0, alias="COMMENT_COLLECT_REQUEST_TIMEOUT_S", ge=1.0,
-    )
 
 
 @functools.lru_cache

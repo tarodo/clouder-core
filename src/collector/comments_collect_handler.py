@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import requests
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
@@ -34,14 +35,12 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
 
     log_event("INFO", "comments_collect_worker_invoked", sqs_record_count=len(records))
 
-    import requests
-
     repo = _build_repository()
     settings = get_comment_collection_worker_settings()
     session = requests.Session()
 
     processed = 0
-    for record in records:
+    for index, record in enumerate(records):
         if not isinstance(record, Mapping):
             continue
         body = record.get("body")
@@ -50,7 +49,10 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         try:
             msg = CommentCollectMessage.model_validate_json(body)
         except PydanticValidationError as exc:
-            log_event("ERROR", "comments_collect_message_invalid", error_message=str(exc)[:500])
+            log_event(
+                "ERROR", "comments_collect_message_invalid",
+                sqs_record_index=index, error_message=str(exc)[:500],
+            )
             continue
 
         now = _utc_now()
@@ -69,6 +71,8 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 collection_id=msg.collection_id, platform=msg.platform,
                 comments=[], status="disabled", now=now,
             )
+        # Platform not enabled is an ops/config gate (not per-video state); store
+        # as "failed" so it is visible in the DB and not silently dropped.
         except CommentPlatformDisabledError as exc:
             repo.store_comments(
                 collection_id=msg.collection_id, platform=msg.platform,
