@@ -39,7 +39,7 @@ class YouTubeCommentProvider:
             },
             timeout=20,
         )
-        if getattr(resp, "status_code", 200) == 403:
+        if getattr(resp, "status_code", 0) == 403:
             if _first_error_reason(_safe_json(resp)) == "commentsDisabled":
                 raise CommentsDisabledError(video_ref)
             resp.raise_for_status()

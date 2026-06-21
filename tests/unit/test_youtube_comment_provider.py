@@ -99,3 +99,13 @@ def test_collect_other_403_raises_generic():
     provider = YouTubeCommentProvider(api_key="K", session=FakeSession(FakeResp(403, payload)))
     with pytest.raises(RuntimeError):
         provider.collect("v")
+
+
+def test_collect_missing_top_level_comment_does_not_crash():
+    """Item with no topLevelComment must yield a blank CollectedComment, not raise."""
+    payload = {"items": [{"snippet": {}}]}
+    provider = YouTubeCommentProvider(api_key="K", session=FakeSession(FakeResp(200, payload)))
+    out = provider.collect("v")
+    assert len(out) == 1
+    assert out[0].external_id == ""
+    assert out[0].text == ""
