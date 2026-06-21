@@ -50,5 +50,17 @@ def test_version_original_mix_candidate_matches_original():
     assert video_matches("Lychee", "Back In Time", "Lychee - Back in Time (Original Mix)")
 
 
+def test_original_mix_track_matches_clean_video():
+    # Beatport-style "(Original Mix)" in the stored title still matches a clean
+    # "Artist - Title" video — the descriptor is not required by coverage.
+    assert video_matches("Tremor", "Disposition (Original Mix)", "Tremor - Disposition")
+
+
+def test_original_mix_track_rejects_remix_video():
+    assert not video_matches(
+        "Tremor", "Disposition (Original Mix)", "Tremor - Disposition (Klute Remix)"
+    )
+
+
 def test_empty_query_returns_false():
     assert not video_matches("", "", "anything at all")

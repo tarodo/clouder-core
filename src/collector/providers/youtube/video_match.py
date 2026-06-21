@@ -42,7 +42,13 @@ def video_matches(query_artist: str, query_title: str, candidate_title: str) -> 
     q_all = set(_tokens(query_artist) + _tokens(query_title))
     c_all = set(_tokens(candidate_title))
 
-    q_sig = q_all - _STOPWORDS - _NOISE
+    # Coverage compares CONTENT words only. Version descriptors (remix/edit/mix/
+    # …/"original") are excluded here and enforced separately by the version
+    # guard below — otherwise a Beatport-style title like "Disposition (Original
+    # Mix)" would require the YouTube title to repeat "original"/"mix". The
+    # remixer name (e.g. "klute") is NOT a marker, so it stays as content.
+    descriptors = _VERSION_MARKERS | {"original"}
+    q_sig = q_all - _STOPWORDS - _NOISE - descriptors
     c_sig = c_all - _NOISE
     if not q_sig:
         return False
