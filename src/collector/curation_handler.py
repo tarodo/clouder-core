@@ -1770,7 +1770,12 @@ def _handle_list_track_comments(event, repo, user_id, correlation_id):
     )
 
 
-def _handle_list_playlist_comments(event, repo, user_id, correlation_id):
+def _handle_list_playlist_comments(event, playlists_repo, user_id, correlation_id):
+    # Two-repo handler (cf. _handle_publish_ytmusic): the route's factory is
+    # _playlists_factory, so the injected repo is the PlaylistsRepository (used
+    # for the user-scoped track listing). The comments repo is built separately
+    # via _comments_factory() below. Note: in the single-track sibling
+    # _handle_list_track_comments the injected repo IS the comments repo.
     pid = (event.get("pathParameters") or {}).get("id")
     if not pid:
         raise ValidationError("id is required in path")
@@ -1778,7 +1783,7 @@ def _handle_list_playlist_comments(event, repo, user_id, correlation_id):
     qs = event.get("queryStringParameters") or {}
     platform = (qs.get("platform") or "youtube").strip() or "youtube"
 
-    rows, _total = repo.list_tracks(
+    rows, _total = playlists_repo.list_tracks(
         user_id=user_id, playlist_id=pid, limit=10_000, offset=0
     )
 
