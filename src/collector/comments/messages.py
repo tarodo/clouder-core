@@ -10,5 +10,5 @@ class CommentCollectMessage(BaseModel):
 
     track_id: str
     platform: str
-    video_id: str
+    video_id: str = ""
     collection_id: str
