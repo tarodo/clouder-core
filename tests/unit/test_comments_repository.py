@@ -376,3 +376,16 @@ def test_start_collection_empty_seed_inserts_when_not_collected():
     repo = CommentsRepository(api)
     result = repo.start_collection(track_id="t1", platform="youtube", video_id="", now=NOW)
     assert result == "colNEW"
+
+
+def test_promoted_track_ids_for_block():
+    api = FakeDataAPI([
+        ("FROM category_tracks ct", [{"track_id": "t1"}, {"track_id": "t2"}]),
+    ])
+    repo = CommentsRepository(api)
+    out = repo.promoted_track_ids_for_block(block_id="blk-1", user_id="u1")
+    assert out == ["t1", "t2"]
+    sql, params, _ = api.calls[0]
+    assert "source_triage_block_id = :block_id" in sql
+    assert "c.user_id = :user_id" in sql
+    assert params == {"block_id": "blk-1", "user_id": "u1"}

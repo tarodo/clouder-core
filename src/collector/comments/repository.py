@@ -266,6 +266,20 @@ class CommentsRepository:
             )
         return out
 
+    def promoted_track_ids_for_block(self, *, block_id: str, user_id: str) -> list[str]:
+        """Track ids promoted into the user's categories by finalizing this block."""
+        rows = self._data_api.execute(
+            """
+            SELECT ct.track_id
+            FROM category_tracks ct
+            JOIN categories c ON c.id = ct.category_id
+            WHERE ct.source_triage_block_id = :block_id AND c.user_id = :user_id
+            ORDER BY ct.track_id
+            """,
+            {"block_id": block_id, "user_id": user_id},
+        )
+        return [r["track_id"] for r in rows]
+
     def list_comments(
         self, *, track_id: str, platform: str, limit: int
     ) -> tuple[CollectionRow | None, list[CommentRow]]:
