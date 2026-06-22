@@ -69,7 +69,7 @@ vi.mock('../../../tags', () => ({
 vi.mock('../../../playlists/hooks/usePlaylists', () => ({
   usePlaylists: () => ({
     data: {
-      items: [{ id: 'pl-1', name: 'Acid', status: 'active' }],
+      items: [{ id: 'pl-1', name: 'Acid', status: 'active', track_count: 7 }],
       total: 1,
       limit: 100,
       offset: 0,

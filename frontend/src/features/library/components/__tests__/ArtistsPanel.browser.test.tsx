@@ -1,8 +1,8 @@
 /**
- * Browser-mode layout check for ArtistsPanel: the main ArtistTile renders above
- * the chip row, and multiple chips lay out on the same row (a wrapping Group of
- * inline badges). jsdom can't verify this — no stylesheets — so this lives in
- * the browser harness (Playwright via @vitest/browser).
+ * Browser-mode layout check for ArtistsPanel: every artist renders as a full
+ * ArtistTile up front (no chips, no expand step), stacked vertically. jsdom
+ * can't verify layout — no stylesheets — so this lives in the browser harness
+ * (Playwright via @vitest/browser).
  */
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -32,17 +32,14 @@ function renderPanel() {
 }
 
 describe('ArtistsPanel layout (browser)', () => {
-  test('chips sit below the main tile and share a row', () => {
+  test('every artist is a tile, stacked vertically', () => {
     renderPanel();
-    const main = screen.getByText('Main Artist').getBoundingClientRect();
-    const chip2 = screen.getByRole('button', { name: 'Show Second details' }).getBoundingClientRect();
-    const chip3 = screen.getByRole('button', { name: 'Show Third details' }).getBoundingClientRect();
+    const main = screen.getByRole('link', { name: 'Main Artist' }).getBoundingClientRect();
+    const second = screen.getByRole('link', { name: 'Second' }).getBoundingClientRect();
+    const third = screen.getByRole('link', { name: 'Third' }).getBoundingClientRect();
 
-    // Main tile is above the chips.
-    expect(chip2.top).toBeGreaterThan(main.top);
-    // The two chips share roughly the same row (top within a few px).
-    expect(Math.abs(chip2.top - chip3.top)).toBeLessThan(8);
-    // Chips are laid out left-to-right.
-    expect(chip3.left).toBeGreaterThan(chip2.left);
+    // Tiles stack top-to-bottom, one per row.
+    expect(second.top).toBeGreaterThan(main.top);
+    expect(third.top).toBeGreaterThan(second.top);
   });
 });

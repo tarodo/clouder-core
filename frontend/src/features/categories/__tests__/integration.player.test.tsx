@@ -205,7 +205,8 @@ describe('Category player — integration', () => {
     // Wait for the player panel to render the current track title.
     await screen.findByText('Track A');
     // Sanity: the playlist list also loaded so the hotkey can resolve index 0.
-    await screen.findByText('Acid');
+    // The button shows the playlist name with its track count: "Acid (0)".
+    await screen.findByText('Acid (0)');
 
     // Hotkey "1" → onTogglePlaylistByIndex(0) → onAddPlaylist('pl-1')
     // → POST /playlists/pl-1/tracks with { track_ids: ['t1'] }.

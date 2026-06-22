@@ -8,6 +8,7 @@ const mockPlaylists = Array.from({ length: 12 }, (_, i) => ({
   id: `pl-${i}`,
   name: `Playlist ${i}`,
   status: 'active' as const,
+  track_count: i,
 }));
 
 vi.mock('../../../playlists/hooks/usePlaylists', () => ({
@@ -38,27 +39,27 @@ describe('PlayerPanelPlaylistCloud', () => {
     render(
       ui({ trackId: 't-1', trackPlaylistIds: ['pl-2'], onAdd: vi.fn(), onRemove: vi.fn() }),
     );
-    const btn = screen.getByText('Playlist 2').closest('button')!;
+    const btn = screen.getByText('Playlist 2 (2)').closest('button')!;
     expect(btn).toHaveAttribute('data-variant', 'filled');
   });
 
   it('renders an unselected playlist button as default variant', () => {
     render(ui({ trackId: 't-1', trackPlaylistIds: [], onAdd: vi.fn(), onRemove: vi.fn() }));
-    const btn = screen.getByText('Playlist 0').closest('button')!;
+    const btn = screen.getByText('Playlist 0 (0)').closest('button')!;
     expect(btn).toHaveAttribute('data-variant', 'default');
   });
 
   it('click on a default button calls onAdd', async () => {
     const onAdd = vi.fn();
     render(ui({ trackId: 't-1', trackPlaylistIds: [], onAdd, onRemove: vi.fn() }));
-    await userEvent.click(screen.getByText('Playlist 0'));
+    await userEvent.click(screen.getByText('Playlist 0 (0)'));
     expect(onAdd).toHaveBeenCalledWith('pl-0');
   });
 
   it('click on a filled button calls onRemove', async () => {
     const onRemove = vi.fn();
     render(ui({ trackId: 't-1', trackPlaylistIds: ['pl-0'], onAdd: vi.fn(), onRemove }));
-    await userEvent.click(screen.getByText('Playlist 0'));
+    await userEvent.click(screen.getByText('Playlist 0 (0)'));
     expect(onRemove).toHaveBeenCalledWith('pl-0');
   });
 });
