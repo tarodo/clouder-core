@@ -46,11 +46,9 @@ def _safe(fn) -> None:
 
 
 def try_dispatch_comment_collection(
-    *, track_id: str, video_id: str, platform: str = "youtube", user_id: str | None = None
+    *, track_id: str, video_id: str = "", platform: str = "youtube", user_id: str | None = None
 ) -> None:
     def _run() -> None:
-        if not video_id:
-            return
         repo = _build_repository()
         collection_id = repo.start_collection(
             track_id=track_id, platform=platform, video_id=video_id, now=_utc_now()
