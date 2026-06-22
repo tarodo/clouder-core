@@ -354,3 +354,25 @@ def test_store_comments_omits_external_video_id_when_not_provided():
     update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][:1][0][:2]
     assert "external_video_id" not in update_sql
     assert "evid" not in params
+
+
+def test_start_collection_empty_seed_skips_when_already_collected():
+    api = FakeDataAPI([
+        ("SELECT id, external_video_id, status FROM comment_collections",
+         [{"id": "colOLD", "external_video_id": "vidOLD", "status": "collected"}]),
+        ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
+    ])
+    repo = CommentsRepository(api)
+    result = repo.start_collection(track_id="t1", platform="youtube", video_id="", now=NOW)
+    assert result is None
+    assert not any("INSERT INTO comment_collections" in c[0] for c in api.calls)
+
+
+def test_start_collection_empty_seed_inserts_when_not_collected():
+    api = FakeDataAPI([
+        ("SELECT id, external_video_id, status FROM comment_collections", []),
+        ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
+    ])
+    repo = CommentsRepository(api)
+    result = repo.start_collection(track_id="t1", platform="youtube", video_id="", now=NOW)
+    assert result == "colNEW"
