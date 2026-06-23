@@ -98,6 +98,11 @@ vi.mock('../../../library/components/LabelTile', () => ({
 vi.mock('../../../library/components/ArtistsPanel', () => ({
   ArtistsPanel: () => <div data-testid="artists-panel" />,
 }));
+vi.mock('../../../playlists/components/CommentsPanel', () => ({
+  CommentsPanel: ({ trackId }: { trackId: string }) => (
+    <div data-testid="comments-panel">{trackId}</div>
+  ),
+}));
 
 function ui(items: CategoryTrack[] = []) {
   const qc = new QueryClient();
@@ -153,6 +158,13 @@ describe('CategoryPlayerPanel', () => {
     used_in_playlist: false, added_at: '2026-01-01T00:00:00Z',
     source_triage_block_id: null, tags: [],
   };
+
+  it('renders the comments panel for the current track', () => {
+    render(ui());
+    const panel = screen.getByTestId('comments-panel');
+    expect(panel).toBeInTheDocument();
+    expect(panel).toHaveTextContent('t1');
+  });
 
   it('renders the LabelTile after the playlists section', () => {
     render(ui([labeledTrack]));

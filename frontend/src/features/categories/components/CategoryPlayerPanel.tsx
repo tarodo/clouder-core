@@ -18,6 +18,7 @@ import { PlayerPanelTagCloud } from './PlayerPanelTagCloud';
 import { PlayerPanelPlaylistCloud } from './PlayerPanelPlaylistCloud';
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { CommentsPanel } from '../../playlists/components/CommentsPanel';
 import classes from './CategoryPlayerPanel.module.css';
 
 export interface CategoryPlayerPanelProps {
@@ -290,6 +291,7 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
         />
       )}
       <ArtistsPanel artists={effectiveRich?.artists ?? []} />
+      <CommentsPanel trackId={current.id} />
     </Stack>
   );
 }
