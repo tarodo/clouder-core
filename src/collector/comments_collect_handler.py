@@ -40,7 +40,23 @@ def _resolve_and_collect(
     video_id is the video actually reached (the collected-from one, or the first
     real alternate even when it had no comments).
 
+    When primary_video_id is empty (decoupled dispatch from triage finalize), the
+    primary is resolved first from track metadata via the same YT-Music search used
+    for the disabled-comments fallback. If nothing is resolvable, status is
+    "disabled" (no commentable video reached).
+
     Raises are left to the caller (generic/platform errors -> 'failed')."""
+    if not primary_video_id:
+        if meta is None:
+            return ("disabled", [], "")
+        resolved = provider.resolve_alternate_videos(
+            artist=meta.artist, title=meta.title,
+            duration_ms=meta.duration_ms, exclude_video_id="",
+        )
+        if not resolved:
+            return ("disabled", [], "")
+        primary_video_id = resolved[0]
+
     try:
         comments = provider.collect(primary_video_id, limit=100)
         return ("collected" if comments else "empty", comments, primary_video_id)

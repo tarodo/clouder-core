@@ -304,6 +304,7 @@ resource "aws_lambda_function" "auto_enrich_dispatch_worker" {
       AURORA_DATABASE             = var.aurora_database_name
       LABEL_ENRICHMENT_QUEUE_URL  = aws_sqs_queue.label_enrichment.url
       ARTIST_ENRICHMENT_QUEUE_URL = aws_sqs_queue.artist_enrichment.url
+      COMMENT_COLLECT_QUEUE_URL   = aws_sqs_queue.comments_collect.url
       LOG_LEVEL                   = "INFO"
     }
   }

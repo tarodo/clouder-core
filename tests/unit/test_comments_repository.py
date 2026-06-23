@@ -354,3 +354,38 @@ def test_store_comments_omits_external_video_id_when_not_provided():
     update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][:1][0][:2]
     assert "external_video_id" not in update_sql
     assert "evid" not in params
+
+
+def test_start_collection_empty_seed_skips_when_already_collected():
+    api = FakeDataAPI([
+        ("SELECT id, external_video_id, status FROM comment_collections",
+         [{"id": "colOLD", "external_video_id": "vidOLD", "status": "collected"}]),
+        ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
+    ])
+    repo = CommentsRepository(api)
+    result = repo.start_collection(track_id="t1", platform="youtube", video_id="", now=NOW)
+    assert result is None
+    assert not any("INSERT INTO comment_collections" in c[0] for c in api.calls)
+
+
+def test_start_collection_empty_seed_inserts_when_not_collected():
+    api = FakeDataAPI([
+        ("SELECT id, external_video_id, status FROM comment_collections", []),
+        ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
+    ])
+    repo = CommentsRepository(api)
+    result = repo.start_collection(track_id="t1", platform="youtube", video_id="", now=NOW)
+    assert result == "colNEW"
+
+
+def test_promoted_track_ids_for_block():
+    api = FakeDataAPI([
+        ("FROM category_tracks ct", [{"track_id": "t1"}, {"track_id": "t2"}]),
+    ])
+    repo = CommentsRepository(api)
+    out = repo.promoted_track_ids_for_block(block_id="blk-1", user_id="u1")
+    assert out == ["t1", "t2"]
+    sql, params, _ = api.calls[0]
+    assert "source_triage_block_id = :block_id" in sql
+    assert "c.user_id = :user_id" in sql
+    assert params == {"block_id": "blk-1", "user_id": "u1"}

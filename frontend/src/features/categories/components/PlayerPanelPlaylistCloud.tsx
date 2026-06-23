@@ -52,7 +52,7 @@ export function PlayerPanelPlaylistCloud(props: PlayerPanelPlaylistCloudProps) {
               inner: { justifyContent: 'flex-start' },
             }}
           >
-            {pl.name}
+            {pl.name} ({pl.track_count})
           </Button>
         );
       })}

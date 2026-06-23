@@ -18,6 +18,7 @@ import { PlayerPanelTagCloud } from './PlayerPanelTagCloud';
 import { PlayerPanelPlaylistCloud } from './PlayerPanelPlaylistCloud';
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { CommentsPanel } from '../../playlists/components/CommentsPanel';
 import classes from './CategoryPlayerPanel.module.css';
 
 export interface CategoryPlayerPanelProps {
@@ -135,8 +136,11 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
       pushUndo(t('category_player.toasts.added_to_playlist'), () =>
         removeFromPlaylist.mutateAsync({ playlistId, trackId }),
       );
+      // Throwing the track into a playlist means we're done with it — advance
+      // to the next track so the curator keeps moving without a manual skip.
+      void playback.controls.next();
     },
-    [trackId, addToPlaylist, removeFromPlaylist, pushUndo, t],
+    [trackId, addToPlaylist, removeFromPlaylist, pushUndo, t, playback],
   );
 
   const onRemovePlaylist = useCallback(
@@ -287,6 +291,7 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
         />
       )}
       <ArtistsPanel artists={effectiveRich?.artists ?? []} />
+      <CommentsPanel trackId={current.id} />
     </Stack>
   );
 }

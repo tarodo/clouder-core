@@ -49,7 +49,8 @@ class CommentsRepository:
         self, *, track_id: str, platform: str, video_id: str, now: datetime
     ) -> str | None:
         """Insert/refresh a pending collection. Returns the collection id, or
-        None if a completed collection for the same video already exists."""
+        None if a completed collection already exists (for any video when
+        video_id is empty, otherwise for the same video)."""
         # Best-effort skip guard: two concurrent dispatchers can both pass this
         # SELECT, but the INSERT ... ON CONFLICT below keeps the write safe (last
         # writer wins, same id returned); worst case is a redundant re-collection,
@@ -61,7 +62,9 @@ class CommentsRepository:
         )
         if existing:
             row = existing[0]
-            if row["status"] == "collected" and row["external_video_id"] == video_id:
+            if row["status"] == "collected" and (
+                not video_id or row["external_video_id"] == video_id
+            ):
                 return None
 
         rows = self._data_api.execute(
@@ -262,6 +265,20 @@ class CommentsRepository:
                 duration_ms=int(length) if length is not None else None,
             )
         return out
+
+    def promoted_track_ids_for_block(self, *, block_id: str, user_id: str) -> list[str]:
+        """Track ids promoted into the user's categories by finalizing this block."""
+        rows = self._data_api.execute(
+            """
+            SELECT ct.track_id
+            FROM category_tracks ct
+            JOIN categories c ON c.id = ct.category_id
+            WHERE ct.source_triage_block_id = :block_id AND c.user_id = :user_id
+            ORDER BY ct.track_id
+            """,
+            {"block_id": block_id, "user_id": user_id},
+        )
+        return [r["track_id"] for r in rows]
 
     def list_comments(
         self, *, track_id: str, platform: str, limit: int

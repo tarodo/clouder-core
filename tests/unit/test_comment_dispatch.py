@@ -42,11 +42,12 @@ def test_dispatch_skips_when_already_collected(monkeypatch):
     assert sqs.sent == []
 
 
-def test_dispatch_noop_on_empty_video(monkeypatch):
+def test_dispatch_sends_for_empty_video(monkeypatch):
     repo, sqs = FakeRepo("col1"), FakeSqs()
     _patch(monkeypatch, repo, sqs)
     dispatch.try_dispatch_comment_collection(track_id="t1", video_id="", platform="youtube")
-    assert sqs.sent == [] and repo.start_calls == []
+    assert len(sqs.sent) == 1
+    assert repo.start_calls == [("t1", "youtube", "")]
 
 
 def test_dispatch_never_raises(monkeypatch):

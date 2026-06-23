@@ -21,3 +21,17 @@ def test_roundtrip_json():
 def test_missing_field_rejected():
     with pytest.raises(ValidationError):
         CommentCollectMessage.model_validate({"track_id": "t1", "platform": "youtube"})
+
+
+def test_video_id_defaults_to_empty_when_omitted():
+    msg = CommentCollectMessage.model_validate_json(
+        '{"track_id": "t1", "platform": "youtube", "collection_id": "col1"}'
+    )
+    assert msg.video_id == ""
+
+
+def test_video_id_still_parses_when_present():
+    msg = CommentCollectMessage.model_validate_json(
+        '{"track_id": "t1", "platform": "youtube", "video_id": "vidA", "collection_id": "col1"}'
+    )
+    assert msg.video_id == "vidA"

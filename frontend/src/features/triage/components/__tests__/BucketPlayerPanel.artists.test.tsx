@@ -56,9 +56,9 @@ describe('BucketPlayerPanel — artists', () => {
     vi.spyOn(client, 'api').mockResolvedValue(undefined as never);
   });
 
-  test('renders the main artist tile and a chip for the second artist', () => {
+  test('renders every artist as a tile up front', () => {
     renderPanel();
-    expect(screen.getByText('Main Artist')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Show Second details' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Main Artist' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Second' })).toBeInTheDocument();
   });
 });

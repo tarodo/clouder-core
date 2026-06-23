@@ -2,7 +2,6 @@ import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { ArtistsPanel } from '../ArtistsPanel';
 import * as client from '../../../../api/client';
@@ -31,7 +30,7 @@ describe('ArtistsPanel', () => {
     expect(document.querySelector('[role], h1, h2, h3, p, a, button, span:not([data-mantine-styles])')).toBeNull();
   });
 
-  test('first artist is the main tile; the rest are chips', () => {
+  test('renders every artist as a tile up front — no chips, no heading', () => {
     vi.spyOn(client, 'api').mockResolvedValue(undefined as never);
     renderPanel(
       [
@@ -40,24 +39,20 @@ describe('ArtistsPanel', () => {
         { id: 'a3', name: 'Third', role: 'main' },
       ],
     );
-    expect(screen.getByText('Main Artist')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Show Second details' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Show Third details' })).toBeInTheDocument();
-  });
-
-  test('clicking a chip expands it to a tile for that artist', async () => {
-    vi.spyOn(client, 'api').mockResolvedValue(undefined as never);
-    const user = userEvent.setup();
-    renderPanel(
-      [
-        { id: 'a1', name: 'Main Artist' },
-        { id: 'a2', name: 'Second' },
-      ],
+    // Each artist is a link to its detail page, expanded from the start.
+    expect(screen.getByRole('link', { name: 'Main Artist' })).toHaveAttribute(
+      'href',
+      '/artists/a1',
     );
-    await user.click(screen.getByRole('button', { name: 'Show Second details' }));
-    expect(await screen.findByRole('link', { name: 'Second' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Second' })).toHaveAttribute(
       'href',
       '/artists/a2',
     );
+    expect(screen.getByRole('link', { name: 'Third' })).toHaveAttribute(
+      'href',
+      '/artists/a3',
+    );
+    // No expand chips remain.
+    expect(screen.queryByRole('button', { name: /Show .* details/ })).toBeNull();
   });
 });

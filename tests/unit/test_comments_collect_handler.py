@@ -274,3 +274,59 @@ def test_disabled_primary_alternate_generic_error_marks_failed(monkeypatch):
     assert out["processed"] == 1
     assert repo.stored[0]["status"] == "failed"
     assert "network" in repo.stored[0]["error"]
+
+
+class _MetaRepo(FakeRepo):
+    def __init__(self, meta):
+        super().__init__()
+        self._meta = meta
+
+    def fetch_track_meta(self, track_ids):
+        return {"t1": self._meta} if self._meta is not None else {}
+
+
+class _ResolverProvider:
+    """No-seed provider: resolve_alternate_videos returns ids; collect scripted by id."""
+    def __init__(self, *, alts, collect_by_id):
+        self._alts = alts
+        self._collect_by_id = collect_by_id
+        self.resolve_calls = []
+
+    def resolve_alternate_videos(self, *, artist, title, duration_ms, exclude_video_id):
+        self.resolve_calls.append(exclude_video_id)
+        return self._alts
+
+    def collect(self, video_ref, *, limit=100):
+        beh = self._collect_by_id[video_ref]
+        if isinstance(beh, Exception):
+            raise beh
+        return beh
+
+
+def test_no_seed_resolves_primary_via_search(monkeypatch):
+    repo = _MetaRepo(TrackMeta("t1", "Artist", "Title", 1000))
+    provider = _ResolverProvider(
+        alts=["vidX"],
+        collect_by_id={"vidX": [CollectedComment("c1", "A", None, "hi", 1, None, 0)]},
+    )
+    _patch(monkeypatch, repo, provider)
+    worker.lambda_handler(_event(_msg(video_id="")), None)
+    assert repo.stored[0]["status"] == "collected"
+    assert repo.stored[0]["external_video_id"] == "vidX"
+    assert provider.resolve_calls[0] == ""  # primary resolution excludes nothing
+
+
+def test_no_seed_no_search_result_marks_disabled(monkeypatch):
+    repo = _MetaRepo(TrackMeta("t1", "A", "T", None))
+    provider = _ResolverProvider(alts=[], collect_by_id={})
+    _patch(monkeypatch, repo, provider)
+    worker.lambda_handler(_event(_msg(video_id="")), None)
+    assert repo.stored[0]["status"] == "disabled"
+
+
+def test_no_seed_no_meta_marks_disabled(monkeypatch):
+    repo = _MetaRepo(None)  # fetch_track_meta -> {}
+    provider = _ResolverProvider(alts=["vidX"], collect_by_id={})
+    _patch(monkeypatch, repo, provider)
+    worker.lambda_handler(_event(_msg(video_id="")), None)
+    assert repo.stored[0]["status"] == "disabled"
