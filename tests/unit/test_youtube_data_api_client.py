@@ -45,8 +45,10 @@ class FakeSession:
         return FakeResp(200, {})
 
 
-def _client(session):
-    return YoutubeDataApiClient(access_token="AT", session=session)
+def _client(session, **kwargs):
+    # No-op sleep so retry tests run instantly.
+    kwargs.setdefault("sleep", lambda _s: None)
+    return YoutubeDataApiClient(access_token="AT", session=session, **kwargs)
 
 
 def test_create_playlist_posts_and_returns_id():
@@ -219,7 +221,8 @@ def test_request_error_enriches_message_with_reason_and_operation():
             "errors": [{"reason": "SERVICE_UNAVAILABLE", "domain": "youtube.playlistItem"}],
         }
     }
-    s = FakeSession([FakeResp(409, body)])
+    # SERVICE_UNAVAILABLE is retryable: queue enough failures to exhaust retries.
+    s = FakeSession([FakeResp(409, body)] * 4)
     with pytest.raises(YtmusicApiError) as ei:
         _client(s).move_item("PL", "i1", "v1", 2)
     msg = str(ei.value)
@@ -234,7 +237,7 @@ def test_request_error_enriches_message_with_reason_and_operation():
 
 def test_request_error_reason_falls_back_to_status_field():
     body = {"error": {"message": "boom", "status": "ABORTED"}}
-    s = FakeSession([FakeResp(409, body)])
+    s = FakeSession([FakeResp(409, body)] * 4)
     with pytest.raises(YtmusicApiError) as ei:
         _client(s).add_items("PL", ["v1"])
     assert ei.value.reason == "ABORTED"
@@ -303,3 +306,106 @@ def test_set_cover_both_fail_omits_reason_bracket_when_absent():
         _client(s).set_cover("PL", b"\xff\xd8\xffX")
     assert "[None]" not in str(ei.value)
     assert ei.value.reason is None
+
+
+# ---------- retry on transient failures -------------------------------------
+
+_ABORTED = {"error": {"message": "The operation was aborted.",
+                      "errors": [{"reason": "SERVICE_UNAVAILABLE"}]}}
+
+
+def test_request_retries_transient_409_then_succeeds():
+    # The exact prod failure: first insert 409s SERVICE_UNAVAILABLE, retry wins.
+    s = FakeSession([FakeResp(409, _ABORTED), FakeResp(200, {})])
+    _client(s).add_items("PL", ["v1"])  # must not raise
+    assert len(s.calls) == 2
+
+
+def test_request_retries_then_gives_up_after_max_attempts():
+    s = FakeSession([FakeResp(409, _ABORTED)] * 6)  # more than enough
+    with patch("collector.curation.youtube_data_api_client.log_event") as le:
+        with pytest.raises(YtmusicApiError) as ei:
+            _client(s).add_items("PL", ["v1"])
+    # 4 attempts total (1 initial + 3 retries), then terminal failure.
+    assert len(s.calls) == 4
+    assert ei.value.status_code == 409
+    events = [c.args[1] for c in le.call_args_list]
+    assert events.count("ytmusic_api_call_retried") == 3
+    assert events.count("ytmusic_api_call_failed") == 1
+    # Retry breadcrumb carries the queryable structured fields.
+    retried = [c for c in le.call_args_list if c.args[1] == "ytmusic_api_call_retried"]
+    assert [c.kwargs["attempt"] for c in retried] == [1, 2, 3]
+    assert [c.kwargs["sleep_seconds"] for c in retried] == [0.5, 1.0, 2.0]
+    assert all(c.kwargs["phase"] == "POST playlistItems" for c in retried)
+    assert all(c.kwargs["reason"] == "SERVICE_UNAVAILABLE" for c in retried)
+
+
+def test_request_backoff_schedule_is_half_one_two():
+    slept: list[float] = []
+    s = FakeSession([FakeResp(409, _ABORTED)] * 6)
+    client = YoutubeDataApiClient(
+        access_token="AT", session=s, sleep=lambda secs: slept.append(secs)
+    )
+    with pytest.raises(YtmusicApiError):
+        client.add_items("PL", ["v1"])
+    assert slept == [0.5, 1.0, 2.0]
+
+
+def test_request_retries_5xx_on_idempotent_method_then_succeeds():
+    # PUT (move_item) is idempotent -> 5xx is retried.
+    s = FakeSession([FakeResp(503, {"error": {"message": "unavailable"}}), FakeResp(200, {})])
+    _client(s).move_item("PL", "i1", "v1", 2)
+    assert len(s.calls) == 2
+
+
+def test_request_retries_429_on_idempotent_method():
+    s = FakeSession([FakeResp(429, {"error": {"message": "slow down"}}), FakeResp(200, {})])
+    _client(s).move_item("PL", "i1", "v1", 2)
+    assert len(s.calls) == 2
+
+
+def test_request_does_not_retry_5xx_on_post():
+    # POST (add_items / create_playlist) is NOT idempotent: a 5xx may have
+    # committed, so retrying could duplicate. Must fail on the first try.
+    s = FakeSession([FakeResp(503, {"error": {"message": "unavailable"}}), FakeResp(200, {})])
+    with pytest.raises(YtmusicApiError):
+        _client(s).add_items("PL", ["v1"])
+    assert len(s.calls) == 1
+
+
+def test_request_retries_409_with_no_reason():
+    # A 409 with no machine reason is treated as a transient abort (safe to retry
+    # on any method, since an aborted write never applied).
+    s = FakeSession([FakeResp(409, {"error": {"message": "aborted"}}), FakeResp(200, {})])
+    _client(s).add_items("PL", ["v1"])
+    assert len(s.calls) == 2
+
+
+def test_request_delete_404_on_retry_is_treated_as_success():
+    # DELETE 503 (committed?) -> retry hits 404 (already gone) -> success, no raise.
+    s = FakeSession([FakeResp(503, {"error": {"message": "unavailable"}}), FakeResp(404, {})])
+    _client(s).remove_items("PL", ["i1"])
+    assert len(s.calls) == 2
+
+
+def test_request_delete_404_on_first_attempt_still_raises():
+    s = FakeSession([FakeResp(404, {})])
+    with pytest.raises(YtmusicNotFoundError):
+        _client(s).remove_items("PL", ["i1"])
+    assert len(s.calls) == 1
+
+
+def test_request_does_not_retry_hard_409():
+    # A 409 whose reason is not transient must fail on the first try.
+    body = {"error": {"message": "nope", "errors": [{"reason": "INVALID_VALUE"}]}}
+    s = FakeSession([FakeResp(409, body), FakeResp(200, {})])
+    with pytest.raises(YtmusicApiError):
+        _client(s).add_items("PL", ["v1"])
+    assert len(s.calls) == 1
+
+
+def test_request_does_not_retry_4xx_client_errors():
+    s = FakeSession([FakeResp(400, {"error": {"message": "bad"}}), FakeResp(200, {})])
+    with pytest.raises(YtmusicApiError):
+        _client(s).add_items("PL", ["v1"])
+    assert len(s.calls) == 1
