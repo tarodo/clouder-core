@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -207,3 +208,98 @@ def test_error_mapping():
         _client(
             FakeSession([FakeResp(403, {"error": {"message": "quotaExceeded"}})])
         ).create_playlist(name="N", description="D", privacy="PRIVATE")
+
+
+def test_request_error_enriches_message_with_reason_and_operation():
+    # The real prod 409: surface status, machine reason, AND which operation
+    # (method + endpoint) so the failing call is unambiguous in CloudWatch.
+    body = {
+        "error": {
+            "message": "The operation was aborted.",
+            "errors": [{"reason": "SERVICE_UNAVAILABLE", "domain": "youtube.playlistItem"}],
+        }
+    }
+    s = FakeSession([FakeResp(409, body)])
+    with pytest.raises(YtmusicApiError) as ei:
+        _client(s).move_item("PL", "i1", "v1", 2)
+    msg = str(ei.value)
+    assert "409" in msg
+    assert "SERVICE_UNAVAILABLE" in msg
+    assert "PUT" in msg
+    assert "playlistItems" in msg
+    assert "The operation was aborted." in msg
+    assert ei.value.status_code == 409
+    assert ei.value.reason == "SERVICE_UNAVAILABLE"
+
+
+def test_request_error_reason_falls_back_to_status_field():
+    body = {"error": {"message": "boom", "status": "ABORTED"}}
+    s = FakeSession([FakeResp(409, body)])
+    with pytest.raises(YtmusicApiError) as ei:
+        _client(s).add_items("PL", ["v1"])
+    assert ei.value.reason == "ABORTED"
+
+
+def test_request_error_logs_breadcrumb_with_correlation_id():
+    body = {"error": {"message": "boom", "errors": [{"reason": "rateLimitExceeded"}]}}
+    s = FakeSession([FakeResp(409, body)])
+    client = YoutubeDataApiClient(access_token="AT", session=s, correlation_id="corr-1")
+    with patch("collector.curation.youtube_data_api_client.log_event") as le:
+        with pytest.raises(YtmusicApiError):
+            client.add_items("PL", ["v1"])
+    assert le.call_count == 1
+    args, kwargs = le.call_args
+    assert args[0] == "WARNING"
+    assert args[1] == "ytmusic_api_call_failed"
+    assert kwargs["correlation_id"] == "corr-1"
+    assert kwargs["status_code"] == 409
+    assert kwargs["reason"] == "rateLimitExceeded"
+    # 'phase' is the structured, CloudWatch-queryable "which operation" field.
+    assert kwargs["phase"] == "POST playlistItems"
+    assert kwargs["error_message"] == "boom"
+    # No access token must ever reach the logs.
+    assert "AT" not in json.dumps(kwargs)
+
+
+def test_not_found_error_carries_status_and_reason():
+    body = {"error": {"message": "gone", "errors": [{"reason": "playlistNotFound"}]}}
+    with pytest.raises(YtmusicNotFoundError) as ei:
+        _client(FakeSession([FakeResp(404, body)])).get_existing_items("PL")
+    assert ei.value.status_code == 404
+    assert ei.value.reason == "playlistNotFound"
+
+
+def test_request_error_message_omits_reason_bracket_when_absent():
+    # No errors[] and no status field -> reason is None: the message must not
+    # render a literal "[None]" bracket.
+    s = FakeSession([FakeResp(403, {"error": {"message": "quotaExceeded"}})])
+    with pytest.raises(YtmusicApiError) as ei:
+        _client(s).add_items("PL", ["v1"])
+    msg = str(ei.value)
+    assert msg == "YouTube 403 on POST playlistItems: quotaExceeded"
+    assert "[" not in msg
+    assert ei.value.reason is None
+
+
+def test_set_cover_both_fail_carries_status_reason_and_message():
+    s = FakeSession([
+        FakeResp(400, {"error": {"message": "bad type"}}),
+        FakeResp(409, {"error": {"message": "conflict",
+                                 "errors": [{"reason": "SERVICE_UNAVAILABLE"}]}}),
+    ])
+    with pytest.raises(YtmusicApiError) as ei:
+        _client(s).set_cover("PL", b"\xff\xd8\xffX")
+    assert ei.value.status_code == 409
+    assert ei.value.reason == "SERVICE_UNAVAILABLE"
+    assert "SERVICE_UNAVAILABLE" in str(ei.value)
+
+
+def test_set_cover_both_fail_omits_reason_bracket_when_absent():
+    s = FakeSession([
+        FakeResp(400, {"error": {"message": "bad type"}}),
+        FakeResp(400, {"error": {"message": "still bad"}}),
+    ])
+    with pytest.raises(YtmusicApiError) as ei:
+        _client(s).set_cover("PL", b"\xff\xd8\xffX")
+    assert "[None]" not in str(ei.value)
+    assert ei.value.reason is None

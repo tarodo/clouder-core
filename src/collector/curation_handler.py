@@ -155,6 +155,23 @@ def _curation_error_response(
     for error subclasses that carry them (InactiveStagingFinalizeError,
     TracksNotInSourceError)."""
 
+    # Server-side / upstream-dependency failures (>= 500, e.g. ytmusic_api_error
+    # = 502) used to be returned to the client but never logged, leaving
+    # CloudWatch blind to the real YouTube status/reason. Expected client errors
+    # (4xx) stay quiet to avoid noise. status_code/reason are the upstream YouTube
+    # values when the error carries them.
+    if exc.http_status >= 500:
+        log_event(
+            "ERROR",
+            "curation_error_returned",
+            correlation_id=correlation_id,
+            error_code=exc.error_code,
+            error_type=type(exc).__name__,
+            error_message=exc.message,
+            status_code=getattr(exc, "status_code", None),
+            reason=getattr(exc, "reason", None),
+        )
+
     payload: dict[str, Any] = {
         "error_code": exc.error_code,
         "message": exc.message,
@@ -2014,6 +2031,7 @@ def _build_ytmusic_user_client(user_id: str, correlation_id: str):
     return YoutubeDataApiClient(
         access_token=token.token_dict["access_token"],
         session=_requests.Session(),
+        correlation_id=correlation_id,
     )
 
 

@@ -251,6 +251,20 @@ class YtmusicApiError(CurationError):
     error_code = "ytmusic_api_error"
     http_status = 502
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        reason: str | None = None,
+    ) -> None:
+        # ``http_status`` stays 502 (the client-facing envelope). ``status_code``
+        # / ``reason`` carry the *upstream* YouTube detail (e.g. 409 /
+        # SERVICE_UNAVAILABLE) so the handler can log the actionable values.
+        super().__init__(message)
+        self.status_code = status_code
+        self.reason = reason
+
 
 class YtmusicNotFoundError(YtmusicApiError):
     """ytmusicapi reported the playlist does not exist (orphan recreate path)."""
