@@ -11,7 +11,8 @@ in tests. Exposes the same interface YtmusicPublishService expects.
 from __future__ import annotations
 
 import json
-from typing import Any
+import time
+from typing import Any, Callable
 
 from collector.logging_utils import log_event
 
@@ -28,6 +29,22 @@ _COVER_BOUNDARY = "clouder_ytmusic_cover_boundary"
 _COVER_TYPE = "hero"
 _PNG_MAGIC = b"\x89PNG"
 
+# Transient-failure retry. Prod evidence (PR #191 instrumentation): a single
+# playlistItems.insert intermittently returns 409 SERVICE_UNAVAILABLE ("The
+# operation was aborted.") and the same call succeeds ~10 s later.
+#
+# Idempotency matters when choosing what to retry:
+#   * 409 (transient reason) is safe for ANY method — an aborted write never
+#     applied, so re-issuing it cannot duplicate state.
+#   * 5xx/429 leave the write status UNKNOWN. Retrying a non-idempotent POST
+#     (playlists.insert, playlistItems.insert) could create a duplicate/orphan,
+#     so 5xx/429 is retried only for idempotent methods (GET/PUT/DELETE).
+# Backoff schedule doubles as the retry count: 3 retries (4 attempts total).
+_RETRY_BACKOFFS = (0.5, 1.0, 2.0)
+_RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
+_RETRYABLE_409_REASONS = {"SERVICE_UNAVAILABLE", "ABORTED", "BACKEND_ERROR", "INTERNAL_ERROR"}
+_NON_IDEMPOTENT_METHODS = {"POST"}
+
 
 class YoutubeDataApiClient:
     """Mirrors the YtmusicPublishService client contract using Data API v3.
@@ -37,11 +54,17 @@ class YoutubeDataApiClient:
     """
 
     def __init__(
-        self, *, access_token: str, session: Any, correlation_id: str | None = None
+        self,
+        *,
+        access_token: str,
+        session: Any,
+        correlation_id: str | None = None,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._token = access_token
         self._session = session
         self._correlation_id = correlation_id
+        self._sleep = sleep
 
     def create_playlist(self, *, name: str, description: str | None, privacy: str) -> str:
         body = {
@@ -191,36 +214,71 @@ class YoutubeDataApiClient:
         if json_body is not None:
             headers["Content-Type"] = "application/json"
             body = json.dumps(json_body)
-        resp = self._session.request(
-            method=method, url=url, params=params, data=body, headers=headers,
-        )
-        status = getattr(resp, "status_code", 0)
-        if 200 <= status < 300:
-            try:
-                return resp.json()
-            except Exception:
+        endpoint = url.rsplit("/", 1)[-1] or url
+
+        status, reason, message = 0, None, None
+        for attempt in range(1, len(_RETRY_BACKOFFS) + 2):
+            resp = self._session.request(
+                method=method, url=url, params=params, data=body, headers=headers,
+            )
+            status = getattr(resp, "status_code", 0)
+            if 200 <= status < 300:
+                try:
+                    return resp.json()
+                except Exception:
+                    return {}
+            if status == 404 and method == "DELETE" and attempt > 1:
+                # A retried DELETE: the earlier attempt likely committed before
+                # its transient error surfaced, so the item is already gone.
                 return {}
 
-        message, reason = self._error_detail(resp)
-        endpoint = url.rsplit("/", 1)[-1] or url
+            message, reason = self._error_detail(resp)
+            if self._is_retryable(method, status, reason) and attempt <= len(_RETRY_BACKOFFS):
+                backoff = _RETRY_BACKOFFS[attempt - 1]
+                # Transient YouTube failure (e.g. 409 SERVICE_UNAVAILABLE); the
+                # write never applied, so retrying the same call is safe.
+                log_event(
+                    "WARNING", "ytmusic_api_call_retried",
+                    correlation_id=self._correlation_id,
+                    status_code=status, reason=reason,
+                    phase=f"{method} {endpoint}", attempt=attempt,
+                    sleep_seconds=backoff, error_message=message,
+                )
+                self._sleep(backoff)
+                continue
+            break
+
         detail = (
             f"YouTube {status} [{reason}] on {method} {endpoint}: {message}"
             if reason
             else f"YouTube {status} on {method} {endpoint}: {message}"
         )
-        # Breadcrumb so the failing call is queryable in CloudWatch even when the
-        # caller swallows the error (cover fallback). No token/body is logged.
+        # Terminal failure (non-retryable, or retries exhausted). Breadcrumb so
+        # the failing call is queryable in CloudWatch even when the caller
+        # swallows the error (cover fallback). No token/body is logged.
         log_event(
             "WARNING", "ytmusic_api_call_failed",
             correlation_id=self._correlation_id,
             status_code=status, reason=reason,
-            phase=f"{method} {endpoint}", error_message=message,
+            phase=f"{method} {endpoint}", attempt=attempt, error_message=message,
         )
         if status == 401:
             raise YtmusicNotAuthorizedError(detail)
         if status == 404:
             raise YtmusicNotFoundError(detail, status_code=status, reason=reason)
         raise YtmusicApiError(detail, status_code=status, reason=reason)
+
+    @staticmethod
+    def _is_retryable(method: str, status: int, reason: str | None) -> bool:
+        """Transient failures worth a retry. A 409 with a transient (or absent)
+        reason is safe for any method (an aborted write never applied). 5xx/429
+        leave the result unknown, so they are retried only for idempotent methods
+        — never a non-idempotent POST, which could duplicate state."""
+        if status == 409:
+            return reason is None or reason.upper() in _RETRYABLE_409_REASONS
+        if status in _RETRYABLE_STATUSES:
+            return method not in _NON_IDEMPOTENT_METHODS
+        return False
 
     @staticmethod
     def _error_detail(resp: Any) -> tuple[str, str | None]:
