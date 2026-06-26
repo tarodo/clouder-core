@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from collector.logging_utils import log_event
+
 from . import YtmusicApiError, YtmusicNotAuthorizedError, YtmusicNotFoundError
 
 _BASE = "https://www.googleapis.com/youtube/v3"
@@ -34,9 +36,12 @@ class YoutubeDataApiClient:
     ``remove_items`` deletes by those ids.
     """
 
-    def __init__(self, *, access_token: str, session: Any) -> None:
+    def __init__(
+        self, *, access_token: str, session: Any, correlation_id: str | None = None
+    ) -> None:
         self._token = access_token
         self._session = session
+        self._correlation_id = correlation_id
 
     def create_playlist(self, *, name: str, description: str | None, privacy: str) -> str:
         body = {
@@ -132,9 +137,12 @@ class YoutubeDataApiClient:
         update_status = getattr(update_resp, "status_code", 0)
         if 200 <= update_status < 300:
             return
+        message, reason = self._error_detail(update_resp)
+        reason_tag = f" [{reason}]" if reason else ""
         raise YtmusicApiError(
-            f"YouTube cover insert {insert_status} / update {update_status}: "
-            f"{self._error_message(update_resp)}"
+            f"YouTube cover insert {insert_status} / update {update_status}"
+            f"{reason_tag}: {message}",
+            status_code=update_status, reason=reason,
         )
 
     def _upload_cover(self, method: str, playlist_id: str, image_bytes: bytes) -> Any:
@@ -192,18 +200,45 @@ class YoutubeDataApiClient:
                 return resp.json()
             except Exception:
                 return {}
+
+        message, reason = self._error_detail(resp)
+        endpoint = url.rsplit("/", 1)[-1] or url
+        detail = (
+            f"YouTube {status} [{reason}] on {method} {endpoint}: {message}"
+            if reason
+            else f"YouTube {status} on {method} {endpoint}: {message}"
+        )
+        # Breadcrumb so the failing call is queryable in CloudWatch even when the
+        # caller swallows the error (cover fallback). No token/body is logged.
+        log_event(
+            "WARNING", "ytmusic_api_call_failed",
+            correlation_id=self._correlation_id,
+            status_code=status, reason=reason,
+            phase=f"{method} {endpoint}", error_message=message,
+        )
         if status == 401:
-            raise YtmusicNotAuthorizedError("YouTube returned 401 (token rejected)")
+            raise YtmusicNotAuthorizedError(detail)
         if status == 404:
-            raise YtmusicNotFoundError(f"YouTube 404: {url}")
-        raise YtmusicApiError(f"YouTube {status}: {self._error_message(resp)}")
+            raise YtmusicNotFoundError(detail, status_code=status, reason=reason)
+        raise YtmusicApiError(detail, status_code=status, reason=reason)
 
     @staticmethod
-    def _error_message(resp: Any) -> str:
+    def _error_detail(resp: Any) -> tuple[str, str | None]:
+        """Pull (human message, machine reason) from a Google API error body.
+        ``reason`` comes from ``error.errors[0].reason`` (or ``.domain``), with
+        ``error.status`` as a last resort — this is the field that distinguishes
+        a transient 409 (SERVICE_UNAVAILABLE/ABORTED) from a hard conflict."""
         try:
             err = (resp.json() or {}).get("error") or {}
-            if isinstance(err, dict):
-                return err.get("message") or "request failed"
         except Exception:
-            pass
-        return "request failed"
+            return "request failed", None
+        if not isinstance(err, dict):
+            return "request failed", None
+        message = err.get("message") or "request failed"
+        reason: str | None = None
+        errors = err.get("errors")
+        if isinstance(errors, list) and errors and isinstance(errors[0], dict):
+            reason = errors[0].get("reason") or errors[0].get("domain")
+        if reason is None and isinstance(err.get("status"), str):
+            reason = err["status"]
+        return message, reason
