@@ -42,7 +42,7 @@ describe('PublishYtMusicButton — browser smoke', () => {
       <QueryClientProvider client={qc}>
         <MantineProvider defaultColorScheme="light">
           <Notifications />
-          <PublishYtMusicButton playlist={playlist} />
+          <PublishYtMusicButton playlist={playlist} trackIds={[]} />
         </MantineProvider>
       </QueryClientProvider>,
     );

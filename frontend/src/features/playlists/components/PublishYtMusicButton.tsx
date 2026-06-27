@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
 import type { Playlist, YtmusicPublishResult } from '../lib/playlistTypes';
 import { usePublishYtmusic } from '../hooks/usePublishYtmusic';
+import { useTelemetry } from '../../../lib/telemetry/hooks';
 import { useMe } from '../../../api/queries/useMe';
 import { PublishConfirmModal } from './PublishConfirmModal';
 import { PublishResultModal } from './PublishResultModal';
@@ -13,12 +14,14 @@ import { YtMusicConnectModal } from './YtMusicConnectModal';
 
 export interface PublishYtMusicButtonProps {
   playlist: Playlist;
+  trackIds: string[];
 }
 
-export function PublishYtMusicButton({ playlist }: PublishYtMusicButtonProps) {
+export function PublishYtMusicButton({ playlist, trackIds }: PublishYtMusicButtonProps) {
   const { t } = useTranslation();
   const me = useMe();
   const publishMut = usePublishYtmusic();
+  const telemetry = useTelemetry();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const [resultModal, setResultModal] = useState<YtmusicPublishResult | null>(null);
@@ -41,6 +44,14 @@ export function PublishYtMusicButton({ playlist }: PublishYtMusicButtonProps) {
     try {
       const r = await publishMut.mutateAsync({ playlistId: playlist.id, confirmOverwrite });
       setConfirmOpen(false);
+      telemetry.track('playlist_publish', {
+        track_ids: trackIds,
+        playlist_id: playlist.id,
+        track_count: trackIds.length,
+        confirm_overwrite: confirmOverwrite,
+        skipped_count: r.skipped_tracks.length,
+        target: 'ytmusic',
+      });
       notifications.show({
         color: 'green',
         message: (
