@@ -1,0 +1,70 @@
+{
+  "Comment": "CLOUDER analytics daily build: parallel exports -> dbt run -> source freshness -> test.",
+  "StartAt": "ExportBronze",
+  "States": {
+    "ExportBronze": {
+      "Type": "Parallel",
+      "Next": "DbtRun",
+      "Branches": [
+        {
+          "StartAt": "CatalogExport",
+          "States": {
+            "CatalogExport": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": { "FunctionName": "${catalog_export_arn}" },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "OpsLogExport",
+          "States": {
+            "OpsLogExport": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": { "FunctionName": "${ops_log_export_arn}" },
+              "End": true
+            }
+          }
+        }
+      ]
+    },
+    "DbtRun": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${dbt_runner_arn}",
+        "Payload": { "command": "run" }
+      },
+      "Next": "DbtSourceFreshness",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "NotifyFailure" }]
+    },
+    "DbtSourceFreshness": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${dbt_runner_arn}",
+        "Payload": { "command": "source freshness" }
+      },
+      "Next": "DbtTest",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "NotifyFailure" }]
+    },
+    "DbtTest": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${dbt_runner_arn}",
+        "Payload": { "command": "test" }
+      },
+      "Next": "Succeed",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "NotifyFailure" }]
+    },
+    "NotifyFailure": {
+      "Type": "Fail",
+      "Error": "DbtQualityGateFailed",
+      "Cause": "dbt freshness or test failed; prior gold dt partitions remain (insert_overwrite is per-dt, so only today's partition is at risk)."
+    },
+    "Succeed": { "Type": "Succeed" }
+  }
+}

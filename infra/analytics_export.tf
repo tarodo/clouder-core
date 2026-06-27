@@ -88,6 +88,91 @@ resource "aws_glue_catalog_table" "catalog_export" {
       name = "updated_at"
       type = "string"
     }
+    # --- Inc-4: dim column union so dbt can read per-tbl fields (schema-on-read) ---
+    columns {
+      name = "bpm"
+      type = "string"
+    }
+    columns {
+      name = "key_name"
+      type = "string"
+    }
+    columns {
+      name = "key_camelot"
+      type = "string"
+    }
+    columns {
+      name = "spotify_release_date"
+      type = "string"
+    }
+    columns {
+      name = "publish_date"
+      type = "string"
+    }
+    columns {
+      name = "album_id"
+      type = "string"
+    }
+    columns {
+      name = "style_id"
+      type = "string"
+    }
+    columns {
+      name = "isrc"
+      type = "string"
+    }
+    columns {
+      name = "release_type"
+      type = "string"
+    }
+    columns {
+      name = "release_date"
+      type = "string"
+    }
+    columns {
+      name = "is_ai_suspected"
+      type = "string"
+    }
+    columns {
+      name = "origin"
+      type = "string"
+    }
+    columns {
+      name = "normalized_name"
+      type = "string"
+    }
+    columns {
+      name = "label_id"
+      type = "string"
+    }
+    columns {
+      name = "user_id"
+      type = "string"
+    }
+    columns {
+      name = "position"
+      type = "string"
+    }
+    columns {
+      name = "role"
+      type = "string"
+    }
+    columns {
+      name = "track_id"
+      type = "string"
+    }
+    columns {
+      name = "artist_id"
+      type = "string"
+    }
+    columns {
+      name = "category_id"
+      type = "string"
+    }
+    columns {
+      name = "added_at"
+      type = "string"
+    }
   }
 }
 
