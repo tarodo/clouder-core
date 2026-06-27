@@ -1245,6 +1245,44 @@ ARTIST_INFO_RESPONSE = {
 }
 
 
+# ── telemetry (analytics ingest, spec §3.1) ───────────────────────────────
+TELEMETRY_ENVELOPE = {
+    "type": "object",
+    "required": ["event_name", "event_id", "session_id", "ts_client"],
+    "description": (
+        "One behavior/playback event. `context.user_id` is server-stamped from "
+        "the authorizer and any client value is ignored; `props` keys are "
+        "allowlisted per event_name server-side (schema-on-read)."
+    ),
+    "properties": {
+        "event_name": {
+            "type": "string",
+            "enum": [
+                "triage_session_start", "triage_session_end", "track_view",
+                "track_categorized", "playback_play", "playback_pause",
+                "playback_seek", "playback_ended", "playback_skip",
+                "hotkey_used", "playlist_add", "playlist_reorder",
+                "playlist_publish",
+            ],
+        },
+        "event_id": {"type": "string", "description": "Client ULID; idempotency key."},
+        "session_id": {"type": "string", "description": "Fresh per tab; not persisted."},
+        "ts_client": {"type": "string", "format": "date-time"},
+        "context": {
+            "type": "object",
+            "properties": {
+                "device": {"type": ["string", "null"], "enum": ["desktop", "mobile", "tablet", None]},
+                "route": {"type": ["string", "null"], "description": "Matched route pattern (no PII)."},
+                "app_version": {"type": ["string", "null"]},
+            },
+            "additionalProperties": False,
+        },
+        "props": {"type": "object", "description": "Per-event payload; allowlisted server-side."},
+    },
+    "additionalProperties": False,
+}
+
+
 # ── routes ────────────────────────────────────────────────────────────────
 
 PUBLIC = "public"
@@ -3724,6 +3762,50 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
+    # ── telemetry (analytics ingest) ───────────────────────────────────────
+    {
+        "method": "post",
+        "path": "/v1/telemetry",
+        "auth": AUTH,
+        "summary": "Ingest telemetry events.",
+        "description": (
+            "Accepts a batch of behavior/playback events. The server stamps "
+            "user_id (from the authorizer) + ts_server and forwards valid events "
+            "to the analytics pipeline. Invalid events are dropped individually; "
+            "the batch still returns 202 with accepted/rejected counts. A 256KB "
+            "body cap is enforced in the Lambda (operational guard, like the "
+            "503 cold-start note) and is not part of this contract."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["events"],
+                "properties": {"events": {
+                    "type": "array",
+                    "maxItems": 256,
+                    "items": {"$ref": "#/components/schemas/TelemetryEnvelope"},
+                }},
+                "additionalProperties": False,
+            }}},
+        },
+        "responses": {
+            "202": _make_response(
+                202,
+                "Accepted. Counts of stored vs dropped events.",
+                {
+                    "type": "object",
+                    "required": ["accepted", "rejected"],
+                    "properties": {
+                        "accepted": {"type": "integer"},
+                        "rejected": {"type": "integer"},
+                    },
+                },
+            ),
+            "400": _error(400, "Unparseable body or batch over 256 events."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
 ]
 
 
@@ -3892,6 +3974,7 @@ def build_openapi() -> dict[str, Any]:
                 "PlaylistTrackResponse": PLAYLIST_TRACK_RESPONSE,
                 "PlaylistTrackComments": PLAYLIST_TRACK_COMMENTS,
                 "PlaylistCommentsResponse": PLAYLIST_COMMENTS_RESPONSE,
+                "TelemetryEnvelope": TELEMETRY_ENVELOPE,
             },
         },
     }

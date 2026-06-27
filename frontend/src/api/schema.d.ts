@@ -7186,6 +7186,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/telemetry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ingest telemetry events.
+         * @description Accepts a batch of behavior/playback events. The server stamps user_id (from the authorizer) + ts_server and forwards valid events to the analytics pipeline. Invalid events are dropped individually; the batch still returns 202 with accepted/rejected counts. A 256KB body cap is enforced in the Lambda (operational guard, like the 503 cold-start note) and is not part of this contract.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        events: components["schemas"]["TelemetryEnvelope"][];
+                    };
+                };
+            };
+            responses: {
+                /** @description Accepted. Counts of stored vs dropped events. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            accepted: number;
+                            rejected: number;
+                        };
+                    };
+                };
+                /** @description Unparseable body or batch over 256 events. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7698,6 +7773,26 @@ export interface components {
                 }[];
             }[];
             correlation_id?: string;
+        };
+        /** @description One behavior/playback event. `context.user_id` is server-stamped from the authorizer and any client value is ignored; `props` keys are allowlisted per event_name server-side (schema-on-read). */
+        TelemetryEnvelope: {
+            /** @enum {string} */
+            event_name: "triage_session_start" | "triage_session_end" | "track_view" | "track_categorized" | "playback_play" | "playback_pause" | "playback_seek" | "playback_ended" | "playback_skip" | "hotkey_used" | "playlist_add" | "playlist_reorder" | "playlist_publish";
+            /** @description Client ULID; idempotency key. */
+            event_id: string;
+            /** @description Fresh per tab; not persisted. */
+            session_id: string;
+            /** Format: date-time */
+            ts_client: string;
+            context?: {
+                /** @enum {string|null} */
+                device?: "desktop" | "mobile" | "tablet" | null;
+                /** @description Matched route pattern (no PII). */
+                route?: string | null;
+                app_version?: string | null;
+            };
+            /** @description Per-event payload; allowlisted server-side. */
+            props?: Record<string, never>;
         };
     };
     responses: never;

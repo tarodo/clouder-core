@@ -5052,6 +5052,57 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /v1/telemetry:
+    post:
+      summary: Ingest telemetry events.
+      responses:
+        '202':
+          description: Accepted. Counts of stored vs dropped events.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - accepted
+                - rejected
+                properties:
+                  accepted:
+                    type: integer
+                  rejected:
+                    type: integer
+        '400':
+          description: Unparseable body or batch over 256 events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Accepts a batch of behavior/playback events. The server stamps
+        user_id (from the authorizer) + ts_server and forwards valid events to the
+        analytics pipeline. Invalid events are dropped individually; the batch still
+        returns 202 with accepted/rejected counts. A 256KB body cap is enforced in
+        the Lambda (operational guard, like the 503 cold-start note) and is not part
+        of this contract.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - events
+              properties:
+                events:
+                  type: array
+                  maxItems: 256
+                  items:
+                    $ref: '#/components/schemas/TelemetryEnvelope'
+              additionalProperties: false
+      security:
+      - BearerAuth: []
+      tags:
+      - user
 components:
   securitySchemes:
     BearerAuth:
@@ -5962,3 +6013,65 @@ components:
     PlaylistTrackResponse: *id020
     PlaylistTrackComments: *id021
     PlaylistCommentsResponse: *id022
+    TelemetryEnvelope:
+      type: object
+      required:
+      - event_name
+      - event_id
+      - session_id
+      - ts_client
+      description: One behavior/playback event. `context.user_id` is server-stamped
+        from the authorizer and any client value is ignored; `props` keys are allowlisted
+        per event_name server-side (schema-on-read).
+      properties:
+        event_name:
+          type: string
+          enum:
+          - triage_session_start
+          - triage_session_end
+          - track_view
+          - track_categorized
+          - playback_play
+          - playback_pause
+          - playback_seek
+          - playback_ended
+          - playback_skip
+          - hotkey_used
+          - playlist_add
+          - playlist_reorder
+          - playlist_publish
+        event_id:
+          type: string
+          description: Client ULID; idempotency key.
+        session_id:
+          type: string
+          description: Fresh per tab; not persisted.
+        ts_client:
+          type: string
+          format: date-time
+        context:
+          type: object
+          properties:
+            device:
+              type:
+              - string
+              - 'null'
+              enum:
+              - desktop
+              - mobile
+              - tablet
+              - null
+            route:
+              type:
+              - string
+              - 'null'
+              description: Matched route pattern (no PII).
+            app_version:
+              type:
+              - string
+              - 'null'
+          additionalProperties: false
+        props:
+          type: object
+          description: Per-event payload; allowlisted server-side.
+      additionalProperties: false
