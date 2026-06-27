@@ -678,7 +678,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id018
+              schema: &id019
                 type: object
                 required:
                 - id
@@ -3316,7 +3316,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: &id020
+                    items: &id021
                       type: object
                       required:
                       - track_id
@@ -3517,14 +3517,14 @@ paths:
           description: Per-track comments for the playlist.
           content:
             application/json:
-              schema: &id022
+              schema: &id023
                 type: object
                 required:
                 - tracks
                 properties:
                   tracks:
                     type: array
-                    items: &id021
+                    items: &id022
                       type: object
                       required:
                       - track_id
@@ -4417,7 +4417,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id019
+              schema: &id020
                 type: object
                 required:
                 - id
@@ -5103,6 +5103,232 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /v1/analytics/triage:
+    get:
+      summary: Triage efficiency dashboard data.
+      responses:
+        '200':
+          description: Triage efficiency dashboard data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResult'
+        '400':
+          description: from/to must be YYYY-MM-DD dates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unknown dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Athena query failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Median decision time + throughput per category over time, plus
+        undo rate (gold fact_track_decision + fact_triage_session). Pre-written parameterized
+        Athena queries.
+      parameters: &id018
+      - name: from
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+        description: Inclusive start date (YYYY-MM-DD).
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+        description: Inclusive end date (YYYY-MM-DD).
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /v1/analytics/taste:
+    get:
+      summary: Taste profile dashboard data.
+      responses:
+        '200':
+          description: Taste profile dashboard data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResult'
+        '400':
+          description: from/to must be YYYY-MM-DD dates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unknown dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Athena query failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: 'Label affinity: categorize count + BPM + playback skip-rate per
+        label (gold fact_track_decision x dim_track/dim_label x fact_playback).'
+      parameters: *id018
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /v1/analytics/funnel:
+    get:
+      summary: Funnel dashboard data.
+      responses:
+        '200':
+          description: Funnel dashboard data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResult'
+        '400':
+          description: from/to must be YYYY-MM-DD dates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unknown dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Athena query failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Lifecycle drop-off + time-between-steps and weekly throughput by
+        Saturday-week (gold fact_funnel_step x dim_date).
+      parameters: *id018
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /v1/analytics/playback:
+    get:
+      summary: Playback dashboard data.
+      responses:
+        '200':
+          description: Playback dashboard data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResult'
+        '400':
+          description: from/to must be YYYY-MM-DD dates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unknown dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Athena query failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Listen-through + skip-rate, listen-ratio-by-final-category correlation
+        (joined per track_key+user_key), and a most-seeked-tracks slice (gold fact_playback
+        x fact_track_decision/dim_category, fact_seek x dim_track).
+      parameters: *id018
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /v1/analytics/ops:
+    get:
+      summary: Ops/pipeline health dashboard data.
+      responses:
+        '200':
+          description: Ops/pipeline health dashboard data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResult'
+        '400':
+          description: from/to must be YYYY-MM-DD dates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Unknown dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Athena query failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Enrichment success + latency p50/p95 from bronze_ops plus bronze_events
+        freshness lag.
+      parameters: *id018
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
 components:
   securitySchemes:
     BearerAuth:
@@ -5451,7 +5677,7 @@ components:
         processing_reason:
           type: string
           nullable: true
-    LabelEnrichRunResponse: *id018
+    LabelEnrichRunResponse: *id019
     LabelSummary:
       type: object
       required:
@@ -5748,7 +5974,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
-    ArtistEnrichRunResponse: *id019
+    ArtistEnrichRunResponse: *id020
     ArtistSummary:
       type: object
       required:
@@ -6010,9 +6236,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ArtistHistoryCell'
-    PlaylistTrackResponse: *id020
-    PlaylistTrackComments: *id021
-    PlaylistCommentsResponse: *id022
+    PlaylistTrackResponse: *id021
+    PlaylistTrackComments: *id022
+    PlaylistCommentsResponse: *id023
     TelemetryEnvelope:
       type: object
       required:
@@ -6075,3 +6301,31 @@ components:
           type: object
           description: Per-event payload; allowlisted server-side.
       additionalProperties: false
+    AnalyticsResult:
+      type: object
+      required:
+      - rows
+      description: Generic dashboard payload. `rows` is the primary series; routes
+        may add further named arrays (one per panel, e.g. `undo`, `weekly`, `by_category`,
+        `seek`). `freshness` is present only on the ops route. All arrays are schema-on-read
+        objects from the gold star schema.
+      properties:
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        freshness:
+          type: object
+          properties:
+            newest_dt:
+              type:
+              - string
+              - 'null'
+            lag_hours:
+              type:
+              - number
+              - 'null'
+        correlation_id:
+          type: string
+      additionalProperties: true
