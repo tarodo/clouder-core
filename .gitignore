@@ -35,3 +35,6 @@ infra/backend.hcl
 .dbt-venv/
 analytics/dbt/target/
 analytics/dbt/dbt_packages/
+# dbt runtime artifacts
+analytics/dbt/logs/
+analytics/dbt/.user.yml
