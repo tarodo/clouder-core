@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tokenStore } from '../../auth/tokenStore';
 
 async function freshSdk() {
   vi.resetModules();
@@ -9,12 +8,10 @@ async function freshSdk() {
 describe('telemetry sdk', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_TELEMETRY_ENABLED', 'true');
-    tokenStore.set('jwt-123');
   });
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
-    tokenStore.set(null);
   });
 
   it('no-ops when the flag is off', async () => {
@@ -49,8 +46,8 @@ describe('telemetry sdk', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response('{}', { status: 202 }));
     const { telemetry } = await freshSdk();
-    // vi.resetModules() creates a fresh tokenStore; set token on the fresh instance
-    // ponytail: vitest v2 re-evaluates tokenStore.ts after resetModules; beforeEach token lives on old instance
+    // freshSdk() calls vi.resetModules(), so the SDK gets a brand-new tokenStore instance;
+    // re-import here to get the same fresh instance and set the bearer token on it.
     const { tokenStore: freshTs } = await import('../../auth/tokenStore');
     freshTs.set('jwt-123');
     for (let i = 0; i < 25; i++) telemetry.track('track_view', { track_id: String(i) });
@@ -99,6 +96,32 @@ describe('telemetry sdk', () => {
     for (const [, init] of fetchSpy.mock.calls) {
       expect((init?.body as string).length).toBeLessThan(64_000);
     }
+  });
+
+  it('drops a single event that exceeds the 64KB keepalive cap (produces zero chunks)', async () => {
+    const { chunkEvents } = await freshSdk();
+    const oversized = {
+      event_name: 'x',
+      event_id: 'id',
+      session_id: 'sid',
+      ts_client: new Date().toISOString(),
+      context: { user_id: null, device: 'desktop' as const, route: null, app_version: 'dev' },
+      props: { pad: 'x'.repeat(70_000) },
+    };
+    expect(chunkEvents([oversized])).toHaveLength(0);
+  });
+
+  it('interval trigger flushes buffered events after 10s', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 202 }));
+    const { telemetry } = await freshSdk();
+    telemetry.track('track_view', { track_id: '1' });
+    vi.advanceTimersByTime(10_000);
+    await Promise.resolve();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 
   it('seen counter dedupes by key and resets per session', async () => {

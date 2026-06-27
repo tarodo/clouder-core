@@ -52,6 +52,7 @@ function telemetryEnabled(): boolean {
   return import.meta.env.VITE_TELEMETRY_ENABLED === 'true';
 }
 
+// ponytail: 'tablet' reserved; add UA/width detection when needed
 function device(): 'desktop' | 'mobile' | 'tablet' {
   if (typeof window === 'undefined') return 'desktop';
   return window.innerWidth > 0 && window.innerWidth < 768 ? 'mobile' : 'desktop';
@@ -85,6 +86,10 @@ export function chunkEvents(
   let bytes = 2; // {"events":[]} braces approximated
   for (const e of events) {
     const size = JSON.stringify(e).length + 1;
+    // ponytail: a single event larger than the chunk cap can never fit a keepalive POST
+    // (browser drops it); drop it rather than silently send an over-cap request. Realistic
+    // events are ~1KB, so this is an unreachable guard in practice.
+    if (size > maxBytes) continue;
     if (cur.length && bytes + size > maxBytes) {
       chunks.push(cur);
       cur = [];
