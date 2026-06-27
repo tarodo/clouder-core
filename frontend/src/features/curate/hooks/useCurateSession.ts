@@ -21,6 +21,7 @@ import {
 } from '../lib/lastCurateLocation';
 import { usePlayback } from '../../playback/usePlayback';
 import { toPlaybackTrack } from '../../triage/lib/toPlaybackTrack';
+import { useTelemetry } from '../../../lib/telemetry/hooks';
 
 export interface UseCurateSessionArgs {
   blockId: string;
@@ -206,6 +207,7 @@ export function useCurateSession({
   const { t } = useTranslation();
   const qc = useQueryClient();
   const playback = usePlayback();
+  const telemetry = useTelemetry();
   const blockQuery = useTriageBlock(blockId);
   const tracksQuery = useBucketTracks(blockId, bucketId, '');
   const moveMutation = useMoveTracks(blockId, styleId);
@@ -221,6 +223,10 @@ export function useCurateSession({
     [tracksQuery.data],
   );
   const currentTrack = queue[state.currentIndex] ?? null;
+
+  useEffect(() => {
+    if (currentTrack) telemetry.markShown(currentTrack.track_id);
+  }, [currentTrack?.track_id, telemetry]);
 
   const destinations = useMemo<TriageBucket[]>(() => {
     if (!blockQuery.data) return [];
@@ -394,17 +400,25 @@ export function useCurateSession({
   const { mutate: addToCategoryMutate } = useAddTrackToCategory();
   const { mutate: removeFromCategoryMutate } = useRemoveTrackFromCategory();
   const fireMutation = useCallback(
-    (input: MoveInput, lastOp: LastOp) => {
+    (input: MoveInput, lastOp: LastOp, categoryKey: string) => {
       moveMutate(input, {
         onSuccess: () => {
           writeLastCurateLocation(styleId, blockId, bucketId);
           writeLastCurateStyle(styleId);
+          const trackId = input.trackIds[0];
+          if (trackId) {
+            telemetry.track('track_categorized', {
+              track_id: trackId,
+              decision_ms: telemetry.msSinceShown(trackId),
+              category_key: categoryKey,
+              action: 'categorized_curate',
+            });
+          }
           // Race guard: if user undid (UNDO_WITHIN clears lastOp) or replaced
           // the op (ASSIGN_REPLACE_BEGIN sets a new lastOp), stateRef.current.lastOp
           // is no longer the captured one — skip the category chain.
           const cur = stateRef.current.lastOp;
           if (!cur || cur !== lastOp) return;
-          const trackId = input.trackIds[0];
           if (lastOp.forceCategoryId && trackId) {
             addToCategoryMutate(
               { categoryId: lastOp.forceCategoryId, trackId },
@@ -430,7 +444,7 @@ export function useCurateSession({
         },
       });
     },
-    [moveMutate, addToCategoryMutate, blockId, bucketId, styleId, emitErrorToast, t],
+    [moveMutate, addToCategoryMutate, blockId, bucketId, styleId, emitErrorToast, t, telemetry],
   );
 
   const assign = useCallback(
@@ -493,7 +507,7 @@ export function useCurateSession({
           toBucketId,
           lastOp: newLastOp,
         });
-        fireMutation(input, newLastOp);
+        fireMutation(input, newLastOp, dst?.bucket_type ?? '');
         return;
       }
 
@@ -518,7 +532,7 @@ export function useCurateSession({
         toBucketId,
         lastOp: newLastOp,
       });
-      fireMutation(input, newLastOp);
+      fireMutation(input, newLastOp, dst?.bucket_type ?? '');
     },
     [
       queue,
@@ -560,6 +574,10 @@ export function useCurateSession({
       );
     };
 
+    const revertedKey =
+      destinations.find((b) => b.id === lastOp.input.toBucketId)?.bucket_type ?? '';
+    const undoTrackId = lastOp.input.trackIds[0];
+
     if (isPending) {
       clearTimeout(pendingTimerRef.current as number);
       pendingTimerRef.current = null;
@@ -568,10 +586,26 @@ export function useCurateSession({
         pulseTimerRef.current = null;
       }
       void undoMoveDirect(qc, blockId, styleId, lastOp.input, lastOp.snapshot).catch(() => {});
+      if (undoTrackId) {
+        telemetry.track('track_categorized', {
+          track_id: undoTrackId,
+          surface: 'curate',
+          category_key: revertedKey,
+          action: 'undo',
+        });
+      }
       rollbackForce();
       dispatch({ type: 'UNDO_WITHIN' });
     } else {
       void undoMoveDirect(qc, blockId, styleId, lastOp.input, lastOp.snapshot).catch(() => {});
+      if (undoTrackId) {
+        telemetry.track('track_categorized', {
+          track_id: undoTrackId,
+          surface: 'curate',
+          category_key: revertedKey,
+          action: 'undo',
+        });
+      }
       rollbackForce();
       dispatch({ type: 'UNDO_AFTER' });
       // Pending hold already fired — SDK is playing the post-shrink track.
@@ -583,7 +617,7 @@ export function useCurateSession({
         void playRef.current(lastOp.trackIndex, restored);
       }, 0);
     }
-  }, [qc, blockId, styleId, playback.controls, removeFromCategoryMutate, t]);
+  }, [qc, blockId, styleId, playback.controls, removeFromCategoryMutate, t, destinations, telemetry]);
 
   const toggleForce = useCallback(() => {
     dispatch({ type: 'TOGGLE_FORCE' });
