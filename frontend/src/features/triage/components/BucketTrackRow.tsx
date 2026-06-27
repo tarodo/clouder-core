@@ -7,6 +7,7 @@ import type { TriageBucket } from '../lib/bucketLabels';
 import { PlayPauseButton } from '../../playback/PlayPauseButton';
 import { MoveToMenu } from './MoveToMenu';
 import { TrackKey } from '../../playback/TrackKey';
+import { useTrackView } from '../../../lib/telemetry/hooks';
 
 export interface BucketTrackRowProps {
   track: BucketTrack;
@@ -38,6 +39,7 @@ export function BucketTrackRow({
   onToggle,
 }: BucketTrackRowProps) {
   const { t } = useTranslation();
+  useTrackView(track.track_id);
   const aiBadge = track.is_ai_suspected ? (
     <IconAlertTriangle
       size={14}

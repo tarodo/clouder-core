@@ -27,6 +27,7 @@ import { usePlayback } from '../../playback/usePlayback';
 import { BucketPlayerPanel } from '../components/BucketPlayerPanel';
 import type { BucketDetailOutletContext } from './BucketPlayerPage';
 import type { PlaybackTrack } from '../../playback/lib/types';
+import { useTelemetry } from '../../../lib/telemetry/hooks';
 
 const EMPTY_TRACKS: PlaybackTrack[] = [];
 
@@ -52,6 +53,9 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   const { data: block, isLoading, isError, error } = useTriageBlock(blockId);
   const move = useMoveTracks(blockId, styleId);
   const undoInflight = useRef(false);
+  const telemetry = useTelemetry();
+  const assignsRef = useRef(0);
+  const undoCountRef = useRef(0);
   const [transferTrackId, setTransferTrackId] = useState<string | null>(null);
   const [rawSearch, setRawSearch] = useState('');
   const [debouncedSearch] = useDebouncedValue(rawSearch.trim(), 300);
@@ -82,6 +86,23 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   );
   const playerTracks = useMemo(() => playerItems.map(toPlaybackTrack), [playerItems]);
   useBucketPlayerQueue(blockId, bucketId, isStagingBucket ? playerTracks : EMPTY_TRACKS);
+
+  useEffect(() => {
+    telemetry.resetSeen();
+    assignsRef.current = 0;
+    undoCountRef.current = 0;
+    const startedAt = Date.now();
+    telemetry.track('triage_session_start', { block_id: blockId, bucket_id: bucketId });
+    return () => {
+      const total = assignsRef.current;
+      telemetry.track('triage_session_end', {
+        session_ms: Date.now() - startedAt,
+        tracks_seen: telemetry.seenCount(),
+        tracks_categorized: total,
+        undo_rate: total > 0 ? undoCountRef.current / total : 0,
+      });
+    };
+  }, [telemetry, blockId, bucketId]);
 
   useEffect(() => {
     void playback.controls.prewarm();
@@ -197,6 +218,13 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
     const snapshot: MoveSnapshot = takeSnapshot(qc, blockId, bucket.id);
     move.mutate(input, {
       onSuccess: () => {
+        assignsRef.current += 1;
+        telemetry.track('track_categorized', {
+          track_id: trackId,
+          decision_ms: telemetry.msSinceShown(trackId),
+          category_key: toBucket.bucket_type,
+          action: 'moved_to_bucket',
+        });
         const toastId = `triage-move-${Date.now()}-${trackId}`;
         notifications.show({
           id: toastId,
@@ -219,6 +247,13 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
                   notifications.hide(toastId);
                   try {
                     await undoMoveDirect(qc, blockId, styleId, input, snapshot);
+                    undoCountRef.current += 1;
+                    telemetry.track('track_categorized', {
+                      track_id: trackId,
+                      surface: 'triage',
+                      category_key: toBucket.bucket_type,
+                      action: 'undo',
+                    });
                     notifications.show({
                       message: t('triage.move.toast.undone'),
                       color: 'green',
