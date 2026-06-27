@@ -8,6 +8,7 @@ export interface UsePlayerHotkeysArgs {
   onTogglePlayPause: () => void;
   onPrev: () => void;
   onNext: () => void;
+  onSeekRelative: (deltaMs: number) => void;
   onSeekPct: (p: number) => void;
   onTogglePlaylist: (index: number) => void;
   onUndo: () => void;
@@ -29,8 +30,9 @@ function digitIndex(code: string): number | null {
 
 /**
  * Player keyboard shortcuts shared by the category and playlist players:
- *   Space = play/pause, j/k = prev/next, a/s/d/f/g = seek 0/20/40/60/80%,
- *   u = undo, digits 1-9/0 = toggle playlist by index (when playlistCount > 0).
+ *   Space = play/pause, j/k = prev/next, Shift+J/K = seek -10s/+10s,
+ *   a/s/d/f/g = seek 0/20/40/60/80%, u = undo,
+ *   digits 1-9/0 = toggle playlist by index (when playlistCount > 0).
  * Only active when `active` is true (i.e. this player owns the current queue).
  */
 export function usePlayerHotkeys(args: UsePlayerHotkeysArgs): void {
@@ -40,6 +42,7 @@ export function usePlayerHotkeys(args: UsePlayerHotkeysArgs): void {
     onTogglePlayPause,
     onPrev,
     onNext,
+    onSeekRelative,
     onSeekPct,
     onTogglePlaylist,
     onUndo,
@@ -57,12 +60,14 @@ export function usePlayerHotkeys(args: UsePlayerHotkeysArgs): void {
       }
       if (event.code === 'KeyJ') {
         event.preventDefault();
-        onPrev();
+        if (event.shiftKey) onSeekRelative(-10_000);
+        else onPrev();
         return;
       }
       if (event.code === 'KeyK') {
         event.preventDefault();
-        onNext();
+        if (event.shiftKey) onSeekRelative(10_000);
+        else onNext();
         return;
       }
       if (event.code === 'KeyU') {
@@ -92,6 +97,7 @@ export function usePlayerHotkeys(args: UsePlayerHotkeysArgs): void {
     onTogglePlayPause,
     onPrev,
     onNext,
+    onSeekRelative,
     onSeekPct,
     onTogglePlaylist,
     onUndo,

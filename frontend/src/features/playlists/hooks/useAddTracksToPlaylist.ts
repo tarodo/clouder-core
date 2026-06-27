@@ -61,6 +61,9 @@ export function useAddTracksToPlaylist(): UseMutationResult<AddTracksResult, Err
       }
       qc.invalidateQueries({ queryKey: playlistDetailKey(playlistId) });
       qc.invalidateQueries({ queryKey: playlistTracksKey(playlistId) });
+      // Refresh playlist lists (e.g. the category player's active-playlist cloud)
+      // so the per-playlist track_count shown in parentheses stays current.
+      qc.invalidateQueries({ queryKey: ['playlists', 'list'] });
     },
   });
 }

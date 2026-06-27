@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { QueryClient, QueryClientProvider, type InfiniteData } from '@tanstack/react-query';
 import { renderHook, act } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
@@ -84,5 +84,17 @@ describe('useAddTracksToPlaylist patches category-tracks cache', () => {
     const ids = (firstPage?.items ?? []).map((i) => i.id);
     expect(ids).toEqual(['t2']);
     expect(firstPage?.total).toBe(1);
+  });
+
+  it('invalidates the playlists list so track_count refreshes', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    const { result } = renderHook(() => useAddTracksToPlaylist(), {
+      wrapper: makeWrapper(qc),
+    });
+    await act(async () => {
+      await result.current.mutateAsync({ playlistId: 'pl-1', trackIds: ['t1'] });
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['playlists', 'list'] });
   });
 });

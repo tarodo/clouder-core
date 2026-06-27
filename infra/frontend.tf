@@ -113,9 +113,11 @@ locals {
   # under that prefix, so SPA paths like `/triage/<id>` fall through to S3.
   # No fallback function needed.
   #
-  # `/categories*` and `/admin/*` cannot be tightened: BE owns
-  # `/categories/{id}` and `/admin/coverage`, exact-shape collisions with
-  # `CategoriesListPage` (`/categories/<styleId>`) and `AdminCoveragePage`
+  # `/artists*`, `/categories*`, `/labels*`, and `/admin/*` cannot be tightened:
+  # BE owns `/artists/{id}`, `/categories/{id}`, `/labels/{id}`, and
+  # `/admin/coverage`, exact-shape collisions with SPA routes
+  # `ArtistDetailPage` (`/artists/<id>`), `LabelDetailPage` (`/labels/<id>`),
+  # `CategoriesListPage` (`/categories/<styleId>`), and `AdminCoveragePage`
   # (`/admin/coverage`). They get spa_html_fallback so browser refresh on
   # those paths returns the SPA shell, while apiClient fetches
   # (`Accept: application/json`) bypass and forward to API GW unchanged.
@@ -130,8 +132,6 @@ locals {
     "/me",
     "/styles*",
     "/tracks*",
-    "/artists*",
-    "/labels*",
     "/albums*",
     "/runs*",
     "/collect_bp_releases",
@@ -139,7 +139,9 @@ locals {
     "/tags*",
   ]
   api_gw_spa_aware_path_patterns = [
+    "/artists*",
     "/categories*",
+    "/labels*",
     "/admin/*",
     "/playlists*",
   ]

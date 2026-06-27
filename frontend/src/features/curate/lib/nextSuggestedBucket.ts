@@ -1,6 +1,14 @@
 import type { TriageBucket } from '../../triage/lib/bucketLabels';
 
-const PRIORITY: ReadonlyArray<TriageBucket['bucket_type']> = ['NEW', 'OLD', 'NOT', 'UNCLASSIFIED'];
+// Curation order mirrors the backend display order (FAV first); DISCARD and
+// STAGING are intentionally excluded — discarded tracks are not curated.
+const PRIORITY: ReadonlyArray<TriageBucket['bucket_type']> = [
+  'FAV',
+  'NEW',
+  'OLD',
+  'NOT',
+  'UNCLASSIFIED',
+];
 
 export function nextSuggestedBucket(
   buckets: TriageBucket[],
