@@ -103,9 +103,9 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
       void playback.controls.prewarm();
       const queueIdx = playback.queue.tracks.findIndex((q) => q.id === track.track_id);
       if (queueIdx >= 0) {
-        void playback.controls.play(queueIdx);
+        void playback.controls.play(queueIdx, undefined, 'playlist_player');
       } else {
-        void playback.controls.play(undefined, toPlaybackTrack(track));
+        void playback.controls.play(undefined, toPlaybackTrack(track), 'playlist_player');
       }
       if (!isDesktop) {
         navigate(`/playlists/${id}/player`);

@@ -94,9 +94,9 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
       void playback.controls.prewarm();
       const queueIdx = playback.queue.tracks.findIndex((q) => q.id === tr.track_id);
       if (queueIdx >= 0) {
-        void playback.controls.play(queueIdx);
+        void playback.controls.play(queueIdx, undefined, 'triage_player');
       } else {
-        void playback.controls.play(undefined, toPlaybackTrack(tr));
+        void playback.controls.play(undefined, toPlaybackTrack(tr), 'triage_player');
       }
       if (!isDesktop) {
         navigate(`/triage/${styleId}/${blockId}/buckets/${bucketId}/player`);
