@@ -33,6 +33,7 @@ import { AdminEnrichmentBacklogPage } from '../features/admin/routes/AdminEnrich
 import { AdminEnrichmentRunsPage } from '../features/admin/routes/AdminEnrichmentRunsPage';
 import { AdminEnrichmentRunDetailPage } from '../features/admin/routes/AdminEnrichmentRunDetailPage';
 import { AdminAutoEnrichPage } from '../features/admin/routes/AdminAutoEnrichPage';
+import { AdminAnalyticsPage } from '../features/admin/routes/AdminAnalyticsPage';
 import { AdminArtistEnrichmentBacklogPage } from '../features/admin/routes/AdminArtistEnrichmentBacklogPage';
 import { AdminArtistEnrichmentRunsPage } from '../features/admin/routes/AdminArtistEnrichmentRunsPage';
 import { AdminArtistEnrichmentRunDetailPage } from '../features/admin/routes/AdminArtistEnrichmentRunDetailPage';
@@ -128,6 +129,7 @@ export const router = createBrowserRouter([
           { path: 'artists/enrich/runs', element: <AdminArtistEnrichmentRunsPage /> },
           { path: 'artists/enrich/runs/:runId', element: <AdminArtistEnrichmentRunDetailPage /> },
           { path: 'auto-enrich', element: <AdminAutoEnrichPage /> },
+          { path: 'analytics', element: <AdminAnalyticsPage /> },
         ],
       },
     ],
