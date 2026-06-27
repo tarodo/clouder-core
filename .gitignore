@@ -30,3 +30,8 @@ infra/backend.hcl
 
 .claire
 .vite
+
+# dbt venv and build artifacts
+.dbt-venv/
+analytics/dbt/target/
+analytics/dbt/dbt_packages/
