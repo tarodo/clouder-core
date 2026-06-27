@@ -49,6 +49,22 @@ models:
       - name: dt
         tests: [not_null]
 
+  - name: fact_funnel_step
+    columns:
+      - name: funnel_key
+        tests: [not_null, unique]
+      - name: step
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["ingested", "viewed", "categorized", "playlisted", "published"]
+      - name: date_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+
 unit_tests:
   - name: fact_playback_pause_then_ended_remote_resume
     description: >
