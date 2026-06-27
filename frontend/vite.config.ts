@@ -2,6 +2,17 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+
+function appVersion(): string {
+  if (process.env.VITE_APP_VERSION) return process.env.VITE_APP_VERSION;
+  try {
+    const sha = execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim();
+    return `${new Date().toISOString().slice(0, 10)}+${sha}`;
+  } catch {
+    return 'dev';
+  }
+}
 
 // `/auth/return` is a SPA route owned by AuthReturnPage. Everything else
 // under /auth/* is a backend endpoint and must be proxied to API GW.
@@ -52,6 +63,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    define: { __APP_VERSION__: JSON.stringify(appVersion()) },
     resolve: {
       alias: { '@': path.resolve(__dirname, 'src') },
     },

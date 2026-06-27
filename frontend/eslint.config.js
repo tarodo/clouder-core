@@ -24,4 +24,26 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
+  {
+    files: ['src/lib/telemetry/**/*.{ts,tsx}'],
+    ignores: ['src/lib/telemetry/**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/bpTokenStore'],
+              message: 'Telemetry must not read admin/bp token state (privacy §14).',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        { name: 'localStorage', message: 'Telemetry must not persist to web storage (privacy §14).' },
+        { name: 'sessionStorage', message: 'Telemetry must not persist to web storage (privacy §14).' },
+      ],
+    },
+  },
 );
