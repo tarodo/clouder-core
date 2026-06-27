@@ -35,6 +35,7 @@ const BACKEND_ONLY_PREFIXES = [
   '/albums',
   '/runs',
   '/collect_bp_releases',
+  '/v1',
 ];
 const SPA_AWARE_PREFIXES = ['/categories', '/triage', '/admin'];
 
