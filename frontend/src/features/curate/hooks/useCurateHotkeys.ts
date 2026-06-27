@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import { isEditableTarget } from '../../../lib/isEditableTarget';
+import { useTelemetry } from '../../../lib/telemetry/hooks';
 import type { TriageBucket } from '../../triage/lib/bucketLabels';
 import { byDiscard, byPosition, byTechType } from '../lib/destinationMap';
 
@@ -30,6 +31,7 @@ const DIGIT_CODES: Record<string, number> = {
 
 export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
   const isMobile = useMediaQuery('(max-width: 64em)');
+  const telemetry = useTelemetry();
   const {
     buckets,
     overlayOpen,
@@ -49,6 +51,7 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
       // Help overlay (key form because of layout sensitivity).
       if (event.key === '?') {
         event.preventDefault();
+        telemetry.track('hotkey_used', { hotkey_code: 'Slash', action: 'open_help', source: 'curate' });
         onOpenOverlay();
         return;
       }
@@ -61,6 +64,7 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
           return;
         case 'KeyU':
           event.preventDefault();
+          telemetry.track('hotkey_used', { hotkey_code: 'KeyU', action: 'undo', source: 'curate' });
           onUndo();
           return;
         case 'KeyL':
@@ -70,6 +74,7 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
           // is a non-stateful action.
           if (overlayOpen) return;
           event.preventDefault();
+          telemetry.track('hotkey_used', { hotkey_code: 'KeyL', action: 'toggle_force', source: 'curate' });
           onToggleForce();
           return;
         // KeyJ / KeyK are handled by usePlaybackHotkeys (F6) — it calls
@@ -79,25 +84,37 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
         case 'KeyQ': {
           event.preventDefault();
           const b = byTechType(buckets, 'NEW');
-          if (b) onAssign(b.id);
+          if (b) {
+            telemetry.track('hotkey_used', { hotkey_code: event.code, action: 'assign_destination', source: 'curate' });
+            onAssign(b.id);
+          }
           return;
         }
         case 'KeyW': {
           event.preventDefault();
           const b = byTechType(buckets, 'OLD');
-          if (b) onAssign(b.id);
+          if (b) {
+            telemetry.track('hotkey_used', { hotkey_code: event.code, action: 'assign_destination', source: 'curate' });
+            onAssign(b.id);
+          }
           return;
         }
         case 'KeyE': {
           event.preventDefault();
           const b = byTechType(buckets, 'NOT');
-          if (b) onAssign(b.id);
+          if (b) {
+            telemetry.track('hotkey_used', { hotkey_code: event.code, action: 'assign_destination', source: 'curate' });
+            onAssign(b.id);
+          }
           return;
         }
         case 'KeyZ': {
           event.preventDefault();
           const b = byDiscard(buckets);
-          if (b) onAssign(b.id);
+          if (b) {
+            telemetry.track('hotkey_used', { hotkey_code: event.code, action: 'assign_destination', source: 'curate' });
+            onAssign(b.id);
+          }
           return;
         }
         default: {
@@ -105,7 +122,10 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
           if (slot !== undefined) {
             event.preventDefault();
             const b = byPosition(buckets, slot);
-            if (b) onAssign(b.id);
+            if (b) {
+              telemetry.track('hotkey_used', { hotkey_code: event.code, action: 'assign_destination', source: 'curate' });
+              onAssign(b.id);
+            }
           }
         }
       }
@@ -114,6 +134,7 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
     return () => window.removeEventListener('keydown', handler);
   }, [
     isMobile,
+    telemetry,
     buckets,
     overlayOpen,
     onAssign,

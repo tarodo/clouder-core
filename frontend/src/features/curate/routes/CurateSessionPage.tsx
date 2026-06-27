@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Navigate, useParams } from 'react-router';
+import { useTelemetryRoute } from '../../../lib/telemetry/hooks';
 import { CurateSession } from '../components/CurateSession';
 import {
   writeLastCurateLocation,
@@ -9,6 +10,8 @@ import {
 export function CurateSessionPage() {
   const params = useParams<{ styleId: string; blockId: string; bucketId: string }>();
   const { styleId, blockId, bucketId } = params;
+
+  useTelemetryRoute('/curate/:styleId/:blockId/:bucketId');
 
   useEffect(() => {
     if (!styleId || !blockId || !bucketId) return;
