@@ -91,8 +91,8 @@ export function PlaylistPlayerPanel({ playlistId, items }: PlaylistPlayerPanelPr
   }, [entry]);
 
   // Player transport hotkeys (Space play/pause, a/s/d/f/g seek, j/k prev/next,
-  // u undo) — active only while this playlist owns the queue. No playlist-toggle
-  // digits here (playlistCount = 0).
+  // Shift+J/K seek -10s/+10s, u undo) — active only while this playlist owns the
+  // queue. No playlist-toggle digits here (playlistCount = 0).
   usePlayerHotkeys({
     active:
       playback.queue.source?.type === 'playlist' &&
@@ -101,6 +101,8 @@ export function PlaylistPlayerPanel({ playlistId, items }: PlaylistPlayerPanelPr
     onTogglePlayPause: () => void playback.controls.togglePlayPause(),
     onPrev: () => void playback.controls.prev(),
     onNext: () => void playback.controls.next(),
+    onSeekRelative: (delta) =>
+      void playback.controls.seekMs(playback.track.positionMs + delta),
     onSeekPct: (p) => void playback.controls.seekPct(p),
     onTogglePlaylist: () => {},
     onUndo: () => void undoStack.popAndRun(),

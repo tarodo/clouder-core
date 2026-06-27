@@ -6,6 +6,7 @@ const callbacks = {
   onTogglePlayPause: vi.fn(),
   onPrev: vi.fn(),
   onNext: vi.fn(),
+  onSeekRelative: vi.fn(),
   onSeekPct: vi.fn(),
   onTogglePlaylist: vi.fn(),
   onUndo: vi.fn(),
@@ -38,6 +39,17 @@ describe('usePlayerHotkeys', () => {
     press('KeyK');
     expect(callbacks.onPrev).toHaveBeenCalledOnce();
     expect(callbacks.onNext).toHaveBeenCalledOnce();
+    expect(callbacks.onSeekRelative).not.toHaveBeenCalled();
+  });
+
+  it('Shift+J/K seek -10s/+10s instead of prev/next', () => {
+    renderHook(() => usePlayerHotkeys({ ...callbacks, active: true, playlistCount: 10 }));
+    press('KeyJ', { shiftKey: true });
+    press('KeyK', { shiftKey: true });
+    expect(callbacks.onSeekRelative).toHaveBeenNthCalledWith(1, -10_000);
+    expect(callbacks.onSeekRelative).toHaveBeenNthCalledWith(2, 10_000);
+    expect(callbacks.onPrev).not.toHaveBeenCalled();
+    expect(callbacks.onNext).not.toHaveBeenCalled();
   });
 
   it('A/S/D/F/G seek to 0/20/40/60/80% (matches curate convention)', () => {

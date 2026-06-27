@@ -172,6 +172,8 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
     onTogglePlayPause: () => void playback.controls.togglePlayPause(),
     onPrev: () => void playback.controls.prev(),
     onNext: () => void playback.controls.next(),
+    onSeekRelative: (delta) =>
+      void playback.controls.seekMs(playback.track.positionMs + delta),
     onSeekPct: (p) => void playback.controls.seekPct(p),
     onTogglePlaylist: onTogglePlaylistByIndex,
     onUndo: () => void undoStack.popAndRun(),
