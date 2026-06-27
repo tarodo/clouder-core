@@ -1,0 +1,146 @@
+version: 2
+
+models:
+  - name: fact_playback
+    description: >
+      One row per completed play (playback_play matched to its terminal within
+      session_id + track_id). Terminal priority: playback_ended/skip > playback_pause,
+      latest wins. skipped=true only when terminal is playback_skip.
+    columns:
+      - name: playback_key
+        tests: [not_null, unique]
+      - name: event_id
+        tests: [not_null]
+      - name: user_key
+        tests: [not_null]
+      - name: track_key
+        tests: [not_null]
+      - name: date_key
+        tests: [not_null]
+      - name: skipped
+        tests: [not_null]
+      - name: dt
+        tests: [not_null]
+
+  - name: fact_seek
+    columns:
+      - name: seek_key
+        tests: [not_null, unique]
+      - name: event_id
+        tests: [not_null, unique]
+      - name: dt
+        tests: [not_null]
+
+  - name: fact_triage_session
+    columns:
+      - name: session_key
+        tests: [not_null, unique]
+      - name: session_id
+        tests: [not_null, unique]
+      - name: dt
+        tests: [not_null]
+
+  - name: fact_track_decision
+    columns:
+      - name: decision_key
+        tests: [not_null, unique]
+      - name: event_id
+        tests: [not_null, unique]
+      - name: dt
+        tests: [not_null]
+
+unit_tests:
+  - name: fact_playback_pause_then_ended_remote_resume
+    description: >
+      play, pause, (remote resume = no new playback_play), ended -> 1 row,
+      terminal resolves to ended (not pause), skipped=false.
+    model: fact_playback
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_playback')
+        rows:
+          - {event_id: e1, event_name: playback_play, session_id: s1, track_id: t1, ts_server: '2024-01-01T10:00:01Z', user_id: u1, source: triage_player, duration_ms: 200000, position_ms: null, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+          - {event_id: e2, event_name: playback_pause, session_id: s1, track_id: t1, ts_server: '2024-01-01T10:00:02Z', user_id: u1, source: null, duration_ms: null, position_ms: 50000, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+          - {event_id: e3, event_name: playback_ended, session_id: s1, track_id: t1, ts_server: '2024-01-01T10:00:03Z', user_id: u1, source: null, duration_ms: 200000, position_ms: null, listen_through_ratio: 0.98, seek_count: null, dt: '2024-01-01'}
+      - input: ref('stg_playback_seek')
+        rows: []
+    expect:
+      rows:
+        - {skipped: false, played_ms: 196000}
+
+  - name: fact_playback_local_resume_two_rows
+    description: >
+      play, pause, play (idle/ended->play re-emit), ended -> 2 rows.
+      First play resolves to pause terminal; second resolves to ended.
+    model: fact_playback
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_playback')
+        rows:
+          - {event_id: e1, event_name: playback_play, session_id: s1, track_id: t1, ts_server: '2024-01-01T10:01:01Z', user_id: u1, source: triage_player, duration_ms: 200000, position_ms: null, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+          - {event_id: e2, event_name: playback_pause, session_id: s1, track_id: t1, ts_server: '2024-01-01T10:01:02Z', user_id: u1, source: null, duration_ms: null, position_ms: 50000, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+          - {event_id: e3, event_name: playback_play, session_id: s1, track_id: t1, ts_server: '2024-01-01T10:01:03Z', user_id: u1, source: triage_player, duration_ms: 200000, position_ms: null, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+          - {event_id: e4, event_name: playback_ended, session_id: s1, track_id: t1, ts_server: '2024-01-01T10:01:04Z', user_id: u1, source: null, duration_ms: 200000, position_ms: null, listen_through_ratio: 1.0, seek_count: null, dt: '2024-01-01'}
+      - input: ref('stg_playback_seek')
+        rows: []
+    expect:
+      rows:
+        - {skipped: false, played_ms: 50000}
+        - {skipped: false, played_ms: 200000}
+
+  - name: fact_playback_skip_marks_skipped
+    description: play -> skip -> skipped=true, played_ms from position_ms.
+    model: fact_playback
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_playback')
+        rows:
+          - {event_id: e1, event_name: playback_play, session_id: s2, track_id: t1, ts_server: '2024-01-01T10:02:01Z', user_id: u1, source: playlist_player, duration_ms: 200000, position_ms: null, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+          - {event_id: e2, event_name: playback_skip, session_id: s2, track_id: t1, ts_server: '2024-01-01T10:02:02Z', user_id: u1, source: null, duration_ms: 200000, position_ms: 12000, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+      - input: ref('stg_playback_seek')
+        rows: []
+    expect:
+      rows:
+        - {skipped: true, played_ms: 12000}
+
+  - name: fact_playback_pause_only_terminal
+    description: play -> pause (no end/skip) -> terminal=pause, skipped=false.
+    model: fact_playback
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_playback')
+        rows:
+          - {event_id: e1, event_name: playback_play, session_id: s2, track_id: t2, ts_server: '2024-01-01T10:03:01Z', user_id: u1, source: category_player, duration_ms: 200000, position_ms: null, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+          - {event_id: e2, event_name: playback_pause, session_id: s2, track_id: t2, ts_server: '2024-01-01T10:03:02Z', user_id: u1, source: null, duration_ms: null, position_ms: 30000, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+      - input: ref('stg_playback_seek')
+        rows: []
+    expect:
+      rows:
+        - {skipped: false, played_ms: 30000}
+
+  - name: fact_playback_ratio_only_played_ms
+    description: >
+      playback_ended with no position_ms -> played_ms derived from
+      listen_through_ratio * duration_ms.
+    model: fact_playback
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_playback')
+        rows:
+          - {event_id: e1, event_name: playback_play, session_id: s3, track_id: t1, ts_server: '2024-01-01T10:04:01Z', user_id: u1, source: triage_player, duration_ms: 100000, position_ms: null, listen_through_ratio: null, seek_count: null, dt: '2024-01-01'}
+          - {event_id: e2, event_name: playback_ended, session_id: s3, track_id: t1, ts_server: '2024-01-01T10:04:02Z', user_id: u1, source: null, duration_ms: 100000, position_ms: null, listen_through_ratio: 0.5, seek_count: null, dt: '2024-01-01'}
+      - input: ref('stg_playback_seek')
+        rows: []
+    expect:
+      rows:
+        - {skipped: false, played_ms: 50000, listen_through_ratio: 0.5}
