@@ -32,6 +32,7 @@ locals {
   auth_handler_lambda_name                = "${local.name_prefix}-auth-handler"
   auth_authorizer_lambda_name             = "${local.name_prefix}-auth-authorizer"
   curation_lambda_name                    = "${local.name_prefix}-curation"
+  telemetry_lambda_name                   = "${local.name_prefix}-telemetry"
 }
 
 data "aws_caller_identity" "current" {}
