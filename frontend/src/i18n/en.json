@@ -770,9 +770,23 @@
       "load_failed": "Failed to load tracks.",
       "empty": "No tracks awaiting Spotify match"
     },
+    "analytics": {
+      "title": "Analytics",
+      "subtitle": "Curation, taste, funnel, playback and pipeline health.",
+      "from": "From",
+      "to": "To",
+      "load_failed": "Failed to load dashboard.",
+      "empty": "No data for this range.",
+      "triage": { "title": "Triage efficiency", "median": "Median decision (ms)", "undo": "Undo rate" },
+      "taste": { "title": "Taste profile", "affinity": "Label affinity", "categorized": "Categorized", "skip_rate": "Skip rate" },
+      "funnel": { "title": "Funnel", "steps": "Lifecycle steps", "tracks": "Tracks", "weekly": "Weekly throughput (Saturday-week)" },
+      "playback": { "title": "Playback", "listen": "Median listen ratio", "skip_rate": "Skip rate", "by_category": "Listen ratio by final category", "seek": "Most-seeked tracks", "seeks": "Seeks" },
+      "ops": { "title": "Ops / pipeline health", "latency": "Latency", "p50": "p50 latency (ms)", "p95": "p95 latency (ms)", "freshness": "Fresh to {{dt}} ({{lag}}h lag)" }
+    },
     "tabs": {
       "coverage": "Coverage",
-      "spotify_not_found": "Tracks not on Spotify"
+      "spotify_not_found": "Tracks not on Spotify",
+      "analytics": "Analytics"
     },
     "ingest": {
       "start": "Start ingest",
