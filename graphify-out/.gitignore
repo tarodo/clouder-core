@@ -1,0 +1,14 @@
+# graphify transient / machine-local / regenerable — keep graph.json, graph.html, GRAPH_REPORT.md, manifest.json, cost.json, .graphify_labels.json
+cache/
+.graphify_python
+.graphify_root
+.needs_update
+*.full.*
+.graphify_detect.json
+.graphify_extract.json
+.graphify_ast.json
+.graphify_semantic*.json
+.graphify_analysis.json
+.graphify_chunk*.json
+.graphify_uncached.txt
+.graphify_cached.json
