@@ -4,7 +4,7 @@
 
 ## Summary
 
-CLOUDER today has zero analytics. This spec adds a **separate, idle-zero, serverless lakehouse contour** that captures DJ-curation behavior and playback telemetry, joins it with the Aurora catalog, and serves five dashboards inside the existing SPA. The point is **breadth of a modern serverless data stack** (Firehose → S3 medallion → Glue Catalog → Athena → dbt-athena → Step Functions/EventBridge), not depth. Phase 1 ships the full contour plus in-app dashboards for a **verified all-in cost under ~$2/mo** (ceiling $5). Real BI (Grafana/QuickSight), a warehouse (Redshift Serverless), and streaming/ML (Flink/Personalize) are explicitly deferred to later phases with their own budgets. The contour shares only the API Gateway, the custom authorizer, and the collector-api Lambda (a single telemetry dispatch branch); it never touches the ingest worker, its SQS, or any Aurora write, and never sees `bp_token`. `user_id` is stamped server-side from the existing authorizer.
+CLOUDER today has zero analytics. This spec adds a **separate, idle-zero, serverless lakehouse contour** that captures DJ-curation behavior and playback telemetry, joins it with the Aurora catalog, and serves five dashboards inside the existing SPA. The point is **breadth of a modern serverless data stack** (Firehose → S3 medallion → Glue Catalog → Athena → dbt-athena → Step Functions/EventBridge), not depth. Phase 1 ships the full contour plus in-app dashboards for a **verified all-in cost under ~$2/mo** (ceiling $5). Real BI (Grafana/QuickSight), a warehouse (Redshift Serverless), and streaming/ML (Flink/Personalize) are explicitly deferred to later phases with their own budgets. The contour shares only the API Gateway and the custom authorizer; telemetry ingest is its own standalone Lambda. It never touches the collector, the ingest worker, its SQS, or any Aurora write, and never sees `bp_token`. `user_id` is stamped server-side from the existing authorizer.
 
 ---
 
@@ -14,7 +14,7 @@ CLOUDER today has zero analytics. This spec adds a **separate, idle-zero, server
 - Demonstrate a broad, **modern serverless data stack on AWS**, cheap and idle-zero.
 - Capture four data domains: **behavior/clickstream, playback telemetry, funnel×catalog, ops/pipeline**.
 - Land raw events in a **medallion S3 lake**, model a **star schema with dbt-athena**, and serve **five dashboards** in-app at `/admin/analytics`.
-- Keep the analytics contour **isolated** from the user-facing ingest path: **no shared SQS, worker, or Aurora-write path**. The `/v1/telemetry` hop reuses the collector-api Lambda (a thin dispatch branch) and the authorizer, but writes only to Firehose — never the worker queue or Aurora.
+- Keep the analytics contour **isolated** from the user-facing ingest path: **no shared SQS, worker, collector, or Aurora-write path**. The `/v1/telemetry` hop is a **dedicated `telemetry` Lambda** behind the existing API Gateway + authorizer; it writes only to Firehose — never the collector, the worker queue, or Aurora.
 - Portfolio legibility: lineage DAG, dbt tests, Terraform IaC, a clear phase roadmap.
 
 ### Non-goals (Phase 1)
@@ -140,7 +140,7 @@ api('/v1/telemetry', {                 // reuse frontend/src/api/client.ts -> re
 
 ```
 React SDK ──batched POST /v1/telemetry (bearer, keepalive)──▶ API Gateway (existing) + custom authorizer (→ user_id)
-   └─▶ collector-api Lambda · telemetry dispatch branch  (validate envelope, stamp user_id + ts_server)
+   └─▶ telemetry Lambda (standalone, own role)  (validate envelope, stamp user_id + ts_server)
          └─PutRecordBatch─▶ Kinesis Firehose (Direct PUT, buffer 5min/5MB, JSON→Parquet via Glue schema, dynamic partition by date+event)
                └─▶ S3 bronze ─(dbt-athena daily)─▶ silver ─▶ gold + Glue Data Catalog
                      └─▶ Athena (SQL)  ◀── analytics-api Lambda (standalone) ◀── /admin/analytics SPA route
@@ -149,10 +149,10 @@ EventBridge daily ─▶ catalog_export Lambda (Data API → bronze/catalog_expo
                   └▶ ops_log_export Lambda (CloudWatch Logs → bronze/ops)        ─┴─▶ [dbt build/test → gold]
 ```
 
-This is an **isolated contour**. It shares API Gateway, the custom authorizer, and the **collector-api Lambda** (one dispatch branch, §5.1); it must not touch the Beatport ingest **worker**, its SQS, or any Aurora **write**. The only Aurora read is the daily `catalog_export` (§6).
+This is an **isolated contour**. It shares only the API Gateway and the custom authorizer; telemetry ingest is a **standalone `telemetry` Lambda** (§5.1). It must not touch the collector, the Beatport ingest **worker**, its SQS, or any Aurora **write**. The only Aurora read is the daily `catalog_export` (§6).
 
 ### 5.1 Route registration (three places — from recon)
-1. **`src/collector/handler.py`** `_route()`: add `if route_key == "POST /v1/telemetry":` after the existing auth-user branch (~L308). **Do not** add to `_ADMIN_ROUTES` (telemetry is per-user). Dispatch to `collector.telemetry_handler` (new module) which reads `event['requestContext']['authorizer']['lambda']['user_id']` (the `_authorizer_context` pattern, `auth_handler.py:537-545`).
+1. **New Lambda module `src/collector/telemetry_handler.py`** with its own `lambda_handler(event, context)` entry point — **not** a branch in the collector `handler.py` `_route()` table. It reads `event['requestContext']['authorizer']['lambda']['user_id']` (the `_authorizer_context` pattern, `auth_handler.py:537-545`) and may import shared package code (schemas, `logging_utils`, `secrets`). Standalone, mirroring how `analytics-api` is a separate function (§10.1).
 2. **`scripts/generate_openapi.py`** `ROUTES` (before `]` at ~L3727) — full request/response contract (this is what the frontend CI diff-checks against `schema.d.ts`, so no ellipsis):
    ```python
    {"method":"post","path":"/v1/telemetry","auth":AUTH,
@@ -167,16 +167,16 @@ This is an **isolated contour**. It shares API Gateway, the custom authorizer, a
         "400":{"$ref":"#/components/responses/Error"}}}                # standard error envelope (unparseable body only)
    ```
    The 256KB byte cap (§5.2) is enforced in the handler, not the schema. Then regenerate: `PYTHONPATH=src .venv/bin/python scripts/generate_openapi.py`.
-3. **`infra/telemetry_routes.tf`** (new, mirrors `infra/curation_routes_*.tf`): `aws_apigatewayv2_route.telemetry_post`, `route_key="POST /v1/telemetry"`, `target=integrations/${aws_apigatewayv2_integration.collector_lambda.id}`, `authorization_type="CUSTOM"`, `authorizer_id=aws_apigatewayv2_authorizer.jwt.id`.
+3. **`infra/telemetry.tf`** (new): the `aws_lambda_function.telemetry` (own role, §13) + its **own** `aws_apigatewayv2_integration.telemetry_lambda` (AWS_PROXY) + `aws_apigatewayv2_route.telemetry_post`, `route_key="POST /v1/telemetry"`, `target=integrations/${aws_apigatewayv2_integration.telemetry_lambda.id}`, `authorization_type="CUSTOM"`, `authorizer_id=aws_apigatewayv2_authorizer.jwt.id`. Mirrors the standalone `analytics-api` wiring (§10.1), not the collector integration.
 
-> `// ponytail:` reuse the existing `collector_lambda` integration and a new dispatch branch — **no new Lambda function** for the API hop. A separate `telemetry_handler` *module* inside the same package (`collector.telemetry_handler.lambda_handler`) keeps blast radius small while staying one zip (`scripts/package_lambda.sh` unchanged). Because it runs in the collector function it inherits the **collector execution role** — so the Firehose permission is added there (§5.2, §13), not a separate role. Split into its own function only if telemetry traffic starts contending with the collector's concurrency.
+> `// ponytail:` **standalone `telemetry` function** for strict isolation — own least-privilege role (Firehose-only), own concurrency, zero collector blast radius. It **shares the one zip** built by `scripts/package_lambda.sh` (same package, different entry point — `collector.telemetry_handler.lambda_handler`), exactly like `catalog_export`/`analytics-api`, so there is no extra build step or new artifact — just one more `aws_lambda_function` pointing at a different handler.
 
-### 5.2 telemetry handler (module `src/collector/telemetry_handler.py`, runs in collector-api)
+### 5.2 telemetry handler (standalone `telemetry` Lambda, module `src/collector/telemetry_handler.py`)
 - Parse body `{events: [...]}`. Reject batch >256 events or >256KB (defense-in-depth, matches the OpenAPI `maxItems`).
 - Per event: validate `event_name` enum + prop allowlist (Pydantic models, one per event family). Stamp `context.user_id` from authorizer, `ts_server` UTC. Strip any client-sent `user_id`/secret-shaped keys.
 - Drop invalid events individually; respond **202 Accepted** with `{accepted, rejected}` counts. (400 only for an unparseable body.)
 - `PutRecordBatch` valid events to Firehose (each record = one NDJSON line, `\n`-terminated). On Firehose partial failure, log counts (allowlisted fields only) and **do not** retry inline (loss-tolerant).
-- IAM: telemetry runs **inside** the collector Lambda, so the **collector execution role gains one `firehose:PutRecordBatch` statement scoped to the telemetry stream** (no separate function or role — see §13).
+- IAM: the **`telemetry` Lambda has its own least-privilege role** — one `firehose:PutRecordBatch` statement scoped to the telemetry stream, nothing else (see §13). The collector role is untouched.
 - Logging: reuse `logging_utils` allowlist (`correlation_id`, `user_id`, `status_code`, `duration_ms`, `event`, `attempt`, counts). Never log envelope `props` verbatim (could carry free-text later); log counts only.
 
 ### 5.3 Firehose (Direct PUT, JSON→Parquet)
@@ -351,11 +351,11 @@ Assume a generous **2M small events/mo** (heavy single-user/small-circle use). F
 | Glue Data Catalog | handful of tables/partitions | free <1M objects/requests | $0.00 |
 | Step Functions | ~30 runs × few states | 4,000 free transitions/mo | $0.00 |
 | EventBridge Scheduler | ~30 invocations | $1/M invocations | ~$0.00 (≈$0.00003) |
-| Lambda (collector-api telemetry branch [shared], analytics-api, dbt-runner, catalog_export, ops_log_export) | portfolio volume | 1M req + 400k GB-s free | ~$0.00 |
+| Lambda (telemetry, analytics-api, dbt-runner, catalog_export, ops_log_export — all in the one shared zip) | portfolio volume | 1M req + 400k GB-s free | ~$0.00 |
 | S3 storage | few GB Parquet | $0.023/GB-mo + requests | <$0.20 |
 | **Total** | | | **~$1.00–1.50/mo** |
 
-Comfortably under the $5 ceiling. Cost is driven by **event count** (5KB floor), not bytes — Firehose buffering already mitigates it. No always-on compute anywhere. (Telemetry adds no Lambda line of its own — it is a dispatch branch in the already-deployed collector-api.)
+Comfortably under the $5 ceiling. Cost is driven by **event count** (5KB floor), not bytes — Firehose buffering already mitigates it. No always-on compute anywhere. (The `telemetry` function is its own Lambda but shares the collector zip artifact and stays inside the free tier — ~$0.)
 
 ---
 
@@ -366,7 +366,7 @@ Comfortably under the $5 ceiling. Cost is driven by **event count** (5KB floor),
 - **No PII in events:** `route` is the matched pattern (no IDs in the URL string that could be PII), `device`/`app_version` are coarse. `dim_user` is opaque `user_id` only.
 - **Admin-gated serving:** `/admin/analytics` (SPA admin gate) + `/v1/analytics/*` (admin check enforced in `analytics-api`) are admin-only. Per-user telemetry is visible only to admins; a user cannot read another user's analytics.
 - **Transport:** bearer JWT over HTTPS via the existing authorizer; keepalive flush carries the same bearer (never `bp_token`). 64KB keepalive cap respected by the chunker. Telemetry uses `api(..., {suppressAuthFailure:true})` (§4.2) so a 401 that can't refresh is **swallowed silently** — it never fires `notifyAuthFailure()`/`auth:expired`, so a background or unload telemetry POST can never log the user out.
-- **IAM least privilege:** telemetry runs **inside the collector Lambda**, so the **collector role gains one `firehose:PutRecordBatch` statement scoped to the telemetry stream** (no separate telemetry function/role). `catalog_export` role = Data-API read + `s3:PutObject` on `bronze/catalog_export/*`; `ops_log_export` role = CloudWatch Logs read (the enrichment/worker log groups) + `s3:PutObject` on `bronze/ops/*`; `dbt-runner` = Athena + Glue + S3 on the lake; `analytics-api` = Athena read + S3 read on `gold/` + `athena-results/`. Each **non-collector** function has its own dedicated role.
+- **IAM least privilege:** the **`telemetry` Lambda has its own dedicated role** = one `firehose:PutRecordBatch` statement scoped to the telemetry stream, nothing else (the collector role is never touched). `catalog_export` role = Data-API read + `s3:PutObject` on `bronze/catalog_export/*`; `ops_log_export` role = CloudWatch Logs read (the enrichment/worker log groups) + `s3:PutObject` on `bronze/ops/*`; `dbt-runner` = Athena + Glue + S3 on the lake; `analytics-api` = Athena read + S3 read on `gold/` + `athena-results/`. Each function has its own dedicated role.
 - **Logging:** allowlist only (`correlation_id, api_request_id, lambda_request_id, user_id, status_code, duration_ms, event, phase, attempt, error_*`); never the raw envelope.
 
 ---
@@ -412,7 +412,7 @@ Comfortably under the $5 ceiling. Cost is driven by **event count** (5KB floor),
 Ship in this order — each step is independently verifiable and reversible:
 
 1. **SDK behind a flag** (`VITE_TELEMETRY_ENABLED`, default off): buffer + 3 triggers + chunked keepalive transport with `{suppressAuthFailure:true}`. With no backend yet it can point at a dev stream or no-op-drop. Lands SDK unit tests.
-2. **`/v1/telemetry` route + landing:** the three-place route registration (§5.1), the collector role's `firehose:PutRecordBatch` statement, the Firehose stream + bronze Glue table (Terraform). Flip the flag in a dev build → **events land in `bronze/events/`**.
+2. **`/v1/telemetry` route + landing:** the standalone `telemetry` Lambda + its own role/integration/route (§5.1), the role's `firehose:PutRecordBatch` statement, the Firehose stream + bronze Glue table (Terraform). Flip the flag in a dev build → **events land in `bronze/events/`**.
 3. **Catalog + ops export:** `catalog_export` (NDJSON dims) and `ops_log_export` (CloudWatch → `bronze/ops/`) Lambdas → daily snapshots land.
 4. **dbt + orchestration:** `analytics/dbt/` (silver + gold), Step Functions state machine, EventBridge Scheduler. **`dbt build` + `dbt_test` green; gold populated.**
 5. **Serving:** `analytics-api` standalone Lambda + 5 admin-gated routes + `/admin/analytics` SPA dashboards.
