@@ -12,9 +12,12 @@ sources:
       - name: bronze_events
         description: Firehose telemetry envelope; partitioned by dt + event_name.
         loaded_at_field: "from_iso8601_timestamp(ts_server)"
+        # ponytail: warn-only. This is a small-circle DJ tool with sparse usage —
+        # quiet days are normal, so a stale source must NOT hard-fail the daily DAG
+        # (it would before the first event ever lands, and on any low-activity day).
+        # Re-add error_after once usage is steady and a gap is genuinely actionable.
         freshness:
-          warn_after: { count: 30, period: hour }
-          error_after: { count: 36, period: hour }
+          warn_after: { count: 36, period: hour }
         columns:
           - name: event_id
           - name: session_id
