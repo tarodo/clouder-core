@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/setup';
 import { api } from '../client';
@@ -107,3 +107,55 @@ let authFailFired = false;
 function authFailHandler() {
   authFailFired = true;
 }
+
+describe('api() suppressAuthFailure', () => {
+  beforeEach(() => {
+    tokenStore.set('jwt-1');
+    spotifyTokenStore.set('sp-jwt-1');
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    tokenStore.set(null);
+    spotifyTokenStore.set(null);
+  });
+
+  function mock401ThenRefreshFail() {
+    // Every request (incl. /auth/refresh) 401s → refresh fails → unrecoverable 401.
+    return vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 401 }));
+  }
+
+  it('default path logs the user out on unrecoverable 401', async () => {
+    mock401ThenRefreshFail();
+    const expired = vi.fn();
+    window.addEventListener('auth:expired', expired);
+    await expect(api('/me')).rejects.toBeInstanceOf(ApiError);
+    expect(expired).toHaveBeenCalledTimes(1);
+    expect(tokenStore.get()).toBeNull();
+    window.removeEventListener('auth:expired', expired);
+  });
+
+  it('suppressed path swallows logout: no auth:expired, token kept', async () => {
+    mock401ThenRefreshFail();
+    const expired = vi.fn();
+    window.addEventListener('auth:expired', expired);
+    await expect(
+      api('/v1/telemetry', { method: 'POST', keepalive: true, suppressAuthFailure: true, body: '{}' }),
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(expired).not.toHaveBeenCalled();
+    expect(tokenStore.get()).toBe('jwt-1');
+    expect(spotifyTokenStore.get()).toBe('sp-jwt-1');
+    window.removeEventListener('auth:expired', expired);
+  });
+
+  it('forwards keepalive to fetch and never leaks suppressAuthFailure into RequestInit', async () => {
+    // 202 with parseable body; empty body would throw 'Unexpected end of JSON input'.
+    const spy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 202 }));
+    await api('/v1/telemetry', { method: 'POST', keepalive: true, suppressAuthFailure: true, body: '{}' });
+    expect(spy).toHaveBeenCalledOnce();
+    const init = spy.mock.calls[0]![1] as RequestInit & { suppressAuthFailure?: unknown };
+    expect(init.keepalive).toBe(true);
+    expect('suppressAuthFailure' in init).toBe(false);
+  });
+});

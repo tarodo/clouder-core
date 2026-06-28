@@ -1245,6 +1245,44 @@ ARTIST_INFO_RESPONSE = {
 }
 
 
+# ── telemetry (analytics ingest, spec §3.1) ───────────────────────────────
+TELEMETRY_ENVELOPE = {
+    "type": "object",
+    "required": ["event_name", "event_id", "session_id", "ts_client"],
+    "description": (
+        "One behavior/playback event. `context.user_id` is server-stamped from "
+        "the authorizer and any client value is ignored; `props` keys are "
+        "allowlisted per event_name server-side (schema-on-read)."
+    ),
+    "properties": {
+        "event_name": {
+            "type": "string",
+            "enum": [
+                "triage_session_start", "triage_session_end", "track_view",
+                "track_categorized", "playback_play", "playback_pause",
+                "playback_seek", "playback_ended", "playback_skip",
+                "hotkey_used", "playlist_add", "playlist_reorder",
+                "playlist_publish",
+            ],
+        },
+        "event_id": {"type": "string", "description": "Client ULID; idempotency key."},
+        "session_id": {"type": "string", "description": "Fresh per tab; not persisted."},
+        "ts_client": {"type": "string", "format": "date-time"},
+        "context": {
+            "type": "object",
+            "properties": {
+                "device": {"type": ["string", "null"], "enum": ["desktop", "mobile", "tablet", None]},
+                "route": {"type": ["string", "null"], "description": "Matched route pattern (no PII)."},
+                "app_version": {"type": ["string", "null"]},
+            },
+            "additionalProperties": False,
+        },
+        "props": {"type": "object", "description": "Per-event payload; allowlisted server-side."},
+    },
+    "additionalProperties": False,
+}
+
+
 # ── routes ────────────────────────────────────────────────────────────────
 
 PUBLIC = "public"
@@ -1267,6 +1305,58 @@ COMMON_AUTH_ERRORS = {
     "401": _error(401, "Missing or invalid bearer token."),
     "403": _error(403, "Authenticated but lacks required role (admin)."),
 }
+
+ANALYTICS_PARAMS = [
+    {"name": "from", "in": "query", "required": True,
+     "schema": {"type": "string", "format": "date"},
+     "description": "Inclusive start date (YYYY-MM-DD)."},
+    {"name": "to", "in": "query", "required": True,
+     "schema": {"type": "string", "format": "date"},
+     "description": "Inclusive end date (YYYY-MM-DD)."},
+]
+
+ANALYTICS_RESULT = {
+    "type": "object",
+    "required": ["rows"],
+    "description": "Generic dashboard payload. `rows` is the primary series; routes "
+                   "may add further named arrays (one per panel, e.g. `undo`, `weekly`, "
+                   "`by_category`, `seek`). `freshness` is present only on the ops route. "
+                   "All arrays are schema-on-read objects from the gold star schema.",
+    "properties": {
+        "rows": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
+        "freshness": {
+            "type": "object",
+            "properties": {
+                "newest_dt": {"type": ["string", "null"]},
+                "lag_hours": {"type": ["number", "null"]},
+            },
+        },
+        "correlation_id": {"type": "string"},
+    },
+    # Per-route panel arrays (undo/weekly/by_category/seek) are returned dynamically;
+    # allow them so the typed client gets an index signature rather than a strict miss.
+    "additionalProperties": True,
+}
+
+
+def _analytics_route(name: str, summary: str, description: str) -> dict:
+    return {
+        "method": "get",
+        "path": f"/v1/analytics/{name}",
+        "auth": ADMIN,
+        "summary": summary,
+        "description": description,
+        "parameters": ANALYTICS_PARAMS,
+        "responses": {
+            "200": _make_response(200, summary,
+                                  {"$ref": "#/components/schemas/AnalyticsResult"}),
+            "400": _error(400, "from/to must be YYYY-MM-DD dates."),
+            "404": _error(404, "Unknown dashboard."),
+            "502": _error(502, "Athena query failed."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    }
 
 
 ROUTES: list[dict[str, Any]] = [
@@ -3724,6 +3814,68 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
+    # ── telemetry (analytics ingest) ───────────────────────────────────────
+    {
+        "method": "post",
+        "path": "/v1/telemetry",
+        "auth": AUTH,
+        "summary": "Ingest telemetry events.",
+        "description": (
+            "Accepts a batch of behavior/playback events. The server stamps "
+            "user_id (from the authorizer) + ts_server and forwards valid events "
+            "to the analytics pipeline. Invalid events are dropped individually; "
+            "the batch still returns 202 with accepted/rejected counts. A 256KB "
+            "body cap is enforced in the Lambda (operational guard, like the "
+            "503 cold-start note) and is not part of this contract."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["events"],
+                "properties": {"events": {
+                    "type": "array",
+                    "maxItems": 256,
+                    "items": {"$ref": "#/components/schemas/TelemetryEnvelope"},
+                }},
+                "additionalProperties": False,
+            }}},
+        },
+        "responses": {
+            "202": _make_response(
+                202,
+                "Accepted. Counts of stored vs dropped events.",
+                {
+                    "type": "object",
+                    "required": ["accepted", "rejected"],
+                    "properties": {
+                        "accepted": {"type": "integer"},
+                        "rejected": {"type": "integer"},
+                    },
+                },
+            ),
+            "400": _error(400, "Unparseable body or batch over 256 events."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    # ── analytics dashboards (§10/§11), standalone analytics-api, admin-only ──
+    # XHR path is /v1/analytics/* (the /v1 prefix is registered in CloudFront +
+    # Vite dev proxy, Task 5); the browser page is /admin/analytics.
+    _analytics_route("triage", "Triage efficiency dashboard data.",
+        "Median decision time + throughput per category over time, plus undo rate "
+        "(gold fact_track_decision + fact_triage_session). Pre-written parameterized Athena queries."),
+    _analytics_route("taste", "Taste profile dashboard data.",
+        "Label affinity: categorize count + BPM + playback skip-rate per label "
+        "(gold fact_track_decision x dim_track/dim_label x fact_playback)."),
+    _analytics_route("funnel", "Funnel dashboard data.",
+        "Lifecycle drop-off + time-between-steps and weekly throughput by Saturday-week "
+        "(gold fact_funnel_step x dim_date)."),
+    _analytics_route("playback", "Playback dashboard data.",
+        "Listen-through + skip-rate, listen-ratio-by-final-category correlation (joined per "
+        "track_key+user_key), and a most-seeked-tracks slice "
+        "(gold fact_playback x fact_track_decision/dim_category, fact_seek x dim_track)."),
+    _analytics_route("ops", "Ops/pipeline health dashboard data.",
+        "Enrichment success + latency p50/p95 from bronze_ops plus bronze_events freshness lag."),
 ]
 
 
@@ -3892,6 +4044,8 @@ def build_openapi() -> dict[str, Any]:
                 "PlaylistTrackResponse": PLAYLIST_TRACK_RESPONSE,
                 "PlaylistTrackComments": PLAYLIST_TRACK_COMMENTS,
                 "PlaylistCommentsResponse": PLAYLIST_COMMENTS_RESPONSE,
+                "TelemetryEnvelope": TELEMETRY_ENVELOPE,
+                "AnalyticsResult": ANALYTICS_RESULT,
             },
         },
     }

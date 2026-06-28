@@ -25,6 +25,10 @@ import { useAuth } from '../../auth/useAuth';
 import type { SpotifyDevice } from './lib/deviceTypes';
 import { lastDeviceStore } from './lib/lastDeviceStore';
 import { usePolling } from './lib/usePolling';
+import { useTelemetry } from '../../lib/telemetry/hooks';
+import { debounceTrack } from '../../lib/telemetry/sdk';
+import { resolvePlaybackSource, seekEventProps } from './lib/telemetryMap';
+import type { PlaybackSource } from './lib/types';
 
 export interface DevicesSlice {
   list: readonly SpotifyDevice[];
@@ -62,7 +66,7 @@ export interface PlaybackContextValue {
      * autoplay policy). Idempotent.
      */
     prewarm: () => Promise<void>;
-    play: (idx?: number, overrideTrack?: PlaybackTrack) => Promise<void>;
+    play: (idx?: number, overrideTrack?: PlaybackTrack, source?: PlaybackSource) => Promise<void>;
     pause: () => Promise<void>;
     togglePlayPause: () => Promise<void>;
     next: () => Promise<void>;
@@ -112,6 +116,9 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   const { refresh } = useAuth();
   const navigate = useNavigate();
   const onAuthExpired = useCallback(() => refresh(), [refresh]);
+
+  const telemetry = useTelemetry();
+  const seekTrackRef = useRef(debounceTrack(500));
 
   const [queue, queueDispatch] = useReducer(queueReducer, {
     source: null,
@@ -334,7 +341,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   }, [refresh, navigate]);
 
   const play = useCallback(
-    async (idx?: number, overrideTrack?: PlaybackTrack) => {
+    async (idx?: number, overrideTrack?: PlaybackTrack, source?: PlaybackSource) => {
       await ensureSdk();
       // SDK boot completes when `connect()` resolves, but `ready` event (which
       // populates activeDeviceIdRef) fires asynchronously after. On the first
@@ -369,6 +376,13 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         durationMs: track.duration_ms || 0,
         positionMs: 0,
       }));
+      // track.id is PlaybackTrack.id (NOT track_id) — the BucketTrack/PlaybackTrack footgun (MUST-FIX 3).
+      telemetry.track('playback_play', {
+        track_id: track.id,
+        position_ms: 0,
+        duration_ms: track.duration_ms,
+        source: resolvePlaybackSource(source, queue.source),
+      });
       queueDispatch({ type: 'STATUS', status: 'loading' });
       expectedSpotifyIdRef.current = track.spotify_id;
       playbackConfirmedRef.current = false;
@@ -396,7 +410,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
           .catch(() => {});
       }
     },
-    [queue.cursor, queue.tracks, ensureSdk, onAuthExpired],
+    [queue.cursor, queue.tracks, queue.source, ensureSdk, onAuthExpired, telemetry],
   );
 
   const pause = useCallback(async () => {
@@ -514,6 +528,10 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   const seekMs = useCallback(
     async (ms: number) => {
       const clamped = clampMs(ms, track.durationMs || 0);
+      seekTrackRef.current('playback_seek', {
+        track_id: track.current?.id ?? null,
+        ...seekEventProps(track.positionMs, track.durationMs || 0, ms),
+      });
       const activeId = activeDeviceIdRef.current;
       const cloderId = cloderTabIdRef.current;
       // When active device is the CLOUDER Web Player tab, SDK seek is the
@@ -529,7 +547,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
       }
       await playerRef.current?.seek(clamped);
     },
-    [track.durationMs, onAuthExpired],
+    [track, onAuthExpired],
   );
 
   const seekPct = useCallback(

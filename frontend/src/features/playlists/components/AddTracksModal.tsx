@@ -17,6 +17,7 @@ import { useCategoryTracks } from '../../categories/hooks/useCategoryTracks';
 import { useAddTracksToPlaylist } from '../hooks/useAddTracksToPlaylist';
 import { notifications } from '@mantine/notifications';
 import { ApiError } from '../../../api/error';
+import { useTelemetry } from '../../../lib/telemetry/hooks';
 
 export interface AddTracksModalProps {
   opened: boolean;
@@ -36,6 +37,7 @@ export function AddTracksModal({ opened, onClose, playlistId, onAdded }: AddTrac
   const categoriesQ = useCategoriesByStyle(styleId ?? '');
   const tracksQ = useCategoryTracks(categoryId ?? '', '', 'added_at', 'desc', [], 'all');
   const addMut = useAddTracksToPlaylist();
+  const telemetry = useTelemetry();
 
   useEffect(() => {
     if (!opened) {
@@ -68,6 +70,12 @@ export function AddTracksModal({ opened, onClose, playlistId, onAdded }: AddTrac
       const res = await addMut.mutateAsync({
         playlistId,
         trackIds: Array.from(selected),
+      });
+      telemetry.track('playlist_add', {
+        track_ids: Array.from(selected),
+        playlist_id: playlistId,
+        track_count: selected.size,
+        source_category_id: categoryId ?? null,
       });
       notifications.show({
         message: t('playlists.toast.tracks_added', { count: res.added.length }),

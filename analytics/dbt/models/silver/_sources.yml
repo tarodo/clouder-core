@@ -1,0 +1,37 @@
+version: 2
+
+sources:
+  - name: clouder_analytics
+    schema: clouder_analytics
+    description: >
+      Bronze layer. context/props on bronze_events are JSON STRINGS (parse with
+      json_extract_scalar/json_extract — never struct/dot access). bronze_catalog_export
+      is ONE JsonSerDe table partitioned by snapshot_dt + tbl. RECONCILIATION: Inc-2 must
+      publish the events table as `bronze_events` with string context/props (see README).
+    tables:
+      - name: bronze_events
+        description: Firehose telemetry envelope; partitioned by dt + event_name.
+        loaded_at_field: "from_iso8601_timestamp(ts_server)"
+        freshness:
+          warn_after: { count: 30, period: hour }
+          error_after: { count: 36, period: hour }
+        columns:
+          - name: event_id
+          - name: session_id
+          - name: ts_server
+          - name: ts_client
+          - name: context
+            description: JSON string {user_id,device,route,app_version}.
+          - name: props
+            description: JSON string, per-event fields.
+          - name: dt
+          - name: event_name
+      - name: bronze_catalog_export
+        description: One table; one row per Aurora dict; partitioned by snapshot_dt + tbl.
+        columns:
+          - name: snapshot_dt
+          - name: tbl
+      - name: bronze_ops
+        description: Log-backed ops metrics (Dashboard 5, Inc-5); not modeled into the star schema.
+        columns:
+          - name: dt

@@ -179,3 +179,35 @@ Controlled by `var.enable_lambda_reserved_concurrency` in `infra/variables.tf` (
 3. Run `terraform apply`.
 
 Until the quota is raised, leave `enable_lambda_reserved_concurrency = false`. Workers run unreserved and Perplexity/Spotify 429s flow to DLQ for retry.
+
+## Analytics first run (bootstrap)
+
+**Symptom**
+
+Right after the first deploy of the analytics stack, `/admin/analytics` dashboards are empty and the `analytics` Lambda's Athena queries error with `TABLE_NOT_FOUND` for `gold.*`.
+
+**Diagnosis**
+
+`terraform apply` creates only the **bronze** Glue tables (`bronze_events`, `bronze_catalog_export`, `bronze_ops`) for Firehose + the export Lambdas. The **silver** and **gold** (star-schema) tables are created by **dbt on its first run**, executed by the `beatport-prod-analytics-daily` Step Functions state machine. The state machine runs on the EventBridge daily schedule — so until the first scheduled fire (or a manual trigger), `gold.*` does not exist and the dashboards have nothing to read. Telemetry must also be flowing first (`VITE_TELEMETRY_ENABLED=true` in the frontend build, default-on in `scripts/deploy_frontend.sh`) so `bronze/events/` is non-empty.
+
+**Fix — trigger the pipeline once after the first telemetry has landed**
+
+```bash
+SFN_ARN=$(cd infra && terraform output -raw analytics_state_machine_arn)
+aws stepfunctions start-execution --state-machine-arn "$SFN_ARN"
+
+# Watch it: [catalog_export ‖ ops_log_export] → dbt_run → dbt source freshness → dbt_test
+aws stepfunctions describe-execution --execution-arn "<arn from start-execution>" \
+  --query 'status'   # RUNNING → SUCCEEDED
+```
+
+On `SUCCEEDED`, `gold.*` exists and the dashboards populate. Thereafter the daily EventBridge schedule keeps them fresh; if `dbt_test`/`dbt source freshness` fails, the DAG routes to `NotifyFailure` and the prior day's gold partitions are kept (no stale publish).
+
+**Smoke test the ingest end-to-end** (one-shot, after deploy):
+
+```bash
+# POST a telemetry batch with a valid bearer, then confirm it lands:
+aws s3 ls "s3://beatport-prod-analytics-lake/bronze/events/" --recursive | head
+# Athena (after a partition shows up):
+#   SELECT count(*) FROM clouder_analytics.bronze_events;  -- > 0
+```

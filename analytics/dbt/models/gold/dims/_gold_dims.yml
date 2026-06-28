@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: dim_track
+    columns:
+      - name: track_key
+        tests: [not_null, unique]
+      - name: track_id
+        tests: [not_null, unique]
+
+  - name: dim_artist
+    columns:
+      - name: artist_key
+        tests: [not_null, unique]
+      - name: artist_id
+        tests: [not_null, unique]
+
+  - name: bridge_track_artist
+    columns:
+      - name: track_key
+        tests: [not_null]
+      - name: artist_key
+        tests: [not_null]
+
+  - name: dim_label
+    columns:
+      - name: label_key
+        tests: [not_null, unique]
+      - name: label_id
+        tests: [not_null, unique]
+
+  - name: dim_user
+    columns:
+      - name: user_key
+        tests: [not_null, unique]
+      - name: user_id
+        tests: [not_null, unique]
+
+  - name: dim_category
+    columns:
+      - name: category_key
+        tests: [not_null, unique]
+      - name: category_id
+        tests: [not_null, unique]

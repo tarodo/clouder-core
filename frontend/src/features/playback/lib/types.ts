@@ -34,6 +34,8 @@ export type QueueSource =
   | { type: 'category'; categoryId: string; styleId: string }
   | { type: 'playlist'; playlistId: string };
 
+export type PlaybackSource = 'triage_player' | 'playlist_player' | 'category_player';
+
 export interface BindQueueArgs {
   source: QueueSource;
   tracks: readonly PlaybackTrack[];

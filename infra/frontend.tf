@@ -137,6 +137,7 @@ locals {
     "/collect_bp_releases",
     "/triage/blocks*",
     "/tags*",
+    "/v1*",
   ]
   api_gw_spa_aware_path_patterns = [
     "/artists*",

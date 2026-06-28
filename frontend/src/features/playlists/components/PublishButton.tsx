@@ -6,16 +6,19 @@ import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
 import type { Playlist, PublishResult } from '../lib/playlistTypes';
 import { usePublishPlaylist } from '../hooks/usePublishPlaylist';
+import { useTelemetry } from '../../../lib/telemetry/hooks';
 import { PublishConfirmModal } from './PublishConfirmModal';
 import { PublishResultModal } from './PublishResultModal';
 
 export interface PublishButtonProps {
   playlist: Playlist;
+  trackIds: string[];
 }
 
-export function PublishButton({ playlist }: PublishButtonProps) {
+export function PublishButton({ playlist, trackIds }: PublishButtonProps) {
   const { t } = useTranslation();
   const publishMut = usePublishPlaylist();
+  const telemetry = useTelemetry();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [resultModal, setResultModal] = useState<PublishResult | null>(null);
 
@@ -36,6 +39,14 @@ export function PublishButton({ playlist }: PublishButtonProps) {
         confirmOverwrite,
       });
       setConfirmOpen(false);
+      telemetry.track('playlist_publish', {
+        track_ids: trackIds,
+        playlist_id: playlist.id,
+        track_count: trackIds.length,
+        confirm_overwrite: confirmOverwrite,
+        skipped_count: r.skipped_tracks.length,
+        target: 'spotify',
+      });
       notifications.show({
         color: 'green',
         message: (

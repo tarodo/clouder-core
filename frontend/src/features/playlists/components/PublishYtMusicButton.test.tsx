@@ -28,7 +28,7 @@ describe('PublishYtMusicButton', () => {
         } as never;
       return {} as never;
     });
-    renderApp({ initialEntries: ['/'], children: <PublishYtMusicButton playlist={playlist} /> });
+    renderApp({ initialEntries: ['/'], children: <PublishYtMusicButton playlist={playlist} trackIds={[]} /> });
     await userEvent.click(await screen.findByRole('button', { name: /YT Music/i }));
     await waitFor(() =>
       expect(client.api).toHaveBeenCalledWith('/playlists/p1/publish-ytmusic', expect.any(Object)),
@@ -45,7 +45,7 @@ describe('PublishYtMusicButton', () => {
         return { device_code: 'dc', user_code: 'ABCD-EFGH', verification_url: 'u', interval: 1, expires_in: 60 } as never;
       return {} as never;
     });
-    renderApp({ initialEntries: ['/'], children: <PublishYtMusicButton playlist={playlist} /> });
+    renderApp({ initialEntries: ['/'], children: <PublishYtMusicButton playlist={playlist} trackIds={[]} /> });
     await userEvent.click(await screen.findByRole('button', { name: /YT Music/i }));
     expect(await screen.findByText('ABCD-EFGH')).toBeInTheDocument();
   });

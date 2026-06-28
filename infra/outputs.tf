@@ -112,3 +112,16 @@ output "artist_enrichment_queue_url" {
   description = "URL of the artist-enrichment SQS queue."
   value       = aws_sqs_queue.artist_enrichment.url
 }
+
+output "analytics_lake_bucket" {
+  value = aws_s3_bucket.analytics_lake.bucket
+}
+
+output "telemetry_lambda_name" {
+  value = aws_lambda_function.telemetry.function_name
+}
+
+output "analytics_state_machine_arn" {
+  description = "ARN of the daily analytics dbt Step Functions state machine (for the manual first-run bootstrap)."
+  value       = aws_sfn_state_machine.analytics_daily.arn
+}

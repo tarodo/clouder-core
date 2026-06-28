@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: stg_track_categorized
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: action
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["moved_to_bucket", "categorized_curate", "undo"]
+      - name: surface
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["triage", "curate"]
+              config:
+                where: "surface is not null"
+  - name: stg_track_view
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+  - name: stg_triage_session
+    columns:
+      - name: session_id
+        tests: [not_null, unique]
+  - name: stg_playback
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: event_name
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["playback_play", "playback_pause", "playback_ended", "playback_skip"]
+  - name: stg_playback_seek
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+  - name: stg_playlist
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: event_name
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["playlist_add", "playlist_reorder", "playlist_publish"]

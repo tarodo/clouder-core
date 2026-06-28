@@ -45,31 +45,36 @@ function notifyAuthFailure(): void {
   window.dispatchEvent(new CustomEvent('auth:expired'));
 }
 
-export async function api<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+export interface ApiInit extends RequestInit {
+  suppressAuthFailure?: boolean;
+}
+
+export async function api<T = unknown>(path: string, init: ApiInit = {}): Promise<T> {
+  const { suppressAuthFailure, ...rest } = init;
   const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
   const token = tokenStore.get();
-  const headers = new Headers(init.headers);
+  const headers = new Headers(rest.headers);
   headers.set('Accept', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (rest.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
-  const res = await fetch(url, { ...init, headers, credentials: 'include' });
+  const res = await fetch(url, { ...rest, headers, credentials: 'include' });
 
   if (res.status === 401 && token) {
     const refreshed = await tryRefreshOnce();
     if (refreshed) {
-      const retryHeaders = new Headers(init.headers);
+      const retryHeaders = new Headers(rest.headers);
       retryHeaders.set('Accept', 'application/json');
       retryHeaders.set('Authorization', `Bearer ${tokenStore.get()}`);
-      if (init.body && !retryHeaders.has('Content-Type')) {
+      if (rest.body && !retryHeaders.has('Content-Type')) {
         retryHeaders.set('Content-Type', 'application/json');
       }
-      const retry = await fetch(url, { ...init, headers: retryHeaders, credentials: 'include' });
+      const retry = await fetch(url, { ...rest, headers: retryHeaders, credentials: 'include' });
       if (!retry.ok) throw await ApiError.from(retry);
       if (retry.status === 204) return undefined as T;
       return (await retry.json()) as T;
     }
-    notifyAuthFailure();
+    if (!suppressAuthFailure) notifyAuthFailure();
     throw await ApiError.from(res);
   }
 
