@@ -120,3 +120,8 @@ output "analytics_lake_bucket" {
 output "telemetry_lambda_name" {
   value = aws_lambda_function.telemetry.function_name
 }
+
+output "analytics_state_machine_arn" {
+  description = "ARN of the daily analytics dbt Step Functions state machine (for the manual first-run bootstrap)."
+  value       = aws_sfn_state_machine.analytics_daily.arn
+}

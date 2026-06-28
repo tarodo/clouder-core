@@ -8,7 +8,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/frontend"
 
 pnpm install --frozen-lockfile
-pnpm build
+# Telemetry SDK is behind VITE_TELEMETRY_ENABLED (default off in code). The prod
+# build turns it on so the analytics pipeline actually receives events. Export
+# VITE_TELEMETRY_ENABLED=false before this script to ship the frontend dark.
+VITE_TELEMETRY_ENABLED="${VITE_TELEMETRY_ENABLED:-true}" pnpm build
 
 BUCKET=$(cd "$ROOT/infra" && terraform output -raw frontend_bucket)
 DIST_ID=$(cd "$ROOT/infra" && terraform output -raw frontend_distribution_id)
