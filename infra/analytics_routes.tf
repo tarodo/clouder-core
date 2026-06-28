@@ -20,6 +20,21 @@ variable "athena_workgroup" {
   default = "beatport-prod-analytics"
 }
 
+# Dedicated Athena workgroup for the analytics-api (the var above named it but no
+# resource created it, so start_query_execution failed with InvalidRequestException).
+# enforce=false so the handler's explicit OutputLocation + per-query result reuse apply.
+resource "aws_athena_workgroup" "analytics" {
+  name          = var.athena_workgroup
+  force_destroy = true
+
+  configuration {
+    enforce_workgroup_configuration = false
+    result_configuration {
+      output_location = "s3://${var.analytics_lake_bucket}/athena-results/"
+    }
+  }
+}
+
 variable "analytics_lambda_timeout_seconds" {
   type    = number
   default = 30

@@ -63,7 +63,7 @@ _ROUTE_QUERIES: dict[str, dict[str, str]] = {
             "FROM fact_track_decision f "
             "JOIN dim_date d ON f.date_key = d.date_key "
             "LEFT JOIN dim_category c ON f.category_key = c.category_key "
-            "WHERE d.date BETWEEN date(?) AND date(?) "
+            "WHERE date_format(d.date, '%Y-%m-%d') BETWEEN {frm} AND {to} "
             "GROUP BY d.date, c.name ORDER BY d.date"
         ),
         # §11 D1 headline: undo rate, sourced from fact_triage_session.undo_rate (§7).
@@ -71,7 +71,7 @@ _ROUTE_QUERIES: dict[str, dict[str, str]] = {
             "SELECT d.date AS date, avg(s.undo_rate) AS undo_rate "
             "FROM fact_triage_session s "
             "JOIN dim_date d ON s.date_key = d.date_key "
-            "WHERE d.date BETWEEN date(?) AND date(?) "
+            "WHERE date_format(d.date, '%Y-%m-%d') BETWEEN {frm} AND {to} "
             "GROUP BY d.date ORDER BY d.date"
         ),
     },
@@ -96,7 +96,7 @@ _ROUTE_QUERIES: dict[str, dict[str, str]] = {
             "  GROUP BY t2.label_key"
             ") sk ON sk.label_key = t.label_key "
             "JOIN dim_date d ON f.date_key = d.date_key "
-            "WHERE d.date BETWEEN date(?) AND date(?) AND f.action <> 'undo' "
+            "WHERE date_format(d.date, '%Y-%m-%d') BETWEEN {frm} AND {to} AND f.action <> 'undo' "
             "GROUP BY l.name ORDER BY categorized DESC LIMIT 50"
         ),
     },
@@ -107,7 +107,7 @@ _ROUTE_QUERIES: dict[str, dict[str, str]] = {
             "approx_percentile(f.ms_since_prev, 0.5) AS median_ms_since_prev "
             "FROM fact_funnel_step f "
             "JOIN dim_date d ON f.date_key = d.date_key "
-            "WHERE d.date BETWEEN date(?) AND date(?) "
+            "WHERE date_format(d.date, '%Y-%m-%d') BETWEEN {frm} AND {to} "
             "GROUP BY f.step"
         ),
         # §11 D3: weekly throughput by Saturday-week (ADR-0003 — never ISO-week).
@@ -117,7 +117,7 @@ _ROUTE_QUERIES: dict[str, dict[str, str]] = {
             "count(DISTINCT f.track_key) AS tracks "
             "FROM fact_funnel_step f "
             "JOIN dim_date d ON f.date_key = d.date_key "
-            "WHERE d.date BETWEEN date(?) AND date(?) "
+            "WHERE date_format(d.date, '%Y-%m-%d') BETWEEN {frm} AND {to} "
             "GROUP BY d.saturday_week_year, d.saturday_week_number "
             "ORDER BY d.saturday_week_year, d.saturday_week_number"
         ),
@@ -135,7 +135,7 @@ _ROUTE_QUERIES: dict[str, dict[str, str]] = {
             "count(*) AS plays "
             "FROM fact_playback p "
             "JOIN dim_date d ON p.date_key = d.date_key "
-            "WHERE d.date BETWEEN date(?) AND date(?) "
+            "WHERE date_format(d.date, '%Y-%m-%d') BETWEEN {frm} AND {to} "
             "GROUP BY d.date ORDER BY d.date"
         ),
         # §11 D4: listen-ratio vs final-category correlation
@@ -155,7 +155,7 @@ _ROUTE_QUERIES: dict[str, dict[str, str]] = {
             "ON f.track_key = p.track_key AND f.user_key = p.user_key "
             "JOIN dim_category c ON f.category_key = c.category_key "
             "JOIN dim_date d ON p.date_key = d.date_key "
-            "WHERE d.date BETWEEN date(?) AND date(?) "
+            "WHERE date_format(d.date, '%Y-%m-%d') BETWEEN {frm} AND {to} "
             "GROUP BY c.name ORDER BY plays DESC"
         ),
         # §11 D4: seek heatmap (fact_seek x dim_track). ponytail: representative 1-D
@@ -165,25 +165,25 @@ _ROUTE_QUERIES: dict[str, dict[str, str]] = {
             "FROM fact_seek s "
             "JOIN dim_track t ON s.track_key = t.track_key "
             "JOIN dim_date d ON s.date_key = d.date_key "
-            "WHERE d.date BETWEEN date(?) AND date(?) "
+            "WHERE date_format(d.date, '%Y-%m-%d') BETWEEN {frm} AND {to} "
             "GROUP BY t.title ORDER BY seeks DESC LIMIT 20"
         ),
     },
     "ops": {
         # §11 D5: enrichment success-rate + latency p50 AND p95 (log-backed bronze_ops).
         "rows": (
-            "SELECT o.dt AS dt, o.phase AS phase, "
+            "SELECT o.dt AS dt, o.message AS phase, "
             "approx_percentile(o.duration_ms, 0.5) AS p50_duration_ms, "
             "approx_percentile(o.duration_ms, 0.95) AS p95_duration_ms, "
             "avg(CASE WHEN o.failed_after IS NULL THEN 1 ELSE 0 END) AS success_rate, "
             "count(*) AS runs "
             "FROM bronze_ops o "
-            "WHERE o.dt BETWEEN ? AND ? "
-            "GROUP BY o.dt, o.phase ORDER BY o.dt"
+            "WHERE o.dt BETWEEN {frm} AND {to} "
+            "GROUP BY o.dt, o.message ORDER BY o.dt"
         ),
         # §11 D5: pipeline freshness (newest bronze_events dt vs now).
         "freshness": (
-            "SELECT max(dt) AS newest_dt FROM bronze_events WHERE dt BETWEEN ? AND ?"
+            "SELECT max(dt) AS newest_dt FROM bronze_events WHERE dt BETWEEN {frm} AND {to}"
         ),
     },
 }
@@ -239,7 +239,14 @@ def build_queries(
     route: str, date_from: str, date_to: str
 ) -> dict[str, tuple[str, list[str]]]:
     specs = _ROUTE_QUERIES[route]
-    return {name: (sql, [date_from, date_to]) for name, sql in specs.items()}
+    # The range inlines as quoted string literals (Athena ExecutionParameters mis-parse
+    # a date string like '2026-05-29' as the arithmetic 2026-5-29=1992). Re-assert the
+    # YYYY-MM-DD shape here as defense-in-depth so nothing but a validated date can ever
+    # reach the SQL, independent of the caller.
+    if not (_DATE_RE.match(date_from) and _DATE_RE.match(date_to)):
+        raise AnalyticsError(400, "invalid_params", "from/to must be YYYY-MM-DD dates.")
+    frm, to = f"'{date_from}'", f"'{date_to}'"
+    return {name: (sql.format(frm=frm, to=to), []) for name, sql in specs.items()}
 
 
 # ── Athena execution (Task 2 — appended below) ───────────────────────────────
@@ -279,19 +286,21 @@ def _rows_from_result(result: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 def _run_athena(client: Any, sql: str, params: list[str]) -> list[dict[str, Any]]:
     reuse_minutes = int(os.environ.get("ANALYTICS_RESULT_REUSE_MINUTES", "60"))
-    started = client.start_query_execution(
-        QueryString=sql,
-        QueryExecutionContext={"Database": os.environ["ATHENA_DATABASE"]},
-        WorkGroup=os.environ.get("ATHENA_WORKGROUP", "primary"),
-        ResultConfiguration={"OutputLocation": os.environ["ATHENA_OUTPUT_LOCATION"]},
-        ExecutionParameters=params,
-        ResultReuseConfiguration={
+    kwargs: dict[str, Any] = {
+        "QueryString": sql,
+        "QueryExecutionContext": {"Database": os.environ["ATHENA_DATABASE"]},
+        "WorkGroup": os.environ.get("ATHENA_WORKGROUP", "primary"),
+        "ResultConfiguration": {"OutputLocation": os.environ["ATHENA_OUTPUT_LOCATION"]},
+        "ResultReuseConfiguration": {
             "ResultReuseByAgeConfiguration": {
                 "Enabled": True,
                 "MaxAgeInMinutes": reuse_minutes,
             }
         },
-    )
+    }
+    if params:  # Athena rejects an empty ExecutionParameters list; omit when inlined.
+        kwargs["ExecutionParameters"] = params
+    started = client.start_query_execution(**kwargs)
     qid = started["QueryExecutionId"]
     state = "QUEUED"
     for _ in range(120):
