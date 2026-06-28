@@ -130,6 +130,16 @@ jobs:
             -var="admin_spotify_ids=${{ vars.ADMIN_SPOTIFY_IDS }}" \
             -var="allowed_frontend_redirects=${{ vars.ALLOWED_FRONTEND_REDIRECTS }}"
 
+      - name: Refresh dbt_runner image
+        run: |
+          # Terraform does not detect new image content under the mutable :latest
+          # tag, so force the function to the freshly-pushed image after apply.
+          FN="$(terraform output -raw dbt_runner_lambda_name)"
+          aws lambda update-function-code \
+            --function-name "$FN" \
+            --image-uri "$(terraform output -raw dbt_runner_image_uri)" >/dev/null
+          aws lambda wait function-updated --function-name "$FN"
+
       - name: Run DB migrations via Lambda
         run: |
           MIGRATION_FN="$(terraform output -raw migration_lambda_function_name)"

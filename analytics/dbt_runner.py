@@ -18,7 +18,9 @@ def run_dbt(command: str, project_dir: str, profiles_dir: str,
     ]
     result = invoke(args)
     if not result.success:
-        raise RuntimeError(f"dbt {command!r} failed")
+        # Surface the dbt error in the Lambda log; otherwise failures are opaque.
+        exc = getattr(result, "exception", None)
+        raise RuntimeError(f"dbt {command!r} failed: {exc}")
     return {"command": command, "args": args, "success": True}
 
 
@@ -29,10 +31,17 @@ def _dbt_invoke(args: list[str]) -> Any:
 
 
 def lambda_handler(event: Any, context: Any) -> dict[str, Any]:
+    # The Lambda image filesystem is read-only except /tmp, but dbt writes target/
+    # (manifest, compiled SQL, run_results), logs/, and partial-parse artifacts into
+    # the project dir. Run from a writable copy of the baked project under /tmp, or
+    # dbt fails before submitting a single Athena query.
+    import shutil
+
+    src = os.environ.get("DBT_PROJECT_DIR", "/var/task/dbt")
+    work = "/tmp/dbt"
+    if not os.path.isdir(work):
+        shutil.copytree(src, work)
+    os.environ.setdefault("DBT_SEND_ANONYMOUS_USAGE_STATS", "false")
+
     command = (event or {}).get("command", "build")
-    return run_dbt(
-        command,
-        os.environ.get("DBT_PROJECT_DIR", "/var/task/dbt"),
-        os.environ.get("DBT_PROFILES_DIR", "/var/task/dbt"),
-        _dbt_invoke,
-    )
+    return run_dbt(command, work, work, _dbt_invoke)
