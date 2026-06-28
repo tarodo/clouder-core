@@ -47,7 +47,9 @@ keyed as (
         {{ surrogate_key(['user_id']) }} as user_key,
         {{ surrogate_key(['track_id']) }} as track_key,
         step,
-        from_iso8601_timestamp(ts_server) as ts
+        -- from_iso8601_timestamp returns timestamp(3) WITH TIME ZONE, which a
+        -- Hive/Parquet CTAS rejects ("Unsupported Hive type"). Drop the zone.
+        cast(from_iso8601_timestamp(ts_server) as timestamp(3)) as ts
     from all_steps
 ),
 windowed as (
