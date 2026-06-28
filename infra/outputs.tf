@@ -125,3 +125,11 @@ output "analytics_state_machine_arn" {
   description = "ARN of the daily analytics dbt Step Functions state machine (for the manual first-run bootstrap)."
   value       = aws_sfn_state_machine.analytics_daily.arn
 }
+
+output "dbt_runner_lambda_name" {
+  value = aws_lambda_function.dbt_runner.function_name
+}
+
+output "dbt_runner_image_uri" {
+  value = "${aws_ecr_repository.dbt_runner.repository_url}:latest"
+}
