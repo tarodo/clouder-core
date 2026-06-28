@@ -46,9 +46,13 @@ data "aws_iam_policy_document" "dbt_runner" {
     effect = "Allow"
     actions = [
       "glue:GetDatabase", "glue:GetDatabases", "glue:GetTable", "glue:GetTables",
-      "glue:GetPartition", "glue:GetPartitions", "glue:BatchCreatePartition",
+      "glue:GetPartition", "glue:GetPartitions", "glue:BatchGetPartition",
+      "glue:BatchCreatePartition", "glue:CreatePartition", "glue:UpdatePartition",
+      "glue:DeletePartition", "glue:BatchDeletePartition",
       "glue:CreateTable", "glue:UpdateTable", "glue:DeleteTable",
-      "glue:BatchGetPartition",
+      # dbt-athena's incremental (insert_overwrite) strategy manages table versions.
+      "glue:GetTableVersion", "glue:GetTableVersions",
+      "glue:DeleteTableVersion", "glue:BatchDeleteTableVersion",
     ]
     resources = ["*"]
   }
