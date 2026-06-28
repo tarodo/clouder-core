@@ -94,9 +94,10 @@ data "aws_iam_policy_document" "analytics_api" {
   }
 
   statement {
-    sid     = "S3ReadGoldAndOps"
-    effect  = "Allow"
-    actions = ["s3:GetObject", "s3:ListBucket"]
+    sid    = "S3ReadGoldAndOps"
+    effect = "Allow"
+    # GetBucketLocation: Athena verifies the output bucket before writing results.
+    actions = ["s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"]
     resources = [
       "arn:aws:s3:::${var.analytics_lake_bucket}",
       # dbt writes gold/silver table DATA to marts/ (s3_data_dir), not gold/.
