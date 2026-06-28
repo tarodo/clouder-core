@@ -24,7 +24,24 @@ def run_dbt(command: str, project_dir: str, profiles_dir: str,
     return {"command": command, "args": args, "success": True}
 
 
+def _patch_multiprocessing_for_lambda() -> None:
+    # AWS Lambda provides no /dev/shm, so multiprocessing's POSIX named semaphores
+    # (Lock/RLock/Semaphore) raise FileNotFoundError [Errno 2]. dbt's connection
+    # manager creates an RLock while registering the adapter — before any query —
+    # so back the whole family with threading primitives (dbt runs single-process).
+    import multiprocessing.context as mpc
+    import threading
+
+    mpc.BaseContext.Lock = lambda self: threading.Lock()
+    mpc.BaseContext.RLock = lambda self: threading.RLock()
+    mpc.BaseContext.Semaphore = lambda self, value=1: threading.Semaphore(value)
+    mpc.BaseContext.BoundedSemaphore = lambda self, value=1: threading.BoundedSemaphore(value)
+    mpc.BaseContext.Event = lambda self: threading.Event()
+    mpc.BaseContext.Condition = lambda self, lock=None: threading.Condition(lock)
+
+
 def _dbt_invoke(args: list[str]) -> Any:
+    _patch_multiprocessing_for_lambda()
     from dbt.cli.main import dbtRunner  # heavy; imported only in the real runtime
 
     return dbtRunner().invoke(args)
