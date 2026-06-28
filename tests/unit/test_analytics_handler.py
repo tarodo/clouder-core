@@ -76,14 +76,19 @@ def test_validate_params_accepts_iso_range():
 def test_build_queries_uses_only_prewritten_templates():
     built = ah.build_queries("triage", "2026-01-01", "2026-02-01")
     sql, params = built["rows"]
-    assert sql == ah._ROUTE_QUERIES["triage"]["rows"]  # identical to template
-    assert params == ["2026-01-01", "2026-02-01"]
+    # Fixed template with the validated date range inlined as quoted literals; no
+    # bound params (Athena ExecutionParameters mis-parse date strings as arithmetic).
+    assert sql == ah._ROUTE_QUERIES["triage"]["rows"].format(
+        frm="'2026-01-01'", to="'2026-02-01'"
+    )
+    assert params == []
 
 
-def test_build_queries_never_interpolates_client_values():
-    sql, _ = ah.build_queries("taste", "2026-01-01", "2026-02-01")["rows"]
-    assert "2026-01-01" not in sql and "2026-02-01" not in sql
-    assert "?" in sql  # positional ExecutionParameters placeholder present
+def test_build_queries_rejects_non_date_values():
+    # Only a validated YYYY-MM-DD literal may reach the inlined SQL; an injection
+    # attempt is rejected before it can.
+    with pytest.raises(ah.AnalyticsError):
+        ah.build_queries("triage", "2026-01-01'; DROP TABLE dim_user; --", "2026-02-01")
 
 
 def test_client_sql_param_is_ignored():
