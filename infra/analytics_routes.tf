@@ -70,6 +70,7 @@ data "aws_iam_policy_document" "analytics_api" {
       "athena:StartQueryExecution",
       "athena:GetQueryExecution",
       "athena:GetQueryResults",
+      "athena:GetWorkGroup",
       "athena:StopQueryExecution",
     ]
     resources = ["arn:aws:athena:${var.aws_region}:${data.aws_caller_identity.current.account_id}:workgroup/${var.athena_workgroup}"]
@@ -98,6 +99,8 @@ data "aws_iam_policy_document" "analytics_api" {
     actions = ["s3:GetObject", "s3:ListBucket"]
     resources = [
       "arn:aws:s3:::${var.analytics_lake_bucket}",
+      # dbt writes gold/silver table DATA to marts/ (s3_data_dir), not gold/.
+      "arn:aws:s3:::${var.analytics_lake_bucket}/marts/*",
       "arn:aws:s3:::${var.analytics_lake_bucket}/gold/*",
       "arn:aws:s3:::${var.analytics_lake_bucket}/bronze/ops/*",
       "arn:aws:s3:::${var.analytics_lake_bucket}/bronze/events/*",
