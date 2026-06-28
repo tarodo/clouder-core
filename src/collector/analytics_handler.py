@@ -380,9 +380,10 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             "message": exc.message,
             "correlation_id": correlation_id,
         })
-    except Exception:  # pragma: no cover - safety net, never leak internals
+    except Exception as exc:  # safety net — response stays generic, log carries detail
         log_event("ERROR", "analytics_error", correlation_id=correlation_id,
-                  status_code=500)
+                  status_code=500, error_type=type(exc).__name__,
+                  error_message=str(exc)[:500])
         return _response(500, {
             "error_code": "internal_error",
             "message": "Internal error.",
