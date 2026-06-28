@@ -1,5 +1,7 @@
 with spine as (
-    select d as date
+    -- cast back to date: sequence(date, date, interval '1' day) promotes elements to
+    -- timestamp(0), which a Hive/Parquet CTAS rejects ("Incorrect timestamp precision").
+    select cast(d as date) as date
     from unnest(sequence(date '2024-01-01', date '2031-12-31', interval '1' day)) as t (d)
 ),
 sat as (
