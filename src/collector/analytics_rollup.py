@@ -120,7 +120,10 @@ def mart_sql(d: Mapping[str, str], *, source: str = "bronze_events") -> str:
     # FIRST_VALUE gives each sessioned row its session's start date.
     first_ts_expr = "FIRST_VALUE(ts) OVER (PARTITION BY user_id, activity_type, session_seq ORDER BY ts)"
     to_date_first = d["to_date"].format(first_ts_expr)
-    # lead over ALL events in the session → wall-clock gap to next event.
+    # lead over BOUNDARY events only (play/ended/skip) → wall-clock from a play
+    # to its next terminal event, per the spec ("ended / skip / next play"). A
+    # non-boundary event between (pause, playlist_add, removed) does not cut the
+    # track's listen window. The WHERE in play_gap restricts the lead's frame.
     lead_epoch = f"lead({epoch_ts}) OVER (PARTITION BY user_id, activity_type, session_seq ORDER BY ts)"
     pctl50_dur = d["pctl"].format("fs.duration_ms", "0.5")
     pctl90_dur = d["pctl"].format("fs.duration_ms", "0.9")
@@ -154,6 +157,7 @@ play_gap AS (
     user_id, activity_type, session_seq, dt, event_name,
     ({lead_epoch} - {epoch_ts}) * 1000 AS gap_ms
   FROM sessioned_with_dt
+  WHERE event_name IN ('playback_play', 'playback_ended', 'playback_skip')
 ),
 time_rows AS (
   SELECT user_id, dt, activity_type, CAST(decision_ms AS DOUBLE) AS t_ms

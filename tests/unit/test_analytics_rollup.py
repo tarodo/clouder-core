@@ -24,6 +24,8 @@ _ROWS = [
     # category session
     ("e10", "u1", "2026-06-29T11:00:00Z", "playback_play", "t5", "category_player", None, None, None, None, None),
     ("e11", "u1", "2026-06-29T11:00:50Z", "playback_play", "t6", "category_player", None, None, None, None, None),
+    # non-boundary event mid-play: must NOT cut t6's listen window (boundary = play/ended/skip).
+    ("e11b", "u1", "2026-06-29T11:01:00Z", "playback_pause", "t6", "category_player", None, None, None, None, None),
     ("e12", "u1", "2026-06-29T11:01:30Z", "playback_ended", "t6", "category_player", None, None, None, None, None),
     ("e13", "u1", "2026-06-29T11:02:00Z", "playlist_add", None, None, None, None, 3, "c1", None),
     ("e14", "u1", "2026-06-29T11:02:30Z", "track_categorized", "t7", None, "removed_from_category", "c1", None, None, None),
@@ -134,7 +136,9 @@ def test_mart_user_daily(con):
     assert ca["avg_tracks_promoted"] == pytest.approx(3)
     assert ca["avg_tracks_deleted"] == pytest.approx(1)
     assert ca["p50_duration_ms"] == pytest.approx(150000)
-    # category time-per-track = wall-clock [50000 (t5->t6), 40000 (t6->ended)]
+    # category time-per-track = wall-clock to next TERMINAL event:
+    # t5->t6 play = 50000; t6->ended = 40000 (the 11:01:00 pause is non-boundary,
+    # so it does NOT cut t6's window to 10000). [50000, 40000] -> p50 45000.
     assert ca["p50_time_per_track_ms"] == pytest.approx(45000)
     assert ca["p90_time_per_track_ms"] == pytest.approx(49000)
 
