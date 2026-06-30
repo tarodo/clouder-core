@@ -73,22 +73,42 @@ def test_firehose_records_are_ndjson_one_line_each():
         json.loads(data)  # each line is standalone valid JSON
 
 
-def test_props_serialized_as_json_string_for_glue_column():
-    # The bronze Glue `props` column is type `string`; Firehose's JSON SerDe
-    # will not coerce an object onto a string column (record would be routed to
-    # bronze/_errors/). The handler must emit props as a JSON STRING, not a dict.
+def test_emits_flat_typed_shape_no_nested_context_or_props():
+    # bronze_events columns are now typed top-level; only props_extra is a
+    # JSON string. track_view has no tail, so no props_extra key.
     fh = _ok_firehose()
     telemetry_handler.lambda_handler(_event([_track_view("a")]), _ctx(), firehose_client=fh)
     line = fh.put_record_batch.call_args.kwargs["Records"][0]["Data"].decode("utf-8")
     record = json.loads(line)
-    assert isinstance(record["props"], str)
-    assert json.loads(record["props"]) == {"track_id": "a", "dwell_ms": 900}
-    # context is also a `string`-typed bronze column — must be a JSON string too.
-    assert isinstance(record["context"], str)
-    assert "user_id" in json.loads(record["context"])
-    # ts_server / event_name remain top-level scalars for partition extraction.
+    assert record["track_id"] == "a"
+    assert record["dwell_ms"] == 900
+    assert record["user_id"] == "u-1"
+    assert record["device"] == "desktop"
+    assert "props" not in record
+    assert "context" not in record
+    assert "props_extra" not in record
+    # partition + envelope scalars stay top-level
     assert isinstance(record["event_name"], str)
     assert isinstance(record["ts_server"], str)
+
+
+def test_props_extra_emitted_as_json_string():
+    # playback_seek's from/to_position_ms are tail props -> props_extra string.
+    fh = _ok_firehose()
+    seek = {
+        "event_name": "playback_seek",
+        "event_id": "ev-seek",
+        "session_id": "s1",
+        "ts_client": "2026-06-27T10:00:00.000Z",
+        "context": {"device": "desktop", "route": "/curate/:id"},
+        "props": {"track_id": "t", "from_position_ms": 1, "to_position_ms": 9},
+    }
+    telemetry_handler.lambda_handler(_event([seek]), _ctx(), firehose_client=fh)
+    line = fh.put_record_batch.call_args.kwargs["Records"][0]["Data"].decode("utf-8")
+    record = json.loads(line)
+    assert record["track_id"] == "t"
+    assert isinstance(record["props_extra"], str)
+    assert json.loads(record["props_extra"]) == {"from_position_ms": 1, "to_position_ms": 9}
 
 
 def test_invalid_event_dropped_not_whole_batch():
@@ -120,7 +140,7 @@ def test_user_id_stamped_from_authorizer_not_client():
     )
     line = fh.put_record_batch.call_args.kwargs["Records"][0]["Data"].decode("utf-8")
     record = json.loads(line)
-    assert json.loads(record["context"])["user_id"] == "u-real"
+    assert record["user_id"] == "u-real"
     assert "CLIENT_SPOOF" not in line
 
 
