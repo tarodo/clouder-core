@@ -6,8 +6,9 @@ This file is the AI-agent map. Detailed documentation lives in `docs/`.
 
 ## Where things are
 
-- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration) + providers + data-access layer.
+- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration, telemetry, analytics-api, catalog/ops export) + providers + data-access layer.
 - `frontend/` — Vite + React 19 + Mantine 9 SPA.
+- `analytics/` — dbt-athena star schema (`dbt/`) + Lambda container runner (`dbt_runner.py`). Telemetry → Firehose → S3 lake → Athena → dbt → `/admin/analytics`.
 - `alembic/` — schema migrations.
 - `infra/` — Terraform (API Gateway, Lambdas, SQS, Aurora, VPC).
 - `tests/{unit,integration}` — pytest suites.
@@ -30,6 +31,13 @@ PYTHONPATH=src .venv/bin/python scripts/generate_openapi.py
 
 cd infra && terraform init && terraform apply
 ```
+
+## Knowledge graph (graphify)
+
+A graphify knowledge graph of `src/` + `frontend/` lives in `graphify-out/` (checked in). Use it:
+
+- **During analysis/exploration** — query the graph before grepping wide: `graphify query "how does triage finalize work"`. It traverses the prebuilt map instead of re-reading the tree.
+- **After landing new code** — refresh it so it doesn't drift: `graphify . --update` (re-extracts only changed files). A stale graph mis-answers; new modules are invisible until you update.
 
 ## Policies
 
@@ -58,6 +66,7 @@ These bite almost any session. Read the linked topical doc when you need the ful
 10. **Refresh-cookie replay revokes every session of the user.** Only a fresh `/auth/login` restores them. See ADR-0015.
 11. **Verify visual/CSS/layout/focus changes in a real browser:** `cd frontend && pnpm test:browser` (`@vitest/browser` + Playwright, `*.browser.test.tsx`). jsdom (`pnpm test`) applies no stylesheets. Browser tests are excluded from `pnpm test` and CI (runners have no browser) — run them locally.
 12. **Smooth dnd-kit reorder:** sortable lists (`PlaylistTracksList`, `CategoriesList`) need `DragOverlay` + `dropAnimation={null}` + `animateLayoutChanges={() => false}`. The default drop animation snaps/springs back — worse on pages that re-render (e.g. playback-subscribed).
+13. **Analytics dbt runs on Lambda (container).** Read-only FS → run from a `/tmp` copy; no `/dev/shm` → monkeypatch multiprocessing locks; Hive rejects `timestamp(0)`/tz-aware → cast to `date`/`timestamp(3)`; `insert_overwrite` needs `glue:GetTableVersions`. Athena `ExecutionParameters` mis-parse `'YYYY-MM-DD'` as arithmetic → inline validated date literals, never bind them. See the analytics spec.
 
 ## Where to go next
 
@@ -69,5 +78,6 @@ These bite almost any session. Read the linked topical doc when you need the ful
 | SPA, playback, auth, tests | `docs/frontend/` |
 | Deploy, env vars, logs, Aurora, incidents | `docs/ops/` |
 | API surface, OpenAPI, auth flow | `docs/api/` |
+| Telemetry, analytics lake, dbt, `/admin/analytics` dashboards | `docs/superpowers/specs/2026-06-27-clouder-analytics-pipeline-design.md` + runbook "Analytics first run" |
 | Why this is the way it is | `docs/adr/` |
 | Detailed sharp edges in a subsystem | `docs/<area>/gotchas.md` |
