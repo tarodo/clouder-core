@@ -5945,9 +5945,9 @@
     "semantic_hash": "8f874abf50c0b4f8aaf8de6efbc48ce3"
   },
   "requirements-dev.txt": {
-    "mtime": 1782832834.7708359,
-    "ast_hash": "3a60a8935b09fdc60ea47d38be23a836",
-    "semantic_hash": "3a60a8935b09fdc60ea47d38be23a836"
+    "mtime": 1782843659.5438292,
+    "ast_hash": "ab55f9d2d07c2998fa34b669fc23fd1e",
+    "semantic_hash": ""
   },
   "requirements-lambda.txt": {
     "mtime": 1782832834.7709045,
@@ -6182,6 +6182,26 @@
   "frontend/src/features/categories/components/TrackRowActions.telemetry.test.tsx": {
     "mtime": 1782842435.2761955,
     "ast_hash": "168a1a85e6180379f65591ba325c3c55",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-06-30-analytics-v2-sessionization-marts.md": {
+    "mtime": 1782843273.7896807,
+    "ast_hash": "295e8a3c30367c68d782df0a0719457a",
+    "semantic_hash": ""
+  },
+  "src/collector/analytics_rollup.py": {
+    "mtime": 1782844268.00249,
+    "ast_hash": "22c73248ec75e2744286d21b51ef71f7",
+    "semantic_hash": ""
+  },
+  "tests/unit/test_analytics_rollup.py": {
+    "mtime": 1782844295.4200718,
+    "ast_hash": "0f3a8aaf950289353c258087e5e19185",
+    "semantic_hash": ""
+  },
+  "infra/analytics_marts.tf": {
+    "mtime": 1782844362.2137651,
+    "ast_hash": "92277c3c5d417a86f8c693889240909b",
     "semantic_hash": ""
   }
 }
