@@ -121,12 +121,13 @@ def _strip_secrets(d: Mapping[str, Any]) -> dict[str, Any]:
 def validate_event(
     raw: Any, *, user_id: str | None, ts_server: str
 ) -> dict[str, Any]:
-    """Validate one raw event; return the cleaned, server-stamped envelope.
+    """Validate one raw event; return the cleaned, server-stamped flat envelope.
 
-    ``props`` is returned as a dict — the handler serializes it to a JSON
-    string before emitting (it lands on a ``string``-typed Glue column).
-    Raises pydantic.ValidationError / ValueError on a bad event so the handler
-    can drop it individually and increment ``rejected``.
+    Hot props (``HOT_PROPS``) are promoted to typed top-level keys; remaining
+    allowlisted props land in ``props_extra`` (a dict, omitted when empty). The
+    handler serializes ``props_extra`` to a JSON string for the bronze Glue
+    column. Raises pydantic.ValidationError / ValueError on a bad event so the
+    handler can drop it individually and increment ``rejected``.
     """
     env = TelemetryEnvelope.model_validate(raw)
     if env.event_name not in EVENT_NAMES:

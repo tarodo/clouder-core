@@ -109,7 +109,13 @@ def test_each_event_flattens_into_hot_and_tail(event_name):
     extra = out.get("props_extra", {})
     for key, value in sent.items():
         if value is None:
-            continue  # None-valued allowlisted props are emitted as absent
+            # None-valued allowlisted prop is emitted as a present None-valued
+            # key, not dropped — guards against a future `if v is not None` skip.
+            if key in HOT_PROPS:
+                assert key in out and out[key] is None
+            else:
+                assert key in extra and extra[key] is None
+            continue
         if key in HOT_PROPS:
             assert out[key] == value
         else:
