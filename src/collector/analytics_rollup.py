@@ -11,6 +11,20 @@ from __future__ import annotations
 
 from typing import Mapping
 
+# Glue data-column order (dt excluded — appended last by the INSERT runner).
+FACT_SESSION_COLUMNS = [
+    "user_id", "activity_type", "session_seq",
+    "ts_start", "ts_end",
+    "duration_ms", "tracks_listened", "tracks_promoted", "tracks_deleted",
+]
+MART_USER_DAILY_COLUMNS = [
+    "user_id", "activity_type",
+    "sessions",
+    "avg_tracks_listened", "avg_tracks_promoted", "avg_tracks_deleted",
+    "p50_duration_ms", "p90_duration_ms",
+    "p50_time_per_track_ms", "p90_time_per_track_ms",
+]
+
 # Dialect-specific function fragments. {} is the single positional arg.
 TRINO: Mapping[str, str] = {
     "to_ts": "from_iso8601_timestamp({})",
@@ -96,6 +110,8 @@ WITH {_sessioned_cte(d, source)}
 SELECT
   user_id, activity_type, session_seq,
   {to_date} AS dt,
+  CAST(min(ts) AS VARCHAR) AS ts_start,
+  CAST(max(ts) AS VARCHAR) AS ts_end,
   CAST(({epoch_max} - {epoch_min}) * 1000 AS BIGINT) AS duration_ms,
   CASE WHEN activity_type = 'playlist' THEN NULL
        ELSE count(DISTINCT CASE WHEN event_name = 'playback_play' THEN track_id END)

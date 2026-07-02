@@ -3,7 +3,13 @@ from __future__ import annotations
 import duckdb
 import pytest
 
-from collector.analytics_rollup import DUCKDB, mart_sql, sessions_sql
+from collector.analytics_rollup import (
+    DUCKDB,
+    FACT_SESSION_COLUMNS,
+    MART_USER_DAILY_COLUMNS,
+    mart_sql,
+    sessions_sql,
+)
 
 # (event_id, user_id, ts_server, event_name, track_id, source, action,
 #  category_key, track_count, source_category_id, decision_ms)
@@ -54,8 +60,9 @@ def con():
 
 
 def _sessions(con):
-    cols = ["user_id", "activity_type", "session_seq", "dt", "duration_ms",
-            "tracks_listened", "tracks_promoted", "tracks_deleted"]
+    cols = ["user_id", "activity_type", "session_seq", "dt",
+            "ts_start", "ts_end",
+            "duration_ms", "tracks_listened", "tracks_promoted", "tracks_deleted"]
     rows = con.execute(sessions_sql(DUCKDB)).fetchall()
     return [dict(zip(cols, r)) for r in rows]
 
@@ -78,6 +85,8 @@ def test_fact_session_metrics(con):
 
     t0 = s[("triage", 0)]
     assert str(t0["dt"]) == "2026-06-29"
+    assert t0["ts_start"] == "2026-06-29T10:00:00Z" or t0["ts_start"].startswith("2026-06-29 10:00:00")
+    assert t0["ts_end"] == "2026-06-29T10:02:00Z" or t0["ts_end"].startswith("2026-06-29 10:02:00")
     assert t0["duration_ms"] == 120000          # 10:00:00 -> 10:02:00
     assert t0["tracks_listened"] == 1           # t1 played
     assert t0["tracks_promoted"] == 1           # t1 -> NEW
@@ -150,3 +159,12 @@ def test_mart_user_daily(con):
     assert pl["p50_duration_ms"] == pytest.approx(40000)
     # playlist time-per-track = wall-clock [40000 (t8->t9)]; last play excluded
     assert pl["p50_time_per_track_ms"] == pytest.approx(40000)
+
+
+def test_column_list_constants_include_expected_fields():
+    assert "ts_start" in FACT_SESSION_COLUMNS
+    assert "ts_end" in FACT_SESSION_COLUMNS
+    assert "dt" not in FACT_SESSION_COLUMNS       # dt is appended last by the runner
+    assert "dt" not in MART_USER_DAILY_COLUMNS
+    assert "user_id" in MART_USER_DAILY_COLUMNS
+    assert "sessions" in MART_USER_DAILY_COLUMNS
