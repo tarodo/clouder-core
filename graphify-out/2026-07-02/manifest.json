@@ -655,8 +655,8 @@
     "semantic_hash": "ecd0f8c6c1af6b85823aa595ffcd3690"
   },
   "frontend/src/api/schema.d.ts": {
-    "mtime": 1782832834.6782088,
-    "ast_hash": "aaaa4c68faf387f7a6997e6bbf8d4c82",
+    "mtime": 1782962927.3034933,
+    "ast_hash": "9262251a6e9dd6684476fc9cd0de3214",
     "semantic_hash": ""
   },
   "frontend/src/auth/AuthProvider.tsx": {
@@ -3415,8 +3415,8 @@
     "semantic_hash": "72dc09792540f08faf0bc4a0e2b407a7"
   },
   "frontend/src/i18n/en.json": {
-    "mtime": 1782832834.7513278,
-    "ast_hash": "5497583340b8bb4ad26335221dd0af50",
+    "mtime": 1782963095.892122,
+    "ast_hash": "0a8b8d59c1c75d0eedf2fee0a0635855",
     "semantic_hash": ""
   },
   "frontend/src/i18n/index.ts": {
@@ -5960,33 +5960,28 @@
     "semantic_hash": "b171842e3b34f16aa65e28f5b6e7c14d"
   },
   "frontend/src/features/admin/components/AnalyticsDashboard.tsx": {
-    "mtime": 1782832834.6811533,
-    "ast_hash": "93025287466e9bdacc43125f833ce6f2",
+    "mtime": 1782963062.9279318,
+    "ast_hash": "8e07f6c2c50d5f998ed22a97b67aa89b",
     "semantic_hash": ""
   },
   "frontend/src/features/admin/components/__tests__/AnalyticsDashboard.test.tsx": {
-    "mtime": 1782832834.682263,
-    "ast_hash": "b21c46553aa72d382ba481cec4ea9cc4",
+    "mtime": 1782963190.734947,
+    "ast_hash": "1737e222baf68a94c9075263574284c6",
     "semantic_hash": ""
   },
   "frontend/src/features/admin/hooks/__tests__/useAnalytics.test.tsx": {
-    "mtime": 1782832834.6851335,
-    "ast_hash": "3555102c2fd43dfa5d3c2ce29f5e658c",
+    "mtime": 1782963168.3071733,
+    "ast_hash": "d7b5d55fb3772cca73051ddb0114a6cd",
     "semantic_hash": ""
   },
   "frontend/src/features/admin/hooks/useAnalytics.ts": {
-    "mtime": 1782832834.6855252,
-    "ast_hash": "758822b967e18bd6acb5dc2915a3f46f",
-    "semantic_hash": ""
-  },
-  "frontend/src/features/admin/lib/dashboards.ts": {
-    "mtime": 1782832834.6884024,
-    "ast_hash": "e5d9899a8b1b3217cd9958247f29cb6c",
+    "mtime": 1782962963.58601,
+    "ast_hash": "2052968218ed74e35a4213270a69024d",
     "semantic_hash": ""
   },
   "frontend/src/features/admin/routes/AdminAnalyticsPage.tsx": {
-    "mtime": 1782832834.6889434,
-    "ast_hash": "431375957e7fb4b8bd474d0b173beb3b",
+    "mtime": 1782963072.2592583,
+    "ast_hash": "1eb4f3a40c18abfe549b0cad484061c1",
     "semantic_hash": ""
   },
   "frontend/src/features/curate/hooks/useCurateHotkeys.telemetry.test.tsx": {

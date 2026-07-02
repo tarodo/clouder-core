@@ -5220,8 +5220,8 @@
     "semantic_hash": "197de49c8751b84971d09824183bd9c6"
   },
   "CLAUDE.md": {
-    "mtime": 1782832834.6019127,
-    "ast_hash": "6b23e99c40010ea7eb6bad6bf036a09a",
+    "mtime": 1782965868.5788345,
+    "ast_hash": "776658395156e78a941eca3460c2f026",
     "semantic_hash": ""
   },
   "README.md": {
@@ -6222,6 +6222,11 @@
   "docs/superpowers/plans/2026-07-02-analytics-v2-frontend.md": {
     "mtime": 1782962772.1309676,
     "ast_hash": "d8cdf4c1078d7388a78023754b6a362c",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-07-02-beatport-to-clouder-rename.md": {
+    "mtime": 1782963695.6209948,
+    "ast_hash": "92a87835df77911fa10423bca9d05964",
     "semantic_hash": ""
   }
 }
