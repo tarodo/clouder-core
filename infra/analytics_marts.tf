@@ -16,7 +16,9 @@ resource "aws_glue_catalog_table" "fact_session" {
 
   partition_keys {
     name = "dt"
-    type = "date"
+    # string, not date: matches bronze_events + the serving layer's string-literal
+    # filters; the rollup emits dt as varchar. projection.dt.type stays "date".
+    type = "string"
   }
 
   storage_descriptor {
@@ -85,7 +87,9 @@ resource "aws_glue_catalog_table" "mart_user_daily" {
 
   partition_keys {
     name = "dt"
-    type = "date"
+    # string, not date: matches bronze_events + the serving layer's string-literal
+    # filters; the rollup emits dt as varchar. projection.dt.type stays "date".
+    type = "string"
   }
 
   storage_descriptor {

@@ -109,7 +109,7 @@ def sessions_sql(d: Mapping[str, str], *, source: str = "bronze_events") -> str:
 WITH {_sessioned_cte(d, source)}
 SELECT
   user_id, activity_type, session_seq,
-  {to_date} AS dt,
+  CAST({to_date} AS VARCHAR) AS dt,
   CAST(min(ts) AS VARCHAR) AS ts_start,
   CAST(max(ts) AS VARCHAR) AS ts_end,
   CAST(({epoch_max} - {epoch_min}) * 1000 AS BIGINT) AS duration_ms,
@@ -141,15 +141,18 @@ def mart_sql(d: Mapping[str, str], *, source: str = "bronze_events") -> str:
     # non-boundary event between (pause, playlist_add, removed) does not cut the
     # track's listen window. The WHERE in play_gap restricts the lead's frame.
     lead_epoch = f"lead({epoch_ts}) OVER (PARTITION BY user_id, activity_type, session_seq ORDER BY ts)"
-    pctl50_dur = d["pctl"].format("fs.duration_ms", "0.5")
-    pctl90_dur = d["pctl"].format("fs.duration_ms", "0.9")
-    pctl50_t = d["pctl"].format("t_ms", "0.5")
-    pctl90_t = d["pctl"].format("t_ms", "0.9")
+    # Cast to DOUBLE so the projected types exactly match the marts' double
+    # columns: approx_percentile over a bigint (duration_ms) returns bigint in
+    # Trino, and INSERT into a double column shouldn't rely on implicit widening.
+    pctl50_dur = f"CAST({d['pctl'].format('fs.duration_ms', '0.5')} AS DOUBLE)"
+    pctl90_dur = f"CAST({d['pctl'].format('fs.duration_ms', '0.9')} AS DOUBLE)"
+    pctl50_t = f"CAST({d['pctl'].format('t_ms', '0.5')} AS DOUBLE)"
+    pctl90_t = f"CAST({d['pctl'].format('t_ms', '0.9')} AS DOUBLE)"
     return f"""
 WITH {_sessioned_cte(d, source)},
 sessioned_with_dt AS (
   SELECT *,
-    {to_date_first} AS dt
+    CAST({to_date_first} AS VARCHAR) AS dt
   FROM sessioned
 ),
 fs AS (
