@@ -1,6 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../api/client';
 
+export interface AdminUser {
+  id: string;
+  display_name: string | null;
+}
+
+export type UsersResponse = { users: AdminUser[]; correlation_id?: string };
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ['admin', 'users'],
+    queryFn: () => api<UsersResponse>('/admin/users'),
+    staleTime: 300_000,
+  });
+}
+
 // Athena returns all columns as strings; nullable columns arrive as null.
 export interface UserDailyRow {
   user_id: string;
