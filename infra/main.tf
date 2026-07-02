@@ -26,13 +26,17 @@ locals {
   comments_collect_dlq_name               = "${local.name_prefix}-comments-collect-dlq"
   db_cluster_identifier                   = "${local.name_prefix}-aurora"
   db_secret_name                          = "${local.name_prefix}-aurora-credentials"
-  generated_bucket_name                   = "${local.name_prefix}-raw-${data.aws_caller_identity.current.account_id}"
-  bucket_name                             = var.raw_bucket_name != "" ? var.raw_bucket_name : local.generated_bucket_name
-  lambda_zip_file                         = abspath("${path.module}/../${var.lambda_zip_path}")
-  auth_handler_lambda_name                = "${local.name_prefix}-auth-handler"
-  auth_authorizer_lambda_name             = "${local.name_prefix}-auth-authorizer"
-  curation_lambda_name                    = "${local.name_prefix}-curation"
-  telemetry_lambda_name                   = "${local.name_prefix}-telemetry"
+  # Pinned to the legacy prefix: this bucket holds ingested Beatport-source raw
+  # data. Renaming an S3 bucket recreates it empty (needs an s3 sync migration),
+  # so keep the name for now — the beatport->clouder rename of the raw lake is a
+  # separate, data-copying step.
+  generated_bucket_name       = "beatport-prod-raw-${data.aws_caller_identity.current.account_id}"
+  bucket_name                 = var.raw_bucket_name != "" ? var.raw_bucket_name : local.generated_bucket_name
+  lambda_zip_file             = abspath("${path.module}/../${var.lambda_zip_path}")
+  auth_handler_lambda_name    = "${local.name_prefix}-auth-handler"
+  auth_authorizer_lambda_name = "${local.name_prefix}-auth-authorizer"
+  curation_lambda_name        = "${local.name_prefix}-curation"
+  telemetry_lambda_name       = "${local.name_prefix}-telemetry"
 }
 
 data "aws_caller_identity" "current" {}
