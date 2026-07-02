@@ -1,8 +1,13 @@
 # CLOUDER SPA static host: private S3 bucket fronted by CloudFront via OAC.
 # Spec: docs/superpowers/specs/2026-05-06-staging-frontend-host-design.md
 
+# Frontend host resources are pinned to the legacy `beatport-prod` prefix.
+# Renaming them fails mid-apply: the S3 bucket can't be deleted while it holds
+# the deployed SPA, and the CloudFront functions can't be deleted while the
+# distribution references them (FunctionInUse). These names are internal (users
+# see the CloudFront domain, not the bucket/function names), so keep them.
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${local.name_prefix}-frontend"
+  bucket = "beatport-prod-frontend"
 }
 
 resource "aws_s3_bucket_public_access_block" "frontend" {
@@ -14,7 +19,7 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 }
 
 resource "aws_cloudfront_origin_access_control" "frontend" {
-  name                              = "${local.name_prefix}-frontend-oac"
+  name                              = "beatport-prod-frontend-oac"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -25,7 +30,7 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 # /index.html so client-side routing works for deep links / F5.
 # Attached only to the default behavior — API GW behaviors are unaffected.
 resource "aws_cloudfront_function" "spa_router" {
-  name    = "${local.name_prefix}-spa-router"
+  name    = "beatport-prod-spa-router"
   runtime = "cloudfront-js-2.0"
   publish = true
   code    = <<-EOT
@@ -58,7 +63,7 @@ resource "aws_cloudfront_function" "spa_router" {
 # `document.write`s it. Module scripts inserted via document.write don't reliably
 # execute after the async fetch, so the SPA never bootstrapped (blank page).
 resource "aws_cloudfront_function" "spa_html_fallback" {
-  name    = "${local.name_prefix}-spa-html-fallback"
+  name    = "beatport-prod-spa-html-fallback"
   runtime = "cloudfront-js-2.0"
   publish = true
   code    = <<-EOT
