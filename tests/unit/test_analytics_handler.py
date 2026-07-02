@@ -25,24 +25,24 @@ def _event(route: str, *, is_admin, qs=None):
 # ── admin gate (§10.1, §13: is_admin lives under authorizer.lambda) ──
 def test_require_admin_raises_when_no_authorizer():
     with pytest.raises(ah.AnalyticsError) as exc:
-        ah._require_admin(_event("/v1/analytics/triage", is_admin=None))
+        ah._require_admin(_event("/v1/analytics/user-daily", is_admin=None))
     assert exc.value.status_code == 403
     assert exc.value.error_code == "admin_required"
 
 
 def test_require_admin_raises_when_non_admin():
     with pytest.raises(ah.AnalyticsError) as exc:
-        ah._require_admin(_event("/v1/analytics/triage", is_admin=False))
+        ah._require_admin(_event("/v1/analytics/user-daily", is_admin=False))
     assert exc.value.status_code == 403
 
 
 def test_require_admin_returns_user_id_for_admin():
-    assert ah._require_admin(_event("/v1/analytics/triage", is_admin=True)) == "u1"
+    assert ah._require_admin(_event("/v1/analytics/user-daily", is_admin=True)) == "u1"
 
 
 # ── route resolution ────────────────────────────────────────────────
 def test_route_name_extracts_dashboard():
-    assert ah._route_name(_event("/v1/analytics/playback", is_admin=True)) == "playback"
+    assert ah._route_name(_event("/v1/analytics/user-daily", is_admin=True)) == "user-daily"
 
 
 def test_route_name_rejects_unknown_dashboard():
@@ -54,10 +54,12 @@ def test_route_name_rejects_unknown_dashboard():
 # ── param validation ────────────────────────────────────────────────
 @pytest.mark.parametrize("qs", [
     None,
-    {"from": "not-a-date", "to": "2026-02-01"},
-    {"from": "2026-01-01", "to": "2026/02/01"},
-    {"from": "2026-02-01", "to": "2026-01-01"},  # from > to
-    {"to": "2026-02-01"},                          # missing from
+    {"from": "not-a-date", "to": "2026-02-01", "user_id": "u1"},
+    {"from": "2026-01-01", "to": "2026/02/01", "user_id": "u1"},
+    {"from": "2026-02-01", "to": "2026-01-01", "user_id": "u1"},  # from > to
+    {"to": "2026-02-01", "user_id": "u1"},                         # missing from
+    {"from": "2026-01-01", "to": "2026-02-01"},                    # missing user_id
+    {"from": "2026-01-01", "to": "2026-02-01", "user_id": ""},     # empty user_id
 ])
 def test_validate_params_rejects_bad_input(qs):
     with pytest.raises(ah.AnalyticsError) as exc:
@@ -67,79 +69,78 @@ def test_validate_params_rejects_bad_input(qs):
 
 
 def test_validate_params_accepts_iso_range():
-    assert ah._validate_params({"from": "2026-01-01", "to": "2026-02-01"}) == (
-        "2026-01-01", "2026-02-01",
+    assert ah._validate_params({"from": "2026-01-01", "to": "2026-02-01", "user_id": "u1"}) == (
+        "2026-01-01", "2026-02-01", "u1",
     )
 
 
 # ── query building: pre-written only, params bound, no raw SQL ───────
 def test_build_queries_uses_only_prewritten_templates():
-    built = ah.build_queries("triage", "2026-01-01", "2026-02-01")
-    sql, params = built["rows"]
-    # Fixed template with the validated date range inlined as quoted literals; no
-    # bound params (Athena ExecutionParameters mis-parse date strings as arithmetic).
-    assert sql == ah._ROUTE_QUERIES["triage"]["rows"].format(
-        frm="'2026-01-01'", to="'2026-02-01'"
-    )
-    assert params == []
+    built = ah.build_queries("user-daily", "2026-01-01", "2026-02-01", "u1")
+    sql, params = built["user-daily"]
+    assert "mart_user_daily" in sql
+    assert "'2026-01-01'" in sql and "'2026-02-01'" in sql
+    assert params == ["u1"]
+    assert "u1" not in sql  # bound via ExecutionParameters, not inlined
 
 
 def test_build_queries_rejects_non_date_values():
-    # Only a validated YYYY-MM-DD literal may reach the inlined SQL; an injection
-    # attempt is rejected before it can.
     with pytest.raises(ah.AnalyticsError):
-        ah.build_queries("triage", "2026-01-01'; DROP TABLE dim_user; --", "2026-02-01")
+        ah.build_queries("user-daily", "2026-01-01'; DROP TABLE dim_user; --", "2026-02-01", "u1")
 
 
 def test_client_sql_param_is_ignored():
-    qs = {"from": "2026-01-01", "to": "2026-02-01", "sql": "DROP TABLE dim_user"}
-    date_from, date_to = ah._validate_params(qs)
-    built = ah.build_queries("triage", date_from, date_to)
-    assert "DROP" not in built["rows"][0]
+    qs = {"from": "2026-01-01", "to": "2026-02-01", "user_id": "u1", "sql": "DROP TABLE dim_user"}
+    date_from, date_to, user_id = ah._validate_params(qs)
+    built = ah.build_queries("user-daily", date_from, date_to, user_id)
+    assert "DROP" not in built["user-daily"][0]
 
 
-# ── §11 metric coverage: EVERY dashboard's named metrics have a query ─
-def test_triage_route_has_undo_query():
-    # §11 D1 headline: undo rate from fact_triage_session.undo_rate.
-    built = ah.build_queries("triage", "2026-01-01", "2026-02-01")
-    assert set(built) == {"rows", "undo"}
-    assert "fact_triage_session" in built["undo"][0]
+# ── new routes: user-daily + sessions ─────────────────────────────────
+def test_user_daily_binds_user_id_and_inlines_dates(monkeypatch):
+    captured: dict = {}
+
+    def fake(client, sql, params):
+        captured["sql"] = sql
+        captured["params"] = params
+        return []
+
+    monkeypatch.setattr(ah, "_run_athena", fake)
+    monkeypatch.setattr(ah, "_cached_rows", lambda sql, pk: tuple(fake(None, sql, list(pk))))
+
+    resp = ah.lambda_handler(
+        _event("/v1/analytics/user-daily", is_admin=True,
+               qs={"user_id": "u1", "from": "2026-06-01", "to": "2026-06-30"}),
+        None,
+    )
+
+    assert resp["statusCode"] == 200
+    assert "mart_user_daily" in captured["sql"]
+    assert "'2026-06-01'" in captured["sql"] and "'2026-06-30'" in captured["sql"]
+    assert captured["params"] == ["u1"]   # user_id bound, not inlined
+    assert "u1" not in captured["sql"]
 
 
-def test_taste_label_affinity_joins_playback():
-    # §11 D2: label affinity = categorize-count vs playback skip-rate per label.
-    sql = ah.build_queries("taste", "2026-01-01", "2026-02-01")["rows"][0]
-    assert "fact_playback" in sql and "skip_rate" in sql
+def test_missing_user_id_400():
+    resp = ah.lambda_handler(
+        _event("/v1/analytics/user-daily", is_admin=True,
+               qs={"from": "2026-06-01", "to": "2026-06-30"}),
+        None,
+    )
+    assert resp["statusCode"] == 400
 
 
-def test_funnel_has_weekly_saturday_week():
-    # §11 D3: weekly throughput by Saturday-week + time-between-steps.
-    built = ah.build_queries("funnel", "2026-01-01", "2026-02-01")
-    assert set(built) == {"rows", "weekly"}
-    assert "saturday_week" in built["weekly"][0]
-    assert "ms_since_prev" in built["rows"][0]  # time-to-publish hop timing
+def test_sessions_route_queries_fact_session(monkeypatch):
+    captured: dict = {}
+    monkeypatch.setattr(
+        ah, "_cached_rows",
+        lambda sql, pk: captured.setdefault("sql", sql) and (),
+    )
 
+    ah.lambda_handler(
+        _event("/v1/analytics/sessions", is_admin=True,
+               qs={"user_id": "u1", "from": "2026-06-01", "to": "2026-06-30"}),
+        None,
+    )
 
-def test_playback_route_has_correlation_and_seek_queries():
-    # §11 D4: listen-ratio vs final-category correlation + fact_seek heatmap slice.
-    built = ah.build_queries("playback", "2026-01-01", "2026-02-01")
-    assert set(built) == {"rows", "by_category", "seek"}
-    assert "fact_track_decision" in built["by_category"][0]
-    assert "dim_category" in built["by_category"][0]
-    # §2/§11 D4: the correlation join is per-tenant (track_key AND user_key); a
-    # track_key-only join would cross-join every user's plays against every user's
-    # decision for that track. Assert the user_key predicate is present so the
-    # multi-tenant join can never silently regress.
-    assert "user_key" in built["by_category"][0]
-    assert "fact_seek" in built["seek"][0]
-
-
-def test_ops_route_has_freshness_query():
-    built = ah.build_queries("ops", "2026-01-01", "2026-02-01")
-    assert set(built) == {"rows", "freshness"}
-
-
-def test_ops_latency_has_p50_and_p95():
-    # §11 D5: latency p50 AND p95.
-    sql = ah.build_queries("ops", "2026-01-01", "2026-02-01")["rows"][0]
-    assert "0.5" in sql and "0.95" in sql
+    assert "fact_session" in captured["sql"]
