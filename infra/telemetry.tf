@@ -1,11 +1,11 @@
 # ── Analytics lake bucket (medallion: bronze / silver / gold) ────────────────
 
 resource "aws_s3_bucket" "analytics_lake" {
-  # PHASE A: set force_destroy on the existing beatport bucket in-place (data is
-  # disposable — old bronze unreadable, marts empty). Phase B renames to clouder;
-  # the force-replace destroy needs force_destroy already in state. Keep this
-  # literal == var.analytics_lake_bucket default.
-  bucket        = "beatport-prod-analytics-lake"
+  # Phase B: renamed to clouder. Data is disposable (old bronze unreadable, marts
+  # empty); force_destroy (committed in phase A) empties the old bucket on replace.
+  # Consumers (Firehose dest, Glue locations, IAM, rollup/serving env) re-point via
+  # this resource / var.analytics_lake_bucket. Keep this == that var default.
+  bucket        = "clouder-prod-analytics-lake"
   force_destroy = true
 }
 

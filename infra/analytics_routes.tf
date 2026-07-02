@@ -7,8 +7,8 @@
 
 variable "analytics_lake_bucket" {
   type = string
-  # Must match aws_s3_bucket.analytics_lake.bucket in telemetry.tf (Phase A: beatport).
-  default = "beatport-prod-analytics-lake"
+  # Must match aws_s3_bucket.analytics_lake.bucket in telemetry.tf.
+  default = "clouder-prod-analytics-lake"
 }
 
 variable "analytics_glue_database" {
