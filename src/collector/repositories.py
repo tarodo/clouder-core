@@ -1201,6 +1201,16 @@ class ClouderRepository:
             transaction_id=transaction_id,
         )
 
+    def list_users(self) -> list[dict[str, Any]]:
+        return self._data_api.execute(
+            """
+            SELECT id, display_name
+            FROM users
+            ORDER BY display_name NULLS LAST, id
+            """,
+            {},
+        )
+
 
 def parse_iso_date(value: str | None) -> date | None:
     if not value:

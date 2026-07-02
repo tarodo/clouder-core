@@ -83,6 +83,7 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/artists/{artist_id}/history",
     "GET /admin/auto-enrich/artists",
     "PUT /admin/auto-enrich/artists",
+    "GET /admin/users",
 })
 
 
@@ -165,6 +166,8 @@ def _route(
         return _handle_admin_ingest(event, context)
     if route_key == "GET /admin/coverage":
         return _handle_admin_coverage(event)
+    if route_key == "GET /admin/users":
+        return _handle_admin_users(event)
     if route_key == "GET /admin/runs":
         return _handle_admin_runs(event)
     if route_key == "GET /tracks/spotify-not-found":
@@ -614,6 +617,22 @@ def _handle_admin_coverage(event: Mapping[str, Any]) -> dict[str, Any]:
             "styles": list(grouped.values()),
             "correlation_id": correlation_id,
         },
+        correlation_id,
+    )
+
+
+def _handle_admin_users(event: Mapping[str, Any]) -> dict[str, Any]:
+    correlation_id = _extract_correlation_id(event)
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {"error_code": "db_not_configured", "message": "Database is not configured"},
+            correlation_id,
+        )
+    return _json_response(
+        200,
+        {"users": repository.list_users(), "correlation_id": correlation_id},
         correlation_id,
     )
 

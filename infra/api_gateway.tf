@@ -94,6 +94,14 @@ resource "aws_apigatewayv2_route" "admin_beatport_ingest" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "admin_users" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/users"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_route" "admin_coverage" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /admin/coverage"

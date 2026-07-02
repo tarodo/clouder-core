@@ -401,6 +401,33 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/users:
+    get:
+      summary: 'Admin: list all users for picker.'
+      responses:
+        '200':
+          description: User list.
+          content:
+            application/json:
+              schema:
+                type: object
+        '503':
+          description: db_not_configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /admin/coverage:
     get:
       summary: 'Admin: ingest coverage matrix for one Saturday-year.'

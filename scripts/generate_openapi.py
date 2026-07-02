@@ -1616,6 +1616,22 @@ ROUTES: list[dict[str, Any]] = [
     },
     {
         "method": "get",
+        "path": "/admin/users",
+        "auth": ADMIN,
+        "summary": "Admin: list all users for picker.",
+        "responses": {
+            "200": _make_response(
+                200,
+                "User list.",
+                {"type": "object"},
+            ),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
         "path": "/admin/coverage",
         "auth": ADMIN,
         "summary": "Admin: ingest coverage matrix for one Saturday-year.",
