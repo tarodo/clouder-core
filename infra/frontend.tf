@@ -1,12 +1,13 @@
 # CLOUDER SPA static host: private S3 bucket fronted by CloudFront via OAC.
 # Spec: docs/superpowers/specs/2026-05-06-staging-frontend-host-design.md
 
-# The frontend bucket is renamed to clouder; force_destroy lets Terraform empty
-# + replace it (assets are re-uploaded by the deploy's frontend step). The
-# CloudFront functions + OAC below stay beatport-named on purpose: they are not
-# buckets, and renaming an in-use CloudFront function fails with FunctionInUse.
+# PHASE A of the bucket rename: set force_destroy on the EXISTING (beatport)
+# bucket first, in-place. Terraform applies force_destroy at replace-destroy time
+# from PRIOR state, so a bucket can only be force-replaced after force_destroy is
+# already committed to state. Phase B renames this to clouder. CloudFront
+# functions + OAC stay beatport (not buckets; in-use CF function delete fails).
 resource "aws_s3_bucket" "frontend" {
-  bucket        = "${local.name_prefix}-frontend"
+  bucket        = "beatport-prod-frontend"
   force_destroy = true
 }
 
