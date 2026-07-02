@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from collector.telemetry_schemas import (
     EVENT_NAMES,
+    HOT_PROPS,
     PROP_ALLOWLIST,
     validate_event,
 )
@@ -22,17 +23,36 @@ def _envelope(event_name="track_view", props=None, context=None):
         "props": props if props is not None else {"track_id": "t1", "dwell_ms": 1200},
     }
 
-def test_valid_event_stamps_user_and_ts():
+def test_valid_event_flattens_context_and_hot_props():
     out = validate_event(_envelope(), user_id="u-1", ts_server=TS_SERVER)
-    assert out["context"]["user_id"] == "u-1"
+    # context is flattened to typed top-level columns
+    assert out["user_id"] == "u-1"
+    assert out["device"] == "desktop"
+    assert out["route"] == "/curate/:id"
+    # envelope unchanged
     assert out["ts_server"] == TS_SERVER
     assert out["event_name"] == "track_view"
-    assert out["props"] == {"track_id": "t1", "dwell_ms": 1200}
+    # hot props promoted to top level (no nested "props"/"context" keys)
+    assert out["track_id"] == "t1"
+    assert out["dwell_ms"] == 1200
+    assert "props" not in out
+    assert "context" not in out
 
-def test_props_returned_as_dict_not_stringified():
-    # validate_event keeps props a dict; the HANDLER serializes it for Glue.
+
+def test_tail_props_go_to_props_extra():
+    ev = _envelope(
+        event_name="playback_seek",
+        props={"track_id": "t", "from_position_ms": 1, "to_position_ms": 9},
+    )
+    out = validate_event(ev, user_id="u-1", ts_server=TS_SERVER)
+    # track_id is hot -> top level; from/to_position_ms are tail -> props_extra dict
+    assert out["track_id"] == "t"
+    assert out["props_extra"] == {"from_position_ms": 1, "to_position_ms": 9}
+
+
+def test_no_props_extra_key_when_tail_empty():
     out = validate_event(_envelope(), user_id="u-1", ts_server=TS_SERVER)
-    assert isinstance(out["props"], dict)
+    assert "props_extra" not in out
 
 def test_unknown_event_name_raises():
     with pytest.raises(ValueError):
@@ -41,14 +61,16 @@ def test_unknown_event_name_raises():
 def test_client_user_id_in_context_is_ignored_and_server_stamps():
     ev = _envelope(context={"user_id": "EVIL", "device": "mobile"})
     out = validate_event(ev, user_id="u-real", ts_server=TS_SERVER)
-    assert out["context"]["user_id"] == "u-real"
+    assert out["user_id"] == "u-real"
     assert "EVIL" not in json.dumps(out)
 
 def test_secret_and_unknown_props_dropped():
     ev = _envelope(props={"track_id": "t1", "dwell_ms": 5, "access_token": "x", "junk": 1})
     out = validate_event(ev, user_id="u-1", ts_server=TS_SERVER)
-    assert set(out["props"]) == {"track_id", "dwell_ms"}
+    assert out["track_id"] == "t1"
+    assert out["dwell_ms"] == 5
     assert "access_token" not in json.dumps(out)
+    assert "junk" not in out
 
 def test_extra_top_level_key_rejected():
     ev = _envelope()
@@ -79,8 +101,22 @@ _VALID_PROPS = {
 }
 
 @pytest.mark.parametrize("event_name", sorted(EVENT_NAMES))
-def test_each_event_accepts_its_allowlisted_props(event_name):
-    ev = _envelope(event_name=event_name, props=dict(_VALID_PROPS[event_name]))
-    out = validate_event(ev, user_id="u-1", ts_server=TS_SERVER)
-    assert set(out["props"]) <= PROP_ALLOWLIST[event_name]
-    assert set(out["props"]) == set(_VALID_PROPS[event_name])
+def test_each_event_flattens_into_hot_and_tail(event_name):
+    sent = dict(_VALID_PROPS[event_name])
+    out = validate_event(
+        _envelope(event_name=event_name, props=sent), user_id="u-1", ts_server=TS_SERVER
+    )
+    extra = out.get("props_extra", {})
+    for key, value in sent.items():
+        if value is None:
+            # None-valued allowlisted prop is emitted as a present None-valued
+            # key, not dropped — guards against a future `if v is not None` skip.
+            if key in HOT_PROPS:
+                assert key in out and out[key] is None
+            else:
+                assert key in extra and extra[key] is None
+            continue
+        if key in HOT_PROPS:
+            assert out[key] == value
+        else:
+            assert extra[key] == value

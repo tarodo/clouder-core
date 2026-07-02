@@ -7261,7 +7261,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/analytics/triage": {
+    "/v1/analytics/user-daily": {
         parameters: {
             query?: never;
             header?: never;
@@ -7269,12 +7269,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Triage efficiency dashboard data.
-         * @description Median decision time + throughput per category over time, plus undo rate (gold fact_track_decision + fact_triage_session). Pre-written parameterized Athena queries.
+         * Per-user daily analytics.
+         * @description Session counts, averages, and duration / time-per-track percentiles per user × day × activity.
          */
         get: {
             parameters: {
                 query: {
+                    /** @description User ID to scope the query to. */
+                    user_id: string;
                     /** @description Inclusive start date (YYYY-MM-DD). */
                     from: string;
                     /** @description Inclusive end date (YYYY-MM-DD). */
@@ -7286,7 +7288,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Triage efficiency dashboard data. */
+                /** @description Per-user daily analytics. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -7350,7 +7352,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/analytics/taste": {
+    "/v1/analytics/sessions": {
         parameters: {
             query?: never;
             header?: never;
@@ -7358,12 +7360,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Taste profile dashboard data.
-         * @description Label affinity: categorize count + BPM + playback skip-rate per label (gold fact_track_decision x dim_track/dim_label x fact_playback).
+         * Per-user session drill-down.
+         * @description One row per derived session for a user over a date range.
          */
         get: {
             parameters: {
                 query: {
+                    /** @description User ID to scope the query to. */
+                    user_id: string;
                     /** @description Inclusive start date (YYYY-MM-DD). */
                     from: string;
                     /** @description Inclusive end date (YYYY-MM-DD). */
@@ -7375,274 +7379,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Taste profile dashboard data. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AnalyticsResult"];
-                    };
-                };
-                /** @description from/to must be YYYY-MM-DD dates. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Missing or invalid bearer token. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description admin_required. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Unknown dashboard. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Athena query failed. */
-                502: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/funnel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Funnel dashboard data.
-         * @description Lifecycle drop-off + time-between-steps and weekly throughput by Saturday-week (gold fact_funnel_step x dim_date).
-         */
-        get: {
-            parameters: {
-                query: {
-                    /** @description Inclusive start date (YYYY-MM-DD). */
-                    from: string;
-                    /** @description Inclusive end date (YYYY-MM-DD). */
-                    to: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Funnel dashboard data. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AnalyticsResult"];
-                    };
-                };
-                /** @description from/to must be YYYY-MM-DD dates. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Missing or invalid bearer token. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description admin_required. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Unknown dashboard. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Athena query failed. */
-                502: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/playback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Playback dashboard data.
-         * @description Listen-through + skip-rate, listen-ratio-by-final-category correlation (joined per track_key+user_key), and a most-seeked-tracks slice (gold fact_playback x fact_track_decision/dim_category, fact_seek x dim_track).
-         */
-        get: {
-            parameters: {
-                query: {
-                    /** @description Inclusive start date (YYYY-MM-DD). */
-                    from: string;
-                    /** @description Inclusive end date (YYYY-MM-DD). */
-                    to: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Playback dashboard data. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AnalyticsResult"];
-                    };
-                };
-                /** @description from/to must be YYYY-MM-DD dates. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Missing or invalid bearer token. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description admin_required. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Unknown dashboard. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Athena query failed. */
-                502: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/ops": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Ops/pipeline health dashboard data.
-         * @description Enrichment success + latency p50/p95 from bronze_ops plus bronze_events freshness lag.
-         */
-        get: {
-            parameters: {
-                query: {
-                    /** @description Inclusive start date (YYYY-MM-DD). */
-                    from: string;
-                    /** @description Inclusive end date (YYYY-MM-DD). */
-                    to: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Ops/pipeline health dashboard data. */
+                /** @description Per-user session drill-down. */
                 200: {
                     headers: {
                         [name: string]: unknown;

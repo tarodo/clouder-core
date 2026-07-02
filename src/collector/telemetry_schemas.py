@@ -4,8 +4,9 @@ Schema-on-read: props are key-allowlisted per event_name, not deeply typed —
 new props ship without a migration. The envelope is strict (extra forbidden),
 so any secret-shaped or unexpected top-level key is rejected outright.
 `context.user_id` is never trusted: it is dropped on parse and re-stamped by
-the handler from the authorizer. props is returned as a dict; the handler
-serializes it to a JSON string to match the bronze Glue column type.
+the handler from the authorizer. Hot props (HOT_PROPS) are promoted to typed
+top-level columns; remaining allowlisted props land in props_extra, which the
+handler serializes to a JSON string to match the bronze Glue column type.
 """
 
 from __future__ import annotations
@@ -71,6 +72,28 @@ PROP_ALLOWLIST: dict[str, frozenset[str]] = {
 
 _SECRET_KEYS = {"bp_token", "authorization", "token", "access_token", "secret"}
 
+# Props promoted to typed top-level Glue columns (queried by the dashboard).
+# Everything else allowlisted lands in the props_extra JSON tail.
+HOT_PROPS: frozenset[str] = frozenset(
+    {
+        "track_id",
+        "source",
+        "action",
+        "category_key",
+        "surface",
+        "decision_ms",
+        "dwell_ms",
+        "position_ms",
+        "duration_ms",
+        "listen_through_ratio",
+        "seek_count",
+        "playlist_id",
+        "track_count",
+        "source_category_id",
+        "session_ms",
+    }
+)
+
 
 class EnvelopeContext(BaseModel):
     # extra="ignore": a client-sent context.user_id is silently dropped; the
@@ -98,31 +121,38 @@ def _strip_secrets(d: Mapping[str, Any]) -> dict[str, Any]:
 def validate_event(
     raw: Any, *, user_id: str | None, ts_server: str
 ) -> dict[str, Any]:
-    """Validate one raw event; return the cleaned, server-stamped envelope.
+    """Validate one raw event; return the cleaned, server-stamped flat envelope.
 
-    ``props`` is returned as a dict — the handler serializes it to a JSON
-    string before emitting (it lands on a ``string``-typed Glue column).
-    Raises pydantic.ValidationError / ValueError on a bad event so the handler
-    can drop it individually and increment ``rejected``.
+    Hot props (``HOT_PROPS``) are promoted to typed top-level keys; remaining
+    allowlisted props land in ``props_extra`` (a dict, omitted when empty). The
+    handler serializes ``props_extra`` to a JSON string for the bronze Glue
+    column. Raises pydantic.ValidationError / ValueError on a bad event so the
+    handler can drop it individually and increment ``rejected``.
     """
     env = TelemetryEnvelope.model_validate(raw)
     if env.event_name not in EVENT_NAMES:
         raise ValueError(f"unknown event_name: {env.event_name}")
     allowed = PROP_ALLOWLIST[env.event_name]
-    clean_props = {
+    clean = {
         k: v for k, v in _strip_secrets(env.props).items() if k in allowed
     }
-    return {
+    out: dict[str, Any] = {
         "event_name": env.event_name,
         "event_id": env.event_id,
         "session_id": env.session_id,
         "ts_client": env.ts_client,
         "ts_server": ts_server,
-        "context": {
-            "user_id": user_id,  # SERVER-STAMPED; client value ignored
-            "device": env.context.device,
-            "route": env.context.route,
-            "app_version": env.context.app_version,
-        },
-        "props": clean_props,
+        "user_id": user_id,  # SERVER-STAMPED; client value ignored
+        "device": env.context.device,
+        "route": env.context.route,
+        "app_version": env.context.app_version,
     }
+    extra: dict[str, Any] = {}
+    for k, v in clean.items():
+        if k in HOT_PROPS:
+            out[k] = v
+        else:
+            extra[k] = v
+    if extra:
+        out["props_extra"] = extra
+    return out

@@ -1307,6 +1307,9 @@ COMMON_AUTH_ERRORS = {
 }
 
 ANALYTICS_PARAMS = [
+    {"name": "user_id", "in": "query", "required": True,
+     "schema": {"type": "string"},
+     "description": "User ID to scope the query to."},
     {"name": "from", "in": "query", "required": True,
      "schema": {"type": "string", "format": "date"},
      "description": "Inclusive start date (YYYY-MM-DD)."},
@@ -3861,21 +3864,10 @@ ROUTES: list[dict[str, Any]] = [
     # ── analytics dashboards (§10/§11), standalone analytics-api, admin-only ──
     # XHR path is /v1/analytics/* (the /v1 prefix is registered in CloudFront +
     # Vite dev proxy, Task 5); the browser page is /admin/analytics.
-    _analytics_route("triage", "Triage efficiency dashboard data.",
-        "Median decision time + throughput per category over time, plus undo rate "
-        "(gold fact_track_decision + fact_triage_session). Pre-written parameterized Athena queries."),
-    _analytics_route("taste", "Taste profile dashboard data.",
-        "Label affinity: categorize count + BPM + playback skip-rate per label "
-        "(gold fact_track_decision x dim_track/dim_label x fact_playback)."),
-    _analytics_route("funnel", "Funnel dashboard data.",
-        "Lifecycle drop-off + time-between-steps and weekly throughput by Saturday-week "
-        "(gold fact_funnel_step x dim_date)."),
-    _analytics_route("playback", "Playback dashboard data.",
-        "Listen-through + skip-rate, listen-ratio-by-final-category correlation (joined per "
-        "track_key+user_key), and a most-seeked-tracks slice "
-        "(gold fact_playback x fact_track_decision/dim_category, fact_seek x dim_track)."),
-    _analytics_route("ops", "Ops/pipeline health dashboard data.",
-        "Enrichment success + latency p50/p95 from bronze_ops plus bronze_events freshness lag."),
+    _analytics_route("user-daily", "Per-user daily analytics.",
+        "Session counts, averages, and duration / time-per-track percentiles per user × day × activity."),
+    _analytics_route("sessions", "Per-user session drill-down.",
+        "One row per derived session for a user over a date range."),
 ]
 
 

@@ -164,11 +164,8 @@ resource "aws_apigatewayv2_integration" "analytics" {
 
 locals {
   analytics_routes = [
-    "GET /v1/analytics/triage",
-    "GET /v1/analytics/taste",
-    "GET /v1/analytics/funnel",
-    "GET /v1/analytics/playback",
-    "GET /v1/analytics/ops",
+    "GET /v1/analytics/user-daily",
+    "GET /v1/analytics/sessions",
   ]
 }
 

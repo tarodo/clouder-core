@@ -107,14 +107,88 @@ resource "aws_glue_catalog_table" "bronze_events" {
       name = "ts_server"
       type = "string"
     }
-    # ponytail: context MUST be string per locked contract; handler emits JSON string,
-    # dbt json_extracts in silver. Same for props.
+    # flattened context (user_id server-stamped)
     columns {
-      name = "context"
+      name = "user_id"
       type = "string"
     }
     columns {
-      name = "props"
+      name = "device"
+      type = "string"
+    }
+    columns {
+      name = "route"
+      type = "string"
+    }
+    columns {
+      name = "app_version"
+      type = "string"
+    }
+    # hot props: typed, nullable. Absent keys deserialize to null.
+    columns {
+      name = "track_id"
+      type = "string"
+    }
+    columns {
+      name = "source"
+      type = "string"
+    }
+    columns {
+      name = "action"
+      type = "string"
+    }
+    columns {
+      name = "category_key"
+      type = "string"
+    }
+    columns {
+      name = "surface"
+      type = "string"
+    }
+    columns {
+      name = "decision_ms"
+      type = "bigint"
+    }
+    columns {
+      name = "dwell_ms"
+      type = "bigint"
+    }
+    columns {
+      name = "position_ms"
+      type = "bigint"
+    }
+    columns {
+      name = "duration_ms"
+      type = "bigint"
+    }
+    columns {
+      name = "listen_through_ratio"
+      type = "double"
+    }
+    columns {
+      name = "seek_count"
+      type = "int"
+    }
+    columns {
+      name = "playlist_id"
+      type = "string"
+    }
+    columns {
+      name = "track_count"
+      type = "int"
+    }
+    columns {
+      name = "source_category_id"
+      type = "string"
+    }
+    columns {
+      name = "session_ms"
+      type = "bigint"
+    }
+    # ponytail: props_extra is the only JSON-string column. Rare/per-event
+    # props live here so adding one needs no Glue migration.
+    columns {
+      name = "props_extra"
       type = "string"
     }
   }

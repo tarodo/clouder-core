@@ -107,12 +107,12 @@ def lambda_handler(event: Mapping[str, Any], context: Any, *, firehose_client: A
         except (ValidationError, ValueError, TypeError):
             rejected += 1
             continue
-        # props AND context both land on `string`-typed bronze Glue columns
-        # (schema-on-read). The Firehose JSON SerDe will not coerce an object
-        # onto a string column — emit both as JSON strings; dbt json_extracts
-        # them back in silver (the locked bronze_events contract, Increment 4).
-        clean["props"] = json.dumps(clean["props"], separators=(",", ":"))
-        clean["context"] = json.dumps(clean["context"], separators=(",", ":"))
+        # Hot props are typed top-level columns the OpenX JSON SerDe maps
+        # directly; props_extra is the only `string`-typed JSON column.
+        if "props_extra" in clean:
+            clean["props_extra"] = json.dumps(
+                clean["props_extra"], separators=(",", ":")
+            )
         line = (json.dumps(clean, separators=(",", ":")) + "\n").encode("utf-8")
         records.append({"Data": line})
 

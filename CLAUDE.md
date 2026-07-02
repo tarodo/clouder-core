@@ -6,9 +6,9 @@ This file is the AI-agent map. Detailed documentation lives in `docs/`.
 
 ## Where things are
 
-- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration, telemetry, analytics-api, catalog/ops export) + providers + data-access layer.
+- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration, telemetry, analytics-api, analytics-rollup, catalog/ops export) + providers + data-access layer.
 - `frontend/` — Vite + React 19 + Mantine 9 SPA.
-- `analytics/` — dbt-athena star schema (`dbt/`) + Lambda container runner (`dbt_runner.py`). Telemetry → Firehose → S3 lake → Athena → dbt → `/admin/analytics`.
+- **Analytics v2** (in `src/collector/`, no separate `analytics/` dir) — telemetry → Firehose → S3 lake (`bronze_events`, typed hybrid) → daily `analytics-rollup` Lambda (Athena gaps-and-islands sessionization, `analytics_rollup_runner.py`) → `fact_session` + `mart_user_daily` marts → `analytics_handler.py` serves `/admin/analytics` (per-user daily). Session SQL in `analytics_rollup.py` (one source, Trino prod / DuckDB tests). No dbt.
 - `alembic/` — schema migrations.
 - `infra/` — Terraform (API Gateway, Lambdas, SQS, Aurora, VPC).
 - `tests/{unit,integration}` — pytest suites.
@@ -66,7 +66,7 @@ These bite almost any session. Read the linked topical doc when you need the ful
 10. **Refresh-cookie replay revokes every session of the user.** Only a fresh `/auth/login` restores them. See ADR-0015.
 11. **Verify visual/CSS/layout/focus changes in a real browser:** `cd frontend && pnpm test:browser` (`@vitest/browser` + Playwright, `*.browser.test.tsx`). jsdom (`pnpm test`) applies no stylesheets. Browser tests are excluded from `pnpm test` and CI (runners have no browser) — run them locally.
 12. **Smooth dnd-kit reorder:** sortable lists (`PlaylistTracksList`, `CategoriesList`) need `DragOverlay` + `dropAnimation={null}` + `animateLayoutChanges={() => false}`. The default drop animation snaps/springs back — worse on pages that re-render (e.g. playback-subscribed).
-13. **Analytics dbt runs on Lambda (container).** Read-only FS → run from a `/tmp` copy; no `/dev/shm` → monkeypatch multiprocessing locks; Hive rejects `timestamp(0)`/tz-aware → cast to `date`/`timestamp(3)`; `insert_overwrite` needs `glue:GetTableVersions`. Athena `ExecutionParameters` mis-parse `'YYYY-MM-DD'` as arithmetic → inline validated date literals, never bind them. See the analytics spec.
+13. **Analytics is Athena SQL, no dbt.** The daily `analytics-rollup` Lambda runs `INSERT INTO` to overwrite the last 3 `dt` partitions of `fact_session`/`mart_user_daily` from `bronze_events` (S3-delete-then-insert). Athena `ExecutionParameters` mis-parse `'YYYY-MM-DD'` as arithmetic → inline validated date literals, never bind them (binding `user_id` is fine). Sessionization SQL lives in `src/collector/analytics_rollup.py` (one source, Trino prod / DuckDB tests via a dialect shim). See `docs/superpowers/specs/2026-06-30-analytics-v2-user-daily-design.md`.
 
 ## Where to go next
 
@@ -78,6 +78,6 @@ These bite almost any session. Read the linked topical doc when you need the ful
 | SPA, playback, auth, tests | `docs/frontend/` |
 | Deploy, env vars, logs, Aurora, incidents | `docs/ops/` |
 | API surface, OpenAPI, auth flow | `docs/api/` |
-| Telemetry, analytics lake, dbt, `/admin/analytics` dashboards | `docs/superpowers/specs/2026-06-27-clouder-analytics-pipeline-design.md` + runbook "Analytics first run" |
+| Telemetry, analytics lake, marts, `/admin/analytics` dashboard | `docs/superpowers/specs/2026-06-30-analytics-v2-user-daily-design.md` |
 | Why this is the way it is | `docs/adr/` |
 | Detailed sharp edges in a subsystem | `docs/<area>/gotchas.md` |

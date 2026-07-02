@@ -7,6 +7,7 @@ import {
   IconDotsVertical,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import { useTelemetry } from '../../../lib/telemetry/hooks';
 import { useCategoriesByStyle } from '../hooks/useCategoriesByStyle';
 import { useRemoveTrackOptimistic } from '../hooks/useRemoveTrackOptimistic';
 import {
@@ -32,6 +33,7 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
   // because users move tracks rarely; the playlist flow is the hot path.
   const [mode, setMode] = useState<'main' | 'move'>('main');
   const categoriesQ = useCategoriesByStyle(styleId);
+  const telemetry = useTelemetry();
   const moveMut = useMoveTrackBetweenCategories();
   const removeMut = useRemoveTrackOptimistic();
   const addMut = useAddTrackToCategory();
@@ -147,6 +149,11 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
       await removeMut.mutateAsync({
         categoryId: currentCategoryId,
         trackId: track.id,
+      });
+      telemetry.track('track_categorized', {
+        track_id: track.id,
+        category_key: currentCategoryId,
+        action: 'removed_from_category',
       });
       fireUndoToast(
         t('categories.toast.track_removed'),
