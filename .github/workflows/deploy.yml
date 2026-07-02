@@ -81,33 +81,6 @@ jobs:
             --value "${{ secrets.YOUTUBE_API_KEY }}" \
             --type SecureString --overwrite
 
-      - name: Build & push dbt_runner image
-        run: |
-          # aws_lambda_function.dbt_runner is package_type=Image pointing at the ECR
-          # repo's :latest tag. Create just the repo first (targeted apply), push the
-          # image, so the full apply below can create the Lambda from an existing image.
-          terraform apply -auto-approve -input=false \
-            -target=aws_ecr_repository.dbt_runner \
-            -var="environment=prod" \
-            -var="canonicalization_enabled=true" \
-            -var="gemini_api_key_ssm_parameter=/clouder/gemini/api_key" \
-            -var="openai_api_key_ssm_parameter=/clouder/openai/api_key" \
-            -var="tavily_api_key_ssm_parameter=/clouder/tavily/api_key" \
-            -var="deepseek_api_key_ssm_parameter=/clouder/deepseek/api_key" \
-            -var="spotify_search_enabled=true" \
-            -var="vendor_match_enabled=true" \
-            -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" \
-            -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" \
-            -var="ytmusic_client_id_ssm_parameter=/clouder/ytmusic/client_id" \
-            -var="ytmusic_client_secret_ssm_parameter=/clouder/ytmusic/client_secret" \
-            -var="youtube_api_key_ssm_parameter=/clouder/youtube/api_key" \
-            -var="migration_aurora_auth_mode=iam" \
-            -var="enable_secretsmanager_vpc_endpoint=false" \
-            -var="spotify_oauth_redirect_uri=${{ vars.SPOTIFY_OAUTH_REDIRECT_URI }}" \
-            -var="admin_spotify_ids=${{ vars.ADMIN_SPOTIFY_IDS }}" \
-            -var="allowed_frontend_redirects=${{ vars.ALLOWED_FRONTEND_REDIRECTS }}"
-          AWS_REGION=${{ env.AWS_REGION }} ../scripts/package_dbt_runner.sh
-
       - name: Terraform apply
         run: |
           terraform apply -auto-approve -input=false \
@@ -129,16 +102,6 @@ jobs:
             -var="spotify_oauth_redirect_uri=${{ vars.SPOTIFY_OAUTH_REDIRECT_URI }}" \
             -var="admin_spotify_ids=${{ vars.ADMIN_SPOTIFY_IDS }}" \
             -var="allowed_frontend_redirects=${{ vars.ALLOWED_FRONTEND_REDIRECTS }}"
-
-      - name: Refresh dbt_runner image
-        run: |
-          # Terraform does not detect new image content under the mutable :latest
-          # tag, so force the function to the freshly-pushed image after apply.
-          FN="$(terraform output -raw dbt_runner_lambda_name)"
-          aws lambda update-function-code \
-            --function-name "$FN" \
-            --image-uri "$(terraform output -raw dbt_runner_image_uri)" >/dev/null
-          aws lambda wait function-updated --function-name "$FN"
 
       - name: Run DB migrations via Lambda
         run: |
