@@ -44,8 +44,13 @@ def test_run_overwrites_partitions_then_inserts():
     assert len(inserts) == 2
     for q in inserts:
         assert q.strip().upper().startswith("INSERT INTO")
-        assert "2026-06-30" in q and "2026-06-27" in q  # target + lookback inlined
-        assert "?" not in q                               # no bound params (gotcha #13)
+        # dt is a date-typed column: filters MUST use DATE literals. Trino will
+        # not coerce date <-> varchar in an IN list (DuckDB silently would, which
+        # is why the SQL tests missed this) — a bare-string IN fails at runtime.
+        assert "DATE '2026-06-30'" in q          # target dt as DATE literal
+        assert "DATE '2026-06-27'" in q          # lookback as DATE literal
+        assert "IN ('2026-06-30'" not in q       # regression: no bare-string IN
+        assert "?" not in q                       # no bound params (gotcha #13)
 
 
 def test_bad_date_never_reaches_sql():
