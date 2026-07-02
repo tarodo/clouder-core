@@ -1,12 +1,7 @@
 resource "aws_rds_cluster" "aurora" {
   cluster_identifier = local.db_cluster_identifier
-  # One-shot restore of the pre-rename backup: the renamed (clouder-prod-aurora)
-  # cluster is created FROM this snapshot, so all curation data carries over.
-  # REMOVE after the migration succeeds — otherwise a future cluster recreation
-  # would silently restore this stale snapshot. See the beatport->clouder plan.
-  snapshot_identifier = "beatport-prod-aurora-pre-rename-20260702"
-  engine              = "aurora-postgresql"
-  engine_version      = var.aurora_engine_version
+  engine             = "aurora-postgresql"
+  engine_version     = var.aurora_engine_version
 
   database_name                       = var.aurora_database_name
   master_username                     = var.aurora_master_username
