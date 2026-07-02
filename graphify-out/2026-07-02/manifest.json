@@ -3715,8 +3715,8 @@
     "semantic_hash": ""
   },
   "scripts/generate_openapi.py": {
-    "mtime": 1782832834.7717586,
-    "ast_hash": "81a67e528a91f4413ab42d9ea1a4e049",
+    "mtime": 1782961951.766113,
+    "ast_hash": "692049f3a62600eda647a35cc201231c",
     "semantic_hash": ""
   },
   "scripts/inspect_raw_sample.py": {
@@ -5350,8 +5350,8 @@
     "semantic_hash": "05918597efd043230184432e19e45521"
   },
   "docs/api/openapi.yaml": {
-    "mtime": 1782832834.6281595,
-    "ast_hash": "c2269c24707f92230c7ab45066fa2609",
+    "mtime": 1782961979.1479435,
+    "ast_hash": "0f21c5539c4419a0198f0dc37f793908",
     "semantic_hash": ""
   },
   "docs/architecture.md": {
@@ -6070,8 +6070,8 @@
     "semantic_hash": ""
   },
   "infra/analytics_routes.tf": {
-    "mtime": 1782832834.767019,
-    "ast_hash": "b7cac48643fd3d990a834b6732f4d615",
+    "mtime": 1782961955.036437,
+    "ast_hash": "a51b28c893a9b9e43fcb36460473c853",
     "semantic_hash": ""
   },
   "infra/telemetry.tf": {
@@ -6217,6 +6217,16 @@
   "tests/unit/test_analytics_rollup_runner.py": {
     "mtime": 1782961183.4452598,
     "ast_hash": "1874d1fe0d23251d73854b1828e22888",
+    "semantic_hash": ""
+  },
+  "infra/analytics_rollup.tf": {
+    "mtime": 1782961973.374375,
+    "ast_hash": "0f2e98990e104e7bfaaa05b291288876",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-07-02-analytics-v2-frontend.md": {
+    "mtime": 1782962772.1309676,
+    "ast_hash": "d8cdf4c1078d7388a78023754b6a362c",
     "semantic_hash": ""
   }
 }
