@@ -1,12 +1,11 @@
 # ── Analytics lake bucket (medallion: bronze / silver / gold) ────────────────
 
 resource "aws_s3_bucket" "analytics_lake" {
-  # Renamed to clouder. force_destroy: analytics data is disposable (old bronze is
-  # unreadable under the typed schema, marts fill forward), so Terraform may empty
-  # + replace the bucket. Consumers (Firehose dest, Glue table locations, IAM,
-  # rollup/serving env) reference this resource / var.analytics_lake_bucket and
-  # re-point automatically. Keep this literal == var.analytics_lake_bucket default.
-  bucket        = "clouder-prod-analytics-lake"
+  # PHASE A: set force_destroy on the existing beatport bucket in-place (data is
+  # disposable — old bronze unreadable, marts empty). Phase B renames to clouder;
+  # the force-replace destroy needs force_destroy already in state. Keep this
+  # literal == var.analytics_lake_bucket default.
+  bucket        = "beatport-prod-analytics-lake"
   force_destroy = true
 }
 
