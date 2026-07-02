@@ -1,13 +1,13 @@
 # CLOUDER SPA static host: private S3 bucket fronted by CloudFront via OAC.
 # Spec: docs/superpowers/specs/2026-05-06-staging-frontend-host-design.md
 
-# Frontend host resources are pinned to the legacy `beatport-prod` prefix.
-# Renaming them fails mid-apply: the S3 bucket can't be deleted while it holds
-# the deployed SPA, and the CloudFront functions can't be deleted while the
-# distribution references them (FunctionInUse). These names are internal (users
-# see the CloudFront domain, not the bucket/function names), so keep them.
+# The frontend bucket is renamed to clouder; force_destroy lets Terraform empty
+# + replace it (assets are re-uploaded by the deploy's frontend step). The
+# CloudFront functions + OAC below stay beatport-named on purpose: they are not
+# buckets, and renaming an in-use CloudFront function fails with FunctionInUse.
 resource "aws_s3_bucket" "frontend" {
-  bucket = "beatport-prod-frontend"
+  bucket        = "${local.name_prefix}-frontend"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_public_access_block" "frontend" {

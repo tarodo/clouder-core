@@ -6,8 +6,9 @@
 # in infra/frontend.tf + frontend/vite.config.ts, Task 5).
 
 variable "analytics_lake_bucket" {
-  type    = string
-  default = "beatport-prod-analytics-lake"
+  type = string
+  # Must match aws_s3_bucket.analytics_lake.bucket in telemetry.tf.
+  default = "clouder-prod-analytics-lake"
 }
 
 variable "analytics_glue_database" {
