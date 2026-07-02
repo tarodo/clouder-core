@@ -1,8 +1,13 @@
 # ── Analytics lake bucket (medallion: bronze / silver / gold) ────────────────
 
 resource "aws_s3_bucket" "analytics_lake" {
-  # ponytail: hardcoded per locked contract; Increments 3-5 reference this name.
-  bucket = "beatport-prod-analytics-lake"
+  # Renamed to clouder. force_destroy: analytics data is disposable (old bronze is
+  # unreadable under the typed schema, marts fill forward), so Terraform may empty
+  # + replace the bucket. Consumers (Firehose dest, Glue table locations, IAM,
+  # rollup/serving env) reference this resource / var.analytics_lake_bucket and
+  # re-point automatically. Keep this literal == var.analytics_lake_bucket default.
+  bucket        = "clouder-prod-analytics-lake"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_public_access_block" "analytics_lake" {
