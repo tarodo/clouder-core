@@ -96,8 +96,11 @@ def run(today: date, *, athena_client: Any = None, s3_client: Any = None) -> Non
 
     dts = _target_dts(today)
     lookback = _lookback_start(today)
-    source = f"(SELECT * FROM bronze_events WHERE dt >= '{lookback}')"
-    dt_list = ", ".join(f"'{d}'" for d in dts)
+    # DATE literals, not bare strings: `dt` is a date-typed partition and Trino
+    # (unlike DuckDB) will not coerce date <-> varchar in an IN list. Dates are
+    # validated YYYY-MM-DD, so inlining them is safe (gotcha #13).
+    source = f"(SELECT * FROM bronze_events WHERE dt >= DATE '{lookback}')"
+    dt_list = ", ".join(f"DATE '{d}'" for d in dts)
 
     targets = [
         ("mart_user_daily", mart_sql(TRINO, source=source), MART_USER_DAILY_COLUMNS),
