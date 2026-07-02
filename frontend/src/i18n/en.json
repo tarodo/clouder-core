@@ -776,7 +776,7 @@
       "from": "From",
       "to": "To",
       "user_id": "User ID",
-      "pick_user": "Enter a User ID above to load analytics.",
+      "pick_user": "Select a user to load analytics.",
       "load_failed": "Failed to load dashboard.",
       "empty": "No data for this range.",
       "col": {
