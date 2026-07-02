@@ -772,16 +772,31 @@
     },
     "analytics": {
       "title": "Analytics",
-      "subtitle": "Curation, taste, funnel, playback and pipeline health.",
+      "subtitle": "Per-user daily session counts, averages, duration and time-per-track percentiles.",
       "from": "From",
       "to": "To",
+      "user_id": "User ID",
+      "pick_user": "Enter a User ID above to load analytics.",
       "load_failed": "Failed to load dashboard.",
       "empty": "No data for this range.",
-      "triage": { "title": "Triage efficiency", "median": "Median decision (ms)", "undo": "Undo rate" },
-      "taste": { "title": "Taste profile", "affinity": "Label affinity", "categorized": "Categorized", "skip_rate": "Skip rate" },
-      "funnel": { "title": "Funnel", "steps": "Lifecycle steps", "tracks": "Tracks", "weekly": "Weekly throughput (Saturday-week)" },
-      "playback": { "title": "Playback", "listen": "Median listen ratio", "skip_rate": "Skip rate", "by_category": "Listen ratio by final category", "seek": "Most-seeked tracks", "seeks": "Seeks" },
-      "ops": { "title": "Ops / pipeline health", "latency": "Latency", "p50": "p50 latency (ms)", "p95": "p95 latency (ms)", "freshness": "Fresh to {{dt}} ({{lag}}h lag)" }
+      "col": {
+        "date": "Date",
+        "activity": "Activity",
+        "sessions": "Sessions",
+        "avg_listened": "Avg listened",
+        "avg_promoted": "Avg promoted",
+        "avg_deleted": "Avg deleted",
+        "p50_duration": "p50 duration",
+        "p90_duration": "p90 duration",
+        "p50_tpt": "p50 time/track",
+        "p90_tpt": "p90 time/track",
+        "seq": "#",
+        "start": "Start",
+        "duration": "Duration",
+        "listened": "Listened",
+        "promoted": "Promoted",
+        "deleted": "Deleted"
+      }
     },
     "tabs": {
       "coverage": "Coverage",
