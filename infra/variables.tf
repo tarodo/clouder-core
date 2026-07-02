@@ -1,7 +1,7 @@
 variable "project" {
   description = "Project name prefix for AWS resources"
   type        = string
-  default     = "beatport"
+  default     = "clouder"
 }
 
 variable "environment" {
