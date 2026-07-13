@@ -609,6 +609,28 @@ def _handle_admin_coverage(event: Mapping[str, Any]) -> dict[str, Any]:
             }
         )
 
+    stats_rows = repository.spotify_stats_for_year(week_year)
+    spotify_by_style: dict[int, list[dict[str, Any]]] = {}
+    for row in stats_rows:
+        try:
+            sid = int(row.get("beatport_style_id"))
+        except (TypeError, ValueError):
+            continue
+        spotify_by_style.setdefault(sid, []).append(
+            {
+                "week_number": int(row["week_number"]),
+                "total": int(row["total"]),
+                "found": int(row["found"]),
+                "not_found": int(row["not_found"]),
+                "pending": int(row["pending"]),
+                "no_isrc": int(row["no_isrc"]),
+            }
+        )
+    for sid, style_entry in grouped.items():
+        style_entry["spotify_weeks"] = sorted(
+            spotify_by_style.get(sid, []), key=lambda w: w["week_number"]
+        )
+
     return _json_response(
         200,
         {
