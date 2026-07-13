@@ -63,6 +63,7 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/coverage",
     "GET /admin/runs",
     "GET /tracks/spotify-not-found",
+    "POST /admin/spotify/retry-not-found",
     "POST /admin/labels/enrich",
     "POST /admin/labels/{label_id}/enrich-auto",
     "GET /admin/labels/enrich/options",
@@ -172,6 +173,8 @@ def _route(
         return _handle_admin_runs(event)
     if route_key == "GET /tracks/spotify-not-found":
         return _handle_spotify_not_found(event)
+    if route_key == "POST /admin/spotify/retry-not-found":
+        return _handle_spotify_retry_not_found(event)
     if route_key == "POST /admin/labels/enrich":
         from .label_enrichment.routes import handle_post_enrich
         status, body = handle_post_enrich(event)
@@ -902,6 +905,121 @@ def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
             "offset": offset,
             "correlation_id": correlation_id,
         },
+        correlation_id,
+    )
+
+
+def _parse_iso_date_field(payload: Mapping[str, Any], name: str) -> date:
+    raw = payload.get(name)
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValidationError(f"{name} is required (YYYY-MM-DD)")
+    try:
+        return date.fromisoformat(raw.strip())
+    except ValueError:
+        raise ValidationError(f"{name} must be an ISO date (YYYY-MM-DD)")
+
+
+def _handle_spotify_retry_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
+    correlation_id = _extract_correlation_id(event)
+
+    raw_body = event.get("body")
+    if not isinstance(raw_body, str) or not raw_body.strip():
+        raise ValidationError("request body is required")
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise ValidationError("request body must be valid JSON")
+    if not isinstance(payload, Mapping):
+        raise ValidationError("request body must be a JSON object")
+
+    publish_date_from = _parse_iso_date_field(payload, "publish_date_from")
+    publish_date_to = _parse_iso_date_field(payload, "publish_date_to")
+    if publish_date_from > publish_date_to:
+        raise ValidationError("publish_date_from must be <= publish_date_to")
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {
+                "error_code": "db_not_configured",
+                "message": "Database is not configured",
+            },
+            correlation_id,
+        )
+
+    now = utc_now()
+    reset_count = repository.reset_spotify_not_found(
+        publish_date_from, publish_date_to, now
+    )
+    pending_count = repository.count_spotify_pending_in_range(
+        publish_date_from, publish_date_to
+    )
+
+    log_event(
+        "INFO",
+        "spotify_retry_requested",
+        correlation_id=correlation_id,
+        reset_count=reset_count,
+        pending_count=pending_count,
+    )
+
+    if reset_count > 0 or pending_count > 0:
+        settings = _load_api_settings()
+        queue_url = settings.spotify_search_queue_url.strip()
+        if not queue_url:
+            return _json_response(
+                500,
+                {
+                    "error_code": "enqueue_failed",
+                    "message": "SPOTIFY_SEARCH_QUEUE_URL is not configured",
+                },
+                correlation_id,
+            )
+        message = {"batch_size": 200, "auto_continue": True}
+        try:
+            client = create_default_sqs_client()
+            client.send_message(
+                QueueUrl=queue_url,
+                MessageBody=json.dumps(
+                    message, ensure_ascii=False, separators=(",", ":")
+                ),
+                MessageAttributes={
+                    "correlation_id": {
+                        "DataType": "String",
+                        "StringValue": correlation_id,
+                    }
+                },
+            )
+            log_event(
+                "INFO",
+                "spotify_retry_enqueued",
+                correlation_id=correlation_id,
+                reset_count=reset_count,
+            )
+        except Exception as exc:
+            log_event(
+                "ERROR",
+                "spotify_retry_enqueue_failed",
+                correlation_id=correlation_id,
+                error_type=exc.__class__.__name__,
+                error_message=str(exc)[:500],
+            )
+            return _json_response(
+                500,
+                {
+                    "error_code": "enqueue_failed",
+                    "message": (
+                        "Tracks were reset but the search message could not "
+                        "be enqueued; retry the request"
+                    ),
+                },
+                correlation_id,
+            )
+
+    return _json_response(
+        200,
+        {"queued_count": reset_count, "correlation_id": correlation_id},
         correlation_id,
     )
 
