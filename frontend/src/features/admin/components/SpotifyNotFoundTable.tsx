@@ -31,6 +31,7 @@ export function SpotifyNotFoundTable() {
   const canRetry = Boolean(dates[0] && dates[1]);
 
   async function confirmRetry() {
+    if (confirming) return;
     setConfirming(true);
     let total: number;
     try {

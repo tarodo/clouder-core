@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { MantineProvider } from '@mantine/core';
@@ -86,17 +86,22 @@ describe('SpotifyNotFoundTable retry', () => {
 
   it('confirms and posts the retry, then shows the queued toast', async () => {
     let posted: unknown = null;
+    const listSearches: (string | null)[] = [];
     server.use(
       http.get('http://localhost/tracks/spotify-not-found', ({ request }) => {
         const url = new URL(request.url);
         // The date-range-only count check (used to populate the confirm
         // modal) omits `search` and asks for `limit=1`; the table's own
-        // list request always includes `limit=50`. Return a different
-        // total for each so the test can prove the modal uses the
-        // date-only count, not the (search-filtered) table total.
+        // list request always includes `limit=50` (and, below, an active
+        // `search=techno`). Return a different total for each so the test
+        // can prove the modal uses the date-only count, not the
+        // (search-filtered) table total. If a regression ever appends a
+        // non-empty `search` to the count request, it falls into the LIST
+        // branch (total 1) and the "40" assertion below fails.
         if (url.searchParams.get('limit') === '1' && !url.searchParams.has('search')) {
           return HttpResponse.json({ items: [], total: 40, limit: 1, offset: 0 });
         }
+        listSearches.push(url.searchParams.get('search'));
         return HttpResponse.json(LIST);
       }),
       http.post(
@@ -114,6 +119,15 @@ describe('SpotifyNotFoundTable retry', () => {
     const rangeInput = screen.getByLabelText('Release date range');
     await userEvent.click(rangeInput);
     await userEvent.type(rangeInput, '2026-04-01 – 2026-04-15');
+
+    // Activate a search filter so the search-vs-count discrimination is
+    // real, then wait for the 300ms-debounced refetch to land — only then
+    // is `debouncedSearch` guaranteed non-empty when confirmRetry runs.
+    await userEvent.type(
+      screen.getByPlaceholderText('Search title or artist…'),
+      'techno',
+    );
+    await waitFor(() => expect(listSearches).toContain('techno'));
 
     const button = screen.getByRole('button', { name: 'Retry Spotify search' });
     expect(button).toBeEnabled();
