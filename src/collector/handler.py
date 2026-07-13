@@ -922,15 +922,7 @@ def _parse_iso_date_field(payload: Mapping[str, Any], name: str) -> date:
 def _handle_spotify_retry_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
     correlation_id = _extract_correlation_id(event)
 
-    raw_body = event.get("body")
-    if not isinstance(raw_body, str) or not raw_body.strip():
-        raise ValidationError("request body is required")
-    try:
-        payload = json.loads(raw_body)
-    except json.JSONDecodeError:
-        raise ValidationError("request body must be valid JSON")
-    if not isinstance(payload, Mapping):
-        raise ValidationError("request body must be a JSON object")
+    payload = _parse_json_body(event)
 
     publish_date_from = _parse_iso_date_field(payload, "publish_date_from")
     publish_date_to = _parse_iso_date_field(payload, "publish_date_to")
@@ -944,6 +936,24 @@ def _handle_spotify_retry_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
             {
                 "error_code": "db_not_configured",
                 "message": "Database is not configured",
+            },
+            correlation_id,
+        )
+
+    settings = _load_api_settings()
+    queue_url = settings.spotify_search_queue_url.strip()
+    if not queue_url:
+        log_event(
+            "ERROR",
+            "spotify_retry_enqueue_failed",
+            correlation_id=correlation_id,
+            error_code="queue_not_configured",
+        )
+        return _json_response(
+            500,
+            {
+                "error_code": "enqueue_failed",
+                "message": "SPOTIFY_SEARCH_QUEUE_URL is not configured",
             },
             correlation_id,
         )
@@ -965,17 +975,6 @@ def _handle_spotify_retry_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
     )
 
     if reset_count > 0 or pending_count > 0:
-        settings = _load_api_settings()
-        queue_url = settings.spotify_search_queue_url.strip()
-        if not queue_url:
-            return _json_response(
-                500,
-                {
-                    "error_code": "enqueue_failed",
-                    "message": "SPOTIFY_SEARCH_QUEUE_URL is not configured",
-                },
-                correlation_id,
-            )
         message = {"batch_size": 200, "auto_continue": True}
         try:
             client = create_default_sqs_client()

@@ -48,8 +48,10 @@ class FakeRepo:
         self._reset_count = reset_count
         self._pending_count = pending_count
         self.reset_args = None
+        self.reset_called = False
 
     def reset_spotify_not_found(self, publish_date_from, publish_date_to, now):
+        self.reset_called = True
         self.reset_args = (publish_date_from, publish_date_to)
         return self._reset_count
 
@@ -147,3 +149,15 @@ def test_retry_db_not_configured_503(monkeypatch):
     )
     response = handler.lambda_handler(_event(BODY), _ctx())
     assert response["statusCode"] == 503
+
+
+def test_retry_missing_queue_url_500_before_reset(monkeypatch):
+    monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "")
+    reset_settings_cache()
+    repo, sqs = FakeRepo(reset_count=2), FakeSqs()
+    _install(monkeypatch, repo, sqs)
+    response = handler.lambda_handler(_event(BODY), _ctx())
+    assert response["statusCode"] == 500
+    assert json.loads(response["body"])["error_code"] == "enqueue_failed"
+    assert repo.reset_called is False
+    assert sqs.sent == []
