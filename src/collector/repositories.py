@@ -756,13 +756,24 @@ class ClouderRepository:
         )
 
     def find_tracks_not_found_on_spotify(
-        self, limit: int, offset: int, search: str | None = None
+        self,
+        limit: int,
+        offset: int,
+        search: str | None = None,
+        publish_date_from: date | None = None,
+        publish_date_to: date | None = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {"limit": limit, "offset": offset}
         where_extra = ""
         if search:
-            where_extra = "AND t.normalized_title LIKE :search"
+            where_extra += "AND t.normalized_title LIKE :search\n"
             params["search"] = f"%{search.lower()}%"
+        if publish_date_from is not None:
+            where_extra += "AND t.publish_date >= :date_from\n"
+            params["date_from"] = publish_date_from
+        if publish_date_to is not None:
+            where_extra += "AND t.publish_date <= :date_to\n"
+            params["date_to"] = publish_date_to
         return self._data_api.execute(
             f"""
             SELECT t.id, t.title, t.isrc, t.bpm, t.publish_date,
@@ -781,12 +792,23 @@ class ClouderRepository:
             params,
         )
 
-    def count_tracks_not_found_on_spotify(self, search: str | None = None) -> int:
+    def count_tracks_not_found_on_spotify(
+        self,
+        search: str | None = None,
+        publish_date_from: date | None = None,
+        publish_date_to: date | None = None,
+    ) -> int:
         params: dict[str, Any] = {}
         where_extra = ""
         if search:
-            where_extra = "AND normalized_title LIKE :search"
+            where_extra += "AND normalized_title LIKE :search\n"
             params["search"] = f"%{search.lower()}%"
+        if publish_date_from is not None:
+            where_extra += "AND publish_date >= :date_from\n"
+            params["date_from"] = publish_date_from
+        if publish_date_to is not None:
+            where_extra += "AND publish_date <= :date_to\n"
+            params["date_to"] = publish_date_to
         rows = self._data_api.execute(
             f"""
             SELECT count(*) AS cnt
@@ -797,6 +819,52 @@ class ClouderRepository:
               {where_extra}
             """,
             params,
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def reset_spotify_not_found(
+        self,
+        publish_date_from: date,
+        publish_date_to: date,
+        now: datetime,
+    ) -> int:
+        """Clear spotify_searched_at for not-found tracks in the publish-date
+        range so the existing search worker picks them up again. Returns the
+        number of tracks reset (via RETURNING — the Data API wrapper exposes
+        rows, not numberOfRecordsUpdated)."""
+        rows = self._data_api.execute(
+            """
+            UPDATE clouder_tracks
+            SET spotify_searched_at = NULL,
+                updated_at = :now
+            WHERE isrc IS NOT NULL
+              AND spotify_id IS NULL
+              AND spotify_searched_at IS NOT NULL
+              AND publish_date BETWEEN :date_from AND :date_to
+            RETURNING id
+            """,
+            {
+                "now": now,
+                "date_from": publish_date_from,
+                "date_to": publish_date_to,
+            },
+        )
+        return len(rows)
+
+    def count_spotify_pending_in_range(
+        self,
+        publish_date_from: date,
+        publish_date_to: date,
+    ) -> int:
+        rows = self._data_api.execute(
+            """
+            SELECT count(*) AS cnt
+            FROM clouder_tracks
+            WHERE isrc IS NOT NULL
+              AND spotify_searched_at IS NULL
+              AND publish_date BETWEEN :date_from AND :date_to
+            """,
+            {"date_from": publish_date_from, "date_to": publish_date_to},
         )
         return int(rows[0]["cnt"]) if rows else 0
 
