@@ -1646,10 +1646,48 @@ ROUTES: list[dict[str, Any]] = [
         "responses": {
             "200": _make_response(
                 200,
-                "Coverage payload.",
+                "Coverage payload (per-style cells + spotify_weeks per-week match stats).",
                 {"type": "object"},
             ),
             "400": _error(400, "validation_error."),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "post",
+        "path": "/admin/spotify/retry-not-found",
+        "auth": ADMIN,
+        "summary": "Admin: re-run Spotify search for not-found tracks in a publish-date range.",
+        "description": (
+            "Resets spotify_searched_at for not-found tracks (with ISRC) whose "
+            "Beatport publish_date falls in the range, then enqueues a regular "
+            "spotify-search message. Tracks temporarily leave the not-found "
+            "list and return only if the search misses again."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["publish_date_from", "publish_date_to"],
+                "properties": {
+                    "publish_date_from": {"type": "string", "format": "date"},
+                    "publish_date_to": {"type": "string", "format": "date"},
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {
+            "publish_date_from": "2026-06-01",
+            "publish_date_to": "2026-06-30",
+        },
+        "responses": {
+            "200": _make_response(
+                200, "Tracks reset and search enqueued.", {"type": "object"}
+            ),
+            "400": _error(400, "validation_error."),
+            "500": _error(500, "enqueue_failed."),
             "503": _error(503, "db_not_configured."),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
@@ -2097,7 +2135,20 @@ ROUTES: list[dict[str, Any]] = [
         "path": "/tracks/spotify-not-found",
         "auth": ADMIN,
         "summary": "List tracks searched on Spotify but not matched.",
-        "parameters": PAGINATION_PARAMS,
+        "parameters": PAGINATION_PARAMS + [
+            {
+                "name": "publish_date_from",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "format": "date"},
+            },
+            {
+                "name": "publish_date_to",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "format": "date"},
+            },
+        ],
         "responses": {
             "200": _make_response(200, "Paginated items.", LIST_RESPONSE_TEMPLATE),
             **COMMON_AUTH_ERRORS,
