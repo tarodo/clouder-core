@@ -99,6 +99,8 @@ ALLOWED_LOG_FIELDS = {
     "spotify_isrc",
     "searched",
     "retry_after",
+    "reset_count",
+    "pending_count",
 }
 
 

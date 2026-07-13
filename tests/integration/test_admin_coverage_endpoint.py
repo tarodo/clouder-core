@@ -117,6 +117,9 @@ def test_coverage_returns_grouped_styles(monkeypatch):
             assert week_year == 2026
             return rows
 
+        def spotify_stats_for_year(self, week_year):
+            return []
+
     monkeypatch.setattr(
         "collector.handler.create_clouder_repository_from_env",
         lambda: FakeRepo(),
@@ -134,3 +137,79 @@ def test_coverage_returns_grouped_styles(monkeypatch):
     assert styles[131]["cells"][0]["is_custom_range"] is True
     assert styles[90]["style_name"] == "Tech House"
     assert styles[131]["style_name"] == "Melodic"
+
+
+def test_coverage_merges_spotify_weeks(monkeypatch):
+    coverage_rows = [
+        {
+            "clouder_style_id": "uuid-s1",
+            "style_name": "Tech House",
+            "beatport_style_id": "90",
+            "run_id": "r1",
+            "week_number": 1,
+            "status": "completed",
+            "item_count": 147,
+            "is_custom_range": False,
+            "period_start": "2026-01-03",
+            "period_end": "2026-01-09",
+            "started_at": "2026-01-04T09:12:00Z",
+            "finished_at": "2026-01-04T09:14:00Z",
+        },
+        {
+            "clouder_style_id": "uuid-s2",
+            "style_name": "Melodic",
+            "beatport_style_id": "131",
+            "run_id": None,
+            "week_number": None,
+            "status": None,
+            "item_count": None,
+            "is_custom_range": None,
+            "period_start": None,
+            "period_end": None,
+            "started_at": None,
+            "finished_at": None,
+        },
+    ]
+    stats_rows = [
+        {
+            "beatport_style_id": "90",
+            "week_number": 1,
+            "total": 50,
+            "found": 45,
+            "not_found": 3,
+            "pending": 1,
+            "no_isrc": 1,
+        },
+        {
+            "beatport_style_id": "90",
+            "week_number": 2,
+            "total": 10,
+            "found": 10,
+            "not_found": 0,
+            "pending": 0,
+            "no_isrc": 0,
+        },
+    ]
+
+    class FakeRepo:
+        def coverage_for_year(self, week_year):
+            return coverage_rows
+
+        def spotify_stats_for_year(self, week_year):
+            assert week_year == 2026
+            return stats_rows
+
+    monkeypatch.setattr(
+        "collector.handler.create_clouder_repository_from_env", lambda: FakeRepo()
+    )
+    response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    by_id = {s["style_id"]: s for s in body["styles"]}
+    assert by_id[90]["spotify_weeks"] == [
+        {"week_number": 1, "total": 50, "found": 45, "not_found": 3,
+         "pending": 1, "no_isrc": 1},
+        {"week_number": 2, "total": 10, "found": 10, "not_found": 0,
+         "pending": 0, "no_isrc": 0},
+    ]
+    assert by_id[131]["spotify_weeks"] == []

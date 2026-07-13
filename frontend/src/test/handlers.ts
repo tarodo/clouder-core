@@ -93,5 +93,11 @@ export const handlers = [
       is_custom_range: false,
     }),
   ),
+  http.get('http://localhost/tracks/spotify-not-found', () =>
+    HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
+  ),
+  http.post('http://localhost/admin/spotify/retry-not-found', () =>
+    HttpResponse.json({ queued_count: 0 }),
+  ),
   ...PLAYLIST_DEFAULTS,
 ];

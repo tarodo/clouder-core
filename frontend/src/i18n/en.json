@@ -768,7 +768,16 @@
       "search": "Search title or artist…",
       "total_label": "{{count}} tracks pending Spotify enrichment",
       "load_failed": "Failed to load tracks.",
-      "empty": "No tracks awaiting Spotify match"
+      "empty": "No tracks awaiting Spotify match",
+      "date_range": "Release date range",
+      "retry_button": "Retry Spotify search",
+      "retry_title": "Retry Spotify search",
+      "retry_confirm": "Re-run the Spotify search for {{count}} not-found tracks in the selected release-date range? They temporarily leave this list and come back only if the search misses again.",
+      "retry_confirm_label": "Retry",
+      "retry_cancel_label": "Cancel",
+      "retry_queued": "Queued {{count}} tracks",
+      "retry_nothing": "Nothing to retry",
+      "retry_failed": "Retry request failed"
     },
     "analytics": {
       "title": "Analytics",

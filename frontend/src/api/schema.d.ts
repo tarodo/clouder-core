@@ -785,7 +785,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Coverage payload. */
+                /** @description Coverage payload (per-style cells + spotify_weeks per-week match stats). */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -834,6 +834,105 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/spotify/retry-not-found": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin: re-run Spotify search for not-found tracks in a publish-date range.
+         * @description Resets spotify_searched_at for not-found tracks (with ISRC) whose Beatport publish_date falls in the range, then enqueues a regular spotify-search message. Tracks temporarily leave the not-found list and return only if the search misses again.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    /**
+                     * @example {
+                     *       "publish_date_from": "2026-06-01",
+                     *       "publish_date_to": "2026-06-30"
+                     *     }
+                     */
+                    "application/json": {
+                        /** Format: date */
+                        publish_date_from: string;
+                        /** Format: date */
+                        publish_date_to: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Tracks reset and search enqueued. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": Record<string, never>;
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description enqueue_failed. */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description db_not_configured. */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2103,6 +2202,8 @@ export interface paths {
                     offset?: number;
                     /** @description Substring match on normalized name/title (case-insensitive). */
                     search?: string;
+                    publish_date_from?: string;
+                    publish_date_to?: string;
                 };
                 header?: never;
                 path?: never;

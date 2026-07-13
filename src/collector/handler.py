@@ -63,6 +63,7 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/coverage",
     "GET /admin/runs",
     "GET /tracks/spotify-not-found",
+    "POST /admin/spotify/retry-not-found",
     "POST /admin/labels/enrich",
     "POST /admin/labels/{label_id}/enrich-auto",
     "GET /admin/labels/enrich/options",
@@ -172,6 +173,8 @@ def _route(
         return _handle_admin_runs(event)
     if route_key == "GET /tracks/spotify-not-found":
         return _handle_spotify_not_found(event)
+    if route_key == "POST /admin/spotify/retry-not-found":
+        return _handle_spotify_retry_not_found(event)
     if route_key == "POST /admin/labels/enrich":
         from .label_enrichment.routes import handle_post_enrich
         status, body = handle_post_enrich(event)
@@ -609,6 +612,28 @@ def _handle_admin_coverage(event: Mapping[str, Any]) -> dict[str, Any]:
             }
         )
 
+    stats_rows = repository.spotify_stats_for_year(week_year)
+    spotify_by_style: dict[int, list[dict[str, Any]]] = {}
+    for row in stats_rows:
+        try:
+            sid = int(row.get("beatport_style_id"))
+        except (TypeError, ValueError):
+            continue
+        spotify_by_style.setdefault(sid, []).append(
+            {
+                "week_number": int(row["week_number"]),
+                "total": int(row["total"]),
+                "found": int(row["found"]),
+                "not_found": int(row["not_found"]),
+                "pending": int(row["pending"]),
+                "no_isrc": int(row["no_isrc"]),
+            }
+        )
+    for sid, style_entry in grouped.items():
+        style_entry["spotify_weeks"] = sorted(
+            spotify_by_style.get(sid, []), key=lambda w: w["week_number"]
+        )
+
     return _json_response(
         200,
         {
@@ -819,6 +844,16 @@ def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
 
     try:
         limit, offset, search = _parse_pagination_params(event)
+        publish_date_from = _parse_date_param(event, "publish_date_from")
+        publish_date_to = _parse_date_param(event, "publish_date_to")
+        if (
+            publish_date_from is not None
+            and publish_date_to is not None
+            and publish_date_from > publish_date_to
+        ):
+            raise ValidationError(
+                "publish_date_from must be <= publish_date_to"
+            )
     except ValidationError as exc:
         return _json_response(
             400,
@@ -826,8 +861,18 @@ def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
             correlation_id,
         )
 
-    rows = repository.find_tracks_not_found_on_spotify(limit, offset, search)
-    total = repository.count_tracks_not_found_on_spotify(search)
+    rows = repository.find_tracks_not_found_on_spotify(
+        limit,
+        offset,
+        search,
+        publish_date_from=publish_date_from,
+        publish_date_to=publish_date_to,
+    )
+    total = repository.count_tracks_not_found_on_spotify(
+        search,
+        publish_date_from=publish_date_from,
+        publish_date_to=publish_date_to,
+    )
 
     items = []
     for row in rows:
@@ -864,6 +909,120 @@ def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
     )
 
 
+def _parse_iso_date_field(payload: Mapping[str, Any], name: str) -> date:
+    raw = payload.get(name)
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValidationError(f"{name} is required (YYYY-MM-DD)")
+    try:
+        return date.fromisoformat(raw.strip())
+    except ValueError:
+        raise ValidationError(f"{name} must be an ISO date (YYYY-MM-DD)")
+
+
+def _handle_spotify_retry_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
+    correlation_id = _extract_correlation_id(event)
+
+    payload = _parse_json_body(event)
+
+    publish_date_from = _parse_iso_date_field(payload, "publish_date_from")
+    publish_date_to = _parse_iso_date_field(payload, "publish_date_to")
+    if publish_date_from > publish_date_to:
+        raise ValidationError("publish_date_from must be <= publish_date_to")
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {
+                "error_code": "db_not_configured",
+                "message": "Database is not configured",
+            },
+            correlation_id,
+        )
+
+    settings = _load_api_settings()
+    queue_url = settings.spotify_search_queue_url.strip()
+    if not queue_url:
+        log_event(
+            "ERROR",
+            "spotify_retry_enqueue_failed",
+            correlation_id=correlation_id,
+            error_code="queue_not_configured",
+        )
+        return _json_response(
+            500,
+            {
+                "error_code": "enqueue_failed",
+                "message": "SPOTIFY_SEARCH_QUEUE_URL is not configured",
+            },
+            correlation_id,
+        )
+
+    now = utc_now()
+    reset_count = repository.reset_spotify_not_found(
+        publish_date_from, publish_date_to, now
+    )
+    pending_count = repository.count_spotify_pending_in_range(
+        publish_date_from, publish_date_to
+    )
+
+    log_event(
+        "INFO",
+        "spotify_retry_requested",
+        correlation_id=correlation_id,
+        reset_count=reset_count,
+        pending_count=pending_count,
+    )
+
+    if reset_count > 0 or pending_count > 0:
+        message = {"batch_size": 200, "auto_continue": True}
+        try:
+            client = create_default_sqs_client()
+            client.send_message(
+                QueueUrl=queue_url,
+                MessageBody=json.dumps(
+                    message, ensure_ascii=False, separators=(",", ":")
+                ),
+                MessageAttributes={
+                    "correlation_id": {
+                        "DataType": "String",
+                        "StringValue": correlation_id,
+                    }
+                },
+            )
+            log_event(
+                "INFO",
+                "spotify_retry_enqueued",
+                correlation_id=correlation_id,
+                reset_count=reset_count,
+            )
+        except Exception as exc:
+            log_event(
+                "ERROR",
+                "spotify_retry_enqueue_failed",
+                correlation_id=correlation_id,
+                error_type=exc.__class__.__name__,
+                error_message=str(exc)[:500],
+            )
+            return _json_response(
+                500,
+                {
+                    "error_code": "enqueue_failed",
+                    "message": (
+                        "Tracks were reset but the search message could not "
+                        "be enqueued; retry the request"
+                    ),
+                },
+                correlation_id,
+            )
+
+    return _json_response(
+        200,
+        {"queued_count": reset_count, "correlation_id": correlation_id},
+        correlation_id,
+    )
+
+
 def _parse_pagination_params(
     event: Mapping[str, Any],
 ) -> tuple[int, int, str | None]:
@@ -892,6 +1051,17 @@ def _parse_pagination_params(
             search = None
 
     return limit, offset, search
+
+
+def _parse_date_param(event: Mapping[str, Any], name: str) -> date | None:
+    query_params = event.get("queryStringParameters") or {}
+    raw = query_params.get(name) if isinstance(query_params, Mapping) else None
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        return date.fromisoformat(raw.strip())
+    except ValueError:
+        raise ValidationError(f"{name} must be an ISO date (YYYY-MM-DD)")
 
 
 def _enqueue_canonicalization(
