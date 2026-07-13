@@ -26,6 +26,16 @@ const sample: CoveragePayload = {
           finished_at: '2026-01-04T09:01:00Z',
         },
       ],
+      spotify_weeks: [
+        {
+          week_number: 1, total: 50, found: 45, not_found: 3,
+          pending: 1, no_isrc: 1,
+        },
+        {
+          week_number: 5, total: 8, found: 8, not_found: 0,
+          pending: 0, no_isrc: 0,
+        },
+      ],
     },
   ],
 };
@@ -58,6 +68,22 @@ describe('CoverageMatrix', () => {
     render(ui({ data: sample, onCellClick: vi.fn() }));
     expect(
       screen.getByLabelText('Tech House week 5 empty'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows spotify stats in the tooltip on hover', async () => {
+    render(ui({ data: sample, onCellClick: vi.fn() }));
+    await userEvent.hover(screen.getByLabelText('Tech House week 1 loaded'));
+    expect(
+      await screen.findByText(/Spotify: 45\/50 found · 3 not found · 1 pending · 1 no ISRC/),
+    ).toBeInTheDocument();
+  });
+
+  it('shows spotify stats on empty cells that have tracks', async () => {
+    render(ui({ data: sample, onCellClick: vi.fn() }));
+    await userEvent.hover(screen.getByLabelText('Tech House week 5 empty'));
+    expect(
+      await screen.findByText(/Spotify: 8\/8 found · 0 not found/),
     ).toBeInTheDocument();
   });
 });

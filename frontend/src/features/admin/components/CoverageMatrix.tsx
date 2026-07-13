@@ -3,8 +3,9 @@ import './CoverageMatrix.module.css';
 import { useMemo } from 'react';
 import { useStore } from 'zustand';
 import { runsTrackerStore } from '../lib/runsTracker';
-import type { CoveragePayload } from '../hooks/useCoverage';
+import type { CoveragePayload, SpotifyWeekStats } from '../hooks/useCoverage';
 import { cellState, type CoverageCell } from '../lib/cellState';
+import { formatSpotifyStats } from '../lib/spotifyStats';
 import { CoverageMatrixCell } from './CoverageMatrixCell';
 
 interface Props {
@@ -46,6 +47,8 @@ export function CoverageMatrix({ data, onCellClick }: Props) {
         {data.styles.map((style) => {
           const byWeek = new Map<number, CoverageCell>();
           for (const c of style.cells) byWeek.set(c.week_number, c);
+          const statsByWeek = new Map<number, SpotifyWeekStats>();
+          for (const s of style.spotify_weeks ?? []) statsByWeek.set(s.week_number, s);
           return (
             <Row
               key={style.style_id}
@@ -54,6 +57,7 @@ export function CoverageMatrix({ data, onCellClick }: Props) {
               weekYear={data.week_year}
               weeks={weeks}
               byWeek={byWeek}
+              statsByWeek={statsByWeek}
               tracker={tracker}
               onCellClick={onCellClick}
             />
@@ -70,6 +74,7 @@ function Row({
   weekYear,
   weeks,
   byWeek,
+  statsByWeek,
   tracker,
   onCellClick,
 }: {
@@ -78,6 +83,7 @@ function Row({
   weekYear: number;
   weeks: number[];
   byWeek: Map<number, CoverageCell>;
+  statsByWeek: Map<number, SpotifyWeekStats>;
   tracker: ReturnType<typeof runsTrackerStore.getState>;
   onCellClick: (styleId: number, weekNumber: number) => void;
 }) {
@@ -105,11 +111,21 @@ function Row({
       {weeks.map((w) => {
         const cell = byWeek.get(w);
         const running = tracker.isRunning(styleIdNum, weekYear, w);
-        const tooltip = cell
+        const baseLine = cell
           ? `Wk ${w} · ${cell.period_start} – ${cell.period_end} · ${cell.item_count} items${
               cell.is_custom_range ? ' · custom range' : ''
             }`
           : `Wk ${w} · empty`;
+        const stats = statsByWeek.get(w);
+        const tooltip = stats ? (
+          <>
+            {baseLine}
+            <br />
+            {formatSpotifyStats(stats)}
+          </>
+        ) : (
+          baseLine
+        );
         return (
           <CoverageMatrixCell
             key={w}

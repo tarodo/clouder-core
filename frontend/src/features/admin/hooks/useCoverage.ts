@@ -1,6 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../api/client';
 
+export interface SpotifyWeekStats {
+  week_number: number;
+  total: number;
+  found: number;
+  not_found: number;
+  pending: number;
+  no_isrc: number;
+}
+
 export interface CoveragePayload {
   week_year: number;
   weeks_in_year: number;
@@ -18,6 +27,7 @@ export interface CoveragePayload {
       started_at: string;
       finished_at: string | null;
     }>;
+    spotify_weeks: SpotifyWeekStats[];
   }>;
 }
 
