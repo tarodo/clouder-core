@@ -87,9 +87,18 @@ describe('SpotifyNotFoundTable retry', () => {
   it('confirms and posts the retry, then shows the queued toast', async () => {
     let posted: unknown = null;
     server.use(
-      http.get('http://localhost/tracks/spotify-not-found', () =>
-        HttpResponse.json(LIST),
-      ),
+      http.get('http://localhost/tracks/spotify-not-found', ({ request }) => {
+        const url = new URL(request.url);
+        // The date-range-only count check (used to populate the confirm
+        // modal) omits `search` and asks for `limit=1`; the table's own
+        // list request always includes `limit=50`. Return a different
+        // total for each so the test can prove the modal uses the
+        // date-only count, not the (search-filtered) table total.
+        if (url.searchParams.get('limit') === '1' && !url.searchParams.has('search')) {
+          return HttpResponse.json({ items: [], total: 40, limit: 1, offset: 0 });
+        }
+        return HttpResponse.json(LIST);
+      }),
       http.post(
         'http://localhost/admin/spotify/retry-not-found',
         async ({ request }) => {
@@ -109,6 +118,12 @@ describe('SpotifyNotFoundTable retry', () => {
     const button = screen.getByRole('button', { name: 'Retry Spotify search' });
     expect(button).toBeEnabled();
     await userEvent.click(button);
+
+    // The modal copy must show the date-range-only count (40), not the
+    // table's (search-filtered) total (1).
+    expect(
+      await screen.findByText(/Re-run the Spotify search for 40 not-found tracks/),
+    ).toBeInTheDocument();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Retry' }));
 

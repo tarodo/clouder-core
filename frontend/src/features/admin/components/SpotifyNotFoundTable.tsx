@@ -5,6 +5,7 @@ import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { api } from '../../../api/client';
 import { useRetrySpotifySearch } from '../hooks/useRetrySpotifySearch';
 import { useSpotifyNotFound } from '../hooks/useSpotifyNotFound';
 
@@ -16,6 +17,7 @@ export function SpotifyNotFoundTable() {
   const [debouncedSearch] = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
   const [dates, setDates] = useState<[string | null, string | null]>([null, null]);
+  const [confirming, setConfirming] = useState(false);
   const offset = (page - 1) * LIMIT;
   const q = useSpotifyNotFound({
     limit: LIMIT,
@@ -28,12 +30,32 @@ export function SpotifyNotFoundTable() {
 
   const canRetry = Boolean(dates[0] && dates[1]);
 
-  function confirmRetry() {
+  async function confirmRetry() {
+    setConfirming(true);
+    let total: number;
+    try {
+      const params = new URLSearchParams({ limit: '1', offset: '0' });
+      params.set('publish_date_from', dates[0]!);
+      params.set('publish_date_to', dates[1]!);
+      const res = await api<{ total: number }>(
+        `/tracks/spotify-not-found?${params.toString()}`,
+      );
+      total = res.total;
+    } catch {
+      notifications.show({
+        color: 'red',
+        message: t('admin.spotify_not_found.retry_failed'),
+      });
+      return;
+    } finally {
+      setConfirming(false);
+    }
+
     modals.openConfirmModal({
       title: t('admin.spotify_not_found.retry_title'),
       children: (
         <Text size="sm">
-          {t('admin.spotify_not_found.retry_confirm', { count: q.data?.total ?? 0 })}
+          {t('admin.spotify_not_found.retry_confirm', { count: total })}
         </Text>
       ),
       labels: {
@@ -90,7 +112,11 @@ export function SpotifyNotFoundTable() {
             setPage(1);
           }}
         />
-        <Button onClick={confirmRetry} disabled={!canRetry} loading={retry.isPending}>
+        <Button
+          onClick={confirmRetry}
+          disabled={!canRetry}
+          loading={retry.isPending || confirming}
+        >
           {t('admin.spotify_not_found.retry_button')}
         </Button>
       </Group>
