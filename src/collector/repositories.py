@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Mapping
 from uuid import uuid4
 
 from .data_api import DataAPIClient, create_default_data_api_client
 from .models import RunStatus
+from .saturday_week import first_saturday, weeks_in_year
 from .settings import get_data_api_settings
 
 
@@ -1113,6 +1114,39 @@ class ClouderRepository:
             ORDER BY cs.name ASC, r.week_number ASC NULLS LAST
             """,
             {"week_year": week_year},
+        )
+
+    def spotify_stats_for_year(self, week_year: int) -> list[dict[str, Any]]:
+        """Per (beatport style, Saturday week of publish_date) Spotify-match
+        counts for one Saturday-year. The four buckets are mutually exclusive
+        and sum to total."""
+        year_start = first_saturday(week_year)
+        year_end = year_start + timedelta(days=weeks_in_year(week_year) * 7 - 1)
+        return self._data_api.execute(
+            """
+            SELECT
+                im.external_id                         AS beatport_style_id,
+                (t.publish_date - :year_start) / 7 + 1 AS week_number,
+                COUNT(*)                               AS total,
+                COUNT(*) FILTER (WHERE t.spotify_id IS NOT NULL) AS found,
+                COUNT(*) FILTER (WHERE t.spotify_id IS NULL
+                                   AND t.spotify_searched_at IS NOT NULL)
+                                                       AS not_found,
+                COUNT(*) FILTER (WHERE t.isrc IS NOT NULL
+                                   AND t.spotify_searched_at IS NULL)
+                                                       AS pending,
+                COUNT(*) FILTER (WHERE t.isrc IS NULL) AS no_isrc
+            FROM clouder_tracks t
+            JOIN clouder_styles cs ON cs.id = t.style_id
+            JOIN identity_map im
+              ON im.source = 'beatport'
+              AND im.entity_type = 'style'
+              AND im.clouder_entity_type = 'style'
+              AND im.clouder_id = cs.id
+            WHERE t.publish_date BETWEEN :year_start AND :year_end
+            GROUP BY 1, 2
+            """,
+            {"year_start": year_start, "year_end": year_end},
         )
 
     def list_runs_for_cell(
