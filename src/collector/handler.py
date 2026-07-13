@@ -841,6 +841,16 @@ def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
 
     try:
         limit, offset, search = _parse_pagination_params(event)
+        publish_date_from = _parse_date_param(event, "publish_date_from")
+        publish_date_to = _parse_date_param(event, "publish_date_to")
+        if (
+            publish_date_from is not None
+            and publish_date_to is not None
+            and publish_date_from > publish_date_to
+        ):
+            raise ValidationError(
+                "publish_date_from must be <= publish_date_to"
+            )
     except ValidationError as exc:
         return _json_response(
             400,
@@ -848,8 +858,18 @@ def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
             correlation_id,
         )
 
-    rows = repository.find_tracks_not_found_on_spotify(limit, offset, search)
-    total = repository.count_tracks_not_found_on_spotify(search)
+    rows = repository.find_tracks_not_found_on_spotify(
+        limit,
+        offset,
+        search,
+        publish_date_from=publish_date_from,
+        publish_date_to=publish_date_to,
+    )
+    total = repository.count_tracks_not_found_on_spotify(
+        search,
+        publish_date_from=publish_date_from,
+        publish_date_to=publish_date_to,
+    )
 
     items = []
     for row in rows:
@@ -914,6 +934,17 @@ def _parse_pagination_params(
             search = None
 
     return limit, offset, search
+
+
+def _parse_date_param(event: Mapping[str, Any], name: str) -> date | None:
+    query_params = event.get("queryStringParameters") or {}
+    raw = query_params.get(name) if isinstance(query_params, Mapping) else None
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        return date.fromisoformat(raw.strip())
+    except ValueError:
+        raise ValidationError(f"{name} must be an ISO date (YYYY-MM-DD)")
 
 
 def _enqueue_canonicalization(
