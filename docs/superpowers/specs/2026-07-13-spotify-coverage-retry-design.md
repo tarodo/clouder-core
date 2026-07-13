@@ -95,7 +95,8 @@ Spotify: 45/50 found · 3 not found · 1 pending · 1 no ISRC
 
 `pending` and `no ISRC` segments render only when > 0. The stats line also
 renders on cells without a run (empty cells) when tracks exist for that week.
-Labels go through i18n (`en.json`).
+The stats line is hard-coded English, matching the existing tooltip line
+(which is not i18n-ized either); Part 2 UI copy goes through i18n.
 
 ### Semantics note
 
@@ -144,7 +145,9 @@ WHERE isrc IS NOT NULL
   AND publish_date BETWEEN :from AND :to
 ```
 
-   Affected-row count comes from the Data API `numberOfRecordsUpdated`.
+   The statement ends with `RETURNING id`; the affected-row count is the
+   length of the returned row list (the `DataAPIClient.execute()` wrapper
+   exposes rows only, not `numberOfRecordsUpdated`).
 
 2. Enqueue `{"batch_size": 200, "auto_continue": true}` to
    `SPOTIFY_SEARCH_QUEUE_URL` when reset count > 0 **or** the range already
@@ -161,9 +164,10 @@ message. Nothing is lost — the tracks sit in "pending" and are picked up by a
 repeat click or by the next regular search message (enqueued after any ingest
 canonicalization).
 
-Infra: the API Lambda already has `SPOTIFY_SEARCH_QUEUE_URL`; verify it also
-has `sqs:SendMessage` on the `spotify_search` queue and add the IAM statement
-if missing.
+Infra: the API Lambda already has `SPOTIFY_SEARCH_QUEUE_URL`, and the shared
+`collector_lambda` IAM role already grants `sqs:SendMessage` on the
+`spotify_search` queue (`infra/iam.tf`, `AllowSQSSend`) — no IAM change
+needed; only the new API Gateway route is added.
 
 Logging: `spotify_retry_requested` / `spotify_retry_enqueued` /
 `spotify_retry_enqueue_failed` events; any new field names must be in
