@@ -11,10 +11,10 @@ TRACKED_FIELDS = {
     "label": ["tagline", "summary", "country", "status", "primary_styles",
               "notable_artists", "founded_year", "catalog_size_estimate",
               "releases_last_12_months", "distribution",
-              "website", "bandcamp_url", "discogs_url", "instagram_url"],
+              "bandcamp_url", "discogs_url", "instagram_url"],
     "artist": ["tagline", "summary", "bio", "country", "primary_styles",
                "notable_collaborators", "notable_releases", "active_since",
-               "labels", "website", "soundcloud_url", "instagram_url"],
+               "labels", "soundcloud_url", "instagram_url"],
 }
 
 

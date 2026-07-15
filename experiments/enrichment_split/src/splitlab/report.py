@@ -25,9 +25,16 @@ def render(summary: dict, manifest: dict) -> str:
         "|---|---:|---:|---|",
     ]
     for name, fn, threshold, op in GATES:
-        value = fn(summary)
+        try:
+            value = fn(summary)
+        except (ValueError, KeyError):
+            lines.append(f"| {name} | n/a | {op} {threshold} | FAIL |")
+            continue
         ok = value >= threshold if op == ">=" else value <= threshold
         lines.append(f"| {name} | {value:.3f} | {op} {threshold} | {'PASS' if ok else 'FAIL'} |")
+    if not summary:
+        lines.append("")
+        lines.append("No cells produced — run failed.")
 
     for kind, s in summary.items():
         lines += [

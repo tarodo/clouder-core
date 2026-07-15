@@ -39,8 +39,6 @@ def main() -> None:
         print(f"labels={len(data['labels'])} artists={len(data['artists'])} -> {out}")
 
     elif args.cmd == "run":
-        import json as _json
-
         from .runner import run_experiment
         from .sample import load_sample
 

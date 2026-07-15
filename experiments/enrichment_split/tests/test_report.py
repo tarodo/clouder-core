@@ -26,3 +26,9 @@ def test_render_contains_gate_verdicts():
     assert "PASS" in md and "gate" in md.lower()
     assert "0.70" in md or "70" in md   # ig found-rate visible
     assert "tier1" in md
+
+
+def test_render_survives_empty_summary():
+    md = render({}, {"run_id": "r0", "cap": 2, "totals": {}})
+    assert "No cells produced" in md
+    assert "FAIL" in md

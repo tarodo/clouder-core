@@ -51,25 +51,40 @@ def run_experiment(
               "web_search_calls": 0, "tavily_credits": 0, "cost_usd": 0.0}
 
     def process(kind: str, entity: dict) -> dict:
-        tavily = tavily_factory()
-        narrative = narrative_fn(entity, kind, llm, settings.openai_model, cap)
-        facts = facts_fn(entity, kind, tavily, llm, settings.openai_model)
-        merged, prov = merge_passes(narrative, facts)
-        cost = (narrative.web_search_calls * settings.web_search_usd_per_call
-                + facts.credits * settings.tavily_usd_per_credit)
-        return {
-            "kind": kind,
-            "entity": entity,
-            "narrative": narrative.narrative,
-            "facts": facts.facts,
-            "merged": merged,
-            "provenance": prov,
-            "web_search_calls": narrative.web_search_calls,
-            "tavily_credits": facts.credits,
-            "cost_usd": cost,
-            "latency_ms": narrative.latency_ms,
-            "error": narrative.error or facts.error,
-        }
+        try:
+            tavily = tavily_factory()
+            narrative = narrative_fn(entity, kind, llm, settings.openai_model, cap)
+            facts = facts_fn(entity, kind, tavily, llm, settings.openai_model)
+            merged, prov = merge_passes(narrative, facts)
+            cost = (narrative.web_search_calls * settings.web_search_usd_per_call
+                    + facts.credits * settings.tavily_usd_per_credit)
+            return {
+                "kind": kind,
+                "entity": entity,
+                "narrative": narrative.narrative,
+                "facts": facts.facts,
+                "merged": merged,
+                "provenance": prov,
+                "web_search_calls": narrative.web_search_calls,
+                "tavily_credits": facts.credits,
+                "cost_usd": cost,
+                "latency_ms": narrative.latency_ms,
+                "error": narrative.error or facts.error,
+            }
+        except Exception as exc:  # noqa: BLE001 — a single entity must never kill the run
+            return {
+                "kind": kind,
+                "entity": entity,
+                "narrative": {},
+                "facts": {},
+                "merged": {},
+                "provenance": {},
+                "web_search_calls": 0,
+                "tavily_credits": 0,
+                "cost_usd": 0.0,
+                "latency_ms": 0,
+                "error": f"crashed: {type(exc).__name__}: {exc}",
+            }
 
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
         futures = {pool.submit(process, k, e): (k, e) for k, e in jobs}
