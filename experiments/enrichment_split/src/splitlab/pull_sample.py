@@ -38,18 +38,24 @@ SELECT ar.id::text AS id, ar.name AS name,
        ai.merged::text AS merged,
        coalesce((
            SELECT string_agg(title, '|') FROM (
-               SELECT t.title FROM clouder_track_artists ta
+               SELECT t.title AS title, max(t.publish_date) AS publish_date
+               FROM clouder_track_artists ta
                JOIN clouder_tracks t ON t.id = ta.track_id
                WHERE ta.artist_id = ar.id
-               ORDER BY t.publish_date DESC NULLS LAST LIMIT 3
+               GROUP BY t.title
+               ORDER BY max(t.publish_date) DESC NULLS LAST
+               LIMIT 3
            ) x
        ), '') AS sample_tracks,
        coalesce((
-           SELECT string_agg(DISTINCT l.name, '|') FROM clouder_track_artists ta
-           JOIN clouder_tracks t ON t.id = ta.track_id
-           JOIN clouder_albums a ON a.id = t.album_id
-           JOIN clouder_labels l ON l.id = a.label_id
-           WHERE ta.artist_id = ar.id
+           SELECT string_agg(name, '|') FROM (
+               SELECT DISTINCT l.name AS name FROM clouder_track_artists ta
+               JOIN clouder_tracks t ON t.id = ta.track_id
+               JOIN clouder_albums a ON a.id = t.album_id
+               JOIN clouder_labels l ON l.id = a.label_id
+               WHERE ta.artist_id = ar.id
+               LIMIT 5
+           ) x
        ), '') AS known_labels
 FROM clouder_artist_info ai
 JOIN clouder_artists ar ON ar.id = ai.artist_id
@@ -76,7 +82,7 @@ def _default_execute(settings: Settings) -> Callable[[str], list[dict]]:
     return execute
 
 
-def _rows_to_entities(rows: list[dict], stratum: str, kind: str) -> list[dict]:
+def _rows_to_entities(rows: list[dict], stratum: str) -> list[dict]:
     out = []
     for r in rows:
         merged = r.get("merged")
@@ -108,5 +114,5 @@ def pull(
             ("random", f"NOT {_IG_NULL}", total - half),
         ):
             rows = execute(sql.format(where=where, limit=limit))
-            data[kind].extend(_rows_to_entities(rows, stratum, kind))
+            data[kind].extend(_rows_to_entities(rows, stratum))
     return data

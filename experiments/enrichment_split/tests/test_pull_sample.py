@@ -38,3 +38,6 @@ def test_pull_builds_strata_and_baseline():
     assert data["artists"][0]["known_labels"] == ["Hospital Records"]
     # two strata per kind -> 4 SELECTs
     assert sum("instagram_url" in c for c in calls) >= 2
+    assert len(data["labels"]) == 2
+    assert len(data["artists"]) == 2
+    assert {r["stratum"] for r in data["labels"]} == {"ig_missing", "random"}
