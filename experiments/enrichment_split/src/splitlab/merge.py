@@ -24,7 +24,11 @@ def merge_passes(narrative: NarrativeResult, facts: FactsResult) -> tuple[dict, 
             prov[key] = "facts_llm"
 
     for key, value in facts.profiles.items():
+        if key in merged and prov.get(key):
+            continue
         merged[key] = value
+        if value in (None, [], ""):
+            continue
         if key == "instagram_url" and facts.instagram_tier is not None:
             prov[key] = f"profiles_tier{facts.instagram_tier}"
         else:

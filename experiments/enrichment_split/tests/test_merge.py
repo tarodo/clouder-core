@@ -28,3 +28,20 @@ def test_facts_never_overwrite_narrative_keys():
     merged, prov = merge_passes(narrative, facts)
     assert merged["notes"] == "narrative note"
     assert prov["notes"] == "narrative"
+
+
+def test_null_profile_values_get_no_provenance():
+    narrative = NarrativeResult(narrative={})
+    facts = FactsResult(profiles={"website": None, "instagram_url": ""})
+    merged, prov = merge_passes(narrative, facts)
+    assert merged["website"] is None
+    assert "website" not in prov
+    assert "instagram_url" not in prov
+
+
+def test_profiles_never_overwrite_narrative():
+    narrative = NarrativeResult(narrative={"summary": "real summary"})
+    facts = FactsResult(profiles={"summary": "https://bogus.example"})
+    merged, prov = merge_passes(narrative, facts)
+    assert merged["summary"] == "real summary"
+    assert prov["summary"] == "narrative"
