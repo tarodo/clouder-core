@@ -9,7 +9,7 @@ _HANDLE = r"[A-Za-z0-9_.\-]{2,60}"
 
 _PATTERNS: dict[str, re.Pattern[str]] = {
     "instagram_url": re.compile(rf"instagram\.com/({_HANDLE})"),
-    "twitter_url": re.compile(rf"(?:twitter|x)\.com/({_HANDLE})"),
+    "twitter_url": re.compile(rf"(?:^|[^a-z0-9.])(?:www\.)?(?:twitter|x)\.com/({_HANDLE})", re.IGNORECASE),
     "soundcloud_url": re.compile(rf"soundcloud\.com/({_HANDLE})"),
     "beatport_url": re.compile(rf"beatport\.com/label/({_HANDLE})"),
     "residentadvisor_url": re.compile(rf"ra\.co/labels/({_HANDLE})"),

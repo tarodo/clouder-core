@@ -44,3 +44,22 @@ def test_validate_by_name_similarity():
 def test_validate_by_cross_network_match():
     known = {"soundcloud_url": "https://soundcloud.com/audiocorestudio"}
     assert validate_instagram_handle("audiocorestudio", "Audiocore Production", known)
+
+
+def test_twitter_not_confused_with_other_x_domains():
+    assert "twitter_url" not in extract_profiles("watch https://netflix.com/watch/12345 now")
+    assert "twitter_url" not in extract_profiles("track https://www.fedex.com/track/9999")
+    p = extract_profiles("follow https://x.com/anarkick and https://twitter.com/other")
+    assert p["twitter_url"] == "https://x.com/anarkick"
+
+
+def test_beatport_ra_discogs_profiles():
+    text = (
+        "https://www.beatport.com/label/drumcode/1234 "
+        "https://ra.co/labels/2311 "
+        "https://www.discogs.com/label/527509-Anarkick-Records"
+    )
+    p = extract_profiles(text)
+    assert p["beatport_url"] == "https://www.beatport.com/label/drumcode"
+    assert p["residentadvisor_url"] == "https://ra.co/labels/2311"
+    assert p["discogs_url"] == "https://www.discogs.com/label/527509-Anarkick-Records"
