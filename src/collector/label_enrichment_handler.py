@@ -19,6 +19,7 @@ from .label_enrichment.repository import LabelEnrichmentRepository
 from .label_enrichment.settings_provider import LabelEnrichmentSecrets
 from .logging_utils import log_event
 from .settings import get_data_api_settings, get_label_enrichment_worker_settings
+from .social_links import SocialsResolver
 
 try:
     from openai import OpenAI
@@ -74,6 +75,9 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         deepseek_api_key=settings.deepseek_api_key,
     )
     merge_client = _build_merge_client(settings.deepseek_api_key, settings.request_timeout_s)
+    socials_resolver = (
+        SocialsResolver(settings.tavily_api_key) if settings.tavily_api_key else None
+    )
 
     processed = 0
     for index, record in enumerate(records):
@@ -125,6 +129,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             repository=repository,
             ai_flag_threshold=settings.ai_flag_confidence_threshold,
             on_outcome=auto_repository.mark_auto_enrich_outcome,
+            socials_resolver=socials_resolver,
         )
         processed += 1
         log_event(

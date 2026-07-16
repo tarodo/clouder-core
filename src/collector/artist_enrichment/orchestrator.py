@@ -5,11 +5,13 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable
 
+from ..label_enrichment.vendors.base import VendorAdapter, VendorResponse
+from ..label_enrichment.vendors.pricing import TAVILY_USD_PER_CREDIT
+from ..social_links import SocialsResolver
 from .aggregator import merge_cells
 from .prompts.base import PromptConfig, render_user
 from .repository import ArtistEnrichmentRepository
 from .settings_provider import ArtistEnrichmentSecrets
-from ..label_enrichment.vendors.base import VendorAdapter, VendorResponse
 
 
 def _cell_payload(vendor: VendorAdapter, response: VendorResponse, artist_name: str) -> dict:
@@ -84,6 +86,7 @@ def enrich_artist_for_run(
     repository: ArtistEnrichmentRepository,
     ai_flag_threshold: float,
     on_outcome: "Callable[[str, bool], None] | None" = None,
+    socials_resolver: "SocialsResolver | None" = None,
 ) -> None:
     """End-to-end: derive context, flip status, run vendors, persist cells + merged + counters."""
     context = repository.derive_artist_context(artist_id)
@@ -112,6 +115,18 @@ def enrich_artist_for_run(
 
     merged_info, meta = merge_cells(cells, merge_client, merge_model)
     cost += float(meta.get("narrative_cost_usd") or 0.0)
+
+    if socials_resolver is not None and not merged_info.instagram_url:
+        socials = socials_resolver.resolve(
+            kind="artist", name=artist_name, style=context.style, merged=merged_info.model_dump()
+        )
+        if socials.updates:
+            merged_info = merged_info.model_copy(update=socials.updates)
+            prov = meta.get("field_provenance") or {}
+            for field in socials.updates:
+                prov[field] = f"socials_tier{socials.instagram_tier}"
+            meta["field_provenance"] = prov
+        cost += socials.tavily_credits * TAVILY_USD_PER_CREDIT
 
     repository.upsert_artist_info(
         artist_id=artist_id,
