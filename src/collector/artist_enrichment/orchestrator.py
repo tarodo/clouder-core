@@ -150,6 +150,8 @@ def build_adapters_from_run_config(
     models: dict[str, str],
     secrets: "ArtistEnrichmentSecrets",
     request_timeout_s: float,
+    openai_max_tool_calls: int = 3,
+    openai_reasoning_effort: str = "",
 ) -> list[VendorAdapter]:
     """Instantiate the requested adapters (reused from label_enrichment.vendors) with per-run models."""
     from ..label_enrichment.vendors.gemini import GeminiAdapter
@@ -164,7 +166,13 @@ def build_adapters_from_run_config(
         if name == "gemini":
             adapters.append(GeminiAdapter(api_key=secrets.gemini_api_key, default_model=model, timeout_s=request_timeout_s))
         elif name == "openai":
-            adapters.append(OpenAIAdapter(api_key=secrets.openai_api_key, default_model=model, timeout_s=request_timeout_s))
+            adapters.append(OpenAIAdapter(
+                api_key=secrets.openai_api_key,
+                default_model=model,
+                timeout_s=request_timeout_s,
+                max_tool_calls=openai_max_tool_calls,
+                reasoning_effort=openai_reasoning_effort,
+            ))
         elif name == "tavily_deepseek":
             adapters.append(TavilyDeepSeekAdapter(
                 tavily_api_key=secrets.tavily_api_key,

@@ -93,7 +93,8 @@ def repo_and_sqs(monkeypatch):
     monkeypatch.setenv("LABEL_ENRICHMENT_QUEUE_URL", "https://sqs.example/q")
 
     # Stub vendor factory in the worker
-    def fake_adapters(*, vendor_names, models, secrets, request_timeout_s):
+    def fake_adapters(*, vendor_names, models, secrets, request_timeout_s,
+                       openai_max_tool_calls=3, openai_reasoning_effort=""):
         adapters = []
         for v in vendor_names:
             a = MagicMock()

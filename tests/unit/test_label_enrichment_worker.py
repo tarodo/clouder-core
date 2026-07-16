@@ -143,7 +143,8 @@ def test_worker_parses_jsonb_strings_from_data_api(monkeypatch):
 
     captured: dict = {}
 
-    def fake_build_adapters(*, vendor_names, models, secrets, request_timeout_s):
+    def fake_build_adapters(*, vendor_names, models, secrets, request_timeout_s,
+                             openai_max_tool_calls=3, openai_reasoning_effort=""):
         captured["vendor_names"] = vendor_names
         captured["models"] = models
         return [MagicMock(name="adapter")]

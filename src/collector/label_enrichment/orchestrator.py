@@ -162,6 +162,8 @@ def build_adapters_from_run_config(
     models: dict[str, str],
     secrets: "LabelEnrichmentSecrets",
     request_timeout_s: float,
+    openai_max_tool_calls: int = 3,
+    openai_reasoning_effort: str = "",
 ) -> list[VendorAdapter]:
     """Instantiate exactly the requested adapters with their per-run models."""
     from .vendors.gemini import GeminiAdapter
@@ -184,6 +186,8 @@ def build_adapters_from_run_config(
                 api_key=secrets.openai_api_key,
                 default_model=model,
                 timeout_s=request_timeout_s,
+                max_tool_calls=openai_max_tool_calls,
+                reasoning_effort=openai_reasoning_effort,
             ))
         elif name == "tavily_deepseek":
             adapters.append(TavilyDeepSeekAdapter(

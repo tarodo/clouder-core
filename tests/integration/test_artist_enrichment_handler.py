@@ -37,6 +37,8 @@ def test_handler_enriches_one_artist(monkeypatch):
         gemini_api_key = openai_api_key = tavily_api_key = deepseek_api_key = "k"
         request_timeout_s = 30.0
         ai_flag_confidence_threshold = 0.7
+        openai_max_tool_calls = 3
+        openai_reasoning_effort = ""
     monkeypatch.setattr(handler_mod, "get_artist_enrichment_worker_settings", lambda: _Settings(), raising=False)
     monkeypatch.setattr(handler_mod, "_build_merge_client", lambda *a, **k: object())
 

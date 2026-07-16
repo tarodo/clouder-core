@@ -35,3 +35,9 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
         return 0.0
     in_rate, out_rate = PRICING[model]
     return (input_tokens / 1_000_000) * in_rate + (output_tokens / 1_000_000) * out_rate
+
+
+# measured 2026-07: $10/1k web-search calls; tokens comped for gpt-5.4-mini
+# under the data agreement — estimates kept in case it lapses
+WEB_SEARCH_FEE_PER_CALL_USD = 0.01
+TAVILY_USD_PER_CREDIT = 0.008

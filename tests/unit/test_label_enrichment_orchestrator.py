@@ -161,6 +161,28 @@ def test_build_adapters_from_run_config_returns_three_adapters():
     assert names == {"gemini", "openai", "tavily_deepseek"}
     by_name = {a.name: a for a in adapters}
     assert by_name["gemini"].default_model == "gemini-3-flash-preview"
+    # Defaults when the caller doesn't pass openai knobs.
+    assert by_name["openai"]._max_tool_calls == 3
+    assert by_name["openai"]._reasoning_effort == ""
+
+
+def test_build_adapters_forwards_openai_knobs():
+    from collector.label_enrichment.orchestrator import build_adapters_from_run_config
+    from collector.label_enrichment.settings_provider import LabelEnrichmentSecrets
+
+    adapters = build_adapters_from_run_config(
+        vendor_names=["openai"],
+        models={"openai": "gpt-5.4-mini"},
+        secrets=LabelEnrichmentSecrets(
+            gemini_api_key="g", openai_api_key="o",
+            tavily_api_key="t", deepseek_api_key="d",
+        ),
+        request_timeout_s=30.0,
+        openai_max_tool_calls=5,
+        openai_reasoning_effort="low",
+    )
+    assert adapters[0]._max_tool_calls == 5
+    assert adapters[0]._reasoning_effort == "low"
 
 
 def _run_enrich_label_for_run_with(on_outcome, all_vendors_ok: bool) -> None:

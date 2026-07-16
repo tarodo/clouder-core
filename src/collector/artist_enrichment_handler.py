@@ -96,6 +96,8 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             models=models,
             secrets=secrets,
             request_timeout_s=settings.request_timeout_s,
+            openai_max_tool_calls=settings.openai_max_tool_calls,
+            openai_reasoning_effort=settings.openai_reasoning_effort,
         )
         prompt = get_prompt(run_row["prompt_slug"])
 
