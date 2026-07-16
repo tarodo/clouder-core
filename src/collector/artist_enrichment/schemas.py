@@ -83,7 +83,57 @@ class ArtistInfo(BaseModel):
     # AI detection
     ai_content: AIContentStatus = AIContentStatus.UNKNOWN
     ai_signals: list[AISignal] = Field(default_factory=list)
-    ai_reasoning: str
+    ai_reasoning: str = ""
+
+    # Meta
+    confidence: float = Field(ge=0, le=1)
+    sources: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
+class ArtistInfoRequest(BaseModel):
+    """Vendor-facing schema: ArtistInfo minus AI-detection fields.
+
+    Structured output forces the model to fill every schema field, so the
+    ai_* fields must be absent here, not just unmentioned in the prompt.
+    Kept as an explicit copy (not generated) so the diff is reviewable;
+    test_enrichment_request_schemas pins it to ArtistInfo field-for-field.
+    """
+
+    # Identity
+    artist_name: str
+    aliases: list[str] = Field(default_factory=list)
+    real_name: str | None = None
+    artist_type: ArtistType = ArtistType.UNKNOWN
+    members: list[str] = Field(default_factory=list)
+
+    # Origin
+    country: str | None = None
+    city: str | None = None
+    active_since: int | None = None
+    status: Literal["active", "inactive", "unknown"] = "unknown"
+
+    # Music
+    primary_styles: list[str] = Field(default_factory=list)
+    labels: list[str] = Field(default_factory=list)
+    notable_collaborators: list[str] = Field(default_factory=list)
+    notable_releases: list[str] = Field(default_factory=list)
+
+    # Links
+    spotify_url: str | None = None
+    soundcloud_url: str | None = None
+    bandcamp_url: str | None = None
+    beatport_url: str | None = None
+    residentadvisor_url: str | None = None
+    discogs_url: str | None = None
+    instagram_url: str | None = None
+    twitter_url: str | None = None
+    website: str | None = None
+
+    # Narrative
+    tagline: str | None = None
+    bio: str | None = None
+    summary: str
 
     # Meta
     confidence: float = Field(ge=0, le=1)
