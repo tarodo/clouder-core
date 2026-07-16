@@ -234,11 +234,11 @@ class SocialsResolver:
         value is empty AND the regex found one on official-page content
         (tier 1/2 content).
         """
-        if merged.get("instagram_url"):
-            return SocialsResult(updates={}, instagram_tier=None, tavily_credits=0)
+        tavily = TavilyClient(self._api_key, http=self._http)
 
         try:
-            tavily = TavilyClient(self._api_key, http=self._http)
+            if merged.get("instagram_url"):
+                return SocialsResult(updates={}, instagram_tier=None, tavily_credits=0)
             noun = "record label" if kind == "label" else "artist"
             instagram_tier: int | None = None
 
@@ -297,5 +297,5 @@ class SocialsResolver:
             )
         except Exception as exc:  # noqa: BLE001 — resolver must never raise
             return SocialsResult(
-                updates={}, instagram_tier=None, tavily_credits=0, error=f"{type(exc).__name__}: {exc}"
+                updates={}, instagram_tier=None, tavily_credits=tavily.credits_used, error=f"{type(exc).__name__}: {exc}"
             )

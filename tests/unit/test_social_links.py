@@ -236,3 +236,31 @@ def test_other_socials_applied_only_to_empty_merged_fields():
     assert r.updates["instagram_url"] == "https://www.instagram.com/anarkick_records"
     assert r.updates["bandcamp_url"] == "https://anarkickrecs.bandcamp.com"
     assert "soundcloud_url" not in r.updates  # merged already had a value
+
+
+def test_credits_reported_when_a_later_tier_raises():
+    """tier1 search succeeds (1 credit, no IG found), tier2 has no urls to extract,
+    tier3 search raises -> resolve must not raise and must report credits spent so far"""
+    call_count = [0]
+
+    class FailOnSecondCall:
+        def post(self, url, json):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # tier1 search succeeds, no IG found
+                class R:
+                    def raise_for_status(self):
+                        pass
+
+                    def json(self):
+                        return {"results": [{"url": "https://x.example", "raw_content": "nothing"}]}
+
+                return R()
+            else:
+                # tier3 search fails
+                raise RuntimeError("tavily down")
+
+    resolver = SocialsResolver(tavily_api_key="key", http=FailOnSecondCall())
+    r = resolver.resolve(kind="label", name="Nameless", style="dnb", merged={})
+    assert r.error is not None
+    assert r.tavily_credits >= 1
