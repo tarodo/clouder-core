@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useArtistInfo } from '../hooks/useArtistInfo';
 import { countryFlag } from '../lib/countryFlag';
 import { ARTIST_CHANNELS } from '../lib/artistChannelMeta';
-import { AiContentBadge } from '../lib/aiContent';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 
 interface Props {
@@ -49,8 +48,6 @@ export function ArtistTile({ artistId, artistName }: Props) {
   );
   const showFullCard = !query.isLoading && !query.isError && hasEnrichment;
 
-  const aiContent = info?.ai_content ?? '';
-  const aiReasoning = info?.ai_reasoning ?? '';
   const collaborators = Array.isArray(info?.notable_collaborators)
     ? info!.notable_collaborators!.filter((a): a is string => typeof a === 'string')
     : [];
@@ -72,9 +69,6 @@ export function ArtistTile({ artistId, artistName }: Props) {
     <Stack gap="sm" maw={320}>
       <Group gap="sm" align="center" wrap="wrap">
         {nameNode}
-        {showFullCard && (
-          <AiContentBadge content={aiContent} reasoning={aiReasoning} variant="outline" />
-        )}
         <ArtistPreferenceButtons artistId={artistId} current={preference} size="sm" />
       </Group>
       {showFullCard && (info?.country || info?.active_since != null) && (

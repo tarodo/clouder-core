@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useLabelInfo } from '../hooks/useLabelInfo';
 import { countryFlag } from '../lib/countryFlag';
 import { CHANNELS } from '../lib/channelMeta';
-import { AiContentBadge } from '../lib/aiContent';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 
 interface Props {
@@ -51,8 +50,6 @@ export function LabelTile({ labelId, labelName }: Props) {
   );
   const showFullCard = !query.isLoading && !query.isError && hasEnrichment;
 
-  const aiContent = info?.ai_content ?? '';
-  const aiReasoning = info?.ai_reasoning ?? '';
   const notable = Array.isArray(info?.notable_artists)
     ? info!.notable_artists!.filter((a): a is string => typeof a === 'string')
     : [];
@@ -70,9 +67,6 @@ export function LabelTile({ labelId, labelName }: Props) {
         <Anchor component={Link} to={`/labels/${labelId}`} fw={600} size="lg">
           {displayName || labelId}
         </Anchor>
-        {showFullCard && (
-          <AiContentBadge content={aiContent} reasoning={aiReasoning} variant="outline" />
-        )}
         <LabelPreferenceButtons labelId={labelId} current={preference} size="sm" />
       </Group>
       {showFullCard && (info?.country || info?.founded_year != null) && (
