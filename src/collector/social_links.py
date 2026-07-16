@@ -42,6 +42,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
@@ -107,7 +108,7 @@ def _norm(s: str) -> str:
 
 
 def validate_instagram_handle(
-    handle: str, entity_name: str, known_profiles: dict[str, str]
+    handle: str, entity_name: str, known_profiles: dict[str, Any]
 ) -> bool:
     h = _norm(handle)
     if not h:
@@ -121,7 +122,9 @@ def validate_instagram_handle(
     if len(name) >= 4 and (name in h or h in name):
         return True
     for url in known_profiles.values():
-        known = handle_of(url or "")
+        if not isinstance(url, str) or not url:
+            continue
+        known = handle_of(url)
         if known and _norm(known) == h:
             return True
     return False
@@ -223,9 +226,18 @@ class SocialsResolver:
     each result's handle in order, first validated handle wins.
     """
 
-    def __init__(self, tavily_api_key: str, http: httpx.Client | None = None) -> None:
+    def __init__(
+        self,
+        tavily_api_key: str,
+        http: httpx.Client | None = None,
+        timeout_s: float = 30.0,
+    ) -> None:
         self._api_key = tavily_api_key
-        self._http = http
+        # One shared client for the resolver's lifetime (reused across every
+        # resolve() call / TavilyClient construction) instead of a fresh
+        # httpx.Client per resolve() — a warm Lambda otherwise accumulates
+        # unclosed connection pools. `http` stays injectable for tests.
+        self._http = http or httpx.Client(timeout=timeout_s)
 
     def resolve(self, *, kind: str, name: str, style: str, merged: dict) -> SocialsResult:
         """Never raises. No-op result when `merged` already has instagram_url.

@@ -181,6 +181,8 @@ See also: [ADR-0014](../adr/0014-aurora-min-acu-zero.md).
 
 **Mitigation:** The resolver is disabled by construction when `TAVILY_API_KEY` is empty (`socials_resolver = SocialsResolver(...) if settings.tavily_api_key else None` in both handlers) — no separate feature flag. `SocialsResolver.resolve` never raises; a Tavily failure returns `SocialsResult(error=...)` with zero updates.
 
+**Deploy note:** the worker Lambdas already have `TAVILY_API_KEY_SSM_PARAMETER` wired in `infra/lambda.tf`, so deploying this branch activates real Tavily spend immediately — it is not gated behind the `auto_enrich_config.prompt_slug` switch, which controls only which prompt version runs.
+
 ---
 
 ### OpenAI enrichment knobs: `OPENAI_MAX_TOOL_CALLS` is a soft cap

@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from ..label_enrichment.vendors.base import VendorAdapter, VendorResponse
 from ..label_enrichment.vendors.pricing import TAVILY_USD_PER_CREDIT
+from ..logging_utils import log_event
 from ..social_links import SocialsResolver
 from .aggregator import merge_cells
 from .prompts.base import PromptConfig, render_user
@@ -120,11 +121,25 @@ def enrich_artist_for_run(
         socials = socials_resolver.resolve(
             kind="artist", name=artist_name, style=context.style, merged=merged_info.model_dump()
         )
+        if socials.error is not None:
+            log_event(
+                "WARNING",
+                "socials_resolver_error",
+                run_id=run_id,
+                entity_type="artist",
+                entity=artist_name,
+                error_message=socials.error[:500],
+            )
         if socials.updates:
             merged_info = merged_info.model_copy(update=socials.updates)
             prov = meta.get("field_provenance") or {}
+            tier_label = (
+                f"socials_tier{socials.instagram_tier}"
+                if socials.instagram_tier is not None
+                else "socials_regex"
+            )
             for field in socials.updates:
-                prov[field] = f"socials_tier{socials.instagram_tier}"
+                prov[field] = tier_label
             meta["field_provenance"] = prov
         cost += socials.tavily_credits * TAVILY_USD_PER_CREDIT
 

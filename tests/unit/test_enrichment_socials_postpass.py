@@ -137,6 +137,28 @@ def test_label_resolver_applies_updates_and_provenance_and_cost():
     assert cost_delta == pytest.approx(expected)
 
 
+# --- provenance falls back to "socials_regex" when instagram_tier is None ---
+
+
+def test_label_resolver_provenance_regex_label_when_instagram_tier_none():
+    """updates exist (e.g. only twitter found) but instagram_tier is None ->
+    provenance must be "socials_regex", not the literal "socials_tierNone"."""
+    adapter = _label_adapter(instagram_url=None)
+    repo = MagicMock()
+    resolver = FakeSocialsResolver(
+        SocialsResult(
+            updates={"twitter_url": "https://x.com/drumcode"},
+            instagram_tier=None,
+            tavily_credits=1,
+        )
+    )
+
+    _run_label_enrich(adapter=adapter, repo=repo, socials_resolver=resolver)
+
+    provenance = repo.upsert_label_info.call_args.kwargs["provenance"]
+    assert provenance["twitter_url"] == "socials_regex"
+
+
 # --- (c) resolver returning updates={} leaves merged/provenance untouched ---
 
 

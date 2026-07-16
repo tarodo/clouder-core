@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Type
 
@@ -24,6 +25,9 @@ def _zero_usage() -> dict:
 
 def _lat(started: float) -> int:
     return int((time.monotonic() - started) * 1000)
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class OpenAIAdapter:
@@ -71,7 +75,7 @@ class OpenAIAdapter:
             tools=[{"type": "web_search"}],
             text_format=schema,
         )
-        if self._max_tool_calls:
+        if self._max_tool_calls:  # 0/None -> uncapped: OpenAI rejects max_tool_calls=0, so falsy means "don't send"
             kwargs["max_tool_calls"] = self._max_tool_calls
         if self._reasoning_effort:
             kwargs["reasoning"] = {"effort": self._reasoning_effort}
@@ -88,6 +92,11 @@ class OpenAIAdapter:
                     k: v for k, v in kwargs.items()
                     if k not in ("max_tool_calls", "reasoning")
                 }
+                _LOGGER.warning(
+                    "openai_bad_request_retry_bare model=%s dropped=%s",
+                    chosen_model,
+                    [k for k in ("max_tool_calls", "reasoning") if k in kwargs],
+                )
                 response = self._client.responses.parse(**bare_kwargs)
         except Exception as exc:  # noqa: BLE001 — never raise
             return VendorResponse(

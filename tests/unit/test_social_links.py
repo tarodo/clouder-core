@@ -11,6 +11,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from collector.label_enrichment.schemas import LabelInfo
 from collector.social_links import (
     SocialsResolver,
     SocialsResult,
@@ -73,6 +74,21 @@ def test_validate_by_name_similarity():
 def test_validate_by_cross_network_match():
     known = {"soundcloud_url": "https://soundcloud.com/audiocorestudio"}
     assert validate_instagram_handle("audiocorestudio", "Audiocore Production", known)
+
+
+def test_validate_cross_network_skips_non_string_values_from_real_payload():
+    """Orchestrators pass known_profiles=merged_info.model_dump(), which mixes
+    in lists/ints/enums alongside the url strings (e.g. aliases, founded_year).
+    A non-string value must be skipped, not crash handle_of()."""
+    dump = LabelInfo(
+        label_name="Audiocore Production",
+        summary="s",
+        confidence=0.5,
+        founded_year=1996,
+        aliases=["AC"],
+        soundcloud_url="https://soundcloud.com/audiocorestudio",
+    ).model_dump()
+    assert validate_instagram_handle("audiocorestudio", "Audiocore Production", dump) is True
 
 
 def test_twitter_not_confused_with_other_x_domains():
