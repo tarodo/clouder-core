@@ -171,6 +171,30 @@ See also: [ADR-0014](../adr/0014-aurora-min-acu-zero.md).
 
 ---
 
+### Socials post-pass only fires when `instagram_url` is still empty after merge
+
+**What:** `SocialsResolver` (`src/collector/social_links.py`) is called from both `label_enrichment/orchestrator.py` and `artist_enrichment/orchestrator.py`, AFTER `merge_cells`, and ONLY when the merged result's `instagram_url` is empty. It never overwrites a value the vendor merge already found. Three tiers, tried in order until Instagram resolves: tier 1 — Tavily basic search + regex extraction; tier 2 — Tavily Extract on known official pages (`website`/`bandcamp_url`/`soundcloud_url` from the merged result); tier 3 — Tavily search restricted to `include_domains=["instagram.com"]`. `validate_instagram_handle` runs on the candidate from every tier, not just tier 3.
+
+**Why:** Instagram is the highest-value social field and the cheapest one worth a dedicated pass; running it unconditionally would double Tavily spend on entities the vendor merge already resolved.
+
+**Provenance & cost:** Fields the resolver fills land in `*_info.provenance` as `socials_tier{N}` (1/2/3). Tavily spend (`tavily_credits * TAVILY_USD_PER_CREDIT`, $0.008/credit) is added straight into the run's `cost_usd` counter — it is NOT recorded in any per-cell `usage` jsonb, since the resolver runs once per entity after all vendor cells are written.
+
+**Mitigation:** The resolver is disabled by construction when `TAVILY_API_KEY` is empty (`socials_resolver = SocialsResolver(...) if settings.tavily_api_key else None` in both handlers) — no separate feature flag. `SocialsResolver.resolve` never raises; a Tavily failure returns `SocialsResult(error=...)` with zero updates.
+
+---
+
+### OpenAI enrichment knobs: `OPENAI_MAX_TOOL_CALLS` is a soft cap
+
+**What:** Both enrichment worker settings classes read `OPENAI_MAX_TOOL_CALLS` (default `3`) and `OPENAI_REASONING_EFFORT` (default `""` = not sent). Per-cell `usage` jsonb now also carries `web_search_calls` (billed at `WEB_SEARCH_FEE_PER_CALL_USD` = $0.01 each, added to `cost_usd`) and `reasoning_tokens`.
+
+**Why:** `max_tool_calls` bounds the OpenAI Responses API's web-search tool loop, but the split experiment (`docs/superpowers/specs/2026-07-16-enrichment-split-experiment-report.md`) measured only ~1.7 average searches even with the cap set to 1 — the model rarely maxes it out. `reasoning_effort` is a latency knob only; reasoning tokens are comped by OpenAI regardless of the setting.
+
+**Mitigation:** Don't tune `OPENAI_MAX_TOOL_CALLS` expecting linear cost control — verify actual behavior with `scripts/enrichment_stats.py` / `scripts/openai_usage_report.py` before assuming a lower cap saves money.
+
+**Rollback:** Switch `auto_enrich_config.prompt_slug` back to `label_v3_app_fields` / `artist_v1` (old prompts stay registered, no code change needed). The socials post-pass disables independently by emptying the Tavily key.
+
+---
+
 ### List endpoints do not project `is_ai_suspected`
 
 **What:** `GET /labels`, `GET /artists`, and `GET /tracks` do not include the `is_ai_suspected` field in their response items, even though `clouder_labels.is_ai_suspected` is set by `propagate_ai_flag`.
