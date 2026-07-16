@@ -73,7 +73,7 @@ At `max_tool_calls=1`, 71/100 entities still recorded 2 web-search calls; averag
 
 | item | amount |
 |---|---:|
-| cap-2 run (incl. 7 retries) | $3.27 |
+| cap-2 run (incl. 7 retries) | $3.27 (floor: the 7 timed-out first attempts' partial spend is not counted) |
 | cap-1 run | $2.89 |
 | aborted first cap-2 attempt (26 cells) + smoke | ≈ $0.85 |
 | **total live** | **≈ $7.0** (ceiling $8) |
@@ -90,6 +90,8 @@ Adopt the pre-agreed fallback shape, now backed by data:
 4. Re-run this sandbox's metrics script after prod rollout to confirm (the baseline tables here are the reference).
 
 ## Reproducing
+
+Requires the original `outputs/` directory on the machine that ran the experiment — run artifacts are gitignored, so a fresh clone cannot regenerate these tables without re-running (≈$6).
 
 ```
 cd experiments/enrichment_split
