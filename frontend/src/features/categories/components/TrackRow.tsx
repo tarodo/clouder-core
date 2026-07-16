@@ -1,5 +1,4 @@
 import { Card, Group, Stack, Table, Text } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/formatters';
@@ -25,13 +24,6 @@ export interface TrackRowProps {
 
 export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying, onToggle }: TrackRowProps) {
   const { t } = useTranslation();
-  const aiBadge = track.is_ai_suspected ? (
-    <IconAlertTriangle
-      size={14}
-      aria-label={t('categories.tracks_table.ai_suspected_aria')}
-      color="var(--color-warning)"
-    />
-  ) : null;
   const tagsCell = <TrackTagsCell tags={track.tags} />;
 
   const canPlay = !!onPlay && !!track.spotify_id;
@@ -57,7 +49,6 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying
         <Table.Td>
           <Group gap="xs" wrap="nowrap">
             {playButton}
-            {aiBadge}
             <Stack gap={0}>
               <Text fw={500}>{track.title}</Text>
               {track.mix_name && (
@@ -100,7 +91,6 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying
       <Stack gap={4}>
         <Group gap="xs">
           {playButton}
-          {aiBadge}
           <Text fw={500}>{track.title}</Text>
           {track.used_in_playlist && <UsedInPlaylistBadge />}
         </Group>

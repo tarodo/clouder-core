@@ -1,5 +1,5 @@
 // frontend/src/features/curate/components/CurateCard.tsx
-import { Badge, Group, Stack, Text, Title } from '@mantine/core';
+import { Group, Stack, Text, Title } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { useMediaQuery } from '@mantine/hooks';
 import type { BucketTrack } from '../../triage/hooks/useBucketTracks';
@@ -8,9 +8,8 @@ export interface CurateCardProps {
   track: BucketTrack;
   onPlay?: (track: BucketTrack) => void;
   /**
-   * If true, hides the title / mix / artists / metadata block and renders
-   * only the AI badge + actions strip. Used on desktop where PlayerCard
-   * already shows title + artists + metaRow.
+   * If true, hides the title / mix / artists / metadata block. Used on
+   * desktop where PlayerCard already shows title + artists + metaRow.
    */
   hideText?: boolean;
 }
@@ -54,11 +53,6 @@ export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateC
         <>
           <Group justify="space-between" align="flex-start" wrap="nowrap">
             <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-              {track.is_ai_suspected && (
-                <Badge color="yellow" variant="light" aria-label={t('curate.card.ai_badge_aria')}>
-                  {t('curate.card.ai_badge')}
-                </Badge>
-              )}
               <Title order={titleOrder} size={titleSize}>
                 {track.title}
               </Title>
@@ -98,13 +92,7 @@ export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateC
             </Group>
           </Stack>
         </>
-      ) : (
-        track.is_ai_suspected && (
-          <Badge color="yellow" variant="light" aria-label={t('curate.card.ai_badge_aria')}>
-            {t('curate.card.ai_badge')}
-          </Badge>
-        )
-      )}
+      ) : null}
 
       {!hideText && !track.spotify_id && (
         <Text size="sm" c="var(--color-fg-subtle)">

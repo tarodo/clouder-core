@@ -1,6 +1,5 @@
 import { Card, Group, Stack, Table, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-import { IconAlertTriangle } from '../../../components/icons';
 import { formatLength, formatReleaseDate } from '../../../lib/formatters';
 import type { BucketTrack } from '../hooks/useBucketTracks';
 import type { TriageBucket } from '../lib/bucketLabels';
@@ -40,13 +39,6 @@ export function BucketTrackRow({
 }: BucketTrackRowProps) {
   const { t } = useTranslation();
   useTrackView(track.track_id);
-  const aiBadge = track.is_ai_suspected ? (
-    <IconAlertTriangle
-      size={14}
-      aria-label={t('triage.tracks_table.ai_suspected_aria')}
-      color="var(--color-warning)"
-    />
-  ) : null;
   const moveMenu = showMoveMenu ? (
     <MoveToMenu
       buckets={buckets}
@@ -77,7 +69,6 @@ export function BucketTrackRow({
         <Table.Td>
           <Group gap="xs" wrap="nowrap">
             {playButton}
-            {aiBadge}
             <Stack gap={0}>
               <Text fw={500}>{track.title}</Text>
               {track.mix_name && (
@@ -105,7 +96,6 @@ export function BucketTrackRow({
         <Group justify="space-between" wrap="nowrap" align="flex-start">
           <Group gap="xs">
             {playButton}
-            {aiBadge}
             <Text fw={500}>{track.title}</Text>
           </Group>
           {moveMenu}
