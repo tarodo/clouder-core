@@ -280,3 +280,44 @@ def test_credits_reported_when_a_later_tier_raises():
     r = resolver.resolve(kind="label", name="Nameless", style="dnb", merged={})
     assert r.error is not None
     assert r.tavily_credits >= 1
+
+
+# --- regression: Alex Baws (prod 2026-07-16) — tier-3 query and post-URL parsing ---
+
+
+def test_tier3_uses_quoted_name_only_and_skips_post_urls():
+    """Prod repro: genre terms flood instagram.com-restricted search with
+    hashtag reels, and post URLs must not be parsed as handles. The real
+    profile in the results must win."""
+    http = _http_with([
+        {"results": [{"url": "https://irrelevant.example", "raw_content": "no socials"}]},
+        {"results": [
+            {"url": "https://www.instagram.com/reel/DZMuYg2i3sg"},
+            {"url": "https://www.instagram.com/p/DZDJe_JDOLT"},
+            {"url": "https://www.instagram.com/alexbaws"},
+        ]},
+    ])
+    r = SocialsResolver("k", http=http).resolve(
+        kind="artist", name="Alex Baws", style="Drum & Bass",
+        merged={"instagram_url": None},
+    )
+    assert r.error is None
+    assert r.updates["instagram_url"] == "https://www.instagram.com/alexbaws"
+    assert r.instagram_tier == 3
+    tier3_payload = http.post.call_args_list[1].kwargs["json"]
+    assert tier3_payload["query"] == '"Alex Baws"'
+    assert tier3_payload["include_domains"] == ["instagram.com"]
+
+
+def test_tier1_query_sanitizes_ampersand_in_style():
+    http = _http_with([
+        {"results": [{"url": "https://x.example",
+                      "raw_content": "see https://www.instagram.com/alexbaws ok"}]},
+    ])
+    SocialsResolver("k", http=http).resolve(
+        kind="artist", name="Alex Baws", style="Drum & Bass",
+        merged={"instagram_url": None},
+    )
+    tier1_payload = http.post.call_args_list[0].kwargs["json"]
+    assert "&" not in tier1_payload["query"]
+    assert tier1_payload["query"] == '"Alex Baws" Drum and Bass artist'

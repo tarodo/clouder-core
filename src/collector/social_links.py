@@ -253,10 +253,12 @@ class SocialsResolver:
                 return SocialsResult(updates={}, instagram_tier=None, tavily_credits=0)
             noun = "record label" if kind == "label" else "artist"
             instagram_tier: int | None = None
+            # "&" in style names ("Drum & Bass") breaks Tavily query parsing
+            clean_style = " ".join(style.replace("&", "and").split())
 
             # tier 1: regex over general search content
             search = tavily.search(
-                f'"{name}" {style} {noun}', max_results=8, include_raw_content=True
+                f'"{name}" {clean_style} {noun}', max_results=8, include_raw_content=True
             )
             all_text = _results_text(search.get("results") or [])
             profiles = extract_profiles(all_text)
@@ -287,13 +289,18 @@ class SocialsResolver:
                     for k, v in found.items():
                         profiles.setdefault(k, v)
 
-            # tier 3: targeted instagram search with validation
+            # tier 3: targeted instagram search with validation.
+            # Quoted name ONLY: genre terms drown the site-restricted search in
+            # hashtag reels (prod repro: "Alex Baws" found, "Alex Baws Drum &
+            # Bass" returned reels only). extract_instagram() skips /p/ and
+            # /reel/ post URLs that handle_of() would mis-read as handles.
             if instagram_tier is None:
                 topup = tavily.search(
-                    f"{name} {style}", max_results=5, include_domains=["instagram.com"]
+                    f'"{name}"', max_results=5, include_domains=["instagram.com"]
                 )
                 for r in topup.get("results") or []:
-                    handle3 = handle_of(r.get("url") or "")
+                    profile_url = extract_instagram(r.get("url") or "")
+                    handle3 = handle_of(profile_url) if profile_url else None
                     if handle3 and validate_instagram_handle(handle3, name, profiles):
                         profiles["instagram_url"] = f"https://www.instagram.com/{handle3}"
                         instagram_tier = 3
