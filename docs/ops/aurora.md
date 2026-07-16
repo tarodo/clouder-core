@@ -2,7 +2,7 @@
 
 CLOUDER uses Amazon Aurora PostgreSQL Serverless v2 (`engine_version = "16.11"`, single writer instance `db.serverless`). All Lambda runtime DB access goes through the RDS Data API (`src/collector/data_api.py`), not psycopg. psycopg is used only by the migration Lambda and local Alembic runs.
 
-Cluster identifier: `beatport-prod-aurora` (from `infra/main.tf` `local.db_cluster_identifier`). Defined in `infra/rds.tf`.
+Cluster identifier: `clouder-prod-aurora` (from `infra/main.tf` `local.db_cluster_identifier` = `${local.name_prefix}-aurora`). Defined in `infra/rds.tf`. Verified live 2026-07-16 — the subnet group is `clouder-prod-aurora-subnets`, the master secret is RDS-managed (`rds!cluster-…`).
 
 ---
 
@@ -39,7 +39,7 @@ See ADR-0014 for the cost/latency trade-off analysis.
 
 ```bash
 aws rds describe-db-clusters \
-  --db-cluster-identifier beatport-prod-aurora \
+  --db-cluster-identifier clouder-prod-aurora \
   --query 'DBClusters[0].IAMDatabaseAuthenticationEnabled'
 ```
 
@@ -47,7 +47,7 @@ If the result is `false` after `terraform apply`, force it manually:
 
 ```bash
 aws rds modify-db-cluster \
-  --db-cluster-identifier beatport-prod-aurora \
+  --db-cluster-identifier clouder-prod-aurora \
   --enable-iam-database-authentication \
   --apply-immediately
 ```
