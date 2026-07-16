@@ -1,9 +1,28 @@
 # Enrichment cost reduction + Instagram discovery — design
 
-**Date:** 2026-07-15 (reworked same day after the usage analysis and owner decisions; original approach M superseded by the two-pass split below)
-**Status:** approved direction, pending owner review of this revision
-**Companion:** `2026-07-15-enrichment-openai-usage-analysis.md` (phase 0 deliverable — measured facts used throughout)
-**Scope:** label + artist enrichment (`src/collector/label_enrichment/`, `src/collector/artist_enrichment/`), library/player frontend surfaces, an offline experiment in `experiments/`, analytics scripts.
+**Date:** 2026-07-15 (reworked after the usage analysis; §1's two-pass split later amended by the experiment — see the addendum below)
+**Status:** approved; production shape fixed by the 2026-07-16 addendum
+**Companions:** `2026-07-15-enrichment-openai-usage-analysis.md` (phase 0), `2026-07-16-enrichment-split-experiment-report.md` (experiment gate verdict)
+**Scope:** label + artist enrichment (`src/collector/label_enrichment/`, `src/collector/artist_enrichment/`), library/player frontend surfaces, analytics scripts.
+
+## ADDENDUM 2026-07-16 — production shape after the experiment (this section governs)
+
+The experiment (100+100 prod entities, cap 1 and cap 2 runs) returned **NO-GO for the two-pass narrative/facts split** (§1 below): numeric fields collapse without agentic search (founded_year 26% vs 60%, releases_12m 4% vs 64%), `max_tool_calls` is a soft cap (avg 1.71 searches at cap 1), and cost missed the gate at both caps. Two components got a **GO**: the 3-tier socials module (IG found 86–88% vs 50%) and AI-block removal (narrative quality held everywhere).
+
+**Production shape (supersedes §1's two-pass design):**
+
+1. **Single OpenAI pass, as today,** with the **full request schema minus `ai_content`/`ai_signals`/`ai_reasoning`** and no AI text in prompts (new prompts `label_v4_no_ai` / `artist_v2_no_ai`). Numeric fill stays at baseline because agentic search stays.
+2. **`max_tool_calls=3`** as a tail guardrail (soft — trims the >3-search tail only), `reasoning.effort` env knob optional (latency only, tokens are free).
+3. **Socials post-pass** (ported from the proven `experiments/enrichment_split/` code) runs after `merge_cells`, only when `merged.instagram_url` is empty:
+   - tier 1: one Tavily basic search with `include_raw_content` → profile regex;
+   - tier 2: Tavily Extract over official URLs already found (website/bandcamp/soundcloud from merged or DB row);
+   - tier 3: instagram.com-restricted search;
+   - **handle validation on ALL tiers** (experiment measured tier-1 precision ≈86% without it), with the short-name rule relaxed (substring for names ≥4 chars + cross-network match) — projected found ≈70–78% at >90% precision.
+   - Result written into `merged.instagram_url` (+ other socials opportunistically), provenance `socials_tier{N}`.
+4. Instrumentation, honest pricing, frontend hide, analytics scripts — §§2–4, 6–7 below stand unchanged.
+5. Economics at 4× volume: ≈$0.030–0.036/entity ≈ $60–72/month with IG ~85%+ (today: $68/month at 44%/30% IG).
+
+Sections §1 (two-pass) and §5 (experiment gate) below are kept for history; the experiment is complete (PR #218).
 
 ## Goals
 
