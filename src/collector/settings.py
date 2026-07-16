@@ -203,6 +203,8 @@ class LabelEnrichmentWorkerSettings(_SettingsBase):
     label_enrichment_queue_url: str = Field(
         default="", alias="LABEL_ENRICHMENT_QUEUE_URL",
     )
+    openai_max_tool_calls: int = Field(default=3, alias="OPENAI_MAX_TOOL_CALLS")
+    openai_reasoning_effort: str = Field(default="", alias="OPENAI_REASONING_EFFORT")
 
 
 class ArtistEnrichmentWorkerSettings(_SettingsBase):
@@ -219,6 +221,8 @@ class ArtistEnrichmentWorkerSettings(_SettingsBase):
     artist_enrichment_queue_url: str = Field(
         default="", alias="ARTIST_ENRICHMENT_QUEUE_URL",
     )
+    openai_max_tool_calls: int = Field(default=3, alias="OPENAI_MAX_TOOL_CALLS")
+    openai_reasoning_effort: str = Field(default="", alias="OPENAI_REASONING_EFFORT")
 
 
 class CommentCollectionWorkerSettings(_SettingsBase):

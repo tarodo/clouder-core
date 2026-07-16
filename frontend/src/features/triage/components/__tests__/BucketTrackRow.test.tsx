@@ -59,24 +59,6 @@ describe('BucketTrackRow desktop', () => {
     expect(screen.getByText('2026-04-15')).toBeInTheDocument();
   });
 
-  it('shows AI warning when is_ai_suspected', () => {
-    r(
-      <Table>
-        <Table.Tbody>
-          <BucketTrackRow
-            track={{ ...track, is_ai_suspected: true }}
-            variant="desktop"
-            buckets={buckets}
-            currentBucketId="src"
-            onMove={vi.fn()}
-            showMoveMenu
-          />
-        </Table.Tbody>
-      </Table>,
-    );
-    expect(screen.getByLabelText(/AI-suspected track/i)).toBeInTheDocument();
-  });
-
   it('hides MoveToMenu when showMoveMenu=false (FINALIZED)', () => {
     r(
       <Table>

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useBackOrFallback } from '../hooks/useBackOrFallback';
 import type { ArtistDetail } from '../../../api/artists';
 import { countryFlag } from '../lib/countryFlag';
-import { AiContentBadge } from '../lib/aiContent';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 import { useAuth } from '../../../auth/useAuth';
 import { useEnrichArtistAuto } from '../hooks/useEnrichArtistAuto';
@@ -24,9 +23,6 @@ export function ArtistDetailHeader({ info, artistId }: Props) {
   const country = typeof rec.country === 'string' ? rec.country : '';
   const activeSince =
     typeof rec.active_since === 'number' ? rec.active_since : null;
-  const aiContent = typeof rec.ai_content === 'string' ? rec.ai_content : '';
-  const aiReasoning =
-    typeof rec.ai_reasoning === 'string' ? rec.ai_reasoning : '';
   const myPreference =
     rec.my_preference === 'liked' || rec.my_preference === 'disliked'
       ? rec.my_preference
@@ -39,7 +35,6 @@ export function ArtistDetailHeader({ info, artistId }: Props) {
           {t('library.detail.back')}
         </Anchor>
         <Title order={2}>{artistName}</Title>
-        <AiContentBadge content={aiContent} reasoning={aiReasoning} variant="colored" />
         <ArtistPreferenceButtons artistId={artistId} current={myPreference} size="md" />
         {isAdmin && (
           <Button

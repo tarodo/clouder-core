@@ -41,16 +41,6 @@ describe('CurateCard', () => {
     expect(screen.getByText('2026-04-15')).toBeInTheDocument();
   });
 
-  it('renders the AI badge when is_ai_suspected', () => {
-    render(wrap(<CurateCard track={mkTrack({ is_ai_suspected: true })} />));
-    expect(screen.getByText(/AI suspect/i)).toBeInTheDocument();
-  });
-
-  it('hides the AI badge when not suspected', () => {
-    render(wrap(<CurateCard track={mkTrack({ is_ai_suspected: false })} />));
-    expect(screen.queryByText(/AI suspect/i)).toBeNull();
-  });
-
   // F6 (commit 2b6a1b4): the inline "Open in Spotify" link moved out of
   // CurateCard into PlayerCard's top-right corner. CurateCard now only renders
   // a fallback hint when spotify_id is null.

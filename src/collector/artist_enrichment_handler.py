@@ -18,6 +18,7 @@ from .artist_enrichment.repository import ArtistEnrichmentRepository
 from .artist_enrichment.settings_provider import ArtistEnrichmentSecrets
 from .logging_utils import log_event
 from .settings import get_data_api_settings, get_artist_enrichment_worker_settings
+from .social_links import SocialsResolver
 
 try:
     from openai import OpenAI
@@ -62,6 +63,9 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         deepseek_api_key=settings.deepseek_api_key,
     )
     merge_client = _build_merge_client(settings.deepseek_api_key, settings.request_timeout_s)
+    socials_resolver = (
+        SocialsResolver(settings.tavily_api_key) if settings.tavily_api_key else None
+    )
 
     processed = 0
     for index, record in enumerate(records):
@@ -96,6 +100,8 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             models=models,
             secrets=secrets,
             request_timeout_s=settings.request_timeout_s,
+            openai_max_tool_calls=settings.openai_max_tool_calls,
+            openai_reasoning_effort=settings.openai_reasoning_effort,
         )
         prompt = get_prompt(run_row["prompt_slug"])
 
@@ -110,6 +116,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             repository=repository,
             ai_flag_threshold=settings.ai_flag_confidence_threshold,
             on_outcome=auto_repository.mark_auto_enrich_outcome,
+            socials_resolver=socials_resolver,
         )
         processed += 1
         log_event(

@@ -43,7 +43,6 @@ export function LabelsTable(p: Props) {
             <Table.Th>{t('library.list.col_country')}</Table.Th>
             <Table.Th>{t('library.list.col_founded')}</Table.Th>
             <Table.Th>{t('library.list.col_tracks')}</Table.Th>
-            <Table.Th>{t('library.list.col_ai_detected')}</Table.Th>
             <Table.Th>{t('library.list.col_my')}</Table.Th>
             <Table.Th>{t('library.list.col_description')}</Table.Th>
           </Table.Tr>
@@ -51,7 +50,6 @@ export function LabelsTable(p: Props) {
         <Table.Tbody>
           {p.items.map((it) => {
             const info = it.info ?? null;
-            const aiContent = info?.ai_content ? info.ai_content.toUpperCase() : null;
             const myPref =
               it.my_preference === 'liked' || it.my_preference === 'disliked'
                 ? it.my_preference
@@ -86,15 +84,6 @@ export function LabelsTable(p: Props) {
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm">{it.track_count}</Text>
-                </Table.Td>
-                <Table.Td>
-                  {aiContent ? (
-                    <Text size="sm">{aiContent}</Text>
-                  ) : (
-                    <Text size="sm" c="dimmed">
-                      —
-                    </Text>
-                  )}
                 </Table.Td>
                 <Table.Td>
                   <LabelPreferenceButtons labelId={it.id} current={myPref} size="sm" />

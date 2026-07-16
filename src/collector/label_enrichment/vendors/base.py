@@ -13,7 +13,7 @@ class VendorResponse:
     parsed: BaseModel | None
     raw: dict
     citations: list[str]
-    usage: dict          # {"input_tokens": int, "output_tokens": int, "cost_usd": float}
+    usage: dict          # {"input_tokens": int, "output_tokens": int, "cost_usd": float, "web_search_calls": int, "reasoning_tokens": int} — last two present on openai cells
     latency_ms: int
     model: str
     error: str | None = None

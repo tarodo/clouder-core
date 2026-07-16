@@ -5,11 +5,14 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable
 
+from ..logging_utils import log_event
+from ..social_links import SocialsResolver
 from .aggregator import merge_cells
 from .prompts.base import PromptConfig, render_user
 from .repository import LabelEnrichmentRepository
 from .settings_provider import LabelEnrichmentSecrets
 from .vendors.base import VendorAdapter, VendorResponse
+from .vendors.pricing import TAVILY_USD_PER_CREDIT
 
 
 def _cell_payload(
@@ -83,6 +86,7 @@ def enrich_label_for_run(
     repository: LabelEnrichmentRepository,
     ai_flag_threshold: float,
     on_outcome: "Callable[[str, bool], None] | None" = None,
+    socials_resolver: "SocialsResolver | None" = None,
 ) -> None:
     """End-to-end: flip run status, run vendors, persist cells + merged + counters.
 
@@ -116,6 +120,32 @@ def enrich_label_for_run(
 
     merged_info, meta = merge_cells(cells, merge_client, merge_model)
     cost += float(meta.get("narrative_cost_usd") or 0.0)
+
+    if socials_resolver is not None and not merged_info.instagram_url:
+        socials = socials_resolver.resolve(
+            kind="label", name=label_name, style=style, merged=merged_info.model_dump()
+        )
+        if socials.error is not None:
+            log_event(
+                "WARNING",
+                "socials_resolver_error",
+                run_id=run_id,
+                entity_type="label",
+                entity=label_name,
+                error_message=socials.error[:500],
+            )
+        if socials.updates:
+            merged_info = merged_info.model_copy(update=socials.updates)
+            prov = meta.get("field_provenance") or {}
+            tier_label = (
+                f"socials_tier{socials.instagram_tier}"
+                if socials.instagram_tier is not None
+                else "socials_regex"
+            )
+            for field in socials.updates:
+                prov[field] = tier_label
+            meta["field_provenance"] = prov
+        cost += socials.tavily_credits * TAVILY_USD_PER_CREDIT
 
     repository.upsert_label_info(
         label_id=label_id,
@@ -162,6 +192,8 @@ def build_adapters_from_run_config(
     models: dict[str, str],
     secrets: "LabelEnrichmentSecrets",
     request_timeout_s: float,
+    openai_max_tool_calls: int = 3,
+    openai_reasoning_effort: str = "",
 ) -> list[VendorAdapter]:
     """Instantiate exactly the requested adapters with their per-run models."""
     from .vendors.gemini import GeminiAdapter
@@ -184,6 +216,8 @@ def build_adapters_from_run_config(
                 api_key=secrets.openai_api_key,
                 default_model=model,
                 timeout_s=request_timeout_s,
+                max_tool_calls=openai_max_tool_calls,
+                reasoning_effort=openai_reasoning_effort,
             ))
         elif name == "tavily_deepseek":
             adapters.append(TavilyDeepSeekAdapter(

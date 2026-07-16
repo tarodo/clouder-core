@@ -48,7 +48,6 @@ describe('ArtistTile', () => {
     const link = screen.getByRole('link', { name: 'Aphex' });
     expect(link).toHaveAttribute('href', '/artists/a1');
     expect(screen.getByText('Pioneer.')).toBeInTheDocument();
-    expect(screen.getByText('AI CONFIRMED')).toBeInTheDocument();
   });
 
   test('renders the name as a link even in minimal mode', () => {

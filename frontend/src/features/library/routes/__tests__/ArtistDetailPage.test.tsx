@@ -85,12 +85,6 @@ describe('ArtistDetailPage', () => {
     expect(screen.getByRole('button', { name: /back/i })).toBeInTheDocument();
   });
 
-  it('renders the AI badge with confirmed status', () => {
-    renderPage();
-    const badge = screen.getByText(/AI.*CONFIRMED/i);
-    expect(badge).toBeInTheDocument();
-  });
-
   it('renders active_since value', () => {
     renderPage();
     expect(screen.getByText(/2004/)).toBeInTheDocument();

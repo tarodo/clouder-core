@@ -2,21 +2,32 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Type
 
+import openai
 from pydantic import BaseModel
 
 from .base import VendorResponse
-from .pricing import estimate_cost
+from .pricing import WEB_SEARCH_FEE_PER_CALL_USD, estimate_cost
 
 
 def _zero_usage() -> dict:
-    return {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+    return {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_usd": 0.0,
+        "web_search_calls": 0,
+        "reasoning_tokens": 0,
+    }
 
 
 def _lat(started: float) -> int:
     return int((time.monotonic() - started) * 1000)
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class OpenAIAdapter:
@@ -29,9 +40,13 @@ class OpenAIAdapter:
         default_model: str,
         timeout_s: float = 60.0,
         client: Any | None = None,
+        max_tool_calls: int | None = 3,
+        reasoning_effort: str = "",
     ) -> None:
         self.default_model = default_model
         self._timeout = timeout_s
+        self._max_tool_calls = max_tool_calls
+        self._reasoning_effort = reasoning_effort
         if client is not None:
             self._client = client
         else:
@@ -53,15 +68,36 @@ class OpenAIAdapter:
     ) -> VendorResponse:
         chosen_model = model or self.default_model
 
+        kwargs: dict[str, Any] = dict(
+            model=chosen_model,
+            input=[{"role": "user", "content": user}],
+            instructions=system,
+            tools=[{"type": "web_search"}],
+            text_format=schema,
+        )
+        if self._max_tool_calls:  # 0/None -> uncapped: OpenAI rejects max_tool_calls=0, so falsy means "don't send"
+            kwargs["max_tool_calls"] = self._max_tool_calls
+        if self._reasoning_effort:
+            kwargs["reasoning"] = {"effort": self._reasoning_effort}
+        had_knobs = "max_tool_calls" in kwargs or "reasoning" in kwargs
+
         started = time.monotonic()
         try:
-            response = self._client.responses.parse(
-                model=chosen_model,
-                input=[{"role": "user", "content": user}],
-                instructions=system,
-                tools=[{"type": "web_search"}],
-                text_format=schema,
-            )
+            try:
+                response = self._client.responses.parse(**kwargs)
+            except openai.BadRequestError:
+                if not had_knobs:
+                    raise
+                bare_kwargs = {
+                    k: v for k, v in kwargs.items()
+                    if k not in ("max_tool_calls", "reasoning")
+                }
+                _LOGGER.warning(
+                    "openai_bad_request_retry_bare model=%s dropped=%s",
+                    chosen_model,
+                    [k for k in ("max_tool_calls", "reasoning") if k in kwargs],
+                )
+                response = self._client.responses.parse(**bare_kwargs)
         except Exception as exc:  # noqa: BLE001 — never raise
             return VendorResponse(
                 parsed=None,
@@ -77,6 +113,8 @@ class OpenAIAdapter:
 
         input_tokens = 0
         output_tokens = 0
+        web_search_calls = 0
+        reasoning_tokens = 0
         citations: list[str] = []
         raw_dump: dict = {}
         parse_error: str | None = None
@@ -95,11 +133,25 @@ class OpenAIAdapter:
                     or getattr(usage, "completion_tokens", None)
                     or 0
                 )
+                reasoning_tokens = (
+                    getattr(
+                        getattr(usage, "output_tokens_details", None),
+                        "reasoning_tokens",
+                        0,
+                    )
+                    or 0
+                )
+
+            output_items = getattr(response, "output", None) or []
+            web_search_calls = sum(
+                1 for item in output_items
+                if getattr(item, "type", "") == "web_search_call"
+            )
 
             citations = list(getattr(response, "citations", None) or [])
             # Some SDK versions surface citations inside output items.
             if not citations:
-                for item in getattr(response, "output", None) or []:
+                for item in output_items:
                     item_type = getattr(item, "type", None)
                     if item_type and "search" in item_type.lower():
                         for c in getattr(item, "citations", None) or []:
@@ -112,7 +164,10 @@ class OpenAIAdapter:
         except Exception as exc:  # noqa: BLE001
             parse_error = f"parse error: {type(exc).__name__}: {exc}"
 
-        cost = estimate_cost(chosen_model, input_tokens, output_tokens)
+        cost = (
+            estimate_cost(chosen_model, input_tokens, output_tokens)
+            + web_search_calls * WEB_SEARCH_FEE_PER_CALL_USD
+        )
 
         error: str | None = parse_error
         if error is None and parsed is None:
@@ -126,6 +181,8 @@ class OpenAIAdapter:
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "cost_usd": cost,
+                "web_search_calls": web_search_calls,
+                "reasoning_tokens": reasoning_tokens,
             },
             latency_ms=latency_ms,
             model=chosen_model,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Badge, Divider, Group, Stack, Text } from '@mantine/core';
+import { Divider, Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { usePlayback } from '../../playback/usePlayback';
@@ -207,16 +207,6 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
   const metaRow =
     effectiveRich != null ? (
       <Stack gap={2} mt={4}>
-        {effectiveRich.is_ai_suspected && (
-          <Badge
-            color="yellow"
-            variant="light"
-            size="sm"
-            style={{ alignSelf: 'flex-start' }}
-          >
-            {t('curate.card.ai_badge')}
-          </Badge>
-        )}
         <Group gap="md" wrap="wrap" style={{ minWidth: 0 }}>
           {effectiveRich.label?.name ? (
             <Group gap={4} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>

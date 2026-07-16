@@ -12,7 +12,7 @@ PROMPTS: dict[str, PromptConfig] = {}
 # builtins if PROMPTS is cleared between test runs.
 _BUILTIN_CONFIGS: list[PromptConfig] = []
 
-_DEFAULT_PROMPT_SLUG = "artist_v1"
+_DEFAULT_PROMPT_SLUG = "artist_v2_no_ai"
 
 
 def register(cfg: PromptConfig) -> None:
@@ -36,6 +36,7 @@ def load_builtin_prompts() -> None:
     if not _BUILTIN_CONFIGS:
         before = set(PROMPTS)
         from . import artist_v1  # noqa: F401
+        from . import artist_v2_no_ai  # noqa: F401
         _BUILTIN_CONFIGS = [cfg for slug, cfg in PROMPTS.items() if slug not in before]
 
     for cfg in _BUILTIN_CONFIGS:
@@ -45,7 +46,7 @@ def load_builtin_prompts() -> None:
 def list_prompt_versions() -> list[dict[str, Any]]:
     """Return all loaded prompt registry entries as serializable dicts.
 
-    Default selection: prompt with slug == 'artist_v1'.
+    Default selection: prompt with slug == 'artist_v2_no_ai'.
     """
     items: list[dict[str, Any]] = []
     for slug, cfg in PROMPTS.items():

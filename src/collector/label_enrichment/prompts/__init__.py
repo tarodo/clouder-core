@@ -9,7 +9,7 @@ from .base import PromptConfig
 PROMPTS: dict[str, PromptConfig] = {}
 _BUILTIN_CONFIGS: list[PromptConfig] = []
 
-_DEFAULT_PROMPT_SLUG = "label_v3_app_fields"
+_DEFAULT_PROMPT_SLUG = "label_v4_no_ai"
 
 
 def register(cfg: PromptConfig) -> None:
@@ -34,6 +34,7 @@ def load_builtin_prompts() -> None:
         before = set(PROMPTS)
         from . import label_v2_facts  # noqa: F401
         from . import label_v3_app_fields  # noqa: F401
+        from . import label_v4_no_ai  # noqa: F401
         _BUILTIN_CONFIGS = [cfg for slug, cfg in PROMPTS.items() if slug not in before]
 
     for cfg in _BUILTIN_CONFIGS:
@@ -43,7 +44,7 @@ def load_builtin_prompts() -> None:
 def list_prompt_versions() -> list[dict[str, Any]]:
     """Return all loaded prompt registry entries as serializable dicts.
 
-    Default selection: prompt with slug == 'label_v3_app_fields'.
+    Default selection: prompt with slug == 'label_v4_no_ai'.
     """
     items: list[dict[str, Any]] = []
     for slug, cfg in PROMPTS.items():
