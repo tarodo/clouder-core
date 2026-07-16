@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Mapping
 from uuid import uuid4
 
 from .data_api import DataAPIClient, create_default_data_api_client
 from .models import RunStatus
+from .saturday_week import first_saturday, weeks_in_year
 from .settings import get_data_api_settings
 
 
@@ -755,13 +756,24 @@ class ClouderRepository:
         )
 
     def find_tracks_not_found_on_spotify(
-        self, limit: int, offset: int, search: str | None = None
+        self,
+        limit: int,
+        offset: int,
+        search: str | None = None,
+        publish_date_from: date | None = None,
+        publish_date_to: date | None = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {"limit": limit, "offset": offset}
         where_extra = ""
         if search:
-            where_extra = "AND t.normalized_title LIKE :search"
+            where_extra += "AND t.normalized_title LIKE :search\n"
             params["search"] = f"%{search.lower()}%"
+        if publish_date_from is not None:
+            where_extra += "AND t.publish_date >= :date_from\n"
+            params["date_from"] = publish_date_from
+        if publish_date_to is not None:
+            where_extra += "AND t.publish_date <= :date_to\n"
+            params["date_to"] = publish_date_to
         return self._data_api.execute(
             f"""
             SELECT t.id, t.title, t.isrc, t.bpm, t.publish_date,
@@ -780,12 +792,23 @@ class ClouderRepository:
             params,
         )
 
-    def count_tracks_not_found_on_spotify(self, search: str | None = None) -> int:
+    def count_tracks_not_found_on_spotify(
+        self,
+        search: str | None = None,
+        publish_date_from: date | None = None,
+        publish_date_to: date | None = None,
+    ) -> int:
         params: dict[str, Any] = {}
         where_extra = ""
         if search:
-            where_extra = "AND normalized_title LIKE :search"
+            where_extra += "AND normalized_title LIKE :search\n"
             params["search"] = f"%{search.lower()}%"
+        if publish_date_from is not None:
+            where_extra += "AND publish_date >= :date_from\n"
+            params["date_from"] = publish_date_from
+        if publish_date_to is not None:
+            where_extra += "AND publish_date <= :date_to\n"
+            params["date_to"] = publish_date_to
         rows = self._data_api.execute(
             f"""
             SELECT count(*) AS cnt
@@ -796,6 +819,52 @@ class ClouderRepository:
               {where_extra}
             """,
             params,
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+
+    def reset_spotify_not_found(
+        self,
+        publish_date_from: date,
+        publish_date_to: date,
+        now: datetime,
+    ) -> int:
+        """Clear spotify_searched_at for not-found tracks in the publish-date
+        range so the existing search worker picks them up again. Returns the
+        number of tracks reset (via RETURNING — the Data API wrapper exposes
+        rows, not numberOfRecordsUpdated)."""
+        rows = self._data_api.execute(
+            """
+            UPDATE clouder_tracks
+            SET spotify_searched_at = NULL,
+                updated_at = :now
+            WHERE isrc IS NOT NULL
+              AND spotify_id IS NULL
+              AND spotify_searched_at IS NOT NULL
+              AND publish_date BETWEEN :date_from AND :date_to
+            RETURNING id
+            """,
+            {
+                "now": now,
+                "date_from": publish_date_from,
+                "date_to": publish_date_to,
+            },
+        )
+        return len(rows)
+
+    def count_spotify_pending_in_range(
+        self,
+        publish_date_from: date,
+        publish_date_to: date,
+    ) -> int:
+        rows = self._data_api.execute(
+            """
+            SELECT count(*) AS cnt
+            FROM clouder_tracks
+            WHERE isrc IS NOT NULL
+              AND spotify_searched_at IS NULL
+              AND publish_date BETWEEN :date_from AND :date_to
+            """,
+            {"date_from": publish_date_from, "date_to": publish_date_to},
         )
         return int(rows[0]["cnt"]) if rows else 0
 
@@ -1113,6 +1182,39 @@ class ClouderRepository:
             ORDER BY cs.name ASC, r.week_number ASC NULLS LAST
             """,
             {"week_year": week_year},
+        )
+
+    def spotify_stats_for_year(self, week_year: int) -> list[dict[str, Any]]:
+        """Per (beatport style, Saturday week of publish_date) Spotify-match
+        counts for one Saturday-year. The four buckets are mutually exclusive
+        and sum to total."""
+        year_start = first_saturday(week_year)
+        year_end = year_start + timedelta(days=weeks_in_year(week_year) * 7 - 1)
+        return self._data_api.execute(
+            """
+            SELECT
+                im.external_id                         AS beatport_style_id,
+                (t.publish_date - :year_start) / 7 + 1 AS week_number,
+                COUNT(*)                               AS total,
+                COUNT(*) FILTER (WHERE t.spotify_id IS NOT NULL) AS found,
+                COUNT(*) FILTER (WHERE t.spotify_id IS NULL
+                                   AND t.spotify_searched_at IS NOT NULL)
+                                                       AS not_found,
+                COUNT(*) FILTER (WHERE t.isrc IS NOT NULL
+                                   AND t.spotify_searched_at IS NULL)
+                                                       AS pending,
+                COUNT(*) FILTER (WHERE t.isrc IS NULL) AS no_isrc
+            FROM clouder_tracks t
+            JOIN clouder_styles cs ON cs.id = t.style_id
+            JOIN identity_map im
+              ON im.source = 'beatport'
+              AND im.entity_type = 'style'
+              AND im.clouder_entity_type = 'style'
+              AND im.clouder_id = cs.id
+            WHERE t.publish_date BETWEEN :year_start AND :year_end
+            GROUP BY 1, 2
+            """,
+            {"year_start": year_start, "year_end": year_end},
         )
 
     def list_runs_for_cell(

@@ -1,5 +1,6 @@
 import { Box, Tooltip } from '@mantine/core';
 import { memo } from 'react';
+import type { ReactNode } from 'react';
 import type { CellState } from '../lib/cellState';
 
 interface Props {
@@ -7,7 +8,7 @@ interface Props {
   styleName: string;
   weekNumber: number;
   state: CellState;
-  tooltip: string;
+  tooltip: ReactNode;
   onClick: (styleId: number, weekNumber: number) => void;
 }
 

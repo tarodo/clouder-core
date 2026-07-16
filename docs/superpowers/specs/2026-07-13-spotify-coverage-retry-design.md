@@ -188,9 +188,12 @@ On `AdminSpotifyNotFoundPage` / `SpotifyNotFoundTable`:
 - `DatePickerInput type="range"` above the table filtering the list by
   `publish_date` — the admin first sees exactly which tracks (and how many)
   fall under the retry.
-- **Retry search** button: enabled only when both range ends are set. Opens a
-  confirm modal showing the current filtered `total` and the note about tracks
-  temporarily leaving the list. On confirm: `POST /admin/spotify/retry-not-found`
+- **Retry search** button: enabled only when both range ends are set. Before
+  the confirm modal opens, the shown count is fetched separately with the date
+  range only (no `search` param, `limit=1`): the table's `total` is also
+  filtered by the search string, but retry ignores search, so the modal must
+  show the date-range-only number. The modal also notes that tracks
+  temporarily leave the list. On confirm: `POST /admin/spotify/retry-not-found`
   via a new `useRetrySpotifySearch` mutation hook → success toast
   "Queued N tracks" → invalidate the not-found list query and the coverage
   query. `queued_count = 0` → neutral toast "nothing to retry".
