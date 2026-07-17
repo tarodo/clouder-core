@@ -9,10 +9,12 @@ from collector.curation import (
 )
 from collector.curation.playlists_service import (
     MAX_DESCRIPTION_LENGTH,
+    MAX_IMPORT_PLAYLIST_TRACKS,
     MAX_NAME_LENGTH,
     MAX_PLAYLISTS_PER_USER,
     MAX_TRACKS_PER_PLAYLIST,
     normalize_playlist_name,
+    parse_spotify_playlist_ref,
     parse_spotify_ref,
     validate_description,
     validate_playlist_name,
@@ -121,3 +123,28 @@ def test_limits_exposed_as_module_constants() -> None:
     assert MAX_TRACKS_PER_PLAYLIST == 1000
     assert MAX_NAME_LENGTH == 100
     assert MAX_DESCRIPTION_LENGTH == 300
+
+
+def test_parse_playlist_uri_form() -> None:
+    assert parse_spotify_playlist_ref(
+        "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M"
+    ) == "37i9dQZF1DXcBWIGoYBM5M"
+
+
+def test_parse_playlist_url_form() -> None:
+    assert parse_spotify_playlist_ref(
+        "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=x"
+    ) == "37i9dQZF1DXcBWIGoYBM5M"
+
+
+def test_parse_playlist_bare_id() -> None:
+    assert parse_spotify_playlist_ref("37i9dQZF1DXcBWIGoYBM5M") == "37i9dQZF1DXcBWIGoYBM5M"
+
+
+def test_parse_playlist_rejects_track_uri() -> None:
+    with pytest.raises(InvalidSpotifyRefError):
+        parse_spotify_playlist_ref("spotify:track:5xkAVrKKnHeBHb1Mqt6wEt")
+
+
+def test_max_import_playlist_tracks_is_200() -> None:
+    assert MAX_IMPORT_PLAYLIST_TRACKS == 200

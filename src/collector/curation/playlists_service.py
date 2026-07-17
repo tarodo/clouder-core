@@ -18,6 +18,7 @@ MAX_DESCRIPTION_LENGTH = 300
 MAX_PLAYLISTS_PER_USER = 200
 MAX_TRACKS_PER_PLAYLIST = 1000
 MAX_IMPORT_REFS_PER_REQUEST = 50
+MAX_IMPORT_PLAYLIST_TRACKS = 200
 MAX_COVER_BYTES = 262_144  # 256 KB — Spotify cover API limit.
 
 
@@ -28,6 +29,12 @@ _BASE62_RE = re.compile(r"^[0-9A-Za-z]{22}$")
 _URI_RE = re.compile(r"^spotify:track:([0-9A-Za-z]{22})$")
 _URL_RE = re.compile(
     r"^https?://open\.spotify\.com/track/([0-9A-Za-z]{22})(?:\?.*)?$"
+)
+
+# Match the three accepted playlist ref forms.
+_PLAYLIST_URI_RE = re.compile(r"^spotify:playlist:([0-9A-Za-z]{22})$")
+_PLAYLIST_URL_RE = re.compile(
+    r"^https?://open\.spotify\.com/playlist/([0-9A-Za-z]{22})(?:\?.*)?$"
 )
 
 
@@ -82,6 +89,27 @@ def parse_spotify_ref(ref: str) -> str:
         return cleaned
 
     raise InvalidSpotifyRefError(f"Unrecognized Spotify ref: {cleaned!r}")
+
+
+def parse_spotify_playlist_ref(ref: str) -> str:
+    """Return the 22-char Spotify playlist ID or raise InvalidSpotifyRefError.
+
+    Accepts: spotify:playlist:<id> | https://open.spotify.com/playlist/<id>[?q] | <id>
+    """
+    if not isinstance(ref, str):
+        raise InvalidSpotifyRefError("Spotify ref must be a string")
+    cleaned = ref.strip()
+    if not cleaned:
+        raise InvalidSpotifyRefError("Spotify ref must be non-empty")
+    m = _PLAYLIST_URI_RE.match(cleaned)
+    if m:
+        return m.group(1)
+    m = _PLAYLIST_URL_RE.match(cleaned)
+    if m:
+        return m.group(1)
+    if _BASE62_RE.match(cleaned):
+        return cleaned
+    raise InvalidSpotifyRefError(f"Unrecognized Spotify playlist ref: {cleaned!r}")
 
 
 def validate_reorder_set(
