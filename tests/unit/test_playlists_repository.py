@@ -16,6 +16,7 @@ from collector.curation import (
     PlaylistNotFoundError,
 )
 from collector.curation.playlists_repository import (
+    ImportTrackInput,
     PlaylistRow,
     PlaylistsRepository,
 )
@@ -947,3 +948,97 @@ def test_reorder_marks_ytmusic_needs_republish() -> None:
     # ...and ytmusic dirty-mark added.
     assert "ytmusic_needs_republish = TRUE" in joined
     assert "ytmusic_playlist_id IS NOT NULL" in joined
+
+
+def _batch_data_api() -> MagicMock:
+    """Data API fake that records execute/batch_execute calls."""
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+    api.executed: list[tuple[str, dict]] = []
+    api.batched: list[tuple[str, list[dict]]] = []
+
+    def _execute(sql, params=None, transaction_id=None):
+        api.executed.append((sql, params or {}))
+        # No existing tracks / artists by default.
+        return []
+
+    def _batch(sql, parameter_sets, transaction_id=None):
+        api.batched.append((sql, list(parameter_sets)))
+
+    api.execute.side_effect = _execute
+    api.batch_execute.side_effect = _batch
+    return api
+
+
+def test_import_tracks_batch_inserts_new_track_and_artists() -> None:
+    api = _batch_data_api()
+    repo = PlaylistsRepository(api)
+    ids = repo.import_tracks_batch(
+        user_id="u-1",
+        tracks=[
+            ImportTrackInput(
+                spotify_id="spt-a", title="Track A", isrc="ISRC1",
+                length_ms=200_000, artists=["Guri", "Nu Zau"],
+            )
+        ],
+        now=_utc(),
+    )
+    assert len(ids) == 1
+    # New track inserted.
+    track_ins = [b for b in api.batched if "INSERT INTO clouder_tracks" in b[0]]
+    assert track_ins and track_ins[0][1][0]["spotify_id"] == "spt-a"
+    assert track_ins[0][1][0]["origin"] == "spotify_user_import"
+    # Both artists inserted (deduped by normalized_name).
+    artist_ins = [b for b in api.batched if "INSERT INTO clouder_artists" in b[0]]
+    assert artist_ins and len(artist_ins[0][1]) == 2
+    names = {r["normalized_name"] for r in artist_ins[0][1]}
+    assert names == {"guri", "nu zau"}
+    # Links created with role 'main'.
+    link_ins = [b for b in api.batched if "INSERT INTO clouder_track_artists" in b[0]]
+    assert link_ins and all(r["role"] == "main" for r in link_ins[0][1])
+    # Import marker written.
+    imp_ins = [b for b in api.batched if "INSERT INTO user_imported_tracks" in b[0]]
+    assert imp_ins and imp_ins[0][1][0] == {
+        "user_id": "u-1", "track_id": ids[0], "now": _utc(),
+    }
+
+
+def test_import_tracks_batch_reuses_existing_and_skips_artist_write() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+    batched: list[str] = []
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT spotify_id, id FROM clouder_tracks" in sql:
+            return [{"spotify_id": "spt-a", "id": "existing-1"}]
+        return []
+
+    def _batch(sql, parameter_sets, transaction_id=None):
+        batched.append(sql)
+
+    api.execute.side_effect = _execute
+    api.batch_execute.side_effect = _batch
+    repo = PlaylistsRepository(api)
+    ids = repo.import_tracks_batch(
+        user_id="u-1",
+        tracks=[ImportTrackInput(
+            spotify_id="spt-a", title="Track A", isrc=None,
+            length_ms=None, artists=["Guri"],
+        )],
+        now=_utc(),
+    )
+    assert ids == ["existing-1"]
+    # Existing track → no new clouder_tracks / clouder_artists / links.
+    assert not any("INSERT INTO clouder_tracks" in s for s in batched)
+    assert not any("INSERT INTO clouder_artists" in s for s in batched)
+    assert not any("INSERT INTO clouder_track_artists" in s for s in batched)
+    # But the import marker is still written.
+    assert any("INSERT INTO user_imported_tracks" in s for s in batched)
+
+
+def test_import_tracks_batch_empty_returns_empty() -> None:
+    api = MagicMock()
+    repo = PlaylistsRepository(api)
+    assert repo.import_tracks_batch(user_id="u-1", tracks=[], now=_utc()) == []

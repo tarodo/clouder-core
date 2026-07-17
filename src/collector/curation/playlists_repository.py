@@ -186,6 +186,15 @@ class MatchInput:
 
 
 @dataclass(frozen=True)
+class ImportTrackInput:
+    spotify_id: str
+    title: str
+    isrc: str | None
+    length_ms: int | None
+    artists: list[str]  # ordered display names; may be empty
+
+
+@dataclass(frozen=True)
 class ReviewRow:
     candidates: list[dict[str, Any]]
 
@@ -908,6 +917,167 @@ class PlaylistsRepository:
                 transaction_id=tx_id,
             )
             return track_id
+
+    def import_tracks_batch(
+        self,
+        *,
+        user_id: str,
+        tracks: list[ImportTrackInput],
+        now: datetime,
+    ) -> list[str]:
+        """Batch-import Spotify tracks; return one clouder_tracks.id per input.
+
+        One transaction, batched writes:
+          - dedup existing rows by spotify_id (reuse id),
+          - insert new clouder_tracks,
+          - persist artists for NEW tracks only (dedup clouder_artists by
+            normalized_name) and link clouder_track_artists (role='main'),
+          - mark user_imported_tracks for every (user_id, track_id).
+
+        Artists are written only for freshly-inserted tracks; a spotify_id
+        dedup hit reuses the existing row untouched.
+        """
+        if not tracks:
+            return []
+        with self._data_api.transaction() as tx_id:
+            # 1. Dedup existing tracks by spotify_id.
+            unique_sids = list({t.spotify_id for t in tracks})
+            sid_ph = ", ".join(f":s{i}" for i in range(len(unique_sids)))
+            sid_params = {f"s{i}": sid for i, sid in enumerate(unique_sids)}
+            existing_rows = self._data_api.execute(
+                f"SELECT spotify_id, id FROM clouder_tracks "
+                f"WHERE spotify_id IN ({sid_ph})",
+                sid_params,
+                transaction_id=tx_id,
+            )
+            id_by_sid: dict[str, str] = {}
+            for r in existing_rows:
+                id_by_sid.setdefault(r["spotify_id"], r["id"])
+
+            # 2. Insert new clouder_tracks (one row per new spotify_id).
+            new_track_rows: list[dict] = []
+            for t in tracks:
+                if t.spotify_id in id_by_sid:
+                    continue
+                new_id = str(uuid.uuid4())
+                id_by_sid[t.spotify_id] = new_id
+                new_track_rows.append({
+                    "id": new_id,
+                    "title": t.title,
+                    "normalized_title": normalize_text(t.title),
+                    "isrc": t.isrc,
+                    "length_ms": t.length_ms,
+                    "spotify_id": t.spotify_id,
+                    "origin": "spotify_user_import",
+                    "now": now,
+                })
+            new_sids = {row["spotify_id"] for row in new_track_rows}
+            if new_track_rows:
+                self._data_api.batch_execute(
+                    """
+                    INSERT INTO clouder_tracks (
+                        id, title, normalized_title, isrc, length_ms,
+                        spotify_id, origin, created_at, updated_at
+                    ) VALUES (
+                        :id, :title, :normalized_title, :isrc, :length_ms,
+                        :spotify_id, :origin, :now, :now
+                    )
+                    """,
+                    new_track_rows,
+                    transaction_id=tx_id,
+                )
+
+            # 3. Persist artists for NEW tracks only.
+            name_by_norm: dict[str, str] = {}
+            for t in tracks:
+                if t.spotify_id not in new_sids:
+                    continue
+                for name in t.artists:
+                    norm = normalize_text(name)
+                    if norm:
+                        name_by_norm.setdefault(norm, name.strip())
+            if name_by_norm:
+                norms = list(name_by_norm.keys())
+                n_ph = ", ".join(f":n{i}" for i in range(len(norms)))
+                n_params = {f"n{i}": nm for i, nm in enumerate(norms)}
+                found = self._data_api.execute(
+                    f"SELECT id, normalized_name FROM clouder_artists "
+                    f"WHERE normalized_name IN ({n_ph})",
+                    n_params,
+                    transaction_id=tx_id,
+                )
+                artist_id_by_norm: dict[str, str] = {
+                    r["normalized_name"]: r["id"] for r in found
+                }
+                new_artist_rows: list[dict] = []
+                for norm, display in name_by_norm.items():
+                    if norm in artist_id_by_norm:
+                        continue
+                    aid = str(uuid.uuid4())
+                    artist_id_by_norm[norm] = aid
+                    new_artist_rows.append({
+                        "id": aid, "name": display,
+                        "normalized_name": norm, "now": now,
+                    })
+                if new_artist_rows:
+                    self._data_api.batch_execute(
+                        """
+                        INSERT INTO clouder_artists (
+                            id, name, normalized_name, created_at, updated_at
+                        ) VALUES (:id, :name, :normalized_name, :now, :now)
+                        """,
+                        new_artist_rows,
+                        transaction_id=tx_id,
+                    )
+                link_rows: list[dict] = []
+                for t in tracks:
+                    if t.spotify_id not in new_sids:
+                        continue
+                    tid = id_by_sid[t.spotify_id]
+                    seen: set[str] = set()
+                    for name in t.artists:
+                        norm = normalize_text(name)
+                        if not norm:
+                            continue
+                        aid = artist_id_by_norm[norm]
+                        if aid in seen:
+                            continue
+                        seen.add(aid)
+                        link_rows.append({
+                            "track_id": tid, "artist_id": aid, "role": "main",
+                        })
+                if link_rows:
+                    self._data_api.batch_execute(
+                        """
+                        INSERT INTO clouder_track_artists (track_id, artist_id, role)
+                        VALUES (:track_id, :artist_id, :role)
+                        ON CONFLICT DO NOTHING
+                        """,
+                        link_rows,
+                        transaction_id=tx_id,
+                    )
+
+            # 4. Mark user_imported_tracks for every resolved track.
+            import_rows: list[dict] = []
+            seen_tids: set[str] = set()
+            for t in tracks:
+                tid = id_by_sid[t.spotify_id]
+                if tid in seen_tids:
+                    continue
+                seen_tids.add(tid)
+                import_rows.append({"user_id": user_id, "track_id": tid, "now": now})
+            self._data_api.batch_execute(
+                """
+                INSERT INTO user_imported_tracks (user_id, track_id, imported_at)
+                VALUES (:user_id, :track_id, :now)
+                ON CONFLICT DO NOTHING
+                """,
+                import_rows,
+                transaction_id=tx_id,
+            )
+
+            # 5. Return ids in input order.
+            return [id_by_sid[t.spotify_id] for t in tracks]
 
     # ---------- Vendor match inputs ------------------------------------------
 
