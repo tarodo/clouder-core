@@ -22,6 +22,7 @@ from collector.curation import (
     PlaylistNameConflictError,
     PlaylistNotFoundError,
     PlaylistTrackLimitError,
+    SpotifyNotFoundError,
 )
 from collector.curation.playlists_repository import (
     AppendTracksResult,
@@ -625,6 +626,60 @@ def test_import_spotify_playlist_rejects_bad_ref(fake_repo, fake_s3, fake_spotif
         None,
     )
     assert resp["statusCode"] == 400
+
+
+def test_import_spotify_playlist_missing_returns_404(fake_repo, fake_s3, fake_spotify_client):
+    """Regression for I1: a bad/inaccessible Spotify playlist must surface
+    the route's documented 404 (playlist_not_found), not SpotifyNotFoundError's
+    inherited 502 upstream-error status."""
+    fake_spotify_client.get_playlist_name.side_effect = SpotifyNotFoundError(
+        "no such playlist"
+    )
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 404
+    body = json.loads(resp["body"])
+    assert body["error_code"] == "playlist_not_found"
+    # Nothing was created before the Spotify read failed.
+    assert fake_repo.playlists == {}
+
+
+def test_import_spotify_playlist_soft_deletes_orphan_on_post_create_failure(
+    fake_repo, fake_s3, fake_spotify_client, monkeypatch,
+):
+    """Regression for I2: if anything after repo.create() fails, the
+    just-created playlist must be soft-deleted rather than left as an
+    empty orphan that would block retry with a 409 name conflict."""
+    original_soft_delete = fake_repo.soft_delete
+    soft_delete_spy = MagicMock(side_effect=original_soft_delete)
+    monkeypatch.setattr(fake_repo, "soft_delete", soft_delete_spy)
+
+    def _raising_import_tracks_batch(*, user_id, tracks, now):
+        raise RuntimeError("boom during import")
+
+    monkeypatch.setattr(
+        fake_repo, "import_tracks_batch", _raising_import_tracks_batch,
+    )
+
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 500
+    soft_delete_spy.assert_called_once()
+    # The playlist created before the failure must not survive as alive —
+    # soft_delete flipped it, so a fresh `get()` finds nothing for the user.
+    assert len(fake_repo.playlists) == 1
+    orphan_id = next(iter(fake_repo.playlists))
+    assert fake_repo.get(user_id="u1", playlist_id=orphan_id) is None
 
 
 def test_cover_upload_lifecycle(fake_repo, fake_s3):

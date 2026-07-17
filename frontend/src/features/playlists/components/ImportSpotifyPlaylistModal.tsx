@@ -62,6 +62,8 @@ export function ImportSpotifyPlaylistModal({ opened, onClose }: ImportSpotifyPla
         setServerError(t('playlists.errors.spotify_not_authorized'));
       } else if (err instanceof ApiError && err.status === 502) {
         setServerError(t('playlists.errors.spotify_upstream_error'));
+      } else if (err instanceof ApiError && err.status === 404) {
+        setServerError(t('playlists.importPlaylist.not_found'));
       } else {
         setServerError(t('playlists.toast.generic_error'));
       }

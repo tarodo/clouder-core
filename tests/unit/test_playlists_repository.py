@@ -203,6 +203,50 @@ def test_append_tracks_uses_max_position_plus_one() -> None:
     assert [p["position"] for p in captured_inserts] == [5, 6]
 
 
+def test_append_tracks_dedups_intra_input_duplicates() -> None:
+    """Regression for C1: a Spotify playlist can legitimately contain the
+    same track twice, so track_ids passed in may already carry a
+    duplicate. append_tracks must insert each id at most once (else the
+    batch_execute INSERT violates the (playlist_id, track_id) PK) and
+    report the repeat as a skipped duplicate.
+    """
+    captured_inserts: list[dict] = []
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT COUNT(*) AS cnt FROM playlist_tracks" in sql:
+            return [{"cnt": 0}]
+        if "SELECT COALESCE(MAX(position), -1)" in sql:
+            return [{"max_pos": -1}]
+        if "SELECT track_id FROM playlist_tracks" in sql:
+            return []  # empty playlist, nothing pre-existing
+        return []
+
+    def _batch_execute(sql, parameter_sets, transaction_id=None):
+        captured_inserts.extend(parameter_sets)
+
+    api.execute.side_effect = _execute
+    api.batch_execute.side_effect = _batch_execute
+
+    repo = PlaylistsRepository(api)
+    result = repo.append_tracks(
+        user_id="u-1",
+        playlist_id="p-1",
+        track_ids=["a", "b", "a"],
+        now=_utc(),
+    )
+
+    inserted_track_ids = [p["track_id"] for p in captured_inserts]
+    assert inserted_track_ids == ["a", "b"]
+    assert [p["position"] for p in captured_inserts] == [0, 1]
+    assert result.added_track_ids == ["a", "b"]
+    assert "a" in result.skipped_duplicates
+
+
 def test_append_tracks_dedups_against_existing() -> None:
     api = MagicMock()
     api.transaction.return_value.__enter__.return_value = "tx"

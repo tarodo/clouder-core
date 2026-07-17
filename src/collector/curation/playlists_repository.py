@@ -464,8 +464,22 @@ class PlaylistsRepository:
             )
             existing = {r["track_id"] for r in existing_rows}
 
-            to_add = [t for t in track_ids if t not in existing]
-            skipped = [t for t in track_ids if t in existing]
+            # A Spotify playlist can legitimately contain the same track
+            # twice, so `track_ids` may itself carry duplicates. Dedup
+            # within the input (order-preserving) in the same pass that
+            # skips ids already present in the playlist — otherwise
+            # `to_add` could contain the same id twice and the
+            # batch_execute INSERT would violate the
+            # (playlist_id, track_id) primary key.
+            seen: set[str] = set()
+            to_add: list[str] = []
+            skipped: list[str] = []
+            for t in track_ids:
+                if t in existing or t in seen:
+                    skipped.append(t)
+                    continue
+                seen.add(t)
+                to_add.append(t)
 
             if current + len(to_add) > MAX_TRACKS_PER_PLAYLIST:
                 raise PlaylistTrackLimitError(

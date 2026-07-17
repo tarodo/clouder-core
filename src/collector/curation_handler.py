@@ -1176,10 +1176,18 @@ def _handle_import_spotify_playlist(event, repo, user_id, correlation_id):
     playlist_sid = parse_spotify_playlist_ref(body.spotify_ref)
 
     sp_client = _build_spotify_user_client(user_id, correlation_id)
-    sp_name = sp_client.get_playlist_name(playlist_sid)
-    payloads = sp_client.get_playlist_tracks(
-        playlist_sid, limit=MAX_IMPORT_PLAYLIST_TRACKS + 1,
-    )
+    try:
+        sp_name = sp_client.get_playlist_name(playlist_sid)
+        payloads = sp_client.get_playlist_tracks(
+            playlist_sid, limit=MAX_IMPORT_PLAYLIST_TRACKS + 1,
+        )
+    except SpotifyNotFoundError:
+        # The Spotify playlist doesn't exist or isn't accessible to this
+        # user — surface the route's documented 404 rather than letting
+        # SpotifyNotFoundError's inherited 502 (upstream error) leak
+        # through, which would misreport a client-facing "not found" as
+        # a server-side Spotify failure.
+        raise PlaylistNotFoundError()
     truncated = len(payloads) > MAX_IMPORT_PLAYLIST_TRACKS
     if truncated:
         payloads = payloads[:MAX_IMPORT_PLAYLIST_TRACKS]
@@ -1196,21 +1204,30 @@ def _handle_import_spotify_playlist(event, repo, user_id, correlation_id):
         now=utc_now(),
     )
 
-    inputs = [
-        ImportTrackInput(
-            spotify_id=p.id, title=p.name, isrc=p.isrc,
-            length_ms=p.duration_ms,
-            artists=[a.name for a in p.artists if a.name],
+    try:
+        inputs = [
+            ImportTrackInput(
+                spotify_id=p.id, title=p.name, isrc=p.isrc,
+                length_ms=p.duration_ms,
+                artists=[a.name for a in p.artists if a.name],
+            )
+            for p in payloads
+        ]
+        track_ids = repo.import_tracks_batch(
+            user_id=user_id, tracks=inputs, now=utc_now(),
         )
-        for p in payloads
-    ]
-    track_ids = repo.import_tracks_batch(
-        user_id=user_id, tracks=inputs, now=utc_now(),
-    )
-    result = repo.append_tracks(
-        user_id=user_id, playlist_id=playlist_id,
-        track_ids=track_ids, now=utc_now(),
-    )
+        result = repo.append_tracks(
+            user_id=user_id, playlist_id=playlist_id,
+            track_ids=track_ids, now=utc_now(),
+        )
+    except Exception:
+        # Don't leave an orphan, empty playlist behind if anything after
+        # create() fails — it would block retry with a 409 name conflict.
+        try:
+            repo.soft_delete(user_id=user_id, playlist_id=playlist_id, now=utc_now())
+        except Exception:
+            pass
+        raise
     _enqueue_ytmusic(repo, result.added_track_ids, correlation_id)
 
     log_event(

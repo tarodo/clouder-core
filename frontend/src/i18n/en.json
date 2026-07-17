@@ -326,7 +326,8 @@
       "submit": "Import",
       "success": "Imported {{count}} tracks into \"{{name}}\"",
       "success_truncated": "Imported {{count}} tracks (capped at 200) into \"{{name}}\"",
-      "name_conflict": "A playlist with this name already exists — pick a name"
+      "name_conflict": "A playlist with this name already exists — pick a name",
+      "not_found": "Playlist not found or not accessible"
     },
     "add_tracks": {
       "title": "Add tracks",
