@@ -58,7 +58,10 @@ from .curation.playlists_repository import (
 )
 from .curation.playlists_service import (
     MAX_COVER_BYTES,
+    MAX_IMPORT_PLAYLIST_TRACKS,
+    MAX_NAME_LENGTH,
     normalize_playlist_name,
+    parse_spotify_playlist_ref,
     parse_spotify_ref,
     validate_description,
     validate_playlist_name,
@@ -70,6 +73,7 @@ from .curation.schemas import (
     CreateCategoryIn,
     CreatePlaylistIn,
     CreateTriageBlockIn,
+    ImportSpotifyPlaylistIn,
     ImportSpotifyTracksIn,
     MoveTracksIn,
     PatchPlaylistIn,
@@ -1163,6 +1167,72 @@ def _handle_import_spotify(event, repo, user_id, correlation_id):
     )
 
 
+def _handle_import_spotify_playlist(event, repo, user_id, correlation_id):
+    body = ImportSpotifyPlaylistIn.model_validate(_parse_body(event))
+    # InvalidSpotifyRefError is a CurationError with http_status=400; let it
+    # propagate to lambda_handler's generic CurationError handling rather
+    # than wrapping it in ValidationError (422), which would misreport a
+    # malformed ref as a 422 instead of a 400.
+    playlist_sid = parse_spotify_playlist_ref(body.spotify_ref)
+
+    sp_client = _build_spotify_user_client(user_id, correlation_id)
+    sp_name = sp_client.get_playlist_name(playlist_sid)
+    payloads = sp_client.get_playlist_tracks(
+        playlist_sid, limit=MAX_IMPORT_PLAYLIST_TRACKS + 1,
+    )
+    truncated = len(payloads) > MAX_IMPORT_PLAYLIST_TRACKS
+    if truncated:
+        payloads = payloads[:MAX_IMPORT_PLAYLIST_TRACKS]
+
+    name = (body.name or sp_name or "Imported playlist").strip()[:MAX_NAME_LENGTH]
+    validate_playlist_name(name)
+    normalized = normalize_playlist_name(name)
+    if not normalized:
+        raise ValidationError("Name must be non-empty")
+    playlist_id = str(uuid.uuid4())
+    repo.create(
+        user_id=user_id, playlist_id=playlist_id, name=name,
+        normalized_name=normalized, description=None, is_public=True,
+        now=utc_now(),
+    )
+
+    inputs = [
+        ImportTrackInput(
+            spotify_id=p.id, title=p.name, isrc=p.isrc,
+            length_ms=p.duration_ms,
+            artists=[a.name for a in p.artists if a.name],
+        )
+        for p in payloads
+    ]
+    track_ids = repo.import_tracks_batch(
+        user_id=user_id, tracks=inputs, now=utc_now(),
+    )
+    result = repo.append_tracks(
+        user_id=user_id, playlist_id=playlist_id,
+        track_ids=track_ids, now=utc_now(),
+    )
+    _enqueue_ytmusic(repo, result.added_track_ids, correlation_id)
+
+    log_event(
+        "INFO", "playlist_spotify_playlist_imported",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=playlist_id,
+        imported=len(result.added_track_ids), truncated=truncated,
+    )
+    return _json_response(
+        201,
+        {
+            "playlist_id": playlist_id,
+            "name": name,
+            "imported": len(result.added_track_ids),
+            "skipped": len(result.skipped_duplicates),
+            "truncated": truncated,
+            "total": len(track_ids),
+            "correlation_id": correlation_id,
+        },
+        correlation_id,
+    )
+
+
 def _handle_publish_ytmusic(event, repo, user_id, correlation_id):
     pid = (event.get("pathParameters") or {}).get("id")
     if not pid:
@@ -2081,6 +2151,9 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     ),
     "DELETE /playlists/{id}/cover": (
         _handle_cover_delete, _playlists_factory,
+    ),
+    "POST /playlists/import-spotify-playlist": (
+        _handle_import_spotify_playlist, _playlists_factory,
     ),
     "POST /playlists/{id}/tracks/import-spotify": (
         _handle_import_spotify, _playlists_factory,

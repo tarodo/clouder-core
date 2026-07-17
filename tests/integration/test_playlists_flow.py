@@ -353,6 +353,14 @@ def fake_spotify_client(monkeypatch):
         id="spt-new",
         url="https://open.spotify.com/playlist/spt-new",
     )
+    # Default: whole-playlist import reads a name and two tracks
+    client.get_playlist_name.return_value = "Spotify Mix"
+    client.get_playlist_tracks.return_value = [
+        SimpleNamespace(id="spt-1", name="One", duration_ms=100, isrc=None,
+                        artists=(SimpleNamespace(name="Guri"),)),
+        SimpleNamespace(id="spt-2", name="Two", duration_ms=200, isrc=None,
+                        artists=(SimpleNamespace(name="Nu Zau"),)),
+    ]
     monkeypatch.setattr(
         "collector.curation_handler._build_spotify_user_client",
         lambda user_id, correlation_id: client,
@@ -573,6 +581,50 @@ def test_import_spotify_persists_artists(fake_repo, fake_s3, fake_spotify_client
     assert resp["statusCode"] == 201
     tid = json.loads(resp["body"])["added"][0]["track_id"]
     assert fake_repo.canonical_tracks[tid]["artists"] == ["Guri"]
+
+
+def test_import_spotify_playlist_creates_mirror(fake_repo, fake_s3, fake_spotify_client):
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 201
+    body = json.loads(resp["body"])
+    assert body["name"] == "Spotify Mix"
+    assert body["imported"] == 2
+    assert body["truncated"] is False
+    assert body["total"] == 2
+    # A new clouder playlist was created and both tracks appended.
+    pid = body["playlist_id"]
+    assert fake_repo.get(user_id="u1", playlist_id=pid) is not None
+    assert sum(1 for (p, _t) in fake_repo.tracks if p == pid) == 2
+    # Artists were persisted through the batch importer.
+    assert any(m.get("artists") == ["Guri"] for m in fake_repo.canonical_tracks.values())
+
+
+def test_import_spotify_playlist_name_override(fake_repo, fake_s3, fake_spotify_client):
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "37i9dQZF1DXcBWIGoYBM5M", "name": "My Name"},
+        ),
+        None,
+    )
+    assert json.loads(resp["body"])["name"] == "My Name"
+
+
+def test_import_spotify_playlist_rejects_bad_ref(fake_repo, fake_s3, fake_spotify_client):
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "not-a-playlist"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 400
 
 
 def test_cover_upload_lifecycle(fake_repo, fake_s3):
