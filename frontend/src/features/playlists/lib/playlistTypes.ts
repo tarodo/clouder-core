@@ -91,6 +91,16 @@ export interface ImportSpotifyResult {
   correlation_id?: string;
 }
 
+export interface ImportSpotifyPlaylistResult {
+  playlist_id: string;
+  name: string;
+  imported: number;
+  skipped: number;
+  truncated: boolean;
+  total: number;
+  correlation_id?: string;
+}
+
 export interface PublishResult {
   spotify_playlist_id: string;
   spotify_url: string;
