@@ -160,3 +160,56 @@ def test_set_cover_base64_encodes_and_sends() -> None:
     assert isinstance(body, (bytes, str))
     # base64-encoded JPEG bytes start with /9j when source is JPEG
     assert b"/9j" in (body if isinstance(body, bytes) else body.encode())
+
+
+def test_get_playlist_name() -> None:
+    session = MagicMock()
+    session.request.return_value = _Resp(200, {"name": "My Set"})
+    client = _client(session)
+    assert client.get_playlist_name("pl-1") == "My Set"
+    _, kwargs = session.request.call_args
+    assert "playlists/pl-1" in kwargs.get("url")
+
+
+def test_get_playlist_tracks_paginates_and_filters() -> None:
+    page1 = _Resp(200, {
+        "items": [
+            {"track": {"id": "a", "name": "A", "duration_ms": 1000,
+                       "external_ids": {"isrc": "I1"},
+                       "artists": [{"id": "x", "name": "Art"}]}},
+            {"track": None},                              # removed → skip
+            {"track": {"id": None, "is_local": True, "name": "Local"}},  # skip
+            {"track": {"id": "e", "type": "episode", "name": "Ep"}},     # skip
+        ],
+        "next": "http://next",
+    })
+    page2 = _Resp(200, {
+        "items": [
+            {"track": {"id": "b", "name": "B", "duration_ms": 2000,
+                       "external_ids": {}, "artists": []}},
+        ],
+        "next": None,
+    })
+    session = MagicMock()
+    session.request.side_effect = [page1, page2]
+    client = _client(session)
+    tracks = client.get_playlist_tracks("pl-1", limit=500)
+    assert [t.id for t in tracks] == ["a", "b"]
+    assert tracks[0].isrc == "I1"
+    assert tracks[0].artists[0].name == "Art"
+
+
+def test_get_playlist_tracks_respects_limit() -> None:
+    page = _Resp(200, {
+        "items": [
+            {"track": {"id": "a", "name": "A", "duration_ms": 1, "external_ids": {}, "artists": []}},
+            {"track": {"id": "b", "name": "B", "duration_ms": 1, "external_ids": {}, "artists": []}},
+            {"track": {"id": "c", "name": "C", "duration_ms": 1, "external_ids": {}, "artists": []}},
+        ],
+        "next": "http://next",
+    })
+    session = MagicMock()
+    session.request.return_value = page
+    client = _client(session)
+    tracks = client.get_playlist_tracks("pl-1", limit=2)
+    assert [t.id for t in tracks] == ["a", "b"]
