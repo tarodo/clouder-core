@@ -17,6 +17,7 @@ locals {
     "POST /playlists/{id}/cover/confirm",
     "DELETE /playlists/{id}/cover",
     "POST /playlists/{id}/tracks/import-spotify",
+    "POST /playlists/import-spotify-playlist",
     "POST /playlists/{id}/publish",
     "POST /playlists/{id}/publish-ytmusic",
     "GET /playlists/{id}/tracks/{track_id}/match-candidates",

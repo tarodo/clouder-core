@@ -3169,6 +3169,46 @@ ROUTES: list[dict[str, Any]] = [
     },
     {
         "method": "post",
+        "path": "/playlists/import-spotify-playlist",
+        "auth": AUTH,
+        "summary": "Import a whole Spotify playlist as a new mirror playlist.",
+        "description": (
+            "Reads the Spotify playlist via the user's stored OAuth token "
+            "(requires playlist-read-private/collaborative for private playlists), "
+            "creates a new clouder playlist mirroring its name, imports up to 200 "
+            "tracks (persisting artists), and enqueues YT Music matching."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["spotify_ref"],
+                "properties": {
+                    "spotify_ref": {
+                        "type": "string",
+                        "description": "Spotify playlist URL, URI, or bare id.",
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Optional name override (defaults to the Spotify playlist name).",
+                    },
+                },
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        "responses": {
+            "201": _make_response(201, "Mirror playlist created; returns counts.", {"type": "object"}),
+            "400": _error(400, "invalid_spotify_ref."),
+            "404": _error(404, "playlist_not_found."),
+            "409": _error(409, "playlist name already exists."),
+            "412": _error(412, "spotify_not_authorized / spotify_scope_insufficient."),
+            "502": _error(502, "spotify_upstream_error."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
         "path": "/playlists/{id}/publish",
         "auth": AUTH,
         "summary": "Publish the playlist to the user's Spotify account.",
