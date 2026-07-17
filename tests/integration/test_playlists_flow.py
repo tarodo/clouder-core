@@ -283,21 +283,25 @@ class FakePlaylistsRepo:
                 visible.add(t)
         return {t for t in track_ids if t in visible}
 
-    def upsert_imported_track(self, *, user_id, spotify_id, title,
-                              isrc, length_ms, now) -> str:
-        # Reuse if spotify_id already exists in canonical_tracks.
-        for tid, meta in self.canonical_tracks.items():
-            if meta.get("spotify_id") == spotify_id:
-                self.imports.add((user_id, tid))
-                return tid
-        new_id = str(uuid.uuid4())
-        self.canonical_tracks[new_id] = {
-            "title": title, "spotify_id": spotify_id,
-            "isrc": isrc, "length_ms": length_ms,
-            "origin": "spotify_user_import",
-        }
-        self.imports.add((user_id, new_id))
-        return new_id
+    def import_tracks_batch(self, *, user_id, tracks, now) -> list[str]:
+        ids: list[str] = []
+        for t in tracks:
+            existing = next(
+                (tid for tid, meta in self.canonical_tracks.items()
+                 if meta.get("spotify_id") == t.spotify_id),
+                None,
+            )
+            if existing is not None:
+                tid = existing
+            else:
+                tid = f"t-{len(self.canonical_tracks) + 1}"
+                self.canonical_tracks[tid] = {
+                    "spotify_id": t.spotify_id, "title": t.title,
+                    "artists": list(t.artists),
+                }
+            self.imports.add((user_id, tid))
+            ids.append(tid)
+        return ids
 
 
 # ---------- Helpers -----------------------------------------------------------
@@ -546,6 +550,29 @@ def test_import_spotify_then_publish(fake_repo, fake_s3, fake_spotify_client):
     fake_spotify_client.replace_tracks.assert_called_with(
         "spt-new", ["spotify:track:5xkAVrKKnHeBHb1Mqt6wEt"],
     )
+
+
+def test_import_spotify_persists_artists(fake_repo, fake_s3, fake_spotify_client):
+    fake_spotify_client.get_track.side_effect = lambda spotify_id: SimpleNamespace(
+        id=spotify_id, name=f"Imported {spotify_id}", duration_ms=200_000,
+        isrc=None, artists=(SimpleNamespace(name="Guri"),),
+    )
+    resp = lambda_handler(
+        _event(method="POST", route="/playlists", body={"name": "Set"}),
+        None,
+    )
+    pid = json.loads(resp["body"])["id"]
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/{id}/tracks/import-spotify",
+            body={"spotify_refs": ["spotify:track:5xkAVrKKnHeBHb1Mqt6wEt"]},
+            path_params={"id": pid},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 201
+    tid = json.loads(resp["body"])["added"][0]["track_id"]
+    assert fake_repo.canonical_tracks[tid]["artists"] == ["Guri"]
 
 
 def test_cover_upload_lifecycle(fake_repo, fake_s3):

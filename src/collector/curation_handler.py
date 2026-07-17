@@ -52,6 +52,7 @@ from .curation.categories_service import (
     validate_category_name,
 )
 from .curation.playlists_repository import (
+    ImportTrackInput,
     PlaylistsRepository,
     create_default_playlists_repository,
 )
@@ -1109,11 +1110,10 @@ def _handle_import_spotify(event, repo, user_id, correlation_id):
 
     sp_client = _build_spotify_user_client(user_id, correlation_id)
 
-    track_ids: list[str] = []
-    added_details: list[dict] = []
+    payloads = []
     for sid in spotify_ids:
         try:
-            payload = sp_client.get_track(sid)
+            payloads.append(sp_client.get_track(sid))
         except SpotifyNotFoundError as exc:
             skipped.append({"ref": sid, "reason": "not_found"})
             log_event(
@@ -1121,26 +1121,22 @@ def _handle_import_spotify(event, repo, user_id, correlation_id):
                 correlation_id=correlation_id, user_id=user_id,
                 spotify_id=sid, reason=str(exc),
             )
-            continue
-        track_id = repo.upsert_imported_track(
-            user_id=user_id,
-            spotify_id=payload.id,
-            title=payload.name,
-            isrc=payload.isrc,
-            length_ms=payload.duration_ms,
-            now=utc_now(),
+
+    inputs = [
+        ImportTrackInput(
+            spotify_id=p.id, title=p.name, isrc=p.isrc,
+            length_ms=p.duration_ms,
+            artists=[a.name for a in p.artists if a.name],
         )
-        track_ids.append(track_id)
-        added_details.append({
-            "track_id": track_id,
-            "spotify_id": payload.id,
-            "title": payload.name,
-        })
-        log_event(
-            "INFO", "playlist_spotify_track_imported",
-            correlation_id=correlation_id, user_id=user_id,
-            spotify_id=payload.id,
-        )
+        for p in payloads
+    ]
+    track_ids = repo.import_tracks_batch(
+        user_id=user_id, tracks=inputs, now=utc_now(),
+    )
+    added_details = [
+        {"track_id": tid, "spotify_id": p.id, "title": p.name}
+        for tid, p in zip(track_ids, payloads)
+    ]
 
     if track_ids:
         result = repo.append_tracks(
