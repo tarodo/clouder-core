@@ -67,6 +67,10 @@ def _upsert_artist(data_api, name: str, now: datetime, tx_id: str) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true", help="write changes (default: dry-run)")
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="preview only (default; explicit for clarity)",
+    )
     args = parser.parse_args()
     now = datetime.now(timezone.utc)
 
