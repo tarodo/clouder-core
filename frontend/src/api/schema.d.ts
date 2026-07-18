@@ -5807,6 +5807,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/playlists/import-spotify-playlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import a whole Spotify playlist as a new mirror playlist.
+         * @description Reads the Spotify playlist via the user's stored OAuth token (requires playlist-read-private/collaborative for private playlists), creates a new clouder playlist mirroring its name, imports up to 200 tracks (persisting artists), and enqueues YT Music matching.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    /**
+                     * @example {
+                     *       "spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @description Spotify playlist URL, URI, or bare id. */
+                        spotify_ref: string;
+                        /** @description Optional name override (defaults to the Spotify playlist name). */
+                        name?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Mirror playlist created; returns counts. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": Record<string, never>;
+                    };
+                };
+                /** @description invalid_spotify_ref. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description playlist_not_found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description playlist name already exists. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description spotify_not_authorized / spotify_scope_insufficient. */
+                412: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description spotify_upstream_error. */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/playlists/{id}/publish": {
         parameters: {
             query?: never;
