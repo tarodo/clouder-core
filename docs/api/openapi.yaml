@@ -3974,6 +3974,75 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /playlists/import-spotify-playlist:
+    post:
+      summary: Import a whole Spotify playlist as a new mirror playlist.
+      responses:
+        '201':
+          description: Mirror playlist created; returns counts.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid_spotify_ref.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: playlist_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: playlist name already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          description: spotify_not_authorized / spotify_scope_insufficient.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: spotify_upstream_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: Reads the Spotify playlist via the user's stored OAuth token (requires
+        playlist-read-private/collaborative for private playlists), creates a new
+        clouder playlist mirroring its name, imports up to 200 tracks (persisting
+        artists), and enqueues YT Music matching.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - spotify_ref
+              properties:
+                spotify_ref:
+                  type: string
+                  description: Spotify playlist URL, URI, or bare id.
+                name:
+                  type: string
+                  description: Optional name override (defaults to the Spotify playlist
+                    name).
+              additionalProperties: false
+            example:
+              spotify_ref: https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
+      security:
+      - BearerAuth: []
+      tags:
+      - user
   /playlists/{id}/publish:
     post:
       summary: Publish the playlist to the user's Spotify account.

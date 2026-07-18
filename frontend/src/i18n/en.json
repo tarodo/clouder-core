@@ -316,6 +316,19 @@
       "max_exceeded": "Maximum 50 refs per import.",
       "valid_count": "{{valid}}/{{total}} valid"
     },
+    "importPlaylist": {
+      "cta": "Import Spotify playlist",
+      "title": "Import a Spotify playlist",
+      "url_label": "Spotify playlist link",
+      "url_placeholder": "https://open.spotify.com/playlist/…",
+      "name_label": "Playlist name (optional)",
+      "invalid_url": "Enter a valid Spotify playlist link",
+      "submit": "Import",
+      "success": "Imported {{count}} tracks into \"{{name}}\"",
+      "success_truncated": "Imported {{count}} tracks (capped at 200) into \"{{name}}\"",
+      "name_conflict": "A playlist with this name already exists — pick a name",
+      "not_found": "Playlist not found or not accessible"
+    },
     "add_tracks": {
       "title": "Add tracks",
       "style_label": "Style",

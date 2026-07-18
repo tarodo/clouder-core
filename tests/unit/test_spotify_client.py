@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -314,6 +314,22 @@ def test_rate_limit_short_cooldown_sleeps_and_retries() -> None:
     assert sleep_calls == [10.0]
     assert results[0].spotify_id is None
     assert call_count["n"] == 2
+
+
+def test_get_tracks_maps_ids_to_artists() -> None:
+    client = _make_client()
+    client._ensure_token = MagicMock()  # skip auth
+    client._request = MagicMock(return_value={
+        "tracks": [
+            {"id": "a", "artists": [{"name": "Guri"}, {"name": "Nu Zau"}]},
+            {"id": "b", "artists": [{"name": "Solee"}]},
+            None,  # unavailable track id
+        ]
+    })
+    out = client.get_tracks(["a", "b", "c"], correlation_id="cid")
+    assert out == {"a": ["Guri", "Nu Zau"], "b": ["Solee"]}
+    # Batched into one call for ≤50 ids.
+    assert client._request.call_count == 1
 
 
 def test_album_release_sort_key_edge_cases() -> None:

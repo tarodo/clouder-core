@@ -22,6 +22,7 @@ from collector.curation import (
     PlaylistNameConflictError,
     PlaylistNotFoundError,
     PlaylistTrackLimitError,
+    SpotifyNotFoundError,
 )
 from collector.curation.playlists_repository import (
     AppendTracksResult,
@@ -283,21 +284,25 @@ class FakePlaylistsRepo:
                 visible.add(t)
         return {t for t in track_ids if t in visible}
 
-    def upsert_imported_track(self, *, user_id, spotify_id, title,
-                              isrc, length_ms, now) -> str:
-        # Reuse if spotify_id already exists in canonical_tracks.
-        for tid, meta in self.canonical_tracks.items():
-            if meta.get("spotify_id") == spotify_id:
-                self.imports.add((user_id, tid))
-                return tid
-        new_id = str(uuid.uuid4())
-        self.canonical_tracks[new_id] = {
-            "title": title, "spotify_id": spotify_id,
-            "isrc": isrc, "length_ms": length_ms,
-            "origin": "spotify_user_import",
-        }
-        self.imports.add((user_id, new_id))
-        return new_id
+    def import_tracks_batch(self, *, user_id, tracks, now) -> list[str]:
+        ids: list[str] = []
+        for t in tracks:
+            existing = next(
+                (tid for tid, meta in self.canonical_tracks.items()
+                 if meta.get("spotify_id") == t.spotify_id),
+                None,
+            )
+            if existing is not None:
+                tid = existing
+            else:
+                tid = f"t-{len(self.canonical_tracks) + 1}"
+                self.canonical_tracks[tid] = {
+                    "spotify_id": t.spotify_id, "title": t.title,
+                    "artists": list(t.artists),
+                }
+            self.imports.add((user_id, tid))
+            ids.append(tid)
+        return ids
 
 
 # ---------- Helpers -----------------------------------------------------------
@@ -349,6 +354,14 @@ def fake_spotify_client(monkeypatch):
         id="spt-new",
         url="https://open.spotify.com/playlist/spt-new",
     )
+    # Default: whole-playlist import reads a name and two tracks
+    client.get_playlist_name.return_value = "Spotify Mix"
+    client.get_playlist_tracks.return_value = [
+        SimpleNamespace(id="spt-1", name="One", duration_ms=100, isrc=None,
+                        artists=(SimpleNamespace(name="Guri"),)),
+        SimpleNamespace(id="spt-2", name="Two", duration_ms=200, isrc=None,
+                        artists=(SimpleNamespace(name="Nu Zau"),)),
+    ]
     monkeypatch.setattr(
         "collector.curation_handler._build_spotify_user_client",
         lambda user_id, correlation_id: client,
@@ -546,6 +559,127 @@ def test_import_spotify_then_publish(fake_repo, fake_s3, fake_spotify_client):
     fake_spotify_client.replace_tracks.assert_called_with(
         "spt-new", ["spotify:track:5xkAVrKKnHeBHb1Mqt6wEt"],
     )
+
+
+def test_import_spotify_persists_artists(fake_repo, fake_s3, fake_spotify_client):
+    fake_spotify_client.get_track.side_effect = lambda spotify_id: SimpleNamespace(
+        id=spotify_id, name=f"Imported {spotify_id}", duration_ms=200_000,
+        isrc=None, artists=(SimpleNamespace(name="Guri"),),
+    )
+    resp = lambda_handler(
+        _event(method="POST", route="/playlists", body={"name": "Set"}),
+        None,
+    )
+    pid = json.loads(resp["body"])["id"]
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/{id}/tracks/import-spotify",
+            body={"spotify_refs": ["spotify:track:5xkAVrKKnHeBHb1Mqt6wEt"]},
+            path_params={"id": pid},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 201
+    tid = json.loads(resp["body"])["added"][0]["track_id"]
+    assert fake_repo.canonical_tracks[tid]["artists"] == ["Guri"]
+
+
+def test_import_spotify_playlist_creates_mirror(fake_repo, fake_s3, fake_spotify_client):
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 201
+    body = json.loads(resp["body"])
+    assert body["name"] == "Spotify Mix"
+    assert body["imported"] == 2
+    assert body["truncated"] is False
+    assert body["total"] == 2
+    # A new clouder playlist was created and both tracks appended.
+    pid = body["playlist_id"]
+    assert fake_repo.get(user_id="u1", playlist_id=pid) is not None
+    assert sum(1 for (p, _t) in fake_repo.tracks if p == pid) == 2
+    # Artists were persisted through the batch importer.
+    assert any(m.get("artists") == ["Guri"] for m in fake_repo.canonical_tracks.values())
+
+
+def test_import_spotify_playlist_name_override(fake_repo, fake_s3, fake_spotify_client):
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "37i9dQZF1DXcBWIGoYBM5M", "name": "My Name"},
+        ),
+        None,
+    )
+    assert json.loads(resp["body"])["name"] == "My Name"
+
+
+def test_import_spotify_playlist_rejects_bad_ref(fake_repo, fake_s3, fake_spotify_client):
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "not-a-playlist"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 400
+
+
+def test_import_spotify_playlist_missing_returns_404(fake_repo, fake_s3, fake_spotify_client):
+    """Regression for I1: a bad/inaccessible Spotify playlist must surface
+    the route's documented 404 (playlist_not_found), not SpotifyNotFoundError's
+    inherited 502 upstream-error status."""
+    fake_spotify_client.get_playlist_name.side_effect = SpotifyNotFoundError(
+        "no such playlist"
+    )
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 404
+    body = json.loads(resp["body"])
+    assert body["error_code"] == "playlist_not_found"
+    # Nothing was created before the Spotify read failed.
+    assert fake_repo.playlists == {}
+
+
+def test_import_spotify_playlist_soft_deletes_orphan_on_post_create_failure(
+    fake_repo, fake_s3, fake_spotify_client, monkeypatch,
+):
+    """Regression for I2: if anything after repo.create() fails, the
+    just-created playlist must be soft-deleted rather than left as an
+    empty orphan that would block retry with a 409 name conflict."""
+    original_soft_delete = fake_repo.soft_delete
+    soft_delete_spy = MagicMock(side_effect=original_soft_delete)
+    monkeypatch.setattr(fake_repo, "soft_delete", soft_delete_spy)
+
+    def _raising_import_tracks_batch(*, user_id, tracks, now):
+        raise RuntimeError("boom during import")
+
+    monkeypatch.setattr(
+        fake_repo, "import_tracks_batch", _raising_import_tracks_batch,
+    )
+
+    resp = lambda_handler(
+        _event(
+            method="POST", route="/playlists/import-spotify-playlist",
+            body={"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        ),
+        None,
+    )
+    assert resp["statusCode"] == 500
+    soft_delete_spy.assert_called_once()
+    # The playlist created before the failure must not survive as alive —
+    # soft_delete flipped it, so a fresh `get()` finds nothing for the user.
+    assert len(fake_repo.playlists) == 1
+    orphan_id = next(iter(fake_repo.playlists))
+    assert fake_repo.get(user_id="u1", playlist_id=orphan_id) is None
 
 
 def test_cover_upload_lifecycle(fake_repo, fake_s3):

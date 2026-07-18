@@ -49,6 +49,22 @@ class SpotifyPlaylistRef:
     url: str | None
 
 
+def _track_payload(body: dict) -> SpotifyTrackPayload:
+    return SpotifyTrackPayload(
+        id=body["id"],
+        name=body.get("name") or "",
+        duration_ms=body.get("duration_ms"),
+        isrc=(body.get("external_ids") or {}).get("isrc"),
+        artists=tuple(
+            SpotifyArtistRef(
+                id=a.get("id") or "", name=a.get("name") or "",
+                spotify_id=a.get("id"),
+            )
+            for a in (body.get("artists") or [])
+        ),
+    )
+
+
 class SpotifyUserClient:
     def __init__(
         self,
@@ -64,21 +80,44 @@ class SpotifyUserClient:
     # ---------- Public methods ----------------------------------------------
 
     def get_track(self, spotify_id: str) -> SpotifyTrackPayload:
-        body = self._request("GET", f"{_BASE}/tracks/{spotify_id}")
-        return SpotifyTrackPayload(
-            id=body["id"],
-            name=body["name"],
-            duration_ms=body.get("duration_ms"),
-            isrc=(body.get("external_ids") or {}).get("isrc"),
-            artists=tuple(
-                SpotifyArtistRef(
-                    id=a.get("id") or "",
-                    name=a.get("name") or "",
-                    spotify_id=a.get("id"),
-                )
-                for a in (body.get("artists") or [])
-            ),
+        return _track_payload(self._request("GET", f"{_BASE}/tracks/{spotify_id}"))
+
+    def get_playlist_name(self, spotify_playlist_id: str) -> str:
+        body = self._request(
+            "GET", f"{_BASE}/playlists/{spotify_playlist_id}?fields=name",
         )
+        return body.get("name") or ""
+
+    def get_playlist_tracks(
+        self, spotify_playlist_id: str, *, limit: int,
+    ) -> list[SpotifyTrackPayload]:
+        out: list[SpotifyTrackPayload] = []
+        offset = 0
+        page_size = 100
+        while len(out) < limit:
+            body = self._request(
+                "GET",
+                f"{_BASE}/playlists/{spotify_playlist_id}/tracks"
+                f"?limit={page_size}&offset={offset}",
+            )
+            items = body.get("items") or []
+            for item in items:
+                track = item.get("track")
+                if not track:
+                    continue
+                if track.get("is_local"):
+                    continue
+                if track.get("type") == "episode":
+                    continue
+                if not track.get("id"):
+                    continue
+                out.append(_track_payload(track))
+                if len(out) >= limit:
+                    break
+            if body.get("next") is None:
+                break
+            offset += page_size
+        return out
 
     def create_playlist(
         self,

@@ -16,6 +16,7 @@ from collector.curation import (
     PlaylistNotFoundError,
 )
 from collector.curation.playlists_repository import (
+    ImportTrackInput,
     PlaylistRow,
     PlaylistsRepository,
 )
@@ -200,6 +201,50 @@ def test_append_tracks_uses_max_position_plus_one() -> None:
     assert result.skipped_duplicates == []
     assert result.position_after == 7
     assert [p["position"] for p in captured_inserts] == [5, 6]
+
+
+def test_append_tracks_dedups_intra_input_duplicates() -> None:
+    """Regression for C1: a Spotify playlist can legitimately contain the
+    same track twice, so track_ids passed in may already carry a
+    duplicate. append_tracks must insert each id at most once (else the
+    batch_execute INSERT violates the (playlist_id, track_id) PK) and
+    report the repeat as a skipped duplicate.
+    """
+    captured_inserts: list[dict] = []
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT 1 AS ok FROM playlists" in sql:
+            return [{"ok": 1}]
+        if "SELECT COUNT(*) AS cnt FROM playlist_tracks" in sql:
+            return [{"cnt": 0}]
+        if "SELECT COALESCE(MAX(position), -1)" in sql:
+            return [{"max_pos": -1}]
+        if "SELECT track_id FROM playlist_tracks" in sql:
+            return []  # empty playlist, nothing pre-existing
+        return []
+
+    def _batch_execute(sql, parameter_sets, transaction_id=None):
+        captured_inserts.extend(parameter_sets)
+
+    api.execute.side_effect = _execute
+    api.batch_execute.side_effect = _batch_execute
+
+    repo = PlaylistsRepository(api)
+    result = repo.append_tracks(
+        user_id="u-1",
+        playlist_id="p-1",
+        track_ids=["a", "b", "a"],
+        now=_utc(),
+    )
+
+    inserted_track_ids = [p["track_id"] for p in captured_inserts]
+    assert inserted_track_ids == ["a", "b"]
+    assert [p["position"] for p in captured_inserts] == [0, 1]
+    assert result.added_track_ids == ["a", "b"]
+    assert "a" in result.skipped_duplicates
 
 
 def test_append_tracks_dedups_against_existing() -> None:
@@ -532,77 +577,6 @@ def test_append_tracks_uses_parametric_in_list_for_dedup_check() -> None:
     )
     assert "ANY(" not in dedup_sql, f"ANY() must not be used: {dedup_sql!r}"
     assert ":t0" in dedup_sql and ":t1" in dedup_sql
-
-
-def test_upsert_imported_track_uses_existing_when_spotify_id_matches() -> None:
-    api = MagicMock()
-    api.transaction.return_value.__enter__.return_value = "tx"
-    api.transaction.return_value.__exit__.return_value = False
-
-    def _execute(sql, params=None, transaction_id=None):
-        if "SELECT id FROM clouder_tracks WHERE spotify_id" in sql:
-            return [{"id": "existing-track-id"}]
-        return []
-
-    api.execute.side_effect = _execute
-    repo = PlaylistsRepository(api)
-    track_id = repo.upsert_imported_track(
-        user_id="u-1",
-        spotify_id="spt-abc",
-        title="X", isrc=None, length_ms=200_000, now=_utc(),
-    )
-    assert track_id == "existing-track-id"
-
-
-def test_upsert_imported_track_inserts_new_when_missing() -> None:
-    api = MagicMock()
-    api.transaction.return_value.__enter__.return_value = "tx"
-    api.transaction.return_value.__exit__.return_value = False
-    calls = []
-
-    def _execute(sql, params=None, transaction_id=None):
-        calls.append(sql)
-        if "SELECT id FROM clouder_tracks WHERE spotify_id" in sql:
-            return []
-        if "INSERT INTO clouder_tracks" in sql:
-            return [{"id": params["id"]}]
-        return []
-
-    api.execute.side_effect = _execute
-    repo = PlaylistsRepository(api)
-    track_id = repo.upsert_imported_track(
-        user_id="u-1",
-        spotify_id="spt-abc",
-        title="X", isrc=None, length_ms=None, now=_utc(),
-    )
-    assert track_id
-    assert any("INSERT INTO clouder_tracks" in s for s in calls)
-    assert any("INSERT INTO user_imported_tracks" in s for s in calls)
-    # spotify_id is intentionally not unique → no ON CONFLICT clause on it
-    assert not any("ON CONFLICT (spotify_id)" in s for s in calls)
-
-
-def test_upsert_imported_track_returns_existing_winner_under_race() -> None:
-    """If multiple clouder_tracks rows share spotify_id (legitimate prod
-    state), upsert reuses whichever one SELECT happens to return first
-    and adds the user-imported marker against it."""
-    api = MagicMock()
-    api.transaction.return_value.__enter__.return_value = "tx"
-    api.transaction.return_value.__exit__.return_value = False
-
-    def _execute(sql, params=None, transaction_id=None):
-        if "SELECT id FROM clouder_tracks WHERE spotify_id" in sql:
-            return [{"id": "existing-1"}]  # picks first
-        return []
-
-    api.execute.side_effect = _execute
-    repo = PlaylistsRepository(api)
-    track_id = repo.upsert_imported_track(
-        user_id="u-1",
-        spotify_id="spt-abc",
-        title="X", isrc=None, length_ms=None, now=_utc(),
-    )
-    assert track_id == "existing-1"
 
 
 # ---- status filter / patch ----------------------------------------------
@@ -947,3 +921,97 @@ def test_reorder_marks_ytmusic_needs_republish() -> None:
     # ...and ytmusic dirty-mark added.
     assert "ytmusic_needs_republish = TRUE" in joined
     assert "ytmusic_playlist_id IS NOT NULL" in joined
+
+
+def _batch_data_api() -> MagicMock:
+    """Data API fake that records execute/batch_execute calls."""
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+    api.executed: list[tuple[str, dict]] = []
+    api.batched: list[tuple[str, list[dict]]] = []
+
+    def _execute(sql, params=None, transaction_id=None):
+        api.executed.append((sql, params or {}))
+        # No existing tracks / artists by default.
+        return []
+
+    def _batch(sql, parameter_sets, transaction_id=None):
+        api.batched.append((sql, list(parameter_sets)))
+
+    api.execute.side_effect = _execute
+    api.batch_execute.side_effect = _batch
+    return api
+
+
+def test_import_tracks_batch_inserts_new_track_and_artists() -> None:
+    api = _batch_data_api()
+    repo = PlaylistsRepository(api)
+    ids = repo.import_tracks_batch(
+        user_id="u-1",
+        tracks=[
+            ImportTrackInput(
+                spotify_id="spt-a", title="Track A", isrc="ISRC1",
+                length_ms=200_000, artists=["Guri", "Nu Zau"],
+            )
+        ],
+        now=_utc(),
+    )
+    assert len(ids) == 1
+    # New track inserted.
+    track_ins = [b for b in api.batched if "INSERT INTO clouder_tracks" in b[0]]
+    assert track_ins and track_ins[0][1][0]["spotify_id"] == "spt-a"
+    assert track_ins[0][1][0]["origin"] == "spotify_user_import"
+    # Both artists inserted (deduped by normalized_name).
+    artist_ins = [b for b in api.batched if "INSERT INTO clouder_artists" in b[0]]
+    assert artist_ins and len(artist_ins[0][1]) == 2
+    names = {r["normalized_name"] for r in artist_ins[0][1]}
+    assert names == {"guri", "nu zau"}
+    # Links created with role 'main'.
+    link_ins = [b for b in api.batched if "INSERT INTO clouder_track_artists" in b[0]]
+    assert link_ins and all(r["role"] == "main" for r in link_ins[0][1])
+    # Import marker written.
+    imp_ins = [b for b in api.batched if "INSERT INTO user_imported_tracks" in b[0]]
+    assert imp_ins and imp_ins[0][1][0] == {
+        "user_id": "u-1", "track_id": ids[0], "now": _utc(),
+    }
+
+
+def test_import_tracks_batch_reuses_existing_and_skips_artist_write() -> None:
+    api = MagicMock()
+    api.transaction.return_value.__enter__.return_value = "tx"
+    api.transaction.return_value.__exit__.return_value = False
+    batched: list[str] = []
+
+    def _execute(sql, params=None, transaction_id=None):
+        if "SELECT spotify_id, id FROM clouder_tracks" in sql:
+            return [{"spotify_id": "spt-a", "id": "existing-1"}]
+        return []
+
+    def _batch(sql, parameter_sets, transaction_id=None):
+        batched.append(sql)
+
+    api.execute.side_effect = _execute
+    api.batch_execute.side_effect = _batch
+    repo = PlaylistsRepository(api)
+    ids = repo.import_tracks_batch(
+        user_id="u-1",
+        tracks=[ImportTrackInput(
+            spotify_id="spt-a", title="Track A", isrc=None,
+            length_ms=None, artists=["Guri"],
+        )],
+        now=_utc(),
+    )
+    assert ids == ["existing-1"]
+    # Existing track → no new clouder_tracks / clouder_artists / links.
+    assert not any("INSERT INTO clouder_tracks" in s for s in batched)
+    assert not any("INSERT INTO clouder_artists" in s for s in batched)
+    assert not any("INSERT INTO clouder_track_artists" in s for s in batched)
+    # But the import marker is still written.
+    assert any("INSERT INTO user_imported_tracks" in s for s in batched)
+
+
+def test_import_tracks_batch_empty_returns_empty() -> None:
+    api = MagicMock()
+    repo = PlaylistsRepository(api)
+    assert repo.import_tracks_batch(user_id="u-1", tracks=[], now=_utc()) == []

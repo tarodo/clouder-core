@@ -59,6 +59,7 @@ from .settings import get_data_api_settings
 SPOTIFY_SCOPES = (
     "user-read-email user-read-private "
     "playlist-modify-public playlist-modify-private ugc-image-upload "
+    "playlist-read-private playlist-read-collaborative "
     "streaming user-read-playback-state user-modify-playback-state"
 )
 

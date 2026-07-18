@@ -135,6 +135,12 @@ class ImportSpotifyTracksIn(BaseModel):
     spotify_refs: list[str] = Field(..., min_length=1, max_length=50)
 
 
+class ImportSpotifyPlaylistIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    spotify_ref: str = Field(..., min_length=1)
+    name: str | None = Field(default=None, max_length=100)
+
+
 class PublishPlaylistIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     confirm_overwrite: bool = False

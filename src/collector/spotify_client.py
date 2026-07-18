@@ -216,6 +216,28 @@ class SpotifyClient:
 
         return results
 
+    def get_tracks(
+        self, spotify_ids: list[str], correlation_id: str,
+    ) -> dict[str, list[str]]:
+        """Map each Spotify track id to its ordered artist names (batched)."""
+        self._ensure_token(correlation_id)
+        out: dict[str, list[str]] = {}
+        for i in range(0, len(spotify_ids), 50):
+            chunk = spotify_ids[i:i + 50]
+            url = f"{API_BASE_URL}/tracks?ids={','.join(chunk)}"
+            payload = self._request(url=url, correlation_id=correlation_id)
+            for track in payload.get("tracks") or []:
+                if not track:
+                    continue
+                tid = track.get("id")
+                if not tid:
+                    continue
+                out[tid] = [
+                    a.get("name") for a in (track.get("artists") or [])
+                    if a.get("name")
+                ]
+        return out
+
     def _search_by_metadata(
         self,
         *,

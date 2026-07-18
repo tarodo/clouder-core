@@ -3,7 +3,7 @@ import { Button, Group, Stack, Switch, TextInput, Title } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconPlus, IconSearch } from '@tabler/icons-react';
+import { IconBrandSpotify, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
 import { usePlaylists } from '../hooks/usePlaylists';
@@ -12,6 +12,7 @@ import { usePatchPlaylist } from '../hooks/usePatchPlaylist';
 import { useDeletePlaylist } from '../hooks/useDeletePlaylist';
 import { PlaylistsTable } from '../components/PlaylistsTable';
 import { PlaylistFormDialog } from '../components/PlaylistFormDialog';
+import { ImportSpotifyPlaylistModal } from '../components/ImportSpotifyPlaylistModal';
 import { EmptyState } from '../../../components/EmptyState';
 import { FullScreenLoader } from '../../../components/FullScreenLoader';
 import type { Playlist } from '../lib/playlistTypes';
@@ -30,6 +31,7 @@ export function PlaylistsListPage() {
   const deleteMut = useDeletePlaylist();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [createServerError, setCreateServerError] = useState<string | undefined>();
   const [renameTarget, setRenameTarget] = useState<Playlist | null>(null);
   const [descTarget, setDescTarget] = useState<Playlist | null>(null);
@@ -130,6 +132,13 @@ export function PlaylistsListPage() {
           <Button leftSection={<IconPlus size={16} />} onClick={() => setCreateOpen(true)}>
             {t('playlists.create_cta')}
           </Button>
+          <Button
+            variant="default"
+            leftSection={<IconBrandSpotify size={16} />}
+            onClick={() => setImportOpen(true)}
+          >
+            {t('playlists.importPlaylist.cta')}
+          </Button>
         </Group>
       </Group>
 
@@ -187,6 +196,7 @@ export function PlaylistsListPage() {
         onClose={() => setDescTarget(null)}
         onSubmit={handleEditDescription}
       />
+      <ImportSpotifyPlaylistModal opened={importOpen} onClose={() => setImportOpen(false)} />
     </Stack>
   );
 }

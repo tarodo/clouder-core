@@ -112,6 +112,12 @@ variable "aurora_database_name" {
   default     = "clouder"
 }
 
+variable "openai_max_tool_calls" {
+  description = "Soft cap on OpenAI web_search calls per enrichment run (cap-2 test 2026-07-18; measured: cap 3 -> avg 3.5-3.7 searches)"
+  type        = number
+  default     = 2
+}
+
 variable "aurora_engine_version" {
   description = "Aurora PostgreSQL engine version"
   type        = string

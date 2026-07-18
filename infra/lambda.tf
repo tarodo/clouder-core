@@ -208,6 +208,7 @@ resource "aws_lambda_function" "label_enricher_worker" {
       TAVILY_API_KEY_SSM_PARAMETER   = var.tavily_api_key_ssm_parameter
       DEEPSEEK_API_KEY_SSM_PARAMETER = var.deepseek_api_key_ssm_parameter
       LABEL_ENRICHMENT_QUEUE_URL     = aws_sqs_queue.label_enrichment.url
+      OPENAI_MAX_TOOL_CALLS          = tostring(var.openai_max_tool_calls)
       AI_FLAG_CONFIDENCE_THRESHOLD   = tostring(var.ai_flag_confidence_threshold)
       AURORA_CLUSTER_ARN             = aws_rds_cluster.aurora.arn
       AURORA_SECRET_ARN              = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
@@ -257,6 +258,7 @@ resource "aws_lambda_function" "artist_enricher_worker" {
       TAVILY_API_KEY_SSM_PARAMETER   = var.tavily_api_key_ssm_parameter
       DEEPSEEK_API_KEY_SSM_PARAMETER = var.deepseek_api_key_ssm_parameter
       ARTIST_ENRICHMENT_QUEUE_URL    = aws_sqs_queue.artist_enrichment.url
+      OPENAI_MAX_TOOL_CALLS          = tostring(var.openai_max_tool_calls)
       AI_FLAG_CONFIDENCE_THRESHOLD   = tostring(var.ai_flag_confidence_threshold)
       AURORA_CLUSTER_ARN             = aws_rds_cluster.aurora.arn
       AURORA_SECRET_ARN              = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
