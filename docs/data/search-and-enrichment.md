@@ -6,7 +6,7 @@ After canonicalization, two asynchronous workers enrich canonical tracks and lab
 
 ## Spotify ISRC lookup
 
-**Worker**: `beatport-prod-spotify-search-worker` Lambda, triggered by SQS message.
+**Worker**: `clouder-prod-spotify-search-worker` Lambda, triggered by SQS message.
 **Source**: `src/collector/spotify_handler.py`, `src/collector/spotify_client.py`.
 
 The worker selects tracks that have an ISRC but no `spotify_searched_at`:
@@ -72,7 +72,7 @@ Scoring uses `string_sim` (Levenshtein-based ratio) and `best_artist_sim` (best 
 
 Strict candidates win over relaxed when both exist. On reject, `spotify_metadata_fallback_scores` is logged with the best `title_sim` / `artist_sim` observed, useful for tuning thresholds.
 
-**Default thresholds** (configurable via env vars on `beatport-prod-spotify-search-worker`):
+**Default thresholds** (configurable via env vars on `clouder-prod-spotify-search-worker`):
 
 | Env var | Default | Meaning |
 |---|---|---|
@@ -107,10 +107,9 @@ Log event on hit: `spotify_isrc_neighbour_match` (includes `isrc`, `spotify_isrc
 
 ---
 
-## Perplexity label and artist screening
+## Perplexity label and artist screening (superseded)
 
-**Worker**: `beatport-prod-ai-search-worker` Lambda, SQS-triggered.
-**Source**: `src/collector/search_handler.py`, `src/collector/search/perplexity_client.py`.
+> **Superseded.** Neither the `ai-search-worker` Lambda nor `src/collector/search_handler.py` exists any more. Label and artist screening now run through the enrichment subsystems — see [ADR-0016](../adr/0016-label-enrichment.md) and [ADR-0017](../adr/0017-artist-enrichment.md), served by the `clouder-prod-label-enricher-worker` and `clouder-prod-artist-enricher-worker` Lambdas. The rest of this section is retained for the `ai_search_results` schema and history, and needs a refresh pass.
 
 The worker receives `EntitySearchMessage` (entity type + entity ID + prompt slug + version), queries Perplexity, and saves the structured result to `ai_search_results`. It then calls `propagate_ai_flag` to update `is_ai_suspected` on the canonical entity.
 
@@ -169,8 +168,10 @@ Secrets are `lru_cache`-cached per container. Rotated keys require a Lambda recy
 
 ## Vendor match cache
 
-**Worker**: `beatport-prod-vendor-match-worker` Lambda, SQS-triggered.
+**Worker**: `clouder-prod-vendor-match-worker` Lambda, SQS-triggered.
 **Source**: `src/collector/vendor_match_handler.py`.
+
+Jobs are enqueued by the curation handler (playlist track-add, Spotify single-track import, Spotify whole-playlist import) and by one-off backfill scripts. A track with no artist rows is dropped before SQS — see [backend/gotchas.md](../backend/gotchas.md#empty-artist-silently-skips-vendor-match).
 
 `vendor_track_map` — PK `(clouder_track_id, vendor)` — caches one match per track per vendor.
 

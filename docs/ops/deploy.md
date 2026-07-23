@@ -89,7 +89,7 @@ GitHub Actions repo variables (not secrets): `TF_STATE_BUCKET`, `TF_LOCK_TABLE`,
 
 ```bash
 aws rds modify-db-cluster \
-  --db-cluster-identifier beatport-prod-aurora \
+  --db-cluster-identifier clouder-prod-aurora \
   --enable-iam-database-authentication \
   --apply-immediately
 ```
@@ -98,9 +98,19 @@ aws rds modify-db-cluster \
 
 ```bash
 aws lambda update-function-configuration \
-  --function-name beatport-prod-ai-search-worker \
-  --environment "Variables={PERPLEXITY_API_KEY=<value>,AI_FLAG_CONFIDENCE_THRESHOLD=0.7}"
+  --function-name clouder-prod-label-enricher-worker \
+  --environment "Variables={AI_FLAG_CONFIDENCE_THRESHOLD=0.7}"
 ```
+
+> **`--environment` replaces the whole variables map — it does not merge.** Running the command above as-is drops every other variable on that Lambda (Aurora ARNs, queue URLs, SSM parameter names) and breaks it. Read the current map first and pass it back in full:
+>
+> ```bash
+> aws lambda get-function-configuration \
+>   --function-name clouder-prod-label-enricher-worker \
+>   --query "Environment.Variables"
+> ```
+>
+> Terraform is the source of truth; a manual override is undone by the next `terraform apply`.
 
 Note: secrets cached per container via `lru_cache` in `src/collector/settings.py`. Rotated credentials require a Lambda recycle (deploy a new version, or update configuration to force cold start).
 

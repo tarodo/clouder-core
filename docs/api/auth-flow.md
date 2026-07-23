@@ -20,9 +20,14 @@ The handler:
 4. Returns `302` to the Spotify Authorize URL with scopes:
    ```
    user-read-email user-read-private
-   playlist-modify-public playlist-modify-private
+   playlist-modify-public playlist-modify-private ugc-image-upload
+   playlist-read-private playlist-read-collaborative
    streaming user-read-playback-state user-modify-playback-state
    ```
+
+The scope list lives in `SPOTIFY_SCOPES` (`src/collector/auth_handler.py`). `playlist-modify-*` backs playlist publish, `ugc-image-upload` backs cover upload, and `playlist-read-private` / `playlist-read-collaborative` back importing a user's own (non-public) Spotify playlist.
+
+**Changing this list requires re-consent.** A refresh does not widen an existing token's scopes — every already-connected user must go through `/auth/login` again before the new scopes take effect. Until they do, a call needing a new scope gets Spotify `403`, surfaced as `spotify_scope_insufficient` (HTTP 412).
 
 The browser follows the redirect to Spotify's login/consent page.
 

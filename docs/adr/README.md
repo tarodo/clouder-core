@@ -8,7 +8,7 @@ ADRs capture the *why* behind load-bearing architectural choices in CLOUDER. The
 
 ## Numbering
 
-Four-digit, monotonic, never reused. The next free number is `0021`.
+Four-digit, monotonic, never reused. The next free number is `0022`.
 
 ## Template
 
@@ -51,3 +51,4 @@ Trade-offs accepted. What becomes harder. Cross-references to topical docs.
 | 0018 | [Triage bucket auditioning + create-time classification](0018-triage-buckets.md)         |
 | 0019 | [YouTube Music as a second vendor (match + publish)](0019-youtube-music-vendor.md)       |
 | 0020 | [Canonical top-level artist/label routes](0020-canonical-entity-routes.md)               |
+| 0021 | [Spotify playlist import as a synchronous mirror playlist](0021-spotify-playlist-mirror-import.md) |
