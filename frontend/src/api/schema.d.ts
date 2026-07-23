@@ -5308,6 +5308,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/playlists/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Full playlist export (tracks, comments, artist/label enrichment).
+         * @description One-shot payload for the Copy-playlist button. `tracks` carries the per-track fields (title, artists, label, ISRC, Beatport/Spotify/YT Music links, collected YouTube comments); `artists` and `labels` list every entity in the playlist once, each with its merged enrichment blob (`info`, null when the entity has not been enriched). Admin-only enrichment fields are stripped. Deliberately heavy — fetch on demand, not on playlist render.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Export payload. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            playlist: string;
+                            track_count: number;
+                            tracks: {
+                                title: string;
+                                mix_name?: string | null;
+                                artists: string[];
+                                label?: string | null;
+                                isrc?: string | null;
+                                beatport_url?: string | null;
+                                spotify_url?: string | null;
+                                youtube_music_url?: string | null;
+                                comments: {
+                                    author: string;
+                                    text: string;
+                                    like_count: number;
+                                    published_at: string | null;
+                                }[];
+                            }[];
+                            artists: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                /** @description Merged enrichment blob, admin-only fields stripped. Null when the entity has no enrichment row. */
+                                info: {
+                                    [key: string]: unknown;
+                                } | null;
+                            }[];
+                            labels: {
+                                /** Format: uuid */
+                                id: string;
+                                name: string;
+                                /** @description Merged enrichment blob, admin-only fields stripped. Null when the entity has no enrichment row. */
+                                info: {
+                                    [key: string]: unknown;
+                                } | null;
+                            }[];
+                            correlation_id?: string;
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description playlist_not_found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/playlists/{id}/tracks/{track_id}": {
         parameters: {
             query?: never;
