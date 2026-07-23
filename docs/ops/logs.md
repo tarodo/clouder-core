@@ -47,7 +47,7 @@ Log retention is 30 days (configurable via `var.log_retention_days` in `infra/va
 
 All events are JSON objects. Common fields: `event`, `level`, `timestamp`, `correlation_id`. Additional fields vary per event.
 
-### API Lambda (`beatport-prod-collector-api`)
+### API Lambda (`clouder-prod-collector-api`)
 
 | Event | Meaning |
 |-------|---------|
@@ -59,21 +59,21 @@ All events are JSON objects. Common fields: `event`, `level`, `timestamp`, `corr
 
 Note: `bp_token` is sanitized before structlog — it must never appear in log output (CLAUDE.md constraint).
 
-### Canonicalization worker (`beatport-prod-canonicalization-worker`)
+### Canonicalization worker (`clouder-prod-canonicalization-worker`)
 
 | Event | Meaning |
 |-------|---------|
 | `canonicalization_completed` | One SQS message fully processed; entity counts inserted/updated |
 | `canonicalization_failed` | Unhandled exception during canonicalization; includes exception type and `correlation_id` |
 
-### Migration Lambda (`beatport-prod-db-migration`)
+### Migration Lambda (`clouder-prod-db-migration`)
 
 | Event | Meaning |
 |-------|---------|
 | `migration_started` | Alembic `upgrade` invoked; logged at Lambda entry |
 | `migration_completed` | Migrations finished successfully; includes `duration_ms` |
 
-### Spotify search worker (`beatport-prod-spotify-search-worker`)
+### Spotify search worker (`clouder-prod-spotify-search-worker`)
 
 | Event | Meaning |
 |-------|---------|
@@ -96,7 +96,7 @@ Aurora server-side logs are not exported to CloudWatch by default.
 
 ```bash
 aws rds modify-db-cluster \
-  --db-cluster-identifier beatport-prod-aurora \
+  --db-cluster-identifier clouder-prod-aurora \
   --cloudwatch-logs-export-configuration '{"EnableLogTypes":["postgresql"]}' \
   --apply-immediately
 ```
@@ -104,16 +104,16 @@ aws rds modify-db-cluster \
 **Tail after enabling:**
 
 ```bash
-aws logs tail /aws/rds/cluster/beatport-prod-aurora/postgresql --follow
+aws logs tail /aws/rds/cluster/clouder-prod-aurora/postgresql --follow
 ```
 
 Disable when no longer needed to avoid log storage costs:
 
 ```bash
 aws rds modify-db-cluster \
-  --db-cluster-identifier beatport-prod-aurora \
+  --db-cluster-identifier clouder-prod-aurora \
   --cloudwatch-logs-export-configuration '{"DisableLogTypes":["postgresql"]}' \
   --apply-immediately
 ```
 
-The cluster identifier `beatport-prod-aurora` is derived from `var.project=beatport` + `var.environment=prod` + suffix `-aurora` (defined in `infra/main.tf` as `local.db_cluster_identifier`).
+The cluster identifier `clouder-prod-aurora` is derived from `var.project=beatport` + `var.environment=prod` + suffix `-aurora` (defined in `infra/main.tf` as `local.db_cluster_identifier`).

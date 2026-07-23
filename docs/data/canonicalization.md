@@ -102,7 +102,7 @@ def propagate_ai_flag(repository, *, entity_type, entity_id, result, threshold):
     # ai_content == UNKNOWN → no-op
 ```
 
-`threshold` defaults to `0.6` (`AI_FLAG_CONFIDENCE_THRESHOLD` env var on the `beatport-prod-ai-search-worker` Lambda).
+`threshold` defaults to `0.6` (`AI_FLAG_CONFIDENCE_THRESHOLD`, set on the `clouder-prod-label-enricher-worker` and `clouder-prod-artist-enricher-worker` Lambdas — see `infra/lambda.tf`).
 
 `ai_content=unknown` is always a no-op regardless of confidence. `none_detected` with confidence ≥ threshold explicitly clears the flag (sets to `false`).
 

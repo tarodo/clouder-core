@@ -50,10 +50,10 @@ Check `processing_outcome` and `processing_reason` on the affected records:
 
 **Fix**
 
-- `config_disabled`: confirm `CANONICALIZATION_ENABLED=true` is set on `beatport-prod-collector-api`. In prod this is set via Terraform (`-var="canonicalization_enabled=true"`). Verify:
+- `config_disabled`: confirm `CANONICALIZATION_ENABLED=true` is set on `clouder-prod-collector-api`. In prod this is set via Terraform (`-var="canonicalization_enabled=true"`). Verify:
   ```bash
   aws lambda get-function-configuration \
-    --function-name beatport-prod-collector-api \
+    --function-name clouder-prod-collector-api \
     --query 'Environment.Variables.CANONICALIZATION_ENABLED'
   ```
 
@@ -65,7 +65,7 @@ Check `processing_outcome` and `processing_reason` on the affected records:
 
 **Symptom**
 
-CloudWatch alarm fires on DLQ depth (`beatport-prod-canonicalization-dlq`, `beatport-prod-ai-search-dlq`, `beatport-prod-spotify-search-dlq`, or `beatport-prod-vendor-match-dlq`).
+CloudWatch alarm fires on DLQ depth. The live DLQs are `clouder-prod-canonicalization-dlq`, `clouder-prod-spotify-search-dlq`, `clouder-prod-vendor-match-dlq`, `clouder-prod-label-enrichment-dlq`, `clouder-prod-artist-enrichment-dlq`, `clouder-prod-auto-enrich-dispatch-dlq`, and `clouder-prod-comments-collect-dlq`.
 
 **Diagnosis**
 
@@ -73,7 +73,7 @@ Common causes:
 
 | Queue | Common cause |
 |-------|-------------|
-| `ai-search-dlq` | Perplexity API 429 (rate limit) cascade. `ai_search_worker` reserved concurrency is uncapped when `enable_lambda_reserved_concurrency=false` (default), so bursts can hit the Perplexity 5 RPS limit. |
+| `label-enrichment-dlq` / `artist-enrichment-dlq` | Upstream AI/search vendor 429 or timeout during enrichment. See [ADR-0016](../adr/0016-label-enrichment.md), [ADR-0017](../adr/0017-artist-enrichment.md). |
 | `spotify-search-dlq` | Spotify Client Credentials rate limit; also fires if `SPOTIFY_METADATA_FALLBACK_ENABLED=true` and a large batch times out. |
 | `vendor-match-dlq` | Malformed S3 key or missing `clouder_track_id` in the SQS message body. |
 | `canonicalization-dlq` | Unhandled exception in `canonicalization_worker`; often a schema mismatch after a Beatport API change. |
@@ -82,7 +82,7 @@ Common causes:
 
 ```bash
 # Get the DLQ URL
-aws sqs get-queue-url --queue-name beatport-prod-canonicalization-dlq
+aws sqs get-queue-url --queue-name clouder-prod-canonicalization-dlq
 
 # Receive up to 10 messages (non-destructive, visibility timeout 30s)
 aws sqs receive-message \
@@ -180,7 +180,42 @@ Controlled by `var.enable_lambda_reserved_concurrency` in `infra/variables.tf` (
 
 Until the quota is raised, leave `enable_lambda_reserved_concurrency = false`. Workers run unreserved and Perplexity/Spotify 429s flow to DLQ for retry.
 
-## Analytics first run (bootstrap)
+## Running a one-off script against prod
+
+**When**
+
+Backfills and repair scripts under `scripts/` (e.g. `backfill_spotify_import_artists.py`) run from a laptop against prod. They talk to Aurora through the Data API, so they need the same environment the Lambdas get — but nothing sets it locally, and there is no committed `.env`.
+
+**Get the env from a deployed Lambda** (ground truth — whatever the Lambda reads is what the settings classes expect):
+
+```bash
+aws lambda get-function-configuration --function-name clouder-prod-curation \
+  --query "Environment.Variables" --output json
+```
+
+The values a DB/queue/Spotify script typically needs:
+
+```bash
+export PYTHONPATH=src
+export AURORA_CLUSTER_ARN='arn:aws:rds:us-east-1:<acct>:cluster:clouder-prod-aurora'
+export AURORA_SECRET_ARN='arn:aws:secretsmanager:us-east-1:<acct>:secret:rds!cluster-...'
+export AURORA_DATABASE='clouder'
+export VENDOR_MATCH_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/<acct>/clouder-prod-vendor-match'
+# Spotify client-credentials come from SSM, by parameter NAME:
+export SPOTIFY_CLIENT_ID_SSM_PARAMETER='/clouder/spotify/client_id'
+export SPOTIFY_CLIENT_SECRET_SSM_PARAMETER='/clouder/spotify/client_secret'
+export RAW_BUCKET_NAME='beatport-prod-raw-<acct>'   # required by SpotifyWorkerSettings even when unused
+```
+
+**Rules**
+
+- Use `.venv/bin/python`, not `python3` — these scripts import project dependencies. `PYTHONPATH=src` is required (`pytest.ini` sets it for the test runner only).
+- **Always dry-run first.** Scripts default to read-only and take `--apply` to write; check the printed plan before applying.
+- `RAW_BUCKET_NAME` is one of the deliberate `beatport-prod-*` survivors (see [backend/gotchas.md](../backend/gotchas.md)); everything else is `clouder-prod-*`.
+
+## Analytics first run (bootstrap) — superseded
+
+> **Superseded, needs a rewrite.** This section describes the retired dbt pipeline (a `beatport-prod-analytics-daily` Step Functions state machine building `silver`/`gold` tables). Analytics v2 has no dbt: a daily `clouder-prod-analytics-rollup` Lambda runs Athena SQL to rebuild `fact_session` / `mart_user_daily` from `bronze_events`. Treat the procedure below as historical until someone reworks it against the current pipeline.
 
 **Symptom**
 

@@ -6,7 +6,7 @@ Secrets are cached per container via `lru_cache` in `src/collector/settings.py`.
 
 ---
 
-## API and worker Lambda (`beatport-prod-collector-api`)
+## API and worker Lambda (`clouder-prod-collector-api`)
 
 | Name | Type | Default | Source / Purpose |
 |------|------|---------|-----------------|
@@ -20,7 +20,7 @@ Secrets are cached per container via `lru_cache` in `src/collector/settings.py`.
 | `AURORA_DATABASE` | string | `clouder` | Database name passed to Data API `ExecuteStatement` |
 | `LOG_LEVEL` | string | `INFO` | structlog minimum level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
-Also applies to: `beatport-prod-canonicalization-worker`, `beatport-prod-curation` (shared Aurora / SQS vars only).
+Also applies to: `clouder-prod-canonicalization-worker`, `clouder-prod-curation` (shared Aurora / SQS vars only).
 
 ---
 
@@ -45,7 +45,9 @@ Adding a new vendor: create the adapter under `src/collector/providers/<vendor>/
 
 ---
 
-## AI search worker (`beatport-prod-ai-search-worker`)
+## AI search worker (superseded — Lambda no longer exists)
+
+> **Superseded.** There is no `ai-search-worker` Lambda in prod and no `src/collector/search_handler.py` in the codebase; the Perplexity screening path was replaced by the label and artist enrichment subsystems ([ADR-0016](../adr/0016-label-enrichment.md), [ADR-0017](../adr/0017-artist-enrichment.md)), which run on `clouder-prod-label-enricher-worker` / `clouder-prod-artist-enricher-worker` and use the OpenAI / Tavily / DeepSeek credentials synced by the deploy workflow. `AI_FLAG_CONFIDENCE_THRESHOLD` now lives on those two Lambdas. The table below is retained for history and needs a refresh pass.
 
 | Name | Type | Default | Source / Purpose |
 |------|------|---------|-----------------|
@@ -64,7 +66,7 @@ See also `docs/data/search-and-enrichment.md` for the AI search pipeline.
 
 ---
 
-## Spotify search worker (`beatport-prod-spotify-search-worker`)
+## Spotify search worker (`clouder-prod-spotify-search-worker`)
 
 | Name | Type | Default | Source / Purpose |
 |------|------|---------|-----------------|
@@ -95,7 +97,7 @@ See `docs/data/search-and-enrichment.md` and ADR-0006 for full fallback logic.
 
 ---
 
-## Vendor match worker (`beatport-prod-vendor-match-worker`)
+## Vendor match worker (`clouder-prod-vendor-match-worker`)
 
 | Name | Type | Default | Source / Purpose |
 |------|------|---------|-----------------|
@@ -115,7 +117,7 @@ Note: `vendor_match_handler` upserts on cache hit (PK `(clouder_track_id, vendor
 
 ---
 
-## Migration Lambda (`beatport-prod-db-migration`)
+## Migration Lambda (`clouder-prod-db-migration`)
 
 | Name | Type | Default | Source / Purpose |
 |------|------|---------|-----------------|
