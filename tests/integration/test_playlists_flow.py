@@ -847,6 +847,10 @@ def test_export_playlist_includes_tracks_comments_and_enrichment(
     assert resp["statusCode"] == 200
     body = json.loads(resp["body"])
 
+    # Comments are capped: the export asks the repo for at most the top 15.
+    _args, kwargs = comments_repo.list_comments_for_tracks.call_args
+    assert kwargs["limit_per_track"] == 15
+
     assert body["playlist"] == "Export Set"
     assert body["track_count"] == 1
     track = body["tracks"][0]
