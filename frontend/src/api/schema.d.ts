@@ -5317,7 +5317,7 @@ export interface paths {
         };
         /**
          * Full playlist export (tracks, comments, artist/label enrichment).
-         * @description One-shot payload for the Copy-playlist button. `tracks` carries the per-track fields (title, artists, label, ISRC, Beatport/Spotify/YT Music links, collected YouTube comments); `artists` and `labels` list every entity in the playlist once, each with its merged enrichment blob (`info`, null when the entity has not been enriched). Admin-only enrichment fields are stripped. Deliberately heavy — fetch on demand, not on playlist render.
+         * @description One-shot payload for the Copy-playlist button. `tracks` carries the per-track fields (title, artists, label, ISRC, Beatport/Spotify/YT Music links, up to 15 top YouTube comments); `artists` and `labels` list every entity in the playlist once, each with its merged enrichment blob (`info`, null when the entity has not been enriched). Admin-only enrichment fields are stripped. Deliberately heavy — fetch on demand, not on playlist render.
          */
         get: {
             parameters: {

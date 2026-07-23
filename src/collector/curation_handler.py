@@ -1943,6 +1943,9 @@ def _handle_export_playlist(event, repo, user_id, correlation_id):
         fetch_entity_info,
     )
 
+    # Keep the export small: the top comments (by collection rank) per track.
+    max_comments = 15
+
     pid = (event.get("pathParameters") or {}).get("id")
     if not pid:
         raise ValidationError("id is required in path")
@@ -1960,7 +1963,7 @@ def _handle_export_playlist(event, repo, user_id, correlation_id):
         by_track = comments_repo.list_comments_for_tracks(
             track_ids=[r.track_id for r in rows],
             platform="youtube",
-            limit_per_track=100,
+            limit_per_track=max_comments,
         )
         for tid, (_collection, comments) in by_track.items():
             # author_avatar_url is dropped — avatar URLs are noise in an export.
