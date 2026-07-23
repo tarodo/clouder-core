@@ -770,7 +770,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id019
+              schema: &id020
                 type: object
                 required:
                 - id
@@ -3423,7 +3423,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: &id021
+                    items: &id022
                       type: object
                       required:
                       - track_id
@@ -3624,14 +3624,14 @@ paths:
           description: Per-track comments for the playlist.
           content:
             application/json:
-              schema: &id023
+              schema: &id024
                 type: object
                 required:
                 - tracks
                 properties:
                   tracks:
                     type: array
-                    items: &id022
+                    items: &id023
                       type: object
                       required:
                       - track_id
@@ -3683,6 +3683,129 @@ paths:
         required: false
         schema:
           type: string
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /playlists/{id}/export:
+    get:
+      summary: Full playlist export (tracks, comments, artist/label enrichment).
+      responses:
+        '200':
+          description: Export payload.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - playlist
+                - track_count
+                - tracks
+                - artists
+                - labels
+                properties:
+                  playlist:
+                    type: string
+                  track_count:
+                    type: integer
+                  tracks:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - title
+                      - artists
+                      - comments
+                      properties:
+                        title:
+                          type: string
+                        mix_name:
+                          type: string
+                          nullable: true
+                        artists:
+                          type: array
+                          items:
+                            type: string
+                        label:
+                          type: string
+                          nullable: true
+                        isrc:
+                          type: string
+                          nullable: true
+                        beatport_url:
+                          type: string
+                          nullable: true
+                        spotify_url:
+                          type: string
+                          nullable: true
+                        youtube_music_url:
+                          type: string
+                          nullable: true
+                        comments:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                            - author
+                            - text
+                            - like_count
+                            - published_at
+                            properties:
+                              author:
+                                type: string
+                              text:
+                                type: string
+                              like_count:
+                                type: integer
+                              published_at:
+                                type: string
+                                nullable: true
+                  artists:
+                    type: array
+                    items: &id017
+                      type: object
+                      required:
+                      - id
+                      - name
+                      - info
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                        info:
+                          type: object
+                          nullable: true
+                          additionalProperties: true
+                          description: Merged enrichment blob, admin-only fields stripped.
+                            Null when the entity has no enrichment row.
+                  labels:
+                    type: array
+                    items: *id017
+                  correlation_id:
+                    type: string
+        '404':
+          description: playlist_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: One-shot payload for the Copy-playlist button. `tracks` carries
+        the per-track fields (title, artists, label, ISRC, Beatport/Spotify/YT Music
+        links, collected YouTube comments); `artists` and `labels` list every entity
+        in the playlist once, each with its merged enrichment blob (`info`, null when
+        the entity has not been enriched). Admin-only enrichment fields are stripped.
+        Deliberately heavy — fetch on demand, not on playlist render.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       security:
       - BearerAuth: []
       tags:
@@ -4449,7 +4572,7 @@ paths:
           description: Enrichment run accepted and queued.
           content:
             application/json:
-              schema: &id017
+              schema: &id018
                 type: object
                 required:
                 - run_id
@@ -4551,7 +4674,7 @@ paths:
           description: Enrichment run accepted and queued.
           content:
             application/json:
-              schema: *id017
+              schema: *id018
         '404':
           description: artist_not_found.
           content:
@@ -4593,7 +4716,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id020
+              schema: &id021
                 type: object
                 required:
                 - id
@@ -5316,7 +5439,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       description: Session counts, averages, and duration / time-per-track percentiles
         per user × day × activity.
-      parameters: &id018
+      parameters: &id019
       - name: user_id
         in: query
         required: true
@@ -5377,7 +5500,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       description: One row per derived session for a user over a date range.
-      parameters: *id018
+      parameters: *id019
       security:
       - BearerAuth: []
       tags:
@@ -5730,7 +5853,7 @@ components:
         processing_reason:
           type: string
           nullable: true
-    LabelEnrichRunResponse: *id019
+    LabelEnrichRunResponse: *id020
     LabelSummary:
       type: object
       required:
@@ -6027,7 +6150,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
-    ArtistEnrichRunResponse: *id020
+    ArtistEnrichRunResponse: *id021
     ArtistSummary:
       type: object
       required:
@@ -6289,9 +6412,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ArtistHistoryCell'
-    PlaylistTrackResponse: *id021
-    PlaylistTrackComments: *id022
-    PlaylistCommentsResponse: *id023
+    PlaylistTrackResponse: *id022
+    PlaylistTrackComments: *id023
+    PlaylistCommentsResponse: *id024
     TelemetryEnvelope:
       type: object
       required:
