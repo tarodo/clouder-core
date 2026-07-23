@@ -45,16 +45,17 @@ For scripts that import `yaml`, `pydantic`, etc. (which are in `.venv` but not i
 
 ---
 
-### AWS resource prefix is `beatport-prod-*`
+### AWS resource prefix is `clouder-prod-*`, with a few `beatport-prod-*` survivors
 
-**What:** All AWS resources are named with prefix `beatport-prod-` regardless of the repository directory name (`clouder-core`).
+**What:** Almost all AWS resources are named with prefix `clouder-prod-` (e.g. `clouder-prod-collector-api`, `clouder-prod-vendor-match-worker`, Aurora cluster `clouder-prod-aurora`). A small set deliberately keeps the older `beatport-prod-*` name.
 
-**Why:** Terraform derives the prefix from `var.project = "beatport"` + `var.environment = "prod"`. The repository name has no effect.
+**Why:** Terraform derives the prefix from `var.project` + `var.environment`. The exceptions were left alone on purpose — renaming them means data loss or a needless cascade: the `raw` ingest bucket, the analytics-lake bucket, the Athena workgroup, and the frontend bucket / OAC / CloudFront functions. (The Beatport ingest *provider* code is legitimately named too — it is the upstream source.)
 
-**Mitigation:** When looking up Lambda logs, SQS queues, or Aurora clusters in the AWS Console or CLI, use `beatport-prod-` as the prefix. Example:
+**Mitigation:** Use `clouder-prod-` when looking up Lambdas, SQS queues, or Aurora in the Console or CLI; reach for `beatport-prod-` only for the buckets/workgroup above. Example:
 
 ```bash
-aws logs tail "/aws/lambda/beatport-prod-collector-api" --follow
+aws logs tail "/aws/lambda/clouder-prod-collector-api" --follow
+aws lambda list-functions --query "Functions[?starts_with(FunctionName,'clouder-prod')].FunctionName"
 ```
 
 ---
@@ -101,7 +102,7 @@ aws logs tail "/aws/lambda/beatport-prod-collector-api" --follow
 
 ```bash
 aws rds modify-db-cluster \
-  --db-cluster-identifier beatport-prod-aurora \
+  --db-cluster-identifier clouder-prod-aurora \
   --enable-iam-database-authentication \
   --apply-immediately
 ```
@@ -146,13 +147,25 @@ See also: [ADR-0005](../adr/0005-iam-auth-migration.md).
 
 ## Behavioural Surprises
 
+### Empty artist silently skips vendor match
+
+**What:** A track with no artist rows never gets a YouTube Music (or any vendor) match. Nothing fails, nothing retries, and no candidate appears in the review queue — the track is simply never looked up.
+
+**Why:** `fetch_unmatched_match_inputs` derives the artist with `STRING_AGG` over `clouder_track_artists`; with no rows it yields `''`. `VendorMatchMessage` validates `artist` and `title` as non-empty (`_strip_non_empty`), so constructing the message raises and `enqueue_vendor_matches` skips that input with a `vendor_match_enqueue_invalid` warning. The message never reaches SQS, so the worker never runs.
+
+**How it bit us:** Spotify import used to persist only the track (title/ISRC/duration/`spotify_id`) and throw away the artists Spotify returns, so every imported track was silently unmatchable. Fixed by persisting artists during import (`import_tracks_batch`); `scripts/backfill_spotify_import_artists.py` healed the pre-fix rows.
+
+**Mitigation:** Any code path that creates a `clouder_tracks` row and expects vendor matching must also write `clouder_artists` + `clouder_track_artists`. When a track mysteriously has no vendor link, check for `vendor_match_enqueue_invalid` in the producer's logs before suspecting the worker.
+
+---
+
 ### `GET /runs/{run_id}` returns 503 `db_not_configured`
 
 **What:** The endpoint returns HTTP 503 with `error_code: db_not_configured` when `AURORA_CLUSTER_ARN` or `AURORA_SECRET_ARN` are absent from the Lambda environment.
 
 **Why:** `create_clouder_repository_from_env()` returns `None` when Aurora env vars are missing. The handler checks for `None` and short-circuits with a 503 rather than crashing.
 
-**Mitigation:** This is intentional for environments where Aurora is not configured. In production, both vars are set and the endpoint works normally. If you see this 503 in production, check the Lambda environment variables for `beatport-prod-collector-api`.
+**Mitigation:** This is intentional for environments where Aurora is not configured. In production, both vars are set and the endpoint works normally. If you see this 503 in production, check the Lambda environment variables for `clouder-prod-collector-api`.
 
 ---
 

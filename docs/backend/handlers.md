@@ -2,20 +2,21 @@
 
 ## Overview
 
-All Lambda functions share a single Python package: `src/collector/`. Each Lambda has its own entry-point module; there is no shared `lambda_handler` dispatcher. The six functions are:
+All Lambda functions share a single Python package: `src/collector/`. Each Lambda has its own entry-point module; there is no shared `lambda_handler` dispatcher. The functions documented in detail below are:
 
 | Lambda (AWS name) | Entry-point module | Trigger |
 |---|---|---|
-| `beatport-prod-collector-api` | `collector.handler` | HTTP API Gateway |
-| `beatport-prod-canonicalization-worker` | `collector.worker_handler` | SQS |
-| `beatport-prod-ai-search-worker` | `collector.search_handler` | SQS |
-| `beatport-prod-spotify-search-worker` | `collector.spotify_handler` | SQS |
-| `beatport-prod-vendor-match-worker` | `collector.vendor_match_handler` | SQS |
-| `beatport-prod-migration` | `collector.migration_handler` | Direct invoke (post-deploy) |
+| `clouder-prod-collector-api` | `collector.handler` | HTTP API Gateway |
+| `clouder-prod-canonicalization-worker` | `collector.worker_handler` | SQS |
+| `clouder-prod-spotify-search-worker` | `collector.spotify_handler` | SQS |
+| `clouder-prod-vendor-match-worker` | `collector.vendor_match_handler` | SQS |
+| `clouder-prod-db-migration` | `collector.migration_handler` | Direct invoke (post-deploy) |
 
-Auth flows are handled by a seventh Lambda (`collector.auth_handler`) documented separately; see [Auth handler](#auth-handler) below.
+Auth flows are handled by a separate Lambda (`collector.auth_handler`) documented below; see [Auth handler](#auth-handler).
 
-The AWS resource prefix is `beatport-prod-` regardless of the repository name (`clouder-core`). It is derived from `var.project = "beatport"` + `var.environment = "prod"` in Terraform.
+This table is **not exhaustive** — prod also runs `clouder-prod-curation`, `clouder-prod-telemetry`, `clouder-prod-analytics-api`, `clouder-prod-analytics-rollup`, `clouder-prod-label-enricher-worker`, `clouder-prod-artist-enricher-worker`, `clouder-prod-auto-enrich-dispatch-worker`, `clouder-prod-comments-collect-worker`, `clouder-prod-catalog-export`, `clouder-prod-ops-log-export`, and `clouder-prod-auth-authorizer`.
+
+The AWS resource prefix is `clouder-prod-`, derived from `var.project` + `var.environment` in Terraform. A few resources deliberately keep the older `beatport-prod-*` name (renaming them would mean data loss): the `raw` ingest bucket, the analytics-lake bucket, the Athena workgroup, and the frontend bucket / OAC / CloudFront functions.
 
 See also: [data-api.md](data-api.md), [providers.md](providers.md), [ADR-0001](../adr/0001-data-api-runtime.md), [ADR-0004](../adr/0004-provider-abstraction.md).
 
@@ -198,7 +199,11 @@ See also: [providers.md](providers.md), [ADR-0006](../adr/0006-spotify-metadata-
 
 ### Trigger
 
-SQS. Messages are enqueued externally (e.g., by an admin operation) and carry `clouder_track_id`, `vendor`, `isrc`, `artist`, `title`, `duration_ms`, `album`.
+SQS. Messages carry `clouder_track_id`, `vendor`, `isrc`, `artist`, `title`, `duration_ms`, `album`.
+
+Producers are the curation handler's best-effort `_enqueue_ytmusic` — on playlist track-add, on single-track Spotify import, and on whole-playlist Spotify import — plus one-off backfill scripts. Enqueue never fails the originating request: it no-ops when `VENDOR_MATCH_QUEUE_URL` is unset and swallows SQS errors.
+
+**A message whose `artist` or `title` is empty never reaches SQS** — `VendorMatchMessage` validation rejects it and the producer drops it with `vendor_match_enqueue_invalid`. See [gotchas.md](gotchas.md#empty-artist-silently-skips-vendor-match).
 
 ### Processing flow
 
@@ -252,7 +257,7 @@ See also: [data-api.md](data-api.md), [gotchas.md](gotchas.md), [ADR-0005](../ad
 
 **Entry point:** `src/collector/auth_handler.py`
 
-The auth handler is a separate Lambda (`beatport-prod-auth-handler`) behind the same HTTP API Gateway. It handles:
+The auth handler is a separate Lambda (`clouder-prod-auth-handler`) behind the same HTTP API Gateway. It handles:
 
 - `GET /auth/login` — initiates Spotify PKCE OAuth flow, sets `oauth_state` cookie.
 - `GET /auth/callback` — exchanges the code, issues CLOUDER access + refresh tokens, stores Spotify tokens.
