@@ -1,5 +1,9 @@
 // frontend/src/features/playlists/lib/playlistExport.ts
-import type { PlaylistTrack, TrackComment } from './playlistTypes';
+//
+// Shape of GET /playlists/{id}/export. The payload used to be assembled here
+// from the loaded tracks; it moved server-side when it grew to carry the merged
+// enrichment blob for every artist and label — building it here would cost an
+// /artists/{id} or /labels/{id} request per entity.
 
 export interface PlaylistExportComment {
   author: string;
@@ -20,16 +24,29 @@ export interface PlaylistExportTrack {
   comments: PlaylistExportComment[];
 }
 
+/** An artist or label appearing in the playlist, described once. */
+export interface PlaylistExportEntity {
+  id: string;
+  name: string;
+  /** Merged enrichment blob; null when the entity has not been enriched. */
+  info: Record<string, unknown> | null;
+}
+
 export interface PlaylistExport {
   playlist: string;
   track_count: number;
   tracks: PlaylistExportTrack[];
+  artists: PlaylistExportEntity[];
+  labels: PlaylistExportEntity[];
+  correlation_id?: string;
 }
 
 /**
  * Build a beatport.com track URL. The slug is not always stored; when missing
  * we use the `_` placeholder — Beatport redirects to the canonical URL by id.
  * Returns null when there is no Beatport id (e.g. non-Beatport-origin tracks).
+ *
+ * Still used by the track row; the export gets this URL from the API now.
  */
 export function beatportTrackUrl(
   id: string | null | undefined,
@@ -38,38 +55,4 @@ export function beatportTrackUrl(
   if (!id) return null;
   const s = slug && slug.trim() ? slug.trim() : '_';
   return `https://www.beatport.com/track/${s}/${id}`;
-}
-
-function mapComments(comments: TrackComment[]): PlaylistExportComment[] {
-  // author_avatar_url is intentionally dropped — avatar URLs are noise in a
-  // shareable text/JSON export.
-  return comments.map((c) => ({
-    author: c.author_name,
-    text: c.text,
-    like_count: c.like_count,
-    published_at: c.published_at,
-  }));
-}
-
-export function buildPlaylistExport(
-  playlistName: string,
-  tracks: PlaylistTrack[],
-  commentsByTrack?: Record<string, TrackComment[]>,
-): PlaylistExport {
-  return {
-    playlist: playlistName,
-    track_count: tracks.length,
-    tracks: tracks.map((t) => ({
-      title: t.title,
-      mix_name: t.mix_name,
-      artists: t.artists.map((a) => a.name),
-      label: t.label?.name ?? null,
-      isrc: t.isrc,
-      beatport_url: beatportTrackUrl(t.beatport_track_id, t.beatport_slug),
-      spotify_url: t.spotify_id ? `https://open.spotify.com/track/${t.spotify_id}` : null,
-      youtube_music_url:
-        t.ytmusic?.status === 'matched' ? (t.ytmusic.url ?? null) : null,
-      comments: mapComments(commentsByTrack?.[t.track_id] ?? []),
-    })),
-  };
 }

@@ -4,33 +4,28 @@ import { notifications } from '@mantine/notifications';
 import { IconCopy } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../api/client';
-import type { PlaylistTrack, PlaylistCommentsResponse } from '../lib/playlistTypes';
-import { buildPlaylistExport } from '../lib/playlistExport';
+import type { PlaylistExport } from '../lib/playlistExport';
 
 export interface CopyPlaylistButtonProps {
-  playlistName: string;
-  tracks: PlaylistTrack[];
   playlistId: string;
+  trackCount: number;
 }
 
-export function CopyPlaylistButton({ playlistName, tracks, playlistId }: CopyPlaylistButtonProps) {
+export function CopyPlaylistButton({ playlistId, trackCount }: CopyPlaylistButtonProps) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   async function handleCopy() {
     setLoading(true);
     try {
-      const resp = await api<PlaylistCommentsResponse>(
-        `/playlists/${playlistId}/comments?platform=youtube`,
-      );
-      const commentsByTrack = Object.fromEntries(
-        resp.tracks.map((t) => [t.track_id, t.comments]),
-      );
-      const json = JSON.stringify(buildPlaylistExport(playlistName, tracks, commentsByTrack), null, 2);
-      await navigator.clipboard.writeText(json);
+      // One round trip. The server assembles tracks, YouTube comments and the
+      // merged enrichment blob for every artist and label; doing it here would
+      // cost an /artists/{id} or /labels/{id} call per entity.
+      const data = await api<PlaylistExport>(`/playlists/${playlistId}/export`);
+      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
       notifications.show({
         color: 'green',
-        message: t('playlists.copy.copied', { count: tracks.length }),
+        message: t('playlists.copy.copied', { count: data.track_count }),
       });
     } catch {
       notifications.show({ color: 'red', message: t('playlists.copy.failed') });
@@ -43,7 +38,7 @@ export function CopyPlaylistButton({ playlistName, tracks, playlistId }: CopyPla
     <Button
       leftSection={<IconCopy size={16} />}
       variant="outline"
-      disabled={tracks.length === 0}
+      disabled={trackCount === 0}
       loading={loading}
       onClick={() => void handleCopy()}
     >

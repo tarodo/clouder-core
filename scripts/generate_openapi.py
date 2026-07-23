@@ -227,6 +227,64 @@ PLAYLIST_COMMENTS_RESPONSE: dict[str, Any] = {
     },
 }
 
+PLAYLIST_EXPORT_COMMENT: dict[str, Any] = {
+    "type": "object",
+    "required": ["author", "text", "like_count", "published_at"],
+    "properties": {
+        "author": {"type": "string"},
+        "text": {"type": "string"},
+        "like_count": {"type": "integer"},
+        "published_at": {"type": "string", "nullable": True},
+    },
+}
+
+PLAYLIST_EXPORT_TRACK: dict[str, Any] = {
+    "type": "object",
+    "required": ["title", "artists", "comments"],
+    "properties": {
+        "title": {"type": "string"},
+        "mix_name": {"type": "string", "nullable": True},
+        "artists": {"type": "array", "items": {"type": "string"}},
+        "label": {"type": "string", "nullable": True},
+        "isrc": {"type": "string", "nullable": True},
+        "beatport_url": {"type": "string", "nullable": True},
+        "spotify_url": {"type": "string", "nullable": True},
+        "youtube_music_url": {"type": "string", "nullable": True},
+        "comments": {"type": "array", "items": PLAYLIST_EXPORT_COMMENT},
+    },
+}
+
+PLAYLIST_EXPORT_ENTITY: dict[str, Any] = {
+    "type": "object",
+    "required": ["id", "name", "info"],
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "name": {"type": "string"},
+        "info": {
+            "type": "object",
+            "nullable": True,
+            "additionalProperties": True,
+            "description": (
+                "Merged enrichment blob, admin-only fields stripped. "
+                "Null when the entity has no enrichment row."
+            ),
+        },
+    },
+}
+
+PLAYLIST_EXPORT_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["playlist", "track_count", "tracks", "artists", "labels"],
+    "properties": {
+        "playlist": {"type": "string"},
+        "track_count": {"type": "integer"},
+        "tracks": {"type": "array", "items": PLAYLIST_EXPORT_TRACK},
+        "artists": {"type": "array", "items": PLAYLIST_EXPORT_ENTITY},
+        "labels": {"type": "array", "items": PLAYLIST_EXPORT_ENTITY},
+        "correlation_id": {"type": "string"},
+    },
+}
+
 TAG_LIST_RESPONSE = {
     "type": "object",
     "required": ["items", "total", "limit", "offset"],
@@ -2969,6 +3027,29 @@ ROUTES: list[dict[str, Any]] = [
         ],
         "responses": {
             "200": _make_response(200, "Per-track comments for the playlist.", PLAYLIST_COMMENTS_RESPONSE),
+            "404": _error(404, "playlist_not_found."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "get",
+        "path": "/playlists/{id}/export",
+        "auth": AUTH,
+        "summary": "Full playlist export (tracks, comments, artist/label enrichment).",
+        "description": (
+            "One-shot payload for the Copy-playlist button. `tracks` carries the "
+            "per-track fields (title, artists, label, ISRC, Beatport/Spotify/YT Music "
+            "links, collected YouTube comments); `artists` and `labels` list every "
+            "entity in the playlist once, each with its merged enrichment blob "
+            "(`info`, null when the entity has not been enriched). Admin-only "
+            "enrichment fields are stripped. Deliberately heavy — fetch on demand, "
+            "not on playlist render."
+        ),
+        "parameters": [
+            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+        ],
+        "responses": {
+            "200": _make_response(200, "Export payload.", PLAYLIST_EXPORT_RESPONSE),
             "404": _error(404, "playlist_not_found."),
             **COMMON_AUTH_ERRORS,
         },
