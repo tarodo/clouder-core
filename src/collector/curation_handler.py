@@ -1929,6 +1929,75 @@ def _handle_list_playlist_comments(event, playlists_repo, user_id, correlation_i
     )
 
 
+def _handle_export_playlist(event, repo, user_id, correlation_id):
+    """Full playlist export: tracks + YouTube comments + artist/label enrichment.
+
+    Two-repo handler (cf. _handle_list_playlist_comments): the injected repo is
+    the PlaylistsRepository; the comments repo is built separately. Enrichment is
+    read in bulk off the same Data API client, so the payload costs a fixed
+    number of statements no matter how many artists the playlist spans.
+    """
+    from .curation.playlist_export import (
+        build_playlist_export,
+        collect_entity_ids,
+        fetch_entity_info,
+    )
+
+    pid = (event.get("pathParameters") or {}).get("id")
+    if not pid:
+        raise ValidationError("id is required in path")
+    playlist = repo.get(user_id=user_id, playlist_id=pid)
+    if playlist is None:
+        raise PlaylistNotFoundError()
+
+    rows, _total = repo.list_tracks(
+        user_id=user_id, playlist_id=pid, limit=10_000, offset=0,
+    )
+
+    comments_by_track: dict[str, list[dict[str, Any]]] = {}
+    comments_repo = _comments_factory()
+    if comments_repo is not None and rows:
+        by_track = comments_repo.list_comments_for_tracks(
+            track_ids=[r.track_id for r in rows],
+            platform="youtube",
+            limit_per_track=100,
+        )
+        for tid, (_collection, comments) in by_track.items():
+            # author_avatar_url is dropped — avatar URLs are noise in an export.
+            comments_by_track[tid] = [
+                {
+                    "author": c.author_name,
+                    "text": c.text,
+                    "like_count": c.like_count,
+                    "published_at": (
+                        c.published_at.isoformat()
+                        if hasattr(c.published_at, "isoformat")
+                        else c.published_at
+                    ),
+                }
+                for c in comments
+            ]
+
+    artist_ids, label_ids = collect_entity_ids(rows)
+    artist_info, label_info = fetch_entity_info(
+        repo.data_api, artist_ids=artist_ids, label_ids=label_ids,
+    )
+
+    payload = build_playlist_export(
+        playlist_name=playlist.name,
+        track_rows=rows,
+        comments_by_track=comments_by_track,
+        artist_info=artist_info,
+        label_info=label_info,
+    )
+    log_event(
+        "INFO", "playlist_exported",
+        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+    )
+    payload["correlation_id"] = correlation_id
+    return _json_response(200, payload, correlation_id)
+
+
 def _handle_set_track_tags(
     event, repo: TagsRepository, user_id: str, correlation_id: str
 ):
@@ -2189,5 +2258,8 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     ),
     "GET /playlists/{id}/comments": (
         _handle_list_playlist_comments, _playlists_factory,
+    ),
+    "GET /playlists/{id}/export": (
+        _handle_export_playlist, _playlists_factory,
     ),
 }

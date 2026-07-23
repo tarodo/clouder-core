@@ -51,14 +51,29 @@ class FakePlaylistsRepo:
         self.imports: set[tuple[str, str]] = set()
         # user_id -> set of track_ids visible through categories
         self.category_tracks: dict[str, set[str]] = {}
-        # Mock data_api used by UserSpotifyIdReader.
+        # merged enrichment blobs, keyed by artist/label id (export reads these)
+        self.artist_info: dict[str, dict] = {}
+        self.label_info: dict[str, dict] = {}
+        # Mock data_api used by UserSpotifyIdReader and the export enrichment read.
         self.data_api = MagicMock()
         self.data_api.execute.side_effect = self._fake_execute
 
     def _fake_execute(self, sql: str, params=None, transaction_id=None):
-        # Only used by UserSpotifyIdReader.get_spotify_id.
+        # Used by UserSpotifyIdReader.get_spotify_id and the export enrichment read.
         if "SELECT spotify_id FROM users" in sql:
             return [{"spotify_id": "user-sp-1"}]
+        if "clouder_artist_info" in sql:
+            return [
+                {"artist_id": aid, "merged": self.artist_info[aid]}
+                for aid in (params or {}).values()
+                if aid in self.artist_info
+            ]
+        if "clouder_label_info" in sql:
+            return [
+                {"label_id": lid, "merged": self.label_info[lid]}
+                for lid in (params or {}).values()
+                if lid in self.label_info
+            ]
         return []
 
     # ---------- helpers ----------------------------------------------------
@@ -228,6 +243,9 @@ class FakePlaylistsRepo:
                 isrc=meta.get("isrc"),
                 length_ms=meta.get("length_ms"),
                 origin=meta.get("origin", "beatport"),
+                # Mirrors the real repo, which projects artists/label onto the row.
+                artists=tuple(meta.get("artist_refs", ())),
+                label=meta.get("label"),
             ))
         rows.sort(key=lambda r: r.position)
         total = len(rows)
@@ -783,3 +801,78 @@ def test_publish_cover_failure_keeps_dirty(
     saved = fake_repo.playlists[pid]
     assert saved["spotify_playlist_id"] == "spt-new"
     assert saved["needs_republish"] is True
+
+
+def test_export_playlist_includes_tracks_comments_and_enrichment(
+    fake_repo, fake_s3, monkeypatch,
+):
+    """GET /playlists/{id}/export returns the full copy payload in one call."""
+    resp = lambda_handler(
+        _event(method="POST", route="/playlists", body={"name": "Export Set"}), None,
+    )
+    pid = json.loads(resp["body"])["id"]
+
+    # A track carrying artists + label, so the export has entities to enrich.
+    fake_repo.canonical_tracks["t-1"] = {
+        "title": "One",
+        "spotify_id": "spt1",
+        "artist_refs": [{"id": "a1", "name": "Guri"}, {"id": "a2", "name": "Nu Zau"}],
+        "label": {"id": "l1", "name": "Label X"},
+    }
+    fake_repo.category_tracks["u1"] = {"t-1"}
+    fake_repo.artist_info["a1"] = {"country": "RO", "cost_usd": 0.5}
+    fake_repo.label_info["l1"] = {"country": "DE"}
+    lambda_handler(
+        _event(method="POST", route="/playlists/{id}/tracks",
+               body={"track_ids": ["t-1"]}, path_params={"id": pid}),
+        None,
+    )
+
+    comments_repo = MagicMock()
+    comments_repo.list_comments_for_tracks.return_value = {
+        "t-1": (
+            SimpleNamespace(status="ok", comment_count=1, external_video_id="v1"),
+            [SimpleNamespace(author_name="bob", author_avatar_url="http://a",
+                             text="fire", like_count=3, published_at="2026-01-01")],
+        )
+    }
+    monkeypatch.setattr(
+        "collector.curation_handler._comments_factory", lambda: comments_repo,
+    )
+
+    resp = lambda_handler(
+        _event(method="GET", route="/playlists/{id}/export", path_params={"id": pid}),
+        None,
+    )
+    assert resp["statusCode"] == 200
+    body = json.loads(resp["body"])
+
+    assert body["playlist"] == "Export Set"
+    assert body["track_count"] == 1
+    track = body["tracks"][0]
+    assert track["artists"] == ["Guri", "Nu Zau"]
+    assert track["label"] == "Label X"
+    assert track["spotify_url"] == "https://open.spotify.com/track/spt1"
+    assert track["comments"] == [
+        {"author": "bob", "text": "fire", "like_count": 3, "published_at": "2026-01-01"}
+    ]
+
+    # Enrichment is attached once per entity, with admin-only fields stripped.
+    assert body["artists"] == [
+        {"id": "a1", "name": "Guri", "info": {"country": "RO"}},
+        {"id": "a2", "name": "Nu Zau", "info": None},
+    ]
+    assert body["labels"] == [{"id": "l1", "name": "Label X", "info": {"country": "DE"}}]
+
+
+def test_export_playlist_404_for_other_users_playlist(fake_repo, fake_s3):
+    resp = lambda_handler(
+        _event(method="POST", route="/playlists", body={"name": "Mine"}), None,
+    )
+    pid = json.loads(resp["body"])["id"]
+    resp = lambda_handler(
+        _event(method="GET", route="/playlists/{id}/export",
+               path_params={"id": pid}, user_id="someone-else"),
+        None,
+    )
+    assert resp["statusCode"] == 404
