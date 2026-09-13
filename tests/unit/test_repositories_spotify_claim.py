@@ -9,7 +9,10 @@ rows as it selects them, so a second worker cannot pick them up.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import MagicMock
+
+import pytest
 
 from collector.repositories import ClouderRepository
 
@@ -114,3 +117,68 @@ def test_peek_query_does_not_claim() -> None:
     sql, _ = fake.execute.call_args[0]
     assert "UPDATE" not in sql.upper()
     assert sql.strip().upper().startswith("SELECT")
+
+
+# --- structure, as the PostgreSQL parser sees it -------------------------
+#
+# The assertions above match on SQL text, which would survive a rewrite that
+# parses but no longer claims atomically (an UPDATE moved out of the CTE, a
+# dropped SKIP LOCKED). These read the actual parse tree instead.
+
+pglast = pytest.importorskip("pglast")
+
+
+def _parsed_claim_sql():
+    repo, fake = _repo([])
+    repo.claim_tracks_for_spotify_search(limit=200, claimed_at=CLAIMED_AT)
+    sql, _ = fake.execute.call_args[0]
+    for name, literal in (
+        (":claimed_at", "'2026-09-13 13:50:19+00'::timestamptz"),
+        (":limit", "200"),
+    ):
+        sql = sql.replace(name, literal)
+    statements = pglast.parse_sql(sql)
+    assert len(statements) == 1
+    return statements[0].stmt
+
+
+def test_claim_is_one_statement_wrapping_a_data_modifying_cte() -> None:
+    from pglast import ast
+
+    stmt = _parsed_claim_sql()
+
+    assert isinstance(stmt, ast.SelectStmt)
+    cte = stmt.withClause.ctes[0]
+    assert cte.ctename == "claimed"
+    # A plain SELECT here would mean the rows are read but never stamped.
+    assert isinstance(cte.ctequery, ast.UpdateStmt)
+    assert getattr(cte.ctequery, "returningClause", None) or getattr(
+        cte.ctequery, "returningList", None
+    )
+
+
+def test_claim_locks_with_skip_locked() -> None:
+    from pglast import ast
+
+    stmt = _parsed_claim_sql()
+    locks: list[Any] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, ast.LockingClause):
+            locks.append(node)
+        for attr in getattr(node, "__slots__", ()):
+            value = getattr(node, attr, None)
+            if isinstance(value, ast.Node):
+                walk(value)
+            elif isinstance(value, tuple):
+                for item in value:
+                    if isinstance(item, ast.Node):
+                        walk(item)
+
+    walk(stmt)
+
+    assert locks, "the sub-select lost its locking clause"
+    assert "FORUPDATE" in locks[0].strength.name.upper()
+    # Without SKIP LOCKED a parallel claim blocks instead of taking a
+    # disjoint set, which is the behaviour this whole query exists to get.
+    assert "SKIP" in locks[0].waitPolicy.name.upper()
