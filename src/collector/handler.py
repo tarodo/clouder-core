@@ -160,21 +160,21 @@ def _route(
     if route_key in _ADMIN_ROUTES:
         _require_admin(event)
     if route_key == "GET /runs/{run_id}":
-        return _handle_get_run(event, context)
+        return _handle_get_run(event, context, correlation_id)
     if route_key in ("POST /collect_bp_releases", ""):
-        return _handle_collect(event, context)
+        return _handle_collect(event, context, correlation_id)
     if route_key == "POST /admin/beatport/ingest":
-        return _handle_admin_ingest(event, context)
+        return _handle_admin_ingest(event, context, correlation_id)
     if route_key == "GET /admin/coverage":
-        return _handle_admin_coverage(event)
+        return _handle_admin_coverage(event, correlation_id)
     if route_key == "GET /admin/users":
-        return _handle_admin_users(event)
+        return _handle_admin_users(event, correlation_id)
     if route_key == "GET /admin/runs":
-        return _handle_admin_runs(event)
+        return _handle_admin_runs(event, correlation_id)
     if route_key == "GET /tracks/spotify-not-found":
-        return _handle_spotify_not_found(event)
+        return _handle_spotify_not_found(event, correlation_id)
     if route_key == "POST /admin/spotify/retry-not-found":
-        return _handle_spotify_retry_not_found(event)
+        return _handle_spotify_retry_not_found(event, correlation_id)
     if route_key == "POST /admin/labels/enrich":
         from .label_enrichment.routes import handle_post_enrich
         status, body = handle_post_enrich(event)
@@ -312,7 +312,7 @@ def _route(
         status, body = handle_get_artist_user(event)
         return _json_response(status, body, correlation_id)
     if route_key in _LIST_ROUTES:
-        return _handle_list(event, route_key)
+        return _handle_list(event, route_key, correlation_id)
     return _json_response(
         404,
         {"error_code": "not_found", "message": "Route not found"},
@@ -348,11 +348,11 @@ def _run_beatport_ingest(
     event: Mapping[str, Any],
     context: Any,
     params: _IngestParams,
+    correlation_id: str,
 ) -> dict[str, Any]:
     started_at_perf = time.perf_counter()
     api_request_id = _extract_api_request_id(event)
     lambda_request_id = getattr(context, "aws_request_id", "unknown")
-    correlation_id = _extract_correlation_id(event)
 
     log_event(
         "INFO",
@@ -504,7 +504,9 @@ def _run_beatport_ingest(
     return _json_response(200, response, correlation_id)
 
 
-def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
+def _handle_collect(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     body = _parse_json_body(event)
     request = _parse_collect_request(body)
     week_start, week_end = compute_iso_week_date_range(
@@ -521,10 +523,12 @@ def _handle_collect(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         week_number=None,
         is_custom_range=False,
     )
-    return _run_beatport_ingest(event, context, params)
+    return _run_beatport_ingest(event, context, params, correlation_id)
 
 
-def _handle_admin_ingest(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
+def _handle_admin_ingest(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     body = _parse_json_body(event)
     try:
         request = AdminIngestRequestIn.model_validate(body)
@@ -556,11 +560,12 @@ def _handle_admin_ingest(event: Mapping[str, Any], context: Any) -> dict[str, An
         week_number=request.week_number,
         is_custom_range=is_custom,
     )
-    return _run_beatport_ingest(event, context, params)
+    return _run_beatport_ingest(event, context, params, correlation_id)
 
 
-def _handle_admin_coverage(event: Mapping[str, Any]) -> dict[str, Any]:
-    correlation_id = _extract_correlation_id(event)
+def _handle_admin_coverage(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
     qs = event.get("queryStringParameters") or {}
     raw = qs.get("week_year") if isinstance(qs, Mapping) else None
     if not raw or not raw.isdigit():
@@ -646,8 +651,9 @@ def _handle_admin_coverage(event: Mapping[str, Any]) -> dict[str, Any]:
     )
 
 
-def _handle_admin_users(event: Mapping[str, Any]) -> dict[str, Any]:
-    correlation_id = _extract_correlation_id(event)
+def _handle_admin_users(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
     repository = create_clouder_repository_from_env()
     if repository is None:
         return _json_response(
@@ -662,8 +668,9 @@ def _handle_admin_users(event: Mapping[str, Any]) -> dict[str, Any]:
     )
 
 
-def _handle_admin_runs(event: Mapping[str, Any]) -> dict[str, Any]:
-    correlation_id = _extract_correlation_id(event)
+def _handle_admin_runs(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
     qs = event.get("queryStringParameters") or {}
     qs = qs if isinstance(qs, Mapping) else {}
 
@@ -706,9 +713,10 @@ def _handle_admin_runs(event: Mapping[str, Any]) -> dict[str, Any]:
     return _json_response(200, {"items": items, "correlation_id": correlation_id}, correlation_id)
 
 
-def _handle_get_run(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
+def _handle_get_run(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     del context
-    correlation_id = _extract_correlation_id(event)
     api_request_id = _extract_api_request_id(event)
     path_parameters = event.get("pathParameters")
     run_id = None
@@ -767,8 +775,9 @@ def _handle_get_run(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     return _json_response(200, response, correlation_id)
 
 
-def _handle_list(event: Mapping[str, Any], route_key: str) -> dict[str, Any]:
-    correlation_id = _extract_correlation_id(event)
+def _handle_list(
+    event: Mapping[str, Any], route_key: str, correlation_id: str
+) -> dict[str, Any]:
     entity, list_method, count_method = _LIST_ROUTES[route_key]
 
     repository = create_clouder_repository_from_env()
@@ -828,8 +837,9 @@ def _handle_list(event: Mapping[str, Any], route_key: str) -> dict[str, Any]:
     )
 
 
-def _handle_spotify_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
-    correlation_id = _extract_correlation_id(event)
+def _handle_spotify_not_found(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
 
     repository = create_clouder_repository_from_env()
     if repository is None:
@@ -919,8 +929,9 @@ def _parse_iso_date_field(payload: Mapping[str, Any], name: str) -> date:
         raise ValidationError(f"{name} must be an ISO date (YYYY-MM-DD)")
 
 
-def _handle_spotify_retry_not_found(event: Mapping[str, Any]) -> dict[str, Any]:
-    correlation_id = _extract_correlation_id(event)
+def _handle_spotify_retry_not_found(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
 
     payload = _parse_json_body(event)
 
