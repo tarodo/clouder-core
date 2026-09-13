@@ -179,12 +179,17 @@ def _process_spotify_search(
     correlation_id: str,
     deadline_provider: Any = None,
 ) -> None:
-    tracks = repository.find_tracks_needing_spotify_search(limit=message.batch_size)
+    batch_id = uuid4().hex[:12]
+    claimed_at = utc_now()
+    tracks = repository.claim_tracks_for_spotify_search(
+        limit=message.batch_size, claimed_at=claimed_at
+    )
     if not tracks:
         log_event(
             "INFO",
             "spotify_search_skipped",
             correlation_id=correlation_id,
+            batch_id=batch_id,
             reason="no_tracks_need_search",
         )
         return
@@ -193,9 +198,73 @@ def _process_spotify_search(
         "INFO",
         "spotify_search_tracks_loaded",
         correlation_id=correlation_id,
+        batch_id=batch_id,
         track_count=len(tracks),
     )
 
+    try:
+        _search_and_persist(
+            repository=repository,
+            storage=storage,
+            settings=settings,
+            message=message,
+            correlation_id=correlation_id,
+            batch_id=batch_id,
+            tracks=tracks,
+            deadline_provider=deadline_provider,
+        )
+    except Exception:
+        # The rows are already stamped as searched. Hand back whatever this
+        # batch never managed to resolve, so the SQS redelivery re-searches
+        # them instead of leaving them stranded as "not found".
+        _release_claim(
+            repository=repository,
+            claimed_at=claimed_at,
+            correlation_id=correlation_id,
+            batch_id=batch_id,
+        )
+        raise
+
+
+def _release_claim(
+    repository: ClouderRepository,
+    claimed_at: datetime,
+    correlation_id: str,
+    batch_id: str,
+) -> None:
+    try:
+        released = repository.release_spotify_search_claim(
+            claimed_at=claimed_at, now=utc_now()
+        )
+    except Exception as exc:
+        log_event(
+            "ERROR",
+            "spotify_claim_release_failed",
+            correlation_id=correlation_id,
+            batch_id=batch_id,
+            error_type=exc.__class__.__name__,
+            error_message=str(exc)[:500],
+        )
+        return
+    log_event(
+        "INFO",
+        "spotify_claim_released",
+        correlation_id=correlation_id,
+        batch_id=batch_id,
+        released_count=released,
+    )
+
+
+def _search_and_persist(
+    repository: ClouderRepository,
+    storage: S3Storage,
+    settings: Any,
+    message: SpotifySearchMessage,
+    correlation_id: str,
+    batch_id: str,
+    tracks: list[dict[str, Any]],
+    deadline_provider: Any = None,
+) -> None:
     client = registry.get_lookup("spotify")
 
     search_input = [
@@ -235,6 +304,7 @@ def _process_spotify_search(
     ]
     meta = {
         "correlation_id": correlation_id,
+        "batch_id": batch_id,
         "searched_at_utc": now.replace(microsecond=0)
         .isoformat()
         .replace("+00:00", "Z"),
@@ -257,6 +327,7 @@ def _process_spotify_search(
         "INFO",
         "spotify_search_completed",
         correlation_id=correlation_id,
+        batch_id=batch_id,
         total_tracks=len(results),
         found=found_count,
         not_found=not_found_count,

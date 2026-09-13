@@ -101,6 +101,16 @@ ALLOWED_LOG_FIELDS = {
     "retry_after",
     "reset_count",
     "pending_count",
+    # Spotify search coverage — these are the payload of
+    # `spotify_search_completed`, not decoration; without them the event
+    # reaches CloudWatch carrying only correlation_id and s3_key.
+    "total_tracks",
+    "found",
+    "not_found",
+    "batch_id",
+    "batch_size",
+    "track_count",
+    "released_count",
 }
 
 

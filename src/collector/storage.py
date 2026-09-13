@@ -113,9 +113,19 @@ class S3Storage:
         spotify_prefix: str,
     ) -> Tuple[str, str]:
         correlation_id = meta.get("correlation_id", "unknown")
-        searched_date = meta.get("searched_at_utc", "")[:10] or "unknown"
+        searched_at = meta.get("searched_at_utc", "") or ""
+        searched_date = searched_at[:10] or "unknown"
 
-        base_key = f"{spotify_prefix}/date={searched_date}/{correlation_id}"
+        # A follow-up chain reuses the originating correlation_id for every
+        # batch, so the correlation_id alone is not a unique key — without the
+        # batch segment each batch overwrote the previous batch's results.
+        batch_token = str(meta.get("batch_id") or "").strip()
+        if not batch_token:
+            batch_token = searched_at.replace("-", "").replace(":", "") or "unknown"
+
+        base_key = (
+            f"{spotify_prefix}/date={searched_date}/{correlation_id}/{batch_token}"
+        )
         results_key = f"{base_key}/results.json.gz"
         meta_key = f"{base_key}/meta.json"
 
