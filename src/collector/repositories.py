@@ -737,7 +737,87 @@ class ClouderRepository:
 
     # ── Spotify search methods ─────────────────────────────────────
 
+    def claim_tracks_for_spotify_search(
+        self, limit: int, claimed_at: datetime
+    ) -> list[dict[str, Any]]:
+        """Stamp `spotify_searched_at` on the next *limit* candidates and return
+        them, in one statement.
+
+        Claiming inside the selecting statement is what keeps two concurrent
+        workers off the same rows. The read-only query below left
+        `spotify_searched_at` NULL until the whole batch had finished, so a
+        worker starting mid-batch re-selected everything the first one was
+        still searching — two ingests in a row meant every track was looked up
+        on Spotify twice.
+
+        `SKIP LOCKED` lets a parallel claim take a disjoint set instead of
+        blocking on ours, and repeating the `IS NULL` predicate on the outer
+        UPDATE closes the READ COMMITTED window between the sub-select picking
+        ids and the lock actually being taken.
+
+        A batch that dies after claiming would strand its rows as
+        "searched, not found"; `release_spotify_search_claim` hands them back.
+        """
+        return self._data_api.execute(
+            """
+            WITH claimed AS (
+                UPDATE clouder_tracks
+                SET spotify_searched_at = :claimed_at,
+                    updated_at = :claimed_at
+                WHERE id IN (
+                    SELECT id
+                    FROM clouder_tracks
+                    WHERE isrc IS NOT NULL
+                      AND spotify_searched_at IS NULL
+                    ORDER BY created_at DESC
+                    LIMIT :limit
+                    FOR UPDATE SKIP LOCKED
+                )
+                  AND spotify_searched_at IS NULL
+                RETURNING id, isrc, title, normalized_title, length_ms, created_at
+            )
+            SELECT c.id, c.isrc, c.title, c.normalized_title, c.length_ms,
+                   string_agg(DISTINCT a.name, ', ') AS artists
+            FROM claimed c
+            LEFT JOIN clouder_track_artists ta ON ta.track_id = c.id
+            LEFT JOIN clouder_artists a ON ta.artist_id = a.id
+            GROUP BY c.id, c.isrc, c.title, c.normalized_title,
+                     c.length_ms, c.created_at
+            ORDER BY c.created_at DESC
+            """,
+            {"limit": limit, "claimed_at": claimed_at},
+        )
+
+    def release_spotify_search_claim(
+        self, claimed_at: datetime, now: datetime
+    ) -> int:
+        """Hand back rows claimed at *claimed_at* that never got a result.
+
+        Rows the batch did manage to persist carry the completion timestamp
+        written by `batch_update_spotify_results`, not the claim timestamp, so
+        they are left alone; only the stranded remainder is released for the
+        SQS redelivery to pick up.
+        """
+        rows = self._data_api.execute(
+            """
+            UPDATE clouder_tracks
+            SET spotify_searched_at = NULL,
+                updated_at = :now
+            WHERE spotify_searched_at = :claimed_at
+              AND spotify_id IS NULL
+            RETURNING id
+            """,
+            {"claimed_at": claimed_at, "now": now},
+        )
+        return len(rows)
+
     def find_tracks_needing_spotify_search(self, limit: int) -> list[dict[str, Any]]:
+        """Read-only peek used to decide whether a follow-up batch is needed.
+
+        Must stay non-claiming: `_enqueue_follow_up_if_needed` calls it with
+        limit=1 purely to ask "is anything left?", and a claiming peek would
+        strand that track.
+        """
         return self._data_api.execute(
             """
             SELECT t.id, t.isrc, t.title, t.normalized_title, t.length_ms,

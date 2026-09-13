@@ -26,13 +26,23 @@ class FakeRepo:
         self.identity_cmds: list = []
         self.album_propagation_calls: list[list[str]] = []
         self._search_call_count = 0
+        self.released: list = []
+        self.claimed_at: Any = None
+
+    def claim_tracks_for_spotify_search(
+        self, limit: int, claimed_at: Any
+    ) -> list[dict[str, Any]]:
+        self._search_call_count += 1
+        self.claimed_at = claimed_at
+        return self._tracks[:limit]
 
     def find_tracks_needing_spotify_search(self, limit: int) -> list[dict[str, Any]]:
-        self._search_call_count += 1
-        if self._search_call_count == 1:
-            return self._tracks[:limit]
-        # After first call, return empty (no more tracks)
+        # Read-only follow-up peek: nothing left after the claimed batch.
         return []
+
+    def release_spotify_search_claim(self, claimed_at: Any, now: Any) -> int:
+        self.released.append(claimed_at)
+        return 0
 
     def batch_upsert_source_entities(self, commands, transaction_id=None):
         self.source_entity_cmds.extend(commands)
@@ -62,13 +72,23 @@ class FakeRepoWithRemaining:
         self.identity_cmds: list = []
         self.album_propagation_calls: list[list[str]] = []
         self._search_call_count = 0
+        self.released: list = []
+        self.claimed_at: Any = None
+
+    def claim_tracks_for_spotify_search(
+        self, limit: int, claimed_at: Any
+    ) -> list[dict[str, Any]]:
+        self._search_call_count += 1
+        self.claimed_at = claimed_at
+        return self._tracks[:limit]
 
     def find_tracks_needing_spotify_search(self, limit: int) -> list[dict[str, Any]]:
-        self._search_call_count += 1
-        if self._search_call_count == 1:
-            return self._tracks[:limit]
-        # Second call (follow-up check): still has remaining tracks
+        # Read-only follow-up peek: still has remaining tracks.
         return [self._tracks[0]]
+
+    def release_spotify_search_claim(self, claimed_at: Any, now: Any) -> int:
+        self.released.append(claimed_at)
+        return 0
 
     def batch_upsert_source_entities(self, commands, transaction_id=None):
         self.source_entity_cmds.extend(commands)
