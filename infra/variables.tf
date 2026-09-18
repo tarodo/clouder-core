@@ -296,9 +296,9 @@ variable "vendor_match_worker_reserved_concurrency" {
 }
 
 variable "enable_lambda_reserved_concurrency" {
-  description = "Apply per-Lambda reserved_concurrent_executions to Spotify workers. Disable when the AWS account ConcurrentExecutions quota is too low (sum of reserved values must leave ≥10 unreserved). Default false because new accounts ship with quota 10. Raise the quota via Service Quotas (L-B99A9384, target ≥ 17) before flipping this on."
+  description = "Apply per-Lambda reserved_concurrent_executions to the workers. The account ConcurrentExecutions quota must leave ≥10 unreserved: reserved sum is spotify_search(3) + vendor_match(2) + label_enricher(6) = 11, so the account quota must be ≥21. Raise the quota (Service Quotas L-B99A9384, target ≥21) BEFORE this is true — otherwise terraform apply fails with InvalidParameterValue."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "vendor_match_queue_visibility_timeout_seconds" {
@@ -471,9 +471,9 @@ variable "label_enrichment_worker_lambda_memory_mb" {
 }
 
 variable "label_enrichment_worker_reserved_concurrency" {
-  description = "Max parallel Lambda invocations. Caps cross-label parallelism."
+  description = "Max parallel Lambda invocations. Caps cross-label parallelism so the worker can't monopolise the account ConcurrentExecutions pool and starve interactive paths (auth/api). Only applied when var.enable_lambda_reserved_concurrency = true."
   type        = number
-  default     = 10
+  default     = 6
 }
 
 variable "label_enrichment_batch_size" {
