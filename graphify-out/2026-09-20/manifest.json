@@ -5210,8 +5210,8 @@
     "semantic_hash": "c725925a5155d6994ca645790fad9b4c"
   },
   ".github/workflows/deploy.yml": {
-    "mtime": 1789926308.4878728,
-    "ast_hash": "f41abdd9147c33b7faf0778c9609b946",
+    "mtime": 1782540090.914356,
+    "ast_hash": "e45f9a1a8d817ababf34c605a6fbf27f",
     "semantic_hash": ""
   },
   ".github/workflows/pr.yml": {
@@ -10200,92 +10200,92 @@
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-09-20-user-style-selection-design.md": {
-    "mtime": 1789926308.489907,
-    "ast_hash": "e78e1ca3c87a917c8ddf10dd523f2f62",
+    "mtime": 1789918537.9235032,
+    "ast_hash": "cfcbf280b2be733c0d2eeb373755182c",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-09-20-user-style-selection.md": {
-    "mtime": 1789919778.2077732,
+    "mtime": 1789905329.6678991,
     "ast_hash": "659248d686dd476592a0d7c784091c21",
     "semantic_hash": ""
   },
   "alembic/versions/20260920_32_user_style_prefs.py": {
-    "mtime": 1789919778.2051501,
+    "mtime": 1789909777.656145,
     "ast_hash": "e712f1b98c35b8e960de1a9c2d3ee2e9",
     "semantic_hash": ""
   },
   "tests/unit/test_migration_32_sql.py": {
-    "mtime": 1789919778.2175407,
+    "mtime": 1789910219.632764,
     "ast_hash": "b9979ca68d3808807732aa3e22820a45",
     "semantic_hash": ""
   },
   "src/collector/user_styles/__init__.py": {
-    "mtime": 1789919778.2164347,
+    "mtime": 1789910397.698884,
     "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
     "semantic_hash": ""
   },
   "src/collector/user_styles/repository.py": {
-    "mtime": 1789919778.21689,
+    "mtime": 1789910769.9213858,
     "ast_hash": "ba02d6bb3331ac4bebb17e909f796191",
     "semantic_hash": ""
   },
   "tests/unit/test_user_styles_repository.py": {
-    "mtime": 1789919778.2178054,
+    "mtime": 1789917742.7057328,
     "ast_hash": "586c42affc6c105ead0d4fa171a4ca54",
     "semantic_hash": ""
   },
   "src/collector/user_styles/routes.py": {
-    "mtime": 1789919778.2170482,
+    "mtime": 1789911686.8645575,
     "ast_hash": "2c3ce481689ea07a30793e4f78e3eced",
     "semantic_hash": ""
   },
   "tests/unit/test_user_styles_routes.py": {
-    "mtime": 1789919778.2180915,
+    "mtime": 1789911642.991603,
     "ast_hash": "f0fa339afd2df1e9868dd3ec3d8e4514",
     "semantic_hash": ""
   },
   "frontend/src/hooks/__tests__/useAllStyles.test.tsx": {
-    "mtime": 1789919778.2125475,
+    "mtime": 1789912958.6933057,
     "ast_hash": "8f4cae7415b2ce88cfb76fe430d2199a",
     "semantic_hash": ""
   },
   "frontend/src/hooks/__tests__/useUpdateMyStyles.test.tsx": {
-    "mtime": 1789919778.212747,
+    "mtime": 1789912886.3838131,
     "ast_hash": "864683c487842450c4a31ad2d742d507",
     "semantic_hash": ""
   },
   "frontend/src/hooks/useAllStyles.ts": {
-    "mtime": 1789919778.2129402,
+    "mtime": 1789912899.9498394,
     "ast_hash": "bd1bfb7d5f3145f994dd9cd2838915af",
     "semantic_hash": ""
   },
   "frontend/src/hooks/useUpdateMyStyles.ts": {
-    "mtime": 1789919778.2134037,
+    "mtime": 1789912905.4221954,
     "ast_hash": "2799094040384415b38109ddfe8f13b8",
     "semantic_hash": ""
   },
   "frontend/src/features/profile/components/MyStylesSection.tsx": {
-    "mtime": 1789919778.2114663,
+    "mtime": 1789917626.2377777,
     "ast_hash": "fe498496cd6d3f8c1a2371c4138cd35a",
     "semantic_hash": ""
   },
   "frontend/src/features/profile/components/SelectedStyleRow.tsx": {
-    "mtime": 1789919778.2116709,
+    "mtime": 1789917630.7098696,
     "ast_hash": "2a677a1a0901a10d08e43af9ccffc30d",
     "semantic_hash": ""
   },
   "frontend/src/features/profile/components/__tests__/MyStylesSection.test.tsx": {
-    "mtime": 1789919778.2123234,
+    "mtime": 1789917672.4802735,
     "ast_hash": "09329655b8936667f06d5d46a96072bf",
     "semantic_hash": ""
   },
   "frontend/src/features/profile/components/__tests__/MyStylesSection.browser.test.tsx": {
-    "mtime": 1789919778.2119806,
+    "mtime": 1789916303.1771379,
     "ast_hash": "98482dd5959e9e1d143ee80fd44db115",
     "semantic_hash": ""
   },
   "frontend/src/routes/__tests__/profile.browser.test.tsx": {
-    "mtime": 1789919778.2142189,
+    "mtime": 1789917824.038736,
     "ast_hash": "2d2d4b9b0520d8b14b226aa93f81952a",
     "semantic_hash": ""
   },
