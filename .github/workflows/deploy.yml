@@ -81,9 +81,19 @@ jobs:
             --value "${{ secrets.YOUTUBE_API_KEY }}" \
             --type SecureString --overwrite
 
-      - name: Terraform apply
+      # Two-phase apply, deliberately. The migration Lambda and the collector
+      # API ship from the same zip, so the migration Lambda only receives new
+      # alembic revisions via terraform apply. Applying everything at once
+      # updated the API first and left it querying a schema that had not caught
+      # up yet — measured at 2m40s of 500s on GET /styles during the 2026-09-20
+      # deploy. So: bring the migration Lambda up first, run the migration, then
+      # apply the rest. -target is normally an emergency tool; here it is the
+      # bootstrap ordering this pipeline needs.
+      # Keep the -var block below in sync with the full apply further down.
+      - name: Terraform apply (migration Lambda only)
         run: |
           terraform apply -auto-approve -input=false \
+            -target=aws_lambda_function.db_migration \
             -var="environment=prod" \
             -var="canonicalization_enabled=true" \
             -var="gemini_api_key_ssm_parameter=/clouder/gemini/api_key" \
@@ -134,6 +144,28 @@ jobs:
           if isinstance(response, dict) and response.get("status") != "ok":
               sys.exit("Migration Lambda returned non-ok status")
           PY
+
+      - name: Terraform apply
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var="environment=prod" \
+            -var="canonicalization_enabled=true" \
+            -var="gemini_api_key_ssm_parameter=/clouder/gemini/api_key" \
+            -var="openai_api_key_ssm_parameter=/clouder/openai/api_key" \
+            -var="tavily_api_key_ssm_parameter=/clouder/tavily/api_key" \
+            -var="deepseek_api_key_ssm_parameter=/clouder/deepseek/api_key" \
+            -var="spotify_search_enabled=true" \
+            -var="vendor_match_enabled=true" \
+            -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id" \
+            -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret" \
+            -var="ytmusic_client_id_ssm_parameter=/clouder/ytmusic/client_id" \
+            -var="ytmusic_client_secret_ssm_parameter=/clouder/ytmusic/client_secret" \
+            -var="youtube_api_key_ssm_parameter=/clouder/youtube/api_key" \
+            -var="migration_aurora_auth_mode=iam" \
+            -var="enable_secretsmanager_vpc_endpoint=false" \
+            -var="spotify_oauth_redirect_uri=${{ vars.SPOTIFY_OAUTH_REDIRECT_URI }}" \
+            -var="admin_spotify_ids=${{ vars.ADMIN_SPOTIFY_IDS }}" \
+            -var="allowed_frontend_redirects=${{ vars.ALLOWED_FRONTEND_REDIRECTS }}"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4

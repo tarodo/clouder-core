@@ -275,31 +275,40 @@ Before merging, run the frontend CI gates locally: `pnpm typecheck`, `pnpm lint`
 
 ## Rollout
 
-Order matters — the frontend must not ship before the routes exist:
+Deployment is automatic: merging to `main` runs `.github/workflows/deploy.yml`,
+which packages the Lambda zip, applies Terraform, runs the migration and ships
+the frontend. There is no manual sequence to follow and no operator choosing an
+order — the workflow's step order IS the rollout order.
 
-1. `alembic upgrade head` (new table).
-2. `scripts/package_lambda.sh` + deploy the collector Lambda.
-3. `terraform apply` in `infra/` (adds `PUT /me/styles`).
-4. Regenerate `docs/api/openapi.yaml` and `frontend/src/api/schema.d.ts`.
-5. Deploy the frontend.
+That order used to be wrong for a feature like this one. `Terraform apply` ran
+before the migration step, and `apply` updates `aws_lambda_function.collector`,
+so the API served new code against the old schema until the migration landed.
+Every branch of `GET /styles` touches `clouder_user_style_prefs` — `?scope=all`
+LEFT JOINs it in `list_catalog`, every other request calls `count_selection`
+first — so that gap is a hard 500 on the read path behind all 13 style-dropdown
+screens. Measured on this feature's own deploy (PR #230): the collector Lambda
+updated at 15:45:58, the migration finished at 15:48:38. **2 min 40 s of
+production 500s.**
 
-Steps 1–3 are backward compatible: with no rows in
-`clouder_user_style_prefs`, `GET /styles` behaves exactly as it does today.
+Simply moving the migration step above `apply` does not work: the migration
+Lambda and the collector API are packaged from the same zip
+(`infra/lambda.tf:69`), so the migration Lambda only receives new alembic
+revisions through `terraform apply`. Run it earlier and it upgrades to the
+previous head, never seeing the new revision.
 
-**Step 1 must complete before step 2's code serves traffic.** Every branch of
-`GET /styles` touches `clouder_user_style_prefs`: `?scope=all` LEFT JOINs it in
-`list_catalog`, and every other request calls `count_selection` against it
-before deciding which list to return. So new collector code running against a
-database that doesn't have the table yet 500s on the hot path used by all 13
-style-dropdown screens. `infra/lambda.tf` packages the migration Lambda and
-the collector API from the same zip, so `terraform apply` and invoking the
-migration Lambda are two independent, unordered actions — nothing stops an
-operator from applying Terraform first and running the migration after,
-inverting steps 1 and 2. Do one of:
+The workflow therefore applies in two phases:
 
-- run `alembic upgrade head` over a tunnel before packaging the zip, or
-- deploy the zip and invoke the migration Lambda directly, and only then let
-  `terraform apply` move the API Gateway integration onto the new code.
+1. `terraform apply -target=aws_lambda_function.db_migration` — the migration
+   Lambda (and its dependencies) get the new code and any new configuration.
+2. Invoke the migration Lambda (`{"action":"upgrade","revision":"head"}`).
+3. Full `terraform apply` — the collector API moves to the new code, against a
+   schema that is already correct.
+4. Frontend to S3 + CloudFront.
 
-Rollback is safe in the other direction: reverting the collector code alone
-is fine even with the table still present, since old code never queries it.
+`-target` is documented as an exceptional-situations tool; here it is the
+deliberate bootstrap ordering this pipeline needs, and the workflow says so in
+place. The two `-var` blocks must stay in sync — the workflow carries that note
+as well.
+
+Rollback is safe in the other direction: reverting the collector code alone is
+fine with the table still present, since old code never queries it.
