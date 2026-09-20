@@ -2186,8 +2186,66 @@ ROUTES: list[dict[str, Any]] = [
                 **COMMON_AUTH_ERRORS,
             },
         }
-        for entity in ("tracks", "albums", "styles")
+        for entity in ("tracks", "albums")
     ],
+    {
+        "method": "get",
+        "path": "/styles",
+        "auth": AUTH,
+        "summary": "List styles (paginated).",
+        "description": (
+            "Returns the caller's selected styles ordered by their own "
+            "position. When the caller has selected nothing, returns the "
+            "whole catalog. `scope=all` returns the whole catalog annotated "
+            "with `selected` and `position`."
+        ),
+        "parameters": PAGINATION_PARAMS + [
+            {
+                "name": "scope",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "enum": ["all"]},
+                "description": "`all` returns the full catalog with selection flags.",
+            },
+        ],
+        "responses": {
+            "200": _make_response(200, "Paginated items.", LIST_RESPONSE_TEMPLATE),
+            "400": _error(400, "validation_error (limit/offset/scope)."),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "put",
+        "path": "/me/styles",
+        "auth": AUTH,
+        "summary": "Replace the caller's style selection.",
+        "description": (
+            "Array order becomes the display order. An empty array clears "
+            "the selection, which makes every style visible again."
+        ),
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "properties": {
+                    "style_ids": {
+                        "type": "array",
+                        "maxItems": 100,
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": ["style_ids"],
+                "additionalProperties": False,
+            }}},
+        },
+        "responses": {
+            "204": {"description": "Selection replaced."},
+            "400": _error(400, "validation_error (shape, duplicates, unknown id)."),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
     {
         "method": "get",
         "path": "/tracks/spotify-not-found",

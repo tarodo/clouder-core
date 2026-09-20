@@ -214,6 +214,14 @@ resource "aws_apigatewayv2_route" "my_label_preferences" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "my_styles_put" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "PUT /me/styles"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"
