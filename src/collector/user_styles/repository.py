@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Sequence
+
+from ..errors import ValidationError
 
 MAX_SELECTION = 100
 
@@ -131,3 +134,52 @@ class UserStylesRepository:
             """,
             params,
         )
+
+    # ── write ────────────────────────────────────────────────────────
+    def replace_selection(
+        self,
+        *,
+        user_id: str,
+        style_ids: Sequence[str],
+        now: datetime | None = None,
+    ) -> None:
+        """Replace the whole selection; array order becomes `position`."""
+        at = now or datetime.now(timezone.utc)
+        with self._data_api.transaction() as tx_id:
+            if style_ids:
+                placeholders = ", ".join(
+                    f":id_{i}" for i in range(len(style_ids))
+                )
+                params = {
+                    f"id_{i}": sid for i, sid in enumerate(style_ids)
+                }
+                rows = self._data_api.execute(
+                    f"SELECT id FROM clouder_styles WHERE id IN ({placeholders})",
+                    params,
+                    transaction_id=tx_id,
+                )
+                known = {r["id"] for r in rows}
+                for sid in style_ids:
+                    if sid not in known:
+                        raise ValidationError(f"unknown style_id: {sid}")
+
+            self._data_api.execute(
+                "DELETE FROM clouder_user_style_prefs WHERE user_id = :user_id",
+                {"user_id": user_id},
+                transaction_id=tx_id,
+            )
+            for idx, sid in enumerate(style_ids):
+                self._data_api.execute(
+                    """
+                    INSERT INTO clouder_user_style_prefs
+                        (user_id, style_id, position, updated_at)
+                    VALUES (:user_id, :style_id, :position, :now)
+                    """,
+                    {
+                        "user_id": user_id,
+                        "style_id": sid,
+                        "position": idx,
+                        "now": at,
+                    },
+                    transaction_id=tx_id,
+                )

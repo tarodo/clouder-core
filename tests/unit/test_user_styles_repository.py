@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import Any
 
+import pytest
+
+from collector.errors import ValidationError
 from collector.user_styles.repository import UserStylesRepository
 
 
@@ -94,3 +99,66 @@ def test_list_catalog_projects_selected_and_position():
     assert "LEFT JOIN clouder_user_style_prefs p" in sql
     assert "ORDER BY (p.position IS NULL), p.position, s.name" in sql
     assert params["user_id"] == "u-1"
+
+
+class FakeTxDataApi(FakeDataApi):
+    """FakeDataApi plus a transaction() context manager."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.committed = False
+
+    @contextmanager
+    def transaction(self):
+        yield "tx-1"
+        self.committed = True
+
+
+_NOW = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+
+
+def test_replace_selection_deletes_then_inserts_in_order():
+    api = FakeTxDataApi()
+    api.script([{"id": "sty-1"}, {"id": "sty-2"}])  # validation SELECT
+    repo = UserStylesRepository(data_api=api)
+
+    repo.replace_selection(
+        user_id="u-1", style_ids=["sty-2", "sty-1"], now=_NOW
+    )
+
+    sqls = [sql for sql, _ in api.calls]
+    assert "SELECT id FROM clouder_styles" in sqls[0]
+    assert "DELETE FROM clouder_user_style_prefs" in sqls[1]
+    assert "INSERT INTO clouder_user_style_prefs" in sqls[2]
+    inserted = [params for sql, params in api.calls if "INSERT" in sql]
+    assert [(p["style_id"], p["position"]) for p in inserted] == [
+        ("sty-2", 0),
+        ("sty-1", 1),
+    ]
+    assert all(p["now"] == _NOW for p in inserted)
+    assert api.committed is True
+
+
+def test_replace_selection_rejects_unknown_style():
+    api = FakeTxDataApi()
+    api.script([{"id": "sty-1"}])  # sty-9 missing from the catalog
+    repo = UserStylesRepository(data_api=api)
+
+    with pytest.raises(ValidationError) as exc:
+        repo.replace_selection(
+            user_id="u-1", style_ids=["sty-1", "sty-9"], now=_NOW
+        )
+
+    assert "unknown style_id: sty-9" in exc.value.message
+    assert not any("INSERT" in sql for sql, _ in api.calls)
+
+
+def test_replace_selection_empty_list_clears_without_validation():
+    api = FakeTxDataApi()
+    repo = UserStylesRepository(data_api=api)
+
+    repo.replace_selection(user_id="u-1", style_ids=[], now=_NOW)
+
+    sqls = [sql for sql, _ in api.calls]
+    assert len(sqls) == 1
+    assert "DELETE FROM clouder_user_style_prefs" in sqls[0]
