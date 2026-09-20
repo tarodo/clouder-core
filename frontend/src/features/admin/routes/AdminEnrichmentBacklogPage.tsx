@@ -6,7 +6,7 @@ import { BacklogToolbar, type StyleFilterOption } from '../components/enrichment
 import { BacklogTable } from '../components/enrichment/BacklogTable';
 import { EnqueueDrawer } from '../components/enrichment/EnqueueDrawer';
 import { LabelHistoryDrawer } from '../components/enrichment/LabelHistoryDrawer';
-import { useStyles } from '../../../hooks/useStyles';
+import { useAllStyles } from '../../../hooks/useAllStyles';
 import { slugifyStyle } from '../../library/lib/slugifyStyle';
 import { PageHeader } from '../../../components/PageHeader';
 import { EmptyState } from '../../../components/EmptyState';
@@ -19,7 +19,7 @@ export function AdminEnrichmentBacklogPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
-  const stylesQuery = useStyles();
+  const stylesQuery = useAllStyles();
   const styleOptions: ReadonlyArray<StyleFilterOption> = useMemo(
     () =>
       stylesQuery.data?.items.map((s) => ({

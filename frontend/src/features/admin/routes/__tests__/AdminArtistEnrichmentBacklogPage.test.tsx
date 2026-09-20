@@ -51,8 +51,8 @@ vi.mock('../../hooks/useArtistBacklog', () => ({
   ArtistStatusFilter: undefined,
 }));
 
-vi.mock('../../../../hooks/useStyles', () => ({
-  useStyles: () => ({ data: { items: [] }, isLoading: false }),
+vi.mock('../../../../hooks/useAllStyles', () => ({
+  useAllStyles: () => ({ data: { items: [] }, isLoading: false }),
 }));
 
 function renderPage() {
