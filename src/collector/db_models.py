@@ -336,12 +336,12 @@ class UserStylePref(Base):
 
     user_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_user_style_prefs_user"),
         nullable=False,
     )
     style_id: Mapped[str] = mapped_column(
         String(36),
-        ForeignKey("clouder_styles.id", ondelete="CASCADE"),
+        ForeignKey("clouder_styles.id", ondelete="CASCADE", name="fk_user_style_prefs_style"),
         nullable=False,
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
