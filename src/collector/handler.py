@@ -54,7 +54,6 @@ class EnqueueResult:
 _LIST_ROUTES = {
     "GET /tracks": ("tracks", "list_tracks", "count_tracks"),
     "GET /albums": ("albums", "list_albums", "count_albums"),
-    "GET /styles": ("styles", "list_styles", "count_styles"),
 }
 
 _ADMIN_ROUTES = frozenset({
@@ -310,6 +309,25 @@ def _route(
     if route_key == "GET /artists/{artist_id}":
         from .artist_enrichment.routes import handle_get_artist_user
         status, body = handle_get_artist_user(event)
+        return _json_response(status, body, correlation_id)
+    if route_key == "GET /styles":
+        from .user_styles.routes import handle_get_styles
+        limit, offset, search = _parse_pagination_params(event)
+        status, body = handle_get_styles(
+            event, limit=limit, offset=offset, search=search
+        )
+        if status == 200:
+            body["correlation_id"] = correlation_id
+            log_event(
+                "INFO",
+                "list_completed",
+                correlation_id=correlation_id,
+                entity="styles",
+                result_count=len(body["items"]),
+                total_count=body["total"],
+                limit=limit,
+                offset=offset,
+            )
         return _json_response(status, body, correlation_id)
     if route_key in _LIST_ROUTES:
         return _handle_list(event, route_key, correlation_id)
