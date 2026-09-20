@@ -134,7 +134,10 @@ locals {
     "/auth/ytmusic/device-code",
     "/auth/ytmusic/poll",
     "/auth/ytmusic",
-    "/me",
+    # "/me*", not "/me": an exact pattern misses every sub-path, so
+    # PUT /me/styles fell through to the S3 default behaviour, which allows
+    # only GET/HEAD — CloudFront answered 403 before the API was ever reached.
+    "/me*",
     "/styles*",
     "/tracks*",
     "/albums*",
