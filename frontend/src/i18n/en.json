@@ -1108,5 +1108,12 @@
       "none": "No info",
       "outdated": "Outdated"
     }
+  },
+  "profile": {
+    "styles": {
+      "toast": {
+        "save_failed": "Could not save your styles. Try again."
+      }
+    }
   }
 }
