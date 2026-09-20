@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { ActionIcon, Group, Loader, Stack, Text, TextInput, Title } from '@mantine/core';
+import { ActionIcon, Button, Group, Loader, Stack, Text, TextInput, Title } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAllStyles, type CatalogStyle } from '../../../hooks/useAllStyles';
@@ -25,7 +25,7 @@ import { SelectedStyleRow, SelectedStyleRowView } from './SelectedStyleRow';
 
 export function MyStylesSection() {
   const { t } = useTranslation();
-  const { data, dataUpdatedAt, isLoading } = useAllStyles();
+  const { data, dataUpdatedAt, isLoading, isError, refetch } = useAllStyles();
   const { queueSelection } = useUpdateMyStyles();
   const [draft, setDraft] = useState<string[] | null>(null);
   const [search, setSearch] = useState('');
@@ -89,6 +89,27 @@ export function MyStylesSection() {
 
   if (isLoading) return <Loader size="sm" />;
 
+  if (isError) {
+    return (
+      <Stack gap="md">
+        <div>
+          <Title order={4}>{t('profile.styles.title')}</Title>
+          <Text size="sm" c="dimmed">
+            {t('profile.styles.description')}
+          </Text>
+        </div>
+        <Stack gap="xs" align="flex-start">
+          <Text size="sm" c="var(--color-danger)">
+            {t('profile.styles.load_error')}
+          </Text>
+          <Button size="xs" variant="light" onClick={() => void refetch()}>
+            {t('profile.styles.retry')}
+          </Button>
+        </Stack>
+      </Stack>
+    );
+  }
+
   const dragged = dragId ? byId.get(dragId) : undefined;
 
   return (
@@ -145,7 +166,7 @@ export function MyStylesSection() {
               <Text size="sm">{s.name}</Text>
               <ActionIcon
                 variant="subtle"
-                aria-label={`add ${s.name}`}
+                aria-label={t('profile.styles.add_named', { name: s.name })}
                 onClick={() => commit([...selectedIds, s.id])}
               >
                 <IconPlus size={16} />

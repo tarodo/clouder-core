@@ -56,7 +56,7 @@ describe('MyStylesSection', () => {
     renderSection();
 
     await screen.findByText('House');
-    await userEvent.click(screen.getByRole('button', { name: /add House/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Add House/i }));
 
     await waitFor(() => expect(body).toEqual({ style_ids: ['s1', 's2'] }));
   });
@@ -73,7 +73,7 @@ describe('MyStylesSection', () => {
 
     await screen.findByText('Drum & Bass');
     await userEvent.click(
-      screen.getByRole('button', { name: /remove Drum & Bass/i }),
+      screen.getByRole('button', { name: /Remove Drum & Bass/i }),
     );
 
     await waitFor(() => expect(body).toEqual({ style_ids: [] }));
@@ -99,20 +99,36 @@ describe('MyStylesSection', () => {
     );
     renderSection();
 
-    await screen.findByRole('button', { name: /remove Drum & Bass/i });
-    await userEvent.click(screen.getByRole('button', { name: /remove Drum & Bass/i }));
+    await screen.findByRole('button', { name: /Remove Drum & Bass/i });
+    await userEvent.click(screen.getByRole('button', { name: /Remove Drum & Bass/i }));
 
     // Optimistically removed: Drum & Bass now shows an "add" button instead.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /add Drum & Bass/i })).toBeDefined(),
+      expect(screen.getByRole('button', { name: /Add Drum & Bass/i })).toBeDefined(),
     );
 
     // The PUT fails, but useUpdateMyStyles still invalidates on settle, and the
     // refetch's server truth (still selected) must win back over the stale draft.
     await waitFor(
-      () => expect(screen.getByRole('button', { name: /remove Drum & Bass/i })).toBeDefined(),
+      () => expect(screen.getByRole('button', { name: /Remove Drum & Bass/i })).toBeDefined(),
       { timeout: 3000 },
     );
+  });
+
+  it('shows an error state with retry when the catalog fails to load', async () => {
+    server.use(
+      http.get('http://localhost/styles', () =>
+        HttpResponse.json(
+          { error_code: 'server_error', message: 'boom' },
+          { status: 500 },
+        ),
+      ),
+    );
+    renderSection();
+
+    expect(await screen.findByText(/Couldn't load your styles/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /Retry/i })).toBeDefined();
+    expect(screen.queryByText(/Nothing selected/)).toBeNull();
   });
 
   it('sends correct payloads for two sequential actions in one session', async () => {
@@ -144,11 +160,11 @@ describe('MyStylesSection', () => {
     renderSection();
 
     await screen.findByText('House');
-    await userEvent.click(screen.getByRole('button', { name: /add House/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Add House/i }));
     await waitFor(() => expect(bodies).toEqual([{ style_ids: ['s1', 's2'] }]));
 
-    await screen.findByRole('button', { name: /remove Drum & Bass/i });
-    await userEvent.click(screen.getByRole('button', { name: /remove Drum & Bass/i }));
+    await screen.findByRole('button', { name: /Remove Drum & Bass/i });
+    await userEvent.click(screen.getByRole('button', { name: /Remove Drum & Bass/i }));
     await waitFor(() =>
       expect(bodies).toEqual([
         { style_ids: ['s1', 's2'] },

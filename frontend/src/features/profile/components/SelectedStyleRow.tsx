@@ -57,7 +57,7 @@ export function SelectedStyleRowView({
         <ActionIcon
           variant="subtle"
           color="red"
-          aria-label={`remove ${style.name}`}
+          aria-label={t('profile.styles.remove_named', { name: style.name })}
           title={t('profile.styles.remove')}
           onClick={() => onRemove(style.id)}
         >

@@ -1114,9 +1114,13 @@
       "title": "My styles",
       "description": "Only these styles appear in style pickers. Drag to reorder — the first one is the default.",
       "empty_hint": "Nothing selected — all styles are visible.",
+      "load_error": "Couldn't load your styles.",
+      "retry": "Retry",
       "add_placeholder": "Search styles to add",
       "add_title": "Add a style",
+      "add_named": "Add {{name}}",
       "remove": "Remove from my styles",
+      "remove_named": "Remove {{name}}",
       "drag_handle": "Reorder",
       "toast": {
         "save_failed": "Could not save your styles. Try again."
