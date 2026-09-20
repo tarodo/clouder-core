@@ -4285,7 +4285,7 @@
     "semantic_hash": "6043386a12f97f56174a7bddf93ab5d7"
   },
   "src/collector/repositories.py": {
-    "mtime": 1789317546.0663066,
+    "mtime": 1789319960.1919236,
     "ast_hash": "3e1afeae8705ac8b67c2e75bf02fda31",
     "semantic_hash": ""
   },
@@ -5945,8 +5945,8 @@
     "semantic_hash": "8f874abf50c0b4f8aaf8de6efbc48ce3"
   },
   "requirements-dev.txt": {
-    "mtime": 1783014258.581145,
-    "ast_hash": "ab55f9d2d07c2998fa34b669fc23fd1e",
+    "mtime": 1789319923.4233437,
+    "ast_hash": "ebc9be7cd84f77c4601979dd53e54fdf",
     "semantic_hash": ""
   },
   "requirements-lambda.txt": {
@@ -10180,8 +10180,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_repositories_spotify_claim.py": {
-    "mtime": 1789317426.575174,
-    "ast_hash": "e7591c80c165c16d085a501635f3e348",
+    "mtime": 1789319865.277077,
+    "ast_hash": "7408ac2d99b4d73065b4affa1dc8c626",
     "semantic_hash": ""
   },
   "tests/unit/test_spotify_handler_claim_release.py": {
@@ -10192,6 +10192,11 @@
   "tests/unit/test_storage_spotify_batch_key.py": {
     "mtime": 1789317446.6161041,
     "ast_hash": "01cfb7adaa2aa5ac78a164559fa41df9",
+    "semantic_hash": ""
+  },
+  "tests/unit/test_raw_sql_parses.py": {
+    "mtime": 1789319934.9714603,
+    "ast_hash": "2b22746085aadee674c3ed42111a1e27",
     "semantic_hash": ""
   }
 }
