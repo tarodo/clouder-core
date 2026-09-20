@@ -366,7 +366,10 @@ def test_list_tracks_returns_paginated_results(monkeypatch, context) -> None:
 
 def test_list_styles_returns_results(monkeypatch, context) -> None:
     class FakeRepo:
-        def list_styles(self, limit, offset, search):
+        def count_selection(self, user_id):
+            return 1
+
+        def list_for_user(self, *, user_id, limit, offset, search):
             return [
                 {
                     "id": "sty-1",
@@ -377,10 +380,12 @@ def test_list_styles_returns_results(monkeypatch, context) -> None:
                 },
             ]
 
-        def count_styles(self, search):
+        def count_for_user(self, *, user_id, search):
             return 1
 
-    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: FakeRepo())
+    monkeypatch.setattr(
+        "collector.user_styles.routes._build_repository", lambda: FakeRepo()
+    )
 
     response = lambda_handler(_list_event("GET /styles"), context)
 

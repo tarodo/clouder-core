@@ -2111,7 +2111,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List styles (paginated). */
+        /**
+         * List styles (paginated).
+         * @description Returns the caller's selected styles ordered by their own position. When the caller has selected nothing, returns the whole catalog. `scope=all` returns the whole catalog annotated with `selected` and `position`.
+         */
         get: {
             parameters: {
                 query?: {
@@ -2119,6 +2122,8 @@ export interface paths {
                     offset?: number;
                     /** @description Substring match on normalized name/title (case-insensitive). */
                     search?: string;
+                    /** @description `all` returns the full catalog with selection flags. */
+                    scope?: "all";
                 };
                 header?: never;
                 path?: never;
@@ -2141,7 +2146,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description validation_error (limit/offset out of range). */
+                /** @description validation_error (limit/offset/scope). */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -2180,6 +2185,85 @@ export interface paths {
             };
         };
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/styles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the caller's style selection.
+         * @description Array order becomes the display order. An empty array clears the selection, which makes every style visible again.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        style_ids: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Selection replaced. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description validation_error (shape, duplicates, unknown id). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description db_not_configured. */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;

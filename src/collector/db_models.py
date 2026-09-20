@@ -324,6 +324,32 @@ class User(Base):
     )
 
 
+class UserStylePref(Base):
+    __tablename__ = "clouder_user_style_prefs"
+    __table_args__ = (
+        PrimaryKeyConstraint("user_id", "style_id", name="pk_user_style_prefs"),
+        Index("idx_user_style_prefs_user_position", "user_id", "position"),
+        CheckConstraint(
+            "position >= 0", name="ck_user_style_prefs_position_nonneg"
+        ),
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_user_style_prefs_user"),
+        nullable=False,
+    )
+    style_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("clouder_styles.id", ondelete="CASCADE", name="fk_user_style_prefs_style"),
+        nullable=False,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
 class UserSession(Base):
     __tablename__ = "user_sessions"
     __table_args__ = (

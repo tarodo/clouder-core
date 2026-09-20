@@ -51,8 +51,15 @@ vi.mock('../../hooks/useArtistBacklog', () => ({
   ArtistStatusFilter: undefined,
 }));
 
-vi.mock('../../../../hooks/useStyles', () => ({
-  useStyles: () => ({ data: { items: [] }, isLoading: false }),
+vi.mock('../../../../hooks/useAllStyles', () => ({
+  useAllStyles: () => ({
+    data: {
+      items: [
+        { id: 's1', name: 'Techno', selected: false, position: null },
+      ],
+    },
+    isLoading: false,
+  }),
 }));
 
 function renderPage() {
@@ -80,6 +87,15 @@ describe('AdminArtistEnrichmentBacklogPage', () => {
     renderPage();
     expect(screen.getByText('Artist One')).toBeTruthy();
     expect(screen.getByText('Artist Two')).toBeTruthy();
+  });
+
+  it('renders style options from useAllStyles hook', () => {
+    renderPage();
+    // The mock returns { id: 's1', name: 'Techno', ... }
+    // This test verifies that data from useAllStyles reaches the style filter UI.
+    // Techno appears in the select options, so we check it's present in the document
+    const technoElements = screen.getAllByText('Techno');
+    expect(technoElements.length).toBeGreaterThan(0);
   });
 
   it('selecting an artist and clicking enqueue opens ArtistEnqueueDrawer', async () => {
