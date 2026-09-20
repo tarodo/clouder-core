@@ -286,9 +286,10 @@ Order matters — the frontend must not ship before the routes exist:
 Steps 1–3 are backward compatible: with no rows in
 `clouder_user_style_prefs`, `GET /styles` behaves exactly as it does today.
 
-**Step 1 must complete before step 2's code serves traffic.** `GET /styles`
-calls `count_selection` against `clouder_user_style_prefs` on every request —
-it is not gated behind `scope=all` — so new collector code running against a
+**Step 1 must complete before step 2's code serves traffic.** Every branch of
+`GET /styles` touches `clouder_user_style_prefs`: `?scope=all` LEFT JOINs it in
+`list_catalog`, and every other request calls `count_selection` against it
+before deciding which list to return. So new collector code running against a
 database that doesn't have the table yet 500s on the hot path used by all 13
 style-dropdown screens. `infra/lambda.tf` packages the migration Lambda and
 the collector API from the same zip, so `terraform apply` and invoking the
