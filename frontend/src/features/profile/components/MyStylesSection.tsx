@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -21,11 +21,11 @@ import { IconPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAllStyles, type CatalogStyle } from '../../../hooks/useAllStyles';
 import { useUpdateMyStyles } from '../../../hooks/useUpdateMyStyles';
-import { SelectedStyleRow } from './SelectedStyleRow';
+import { SelectedStyleRow, SelectedStyleRowView } from './SelectedStyleRow';
 
 export function MyStylesSection() {
   const { t } = useTranslation();
-  const { data, isLoading } = useAllStyles();
+  const { data, dataUpdatedAt, isLoading } = useAllStyles();
   const { queueSelection } = useUpdateMyStyles();
   const [draft, setDraft] = useState<string[] | null>(null);
   const [search, setSearch] = useState('');
@@ -37,7 +37,18 @@ export function MyStylesSection() {
     [items],
   );
 
-  // `draft` holds the optimistic order until the query refetches.
+  // `draft` holds the optimistic order until a fresh fetch lands — success or
+  // failure. Without this, a failed PUT (useUpdateMyStyles still invalidates on
+  // error) would leave the UI showing the unsaved selection forever, and any
+  // later edit would build on that wrong baseline instead of on server truth.
+  // Keyed on `dataUpdatedAt` rather than `data` itself: react-query's default
+  // structural sharing keeps the same `data` reference when a refetch resolves
+  // with content deep-equal to what's cached (exactly the failed-PUT case,
+  // where the server never changed), so a `[data]` dependency would never fire.
+  useEffect(() => {
+    setDraft(null);
+  }, [dataUpdatedAt]);
+
   const selectedIds = useMemo(() => {
     if (draft) return draft;
     return items
@@ -114,7 +125,7 @@ export function MyStylesSection() {
           </SortableContext>
           <DragOverlay dropAnimation={null}>
             {dragged ? (
-              <SelectedStyleRow style={dragged} onRemove={() => undefined} overlay />
+              <SelectedStyleRowView style={dragged} onRemove={() => undefined} overlay />
             ) : null}
           </DragOverlay>
         </DndContext>
