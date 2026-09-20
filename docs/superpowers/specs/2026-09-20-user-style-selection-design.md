@@ -125,6 +125,10 @@ Validation errors, all `400 validation_error`:
 | more than 100 ids | `style_ids exceeds 100 entries` |
 | any id absent from `clouder_styles` | `unknown style_id: <id>` |
 
+Any `scope` value other than `all` is a `400 validation_error`
+(`scope must be 'all'`). `limit` stays capped at 200 by
+`_parse_pagination_params`, which is above the size of the style catalog.
+
 Other responses: `401` unauthenticated (authorizer), `503 db_not_configured`.
 
 ## Backend
@@ -182,7 +186,7 @@ and refresh `frontend/src/api/schema.d.ts` (CI diff-checks it).
 - `useStyles()` — unchanged, key `['styles']`. It is now personal by virtue of
   the endpoint.
 - `useAllStyles()` — new, key `['styles', 'all']`, fetches
-  `/styles?scope=all&limit=500`. Items carry `selected` and `position`.
+  `/styles?scope=all&limit=200`. Items carry `selected` and `position`.
 - `useUpdateMyStyles()` — new, `PUT /me/styles`, 200 ms debounce copied from
   `useReorderCategories`; on success invalidates both `['styles']` and
   `['styles', 'all']`; on error re-invalidates and shows a red toast.
