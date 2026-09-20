@@ -97,6 +97,7 @@ def test_list_catalog_projects_selected_and_position():
     assert rows[1]["position"] is None
     sql, params = api.calls[0]
     assert "LEFT JOIN clouder_user_style_prefs p" in sql
+    assert "ON p.style_id = s.id AND p.user_id = :user_id" in sql
     assert "ORDER BY (p.position IS NULL), p.position, s.name" in sql
     assert params["user_id"] == "u-1"
 
