@@ -329,6 +329,22 @@ def _route(
                 offset=offset,
             )
         return _json_response(status, body, correlation_id)
+    if route_key == "PUT /me/styles":
+        from .user_styles.routes import extract_user_id, handle_put_my_styles
+        status, body = handle_put_my_styles(event)
+        if status == 204:
+            log_event(
+                "INFO",
+                "user_styles_updated",
+                correlation_id=correlation_id,
+                user_id=extract_user_id(event),
+            )
+            return {
+                "statusCode": 204,
+                "headers": {"x-correlation-id": correlation_id},
+                "body": "",
+            }
+        return _json_response(status, body, correlation_id)
     if route_key in _LIST_ROUTES:
         return _handle_list(event, route_key, correlation_id)
     return _json_response(

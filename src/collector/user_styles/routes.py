@@ -2,21 +2,24 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Mapping
 
 from ..data_api import create_default_data_api_client
 from ..errors import ValidationError
 from ..settings import get_data_api_settings
-from .repository import UserStylesRepository
+from .repository import MAX_SELECTION, UserStylesRepository
 
-_UNAUTHORIZED = (
-    401,
-    {"error_code": "unauthorized", "message": "Authentication required"},
-)
-_NO_DB = (
-    503,
-    {"error_code": "db_not_configured", "message": "Database is not configured"},
-)
+
+def _unauthorized() -> tuple[int, dict[str, Any]]:
+    return 401, {"error_code": "unauthorized", "message": "Authentication required"}
+
+
+def _no_db() -> tuple[int, dict[str, Any]]:
+    return 503, {
+        "error_code": "db_not_configured",
+        "message": "Database is not configured",
+    }
 
 
 def _build_repository() -> UserStylesRepository | None:
@@ -53,7 +56,7 @@ def handle_get_styles(
 ) -> tuple[int, dict[str, Any]]:
     user_id = extract_user_id(event)
     if not user_id:
-        return _UNAUTHORIZED
+        return _unauthorized()
 
     qs = event.get("queryStringParameters") or {}
     scope = (qs.get("scope") or "").strip()
@@ -62,7 +65,7 @@ def handle_get_styles(
 
     repo = _build_repository()
     if repo is None:
-        return _NO_DB
+        return _no_db()
 
     if scope == "all":
         items = repo.list_catalog(
@@ -84,3 +87,33 @@ def handle_get_styles(
         "limit": limit,
         "offset": offset,
     }
+
+
+def handle_put_my_styles(event: Mapping[str, Any]) -> tuple[int, dict[str, Any]]:
+    user_id = extract_user_id(event)
+    if not user_id:
+        return _unauthorized()
+
+    try:
+        body = json.loads(event.get("body") or "{}")
+    except json.JSONDecodeError as exc:
+        raise ValidationError(f"invalid JSON body: {exc}")
+
+    style_ids = body.get("style_ids") if isinstance(body, Mapping) else None
+    if not isinstance(style_ids, list) or not all(
+        isinstance(sid, str) for sid in style_ids
+    ):
+        raise ValidationError("style_ids must be an array of style ids")
+    if len(set(style_ids)) != len(style_ids):
+        raise ValidationError("style_ids must be unique")
+    if len(style_ids) > MAX_SELECTION:
+        raise ValidationError(
+            f"style_ids exceeds {MAX_SELECTION} entries"
+        )
+
+    repo = _build_repository()
+    if repo is None:
+        return _no_db()
+
+    repo.replace_selection(user_id=user_id, style_ids=style_ids)
+    return 204, {}
