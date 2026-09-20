@@ -40,7 +40,7 @@ See also: [data-api.md](data-api.md), [providers.md](providers.md), [ADR-0001](.
 | `GET /artists` | No | Paginated canonical artist list |
 | `GET /albums` | No | Paginated canonical album list |
 | `GET /labels` | No | Paginated canonical label list |
-| `GET /styles` | No | Paginated style list |
+| `GET /styles` | No | The caller's selected styles, ordered by position (or the whole catalog when they have none selected). `?scope=all` returns the full catalog annotated with `selected`/`position` |
 
 `POST /collect_bp_releases` is deprecated; new ingests must use `POST /admin/beatport/ingest`. Both routes call `_run_beatport_ingest` internally.
 

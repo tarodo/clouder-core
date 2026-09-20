@@ -103,6 +103,13 @@ unchanged; `selected` and `position` are additive. `position` is `null` when
 `name`. Available to any authenticated user — it is not an admin route; the
 profile section and the two admin backlog pages both use it.
 
+The generated OpenAPI contract reuses the shared `LIST_RESPONSE_TEMPLATE`
+(`scripts/generate_openapi.py`), so `selected` and `position` are documented
+in this prose but are not part of the generated item schema. `CatalogStyle`
+on the frontend (`frontend/src/hooks/useAllStyles.ts`) is therefore a
+hand-maintained contract that the frontend CI schema diff-check cannot
+protect — a backend field rename here would not fail that check.
+
 ### `PUT /me/styles` — replace the selection
 
 ```json
@@ -233,6 +240,13 @@ Everything else keeps `useStyles()` and is filtered automatically.
   single-user data; versioning it would cost more than the conflict.
 - **`search` combined with a selection.** Filters within the selection, not the
   catalog — `?scope=all` is the way to search everything.
+- **Catalog page-size ceiling.** `useAllStyles` requests `limit=200` and
+  filters client-side; it does not page. Past 200 styles, the "Add a style"
+  list silently truncates. Selected rows sort first (`list_catalog`'s
+  `ORDER BY (p.position IS NULL), p.position, s.name`), so a user's existing
+  selection is unaffected — it's the unselected tail of the alphabet that
+  disappears from the add list. Server-side `search` (already supported by
+  `?scope=all&search=`) is the exit once the catalog outgrows 200 rows.
 
 ## Testing
 
@@ -271,3 +285,20 @@ Order matters — the frontend must not ship before the routes exist:
 
 Steps 1–3 are backward compatible: with no rows in
 `clouder_user_style_prefs`, `GET /styles` behaves exactly as it does today.
+
+**Step 1 must complete before step 2's code serves traffic.** `GET /styles`
+calls `count_selection` against `clouder_user_style_prefs` on every request —
+it is not gated behind `scope=all` — so new collector code running against a
+database that doesn't have the table yet 500s on the hot path used by all 13
+style-dropdown screens. `infra/lambda.tf` packages the migration Lambda and
+the collector API from the same zip, so `terraform apply` and invoking the
+migration Lambda are two independent, unordered actions — nothing stops an
+operator from applying Terraform first and running the migration after,
+inverting steps 1 and 2. Do one of:
+
+- run `alembic upgrade head` over a tunnel before packaging the zip, or
+- deploy the zip and invoke the migration Lambda directly, and only then let
+  `terraform apply` move the API Gateway integration onto the new code.
+
+Rollback is safe in the other direction: reverting the collector code alone
+is fine even with the table still present, since old code never queries it.
