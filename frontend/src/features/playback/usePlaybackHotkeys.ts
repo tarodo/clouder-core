@@ -1,6 +1,7 @@
 // frontend/src/features/playback/usePlaybackHotkeys.ts
 import { useEffect } from 'react';
 import { isEditableTarget } from '../../lib/isEditableTarget';
+import { hasSystemModifier } from '../../lib/hasSystemModifier';
 
 export interface UsePlaybackHotkeysArgs {
   onTogglePlayPause: () => void;
@@ -24,6 +25,7 @@ export function usePlaybackHotkeys(args: UsePlaybackHotkeysArgs): void {
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
+      if (hasSystemModifier(event)) return;
       if (event.code === 'Space') {
         event.preventDefault();
         onTogglePlayPause();
