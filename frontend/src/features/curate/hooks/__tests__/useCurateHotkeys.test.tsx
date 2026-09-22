@@ -37,14 +37,26 @@ const buckets: TriageBucket[] = [
   stage('s3', 'C'),
 ];
 
-function dispatchKey(opts: { code?: string; key?: string }): void {
+function dispatchKey(opts: {
+  code?: string;
+  key?: string;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+}): KeyboardEvent {
   const ev = new KeyboardEvent('keydown', {
     code: opts.code ?? '',
     key: opts.key ?? '',
+    ctrlKey: opts.ctrlKey ?? false,
+    metaKey: opts.metaKey ?? false,
+    altKey: opts.altKey ?? false,
+    shiftKey: opts.shiftKey ?? false,
     bubbles: true,
     cancelable: true,
   });
   window.dispatchEvent(ev);
+  return ev;
 }
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -194,6 +206,39 @@ describe('useCurateHotkeys', () => {
     mount(true);
     act(() => dispatchKey({ code: 'KeyL' }));
     expect(onToggleForce).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['ctrlKey', { ctrlKey: true }],
+    ['metaKey', { metaKey: true }],
+    ['altKey', { altKey: true }],
+  ])('digit with %s is left to the browser', (_name, mods) => {
+    mount(false);
+    let ev!: KeyboardEvent;
+    act(() => {
+      ev = dispatchKey({ code: 'Digit1', ...mods });
+    });
+    expect(onAssign).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  it('letter hotkeys with a system modifier are left to the browser', () => {
+    mount(false);
+    act(() => {
+      dispatchKey({ code: 'KeyU', metaKey: true });
+      dispatchKey({ code: 'KeyL', ctrlKey: true });
+      dispatchKey({ code: 'KeyQ', metaKey: true });
+      dispatchKey({ code: 'KeyZ', metaKey: true });
+    });
+    expect(onUndo).not.toHaveBeenCalled();
+    expect(onToggleForce).not.toHaveBeenCalled();
+    expect(onAssign).not.toHaveBeenCalled();
+  });
+
+  it('Shift is still a valid modifier for our own chords', () => {
+    mount(false);
+    act(() => dispatchKey({ key: '?', code: 'Slash', shiftKey: true }));
+    expect(onOpenOverlay).toHaveBeenCalledTimes(1);
   });
 
   it('mobile: no listeners bound', async () => {

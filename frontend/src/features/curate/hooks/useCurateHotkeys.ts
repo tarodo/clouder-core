@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
 import { isEditableTarget } from '../../../lib/isEditableTarget';
+import { hasSystemModifier } from '../../../lib/hasSystemModifier';
 import { useTelemetry } from '../../../lib/telemetry/hooks';
 import type { TriageBucket } from '../../triage/lib/bucketLabels';
 import { byDiscard, byPosition, byTechType } from '../lib/destinationMap';
@@ -47,6 +48,7 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
     if (isMobile) return;
     const handler = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
+      if (hasSystemModifier(event)) return;
 
       // Help overlay (key form because of layout sensitivity).
       if (event.key === '?') {

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { isEditableTarget } from '../../../lib/isEditableTarget';
+import { hasSystemModifier } from '../../../lib/hasSystemModifier';
 
 export interface UsePlayerHotkeysArgs {
   active: boolean;
@@ -52,6 +53,7 @@ export function usePlayerHotkeys(args: UsePlayerHotkeysArgs): void {
     if (!active) return;
     const handler = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
+      if (hasSystemModifier(event)) return;
 
       if (event.code === 'Space') {
         event.preventDefault();

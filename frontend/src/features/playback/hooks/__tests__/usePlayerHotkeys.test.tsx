@@ -21,6 +21,30 @@ beforeEach(() => {
 });
 
 describe('usePlayerHotkeys', () => {
+  it.each([
+    ['ctrlKey', { ctrlKey: true }],
+    ['metaKey', { metaKey: true }],
+    ['altKey', { altKey: true }],
+  ])('digit with %s is left to the browser', (_name, mods) => {
+    renderHook(() => usePlayerHotkeys({ ...callbacks, active: true, playlistCount: 10 }));
+    press('Digit1', mods);
+    expect(callbacks.onTogglePlaylist).not.toHaveBeenCalled();
+  });
+
+  it('Space/J/K/U with a system modifier are left to the browser', () => {
+    renderHook(() => usePlayerHotkeys({ ...callbacks, active: true, playlistCount: 10 }));
+    press('Space', { metaKey: true });
+    press('KeyJ', { ctrlKey: true });
+    press('KeyK', { altKey: true });
+    press('KeyU', { metaKey: true });
+    press('KeyA', { metaKey: true });
+    expect(callbacks.onTogglePlayPause).not.toHaveBeenCalled();
+    expect(callbacks.onPrev).not.toHaveBeenCalled();
+    expect(callbacks.onNext).not.toHaveBeenCalled();
+    expect(callbacks.onUndo).not.toHaveBeenCalled();
+    expect(callbacks.onSeekPct).not.toHaveBeenCalled();
+  });
+
   it('does nothing when active=false', () => {
     renderHook(() => usePlayerHotkeys({ ...callbacks, active: false, playlistCount: 10 }));
     press('Space');

@@ -2,17 +2,43 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { usePlaybackHotkeys } from '../usePlaybackHotkeys';
 
-function fireKey(opts: { code: string; key?: string; shift?: boolean }) {
+function fireKey(opts: {
+  code: string;
+  key?: string;
+  shift?: boolean;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+}) {
   const ev = new KeyboardEvent('keydown', {
     code: opts.code,
     key: opts.key ?? '',
     shiftKey: opts.shift ?? false,
+    ctrlKey: opts.ctrlKey ?? false,
+    metaKey: opts.metaKey ?? false,
+    altKey: opts.altKey ?? false,
     bubbles: true,
   });
   window.dispatchEvent(ev);
 }
 
 describe('usePlaybackHotkeys', () => {
+  it('keys with a system modifier are left to the browser', () => {
+    const cbs = {
+      onTogglePlayPause: vi.fn(),
+      onPrev: vi.fn(),
+      onNext: vi.fn(),
+      onSeekRelative: vi.fn(),
+      onSeekPct: vi.fn(),
+    };
+    renderHook(() => usePlaybackHotkeys(cbs));
+    fireKey({ code: 'Space', metaKey: true });
+    fireKey({ code: 'KeyJ', ctrlKey: true });
+    fireKey({ code: 'KeyK', altKey: true });
+    fireKey({ code: 'KeyA', metaKey: true });
+    Object.values(cbs).forEach((m) => expect(m).not.toHaveBeenCalled());
+  });
+
   it('Space → togglePlayPause', () => {
     const togglePlayPause = vi.fn();
     renderHook(() =>
