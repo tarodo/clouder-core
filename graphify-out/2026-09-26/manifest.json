@@ -10300,7 +10300,7 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/hasSystemModifier.ts": {
-    "mtime": 1790046166.0142734,
+    "mtime": 1790045637.104913,
     "ast_hash": "d1924e126d52736a30e21e94f7c87592",
     "semantic_hash": ""
   }
