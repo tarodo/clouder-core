@@ -85,6 +85,7 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/auto-enrich/artists",
     "PUT /admin/auto-enrich/artists",
     "GET /admin/users",
+    "GET /admin/analytics/funnel",
 })
 
 
@@ -171,6 +172,8 @@ def _route(
         return _handle_admin_style_visibility(event, correlation_id)
     if route_key == "GET /admin/users":
         return _handle_admin_users(event, correlation_id)
+    if route_key == "GET /admin/analytics/funnel":
+        return _handle_admin_analytics_funnel(event, correlation_id)
     if route_key == "GET /admin/runs":
         return _handle_admin_runs(event, correlation_id)
     if route_key == "GET /tracks/spotify-not-found":
@@ -742,6 +745,56 @@ def _handle_admin_users(
     return _json_response(
         200,
         {"users": repository.list_users(), "correlation_id": correlation_id},
+        correlation_id,
+    )
+
+
+_FUNNEL_STAGES = ("triaged", "categorized", "playlisted")
+
+
+def _handle_admin_analytics_funnel(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    from datetime import time as dtime, timedelta
+
+    from .analytics_handler import AnalyticsError, listening_windows, parse_tz_offset
+
+    qs = event.get("queryStringParameters") or {}
+    qs = qs if isinstance(qs, Mapping) else {}
+    try:
+        off = parse_tz_offset(qs.get("tz_offset_min"))
+    except AnalyticsError as exc:
+        raise ValidationError(exc.message) from exc
+    ctx = ((event.get("requestContext") or {}).get("authorizer") or {}).get("lambda") or {}
+    user_id = str(qs.get("user_id") or ctx.get("user_id") or "")
+    if not user_id:
+        raise ValidationError("user_id is required")
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {"error_code": "db_not_configured", "message": "Database is not configured"},
+            correlation_id,
+        )
+    w = listening_windows(utc_now(), off)
+
+    def local_midnight_utc(d: date) -> datetime:
+        return datetime.combine(d, dtime(), tzinfo=timezone.utc) - timedelta(minutes=off)
+
+    rows = repository.analytics_funnel(
+        user_id,
+        day_start=local_midnight_utc(w["today"]),
+        week_start=local_midnight_utc(w["week_from"]),
+        month_start=local_midnight_utc(w["month_from"]),
+    )
+    by = {r["stage"]: r for r in rows}
+    stages = [
+        {"stage": s, **{k: int(by.get(s, {}).get(k) or 0) for k in ("day", "week", "month")}}
+        for s in _FUNNEL_STAGES
+    ]
+    return _json_response(
+        200,
+        {"today": w["today"].isoformat(), "stages": stages, "correlation_id": correlation_id},
         correlation_id,
     )
 

@@ -102,6 +102,14 @@ resource "aws_apigatewayv2_route" "admin_users" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "admin_analytics_funnel" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/analytics/funnel"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_route" "admin_coverage" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /admin/coverage"

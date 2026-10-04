@@ -167,6 +167,7 @@ locals {
   analytics_routes = [
     "GET /v1/analytics/user-daily",
     "GET /v1/analytics/sessions",
+    "GET /v1/analytics/listening",
   ]
 }
 
