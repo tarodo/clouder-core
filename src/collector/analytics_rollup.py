@@ -25,18 +25,21 @@ MART_USER_DAILY_COLUMNS = [
     "p50_time_per_track_ms", "p90_time_per_track_ms",
 ]
 
-# Dialect-specific function fragments. {} is the single positional arg.
+# Dialect-specific function fragments. {} is the single positional arg
+# (add_min: {0}=minutes, {1}=timestamp).
 TRINO: Mapping[str, str] = {
     "to_ts": "from_iso8601_timestamp({})",
     "epoch": "to_unixtime({})",
     "to_date": "date({})",
     "pctl": "approx_percentile({}, {})",
+    "add_min": "date_add('minute', {0}, {1})",
 }
 DUCKDB: Mapping[str, str] = {
     "to_ts": "CAST({} AS TIMESTAMP)",
     "epoch": "epoch({})",
     "to_date": "CAST({} AS DATE)",
     "pctl": "quantile_cont({}, {})",
+    "add_min": "({1} + to_minutes({0}))",
 }
 
 _NEW_SESSION_GAP_S = 300

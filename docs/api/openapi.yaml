@@ -428,6 +428,57 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/analytics/funnel:
+    get:
+      summary: 'Admin: curation funnel for today / 7 days / 30 days.'
+      responses:
+        '200':
+          description: Funnel stages.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: db_not_configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: 'Distinct tracks per stage: `triaged` (pulled into a triage block),
+        `categorized` (added to a category), `playlisted` (added to a playlist).'
+      parameters: &id020
+      - name: tz_offset_min
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -840
+          maximum: 840
+        description: Browser UTC offset in minutes (east-positive); local days. Default
+          0.
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: User to scope to. Defaults to the calling admin.
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /admin/coverage:
     get:
       summary: 'Admin: ingest coverage matrix for one Saturday-year.'
@@ -844,7 +895,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id020
+              schema: &id021
                 type: object
                 required:
                 - id
@@ -3553,7 +3604,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: &id022
+                    items: &id023
                       type: object
                       required:
                       - track_id
@@ -3754,14 +3805,14 @@ paths:
           description: Per-track comments for the playlist.
           content:
             application/json:
-              schema: &id024
+              schema: &id025
                 type: object
                 required:
                 - tracks
                 properties:
                   tracks:
                     type: array
-                    items: &id023
+                    items: &id024
                       type: object
                       required:
                       - track_id
@@ -4846,7 +4897,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id021
+              schema: &id022
                 type: object
                 required:
                 - id
@@ -5635,6 +5686,43 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /v1/analytics/listening:
+    get:
+      summary: 'Listening time + distinct tracks: today / 7 days / 30 days.'
+      responses:
+        '200':
+          description: Listening totals + daily series.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid_params.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Athena query failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Read live from bronze_events. Per-play time = gap to the next play,
+        capped at track duration. Returns `totals.{day,week,month}` and a zero-filled
+        30-day `daily` series.
+      parameters: *id020
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
 components:
   securitySchemes:
     BearerAuth:
@@ -5983,7 +6071,7 @@ components:
         processing_reason:
           type: string
           nullable: true
-    LabelEnrichRunResponse: *id020
+    LabelEnrichRunResponse: *id021
     LabelSummary:
       type: object
       required:
@@ -6280,7 +6368,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
-    ArtistEnrichRunResponse: *id021
+    ArtistEnrichRunResponse: *id022
     ArtistSummary:
       type: object
       required:
@@ -6542,9 +6630,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ArtistHistoryCell'
-    PlaylistTrackResponse: *id022
-    PlaylistTrackComments: *id023
-    PlaylistCommentsResponse: *id024
+    PlaylistTrackResponse: *id023
+    PlaylistTrackComments: *id024
+    PlaylistCommentsResponse: *id025
     TelemetryEnvelope:
       type: object
       required:

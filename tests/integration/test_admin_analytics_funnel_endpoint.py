@@ -1,0 +1,105 @@
+"""Integration tests for GET /admin/analytics/funnel."""
+
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from unittest.mock import MagicMock
+
+import pytest
+
+from collector import handler
+from collector.repositories import ClouderRepository
+from collector.settings import reset_settings_cache
+from collector.providers import registry
+
+
+@pytest.fixture(autouse=True)
+def reset_caches(monkeypatch):
+    reset_settings_cache()
+    registry.reset_cache()
+    monkeypatch.setenv("VENDORS_ENABLED", "beatport")
+    yield
+    reset_settings_cache()
+    registry.reset_cache()
+
+
+def _event(*, is_admin: bool = True, qs=None):
+    return {
+        "version": "2.0",
+        "requestContext": {
+            "requestId": "req",
+            "routeKey": "GET /admin/analytics/funnel",
+            "authorizer": {"lambda": {"is_admin": is_admin, "user_id": "me"}},
+        },
+        "rawPath": "/admin/analytics/funnel",
+        "queryStringParameters": qs,
+        "headers": {"x-correlation-id": "c"},
+        "body": None,
+    }
+
+
+def _ctx():
+    return type("C", (), {"aws_request_id": "x"})()
+
+
+class FakeRepo:
+    def __init__(self, rows):
+        self.rows = rows
+        self.calls = []
+
+    def analytics_funnel(self, user_id, **windows):
+        self.calls.append((user_id, windows))
+        return self.rows
+
+
+def test_funnel_requires_admin():
+    response = handler.lambda_handler(_event(is_admin=False), _ctx())
+    assert response["statusCode"] == 403
+
+
+def test_funnel_rejects_bad_offset(monkeypatch):
+    monkeypatch.setattr(
+        "collector.handler.create_clouder_repository_from_env", lambda: FakeRepo([])
+    )
+    response = handler.lambda_handler(_event(qs={"tz_offset_min": "abc"}), _ctx())
+    assert response["statusCode"] == 400
+
+
+def test_funnel_returns_ordered_zero_filled_stages(monkeypatch):
+    repo = FakeRepo([
+        {"stage": "playlisted", "day": 0, "week": 2, "month": 10},
+        {"stage": "triaged", "day": 120, "week": 500, "month": 1000},
+    ])
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(
+        "collector.handler.utc_now",
+        lambda: datetime(2026, 10, 5, 22, 30, tzinfo=timezone.utc),
+    )
+    response = handler.lambda_handler(_event(qs={"tz_offset_min": "180"}), _ctx())
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert body["today"] == "2026-10-06"
+    assert body["stages"] == [
+        {"stage": "triaged", "day": 120, "week": 500, "month": 1000},
+        {"stage": "categorized", "day": 0, "week": 0, "month": 0},
+        {"stage": "playlisted", "day": 0, "week": 2, "month": 10},
+    ]
+    user_id, w = repo.calls[0]
+    assert user_id == "me"  # defaults to the caller
+    # local midnight of 2026-10-06 at +03:00 == 2026-10-05T21:00Z
+    assert w["day_start"] == datetime(2026, 10, 5, 21, 0, tzinfo=timezone.utc)
+    assert w["week_start"] == datetime(2026, 9, 29, 21, 0, tzinfo=timezone.utc)
+    assert w["month_start"] == datetime(2026, 9, 6, 21, 0, tzinfo=timezone.utc)
+
+
+def test_repository_funnel_sql_binds_user_and_windows():
+    fake = MagicMock()
+    fake.execute.return_value = []
+    repo = ClouderRepository(data_api=fake)
+    d = datetime(2026, 10, 5, 21, tzinfo=timezone.utc)
+    repo.analytics_funnel("me", day_start=d, week_start=d, month_start=d)
+    sql, params = fake.execute.call_args[0]
+    assert params == {"user_id": "me", "day_start": d, "week_start": d, "month_start": d}
+    assert "count(DISTINCT track_id) FILTER (WHERE at >= :day_start)" in sql
+    assert "b.deleted_at IS NULL" in sql and "c.deleted_at IS NULL" in sql and "p.deleted_at IS NULL" in sql

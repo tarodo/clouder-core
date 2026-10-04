@@ -95,7 +95,10 @@
     "loading": "Loading categories…",
     "track_count_one": "{{count}} track",
     "track_count_other": "{{count}} tracks",
-    "row_menu": { "rename": "Rename", "delete": "Delete" },
+    "row_menu": {
+      "rename": "Rename",
+      "delete": "Delete"
+    },
     "form": {
       "name_label": "Name",
       "name_description": "Up to 64 characters.",
@@ -157,7 +160,10 @@
       "tracks_search_placeholder": "Search by title…",
       "tracks_load_more": "Show more ({{remaining}} remaining)",
       "back_to_list": "Back to categories",
-      "actions": { "rename": "Rename", "delete": "Delete" }
+      "actions": {
+        "rename": "Rename",
+        "delete": "Delete"
+      }
     },
     "tracks_table": {
       "title": "Title",
@@ -387,7 +393,9 @@
     }
   },
   "tags": {
-    "color_picker": { "none_aria": "no colour" },
+    "color_picker": {
+      "none_aria": "no colour"
+    },
     "form": {
       "name_label": "Name",
       "name_placeholder": "Vocal",
@@ -428,7 +436,9 @@
       "update_failed": "Couldn't update track tags.",
       "delete_failed": "Couldn't delete tag."
     },
-    "cell": { "add_aria": "Add tag" },
+    "cell": {
+      "add_aria": "Add tag"
+    },
     "filter": {
       "placeholder": "Filter by tag…",
       "empty": "No tags yet.",
@@ -454,7 +464,9 @@
     },
     "row": {
       "date_range": "{{from}} → {{to}}",
-      "menu": { "delete": "Delete" }
+      "menu": {
+        "delete": "Delete"
+      }
     },
     "form": {
       "create_title": "New triage block",
@@ -798,30 +810,25 @@
     },
     "analytics": {
       "title": "Analytics",
-      "subtitle": "Per-user daily session counts, averages, duration and time-per-track percentiles.",
-      "from": "From",
-      "to": "To",
-      "user_id": "User ID",
-      "pick_user": "Select a user to load analytics.",
-      "load_failed": "Failed to load dashboard.",
-      "empty": "No data for this range.",
-      "col": {
-        "date": "Date",
-        "activity": "Activity",
-        "sessions": "Sessions",
-        "avg_listened": "Avg listened",
-        "avg_promoted": "Avg promoted",
-        "avg_deleted": "Avg deleted",
-        "p50_duration": "p50 duration",
-        "p90_duration": "p90 duration",
-        "p50_tpt": "p50 time/track",
-        "p90_tpt": "p90 time/track",
-        "seq": "#",
-        "start": "Start",
-        "duration": "Duration",
-        "listened": "Listened",
-        "promoted": "Promoted",
-        "deleted": "Deleted"
+      "subtitle": "Your listening and curation at a glance.",
+      "load_failed": "Failed to load analytics.",
+      "period": {
+        "day": "Today",
+        "week": "Last 7 days",
+        "month": "Last 30 days"
+      },
+      "listening": {
+        "title": "Listening",
+        "minutes": "Minutes",
+        "tracks_one": "{{count}} track",
+        "tracks_other": "{{count}} tracks"
+      },
+      "funnel": {
+        "title": "Funnel",
+        "triaged": "New in triage",
+        "categorized": "Added to categories",
+        "playlisted": "Added to playlists",
+        "of_prev": "{{pct}} of previous"
       }
     },
     "tabs": {

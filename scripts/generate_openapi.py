@@ -1376,6 +1376,15 @@ ANALYTICS_PARAMS = [
      "description": "Inclusive end date (YYYY-MM-DD)."},
 ]
 
+PERSONAL_ANALYTICS_PARAMS = [
+    {"name": "tz_offset_min", "in": "query", "required": False,
+     "schema": {"type": "integer", "minimum": -840, "maximum": 840},
+     "description": "Browser UTC offset in minutes (east-positive); local days. Default 0."},
+    {"name": "user_id", "in": "query", "required": False,
+     "schema": {"type": "string"},
+     "description": "User to scope to. Defaults to the calling admin."},
+]
+
 ANALYTICS_RESULT = {
     "type": "object",
     "required": ["rows"],
@@ -1683,6 +1692,22 @@ ROUTES: list[dict[str, Any]] = [
                 "User list.",
                 {"type": "object"},
             ),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/analytics/funnel",
+        "auth": ADMIN,
+        "summary": "Admin: curation funnel for today / 7 days / 30 days.",
+        "description": "Distinct tracks per stage: `triaged` (pulled into a triage block), "
+                       "`categorized` (added to a category), `playlisted` (added to a playlist).",
+        "parameters": PERSONAL_ANALYTICS_PARAMS,
+        "responses": {
+            "200": _make_response(200, "Funnel stages.", {"type": "object"}),
+            "400": _error(400, "validation_error."),
             "503": _error(503, "db_not_configured."),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
@@ -4166,6 +4191,23 @@ ROUTES: list[dict[str, Any]] = [
         "Session counts, averages, and duration / time-per-track percentiles per user × day × activity."),
     _analytics_route("sessions", "Per-user session drill-down.",
         "One row per derived session for a user over a date range."),
+    {
+        "method": "get",
+        "path": "/v1/analytics/listening",
+        "auth": ADMIN,
+        "summary": "Listening time + distinct tracks: today / 7 days / 30 days.",
+        "description": "Read live from bronze_events. Per-play time = gap to the next "
+                       "play, capped at track duration. Returns `totals.{day,week,month}` "
+                       "and a zero-filled 30-day `daily` series.",
+        "parameters": PERSONAL_ANALYTICS_PARAMS,
+        "responses": {
+            "200": _make_response(200, "Listening totals + daily series.", {"type": "object"}),
+            "400": _error(400, "invalid_params."),
+            "502": _error(502, "Athena query failed."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
 ]
 
 

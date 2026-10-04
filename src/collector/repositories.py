@@ -1369,6 +1369,54 @@ class ClouderRepository:
             transaction_id=transaction_id,
         )
 
+    def analytics_funnel(
+        self,
+        user_id: str,
+        *,
+        day_start: datetime,
+        week_start: datetime,
+        month_start: datetime,
+    ) -> list[dict[str, Any]]:
+        """Distinct tracks per curation stage since each window start: pulled
+        into a triage block (block created) -> added to a category -> added to
+        a playlist. Current state: tracks removed later no longer count."""
+        return self._data_api.execute(
+            """
+            WITH s AS (
+                SELECT 'triaged' AS stage, tbt.track_id, b.created_at AS at
+                FROM triage_blocks b
+                JOIN triage_buckets tb ON tb.triage_block_id = b.id
+                JOIN triage_bucket_tracks tbt ON tbt.triage_bucket_id = tb.id
+                WHERE b.user_id = :user_id AND b.deleted_at IS NULL
+                  AND b.created_at >= :month_start
+                UNION ALL
+                SELECT 'categorized', ct.track_id, ct.added_at
+                FROM categories c
+                JOIN category_tracks ct ON ct.category_id = c.id
+                WHERE c.user_id = :user_id AND c.deleted_at IS NULL
+                  AND ct.added_at >= :month_start
+                UNION ALL
+                SELECT 'playlisted', pt.track_id, pt.added_at
+                FROM playlists p
+                JOIN playlist_tracks pt ON pt.playlist_id = p.id
+                WHERE p.user_id = :user_id AND p.deleted_at IS NULL
+                  AND pt.added_at >= :month_start
+            )
+            SELECT stage,
+                   count(DISTINCT track_id) FILTER (WHERE at >= :day_start) AS day,
+                   count(DISTINCT track_id) FILTER (WHERE at >= :week_start) AS week,
+                   count(DISTINCT track_id) AS month
+            FROM s
+            GROUP BY stage
+            """,
+            {
+                "user_id": user_id,
+                "day_start": day_start,
+                "week_start": week_start,
+                "month_start": month_start,
+            },
+        )
+
     def list_users(self) -> list[dict[str, Any]]:
         return self._data_api.execute(
             """
