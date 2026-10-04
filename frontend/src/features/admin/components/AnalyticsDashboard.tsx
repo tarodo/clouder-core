@@ -1,139 +1,130 @@
-import { Alert, Loader, Stack, Table, Text } from '@mantine/core';
-import { LineChart } from '@mantine/charts';
-import { useTranslation } from 'react-i18next';
 import {
-  useUserDaily,
-  useSessions,
-  type UserDailyRow,
-  type SessionRow,
-  type AnalyticsRange,
-} from '../hooks/useAnalytics';
+  Alert,
+  Card,
+  Group,
+  Loader,
+  Progress,
+  SegmentedControl,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
+import { BarChart } from '@mantine/charts';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFunnel, useListening } from '../hooks/useAnalytics';
 
-// Coerce Athena string-or-null numeric to display string.
-// NULL/undefined/NaN → em-dash. Numbers formatted per fmtMs or plain.
-function n(val: string | number | null | undefined): string {
-  if (val === null || val === undefined) return '—';
-  const v = Number(val);
-  return Number.isNaN(v) ? '—' : String(v);
+type Period = 'day' | 'week' | 'month';
+const PERIODS: Period[] = ['day', 'week', 'month'];
+
+/** 84 min → "1 h 24 min"; under an hour → "42 min". */
+export function fmtMinutes(ms: number): string {
+  const total = Math.round(ms / 60_000);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h > 0 ? `${h} h ${m} min` : `${m} min`;
 }
 
-// Format milliseconds as m:ss (e.g. 120000 → "2:00").
-function fmtMs(val: string | number | null | undefined): string {
-  if (val === null || val === undefined) return '—';
-  const ms = Number(val);
-  if (Number.isNaN(ms)) return '—';
-  const totalSec = Math.round(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-export function UserDailyTable({ userId, range }: { userId: string; range: AnalyticsRange }) {
+export function ListeningSection() {
   const { t } = useTranslation();
-  const q = useUserDaily(userId, range);
-  const rows: UserDailyRow[] = q.data?.['user-daily'] ?? [];
+  const q = useListening();
 
   if (q.isLoading) return <Loader size="sm" data-testid="loader" />;
-  if (q.isError) return <Alert color="red" role="alert">{t('admin.analytics.load_failed')}</Alert>;
-  if (rows.length === 0) return <Text c="dimmed">{t('admin.analytics.empty')}</Text>;
+  if (q.isError || !q.data) {
+    return <Alert color="red" role="alert">{t('admin.analytics.load_failed')}</Alert>;
+  }
 
-  // Optional line chart: sessions per day (one line per activity_type).
-  // ponytail: simple flat series — one point per row; if multiple activity_types share a dt
-  // they each get their own series entry. Good enough for the MVP.
-  const chartData = rows.map((r) => ({
-    dt: r.dt,
-    [r.activity_type]: Number(r.sessions),
-  }));
-  const activities = [...new Set(rows.map((r) => r.activity_type))];
-  const series = activities.map((a, i) => ({
-    name: a,
-    color: ['indigo.6', 'teal.6', 'grape.6'][i % 3],
+  const { totals, daily } = q.data;
+  const chart = daily.map((d) => ({
+    dt: d.dt.slice(5),
+    minutes: Math.round(d.listened_ms / 60_000),
   }));
 
   return (
     <Stack gap="sm">
-      {rows.length > 0 && (
-        <LineChart
-          h={180}
-          data={chartData}
-          dataKey="dt"
-          series={series}
-          withLegend
-        />
-      )}
-      <Table striped withTableBorder>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>{t('admin.analytics.col.date')}</Table.Th>
-            <Table.Th>{t('admin.analytics.col.activity')}</Table.Th>
-            <Table.Th>{t('admin.analytics.col.sessions')}</Table.Th>
-            <Table.Th>{t('admin.analytics.col.avg_listened')}</Table.Th>
-            <Table.Th>{t('admin.analytics.col.avg_promoted')}</Table.Th>
-            <Table.Th>{t('admin.analytics.col.avg_deleted')}</Table.Th>
-            <Table.Th>{t('admin.analytics.col.p50_duration')}</Table.Th>
-            <Table.Th>{t('admin.analytics.col.p90_duration')}</Table.Th>
-            <Table.Th>{t('admin.analytics.col.p50_tpt')}</Table.Th>
-            <Table.Th>{t('admin.analytics.col.p90_tpt')}</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {rows.map((r, i) => (
-            <Table.Tr key={i}>
-              <Table.Td>{r.dt}</Table.Td>
-              <Table.Td>{r.activity_type}</Table.Td>
-              <Table.Td>{n(r.sessions)}</Table.Td>
-              <Table.Td>{n(r.avg_tracks_listened)}</Table.Td>
-              <Table.Td>{n(r.avg_tracks_promoted)}</Table.Td>
-              <Table.Td>{n(r.avg_tracks_deleted)}</Table.Td>
-              <Table.Td>{fmtMs(r.p50_duration_ms)}</Table.Td>
-              <Table.Td>{fmtMs(r.p90_duration_ms)}</Table.Td>
-              <Table.Td>{fmtMs(r.p50_time_per_track_ms)}</Table.Td>
-              <Table.Td>{fmtMs(r.p90_time_per_track_ms)}</Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
+      <Title order={4}>{t('admin.analytics.listening.title')}</Title>
+      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+        {PERIODS.map((p) => (
+          <Card key={p} withBorder padding="md" radius="md" data-testid={`listening-${p}`}>
+            <Stack gap={4}>
+              <Text size="xs" c="dimmed" tt="uppercase" lts={1.2}>
+                {t(`admin.analytics.period.${p}`)}
+              </Text>
+              <Text ff="monospace" fz={28} fw={600} lh={1.1}>
+                {fmtMinutes(totals[p].listened_ms)}
+              </Text>
+              <Text size="sm" c="dimmed">
+                {t('admin.analytics.listening.tracks', { count: totals[p].tracks })}
+              </Text>
+            </Stack>
+          </Card>
+        ))}
+      </SimpleGrid>
+      <BarChart
+        h={200}
+        data={chart}
+        dataKey="dt"
+        series={[{ name: 'minutes', label: t('admin.analytics.listening.minutes'), color: 'indigo.6' }]}
+      />
     </Stack>
   );
 }
 
-export function SessionsTable({ userId, range }: { userId: string; range: AnalyticsRange }) {
+function pct(n: number, of: number): string {
+  return of > 0 ? `${Math.round((n / of) * 100)}%` : '—';
+}
+
+export function FunnelSection() {
   const { t } = useTranslation();
-  const q = useSessions(userId, range);
-  const rows: SessionRow[] = q.data?.sessions ?? [];
+  const [period, setPeriod] = useState<Period>('month');
+  const q = useFunnel();
 
   if (q.isLoading) return <Loader size="sm" data-testid="loader" />;
-  if (q.isError) return <Alert color="red" role="alert">{t('admin.analytics.load_failed')}</Alert>;
-  if (rows.length === 0) return <Text c="dimmed">{t('admin.analytics.empty')}</Text>;
+  if (q.isError || !q.data) {
+    return <Alert color="red" role="alert">{t('admin.analytics.load_failed')}</Alert>;
+  }
+
+  const stages = q.data.stages;
+  const top = stages[0]?.[period] ?? 0;
 
   return (
-    <Table striped withTableBorder>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>{t('admin.analytics.col.date')}</Table.Th>
-          <Table.Th>{t('admin.analytics.col.activity')}</Table.Th>
-          <Table.Th>{t('admin.analytics.col.seq')}</Table.Th>
-          <Table.Th>{t('admin.analytics.col.start')}</Table.Th>
-          <Table.Th>{t('admin.analytics.col.duration')}</Table.Th>
-          <Table.Th>{t('admin.analytics.col.listened')}</Table.Th>
-          <Table.Th>{t('admin.analytics.col.promoted')}</Table.Th>
-          <Table.Th>{t('admin.analytics.col.deleted')}</Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {rows.map((r, i) => (
-          <Table.Tr key={i}>
-            <Table.Td>{r.dt}</Table.Td>
-            <Table.Td>{r.activity_type}</Table.Td>
-            <Table.Td>{n(r.session_seq)}</Table.Td>
-            <Table.Td>{r.ts_start ?? '—'}</Table.Td>
-            <Table.Td>{fmtMs(r.duration_ms)}</Table.Td>
-            <Table.Td>{n(r.tracks_listened)}</Table.Td>
-            <Table.Td>{n(r.tracks_promoted)}</Table.Td>
-            <Table.Td>{n(r.tracks_deleted)}</Table.Td>
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
+    <Stack gap="sm">
+      <Group justify="space-between" wrap="wrap" gap="sm">
+        <Title order={4}>{t('admin.analytics.funnel.title')}</Title>
+        <SegmentedControl
+          size="xs"
+          value={period}
+          onChange={(v) => setPeriod(v as Period)}
+          data={PERIODS.map((p) => ({ value: p, label: t(`admin.analytics.period.${p}`) }))}
+        />
+      </Group>
+      <Card withBorder padding="md" radius="md">
+        <Stack gap="md">
+          {stages.map((s, i) => {
+            const n = s[period];
+            const prev = i > 0 ? stages[i - 1]![period] : null;
+            return (
+              <Stack key={s.stage} gap={4} data-testid={`funnel-${s.stage}`}>
+                <Group justify="space-between" wrap="nowrap">
+                  <Text size="sm">{t(`admin.analytics.funnel.${s.stage}`)}</Text>
+                  <Group gap="xs" wrap="nowrap">
+                    <Text ff="monospace" fw={600}>
+                      {n}
+                    </Text>
+                    {prev !== null && (
+                      <Text size="xs" c="dimmed">
+                        {t('admin.analytics.funnel.of_prev', { pct: pct(n, prev) })}
+                      </Text>
+                    )}
+                  </Group>
+                </Group>
+                <Progress value={top > 0 ? Math.min(100, (n / top) * 100) : 0} />
+              </Stack>
+            );
+          })}
+        </Stack>
+      </Card>
+    </Stack>
   );
 }
