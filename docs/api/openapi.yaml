@@ -434,7 +434,7 @@ paths:
       responses:
         '200':
           description: Coverage payload (per-style cells + spotify_weeks per-week
-            match stats).
+            match stats). Hidden styles are included with is_hidden=true.
           content:
             application/json:
               schema:
@@ -466,6 +466,80 @@ paths:
           type: integer
           minimum: 2000
           maximum: 2100
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/styles/{style_id}:
+    patch:
+      summary: 'Admin: hide or show a style.'
+      responses:
+        '200':
+          description: Visibility updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - style_id
+                - is_hidden
+                properties:
+                  style_id:
+                    type: string
+                    format: uuid
+                  is_hidden:
+                    type: boolean
+                  correlation_id:
+                    type: string
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: style_not_found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: db_not_configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: A hidden style disappears from GET /styles (selectors, the catalog,
+        the caller's own selection) and from the coverage matrix view. Tracks, runs
+        and user selections are kept, so un-hiding restores everything.
+      parameters:
+      - name: style_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - is_hidden
+              properties:
+                is_hidden:
+                  type: boolean
+              additionalProperties: false
+            example:
+              is_hidden: true
       security:
       - BearerAuth: []
       tags:
@@ -1446,7 +1520,8 @@ paths:
         '403': *id002
       description: Returns the caller's selected styles ordered by their own position.
         When the caller has selected nothing, returns the whole catalog. `scope=all`
-        returns the whole catalog annotated with `selected` and `position`.
+        returns the whole catalog annotated with `selected` and `position`. Styles
+        hidden by an admin are never returned.
       parameters:
       - *id006
       - *id007

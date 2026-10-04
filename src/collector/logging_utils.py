@@ -17,6 +17,7 @@ ALLOWED_LOG_FIELDS = {
     "lambda_request_id",
     "run_id",
     "style_id",
+    "is_hidden",
     "iso_year",
     "iso_week",
     "item_count",

@@ -1,4 +1,4 @@
-import { Alert, Stack } from '@mantine/core';
+import { Alert, Group, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCoverage } from '../hooks/useCoverage';
@@ -6,6 +6,7 @@ import { weekOfDate } from '../lib/saturdayWeek';
 import { CoverageMatrix } from '../components/CoverageMatrix';
 import { CellDetailDrawer } from '../components/CellDetailDrawer';
 import { YearNavigator } from '../components/YearNavigator';
+import { StyleVisibilityPopover } from '../components/StyleVisibilityPopover';
 import { cellState, type CoverageCell } from '../lib/cellState';
 import { runsTrackerStore } from '../lib/runsTracker';
 import { PageHeader } from '../../../components/PageHeader';
@@ -36,12 +37,15 @@ export function AdminCoveragePage() {
   return (
     <Stack>
       <PageHeader title={t('admin.coverage.title')} subtitle={t('admin.coverage.subtitle')}>
-        <YearNavigator year={year} onChange={setYear} />
+        <Group justify="space-between">
+          <YearNavigator year={year} onChange={setYear} />
+          {q.data && <StyleVisibilityPopover styles={q.data.styles} />}
+        </Group>
       </PageHeader>
       {q.isError && <Alert color="red">{t('admin.coverage.load_failed')}</Alert>}
       {q.data && (
         <CoverageMatrix
-          data={q.data}
+          data={{ ...q.data, styles: q.data.styles.filter((s) => !s.is_hidden) }}
           onCellClick={(styleId, weekNumber) => setActive({ styleId, weekNumber })}
         />
       )}

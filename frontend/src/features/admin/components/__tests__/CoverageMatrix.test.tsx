@@ -12,7 +12,9 @@ const sample: CoveragePayload = {
   styles: [
     {
       style_id: 90,
+      clouder_style_id: 'uuid-th',
       style_name: 'Tech House',
+      is_hidden: false,
       cells: [
         {
           week_number: 1,

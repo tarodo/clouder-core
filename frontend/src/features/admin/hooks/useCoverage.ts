@@ -15,7 +15,9 @@ export interface CoveragePayload {
   weeks_in_year: number;
   styles: Array<{
     style_id: number;
+    clouder_style_id: string;
     style_name: string;
+    is_hidden: boolean;
     cells: Array<{
       week_number: number;
       status: string;

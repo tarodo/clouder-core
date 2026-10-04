@@ -20,8 +20,9 @@ class UserStylesRepository:
     def count_selection(self, user_id: str) -> int:
         rows = self._data_api.execute(
             """
-            SELECT count(*) AS cnt FROM clouder_user_style_prefs
-            WHERE user_id = :user_id
+            SELECT count(*) AS cnt FROM clouder_user_style_prefs p
+            JOIN clouder_styles s ON s.id = p.style_id
+            WHERE p.user_id = :user_id AND NOT s.is_hidden
             """,
             {"user_id": user_id},
         )
@@ -47,7 +48,7 @@ class UserStylesRepository:
             SELECT {_STYLE_COLUMNS}
             FROM clouder_user_style_prefs p
             JOIN clouder_styles s ON s.id = p.style_id
-            WHERE p.user_id = :user_id{where}
+            WHERE p.user_id = :user_id AND NOT s.is_hidden{where}
             ORDER BY p.position
             LIMIT :limit OFFSET :offset
             """,
@@ -67,7 +68,7 @@ class UserStylesRepository:
             SELECT count(*) AS cnt
             FROM clouder_user_style_prefs p
             JOIN clouder_styles s ON s.id = p.style_id
-            WHERE p.user_id = :user_id{where}
+            WHERE p.user_id = :user_id AND NOT s.is_hidden{where}
             """,
             params,
         )
@@ -78,14 +79,14 @@ class UserStylesRepository:
     ) -> list[dict[str, Any]]:
         """Catalog in legacy order — the empty-selection fallback."""
         params: dict[str, Any] = {"limit": limit, "offset": offset}
-        where = ""
+        where = "WHERE NOT s.is_hidden"
         if search:
-            where = "WHERE normalized_name LIKE :search"
+            where += " AND s.normalized_name LIKE :search"
             params["search"] = f"%{search.lower()}%"
         return self._data_api.execute(
             f"""
             SELECT id, name, normalized_name, created_at, updated_at
-            FROM clouder_styles
+            FROM clouder_styles s
             {where}
             ORDER BY created_at DESC
             LIMIT :limit OFFSET :offset
@@ -95,12 +96,12 @@ class UserStylesRepository:
 
     def count_all(self, search: str | None = None) -> int:
         params: dict[str, Any] = {}
-        where = ""
+        where = "WHERE NOT s.is_hidden"
         if search:
-            where = "WHERE normalized_name LIKE :search"
+            where += " AND s.normalized_name LIKE :search"
             params["search"] = f"%{search.lower()}%"
         rows = self._data_api.execute(
-            f"SELECT count(*) AS cnt FROM clouder_styles {where}", params
+            f"SELECT count(*) AS cnt FROM clouder_styles s {where}", params
         )
         return int(rows[0]["cnt"]) if rows else 0
 
@@ -116,9 +117,9 @@ class UserStylesRepository:
         params: dict[str, Any] = {
             "user_id": user_id, "limit": limit, "offset": offset,
         }
-        where = ""
+        where = "WHERE NOT s.is_hidden"
         if search:
-            where = "WHERE s.normalized_name LIKE :search"
+            where += " AND s.normalized_name LIKE :search"
             params["search"] = f"%{search.lower()}%"
         return self._data_api.execute(
             f"""

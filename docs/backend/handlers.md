@@ -33,7 +33,8 @@ See also: [data-api.md](data-api.md), [providers.md](providers.md), [ADR-0001](.
 | `POST /collect_bp_releases` | Yes | Legacy ingest; internally calls `_run_beatport_ingest` |
 | `POST /admin/beatport/ingest` | Yes | Current ingest path (Saturday-week or custom range) |
 | `GET /runs/{run_id}` | No | Run status lookup |
-| `GET /admin/coverage` | Yes | Per-style weekly coverage grid |
+| `GET /admin/coverage` | Yes | Per-style weekly coverage grid (hidden styles included, flagged `is_hidden`) |
+| `PATCH /admin/styles/{style_id}` | Yes | Hide/show a style (`{"is_hidden": bool}`) in `/styles` and the coverage grid |
 | `GET /admin/runs` | Yes | Runs for a specific style+week cell |
 | `GET /tracks/spotify-not-found` | Yes | Tracks whose Spotify ISRC search has no result |
 | `GET /tracks` | No | Paginated canonical track list |

@@ -773,7 +773,11 @@
       "subtitle": "Track coverage by week across styles.",
       "year": "Year",
       "weeks_label": "{{count}} weeks",
-      "load_failed": "Failed to load coverage."
+      "load_failed": "Failed to load coverage.",
+      "styles": "Styles",
+      "styles_hidden": "Styles · {{count}} hidden",
+      "styles_hint": "Unchecked styles are hidden from this matrix and from every user's style pickers. Tracks are kept.",
+      "styles_toggle_failed": "Failed to update style visibility."
     },
     "spotify_not_found": {
       "title": "Tracks not on Spotify",

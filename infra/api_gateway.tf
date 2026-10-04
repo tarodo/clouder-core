@@ -110,6 +110,14 @@ resource "aws_apigatewayv2_route" "admin_coverage" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "admin_style_visibility" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "PATCH /admin/styles/{style_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_route" "admin_runs" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /admin/runs"

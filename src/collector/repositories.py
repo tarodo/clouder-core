@@ -1192,6 +1192,7 @@ class ClouderRepository:
             SELECT
                 cs.id            AS clouder_style_id,
                 cs.name          AS style_name,
+                cs.is_hidden,
                 im.external_id   AS beatport_style_id,
                 r.run_id,
                 r.week_number,
@@ -1233,6 +1234,21 @@ class ClouderRepository:
             """,
             {"week_year": week_year},
         )
+
+    def set_style_hidden(self, style_id: str, is_hidden: bool, now: datetime) -> bool:
+        """Hide/show a style in the catalog and the coverage matrix. Returns
+        False when the style does not exist."""
+        rows = self._data_api.execute(
+            """
+            UPDATE clouder_styles
+            SET is_hidden = :is_hidden,
+                updated_at = :now
+            WHERE id = :style_id
+            RETURNING id
+            """,
+            {"style_id": style_id, "is_hidden": is_hidden, "now": now},
+        )
+        return bool(rows)
 
     def spotify_stats_for_year(self, week_year: int) -> list[dict[str, Any]]:
         """Per (beatport style, Saturday week of publish_date) Spotify-match
