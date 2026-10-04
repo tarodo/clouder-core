@@ -87,7 +87,7 @@ The `is_admin` flag comes from the `/me` endpoint, stored in `AuthProvider` stat
 
 Admin-only routes:
 
-- `GET /admin/coverage` → `AdminCoveragePage` — Beatport ingest coverage grid.
+- `GET /admin/coverage` → `AdminCoveragePage` — Beatport ingest coverage grid. The "Styles" popover (`StyleVisibilityPopover`) hides/shows styles via `PATCH /admin/styles/{style_id}`.
 - `GET /admin/spotify-not-found` → `AdminSpotifyNotFoundPage` — tracks with no Spotify match.
 
 `POST /admin/beatport/ingest` is the current ingestion endpoint (the older `POST /collect_bp_releases` is deprecated). Both share `_run_beatport_ingest` in the backend handler.

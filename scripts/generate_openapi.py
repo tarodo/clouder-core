@@ -1704,10 +1704,61 @@ ROUTES: list[dict[str, Any]] = [
         "responses": {
             "200": _make_response(
                 200,
-                "Coverage payload (per-style cells + spotify_weeks per-week match stats).",
+                "Coverage payload (per-style cells + spotify_weeks per-week match "
+                "stats). Hidden styles are included with is_hidden=true.",
                 {"type": "object"},
             ),
             "400": _error(400, "validation_error."),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "patch",
+        "path": "/admin/styles/{style_id}",
+        "auth": ADMIN,
+        "summary": "Admin: hide or show a style.",
+        "description": (
+            "A hidden style disappears from GET /styles (selectors, the "
+            "catalog, the caller's own selection) and from the coverage "
+            "matrix view. Tracks, runs and user selections are kept, so "
+            "un-hiding restores everything."
+        ),
+        "parameters": [
+            {
+                "name": "style_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            }
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {
+                "type": "object",
+                "required": ["is_hidden"],
+                "properties": {"is_hidden": {"type": "boolean"}},
+                "additionalProperties": False,
+            }}},
+        },
+        "request_example": {"is_hidden": True},
+        "responses": {
+            "200": _make_response(
+                200,
+                "Visibility updated.",
+                {
+                    "type": "object",
+                    "required": ["style_id", "is_hidden"],
+                    "properties": {
+                        "style_id": {"type": "string", "format": "uuid"},
+                        "is_hidden": {"type": "boolean"},
+                        "correlation_id": {"type": "string"},
+                    },
+                },
+            ),
+            "400": _error(400, "validation_error."),
+            "404": _error(404, "style_not_found."),
             "503": _error(503, "db_not_configured."),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
@@ -2197,7 +2248,8 @@ ROUTES: list[dict[str, Any]] = [
             "Returns the caller's selected styles ordered by their own "
             "position. When the caller has selected nothing, returns the "
             "whole catalog. `scope=all` returns the whole catalog annotated "
-            "with `selected` and `position`."
+            "with `selected` and `position`. Styles hidden by an admin are "
+            "never returned."
         ),
         "parameters": PAGINATION_PARAMS + [
             {

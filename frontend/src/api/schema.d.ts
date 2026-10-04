@@ -785,7 +785,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Coverage payload (per-style cells + spotify_weeks per-week match stats). */
+                /** @description Coverage payload (per-style cells + spotify_weeks per-week match stats). Hidden styles are included with is_hidden=true. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -838,6 +838,108 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/admin/styles/{style_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Admin: hide or show a style.
+         * @description A hidden style disappears from GET /styles (selectors, the catalog, the caller's own selection) and from the coverage matrix view. Tracks, runs and user selections are kept, so un-hiding restores everything.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    style_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    /**
+                     * @example {
+                     *       "is_hidden": true
+                     *     }
+                     */
+                    "application/json": {
+                        is_hidden: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Visibility updated. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            style_id: string;
+                            is_hidden: boolean;
+                            correlation_id?: string;
+                        };
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description style_not_found. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description db_not_configured. */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/admin/spotify/retry-not-found": {
@@ -2113,7 +2215,7 @@ export interface paths {
         };
         /**
          * List styles (paginated).
-         * @description Returns the caller's selected styles ordered by their own position. When the caller has selected nothing, returns the whole catalog. `scope=all` returns the whole catalog annotated with `selected` and `position`.
+         * @description Returns the caller's selected styles ordered by their own position. When the caller has selected nothing, returns the whole catalog. `scope=all` returns the whole catalog annotated with `selected` and `position`. Styles hidden by an admin are never returned.
          */
         get: {
             parameters: {

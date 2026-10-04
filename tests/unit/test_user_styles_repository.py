@@ -102,6 +102,47 @@ def test_list_catalog_projects_selected_and_position():
     assert params["user_id"] == "u-1"
 
 
+@pytest.mark.parametrize("search", [None, "Funk"])
+@pytest.mark.parametrize(
+    "read",
+    [
+        lambda repo, search: repo.list_for_user(
+            user_id="u-1", limit=50, offset=0, search=search
+        ),
+        lambda repo, search: repo.count_for_user(user_id="u-1", search=search),
+        lambda repo, search: repo.list_all(limit=50, offset=0, search=search),
+        lambda repo, search: repo.count_all(search),
+        lambda repo, search: repo.list_catalog(
+            user_id="u-1", limit=50, offset=0, search=search
+        ),
+    ],
+    ids=["list_for_user", "count_for_user", "list_all", "count_all", "list_catalog"],
+)
+def test_reads_exclude_hidden_styles(read, search):
+    api = FakeDataApi()
+    repo = UserStylesRepository(data_api=api)
+
+    read(repo, search)
+
+    sql, _ = api.calls[0]
+    assert "NOT s.is_hidden" in sql
+
+
+def test_count_selection_ignores_hidden_styles():
+    # A selection made only of hidden styles must count as empty so the
+    # caller falls back to the full catalog instead of an empty list.
+    api = FakeDataApi()
+    api.script([{"cnt": 0}])
+    repo = UserStylesRepository(data_api=api)
+
+    assert repo.count_selection("u-1") == 0
+
+    sql, params = api.calls[0]
+    assert "JOIN clouder_styles s ON s.id = p.style_id" in sql
+    assert "NOT s.is_hidden" in sql
+    assert params == {"user_id": "u-1"}
+
+
 class FakeTxDataApi(FakeDataApi):
     """FakeDataApi plus a transaction() context manager."""
 

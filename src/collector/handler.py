@@ -60,6 +60,7 @@ _ADMIN_ROUTES = frozenset({
     "POST /collect_bp_releases",          # legacy, kept for backward compatibility
     "POST /admin/beatport/ingest",
     "GET /admin/coverage",
+    "PATCH /admin/styles/{style_id}",
     "GET /admin/runs",
     "GET /tracks/spotify-not-found",
     "POST /admin/spotify/retry-not-found",
@@ -166,6 +167,8 @@ def _route(
         return _handle_admin_ingest(event, context, correlation_id)
     if route_key == "GET /admin/coverage":
         return _handle_admin_coverage(event, correlation_id)
+    if route_key == "PATCH /admin/styles/{style_id}":
+        return _handle_admin_style_visibility(event, correlation_id)
     if route_key == "GET /admin/users":
         return _handle_admin_users(event, correlation_id)
     if route_key == "GET /admin/runs":
@@ -632,7 +635,9 @@ def _handle_admin_coverage(
         if sid not in grouped:
             grouped[sid] = {
                 "style_id": sid,
+                "clouder_style_id": row["clouder_style_id"],
                 "style_name": row["style_name"],
+                "is_hidden": bool(row.get("is_hidden")),
                 "cells": [],
             }
         if row.get("run_id") is None:
@@ -681,6 +686,45 @@ def _handle_admin_coverage(
             "styles": list(grouped.values()),
             "correlation_id": correlation_id,
         },
+        correlation_id,
+    )
+
+
+def _handle_admin_style_visibility(
+    event: Mapping[str, Any], correlation_id: str
+) -> dict[str, Any]:
+    payload = _parse_json_body(event)
+    is_hidden = payload.get("is_hidden")
+    if not isinstance(is_hidden, bool):
+        raise ValidationError("is_hidden must be a boolean")
+
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {"error_code": "db_not_configured", "message": "Database is not configured"},
+            correlation_id,
+        )
+
+    path = event.get("pathParameters") or {}
+    style_id = str(path.get("style_id") or "")
+    if not repository.set_style_hidden(style_id, is_hidden, utc_now()):
+        return _json_response(
+            404,
+            {"error_code": "style_not_found", "message": "Style not found"},
+            correlation_id,
+        )
+
+    log_event(
+        "INFO",
+        "style_visibility_updated",
+        correlation_id=correlation_id,
+        style_id=style_id,
+        is_hidden=is_hidden,
+    )
+    return _json_response(
+        200,
+        {"style_id": style_id, "is_hidden": is_hidden, "correlation_id": correlation_id},
         correlation_id,
     )
 

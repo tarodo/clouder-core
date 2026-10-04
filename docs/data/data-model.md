@@ -122,7 +122,10 @@ erDiagram
 
 ### clouder_styles
 
-Same shape as `clouder_labels` without `is_ai_suspected`.
+Same shape as `clouder_labels` without `is_ai_suspected`, plus `is_hidden`
+(Boolean default FALSE). An admin hides a style from the coverage matrix
+popover (`PATCH /admin/styles/{style_id}`); hidden styles never come back
+from `GET /styles`, but their tracks, runs and user selections are kept.
 
 ### clouder_artists
 

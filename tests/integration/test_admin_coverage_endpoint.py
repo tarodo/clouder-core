@@ -139,6 +139,49 @@ def test_coverage_returns_grouped_styles(monkeypatch):
     assert styles[131]["style_name"] == "Melodic"
 
 
+def test_coverage_keeps_hidden_styles_flagged(monkeypatch):
+    def style_row(clouder_id, name, bp_id, is_hidden):
+        return {
+            "clouder_style_id": clouder_id,
+            "style_name": name,
+            "beatport_style_id": bp_id,
+            "is_hidden": is_hidden,
+            "run_id": None,
+            "week_number": None,
+            "status": None,
+            "item_count": None,
+            "is_custom_range": None,
+            "period_start": None,
+            "period_end": None,
+            "started_at": None,
+            "finished_at": None,
+        }
+
+    rows = [
+        style_row("uuid-bf", "Brazilian Funk", "100", True),
+        style_row("uuid-th", "Tech House", "90", False),
+    ]
+
+    class FakeRepo:
+        def coverage_for_year(self, week_year):
+            return rows
+
+        def spotify_stats_for_year(self, week_year):
+            return []
+
+    monkeypatch.setattr(
+        "collector.handler.create_clouder_repository_from_env", lambda: FakeRepo()
+    )
+    response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
+    assert response["statusCode"] == 200
+    styles = {s["style_id"]: s for s in json.loads(response["body"])["styles"]}
+    # Hidden styles stay in the payload — the admin needs them to un-hide.
+    assert styles[100]["clouder_style_id"] == "uuid-bf"
+    assert styles[100]["is_hidden"] is True
+    assert styles[90]["clouder_style_id"] == "uuid-th"
+    assert styles[90]["is_hidden"] is False
+
+
 def test_coverage_merges_spotify_weeks(monkeypatch):
     coverage_rows = [
         {
