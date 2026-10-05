@@ -1379,7 +1379,10 @@ class ClouderRepository:
     ) -> list[dict[str, Any]]:
         """Distinct tracks per curation stage since each window start: pulled
         into a triage block (block created) -> added to a category -> added to
-        a playlist. Current state: tracks removed later no longer count."""
+        a playlist. "Categorized" also counts tracks staged to a category in a
+        still-open triage block (the work is done, only the period isn't
+        finalized), dated by the move. Current state: tracks removed later no
+        longer count."""
         return self._data_api.execute(
             """
             WITH s AS (
@@ -1395,6 +1398,15 @@ class ClouderRepository:
                 JOIN category_tracks ct ON ct.category_id = c.id
                 WHERE c.user_id = :user_id AND c.deleted_at IS NULL
                   AND ct.added_at >= :month_start
+                UNION ALL
+                SELECT 'categorized', tbt.track_id, tbt.added_at
+                FROM triage_blocks b
+                JOIN triage_buckets tb ON tb.triage_block_id = b.id
+                JOIN triage_bucket_tracks tbt ON tbt.triage_bucket_id = tb.id
+                WHERE b.user_id = :user_id AND b.deleted_at IS NULL
+                  AND b.status = 'IN_PROGRESS'
+                  AND tb.bucket_type = 'STAGING' AND NOT tb.inactive
+                  AND tbt.added_at >= :month_start
                 UNION ALL
                 SELECT 'playlisted', pt.track_id, pt.added_at
                 FROM playlists p

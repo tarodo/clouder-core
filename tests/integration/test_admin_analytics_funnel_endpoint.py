@@ -103,3 +103,6 @@ def test_repository_funnel_sql_binds_user_and_windows():
     assert params == {"user_id": "me", "day_start": d, "week_start": d, "month_start": d}
     assert "count(DISTINCT track_id) FILTER (WHERE at >= :day_start)" in sql
     assert "b.deleted_at IS NULL" in sql and "c.deleted_at IS NULL" in sql and "p.deleted_at IS NULL" in sql
+    # open-triage staging counts as categorized (category assigned, period not finalized)
+    assert "b.status = 'IN_PROGRESS'" in sql
+    assert "tb.bucket_type = 'STAGING' AND NOT tb.inactive" in sql
