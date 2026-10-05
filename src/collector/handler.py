@@ -85,7 +85,6 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/auto-enrich/artists",
     "PUT /admin/auto-enrich/artists",
     "GET /admin/users",
-    "GET /admin/analytics/funnel",
 })
 
 
@@ -172,8 +171,8 @@ def _route(
         return _handle_admin_style_visibility(event, correlation_id)
     if route_key == "GET /admin/users":
         return _handle_admin_users(event, correlation_id)
-    if route_key == "GET /admin/analytics/funnel":
-        return _handle_admin_analytics_funnel(event, correlation_id)
+    if route_key == "GET /v1/analytics/funnel":
+        return _handle_analytics_funnel(event, correlation_id)
     if route_key == "GET /admin/runs":
         return _handle_admin_runs(event, correlation_id)
     if route_key == "GET /tracks/spotify-not-found":
@@ -752,23 +751,26 @@ def _handle_admin_users(
 _FUNNEL_STAGES = ("triaged", "categorized", "playlisted")
 
 
-def _handle_admin_analytics_funnel(
+def _handle_analytics_funnel(
     event: Mapping[str, Any], correlation_id: str
 ) -> dict[str, Any]:
+    """Personal: own data for any signed-in user; admins may pass ?user_id."""
     from datetime import time as dtime, timedelta
 
-    from .analytics_handler import AnalyticsError, listening_windows, parse_tz_offset
+    from .analytics_handler import (
+        AnalyticsError,
+        listening_windows,
+        parse_tz_offset,
+        resolve_user,
+    )
 
     qs = event.get("queryStringParameters") or {}
     qs = qs if isinstance(qs, Mapping) else {}
     try:
         off = parse_tz_offset(qs.get("tz_offset_min"))
+        user_id = resolve_user(event, str(qs.get("user_id") or ""))
     except AnalyticsError as exc:
-        raise ValidationError(exc.message) from exc
-    ctx = ((event.get("requestContext") or {}).get("authorizer") or {}).get("lambda") or {}
-    user_id = str(qs.get("user_id") or ctx.get("user_id") or "")
-    if not user_id:
-        raise ValidationError("user_id is required")
+        raise AppError(exc.status_code, exc.error_code, exc.message) from exc
     repository = create_clouder_repository_from_env()
     if repository is None:
         return _json_response(

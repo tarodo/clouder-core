@@ -766,86 +766,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/analytics/funnel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Admin: curation funnel for today / 7 days / 30 days.
-         * @description Distinct tracks per stage, dated by when the work happened: `triaged` (moved out of NEW in triage), `categorized` (staged to a category, open or finalized block, or added outside triage), `playlisted` (added to a playlist).
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description Browser UTC offset in minutes (east-positive); local days. Default 0. */
-                    tz_offset_min?: number;
-                    /** @description User to scope to. Defaults to the calling admin. */
-                    user_id?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Funnel stages. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": Record<string, never>;
-                    };
-                };
-                /** @description validation_error. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Missing or invalid bearer token. */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description admin_required. */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description db_not_configured. */
-                503: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/coverage": {
         parameters: {
             query?: never;
@@ -8111,7 +8031,7 @@ export interface paths {
                 query?: {
                     /** @description Browser UTC offset in minutes (east-positive); local days. Default 0. */
                     tz_offset_min?: number;
-                    /** @description User to scope to. Defaults to the calling admin. */
+                    /** @description Admins only: user to scope to. Defaults to the caller. */
                     user_id?: string;
                 };
                 header?: never;
@@ -8147,7 +8067,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description admin_required. */
+                /** @description admin_required (another user's data). */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -8158,6 +8078,86 @@ export interface paths {
                 };
                 /** @description Athena query failed. */
                 502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/funnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Curation funnel for today / 7 days / 30 days.
+         * @description Distinct tracks per stage, dated by when the work happened: `triaged` (moved out of NEW in triage), `categorized` (staged to a category, open or finalized block, or added outside triage), `playlisted` (added to a playlist).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Browser UTC offset in minutes (east-positive); local days. Default 0. */
+                    tz_offset_min?: number;
+                    /** @description Admins only: user to scope to. Defaults to the caller. */
+                    user_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Funnel stages. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": Record<string, never>;
+                    };
+                };
+                /** @description invalid_params. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required (another user's data). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description db_not_configured. */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };

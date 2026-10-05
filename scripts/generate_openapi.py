@@ -1382,7 +1382,7 @@ PERSONAL_ANALYTICS_PARAMS = [
      "description": "Browser UTC offset in minutes (east-positive); local days. Default 0."},
     {"name": "user_id", "in": "query", "required": False,
      "schema": {"type": "string"},
-     "description": "User to scope to. Defaults to the calling admin."},
+     "description": "Admins only: user to scope to. Defaults to the caller."},
 ]
 
 ANALYTICS_RESULT = {
@@ -1692,23 +1692,6 @@ ROUTES: list[dict[str, Any]] = [
                 "User list.",
                 {"type": "object"},
             ),
-            "503": _error(503, "db_not_configured."),
-            **COMMON_AUTH_ERRORS,
-            "403": _error(403, "admin_required."),
-        },
-    },
-    {
-        "method": "get",
-        "path": "/admin/analytics/funnel",
-        "auth": ADMIN,
-        "summary": "Admin: curation funnel for today / 7 days / 30 days.",
-        "description": "Distinct tracks per stage, dated by when the work happened: `triaged` "
-                       "(moved out of NEW in triage), `categorized` (staged to a category, open "
-                       "or finalized block, or added outside triage), `playlisted` (added to a playlist).",
-        "parameters": PERSONAL_ANALYTICS_PARAMS,
-        "responses": {
-            "200": _make_response(200, "Funnel stages.", {"type": "object"}),
-            "400": _error(400, "validation_error."),
             "503": _error(503, "db_not_configured."),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
@@ -4195,7 +4178,7 @@ ROUTES: list[dict[str, Any]] = [
     {
         "method": "get",
         "path": "/v1/analytics/listening",
-        "auth": ADMIN,
+        "auth": AUTH,
         "summary": "Listening time + distinct tracks: today / 7 days / 30 days.",
         "description": "Read live from bronze_events. Per-play time = gap to the next "
                        "play, capped at track duration. Returns `totals.{day,week,month}` "
@@ -4206,7 +4189,24 @@ ROUTES: list[dict[str, Any]] = [
             "400": _error(400, "invalid_params."),
             "502": _error(502, "Athena query failed."),
             **COMMON_AUTH_ERRORS,
-            "403": _error(403, "admin_required."),
+            "403": _error(403, "admin_required (another user's data)."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/v1/analytics/funnel",
+        "auth": AUTH,
+        "summary": "Curation funnel for today / 7 days / 30 days.",
+        "description": "Distinct tracks per stage, dated by when the work happened: `triaged` "
+                       "(moved out of NEW in triage), `categorized` (staged to a category, open "
+                       "or finalized block, or added outside triage), `playlisted` (added to a playlist).",
+        "parameters": PERSONAL_ANALYTICS_PARAMS,
+        "responses": {
+            "200": _make_response(200, "Funnel stages.", {"type": "object"}),
+            "400": _error(400, "invalid_params."),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required (another user's data)."),
         },
     },
 ]
