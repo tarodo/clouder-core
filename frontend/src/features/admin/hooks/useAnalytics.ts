@@ -30,25 +30,46 @@ export interface FunnelResponse {
   stages: FunnelStage[];
 }
 
+export interface AdminUser {
+  id: string;
+  display_name: string | null;
+}
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ['admin', 'users'],
+    queryFn: () => api<{ users: AdminUser[] }>('/admin/users'),
+    staleTime: 300_000,
+  });
+}
+
 /** Browser UTC offset in minutes, east-positive (UTC+4 → 240). Backend buckets local days by it. */
 export function tzOffsetMin(): number {
   return -new Date().getTimezoneOffset();
 }
 
-export function useListening() {
+/** Empty userId → backend defaults to the calling admin. */
+function query(userId: string): string {
   const off = tzOffsetMin();
+  return userId
+    ? `tz_offset_min=${off}&user_id=${encodeURIComponent(userId)}`
+    : `tz_offset_min=${off}`;
+}
+
+export function useListening(userId = '') {
+  const qs = query(userId);
   return useQuery({
-    queryKey: ['admin', 'analytics', 'listening', off],
-    queryFn: () => api<ListeningResponse>(`/v1/analytics/listening?tz_offset_min=${off}`),
+    queryKey: ['admin', 'analytics', 'listening', qs],
+    queryFn: () => api<ListeningResponse>(`/v1/analytics/listening?${qs}`),
     staleTime: 60_000,
   });
 }
 
-export function useFunnel() {
-  const off = tzOffsetMin();
+export function useFunnel(userId = '') {
+  const qs = query(userId);
   return useQuery({
-    queryKey: ['admin', 'analytics', 'funnel', off],
-    queryFn: () => api<FunnelResponse>(`/admin/analytics/funnel?tz_offset_min=${off}`),
+    queryKey: ['admin', 'analytics', 'funnel', qs],
+    queryFn: () => api<FunnelResponse>(`/admin/analytics/funnel?${qs}`),
     staleTime: 60_000,
   });
 }

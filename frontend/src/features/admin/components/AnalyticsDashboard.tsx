@@ -26,9 +26,9 @@ export function fmtMinutes(ms: number): string {
   return h > 0 ? `${h} h ${m} min` : `${m} min`;
 }
 
-export function ListeningSection() {
+export function ListeningSection({ userId }: { userId: string }) {
   const { t } = useTranslation();
-  const q = useListening();
+  const q = useListening(userId);
 
   if (q.isLoading) return <Loader size="sm" data-testid="loader" />;
   if (q.isError || !q.data) {
@@ -75,10 +75,10 @@ function pct(n: number, of: number): string {
   return of > 0 ? `${Math.round((n / of) * 100)}%` : '—';
 }
 
-export function FunnelSection() {
+export function FunnelSection({ userId }: { userId: string }) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>('month');
-  const q = useFunnel();
+  const q = useFunnel(userId);
 
   if (q.isLoading) return <Loader size="sm" data-testid="loader" />;
   if (q.isError || !q.data) {
