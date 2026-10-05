@@ -109,6 +109,30 @@ describe('HomePage', () => {
     expect(screen.getByText('2')).toBeInTheDocument(); // active blocks count
   });
 
+  it('shows the personal listening + funnel cards', async () => {
+    server.use(
+      http.get('http://localhost/styles', () =>
+        HttpResponse.json({ items: [{ id: 's1', name: 'House' }], total: 1, limit: 200, offset: 0 }),
+      ),
+      http.get('http://localhost/styles/s1/triage/blocks', () =>
+        HttpResponse.json({
+          items: [block('b1', 's1', 'House', 'IN_PROGRESS', '2026-05-08T00:00:00Z', 30)],
+          total: 1,
+          limit: 50,
+          offset: 0,
+        }),
+      ),
+    );
+    render(
+      <Wrapper>
+        <HomePage />
+      </Wrapper>,
+    );
+    expect(await screen.findByText('Listening')).toBeInTheDocument();
+    expect(screen.getByText('Funnel')).toBeInTheDocument();
+    expect(await screen.findByTestId('funnel-triaged')).toBeInTheDocument();
+  });
+
   it('uses localStorage to render the curate resume hero', async () => {
     localStorage.setItem(LAST_CURATE_STYLE_KEY, 's1');
     localStorage.setItem(

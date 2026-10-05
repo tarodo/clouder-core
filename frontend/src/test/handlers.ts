@@ -62,6 +62,29 @@ const PLAYLIST_DEFAULTS = [
   ),
 ];
 
+// Personal analytics cards render on Home; default to an empty week.
+const ANALYTICS_DEFAULTS = [
+  http.get('http://localhost/v1/analytics/listening', () => {
+    const zero = { listened_ms: 0, tracks: 0 };
+    return HttpResponse.json({
+      today: '2026-10-05',
+      totals: { day: zero, week: zero, month: zero },
+      daily: [],
+    });
+  }),
+  http.get('http://localhost/v1/analytics/funnel', () =>
+    HttpResponse.json({
+      today: '2026-10-05',
+      stages: ['triaged', 'categorized', 'playlisted'].map((stage) => ({
+        stage,
+        day: 0,
+        week: 0,
+        month: 0,
+      })),
+    }),
+  ),
+];
+
 export const handlers = [
   http.get('http://localhost/tracks/:track_id/comments', () =>
     HttpResponse.json({ status: 'pending', comment_count: 0, video_url: null, comments: [] }),
@@ -100,4 +123,5 @@ export const handlers = [
     HttpResponse.json({ queued_count: 0 }),
   ),
   ...PLAYLIST_DEFAULTS,
+  ...ANALYTICS_DEFAULTS,
 ];
