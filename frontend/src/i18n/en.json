@@ -812,6 +812,8 @@
       "title": "Analytics",
       "subtitle": "Your listening and curation at a glance.",
       "load_failed": "Failed to load analytics.",
+      "user": "User",
+      "me": "Me",
       "period": {
         "day": "Today",
         "week": "Last 7 days",

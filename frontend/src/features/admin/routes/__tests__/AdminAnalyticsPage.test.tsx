@@ -24,9 +24,21 @@ const funnel = {
   ],
 };
 
+const calls = vi.hoisted(() => ({ listening: [] as string[], funnel: [] as string[] }));
+
 vi.mock('../../hooks/useAnalytics', () => ({
-  useListening: () => ({ data: listening, isLoading: false, isError: false }),
-  useFunnel: () => ({ data: funnel, isLoading: false, isError: false }),
+  useUsers: () => ({
+    data: { users: [{ id: 'u1', display_name: 'Alice' }, { id: 'u2', display_name: null }] },
+    isLoading: false,
+  }),
+  useListening: (userId: string) => {
+    calls.listening.push(userId);
+    return { data: listening, isLoading: false, isError: false };
+  },
+  useFunnel: (userId: string) => {
+    calls.funnel.push(userId);
+    return { data: funnel, isLoading: false, isError: false };
+  },
 }));
 
 function renderPage() {
@@ -59,6 +71,15 @@ describe('AdminAnalyticsPage', () => {
     expect(cat.getByText('100')).toBeDefined();
     expect(cat.getByText('10% of previous')).toBeDefined();
     expect(within(screen.getByTestId('funnel-playlisted')).getByText('10% of previous')).toBeDefined();
+  });
+
+  it('defaults to the caller, then scopes both sections to the picked user', async () => {
+    renderPage();
+    expect(calls.listening.at(-1)).toBe('');
+    await userEvent.click(screen.getByRole('combobox', { name: 'User' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Alice' }));
+    expect(calls.listening.at(-1)).toBe('u1');
+    expect(calls.funnel.at(-1)).toBe('u1');
   });
 
   it('switches the funnel period', async () => {
