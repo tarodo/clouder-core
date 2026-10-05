@@ -1377,36 +1377,38 @@ class ClouderRepository:
         week_start: datetime,
         month_start: datetime,
     ) -> list[dict[str, Any]]:
-        """Distinct tracks per curation stage since each window start: pulled
-        into a triage block (block created) -> added to a category -> added to
-        a playlist. "Categorized" also counts tracks staged to a category in a
-        still-open triage block (the work is done, only the period isn't
-        finalized), dated by the move. Current state: tracks removed later no
-        longer count."""
+        """Distinct tracks per curation stage, dated by when the work happened.
+
+        Block creation stamps initial bucket rows with the block's created_at,
+        and every move re-inserts with now, so added_at > created_at means the
+        user moved it. triaged = moved anywhere but NEW (back to NEW = undo);
+        categorized = moved to an active STAGING bucket (open or finalized
+        block) + category adds outside triage (finalize's copies would re-date
+        staged tracks); playlisted = added to a playlist.
+        """
         return self._data_api.execute(
             """
-            WITH s AS (
-                SELECT 'triaged' AS stage, tbt.track_id, b.created_at AS at
+            WITH moved AS (
+                SELECT tb.bucket_type, tb.inactive, tbt.track_id, tbt.added_at AS at
                 FROM triage_blocks b
                 JOIN triage_buckets tb ON tb.triage_block_id = b.id
                 JOIN triage_bucket_tracks tbt ON tbt.triage_bucket_id = tb.id
                 WHERE b.user_id = :user_id AND b.deleted_at IS NULL
-                  AND b.created_at >= :month_start
+                  AND tbt.added_at > b.created_at
+                  AND tbt.added_at >= :month_start
+            ), s AS (
+                SELECT 'triaged' AS stage, track_id, at
+                FROM moved WHERE bucket_type <> 'NEW'
+                UNION ALL
+                SELECT 'categorized', track_id, at
+                FROM moved WHERE bucket_type = 'STAGING' AND NOT inactive
                 UNION ALL
                 SELECT 'categorized', ct.track_id, ct.added_at
                 FROM categories c
                 JOIN category_tracks ct ON ct.category_id = c.id
                 WHERE c.user_id = :user_id AND c.deleted_at IS NULL
+                  AND ct.source_triage_block_id IS NULL
                   AND ct.added_at >= :month_start
-                UNION ALL
-                SELECT 'categorized', tbt.track_id, tbt.added_at
-                FROM triage_blocks b
-                JOIN triage_buckets tb ON tb.triage_block_id = b.id
-                JOIN triage_bucket_tracks tbt ON tbt.triage_bucket_id = tb.id
-                WHERE b.user_id = :user_id AND b.deleted_at IS NULL
-                  AND b.status = 'IN_PROGRESS'
-                  AND tb.bucket_type = 'STAGING' AND NOT tb.inactive
-                  AND tbt.added_at >= :month_start
                 UNION ALL
                 SELECT 'playlisted', pt.track_id, pt.added_at
                 FROM playlists p

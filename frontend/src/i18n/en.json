@@ -827,7 +827,7 @@
       },
       "funnel": {
         "title": "Funnel",
-        "triaged": "New in triage",
+        "triaged": "Triaged",
         "categorized": "Added to categories",
         "playlisted": "Added to playlists",
         "of_prev": "{{pct}} of previous"

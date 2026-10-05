@@ -103,6 +103,12 @@ def test_repository_funnel_sql_binds_user_and_windows():
     assert params == {"user_id": "me", "day_start": d, "week_start": d, "month_start": d}
     assert "count(DISTINCT track_id) FILTER (WHERE at >= :day_start)" in sql
     assert "b.deleted_at IS NULL" in sql and "c.deleted_at IS NULL" in sql and "p.deleted_at IS NULL" in sql
-    # open-triage staging counts as categorized (category assigned, period not finalized)
-    assert "b.status = 'IN_PROGRESS'" in sql
-    assert "tb.bucket_type = 'STAGING' AND NOT tb.inactive" in sql
+    # work-based: a row moved by the user (added_at after the block's creation
+    # stamp) is a decision, dated by the move; moving back to NEW is an undo.
+    assert "tbt.added_at > b.created_at" in sql
+    assert "bucket_type <> 'NEW'" in sql
+    # staging counts as categorized in open AND finalized blocks; finalize's
+    # category_tracks copies are not double-dated.
+    assert "bucket_type = 'STAGING' AND NOT inactive" in sql
+    assert "ct.source_triage_block_id IS NULL" in sql
+    assert "IN_PROGRESS" not in sql

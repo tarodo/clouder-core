@@ -1702,8 +1702,9 @@ ROUTES: list[dict[str, Any]] = [
         "path": "/admin/analytics/funnel",
         "auth": ADMIN,
         "summary": "Admin: curation funnel for today / 7 days / 30 days.",
-        "description": "Distinct tracks per stage: `triaged` (pulled into a triage block), "
-                       "`categorized` (added to a category), `playlisted` (added to a playlist).",
+        "description": "Distinct tracks per stage, dated by when the work happened: `triaged` "
+                       "(moved out of NEW in triage), `categorized` (staged to a category, open "
+                       "or finalized block, or added outside triage), `playlisted` (added to a playlist).",
         "parameters": PERSONAL_ANALYTICS_PARAMS,
         "responses": {
             "200": _make_response(200, "Funnel stages.", {"type": "object"}),
