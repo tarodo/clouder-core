@@ -144,3 +144,31 @@ def test_removed_dashboards_are_404(athena_users):
     ev["requestContext"]["routeKey"] = "GET /v1/analytics/user-daily"
     assert ah.lambda_handler(ev, None)["statusCode"] == 404
     assert athena_users == []
+
+
+# ── honest time: pauses, resumes and natural ends cut the listen window ──
+_PAUSE_ROWS = [
+    # t1: 1 min, paused 29 min, resumed 2 min -> 180s (old gap-only rule: 300s cap)
+    ("p1", "u1", "2026-10-04", _B, "2026-10-04T10:00:00.000Z", "playback_play", "t1", 300000),
+    ("p2", "u1", "2026-10-04", _B, "2026-10-04T10:01:00.000Z", "playback_pause", "t1", 300000),
+    ("p3", "u1", "2026-10-04", _B, "2026-10-04T10:30:00.000Z", "playback_resume", "t1", 300000),
+    ("p3s", "u1", "2026-10-04", _B, "2026-10-04T10:31:00.000Z", "playback_seek", "t1", None),
+    # t2: ended after 3 min, next play 25 min later -> 180s (old rule: 300s cap)
+    ("p4", "u1", "2026-10-04", _B, "2026-10-04T10:32:00.000Z", "playback_play", "t2", 300000),
+    ("p5", "u1", "2026-10-04", _B, "2026-10-04T10:35:00.000Z", "playback_ended", "t2", 300000),
+    # t3: paused after 30s, nothing after -> 30s (old rule: 240s cap)
+    ("p6", "u1", "2026-10-04", _B, "2026-10-04T11:00:00.000Z", "playback_play", "t3", 240000),
+    ("p7", "u1", "2026-10-04", _B, "2026-10-04T11:00:30.000Z", "playback_pause", "t3", 240000),
+]
+
+
+def test_pause_resume_and_end_cut_listen_time():
+    c = duckdb.connect(":memory:")
+    c.execute(
+        "CREATE TABLE bronze_events (event_id VARCHAR, user_id VARCHAR, dt VARCHAR, "
+        "ts_server VARCHAR, ts_client VARCHAR, event_name VARCHAR, track_id VARCHAR, "
+        "duration_ms BIGINT)"
+    )
+    c.executemany("INSERT INTO bronze_events VALUES (?,?,?,?,?,?,?,?)", _PAUSE_ROWS)
+    out = _run(c, date(2026, 10, 4), 0)
+    assert out["totals"]["day"] == {"listened_ms": 390000, "tracks": 3}

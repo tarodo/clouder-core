@@ -91,6 +91,7 @@ _VALID_PROPS = {
     "track_categorized": {"track_id": "t", "decision_ms": 1, "category_key": "NEW", "action": "moved_to_bucket", "surface": "triage"},
     "playback_play": {"track_id": "t", "position_ms": 0, "duration_ms": 200, "source": "triage_player"},
     "playback_pause": {"track_id": "t", "position_ms": 5, "duration_ms": 200, "seek_count": 0},
+    "playback_resume": {"track_id": "t", "position_ms": 5, "duration_ms": 200},
     "playback_seek": {"track_id": "t", "from_position_ms": 1, "to_position_ms": 9},
     "playback_ended": {"track_id": "t", "duration_ms": 200, "listen_through_ratio": 1.0},
     "playback_skip": {"track_id": "t", "position_ms": 9, "duration_ms": 200},
@@ -120,3 +121,14 @@ def test_each_event_flattens_into_hot_and_tail(event_name):
             assert out[key] == value
         else:
             assert extra[key] == value
+
+
+def test_event_names_match_glue_partition_enum():
+    # A name missing from the Glue projection enum is written by Firehose but
+    # invisible to Athena — keep the two lists identical.
+    import pathlib
+    import re
+
+    tf = (pathlib.Path(__file__).resolve().parents[2] / "infra" / "telemetry.tf").read_text()
+    enum = re.search(r'"projection\.event_name\.values"\s*=\s*"([^"]+)"', tf).group(1)
+    assert set(enum.split(",")) == set(EVENT_NAMES)

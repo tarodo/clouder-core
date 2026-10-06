@@ -79,7 +79,7 @@ resource "aws_glue_catalog_table" "bronze_events" {
     "projection.dt.interval"       = "1"
     "projection.dt.interval.unit"  = "DAYS"
     "projection.event_name.type"   = "enum"
-    "projection.event_name.values" = "triage_session_start,triage_session_end,track_view,track_categorized,playback_play,playback_pause,playback_seek,playback_ended,playback_skip,hotkey_used,playlist_add,playlist_reorder,playlist_publish"
+    "projection.event_name.values" = "triage_session_start,triage_session_end,track_view,track_categorized,playback_play,playback_pause,playback_resume,playback_seek,playback_ended,playback_skip,hotkey_used,playlist_add,playlist_reorder,playlist_publish"
     "storage.location.template"    = "s3://${aws_s3_bucket.analytics_lake.bucket}/bronze/events/dt=$${dt}/event_name=$${event_name}"
   }
 
