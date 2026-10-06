@@ -38,3 +38,6 @@ analytics/dbt/dbt_packages/
 # dbt runtime artifacts
 analytics/dbt/logs/
 analytics/dbt/.user.yml
+
+# Local prod volume snapshots (scripts/prod_volumes.sh output)
+prod_volumes_*.txt
