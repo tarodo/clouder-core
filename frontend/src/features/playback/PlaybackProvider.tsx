@@ -27,7 +27,7 @@ import { lastDeviceStore } from './lib/lastDeviceStore';
 import { usePolling } from './lib/usePolling';
 import { useTelemetry } from '../../lib/telemetry/hooks';
 import { debounceTrack } from '../../lib/telemetry/sdk';
-import { resolvePlaybackSource, seekEventProps } from './lib/telemetryMap';
+import { resolvePlaybackSource, seekEventProps, statusTransitionEvent } from './lib/telemetryMap';
 import type { PlaybackSource } from './lib/types';
 
 export interface DevicesSlice {
@@ -134,6 +134,23 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   }>({ current: null, positionMs: 0, durationMs: 0 });
 
   const onCursorChangeRef = useRef<((next: number) => void) | null>(null);
+
+  // Listen-time telemetry: pause / resume / end of queue, derived from status
+  // changes so every path (SDK, remote Web API, hotkeys) is covered once.
+  // A track change alone re-runs this with an unchanged status → no event.
+  const prevStatusRef = useRef<QueueStatus>(queue.status);
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = queue.status;
+    const event = statusTransitionEvent(prev, queue.status);
+    const current = track.current;
+    if (!event || !current) return;
+    telemetry.track(event, {
+      track_id: current.id,
+      position_ms: Math.round(track.positionMs),
+      duration_ms: current.duration_ms,
+    });
+  }, [queue.status, track, telemetry]);
 
   const sdkInitRef = useRef<Promise<void> | null>(null);
   const playerRef = useRef<Spotify.Player | null>(null);

@@ -11,6 +11,7 @@ import { usePlayback } from '../usePlayback';
 import { spotifyTokenStore } from '../../../auth/spotifyTokenStore';
 import { AuthContext, type AuthContextValue } from '../../../auth/AuthProvider';
 import { __resetSdkLoaderForTests } from '../lib/sdkLoader';
+import { telemetry } from '../../../lib/telemetry/sdk';
 import {
   installSpotifySdkMock,
   uninstallSpotifySdkMock,
@@ -245,6 +246,51 @@ describe('PlaybackProvider SDK lifecycle', () => {
     await waitFor(() => {
       expect(captured.body?.uris).toEqual(['spotify:track:spB']);
     });
+  });
+
+  it('pause and resume emit listen-time telemetry for the current track', async () => {
+    const trackSpy = vi.spyOn(telemetry, 'track');
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', () => HttpResponse.json({}, { status: 204 })),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'category', categoryId: 'c', styleId: 's' },
+        tracks: [
+          { id: 'A', title: 'A', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spA' },
+          { id: 'B', title: 'B', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spB' },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    await playAndEmitReady(() => result.current.controls.play(1), handle);
+    const sdkState = (paused: boolean) =>
+      act(() => {
+        handle.getLatest()?.__emit('player_state_changed', {
+          paused,
+          position: 400,
+          duration: 1000,
+          track_window: { current_track: { id: 'spB', uri: 'spotify:track:spB' } },
+        });
+      });
+    sdkState(false);
+    await waitFor(() => expect(result.current.queue.status).toBe('playing'));
+    sdkState(true);
+    await waitFor(() => expect(result.current.queue.status).toBe('paused'));
+    sdkState(false);
+    await waitFor(() => expect(result.current.queue.status).toBe('playing'));
+
+    const events = trackSpy.mock.calls.map(([name]) => name).filter((n) => n !== 'playback_play');
+    expect(events).toEqual(['playback_pause', 'playback_resume']);
+    expect(trackSpy).toHaveBeenCalledWith(
+      'playback_pause',
+      expect.objectContaining({ track_id: 'B', position_ms: 400, duration_ms: 1000 }),
+    );
+    trackSpy.mockRestore();
   });
 
   it('controls.play() with no idx uses cursor track', async () => {
