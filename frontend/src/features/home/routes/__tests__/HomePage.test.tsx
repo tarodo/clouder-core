@@ -130,6 +130,7 @@ describe('HomePage', () => {
     );
     expect(await screen.findByText('Listening')).toBeInTheDocument();
     expect(screen.getByText('Funnel')).toBeInTheDocument();
+    expect(await screen.findByText('Time per track')).toBeInTheDocument();
     expect(await screen.findByTestId('funnel-triaged')).toBeInTheDocument();
   });
 

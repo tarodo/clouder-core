@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { AdminAnalyticsPage } from '../AdminAnalyticsPage';
 
-const calls = vi.hoisted(() => ({ listening: [] as string[], funnel: [] as string[] }));
+const calls = vi.hoisted(() => ({ listening: [] as string[], funnel: [] as string[], tpt: [] as string[] }));
 
 vi.mock('../../hooks/useUsers', () => ({
   useUsers: () => ({
@@ -22,6 +22,10 @@ vi.mock('../../../analytics/hooks/useAnalytics', () => ({
     calls.funnel.push(userId);
     return { data: undefined, isLoading: true, isError: false };
   },
+  useTimePerTrack: (userId: string) => {
+    calls.tpt.push(userId);
+    return { data: undefined, isLoading: true, isError: false };
+  },
 }));
 
 describe('AdminAnalyticsPage', () => {
@@ -36,5 +40,6 @@ describe('AdminAnalyticsPage', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'Alice' }));
     expect(calls.listening.at(-1)).toBe('u1');
     expect(calls.funnel.at(-1)).toBe('u1');
+    expect(calls.tpt.at(-1)).toBe('u1');
   });
 });

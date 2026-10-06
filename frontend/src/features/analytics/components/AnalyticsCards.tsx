@@ -7,12 +7,20 @@ import {
   SimpleGrid,
   Skeleton,
   Stack,
+  Table,
   Text,
 } from '@mantine/core';
 import { BarChart } from '@mantine/charts';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFunnel, useListening } from '../hooks/useAnalytics';
+import {
+  useFunnel,
+  useListening,
+  useTimePerTrack,
+  type Stage,
+  type TptCell,
+  type TptRow,
+} from '../hooks/useAnalytics';
 
 type Period = 'day' | 'week' | 'month';
 const PERIODS: Period[] = ['day', 'week', 'month'];
@@ -21,6 +29,7 @@ const PERIODS: Period[] = ['day', 'week', 'month'];
 // blocks, like HomeSkeleton's, don't make the page jump when data lands.
 const LISTENING_H = 292;
 const FUNNEL_H = 220;
+const TPT_H = 240;
 
 /** 280 min → "4h 40m"; under an hour → "42m". Compact so three fit a phone row. */
 export function fmtMinutes(ms: number): string {
@@ -148,6 +157,117 @@ export function FunnelCard({ userId = '' }: { userId?: string }) {
             );
           })}
         </Stack>
+      )}
+    </AnalyticsCard>
+  );
+}
+
+/** p90 on fewer plays is noise: show it only from this many plays up. */
+export const MIN_N_P90 = 20;
+const STAGES: Stage[] = ['triage', 'category', 'playlist'];
+
+/** Compact so a phone fits three stage columns: "6s", "84s", "208s"; 10 min+ → "12m". */
+export function fmtSec(ms: number): string {
+  const s = Math.round(ms / 1000);
+  return s < 600 ? `${s}s` : `${Math.round(s / 60)}m`;
+}
+
+/** 980 → "980", 2303 → "2.3k", 12345 → "12k". */
+export function fmtCount(n: number): string {
+  if (n < 1000) return String(n);
+  return n < 10_000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n / 1000)}k`;
+}
+
+function TptValue({ cell }: { cell: TptCell | null }) {
+  if (!cell) {
+    return (
+      <Text size="sm" c="dimmed">
+        —
+      </Text>
+    );
+  }
+  return (
+    <Stack gap={0} align="flex-end">
+      <Text size="sm" ff="monospace" fw={600}>
+        {fmtSec(cell.p50_ms)}
+      </Text>
+      <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+        {cell.n >= MIN_N_P90 ? fmtSec(cell.p90_ms) : '—'} · {fmtCount(cell.n)}
+      </Text>
+    </Stack>
+  );
+}
+
+export function TimePerTrackCard({ userId = '' }: { userId?: string }) {
+  const { t } = useTranslation();
+  const [days, setDays] = useState<30 | 90>(30);
+  const q = useTimePerTrack(userId, days);
+  if (q.isLoading) return <Skeleton height={TPT_H} radius="md" data-testid="tpt-skeleton" />;
+
+  const styleLabel = (r: TptRow) =>
+    r.style_id === '*'
+      ? t('analytics.tpt.all_styles')
+      : r.style_id === null
+        ? t('analytics.tpt.unknown_style')
+        : (r.style_name ?? r.style_id.slice(0, 8));
+
+  return (
+    <AnalyticsCard
+      title={t('analytics.tpt.title')}
+      action={
+        <SegmentedControl
+          size="xs"
+          value={String(days)}
+          onChange={(v) => setDays(v === '90' ? 90 : 30)}
+          data={[
+            { value: '30', label: t('analytics.period.month') },
+            { value: '90', label: t('analytics.tpt.days_90') },
+          ]}
+        />
+      }
+    >
+      {!q.data ? (
+        <LoadFailed />
+      ) : q.data.rows.length === 0 ? (
+        <Text size="sm" c="dimmed">
+          {t('analytics.tpt.empty')}
+        </Text>
+      ) : (
+        <>
+          <Table layout="fixed" withRowBorders={false} verticalSpacing={4} horizontalSpacing="xs">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th w="28%" />
+                {STAGES.map((s) => (
+                  <Table.Th key={s} ta="right">
+                    <Text size="xs" c="dimmed" fw={500}>
+                      {t(`analytics.tpt.stage.${s}`)}
+                    </Text>
+                  </Table.Th>
+                ))}
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {q.data.rows.map((r) => (
+                <Table.Tr key={r.style_id ?? 'unknown'}>
+                  <Table.Td>
+                    <Text size="sm" truncate fw={r.style_id === '*' ? 600 : 400} title={styleLabel(r)}>
+                      {styleLabel(r)}
+                    </Text>
+                  </Table.Td>
+                  {STAGES.map((s) => (
+                    <Table.Td key={s} ta="right" data-testid={`tpt-${r.style_id ?? 'unknown'}-${s}`}>
+                      <TptValue cell={r.cells[s]} />
+                    </Table.Td>
+                  ))}
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+          <Text size="xs" c="dimmed">
+            {t('analytics.tpt.legend', { min: MIN_N_P90 })}
+          </Text>
+        </>
       )}
     </AnalyticsCard>
   );
