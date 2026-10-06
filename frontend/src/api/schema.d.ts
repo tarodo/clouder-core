@@ -7913,6 +7913,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/analytics/time-per-track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listen-time percentiles per stage x style.
+         * @description p50/p90 of per-play listen time (playing stretches, capped at track length) per stage (triage / category / playlist) and style, plus an all-styles row (`style_id` = `*`); unknown style = null. Style comes from the nightly catalog snapshot.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Window in days. Default 30. */
+                    days?: 30 | 90;
+                    /** @description Admins only: user to scope to. Defaults to the caller. */
+                    user_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Rows per style with a cell per stage. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": Record<string, never>;
+                    };
+                };
+                /** @description invalid_params. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required (another user's data). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Athena query failed. */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/analytics/funnel": {
         parameters: {
             query?: never;

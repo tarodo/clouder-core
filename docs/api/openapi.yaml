@@ -5584,6 +5584,59 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /v1/analytics/time-per-track:
+    get:
+      summary: Listen-time percentiles per stage x style.
+      responses:
+        '200':
+          description: Rows per style with a cell per stage.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid_params.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Athena query failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required (another user's data).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: p50/p90 of per-play listen time (playing stretches, capped at track
+        length) per stage (triage / category / playlist) and style, plus an all-styles
+        row (`style_id` = `*`); unknown style = null. Style comes from the nightly
+        catalog snapshot.
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          enum:
+          - 30
+          - 90
+        description: Window in days. Default 30.
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 'Admins only: user to scope to. Defaults to the caller.'
+      security:
+      - BearerAuth: []
+      tags:
+      - user
   /v1/analytics/funnel:
     get:
       summary: Curation funnel for today / 7 days / 30 days.

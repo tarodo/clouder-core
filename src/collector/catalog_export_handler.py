@@ -47,6 +47,10 @@ _EXPORTS: tuple[tuple[str, str], ...] = (
      "SELECT category_id, track_id, added_at, source_triage_block_id "
      "FROM category_tracks ORDER BY category_id, track_id "
      "LIMIT :limit OFFSET :offset"),
+    # Style names for the per-style analytics (incl. hidden styles).
+    ("clouder_styles",
+     "SELECT id, name, normalized_name, created_at, updated_at "
+     "FROM clouder_styles ORDER BY id LIMIT :limit OFFSET :offset"),
 )
 
 # ponytail: the BINDING constraint on page size is the RDS Data API ~1MB

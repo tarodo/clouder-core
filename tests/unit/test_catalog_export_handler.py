@@ -34,6 +34,7 @@ def _empty_tables(except_for: dict[str, list[dict]]) -> dict[str, list[dict]]:
     tables = [
         "clouder_tracks", "clouder_artists", "clouder_track_artists",
         "clouder_labels", "clouder_albums", "categories", "category_tracks",
+        "clouder_styles",
     ]
     out = {t: [] for t in tables}
     out.update(except_for)
@@ -76,7 +77,7 @@ def test_empty_table_writes_no_object() -> None:
     assert counts == {
         "clouder_tracks": 0, "clouder_artists": 0, "clouder_track_artists": 0,
         "clouder_labels": 0, "clouder_albums": 0, "categories": 0,
-        "category_tracks": 0,
+        "category_tracks": 0, "clouder_styles": 0,
     }
     assert s3.objects == {}
 
@@ -111,3 +112,16 @@ def test_no_psycopg_or_columnar_imports() -> None:
     assert imported & {
         "psycopg", "psycopg2", "pyarrow", "awswrangler", "pandas"
     } == set()
+
+
+def test_exported_tables_match_glue_tbl_enum():
+    # A table missing from the Glue projection enum is written to S3 but
+    # invisible to Athena — keep the two lists identical.
+    import pathlib
+    import re
+
+    from collector.catalog_export_handler import _EXPORTS
+
+    tf = (pathlib.Path(__file__).resolve().parents[2] / "infra" / "analytics_export.tf").read_text()
+    enum = re.search(r'"projection\.tbl\.values"\s*=\s*"([^"]+)"', tf).group(1)
+    assert set(enum.split(",")) == {t for t, _ in _EXPORTS}
