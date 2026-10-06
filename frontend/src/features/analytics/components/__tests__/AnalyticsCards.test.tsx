@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
@@ -23,14 +23,39 @@ const funnel = {
   ],
 };
 
+const state = vi.hoisted(() => ({ loading: false }));
+
 vi.mock('../../hooks/useAnalytics', () => ({
-  useListening: () => ({ data: listening, isLoading: false, isError: false }),
-  useFunnel: () => ({ data: funnel, isLoading: false, isError: false }),
+  useListening: () =>
+    state.loading
+      ? { data: undefined, isLoading: true, isError: false }
+      : { data: listening, isLoading: false, isError: false },
+  useFunnel: () =>
+    state.loading
+      ? { data: undefined, isLoading: true, isError: false }
+      : { data: funnel, isLoading: false, isError: false },
 }));
 
 const wrap = (ui: React.ReactNode) => render(<MantineProvider>{ui}</MantineProvider>);
 
 describe('analytics cards', () => {
+  afterEach(() => {
+    state.loading = false;
+  });
+
+  it('shows gray skeleton blocks, not a spinner, while loading', () => {
+    state.loading = true;
+    wrap(
+      <>
+        <ListeningCard />
+        <FunnelCard />
+      </>,
+    );
+    expect(screen.getByTestId('listening-skeleton')).toBeDefined();
+    expect(screen.getByTestId('funnel-skeleton')).toBeDefined();
+    expect(screen.queryByTestId('loader')).toBeNull();
+  });
+
   it('formats minutes compactly', () => {
     expect(fmtMinutes(0)).toBe('0m');
     expect(fmtMinutes(42 * 60_000)).toBe('42m');
