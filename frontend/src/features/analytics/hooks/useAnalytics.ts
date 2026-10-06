@@ -30,6 +30,27 @@ export interface FunnelResponse {
   stages: FunnelStage[];
 }
 
+export type Stage = 'triage' | 'category' | 'playlist';
+
+export interface TptCell {
+  n: number;
+  p50_ms: number;
+  p90_ms: number;
+}
+
+export interface TptRow {
+  /** '*' = all styles; null = track not in the catalog snapshot. */
+  style_id: string | null;
+  style_name: string | null;
+  cells: Record<Stage, TptCell | null>;
+}
+
+export interface TimePerTrackResponse {
+  days: number;
+  stages: Stage[];
+  rows: TptRow[];
+}
+
 /** Browser UTC offset in minutes, east-positive (UTC+4 → 240). Backend buckets local days by it. */
 export function tzOffsetMin(): number {
   return -new Date().getTimezoneOffset();
@@ -58,5 +79,14 @@ export function useFunnel(userId = '') {
     queryKey: ['analytics', 'funnel', qs],
     queryFn: () => api<FunnelResponse>(`/v1/analytics/funnel?${qs}`),
     staleTime: 60_000,
+  });
+}
+
+export function useTimePerTrack(userId = '', days: 30 | 90 = 30) {
+  const qs = `${query(userId)}&days=${days}`;
+  return useQuery({
+    queryKey: ['analytics', 'time-per-track', qs],
+    queryFn: () => api<TimePerTrackResponse>(`/v1/analytics/time-per-track?${qs}`),
+    staleTime: 300_000,
   });
 }

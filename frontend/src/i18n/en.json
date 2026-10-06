@@ -98,6 +98,19 @@
       "categorized": "Added to categories",
       "playlisted": "Added to playlists",
       "of_prev": "{{pct}} of previous"
+    },
+    "tpt": {
+      "title": "Time per track",
+      "days_90": "90 days",
+      "all_styles": "All styles",
+      "unknown_style": "Unknown style",
+      "stage": {
+        "triage": "Triage",
+        "category": "Category",
+        "playlist": "Playlist"
+      },
+      "legend": "Median listen time; below: p90 (from {{min}} plays) · plays.",
+      "empty": "No listening in this period yet."
     }
   },
   "router": {

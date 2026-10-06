@@ -72,6 +72,9 @@ const ANALYTICS_DEFAULTS = [
       daily: [],
     });
   }),
+  http.get('http://localhost/v1/analytics/time-per-track', () =>
+    HttpResponse.json({ days: 30, stages: ['triage', 'category', 'playlist'], rows: [] }),
+  ),
   http.get('http://localhost/v1/analytics/funnel', () =>
     HttpResponse.json({
       today: '2026-10-05',

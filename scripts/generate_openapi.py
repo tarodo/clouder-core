@@ -4132,6 +4132,31 @@ ROUTES: list[dict[str, Any]] = [
     },
     {
         "method": "get",
+        "path": "/v1/analytics/time-per-track",
+        "auth": AUTH,
+        "summary": "Listen-time percentiles per stage x style.",
+        "description": "p50/p90 of per-play listen time (playing stretches, capped at track "
+                       "length) per stage (triage / category / playlist) and style, plus an "
+                       "all-styles row (`style_id` = `*`); unknown style = null. Style comes "
+                       "from the nightly catalog snapshot.",
+        "parameters": [
+            {"name": "days", "in": "query", "required": False,
+             "schema": {"type": "integer", "enum": [30, 90]},
+             "description": "Window in days. Default 30."},
+            {"name": "user_id", "in": "query", "required": False,
+             "schema": {"type": "string"},
+             "description": "Admins only: user to scope to. Defaults to the caller."},
+        ],
+        "responses": {
+            "200": _make_response(200, "Rows per style with a cell per stage.", {"type": "object"}),
+            "400": _error(400, "invalid_params."),
+            "502": _error(502, "Athena query failed."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required (another user's data)."),
+        },
+    },
+    {
+        "method": "get",
         "path": "/v1/analytics/funnel",
         "auth": AUTH,
         "summary": "Curation funnel for today / 7 days / 30 days.",

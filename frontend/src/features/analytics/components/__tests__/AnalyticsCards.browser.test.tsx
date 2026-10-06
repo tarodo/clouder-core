@@ -5,7 +5,7 @@ import { I18nextProvider } from 'react-i18next';
 import { describe, expect, test, vi } from 'vitest';
 import i18n from '../../../../i18n';
 import { tzOffsetMin } from '../../hooks/useAnalytics';
-import { FunnelCard, ListeningCard } from '../AnalyticsCards';
+import { FunnelCard, ListeningCard, TimePerTrackCard } from '../AnalyticsCards';
 
 // Repo convention for browser tests: replace api/client (no msw); data is
 // seeded straight into the query cache.
@@ -29,6 +29,19 @@ function renderInColumn(width: number) {
       { stage: 'playlisted', day: 0, week: 123, month: 999 },
     ],
   });
+  const cell = { n: 12_345, p50_ms: 599_000, p90_ms: 599_000 }; // widest: "599s · 12k"
+  qc.setQueryData(['analytics', 'time-per-track', `${qs}&days=30`], {
+    days: 30,
+    stages: ['triage', 'category', 'playlist'],
+    rows: [
+      { style_id: '*', style_name: null, cells: { triage: cell, category: cell, playlist: cell } },
+      {
+        style_id: 'x',
+        style_name: 'Melodic House & Techno (Progressive Deep Organic)',
+        cells: { triage: cell, category: cell, playlist: cell },
+      },
+    ],
+  });
   return render(
     <MantineProvider>
       <I18nextProvider i18n={i18n}>
@@ -41,6 +54,7 @@ function renderInColumn(width: number) {
               </Card>
               <ListeningCard />
               <FunnelCard />
+              <TimePerTrackCard />
             </Stack>
           </div>
         </QueryClientProvider>
@@ -79,9 +93,20 @@ describe.each([720, 343])('analytics cards in a %ipx home column', (width) => {
   test('match the other home blocks width and do not overflow', () => {
     renderInColumn(width);
     const sibling = screen.getByTestId('sibling').getBoundingClientRect().width;
-    for (const card of [cardOf('listening-day'), cardOf('funnel-triaged')]) {
+    for (const card of [cardOf('listening-day'), cardOf('funnel-triaged'), cardOf('tpt-x-triage')]) {
       expect(Math.round(card.getBoundingClientRect().width)).toBe(Math.round(sibling));
       expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth);
+    }
+  });
+
+  test('time-per-track cells keep their numbers inside the cell', () => {
+    renderInColumn(width);
+    // Each text line must fit its cell (nowrap text spills over neighbours
+    // without widening the card, so check the line boxes themselves).
+    for (const id of ['tpt-*-triage', 'tpt-x-category', 'tpt-x-playlist']) {
+      for (const line of screen.getByTestId(id).querySelectorAll('p')) {
+        expect(line.scrollWidth).toBeLessThanOrEqual(line.clientWidth + 1);
+      }
     }
   });
 

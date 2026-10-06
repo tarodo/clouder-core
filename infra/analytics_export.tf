@@ -19,7 +19,7 @@ resource "aws_glue_catalog_table" "catalog_export" {
     "projection.snapshot_dt.format" = "yyyy-MM-dd"
     "projection.snapshot_dt.range"  = "2026-01-01,NOW"
     "projection.tbl.type"           = "enum"
-    "projection.tbl.values"         = "clouder_tracks,clouder_artists,clouder_track_artists,clouder_labels,clouder_albums,categories,category_tracks"
+    "projection.tbl.values"         = "clouder_tracks,clouder_artists,clouder_track_artists,clouder_labels,clouder_albums,categories,category_tracks,clouder_styles"
     "storage.location.template"     = "s3://${aws_s3_bucket.analytics_lake.bucket}/bronze/catalog_export/snapshot_dt=$${snapshot_dt}/$${tbl}"
   }
 

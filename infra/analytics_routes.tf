@@ -101,6 +101,8 @@ data "aws_iam_policy_document" "analytics_api" {
     resources = [
       "arn:aws:s3:::${var.analytics_lake_bucket}",
       "arn:aws:s3:::${var.analytics_lake_bucket}/bronze/events/*",
+      # time-per-track joins the nightly track -> style snapshot.
+      "arn:aws:s3:::${var.analytics_lake_bucket}/bronze/catalog_export/*",
       "arn:aws:s3:::${var.analytics_lake_bucket}/athena-results/*",
     ]
   }
@@ -160,6 +162,7 @@ resource "aws_apigatewayv2_integration" "analytics" {
 locals {
   analytics_routes = [
     "GET /v1/analytics/listening",
+    "GET /v1/analytics/time-per-track",
   ]
 }
 

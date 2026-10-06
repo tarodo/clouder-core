@@ -2,7 +2,11 @@ import { Select, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '../../../components/PageHeader';
-import { FunnelCard, ListeningCard } from '../../analytics/components/AnalyticsCards';
+import {
+  FunnelCard,
+  ListeningCard,
+  TimePerTrackCard,
+} from '../../analytics/components/AnalyticsCards';
 import { useUsers } from '../hooks/useUsers';
 
 export function AdminAnalyticsPage() {
@@ -31,6 +35,7 @@ export function AdminAnalyticsPage() {
       />
       <ListeningCard userId={userId} />
       <FunnelCard userId={userId} />
+      <TimePerTrackCard userId={userId} />
     </Stack>
   );
 }

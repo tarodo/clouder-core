@@ -1,7 +1,8 @@
 """Standalone analytics-api Lambda: personal listening stats.
 
-GET /v1/analytics/listening reads bronze_events live through Athena (fresh to
-the Firehose buffer). Any signed-in user gets their own data; only an admin may
+GET /v1/analytics/{listening,time-per-track} read bronze_events live through
+Athena (fresh to the Firehose buffer); time-per-track joins the nightly catalog
+snapshot for track -> style. Any signed-in user gets their own data; only an admin may
 pass ?user_id for someone else's (resolve_user). Clients never send SQL and
 Aurora is never touched.
 
@@ -20,22 +21,27 @@ from typing import Any, Mapping
 
 from .logging_utils import log_event
 
-# Dialect fragments. {} is the single positional arg (add_min: {0}=minutes, {1}=ts).
+# Dialect fragments. {} is the single positional arg (add_min: {0}=minutes, {1}=ts;
+# pctl: {0}=value, {1}=fraction).
 TRINO: Mapping[str, str] = {
     "to_ts": "from_iso8601_timestamp({})",
     "epoch": "to_unixtime({})",
     "to_date": "date({})",
     "add_min": "date_add('minute', {0}, {1})",
+    "pctl": "approx_percentile({0}, {1})",
 }
 DUCKDB: Mapping[str, str] = {
     "to_ts": "CAST({} AS TIMESTAMP)",
     "epoch": "epoch({})",
     "to_date": "CAST({} AS DATE)",
     "add_min": "({1} + to_minutes({0}))",
+    "pctl": "quantile_cont({0}, {1})",
 }
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_ROUTES = frozenset({"listening"})
+_ROUTES = frozenset({"listening", "time-per-track"})
+_STAGES = ("triage", "category", "playlist")
+_DAYS = (30, 90)
 
 # ponytail: unknown/zero track duration -> assume 10 min as the per-play cap.
 _FALLBACK_TRACK_MS = 600_000
@@ -105,36 +111,24 @@ def listening_windows(now: datetime, tz_offset_min: int) -> dict[str, date]:
     }
 
 
-def listening_sql(
-    d: Mapping[str, str],
-    *,
-    scan_from: str,
-    week_from: str,
-    month_from: str,
-    tz_offset_min: int,
-    source: str = "bronze_events",
-) -> str:
-    """Per-play listen time = the play's "playing" stretches, capped at the
-    track's duration. A stretch starts at a play or resume and runs to the
-    user's next playback event (pause / resume / ended / next play); stretches
-    after a pause or end don't count. Plays without pause/ended events (older
-    data) fall back to play -> next play. Ordered by ts_client (+ ULID event_id):
-    ts_server is stamped once per SDK batch, so events flushed together would
-    tie. user_id binds as the single `?`; dates/offset are validated and
-    inlined (gotcha #13).
+def _plays_cte(d: Mapping[str, str], *, scan_from: str, table: str = "bronze_events") -> str:
+    """CTE chain (no leading WITH) ending in `plays`: one row per play with
+    track_id, stage (playback source), ts, ms.
+
+    ms = the play's "playing" stretches, capped at the track's duration. A
+    stretch starts at a play or resume and runs to the user's next playback
+    event (pause / resume / ended / next play); stretches after a pause or end
+    don't count. Plays without pause/ended events (older data) fall back to
+    play -> next play. Ordered by ts_client (+ ULID event_id): ts_server is
+    stamped once per SDK batch, so events flushed together would tie. user_id
+    binds as the single `?`; scan_from is validated by the caller (gotcha #13).
     """
-    for v in (scan_from, week_from, month_from):
-        if not _DATE_RE.match(v):
-            raise AnalyticsError(400, "invalid_params", "bad date literal")
-    off = int(tz_offset_min)
     ts = d["to_ts"].format("ts_client")
-    local_dt = d["to_date"].format(d["add_min"].format(off, "ts"))
     gap_ms = f"({d['epoch'].format('lead(ts) OVER (ORDER BY ts, event_id)')} - {d['epoch'].format('ts')}) * 1000"
-    return f"""
-WITH ev AS (
-  SELECT track_id, event_id, event_name, {ts} AS ts,
+    return f"""ev AS (
+  SELECT track_id, source, event_id, event_name, {ts} AS ts,
          CAST(coalesce(nullif(duration_ms, 0), {_FALLBACK_TRACK_MS}) AS DOUBLE) AS dur_ms
-  FROM {source}
+  FROM {table}
   WHERE event_name IN ('playback_play', 'playback_pause', 'playback_resume', 'playback_ended')
     AND user_id = ? AND dt >= '{scan_from}'
 ),
@@ -145,9 +139,10 @@ seq AS (
     {gap_ms} AS gap_ms
   FROM ev
 ),
-plays AS (
+per_play AS (
   SELECT play_no,
     max(CASE WHEN event_name = 'playback_play' THEN track_id END) AS track_id,
+    max(CASE WHEN event_name = 'playback_play' THEN source END) AS stage,
     max(CASE WHEN event_name = 'playback_play' THEN dur_ms END) AS dur_ms,
     min(CASE WHEN event_name = 'playback_play' THEN ts END) AS ts,
     sum(CASE WHEN event_name IN ('playback_play', 'playback_resume')
@@ -156,10 +151,32 @@ plays AS (
   WHERE play_no > 0
   GROUP BY play_no
 ),
-listened AS (
-  SELECT track_id, {local_dt} AS local_dt, least(played_ms, dur_ms) AS ms
-  FROM plays
-)
+plays AS (
+  SELECT track_id, stage, ts, least(played_ms, dur_ms) AS ms FROM per_play
+)"""
+
+
+def _check_dates(*values: str) -> None:
+    for v in values:
+        if not _DATE_RE.match(v):
+            raise AnalyticsError(400, "invalid_params", "bad date literal")
+
+
+def listening_sql(
+    d: Mapping[str, str],
+    *,
+    scan_from: str,
+    week_from: str,
+    month_from: str,
+    tz_offset_min: int,
+    table: str = "bronze_events",
+) -> str:
+    """Minutes + distinct tracks per local day, plus 7/30-day totals."""
+    _check_dates(scan_from, week_from, month_from)
+    local_dt = d["to_date"].format(d["add_min"].format(int(tz_offset_min), "ts"))
+    return f"""
+WITH {_plays_cte(d, scan_from=scan_from, table=table)},
+listened AS (SELECT track_id, {local_dt} AS local_dt, ms FROM plays)
 SELECT CAST(local_dt AS VARCHAR) AS period, CAST(sum(ms) AS BIGINT) AS listened_ms,
        count(DISTINCT track_id) AS tracks
 FROM listened WHERE local_dt >= DATE '{month_from}' GROUP BY local_dt
@@ -170,6 +187,95 @@ UNION ALL
 SELECT 'month', CAST(sum(ms) AS BIGINT), count(DISTINCT track_id)
 FROM listened WHERE local_dt >= DATE '{month_from}'
 """
+
+
+def time_per_track_sql(
+    d: Mapping[str, str],
+    *,
+    scan_from: str,
+    dict_from: str,
+    table: str = "bronze_events",
+    catalog: str = "bronze_catalog_export",
+) -> str:
+    """Listen-time percentiles per stage x style (plus an all-styles row per
+    stage, style_id '*'). Style comes from the nightly catalog snapshot; any
+    snapshot since dict_from counts (a track's style never changes), so a
+    missed night still resolves. Unknown tracks keep style_id NULL."""
+    _check_dates(scan_from, dict_from)
+    p50 = d["pctl"].format("ms", "0.5")
+    p90 = d["pctl"].format("ms", "0.9")
+    return f"""
+WITH {_plays_cte(d, scan_from=scan_from, table=table)},
+dict AS (
+  SELECT id, max(style_id) AS style_id FROM {catalog}
+  WHERE tbl = 'clouder_tracks' AND snapshot_dt >= '{dict_from}' GROUP BY id
+),
+names AS (
+  SELECT id, max(name) AS name FROM {catalog}
+  WHERE tbl = 'clouder_styles' AND snapshot_dt >= '{dict_from}' GROUP BY id
+),
+x AS (
+  SELECT replace(p.stage, '_player', '') AS stage, d.style_id, p.ms
+  FROM plays p LEFT JOIN dict d ON d.id = p.track_id
+  WHERE p.stage IS NOT NULL
+)
+SELECT x.stage, x.style_id, max(n.name) AS style_name, count(*) AS n,
+       CAST({p50} AS BIGINT) AS p50_ms, CAST({p90} AS BIGINT) AS p90_ms
+FROM x LEFT JOIN names n ON n.id = x.style_id
+GROUP BY x.stage, x.style_id
+UNION ALL
+SELECT stage, '*', NULL, count(*), CAST({p50} AS BIGINT), CAST({p90} AS BIGINT)
+FROM x GROUP BY stage
+"""
+
+
+def parse_days(raw: Any) -> int:
+    if raw in (None, ""):
+        return _DAYS[0]
+    s = str(raw)
+    if not s.isdigit() or int(s) not in _DAYS:
+        raise AnalyticsError(400, "invalid_params", f"days must be one of {list(_DAYS)}.")
+    return int(s)
+
+
+def shape_time_per_track(rows: list[dict[str, Any]], *, days: int) -> dict[str, Any]:
+    """Athena rows -> one row per style with a cell per stage (None = no plays).
+    Order: all styles ('*'), then styles by total plays desc, unknown style last."""
+    styles: dict[Any, dict[str, Any]] = {}
+    for r in rows:
+        if r.get("stage") not in _STAGES:
+            continue
+        sid = r.get("style_id")
+        row = styles.setdefault(
+            sid, {"style_id": sid, "style_name": None, "cells": dict.fromkeys(_STAGES)}
+        )
+        row["style_name"] = row["style_name"] or r.get("style_name")
+        row["cells"][r["stage"]] = {
+            "n": int(r["n"]),
+            "p50_ms": int(float(r["p50_ms"])),
+            "p90_ms": int(float(r["p90_ms"])),
+        }
+
+    def total(row: dict[str, Any]) -> int:
+        return sum(c["n"] for c in row["cells"].values() if c)
+
+    def order(row: dict[str, Any]) -> tuple[int, int]:
+        sid = row["style_id"]
+        return (0 if sid == "*" else 2 if sid is None else 1, -total(row))
+
+    return {"days": days, "stages": list(_STAGES), "rows": sorted(styles.values(), key=order)}
+
+
+def serve_time_per_track(qs: Mapping[str, Any], user_id: str) -> dict[str, Any]:
+    days = parse_days(qs.get("days"))
+    today = datetime.now(timezone.utc).date()
+    sql = time_per_track_sql(
+        TRINO,
+        scan_from=(today - timedelta(days=days)).isoformat(),
+        dict_from=(today - timedelta(days=3)).isoformat(),
+    )
+    rows = _run_athena(_client(), sql, [user_id], reuse_minutes=15)
+    return shape_time_per_track(rows, days=days)
 
 
 def shape_listening(rows: list[dict[str, Any]], today: date) -> dict[str, Any]:
@@ -299,12 +405,13 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     del context
     correlation_id = _correlation_id(event)
     try:
-        _route_name(event)
+        route = _route_name(event)
         qs = event.get("queryStringParameters")
         qs = qs if isinstance(qs, Mapping) else {}
         user_id = resolve_user(event, str(qs.get("user_id") or ""))
         payload: dict[str, Any] = {"correlation_id": correlation_id}
-        payload.update(serve_listening(qs, user_id))
+        serve = serve_listening if route == "listening" else serve_time_per_track
+        payload.update(serve(qs, user_id))
         log_event("INFO", "analytics_served", correlation_id=correlation_id,
                   status_code=200)
         return _response(200, payload)

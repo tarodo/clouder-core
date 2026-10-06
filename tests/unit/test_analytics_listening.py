@@ -34,9 +34,10 @@ def con():
     c.execute(
         "CREATE TABLE bronze_events (event_id VARCHAR, user_id VARCHAR, dt VARCHAR, "
         "ts_server VARCHAR, ts_client VARCHAR, event_name VARCHAR, track_id VARCHAR, "
-        "duration_ms BIGINT)"
+        "duration_ms BIGINT, source VARCHAR)"
     )
-    c.executemany("INSERT INTO bronze_events VALUES (?,?,?,?,?,?,?,?)", _ROWS)
+    c.executemany("INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
+        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)", _ROWS)
     yield c
     c.close()
 
@@ -167,8 +168,9 @@ def test_pause_resume_and_end_cut_listen_time():
     c.execute(
         "CREATE TABLE bronze_events (event_id VARCHAR, user_id VARCHAR, dt VARCHAR, "
         "ts_server VARCHAR, ts_client VARCHAR, event_name VARCHAR, track_id VARCHAR, "
-        "duration_ms BIGINT)"
+        "duration_ms BIGINT, source VARCHAR)"
     )
-    c.executemany("INSERT INTO bronze_events VALUES (?,?,?,?,?,?,?,?)", _PAUSE_ROWS)
+    c.executemany("INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
+        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)", _PAUSE_ROWS)
     out = _run(c, date(2026, 10, 4), 0)
     assert out["totals"]["day"] == {"listened_ms": 390000, "tracks": 3}
