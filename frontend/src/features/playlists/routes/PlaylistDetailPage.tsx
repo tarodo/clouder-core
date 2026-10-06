@@ -16,7 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
 import { EmptyState } from '../../../components/EmptyState';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { usePlayback } from '../../playback/usePlayback';
 import type { PlaybackTrack } from '../../playback/lib/types';
 import { usePlaylistDetail } from '../hooks/usePlaylistDetail';
@@ -175,7 +175,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
     });
   }
 
-  if (detailQ.isLoading) return <FullScreenLoader />;
+  if (detailQ.isLoading) return <PageSkeleton breadcrumbs header="hero" rows={10} rowHeight={48} />;
   if (detailQ.isError) {
     if (detailQ.error instanceof ApiError && detailQ.error.status === 404) {
       return (

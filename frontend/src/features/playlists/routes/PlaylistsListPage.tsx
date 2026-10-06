@@ -14,7 +14,7 @@ import { PlaylistsTable } from '../components/PlaylistsTable';
 import { PlaylistFormDialog } from '../components/PlaylistFormDialog';
 import { ImportSpotifyPlaylistModal } from '../components/ImportSpotifyPlaylistModal';
 import { EmptyState } from '../../../components/EmptyState';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import type { Playlist } from '../lib/playlistTypes';
 
 export function PlaylistsListPage() {
@@ -107,7 +107,7 @@ export function PlaylistsListPage() {
     });
   }
 
-  if (isLoading) return <FullScreenLoader />;
+  if (isLoading) return <PageSkeleton rows={8} rowHeight={48} />;
   if (isError) {
     return <EmptyState title={t('errors.unknown')} body={t('errors.server_error')} />;
   }
