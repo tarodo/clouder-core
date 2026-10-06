@@ -18,7 +18,7 @@ Scope — what this does NOT cover, deliberately:
   interpolated fragments (a whole ORDER BY clause, a generated placeholder
   list), and guessing wrong produces a test that skips real statements while
   looking green. Those are left to the tests that exercise their methods.
-* `analytics_rollup*` / `analytics_handler`. That SQL targets Athena/Trino and
+* `analytics_handler`. That SQL targets Athena/Trino and
   DuckDB, not Postgres, so the PG grammar is the wrong oracle for it.
 """
 
@@ -36,8 +36,6 @@ SOURCE_ROOT = pathlib.Path(__file__).resolve().parents[2] / "src" / "collector"
 
 # Statements reaching a non-Postgres engine — wrong grammar for this check.
 NON_POSTGRES_MODULES = {
-    "analytics_rollup.py",
-    "analytics_rollup_runner.py",
     "analytics_handler.py",
 }
 

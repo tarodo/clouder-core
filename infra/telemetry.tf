@@ -37,6 +37,14 @@ resource "aws_s3_bucket_lifecycle_configuration" "analytics_lake" {
   }
 
   rule {
+    # Nightly catalog snapshots: analytics reads only the latest one.
+    id     = "expire-catalog-snapshots"
+    status = "Enabled"
+    filter { prefix = "bronze/catalog_export/" }
+    expiration { days = 14 }
+  }
+
+  rule {
     id     = "bronze-to-ia"
     status = "Enabled"
     filter { prefix = "bronze/" }
@@ -55,9 +63,7 @@ resource "aws_glue_catalog_database" "analytics" {
 
 # bronze/events: Firehose format-conversion target. Columns are the JSON->Parquet
 # source schema. `dt` + `event_name` are partition keys (NOT data columns), filled
-# by Firehose dynamic partitioning. Out of scope here: lightweight Glue tables for
-# bronze/catalog_export and bronze/ops — they ship with their producers in
-# Increment 3 (no producer exists yet, so no table yet).
+# by Firehose dynamic partitioning. bronze_catalog_export lives in analytics_export.tf.
 resource "aws_glue_catalog_table" "bronze_events" {
   # ponytail: table name = "bronze_events" per locked contract (not "events").
   name          = "bronze_events"

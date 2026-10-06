@@ -6,7 +6,7 @@ import duckdb
 import pytest
 
 from collector import analytics_handler as ah
-from collector.analytics_rollup import DUCKDB
+from collector.analytics_handler import DUCKDB
 
 # (event_id, user_id, dt, ts_server, ts_client, event_name, track_id, duration_ms)
 # ts_server is per SDK batch; gaps must come from ts_client.
@@ -138,8 +138,9 @@ def test_admin_reads_any_user(athena_users):
     assert athena_users == ["other"]
 
 
-def test_admin_dashboards_stay_admin_only(athena_users):
-    ev = _listening_event(qs={"from": "2026-01-01", "to": "2026-01-02", "user_id": "me"})
+def test_removed_dashboards_are_404(athena_users):
+    ev = _listening_event(is_admin=True)
     ev["rawPath"] = "/v1/analytics/user-daily"
     ev["requestContext"]["routeKey"] = "GET /v1/analytics/user-daily"
-    assert ah.lambda_handler(ev, None)["statusCode"] == 403
+    assert ah.lambda_handler(ev, None)["statusCode"] == 404
+    assert athena_users == []

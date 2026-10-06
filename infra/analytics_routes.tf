@@ -1,9 +1,8 @@
-# ── analytics-api Lambda (§10 serving) ──────────────────────────────
-# Standalone function, dedicated least-privilege role (§13). Shares the one
-# collector zip; entry point collector.analytics_handler.lambda_handler.
-# Lake bucket / Glue DB / Athena workgroup are provisioned in Increments 2-4
-# and referenced here by name. Routes are GET /v1/analytics/* (delivery wired
-# in infra/frontend.tf + frontend/vite.config.ts, Task 5).
+# ── analytics-api Lambda: personal listening stats ──────────────────
+# Standalone function, dedicated least-privilege role. Shares the one collector
+# zip; entry point collector.analytics_handler.lambda_handler. Reads
+# bronze_events through Athena; never touches Aurora. The funnel route lives on
+# the collector Lambda (it reads Aurora) — see api_gateway.tf.
 
 variable "analytics_lake_bucket" {
   type = string
@@ -95,16 +94,12 @@ data "aws_iam_policy_document" "analytics_api" {
   }
 
   statement {
-    sid    = "S3ReadGoldAndOps"
+    sid    = "S3ReadLake"
     effect = "Allow"
     # GetBucketLocation: Athena verifies the output bucket before writing results.
     actions = ["s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"]
     resources = [
       "arn:aws:s3:::${var.analytics_lake_bucket}",
-      # dbt writes gold/silver table DATA to marts/ (s3_data_dir), not gold/.
-      "arn:aws:s3:::${var.analytics_lake_bucket}/marts/*",
-      "arn:aws:s3:::${var.analytics_lake_bucket}/gold/*",
-      "arn:aws:s3:::${var.analytics_lake_bucket}/bronze/ops/*",
       "arn:aws:s3:::${var.analytics_lake_bucket}/bronze/events/*",
       "arn:aws:s3:::${var.analytics_lake_bucket}/athena-results/*",
     ]
@@ -137,11 +132,10 @@ resource "aws_lambda_function" "analytics" {
 
   environment {
     variables = {
-      ATHENA_DATABASE                = var.analytics_glue_database
-      ATHENA_WORKGROUP               = var.athena_workgroup
-      ATHENA_OUTPUT_LOCATION         = "s3://${var.analytics_lake_bucket}/athena-results/"
-      ANALYTICS_RESULT_REUSE_MINUTES = "60"
-      LOG_LEVEL                      = "INFO"
+      ATHENA_DATABASE        = var.analytics_glue_database
+      ATHENA_WORKGROUP       = var.athena_workgroup
+      ATHENA_OUTPUT_LOCATION = "s3://${var.analytics_lake_bucket}/athena-results/"
+      LOG_LEVEL              = "INFO"
     }
   }
 
@@ -165,8 +159,6 @@ resource "aws_apigatewayv2_integration" "analytics" {
 
 locals {
   analytics_routes = [
-    "GET /v1/analytics/user-daily",
-    "GET /v1/analytics/sessions",
     "GET /v1/analytics/listening",
   ]
 }

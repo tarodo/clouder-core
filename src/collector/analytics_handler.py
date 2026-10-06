@@ -1,14 +1,12 @@
-"""Standalone analytics-api Lambda (§10 serving).
+"""Standalone analytics-api Lambda: personal listening stats.
 
-Serves per-user analytics by running pre-written, parameterized Athena queries
-against mart_user_daily and fact_session. Clients supply a date range and
-user_id; they never send SQL. Admin is enforced here on the authorizer context
-(§10.1, §13). Aurora is never touched.
+GET /v1/analytics/listening reads bronze_events live through Athena (fresh to
+the Firehose buffer). Any signed-in user gets their own data; only an admin may
+pass ?user_id for someone else's (resolve_user). Clients never send SQL and
+Aurora is never touched.
 
-Routes are GET /v1/analytics/{user-daily,sessions,listening}. `listening` reads
-bronze_events live (fresh to the Firehose buffer), not the daily marts, and is
-personal: any signed-in user gets their own data (see resolve_user); the
-others are admin-only.
+SQL is written once for two dialects: Trino/Athena in production, DuckDB in
+tests; only the function fragments below differ.
 """
 
 from __future__ import annotations
@@ -18,34 +16,26 @@ import os
 import re
 import time
 from datetime import date, datetime, timedelta, timezone
-from functools import lru_cache
 from typing import Any, Mapping
 
-from .analytics_rollup import TRINO
 from .logging_utils import log_event
 
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-
-# Route -> named queries. user_id binds via ExecutionParameters (?);
-# from/to inline as validated 'YYYY-MM-DD' literals (gotcha #13).
-_ROUTE_QUERIES: dict[str, dict[str, str]] = {
-    "user-daily": {"user-daily": (
-        "SELECT user_id, activity_type, dt, sessions, "
-        "avg_tracks_listened, avg_tracks_promoted, avg_tracks_deleted, "
-        "p50_duration_ms, p90_duration_ms, p50_time_per_track_ms, p90_time_per_track_ms "
-        "FROM mart_user_daily WHERE user_id = ? "
-        "AND dt BETWEEN {frm} AND {to} ORDER BY dt, activity_type"
-    )},
-    "sessions": {"sessions": (
-        "SELECT user_id, activity_type, dt, session_seq, ts_start, ts_end, "
-        "duration_ms, tracks_listened, tracks_promoted, tracks_deleted "
-        "FROM fact_session WHERE user_id = ? "
-        "AND dt BETWEEN {frm} AND {to} ORDER BY dt, activity_type, session_seq"
-    )},
+# Dialect fragments. {} is the single positional arg (add_min: {0}=minutes, {1}=ts).
+TRINO: Mapping[str, str] = {
+    "to_ts": "from_iso8601_timestamp({})",
+    "epoch": "to_unixtime({})",
+    "to_date": "date({})",
+    "add_min": "date_add('minute', {0}, {1})",
+}
+DUCKDB: Mapping[str, str] = {
+    "to_ts": "CAST({} AS TIMESTAMP)",
+    "epoch": "epoch({})",
+    "to_date": "CAST({} AS DATE)",
+    "add_min": "({1} + to_minutes({0}))",
 }
 
-
-_ROUTES = frozenset(_ROUTE_QUERIES) | {"listening"}
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_ROUTES = frozenset({"listening"})
 
 # ponytail: unknown/zero track duration -> assume 10 min as the per-play cap.
 _FALLBACK_TRACK_MS = 600_000
@@ -58,19 +48,6 @@ class AnalyticsError(Exception):
         self.error_code = error_code
         self.message = message
         super().__init__(message)
-
-
-def _require_admin(event: Mapping[str, Any]) -> str:
-    # Mirrors handler._require_admin / auth_handler._authorizer_context: is_admin is
-    # under event['requestContext']['authorizer']['lambda'] (the 'lambda' nesting is load-bearing).
-    rc = event.get("requestContext")
-    if isinstance(rc, Mapping):
-        authorizer = rc.get("authorizer")
-        if isinstance(authorizer, Mapping):
-            ctx = authorizer.get("lambda")
-            if isinstance(ctx, Mapping) and bool(ctx.get("is_admin")):
-                return str(ctx.get("user_id") or "")
-    raise AnalyticsError(403, "admin_required", "Admin role required.")
 
 
 def resolve_user(event: Mapping[str, Any], requested: str) -> str:
@@ -101,33 +78,6 @@ def _route_name(event: Mapping[str, Any]) -> str:
     if name not in _ROUTES:
         raise AnalyticsError(404, "unknown_dashboard", f"Unknown dashboard: {name!r}")
     return name
-
-
-def _validate_params(qs: Mapping[str, Any] | None) -> tuple[str, str, str]:
-    qs = qs or {}
-    date_from = str(qs.get("from") or "")
-    date_to = str(qs.get("to") or "")
-    if not _DATE_RE.match(date_from) or not _DATE_RE.match(date_to):
-        raise AnalyticsError(400, "invalid_params", "from/to must be YYYY-MM-DD dates.")
-    if date_from > date_to:
-        raise AnalyticsError(400, "invalid_params", "from must be <= to.")
-    user_id = str(qs.get("user_id") or "")
-    if not user_id or len(user_id) > 128:
-        raise AnalyticsError(400, "invalid_params", "user_id required (max 128 chars).")
-    return date_from, date_to, user_id
-
-
-def build_queries(
-    route: str, date_from: str, date_to: str, user_id: str
-) -> dict[str, tuple[str, list[str]]]:
-    specs = _ROUTE_QUERIES[route]
-    # Dates inline as quoted literals (gotcha #13 — Athena mis-parses bound dates).
-    # Re-validate here as defense-in-depth against any bypass of _validate_params.
-    if not (_DATE_RE.match(date_from) and _DATE_RE.match(date_to)):
-        raise AnalyticsError(400, "invalid_params", "from/to must be YYYY-MM-DD dates.")
-    frm, to = f"'{date_from}'", f"'{date_to}'"
-    # user_id binds via ExecutionParameters (?) — never inlined, never in the SQL string.
-    return {name: (sql.format(frm=frm, to=to), [user_id]) for name, sql in specs.items()}
 
 
 # ── listening: minutes + distinct tracks per local day / 7d / 30d ───────────
@@ -275,10 +225,8 @@ def _rows_from_result(result: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def _run_athena(
-    client: Any, sql: str, params: list[str], *, reuse_minutes: int | None = None
+    client: Any, sql: str, params: list[str], *, reuse_minutes: int = 5
 ) -> list[dict[str, Any]]:
-    if reuse_minutes is None:
-        reuse_minutes = int(os.environ.get("ANALYTICS_RESULT_REUSE_MINUTES", "60"))
     kwargs: dict[str, Any] = {
         "QueryString": sql,
         "QueryExecutionContext": {"Database": os.environ["ATHENA_DATABASE"]},
@@ -307,12 +255,6 @@ def _run_athena(
     return _rows_from_result(client.get_query_results(QueryExecutionId=qid))
 
 
-@lru_cache(maxsize=64)
-def _cached_rows(sql: str, params_key: tuple[str, ...]) -> tuple[Any, ...]:
-    # ponytail: Athena result-reuse + this warm-Lambda memo is the whole cache (§10.2).
-    return tuple(_run_athena(_client(), sql, list(params_key)))
-
-
 def _correlation_id(event: Mapping[str, Any]) -> str:
     headers = event.get("headers")
     if isinstance(headers, Mapping):
@@ -337,18 +279,12 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     del context
     correlation_id = _correlation_id(event)
     try:
-        route = _route_name(event)
+        _route_name(event)
         qs = event.get("queryStringParameters")
-        qs = qs if isinstance(qs, Mapping) else None
+        qs = qs if isinstance(qs, Mapping) else {}
+        user_id = resolve_user(event, str(qs.get("user_id") or ""))
         payload: dict[str, Any] = {"correlation_id": correlation_id}
-        if route == "listening":
-            user_id = resolve_user(event, str((qs or {}).get("user_id") or ""))
-            payload.update(serve_listening(qs or {}, user_id))
-        else:
-            _require_admin(event)
-            date_from, date_to, user_id = _validate_params(qs)
-            for name, (sql, params) in build_queries(route, date_from, date_to, user_id).items():
-                payload[name] = list(_cached_rows(sql, tuple(params)))
+        payload.update(serve_listening(qs, user_id))
         log_event("INFO", "analytics_served", correlation_id=correlation_id,
                   status_code=200)
         return _response(200, payload)

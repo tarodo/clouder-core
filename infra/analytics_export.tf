@@ -1,40 +1,17 @@
 locals {
   catalog_export_lambda_name = "${local.name_prefix}-catalog-export"
-  ops_log_export_lambda_name = "${local.name_prefix}-ops-log-export"
-
-  # Source log groups ops_log_export reads. MUST include collector-api (source_hint
-  # / dispatch surface) and the auto-enrich-dispatch worker, alongside the
-  # canonicalization / spotify / vendor / label / artist enricher workers.
-  ops_source_log_groups = [
-    aws_cloudwatch_log_group.collector.name,
-    aws_cloudwatch_log_group.canonicalization_worker.name,
-    aws_cloudwatch_log_group.spotify_search_worker.name,
-    aws_cloudwatch_log_group.vendor_match_worker.name,
-    aws_cloudwatch_log_group.label_enricher_worker.name,
-    aws_cloudwatch_log_group.artist_enricher_worker.name,
-    aws_cloudwatch_log_group.auto_enrich_dispatch_worker.name,
-  ]
-  ops_source_log_group_arns = [
-    "${aws_cloudwatch_log_group.collector.arn}:*",
-    "${aws_cloudwatch_log_group.canonicalization_worker.arn}:*",
-    "${aws_cloudwatch_log_group.spotify_search_worker.arn}:*",
-    "${aws_cloudwatch_log_group.vendor_match_worker.arn}:*",
-    "${aws_cloudwatch_log_group.label_enricher_worker.arn}:*",
-    "${aws_cloudwatch_log_group.artist_enricher_worker.arn}:*",
-    "${aws_cloudwatch_log_group.auto_enrich_dispatch_worker.arn}:*",
-  ]
 }
 
-# ── Lightweight Glue tables (types-on-read; dbt builds typed models later) ──
+# ── Lightweight Glue table (types-on-read; Athena casts on read) ──
 
 resource "aws_glue_catalog_table" "catalog_export" {
   database_name = aws_glue_catalog_database.analytics.name
   name          = "bronze_catalog_export"
   table_type    = "EXTERNAL_TABLE"
 
-  # ponytail: minimal registration over the NDJSON snapshot prefix; the typed
-  # per-dim models are dbt's job (Increment 4). Permissive superset columns —
-  # the JSON SerDe null-fills absent keys (schema-on-read).
+  # ponytail: minimal registration over the NDJSON snapshot prefix. Permissive
+  # superset columns — the JSON SerDe null-fills absent keys (schema-on-read).
+  # Analytics joins bronze_events.track_id -> tbl='clouder_tracks' for style_id.
   parameters = {
     classification                  = "json"
     "projection.enabled"            = "true"
@@ -88,7 +65,7 @@ resource "aws_glue_catalog_table" "catalog_export" {
       name = "updated_at"
       type = "string"
     }
-    # --- Inc-4: dim column union so dbt can read per-tbl fields (schema-on-read) ---
+    # --- dim column union so Athena can read per-tbl fields (schema-on-read) ---
     columns {
       name = "bpm"
       type = "string"
@@ -176,82 +153,10 @@ resource "aws_glue_catalog_table" "catalog_export" {
   }
 }
 
-resource "aws_glue_catalog_table" "ops" {
-  database_name = aws_glue_catalog_database.analytics.name
-  name          = "bronze_ops"
-  table_type    = "EXTERNAL_TABLE"
-
-  parameters = {
-    classification              = "json"
-    "projection.enabled"        = "true"
-    "projection.dt.type"        = "date"
-    "projection.dt.format"      = "yyyy-MM-dd"
-    "projection.dt.range"       = "2026-01-01,NOW"
-    "storage.location.template" = "s3://${aws_s3_bucket.analytics_lake.bucket}/bronze/ops/dt=$${dt}"
-  }
-
-  partition_keys {
-    name = "dt"
-    type = "string"
-  }
-
-  storage_descriptor {
-    location      = "s3://${aws_s3_bucket.analytics_lake.bucket}/bronze/ops/"
-    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
-    output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
-
-    ser_de_info {
-      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
-    }
-
-    columns {
-      name = "timestamp"
-      type = "string"
-    }
-    columns {
-      name = "level"
-      type = "string"
-    }
-    columns {
-      name = "message"
-      type = "string"
-    }
-    columns {
-      name = "duration_ms"
-      type = "bigint"
-    }
-    columns {
-      name = "source_hint"
-      type = "string"
-    }
-    columns {
-      name = "completed_phases"
-      type = "string"
-    }
-    columns {
-      name = "failed_after"
-      type = "string"
-    }
-    columns {
-      name = "vendor"
-      type = "string"
-    }
-    columns {
-      name = "status_code"
-      type = "bigint"
-    }
-  }
-}
-
-# ── Log groups for the two export Lambdas ──
+# ── Log group for the export Lambda ──
 
 resource "aws_cloudwatch_log_group" "catalog_export" {
   name              = "/aws/lambda/${local.catalog_export_lambda_name}"
-  retention_in_days = var.log_retention_days
-}
-
-resource "aws_cloudwatch_log_group" "ops_log_export" {
-  name              = "/aws/lambda/${local.ops_log_export_lambda_name}"
   retention_in_days = var.log_retention_days
 }
 
@@ -325,57 +230,25 @@ resource "aws_lambda_function" "catalog_export" {
   depends_on = [aws_cloudwatch_log_group.catalog_export]
 }
 
-# ── ops_log_export: own least-privilege role ──
-
-resource "aws_iam_role" "ops_log_export" {
-  name               = "${local.name_prefix}-ops-log-export-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+# ── Nightly snapshot at 00:00 UTC ──
+# Track -> style (and the other dims) land in bronze/catalog_export/ so Athena
+# can break listening stats down by style. Aurora may be paused at midnight;
+# the Data API retry rides out DatabaseResumingException.
+resource "aws_cloudwatch_event_rule" "catalog_export_daily" {
+  name                = "${local.name_prefix}-catalog-export-daily"
+  schedule_expression = "cron(0 0 * * ? *)"
 }
 
-data "aws_iam_policy_document" "ops_log_export" {
-  statement {
-    sid       = "AllowOwnLogs"
-    effect    = "Allow"
-    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
-    resources = ["${aws_cloudwatch_log_group.ops_log_export.arn}:*"]
-  }
-  statement {
-    sid       = "AllowReadSourceLogGroups"
-    effect    = "Allow"
-    actions   = ["logs:FilterLogEvents"]
-    resources = local.ops_source_log_group_arns
-  }
-  statement {
-    sid       = "AllowS3WriteOps"
-    effect    = "Allow"
-    actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.analytics_lake.arn}/bronze/ops/*"]
-  }
+resource "aws_cloudwatch_event_target" "catalog_export_daily" {
+  rule      = aws_cloudwatch_event_rule.catalog_export_daily.name
+  target_id = "catalog-export"
+  arn       = aws_lambda_function.catalog_export.arn
 }
 
-resource "aws_iam_role_policy" "ops_log_export" {
-  name   = "${local.name_prefix}-ops-log-export-policy"
-  role   = aws_iam_role.ops_log_export.id
-  policy = data.aws_iam_policy_document.ops_log_export.json
-}
-
-resource "aws_lambda_function" "ops_log_export" {
-  function_name    = local.ops_log_export_lambda_name
-  role             = aws_iam_role.ops_log_export.arn
-  runtime          = "python3.12"
-  handler          = "collector.ops_log_export_handler.lambda_handler"
-  filename         = local.lambda_zip_file
-  timeout          = 120
-  memory_size      = 256
-  source_code_hash = filebase64sha256(local.lambda_zip_file)
-
-  environment {
-    variables = {
-      ANALYTICS_LAKE_BUCKET = aws_s3_bucket.analytics_lake.bucket
-      OPS_LOG_GROUPS        = join(",", local.ops_source_log_groups)
-      LOG_LEVEL             = "INFO"
-    }
-  }
-
-  depends_on = [aws_cloudwatch_log_group.ops_log_export]
+resource "aws_lambda_permission" "catalog_export_events" {
+  statement_id  = "AllowExecutionFromEventBridgeCatalogExport"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.catalog_export.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.catalog_export_daily.arn
 }

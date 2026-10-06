@@ -844,7 +844,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id021
+              schema: &id020
                 type: object
                 required:
                 - id
@@ -3553,7 +3553,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: &id023
+                    items: &id022
                       type: object
                       required:
                       - track_id
@@ -3754,14 +3754,14 @@ paths:
           description: Per-track comments for the playlist.
           content:
             application/json:
-              schema: &id025
+              schema: &id024
                 type: object
                 required:
                 - tracks
                 properties:
                   tracks:
                     type: array
-                    items: &id024
+                    items: &id023
                       type: object
                       required:
                       - track_id
@@ -4846,7 +4846,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id022
+              schema: &id021
                 type: object
                 required:
                 - id
@@ -5532,109 +5532,6 @@ paths:
       - BearerAuth: []
       tags:
       - user
-  /v1/analytics/user-daily:
-    get:
-      summary: Per-user daily analytics.
-      responses:
-        '200':
-          description: Per-user daily analytics.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AnalyticsResult'
-        '400':
-          description: from/to must be YYYY-MM-DD dates.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Unknown dashboard.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '502':
-          description: Athena query failed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401': *id001
-        '403':
-          description: admin_required.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      description: Session counts, averages, and duration / time-per-track percentiles
-        per user × day × activity.
-      parameters: &id019
-      - name: user_id
-        in: query
-        required: true
-        schema:
-          type: string
-        description: User ID to scope the query to.
-      - name: from
-        in: query
-        required: true
-        schema:
-          type: string
-          format: date
-        description: Inclusive start date (YYYY-MM-DD).
-      - name: to
-        in: query
-        required: true
-        schema:
-          type: string
-          format: date
-        description: Inclusive end date (YYYY-MM-DD).
-      security:
-      - BearerAuth: []
-      tags:
-      - admin
-  /v1/analytics/sessions:
-    get:
-      summary: Per-user session drill-down.
-      responses:
-        '200':
-          description: Per-user session drill-down.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AnalyticsResult'
-        '400':
-          description: from/to must be YYYY-MM-DD dates.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Unknown dashboard.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '502':
-          description: Athena query failed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401': *id001
-        '403':
-          description: admin_required.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      description: One row per derived session for a user over a date range.
-      parameters: *id019
-      security:
-      - BearerAuth: []
-      tags:
-      - admin
   /v1/analytics/listening:
     get:
       summary: 'Listening time + distinct tracks: today / 7 days / 30 days.'
@@ -5667,7 +5564,7 @@ paths:
       description: Read live from bronze_events. Per-play time = gap to the next play,
         capped at track duration. Returns `totals.{day,week,month}` and a zero-filled
         30-day `daily` series.
-      parameters: &id020
+      parameters: &id019
       - name: tz_offset_min
         in: query
         required: false
@@ -5719,7 +5616,7 @@ paths:
       description: 'Distinct tracks per stage, dated by when the work happened: `triaged`
         (moved out of NEW in triage), `categorized` (staged to a category, open or
         finalized block, or added outside triage), `playlisted` (added to a playlist).'
-      parameters: *id020
+      parameters: *id019
       security:
       - BearerAuth: []
       tags:
@@ -6072,7 +5969,7 @@ components:
         processing_reason:
           type: string
           nullable: true
-    LabelEnrichRunResponse: *id021
+    LabelEnrichRunResponse: *id020
     LabelSummary:
       type: object
       required:
@@ -6369,7 +6266,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
-    ArtistEnrichRunResponse: *id022
+    ArtistEnrichRunResponse: *id021
     ArtistSummary:
       type: object
       required:
@@ -6631,9 +6528,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ArtistHistoryCell'
-    PlaylistTrackResponse: *id023
-    PlaylistTrackComments: *id024
-    PlaylistCommentsResponse: *id025
+    PlaylistTrackResponse: *id022
+    PlaylistTrackComments: *id023
+    PlaylistCommentsResponse: *id024
     TelemetryEnvelope:
       type: object
       required:
@@ -6696,31 +6593,3 @@ components:
           type: object
           description: Per-event payload; allowlisted server-side.
       additionalProperties: false
-    AnalyticsResult:
-      type: object
-      required:
-      - rows
-      description: Generic dashboard payload. `rows` is the primary series; routes
-        may add further named arrays (one per panel, e.g. `undo`, `weekly`, `by_category`,
-        `seek`). `freshness` is present only on the ops route. All arrays are schema-on-read
-        objects from the gold star schema.
-      properties:
-        rows:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-        freshness:
-          type: object
-          properties:
-            newest_dt:
-              type:
-              - string
-              - 'null'
-            lag_hours:
-              type:
-              - number
-              - 'null'
-        correlation_id:
-          type: string
-      additionalProperties: true
