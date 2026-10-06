@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { ActionIcon, Button, Group, Loader, Stack, Text, TextInput, Title } from '@mantine/core';
+import { ActionIcon, Button, Group, Skeleton, Stack, Text, TextInput, Title } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAllStyles, type CatalogStyle } from '../../../hooks/useAllStyles';
@@ -87,7 +87,23 @@ export function MyStylesSection() {
     commit(arrayMove(selectedIds, oldIndex, newIndex));
   }
 
-  if (isLoading) return <Loader size="sm" />;
+  if (isLoading) {
+    return (
+      <Stack gap="md" aria-busy="true">
+        <div>
+          <Title order={4}>{t('profile.styles.title')}</Title>
+          <Text size="sm" c="dimmed">
+            {t('profile.styles.description')}
+          </Text>
+        </div>
+        <Stack gap="xs" data-testid="styles-skeleton">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height={40} radius="md" />
+          ))}
+        </Stack>
+      </Stack>
+    );
+  }
 
   if (isError) {
     return (

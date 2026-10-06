@@ -37,6 +37,14 @@ describe('MyStylesSection', () => {
     );
   });
 
+  it('shows gray skeleton rows, not a spinner, while styles load', async () => {
+    renderSection();
+    expect(screen.getByTestId('styles-skeleton')).toBeDefined();
+    expect(document.querySelector('.mantine-Loader-root')).toBeNull();
+    expect(await screen.findByText('Drum & Bass')).toBeDefined();
+    expect(screen.queryByTestId('styles-skeleton')).toBeNull();
+  });
+
   it('splits the catalog into selected and addable', async () => {
     renderSection();
 

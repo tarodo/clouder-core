@@ -22,7 +22,7 @@ import { CategoriesList } from '../components/CategoriesList';
 import { CategoryFormDialog } from '../components/CategoryFormDialog';
 import { writeLastVisitedStyle } from '../lib/lastVisitedStyle';
 import { EmptyState } from '../../../components/EmptyState';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { ApiError } from '../../../api/error';
 
 export function CategoriesListPage() {
@@ -118,7 +118,7 @@ function CategoriesListPageInner({ styleId }: { styleId: string }) {
     reorder.queueOrder(orderedIds);
   }
 
-  if (isLoading) return <FullScreenLoader />;
+  if (isLoading) return <PageSkeleton rows={6} rowHeight={56} />;
   if (isError) {
     return <EmptyState title={t('errors.unknown')} body={t('errors.server_error')} />;
   }

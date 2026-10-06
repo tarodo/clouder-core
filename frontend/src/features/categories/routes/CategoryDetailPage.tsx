@@ -28,7 +28,7 @@ import { CategoryFormDialog } from '../components/CategoryFormDialog';
 import { CategoryDetailHeader } from '../components/CategoryDetailHeader';
 import { CategoryPlayerPanel } from '../components/CategoryPlayerPanel';
 import { TracksTab } from '../components/TracksTab';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { EmptyState } from '../../../components/EmptyState';
 import { usePlayback } from '../../playback/usePlayback';
 import type { PlaybackTrack } from '../../playback/lib/types';
@@ -130,7 +130,7 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
     [playback.controls, playback.queue.tracks, isDesktop, navigate, styleId, id],
   );
 
-  if (isLoading) return <FullScreenLoader />;
+  if (isLoading) return <PageSkeleton breadcrumbs aside rows={10} rowHeight={48} />;
   if (isError) {
     if (error instanceof ApiError && error.status === 404) {
       return (
