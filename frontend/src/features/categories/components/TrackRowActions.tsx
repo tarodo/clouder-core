@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActionIcon, Anchor, Group, Loader, Menu, Text } from '@mantine/core';
+import { ActionIcon, Anchor, Group, Menu, Skeleton, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconChevronLeft,
@@ -217,8 +217,8 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
                   : t('categories.row_actions.move_label')}
             </Menu.Label>
             {categoriesQ.isLoading ? (
-              <Menu.Item disabled leftSection={<Loader size={12} />}>
-                {t('categories.row_actions.loading')}
+              <Menu.Item disabled aria-label={t('categories.row_actions.loading')}>
+                <Skeleton height={12} width={140} radius="sm" />
               </Menu.Item>
             ) : (
               allCategories.map((c) =>

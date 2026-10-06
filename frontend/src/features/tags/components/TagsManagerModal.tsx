@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import {
-  ActionIcon, Button, Group, Loader, Modal, Stack, Text, TextInput,
+  ActionIcon,
+  Button,
+  Group,
+  Modal,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
@@ -121,7 +128,13 @@ export function TagsManagerModal({ opened, onClose }: TagsManagerModalProps) {
           />
         )}
 
-        {tagsQ.isLoading && <Loader size="sm" />}
+        {tagsQ.isLoading && (
+          <Stack gap={6} aria-busy="true">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} height={28} radius="sm" />
+            ))}
+          </Stack>
+        )}
 
         <Stack gap={4}>
           {items.map((tag) => (

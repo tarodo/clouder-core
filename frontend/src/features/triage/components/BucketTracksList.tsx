@@ -3,7 +3,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { IconSearch, IconX } from '../../../components/icons';
 import { EmptyState } from '../../../components/EmptyState';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { useBucketTracks, type BucketTrack } from '../hooks/useBucketTracks';
 import { BucketTrackRow } from './BucketTrackRow';
 import type { TriageBucket } from '../lib/bucketLabels';
@@ -77,7 +77,7 @@ export function BucketTracksList({
     return (
       <Stack gap="md">
         {searchInput}
-        <FullScreenLoader />
+        <PageSkeleton header="none" rows={10} rowHeight={48} />
       </Stack>
     );
   }

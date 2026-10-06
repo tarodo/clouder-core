@@ -1,4 +1,4 @@
-import { Anchor, Loader, Menu, Text } from '@mantine/core';
+import { Anchor, Menu, Skeleton, Text } from '@mantine/core';
 import { Link } from 'react-router';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -32,8 +32,8 @@ export function AddToPlaylistSubmenu({ trackId }: AddToPlaylistSubmenuProps) {
     <>
       <Menu.Label>{t('categories.row_actions.add_to_playlist_label')}</Menu.Label>
       {q.isLoading ? (
-        <Menu.Item disabled leftSection={<Loader size={12} />}>
-          {t('categories.row_actions.loading')}
+        <Menu.Item disabled aria-label={t('categories.row_actions.loading')}>
+          <Skeleton height={12} width={140} radius="sm" />
         </Menu.Item>
       ) : (q.data?.items.length ?? 0) === 0 ? (
         <>

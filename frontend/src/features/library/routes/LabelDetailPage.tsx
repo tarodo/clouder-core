@@ -7,7 +7,7 @@ import { LabelDetailHeader } from '../components/LabelDetailHeader';
 import { LabelChannelLinks } from '../components/LabelChannelLinks';
 import { LabelOverviewTab } from '../components/LabelOverviewTab';
 import { LabelStylesTab } from '../components/LabelStylesTab';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { EmptyState } from '../../../components/EmptyState';
 
 export function LabelDetailPage() {
@@ -16,7 +16,7 @@ export function LabelDetailPage() {
   const query = useLabelDetail(labelId ?? null);
   if (!labelId) return <Navigate to="/library" replace />;
 
-  if (query.isLoading) return <FullScreenLoader />;
+  if (query.isLoading) return <PageSkeleton breadcrumbs rows={6} rowHeight={64} />;
   if (query.isError) {
     const is404 = query.error instanceof ApiError && query.error.status === 404;
     if (is404) {

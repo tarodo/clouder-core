@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Anchor, Button, Code, Group, Loader, Modal, Stack, Text } from '@mantine/core';
+import { Anchor, Button, Code, Group, Modal, Skeleton, Stack, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRequestDeviceCode, usePollYtmusic } from '../hooks/useYtmusicConnect';
@@ -75,12 +75,16 @@ export function YtMusicConnectModal({ opened, onClose, onConnected }: YtMusicCon
               {t('playlists.ytmusic_connect.open_link')}
             </Anchor>
             <Group gap="xs">
-              <Loader size="xs" />
+              <Skeleton height={8} width={32} radius="xl" />
               <Text size="sm" c="dimmed">{t('playlists.ytmusic_connect.waiting')}</Text>
             </Group>
           </>
         ) : (
-          <Group justify="center"><Loader /></Group>
+          <Stack gap="sm" aria-busy="true">
+            <Skeleton height={16} width="80%" radius="sm" />
+            <Skeleton height={44} radius="md" />
+            <Skeleton height={14} width={160} radius="sm" />
+          </Stack>
         )}
         <Group justify="flex-end">
           <Button variant="default" onClick={onClose}>{t('playlists.form.cancel')}</Button>

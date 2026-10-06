@@ -6,7 +6,7 @@ import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { ApiError } from '../../../api/error';
 import { EmptyState } from '../../../components/EmptyState';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { useTriageBlock } from '../hooks/useTriageBlock';
 import { useDeleteTriageBlock } from '../hooks/useDeleteTriageBlock';
 import { TriageBlockHeader } from '../components/TriageBlockHeader';
@@ -32,7 +32,7 @@ function TriageDetailInner({ styleId, blockId }: InnerProps) {
   const del = useDeleteTriageBlock(styleId);
   const [finalizeOpen, setFinalizeOpen] = useState(false);
 
-  if (isLoading) return <FullScreenLoader />;
+  if (isLoading) return <PageSkeleton breadcrumbs cols={3} rows={6} rowHeight={88} />;
   if (isError) {
     const code = error instanceof ApiError ? error.code : 'unknown';
     if (code === 'triage_block_not_found' || (error instanceof ApiError && error.status === 404)) {

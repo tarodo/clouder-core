@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { ApiError } from '../../../api/error';
 import { EmptyState } from '../../../components/EmptyState';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { IconArrowsExchange } from '../../../components/icons';
 import { useTriageBlock } from '../hooks/useTriageBlock';
 import {
@@ -126,7 +126,7 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
     [isStagingBucket, playback.controls, playback.queue.tracks, isDesktop, navigate, styleId, blockId, bucketId],
   );
 
-  if (isLoading) return <FullScreenLoader />;
+  if (isLoading) return <PageSkeleton breadcrumbs rows={10} rowHeight={48} />;
   if (isError) {
     const code = error instanceof ApiError ? error.code : 'unknown';
     if (code === 'triage_block_not_found' || (error instanceof ApiError && error.status === 404)) {
