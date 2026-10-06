@@ -2,10 +2,10 @@ import {
   Alert,
   Card,
   Group,
-  Loader,
   Progress,
   SegmentedControl,
   SimpleGrid,
+  Skeleton,
   Stack,
   Text,
 } from '@mantine/core';
@@ -16,6 +16,11 @@ import { useFunnel, useListening } from '../hooks/useAnalytics';
 
 type Period = 'day' | 'week' | 'month';
 const PERIODS: Period[] = ['day', 'week', 'month'];
+
+// Loaded card heights (measured in the browser test) so the gray placeholder
+// blocks, like HomeSkeleton's, don't make the page jump when data lands.
+const LISTENING_H = 292;
+const FUNNEL_H = 220;
 
 /** 280 min → "4h 40m"; under an hour → "42m". Compact so three fit a phone row. */
 export function fmtMinutes(ms: number): string {
@@ -42,27 +47,24 @@ function AnalyticsCard({ title, action, children }: { title: string; action?: Re
   );
 }
 
-function QueryState({ isLoading, isError }: { isLoading: boolean; isError: boolean }) {
+function LoadFailed() {
   const { t } = useTranslation();
-  if (isLoading) return <Loader size="sm" data-testid="loader" />;
-  if (isError) {
-    return (
-      <Alert color="red" variant="light" role="alert">
-        {t('analytics.load_failed')}
-      </Alert>
-    );
-  }
-  return null;
+  return (
+    <Alert color="red" variant="light" role="alert">
+      {t('analytics.load_failed')}
+    </Alert>
+  );
 }
 
 export function ListeningCard({ userId = '' }: { userId?: string }) {
   const { t } = useTranslation();
   const q = useListening(userId);
+  if (q.isLoading) return <Skeleton height={LISTENING_H} radius="md" data-testid="listening-skeleton" />;
 
   return (
     <AnalyticsCard title={t('analytics.listening.title')}>
       {!q.data ? (
-        <QueryState isLoading={q.isLoading} isError={q.isError} />
+        <LoadFailed />
       ) : (
         <>
           <SimpleGrid cols={3} spacing="xs">
@@ -105,6 +107,7 @@ export function FunnelCard({ userId = '' }: { userId?: string }) {
   const q = useFunnel(userId);
   const stages = q.data?.stages ?? [];
   const top = stages[0]?.[period] ?? 0;
+  if (q.isLoading) return <Skeleton height={FUNNEL_H} radius="md" data-testid="funnel-skeleton" />;
 
   return (
     <AnalyticsCard
@@ -119,7 +122,7 @@ export function FunnelCard({ userId = '' }: { userId?: string }) {
       }
     >
       {!q.data ? (
-        <QueryState isLoading={q.isLoading} isError={q.isError} />
+        <LoadFailed />
       ) : (
         <Stack gap="md">
           {stages.map((s, i) => {

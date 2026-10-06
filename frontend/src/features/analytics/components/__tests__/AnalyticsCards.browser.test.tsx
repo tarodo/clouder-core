@@ -53,6 +53,28 @@ function cardOf(testId: string): HTMLElement {
   return screen.getByTestId(testId).closest('.mantine-Card-root') as HTMLElement;
 }
 
+test('skeletons are as tall as the loaded cards (no jump on load)', () => {
+  const loaded = renderInColumn(720);
+  const h = (el: Element | null) => Math.round(el!.getBoundingClientRect().height);
+  const listening = h(cardOf('listening-day'));
+  const funnel = h(cardOf('funnel-triaged'));
+  loaded.unmount();
+  render(
+    <MantineProvider>
+      <I18nextProvider i18n={i18n}>
+        <QueryClientProvider client={new QueryClient()}>
+          <div style={{ width: 720 }}>
+            <ListeningCard />
+            <FunnelCard />
+          </div>
+        </QueryClientProvider>
+      </I18nextProvider>
+    </MantineProvider>,
+  );
+  expect(Math.abs(h(screen.getByTestId('listening-skeleton')) - listening)).toBeLessThanOrEqual(4);
+  expect(Math.abs(h(screen.getByTestId('funnel-skeleton')) - funnel)).toBeLessThanOrEqual(4);
+});
+
 describe.each([720, 343])('analytics cards in a %ipx home column', (width) => {
   test('match the other home blocks width and do not overflow', () => {
     renderInColumn(width);
