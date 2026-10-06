@@ -213,36 +213,23 @@ export RAW_BUCKET_NAME='beatport-prod-raw-<acct>'   # required by SpotifyWorkerS
 - **Always dry-run first.** Scripts default to read-only and take `--apply` to write; check the printed plan before applying.
 - `RAW_BUCKET_NAME` is one of the deliberate `beatport-prod-*` survivors (see [backend/gotchas.md](../backend/gotchas.md)); everything else is `clouder-prod-*`.
 
-## Analytics first run (bootstrap) — superseded
+## Analytics: checks
 
-> **Superseded, needs a rewrite.** This section describes the retired dbt pipeline (a `beatport-prod-analytics-daily` Step Functions state machine building `silver`/`gold` tables). Analytics v2 has no dbt: a daily `clouder-prod-analytics-rollup` Lambda runs Athena SQL to rebuild `fact_session` / `mart_user_daily` from `bronze_events`. Treat the procedure below as historical until someone reworks it against the current pipeline.
+Analytics reads the lake live — there is no bootstrap step. Home cards and `/admin/analytics` show data as soon as telemetry lands (Firehose buffers ~5 min). Telemetry must be on in the frontend build (`VITE_TELEMETRY_ENABLED=true`, default in `scripts/deploy_frontend.sh`).
 
-**Symptom**
-
-Right after the first deploy of the analytics stack, `/admin/analytics` dashboards are empty and the `analytics` Lambda's Athena queries error with `TABLE_NOT_FOUND` for `gold.*`.
-
-**Diagnosis**
-
-`terraform apply` creates only the **bronze** Glue tables (`bronze_events`, `bronze_catalog_export`, `bronze_ops`) for Firehose + the export Lambdas. The **silver** and **gold** (star-schema) tables are created by **dbt on its first run**, executed by the `beatport-prod-analytics-daily` Step Functions state machine. The state machine runs on the EventBridge daily schedule — so until the first scheduled fire (or a manual trigger), `gold.*` does not exist and the dashboards have nothing to read. Telemetry must also be flowing first (`VITE_TELEMETRY_ENABLED=true` in the frontend build, default-on in `scripts/deploy_frontend.sh`) so `bronze/events/` is non-empty.
-
-**Fix — trigger the pipeline once after the first telemetry has landed**
+**Smoke test the ingest:**
 
 ```bash
-SFN_ARN=$(cd infra && terraform output -raw analytics_state_machine_arn)
-aws stepfunctions start-execution --state-machine-arn "$SFN_ARN"
-
-# Watch it: [catalog_export ‖ ops_log_export] → dbt_run → dbt source freshness → dbt_test
-aws stepfunctions describe-execution --execution-arn "<arn from start-execution>" \
-  --query 'status'   # RUNNING → SUCCEEDED
+aws s3 ls "s3://clouder-prod-analytics-lake/bronze/events/" | tail -3   # today's dt=... prefix
+# Athena (workgroup beatport-prod-analytics, db clouder_analytics):
+#   SELECT event_name, count(*) FROM bronze_events WHERE dt = '<today>' GROUP BY 1;
 ```
 
-On `SUCCEEDED`, `gold.*` exists and the dashboards populate. Thereafter the daily EventBridge schedule keeps them fresh; if `dbt_test`/`dbt source freshness` fails, the DAG routes to `NotifyFailure` and the prior day's gold partitions are kept (no stale publish).
-
-**Smoke test the ingest end-to-end** (one-shot, after deploy):
+**Catalog snapshot (track → style dictionary)** runs nightly at 00:00 UTC (`clouder-prod-catalog-export`). Run it by hand after a deploy or if a night was missed:
 
 ```bash
-# POST a telemetry batch with a valid bearer, then confirm it lands:
-aws s3 ls "s3://beatport-prod-analytics-lake/bronze/events/" --recursive | head
-# Athena (after a partition shows up):
-#   SELECT count(*) FROM clouder_analytics.bronze_events;  -- > 0
+aws lambda invoke --function-name clouder-prod-catalog-export /dev/stdout   # {"snapshot_dt": ..., "counts": {...}}
+aws s3 ls "s3://clouder-prod-analytics-lake/bronze/catalog_export/" | tail -2
 ```
+
+Snapshots older than 14 days expire (bucket lifecycle). A first run at midnight may wait out an Aurora resume (`min_acu=0`); the Data API retry covers it.

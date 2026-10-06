@@ -1364,18 +1364,6 @@ COMMON_AUTH_ERRORS = {
     "403": _error(403, "Authenticated but lacks required role (admin)."),
 }
 
-ANALYTICS_PARAMS = [
-    {"name": "user_id", "in": "query", "required": True,
-     "schema": {"type": "string"},
-     "description": "User ID to scope the query to."},
-    {"name": "from", "in": "query", "required": True,
-     "schema": {"type": "string", "format": "date"},
-     "description": "Inclusive start date (YYYY-MM-DD)."},
-    {"name": "to", "in": "query", "required": True,
-     "schema": {"type": "string", "format": "date"},
-     "description": "Inclusive end date (YYYY-MM-DD)."},
-]
-
 PERSONAL_ANALYTICS_PARAMS = [
     {"name": "tz_offset_min", "in": "query", "required": False,
      "schema": {"type": "integer", "minimum": -840, "maximum": 840},
@@ -1384,50 +1372,6 @@ PERSONAL_ANALYTICS_PARAMS = [
      "schema": {"type": "string"},
      "description": "Admins only: user to scope to. Defaults to the caller."},
 ]
-
-ANALYTICS_RESULT = {
-    "type": "object",
-    "required": ["rows"],
-    "description": "Generic dashboard payload. `rows` is the primary series; routes "
-                   "may add further named arrays (one per panel, e.g. `undo`, `weekly`, "
-                   "`by_category`, `seek`). `freshness` is present only on the ops route. "
-                   "All arrays are schema-on-read objects from the gold star schema.",
-    "properties": {
-        "rows": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
-        "freshness": {
-            "type": "object",
-            "properties": {
-                "newest_dt": {"type": ["string", "null"]},
-                "lag_hours": {"type": ["number", "null"]},
-            },
-        },
-        "correlation_id": {"type": "string"},
-    },
-    # Per-route panel arrays (undo/weekly/by_category/seek) are returned dynamically;
-    # allow them so the typed client gets an index signature rather than a strict miss.
-    "additionalProperties": True,
-}
-
-
-def _analytics_route(name: str, summary: str, description: str) -> dict:
-    return {
-        "method": "get",
-        "path": f"/v1/analytics/{name}",
-        "auth": ADMIN,
-        "summary": summary,
-        "description": description,
-        "parameters": ANALYTICS_PARAMS,
-        "responses": {
-            "200": _make_response(200, summary,
-                                  {"$ref": "#/components/schemas/AnalyticsResult"}),
-            "400": _error(400, "from/to must be YYYY-MM-DD dates."),
-            "404": _error(404, "Unknown dashboard."),
-            "502": _error(502, "Athena query failed."),
-            **COMMON_AUTH_ERRORS,
-            "403": _error(403, "admin_required."),
-        },
-    }
-
 
 ROUTES: list[dict[str, Any]] = [
     # ── auth ───────────────────────────────────────────────────────────
@@ -4168,13 +4112,7 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
-    # ── analytics dashboards (§10/§11), standalone analytics-api, admin-only ──
-    # XHR path is /v1/analytics/* (the /v1 prefix is registered in CloudFront +
-    # Vite dev proxy, Task 5); the browser page is /admin/analytics.
-    _analytics_route("user-daily", "Per-user daily analytics.",
-        "Session counts, averages, and duration / time-per-track percentiles per user × day × activity."),
-    _analytics_route("sessions", "Per-user session drill-down.",
-        "One row per derived session for a user over a date range."),
+    # ── personal analytics (analytics-api: listening; collector: funnel) ──
     {
         "method": "get",
         "path": "/v1/analytics/listening",
@@ -4378,7 +4316,6 @@ def build_openapi() -> dict[str, Any]:
                 "PlaylistTrackComments": PLAYLIST_TRACK_COMMENTS,
                 "PlaylistCommentsResponse": PLAYLIST_COMMENTS_RESPONSE,
                 "TelemetryEnvelope": TELEMETRY_ENVELOPE,
-                "AnalyticsResult": ANALYTICS_RESULT,
             },
         },
     }

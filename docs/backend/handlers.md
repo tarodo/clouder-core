@@ -14,7 +14,7 @@ All Lambda functions share a single Python package: `src/collector/`. Each Lambd
 
 Auth flows are handled by a separate Lambda (`collector.auth_handler`) documented below; see [Auth handler](#auth-handler).
 
-This table is **not exhaustive** — prod also runs `clouder-prod-curation`, `clouder-prod-telemetry`, `clouder-prod-analytics-api`, `clouder-prod-analytics-rollup`, `clouder-prod-label-enricher-worker`, `clouder-prod-artist-enricher-worker`, `clouder-prod-auto-enrich-dispatch-worker`, `clouder-prod-comments-collect-worker`, `clouder-prod-catalog-export`, `clouder-prod-ops-log-export`, and `clouder-prod-auth-authorizer`.
+This table is **not exhaustive** — prod also runs `clouder-prod-curation`, `clouder-prod-telemetry`, `clouder-prod-analytics-api`, `clouder-prod-label-enricher-worker`, `clouder-prod-artist-enricher-worker`, `clouder-prod-auto-enrich-dispatch-worker`, `clouder-prod-comments-collect-worker`, `clouder-prod-catalog-export` (nightly 00:00 UTC), and `clouder-prod-auth-authorizer`.
 
 The AWS resource prefix is `clouder-prod-`, derived from `var.project` + `var.environment` in Terraform. A few resources deliberately keep the older `beatport-prod-*` name (renaming them would mean data loss): the `raw` ingest bucket, the analytics-lake bucket, the Athena workgroup, and the frontend bucket / OAC / CloudFront functions.
 
