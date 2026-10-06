@@ -1,6 +1,7 @@
 import { Alert, Button, Code, Stack } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
+import { FunnelCard, ListeningCard } from '../../analytics/components/AnalyticsCards';
 import { ActiveBlocksList } from '../components/ActiveBlocksList';
 import { CountersGrid } from '../components/CountersGrid';
 import { HomeSkeleton } from '../components/HomeSkeleton';
@@ -53,6 +54,8 @@ function HomeReady({ data, refetchAll }: { data: HomeData; refetchAll: () => voi
         activeBlocks={data.activeBlocksCount}
       />
       <ActiveBlocksList blocks={data.topActiveBlocks} total={data.activeBlocksCount} />
+      <ListeningCard />
+      <FunnelCard />
     </Stack>
   );
 }

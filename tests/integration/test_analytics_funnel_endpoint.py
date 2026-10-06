@@ -1,4 +1,4 @@
-"""Integration tests for GET /admin/analytics/funnel."""
+"""Integration tests for GET /v1/analytics/funnel (personal; admins may pick a user)."""
 
 from __future__ import annotations
 
@@ -29,10 +29,10 @@ def _event(*, is_admin: bool = True, qs=None):
         "version": "2.0",
         "requestContext": {
             "requestId": "req",
-            "routeKey": "GET /admin/analytics/funnel",
+            "routeKey": "GET /v1/analytics/funnel",
             "authorizer": {"lambda": {"is_admin": is_admin, "user_id": "me"}},
         },
-        "rawPath": "/admin/analytics/funnel",
+        "rawPath": "/v1/analytics/funnel",
         "queryStringParameters": qs,
         "headers": {"x-correlation-id": "c"},
         "body": None,
@@ -53,9 +53,28 @@ class FakeRepo:
         return self.rows
 
 
-def test_funnel_requires_admin():
+def test_funnel_non_admin_reads_own(monkeypatch):
+    repo = FakeRepo([])
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
     response = handler.lambda_handler(_event(is_admin=False), _ctx())
+    assert response["statusCode"] == 200
+    assert repo.calls[0][0] == "me"
+
+
+def test_funnel_non_admin_cannot_read_another_user(monkeypatch):
+    repo = FakeRepo([])
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
+    response = handler.lambda_handler(_event(is_admin=False, qs={"user_id": "other"}), _ctx())
     assert response["statusCode"] == 403
+    assert repo.calls == []
+
+
+def test_funnel_admin_reads_any_user(monkeypatch):
+    repo = FakeRepo([])
+    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
+    response = handler.lambda_handler(_event(qs={"user_id": "other"}), _ctx())
+    assert response["statusCode"] == 200
+    assert repo.calls[0][0] == "other"
 
 
 def test_funnel_rejects_bad_offset(monkeypatch):

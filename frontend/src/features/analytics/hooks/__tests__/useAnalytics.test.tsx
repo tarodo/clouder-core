@@ -27,14 +27,14 @@ describe('analytics hooks', () => {
     const { result } = renderHook(() => useFunnel('u 1'), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(apiMock).toHaveBeenCalledWith(
-      `/admin/analytics/funnel?tz_offset_min=${tzOffsetMin()}&user_id=u%201`,
+      `/v1/analytics/funnel?tz_offset_min=${tzOffsetMin()}&user_id=u%201`,
     );
   });
 
-  it('useFunnel hits the admin funnel route', async () => {
+  it('useFunnel hits the funnel route', async () => {
     apiMock.mockResolvedValue({ today: '2026-10-05', stages: [] });
     const { result } = renderHook(() => useFunnel(), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(apiMock).toHaveBeenCalledWith(`/admin/analytics/funnel?tz_offset_min=${tzOffsetMin()}`);
+    expect(apiMock).toHaveBeenCalledWith(`/v1/analytics/funnel?tz_offset_min=${tzOffsetMin()}`);
   });
 });

@@ -2,8 +2,8 @@ import { Select, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '../../../components/PageHeader';
-import { FunnelSection, ListeningSection } from '../components/AnalyticsDashboard';
-import { useUsers } from '../hooks/useAnalytics';
+import { FunnelCard, ListeningCard } from '../../analytics/components/AnalyticsCards';
+import { useUsers } from '../hooks/useUsers';
 
 export function AdminAnalyticsPage() {
   const { t } = useTranslation();
@@ -29,8 +29,8 @@ export function AdminAnalyticsPage() {
           />
         }
       />
-      <ListeningSection userId={userId} />
-      <FunnelSection userId={userId} />
+      <ListeningCard userId={userId} />
+      <FunnelCard userId={userId} />
     </Stack>
   );
 }

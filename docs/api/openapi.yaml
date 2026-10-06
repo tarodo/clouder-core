@@ -428,58 +428,6 @@ paths:
       - BearerAuth: []
       tags:
       - admin
-  /admin/analytics/funnel:
-    get:
-      summary: 'Admin: curation funnel for today / 7 days / 30 days.'
-      responses:
-        '200':
-          description: Funnel stages.
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: validation_error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '503':
-          description: db_not_configured.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401': *id001
-        '403':
-          description: admin_required.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      description: 'Distinct tracks per stage, dated by when the work happened: `triaged`
-        (moved out of NEW in triage), `categorized` (staged to a category, open or
-        finalized block, or added outside triage), `playlisted` (added to a playlist).'
-      parameters: &id020
-      - name: tz_offset_min
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: -840
-          maximum: 840
-        description: Browser UTC offset in minutes (east-positive); local days. Default
-          0.
-      - name: user_id
-        in: query
-        required: false
-        schema:
-          type: string
-        description: User to scope to. Defaults to the calling admin.
-      security:
-      - BearerAuth: []
-      tags:
-      - admin
   /admin/coverage:
     get:
       summary: 'Admin: ingest coverage matrix for one Saturday-year.'
@@ -5711,7 +5659,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401': *id001
         '403':
-          description: admin_required.
+          description: admin_required (another user's data).
           content:
             application/json:
               schema:
@@ -5719,11 +5667,63 @@ paths:
       description: Read live from bronze_events. Per-play time = gap to the next play,
         capped at track duration. Returns `totals.{day,week,month}` and a zero-filled
         30-day `daily` series.
+      parameters: &id020
+      - name: tz_offset_min
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -840
+          maximum: 840
+        description: Browser UTC offset in minutes (east-positive); local days. Default
+          0.
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 'Admins only: user to scope to. Defaults to the caller.'
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /v1/analytics/funnel:
+    get:
+      summary: Curation funnel for today / 7 days / 30 days.
+      responses:
+        '200':
+          description: Funnel stages.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: invalid_params.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: db_not_configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required (another user's data).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: 'Distinct tracks per stage, dated by when the work happened: `triaged`
+        (moved out of NEW in triage), `categorized` (staged to a category, open or
+        finalized block, or added outside triage), `playlisted` (added to a playlist).'
       parameters: *id020
       security:
       - BearerAuth: []
       tags:
-      - admin
+      - user
 components:
   securitySchemes:
     BearerAuth:

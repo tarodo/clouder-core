@@ -94,3 +94,52 @@ def test_tz_offset_rejects_bad_input(raw):
 def test_tz_offset_defaults_to_utc():
     assert ah.parse_tz_offset(None) == 0
     assert ah.parse_tz_offset("-300") == -300
+
+
+# ── access: own data for any signed-in user, others' only for admins ──
+def _listening_event(*, user_id="me", is_admin=False, qs=None):
+    return {
+        "rawPath": "/v1/analytics/listening",
+        "requestContext": {
+            "requestId": "r",
+            "routeKey": "GET /v1/analytics/listening",
+            "authorizer": {"lambda": {"user_id": user_id, "is_admin": is_admin}},
+        },
+        "headers": {},
+        "queryStringParameters": qs,
+    }
+
+
+@pytest.fixture()
+def athena_users(monkeypatch):
+    seen: list[str] = []
+    monkeypatch.setattr(ah, "_client", lambda: None)
+    monkeypatch.setattr(
+        ah, "_run_athena", lambda client, sql, params, **kw: seen.extend(params) or []
+    )
+    return seen
+
+
+def test_non_admin_reads_own_listening(athena_users):
+    resp = ah.lambda_handler(_listening_event(), None)
+    assert resp["statusCode"] == 200
+    assert athena_users == ["me"]
+
+
+def test_non_admin_cannot_read_another_user(athena_users):
+    resp = ah.lambda_handler(_listening_event(qs={"user_id": "other"}), None)
+    assert resp["statusCode"] == 403
+    assert athena_users == []
+
+
+def test_admin_reads_any_user(athena_users):
+    resp = ah.lambda_handler(_listening_event(is_admin=True, qs={"user_id": "other"}), None)
+    assert resp["statusCode"] == 200
+    assert athena_users == ["other"]
+
+
+def test_admin_dashboards_stay_admin_only(athena_users):
+    ev = _listening_event(qs={"from": "2026-01-01", "to": "2026-01-02", "user_id": "me"})
+    ev["rawPath"] = "/v1/analytics/user-daily"
+    ev["requestContext"]["routeKey"] = "GET /v1/analytics/user-daily"
+    assert ah.lambda_handler(ev, None)["statusCode"] == 403

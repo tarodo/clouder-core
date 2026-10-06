@@ -6,7 +6,9 @@ user_id; they never send SQL. Admin is enforced here on the authorizer context
 (§10.1, §13). Aurora is never touched.
 
 Routes are GET /v1/analytics/{user-daily,sessions,listening}. `listening` reads
-bronze_events live (fresh to the Firehose buffer), not the daily marts.
+bronze_events live (fresh to the Firehose buffer), not the daily marts, and is
+personal: any signed-in user gets their own data (see resolve_user); the
+others are admin-only.
 """
 
 from __future__ import annotations
@@ -69,6 +71,24 @@ def _require_admin(event: Mapping[str, Any]) -> str:
             if isinstance(ctx, Mapping) and bool(ctx.get("is_admin")):
                 return str(ctx.get("user_id") or "")
     raise AnalyticsError(403, "admin_required", "Admin role required.")
+
+
+def resolve_user(event: Mapping[str, Any], requested: str) -> str:
+    """Personal analytics: any signed-in user sees their own data; only an
+    admin may ask for someone else's via ?user_id."""
+    ctx: Mapping[str, Any] = {}
+    rc = event.get("requestContext")
+    if isinstance(rc, Mapping) and isinstance(rc.get("authorizer"), Mapping):
+        lam = rc["authorizer"].get("lambda")
+        ctx = lam if isinstance(lam, Mapping) else {}
+    caller = str(ctx.get("user_id") or "")
+    if not caller:
+        raise AnalyticsError(401, "unauthorized", "Authentication required.")
+    if len(requested) > 128:
+        raise AnalyticsError(400, "invalid_params", "user_id max 128 chars.")
+    if requested and requested != caller and not bool(ctx.get("is_admin")):
+        raise AnalyticsError(403, "admin_required", "Only admins can view other users.")
+    return requested or caller
 
 
 def _route_name(event: Mapping[str, Any]) -> str:
@@ -204,11 +224,8 @@ def shape_listening(rows: list[dict[str, Any]], today: date) -> dict[str, Any]:
     }
 
 
-def serve_listening(qs: Mapping[str, Any], caller_id: str) -> dict[str, Any]:
+def serve_listening(qs: Mapping[str, Any], user_id: str) -> dict[str, Any]:
     off = parse_tz_offset(qs.get("tz_offset_min"))
-    user_id = str(qs.get("user_id") or caller_id)
-    if not user_id or len(user_id) > 128:
-        raise AnalyticsError(400, "invalid_params", "user_id required (max 128 chars).")
     w = listening_windows(datetime.now(timezone.utc), off)
     sql = listening_sql(
         TRINO,
@@ -320,14 +337,15 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     del context
     correlation_id = _correlation_id(event)
     try:
-        caller_id = _require_admin(event)
         route = _route_name(event)
         qs = event.get("queryStringParameters")
         qs = qs if isinstance(qs, Mapping) else None
         payload: dict[str, Any] = {"correlation_id": correlation_id}
         if route == "listening":
-            payload.update(serve_listening(qs or {}, caller_id))
+            user_id = resolve_user(event, str((qs or {}).get("user_id") or ""))
+            payload.update(serve_listening(qs or {}, user_id))
         else:
+            _require_admin(event)
             date_from, date_to, user_id = _validate_params(qs)
             for name, (sql, params) in build_queries(route, date_from, date_to, user_id).items():
                 payload[name] = list(_cached_rows(sql, tuple(params)))
