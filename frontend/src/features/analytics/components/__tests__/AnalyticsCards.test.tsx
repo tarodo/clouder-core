@@ -112,20 +112,20 @@ describe('analytics cards', () => {
     expect(within(screen.getByTestId('listening-day')).getByText('0m')).toBeDefined();
   });
 
-  it('shows the 30-day funnel with step conversion by default', () => {
+  it('shows the 7-day funnel with step conversion by default', () => {
     wrap(<FunnelCard />);
-    expect(within(screen.getByTestId('funnel-triaged')).getByText('1000')).toBeDefined();
+    expect(within(screen.getByTestId('funnel-triaged')).getByText('500')).toBeDefined();
     const cat = within(screen.getByTestId('funnel-categorized'));
-    expect(cat.getByText('100')).toBeDefined();
-    expect(cat.getByText('10% of previous')).toBeDefined();
-    expect(within(screen.getByTestId('funnel-playlisted')).getByText('10% of previous')).toBeDefined();
+    expect(cat.getByText('40')).toBeDefined();
+    expect(cat.getByText('8% of previous')).toBeDefined();
+    expect(within(screen.getByTestId('funnel-playlisted')).getByText('5% of previous')).toBeDefined();
   });
 
   it('switches the funnel period', async () => {
     wrap(<FunnelCard />);
-    await userEvent.click(screen.getByRole('radio', { name: '7 days' }));
-    expect(within(screen.getByTestId('funnel-triaged')).getByText('500')).toBeDefined();
-    expect(within(screen.getByTestId('funnel-categorized')).getByText('8% of previous')).toBeDefined();
+    await userEvent.click(screen.getByRole('radio', { name: '30 days' }));
+    expect(within(screen.getByTestId('funnel-triaged')).getByText('1000')).toBeDefined();
+    expect(within(screen.getByTestId('funnel-categorized')).getByText('10% of previous')).toBeDefined();
   });
 
   it('formats per-track time and play counts compactly', () => {

@@ -112,7 +112,7 @@ function pct(n: number, of: number): string {
 
 export function FunnelCard({ userId = '' }: { userId?: string }) {
   const { t } = useTranslation();
-  const [period, setPeriod] = useState<Period>('month');
+  const [period, setPeriod] = useState<Period>('week');
   const q = useFunnel(userId);
   const stages = q.data?.stages ?? [];
   const top = stages[0]?.[period] ?? 0;
