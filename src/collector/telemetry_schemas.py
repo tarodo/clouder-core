@@ -16,7 +16,8 @@ from typing import Any, Mapping
 from pydantic import BaseModel, ConfigDict, Field
 
 # Mirrors the Glue partition-projection enum in infra/telemetry.tf.
-# ponytail: adding an event = one line here + one line in that enum. ~13 names.
+# ponytail: adding an event = one line here + one line in that enum (a test
+# keeps the two identical).
 EVENT_NAMES: frozenset[str] = frozenset(
     {
         "triage_session_start",
@@ -25,6 +26,7 @@ EVENT_NAMES: frozenset[str] = frozenset(
         "track_categorized",
         "playback_play",
         "playback_pause",
+        "playback_resume",
         "playback_seek",
         "playback_ended",
         "playback_skip",
@@ -50,6 +52,7 @@ PROP_ALLOWLIST: dict[str, frozenset[str]] = {
     "playback_pause": frozenset(
         {"track_id", "position_ms", "duration_ms", "seek_count"}
     ),
+    "playback_resume": frozenset({"track_id", "position_ms", "duration_ms"}),
     "playback_seek": frozenset({"track_id", "from_position_ms", "to_position_ms"}),
     "playback_ended": frozenset({"track_id", "duration_ms", "listen_through_ratio"}),
     "playback_skip": frozenset({"track_id", "position_ms", "duration_ms"}),

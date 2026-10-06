@@ -114,12 +114,14 @@ def listening_sql(
     tz_offset_min: int,
     source: str = "bronze_events",
 ) -> str:
-    """Per-play listen time = gap to the user's next play, capped at the track's
-    duration. Only playback_play is emitted today (no pause/ended), so this is
-    the best wall-clock signal. Ordered by ts_client (+ ULID event_id): ts_server
-    is stamped once per SDK batch, so plays flushed together would tie at gap 0.
-    user_id binds as the single `?`; dates/offset are validated and inlined
-    (gotcha #13).
+    """Per-play listen time = the play's "playing" stretches, capped at the
+    track's duration. A stretch starts at a play or resume and runs to the
+    user's next playback event (pause / resume / ended / next play); stretches
+    after a pause or end don't count. Plays without pause/ended events (older
+    data) fall back to play -> next play. Ordered by ts_client (+ ULID event_id):
+    ts_server is stamped once per SDK batch, so events flushed together would
+    tie. user_id binds as the single `?`; dates/offset are validated and
+    inlined (gotcha #13).
     """
     for v in (scan_from, week_from, month_from):
         if not _DATE_RE.match(v):
@@ -129,15 +131,33 @@ def listening_sql(
     local_dt = d["to_date"].format(d["add_min"].format(off, "ts"))
     gap_ms = f"({d['epoch'].format('lead(ts) OVER (ORDER BY ts, event_id)')} - {d['epoch'].format('ts')}) * 1000"
     return f"""
-WITH plays AS (
-  SELECT track_id, event_id, {ts} AS ts,
+WITH ev AS (
+  SELECT track_id, event_id, event_name, {ts} AS ts,
          CAST(coalesce(nullif(duration_ms, 0), {_FALLBACK_TRACK_MS}) AS DOUBLE) AS dur_ms
   FROM {source}
-  WHERE event_name = 'playback_play' AND user_id = ? AND dt >= '{scan_from}'
+  WHERE event_name IN ('playback_play', 'playback_pause', 'playback_resume', 'playback_ended')
+    AND user_id = ? AND dt >= '{scan_from}'
+),
+seq AS (
+  SELECT *,
+    SUM(CASE WHEN event_name = 'playback_play' THEN 1 ELSE 0 END)
+      OVER (ORDER BY ts, event_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS play_no,
+    {gap_ms} AS gap_ms
+  FROM ev
+),
+plays AS (
+  SELECT play_no,
+    max(CASE WHEN event_name = 'playback_play' THEN track_id END) AS track_id,
+    max(CASE WHEN event_name = 'playback_play' THEN dur_ms END) AS dur_ms,
+    min(CASE WHEN event_name = 'playback_play' THEN ts END) AS ts,
+    sum(CASE WHEN event_name IN ('playback_play', 'playback_resume')
+             THEN coalesce(gap_ms, dur_ms) ELSE 0 END) AS played_ms
+  FROM seq
+  WHERE play_no > 0
+  GROUP BY play_no
 ),
 listened AS (
-  SELECT track_id, {local_dt} AS local_dt,
-         least(coalesce({gap_ms}, dur_ms), dur_ms) AS ms
+  SELECT track_id, {local_dt} AS local_dt, least(played_ms, dur_ms) AS ms
   FROM plays
 )
 SELECT CAST(local_dt AS VARCHAR) AS period, CAST(sum(ms) AS BIGINT) AS listened_ms,
