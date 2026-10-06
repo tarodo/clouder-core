@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import {
-  Checkbox, Group, Loader, Popover, Stack, Text, TextInput, UnstyledButton,
+  Checkbox,
+  Group,
+  Popover,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -85,7 +92,13 @@ export function TrackTagsPopover({
             // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
           />
-          {tagsQ.isLoading && <Loader size="xs" />}
+          {tagsQ.isLoading && (
+            <Stack gap={6} aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} height={20} radius="sm" />
+              ))}
+            </Stack>
+          )}
           <Stack gap={2}>
             {visible.map((tag) => {
               const checked = currentTagIds.includes(tag.id);

@@ -100,10 +100,6 @@
       "of_prev": "{{pct}} of previous"
     }
   },
-  "long_op": {
-    "cold_start": "Cold start, hang on…",
-    "very_long": "This is taking longer than usual. If nothing happens, refresh — the operation may have already succeeded."
-  },
   "router": {
     "not_found_title": "Page not found",
     "not_found_body": "The page you tried to open does not exist.",

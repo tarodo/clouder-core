@@ -7,7 +7,7 @@ import { ArtistDetailHeader } from '../components/ArtistDetailHeader';
 import { ArtistChannelLinks } from '../components/ArtistChannelLinks';
 import { ArtistOverviewTab } from '../components/ArtistOverviewTab';
 import { ArtistStylesTab } from '../components/ArtistStylesTab';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { EmptyState } from '../../../components/EmptyState';
 
 export function ArtistDetailPage() {
@@ -16,7 +16,7 @@ export function ArtistDetailPage() {
   const query = useArtistDetail(artistId ?? null);
   if (!artistId) return <Navigate to="/library" replace />;
 
-  if (query.isLoading) return <FullScreenLoader />;
+  if (query.isLoading) return <PageSkeleton breadcrumbs rows={6} rowHeight={64} />;
   if (query.isError) {
     const is404 = query.error instanceof ApiError && query.error.status === 404;
     if (is404) {

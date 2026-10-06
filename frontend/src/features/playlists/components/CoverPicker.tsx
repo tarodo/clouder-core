@@ -4,7 +4,7 @@ import {
   Avatar,
   Box,
   FileButton,
-  LoadingOverlay,
+  Skeleton,
   Stack,
   Text,
   UnstyledButton,
@@ -112,7 +112,9 @@ export function CoverPicker({ playlistId, coverUrl, size = 200 }: CoverPickerPro
             <IconTrash size={14} />
           </ActionIcon>
         ) : null}
-        <LoadingOverlay visible={upload.isPending} overlayProps={{ radius: 'md' }} />
+        {upload.isPending && (
+          <Skeleton pos="absolute" inset={0} radius="md" style={{ zIndex: 1 }} aria-busy="true" />
+        )}
     </Box>
   );
 }

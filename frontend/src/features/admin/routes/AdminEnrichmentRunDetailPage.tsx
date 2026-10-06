@@ -2,7 +2,7 @@ import { Stack, Tabs, SimpleGrid, Card, Text } from '@mantine/core';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useEnrichmentRunDetail } from '../hooks/useEnrichmentRunDetail';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { EmptyState } from '../../../components/EmptyState';
 import { RunDetailHeader } from '../components/enrichment/RunDetailHeader';
 import { RunDetailCellsTable } from '../components/enrichment/RunDetailCellsTable';
@@ -14,7 +14,7 @@ export function AdminEnrichmentRunDetailPage() {
   const query = useEnrichmentRunDetail(runId ?? null);
   if (!runId) return <Navigate to="/admin/labels/enrich/runs" replace />;
 
-  if (query.isLoading) return <FullScreenLoader />;
+  if (query.isLoading) return <PageSkeleton cols={3} rows={3} rowHeight={72} />;
   if (query.isError || !query.data) return <EmptyState variant="page" title={t('admin_enrichment.run_detail.not_found')} />;
 
   const run = query.data;

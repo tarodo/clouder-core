@@ -2,8 +2,8 @@ import { useState } from 'react';
 import {
   Button,
   Group,
-  Loader,
   Modal,
+  Skeleton,
   Stack,
   Text,
 } from '@mantine/core';
@@ -208,7 +208,7 @@ function ConfirmVariant({
       )}
       {phase === 'recovering' && (
         <Group gap="xs">
-          <Loader size="sm" />
+          <Skeleton height={8} width={48} radius="xl" />
           <Text size="sm" c="dimmed">
             {t('triage.finalize.confirm.recovering')}
           </Text>

@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useStyles } from '../../../hooks/useStyles';
-import { FullScreenLoader } from '../../../components/FullScreenLoader';
+import { PageSkeleton } from '../../../components/PageSkeleton';
 import { EmptyState } from '../../../components/EmptyState';
 import { IconLayoutColumns } from '../../../components/icons';
 import { readLastVisitedTriageStyle } from '../lib/lastVisitedTriageStyle';
@@ -11,7 +11,7 @@ export function TriageIndexRedirect() {
   const { search } = useLocation();
   const { data, isLoading, isError } = useStyles();
 
-  if (isLoading) return <FullScreenLoader />;
+  if (isLoading) return <PageSkeleton rows={6} rowHeight={56} />;
   if (isError || !data) {
     return <EmptyState title={t('errors.unknown')} body={t('errors.server_error')} />;
   }

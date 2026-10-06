@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Anchor,
   Button,
-  Center,
   Group,
-  Loader,
   Modal,
+  Progress,
+  Skeleton,
   Stack,
   Text,
 } from '@mantine/core';
@@ -237,9 +237,11 @@ function Step1({
   const { t } = useTranslation();
   if (loading) {
     return (
-      <Center py="xl">
-        <Loader />
-      </Center>
+      <Stack gap="sm" aria-busy="true">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} height={56} radius="md" />
+        ))}
+      </Stack>
     );
   }
   if (siblings.length === 0) {
@@ -297,13 +299,15 @@ function Step2({
         </Anchor>
       </Group>
       {loading && (
-        <Center py="xl">
-          <Loader />
-        </Center>
+        <Stack gap="xs" aria-busy="true">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height={40} radius="md" />
+          ))}
+        </Stack>
       )}
       {bulkPhase && (
         <Group gap="xs">
-          <Loader size="sm" />
+          <Progress value={(bulkPhase.k / bulkPhase.m) * 100} animated striped size="sm" w={80} />
           <Text size="sm">
             {t('triage.transfer.bulk.modal.batch_progress', {
               k: bulkPhase.k,
