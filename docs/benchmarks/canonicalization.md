@@ -1,6 +1,6 @@
 # Canonicalization: per-entity calls → set-based
 
-Status: in progress — "after" sections are filled once the change ships.
+Status: in review — production "after" numbers are filled from the first weekly runs after deploy.
 
 ## Why
 
@@ -45,6 +45,78 @@ Implied production latency per call: 104 s ÷ calls(synthetic-671) ≈ 37.1 ms (
 31.8 ms (warm). Tens of milliseconds is the right order for an HTTPS round-trip, so the
 call count explains the observed duration — Postgres itself does this work in 0.5–3 s
 locally.
+
+## Benchmark (after)
+
+Same harness, same synthetic weeks, set-based canonicalization (ADR-0022):
+
+| dataset | scenario | tracks | artists | labels | albums | Data API calls | calls / 1k tracks | local s | modelled s @30/60/100 ms |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| synthetic-671 | cold | 671 | 343 | 95 | 273 | 55 | 82 | 0.21 | 1.6 / 3.3 / 5.5 |
+| synthetic-671 | warm | 671 | 343 | 95 | 273 | 51 | 76 | 0.18 | 1.5 / 3.1 / 5.1 |
+| synthetic-3656 | cold | 3656 | 1937 | 509 | 1467 | 166 | 45 | 0.9 | 5.0 / 10.0 / 16.6 |
+| synthetic-3656 | warm | 3656 | 1937 | 509 | 1467 | 162 | 44 | 0.91 | 4.9 / 9.7 / 16.2 |
+
+| dataset | scenario | calls before | calls after | reduction | modelled @60 ms before → after |
+|---|---|---:|---:|---:|---:|
+| synthetic-671 | cold | 2,805 | 55 | 51× | 168.3 s → 3.3 s |
+| synthetic-671 | warm | 2,085 | 51 | 41× | 125.1 s → 3.1 s |
+| synthetic-3656 | cold | 15,254 | 166 | 92× | 915.2 s → 10.0 s |
+| synthetic-3656 | warm | 11,317 | 162 | 70× | 679.0 s → 9.7 s |
+
+The average cold week now makes 8 `ExecuteStatement` + 29 `BatchExecuteStatement` calls plus
+9 transactions, instead of 2,766 single-row statements. Local Postgres time also drops ~3×
+(0.6 s → 0.21 s): fewer, larger statements are cheaper for the database too.
+
+## Production (after)
+
+Pending — filled from the first weekly runs after deploy (CloudWatch worker duration and
+"Recent canonicalization runs").
+
+## What changed
+
+- **Identity resolution:** per phase (per 200-track chunk for tracks) one batch claims a fresh
+  id for every external id with `ON CONFLICT DO NOTHING`, and one `IN (...)` lookup reads the
+  winners back. Before: one lookup per entity.
+- **Writes:** canonical rows and conservative track updates go out as one
+  `BatchExecuteStatement` per phase/chunk. Before: one statement per entity.
+- **Race safety:** an existing identity always wins. Before, new identities were written with
+  `ON CONFLICT … DO UPDATE SET clouder_id = …`, so two runs sharing an artist could repoint it
+  and orphan a duplicate canonical row. `tests/db/test_canonicalize_concurrency_pg.py`
+  reproduces this on Postgres: on the old code the identity ends up pointing at the second
+  run's new UUID; on the new code it keeps the winner.
+- **Latent NULL bug fixed:** the conservative update compared `:isrc`, `:bpm`, `:length_ms`
+  in `CASE` branches without a type, so an untyped NULL (a track without ISRC/BPM/length)
+  made Postgres deduce `text` for one branch and the column type for another and reject the
+  statement. It has not shown up in production — every track so far has an ISRC, and the
+  Data API's own NULL typing may differ from psycopg's — but the casts make the statement
+  unambiguous for any driver.
+- **Observability:** every `canonicalization_phase_completed` / `canonicalization_chunk_completed`
+  log event carries `duration_ms`.
+
+## What it buys
+
+- **Time to catalog:** a typical weekly run is modelled to drop from ~2–3 minutes to a few
+  seconds of round-trip time (production numbers above once measured).
+- **Timeout headroom:** the worker runs inside a 900 s Lambda timeout. Before, the largest
+  run (3,656 tracks) took 360 s, so a week ~2.5× larger would have timed out. After, the same
+  run is ~166 round-trips (~10 s at 60 ms); calls grow with 200-track chunks (~45 per 1,000
+  tracks), so the next limit is batch payload size, not call count.
+- **Correctness under concurrency:** weekly ingests for several styles run back to back and
+  share artists and labels; duplicates from racing runs are no longer possible.
+- **Less load on Aurora:** 55 statements per average run instead of 2,805. Aurora Serverless
+  v2 scales on activity and auto-pauses when idle, so shorter runs mean fewer ACU-seconds. The
+  dollar effect is small at current volume (~$10/month total AWS bill) — the win is latency,
+  headroom and correctness, not cost.
+
+## Limitations
+
+- The benchmark uses a psycopg stand-in, not the Data API; modelled time assumes a constant
+  per-call latency (30–100 ms band, calibrated against production p50 above). Larger batch
+  payloads cost more server time than a single-row call, so production will not shrink by the
+  full call ratio — the production section is the real measure.
+- Synthetic weeks approximate production ratios; pass `--raw-file` with a real
+  `releases.json.gz` for exact numbers.
 
 ## How to reproduce
 

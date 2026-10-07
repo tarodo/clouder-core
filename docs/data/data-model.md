@@ -142,7 +142,7 @@ Same shape as `clouder_labels` including `is_ai_suspected`.
 | release_type | String(16) nullable | `album` \| `single` \| `compilation`. Beatport does not expose this; populated from Spotify `album.album_type` during ISRC enrichment, then propagated from `clouder_tracks` via `propagate_release_type_to_albums` (ADR-0007). NULL until at least one track in the album has a successful Spotify lookup. |
 | created_at / updated_at | TIMESTAMPTZ | |
 
-Index: `idx_album_match (normalized_title, release_date, label_id)` — used by `_resolve_album` to avoid duplicate canonical albums.
+Index: `idx_album_match (normalized_title, release_date, label_id)`. Canonicalization resolves albums through `identity_map`, not this index.
 
 ### clouder_tracks
 
@@ -195,9 +195,9 @@ PK: `(source, entity_type, external_id)`.
 
 Index: `idx_identity_map_clouder (clouder_entity_type, clouder_id)` — reverse lookup.
 
-**Write path**: `Canonicalizer._resolve_*` checks `find_identity` first; on miss, creates the canonical row, then queues `UpsertIdentityCmd`. Both happen inside the same `repository.transaction()` block, so the identity row and canonical row are committed atomically.
+**Write path**: `Canonicalizer` claims identities with `claim_identities` (`ON CONFLICT DO NOTHING`), reads the winners back, and creates canonical rows only for ids it won (ADR-0022). Claims and canonical rows share one `repository.transaction()` block, so they commit or roll back together.
 
-**Read path**: `find_identity(source, entity_type, external_id, transaction_id=)` — the `transaction_id` parameter is mandatory when called inside an active `repository.transaction()` block. Omitting it means the read issues against a separate Data API connection and misses in-flight writes, causing duplicate canonical entities. See `src/collector/canonicalize.py` and `docs/backend/data-api.md`.
+**Read path**: `find_identities(source, entity_type, external_ids, transaction_id=)` — the `transaction_id` parameter is mandatory when called inside an active `repository.transaction()` block. Omitting it means the read issues against a separate Data API connection and misses in-flight writes, causing duplicate canonical entities. See `src/collector/canonicalize.py` and `docs/backend/data-api.md`.
 
 ---
 

@@ -134,18 +134,18 @@ Commit and rollback are not idempotent at the protocol level. Using the wide `re
 
 ---
 
-## Transactions and `find_identity`
+## Transactions and `find_identities`
 
 When using `db.transaction() as txn_id`, all `execute` calls inside the block must pass `transaction_id=txn_id`. Failing to do so causes the statement to execute outside the transaction, which means it cannot see uncommitted writes made within the transaction.
 
-This is especially relevant for `find_identity` (called inside `repository.transaction()` blocks to look up canonical entity IDs for newly inserted rows). If `transaction_id` is not forwarded, the lookup will miss the in-flight `INSERT` and return `None`, causing a spurious "entity not found" error or duplicate insert.
+This is especially relevant for `find_identities` (called inside `repository.transaction()` blocks right after `claim_identities`, to read back the canonical IDs the same transaction just claimed — ADR-0022). If `transaction_id` is not forwarded, the lookup misses the in-flight `INSERT` and the canonicalizer raises because claimed ids did not resolve.
 
 Pattern:
 
 ```python
 with repository.transaction() as txn_id:
-    repository.insert_entity(..., transaction_id=txn_id)
-    entity_id = repository.find_identity(..., transaction_id=txn_id)  # must pass txn_id
+    repository.claim_identities(commands, transaction_id=txn_id)
+    ids = repository.find_identities("beatport", "artist", external_ids, transaction_id=txn_id)  # must pass txn_id
 ```
 
 ---
