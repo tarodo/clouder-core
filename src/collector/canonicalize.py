@@ -7,6 +7,8 @@ winners back, instead of a Data API round-trip per entity. See ADR-0022.
 
 from __future__ import annotations
 
+from collections import Counter
+from contextlib import nullcontext
 from datetime import datetime
 from decimal import Decimal
 import hashlib
@@ -20,6 +22,7 @@ from .logging_utils import log_event
 from .models import CanonicalizationResult, EntityType
 from .normalize import NormalizedBundle
 from .repositories import (
+    TRACK_MERGE_FIELDS,
     ClouderRepository,
     ConservativeUpdateTrackCmd,
     CreateAlbumCmd,
@@ -41,18 +44,76 @@ TRACK_CHUNK_SIZE = 200
 NamedEntity = tuple[int, str, str, Mapping[str, Any]]
 
 
-class Canonicalizer:
+def track_update(
+    current: Mapping[str, Any], incoming: Mapping[str, Any], *, stale: bool
+) -> tuple[dict[str, Any], tuple[str, ...]]:
+    """Values to write (None keeps the column) and the fields that change.
+
+    A fresh observation overwrites each field it carries; a stale one (older than
+    the stored observation, from another run) only fills NULLs, so replays of the
+    same runs converge whatever their order. The written values come from the
+    incoming observation only, never from the read-back row.
+    """
+    write = {
+        f: incoming[f]
+        if incoming[f] is not None and (not stale or current.get(f) is None)
+        else None
+        for f in TRACK_MERGE_FIELDS
+    }
+    changed = tuple(
+        f
+        for f in TRACK_MERGE_FIELDS
+        if write[f] is not None and _comparable(write[f]) != _comparable(current.get(f))
+    )
+    return write, changed
+
+
+def _comparable(value: Any) -> str | None:
+    # The Data API returns dates and ids as strings, Postgres as native types.
+    if value is None:
+        return None
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+class _ReadOnlyRepository:
+    """Dry-run view: the reads a run needs pass through, every other call is
+    dropped and no transaction is opened, so a dry run cannot write — also through
+    a write method added later."""
+
+    _READS = frozenset({"find_identities", "read_track_state"})
+
     def __init__(self, repository: ClouderRepository) -> None:
         self._repository = repository
 
+    def transaction(self):
+        return nullcontext(None)
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self._READS:
+            return getattr(self._repository, name)
+        return lambda *args, **kwargs: None
+
+
+class Canonicalizer:
+    def __init__(self, repository: ClouderRepository, *, dry_run: bool = False) -> None:
+        self._dry_run = dry_run
+        self._repository = _ReadOnlyRepository(repository) if dry_run else repository
+
     def process_run(
-        self, run_id: str, bundle: NormalizedBundle
+        self,
+        run_id: str,
+        bundle: NormalizedBundle,
+        observed_at: datetime | None = None,
     ) -> CanonicalizationResult:
-        observed_at = utc_now()
+        # Observation time (when Beatport was read) stamps source and identity rows
+        # and decides which observation wins; `at` is the row-audit time.
+        observed_at = observed_at or utc_now()
+        at = utc_now()
         log_event(
             "INFO",
             "canonicalization_process_started",
             run_id=run_id,
+            dry_run=self._dry_run,
             tracks_total=len(bundle.tracks),
             artists_total=len(bundle.artists),
             labels_total=len(bundle.labels),
@@ -63,9 +124,10 @@ class Canonicalizer:
 
         completed_phases: list[str] = []
         try:
-            label_ids = self._process_named_entities(
+            label_ids, labels_created = self._process_named_entities(
                 run_id=run_id,
                 observed_at=observed_at,
+                at=at,
                 phase="labels",
                 entity_type=EntityType.LABEL.value,
                 entities=[
@@ -75,9 +137,10 @@ class Canonicalizer:
                 create=self._repository.batch_create_labels,
             )
             completed_phases.append("labels")
-            style_ids = self._process_named_entities(
+            style_ids, styles_created = self._process_named_entities(
                 run_id=run_id,
                 observed_at=observed_at,
+                at=at,
                 phase="styles",
                 entity_type=EntityType.STYLE.value,
                 entities=[
@@ -87,9 +150,10 @@ class Canonicalizer:
                 create=self._repository.batch_create_styles,
             )
             completed_phases.append("styles")
-            artist_ids = self._process_named_entities(
+            artist_ids, artists_created = self._process_named_entities(
                 run_id=run_id,
                 observed_at=observed_at,
+                at=at,
                 phase="artists",
                 entity_type=EntityType.ARTIST.value,
                 entities=[
@@ -99,19 +163,21 @@ class Canonicalizer:
                 create=self._repository.batch_create_artists,
             )
             completed_phases.append("artists")
-            album_ids = self._process_albums(
+            album_ids, albums_created = self._process_albums(
                 run_id=run_id,
                 bundle=bundle,
                 observed_at=observed_at,
+                at=at,
                 label_ids=label_ids,
             )
             completed_phases.append("albums")
             self._process_relations(run_id=run_id, bundle=bundle)
             completed_phases.append("relations")
-            track_ids = self._process_tracks(
+            track_ids, track_counts, field_changes = self._process_tracks(
                 run_id=run_id,
                 bundle=bundle,
                 observed_at=observed_at,
+                at=at,
                 artist_ids=artist_ids,
                 album_ids=album_ids,
                 style_ids=style_ids,
@@ -136,6 +202,14 @@ class Canonicalizer:
             labels_total=len(bundle.labels),
             albums_total=len(bundle.albums),
             styles_total=len(bundle.styles),
+            labels_created=labels_created,
+            styles_created=styles_created,
+            artists_created=artists_created,
+            albums_created=albums_created,
+            tracks_created=track_counts["tracks_created"],
+            tracks_changed=track_counts["tracks_changed"],
+            tracks_stale=track_counts["tracks_stale"],
+            track_field_changes=dict(field_changes),
         )
         log_event(
             "INFO",
@@ -147,6 +221,9 @@ class Canonicalizer:
             labels_total=result.labels_total,
             albums_total=result.albums_total,
             styles_total=result.styles_total,
+            tracks_created=result.tracks_created,
+            tracks_changed=result.tracks_changed,
+            tracks_stale=result.tracks_stale,
         )
         return result
 
@@ -184,10 +261,13 @@ class Canonicalizer:
             "beatport", entity_type, list(candidates), transaction_id=transaction_id
         )
         missing = candidates.keys() - resolved.keys()
-        if missing:
+        if missing and not self._dry_run:
             raise RuntimeError(
                 f"identity claim did not resolve {len(missing)} {entity_type} ids"
             )
+        # Dry run: nothing was claimed, so ids without an identity would be created
+        # under the candidate id.
+        resolved = {**{ext: candidates[ext] for ext in missing}, **resolved}
         created = {ext for ext, clouder_id in resolved.items() if clouder_id == candidates[ext]}
         return resolved, created
 
@@ -196,11 +276,12 @@ class Canonicalizer:
         *,
         run_id: str,
         observed_at: datetime,
+        at: datetime,
         phase: str,
         entity_type: str,
         entities: Sequence[NamedEntity],
         create: Callable[..., None],
-    ) -> dict[int, str]:
+    ) -> tuple[dict[int, str], int]:
         started = time.perf_counter()
         with self._repository.transaction() as transaction_id:
             self._repository.batch_upsert_source_entities(
@@ -230,7 +311,7 @@ class Canonicalizer:
                         entity_id=resolved[str(bp_id)],
                         name=name,
                         normalized_name=normalized_name,
-                        at=observed_at,
+                        at=at,
                     )
                     for bp_id, name, normalized_name, _ in entities
                     if str(bp_id) in created
@@ -239,15 +320,16 @@ class Canonicalizer:
             )
         ids = {bp_id: resolved[str(bp_id)] for bp_id, _, _, _ in entities}
         _log_phase(run_id, phase, len(ids), started)
-        return ids
+        return ids, len(created)
 
     def _process_albums(
         self,
         run_id: str,
         bundle: NormalizedBundle,
         observed_at: datetime,
+        at: datetime,
         label_ids: dict[int, str],
-    ) -> dict[int, str]:
+    ) -> tuple[dict[int, str], int]:
         started = time.perf_counter()
         with self._repository.transaction() as transaction_id:
             self._repository.batch_upsert_source_entities(
@@ -283,7 +365,7 @@ class Canonicalizer:
                             if album.bp_label_id is not None
                             else None
                         ),
-                        at=observed_at,
+                        at=at,
                     )
                     for album in bundle.albums
                     if str(album.bp_release_id) in created
@@ -295,7 +377,7 @@ class Canonicalizer:
             for album in bundle.albums
         }
         _log_phase(run_id, "albums", len(album_ids), started)
-        return album_ids
+        return album_ids, len(created)
 
     def _process_relations(self, run_id: str, bundle: NormalizedBundle) -> None:
         started = time.perf_counter()
@@ -324,12 +406,15 @@ class Canonicalizer:
         run_id: str,
         bundle: NormalizedBundle,
         observed_at: datetime,
+        at: datetime,
         artist_ids: dict[int, str],
         album_ids: dict[int, str],
         style_ids: dict[int, str],
-    ) -> dict[int, str]:
+    ) -> tuple[dict[int, str], Counter[str], Counter[str]]:
         started = time.perf_counter()
         track_ids: dict[int, str] = {}
+        counts: Counter[str] = Counter()
+        field_changes: Counter[str] = Counter()
         chunk_count = (
             max(1, math.ceil(len(bundle.tracks) / TRACK_CHUNK_SIZE)) if bundle.tracks else 0
         )
@@ -369,6 +454,12 @@ class Canonicalizer:
                     observed_at=observed_at,
                     transaction_id=transaction_id,
                 )
+                state = self._repository.read_track_state(
+                    [str(t.bp_track_id) for t in chunk if str(t.bp_track_id) not in created],
+                    run_id=run_id,
+                    observed_at=observed_at,
+                    transaction_id=transaction_id,
+                )
 
                 new_tracks: list[CreateTrackCmd] = []
                 updates: list[ConservativeUpdateTrackCmd] = []
@@ -402,25 +493,38 @@ class Canonicalizer:
                                 publish_date=publish_date,
                                 album_id=album_id,
                                 style_id=style_id,
-                                at=observed_at,
+                                at=at,
                             )
                         )
+                        counts["tracks_created"] += 1
                     else:
-                        updates.append(
-                            ConservativeUpdateTrackCmd(
-                                track_id=clouder_track_id,
-                                mix_name=track.mix_name,
-                                isrc=track.isrc,
-                                bpm=track.bpm,
-                                length_ms=track.length_ms,
-                                key_name=track.key_name,
-                                key_camelot=track.key_camelot,
-                                publish_date=publish_date,
-                                album_id=album_id,
-                                style_id=style_id,
-                                at=observed_at,
+                        current = state.get(str(track.bp_track_id))
+                        # ponytail: an identity without a track row has nothing to update
+                        if current is not None:
+                            write, changed = track_update(
+                                current.values,
+                                {
+                                    "mix_name": track.mix_name,
+                                    "isrc": track.isrc,
+                                    "bpm": track.bpm,
+                                    "length_ms": track.length_ms,
+                                    "key_name": track.key_name,
+                                    "key_camelot": track.key_camelot,
+                                    "publish_date": publish_date,
+                                    "album_id": album_id,
+                                    "style_id": style_id,
+                                },
+                                stale=current.stale,
                             )
-                        )
+                            counts["tracks_stale"] += current.stale
+                            if changed:
+                                updates.append(
+                                    ConservativeUpdateTrackCmd(
+                                        track_id=clouder_track_id, at=at, **write
+                                    )
+                                )
+                                counts["tracks_changed"] += 1
+                                field_changes.update(changed)
                     for bp_artist_id in track.bp_artist_ids:
                         artist_id = artist_ids.get(bp_artist_id)
                         if artist_id:
@@ -455,7 +559,7 @@ class Canonicalizer:
             )
 
         _log_phase(run_id, "tracks", len(track_ids), started)
-        return track_ids
+        return track_ids, counts, field_changes
 
 def _payload_hash(payload: Mapping[str, Any]) -> str:
     canonical_payload = json.dumps(

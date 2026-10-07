@@ -1,0 +1,228 @@
+{
+  "Comment": "Replay stored raw Beatport runs through the canonicalizer. docs/ops/backfill.md",
+  "StartAt": "Plan",
+  "States": {
+    "Plan": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${backfill_function_arn}",
+        "Payload": {
+          "action": "plan",
+          "input.$": "$"
+        }
+      },
+      "ResultSelector": {
+        "dry_run.$": "$.Payload.dry_run",
+        "runs.$": "$.Payload.runs"
+      },
+      "ResultPath": "$.plan",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        },
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Replay"
+    },
+    "Replay": {
+      "Comment": "Results overwrite $.plan.runs to stay under the 256 KiB state limit: about 500 runs per execution (154 today). Beyond that, split by since/until, or move to a Distributed Map that writes results to S3.",
+      "Type": "Map",
+      "ItemsPath": "$.plan.runs",
+      "MaxConcurrency": 2,
+      "ItemSelector": {
+        "action": "replay",
+        "run.$": "$$.Map.Item.Value",
+        "dry_run.$": "$.plan.dry_run"
+      },
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "ReplayRun",
+        "States": {
+          "ReplayRun": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "${backfill_function_arn}",
+              "Payload.$": "$"
+            },
+            "OutputPath": "$.Payload",
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 6,
+                "BackoffRate": 2
+              },
+              {
+                "ErrorEquals": [
+                  "States.TaskFailed"
+                ],
+                "IntervalSeconds": 10,
+                "MaxAttempts": 2,
+                "BackoffRate": 2
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": [
+                  "States.ALL"
+                ],
+                "ResultPath": "$.error",
+                "Next": "RunFailed"
+              }
+            ],
+            "End": true
+          },
+          "RunFailed": {
+            "Type": "Pass",
+            "Parameters": {
+              "run_id.$": "$.run.run_id",
+              "failed": true,
+              "error.$": "$.error.Error"
+            },
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.plan.runs",
+      "Next": "Summarize"
+    },
+    "Summarize": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${backfill_function_arn}",
+        "Payload": {
+          "action": "summarize",
+          "dry_run.$": "$.plan.dry_run",
+          "results.$": "$.plan.runs"
+        }
+      },
+      "ResultSelector": {
+        "summary.$": "$.Payload"
+      },
+      "ResultPath": "$.report",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        },
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "AnyRunFailed"
+    },
+    "AnyRunFailed": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.report.summary.runs_failed",
+          "NumericGreaterThan": 0,
+          "Next": "ReplayFailed"
+        }
+      ],
+      "Default": "IsDryRun"
+    },
+    "ReplayFailed": {
+      "Type": "Fail",
+      "Error": "ReplayFailed",
+      "CausePath": "States.Format('Runs that failed to replay: {}', States.JsonToString($.report.summary.failed_run_ids))"
+    },
+    "IsDryRun": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.plan.dry_run",
+          "BooleanEquals": true,
+          "Next": "Done"
+        }
+      ],
+      "Default": "QualityGate"
+    },
+    "QualityGate": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${data_quality_function_arn}",
+        "Payload": {}
+      },
+      "ResultSelector": {
+        "failed_checks.$": "$.Payload.failed_checks"
+      },
+      "ResultPath": "$.quality",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "QualityPassed"
+    },
+    "QualityPassed": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.quality.failed_checks",
+          "NumericGreaterThan": 0,
+          "Next": "DataQualityGateFailed"
+        }
+      ],
+      "Default": "Done"
+    },
+    "DataQualityGateFailed": {
+      "Type": "Fail",
+      "Error": "DataQualityGateFailed",
+      "Cause": "A data-quality check failed after the backfill; the data-quality Lambda logs name it."
+    },
+    "Done": {
+      "Type": "Pass",
+      "Parameters": {
+        "summary.$": "$.report.summary"
+      },
+      "End": true
+    }
+  }
+}

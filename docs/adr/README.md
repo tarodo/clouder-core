@@ -8,7 +8,7 @@ ADRs capture the *why* behind load-bearing architectural choices in CLOUDER. The
 
 ## Numbering
 
-Four-digit, monotonic, never reused. The next free number is `0024`.
+Four-digit, monotonic, never reused. The next free number is `0025`.
 
 ## Template
 
@@ -54,3 +54,4 @@ Trade-offs accepted. What becomes harder. Cross-references to topical docs.
 | 0021 | [Spotify playlist import as a synchronous mirror playlist](0021-spotify-playlist-mirror-import.md) |
 | 0022 | [Set-based, claim-then-read canonicalization](0022-set-based-canonicalization.md) |
 | 0023 | [Data-quality checks as plain SQL in a scheduled Lambda](0023-sql-data-quality-checks.md) |
+| 0024 | [Replayable canonicalization and a Step Functions backfill](0024-replayable-canonicalization-backfill.md) |

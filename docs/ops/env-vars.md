@@ -20,7 +20,7 @@ Secrets are cached per container via `lru_cache` in `src/collector/settings.py`.
 | `AURORA_DATABASE` | string | `clouder` | Database name passed to Data API `ExecuteStatement` |
 | `LOG_LEVEL` | string | `INFO` | structlog minimum level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
-Also applies to: `clouder-prod-canonicalization-worker`, `clouder-prod-curation` (shared Aurora / SQS vars only).
+Also applies to: `clouder-prod-canonicalization-worker`, `clouder-prod-backfill`, `clouder-prod-curation` (shared Aurora / SQS vars only).
 
 ---
 

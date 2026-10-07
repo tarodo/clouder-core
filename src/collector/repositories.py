@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 from uuid import uuid4
 
 from .data_api import DataAPIClient, create_default_data_api_client
@@ -17,6 +17,12 @@ from .settings import get_data_api_settings
 # ponytail: ids per `IN (...)` identity lookup. 500 rows of (external_id, clouder_id)
 # stay far under the Data API 1 MB response cap; raise only with a measured reason.
 _LOOKUP_CHUNK = 500
+
+# Track columns a Beatport observation may set after creation (conservative merge).
+TRACK_MERGE_FIELDS = (
+    "mix_name", "isrc", "bpm", "length_ms", "key_name", "key_camelot",
+    "publish_date", "album_id", "style_id",
+)
 
 
 @dataclass(frozen=True)
@@ -95,6 +101,15 @@ class CreateTrackCmd:
     album_id: str | None
     style_id: str | None
     at: datetime
+
+
+@dataclass(frozen=True)
+class TrackState:
+    """A track's mergeable columns, and whether this run's observation is older
+    than the stored one (from another run)."""
+
+    stale: bool
+    values: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -292,6 +307,51 @@ class ClouderRepository:
         )
         return rows[0] if rows else None
 
+    def list_replayable_runs(
+        self,
+        *,
+        style_ids: Sequence[int] | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> list[dict[str, Any]]:
+        """The run behind each raw object — the latest one written to its key.
+
+        Re-ingesting a week overwrites its raw object, so older runs of the same
+        key no longer have data of their own to replay. Filters apply to the
+        latest run, by style and by the period's end date. Ordered by observation
+        time: replaying in that order converges in one pass, also over rows stamped
+        with processing time before event time existed.
+        """
+        filters: list[str] = []
+        params: dict[str, Any] = {}
+        if style_ids:
+            filters.append(
+                "style_id IN (" + ", ".join(f":style{i}" for i in range(len(style_ids))) + ")"
+            )
+            params.update({f"style{i}": int(s) for i, s in enumerate(style_ids)})
+        if since:
+            filters.append("period_end >= :since")
+            params["since"] = since
+        if until:
+            filters.append("period_end <= :until")
+            params["until"] = until
+        where = f"WHERE {' AND '.join(filters)}" if filters else ""
+        return self._data_api.execute(
+            f"""
+            SELECT run_id, raw_s3_key, started_at, status, style_id, period_end
+            FROM (
+                SELECT DISTINCT ON (raw_s3_key)
+                       run_id, raw_s3_key, started_at, status, style_id, period_end
+                FROM ingest_runs
+                WHERE source = 'beatport' AND raw_s3_key IS NOT NULL
+                ORDER BY raw_s3_key, started_at DESC
+            ) latest
+            {where}
+            ORDER BY started_at, run_id
+            """,
+            params,
+        )
+
     def upsert_source_entity(
         self, cmd: UpsertSourceEntityCmd, transaction_id: str | None = None
     ) -> None:
@@ -331,6 +391,10 @@ class ClouderRepository:
         commands: list[UpsertSourceEntityCmd],
         transaction_id: str | None = None,
     ) -> None:
+        """Upsert source rows; an older observation from another run never
+        overwrites a newer one, so replays are order-independent (ADR-0024).
+        The same run always re-applies: a replay of the latest data must pick up
+        new normalization logic even where rows carry a later processing-time stamp."""
         if not commands:
             return
         self._data_api.batch_execute(
@@ -349,6 +413,8 @@ class ClouderRepository:
                 payload_hash = EXCLUDED.payload_hash,
                 last_seen_at = EXCLUDED.last_seen_at,
                 last_run_id = EXCLUDED.last_run_id
+            WHERE source_entities.last_run_id = EXCLUDED.last_run_id
+               OR source_entities.last_seen_at <= EXCLUDED.last_seen_at
             """,
             [
                 {
@@ -526,6 +592,58 @@ class ClouderRepository:
             )
             found.update({str(row["external_id"]): str(row["clouder_id"]) for row in rows})
         return found
+
+    def read_track_state(
+        self,
+        external_ids: Sequence[str],
+        *,
+        run_id: str,
+        observed_at: datetime,
+        transaction_id: str | None = None,
+    ) -> dict[str, TrackState]:
+        """Mergeable columns of existing Beatport tracks, keyed by external id.
+
+        `stale` is the negation of the guarded source upsert's condition, so it
+        reads the same before and after this run's upsert. Called after the
+        upsert inside the chunk transaction: the upsert locks the source rows
+        (also when its WHERE rejects the update), so no concurrent run can change
+        these tracks between this read and the update.
+        """
+        unique = list(dict.fromkeys(external_ids))
+        states: dict[str, TrackState] = {}
+        for start in range(0, len(unique), _LOOKUP_CHUNK):
+            chunk = unique[start : start + _LOOKUP_CHUNK]
+            params: dict[str, Any] = {"run_id": run_id, "observed_at": observed_at}
+            params.update({f"id{i}": ext for i, ext in enumerate(chunk)})
+            placeholders = ", ".join(f":id{i}" for i in range(len(chunk)))
+            rows = self._data_api.execute(
+                f"""
+                SELECT im.external_id,
+                       COALESCE(
+                           se.last_run_id <> :run_id AND se.last_seen_at > :observed_at,
+                           FALSE
+                       ) AS stale,
+                       t.mix_name, t.isrc, t.bpm, t.length_ms, t.key_name, t.key_camelot,
+                       t.publish_date, t.album_id, t.style_id
+                FROM identity_map im
+                JOIN clouder_tracks t ON t.id = im.clouder_id
+                LEFT JOIN source_entities se
+                  ON se.source = im.source
+                 AND se.entity_type = im.entity_type
+                 AND se.external_id = im.external_id
+                WHERE im.source = 'beatport'
+                  AND im.entity_type = 'track'
+                  AND im.external_id IN ({placeholders})
+                """,
+                params,
+                transaction_id=transaction_id,
+            )
+            for row in rows:
+                states[str(row["external_id"])] = TrackState(
+                    stale=bool(row["stale"]),
+                    values={f: row[f] for f in TRACK_MERGE_FIELDS},
+                )
+        return states
 
     def claim_identities(
         self,
@@ -1510,6 +1628,16 @@ def parse_iso_date(value: str | None) -> date | None:
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def as_utc_datetime(value: str | datetime | None) -> datetime | None:
+    """A timestamp from the Data API ('YYYY-MM-DD HH:MM:SS[.fff]', UTC) or the
+    driver, as an aware UTC datetime."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
 
 def create_clouder_repository_from_env() -> ClouderRepository | None:

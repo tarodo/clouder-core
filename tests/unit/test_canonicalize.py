@@ -21,6 +21,8 @@ class FakeRepo:
         self.created_track_cmds: list[CreateTrackCmd] = []
         self.updated_tracks: list[str] = []
         self.track_artists: set[tuple[str, str, str]] = set()
+        self.track_states: dict[str, dict] = {}
+        self.stale: set[str] = set()
 
     def batch_upsert_source_entities(self, commands, transaction_id=None) -> None:
         self.calls["batch_upsert_source_entities"] += 1
@@ -74,6 +76,16 @@ class FakeRepo:
     def batch_upsert_track_artists(self, commands, transaction_id=None) -> None:
         for cmd in commands:
             self.track_artists.add((cmd.track_id, cmd.artist_id, cmd.role))
+
+    def read_track_state(self, external_ids, *, run_id, observed_at, transaction_id=None):
+        from collector.repositories import TrackState
+
+        self.calls["read_track_state"] += 1
+        return {
+            ext: TrackState(stale=ext in self.stale, values=self.track_states.get(ext, {}))
+            for ext in external_ids
+            if ("beatport", "track", ext) in self.identities
+        }
 
     @contextmanager
     def transaction(self):
@@ -267,3 +279,84 @@ def test_empty_phases_make_no_identity_calls() -> None:
     assert repo.calls["find_identities"] == 1
     assert repo.created_labels == repo.created_styles == repo.created_artists == []
     assert len(repo.created_tracks) == 1
+
+
+from datetime import date
+
+from collector.canonicalize import track_update
+
+_FIELDS_NONE = {
+    "mix_name": None, "isrc": None, "bpm": None, "length_ms": None, "key_name": None,
+    "key_camelot": None, "publish_date": None, "album_id": None, "style_id": None,
+}
+
+
+def test_track_update_fresh_overwrites_with_carried_values() -> None:
+    current = {**_FIELDS_NONE, "bpm": 120, "isrc": "A"}
+    incoming = {**_FIELDS_NONE, "bpm": 124}
+
+    write, changed = track_update(current, incoming, stale=False)
+
+    assert changed == ("bpm",)
+    assert write["bpm"] == 124
+    assert write["isrc"] is None  # None = keep the column
+
+
+def test_track_update_stale_only_fills_gaps() -> None:
+    current = {**_FIELDS_NONE, "bpm": 124}
+    incoming = {**_FIELDS_NONE, "bpm": 120, "isrc": "QZ1"}
+
+    write, changed = track_update(current, incoming, stale=True)
+
+    assert changed == ("isrc",)
+    assert write["bpm"] is None
+    assert write["isrc"] == "QZ1"
+
+
+def test_track_update_compares_driver_strings_with_python_values() -> None:
+    # The Data API returns DATE columns as 'YYYY-MM-DD' strings; Postgres as date.
+    current = {**_FIELDS_NONE, "publish_date": "2026-09-26", "bpm": 128, "album_id": "a-1"}
+    incoming = {**_FIELDS_NONE, "publish_date": date(2026, 9, 26), "bpm": 128, "album_id": "a-1"}
+
+    _, changed = track_update(current, incoming, stale=False)
+
+    assert changed == ()
+
+
+def test_reused_track_without_changes_is_not_updated() -> None:
+    repo = FakeRepo()
+    bundle = normalize_tracks(_raw_track())
+    Canonicalizer(repo).process_run(run_id="run-1", bundle=bundle)
+    track = bundle.tracks[0]
+    repo.track_states["1"] = {
+        "mix_name": track.mix_name, "isrc": track.isrc, "bpm": track.bpm,
+        "length_ms": track.length_ms, "key_name": None, "key_camelot": None,
+        "publish_date": track.publish_date,
+        "album_id": repo.identities[("beatport", "album", "5654120")].clouder_id,
+        "style_id": repo.identities[("beatport", "style", "1")].clouder_id,
+    }
+
+    result = Canonicalizer(repo).process_run(run_id="run-2", bundle=bundle)
+
+    assert repo.updated_tracks == []
+    assert (result.tracks_created, result.tracks_changed) == (0, 0)
+
+
+class _WriteSpy(FakeRepo):
+    def __getattribute__(self, name):
+        attr = super().__getattribute__(name)
+        if name.startswith(("batch_", "claim_", "set_", "upsert_")):
+            raise AssertionError(f"dry run called {name}")
+        return attr
+
+
+def test_dry_run_reports_creations_and_writes_nothing() -> None:
+    repo = _WriteSpy()
+
+    result = Canonicalizer(repo, dry_run=True).process_run(
+        run_id="run-dry", bundle=normalize_tracks(_raw_track())
+    )
+
+    assert (result.tracks_created, result.artists_created, result.albums_created) == (1, 1, 1)
+    assert (result.labels_created, result.styles_created) == (1, 1)
+    assert repo.identities == {}

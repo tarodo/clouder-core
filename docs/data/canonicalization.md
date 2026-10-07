@@ -48,11 +48,23 @@ Tracks with a missing or non-positive `id` or missing `name` are silently skippe
 Each phase resolves identities set-based (ADR-0022):
 1. `claim_identities` — one batch inserting a candidate UUID for every external id, `ON CONFLICT DO NOTHING`.
 2. `find_identities` — one `IN (...)` lookup (500 ids per statement) returning the winning `clouder_id`s.
-3. Candidates that won are new → one batch creates their canonical rows (confidence=0.600, match_type=`auto_create`). The rest already existed (or were claimed by a concurrent run) → tracks get one batched `ConservativeUpdateTrackCmd` update that fills newly present nullable fields without overwriting set values.
+3. Candidates that won are new → one batch creates their canonical rows (confidence=0.600, match_type=`auto_create`). The rest already existed (or were claimed by a concurrent run) → for tracks, `read_track_state` reads the current mergeable columns, `track_update` decides what changes, and only changed tracks go into one batched `ConservativeUpdateTrackCmd` update (see "Replays and dry runs").
 
 A phase therefore costs a handful of Data API calls regardless of entity count (`docs/benchmarks/canonicalization.md`).
 
 Track chunks are used to keep individual Data API payloads below the 1 MB limit. Each chunk is its own transaction.
+
+### Replays and dry runs
+
+A run can be canonicalized again from its raw object (ADR-0024, [`docs/ops/backfill.md`](../ops/backfill.md)). Three rules make that safe:
+
+- **Observation time.** `process_run(run_id, bundle, observed_at)` takes the time Beatport was read — `ingest_runs.started_at`, looked up by the worker and passed by the backfill. It stamps `source_entities` and `identity_map` (`first_seen_at`, `last_seen_at`); canonical rows' `created_at`/`updated_at` stay the processing time.
+- **Guarded source upsert.** `batch_upsert_source_entities` updates a row only `WHERE source_entities.last_run_id = EXCLUDED.last_run_id OR source_entities.last_seen_at <= EXCLUDED.last_seen_at`: an older observation from another run never overwrites a newer one, and the same run always re-applies.
+- **Stale tracks fill gaps only.** A track whose stored observation is newer and from another run is stale for this run (`read_track_state` computes the same condition). A fresh observation overwrites each field it carries; a stale one only fills NULLs. Unchanged tracks are not updated, so `updated_at` moves only on a real change.
+
+`process_run` returns, besides totals, `labels_created`, `styles_created`, `artists_created`, `albums_created`, `tracks_created`, `tracks_changed`, `tracks_stale` and `track_field_changes`.
+
+`Canonicalizer(repo, dry_run=True)` runs the same phases against a read-only view of the repository: `find_identities` and `read_track_state` pass through, every other call is dropped, no transaction is opened, and ids without an identity are counted as would-be creations.
 
 ---
 
