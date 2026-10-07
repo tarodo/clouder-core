@@ -4270,8 +4270,8 @@
     "semantic_hash": "6043386a12f97f56174a7bddf93ab5d7"
   },
   "src/collector/repositories.py": {
-    "mtime": 1791373330.5838988,
-    "ast_hash": "d4e26c15c126323a47133ff04eea116d",
+    "mtime": 1791374521.5224478,
+    "ast_hash": "1d269601e496e343ef53e49bbb0ab9c4",
     "semantic_hash": ""
   },
   "src/collector/saturday_week.py": {
@@ -5825,8 +5825,8 @@
     "semantic_hash": ""
   },
   "docs/ops/runbook.md": {
-    "mtime": 1791373517.0500183,
-    "ast_hash": "7dddae9080ee7dca1bd4d6925675ef77",
+    "mtime": 1791374552.6335282,
+    "ast_hash": "43aab729cda48fc4f64688d35461c205",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-06-08-triage-finalize-dispatch-phase1-inline-optimization.md": {
@@ -6885,8 +6885,8 @@
     "semantic_hash": ""
   },
   "infra/backfill.asl.json": {
-    "mtime": 1791373377.844235,
-    "ast_hash": "7c4f03edf5c56023331ade867785d0ef",
+    "mtime": 1791374521.5214698,
+    "ast_hash": "c1db3f9e75c98c2a190924a52a576d01",
     "semantic_hash": ""
   },
   "infra/backfill.tf": {
@@ -6895,13 +6895,13 @@
     "semantic_hash": ""
   },
   "src/collector/backfill_handler.py": {
-    "mtime": 1791373330.6020706,
-    "ast_hash": "d095caeb0d7d7996f332f0ddee805580",
+    "mtime": 1791374521.5219386,
+    "ast_hash": "64df57960d3f9ec6f4d975b3efcc17a2",
     "semantic_hash": ""
   },
   "tests/db/test_backfill_plan_pg.py": {
-    "mtime": 1791373301.9184022,
-    "ast_hash": "313a2e7ea619a9429b72066c9c336d65",
+    "mtime": 1791374490.0633316,
+    "ast_hash": "72001313d57e4e1e56669fb20039468c",
     "semantic_hash": ""
   },
   "tests/db/test_canonicalize_dry_run_pg.py": {
@@ -6915,13 +6915,13 @@
     "semantic_hash": ""
   },
   "tests/unit/test_backfill_handler.py": {
-    "mtime": 1791373301.9139893,
-    "ast_hash": "b1aecffee42c8ac2bc3b71c3cf300493",
+    "mtime": 1791374490.0629194,
+    "ast_hash": "8c5b521a0bd8c821ba96945cda371578",
     "semantic_hash": ""
   },
   "tests/unit/test_backfill_state_machine.py": {
-    "mtime": 1791373361.54436,
-    "ast_hash": "b8a3b705dabd0f20fb32fef7a61aa6c6",
+    "mtime": 1791374490.0623446,
+    "ast_hash": "4844475130a2bb6a31d70bf290e5ca17",
     "semantic_hash": ""
   },
   "tests/unit/test_repositories_timestamps.py": {
@@ -6930,13 +6930,13 @@
     "semantic_hash": ""
   },
   "docs/adr/0024-replayable-canonicalization-backfill.md": {
-    "mtime": 1791373496.7318077,
-    "ast_hash": "38d62c0cca5fca98231146cef04cc81f",
+    "mtime": 1791374552.6338484,
+    "ast_hash": "64d0774d82982bfd4a4ee5b2606ad3e9",
     "semantic_hash": ""
   },
   "docs/ops/backfill.md": {
-    "mtime": 1791373479.7740557,
-    "ast_hash": "e2cafaac121137e192c7e6d755c4d47d",
+    "mtime": 1791374552.6328552,
+    "ast_hash": "841446fdbd6196c02b4a55b2ea963803",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-replayable-backfill.md": {
