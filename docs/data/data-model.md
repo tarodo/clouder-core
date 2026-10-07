@@ -197,7 +197,7 @@ Index: `idx_identity_map_clouder (clouder_entity_type, clouder_id)` — reverse 
 
 **Write path**: `Canonicalizer` claims identities with `claim_identities` (`ON CONFLICT DO NOTHING`), reads the winners back, and creates canonical rows only for ids it won (ADR-0022). Claims and canonical rows share one `repository.transaction()` block, so they commit or roll back together.
 
-**Read path**: `find_identities(source, entity_type, external_ids, transaction_id=)` — the `transaction_id` parameter is mandatory when called inside an active `repository.transaction()` block. Omitting it means the read issues against a separate Data API connection and misses in-flight writes, causing duplicate canonical entities. See `src/collector/canonicalize.py` and `docs/backend/data-api.md`.
+**Read path**: `find_identities(source, entity_type, external_ids, transaction_id=)` — the `transaction_id` parameter is mandatory when called inside an active `repository.transaction()` block. Omitting it means the read issues against a separate Data API connection and misses in-flight writes: the identities just claimed do not resolve and the canonicalizer raises (the phase rolls back). See `src/collector/canonicalize.py` and `docs/backend/data-api.md`.
 
 ---
 

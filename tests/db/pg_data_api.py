@@ -120,6 +120,13 @@ class PgDataAPIClient:
 
 
 def truncate_canonical(client: PgDataAPIClient) -> None:
+    # TRUNCATE ... CASCADE also empties every user-overlay table that references the
+    # catalog, so refuse on anything that looks like a real (dev) database.
+    if count_rows(client, "users"):
+        raise RuntimeError(
+            "refusing to TRUNCATE: the database has users — point TEST_DATABASE_URL "
+            "or --database-url at a throwaway database"
+        )
     client.execute(f"TRUNCATE ingest_runs, {', '.join(CANONICAL_TABLES)} CASCADE")
 
 

@@ -88,9 +88,11 @@ Pending — filled from the first weekly runs after deploy (CloudWatch worker du
 - **Latent NULL bug fixed:** the conservative update compared `:isrc`, `:bpm`, `:length_ms`
   in `CASE` branches without a type, so an untyped NULL (a track without ISRC/BPM/length)
   made Postgres deduce `text` for one branch and the column type for another and reject the
-  statement. It has not shown up in production — every track so far has an ISRC, and the
-  Data API's own NULL typing may differ from psycopg's — but the casts make the statement
-  unambiguous for any driver.
+  statement. The Data API sends NULLs untyped (the Spotify updater's
+  `COALESCE(:nullable_date, date_col)` only works that way), and with an untyped NULL the old
+  statement fails with `could not determine data type of parameter`. It has not been observed
+  in production because every track so far has an ISRC; the casts make the statement valid
+  for any NULL.
 - **Observability:** every `canonicalization_phase_completed` / `canonicalization_chunk_completed`
   log event carries `duration_ms`.
 
@@ -104,7 +106,9 @@ Pending — filled from the first weekly runs after deploy (CloudWatch worker du
   tracks), so the next limit is batch payload size, not call count.
 - **Correctness under concurrency:** weekly ingests for several styles run back to back and
   share artists and labels; duplicates from racing runs are no longer possible.
-- **Less load on Aurora:** 55 statements per average run instead of 2,805. Aurora Serverless
+- **Less load on Aurora:** 55 Data API calls per average run instead of 2,805 (18 of them
+  begin/commit; inside each batch Postgres still runs one statement per parameter set, so the
+  ~3× drop in local Postgres time is the honest measure of database work). Aurora Serverless
   v2 scales on activity and auto-pauses when idle, so shorter runs mean fewer ACU-seconds. The
   dollar effect is small at current volume (~$10/month total AWS bill) — the win is latency,
   headroom and correctness, not cost.

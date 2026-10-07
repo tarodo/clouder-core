@@ -64,7 +64,7 @@ The `identity_map` table is the translation layer between external source IDs an
 
 **Read path**: `repository.find_identities(source, entity_type, external_ids, transaction_id=)` → `{external_id: clouder_id}`.
 
-Critical: `transaction_id` must be passed when called inside an active `repository.transaction()` context. The RDS Data API does not share connection state across calls; without `transaction_id`, the read goes to a separate connection and misses rows written in the current in-flight transaction. This causes duplicated canonical entities on concurrent or re-processed runs. See `docs/backend/data-api.md` for the Data API transaction model.
+Critical: `transaction_id` must be passed when called inside an active `repository.transaction()` context. The RDS Data API does not share connection state across calls; without `transaction_id`, the read goes to a separate connection and misses rows written in the current in-flight transaction — including the identities the phase just claimed — so the claimed ids do not resolve and the canonicalizer raises, rolling the phase back. See `docs/backend/data-api.md` for the Data API transaction model.
 
 Match types written by the canonicalizer:
 - `auto_create` (confidence=0.600) — no prior identity found; new canonical entity created.
