@@ -90,6 +90,9 @@ data "aws_iam_policy_document" "analytics_api" {
       "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:catalog",
       "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/${var.analytics_glue_database}",
       "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.analytics_glue_database}/*",
+      # history comes from the dbt-built silver events (docs/data/lakehouse.md)
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:database/${aws_glue_catalog_database.silver.name}",
+      "arn:aws:glue:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${aws_glue_catalog_database.silver.name}/*",
     ]
   }
 
@@ -103,6 +106,7 @@ data "aws_iam_policy_document" "analytics_api" {
       "arn:aws:s3:::${var.analytics_lake_bucket}/bronze/events/*",
       # time-per-track joins the nightly track -> style snapshot.
       "arn:aws:s3:::${var.analytics_lake_bucket}/bronze/catalog_export/*",
+      "arn:aws:s3:::${var.analytics_lake_bucket}/lakehouse/${aws_glue_catalog_database.silver.name}/*",
       "arn:aws:s3:::${var.analytics_lake_bucket}/athena-results/*",
     ]
   }
@@ -137,6 +141,7 @@ resource "aws_lambda_function" "analytics" {
       ATHENA_DATABASE        = var.analytics_glue_database
       ATHENA_WORKGROUP       = var.athena_workgroup
       ATHENA_OUTPUT_LOCATION = "s3://${var.analytics_lake_bucket}/athena-results/"
+      SILVER_EVENTS_TABLE    = "${aws_glue_catalog_database.silver.name}.events"
       LOG_LEVEL              = "INFO"
     }
   }

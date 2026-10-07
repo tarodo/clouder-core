@@ -1,0 +1,43 @@
+{
+  "Comment": "Nightly dbt build of the analytics lakehouse. docs/data/lakehouse.md",
+  "StartAt": "DbtBuild",
+  "States": {
+    "DbtBuild": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::codebuild:startBuild.sync",
+      "Parameters": {
+        "ProjectName": "${dbt_project_name}"
+      },
+      "TimeoutSeconds": 3600,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "IntervalSeconds": 60,
+          "MaxAttempts": 1,
+          "BackoffRate": 1
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "BuildFailed"
+        }
+      ],
+      "ResultSelector": {
+        "build_id.$": "$.Build.Id",
+        "status.$": "$.Build.BuildStatus"
+      },
+      "End": true
+    },
+    "BuildFailed": {
+      "Type": "Fail",
+      "Error": "DbtBuildFailed",
+      "Cause": "dbt build failed; see the clouder-prod-dbt CodeBuild logs."
+    }
+  }
+}
