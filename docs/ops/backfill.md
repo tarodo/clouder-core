@@ -58,7 +58,9 @@ per field. The live worker logs these counts on `canonicalization_completed`.
 
 **Dry run.** `Canonicalizer(repo, dry_run=True)` runs the same code against a read-only view of
 the repository: reads pass through, every other call is dropped, no transaction is opened, and
-ids without an identity are reported as "would be created". Its counts match what an apply does.
+ids without an identity are reported as "would be created". Per run, its counts match what an
+apply of that run does; summed over many runs, an entity that is new to several of them is
+counted once per run, while an apply creates it once.
 
 **Backfill Lambda and state machine.** `clouder-prod-backfill` (one Lambda, three actions) and
 the `clouder-prod-backfill` Step Functions state machine:
@@ -76,13 +78,18 @@ Plan ──▶ Replay (Map, 2 runs at a time) ──▶ Summarize ──▶ any 
 ```
 
 - **Plan** lists the run behind each raw object — the latest one written to its key, because a
-  re-ingest overwrites the object — filtered by style and by the period's end date.
+  re-ingest overwrites the object — optionally narrowed by style and by the period's end date, in
+  observation order (oldest Beatport read first): replaying in that order converges in one pass,
+  also over rows written before event time existed. Unknown input keys are rejected, so a
+  misspelt filter cannot widen an apply to every style.
 - **Replay** canonicalizes one run from S3. Lambda errors are retried; a run that still fails is
   caught and recorded, and the others continue. On apply, a run that never completed is marked
   completed and the Spotify search is enqueued when tracks were created.
-- **Summarize** adds the counts up; the execution fails if any run failed.
+- **Summarize** adds the counts up; the execution fails if any run failed, and its error cause
+  lists the failed run ids.
 - **QualityGate** (apply only) runs the nightly data-quality checks
-  ([data-quality.md](../data/data-quality.md)) and fails the execution if one fails. It is a
+  ([data-quality.md](../data/data-quality.md)) and fails the execution if one fails — including
+  a check that was already red before the backfill, so look at the nightly result first. It is a
   post-check, not a rollback: the dry run is the gate before writing.
 
 ## How to run
@@ -113,10 +120,18 @@ The output's `summary` has `runs`, `runs_failed`, `failed_run_ids`, `tracks_tota
 `labels_created`, `styles_created`, `artists_created`, `albums_created`, `tracks_created`,
 `tracks_changed`, `tracks_stale` and `track_field_changes`. Per-run results are in the Replay
 map's output and in the `backfill_run_replayed` log events of `/aws/lambda/clouder-prod-backfill`.
+A failed execution has no output: `describe-execution` shows the error and a cause with the failed
+run ids, and `aws stepfunctions get-execution-history` has each run's error.
+
+One execution keeps every run's result in its state, which Step Functions caps at 256 KiB: about
+500 runs per execution (154 today). Beyond that, split the replay by `since`/`until`; the upgrade
+path is a Distributed Map that writes results to S3.
 
 Typical uses: preview and apply a canonicalization change to all history; recover a run stuck
-in `FAILED` or `RAW_SAVED` (apply with its style and week); check that production data is what
-the raw zone says (a dry run that reports nothing).
+in `FAILED` or `RAW_SAVED` (apply with its style and week) — if it is still the latest run for its
+raw object; a run whose object a later re-ingest overwrote is superseded, has no data of its own
+and is closed by hand; check that production data is what the raw zone says (a dry run that
+reports nothing).
 
 The Beatport token is never part of this path: the state machine's input and every state's
 input stay in the execution history for 90 days, so ingest is not orchestrated here (ADR-0024).
@@ -146,8 +161,9 @@ Filled from the first production runs.
 - **Ingest in Step Functions.** The execution history keeps every state's input; the Beatport
   token must never be persisted.
 - **Asynchronous ingest.** The slowest download in 30 days took 16 s of the 29 s limit.
-- **A `canonicalizer_version` column.** A full replay of the raw zone is a single execution;
-  selective replays by version are worth adding when replays get expensive.
+- **A `canonicalizer_version` column.** A full replay of the raw zone is a single execution
+  (up to about 500 runs); selective replays by version are worth adding when replays get
+  expensive.
 - **Diffs of relations and track–artist links, and removal counts.** Both are append-only;
   canonicalization never deletes.
 - **Known limit of gap filling.** If the newest observation drops a value an older one had, a

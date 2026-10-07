@@ -185,11 +185,11 @@ Until the quota is raised, leave `enable_lambda_reserved_concurrency = false`. W
 **When**
 
 - A canonicalization change must reach tracks already in the catalog.
-- A run is stuck in `FAILED` or `RAW_SAVED` and its raw object is in S3.
+- A run is stuck in `FAILED` or `RAW_SAVED` and is still the latest run for its raw object (a later re-ingest of the same style and week overwrote the object otherwise; such a run is superseded and is closed by hand).
 
 **Fix**
 
-Start the `clouder-prod-backfill` state machine with a dry run (`--input '{}'`, optionally `style_ids`, `since`, `until`), read the `summary` in the execution output, then run it again with `"dry_run": false`. Commands and inputs: [`backfill.md`](backfill.md). No Beatport token is needed.
+Start the `clouder-prod-backfill` state machine with a dry run (`--input '{}'`, optionally `style_ids`, `since`, `until`), read the `summary` in the execution output (a failed execution has none; its cause lists the failed run ids), then run it again with `"dry_run": false`. Commands and inputs: [`backfill.md`](backfill.md). No Beatport token is needed.
 
 ---
 

@@ -60,7 +60,13 @@ def test_plan_passes_filters() -> None:
 
 @pytest.mark.parametrize(
     "params",
-    [{"dry_run": "yes"}, {"style_ids": "1"}, {"style_ids": [True]}, {"since": "2026-13-01"}],
+    [
+        {"dry_run": "yes"},
+        {"style_ids": "1"},
+        {"style_ids": [True]},
+        {"since": "2026-13-01"},
+        {"dry_run": False, "style_id": [1]},  # a typo must not widen an apply to every style
+    ],
 )
 def test_plan_rejects_bad_input(params) -> None:
     with pytest.raises(ValueError):

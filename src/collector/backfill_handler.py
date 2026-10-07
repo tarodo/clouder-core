@@ -50,7 +50,14 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     raise ValueError(f"unknown backfill action: {action!r}")
 
 
+PLAN_INPUT_KEYS = frozenset({"dry_run", "style_ids", "since", "until"})
+
+
 def plan(params: Mapping[str, Any], repository: Any) -> dict[str, Any]:
+    # A misspelt filter must fail, not widen an apply to every style.
+    unknown = sorted(set(params) - PLAN_INPUT_KEYS)
+    if unknown:
+        raise ValueError(f"unknown backfill input: {', '.join(unknown)}")
     dry_run = params.get("dry_run", True)
     if not isinstance(dry_run, bool):
         raise ValueError("dry_run must be true or false")

@@ -28,11 +28,20 @@
           "IntervalSeconds": 2,
           "MaxAttempts": 6,
           "BackoffRate": 2
+        },
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
         }
       ],
       "Next": "Replay"
     },
     "Replay": {
+      "Comment": "Results overwrite $.plan.runs to stay under the 256 KiB state limit: about 500 runs per execution (154 today). Beyond that, split by since/until, or move to a Distributed Map that writes results to S3.",
       "Type": "Map",
       "ItemsPath": "$.plan.runs",
       "MaxConcurrency": 2,
@@ -98,7 +107,7 @@
           }
         }
       },
-      "ResultPath": "$.results",
+      "ResultPath": "$.plan.runs",
       "Next": "Summarize"
     },
     "Summarize": {
@@ -109,7 +118,7 @@
         "Payload": {
           "action": "summarize",
           "dry_run.$": "$.plan.dry_run",
-          "results.$": "$.results"
+          "results.$": "$.plan.runs"
         }
       },
       "ResultSelector": {
@@ -126,6 +135,14 @@
           ],
           "IntervalSeconds": 2,
           "MaxAttempts": 6,
+          "BackoffRate": 2
+        },
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
           "BackoffRate": 2
         }
       ],
@@ -145,7 +162,7 @@
     "ReplayFailed": {
       "Type": "Fail",
       "Error": "ReplayFailed",
-      "Cause": "At least one run failed to replay; the Replay map results name it."
+      "CausePath": "States.Format('Runs that failed to replay: {}', States.JsonToString($.report.summary.failed_run_ids))"
     },
     "IsDryRun": {
       "Type": "Choice",

@@ -42,7 +42,8 @@ Replay the raw zone through the canonicalizer, with:
    rows), changes are computed in Python, and only changed tracks are updated. Every run returns
    created / changed / stale counts and changes per field.
 5. **Dry run.** The same code against a read-only repository view that drops every write.
-6. **Step Functions backfill.** A STANDARD state machine: Plan (latest run per raw object) →
+6. **Step Functions backfill.** A STANDARD state machine: Plan (latest run per raw object, in
+   observation order) →
    Map over runs (MaxConcurrency 2, retries, failures caught) → Summarize → on apply, the
    data-quality Lambda as a post-check. One task Lambda with its own least-privilege role.
 
@@ -58,8 +59,10 @@ Lambda; with a 16 s maximum against 29 s there is no timeout to engineer around.
 - `updated_at` on tracks now means "changed"; it no longer moves on every ingest.
 - One extra Data API read per 200-track chunk; a dry run reads as much as an apply.
 - The data-quality step reports, it does not roll back; the dry run is the gate before writing.
-- No `canonicalizer_version` column yet: a full replay is one execution. Revisit when replays
-  get expensive enough to want selective ones.
+- One execution holds every run's result in its state (256 KiB): about 500 runs; beyond that,
+  split by date range or move to a Distributed Map that writes results to S3.
+- No `canonicalizer_version` column yet: a full replay of today's raw zone is one execution.
+  Revisit when replays get expensive enough to want selective ones.
 
 **Cross-references:** ADR-0001, ADR-0022, ADR-0023, `docs/ops/backfill.md`,
 `docs/data/canonicalization.md`.

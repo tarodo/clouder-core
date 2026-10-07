@@ -318,7 +318,9 @@ class ClouderRepository:
 
         Re-ingesting a week overwrites its raw object, so older runs of the same
         key no longer have data of their own to replay. Filters apply to the
-        latest run, by style and by the period's end date.
+        latest run, by style and by the period's end date. Ordered by observation
+        time: replaying in that order converges in one pass, also over rows stamped
+        with processing time before event time existed.
         """
         filters: list[str] = []
         params: dict[str, Any] = {}
@@ -345,7 +347,7 @@ class ClouderRepository:
                 ORDER BY raw_s3_key, started_at DESC
             ) latest
             {where}
-            ORDER BY period_end, style_id, run_id
+            ORDER BY started_at, run_id
             """,
             params,
         )

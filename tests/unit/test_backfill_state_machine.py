@@ -45,8 +45,26 @@ def test_tasks_send_the_actions_the_handler_dispatches() -> None:
     assert states["Summarize"]["Parameters"]["Payload"] == {
         "action": "summarize",
         "dry_run.$": "$.plan.dry_run",
-        "results.$": "$.results",
+        "results.$": "$.plan.runs",
     }
+
+
+def test_map_results_replace_the_run_list() -> None:
+    # Keeping both the planned runs and their results in the state halves the
+    # room under the 256 KiB state limit; the results overwrite the runs.
+    assert _definition()["States"]["Replay"]["ResultPath"] == "$.plan.runs"
+
+
+def test_read_only_steps_retry_through_an_aurora_resume() -> None:
+    states = _definition()["States"]
+    for name in ("Plan", "Summarize"):
+        task_failed = [r for r in states[name]["Retry"] if r["ErrorEquals"] == ["States.TaskFailed"]]
+        assert task_failed and task_failed[0]["MaxAttempts"] >= 3, name
+
+
+def test_replay_failed_names_the_failed_runs() -> None:
+    cause = _definition()["States"]["ReplayFailed"]["CausePath"]
+    assert "$.report.summary.failed_run_ids" in cause
 
 
 def test_replay_failures_are_caught_and_counted() -> None:

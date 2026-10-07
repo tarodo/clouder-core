@@ -34,3 +34,16 @@ def test_list_replayable_runs_picks_latest_run_per_raw_object(pg) -> None:
         r["run_id"]
         for r in repo.list_replayable_runs(since=date(2026, 9, 1), until=date(2026, 9, 10))
     ] == ["b"]
+
+
+def test_list_replayable_runs_orders_by_observation_time(pg) -> None:
+    # Replaying in observation order converges in one pass, also over rows that
+    # were stamped with processing time before event time existed.
+    _run(pg, "late-week-early-read", "k/x", "2026-09-01 10:00+00", 1, "2026-09-18")
+    _run(pg, "early-week-late-read", "k/y", "2026-09-02 10:00+00", 1, "2026-08-28")
+    repo = ClouderRepository(pg)
+
+    assert [r["run_id"] for r in repo.list_replayable_runs()] == [
+        "late-week-early-read",
+        "early-week-late-read",
+    ]
