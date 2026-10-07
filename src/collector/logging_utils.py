@@ -112,6 +112,12 @@ ALLOWED_LOG_FIELDS = {
     "batch_size",
     "track_count",
     "released_count",
+    # Data-quality checks (collector.data_quality).
+    "check",
+    "value",
+    "threshold",
+    "passed",
+    "failed_checks",
 }
 
 
