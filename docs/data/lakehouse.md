@@ -1,6 +1,6 @@
 # Lakehouse: silver and gold on Iceberg, built by dbt
 
-Status: deployed with this change; "After" is filled from the first production builds.
+Status: deployed; measured on production on 2026-10-07 (card latency pending real traffic).
 
 ## Why
 
@@ -95,18 +95,22 @@ refresh drops and recreates the table, so clear `silver_events_table` first when
 `events`. Rebuilding `dim_track_history` restarts its history from the retained snapshots (14
 days).
 
-## After
-
-Filled from the first production builds.
+## After (production, 2026-10-07)
 
 | | Before | After |
 |---|---|---|
-| Files behind the events history | 1,243 | pending |
-| Full-table aggregate, engine time | 7.0 s | pending |
-| Duplicate events removed | — | pending |
-| Track versions after the first build | — | pending |
-| dbt build time, first (full) / nightly (incremental) | — | pending |
-| Home cards p50 / p90 | 4.1 s / 5.6 s | pending |
+| Files behind the events history | 1,243 | 38 (one per `dt` partition, compacted) |
+| Full-table aggregate, engine time | 6.1–7.0 s | 0.77 s on `clouder_silver.events` |
+| The hot/cold relation the cards read, whole history | — | 1.8 s (silver history + three days of bronze) |
+| Duplicate events | none removed | 0 of 19,647 — none delivered yet; the `unique` test guards it |
+| Track history | lost after 14 days | 97,976 versions for 97,973 tracks from the first build (history starts at the oldest retained snapshot, 2026-10-06; 3 tracks changed on 2026-10-07) |
+| Nightly build | — | 21/21 models and tests; dbt 46 s, 1 min 54 s with installation |
+| Home cards p50 / p90 | 4.1 s / 5.6 s | pending real traffic |
+
+The first production builds found what DuckDB in CI cannot show: dbt-athena needs
+`glue:CreateDatabase` for its `CREATE SCHEMA IF NOT EXISTS`, and Athena stores views as Hive
+views, which reject `timestamp(6)` while Iceberg tables accept only it. Both were fixed before
+the cards were switched to silver.
 
 ## What it buys
 

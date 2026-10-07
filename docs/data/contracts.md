@@ -1,6 +1,6 @@
 # Raw data contract
 
-Status: in review; production "After" is filled from the first runs.
+Status: deployed on 2026-10-07.
 
 ## Why
 
@@ -80,7 +80,8 @@ only allowlisted props reach the lake (the rest land in `props_extra`); it is un
 |---|---|
 | Audit of the raw zone with the current contract | 154 objects, 107,795 records, 1 quarantined (style 91, week 27, `name: empty`), 0 objects with drift |
 | Audit with the contract as of July (`--without is_dj_version`) | drift flagged on 88 objects, the first being the run of 2026-09-13 13:46 UTC — the alarm would have fired on that run instead of never |
-| Production, first runs | pending |
+| Production, full backfill dry run (2026-10-07) | 153 runs, 100,268 tracks: 1 record to quarantine, no drift, no track changes |
+| Production, applied replay of style 91 | the quarantine object written (`run_id=28a98d2d…/records.json.gz`, reason `name: empty`); alarms OK |
 
 ## What it buys
 
