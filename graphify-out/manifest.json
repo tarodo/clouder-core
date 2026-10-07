@@ -4130,8 +4130,8 @@
     "semantic_hash": ""
   },
   "src/collector/logging_utils.py": {
-    "mtime": 1791379650.099701,
-    "ast_hash": "79eea972613665536bc41d0779103fd0",
+    "mtime": 1791380524.9635587,
+    "ast_hash": "8d8ad9407a8a03a6f090c269d850514e",
     "semantic_hash": ""
   },
   "src/collector/migration_handler.py": {
@@ -4300,8 +4300,8 @@
     "semantic_hash": ""
   },
   "src/collector/storage.py": {
-    "mtime": 1791379650.0975676,
-    "ast_hash": "98cab948f73df2986477ccaadf7c7e5b",
+    "mtime": 1791380566.518124,
+    "ast_hash": "50a91246ce558091300930207a9604f0",
     "semantic_hash": ""
   },
   "src/collector/vendor_match/__init__.py": {
@@ -5090,9 +5090,9 @@
     "semantic_hash": ""
   },
   "tests/unit/test_storage.py": {
-    "mtime": 1791379315.1210132,
-    "ast_hash": "9ab15ba8d1c435a15a8c361cf762dc15",
-    "semantic_hash": "9ab15ba8d1c435a15a8c361cf762dc15"
+    "mtime": 1791380566.5177615,
+    "ast_hash": "502d534bc38daa799bdc8c218dde26ab",
+    "semantic_hash": ""
   },
   "tests/unit/test_storage_covers.py": {
     "mtime": 1791379315.1210794,
@@ -5825,8 +5825,8 @@
     "semantic_hash": ""
   },
   "docs/ops/runbook.md": {
-    "mtime": 1791379815.7640696,
-    "ast_hash": "285c720fc4c143757ed88377198ebf39",
+    "mtime": 1791380601.6245918,
+    "ast_hash": "773a331bedc70d72f721e1be26c04d3e",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-06-08-triage-finalize-dispatch-phase1-inline-optimization.md": {
@@ -6890,8 +6890,8 @@
     "semantic_hash": ""
   },
   "infra/backfill.tf": {
-    "mtime": 1791379315.0871542,
-    "ast_hash": "d4fcfaea16e93775f77d1bf83c33f341",
+    "mtime": 1791380524.9622965,
+    "ast_hash": "8a71de2d75a6fcfb0716ee6f068c1833",
     "semantic_hash": ""
   },
   "src/collector/backfill_handler.py": {
@@ -6945,8 +6945,8 @@
     "semantic_hash": ""
   },
   "dbt/macros/dialect.sql": {
-    "mtime": 1791379314.428099,
-    "ast_hash": "fb4e949ebb44d9132254720c78532eda",
+    "mtime": 1791380795.3901005,
+    "ast_hash": "3b3579a4736a6a115a1c0946c55de58e",
     "semantic_hash": ""
   },
   "dbt/macros/generate_schema_name.sql": {
@@ -6965,8 +6965,8 @@
     "semantic_hash": ""
   },
   "dbt/models/silver/events.sql": {
-    "mtime": 1791379314.4297724,
-    "ast_hash": "6a1711c82c7d7b984d78cca8b286268f",
+    "mtime": 1791380795.3902357,
+    "ast_hash": "2f824ace36b49f3a11d8b0fbf45a016a",
     "semantic_hash": ""
   },
   "dbt/models/staging/stg_events.sql": {
@@ -6985,8 +6985,8 @@
     "semantic_hash": ""
   },
   "infra/lakehouse.tf": {
-    "mtime": 1791379315.0879376,
-    "ast_hash": "24ec5d02c2a9281e918c322dc3166ced",
+    "mtime": 1791380795.3905618,
+    "ast_hash": "638e187f18874af34cf06d73f545e043",
     "semantic_hash": ""
   },
   "infra/transform.asl.json": {
@@ -7075,8 +7075,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_lakehouse_infra.py": {
-    "mtime": 1791379315.1164877,
-    "ast_hash": "4a1a50f94dfc389003335ca291016730",
+    "mtime": 1791380795.3910475,
+    "ast_hash": "e3f110a04aea3575ff8dfbec14ad51ed",
     "semantic_hash": ""
   },
   "infra/data_contracts.tf": {
@@ -7085,38 +7085,38 @@
     "semantic_hash": ""
   },
   "scripts/audit_raw_contract.py": {
-    "mtime": 1791379452.8307776,
-    "ast_hash": "9038a0c7def5a11de2cb9cffa33d6e5c",
+    "mtime": 1791380524.963802,
+    "ast_hash": "d0fc40d6ecb96554d0f0ed248fa918cd",
     "semantic_hash": ""
   },
   "src/collector/contracts.py": {
-    "mtime": 1791379650.0982852,
-    "ast_hash": "f11e5b213ea28bc2f0be77a723a71076",
+    "mtime": 1791380524.9625998,
+    "ast_hash": "88c10a81d547d5128a8313d2f94def87",
     "semantic_hash": ""
   },
   "tests/unit/test_contract_alarms_infra.py": {
-    "mtime": 1791379694.9410107,
-    "ast_hash": "32ee74be23cb26cc8159446c81a656db",
+    "mtime": 1791380503.119257,
+    "ast_hash": "e3679206c6322cf3eca85f50eed3092c",
     "semantic_hash": ""
   },
   "tests/unit/test_contracts.py": {
-    "mtime": 1791379435.3436654,
-    "ast_hash": "ae7ccc576edaf25e40058bcbb739d593",
+    "mtime": 1791380503.123551,
+    "ast_hash": "21f3073033feac5dea149d12b8613e8d",
     "semantic_hash": ""
   },
   "tests/unit/test_storage_quarantine.py": {
-    "mtime": 1791379620.3441863,
-    "ast_hash": "291695606f5294ef260066d95e2b646a",
+    "mtime": 1791380503.1276014,
+    "ast_hash": "e088e93a7b62d0e500f8b02564bc41c9",
     "semantic_hash": ""
   },
   "docs/adr/0026-raw-data-contract.md": {
-    "mtime": 1791379815.7536573,
-    "ast_hash": "1281ee431afffb9a4e156bfe60acfe4a",
+    "mtime": 1791380601.6251101,
+    "ast_hash": "2aadcf59654da9ce57bbdc418f4d4551",
     "semantic_hash": ""
   },
   "docs/data/contracts.md": {
-    "mtime": 1791379793.86511,
-    "ast_hash": "bf4b68028226e64343c6cbc199127cb2",
+    "mtime": 1791380601.6239867,
+    "ast_hash": "238c18f055e827ca6ba647de8f168fe3",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-raw-data-contract.md": {
