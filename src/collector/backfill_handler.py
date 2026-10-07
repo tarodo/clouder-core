@@ -13,6 +13,7 @@ from datetime import date
 from typing import Any, Mapping, Sequence
 
 from .canonicalize import Canonicalizer
+from .contracts import screen_run
 from .logging_utils import log_event
 from .models import RunStatus
 from .normalize import normalize_tracks
@@ -91,7 +92,14 @@ def replay(
     run: Mapping[str, Any], *, dry_run: bool, repository: Any, storage: Any
 ) -> dict[str, Any]:
     started = time.perf_counter()
-    bundle = normalize_tracks(storage.read_releases(run["s3_key"]))
+    report = screen_run(
+        storage.read_releases(run["s3_key"]),
+        run_id=run["run_id"],
+        storage=storage,
+        write=not dry_run,
+        correlation_id=run["run_id"],
+    )
+    bundle = normalize_tracks(report.valid)
     result = Canonicalizer(repository, dry_run=dry_run).process_run(
         run_id=run["run_id"], bundle=bundle, observed_at=as_utc_datetime(run["observed_at"])
     )
@@ -114,6 +122,8 @@ def replay(
         "dry_run": dry_run,
         **{f: getattr(result, f) for f in COUNT_FIELDS},
         "track_field_changes": dict(result.track_field_changes),
+        "records_quarantined": len(report.quarantined),
+        "drift_fields": list(report.drift_fields),
         "duration_ms": int((time.perf_counter() - started) * 1000),
     }
     log_event(
@@ -134,12 +144,15 @@ def summarize(results: Sequence[Mapping[str, Any]], *, dry_run: bool) -> dict[st
     totals: Counter[str] = Counter()
     field_changes: Counter[str] = Counter()
     failed: list[str] = []
+    drift: set[str] = set()
     for item in results:
         if item.get("failed"):
             failed.append(str(item.get("run_id")))
             continue
         totals.update({f: int(item.get(f) or 0) for f in COUNT_FIELDS})
+        totals["records_quarantined"] += int(item.get("records_quarantined") or 0)
         field_changes.update(item.get("track_field_changes") or {})
+        drift.update(item.get("drift_fields") or [])
     summary = {
         "dry_run": dry_run,
         "runs": len(results),
@@ -147,6 +160,8 @@ def summarize(results: Sequence[Mapping[str, Any]], *, dry_run: bool) -> dict[st
         "failed_run_ids": failed[:20],
         **{f: totals[f] for f in COUNT_FIELDS},
         "track_field_changes": dict(field_changes),
+        "records_quarantined": totals["records_quarantined"],
+        "drift_fields": sorted(drift),
     }
     log_event(
         "INFO",

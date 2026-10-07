@@ -196,6 +196,22 @@ Fix forward on `main`, then start the state machine by hand (`aws stepfunctions 
 
 ---
 
+## Contract drift or quarantined records
+
+**Symptom**
+
+Alarm `clouder-prod-contract-drift` or `clouder-prod-quarantined-records`.
+
+**Diagnosis**
+
+`aws logs filter-log-events --log-group-name /aws/lambda/clouder-prod-canonicalization-worker --filter-pattern '{ $.message = "contract_drift" }'` names the drifting fields; quarantined records are in `s3://<raw bucket>/raw/bp/releases/_quarantine/run_id=<run_id>/records.json.gz` with their reasons.
+
+**Fix**
+
+A new upstream field that is fine: add it to `FIELDS` in `src/collector/contracts.py`. A missing, re-typed or emptied field: check what canonicalization reads before acknowledging. Quarantined records: fix the cause upstream, then re-ingest the week (a replay re-reads the same raw object, so it only helps after the contract itself changed). Acknowledging a new field: add it to `FIELDS` and to `OPTIONAL` (older raw objects lack it). See [`docs/data/contracts.md`](../data/contracts.md).
+
+---
+
 ## Reprocess raw data (backfill)
 
 **When**

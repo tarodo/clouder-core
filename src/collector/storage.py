@@ -89,7 +89,21 @@ class S3Storage:
         )
         return releases_key, meta_key
 
-    def read_releases(self, key: str) -> List[Dict[str, Any]]:
+    def write_quarantine(self, run_id: str, quarantined: List[Dict[str, Any]]) -> str:
+        """Records a run could not canonicalize, with the contract's reasons
+        (docs/data/contracts.md). One object per run, overwritten on replay."""
+        key = f"{self.raw_prefix}/_quarantine/run_id={run_id}/records.json.gz"
+        self._put_object(
+            key=key,
+            body=gzip.compress(
+                json.dumps(quarantined, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ),
+            content_type="application/json",
+            content_encoding="gzip",
+        )
+        return key
+
+    def read_releases(self, key: str) -> List[Any]:
         try:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
             raw_bytes = response["Body"].read()
@@ -104,7 +118,8 @@ class S3Storage:
 
         if not isinstance(parsed, list):
             raise StorageError(f"Unexpected releases payload type in {key}")
-        return [item for item in parsed if isinstance(item, dict)]
+        # Every element reaches the contract: one that is not an object is quarantined.
+        return parsed
 
     def write_spotify_results(
         self,

@@ -91,7 +91,9 @@ def test_read_releases_decompresses_and_parses() -> None:
     assert result == data
 
 
-def test_read_releases_filters_non_dict_items() -> None:
+def test_read_releases_returns_every_element() -> None:
+    # Non-objects are no longer dropped here: the contract quarantines them
+    # (docs/data/contracts.md).
     s3 = FakeS3Client()
     storage = S3Storage(s3_client=s3, bucket_name="test-bucket")
 
@@ -99,11 +101,7 @@ def test_read_releases_filters_non_dict_items() -> None:
     compressed = gzip.compress(json.dumps(data).encode("utf-8"))
     s3.objects["test-key"] = compressed
 
-    result = storage.read_releases("test-key")
-
-    assert len(result) == 2
-    assert result[0] == {"id": 1}
-    assert result[1] == {"id": 2}
+    assert storage.read_releases("test-key") == data
 
 
 def test_read_releases_raises_storage_error_on_s3_failure() -> None:

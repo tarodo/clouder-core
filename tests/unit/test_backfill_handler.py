@@ -166,3 +166,47 @@ def test_summarize_adds_counts_and_lists_failures() -> None:
 def test_lambda_handler_rejects_unknown_action() -> None:
     with pytest.raises(ValueError):
         lambda_handler({"action": "drop"}, None)
+
+
+class QuarantineStorage:
+    def __init__(self) -> None:
+        self.written: list = []
+
+    def read_releases(self, key):
+        return [{"id": 1, "name": "T", "artists": []}, {"id": 2, "name": ""}]
+
+    def write_quarantine(self, run_id, quarantined):
+        self.written.append((run_id, len(quarantined)))
+
+
+def test_replay_dry_run_does_not_write_quarantine(monkeypatch) -> None:
+    _stub_canonicalizer(monkeypatch, created=0)
+    storage = QuarantineStorage()
+
+    out = replay(RUN, dry_run=True, repository=RunRepo(), storage=storage)
+
+    assert storage.written == []
+    assert out["records_quarantined"] == 1
+
+
+def test_replay_apply_writes_quarantine(monkeypatch) -> None:
+    _stub_canonicalizer(monkeypatch, created=0)
+    storage = QuarantineStorage()
+
+    out = replay(RUN, dry_run=False, repository=RunRepo(), storage=storage)
+
+    assert storage.written == [("r-1", 1)]
+    assert out["records_quarantined"] == 1
+
+
+def test_summarize_adds_quarantine_and_unions_drift() -> None:
+    out = summarize(
+        [
+            {"run_id": "a", "records_quarantined": 1, "drift_fields": ["bpm"]},
+            {"run_id": "b", "records_quarantined": 2, "drift_fields": ["isrc", "bpm"]},
+        ],
+        dry_run=True,
+    )
+
+    assert out["records_quarantined"] == 3
+    assert out["drift_fields"] == ["bpm", "isrc"]

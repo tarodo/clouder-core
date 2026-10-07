@@ -104,10 +104,21 @@ class FakeRepo:
 
 class FakeS3Client:
     def __init__(
-        self, data: list[dict[str, Any]] | None = None, fail: bool = False
+        self,
+        data: list[dict[str, Any]] | None = None,
+        fail: bool = False,
+        fail_put: bool = False,
     ) -> None:
         self._data = data or []
         self._fail = fail
+        self._fail_put = fail_put
+        self.puts: list[dict[str, Any]] = []
+
+    def put_object(self, **kwargs: Any) -> dict[str, Any]:
+        if self._fail_put:
+            raise RuntimeError("S3 write down")
+        self.puts.append(kwargs)
+        return {}
 
     def get_object(self, **kwargs: Any) -> dict[str, Any]:
         if self._fail:
@@ -132,18 +143,17 @@ def _sqs_event(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _setup_worker(monkeypatch, repo=None, s3_data=None, s3_fail=False):
+def _setup_worker(monkeypatch, repo=None, s3_data=None, s3_fail=False, s3_put_fail=False):
     reset_settings_cache()
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     monkeypatch.setenv("RAW_PREFIX", "raw/bp/releases")
     repo = repo or FakeRepo()
+    s3 = FakeS3Client(data=s3_data, fail=s3_fail, fail_put=s3_put_fail)
+    repo.s3 = s3
     monkeypatch.setattr(
         "collector.worker_handler.create_clouder_repository_from_env", lambda: repo
     )
-    monkeypatch.setattr(
-        "collector.worker_handler.create_default_s3_client",
-        lambda: FakeS3Client(data=s3_data, fail=s3_fail),
-    )
+    monkeypatch.setattr("collector.worker_handler.create_default_s3_client", lambda: s3)
     return repo
 
 
@@ -309,4 +319,44 @@ def test_worker_falls_back_to_now_without_a_run_row(monkeypatch) -> None:
     _setup_worker(monkeypatch, repo=repo, s3_data=_happy_s3_data())
 
     assert lambda_handler(_happy_event(), None) == {"processed": 1}
+    reset_settings_cache()
+
+
+def test_worker_quarantines_records_it_cannot_canonicalize(monkeypatch) -> None:
+    repo = _setup_worker(monkeypatch, s3_data=_happy_s3_data() + [{"id": 2, "name": ""}])
+
+    assert lambda_handler(_happy_event(), None) == {"processed": 1}
+
+    assert [p["Key"] for p in repo.s3.puts] == [
+        "raw/bp/releases/_quarantine/run_id=run-42/records.json.gz"
+    ]
+    reset_settings_cache()
+
+
+def test_worker_logs_contract_drift(monkeypatch) -> None:
+    data = _happy_s3_data()
+    data[0]["is_new"] = True
+    events: list = []
+    monkeypatch.setattr(
+        "collector.contracts.log_event",
+        lambda level, message, **fields: events.append((message, fields)),
+    )
+    _setup_worker(monkeypatch, s3_data=data)
+
+    lambda_handler(_happy_event(), None)
+
+    drift = [fields for message, fields in events if message == "contract_drift"]
+    assert drift and "is_new" in drift[0]["unknown_fields"].split(",")
+    reset_settings_cache()
+
+
+def test_quarantine_write_failure_fails_the_run(monkeypatch) -> None:
+    repo = _setup_worker(
+        monkeypatch, s3_data=_happy_s3_data() + [{"id": 2, "name": ""}], s3_put_fail=True
+    )
+
+    with pytest.raises(RuntimeError):
+        lambda_handler(_happy_event(), None)
+
+    assert repo.failed_runs == [("run-42", "canonicalization_transient_failure")]
     reset_settings_cache()
