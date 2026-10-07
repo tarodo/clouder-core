@@ -11,7 +11,7 @@ from .canonicalize import Canonicalizer
 from .errors import StorageError
 from .logging_utils import log_event
 from .normalize import normalize_tracks
-from .repositories import create_clouder_repository_from_env, utc_now
+from .repositories import as_utc_datetime, create_clouder_repository_from_env, utc_now
 from .schemas import CanonicalizationMessage, validation_error_message
 from .settings import get_worker_settings
 from .storage import S3Storage, create_default_s3_client
@@ -105,8 +105,14 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             )
 
             phase = "canonicalize"
+            run_row = repository.get_run(run_id)
+            # Event time: when Beatport was read, so replays and retries are
+            # ordered by observation, not by processing (ADR-0024).
+            observed_at = as_utc_datetime(run_row.get("started_at")) if run_row else None
             canonicalizer = Canonicalizer(repository)
-            result = canonicalizer.process_run(run_id=run_id, bundle=bundle)
+            result = canonicalizer.process_run(
+                run_id=run_id, bundle=bundle, observed_at=observed_at
+            )
 
             phase = "mark_completed"
             repository.set_run_completed(
@@ -124,6 +130,9 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 item_count=result.tracks_processed,
                 tracks_total=result.tracks_total,
                 tracks_processed=result.tracks_processed,
+                tracks_created=result.tracks_created,
+                tracks_changed=result.tracks_changed,
+                tracks_stale=result.tracks_stale,
                 artists_total=result.artists_total,
                 labels_total=result.labels_total,
                 albums_total=result.albums_total,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import json
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any
 
@@ -21,6 +22,8 @@ class FakeRepo:
         self.completed_runs: list[str] = []
         self.failed_runs: list[tuple[str, str]] = []
         self.identities: dict = {}
+        self.source_commands: list = []
+        self.run_started_at: str | None = "2026-10-01 10:00:00.250"
 
     # ── worker lifecycle ──
 
@@ -37,8 +40,13 @@ class FakeRepo:
 
     # ── canonicalization stubs ──
 
+    def get_run(self, run_id):
+        if not self.run_started_at:
+            return None
+        return {"run_id": run_id, "started_at": self.run_started_at}
+
     def batch_upsert_source_entities(self, commands, transaction_id=None):
-        pass
+        self.source_commands.extend(commands)
 
     def batch_upsert_source_relations(self, commands, transaction_id=None):
         pass
@@ -172,8 +180,8 @@ def test_non_list_records_returns_zero() -> None:
     assert response == {"processed": 0}
 
 
-def test_happy_path_processes_tracks(monkeypatch) -> None:
-    raw_tracks = [
+def _happy_s3_data() -> list[dict[str, Any]]:
+    return [
         {
             "id": 1,
             "name": "Test Track",
@@ -191,16 +199,22 @@ def test_happy_path_processes_tracks(monkeypatch) -> None:
             },
         }
     ]
-    repo = _setup_worker(monkeypatch, s3_data=raw_tracks)
 
-    event = _sqs_event(
+
+def _happy_event() -> dict[str, Any]:
+    return _sqs_event(
         {
             "run_id": "run-42",
             "source": "beatport",
             "s3_key": "raw/bp/releases/style_id=5/year=2026/week=09/releases.json.gz",
         }
     )
-    response = lambda_handler(event, context=None)
+
+
+def test_happy_path_processes_tracks(monkeypatch) -> None:
+    repo = _setup_worker(monkeypatch, s3_data=_happy_s3_data())
+
+    response = lambda_handler(_happy_event(), context=None)
 
     assert response == {"processed": 1}
     assert "run-42" in repo.completed_runs
@@ -276,4 +290,23 @@ def test_missing_aurora_config_raises(monkeypatch) -> None:
     with pytest.raises(RuntimeError, match="AURORA Data API"):
         lambda_handler({"Records": [{"body": "{}"}]}, context=None)
 
+    reset_settings_cache()
+
+
+def test_worker_stamps_sources_with_the_run_start(monkeypatch) -> None:
+    repo = _setup_worker(monkeypatch, s3_data=_happy_s3_data())
+
+    lambda_handler(_happy_event(), None)
+
+    stamps = {cmd.observed_at for cmd in repo.source_commands}
+    assert stamps == {datetime(2026, 10, 1, 10, 0, 0, 250000, tzinfo=timezone.utc)}
+    reset_settings_cache()
+
+
+def test_worker_falls_back_to_now_without_a_run_row(monkeypatch) -> None:
+    repo = FakeRepo()
+    repo.run_started_at = None
+    _setup_worker(monkeypatch, repo=repo, s3_data=_happy_s3_data())
+
+    assert lambda_handler(_happy_event(), None) == {"processed": 1}
     reset_settings_cache()

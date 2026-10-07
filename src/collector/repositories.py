@@ -1585,6 +1585,16 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def as_utc_datetime(value: str | datetime | None) -> datetime | None:
+    """A timestamp from the Data API ('YYYY-MM-DD HH:MM:SS[.fff]', UTC) or the
+    driver, as an aware UTC datetime."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
 def create_clouder_repository_from_env() -> ClouderRepository | None:
     settings = get_data_api_settings()
     if not settings.is_configured:
