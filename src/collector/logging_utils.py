@@ -46,6 +46,7 @@ ALLOWED_LOG_FIELDS = {
     "tracks_changed",
     "tracks_stale",
     "dry_run",
+    "runs_failed",
     "artists_total",
     "labels_total",
     "albums_total",

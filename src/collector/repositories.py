@@ -307,6 +307,49 @@ class ClouderRepository:
         )
         return rows[0] if rows else None
 
+    def list_replayable_runs(
+        self,
+        *,
+        style_ids: Sequence[int] | None = None,
+        since: date | None = None,
+        until: date | None = None,
+    ) -> list[dict[str, Any]]:
+        """The run behind each raw object — the latest one written to its key.
+
+        Re-ingesting a week overwrites its raw object, so older runs of the same
+        key no longer have data of their own to replay. Filters apply to the
+        latest run, by style and by the period's end date.
+        """
+        filters: list[str] = []
+        params: dict[str, Any] = {}
+        if style_ids:
+            filters.append(
+                "style_id IN (" + ", ".join(f":style{i}" for i in range(len(style_ids))) + ")"
+            )
+            params.update({f"style{i}": int(s) for i, s in enumerate(style_ids)})
+        if since:
+            filters.append("period_end >= :since")
+            params["since"] = since
+        if until:
+            filters.append("period_end <= :until")
+            params["until"] = until
+        where = f"WHERE {' AND '.join(filters)}" if filters else ""
+        return self._data_api.execute(
+            f"""
+            SELECT run_id, raw_s3_key, started_at, status, style_id, period_end
+            FROM (
+                SELECT DISTINCT ON (raw_s3_key)
+                       run_id, raw_s3_key, started_at, status, style_id, period_end
+                FROM ingest_runs
+                WHERE source = 'beatport' AND raw_s3_key IS NOT NULL
+                ORDER BY raw_s3_key, started_at DESC
+            ) latest
+            {where}
+            ORDER BY period_end, style_id, run_id
+            """,
+            params,
+        )
+
     def upsert_source_entity(
         self, cmd: UpsertSourceEntityCmd, transaction_id: str | None = None
     ) -> None:
