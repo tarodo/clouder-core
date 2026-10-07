@@ -180,6 +180,22 @@ Controlled by `var.enable_lambda_reserved_concurrency` in `infra/variables.tf` (
 
 Until the quota is raised, leave `enable_lambda_reserved_concurrency = false`. Workers run unreserved and Perplexity/Spotify 429s flow to DLQ for retry.
 
+## Nightly dbt build failed
+
+**Symptom**
+
+Alarm `clouder-prod-transform-failed`, or the `clouder-prod-transform` execution ended `FAILED`.
+
+**Diagnosis**
+
+`aws logs tail /aws/codebuild/clouder-prod-dbt --since 12h` — dbt names the failing model or test. A failed data test means bronze delivered something a model's contract rejects; a failed model is usually Athena SQL or permissions.
+
+**Fix**
+
+Fix forward on `main`, then start the state machine by hand (`aws stepfunctions start-execution --state-machine-arn $(cd infra && terraform output -raw transform_state_machine_arn)`). Until then the Home cards miss the day that should have moved to silver; the next successful build catches it up. See [`docs/data/lakehouse.md`](../data/lakehouse.md).
+
+---
+
 ## Reprocess raw data (backfill)
 
 **When**

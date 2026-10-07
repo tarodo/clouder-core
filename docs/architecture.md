@@ -25,6 +25,11 @@ flowchart LR
         BF["backfill (Step Functions task)"]
     end
 
+    subgraph Lakehouse["Analytics lakehouse"]
+        DBT["dbt build (CodeBuild, nightly)"]
+        SIL[(Iceberg silver / gold)]
+    end
+
     subgraph Storage
         S3[(S3 raw/bp/releases/*)]
         SQS[(SQS canonicalization queue + DLQ)]
@@ -57,6 +62,7 @@ flowchart LR
     MH --> Aurora
     BF --> S3
     BF --> Aurora
+    DBT --> SIL
     UI <--> SP
 ```
 
@@ -67,6 +73,7 @@ flowchart LR
 - **Search and enrichment.** Per-track ISRC lookup against Spotify, plus a metadata-fallback path for misses. Perplexity is used to flag AI-suspected labels and artists. Results are cached in vendor-match tables. See [`docs/data/search-and-enrichment.md`](data/search-and-enrichment.md).
 - **Curation.** The SPA's tap-to-assign UX assigns tracks from triage buckets into per-user playlists. Optimistic shrink keeps the cursor stable. See [`docs/frontend/features.md`](frontend/features.md) and ADR-0010, ADR-0012.
 - **Playback.** Spotify Web Playback SDK is lazy-loaded on the first play. The CLOUDER auth refresh stream bundles a Spotify access token; the SPA keeps it in memory only. See [`docs/frontend/playback.md`](frontend/playback.md) and ADR-0011, ADR-0013.
+- **Analytics lakehouse.** Telemetry lands in bronze through Firehose; a nightly dbt build on Athena turns it and the catalog snapshots into Iceberg silver/gold (deduplicated events, SCD2 track history, plays). The Home cards read silver history plus the live bronze tail. See [`docs/data/lakehouse.md`](data/lakehouse.md).
 - **Operations.** Aurora Serverless v2 with `min_acu=0` (auto-pause). Migrations run via a dedicated Lambda. See [`docs/ops/aurora.md`](ops/aurora.md) and [`docs/ops/deploy.md`](ops/deploy.md).
 
 ## Where to read next
