@@ -25,3 +25,19 @@ def test_write_quarantine_stores_records_with_reasons() -> None:
     put = s3.puts[0]
     assert (put["Bucket"], put["Key"], put["ContentEncoding"]) == ("b", key, "gzip")
     assert json.loads(gzip.decompress(put["Body"])) == rows
+
+
+class Reader:
+    def __init__(self, payload) -> None:
+        self.payload = payload
+
+    def get_object(self, **kwargs):
+        from io import BytesIO
+
+        return {"Body": BytesIO(gzip.compress(json.dumps(self.payload).encode()))}
+
+
+def test_read_releases_keeps_records_that_are_not_objects() -> None:
+    # They reach the contract and are quarantined, instead of vanishing here.
+    storage = S3Storage(s3_client=Reader(["x", {"id": 1}]), bucket_name="b", raw_prefix="raw/bp/releases")
+    assert storage.read_releases("k") == ["x", {"id": 1}]

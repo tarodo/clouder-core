@@ -208,7 +208,7 @@ Alarm `clouder-prod-contract-drift` or `clouder-prod-quarantined-records`.
 
 **Fix**
 
-A new upstream field that is fine: add it to `FIELDS` in `src/collector/contracts.py`. A missing, re-typed or emptied field: check what canonicalization reads before acknowledging. Quarantined records: fix the cause, then re-ingest or replay the run. See [`docs/data/contracts.md`](../data/contracts.md).
+A new upstream field that is fine: add it to `FIELDS` in `src/collector/contracts.py`. A missing, re-typed or emptied field: check what canonicalization reads before acknowledging. Quarantined records: fix the cause upstream, then re-ingest the week (a replay re-reads the same raw object, so it only helps after the contract itself changed). Acknowledging a new field: add it to `FIELDS` and to `OPTIONAL` (older raw objects lack it). See [`docs/data/contracts.md`](../data/contracts.md).
 
 ---
 

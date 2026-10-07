@@ -64,9 +64,6 @@ FIELDS: dict[str, frozenset[str]] = {
     "url": frozenset({_S, _N}),
 }
 
-# Without these a record cannot become a canonical track (normalize's rule).
-REQUIRED = frozenset({"id", "name"})
-
 # Fields canonicalization relies on: share of NULLs per run above which the run drifts.
 NULL_SHARE_LIMITS: dict[str, float] = {
     "isrc": 0.01,
@@ -76,8 +73,9 @@ NULL_SHARE_LIMITS: dict[str, float] = {
     "publish_date": 0.01,
 }
 
-# Known fields expected on every record; is_dj_version is absent from data before 2026-09.
-ALWAYS_PRESENT = frozenset(FIELDS) - {"is_dj_version"}
+# Known fields older raw objects lack: a field acknowledged later goes here too,
+# or every replay of older weeks would report it missing.
+OPTIONAL = frozenset({"is_dj_version"})
 
 
 @dataclass(frozen=True)
@@ -116,6 +114,8 @@ def json_type(value: Any) -> str:
 
 
 def _required_violations(record: Any) -> list[str]:
+    # Without a positive id and a name a record cannot become a canonical track
+    # (normalize's rule).
     if not isinstance(record, dict):
         return ["record: not an object"]
     reasons = []
@@ -153,13 +153,13 @@ def screen(records: Sequence[Any]) -> ContractReport:
     n = len(valid)
     if not n:
         return ContractReport(valid=valid, quarantined=quarantined)
-    shares = {f: round(nulls[f] / n, 4) for f in NULL_SHARE_LIMITS}
+    # normalize reads item.get(...): an absent key is as empty as a NULL one.
+    shares = {f: round((n - seen[f] + nulls[f]) / n, 4) for f in NULL_SHARE_LIMITS}
     return ContractReport(
         valid=valid,
         quarantined=quarantined,
         unknown_fields=tuple(sorted(k for k in seen if k not in FIELDS)),
-        # `f in FIELDS` keeps a narrowed contract (tests, the audit's --without) consistent.
-        missing_fields=tuple(sorted(f for f in ALWAYS_PRESENT if f in FIELDS and not seen[f])),
+        missing_fields=tuple(sorted(f for f in FIELDS if f not in OPTIONAL and not seen[f])),
         type_drift=dict(sorted(retyped.items())),
         null_share_over={f: s for f, s in shares.items() if s > NULL_SHARE_LIMITS[f]},
     )
@@ -186,6 +186,9 @@ def screen_run(
             run_id=run_id,
             drift_fields=",".join(report.drift_fields),
             unknown_fields=",".join(report.unknown_fields),
+            missing_fields=",".join(report.missing_fields),
+            type_drift=",".join(f"{k}={v}" for k, v in report.type_drift.items()),
+            null_share_over=",".join(f"{k}={v}" for k, v in report.null_share_over.items()),
             count=len(report.drift_fields),
         )
     return report

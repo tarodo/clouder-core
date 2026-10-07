@@ -29,3 +29,13 @@ def test_alarms_fire_on_the_first_quarantined_record_or_drift() -> None:
     for alarm in alarms:
         assert re.search(r"threshold\s*=\s*1\b", alarm)
         assert 'treat_missing_data  = "notBreaching"' in alarm or 'treat_missing_data = "notBreaching"' in alarm
+
+
+def test_backfill_may_write_quarantine_objects() -> None:
+    # A backfill apply quarantines too; without the grant it fails on every
+    # run holding a bad record.
+    spec = (TF.parent / "backfill.tf").read_text()
+    block = re.search(r'sid\s*=\s*"AllowWriteQuarantine"(.*?)\n  \}', spec, re.S)
+    assert block, "no AllowWriteQuarantine statement"
+    assert '"s3:PutObject"' in block.group(1)
+    assert "${var.raw_prefix}/_quarantine/*" in block.group(1)

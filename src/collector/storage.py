@@ -103,7 +103,7 @@ class S3Storage:
         )
         return key
 
-    def read_releases(self, key: str) -> List[Dict[str, Any]]:
+    def read_releases(self, key: str) -> List[Any]:
         try:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
             raw_bytes = response["Body"].read()
@@ -118,7 +118,8 @@ class S3Storage:
 
         if not isinstance(parsed, list):
             raise StorageError(f"Unexpected releases payload type in {key}")
-        return [item for item in parsed if isinstance(item, dict)]
+        # Every element reaches the contract: one that is not an object is quarantined.
+        return parsed
 
     def write_spotify_results(
         self,

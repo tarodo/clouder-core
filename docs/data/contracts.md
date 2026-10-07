@@ -1,6 +1,6 @@
 # Raw data contract
 
-Status: deployed with this change; production "After" is filled from the first runs.
+Status: in review; production "After" is filled from the first runs.
 
 ## Why
 
@@ -28,10 +28,14 @@ Declared as data in `src/collector/contracts.py`:
 |---|---|---|
 | Required | `id`, `name` | `id` is a positive integer, `name` a non-empty string — otherwise the record is **quarantined** (the same rule normalize applied, now visible) |
 | Used by canonicalization | `mix_name`, `isrc`, `bpm`, `length_ms`, `publish_date`, `new_release_date`, `key`, `artists`, `release`, `genre` | allowed JSON types per field; `isrc`, `bpm`, `length_ms`, `key`, `publish_date` may be NULL on at most 1 % of a run's records |
-| Known | the other 30 top-level fields (`remixers`, `sub_genre`, `is_dj_version`, `price`, …) | allowed JSON types; expected on every record (except `is_dj_version`, absent before September) |
+| Known | the other 30 top-level fields (`remixers`, `sub_genre`, `is_dj_version`, `price`, …) | allowed JSON types; expected on every record, except the `OPTIONAL` ones that older raw objects lack (today `is_dj_version`) |
 
 A record is never quarantined for a type or presence problem: those are **drift** — the run is
-canonicalized as before and the drift is reported.
+canonicalized as before and the drift is reported. An absent key counts as empty for the NULL
+limits (normalize reads it the same way). A quarantined record contributes nothing: before, normalize
+still took its artists, release and label and recorded a track–artist link to a track it never
+created; the one real case (Beatport track 29381883) loses nothing, as its release, label and
+artist appear on other tracks.
 
 ## What changed
 
@@ -43,15 +47,16 @@ canonicalized as before and the drift is reported.
   `raw/bp/releases/_quarantine/run_id=<run_id>/records.json.gz` (a JSON list of
   `{"reasons": [...], "record": {...}}`), one object per run, overwritten on replay. A failed
   quarantine write fails the run (it is retried), so a record can no longer disappear.
-- **Drift.** A drifting run logs one `contract_drift` event (field names in `drift_fields` and
-  `unknown_fields`); `canonicalization_completed` carries `records_quarantined` and
-  `drift_fields`.
+- **Drift.** A drifting run logs one `contract_drift` event naming each kind: `unknown_fields`,
+  `missing_fields`, `type_drift` (`field=count`), `null_share_over` (`field=share`);
+  `canonicalization_completed` carries `records_quarantined` and `drift_fields`.
 - **Metrics and alarms.** Log metric filters on the canonicalization worker turn these into
   `CLOUDER/DataContracts` metrics `QuarantinedRecords` and `ContractDrift`, with the alarms
   `clouder-prod-quarantined-records` and `clouder-prod-contract-drift` (daily sum ≥ 1; they
   notify only when `alarm_sns_topic_arn` is set, like every alarm here).
 - **Backfill.** A replay screens the same way; the summary carries `records_quarantined` and
-  the union of `drift_fields`. A dry run writes no quarantine object.
+  the union of `drift_fields`. A dry run writes no quarantine object; an apply writes it (the
+  backfill role may put objects under `_quarantine/` only).
 - **Audit.** `scripts/audit_raw_contract.py` screens every raw object (S3 or a local mirror),
   read-only; `--without FIELD` replays the contract as it was before a field was acknowledged.
 
@@ -60,12 +65,14 @@ only allowlisted props reach the lake (the rest land in `props_extra`); it is un
 
 ## How to respond
 
-- **`contract-drift` alarm.** Read the run's `contract_drift` log (`drift_fields`,
-  `unknown_fields`). A new upstream field that is fine: add it to `FIELDS` (a reviewed change)
-  — the alarm clears with the next run. A field that went missing, changed type or emptied:
-  check what canonicalization reads from it before acknowledging it.
-- **`quarantined-records` alarm.** Read the run's quarantine object; fix the cause upstream or
-  in the contract, then re-ingest or replay the run (`docs/ops/backfill.md`).
+- **`contract-drift` alarm.** Read the run's `contract_drift` log — it names the kind of drift
+  per field. A new upstream field that is fine: add it to `FIELDS` and, since older raw objects
+  lack it, to `OPTIONAL` (a reviewed change); the alarm returns to OK after a day without
+  drift. A field that went missing, changed type or emptied: check what canonicalization reads
+  from it before acknowledging it.
+- **`quarantined-records` alarm.** Read the run's quarantine object and fix the cause upstream,
+  then re-ingest the week. A replay re-reads the same raw object and quarantines the same
+  record again; it helps only after the contract itself changed (`docs/ops/backfill.md`).
 
 ## After
 

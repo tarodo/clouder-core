@@ -72,3 +72,37 @@ def test_the_september_drift_would_have_been_caught(monkeypatch) -> None:
     del fields["is_dj_version"]
     monkeypatch.setattr(contracts, "FIELDS", fields)
     assert screen([_record(id=1)]).unknown_fields == ("is_dj_version",)
+
+
+def test_a_field_absent_from_part_of_the_records_counts_as_empty() -> None:
+    # normalize reads item.get(...): an absent key is as empty as a NULL one.
+    rows = [_record(id=i) for i in range(1, 101)]
+    for row in rows[:30]:
+        del row["isrc"]
+    assert screen(rows).null_share_over == {"isrc": 0.3}
+
+
+def test_optional_fields_are_not_expected_on_older_records() -> None:
+    # A newly acknowledged field goes to OPTIONAL: older raw objects lack it.
+    assert "is_dj_version" in contracts.OPTIONAL
+    row = _record(id=1)
+    del row["is_dj_version"]
+    assert screen([row]).missing_fields == ()
+
+
+def test_drift_log_names_each_kind(monkeypatch) -> None:
+    events = []
+    monkeypatch.setattr(
+        contracts, "log_event", lambda level, message, **fields: events.append((message, fields))
+    )
+    rows = [_record(id=1, bpm="128", is_new=True), _record(id=2)]
+    for row in rows:
+        del row["catalog_number"]
+
+    contracts.screen_run(rows, run_id="r", storage=None, write=False)
+
+    (message, fields), = events
+    assert message == "contract_drift"
+    assert fields["missing_fields"] == "catalog_number"
+    assert fields["unknown_fields"] == "is_new"
+    assert fields["type_drift"] == "bpm=1"

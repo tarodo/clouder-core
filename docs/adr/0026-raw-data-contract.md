@@ -36,7 +36,10 @@ from the worker (a wider role), or metric filters on its structured logs.
 - Upstream changes surface on the first run that brings them; acknowledging one is a reviewed
   code change.
 - The worker's IAM role is unchanged (quarantine objects live under the raw prefix it already
-  writes; metrics come from logs).
+  writes; metrics come from logs). The backfill role gains `s3:PutObject` on `_quarantine/*`
+  only, so an applied replay can quarantine too.
+- A field acknowledged after the fact also goes to `OPTIONAL`, or replays of older weeks would
+  report it missing.
 - The contract covers top-level fields; nested objects are checked through their parent's type.
 - Until `alarm_sns_topic_arn` is set, the alarms are visible in CloudWatch but notify no one.
 

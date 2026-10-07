@@ -49,6 +49,13 @@ data "aws_iam_policy_document" "backfill" {
     resources = ["${aws_s3_bucket.raw.arn}/${var.raw_prefix}/*"]
   }
   statement {
+    # A replay that applies quarantines bad records like the live worker.
+    sid       = "AllowWriteQuarantine"
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.raw.arn}/${var.raw_prefix}/_quarantine/*"]
+  }
+  statement {
     sid       = "AllowEnqueueSpotifySearch"
     effect    = "Allow"
     actions   = ["sqs:SendMessage"]

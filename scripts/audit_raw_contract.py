@@ -69,8 +69,15 @@ def main() -> None:
         if report.quarantined or report.drift_fields:
             drifting += bool(report.drift_fields)
             reasons = sorted({r for q in report.quarantined for r in q["reasons"]})
+            kinds = {
+                "unknown": list(report.unknown_fields),
+                "missing": list(report.missing_fields),
+                "retyped": report.type_drift,
+                "empty": report.null_share_over,
+            }
+            drift = {k: v for k, v in kinds.items() if v}
             print(f"{modified:%Y-%m-%d %H:%M} {key}: quarantined={len(report.quarantined)}"
-                  f" {reasons or ''} drift={list(report.drift_fields) or ''}")
+                  f" {reasons or ''} drift={drift or ''}")
     print(f"\nobjects={len(objects)} records={records} quarantined={quarantined} "
           f"objects_with_drift={drifting}")
     for name, (modified, key) in sorted(first_seen.items(), key=lambda kv: kv[1]):
