@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: Raw lake tables registered in Glue by Terraform (infra/telemetry.tf, infra/analytics_export.tf).
+    schema: clouder_analytics
+    tables:
+      - name: events
+        identifier: bronze_events
+        description: Telemetry events delivered by Firehose (Parquet, partitioned by dt and event_name; at-least-once).
+        loaded_at_field: "from_iso8601_timestamp(ts_server)"
+        freshness:
+          warn_after: {count: 1, period: day}
+          filter: "dt >= cast(current_date - interval '3' day as varchar)"
+      - name: catalog_export
+        identifier: bronze_catalog_export
+        description: Nightly NDJSON snapshot of the Aurora catalog, partitioned by snapshot_dt and tbl; expires after 14 days.

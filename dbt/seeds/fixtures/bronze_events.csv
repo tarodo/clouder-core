@@ -1,0 +1,8 @@
+event_id,session_id,user_id,dt,ts_server,ts_client,event_name,track_id,source,duration_ms
+e1,s1,u1,2026-10-04,2026-10-04T10:12:00+00:00,2026-10-04T10:00:00.000Z,playback_play,t1,triage_player,300000
+e2,s1,u1,2026-10-04,2026-10-04T10:12:00+00:00,2026-10-04T10:02:00.000Z,playback_play,t2,triage_player,60000
+e2,s1,u1,2026-10-05,2026-10-05T00:01:00+00:00,2026-10-04T10:02:00.000Z,playback_play,t2,triage_player,60000
+e3,s1,u1,2026-10-04,2026-10-04T10:12:00+00:00,2026-10-04T10:05:00.000Z,playback_pause,t2,triage_player,
+e4,s1,u1,2026-10-04,2026-10-04T10:12:00+00:00,2026-10-04T10:10:00.000Z,playback_play,t1,category_player,300000
+e5,s2,u2,2026-10-05,2026-10-05T09:00:05+00:00,2026-10-05T09:00:00.000Z,playback_play,t9,playlist_player,0
+e6,s2,u2,2026-10-05,2026-10-05T09:00:05+00:00,2026-10-05T09:01:00.000Z,track_view,t9,,

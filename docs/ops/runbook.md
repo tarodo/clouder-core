@@ -180,6 +180,22 @@ Controlled by `var.enable_lambda_reserved_concurrency` in `infra/variables.tf` (
 
 Until the quota is raised, leave `enable_lambda_reserved_concurrency = false`. Workers run unreserved and Perplexity/Spotify 429s flow to DLQ for retry.
 
+## Nightly dbt build failed
+
+**Symptom**
+
+Alarm `clouder-prod-transform-failed`, or the `clouder-prod-transform` execution ended `FAILED`.
+
+**Diagnosis**
+
+`aws logs tail /aws/codebuild/clouder-prod-dbt --since 12h` — dbt names the failing model or test. A failed data test means bronze delivered something a model's contract rejects; a failed model is usually Athena SQL or permissions.
+
+**Fix**
+
+Fix forward on `main`, then start the state machine by hand (`aws stepfunctions start-execution --state-machine-arn $(cd infra && terraform output -raw transform_state_machine_arn)`). The cards read the last three days from bronze, so two failed nights lose nothing; after a third, days drop until the next successful build catches up. To stop reading silver at once, clear `silver_events_table` and deploy. See [`docs/data/lakehouse.md`](../data/lakehouse.md).
+
+---
+
 ## Reprocess raw data (backfill)
 
 **When**
@@ -228,7 +244,7 @@ export RAW_BUCKET_NAME='beatport-prod-raw-<acct>'   # required by SpotifyWorkerS
 
 ## Analytics: checks
 
-Analytics reads the lake live — there is no bootstrap step. Home cards and `/admin/analytics` show data as soon as telemetry lands (Firehose buffers ~5 min). Telemetry must be on in the frontend build (`VITE_TELEMETRY_ENABLED=true`, default in `scripts/deploy_frontend.sh`).
+Analytics reads the lake live; the only bootstrap step is for the silver history: after the first green dbt build, set the Terraform variable `silver_events_table = "clouder_silver.events"` (until then the Lambda reads bronze only). Home cards and `/admin/analytics` show data as soon as telemetry lands (Firehose buffers ~5 min). Telemetry must be on in the frontend build (`VITE_TELEMETRY_ENABLED=true`, default in `scripts/deploy_frontend.sh`).
 
 **Smoke test the ingest:**
 

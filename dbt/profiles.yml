@@ -1,0 +1,17 @@
+clouder:
+  target: "{{ env_var('DBT_TARGET', 'ci') }}"
+  outputs:
+    ci:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', 'target/ci.duckdb') }}"
+      threads: 4
+    prod:
+      type: athena
+      region_name: "{{ env_var('AWS_REGION', 'us-east-1') }}"
+      database: awsdatacatalog
+      schema: clouder_silver
+      work_group: "{{ env_var('DBT_ATHENA_WORKGROUP', 'beatport-prod-analytics') }}"
+      s3_staging_dir: "{{ env_var('DBT_S3_STAGING_DIR', 's3://clouder-prod-analytics-lake/athena-results/dbt/') }}"
+      s3_data_dir: "{{ env_var('DBT_S3_DATA_DIR', 's3://clouder-prod-analytics-lake/lakehouse/') }}"
+      threads: 4
+      num_retries: 3

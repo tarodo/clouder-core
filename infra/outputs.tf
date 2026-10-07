@@ -126,3 +126,8 @@ output "backfill_state_machine_arn" {
   description = "Backfill state machine (docs/ops/backfill.md)."
   value       = aws_sfn_state_machine.backfill.arn
 }
+
+output "transform_state_machine_arn" {
+  description = "Nightly dbt build state machine (docs/data/lakehouse.md)."
+  value       = aws_sfn_state_machine.transform.arn
+}

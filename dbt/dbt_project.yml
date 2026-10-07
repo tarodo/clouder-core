@@ -1,0 +1,33 @@
+name: clouder
+version: "1.0.0"
+config-version: 2
+profile: clouder
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+target-path: target
+clean-targets: [target, dbt_packages, logs]
+
+vars:
+  # Bronze partitions re-read by silver.events on each run: late arrivals and
+  # Firehose redeliveries land in recent dt partitions.
+  events_lookback_days: 2
+
+models:
+  clouder:
+    staging:
+      +materialized: view
+      +schema: clouder_silver
+    silver:
+      +schema: clouder_silver
+    gold:
+      +schema: clouder_gold
+
+seeds:
+  clouder:
+    fixtures:
+      # Stand-ins for the bronze Glue tables on DuckDB (CI, docs); never in prod.
+      +enabled: "{{ target.type == 'duckdb' }}"
+      +schema: clouder_analytics

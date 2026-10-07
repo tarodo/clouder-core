@@ -1,0 +1,8 @@
+snapshot_dt,tbl,id,title,bpm,key_camelot,publish_date,album_id,style_id,isrc,release_type,is_ai_suspected,spotify_release_date
+2026-10-03,clouder_tracks,t1,Track 1,128,8A,2026-09-26,a1,s1,QZ1,single,false,
+2026-10-03,clouder_tracks,t2,Track 2,120,5B,2026-09-26,a1,s1,QZ2,single,false,
+2026-10-03,clouder_tracks,t9,Track 9,174,1A,2026-09-26,a2,s2,QZ9,album,false,
+2026-10-04,clouder_tracks,t1,Track 1,126,8A,2026-09-26,a1,s1,QZ1,single,false,
+2026-10-04,clouder_tracks,t2,Track 2,120,5B,2026-09-26,a1,s1,QZ2,single,false,
+2026-10-04,clouder_tracks,t9,Track 9,174,1A,2026-09-26,a2,s2,QZ9,album,false,
+2026-10-04,clouder_styles,s1,,,,,,,,,,

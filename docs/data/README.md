@@ -7,6 +7,7 @@ Canonical schema, raw ingestion, transforms, search and enrichment.
 - [Raw ingestion](raw-ingestion.md) — Beatport API → S3 layout, `ingest_runs` state machine, Saturday-week.
 - [Canonicalization](canonicalization.md) — normalize → canonical, identity map, propagation rules.
 - [Data quality](data-quality.md) — nightly checks, SLOs, alarm.
+- [Lakehouse](lakehouse.md) — dbt + Iceberg silver/gold, SCD2 track history, nightly build.
 - [Entity resolution](entity-resolution.md) — identity map, ISRC and fuzzy matching, review queue, measured matcher quality.
 - [Search and enrichment](search-and-enrichment.md) — Spotify ISRC + metadata fallback, Perplexity label search, vendor-match cache, AI flag.
 
