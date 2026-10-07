@@ -1,6 +1,6 @@
 # Canonicalization: per-entity calls → set-based
 
-Status: in review — production "after" numbers are filled from the first weekly runs after deploy.
+Status: shipped in PR #248 (deployed 2026-10-07); production numbers from the first two runs after deploy.
 
 ## Why
 
@@ -70,8 +70,29 @@ The average cold week now makes 8 `ExecuteStatement` + 29 `BatchExecuteStatement
 
 ## Production (after)
 
-Pending — filled from the first weekly runs after deploy (CloudWatch worker duration and
-"Recent canonicalization runs").
+Two ingests on 2026-10-07, right after the deploy; zero worker errors. Durations are
+`canonicalization_process_started` → `canonicalization_process_completed` from the worker
+logs; the "before" side uses the same measure over the last 30 days of logs (87 runs — log
+retention is 30 days; older events carry no `duration_ms`, so they are timed by their
+timestamps).
+
+| | Before (30 days, 33 runs ≥ 500 tracks) | After (2 runs) |
+|---|---:|---:|
+| Seconds per 1,000 tracks | median **241 s** (213–263 s) | **14.8 s** / **9.9 s** |
+| A run of ~1,250 tracks | 228–359 s for runs of 1,000–1,560 tracks (1,198 tracks: 255 s) | **18.4 s** (1,244 tracks) / **12.3 s** (1,250 tracks) |
+| Lambda `Duration` (CloudWatch) | p50 104 s, max 360 s (120 days, all run sizes) | 19.5 s / 12.7 s |
+
+**16–24× faster per track in production.** That is less than the 41–51× call reduction in the
+benchmark, as the limitations below anticipate: each remaining call carries a larger batch.
+Phase timings of the second run (`duration_ms` in the phase logs): labels 0.7 s, styles 0.1 s,
+artists 1.6 s, albums 1.3 s, relations 3.1 s (one unchanged batch of ~4,400 rows), tracks
+5.6 s (7 chunks of up to 200). The first run was slower in labels/artists, consistent with the
+first invocation after the deploy.
+
+Downstream, the Spotify ISRC search for the same tracks took 290 s and 308 s (~4 tracks/s,
+93.7–98.5 % found — in line with its 30-day median of 3.5 tracks/s and 97.4 %). It searches
+one track per request, so it — not canonicalization — now sets the time until a week is fully
+enriched.
 
 ## What changed
 
@@ -98,8 +119,8 @@ Pending — filled from the first weekly runs after deploy (CloudWatch worker du
 
 ## What it buys
 
-- **Time to catalog:** a typical weekly run is modelled to drop from ~2–3 minutes to a few
-  seconds of round-trip time (production numbers above once measured).
+- **Time to catalog:** a ~1,250-track week now reaches the canonical catalog in 12–19 s
+  instead of roughly 4–5 minutes (production numbers above).
 - **Timeout headroom:** the worker runs inside a 900 s Lambda timeout. Before, the largest
   run (3,656 tracks) took 360 s, so a week ~2.5× larger would have timed out. After, the same
   run is ~166 round-trips (~10 s at 60 ms); calls grow with 200-track chunks (~45 per 1,000
@@ -109,9 +130,8 @@ Pending — filled from the first weekly runs after deploy (CloudWatch worker du
 - **Less load on Aurora:** 55 Data API calls per average run instead of 2,805 (18 of them
   begin/commit; inside each batch Postgres still runs one statement per parameter set, so the
   ~3× drop in local Postgres time is the honest measure of database work). Aurora Serverless
-  v2 scales on activity and auto-pauses when idle, so shorter runs mean fewer ACU-seconds. The
-  dollar effect is small at current volume (~$10/month total AWS bill) — the win is latency,
-  headroom and correctness, not cost.
+  v2 scales on activity and auto-pauses when idle, so shorter runs keep it busy for less time.
+  At the current volume the gain is latency, headroom and correctness rather than cost.
 
 ## Limitations
 
