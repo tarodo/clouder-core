@@ -1,9 +1,11 @@
 """Standalone analytics-api Lambda: personal listening stats.
 
-GET /v1/analytics/{listening,time-per-track} read bronze_events live through
-Athena (fresh to the Firehose buffer); time-per-track joins the nightly catalog
-snapshot for track -> style. Any signed-in user gets their own data; only an admin may
-pass ?user_id for someone else's (resolve_user). Clients never send SQL and
+GET /v1/analytics/{listening,time-per-track} read events through Athena: the
+compacted history from clouder_silver.events (dbt, nightly — docs/data/lakehouse.md)
+and the last day live from bronze_events (fresh to the Firehose buffer);
+time-per-track joins the nightly catalog snapshot for track -> style. Any
+signed-in user gets their own data; only an admin may pass ?user_id for someone
+else's (resolve_user). Clients never send SQL and
 Aurora is never touched.
 
 SQL is written once for two dialects: Trino/Athena in production, DuckDB in
@@ -162,6 +164,30 @@ def _check_dates(*values: str) -> None:
             raise AnalyticsError(400, "invalid_params", "bad date literal")
 
 
+_TABLE_RE = re.compile(r"^[a-z_]+\.[a-z_]+$")
+_EVENT_COLS = "event_id, user_id, dt, ts_client, event_name, track_id, duration_ms, source"
+
+
+def events_source(silver_table: str, cutoff: str) -> str:
+    """Events as one relation: compacted history from silver before `cutoff`,
+    the live tail from bronze from `cutoff` on. Silver is built nightly, so the
+    tail starts a day back; each dt comes from exactly one side."""
+    if not _TABLE_RE.match(silver_table):
+        raise AnalyticsError(500, "config_error", "bad SILVER_EVENTS_TABLE")
+    _check_dates(cutoff)
+    return (
+        f"(SELECT {_EVENT_COLS} FROM {silver_table} WHERE dt < '{cutoff}' "
+        f"UNION ALL SELECT {_EVENT_COLS} FROM bronze_events WHERE dt >= '{cutoff}') AS events_src"
+    )
+
+
+def events_table(today: date) -> str:
+    silver = os.environ.get("SILVER_EVENTS_TABLE", "").strip()
+    if not silver:
+        return "bronze_events"
+    return events_source(silver, (today - timedelta(days=1)).isoformat())
+
+
 def listening_sql(
     d: Mapping[str, str],
     *,
@@ -273,6 +299,7 @@ def serve_time_per_track(qs: Mapping[str, Any], user_id: str) -> dict[str, Any]:
         TRINO,
         scan_from=(today - timedelta(days=days)).isoformat(),
         dict_from=(today - timedelta(days=3)).isoformat(),
+        table=events_table(today),
     )
     rows = _run_athena(_client(), sql, [user_id], reuse_minutes=15)
     return shape_time_per_track(rows, days=days)
@@ -309,6 +336,7 @@ def serve_listening(qs: Mapping[str, Any], user_id: str) -> dict[str, Any]:
         week_from=w["week_from"].isoformat(),
         month_from=w["month_from"].isoformat(),
         tz_offset_min=off,
+        table=events_table(datetime.now(timezone.utc).date()),
     )
     # Short reuse, no warm-Lambda memo: "today" must move within minutes.
     rows = _run_athena(_client(), sql, [user_id], reuse_minutes=5)
