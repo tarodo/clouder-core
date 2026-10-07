@@ -152,9 +152,11 @@ jobs:
       - name: Install dbt
         run: pip install -r requirements.txt
       - name: Build and test on DuckDB (fixtures, unit + data tests)
+        # Unit tests read the columns of `this`: create empty relations first.
         run: |
           dbt seed --target ci
-          dbt build --target ci --exclude resource_type:seed
+          dbt run --target ci --empty
+          dbt build --target ci --full-refresh --exclude resource_type:seed
       - name: Parse the Athena target
         run: dbt parse --target prod
 
