@@ -39,8 +39,9 @@ databases `clouder_silver` and `clouder_gold` (data under `s3://…-analytics-la
 three macros (`parse_utc_ts`, `dt_minus_days`, `hash_text`).
 
 **`silver.events`.** Incremental MERGE on `event_id`. Each run re-reads bronze partitions from
-`max(dt) − 2 days` (late arrivals and redeliveries land there) and keeps the earliest copy of
-every `event_id`. Partitioned by `dt`, compacted by `OPTIMIZE … REWRITE DATA USING BIN_PACK`
+`max(dt) − 2 days` (late arrivals land there) and adds only events silver does not hold yet, so
+every `event_id` keeps its earliest copy — also when Firehose redelivers it later. A malformed
+client timestamp parses to NULL instead of failing the build. Partitioned by `dt`, compacted by `OPTIMIZE … REWRITE DATA USING BIN_PACK`
 and cleaned by `VACUUM` after each build.
 
 **`silver.dim_track_history`.** SCD2 of a track's catalog attributes (title, BPM, key, publish
@@ -63,11 +64,15 @@ CI runs them on DuckDB for every change under `dbt/` and parses the Athena targe
 CodeBuild project at 00:30 UTC — after the catalog export (00:00) and the data-quality checks
 (00:10). CodeBuild clones `main`, installs the pinned dbt versions and runs `dbt build` (unit
 tests stay in CI) and `dbt source freshness`. One retry; a failure ends the execution failed and
-raises `clouder-prod-transform-failed`.
+puts `clouder-prod-transform-failed` into ALARM (it notifies only when `alarm_sns_topic_arn` is
+set, like every alarm here).
 
-**Hot/cold read path.** The analytics Lambda reads events as one relation: history before
-yesterday from `clouder_silver.events`, yesterday and today from `bronze_events` — each `dt`
-from exactly one side (`SILVER_EVENTS_TABLE`; unset = bronze only).
+**Hot/cold read path.** The analytics Lambda reads events as one relation: history older than
+three days from `clouder_silver.events`, the last three days from `bronze_events` — each `dt`
+from exactly one side. Three days cover the build's lookback and two missed nightly builds, so a
+failing build does not drop days from the cards. It is switched on by the Terraform variable
+`silver_events_table` (empty = bronze only), set after the first green build; clearing it is
+the rollback.
 
 **Docs and lineage.** On every push to `main` under `dbt/`, CI builds the fixtures and publishes
 the dbt docs (models, columns, tests, lineage graph) to GitHub Pages:
@@ -85,8 +90,10 @@ dbt seed --target ci && dbt run --target ci --empty && dbt build --target ci --f
 ```
 
 A full rebuild of one model in production: start a CodeBuild build of `clouder-prod-dbt` with the
-build command overridden to `dbt build --target prod --full-refresh --select <model>`. Rebuilding
-`dim_track_history` restarts its history from the retained snapshots (14 days).
+build command overridden to `dbt build --target prod --full-refresh --select <model>`. A full
+refresh drops and recreates the table, so clear `silver_events_table` first when rebuilding
+`events`. Rebuilding `dim_track_history` restarts its history from the retained snapshots (14
+days).
 
 ## After
 
@@ -104,7 +111,7 @@ Filled from the first production builds.
 ## What it buys
 
 - History is read from a handful of compacted files instead of one per Firehose buffer; the
-  cards scan bronze only for the last two days.
+  cards scan bronze only for the last three days.
 - Exactly one row per event whatever the delivery does, with a test that fails if not.
 - Track history (style, BPM, release type, …) accumulates beyond the snapshot window, so "what
   was this track when it was played" has an answer.

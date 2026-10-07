@@ -2,7 +2,7 @@
 
 GET /v1/analytics/{listening,time-per-track} read events through Athena: the
 compacted history from clouder_silver.events (dbt, nightly — docs/data/lakehouse.md)
-and the last day live from bronze_events (fresh to the Firehose buffer);
+and the last three days live from bronze_events (fresh to the Firehose buffer);
 time-per-track joins the nightly catalog snapshot for track -> style. Any
 signed-in user gets their own data; only an admin may pass ?user_id for someone
 else's (resolve_user). Clients never send SQL and
@@ -165,13 +165,16 @@ def _check_dates(*values: str) -> None:
 
 
 _TABLE_RE = re.compile(r"^[a-z_]+\.[a-z_]+$")
+# Days read live from bronze: the nightly build's lookback plus room for two
+# missed builds, so a failing build does not silently drop days from the cards.
+_BRONZE_TAIL_DAYS = 3
 _EVENT_COLS = "event_id, user_id, dt, ts_client, event_name, track_id, duration_ms, source"
 
 
 def events_source(silver_table: str, cutoff: str) -> str:
     """Events as one relation: compacted history from silver before `cutoff`,
-    the live tail from bronze from `cutoff` on. Silver is built nightly, so the
-    tail starts a day back; each dt comes from exactly one side."""
+    the live tail from bronze from `cutoff` on; each dt comes from exactly one
+    side."""
     if not _TABLE_RE.match(silver_table):
         raise AnalyticsError(500, "config_error", "bad SILVER_EVENTS_TABLE")
     _check_dates(cutoff)
@@ -185,7 +188,7 @@ def events_table(today: date) -> str:
     silver = os.environ.get("SILVER_EVENTS_TABLE", "").strip()
     if not silver:
         return "bronze_events"
-    return events_source(silver, (today - timedelta(days=1)).isoformat())
+    return events_source(silver, (today - timedelta(days=_BRONZE_TAIL_DAYS)).isoformat())
 
 
 def listening_sql(

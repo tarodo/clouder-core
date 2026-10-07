@@ -32,16 +32,17 @@ Options considered:
 - `gold.fct_play`: plays with the track's style as of the play date.
 - Nightly at 00:30 UTC: Step Functions → CodeBuild `dbt build` (one retry, alarm on failure).
   Unit tests run in CI, not in production builds.
-- The analytics Lambda reads history from silver and the last two days from bronze.
+- The analytics Lambda reads history from silver and the last three days from bronze, switched
+  on by the Terraform variable `silver_events_table` after the first green build.
 - dbt docs with lineage publish to GitHub Pages from CI fixtures.
 
 ## Consequences
 
 - A second runtime (dbt in CodeBuild) with pinned versions in `dbt/requirements.txt`; the
   collector Lambda bundle is unchanged.
-- Silver is nightly; the cards stay live through the bronze tail. If a nightly build fails, the
-  day that should have moved to silver is missing from the cards until the next successful
-  build (the alarm fires); the lookback catches it up.
+- Silver is nightly; the cards stay live through the three-day bronze tail, which also absorbs
+  two failed builds in a row. A third missed night drops days from the cards until silver
+  catches up; the alarm notifies only when `alarm_sns_topic_arn` is set.
 - Athena-specific SQL is only proven by `dbt parse --target prod` in CI and the first production
   build; DuckDB covers logic, not dialect.
 - `VACUUM` keeps the default snapshot window, so Iceberg time travel covers the last days.

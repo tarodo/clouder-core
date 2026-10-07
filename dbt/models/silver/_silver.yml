@@ -144,3 +144,38 @@ unit_tests:
     expect:
       rows:
         - {track_id: t2, valid_from: '2026-10-03', valid_to: null, bpm: '120'}
+
+  - name: events_incremental_keeps_the_stored_copy
+    # A redelivered copy of an event already in silver is not merged again:
+    # silver keeps the earliest copy and its partition.
+    model: events
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: ref('stg_events')
+        rows:
+          - {event_id: e1, user_id: u1, event_name: playback_play, dt: '2026-10-05', ts_client_utc: '2026-10-04 10:00:00', ts_server_utc: '2026-10-05 00:01:00'}
+          - {event_id: e2, user_id: u1, event_name: playback_play, dt: '2026-10-05', ts_client_utc: '2026-10-05 10:00:00', ts_server_utc: '2026-10-05 10:00:00'}
+      - input: this
+        rows:
+          - {event_id: e1, user_id: u1, event_name: playback_play, dt: '2026-10-04', ts_client_utc: '2026-10-04 10:00:00', ts_server_utc: '2026-10-04 10:12:00'}
+    expect:
+      rows:
+        - {event_id: e2}
+
+  - name: dim_track_history_one_version_per_snapshot_day
+    # A snapshot paged with OFFSET during writes can hold a track twice; that
+    # must not produce two versions with the same valid_from (MERGE key).
+    model: dim_track_history
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: source('bronze', 'catalog_export')
+        rows:
+          - {snapshot_dt: '2026-10-03', tbl: clouder_tracks, id: t1, bpm: '128'}
+          - {snapshot_dt: '2026-10-03', tbl: clouder_tracks, id: t1, bpm: '126'}
+    expect:
+      rows:
+        - {track_id: t1, valid_from: '2026-10-03', valid_to: null}

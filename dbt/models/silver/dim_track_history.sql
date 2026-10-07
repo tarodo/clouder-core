@@ -41,11 +41,23 @@ observed as (
     {% endif %}
 ),
 
+one_per_day as (
+    -- A snapshot paged with OFFSET during writes can list a track twice; keep
+    -- one row per (track, day) so versions stay unique on the MERGE key.
+    select * from (
+        select
+            *,
+            row_number() over (partition by track_id, observed_on order by row_hash) as dup_no
+        from observed
+    ) d
+    where dup_no = 1
+),
+
 changes as (
     select
         *,
         lag(row_hash) over (partition by track_id order by observed_on) as prev_hash
-    from observed
+    from one_per_day
 ),
 
 versions as (

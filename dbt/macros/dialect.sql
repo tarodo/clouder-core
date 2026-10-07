@@ -1,8 +1,9 @@
 {#- The few SQL fragments that differ between Athena (Trino) in prod and DuckDB in CI. -#}
 
 {% macro parse_utc_ts(col) %}{{ return(adapter.dispatch('parse_utc_ts', 'clouder')(col)) }}{% endmacro %}
-{% macro athena__parse_utc_ts(col) %}cast(from_iso8601_timestamp({{ col }}) at time zone 'UTC' as timestamp(6)){% endmacro %}
-{% macro default__parse_utc_ts(col) %}(cast({{ col }} as timestamptz) at time zone 'UTC'){% endmacro %}
+{#- NULL for a malformed string: one bad client clock must not stop the nightly build. -#}
+{% macro athena__parse_utc_ts(col) %}cast(try(from_iso8601_timestamp({{ col }})) at time zone 'UTC' as timestamp(6)){% endmacro %}
+{% macro default__parse_utc_ts(col) %}(try_cast({{ col }} as timestamptz) at time zone 'UTC'){% endmacro %}
 
 {% macro dt_minus_days(expr, days) %}{{ return(adapter.dispatch('dt_minus_days', 'clouder')(expr, days)) }}{% endmacro %}
 {% macro athena__dt_minus_days(expr, days) %}cast(date_add('day', -{{ days }}, cast({{ expr }} as date)) as varchar){% endmacro %}

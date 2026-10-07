@@ -190,9 +190,11 @@ resource "aws_codebuild_project" "dbt" {
             - git clone --depth 1 --branch "$GIT_REF" https://github.com/tarodo/clouder-core.git repo
             - pip install -q -r repo/dbt/requirements.txt
         build:
+          # One shell for all commands: change directory once.
           commands:
-            - cd repo/dbt && DBT_PROFILES_DIR=. dbt build --target prod --exclude-resource-type unit_test
-            - cd repo/dbt && DBT_PROFILES_DIR=. dbt source freshness --target prod || true
+            - cd repo/dbt
+            - DBT_PROFILES_DIR=. dbt build --target prod --exclude-resource-type unit_test
+            - DBT_PROFILES_DIR=. dbt source freshness --target prod || true
     YAML
   }
 }

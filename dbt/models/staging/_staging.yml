@@ -8,3 +8,15 @@ models:
         data_tests: [not_null]
       - name: dt
         data_tests: [not_null]
+
+unit_tests:
+  - name: stg_events_tolerates_a_malformed_timestamp
+    # One bad client clock string must not stop the nightly build.
+    model: stg_events
+    given:
+      - input: source('bronze', 'events')
+        rows:
+          - {event_id: e1, ts_client: 'not-a-date', ts_server: '2026-10-04T10:12:00+00:00', dt: '2026-10-04'}
+    expect:
+      rows:
+        - {event_id: e1, ts_client_utc: null}

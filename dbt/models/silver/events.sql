@@ -13,11 +13,13 @@
 ) }}
 
 with source_rows as (
-    select * from {{ ref('stg_events') }}
+    select s.* from {{ ref('stg_events') }} s
     {% if is_incremental() %}
-    -- Late arrivals and Firehose redeliveries land in recent partitions; the
-    -- MERGE on event_id makes re-reading them idempotent.
-    where dt >= (select {{ dt_minus_days('max(dt)', var('events_lookback_days')) }} from {{ this }})
+    -- Late arrivals land in recent partitions; events already in silver (the
+    -- lookback re-reads them, Firehose may redeliver them) keep their stored,
+    -- earliest copy.
+    where s.dt >= (select {{ dt_minus_days('max(dt)', var('events_lookback_days')) }} from {{ this }})
+      and not exists (select 1 from {{ this }} t where t.event_id = s.event_id)
     {% endif %}
 ),
 

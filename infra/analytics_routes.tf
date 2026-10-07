@@ -15,6 +15,12 @@ variable "analytics_glue_database" {
   default = "clouder_analytics"
 }
 
+variable "silver_events_table" {
+  description = "Silver events table the analytics Lambda reads history from (e.g. clouder_silver.events); empty = bronze only. Set after the first green dbt build; clearing it is the rollback."
+  type        = string
+  default     = ""
+}
+
 variable "athena_workgroup" {
   type    = string
   default = "beatport-prod-analytics"
@@ -141,7 +147,7 @@ resource "aws_lambda_function" "analytics" {
       ATHENA_DATABASE        = var.analytics_glue_database
       ATHENA_WORKGROUP       = var.athena_workgroup
       ATHENA_OUTPUT_LOCATION = "s3://${var.analytics_lake_bucket}/athena-results/"
-      SILVER_EVENTS_TABLE    = "${aws_glue_catalog_database.silver.name}.events"
+      SILVER_EVENTS_TABLE    = var.silver_events_table
       LOG_LEVEL              = "INFO"
     }
   }

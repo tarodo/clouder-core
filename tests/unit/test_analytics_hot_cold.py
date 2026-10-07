@@ -29,8 +29,8 @@ def con():
     c.execute(f"CREATE TABLE bronze_events ({COLS})")
     c.execute(f"CREATE TABLE clouder_silver.events ({COLS})")
     c.executemany("INSERT INTO bronze_events VALUES (?,?,?,?,?,?,?,?)", ROWS)
-    # silver holds the history (deduplicated); bronze still has everything
-    c.executemany("INSERT INTO clouder_silver.events VALUES (?,?,?,?,?,?,?,?)", ROWS[:2])
+    # as in production, silver also holds the cutoff day; bronze has everything
+    c.executemany("INSERT INTO clouder_silver.events VALUES (?,?,?,?,?,?,?,?)", ROWS)
     yield c
     c.close()
 
@@ -73,6 +73,8 @@ def test_events_table_defaults_to_bronze(monkeypatch) -> None:
     assert ah.events_table(date(2026, 10, 4)) == "bronze_events"
 
 
-def test_events_table_uses_silver_before_yesterday(monkeypatch) -> None:
+def test_events_table_reads_a_three_day_bronze_tail(monkeypatch) -> None:
+    # The nightly build may miss nights; the tail covers its lookback plus two
+    # missed builds instead of silently dropping days from the cards.
     monkeypatch.setenv("SILVER_EVENTS_TABLE", "clouder_silver.events")
-    assert ah.events_table(date(2026, 10, 4)) == ah.events_source("clouder_silver.events", "2026-10-03")
+    assert ah.events_table(date(2026, 10, 4)) == ah.events_source("clouder_silver.events", "2026-10-01")

@@ -23,6 +23,15 @@ Unit tests live next to the models (`_silver.yml`, `_gold.yml`).
 - `ci` (default) — DuckDB file `target/ci.duckdb`; seeds stand in for bronze.
 - `prod` — Athena workgroup `beatport-prod-analytics`, data under `s3://clouder-prod-analytics-lake/lakehouse/`. Runs in CodeBuild (`clouder-prod-dbt`), not from laptops.
 
+## Changing a model
+
+- **`dim_track_history` tracked columns** (`tracked` in the model) feed the row hash. Adding or
+  removing one changes every track's hash, so the next build opens a new version for every
+  track. Do it with a full refresh of the model only if losing history older than the 14-day
+  snapshot window is acceptable; otherwise accept the one-time versions and note the date.
+- **Full refresh of `events`** drops and recreates the table: clear `silver_events_table` in
+  Terraform first, then restore it.
+
 ## Commands
 
 ```bash

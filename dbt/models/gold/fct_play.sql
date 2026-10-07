@@ -11,6 +11,7 @@ with ev as (
         cast(coalesce(nullif(duration_ms, 0), {{ fallback_ms }}) as double) as dur_ms
     from {{ ref('events') }}
     where event_name in ('playback_play', 'playback_pause', 'playback_resume', 'playback_ended')
+      and ts_client_utc is not null
 ),
 
 seq as (

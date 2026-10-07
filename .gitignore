@@ -50,3 +50,4 @@ dbt/target/
 dbt/logs/
 dbt/dbt_packages/
 .venv-dbt/
+dbt/.user.yml
