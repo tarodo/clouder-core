@@ -119,6 +119,13 @@ SELECT (SELECT count(*) FROM users)                                   AS users,
        (SELECT count(*) FROM track_tags)                              AS track_tags,
        (SELECT count(*) FROM external_comments)                       AS collected_comments"
 
+q "Recent canonicalization runs" "
+SELECT to_char(started_at, 'YYYY-MM-DD HH24:MI') AS started, style_id, item_count AS tracks,
+       round(extract(epoch FROM finished_at - started_at))                      AS ingest_to_canonical_s,
+       round(extract(epoch FROM finished_at - started_at) * 1000 / nullif(item_count, 0), 1) AS s_per_1k_tracks
+FROM ingest_runs WHERE status = 'COMPLETED'
+ORDER BY started_at DESC LIMIT 30"
+
 q "Database size" "SELECT pg_size_pretty(pg_database_size(current_database())) AS database_size"
 
 q "Largest tables" "

@@ -45,10 +45,12 @@ Tracks with a missing or non-positive `id` or missing `name` are silently skippe
 5. **relations** → bulk upsert `source_relations` (no canonical resolution needed)
 6. **tracks** → depends on `artist_ids`, `album_ids`, `style_ids`; processed in chunks of 200
 
-Each `_resolve_*` method follows the same pattern:
-1. Call `find_identity(source, entity_type, external_id, transaction_id=...)`.
-2. On hit → return existing `clouder_id`; for tracks, apply `ConservativeUpdateTrackCmd` to fill in any newly-present nullable fields without overwriting set values.
-3. On miss → generate a new UUID, create the canonical row, queue an `UpsertIdentityCmd` (confidence=0.600, match_type=`auto_create`).
+Each phase resolves identities set-based (ADR-0022):
+1. `claim_identities` — one batch inserting a candidate UUID for every external id, `ON CONFLICT DO NOTHING`.
+2. `find_identities` — one `IN (...)` lookup (500 ids per statement) returning the winning `clouder_id`s.
+3. Candidates that won are new → one batch creates their canonical rows (confidence=0.600, match_type=`auto_create`). The rest already existed (or were claimed by a concurrent run) → tracks get one batched `ConservativeUpdateTrackCmd` update that fills newly present nullable fields without overwriting set values.
+
+A phase therefore costs a handful of Data API calls regardless of entity count (`docs/benchmarks/canonicalization.md`).
 
 Track chunks are used to keep individual Data API payloads below the 1 MB limit. Each chunk is its own transaction.
 
@@ -58,11 +60,11 @@ Track chunks are used to keep individual Data API payloads below the 1 MB limit.
 
 The `identity_map` table is the translation layer between external source IDs and canonical CLOUDER UUIDs.
 
-**Write path**: `Canonicalizer` calls `repository.batch_upsert_identities([UpsertIdentityCmd(...)])` inside the same transaction as the canonical row creation. The upsert is `ON CONFLICT DO UPDATE SET last_seen_at = ...`, so re-processing the same run is idempotent.
+**Write path**: `Canonicalizer` calls `repository.claim_identities([UpsertIdentityCmd(...)])` at the start of each phase, inside the same transaction as the canonical row creation. The insert is `ON CONFLICT DO NOTHING`: an existing identity always wins, so re-processing a run is idempotent and a concurrent run that claimed an id first keeps it.
 
-**Read path**: `repository.find_identity(source, entity_type, external_id, transaction_id=)`.
+**Read path**: `repository.find_identities(source, entity_type, external_ids, transaction_id=)` → `{external_id: clouder_id}`.
 
-Critical: `transaction_id` must be passed when called inside an active `repository.transaction()` context. The RDS Data API does not share connection state across calls; without `transaction_id`, the read goes to a separate connection and misses rows written in the current in-flight transaction. This causes duplicated canonical entities on concurrent or re-processed runs. See `docs/backend/data-api.md` for the Data API transaction model.
+Critical: `transaction_id` must be passed when called inside an active `repository.transaction()` context. The RDS Data API does not share connection state across calls; without `transaction_id`, the read goes to a separate connection and misses rows written in the current in-flight transaction — including the identities the phase just claimed — so the claimed ids do not resolve and the canonicalizer raises, rolling the phase back. See `docs/backend/data-api.md` for the Data API transaction model.
 
 Match types written by the canonicalizer:
 - `auto_create` (confidence=0.600) — no prior identity found; new canonical entity created.

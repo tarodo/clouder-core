@@ -1,24 +1,18 @@
 from __future__ import annotations
 
+from collections import Counter
 from contextlib import contextmanager
-from datetime import datetime
 
 from collector.canonicalize import Canonicalizer
 from collector.normalize import normalize_tracks
-from collector.repositories import (
-    ConservativeUpdateTrackCmd,
-    CreateTrackCmd,
-    IdentityMapEntry,
-    UpsertIdentityCmd,
-    UpsertSourceEntityCmd,
-    UpsertSourceRelationCmd,
-    UpsertTrackArtistCmd,
-)
+from collector.repositories import CreateTrackCmd, IdentityMapEntry
 
 
 class FakeRepo:
     def __init__(self) -> None:
         self.identities: dict[tuple[str, str, str], IdentityMapEntry] = {}
+        self.lose_claims: dict[tuple[str, str], str] = {}  # (entity_type, ext) -> winner id
+        self.calls: Counter[str] = Counter()
         self.created_labels: list[str] = []
         self.created_styles: list[str] = []
         self.created_artists: list[str] = []
@@ -28,126 +22,58 @@ class FakeRepo:
         self.updated_tracks: list[str] = []
         self.track_artists: set[tuple[str, str, str]] = set()
 
-    def upsert_source_entity(
-        self, cmd: UpsertSourceEntityCmd, transaction_id: str | None = None
-    ) -> None:
-        del cmd, transaction_id
+    def batch_upsert_source_entities(self, commands, transaction_id=None) -> None:
+        self.calls["batch_upsert_source_entities"] += 1
 
-    def batch_upsert_source_entities(
-        self, commands, transaction_id: str | None = None
-    ) -> None:
-        del transaction_id
+    def batch_upsert_source_relations(self, commands, transaction_id=None) -> None:
+        self.calls["batch_upsert_source_relations"] += 1
+
+    def claim_identities(self, commands, transaction_id=None) -> None:
+        if not commands:
+            return
+        self.calls["claim_identities"] += 1
         for cmd in commands:
-            self.upsert_source_entity(cmd)
-
-    def upsert_source_relation(
-        self, cmd: UpsertSourceRelationCmd, transaction_id: str | None = None
-    ) -> None:
-        del cmd, transaction_id
-
-    def batch_upsert_source_relations(
-        self, commands, transaction_id: str | None = None
-    ) -> None:
-        del transaction_id
-        for cmd in commands:
-            self.upsert_source_relation(cmd)
-
-    def find_identity(
-        self,
-        source: str,
-        entity_type: str,
-        external_id: str,
-        transaction_id: str | None = None,
-    ):
-        return self.identities.get((source, entity_type, external_id))
-
-    def upsert_identity(
-        self, cmd: UpsertIdentityCmd, transaction_id: str | None = None
-    ) -> None:
-        del transaction_id
-        self.identities[(cmd.source, cmd.entity_type, cmd.external_id)] = (
-            IdentityMapEntry(
-                clouder_entity_type=cmd.clouder_entity_type,
-                clouder_id=cmd.clouder_id,
+            key = (cmd.source, cmd.entity_type, cmd.external_id)
+            winner = self.lose_claims.get((cmd.entity_type, cmd.external_id))
+            if winner is not None:
+                self.identities.setdefault(key, IdentityMapEntry(cmd.clouder_entity_type, winner))
+            self.identities.setdefault(
+                key, IdentityMapEntry(cmd.clouder_entity_type, cmd.clouder_id)
             )
-        )
 
-    def batch_upsert_identities(
-        self, commands, transaction_id: str | None = None
-    ) -> None:
-        del transaction_id
+    def find_identities(self, source, entity_type, external_ids, transaction_id=None):
+        external_ids = list(external_ids)
+        if not external_ids:
+            return {}
+        self.calls["find_identities"] += 1
+        return {
+            ext: self.identities[(source, entity_type, ext)].clouder_id
+            for ext in external_ids
+            if (source, entity_type, ext) in self.identities
+        }
+
+    def batch_create_labels(self, commands, transaction_id=None) -> None:
+        self.created_labels.extend(cmd.entity_id for cmd in commands)
+
+    def batch_create_styles(self, commands, transaction_id=None) -> None:
+        self.created_styles.extend(cmd.entity_id for cmd in commands)
+
+    def batch_create_artists(self, commands, transaction_id=None) -> None:
+        self.created_artists.extend(cmd.entity_id for cmd in commands)
+
+    def batch_create_albums(self, commands, transaction_id=None) -> None:
+        self.created_albums.extend(cmd.album_id for cmd in commands)
+
+    def batch_create_tracks(self, commands, transaction_id=None) -> None:
+        self.created_tracks.extend(cmd.track_id for cmd in commands)
+        self.created_track_cmds.extend(commands)
+
+    def batch_conservative_update_tracks(self, commands, transaction_id=None) -> None:
+        self.updated_tracks.extend(cmd.track_id for cmd in commands)
+
+    def batch_upsert_track_artists(self, commands, transaction_id=None) -> None:
         for cmd in commands:
-            self.upsert_identity(cmd)
-
-    def create_label(
-        self,
-        label_id: str,
-        name: str,
-        normalized_name: str,
-        at: datetime,
-        transaction_id: str | None = None,
-    ):
-        del name, normalized_name, at, transaction_id
-        self.created_labels.append(label_id)
-
-    def create_style(
-        self,
-        style_id: str,
-        name: str,
-        normalized_name: str,
-        at: datetime,
-        transaction_id: str | None = None,
-    ):
-        del name, normalized_name, at, transaction_id
-        self.created_styles.append(style_id)
-
-    def create_artist(
-        self,
-        artist_id: str,
-        name: str,
-        normalized_name: str,
-        at: datetime,
-        transaction_id: str | None = None,
-    ):
-        del name, normalized_name, at, transaction_id
-        self.created_artists.append(artist_id)
-
-    def create_album(
-        self,
-        album_id: str,
-        title: str,
-        normalized_title: str,
-        release_date,
-        label_id: str | None,
-        at: datetime,
-        transaction_id: str | None = None,
-    ):
-        del title, at, transaction_id, normalized_title, release_date, label_id
-        self.created_albums.append(album_id)
-
-    def create_track(
-        self, cmd: CreateTrackCmd, transaction_id: str | None = None
-    ) -> None:
-        del transaction_id
-        self.created_tracks.append(cmd.track_id)
-        self.created_track_cmds.append(cmd)
-
-    def conservative_update_track(
-        self, cmd: ConservativeUpdateTrackCmd, transaction_id: str | None = None
-    ) -> None:
-        del transaction_id
-        self.updated_tracks.append(cmd.track_id)
-
-    def upsert_track_artist(
-        self, cmd: UpsertTrackArtistCmd, transaction_id: str | None = None
-    ):
-        del transaction_id
-        self.track_artists.add((cmd.track_id, cmd.artist_id, cmd.role))
-
-    def batch_upsert_track_artists(self, commands, transaction_id: str | None = None):
-        del transaction_id
-        for cmd in commands:
-            self.upsert_track_artist(cmd)
+            self.track_artists.add((cmd.track_id, cmd.artist_id, cmd.role))
 
     @contextmanager
     def transaction(self):
@@ -301,3 +227,43 @@ def test_canonicalizer_threads_key_into_create_track_cmd() -> None:
     cmd = repo.created_track_cmds[0]
     assert cmd.key_name == "F Major"
     assert cmd.key_camelot == "7B"
+
+
+def test_identity_calls_scale_with_chunks_not_entities() -> None:
+    repo = FakeRepo()
+    raw = [
+        {**_raw_track(track_id=i, artist_id=10_000 + i, artist_name=f"A{i}")[0]}
+        for i in range(1, 451)
+    ]
+
+    Canonicalizer(repo).process_run(run_id="run-scale", bundle=normalize_tracks(raw))
+
+    # labels, styles, artists, albums + 3 track chunks (200 + 200 + 50)
+    assert repo.calls["claim_identities"] == 7
+    assert repo.calls["find_identities"] == 7
+    assert len(repo.created_tracks) == 450
+
+
+def test_lost_claims_reuse_the_winner_and_create_nothing() -> None:
+    repo = FakeRepo()
+    repo.lose_claims[("artist", "713053")] = "artist-winner"
+    repo.lose_claims[("track", "1")] = "track-winner"
+
+    Canonicalizer(repo).process_run(run_id="run-race", bundle=normalize_tracks(_raw_track()))
+
+    assert repo.created_artists == []
+    assert repo.created_tracks == []
+    assert repo.updated_tracks == ["track-winner"]
+    assert ("track-winner", "artist-winner", "main") in repo.track_artists
+
+
+def test_empty_phases_make_no_identity_calls() -> None:
+    repo = FakeRepo()
+    raw = [{"id": 1, "name": "Lonely Track", "artists": []}]
+
+    Canonicalizer(repo).process_run(run_id="run-empty", bundle=normalize_tracks(raw))
+
+    assert repo.calls["claim_identities"] == 1  # the single track chunk only
+    assert repo.calls["find_identities"] == 1
+    assert repo.created_labels == repo.created_styles == repo.created_artists == []
+    assert len(repo.created_tracks) == 1

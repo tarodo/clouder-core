@@ -29,6 +29,7 @@ tests/
   unit/          # Fast, no network, no DB. FakeDataAPI or direct function calls.
   integration/   # Uses FakeRepo / in-process fake dependencies. No real AWS.
   contract/      # Schema / contract checks (no network).
+  db/            # Real Postgres via a psycopg stand-in for the Data API; skipped unless TEST_DATABASE_URL is set (CI: alembic-check job).
 ```
 
 ### Unit tests (`tests/unit/`)

@@ -5,13 +5,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 from uuid import uuid4
 
 from .data_api import DataAPIClient, create_default_data_api_client
 from .models import RunStatus
 from .saturday_week import first_saturday, weeks_in_year
 from .settings import get_data_api_settings
+
+
+# ponytail: ids per `IN (...)` identity lookup. 500 rows of (external_id, clouder_id)
+# stay far under the Data API 1 MB response cap; raise only with a measured reason.
+_LOOKUP_CHUNK = 500
 
 
 @dataclass(frozen=True)
@@ -104,6 +109,24 @@ class ConservativeUpdateTrackCmd:
     publish_date: date | None
     album_id: str | None
     style_id: str | None
+    at: datetime
+
+
+@dataclass(frozen=True)
+class CreateNamedEntityCmd:
+    entity_id: str
+    name: str
+    normalized_name: str
+    at: datetime
+
+
+@dataclass(frozen=True)
+class CreateAlbumCmd:
+    album_id: str
+    title: str
+    normalized_title: str
+    release_date: date | None
+    label_id: str | None
     at: datetime
 
 
@@ -411,36 +434,6 @@ class ClouderRepository:
             transaction_id=transaction_id,
         )
 
-    def find_identity(
-        self,
-        source: str,
-        entity_type: str,
-        external_id: str,
-        transaction_id: str | None = None,
-    ) -> IdentityMapEntry | None:
-        rows = self._data_api.execute(
-            """
-            SELECT clouder_entity_type, clouder_id
-            FROM identity_map
-            WHERE source = :source
-              AND entity_type = :entity_type
-              AND external_id = :external_id
-            """,
-            {
-                "source": source,
-                "entity_type": entity_type,
-                "external_id": external_id,
-            },
-            transaction_id=transaction_id,
-        )
-        if not rows:
-            return None
-        row = rows[0]
-        return IdentityMapEntry(
-            clouder_entity_type=str(row["clouder_entity_type"]),
-            clouder_id=str(row["clouder_id"]),
-        )
-
     def upsert_identity(
         self, cmd: UpsertIdentityCmd, transaction_id: str | None = None
     ) -> None:
@@ -496,102 +489,123 @@ class ClouderRepository:
                 confidence = EXCLUDED.confidence,
                 last_seen_at = EXCLUDED.last_seen_at
             """,
-            [
-                {
-                    "source": cmd.source,
-                    "entity_type": cmd.entity_type,
-                    "external_id": cmd.external_id,
-                    "clouder_entity_type": cmd.clouder_entity_type,
-                    "clouder_id": cmd.clouder_id,
-                    "match_type": cmd.match_type,
-                    "confidence": cmd.confidence,
-                    "observed_at": cmd.observed_at,
-                }
-                for cmd in commands
-            ],
+            [_identity_params(cmd) for cmd in commands],
             transaction_id=transaction_id,
         )
 
-    def create_artist(
+    def find_identities(
         self,
-        artist_id: str,
-        name: str,
-        normalized_name: str,
-        at: datetime,
+        source: str,
+        entity_type: str,
+        external_ids: Iterable[str],
+        transaction_id: str | None = None,
+    ) -> dict[str, str]:
+        """external_id -> clouder_id for every id that has an identity.
+
+        The Data API cannot bind arrays (lists go over the wire as JSON), so this
+        is an IN list of generated placeholders, chunked to keep each statement
+        and response small.
+        """
+        unique = list(dict.fromkeys(external_ids))
+        found: dict[str, str] = {}
+        for start in range(0, len(unique), _LOOKUP_CHUNK):
+            chunk = unique[start : start + _LOOKUP_CHUNK]
+            params: dict[str, Any] = {"source": source, "entity_type": entity_type}
+            params.update({f"id{i}": ext for i, ext in enumerate(chunk)})
+            placeholders = ", ".join(f":id{i}" for i in range(len(chunk)))
+            rows = self._data_api.execute(
+                f"""
+                SELECT external_id, clouder_id
+                FROM identity_map
+                WHERE source = :source
+                  AND entity_type = :entity_type
+                  AND external_id IN ({placeholders})
+                """,
+                params,
+                transaction_id=transaction_id,
+            )
+            found.update({str(row["external_id"]): str(row["clouder_id"]) for row in rows})
+        return found
+
+    def claim_identities(
+        self,
+        commands: list[UpsertIdentityCmd],
         transaction_id: str | None = None,
     ) -> None:
-        self._data_api.execute(
+        """Insert identities that do not exist yet; an existing row always wins.
+
+        Paired with find_identities this is race-safe: if a concurrent run claimed
+        the same external id first, this INSERT waits for it, does nothing, and the
+        follow-up lookup returns the winner's clouder_id.
+        """
+        if not commands:
+            return
+        self._data_api.batch_execute(
             """
-            INSERT INTO clouder_artists (id, name, normalized_name, created_at, updated_at)
-            VALUES (:id, :name, :normalized_name, :at, :at)
-            ON CONFLICT (id) DO NOTHING
+            INSERT INTO identity_map (
+                source, entity_type, external_id, clouder_entity_type, clouder_id,
+                match_type, confidence, first_seen_at, last_seen_at
+            ) VALUES (
+                :source, :entity_type, :external_id, :clouder_entity_type, :clouder_id,
+                :match_type, :confidence, :observed_at, :observed_at
+            )
+            ON CONFLICT (source, entity_type, external_id) DO NOTHING
             """,
-            {
-                "id": artist_id,
-                "name": name,
-                "normalized_name": normalized_name,
-                "at": at,
-            },
+            [_identity_params(cmd) for cmd in commands],
             transaction_id=transaction_id,
         )
 
-    def create_label(
-        self,
-        label_id: str,
-        name: str,
-        normalized_name: str,
-        at: datetime,
-        transaction_id: str | None = None,
+    def batch_create_labels(
+        self, commands: list[CreateNamedEntityCmd], transaction_id: str | None = None
     ) -> None:
-        self._data_api.execute(
+        if not commands:
+            return
+        self._data_api.batch_execute(
             """
             INSERT INTO clouder_labels (id, name, normalized_name, created_at, updated_at)
             VALUES (:id, :name, :normalized_name, :at, :at)
             ON CONFLICT (id) DO NOTHING
             """,
-            {
-                "id": label_id,
-                "name": name,
-                "normalized_name": normalized_name,
-                "at": at,
-            },
+            [_named_entity_params(cmd) for cmd in commands],
             transaction_id=transaction_id,
         )
 
-    def create_style(
-        self,
-        style_id: str,
-        name: str,
-        normalized_name: str,
-        at: datetime,
-        transaction_id: str | None = None,
+    def batch_create_styles(
+        self, commands: list[CreateNamedEntityCmd], transaction_id: str | None = None
     ) -> None:
-        self._data_api.execute(
+        if not commands:
+            return
+        self._data_api.batch_execute(
             """
             INSERT INTO clouder_styles (id, name, normalized_name, created_at, updated_at)
             VALUES (:id, :name, :normalized_name, :at, :at)
             ON CONFLICT (id) DO NOTHING
             """,
-            {
-                "id": style_id,
-                "name": name,
-                "normalized_name": normalized_name,
-                "at": at,
-            },
+            [_named_entity_params(cmd) for cmd in commands],
             transaction_id=transaction_id,
         )
 
-    def create_album(
-        self,
-        album_id: str,
-        title: str,
-        normalized_title: str,
-        release_date: date | None,
-        label_id: str | None,
-        at: datetime,
-        transaction_id: str | None = None,
+    def batch_create_artists(
+        self, commands: list[CreateNamedEntityCmd], transaction_id: str | None = None
     ) -> None:
-        self._data_api.execute(
+        if not commands:
+            return
+        self._data_api.batch_execute(
+            """
+            INSERT INTO clouder_artists (id, name, normalized_name, created_at, updated_at)
+            VALUES (:id, :name, :normalized_name, :at, :at)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            [_named_entity_params(cmd) for cmd in commands],
+            transaction_id=transaction_id,
+        )
+
+    def batch_create_albums(
+        self, commands: list[CreateAlbumCmd], transaction_id: str | None = None
+    ) -> None:
+        if not commands:
+            return
+        self._data_api.batch_execute(
             """
             INSERT INTO clouder_albums (
                 id, title, normalized_title, release_date, label_id, created_at, updated_at
@@ -600,21 +614,26 @@ class ClouderRepository:
             )
             ON CONFLICT (id) DO NOTHING
             """,
-            {
-                "id": album_id,
-                "title": title,
-                "normalized_title": normalized_title,
-                "release_date": release_date,
-                "label_id": label_id,
-                "at": at,
-            },
+            [
+                {
+                    "id": cmd.album_id,
+                    "title": cmd.title,
+                    "normalized_title": cmd.normalized_title,
+                    "release_date": cmd.release_date,
+                    "label_id": cmd.label_id,
+                    "at": cmd.at,
+                }
+                for cmd in commands
+            ],
             transaction_id=transaction_id,
         )
 
-    def create_track(
-        self, cmd: CreateTrackCmd, transaction_id: str | None = None
+    def batch_create_tracks(
+        self, commands: list[CreateTrackCmd], transaction_id: str | None = None
     ) -> None:
-        self._data_api.execute(
+        if not commands:
+            return
+        self._data_api.batch_execute(
             """
             INSERT INTO clouder_tracks (
                 id, title, normalized_title, mix_name, isrc, bpm, length_ms,
@@ -627,47 +646,60 @@ class ClouderRepository:
             )
             ON CONFLICT (id) DO NOTHING
             """,
-            {
-                "id": cmd.track_id,
-                "title": cmd.title,
-                "normalized_title": cmd.normalized_title,
-                "mix_name": cmd.mix_name,
-                "isrc": cmd.isrc,
-                "bpm": cmd.bpm,
-                "length_ms": cmd.length_ms,
-                "key_name": cmd.key_name,
-                "key_camelot": cmd.key_camelot,
-                "publish_date": cmd.publish_date,
-                "album_id": cmd.album_id,
-                "style_id": cmd.style_id,
-                "at": cmd.at,
-            },
+            [
+                {
+                    "id": cmd.track_id,
+                    "title": cmd.title,
+                    "normalized_title": cmd.normalized_title,
+                    "mix_name": cmd.mix_name,
+                    "isrc": cmd.isrc,
+                    "bpm": cmd.bpm,
+                    "length_ms": cmd.length_ms,
+                    "key_name": cmd.key_name,
+                    "key_camelot": cmd.key_camelot,
+                    "publish_date": cmd.publish_date,
+                    "album_id": cmd.album_id,
+                    "style_id": cmd.style_id,
+                    "at": cmd.at,
+                }
+                for cmd in commands
+            ],
             transaction_id=transaction_id,
         )
 
-    def conservative_update_track(
-        self, cmd: ConservativeUpdateTrackCmd, transaction_id: str | None = None
+    def batch_conservative_update_tracks(
+        self,
+        commands: list[ConservativeUpdateTrackCmd],
+        transaction_id: str | None = None,
     ) -> None:
-        self._data_api.execute(
+        """Fill newly present values without blanking existing ones (one round-trip).
+
+        The CASE parameters are cast to their column types: an untyped NULL makes
+        `:p IS NULL` (text) and `col <> :p` (column type) disagree, which fails the
+        statement as soon as a track arrives without ISRC/BPM/length.
+        """
+        if not commands:
+            return
+        self._data_api.batch_execute(
             """
             UPDATE clouder_tracks
             SET mix_name = COALESCE(:mix_name, mix_name),
                 isrc = CASE
-                    WHEN :isrc IS NULL THEN isrc
-                    WHEN isrc IS NULL THEN :isrc
-                    WHEN isrc <> :isrc THEN :isrc
+                    WHEN CAST(:isrc AS VARCHAR) IS NULL THEN isrc
+                    WHEN isrc IS NULL THEN CAST(:isrc AS VARCHAR)
+                    WHEN isrc <> CAST(:isrc AS VARCHAR) THEN CAST(:isrc AS VARCHAR)
                     ELSE isrc
                 END,
                 bpm = CASE
-                    WHEN :bpm IS NULL THEN bpm
-                    WHEN bpm IS NULL THEN :bpm
-                    WHEN bpm <> :bpm THEN :bpm
+                    WHEN CAST(:bpm AS INTEGER) IS NULL THEN bpm
+                    WHEN bpm IS NULL THEN CAST(:bpm AS INTEGER)
+                    WHEN bpm <> CAST(:bpm AS INTEGER) THEN CAST(:bpm AS INTEGER)
                     ELSE bpm
                 END,
                 length_ms = CASE
-                    WHEN :length_ms IS NULL THEN length_ms
-                    WHEN length_ms IS NULL THEN :length_ms
-                    WHEN length_ms <> :length_ms THEN :length_ms
+                    WHEN CAST(:length_ms AS INTEGER) IS NULL THEN length_ms
+                    WHEN length_ms IS NULL THEN CAST(:length_ms AS INTEGER)
+                    WHEN length_ms <> CAST(:length_ms AS INTEGER) THEN CAST(:length_ms AS INTEGER)
                     ELSE length_ms
                 END,
                 key_name = COALESCE(:key_name, key_name),
@@ -678,19 +710,22 @@ class ClouderRepository:
                 updated_at = :at
             WHERE id = :track_id
             """,
-            {
-                "track_id": cmd.track_id,
-                "mix_name": cmd.mix_name,
-                "isrc": cmd.isrc,
-                "bpm": cmd.bpm,
-                "length_ms": cmd.length_ms,
-                "key_name": cmd.key_name,
-                "key_camelot": cmd.key_camelot,
-                "publish_date": cmd.publish_date,
-                "album_id": cmd.album_id,
-                "style_id": cmd.style_id,
-                "at": cmd.at,
-            },
+            [
+                {
+                    "track_id": cmd.track_id,
+                    "mix_name": cmd.mix_name,
+                    "isrc": cmd.isrc,
+                    "bpm": cmd.bpm,
+                    "length_ms": cmd.length_ms,
+                    "key_name": cmd.key_name,
+                    "key_camelot": cmd.key_camelot,
+                    "publish_date": cmd.publish_date,
+                    "album_id": cmd.album_id,
+                    "style_id": cmd.style_id,
+                    "at": cmd.at,
+                }
+                for cmd in commands
+            ],
             transaction_id=transaction_id,
         )
 
@@ -1440,6 +1475,28 @@ class ClouderRepository:
             """,
             {},
         )
+
+
+def _identity_params(cmd: UpsertIdentityCmd) -> dict[str, Any]:
+    return {
+        "source": cmd.source,
+        "entity_type": cmd.entity_type,
+        "external_id": cmd.external_id,
+        "clouder_entity_type": cmd.clouder_entity_type,
+        "clouder_id": cmd.clouder_id,
+        "match_type": cmd.match_type,
+        "confidence": cmd.confidence,
+        "observed_at": cmd.observed_at,
+    }
+
+
+def _named_entity_params(cmd: CreateNamedEntityCmd) -> dict[str, Any]:
+    return {
+        "id": cmd.entity_id,
+        "name": cmd.name,
+        "normalized_name": cmd.normalized_name,
+        "at": cmd.at,
+    }
 
 
 def parse_iso_date(value: str | None) -> date | None:
