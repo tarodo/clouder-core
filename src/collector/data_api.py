@@ -10,6 +10,10 @@ from typing import Any, Dict, Iterable, Iterator, Mapping
 
 from .data_api_retry import retry_data_api, retry_data_api_pre_execution
 
+# BatchExecuteStatement rejects a request body over 4 MiB (HTTP 413) — a whole
+# large run's relations once did. Leave room for the ARNs and JSON framing.
+_BATCH_REQUEST_BYTES = 3_000_000
+
 
 class DataAPIClient:
     def __init__(
@@ -48,28 +52,38 @@ class DataAPIClient:
         response = self._client.execute_statement(**request)
         return _to_rows(response)
 
-    @retry_data_api()
     def batch_execute(
         self,
         sql: str,
         parameter_sets: Iterable[Mapping[str, Any]],
         transaction_id: str | None = None,
     ) -> None:
+        """Send parameter sets in requests that stay under the Data API's body
+        limit (4 MiB, HTTP 413 above it), all in the caller's transaction."""
+        converted = [
+            [_to_parameter(name, value) for name, value in params.items()]
+            for params in parameter_sets
+        ]
+        for chunk in _size_chunks(converted, _BATCH_REQUEST_BYTES - len(sql)):
+            self._batch_execute_chunk(sql, chunk, transaction_id)
+
+    @retry_data_api()
+    def _batch_execute_chunk(
+        self,
+        sql: str,
+        parameter_sets: list[list[Dict[str, Any]]],
+        transaction_id: str | None,
+    ) -> None:
         request: Dict[str, Any] = {
             "resourceArn": self._resource_arn,
             "secretArn": self._secret_arn,
             "database": self._database,
             "sql": sql,
-            "parameterSets": [
-                [_to_parameter(name, value) for name, value in params.items()]
-                for params in parameter_sets
-            ],
+            "parameterSets": parameter_sets,
         }
         if transaction_id:
             request["transactionId"] = transaction_id
-
-        if request["parameterSets"]:
-            self._client.batch_execute_statement(**request)
+        self._client.batch_execute_statement(**request)
 
     @retry_data_api()
     def begin_transaction(self) -> str:
@@ -209,3 +223,21 @@ def _from_field(field: Any) -> Any:
         return field["blobValue"]
 
     return None
+
+
+def _size_chunks(
+    items: list[list[Dict[str, Any]]], budget: int
+) -> Iterator[list[list[Dict[str, Any]]]]:
+    """Consecutive groups whose JSON size stays within `budget`; an item larger
+    than the budget goes alone (the service decides)."""
+    chunk: list[list[Dict[str, Any]]] = []
+    size = 2  # the enclosing brackets
+    for item in items:
+        item_size = len(json.dumps(item, separators=(",", ":"), default=str)) + 1
+        if chunk and size + item_size > budget:
+            yield chunk
+            chunk, size = [], 2
+        chunk.append(item)
+        size += item_size
+    if chunk:
+        yield chunk
