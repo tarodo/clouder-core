@@ -44,3 +44,9 @@ prod_volumes_*.txt
 
 # Matching gold-set exports (scripts/export_match_gold.py): catalog rows, never committed
 match_gold_*
+
+# dbt build output and local venv
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+.venv-dbt/

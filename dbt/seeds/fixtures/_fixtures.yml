@@ -1,0 +1,32 @@
+version: 2
+
+seeds:
+  - name: bronze_events
+    config:
+      column_types:
+        event_id: varchar
+        session_id: varchar
+        user_id: varchar
+        dt: varchar
+        ts_server: varchar
+        ts_client: varchar
+        event_name: varchar
+        track_id: varchar
+        source: varchar
+        duration_ms: bigint
+  - name: bronze_catalog_export
+    config:
+      column_types:
+        snapshot_dt: varchar
+        tbl: varchar
+        id: varchar
+        title: varchar
+        bpm: varchar
+        key_camelot: varchar
+        publish_date: varchar
+        album_id: varchar
+        style_id: varchar
+        isrc: varchar
+        release_type: varchar
+        is_ai_suspected: varchar
+        spotify_release_date: varchar

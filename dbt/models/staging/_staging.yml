@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: stg_events
+    description: Bronze events with parsed UTC timestamps.
+    columns:
+      - name: event_id
+        data_tests: [not_null]
+      - name: dt
+        data_tests: [not_null]
