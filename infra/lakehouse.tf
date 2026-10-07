@@ -75,6 +75,8 @@ data "aws_iam_policy_document" "dbt" {
   statement {
     sid = "AllowWriteLakehouseCatalog"
     actions = [
+      # dbt-athena runs CREATE SCHEMA IF NOT EXISTS before every build.
+      "glue:CreateDatabase",
       "glue:GetDatabase",
       "glue:GetTable",
       "glue:GetTables",
