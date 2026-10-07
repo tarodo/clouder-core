@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: fct_play
+    description: >
+      One row per play: playing stretches (play/resume up to the user's next playback
+      event) capped at the track's duration, 10-minute fallback for unknown durations —
+      the same rule as the analytics Lambda. style_id is the track's style as of the
+      play date (the earliest known version for plays before history starts).
+    columns:
+      - name: play_event_id
+        data_tests: [unique, not_null]
+      - name: user_id
+        data_tests: [not_null]
+      - name: ms
+        data_tests: [not_null]
+
+unit_tests:
+  - name: fct_play_caps_stretches_at_the_track_duration
+    model: fct_play
+    given:
+      - input: ref('events')
+        rows:
+          - {event_id: e1, user_id: u1, event_name: playback_play, track_id: t1, source: triage_player, duration_ms: 300000, ts_client_utc: '2026-10-04 10:00:00'}
+          - {event_id: e2, user_id: u1, event_name: playback_play, track_id: t2, source: triage_player, duration_ms: 60000, ts_client_utc: '2026-10-04 10:02:00'}
+          - {event_id: e3, user_id: u1, event_name: playback_pause, track_id: t2, source: triage_player, duration_ms: null, ts_client_utc: '2026-10-04 10:02:30'}
+          - {event_id: e4, user_id: u1, event_name: playback_play, track_id: t1, source: category_player, duration_ms: 300000, ts_client_utc: '2026-10-04 10:10:00'}
+          - {event_id: e9, user_id: u2, event_name: playback_play, track_id: t9, source: playlist_player, duration_ms: 0, ts_client_utc: '2026-10-04 10:01:00'}
+      - input: ref('dim_track_history')
+        rows: []
+    expect:
+      rows:
+        - {play_event_id: e1, user_id: u1, ms: 120000}
+        - {play_event_id: e2, user_id: u1, ms: 30000}
+        - {play_event_id: e4, user_id: u1, ms: 300000}
+        - {play_event_id: e9, user_id: u2, ms: 600000}
+
+  - name: fct_play_uses_the_style_as_of_the_play
+    model: fct_play
+    given:
+      - input: ref('events')
+        rows:
+          - {event_id: before, user_id: u1, event_name: playback_play, track_id: t1, source: triage_player, duration_ms: 1000, ts_client_utc: '2026-09-01 10:00:00'}
+          - {event_id: during, user_id: u1, event_name: playback_play, track_id: t1, source: triage_player, duration_ms: 1000, ts_client_utc: '2026-10-04 10:00:00'}
+          - {event_id: after, user_id: u1, event_name: playback_play, track_id: t1, source: triage_player, duration_ms: 1000, ts_client_utc: '2026-10-06 10:00:00'}
+      - input: ref('dim_track_history')
+        rows:
+          - {track_id: t1, valid_from: '2026-10-03', valid_to: '2026-10-05', style_id: s1}
+          - {track_id: t1, valid_from: '2026-10-05', valid_to: null, style_id: s2}
+    expect:
+      rows:
+        - {play_event_id: before, style_id: s1}
+        - {play_event_id: during, style_id: s1}
+        - {play_event_id: after, style_id: s2}
