@@ -35,6 +35,9 @@ ranked as (
 
 select
     event_id, session_id, user_id, event_name, track_id, source, duration_ms,
-    ts_client, ts_client_utc, ts_server_utc, dt
+    ts_client,
+    {{ iceberg_ts('ts_client_utc') }} as ts_client_utc,
+    {{ iceberg_ts('ts_server_utc') }} as ts_server_utc,
+    dt
 from ranked
 where copy_no = 1
