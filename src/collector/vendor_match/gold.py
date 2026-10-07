@@ -58,9 +58,15 @@ def review_accepts(client: Any) -> list[dict[str, Any]]:
             "track_id": row["track_id"],
             **_query_fields(row),
             "chosen_id": row["chosen_id"],
-            "candidates": [c.get("ref") or {} for c in _json(row["candidates"]) or []],
+            "candidates": [c.get("ref") or {} for c in candidates],
+            # What the worker scored at the time, to detect metadata drift since.
+            "stored_top_score": max(
+                (float(c["score"]) for c in candidates if isinstance(c.get("score"), (int, float))),
+                default=None,
+            ),
         }
         for row in rows
+        for candidates in [_json(row["candidates"]) or []]
     ]
 
 
@@ -97,6 +103,18 @@ def auto_sample(client: Any, n: int) -> list[dict[str, Any]]:
         }
         for row in rows
     ]
+
+
+def auto_population(client: Any) -> dict[str, Any]:
+    """How many auto-accepted fuzzy matches the hand-labelled sample stands for."""
+    (row,) = client.execute(
+        """
+        SELECT count(*) AS fuzzy
+        FROM vendor_track_map
+        WHERE vendor = 'ytmusic' AND match_type = 'fuzzy'
+        """
+    )
+    return {"kind": "auto_population", "fuzzy": int(row["fuzzy"])}
 
 
 def duplicate_artists(client: Any) -> dict[str, Any]:

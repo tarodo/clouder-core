@@ -31,7 +31,7 @@ candidate is accepted automatically at ≥ 0.92; otherwise the top five are stor
 |---|---|
 | Spotify | 96.9 % of tracks matched (91,785 of 94,736); 85,030 linked by ISRC |
 | YouTube Music | 568 matches: 472 automatic fuzzy (average confidence 0.994) and 96 manual |
-| Review queue | 99 items: 93 resolved, 3 pending, 3 rejected — about one YouTube Music match in six needed a person |
+| Review queue | 99 items: 93 resolved, 3 pending, 3 closed as no match (a person's reject and a search with no candidates both end there) — about one YouTube Music match in six needed a person |
 | Precision of automatic matches | not measured |
 | Threshold 0.92 | chosen by hand |
 
@@ -45,19 +45,30 @@ candidate is accepted automatically at ≥ 0.92; otherwise the top five are stor
 2. **Optional hand labels for automatic matches.** A deterministic sample (md5 order) of
    auto-accepted fuzzy matches is exported with an empty `label` column to mark y/n.
 3. **Re-scoring.** Each gold item is scored again with the production scorer, so the same
-   report answers "what if the threshold — or the scorer — were different".
+   report answers "what if the threshold were different" (scorer changes can only be judged
+   within the stored top five candidates). The export keeps the score production computed;
+   items whose metadata changed since the match (a re-ingest that filled a duration, a new
+   artist credit) re-score differently, are left out, and are counted in the report.
 4. **Per threshold (0.70–1.00):** auto-accepted, correct, wrong, precision, sent to review,
    and cost = wrong auto-matches × 10 + reviews × 1 (a wrong video in a published playlist is
    treated as ten times worse than one manual check; both weights are CLI flags).
-5. **Bias.** Every review item scored below 0.92 when it was queued, so review items alone
-   cannot show whether a threshold above 0.92 would help — that needs the hand-labelled
-   sample. The report says so when the sample is missing.
+5. **Weights.** Review items are the whole population below 0.92; hand-labelled automatic
+   matches are a sample, so each one is weighted by its share of all automatic matches.
+6. **Bias.** Every review item scored below 0.92 when it was queued, so review items alone
+   cannot show whether a threshold above 0.92 would help — without the labelled sample the
+   report does not recommend one. Rejected items are not in the gold set (their candidates
+   are deleted on reject), which makes precision below 0.92 look somewhat better than it is.
 
 ## After
 
 Pending the owner's first export (`scripts/export_match_gold.py`); filled from
 `scripts/eval_vendor_match.py`: measured precision at 0.92, the lowest-cost threshold, and
 the review load each would produce.
+
+## What it buys
+
+Filled with "After": the precision of today's automatic matches, and how much review work a
+data-backed threshold saves at that precision.
 
 ## Duplicate artists
 

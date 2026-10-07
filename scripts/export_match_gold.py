@@ -23,7 +23,12 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from collector.vendor_match.gold import auto_sample, duplicate_artists, review_accepts  # noqa: E402
+from collector.vendor_match.gold import (  # noqa: E402
+    auto_population,
+    auto_sample,
+    duplicate_artists,
+    review_accepts,
+)
 
 
 def _client(database_url: str | None) -> Any:
@@ -58,12 +63,13 @@ def main(argv: list[str] | None = None) -> tuple[Path, Path]:
     client = _client(args.database_url)
     reviews = review_accepts(client)
     sample = auto_sample(client, args.sample)
+    population = auto_population(client)
     duplicates = duplicate_artists(client)
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
     gold = args.out_dir / f"match_gold_{stamp}.jsonl"
     with gold.open("w", encoding="utf-8") as f:
-        for record in [*reviews, *sample, duplicates]:
+        for record in [*reviews, *sample, population, duplicates]:
             f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
 
     labels = args.out_dir / f"match_gold_{stamp}_labels.csv"

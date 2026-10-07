@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from collector.providers.base import VendorTrackRef
 from collector.vendor_match.evaluate import (
     GoldItem,
     best_threshold,
+    drifted,
     load_gold,
     read_labels,
     render_report,
@@ -154,3 +157,82 @@ def test_report_handles_empty_gold_set() -> None:
     report = render_report([], sweep([]), current=0.92, fp_cost=10.0, review_cost=1.0)
 
     assert "Gold items: 0" in report
+
+
+# ── final-review fixes ────────────────────────────────────────────────
+
+
+def test_load_gold_carries_production_score() -> None:
+    record = {"kind": "review_accept", "track_id": "t1", "artist": "Artist A",
+              "title": "Night Drive", "duration_ms": 300_000, "album": None,
+              "chosen_id": "v1", "stored_top_score": 0.95,
+              "candidates": [_raw("v1", "Night Drive")]}
+
+    (item,) = load_gold([record])
+
+    assert item.stored_score == 0.95
+
+
+def test_rescoring_drift_is_detected() -> None:
+    item = _item("a", [(_ref("a1", "Night Drive"), True)])
+    top = top_score(item)[0]
+
+    assert not drifted(replace(item, stored_score=top))
+    assert drifted(replace(item, stored_score=round(top - 0.05, 3)))
+    assert not drifted(item)  # no production score to compare against
+
+
+def test_report_lists_items_that_rescore_differently() -> None:
+    items = [_item("a", [(_ref("a1", "Night Drive"), True)])]
+
+    report = render_report(items, sweep(items), current=0.92, fp_cost=10.0,
+                           review_cost=1.0, drifted_items=2)
+
+    assert "2 items re-score differently" in report
+
+
+def test_auto_samples_stand_for_their_population() -> None:
+    sample = {"kind": "auto_sample", "artist": "Artist A", "title": "Night Drive",
+              "duration_ms": 300_000, "album": None, "confidence": 0.95}
+    records = [
+        {**sample, "track_id": "s1", "candidate": _raw("y1", "Night Drive")},
+        {**sample, "track_id": "s2", "candidate": _raw("y2", "Night Drive")},
+        {"kind": "auto_population", "fuzzy": 10},
+    ]
+
+    items = load_gold(records, labels={"s1": True, "s2": False})
+    (result,) = sweep(items, thresholds=(0.5,))
+
+    assert [i.weight for i in items] == [5.0, 5.0]
+    assert (result.auto_accepted, result.auto_correct, result.auto_wrong) == (10.0, 5.0, 5.0)
+
+
+def test_best_threshold_can_be_capped() -> None:
+    weak_wrong = _item("w", [(_ref("w1", "Night Drive (Club Edit)"), False)])
+    results = sweep([weak_wrong], thresholds=(0.70, 0.92, 1.0))
+
+    assert best_threshold(results).threshold == 1.0
+    assert best_threshold(results, max_threshold=0.92).threshold == 0.92
+
+
+def test_report_without_labels_never_recommends_above_current() -> None:
+    items = [_item("w", [(_ref("w1", "Night Drive (Club Edit)"), False)])]
+
+    report = render_report(items, sweep(items), current=0.92, fp_cost=10.0, review_cost=1.0)
+
+    assert "Lowest-cost threshold 0.92" in report
+
+
+def test_report_states_precision_of_newly_accepted_band() -> None:
+    items = [_item("c1", [(_ref("c1", "Night Drive (Club Edit)"), True)]),
+             _item("c2", [(_ref("c2", "Night Drive (Club Edit)"), True)])]
+
+    report = render_report(items, sweep(items), current=0.92, fp_cost=10.0, review_cost=1.0)
+
+    assert "Newly auto-accepted below 0.92: 2 items, precision 100.0%" in report
+
+
+def test_read_labels_handles_bom_and_semicolons() -> None:
+    lines = ["﻿track_id;query;candidate;url;label", "s1;q;c;u;y", "s2;q;c;u;n"]
+
+    assert read_labels(lines) == {"s1": True, "s2": False}

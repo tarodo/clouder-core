@@ -30,3 +30,15 @@ def test_cli_prints_report_and_writes_it(tmp_path, monkeypatch, capsys) -> None:
     assert "Gold items: 1" in printed
     assert "2 name groups (5 artists)" in printed
     assert out.read_text() == printed
+
+
+def test_cli_warns_when_labels_file_yields_no_labels(tmp_path, monkeypatch, capsys) -> None:
+    gold = tmp_path / "match_gold_test.jsonl"
+    gold.write_text(json.dumps({"kind": "duplicate_artists", "name_groups": 0}) + "\n")
+    labels = tmp_path / "labels.csv"
+    labels.write_text("track_id|label\ns1|y\n")  # unsupported delimiter: nothing parses
+    monkeypatch.setattr(sys, "argv", ["eval_vendor_match.py", str(gold), "--labels", str(labels)])
+
+    runpy.run_path(str(SCRIPT), run_name="__main__")
+
+    assert "no y/n label was read" in capsys.readouterr().err

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 
-from collector.vendor_match.gold import auto_sample, duplicate_artists, review_accepts
+from collector.curation.playlists_repository import PlaylistsRepository
+from collector.vendor_match.gold import auto_population, auto_sample, duplicate_artists, review_accepts
 
 
 def _seed(pg) -> None:
@@ -55,6 +56,7 @@ def test_review_accepts_keeps_latest_resolution_per_track(pg) -> None:
     assert record["track_id"] == "t1"
     assert record["chosen_id"] == "v2"
     assert [c["videoId"] for c in record["candidates"]] == ["v1", "v2"]
+    assert record["stored_top_score"] == 0.9
     assert (record["artist"], record["title"], record["duration_ms"], record["album"]) == (
         "Alpha, Zeta", "Night Drive", 300000, "Album One")
 
@@ -76,3 +78,33 @@ def test_duplicate_artists_counts_name_groups(pg) -> None:
 
     assert summary == {"kind": "duplicate_artists", "name_groups": 1,
                        "artists_in_groups": 2, "groups_with_non_beatport_artist": 1}
+
+
+def test_auto_population_counts_fuzzy_matches(pg) -> None:
+    _seed(pg)
+
+    assert auto_population(pg) == {"kind": "auto_population", "fuzzy": 1}
+
+
+def test_gold_query_fields_match_vendor_match_inputs(pg) -> None:
+    """The export must rebuild exactly the input the vendor-match worker scored."""
+    _seed(pg)
+    pg.execute(
+        "INSERT INTO clouder_tracks (id, title, normalized_title, length_ms, album_id, created_at, updated_at) "
+        "VALUES ('t3', 'Third', 'third', 245000, 'al1', now(), now())"
+    )
+    pg.execute("INSERT INTO clouder_track_artists (track_id, artist_id) VALUES ('t3', 'ar3'), ('t3', 'ar1')")
+    (expected,) = PlaylistsRepository(pg).fetch_unmatched_match_inputs(track_ids=["t3"], vendor="ytmusic")
+    pg.execute(
+        "INSERT INTO vendor_track_map (clouder_track_id, vendor, vendor_track_id, match_type, confidence, matched_at, payload) "
+        "VALUES ('t3', 'ytmusic', 'v9', 'manual', 1.0, now(), '{}'::jsonb)"
+    )
+    pg.execute(
+        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status, created_at, resolved_at) "
+        "VALUES ('q3', 't3', 'ytmusic', '[]'::jsonb, 'resolved', now(), now())"
+    )
+
+    (record,) = [r for r in review_accepts(pg) if r["track_id"] == "t3"]
+
+    assert (record["artist"], record["title"], record["duration_ms"], record["album"]) == (
+        expected.artist, expected.title, expected.duration_ms, expected.album)
