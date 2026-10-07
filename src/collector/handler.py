@@ -383,15 +383,38 @@ class _IngestParams:
     is_custom_range: bool
 
 
+# Public name for callers outside the API handler (auto-ingest).
+IngestParams = _IngestParams
+
+
 def _run_beatport_ingest(
     event: Mapping[str, Any],
     context: Any,
     params: _IngestParams,
     correlation_id: str,
 ) -> dict[str, Any]:
+    response = collect_period(
+        params,
+        correlation_id,
+        api_request_id=_extract_api_request_id(event),
+        lambda_request_id=getattr(context, "aws_request_id", "unknown"),
+        trigger="manual",
+    )
+    return _json_response(200, response, correlation_id)
+
+
+def collect_period(
+    params: _IngestParams,
+    correlation_id: str,
+    *,
+    api_request_id: str,
+    lambda_request_id: str,
+    trigger: str = "manual",
+) -> dict[str, Any]:
+    """Fetch one style × period from Beatport, store it raw, record the run and
+    enqueue canonicalization — the admin endpoint and auto-ingest share it.
+    `params.bp_token` is used for the fetch only."""
     started_at_perf = time.perf_counter()
-    api_request_id = _extract_api_request_id(event)
-    lambda_request_id = getattr(context, "aws_request_id", "unknown")
 
     log_event(
         "INFO",
@@ -449,6 +472,7 @@ def _run_beatport_ingest(
         "item_count": item_count,
         "api_pages_fetched": api_pages_fetched,
         "duration_ms": duration_ms,
+        "trigger": trigger,
     }
 
     storage = S3Storage(
@@ -540,7 +564,7 @@ def _run_beatport_ingest(
             else None
         ),
     )
-    return _json_response(200, response, correlation_id)
+    return response
 
 
 def _handle_collect(
