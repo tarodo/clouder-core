@@ -26,8 +26,11 @@ The unit is a (style, Saturday-week) pair; styles are the visible ones with a Be
   canonicalization is replay-safe (ADR-0024).
 - **Due week**: the latest Saturday-week whose Friday is at least 3 days before today (UTC), so
   Beatport has published the week's releases.
-- **Stuck**: a pair whose last 3 auto-ingest attempts all failed. It is skipped and listed in
-  the admin; a manual ingest from the coverage matrix still works.
+- **Stuck**: a pair whose last 3 auto-ingest attempts of the past 7 days all failed — the fetch
+  failed, or the run it created later failed in canonicalization or stayed `RAW_SAVED` past
+  6 hours — and that no run has completed. It is skipped and listed in the admin; a manual
+  ingest from the coverage matrix clears it, and it is retried on its own once its attempts are
+  a week old.
 - **Choice** for a run with budget `periods_per_run` (default 3): first every style missing the
   due week; then missing, non-stuck pairs from the due week back to the backfill floor, newest
   week first, then by style — all styles descend together, week by week. When every style has
@@ -62,7 +65,8 @@ backfill floor (default 2026-01-03, week 1 of 2026).
 3. Choose the pairs; for each, call the same ingest core as the admin endpoint
    (`handler.collect_period`): fetch, raw to S3, `ingest_runs` row (`meta.trigger = "auto"`),
    enqueue canonicalization. A failing pair is recorded in `auto_ingest_attempts` and the run
-   moves on.
+   moves on. If the catalog rejects the token (401/403), the run stops with `failed_step =
+   catalog_auth` and charges no pair.
 4. Save `last_run` (per-pair outcome) and log `auto_ingest_run_completed` (`count`,
    `runs_failed`); a run whose every pair failed also logs `auto_ingest_run_failed`.
 

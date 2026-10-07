@@ -23,6 +23,7 @@ from .auto_ingest_plan import choose_periods, due_week
 from .auto_ingest_repository import AutoIngestRepository
 from .auto_ingest_schedule import apply_schedule, plan_times
 from .beatport_auth import BeatportAuthError, fetch_access_token
+from .errors import UpstreamAuthError
 from .logging_utils import log_event
 from .repositories import utc_now
 from .saturday_week import saturday_week_range
@@ -128,6 +129,7 @@ def run(
             budget=int(settings["periods_per_run"]),
         )
         outcomes = []
+        token_rejected = False
         for style_id, week_year, week_number in pairs:
             start, end = saturday_week_range(week_year, week_number)
             params = IngestParams(
@@ -146,6 +148,11 @@ def run(
                 outcome.update(ok=True, run_id=result["run_id"], item_count=result.get("item_count"))
                 repo.record_attempt(style_id, week_year, week_number, ok=True,
                                     run_id=result["run_id"], error=None, at=utc_now())
+            except UpstreamAuthError:
+                # The catalog rejected the token: every remaining pair would fail the same
+                # way, and none of them is to blame — stop without recording an attempt.
+                token_rejected = True
+                break
             except Exception as exc:  # one period failing must not stop the others
                 outcome.update(ok=False, error=_error_text(exc))
                 repo.record_attempt(style_id, week_year, week_number, ok=False,
@@ -154,8 +161,12 @@ def run(
         del token
 
         failed = sum(not o["ok"] for o in outcomes)
-        summary = {"at": now.isoformat(), "manual": manual, "ok": failed == 0,
+        summary = {"at": now.isoformat(), "manual": manual, "ok": failed == 0 and not token_rejected,
                    "due_week": list(due), "pairs": outcomes}
+        if token_rejected:
+            summary.update(failed_step="catalog_auth", status=403)
+            log_event("ERROR", "auto_ingest_run_failed", correlation_id=correlation_id,
+                      phase="catalog_auth", status_code=403)
         repo.set_last_run(summary)
         log_event("INFO", "auto_ingest_run_completed", correlation_id=correlation_id,
                   count=len(outcomes), runs_failed=failed)

@@ -43,7 +43,7 @@ class FakeRepo:
                               for k, v in values.items()})
         return self.get_settings()
 
-    def stuck_pairs(self):
+    def stuck_pairs(self, now):
         return [{"style_id": 81, "week_year": 2026, "week_number": 30,
                  "last_attempt_at": "2026-10-06T10:00:00+00:00", "last_error": "UpstreamUnavailableError"}]
 

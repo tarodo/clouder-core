@@ -137,3 +137,14 @@ def test_deploy_can_be_started_by_hand() -> None:
     workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "deploy.yml").read_text())
     triggers = workflow[True]  # YAML 1.1 reads the `on:` key as boolean True
     assert "workflow_dispatch" in triggers and triggers["push"]["branches"] == ["main"]
+
+
+def test_auto_ingest_crashes_and_timeouts_raise_the_errors_alarm() -> None:
+    # A crash in `plan` or a 900 s timeout writes no `auto_ingest_run_failed` event.
+    workers = _block(_tf("alarms.tf"), "locals {")
+    assert re.search(r"auto_ingest\s*=\s*aws_lambda_function\.auto_ingest\.function_name", workers)
+
+
+def test_a_manual_deploy_only_ships_main() -> None:
+    workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "deploy.yml").read_text())
+    assert workflow["jobs"]["deploy"]["if"] == "github.ref == 'refs/heads/main'"

@@ -175,6 +175,30 @@ def test_login_failure_is_reported_and_releases_the_lease(events) -> None:
     assert any(m == "auto_ingest_run_failed" for m, _ in events)
 
 
+def test_a_rejected_token_stops_the_run_without_blaming_the_pairs(events) -> None:
+    from collector.errors import UpstreamAuthError
+
+    repo = FakeRepo()
+    calls = []
+
+    def collect(params, correlation_id, **kwargs):
+        calls.append((params.style_id, params.week_number))
+        if len(calls) == 2:
+            raise UpstreamAuthError()
+        return _collect_ok(params, correlation_id, **kwargs)
+
+    result = handler.run(Ctx(), repo=repo, now=NOW, manual=False, collect=collect,
+                         login=lambda u, p: TOKEN, read_credentials=lambda: ("u", "p"))
+
+    assert calls == [(81, 39), (96, 39)]
+    assert [a[3] for a in repo.attempts] == [True]  # the rejected pair is not charged
+    assert result["ok"] is False and result["failed_step"] == "catalog_auth"
+    assert [p["ok"] for p in result["pairs"]] == [True]
+    assert repo.last_run == result and repo.released is True
+    assert any(m == "auto_ingest_run_failed" for m, _ in events)
+    assert TOKEN not in repr(result) + repr(events)
+
+
 def test_failed_period_is_recorded_and_the_run_continues(events) -> None:
     repo = FakeRepo()
     calls = []

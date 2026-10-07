@@ -32,7 +32,9 @@ Options considered:
 - A run takes a 15-minute lease on the settings row; random runs are at least 60 minutes apart.
 - A run calls the admin endpoint's ingest core (`collect_period`), so both paths write the
   same raw objects and `ingest_runs` rows (`meta.trigger` tells them apart).
-- Failed attempts go to `auto_ingest_attempts`; three failures in a row mark a pair stuck.
+- Failed attempts go to `auto_ingest_attempts`; an attempt also counts as failed when its run
+  later fails in canonicalization. Three failures in a row within a week, with no completed run,
+  mark a pair stuck. A token the catalog rejects stops the run without charging any pair.
 
 ## Consequences
 
@@ -43,8 +45,8 @@ Options considered:
   never leaves the run.
 - Schedules are per day: a settings change applies to the rest of today immediately and to
   later days through the planner.
-- Stuck pairs need a person (manual ingest from the coverage matrix); there is no automatic
-  retry after three failures.
+- A stuck pair waits a week before it is tried again, or for a manual ingest from the coverage
+  matrix; an outage of a day can park the pairs it hit for that week.
 
 **Cross-references:** ADR-0003 (Saturday-week), ADR-0023 (data quality), ADR-0024 (replay-safe
 canonicalization), `docs/data/auto-ingest.md`.

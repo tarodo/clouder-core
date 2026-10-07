@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Mapping
 
 # A RAW_SAVED run younger than this is still being canonicalized: do not re-ingest it.
+STUCK_WINDOW = timedelta(days=7)  # stuck pairs are retried once their attempts age out
 PENDING_WINDOW = timedelta(hours=6)
 
 Pair = tuple[int, int, int]  # (Beatport style id, week_year, week_number)
@@ -126,17 +127,25 @@ class AutoIngestRepository:
              "at": at, "ok": ok, "run_id": run_id, "error": error},
         )
 
-    def stuck_pairs(self) -> list[dict[str, Any]]:
-        """Pairs whose last three attempts all failed."""
+    def stuck_pairs(self, now: datetime) -> list[dict[str, Any]]:
+        """Pairs whose last three attempts of the past week all failed and that no run has
+        completed. An attempt fails when the fetch failed, or when its run later failed in
+        canonicalization or has been RAW_SAVED longer than PENDING_WINDOW."""
         rows = self._data_api.execute(
             """
             WITH ranked AS (
-                SELECT style_id, week_year, week_number, ok, error, attempted_at,
+                SELECT a.style_id, a.week_year, a.week_number, a.attempted_at,
+                       COALESCE(a.error, 'canonicalization ' || lower(ir.status)) AS error,
+                       NOT a.ok OR ir.status = 'FAILED'
+                           OR (ir.status = 'RAW_SAVED' AND ir.started_at < :pending_since)
+                           AS failed,
                        row_number() OVER (
-                           PARTITION BY style_id, week_year, week_number
-                           ORDER BY attempted_at DESC
+                           PARTITION BY a.style_id, a.week_year, a.week_number
+                           ORDER BY a.attempted_at DESC
                        ) AS rn
-                FROM auto_ingest_attempts
+                FROM auto_ingest_attempts a
+                LEFT JOIN ingest_runs ir ON ir.run_id = a.run_id
+                WHERE a.attempted_at > :since
             )
             SELECT style_id, week_year, week_number,
                    max(attempted_at) AS last_attempt_at,
@@ -144,9 +153,17 @@ class AutoIngestRepository:
             FROM ranked
             WHERE rn <= 3
             GROUP BY style_id, week_year, week_number
-            HAVING count(*) = 3 AND bool_and(NOT ok)
+            HAVING count(*) = 3 AND bool_and(COALESCE(failed, false))
+               AND NOT EXISTS (
+                   SELECT 1 FROM ingest_runs r
+                   WHERE r.source = 'beatport' AND r.status = 'COMPLETED'
+                     AND r.style_id = ranked.style_id AND r.week_year = ranked.week_year
+                     AND r.week_number = ranked.week_number
+                     AND NOT COALESCE(r.is_custom_range, false)
+               )
             ORDER BY week_year DESC, week_number DESC, style_id
-            """
+            """,
+            {"since": now - STUCK_WINDOW, "pending_since": now - PENDING_WINDOW},
         )
         return [
             {"style_id": int(r["style_id"]), "week_year": int(r["week_year"]),
@@ -184,6 +201,6 @@ class AutoIngestRepository:
                 (int(r["style_id"]), int(r["week_year"]), int(r["week_number"])) for r in loaded
             ),
             stuck=frozenset(
-                (p["style_id"], p["week_year"], p["week_number"]) for p in self.stuck_pairs()
+                (p["style_id"], p["week_year"], p["week_number"]) for p in self.stuck_pairs(now)
             ),
         )

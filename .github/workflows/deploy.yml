@@ -16,6 +16,8 @@ env:
 
 jobs:
   deploy:
+    # A manual dispatch can pick any branch; only main reaches production.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     defaults:

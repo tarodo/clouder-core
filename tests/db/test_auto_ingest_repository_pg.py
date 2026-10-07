@@ -96,8 +96,51 @@ def test_three_failed_attempts_make_a_pair_stuck(repo) -> None:
     repo.record_attempt(81, 2026, 30, ok=False, run_id=None, error="UpstreamUnavailableError",
                         at=NOW + timedelta(minutes=2))
     assert repo.planning_state(NOW).stuck == frozenset({(81, 2026, 30)})
-    (pair,) = repo.stuck_pairs()
+    (pair,) = repo.stuck_pairs(NOW)
     assert (pair["style_id"], pair["last_error"]) == (81, "UpstreamUnavailableError")
 
     repo.record_attempt(81, 2026, 30, ok=True, run_id="r1", error=None, at=NOW + timedelta(minutes=3))
     assert repo.planning_state(NOW).stuck == frozenset()
+
+
+def test_an_ingest_whose_canonicalization_failed_counts_as_a_failed_attempt(pg, repo) -> None:
+    # collect_period returned (attempt ok) but the worker later failed the run, or it never
+    # left RAW_SAVED: the pair is not loaded and must not be re-ingested forever.
+    for i, status in enumerate(("FAILED", "FAILED")):
+        _run(pg, f"f{i}", 81, 30, status, NOW - timedelta(hours=1))
+        repo.record_attempt(81, 2026, 30, ok=True, run_id=f"f{i}", error=None,
+                            at=NOW - timedelta(hours=1, minutes=-i))
+    _run(pg, "stale", 81, 30, "RAW_SAVED", NOW - timedelta(hours=7))
+    repo.record_attempt(81, 2026, 30, ok=True, run_id="stale", error=None,
+                        at=NOW - timedelta(minutes=5))
+
+    assert repo.planning_state(NOW).stuck == frozenset({(81, 2026, 30)})
+
+
+def test_an_ingest_still_pending_is_not_a_failure(pg, repo) -> None:
+    for i in range(3):
+        _run(pg, f"p{i}", 81, 30, "RAW_SAVED", NOW - timedelta(hours=1))
+        repo.record_attempt(81, 2026, 30, ok=True, run_id=f"p{i}", error=None,
+                            at=NOW - timedelta(minutes=30 - i))
+
+    assert repo.stuck_pairs(NOW) == []
+
+
+def test_a_completed_run_clears_a_stuck_pair(pg, repo) -> None:
+    for minutes in (0, 1, 2):
+        repo.record_attempt(81, 2026, 30, ok=False, run_id=None, error="E",
+                            at=NOW - timedelta(hours=2, minutes=-minutes))
+    assert len(repo.stuck_pairs(NOW)) == 1
+
+    _run(pg, "manual", 81, 30, "COMPLETED", NOW - timedelta(minutes=10))  # fixed by hand
+
+    assert repo.stuck_pairs(NOW) == []
+    assert repo.planning_state(NOW).stuck == frozenset()
+
+
+def test_stuck_pairs_are_retried_after_a_week(repo) -> None:
+    for minutes in (0, 1, 2):
+        repo.record_attempt(81, 2026, 30, ok=False, run_id=None, error="E",
+                            at=NOW - timedelta(days=8, minutes=-minutes))
+
+    assert repo.stuck_pairs(NOW) == []

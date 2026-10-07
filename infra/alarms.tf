@@ -17,6 +17,7 @@ locals {
     vendor_match     = aws_lambda_function.vendor_match_worker.function_name
     label_enricher   = aws_lambda_function.label_enricher_worker.function_name
     data_quality     = aws_lambda_function.data_quality.function_name
+    auto_ingest      = aws_lambda_function.auto_ingest.function_name
   }
 
   all_lambdas = merge(local.api_lambdas, local.worker_lambdas)

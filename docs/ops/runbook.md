@@ -227,6 +227,7 @@ Alarm `clouder-prod-auto-ingest-failed`, or the admin's Auto-ingest panel shows 
 - `credentials`: the SSM parameters are missing or unreadable — add the GitHub secrets `BEATPORT_USERNAME` / `BEATPORT_PASSWORD` (environment `production`) and run the Deploy workflow by hand.
 - `login` 401/403: the password changed — update the GitHub secret, redeploy.
 - `authorize` / `token`: Beatport changed its login flow — disable auto-ingest in the admin; manual ingest with a pasted token still works.
+- `catalog_auth`: login worked but the catalog API rejected the token (401/403) — check the account's catalog access; no pair was charged.
 - Every period failed with the same Beatport error: an upstream outage; the next planned run retries.
 
 ---
@@ -235,11 +236,11 @@ Alarm `clouder-prod-auto-ingest-failed`, or the admin's Auto-ingest panel shows 
 
 **Symptom**
 
-The Auto-ingest panel lists a style × week under "Stuck": its last three automatic attempts failed, so the planner skips it.
+The Auto-ingest panel lists a style × week under "Stuck": its last three automatic attempts within a week failed (the fetch, or the canonicalization of the run it created), so the planner skips it.
 
 **Fix**
 
-Read the listed error. Ingest the week by hand from the coverage matrix; once it completes, the planner treats it as loaded. If the cause is gone and the pair should be retried automatically, delete its rows from `auto_ingest_attempts` (one-off script, see "Running a one-off script against prod").
+Read the listed error (`canonicalization failed` points at the worker logs for that run). Ingest the week by hand from the coverage matrix; once the run completes, the pair leaves the list. Otherwise it is retried automatically once its attempts are a week old.
 
 ---
 
