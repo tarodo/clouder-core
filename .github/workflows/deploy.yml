@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  # Re-sync GitHub secrets to SSM (e.g. Beatport credentials) without a code change.
+  workflow_dispatch:
 
 permissions:
   contents: read
