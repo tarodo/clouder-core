@@ -61,7 +61,7 @@ resource "aws_lambda_function" "data_quality" {
   runtime          = "python3.12"
   handler          = "collector.data_quality_handler.lambda_handler"
   filename         = local.lambda_zip_file
-  timeout          = 120
+  timeout          = 180
   memory_size      = 256
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 
@@ -77,7 +77,8 @@ resource "aws_lambda_function" "data_quality" {
   depends_on = [aws_cloudwatch_log_group.data_quality]
 }
 
-# 00:10 UTC: ten minutes after the catalog export, which already wakes Aurora.
+# 00:10 UTC, after the 00:00 catalog export, which usually leaves Aurora awake;
+# the handler's wake-up probe covers the nights it does not.
 resource "aws_cloudwatch_event_rule" "data_quality_daily" {
   name                = "${local.name_prefix}-data-quality-daily"
   schedule_expression = "cron(10 0 * * ? *)"

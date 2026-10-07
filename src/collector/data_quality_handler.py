@@ -1,15 +1,19 @@
 """Scheduled Lambda: run the data-quality checks and publish them to CloudWatch.
 
-EventBridge triggers it nightly at 00:10 UTC, right after the catalog export
-has woken Aurora. Read-only; its own role may only call the Data API, read the
-cluster secret and put metrics into the CLOUDER/DataQuality namespace.
+EventBridge triggers it nightly at 00:10 UTC. The 00:00 catalog export usually
+leaves Aurora awake (it auto-pauses after 300 s idle), but not always, so the run
+first waits for the database with a wake-up probe. Read-only; its own role may only
+call the Data API, read the cluster secret and put metrics into CLOUDER/DataQuality.
 """
 
 from __future__ import annotations
 
+import time
 from dataclasses import asdict
 from datetime import datetime, timezone
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
+
+from botocore.exceptions import ClientError
 
 from .data_api import create_default_data_api_client
 from .data_quality import NAMESPACE, CheckResult, run_checks
@@ -21,6 +25,32 @@ def _cloudwatch() -> Any:
     import boto3
 
     return boto3.client("cloudwatch")
+
+
+def wake_database(
+    client: Any,
+    *,
+    deadline_s: float = 60.0,
+    sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
+) -> None:
+    """Probe with SELECT 1 until a resuming Aurora answers or the deadline passes.
+
+    A resume can outlast the Data API client's own retries; without the probe
+    every check would be recorded as failed and the alarm would fire on a paused
+    database instead of bad data. Other errors, and a resume that never ends,
+    propagate so the Lambda fails and EventBridge retries it.
+    """
+    start = clock()
+    while True:
+        try:
+            client.execute("SELECT 1")
+            return
+        except ClientError as exc:
+            resuming = exc.response.get("Error", {}).get("Code") == "DatabaseResumingException"
+            if not resuming or clock() - start >= deadline_s:
+                raise
+            sleep(5)
 
 
 def publish(results: Sequence[CheckResult], cloudwatch: Any, *, now: datetime) -> int:
@@ -44,6 +74,7 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
         secret_arn=str(settings.aurora_secret_arn),
         database=settings.aurora_database,
     )
+    wake_database(client)
     now = datetime.now(timezone.utc)
     results = run_checks(client, now.date())
     for r in results:

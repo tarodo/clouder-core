@@ -1,6 +1,6 @@
 # Data quality
 
-Status: checks deployed; "After" is filled from the first nightly run.
+Status: in review; "After" is filled from the first nightly run.
 
 ## Why
 
@@ -15,17 +15,17 @@ and say so every night.
 
 | Check | Measures | Pass | Why it matters |
 |---|---|---|---|
-| `stuck_ingest_runs` | runs not COMPLETED/FAILED two hours after they started | 0 | a run that never finishes means a week that never reaches the catalog |
-| `styles_behind` | active styles (ingested within 8 weeks) whose latest completed week ends before the Saturday-week that is due (week end + 3 days) | 0 | freshness: users curate the week that just closed |
-| `weekly_volume_anomalies` | styles whose latest week has under half or over twice the median of their previous 8 weeks (≥ 4 weeks of history) | 0 | an upstream API change or a broken page loop shows up as volume first |
-| `isrc_coverage_pct` | tracks created in the last 30 days that carry an ISRC | ≥ 99 % | ISRC is the cross-vendor join key |
-| `spotify_match_pct` | tracks searched on Spotify in the last 30 days that were found | ≥ 95 % | playback and publishing need the Spotify id |
-| `spotify_unsearched_stale` | tracks older than a day that were never searched | 0 | a lost search message leaves tracks unplayable forever |
+| `stuck_ingest_runs` | runs from the last 14 days not COMPLETED/FAILED two hours after they started | 0 | a run that never finishes means a week that never reaches the catalog |
+| `styles_behind` | active, visible styles (ingested within 8 weeks, not hidden) whose latest completed week ends before the Saturday-week that is due | 0 | freshness: users curate the week that just closed |
+| `weekly_volume_anomalies` | active, visible styles whose latest closed week has under half or over twice the median of their previous 8 weeks (≥ 4 weeks of history; custom-range runs ignored) | 0 | an upstream API change or a broken page loop shows up as volume first |
+| `isrc_coverage_pct` | Beatport tracks created in the last 30 days that carry an ISRC | ≥ 99 % | ISRC is the cross-vendor join key |
+| `spotify_match_pct` | Beatport tracks created in the last 30 days and already searched that were found (retries of older tracks do not skew it) | ≥ 95 % | playback and publishing need the Spotify id |
+| `spotify_unsearched_stale` | tracks with an ISRC, older than a day, never searched | 0 | a lost search message leaves tracks unplayable forever |
 | `orphan_identities` | `identity_map` rows whose canonical row does not exist | 0 | the identity map is the catalog's foreign key to the outside world |
 | `artists_without_identity` | canonical artists no source maps to | recorded | duplicate suspects (e.g. created by a Spotify playlist import) |
 | `bpm_out_of_range` | tracks with BPM outside 40–250 | 0 | implausible values break DJ filters |
-| `length_out_of_range` | tracks with a length of zero or over an hour | 0 | same |
-| `review_backlog_days` | age of the oldest pending match review | ≤ 14 days | matches stuck in review keep playlists unpublished |
+| `length_out_of_range` | tracks with a length of zero or over three hours (continuous DJ mixes run for hours) | 0 | same |
+| `review_backlog_days` | age of the oldest pending match review | recorded | matches stuck in review keep playlists unpublished; it is user workflow state, so it is tracked, not alarmed |
 
 A check with nothing to measure (no tracks in the window, no pending reviews) passes and
 publishes no metric. A check whose SQL fails is recorded as failed, so a broken check cannot
@@ -36,21 +36,27 @@ Postgres (`tests/db/test_data_quality_pg.py`).
 
 | Area | Objective |
 |---|---|
-| Freshness | every active style's Saturday-week is in the catalog within 3 days of its close |
+| Freshness | every active, visible style's Saturday-week (closing Friday) is in the catalog by the end of the following Monday, UTC — checked at 00:10 UTC on Tuesday |
 | Completeness | ISRC on ≥ 99 % and a Spotify match for ≥ 95 % of the last 30 days' tracks |
 | Integrity | no orphan identity rows; no ingest run stuck without a final status |
 | Plausibility | no BPM or length outside physical ranges |
-| Operations | no match waits for review longer than 14 days |
+| Operations | match-review backlog age is tracked (no alarm) |
 
 ## How it runs
 
-EventBridge starts `clouder-prod-data-quality` at 00:10 UTC, ten minutes after the nightly
-catalog export has already woken the auto-paused Aurora. The Lambda runs the checks through
+EventBridge starts `clouder-prod-data-quality` at 00:10 UTC. The 00:00 catalog export usually
+leaves Aurora awake (it auto-pauses after 300 s idle), and a wake-up probe (`SELECT 1` for up to
+60 s on `DatabaseResumingException`) covers the nights it does not, so a paused database delays
+the run instead of failing every check. The Lambda runs the checks through
 the RDS Data API with its own role (Data API, the cluster secret, `PutMetricData` limited to its
 namespace), logs a `dq_check_result` event per check, publishes every measured value plus
 `FailedChecks` to the CloudWatch namespace `CLOUDER/DataQuality`, and the alarm
-`clouder-prod-data-quality-failed-checks` fires on `FailedChecks ≥ 1`. Alarm notifications go
-to SNS when `alarm_sns_topic_arn` is set, like every other alarm. Why plain SQL and CloudWatch
+`clouder-prod-data-quality-failed-checks` fires on `FailedChecks ≥ 1`. The failing check's name
+is in that night's `dq_check_result` logs. Like every other alarm here, it notifies only when
+`alarm_sns_topic_arn` is set; until then it is visible in the CloudWatch console. One combined
+alarm means a check that stays red masks new failures until it is fixed — runs older than two
+weeks are left out of `stuck_ingest_runs` and the review backlog is recorded only, so the
+alarm reflects recent, actionable problems. Why plain SQL and CloudWatch
 rather than a DQ framework: ADR-0023.
 
 ## Before (2026-10-06)
@@ -67,8 +73,8 @@ Filled from the first nightly run (CloudWatch `CLOUDER/DataQuality`).
 
 ## What it buys
 
-- Data problems surface the next morning as an alarm with the failing check's name, instead
-  of when a user notices a missing week.
+- Data problems surface the next morning as an alarm (the logs name the check), instead of
+  when a user notices a missing week.
 - Every check has an explicit threshold, so "is the data fine?" has a yes/no answer and a
   history (CloudWatch keeps metrics for 15 months).
 - Thresholds double as the SLOs above, so changes to the pipeline can be judged against them.

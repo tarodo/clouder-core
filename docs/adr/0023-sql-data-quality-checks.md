@@ -12,15 +12,16 @@ Options considered:
 - **Great Expectations / Soda / Deequ** — expressive and well known, but a new runtime and
   configuration surface (and Spark for Deequ) for about ten checks over one Postgres database,
   plus a store for results.
-- **dbt tests** — natural if a dbt project existed; it does not today (initiative E may bring
-  one for the lake, not for Aurora).
+- **dbt tests** — natural if a dbt project existed; it does not today (a dbt layer may come
+  later for the analytics lake, not for Aurora).
 - **Plain SQL checks** — each check is one read-only statement returning a number, compared
   with a threshold, run by the existing Python stack through the RDS Data API.
 
 ## Decision
 
 Checks are plain SQL in `src/collector/data_quality.py`, run nightly (00:10 UTC, after the
-catalog export has woken Aurora) by a dedicated Lambda with its own least-privilege role.
+catalog export, with a wake-up probe for an auto-paused Aurora) by a dedicated Lambda with its
+own least-privilege role.
 CloudWatch is both the metric store (namespace `CLOUDER/DataQuality`, one metric per check plus
 `FailedChecks`) and the alert channel (alarm on `FailedChecks ≥ 1`).
 
@@ -32,7 +33,7 @@ CloudWatch is both the metric store (namespace `CLOUDER/DataQuality`, one metric
   row-level report — a failing check names the problem, the investigation uses SQL.
 - Adding a check is one entry in `CHECKS` plus a Postgres test; thresholds are the SLOs in
   `docs/data/data-quality.md`.
-- Revisit if a dbt project lands (initiative E): its tests could absorb row-level checks on the
+- Revisit if a dbt project lands: its tests could absorb row-level checks on the
   lake, while catalog checks stay here.
 
 **Cross-references:** ADR-0001, `docs/data/data-quality.md`.

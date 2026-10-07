@@ -15,22 +15,37 @@ def _value(pg, name: str):
 
 
 def _run(pg, run_id, style_id, status="COMPLETED", items=100, period_end="2026-10-02",
-         started="now()"):
+         started="now()", custom=False):
     pg.execute(
         "INSERT INTO ingest_runs (run_id, source, style_id, raw_s3_key, status, item_count, "
-        f"started_at, period_end) VALUES (:id, 'beatport', :style, 'k', :status, :items, {started}, "
-        "CAST(:end AS date))",
-        {"id": run_id, "style": style_id, "status": status, "items": items, "end": period_end},
+        f"started_at, period_end, is_custom_range) VALUES (:id, 'beatport', :style, 'k', :status, "
+        f":items, {started}, CAST(:end AS date), :custom)",
+        {"id": run_id, "style": style_id, "status": status, "items": items, "end": period_end,
+         "custom": custom},
+    )
+
+
+def _style(pg, bp_id, *, hidden=False):
+    pg.execute(
+        "INSERT INTO clouder_styles (id, name, normalized_name, is_hidden, created_at, updated_at) "
+        "VALUES (:id, 'S', 's', :hidden, now(), now())",
+        {"id": f"cs{bp_id}", "hidden": hidden},
+    )
+    pg.execute(
+        "INSERT INTO identity_map (source, entity_type, external_id, clouder_entity_type, clouder_id, "
+        "match_type, confidence, first_seen_at, last_seen_at) VALUES ('beatport', 'style', :ext, "
+        "'style', :cid, 'auto_create', 0.6, now(), now())",
+        {"ext": str(bp_id), "cid": f"cs{bp_id}"},
     )
 
 
 def _track(pg, tid, *, created="now()", isrc="ISRC", searched="now()", spotify_id=None,
-           bpm=None, length_ms=None):
+           bpm=None, length_ms=None, origin="beatport"):
     pg.execute(
         "INSERT INTO clouder_tracks (id, title, normalized_title, isrc, bpm, length_ms, "
-        f"spotify_id, spotify_searched_at, created_at, updated_at) VALUES (:id, 'T', 't', :isrc, "
-        f":bpm, :len, :sp, {searched}, {created}, now())",
-        {"id": tid, "isrc": isrc, "bpm": bpm, "len": length_ms, "sp": spotify_id},
+        f"spotify_id, spotify_searched_at, created_at, updated_at, origin) VALUES (:id, 'T', 't', "
+        f":isrc, :bpm, :len, :sp, {searched}, {created}, now(), :origin)",
+        {"id": tid, "isrc": isrc, "bpm": bpm, "len": length_ms, "sp": spotify_id, "origin": origin},
     )
 
 
@@ -118,6 +133,7 @@ def test_bpm_and_length_out_of_range(pg) -> None:
     _track(pg, "fast", bpm=300)
     _track(pg, "normal", bpm=128, length_ms=300000)
     _track(pg, "empty", length_ms=0)
+    _track(pg, "dj-mix", length_ms=2 * 3600 * 1000)  # continuous mixes run for hours
 
     assert _value(pg, "bpm_out_of_range").value == 1.0
     assert _value(pg, "length_out_of_range").value == 1.0
@@ -132,7 +148,7 @@ def test_review_backlog_days(pg) -> None:
 
     result = _value(pg, "review_backlog_days")
 
-    assert result.value == 20.0 and not result.passed
+    assert result.value == 20.0 and result.passed  # recorded only: user workflow state
 
 
 def test_empty_database_passes_with_nothing_to_measure(pg) -> None:
@@ -142,3 +158,57 @@ def test_empty_database_passes_with_nothing_to_measure(pg) -> None:
     assert {r.name for r in results if r.value is None} >= {
         "isrc_coverage_pct", "spotify_match_pct", "review_backlog_days"}
     assert len(results) == len(CHECKS)
+
+
+# ── final-review fixes: no false alarms on a healthy catalog ──────────
+
+
+def test_stuck_ingest_runs_ignores_runs_older_than_two_weeks(pg) -> None:
+    _run(pg, "ancient", 1, status="RAW_SAVED", started="now() - INTERVAL '30 days'")
+
+    assert _value(pg, "stuck_ingest_runs").value == 0.0
+
+
+def test_styles_behind_ignores_hidden_styles(pg) -> None:
+    _style(pg, 4, hidden=True)
+    _run(pg, "h1", 4, period_end="2026-09-25")
+
+    assert _value(pg, "styles_behind").value == 0.0
+
+
+def test_weekly_volume_ignores_custom_ranges_open_weeks_and_inactive_styles(pg) -> None:
+    for i, end in enumerate(["2026-08-28", "2026-09-04", "2026-09-11", "2026-09-18", "2026-09-25"]):
+        _run(pg, f"a{i}", 7, items=100, period_end=end)
+        _run(pg, f"h{i}", 11, items=100, period_end=end)
+    _run(pg, "a-closed", 7, items=100, period_end="2026-10-02")
+    _run(pg, "a-custom", 7, items=2400, period_end="2026-10-02", custom=True)  # 4-week override
+    _run(pg, "a-open", 7, items=30, period_end="2026-10-09")  # week still open
+    _style(pg, 11, hidden=True)
+    _run(pg, "h-latest", 11, items=5, period_end="2026-10-02")  # hidden style collapse
+    for i, end in enumerate(["2026-05-29", "2026-06-05", "2026-06-12", "2026-06-19"]):
+        _run(pg, f"x{i}", 10, items=100, period_end=end)
+    _run(pg, "x-last", 10, items=5, period_end="2026-06-26")  # abandoned in June
+
+    assert _value(pg, "weekly_volume_anomalies").value == 0.0
+
+
+def test_spotify_match_pct_ignores_retries_of_old_tracks_and_user_imports(pg) -> None:
+    _track(pg, "found", spotify_id="sp1")
+    _track(pg, "missed")
+    _track(pg, "retried-old", created="now() - INTERVAL '60 days'")  # searched again today
+    _track(pg, "imported", spotify_id="sp2", origin="spotify_user_import")
+
+    assert _value(pg, "spotify_match_pct").value == 50.0
+
+
+def test_isrc_coverage_ignores_user_imports(pg) -> None:
+    _track(pg, "bp")
+    _track(pg, "imported", isrc=None, origin="spotify_user_import")
+
+    assert _value(pg, "isrc_coverage_pct").value == 100.0
+
+
+def test_spotify_unsearched_stale_ignores_tracks_without_isrc(pg) -> None:
+    _track(pg, "no-isrc", isrc=None, searched="NULL", created="now() - INTERVAL '2 days'")
+
+    assert _value(pg, "spotify_unsearched_stale").value == 0.0

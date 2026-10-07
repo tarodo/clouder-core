@@ -8,9 +8,10 @@ from collector.data_quality import CHECKS, Check, expected_week_end, run_checks
 
 
 def test_expected_week_end_respects_grace_days() -> None:
-    # Saturday-weeks run Sat..Fri; a week is due 3 days after its Friday.
-    assert expected_week_end(date(2026, 10, 5)) == date(2026, 10, 2)  # Mon: Fri + 3
-    assert expected_week_end(date(2026, 10, 4)) == date(2026, 9, 25)  # Sun: still in grace
+    # Saturday-weeks run Sat..Fri; a week must be in by the end of the Monday after it,
+    # so the run at 00:10 UTC on Tuesday is the first to expect it.
+    assert expected_week_end(date(2026, 10, 6)) == date(2026, 10, 2)  # Tue: Fri + 4
+    assert expected_week_end(date(2026, 10, 5)) == date(2026, 9, 25)  # Mon: still in grace
     assert expected_week_end(date(2026, 10, 9)) == date(2026, 10, 2)  # next Friday
 
 

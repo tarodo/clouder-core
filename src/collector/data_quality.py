@@ -16,7 +16,8 @@ from typing import Any, Sequence
 from .logging_utils import log_event
 
 NAMESPACE = "CLOUDER/DataQuality"
-FRESHNESS_GRACE_DAYS = 3
+FRESHNESS_GRACE_DAYS = 4  # a week closes Friday; it is due by the end of Monday (UTC)
+STUCK_RUN_WINDOW_DAYS = 14
 ACTIVE_STYLE_WINDOW_DAYS = 56  # 8 Saturday-weeks
 _FRIDAY = 4
 
@@ -43,25 +44,34 @@ class CheckResult:
 CHECKS: tuple[Check, ...] = (
     Check(
         "stuck_ingest_runs",
-        "Ingest runs without a final status two hours after they started.",
+        "Recent ingest runs without a final status two hours after they started.",
         """
         SELECT count(*) AS value
         FROM ingest_runs
         WHERE status NOT IN ('COMPLETED', 'FAILED')
           AND started_at < now() - INTERVAL '2 hours'
+          AND started_at > now() - INTERVAL '14 days'
         """,
         "max", 0,
     ),
     Check(
         "styles_behind",
-        "Active styles whose latest completed week ends before the week that is due.",
+        "Active, visible styles whose latest completed week ends before the week that is due.",
         """
         WITH active AS (
-            SELECT style_id, max(period_end) AS last_end
-            FROM ingest_runs
-            WHERE status = 'COMPLETED' AND period_end IS NOT NULL
-            GROUP BY style_id
-            HAVING max(period_end) >= :since
+            SELECT ir.style_id, max(ir.period_end) AS last_end
+            FROM ingest_runs ir
+            LEFT JOIN identity_map im
+              ON im.source = 'beatport'
+             AND im.entity_type = 'style'
+             AND im.clouder_entity_type = 'style'
+             AND im.external_id = CAST(ir.style_id AS text)
+            LEFT JOIN clouder_styles cs ON cs.id = im.clouder_id
+            WHERE ir.status = 'COMPLETED'
+              AND ir.period_end IS NOT NULL
+              AND NOT COALESCE(cs.is_hidden, false)
+            GROUP BY ir.style_id
+            HAVING max(ir.period_end) >= :since
         )
         SELECT count(*) AS value FROM active WHERE last_end < :expected_end
         """,
@@ -72,13 +82,23 @@ CHECKS: tuple[Check, ...] = (
         "Styles whose latest week has under half or over twice their 8-week median volume.",
         """
         WITH weekly AS (
-            SELECT style_id, period_end, max(item_count) AS items
-            FROM ingest_runs
-            WHERE status = 'COMPLETED' AND period_end IS NOT NULL
-            GROUP BY style_id, period_end
+            SELECT ir.style_id, ir.period_end, max(ir.item_count) AS items
+            FROM ingest_runs ir
+            LEFT JOIN identity_map im
+              ON im.source = 'beatport'
+             AND im.entity_type = 'style'
+             AND im.clouder_entity_type = 'style'
+             AND im.external_id = CAST(ir.style_id AS text)
+            LEFT JOIN clouder_styles cs ON cs.id = im.clouder_id
+            WHERE ir.status = 'COMPLETED'
+              AND ir.period_end IS NOT NULL
+              AND ir.period_end <= :expected_end
+              AND NOT ir.is_custom_range
+              AND NOT COALESCE(cs.is_hidden, false)
+            GROUP BY ir.style_id, ir.period_end
         ),
         ranked AS (
-            SELECT style_id, items,
+            SELECT style_id, period_end, items,
                    row_number() OVER (PARTITION BY style_id ORDER BY period_end DESC) AS rn
             FROM weekly
         ),
@@ -94,39 +114,44 @@ CHECKS: tuple[Check, ...] = (
         FROM ranked l
         JOIN baseline b ON b.style_id = l.style_id
         WHERE l.rn = 1
+          AND l.period_end >= :since
           AND b.weeks >= 4
           AND (l.items < 0.5 * b.median_items OR l.items > 2 * b.median_items)
         """,
-        "max", 0,
+        "max", 0, ("since", "expected_end"),
     ),
     Check(
         "isrc_coverage_pct",
-        "Share of tracks created in the last 30 days that carry an ISRC.",
+        "Share of Beatport tracks created in the last 30 days that carry an ISRC.",
         """
         SELECT round(100.0 * count(*) FILTER (WHERE isrc IS NOT NULL) / nullif(count(*), 0), 2) AS value
         FROM clouder_tracks
-        WHERE created_at >= now() - INTERVAL '30 days'
+        WHERE origin = 'beatport'
+          AND created_at >= now() - INTERVAL '30 days'
         """,
         "min", 99,
     ),
     Check(
         "spotify_match_pct",
-        "Share of tracks searched on Spotify in the last 30 days that were found.",
+        "Share of Beatport tracks created in the last 30 days and already searched that were found.",
         """
         SELECT round(100.0 * count(*) FILTER (WHERE spotify_id IS NOT NULL) / nullif(count(*), 0), 2) AS value
         FROM clouder_tracks
-        WHERE spotify_searched_at >= now() - INTERVAL '30 days'
+        WHERE origin = 'beatport'
+          AND created_at >= now() - INTERVAL '30 days'
+          AND spotify_searched_at IS NOT NULL
         """,
         "min", 95,
     ),
     Check(
         "spotify_unsearched_stale",
-        "Tracks older than a day that were never searched on Spotify.",
+        "Tracks with an ISRC, older than a day, never searched on Spotify.",
         """
         SELECT count(*) AS value
         FROM clouder_tracks
         WHERE spotify_searched_at IS NULL
           AND spotify_id IS NULL
+          AND isrc IS NOT NULL
           AND created_at < now() - INTERVAL '1 day'
         """,
         "max", 0,
@@ -176,23 +201,23 @@ CHECKS: tuple[Check, ...] = (
     ),
     Check(
         "length_out_of_range",
-        "Tracks with a length of zero or over an hour.",
+        "Tracks with a length of zero or over three hours (continuous DJ mixes run for hours).",
         """
         SELECT count(*) AS value
         FROM clouder_tracks
-        WHERE length_ms IS NOT NULL AND (length_ms <= 0 OR length_ms > 3600000)
+        WHERE length_ms IS NOT NULL AND (length_ms <= 0 OR length_ms > 10800000)
         """,
         "max", 0,
     ),
     Check(
         "review_backlog_days",
-        "Age in days of the oldest pending match review.",
+        "Age in days of the oldest pending match review (recorded only: user workflow state).",
         """
         SELECT round(CAST(EXTRACT(EPOCH FROM now() - min(created_at)) / 86400.0 AS numeric), 1) AS value
         FROM match_review_queue
         WHERE status = 'pending'
         """,
-        "max", 14,
+        "max", None,
     ),
 )
 
