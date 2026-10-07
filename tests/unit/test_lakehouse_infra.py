@@ -23,3 +23,11 @@ def test_dbt_buildspec_runs_freshness_from_the_project_dir() -> None:
     spec = (INFRA / "lakehouse.tf").read_text()
     assert spec.count("cd repo/dbt") == 1
     assert "dbt source freshness" in spec
+
+
+def test_dbt_may_ensure_its_own_glue_databases() -> None:
+    # dbt-athena starts every build with CREATE SCHEMA IF NOT EXISTS, which
+    # calls glue:CreateDatabase even when Terraform already created it.
+    spec = (INFRA / "lakehouse.tf").read_text()
+    block = re.search(r'sid = "AllowWriteLakehouseCatalog"(.*?)\n  \}', spec, re.S).group(1)
+    assert '"glue:CreateDatabase"' in block
