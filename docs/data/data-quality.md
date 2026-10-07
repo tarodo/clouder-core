@@ -1,6 +1,6 @@
 # Data quality
 
-Status: in review; "After" is filled from the first nightly run.
+Status: deployed; first results on 2026-10-07.
 
 ## Why
 
@@ -67,9 +67,27 @@ rather than a DQ framework: ADR-0023.
 | Found by hand | 1 ingest run of 156 without a final status |
 | Catalog-wide, by hand | ISRC on 100 % of tracks; 96.9 % matched on Spotify |
 
-## After
+## After (first run, 2026-10-07 12:46 UTC)
 
-Filled from the first nightly run (CloudWatch `CLOUDER/DataQuality`).
+The first run came from the backfill's quality gate, a few hours before the first scheduled
+night; the values are the ones published to `CLOUDER/DataQuality`.
+
+| Check | Value | Result |
+|---|---|---|
+| `stuck_ingest_runs` | 0 | pass |
+| `styles_behind` | 2 | **fail** — two active styles had not ingested the week that closed on Friday 2026-10-02 |
+| `weekly_volume_anomalies` | 0 | pass |
+| `isrc_coverage_pct` | 100 % | pass |
+| `spotify_match_pct` | 96.85 % | pass |
+| `spotify_unsearched_stale` | 0 | pass |
+| `orphan_identities` | 0 | pass |
+| `artists_without_identity` | 24 | recorded |
+| `bpm_out_of_range` | 0 | pass |
+| `length_out_of_range` | 0 | pass |
+| `review_backlog_days` | 129.8 | recorded |
+
+Day one: ten checks green, and one real gap caught — two styles a week behind — that nothing
+had reported before.
 
 ## What it buys
 
