@@ -2177,8 +2177,8 @@ In `docs/benchmarks/canonicalization.md`: change `Status:` to `shipped in PR #<n
 - **Correctness under concurrency:** weekly ingests for several styles run back to back and
   share artists and labels; duplicates from racing runs are no longer possible.
 - **Less load on Aurora:** … statements per average run instead of …; Aurora Serverless v2
-  scales on activity and auto-pauses when idle, so shorter runs mean fewer ACU-seconds.
-  The dollar effect is small at current volume (~$10/month total AWS bill) — the win is
+  scales on activity and auto-pauses when idle, so shorter runs keep it busy for less time.
+  At the current volume the gain is
   latency, headroom and correctness, not cost.
 
 ## Limitations
