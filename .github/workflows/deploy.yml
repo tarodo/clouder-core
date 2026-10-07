@@ -50,6 +50,21 @@ jobs:
             -backend-config="dynamodb_table=${{ vars.TF_LOCK_TABLE }}" \
             -backend-config="encrypt=true"
 
+      - name: Sync Beatport credentials to SSM (auto-ingest)
+        working-directory: .
+        env:
+          BP_USER: ${{ secrets.BEATPORT_USERNAME }}
+          BP_PASS: ${{ secrets.BEATPORT_PASSWORD }}
+        run: |
+          if [ -z "$BP_USER" ] || [ -z "$BP_PASS" ]; then
+            echo "BEATPORT_USERNAME / BEATPORT_PASSWORD not set; skipping"
+            exit 0
+          fi
+          aws ssm put-parameter --name /clouder/beatport/username \
+            --value "$BP_USER" --type SecureString --overwrite >/dev/null
+          aws ssm put-parameter --name /clouder/beatport/password \
+            --value "$BP_PASS" --type SecureString --overwrite >/dev/null
+
       - name: Sync GitHub secrets to SSM Parameter Store
         working-directory: .
         run: |
