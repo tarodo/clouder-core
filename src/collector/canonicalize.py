@@ -8,6 +8,7 @@ winners back, instead of a Data API round-trip per entity. See ADR-0022.
 from __future__ import annotations
 
 from collections import Counter
+from contextlib import nullcontext
 from datetime import datetime
 from decimal import Decimal
 import hashlib
@@ -74,9 +75,29 @@ def _comparable(value: Any) -> str | None:
     return value.isoformat() if hasattr(value, "isoformat") else str(value)
 
 
-class Canonicalizer:
+class _ReadOnlyRepository:
+    """Dry-run view: the reads a run needs pass through, every other call is
+    dropped and no transaction is opened, so a dry run cannot write — also through
+    a write method added later."""
+
+    _READS = frozenset({"find_identities", "read_track_state"})
+
     def __init__(self, repository: ClouderRepository) -> None:
         self._repository = repository
+
+    def transaction(self):
+        return nullcontext(None)
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self._READS:
+            return getattr(self._repository, name)
+        return lambda *args, **kwargs: None
+
+
+class Canonicalizer:
+    def __init__(self, repository: ClouderRepository, *, dry_run: bool = False) -> None:
+        self._dry_run = dry_run
+        self._repository = _ReadOnlyRepository(repository) if dry_run else repository
 
     def process_run(
         self,
@@ -92,6 +113,7 @@ class Canonicalizer:
             "INFO",
             "canonicalization_process_started",
             run_id=run_id,
+            dry_run=self._dry_run,
             tracks_total=len(bundle.tracks),
             artists_total=len(bundle.artists),
             labels_total=len(bundle.labels),
@@ -239,10 +261,13 @@ class Canonicalizer:
             "beatport", entity_type, list(candidates), transaction_id=transaction_id
         )
         missing = candidates.keys() - resolved.keys()
-        if missing:
+        if missing and not self._dry_run:
             raise RuntimeError(
                 f"identity claim did not resolve {len(missing)} {entity_type} ids"
             )
+        # Dry run: nothing was claimed, so ids without an identity would be created
+        # under the candidate id.
+        resolved = {**{ext: candidates[ext] for ext in missing}, **resolved}
         created = {ext for ext, clouder_id in resolved.items() if clouder_id == candidates[ext]}
         return resolved, created
 

@@ -340,3 +340,23 @@ def test_reused_track_without_changes_is_not_updated() -> None:
 
     assert repo.updated_tracks == []
     assert (result.tracks_created, result.tracks_changed) == (0, 0)
+
+
+class _WriteSpy(FakeRepo):
+    def __getattribute__(self, name):
+        attr = super().__getattribute__(name)
+        if name.startswith(("batch_", "claim_", "set_", "upsert_")):
+            raise AssertionError(f"dry run called {name}")
+        return attr
+
+
+def test_dry_run_reports_creations_and_writes_nothing() -> None:
+    repo = _WriteSpy()
+
+    result = Canonicalizer(repo, dry_run=True).process_run(
+        run_id="run-dry", bundle=normalize_tracks(_raw_track())
+    )
+
+    assert (result.tracks_created, result.artists_created, result.albums_created) == (1, 1, 1)
+    assert (result.labels_created, result.styles_created) == (1, 1)
+    assert repo.identities == {}
