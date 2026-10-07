@@ -3990,9 +3990,9 @@
     "semantic_hash": ""
   },
   "src/collector/data_api.py": {
-    "mtime": 1791375996.9729009,
-    "ast_hash": "823cd7c40ad958aa33a08892ef1795de",
-    "semantic_hash": "823cd7c40ad958aa33a08892ef1795de"
+    "mtime": 1791378784.561568,
+    "ast_hash": "37f1d8174bb619657e84c939381624f5",
+    "semantic_hash": ""
   },
   "src/collector/data_api_retry.py": {
     "mtime": 1791375996.972948,
@@ -4270,8 +4270,8 @@
     "semantic_hash": "6043386a12f97f56174a7bddf93ab5d7"
   },
   "src/collector/repositories.py": {
-    "mtime": 1791375996.977773,
-    "ast_hash": "1d269601e496e343ef53e49bbb0ab9c4",
+    "mtime": 1791378784.5623202,
+    "ast_hash": "c7764d9c7c09f51726f5c795c09e6923",
     "semantic_hash": ""
   },
   "src/collector/saturday_week.py": {
@@ -4685,9 +4685,9 @@
     "semantic_hash": "dd952a4e475dca61d20e32f608988d4f"
   },
   "tests/unit/test_data_api.py": {
-    "mtime": 1791375996.9900992,
-    "ast_hash": "d11f6a4239d59fe291378521b201ded7",
-    "semantic_hash": "d11f6a4239d59fe291378521b201ded7"
+    "mtime": 1791378784.5628965,
+    "ast_hash": "399c614510b2f1add4bf6c9db0366747",
+    "semantic_hash": ""
   },
   "tests/unit/test_data_api_retry.py": {
     "mtime": 1791375996.990161,
@@ -5685,8 +5685,8 @@
     "semantic_hash": ""
   },
   "docs/data/canonicalization.md": {
-    "mtime": 1791375996.5974517,
-    "ast_hash": "92e2cd1285d6466b11b981a13ef33f67",
+    "mtime": 1791378784.560676,
+    "ast_hash": "f4e2c252e836415fc8d0bbc8f173379a",
     "semantic_hash": ""
   },
   "docs/data/data-model.md": {
@@ -5825,8 +5825,8 @@
     "semantic_hash": ""
   },
   "docs/ops/runbook.md": {
-    "mtime": 1791377282.2924435,
-    "ast_hash": "0424ddf4bce53b79bb3f4370da3a8fdc",
+    "mtime": 1791378750.7934372,
+    "ast_hash": "0db1fa5f4fa2a4a900754c502bff553f",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-06-08-triage-finalize-dispatch-phase1-inline-optimization.md": {
@@ -6030,8 +6030,8 @@
     "semantic_hash": ""
   },
   "infra/analytics_routes.tf": {
-    "mtime": 1791377140.3305988,
-    "ast_hash": "15a5d853e7f66f7c8940a55c68bad79f",
+    "mtime": 1791378669.4494972,
+    "ast_hash": "55b99401f29b7e8db8574eeb97229e1f",
     "semantic_hash": ""
   },
   "infra/telemetry.tf": {
@@ -6040,8 +6040,8 @@
     "semantic_hash": ""
   },
   "src/collector/analytics_handler.py": {
-    "mtime": 1791377060.2548656,
-    "ast_hash": "801374040fdc79370b4dbb56ad7f9757",
+    "mtime": 1791378669.448992,
+    "ast_hash": "f681de5e04c56bb164ef839bc1fd6eac",
     "semantic_hash": ""
   },
   "src/collector/catalog_export_handler.py": {
@@ -6935,8 +6935,8 @@
     "semantic_hash": ""
   },
   "docs/ops/backfill.md": {
-    "mtime": 1791375996.6155462,
-    "ast_hash": "841446fdbd6196c02b4a55b2ea963803",
+    "mtime": 1791378784.5609078,
+    "ast_hash": "d9a6b08460009749c003926099e4442c",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-replayable-backfill.md": {
@@ -6945,8 +6945,8 @@
     "semantic_hash": ""
   },
   "dbt/macros/dialect.sql": {
-    "mtime": 1791376745.726748,
-    "ast_hash": "c320fcff308d193d7b5c0639861c19de",
+    "mtime": 1791378669.4501588,
+    "ast_hash": "fb4e949ebb44d9132254720c78532eda",
     "semantic_hash": ""
   },
   "dbt/macros/generate_schema_name.sql": {
@@ -6955,18 +6955,18 @@
     "semantic_hash": ""
   },
   "dbt/models/gold/fct_play.sql": {
-    "mtime": 1791376993.0333595,
-    "ast_hash": "354a0c698b7f0589553b871ddf7f2c27",
+    "mtime": 1791378669.4505284,
+    "ast_hash": "2e339dd26304ddc4406b0fd689b4c932",
     "semantic_hash": ""
   },
   "dbt/models/silver/dim_track_history.sql": {
-    "mtime": 1791376912.0115461,
-    "ast_hash": "01488de90781280d73d15c734fe83c1d",
+    "mtime": 1791378669.4506757,
+    "ast_hash": "82dc6cd52040354de6e506805263e54b",
     "semantic_hash": ""
   },
   "dbt/models/silver/events.sql": {
-    "mtime": 1791376795.2757702,
-    "ast_hash": "1744dffb8defa697940ea962c0510713",
+    "mtime": 1791378669.4499948,
+    "ast_hash": "6a1711c82c7d7b984d78cca8b286268f",
     "semantic_hash": ""
   },
   "dbt/models/staging/stg_events.sql": {
@@ -6985,8 +6985,8 @@
     "semantic_hash": ""
   },
   "infra/lakehouse.tf": {
-    "mtime": 1791377140.321544,
-    "ast_hash": "399aa232ffed10a7d1fafff2a2726afb",
+    "mtime": 1791378669.4497998,
+    "ast_hash": "24ec5d02c2a9281e918c322dc3166ced",
     "semantic_hash": ""
   },
   "infra/transform.asl.json": {
@@ -6995,8 +6995,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_analytics_hot_cold.py": {
-    "mtime": 1791377035.0553362,
-    "ast_hash": "33c1ed1b9e84090e00de9652c06cb4fb",
+    "mtime": 1791378630.9734461,
+    "ast_hash": "14a87370468a2c121e946b29cebf99c1",
     "semantic_hash": ""
   },
   "tests/unit/test_transform_state_machine.py": {
@@ -7015,8 +7015,8 @@
     "semantic_hash": ""
   },
   "dbt/README.md": {
-    "mtime": 1791377282.2824597,
-    "ast_hash": "ee4fbdbf682fb172efd59f5418c6323c",
+    "mtime": 1791378750.793616,
+    "ast_hash": "6f75abf353513743015c31a604fa79fa",
     "semantic_hash": ""
   },
   "dbt/dbt_project.yml": {
@@ -7030,8 +7030,8 @@
     "semantic_hash": ""
   },
   "dbt/models/silver/_silver.yml": {
-    "mtime": 1791376929.902641,
-    "ast_hash": "4a7d0ad17c4c2c346ef60ef0deab2f13",
+    "mtime": 1791378630.998114,
+    "ast_hash": "c9abbbe29ca64fee9857d7f00ba4c04d",
     "semantic_hash": ""
   },
   "dbt/models/sources.yml": {
@@ -7040,8 +7040,8 @@
     "semantic_hash": ""
   },
   "dbt/models/staging/_staging.yml": {
-    "mtime": 1791376745.7376528,
-    "ast_hash": "941a5033106468e6820790883213ce6c",
+    "mtime": 1791378630.9985547,
+    "ast_hash": "a0dba51a33052f8255d3c069532eee26",
     "semantic_hash": ""
   },
   "dbt/profiles.yml": {
@@ -7060,18 +7060,28 @@
     "semantic_hash": ""
   },
   "docs/adr/0025-iceberg-dbt-lakehouse.md": {
-    "mtime": 1791377282.2783687,
-    "ast_hash": "c6c0db20d0399245ea7a775e47e21a1a",
+    "mtime": 1791378750.7929504,
+    "ast_hash": "b1369371bf1fa24386295a807e0cb56d",
     "semantic_hash": ""
   },
   "docs/data/lakehouse.md": {
-    "mtime": 1791377248.7898855,
-    "ast_hash": "4feefe60777dae806ccbde9e8421ec6f",
+    "mtime": 1791378750.7926223,
+    "ast_hash": "8dde4b439b10a0e502a7bf0282abaa2f",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-lakehouse-dbt.md": {
     "mtime": 1791376649.3999796,
     "ast_hash": "6cb97f60f9f59b5cbba0c2b0d7b273c3",
+    "semantic_hash": ""
+  },
+  "tests/db/test_canonicalize_merged_pg.py": {
+    "mtime": 1791378784.5624626,
+    "ast_hash": "90d5702b244c99ebc10b4ab42159731a",
+    "semantic_hash": ""
+  },
+  "tests/unit/test_lakehouse_infra.py": {
+    "mtime": 1791378630.9896255,
+    "ast_hash": "4a1a50f94dfc389003335ca291016730",
     "semantic_hash": ""
   }
 }
