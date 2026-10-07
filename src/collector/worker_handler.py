@@ -8,6 +8,7 @@ from typing import Any, Mapping
 from pydantic import ValidationError as PydanticValidationError
 
 from .canonicalize import Canonicalizer
+from .contracts import screen_run
 from .errors import StorageError
 from .logging_utils import log_event
 from .normalize import normalize_tracks
@@ -90,8 +91,17 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 s3_key=s3_key,
             )
 
+            phase = "screen"
+            report = screen_run(
+                raw_tracks,
+                run_id=run_id,
+                storage=storage,
+                write=True,
+                correlation_id=correlation_id,
+            )
+
             phase = "normalize"
-            bundle = normalize_tracks(raw_tracks)
+            bundle = normalize_tracks(report.valid)
             log_event(
                 "INFO",
                 "canonicalization_normalized",
@@ -133,6 +143,8 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 tracks_created=result.tracks_created,
                 tracks_changed=result.tracks_changed,
                 tracks_stale=result.tracks_stale,
+                records_quarantined=len(report.quarantined),
+                drift_fields=",".join(report.drift_fields),
                 artists_total=result.artists_total,
                 labels_total=result.labels_total,
                 albums_total=result.albums_total,

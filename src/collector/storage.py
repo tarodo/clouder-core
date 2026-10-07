@@ -89,6 +89,20 @@ class S3Storage:
         )
         return releases_key, meta_key
 
+    def write_quarantine(self, run_id: str, quarantined: List[Dict[str, Any]]) -> str:
+        """Records a run could not canonicalize, with the contract's reasons
+        (docs/data/contracts.md). One object per run, overwritten on replay."""
+        key = f"{self.raw_prefix}/_quarantine/run_id={run_id}/records.json.gz"
+        self._put_object(
+            key=key,
+            body=gzip.compress(
+                json.dumps(quarantined, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ),
+            content_type="application/json",
+            content_encoding="gzip",
+        )
+        return key
+
     def read_releases(self, key: str) -> List[Dict[str, Any]]:
         try:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)

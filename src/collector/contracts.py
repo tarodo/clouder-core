@@ -14,6 +14,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
+from .logging_utils import log_event
+
 _S, _I, _B, _O, _A, _N = "string", "integer", "boolean", "object", "array", "null"
 
 # Field -> allowed JSON types; measured over the raw zone on 2026-10-07.
@@ -161,3 +163,29 @@ def screen(records: Sequence[Any]) -> ContractReport:
         type_drift=dict(sorted(retyped.items())),
         null_share_over={f: s for f, s in shares.items() if s > NULL_SHARE_LIMITS[f]},
     )
+
+
+def screen_run(
+    raw_tracks: Sequence[Any],
+    *,
+    run_id: str,
+    storage: Any,
+    write: bool,
+    correlation_id: str | None = None,
+) -> ContractReport:
+    """Screen one run: quarantine what cannot be canonicalized (unless a dry run)
+    and log drift once, so a metric filter can alarm on it."""
+    report = screen(raw_tracks)
+    if write and report.quarantined:
+        storage.write_quarantine(run_id, report.quarantined)
+    if report.drift_fields:
+        log_event(
+            "WARNING",
+            "contract_drift",
+            correlation_id=correlation_id,
+            run_id=run_id,
+            drift_fields=",".join(report.drift_fields),
+            unknown_fields=",".join(report.unknown_fields),
+            count=len(report.drift_fields),
+        )
+    return report
