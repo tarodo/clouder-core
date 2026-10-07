@@ -71,8 +71,8 @@ set, like every alarm here).
 three days from `clouder_silver.events`, the last three days from `bronze_events` — each `dt`
 from exactly one side. Three days cover the build's lookback and two missed nightly builds, so a
 failing build does not drop days from the cards. It is switched on by the Terraform variable
-`silver_events_table` (empty = bronze only), set after the first green build; clearing it is
-the rollback.
+`silver_events_table` (empty = bronze only), set in `.github/workflows/deploy.yml` after the
+first green build (2026-10-07); removing that `-var` is the rollback.
 
 **Docs and lineage.** On every push to `main` under `dbt/`, CI builds the fixtures and publishes
 the dbt docs (models, columns, tests, lineage graph) to GitHub Pages:
