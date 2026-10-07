@@ -22,6 +22,7 @@ flowchart LR
         VMW["vendor-match-worker"]
         WH["canonicalization-worker (Worker Lambda)"]
         MH["migration"]
+        BF["backfill (Step Functions task)"]
     end
 
     subgraph Storage
@@ -54,13 +55,15 @@ flowchart LR
     VMW <--> SP
     VMW <--> Aurora
     MH --> Aurora
+    BF --> S3
+    BF --> Aurora
     UI <--> SP
 ```
 
 ## Subsystems
 
 - **Ingest.** API Lambda fetches a Beatport weekly snapshot, writes `releases.json.gz + meta.json` to S3, enqueues a canonicalization job, and records an `ingest_runs` row. See [`docs/data/raw-ingestion.md`](data/raw-ingestion.md).
-- **Canonicalization.** SQS-triggered worker reads the raw snapshot, normalises tracks / artists / albums / labels, and upserts canonical entities into Aurora via the RDS Data API. See [`docs/data/canonicalization.md`](data/canonicalization.md).
+- **Canonicalization.** SQS-triggered worker reads the raw snapshot, normalises tracks / artists / albums / labels, and upserts canonical entities into Aurora via the RDS Data API. See [`docs/data/canonicalization.md`](data/canonicalization.md). Stored raw runs can be replayed — previewed first as a dry run — by the backfill state machine. See [`docs/ops/backfill.md`](ops/backfill.md).
 - **Search and enrichment.** Per-track ISRC lookup against Spotify, plus a metadata-fallback path for misses. Perplexity is used to flag AI-suspected labels and artists. Results are cached in vendor-match tables. See [`docs/data/search-and-enrichment.md`](data/search-and-enrichment.md).
 - **Curation.** The SPA's tap-to-assign UX assigns tracks from triage buckets into per-user playlists. Optimistic shrink keeps the cursor stable. See [`docs/frontend/features.md`](frontend/features.md) and ADR-0010, ADR-0012.
 - **Playback.** Spotify Web Playback SDK is lazy-loaded on the first play. The CLOUDER auth refresh stream bundles a Spotify access token; the SPA keeps it in memory only. See [`docs/frontend/playback.md`](frontend/playback.md) and ADR-0011, ADR-0013.

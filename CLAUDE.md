@@ -6,7 +6,7 @@ This file is the AI-agent map. Detailed documentation lives in `docs/`.
 
 ## Where things are
 
-- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration, telemetry, analytics-api, catalog export) + providers + data-access layer.
+- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration, telemetry, analytics-api, catalog export, data-quality, backfill) + providers + data-access layer.
 - `frontend/` — Vite + React 19 + Mantine 9 SPA.
 - **Analytics** (in `src/collector/`, no separate `analytics/` dir) — telemetry → Firehose → S3 lake (`bronze_events`, typed hybrid). `analytics_handler.py` reads it live via Athena for `GET /v1/analytics/listening` (minutes + tracks, today / 7d / 30d); `GET /v1/analytics/funnel` is served by the collector from Aurora (`repositories.analytics_funnel`). Both are personal (own data; `?user_id` admin-only) and back the Home cards + `/admin/analytics`. Nightly `catalog-export` (00:00 UTC) snapshots dims (track → style) to `bronze/catalog_export/`. No dbt, no marts.
 - `alembic/` — schema migrations.

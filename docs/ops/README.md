@@ -7,5 +7,6 @@ Deployment, runtime configuration, observability, and incident response.
 - [Logs](logs.md) — structlog events, `aws logs tail`, enabling Aurora PostgreSQL logs.
 - [Aurora](aurora.md) — Serverless v2 scaling, auto-pause, IAM auth quirks.
 - [Runbook](runbook.md) — common incidents and their fixes.
+- [Backfill](backfill.md) — replay the raw zone through the canonicalizer, dry run first.
 
 See also [`docs/architecture.md`](../architecture.md), [`docs/adr/`](../adr/).
