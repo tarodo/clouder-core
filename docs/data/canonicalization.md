@@ -11,6 +11,10 @@ Source files:
 
 ## From raw to canonical
 
+### Phase 0 — screen
+
+`contracts.screen_run` checks the run against the raw data contract ([`contracts.md`](contracts.md)): records without a positive `id` or a `name` are quarantined to `raw/bp/releases/_quarantine/run_id=<run_id>/` with their reasons, drift (unknown, missing, re-typed or emptied fields) is logged as `contract_drift`. Only the valid records reach normalize.
+
 ### Phase 1 — normalize
 
 `normalize.py:normalize_tracks(raw_tracks)` iterates raw Beatport track objects and extracts de-duplicated, typed entities.

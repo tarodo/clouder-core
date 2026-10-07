@@ -120,7 +120,8 @@ aws stepfunctions describe-execution --execution-arn <arn> \
 
 The output's `summary` has `runs`, `runs_failed`, `failed_run_ids`, `tracks_total`,
 `labels_created`, `styles_created`, `artists_created`, `albums_created`, `tracks_created`,
-`tracks_changed`, `tracks_stale` and `track_field_changes`. Per-run results are in the Replay
+`tracks_changed`, `tracks_stale`, `track_field_changes`, `records_quarantined` and `drift_fields`
+(the raw data contract, `docs/data/contracts.md`; a dry run writes no quarantine object). Per-run results are in the Replay
 map's output and in the `backfill_run_replayed` log events of `/aws/lambda/clouder-prod-backfill`.
 A failed execution has no output: `describe-execution` shows the error and a cause with the failed
 run ids, and `aws stepfunctions get-execution-history` has each run's error.
