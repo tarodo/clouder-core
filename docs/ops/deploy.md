@@ -79,6 +79,8 @@ Secrets are scoped to the **`production` environment** (not repo-root) in GitHub
 | `PERPLEXITY_API_KEY` | `production` environment | Synced to `/clouder/perplexity/api_key` SSM |
 | `SPOTIFY_CLIENT_ID` | `production` environment | Synced to `/clouder/spotify/client_id` SSM |
 | `SPOTIFY_CLIENT_SECRET` | `production` environment | Synced to `/clouder/spotify/client_secret` SSM |
+| `BEATPORT_USERNAME` | `production` environment | Synced to `/clouder/beatport/username` SSM (auto-ingest login; step skipped while unset) |
+| `BEATPORT_PASSWORD` | `production` environment | Synced to `/clouder/beatport/password` SSM (auto-ingest login; step skipped while unset) |
 | `AWS_GITHUB_ROLE_ARN` | Repo root | OIDC role assumption in both workflows |
 
 GitHub Actions repo variables (not secrets): `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `SPOTIFY_OAUTH_REDIRECT_URI`, `ADMIN_SPOTIFY_IDS`, `ALLOWED_FRONTEND_REDIRECTS`.

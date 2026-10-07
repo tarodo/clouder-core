@@ -61,9 +61,9 @@ jobs:
             exit 0
           fi
           aws ssm put-parameter --name /clouder/beatport/username \
-            --value "$BP_USER" --type SecureString --overwrite >/dev/null
+            --value="$BP_USER" --type SecureString --overwrite >/dev/null
           aws ssm put-parameter --name /clouder/beatport/password \
-            --value "$BP_PASS" --type SecureString --overwrite >/dev/null
+            --value="$BP_PASS" --type SecureString --overwrite >/dev/null
 
       - name: Sync GitHub secrets to SSM Parameter Store
         working-directory: .

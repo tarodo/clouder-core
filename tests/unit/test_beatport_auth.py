@@ -89,7 +89,7 @@ def test_each_failing_step_is_named_without_secrets(step, answers) -> None:
     error = caught.value
     assert error.step == step and isinstance(error.status, int)
     assert PASSWORD not in str(error) and TOKEN not in str(error)
-    assert error.__cause__ is None
+    assert error.__suppress_context__  # the HTTPError (and its body) is not chained
 
 
 def test_authorize_without_redirect_fails() -> None:
@@ -108,3 +108,69 @@ def test_network_error_is_reported_as_network() -> None:
         fetch_access_token("user", PASSWORD, opener=opener)
 
     assert (caught.value.step, caught.value.status) == ("login", "network")
+
+
+class _Truncated(Response):
+    def read(self) -> bytes:
+        import http.client
+
+        raise http.client.IncompleteRead(b"par", 10)
+
+
+def test_truncated_body_is_reported_as_network() -> None:
+    with pytest.raises(BeatportAuthError) as caught:
+        fetch_access_token("user", PASSWORD, opener=Opener(login=_Truncated(200)))
+
+    assert (caught.value.step, caught.value.status) == ("login", "network")
+
+
+def test_real_opener_carries_the_session_and_reads_the_redirect(monkeypatch) -> None:
+    # The two mechanisms the flow depends on, through the real urllib handlers:
+    # the login cookie reaches authorize, and the 302 is read instead of followed.
+    import http.server
+    import threading
+
+    from collector import beatport_auth
+
+    seen: dict = {}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def _send(self, code, headers=None, body=b""):
+            self.send_response(code)
+            for k, v in (headers or {}).items():
+                self.send_header(k, v)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            if self.path == "/v4/auth/login/":
+                self._send(200, {"Set-Cookie": "sessionid=S1; Path=/; HttpOnly"}, b"{}")
+            else:
+                seen["token_cookie"] = self.headers.get("Cookie")
+                self._send(200, {"Content-Type": "application/json"},
+                           json.dumps({"access_token": TOKEN}).encode())
+
+        def do_GET(self):
+            if self.path.startswith("/v4/auth/o/post-message/"):
+                self._send(200, {"Content-Type": "text/html"}, b"<html>done</html>")  # like Beatport
+                return
+            seen["authorize_cookie"] = self.headers.get("Cookie")
+            self._send(302, {"Location": f"{api}/auth/o/post-message/?code=abc"})
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    api = f"http://127.0.0.1:{server.server_port}/v4"
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    monkeypatch.setattr(beatport_auth, "API", api)
+    monkeypatch.setattr(beatport_auth, "REDIRECT_URI", f"{api}/auth/o/post-message/")
+    try:
+        assert fetch_access_token("user", PASSWORD) == TOKEN
+    finally:
+        server.shutdown()
+
+    assert seen["authorize_cookie"] == "sessionid=S1"
+    assert seen["token_cookie"] is None  # like the tested reference: token call outside the session

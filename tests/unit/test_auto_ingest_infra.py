@@ -32,4 +32,6 @@ def test_deploy_skips_beatport_sync_without_secrets() -> None:
     assert re.search(r'if \[ -z "\$BP_USER" \] \|\| \[ -z "\$BP_PASS" \]; then\s.*exit 0', script, re.S)
     for name in ("/clouder/beatport/username", "/clouder/beatport/password"):
         assert f"--name {name}" in script
+    # `--value=...`: a password starting with "-" must not be parsed as an option.
+    assert '--value="$BP_USER"' in script and '--value="$BP_PASS"' in script
     assert script.count("--type SecureString") == 2

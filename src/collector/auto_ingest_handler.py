@@ -25,8 +25,12 @@ def _read_credentials() -> tuple[str, str]:
 def auth_check() -> dict[str, Any]:
     try:
         username, password = _read_credentials()
-    except Exception:  # missing parameter or env: report, do not echo anything
-        log_event("WARNING", "auto_ingest_auth_check", passed=False, phase="credentials")
+    except Exception as exc:  # missing env/parameter, IAM, KMS: name the cause, never a value
+        log_event(
+            "WARNING", "auto_ingest_auth_check", passed=False, phase="credentials",
+            error_type=type(exc).__name__,
+            error_code=getattr(exc, "response", {}).get("Error", {}).get("Code"),
+        )
         return {"ok": False, "step": "credentials", "status": None}
     try:
         fetch_access_token(username, password)

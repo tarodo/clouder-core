@@ -59,4 +59,4 @@
 ## After merge (gate)
 
 1. Deploy; the owner's secrets must exist (`aws ssm get-parameter --name /clouder/beatport/username --query Parameter.Name` — name only).
-2. `aws lambda invoke --function-name clouder-prod-auto-ingest --payload '{"action":"auth_check"}'` → `{"ok": true}` continues to Phase B; anything else stops and goes to the owner with the step and status.
+2. `aws lambda invoke --function-name clouder-prod-auto-ingest --cli-binary-format raw-in-base64-out --payload '{"action":"auth_check"}' out.json && cat out.json` → `{"ok": true}` continues to Phase B; anything else stops and goes to the owner with the step and status.

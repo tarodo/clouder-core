@@ -57,3 +57,21 @@ def test_auth_check_reports_missing_credentials(monkeypatch, events) -> None:
 def test_unknown_action_raises() -> None:
     with pytest.raises(ValueError):
         handler.lambda_handler({"action": "drop"}, None)
+
+
+def test_credentials_failure_logs_the_cause_not_the_value(monkeypatch, events) -> None:
+    from botocore.exceptions import ClientError
+
+    monkeypatch.setenv("BEATPORT_USERNAME_SSM_PARAMETER", "/clouder/beatport/username")
+    monkeypatch.setenv("BEATPORT_PASSWORD_SSM_PARAMETER", "/clouder/beatport/password")
+
+    def denied(name):
+        raise ClientError({"Error": {"Code": "AccessDeniedException", "Message": "no"}}, "GetParameter")
+
+    monkeypatch.setattr(handler.secrets, "_fetch_ssm_parameter", denied)
+
+    handler.lambda_handler({"action": "auth_check"}, None)
+
+    (message, fields), = events
+    assert fields["error_type"] == "ClientError"
+    assert fields["error_code"] == "AccessDeniedException"

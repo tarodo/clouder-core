@@ -96,8 +96,10 @@ Unit: (style, Saturday-week). Styles: visible, with a Beatport identity.
   - disabled → deletes pending schedules, plans nothing.
 - **Saving settings** in the admin replans immediately: the API Lambda saves the row and invokes
   the auto-ingest Lambda asynchronously with `{"action": "plan"}`.
-- **Concurrency:** the auto-ingest Lambda has reserved concurrency 1; a throttled invocation is
-  retried by the scheduler. The 60-minute gap keeps random runs apart.
+- **Concurrency:** no reserved concurrency (the account quota is 10 and AWS keeps 10
+  unreserved). A run takes a lease on the settings row (`running_until = now + 15 min`, taken
+  only when free or expired) and skips when another run holds it; the 60-minute gap keeps
+  random runs apart.
 
 ## 4. Running
 
