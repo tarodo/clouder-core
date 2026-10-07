@@ -6,6 +6,8 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
 
+import json
+
 import pytest
 
 from collector.data_api import (
@@ -276,3 +278,35 @@ def test_transaction_rolls_back_on_exception() -> None:
     assert "begin_transaction" in call_types
     assert "rollback_transaction" in call_types
     assert "commit_transaction" not in call_types
+
+
+def test_batch_execute_splits_requests_under_the_data_api_size_limit(monkeypatch) -> None:
+    # A whole run's relations once exceeded the Data API's 4 MiB request body (HTTP 413).
+    import collector.data_api as data_api
+
+    monkeypatch.setattr(data_api, "_BATCH_REQUEST_BYTES", 400)
+    fake = FakeRdsDataClient()
+    client = DataAPIClient(fake, "arn:r", "arn:s", "db")
+    sets = [{"a": f"value-{i:03d}"} for i in range(12)]
+
+    client.batch_execute("INSERT INTO t (a) VALUES (:a)", sets, transaction_id="tx-9")
+
+    calls = [kw for name, kw in fake.calls if name == "batch_execute_statement"]
+    assert len(calls) > 1
+    assert all(kw["transactionId"] == "tx-9" for kw in calls)
+    sent = [ps[0]["value"]["stringValue"] for kw in calls for ps in kw["parameterSets"]]
+    assert sent == [s["a"] for s in sets]
+    assert all(len(json.dumps(kw["parameterSets"])) <= 400 for kw in calls)
+
+
+def test_batch_execute_sends_an_oversized_parameter_set_on_its_own(monkeypatch) -> None:
+    import collector.data_api as data_api
+
+    monkeypatch.setattr(data_api, "_BATCH_REQUEST_BYTES", 50)
+    fake = FakeRdsDataClient()
+    client = DataAPIClient(fake, "arn:r", "arn:s", "db")
+
+    client.batch_execute("INSERT INTO t (a) VALUES (:a)", [{"a": "x" * 200}, {"a": "y"}])
+
+    calls = [kw for name, kw in fake.calls if name == "batch_execute_statement"]
+    assert [len(kw["parameterSets"]) for kw in calls] == [1, 1]
