@@ -1,6 +1,6 @@
 # Backfill: replaying the raw zone
 
-Status: deployed with this change; "After" is filled from the first production runs.
+Status: deployed; measured on production on 2026-10-07.
 
 ## Why
 
@@ -138,15 +138,19 @@ reports nothing).
 The Beatport token is never part of this path: the state machine's input and every state's
 input stay in the execution history for 90 days, so ingest is not orchestrated here (ADR-0024).
 
-## After
-
-Filled from the first production runs.
+## After (production, 2026-10-07)
 
 | Run | Duration | Result |
 |---|---|---|
-| Full dry run (all raw objects) | pending | pending |
-| Full apply | pending | pending |
-| Dry run after the apply | pending | expected: nothing to change |
+| Full dry run — 153 raw objects, 100,268 tracks | 1 min 56 s | nothing to create; 26 tracks would change (album 26, publish date 22, mix name 3, length 2, BPM 1); 373 older observations skipped |
+| First full apply | 8 min 20 s | 152 of 153 runs replayed; the largest week failed with HTTP 413 — one Data API request carried all of its relations. Fixed by splitting batch requests under 4 MiB (the live worker had the same latent bug) |
+| Dry run after it | 1 min 38 s | still ~26 changes, varying between passes: 25 canonical tracks are fed by two Beatport ids (the March 2026 ISRC heuristic merged an EP track with the same recording on a compilation) and alternated between the two releases. Fixed: the newest observation among a track's sources wins |
+| Apply after both fixes | 7 min 56 s | 153 of 153 runs replayed; the 6 tracks the dry run predicted were corrected |
+| Dry run after that | 1 min 36 s | **0 changes** — replaying all history is idempotent on production data (399 older observations skipped) |
+
+Both applies ended `DataQualityGateFailed` on a check that was already red before them
+(`styles_behind = 2`: two active styles had not ingested their last closed week) — the gate
+reported it; the backfill itself completed.
 
 ## What it buys
 
@@ -157,6 +161,8 @@ Filled from the first production runs.
 - `updated_at` moves only when a track changes, and every live run reports what it created and
   changed instead of only how many tracks it saw.
 - A run that never completed can be recovered from the raw zone without a re-ingest.
+- The first full replay found two production bugs that ingest alone would not show: a Data API
+  request-size limit on large weeks and canonical tracks merged from two releases.
 
 ## Not done, and why
 
