@@ -608,6 +608,12 @@ class ClouderRepository:
         upsert inside the chunk transaction: the upsert locks the source rows
         (also when its WHERE rejects the update), so no concurrent run can change
         these tracks between this read and the update.
+
+        A canonical track can be fed by several Beatport ids (the early ISRC
+        heuristic merged them). It takes its values from the newest observation
+        among them; within one run the larger Beatport id wins. Any other source
+        is stale for it, so replays converge instead of alternating between the
+        releases.
         """
         unique = list(dict.fromkeys(external_ids))
         states: dict[str, TrackState] = {}
@@ -620,7 +626,25 @@ class ClouderRepository:
                 f"""
                 SELECT im.external_id,
                        COALESCE(
-                           se.last_run_id <> :run_id AND se.last_seen_at > :observed_at,
+                           (se.last_run_id <> :run_id AND se.last_seen_at > :observed_at)
+                           OR EXISTS (
+                               SELECT 1
+                               FROM identity_map im2
+                               JOIN source_entities se2
+                                 ON se2.source = im2.source
+                                AND se2.entity_type = im2.entity_type
+                                AND se2.external_id = im2.external_id
+                               WHERE im2.clouder_entity_type = 'track'  -- idx_identity_map_clouder
+                                 AND im2.clouder_id = im.clouder_id
+                                 AND im2.source = 'beatport'
+                                 AND im2.entity_type = 'track'
+                                 AND im2.external_id <> im.external_id
+                                 AND (
+                                     (se2.last_run_id <> :run_id AND se2.last_seen_at > :observed_at)
+                                     OR (se2.last_run_id = :run_id
+                                         AND CAST(im2.external_id AS BIGINT) > CAST(im.external_id AS BIGINT))
+                                 )
+                           ),
                            FALSE
                        ) AS stale,
                        t.mix_name, t.isrc, t.bpm, t.length_ms, t.key_name, t.key_camelot,

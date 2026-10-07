@@ -47,8 +47,10 @@ WHERE source_entities.last_run_id = EXCLUDED.last_run_id
 
 The same run always re-applies, so replaying the latest data picks up new logic even where old
 rows carry a later processing-time stamp. A track whose stored observation is newer and from
-another run is *stale* for this run: its values only fill columns that are still NULL. Replays
-of the same runs therefore converge whatever their order.
+another run is *stale* for this run: its values only fill columns that are still NULL. The
+same holds across Beatport ids that feed one canonical track (an early ISRC heuristic merged an
+EP track with the same recording on a compilation): the newest observation among them wins,
+the larger id within one run. Replays of the same runs therefore converge whatever their order.
 
 **Only real changes are written.** Inside each track chunk the canonicalizer reads the current
 row (after the source upsert, which locks the source rows for the transaction), computes which
