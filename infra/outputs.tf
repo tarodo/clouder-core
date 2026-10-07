@@ -121,3 +121,8 @@ output "telemetry_lambda_name" {
   value = aws_lambda_function.telemetry.function_name
 }
 
+
+output "backfill_state_machine_arn" {
+  description = "Backfill state machine (docs/ops/backfill.md)."
+  value       = aws_sfn_state_machine.backfill.arn
+}
