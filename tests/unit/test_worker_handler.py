@@ -43,37 +43,38 @@ class FakeRepo:
     def batch_upsert_source_relations(self, commands, transaction_id=None):
         pass
 
-    def find_identity(self, source, entity_type, external_id, transaction_id=None):
-        return self.identities.get((source, entity_type, external_id))
-
     def batch_upsert_identities(self, commands, transaction_id=None):
         pass
 
-    def create_label(self, label_id, name, normalized_name, at, transaction_id=None):
+    def claim_identities(self, commands, transaction_id=None):
+        for cmd in commands:
+            self.identities.setdefault(
+                (cmd.source, cmd.entity_type, cmd.external_id), cmd.clouder_id
+            )
+
+    def find_identities(self, source, entity_type, external_ids, transaction_id=None):
+        return {
+            ext: self.identities[(source, entity_type, ext)]
+            for ext in external_ids
+            if (source, entity_type, ext) in self.identities
+        }
+
+    def batch_create_labels(self, commands, transaction_id=None):
         pass
 
-    def create_style(self, style_id, name, normalized_name, at, transaction_id=None):
+    def batch_create_styles(self, commands, transaction_id=None):
         pass
 
-    def create_artist(self, artist_id, name, normalized_name, at, transaction_id=None):
+    def batch_create_artists(self, commands, transaction_id=None):
         pass
 
-    def create_album(
-        self,
-        album_id,
-        title,
-        normalized_title,
-        release_date,
-        label_id,
-        at,
-        transaction_id=None,
-    ):
+    def batch_create_albums(self, commands, transaction_id=None):
         pass
 
-    def create_track(self, cmd, transaction_id=None):
+    def batch_create_tracks(self, commands, transaction_id=None):
         pass
 
-    def conservative_update_track(self, cmd, transaction_id=None):
+    def batch_conservative_update_tracks(self, commands, transaction_id=None):
         pass
 
     def batch_upsert_track_artists(self, commands, transaction_id=None):

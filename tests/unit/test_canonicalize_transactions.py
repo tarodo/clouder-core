@@ -92,60 +92,63 @@ def _full_bundle() -> NormalizedBundle:
     )
 
 
+def _echo_repo() -> MagicMock:
+    """MagicMock repo whose identity lookups return what was just claimed."""
+    repo = MagicMock()
+    repo.transaction.return_value.__enter__.return_value = "tx-1"
+    claimed: dict[tuple[str, str], str] = {}
+
+    def claim(commands, transaction_id=None):
+        for cmd in commands:
+            claimed.setdefault((cmd.entity_type, cmd.external_id), cmd.clouder_id)
+
+    def find(source, entity_type, external_ids, transaction_id=None):
+        return {
+            ext: claimed[(entity_type, ext)]
+            for ext in external_ids
+            if (entity_type, ext) in claimed
+        }
+
+    repo.claim_identities.side_effect = claim
+    repo.find_identities.side_effect = find
+    return repo
+
+
 @pytest.mark.parametrize(
-    "phase_method,expected_entity_type",
+    "method",
     [
-        ("batch_upsert_source_entities", None),
+        "batch_upsert_source_entities",
+        "claim_identities",
+        "find_identities",
+        "batch_create_labels",
+        "batch_create_styles",
+        "batch_create_artists",
+        "batch_create_albums",
+        "batch_create_tracks",
+        "batch_conservative_update_tracks",
+        "batch_upsert_track_artists",
     ],
 )
-def test_every_phase_passes_transaction_id(phase_method, expected_entity_type):
-    repo = MagicMock()
-    repo.transaction.return_value.__enter__.return_value = "tx-1"
-    repo.find_identity.return_value = None
+def test_every_phase_call_passes_transaction_id(method):
+    repo = _echo_repo()
 
     Canonicalizer(repo).process_run(run_id="r", bundle=_full_bundle())
 
-    method = getattr(repo, phase_method)
-    # 5 entity phases call batch_upsert_source_entities (labels, styles,
-    # artists, albums, tracks).
-    assert method.call_count >= 5
-    for call in method.call_args_list:
-        assert call.kwargs.get("transaction_id") is not None, (
-            f"{phase_method} called without transaction_id: {call}"
-        )
-
-
-def test_find_identity_runs_inside_transaction():
-    """Resolver reads must see uncommitted writes from same txn."""
-    repo = MagicMock()
-    repo.transaction.return_value.__enter__.return_value = "tx-1"
-    repo.find_identity.return_value = None
-
-    Canonicalizer(repo).process_run(run_id="r", bundle=_full_bundle())
-
-    txn_calls = [
-        c
-        for c in repo.find_identity.call_args_list
-        if c.kwargs.get("transaction_id") == "tx-1"
-    ]
-    assert txn_calls, "find_identity must propagate transaction_id"
+    calls = getattr(repo, method).call_args_list
+    assert calls, f"{method} was never called"
+    for call in calls:
+        assert call.kwargs.get("transaction_id") == "tx-1", f"{method}: {call}"
 
 
 def test_transaction_rolled_back_on_failure():
-    repo = MagicMock()
+    repo = _echo_repo()
     txn_cm = MagicMock()
     repo.transaction.return_value = txn_cm
     txn_cm.__enter__.return_value = "tx-fail"
+    repo.batch_create_labels.side_effect = RuntimeError("boom")
 
-    repo.find_identity.return_value = None
-    repo.create_label.side_effect = RuntimeError("boom")
-
-    c = Canonicalizer(repo)
-    try:
-        c.process_run(run_id="r", bundle=_bundle_with_one_label())
-    except RuntimeError:
-        pass
+    with pytest.raises(RuntimeError):
+        Canonicalizer(repo).process_run(run_id="r", bundle=_bundle_with_one_label())
 
     assert txn_cm.__exit__.called
-    exit_args = txn_cm.__exit__.call_args[0]
-    assert exit_args[0] is RuntimeError
+    assert txn_cm.__exit__.call_args[0][0] is RuntimeError
