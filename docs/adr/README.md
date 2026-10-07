@@ -57,3 +57,4 @@ Trade-offs accepted. What becomes harder. Cross-references to topical docs.
 | 0024 | [Replayable canonicalization and a Step Functions backfill](0024-replayable-canonicalization-backfill.md) |
 | 0025 | [Iceberg silver/gold built by dbt on Athena](0025-iceberg-dbt-lakehouse.md) |
 | 0026 | [Raw Beatport data contract as data, with quarantine and drift alarms](0026-raw-data-contract.md) |
+| 0027 | [Auto-ingest with a per-run Beatport login and EventBridge Scheduler](0027-auto-ingest.md) |

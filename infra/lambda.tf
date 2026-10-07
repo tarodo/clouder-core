@@ -25,6 +25,7 @@ resource "aws_lambda_function" "collector" {
       AURORA_DATABASE             = var.aurora_database_name
       LOG_LEVEL                   = "INFO"
       VENDORS_ENABLED             = "beatport"
+      AUTO_INGEST_FUNCTION_NAME   = local.auto_ingest_lambda_name
     }
   }
 

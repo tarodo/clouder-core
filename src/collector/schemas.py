@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import date
+import re
+from datetime import date, datetime, timezone
+from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
     StrictInt,
     ValidationError as PydanticValidationError,
     field_validator,
@@ -153,3 +157,45 @@ def validation_error_message(exc: PydanticValidationError) -> str:
     location = ".".join(str(part) for part in first.get("loc", ()))
     message = str(first.get("msg", "Validation failed"))
     return f"{location}: {message}" if location else message
+
+
+_HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+class AutoIngestSettingsIn(BaseModel):
+    """PUT /admin/auto-ingest (docs/data/auto-ingest.md)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: StrictBool
+    mode: Literal["fixed", "random"]
+    fixed_times: list[str] = Field(min_length=1, max_length=12)
+    runs_per_day: StrictInt = Field(ge=1, le=12)
+    timezone: str = Field(min_length=1)
+    periods_per_run: StrictInt = Field(ge=1, le=10)
+    backfill_floor: date
+
+    @field_validator("fixed_times")
+    @classmethod
+    def _times(cls, value: list[str]) -> list[str]:
+        if any(not _HHMM.match(t) for t in value):
+            raise ValueError("times must be HH:MM (00:00-23:59)")
+        if len(set(value)) != len(value):
+            raise ValueError("times must be unique")
+        return sorted(value)
+
+    @field_validator("timezone")
+    @classmethod
+    def _zone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError("unknown IANA timezone") from exc
+        return value
+
+    @field_validator("backfill_floor")
+    @classmethod
+    def _floor(cls, value: date) -> date:
+        if not date(2000, 1, 1) <= value <= datetime.now(timezone.utc).date():
+            raise ValueError("backfill_floor must be between 2000-01-01 and today")
+        return value

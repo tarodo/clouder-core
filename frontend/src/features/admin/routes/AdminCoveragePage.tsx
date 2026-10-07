@@ -7,6 +7,7 @@ import { CoverageMatrix } from '../components/CoverageMatrix';
 import { CellDetailDrawer } from '../components/CellDetailDrawer';
 import { YearNavigator } from '../components/YearNavigator';
 import { StyleVisibilityPopover } from '../components/StyleVisibilityPopover';
+import { AutoIngestPanel } from '../components/AutoIngestPanel';
 import { cellState, type CoverageCell } from '../lib/cellState';
 import { runsTrackerStore } from '../lib/runsTracker';
 import { PageHeader } from '../../../components/PageHeader';
@@ -49,6 +50,9 @@ export function AdminCoveragePage() {
           onCellClick={(styleId, weekNumber) => setActive({ styleId, weekNumber })}
         />
       )}
+      <AutoIngestPanel
+        styleNames={new Map((q.data?.styles ?? []).map((s) => [s.style_id, s.style_name]))}
+      />
       <CellDetailDrawer
         open={active !== null}
         onClose={() => setActive(null)}

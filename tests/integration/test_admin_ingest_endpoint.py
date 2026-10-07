@@ -174,3 +174,29 @@ def test_admin_ingest_happy_path_with_override(monkeypatch):
     assert cmd.is_custom_range is True
     assert cmd.period_start.isoformat() == "2026-01-25"
     assert cmd.period_end.isoformat() == "2026-02-02"
+
+
+def test_collect_period_marks_auto_runs(monkeypatch):
+    fake_repo, fake_client = _stub_pipeline(monkeypatch)
+    params = handler.IngestParams(
+        style_id=7, bp_token="tok", period_start="2026-01-31", period_end="2026-02-06",
+        iso_year=None, iso_week=None, week_year=2026, week_number=5, is_custom_range=False,
+    )
+
+    result = handler.collect_period(
+        params, "corr-1", api_request_id="auto-ingest", lambda_request_id="lr-2", trigger="auto"
+    )
+
+    assert (result["week_year"], result["week_number"], result["run_status"]) == (2026, 5, "RAW_SAVED")
+    assert fake_repo.create_ingest_run.call_args[0][0].meta["trigger"] == "auto"
+    assert fake_client.fetch_weekly_releases.call_args.kwargs["bp_token"] == "tok"
+
+
+def test_manual_admin_ingest_is_marked_manual(monkeypatch):
+    fake_repo, _ = _stub_pipeline(monkeypatch)
+
+    handler.lambda_handler(
+        _event({"style_id": 7, "week_year": 2026, "week_number": 5, "bp_token": "tok"}), _ctx()
+    )
+
+    assert fake_repo.create_ingest_run.call_args[0][0].meta["trigger"] == "manual"

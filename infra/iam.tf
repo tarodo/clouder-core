@@ -120,6 +120,13 @@ data "aws_iam_policy_document" "collector_lambda" {
   }
 
   statement {
+    sid       = "AllowInvokeAutoIngest"
+    effect    = "Allow"
+    actions   = ["lambda:InvokeFunction"]
+    resources = [aws_lambda_function.auto_ingest.arn]
+  }
+
+  statement {
     sid    = "AllowRdsDataApi"
     effect = "Allow"
     actions = [

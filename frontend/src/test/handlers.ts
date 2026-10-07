@@ -108,6 +108,24 @@ export const handlers = [
       correlation_id: 'test',
     });
   }),
+  http.get('http://localhost/admin/auto-ingest', () =>
+    HttpResponse.json({
+      settings: {
+        enabled: false,
+        mode: 'random',
+        fixed_times: ['09:00', '15:00', '21:00'],
+        runs_per_day: 3,
+        timezone: 'UTC',
+        periods_per_run: 3,
+        backfill_floor: '2026-01-03',
+        updated_at: null,
+      },
+      planned_runs: [],
+      last_run: null,
+      due_week: { week_year: 2026, week_number: 1 },
+      stuck: [],
+    }),
+  ),
   http.get('http://localhost/admin/runs', () =>
     HttpResponse.json({ items: [] }),
   ),

@@ -2040,6 +2040,167 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/auto-ingest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: auto-ingest settings, planned runs, last run, due week, stuck pairs. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Auto-ingest state. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AutoIngestState"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        /** Admin: save auto-ingest settings and replan today's runs. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AutoIngestSettingsIn"];
+                };
+            };
+            responses: {
+                /** @description Saved state (replanning runs asynchronously). */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AutoIngestState"];
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/auto-ingest/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin: start an auto-ingest run now (asynchronous, also when disabled). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Run started. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            accepted: boolean;
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tracks": {
         parameters: {
             query?: never;
@@ -8098,6 +8259,32 @@ export interface components {
             /** Bp Token */
             bp_token: string;
         };
+        /**
+         * AutoIngestSettingsIn
+         * @description PUT /admin/auto-ingest (docs/data/auto-ingest.md).
+         */
+        AutoIngestSettingsIn: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "fixed" | "random";
+            /** Fixed Times */
+            fixed_times: string[];
+            /** Runs Per Day */
+            runs_per_day: number;
+            /** Timezone */
+            timezone: string;
+            /** Periods Per Run */
+            periods_per_run: number;
+            /**
+             * Backfill Floor
+             * Format: date
+             */
+            backfill_floor: string;
+        };
         /** CollectRequestIn */
         CollectRequestIn: {
             /** Bp Token */
@@ -8228,6 +8415,51 @@ export interface components {
             started_at?: string | null;
             /** Format: date-time */
             finished_at?: string | null;
+        };
+        AutoIngestState: {
+            settings: {
+                enabled: boolean;
+                /** @enum {string} */
+                mode: "fixed" | "random";
+                fixed_times: string[];
+                runs_per_day: number;
+                timezone: string;
+                periods_per_run: number;
+                /** Format: date */
+                backfill_floor: string;
+                updated_at: string | null;
+            };
+            planned_runs: string[];
+            last_run: {
+                /** Format: date-time */
+                at: string;
+                manual: boolean;
+                ok: boolean;
+                /** @description Set when login failed (credentials | login | authorize | token). */
+                failed_step?: string;
+                status?: ((number | null) | (string | null)) | null;
+                due_week?: number[];
+                pairs: {
+                    style_id: number;
+                    week_year: number;
+                    week_number: number;
+                    ok: boolean;
+                    run_id?: string;
+                    item_count?: number | null;
+                    error?: string;
+                }[];
+            } | null;
+            due_week: {
+                week_year: number;
+                week_number: number;
+            };
+            stuck: {
+                style_id: number;
+                week_year: number;
+                week_number: number;
+                last_attempt_at?: string | null;
+                last_error?: string | null;
+            }[];
         };
         CollectResponse: {
             /** Format: uuid */

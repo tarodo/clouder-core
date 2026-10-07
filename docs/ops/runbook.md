@@ -212,6 +212,44 @@ A new upstream field that is fine: add it to `FIELDS` in `src/collector/contract
 
 ---
 
+## Auto-ingest run failed
+
+**Symptom**
+
+Alarm `clouder-prod-auto-ingest-failed`, or the admin's Auto-ingest panel shows a failed last run.
+
+**Diagnosis**
+
+`aws logs filter-log-events --log-group-name /aws/lambda/clouder-prod-auto-ingest --filter-pattern '{ $.message = "auto_ingest_run_failed" }'`. A login failure carries `phase` (the step) and `status_code`; a run whose every period failed carries `count` / `runs_failed`, and the per-pair errors are in the panel's last run. Check the login alone with the `auth_check` invoke in [`docs/data/auto-ingest.md`](../data/auto-ingest.md#operating-it).
+
+**Fix**
+
+- `credentials`: the SSM parameters are missing or unreadable — add the GitHub secrets `BEATPORT_USERNAME` / `BEATPORT_PASSWORD` (environment `production`) and run the Deploy workflow by hand.
+- `login` 401/403: the password changed — update the GitHub secret, redeploy.
+- `authorize` / `token`: Beatport changed its login flow — disable auto-ingest in the admin; manual ingest with a pasted token still works.
+- `catalog_auth`: login worked but the catalog API rejected the token (401/403) — check the account's catalog access; no pair was charged.
+- Every period failed with the same Beatport error: an upstream outage; the next planned run retries.
+
+---
+
+## Auto-ingest stuck pairs
+
+**Symptom**
+
+The Auto-ingest panel lists a style × week under "Stuck": its last three automatic attempts within a week failed (the fetch, or the canonicalization of the run it created), so the planner skips it.
+
+**Fix**
+
+Read the listed error (`canonicalization failed` points at the worker logs for that run). Ingest the week by hand from the coverage matrix; once the run completes, the pair leaves the list. Otherwise it is retried automatically once its attempts are a week old.
+
+---
+
+## Disable auto-ingest
+
+Admin → Coverage → Auto-ingest: switch off and Save — pending runs are deleted and nothing is planned. Emergency stop without the admin (reset by the next deploy): `aws lambda put-function-concurrency --function-name clouder-prod-auto-ingest --reserved-concurrent-executions 0`.
+
+---
+
 ## Reprocess raw data (backfill)
 
 **When**

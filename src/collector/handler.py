@@ -6,6 +6,7 @@ import base64
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 import json
+import os
 import re
 import time
 import uuid
@@ -85,6 +86,9 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/auto-enrich/artists",
     "PUT /admin/auto-enrich/artists",
     "GET /admin/users",
+    "GET /admin/auto-ingest",
+    "PUT /admin/auto-ingest",
+    "POST /admin/auto-ingest/run",
 })
 
 
@@ -171,6 +175,13 @@ def _route(
         return _handle_admin_style_visibility(event, correlation_id)
     if route_key == "GET /admin/users":
         return _handle_admin_users(event, correlation_id)
+    if route_key == "GET /admin/auto-ingest":
+        return _handle_auto_ingest_get(correlation_id)
+    if route_key == "PUT /admin/auto-ingest":
+        return _handle_auto_ingest_put(event, correlation_id)
+    if route_key == "POST /admin/auto-ingest/run":
+        _invoke_auto_ingest({"action": "run", "manual": True})
+        return _json_response(202, {"accepted": True}, correlation_id)
     if route_key == "GET /v1/analytics/funnel":
         return _handle_analytics_funnel(event, correlation_id)
     if route_key == "GET /admin/runs":
@@ -383,15 +394,38 @@ class _IngestParams:
     is_custom_range: bool
 
 
+# Public name for callers outside the API handler (auto-ingest).
+IngestParams = _IngestParams
+
+
 def _run_beatport_ingest(
     event: Mapping[str, Any],
     context: Any,
     params: _IngestParams,
     correlation_id: str,
 ) -> dict[str, Any]:
+    response = collect_period(
+        params,
+        correlation_id,
+        api_request_id=_extract_api_request_id(event),
+        lambda_request_id=getattr(context, "aws_request_id", "unknown"),
+        trigger="manual",
+    )
+    return _json_response(200, response, correlation_id)
+
+
+def collect_period(
+    params: _IngestParams,
+    correlation_id: str,
+    *,
+    api_request_id: str,
+    lambda_request_id: str,
+    trigger: str = "manual",
+) -> dict[str, Any]:
+    """Fetch one style × period from Beatport, store it raw, record the run and
+    enqueue canonicalization — the admin endpoint and auto-ingest share it.
+    `params.bp_token` is used for the fetch only."""
     started_at_perf = time.perf_counter()
-    api_request_id = _extract_api_request_id(event)
-    lambda_request_id = getattr(context, "aws_request_id", "unknown")
 
     log_event(
         "INFO",
@@ -449,6 +483,7 @@ def _run_beatport_ingest(
         "item_count": item_count,
         "api_pages_fetched": api_pages_fetched,
         "duration_ms": duration_ms,
+        "trigger": trigger,
     }
 
     storage = S3Storage(
@@ -540,7 +575,7 @@ def _run_beatport_ingest(
             else None
         ),
     )
-    return _json_response(200, response, correlation_id)
+    return response
 
 
 def _handle_collect(
@@ -600,6 +635,70 @@ def _handle_admin_ingest(
         is_custom_range=is_custom,
     )
     return _run_beatport_ingest(event, context, params, correlation_id)
+
+
+def _auto_ingest_repository() -> Any:
+    from .auto_ingest_repository import AutoIngestRepository
+    from .data_api import create_default_data_api_client
+    from .settings import get_data_api_settings
+
+    settings = get_data_api_settings()
+    if not settings.is_configured:
+        raise AppError(status_code=503, error_code="db_not_configured",
+                       message="Database is not configured")
+    return AutoIngestRepository(create_default_data_api_client(
+        resource_arn=str(settings.aurora_cluster_arn),
+        secret_arn=str(settings.aurora_secret_arn),
+        database=settings.aurora_database,
+    ))
+
+
+def _invoke_auto_ingest(payload: Mapping[str, Any]) -> None:
+    """Asynchronous: replan after a save, or a manual run."""
+    import boto3
+
+    name = os.environ.get("AUTO_INGEST_FUNCTION_NAME", "").strip()
+    if not name:
+        raise AppError(status_code=503, error_code="config_error",
+                       message="AUTO_INGEST_FUNCTION_NAME is not set")
+    boto3.client("lambda").invoke(
+        FunctionName=name, InvocationType="Event", Payload=json.dumps(dict(payload)).encode()
+    )
+
+
+def _auto_ingest_view(repo: Any) -> dict[str, Any]:
+    from .auto_ingest_plan import due_week
+
+    settings = repo.get_settings()
+    week_year, week_number = due_week(utc_now().date())
+    return {
+        "settings": {k: settings[k] for k in (
+            "enabled", "mode", "fixed_times", "runs_per_day", "timezone",
+            "periods_per_run", "backfill_floor", "updated_at")},
+        "planned_runs": settings["planned_runs"],
+        "last_run": settings["last_run"],
+        "due_week": {"week_year": week_year, "week_number": week_number},
+        "stuck": repo.stuck_pairs(utc_now()),
+    }
+
+
+def _handle_auto_ingest_get(correlation_id: str) -> dict[str, Any]:
+    return _json_response(200, _auto_ingest_view(_auto_ingest_repository()), correlation_id)
+
+
+def _handle_auto_ingest_put(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
+    from .schemas import AutoIngestSettingsIn
+
+    try:
+        request = AutoIngestSettingsIn.model_validate(_parse_json_body(event))
+    except PydanticValidationError as exc:
+        raise ValidationError(validation_error_message(exc))
+    authorizer = (event.get("requestContext") or {}).get("authorizer") or {}
+    user_id = (authorizer.get("lambda") or {}).get("user_id")
+    repo = _auto_ingest_repository()
+    repo.save_settings(request.model_dump(), user_id=user_id, now=utc_now())
+    _invoke_auto_ingest({"action": "plan"})
+    return _json_response(200, _auto_ingest_view(repo), correlation_id)
 
 
 def _handle_admin_coverage(
