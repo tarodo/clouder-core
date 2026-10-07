@@ -22,6 +22,20 @@ models:
       - name: dt
         data_tests: [not_null]
 
+  - name: dim_track_history
+    description: >
+      SCD2 of a track's catalog attributes. valid_from/valid_to are snapshot dates
+      (valid_to null = current). Each run folds every retained snapshot newer than
+      the latest version into the open versions, so missed nights catch up and
+      history outlives the 14-day snapshot expiry.
+    columns:
+      - name: track_id
+        data_tests: [not_null]
+      - name: valid_from
+        data_tests: [not_null]
+      - name: row_hash
+        data_tests: [not_null]
+
 unit_tests:
   - name: events_keeps_one_copy_per_event_id
     model: events
@@ -57,3 +71,76 @@ unit_tests:
       rows:
         - {event_id: late}
         - {event_id: new}
+
+  - name: dim_track_history_first_build_creates_versions_per_change
+    model: dim_track_history
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: source('bronze', 'catalog_export')
+        rows:
+          - {snapshot_dt: '2026-10-03', tbl: clouder_tracks, id: t1, title: Track 1, bpm: '128'}
+          - {snapshot_dt: '2026-10-04', tbl: clouder_tracks, id: t1, title: Track 1, bpm: '126'}
+          - {snapshot_dt: '2026-10-03', tbl: clouder_tracks, id: t2, title: Track 2, bpm: '120'}
+          - {snapshot_dt: '2026-10-04', tbl: clouder_tracks, id: t2, title: Track 2, bpm: '120'}
+          - {snapshot_dt: '2026-10-04', tbl: clouder_styles, id: s1}
+    expect:
+      rows:
+        - {track_id: t1, valid_from: '2026-10-03', valid_to: '2026-10-04', bpm: '128'}
+        - {track_id: t1, valid_from: '2026-10-04', valid_to: null, bpm: '126'}
+        - {track_id: t2, valid_from: '2026-10-03', valid_to: null, bpm: '120'}
+
+  - name: dim_track_history_records_a_revert
+    model: dim_track_history
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: source('bronze', 'catalog_export')
+        rows:
+          - {snapshot_dt: '2026-10-01', tbl: clouder_tracks, id: t1, bpm: '128'}
+          - {snapshot_dt: '2026-10-02', tbl: clouder_tracks, id: t1, bpm: '126'}
+          - {snapshot_dt: '2026-10-03', tbl: clouder_tracks, id: t1, bpm: '128'}
+    expect:
+      rows:
+        - {track_id: t1, valid_from: '2026-10-01', valid_to: '2026-10-02'}
+        - {track_id: t1, valid_from: '2026-10-02', valid_to: '2026-10-03'}
+        - {track_id: t1, valid_from: '2026-10-03', valid_to: null}
+
+  - name: dim_track_history_incremental_folds_new_snapshots
+    model: dim_track_history
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: source('bronze', 'catalog_export')
+        rows:
+          - {snapshot_dt: '2026-10-02', tbl: clouder_tracks, id: t2, title: Track 2, bpm: '120', key_camelot: 5B, publish_date: '2026-09-26', album_id: a1, style_id: s1, isrc: QZ2, release_type: single, is_ai_suspected: 'false'}
+          - {snapshot_dt: '2026-10-05', tbl: clouder_tracks, id: t2, title: Track 2, bpm: '122', key_camelot: 5B, publish_date: '2026-09-26', album_id: a1, style_id: s1, isrc: QZ2, release_type: single, is_ai_suspected: 'false'}
+          - {snapshot_dt: '2026-10-06', tbl: clouder_tracks, id: t2, title: Track 2, bpm: '122', key_camelot: 5B, publish_date: '2026-09-26', album_id: a1, style_id: s1, isrc: QZ2, release_type: single, is_ai_suspected: 'false'}
+      - input: this
+        rows:
+          - {track_id: t2, valid_from: '2026-10-03', valid_to: null, title: Track 2, bpm: '120', key_camelot: 5B, publish_date: '2026-09-26', album_id: a1, style_id: s1, isrc: QZ2, release_type: single, is_ai_suspected: 'false', row_hash: da8f2fa9e57bd3dd243853c437808af8}
+    expect:
+      rows:
+        - {track_id: t2, valid_from: '2026-10-03', valid_to: '2026-10-05', bpm: '120'}
+        - {track_id: t2, valid_from: '2026-10-05', valid_to: null, bpm: '122'}
+
+  - name: dim_track_history_rerun_is_a_noop
+    # The next snapshot repeats the current version: its recomputed hash must
+    # equal the stored one, so no new version appears.
+    model: dim_track_history
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: source('bronze', 'catalog_export')
+        rows:
+          - {snapshot_dt: '2026-10-04', tbl: clouder_tracks, id: t2, title: Track 2, bpm: '120', key_camelot: 5B, publish_date: '2026-09-26', album_id: a1, style_id: s1, isrc: QZ2, release_type: single, is_ai_suspected: 'false'}
+      - input: this
+        rows:
+          - {track_id: t2, valid_from: '2026-10-03', valid_to: null, title: Track 2, bpm: '120', key_camelot: 5B, publish_date: '2026-09-26', album_id: a1, style_id: s1, isrc: QZ2, release_type: single, is_ai_suspected: 'false', row_hash: da8f2fa9e57bd3dd243853c437808af8}
+    expect:
+      rows:
+        - {track_id: t2, valid_from: '2026-10-03', valid_to: null, bpm: '120'}
