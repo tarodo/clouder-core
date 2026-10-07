@@ -111,6 +111,7 @@ def _echo_repo() -> MagicMock:
 
     repo.claim_identities.side_effect = claim
     repo.find_identities.side_effect = find
+    repo.read_track_state.return_value = {}
     return repo
 
 
@@ -120,6 +121,7 @@ def _echo_repo() -> MagicMock:
         "batch_upsert_source_entities",
         "claim_identities",
         "find_identities",
+        "read_track_state",
         "batch_create_labels",
         "batch_create_styles",
         "batch_create_artists",

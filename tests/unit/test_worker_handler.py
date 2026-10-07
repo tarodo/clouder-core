@@ -52,6 +52,9 @@ class FakeRepo:
                 (cmd.source, cmd.entity_type, cmd.external_id), cmd.clouder_id
             )
 
+    def read_track_state(self, external_ids, *, run_id, observed_at, transaction_id=None):
+        return {}
+
     def find_identities(self, source, entity_type, external_ids, transaction_id=None):
         return {
             ext: self.identities[(source, entity_type, ext)]

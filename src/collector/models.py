@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 from typing import Any, Mapping, Tuple
@@ -120,6 +120,14 @@ class CanonicalizationResult:
     labels_total: int
     albums_total: int
     styles_total: int
+    labels_created: int = 0
+    styles_created: int = 0
+    artists_created: int = 0
+    albums_created: int = 0
+    tracks_created: int = 0
+    tracks_changed: int = 0
+    tracks_stale: int = 0
+    track_field_changes: Mapping[str, int] = field(default_factory=dict)
 
 
 def validate_collect_request(payload: Mapping[str, Any]) -> CollectRequest:
