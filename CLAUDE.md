@@ -6,7 +6,7 @@ This file is the AI-agent map. Detailed documentation lives in `docs/`.
 
 ## Where things are
 
-- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration, telemetry, analytics-api, catalog export, data-quality, backfill) + providers + data-access layer.
+- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration, telemetry, analytics-api, catalog export, data-quality, backfill, auto-ingest) + providers + data-access layer.
 - `frontend/` — Vite + React 19 + Mantine 9 SPA.
 - **Analytics** (in `src/collector/`, no separate `analytics/` dir) — telemetry → Firehose → S3 lake (`bronze_events`, typed hybrid). `analytics_handler.py` reads it live via Athena for `GET /v1/analytics/listening` (minutes + tracks, today / 7d / 30d); `GET /v1/analytics/funnel` is served by the collector from Aurora (`repositories.analytics_funnel`). Both are personal (own data; `?user_id` admin-only) and back the Home cards + `/admin/analytics`. Nightly `catalog-export` (00:00 UTC) snapshots dims (track → style) to `bronze/catalog_export/`. A nightly dbt build (`dbt/`, CodeBuild at 00:30 UTC) turns bronze into Iceberg silver/gold (`clouder_silver.events`, `dim_track_history`, `clouder_gold.fct_play`); the cards read silver history + the live bronze tail. See `docs/data/lakehouse.md`.
 - `alembic/` — schema migrations.
@@ -58,7 +58,7 @@ These bite almost any session. Read the linked topical doc when you need the ful
 2. **`PYTHONPATH=src` is required** for scripts outside `pytest` (`pytest.ini` sets it for the test runner only).
 3. **macOS `python` is unavailable.** Use `python3` for stdlib-only scripts; for project scripts importing `yaml`/`pydantic`, use `.venv/bin/python` (Homebrew `python3.14` lacks deps). **In a git worktree `.venv` lives at the MAIN repo root, not the worktree** — call `pytest`/`.venv/bin/python` by absolute main-repo path (`pytest` is not on `PATH`).
 4. **AWS resource prefix is `clouder-prod-*`** (e.g. `clouder-prod-collector-api`, Aurora cluster `clouder-prod-aurora` — verified live 2026-07-16), set by `var.project`. A few resources stay `beatport-prod-*` on purpose (renaming them = data loss / needless cascade): the `raw` ingest bucket, the `analytics-lake` bucket, the Athena workgroup, and the frontend bucket/OAC/CloudFront functions. The Beatport ingest *provider* code (`beatport_client`, `/admin/beatport/ingest`) is also legitimately named — it's the upstream source.
-5. **`bp_token` is never logged or persisted.** No S3, no localStorage, no cookies, no structlog. See `docs/frontend/auth.md`.
+5. **`bp_token` is never logged or persisted.** No S3, no localStorage, no cookies, no structlog. See `docs/frontend/auth.md`. Auto-ingest logs in to Beatport on every run from SSM credentials and keeps the token in memory only — no refresh-token cache (`docs/data/auto-ingest.md`).
 6. **Saturday-week, not ISO-week,** is the canonical period. Week 1 begins on the first Saturday on or after January 1. See ADR-0003.
 7. **Aurora cold-start 503.** With `min_acu=0`, first request after a 300 s idle may exceed the API Gateway 29 s timeout. See ADR-0014, `docs/ops/runbook.md`.
 8. **`docs/api/openapi.yaml` is generated.** Regenerate with `PYTHONPATH=src .venv/bin/python scripts/generate_openapi.py` after editing routes in `infra/*.tf` or `scripts/generate_openapi.py:ROUTES`. The frontend CI diff-checks `frontend/src/api/schema.d.ts` against it.

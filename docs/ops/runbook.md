@@ -212,6 +212,43 @@ A new upstream field that is fine: add it to `FIELDS` in `src/collector/contract
 
 ---
 
+## Auto-ingest run failed
+
+**Symptom**
+
+Alarm `clouder-prod-auto-ingest-failed`, or the admin's Auto-ingest panel shows a failed last run.
+
+**Diagnosis**
+
+`aws logs filter-log-events --log-group-name /aws/lambda/clouder-prod-auto-ingest --filter-pattern '{ $.message = "auto_ingest_run_failed" }'`. A login failure carries `phase` (the step) and `status_code`; a run whose every period failed carries `count` / `runs_failed`, and the per-pair errors are in the panel's last run. Check the login alone with the `auth_check` invoke in [`docs/data/auto-ingest.md`](../data/auto-ingest.md#operating-it).
+
+**Fix**
+
+- `credentials`: the SSM parameters are missing or unreadable — add the GitHub secrets `BEATPORT_USERNAME` / `BEATPORT_PASSWORD` (environment `production`) and run the Deploy workflow by hand.
+- `login` 401/403: the password changed — update the GitHub secret, redeploy.
+- `authorize` / `token`: Beatport changed its login flow — disable auto-ingest in the admin; manual ingest with a pasted token still works.
+- Every period failed with the same Beatport error: an upstream outage; the next planned run retries.
+
+---
+
+## Auto-ingest stuck pairs
+
+**Symptom**
+
+The Auto-ingest panel lists a style × week under "Stuck": its last three automatic attempts failed, so the planner skips it.
+
+**Fix**
+
+Read the listed error. Ingest the week by hand from the coverage matrix; once it completes, the planner treats it as loaded. If the cause is gone and the pair should be retried automatically, delete its rows from `auto_ingest_attempts` (one-off script, see "Running a one-off script against prod").
+
+---
+
+## Disable auto-ingest
+
+Admin → Coverage → Auto-ingest: switch off and Save — pending runs are deleted and nothing is planned. Emergency stop without the admin (reset by the next deploy): `aws lambda put-function-concurrency --function-name clouder-prod-auto-ingest --reserved-concurrent-executions 0`.
+
+---
+
 ## Reprocess raw data (backfill)
 
 **When**

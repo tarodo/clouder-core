@@ -117,6 +117,22 @@ Note: `vendor_match_handler` upserts on cache hit (PK `(clouder_track_id, vendor
 
 ---
 
+## Auto-ingest Lambda (`clouder-prod-auto-ingest`)
+
+Also carries `RAW_BUCKET_NAME`, `RAW_PREFIX`, `BEATPORT_API_BASE_URL`, `CANONICALIZATION_ENABLED`, `CANONICALIZATION_QUEUE_URL`, `AURORA_*`, `VENDORS_ENABLED=beatport` and `LOG_LEVEL`, set as for the API Lambda (it runs the same ingest core).
+
+| Name | Type | Default | Source / Purpose |
+|------|------|---------|-----------------|
+| `BEATPORT_USERNAME_SSM_PARAMETER` | string | — | `/clouder/beatport/username` (SecureString, synced from GitHub by the deploy workflow) |
+| `BEATPORT_PASSWORD_SSM_PARAMETER` | string | — | `/clouder/beatport/password` (same) |
+| `BEATPORT_CLIENT_ID` | string | public API docs client | Override for the OAuth client id used by the login flow |
+| `AUTO_INGEST_SCHEDULE_GROUP` | string | — | EventBridge Scheduler group holding the `run-*` one-time schedules |
+| `AUTO_INGEST_SCHEDULER_ROLE_ARN` | string | — | Role the one-time schedules use to invoke this function |
+
+The API Lambda gets `AUTO_INGEST_FUNCTION_NAME` (`clouder-prod-auto-ingest`) to replan after a settings save and for "Run now". See [`docs/data/auto-ingest.md`](../data/auto-ingest.md).
+
+---
+
 ## Migration Lambda (`clouder-prod-db-migration`)
 
 | Name | Type | Default | Source / Purpose |
