@@ -96,6 +96,7 @@ jobs:
             -target=aws_lambda_function.db_migration \
             -var="environment=prod" \
             -var="canonicalization_enabled=true" \
+            -var="silver_events_table=clouder_silver.events" \
             -var="gemini_api_key_ssm_parameter=/clouder/gemini/api_key" \
             -var="openai_api_key_ssm_parameter=/clouder/openai/api_key" \
             -var="tavily_api_key_ssm_parameter=/clouder/tavily/api_key" \
@@ -150,6 +151,7 @@ jobs:
           terraform apply -auto-approve -input=false \
             -var="environment=prod" \
             -var="canonicalization_enabled=true" \
+            -var="silver_events_table=clouder_silver.events" \
             -var="gemini_api_key_ssm_parameter=/clouder/gemini/api_key" \
             -var="openai_api_key_ssm_parameter=/clouder/openai/api_key" \
             -var="tavily_api_key_ssm_parameter=/clouder/tavily/api_key" \
