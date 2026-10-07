@@ -41,3 +41,6 @@ analytics/dbt/.user.yml
 
 # Local prod volume snapshots (scripts/prod_volumes.sh output)
 prod_volumes_*.txt
+
+# Matching gold-set exports (scripts/export_match_gold.py): catalog rows, never committed
+match_gold_*
