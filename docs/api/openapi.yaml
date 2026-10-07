@@ -1399,6 +1399,86 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/auto-ingest:
+    get:
+      summary: 'Admin: auto-ingest settings, planned runs, last run, due week, stuck
+        pairs.'
+      responses:
+        '200':
+          description: Auto-ingest state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutoIngestState'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+    put:
+      summary: 'Admin: save auto-ingest settings and replan today''s runs.'
+      responses:
+        '200':
+          description: Saved state (replanning runs asynchronously).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutoIngestState'
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutoIngestSettingsIn'
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/auto-ingest/run:
+    post:
+      summary: 'Admin: start an auto-ingest run now (asynchronous, also when disabled).'
+      responses:
+        '202':
+          description: Run started.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - accepted
+                properties:
+                  accepted:
+                    type: boolean
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /tracks:
     get:
       summary: List tracks (paginated).
@@ -5724,6 +5804,54 @@ components:
       - bp_token
       title: AdminIngestRequestIn
       type: object
+    AutoIngestSettingsIn:
+      additionalProperties: false
+      description: PUT /admin/auto-ingest (docs/data/auto-ingest.md).
+      properties:
+        enabled:
+          title: Enabled
+          type: boolean
+        mode:
+          enum:
+          - fixed
+          - random
+          title: Mode
+          type: string
+        fixed_times:
+          items:
+            type: string
+          maxItems: 12
+          minItems: 1
+          title: Fixed Times
+          type: array
+        runs_per_day:
+          maximum: 12
+          minimum: 1
+          title: Runs Per Day
+          type: integer
+        timezone:
+          minLength: 1
+          title: Timezone
+          type: string
+        periods_per_run:
+          maximum: 10
+          minimum: 1
+          title: Periods Per Run
+          type: integer
+        backfill_floor:
+          format: date
+          title: Backfill Floor
+          type: string
+      required:
+      - enabled
+      - mode
+      - fixed_times
+      - runs_per_day
+      - timezone
+      - periods_per_run
+      - backfill_floor
+      title: AutoIngestSettingsIn
+      type: object
     CollectRequestIn:
       additionalProperties: false
       properties:
@@ -5994,6 +6122,140 @@ components:
           type: string
           format: date-time
           nullable: true
+    AutoIngestState:
+      type: object
+      required:
+      - settings
+      - planned_runs
+      - last_run
+      - due_week
+      - stuck
+      properties:
+        settings:
+          type: object
+          required:
+          - enabled
+          - mode
+          - fixed_times
+          - runs_per_day
+          - timezone
+          - periods_per_run
+          - backfill_floor
+          - updated_at
+          properties:
+            enabled:
+              type: boolean
+            mode:
+              type: string
+              enum:
+              - fixed
+              - random
+            fixed_times:
+              type: array
+              items:
+                type: string
+            runs_per_day:
+              type: integer
+            timezone:
+              type: string
+            periods_per_run:
+              type: integer
+            backfill_floor:
+              type: string
+              format: date
+            updated_at:
+              type: string
+              nullable: true
+        planned_runs:
+          type: array
+          items:
+            type: string
+            format: date-time
+        last_run:
+          type: object
+          nullable: true
+          required:
+          - at
+          - manual
+          - ok
+          - pairs
+          properties:
+            at:
+              type: string
+              format: date-time
+            manual:
+              type: boolean
+            ok:
+              type: boolean
+            failed_step:
+              type: string
+              description: Set when login failed (credentials | login | authorize
+                | token).
+            status:
+              type:
+              - integer
+              - string
+              nullable: true
+            due_week:
+              type: array
+              items:
+                type: integer
+            pairs:
+              type: array
+              items:
+                type: object
+                required:
+                - style_id
+                - week_year
+                - week_number
+                - ok
+                properties:
+                  style_id:
+                    type: integer
+                  week_year:
+                    type: integer
+                  week_number:
+                    type: integer
+                  ok:
+                    type: boolean
+                  run_id:
+                    type: string
+                  item_count:
+                    type: integer
+                    nullable: true
+                  error:
+                    type: string
+        due_week:
+          type: object
+          required:
+          - week_year
+          - week_number
+          properties:
+            week_year:
+              type: integer
+            week_number:
+              type: integer
+        stuck:
+          type: array
+          items:
+            type: object
+            required:
+            - style_id
+            - week_year
+            - week_number
+            properties:
+              style_id:
+                type: integer
+              week_year:
+                type: integer
+              week_number:
+                type: integer
+              last_attempt_at:
+                type: string
+                nullable: true
+              last_error:
+                type: string
+                nullable: true
     CollectResponse:
       type: object
       properties:

@@ -260,6 +260,30 @@ resource "aws_apigatewayv2_route" "auto_enrich_labels_put" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "auto_ingest_get" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/auto-ingest"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "auto_ingest_put" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "PUT /admin/auto-ingest"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "auto_ingest_run" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /admin/auto-ingest/run"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 # ── artist enrichment routes ──────────────────────────────────────────────
 
 resource "aws_apigatewayv2_route" "artists_enrich_post" {

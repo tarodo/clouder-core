@@ -27,7 +27,7 @@ from collector.curation.schemas import (
     MoveTracksIn,
     TransferTracksIn,
 )
-from collector.schemas import AdminIngestRequestIn, CollectRequestIn
+from collector.schemas import AdminIngestRequestIn, AutoIngestSettingsIn, CollectRequestIn
 
 
 # ── shared response schemas ────────────────────────────────────────────────
@@ -639,6 +639,76 @@ TOKEN_RESPONSE = {
         },
         "user": {"$ref": "#/components/schemas/UserProfile"},
         "correlation_id": {"type": "string"},
+    },
+}
+
+_AUTO_INGEST_RUN_PAIR = {
+    "type": "object",
+    "required": ["style_id", "week_year", "week_number", "ok"],
+    "properties": {
+        "style_id": {"type": "integer"},
+        "week_year": {"type": "integer"},
+        "week_number": {"type": "integer"},
+        "ok": {"type": "boolean"},
+        "run_id": {"type": "string"},
+        "item_count": {"type": "integer", "nullable": True},
+        "error": {"type": "string"},
+    },
+}
+
+AUTO_INGEST_STATE = {
+    "type": "object",
+    "required": ["settings", "planned_runs", "last_run", "due_week", "stuck"],
+    "properties": {
+        "settings": {
+            "type": "object",
+            "required": ["enabled", "mode", "fixed_times", "runs_per_day", "timezone",
+                         "periods_per_run", "backfill_floor", "updated_at"],
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "mode": {"type": "string", "enum": ["fixed", "random"]},
+                "fixed_times": {"type": "array", "items": {"type": "string"}},
+                "runs_per_day": {"type": "integer"},
+                "timezone": {"type": "string"},
+                "periods_per_run": {"type": "integer"},
+                "backfill_floor": {"type": "string", "format": "date"},
+                "updated_at": {"type": "string", "nullable": True},
+            },
+        },
+        "planned_runs": {"type": "array", "items": {"type": "string", "format": "date-time"}},
+        "last_run": {
+            "type": "object",
+            "nullable": True,
+            "required": ["at", "manual", "ok", "pairs"],
+            "properties": {
+                "at": {"type": "string", "format": "date-time"},
+                "manual": {"type": "boolean"},
+                "ok": {"type": "boolean"},
+                "failed_step": {"type": "string", "description": "Set when login failed (credentials | login | authorize | token)."},
+                "status": {"type": ["integer", "string"], "nullable": True},
+                "due_week": {"type": "array", "items": {"type": "integer"}},
+                "pairs": {"type": "array", "items": _AUTO_INGEST_RUN_PAIR},
+            },
+        },
+        "due_week": {
+            "type": "object",
+            "required": ["week_year", "week_number"],
+            "properties": {"week_year": {"type": "integer"}, "week_number": {"type": "integer"}},
+        },
+        "stuck": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["style_id", "week_year", "week_number"],
+                "properties": {
+                    "style_id": {"type": "integer"},
+                    "week_year": {"type": "integer"},
+                    "week_number": {"type": "integer"},
+                    "last_attempt_at": {"type": "string", "nullable": True},
+                    "last_error": {"type": "string", "nullable": True},
+                },
+            },
+        },
     },
 }
 
@@ -2167,6 +2237,47 @@ ROUTES: list[dict[str, Any]] = [
         "responses": {
             "204": {"description": "Config saved."},
             "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/auto-ingest",
+        "auth": ADMIN,
+        "summary": "Admin: auto-ingest settings, planned runs, last run, due week, stuck pairs.",
+        "responses": {
+            "200": _make_response(200, "Auto-ingest state.", {"$ref": "#/components/schemas/AutoIngestState"}),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "put",
+        "path": "/admin/auto-ingest",
+        "auth": ADMIN,
+        "summary": "Admin: save auto-ingest settings and replan today's runs.",
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AutoIngestSettingsIn"}}},
+        },
+        "responses": {
+            "200": _make_response(200, "Saved state (replanning runs asynchronously).", {"$ref": "#/components/schemas/AutoIngestState"}),
+            "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "post",
+        "path": "/admin/auto-ingest/run",
+        "auth": ADMIN,
+        "summary": "Admin: start an auto-ingest run now (asynchronous, also when disabled).",
+        "responses": {
+            "202": _make_response(202, "Run started.", {
+                "type": "object", "required": ["accepted"],
+                "properties": {"accepted": {"type": "boolean"}},
+            }),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
         },
@@ -4212,6 +4323,7 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
     schemas: dict[str, Any] = {}
     for name, model in (
         ("AdminIngestRequestIn", AdminIngestRequestIn),
+        ("AutoIngestSettingsIn", AutoIngestSettingsIn),
         ("CollectRequestIn", CollectRequestIn),
         ("CreateTriageBlockIn", CreateTriageBlockIn),
         ("MoveTracksIn", MoveTracksIn),
@@ -4315,6 +4427,7 @@ def build_openapi() -> dict[str, Any]:
                 "RefreshResponse": REFRESH_RESPONSE,
                 "MeResponse": ME_RESPONSE,
                 "RunResponse": RUN_RESPONSE,
+                "AutoIngestState": AUTO_INGEST_STATE,
                 "CollectResponse": COLLECT_RESPONSE,
                 "LabelEnrichRunResponse": LABEL_ENRICH_RUN_RESPONSE,
                 "LabelSummary": LABEL_SUMMARY,
