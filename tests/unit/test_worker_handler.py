@@ -359,3 +359,22 @@ def test_quarantine_write_failure_fails_the_run(monkeypatch) -> None:
 
     assert repo.failed_runs == [("run-42", "canonicalization_transient_failure")]
     reset_settings_cache()
+
+
+def test_transient_storage_error_reraises_for_sqs_retry(monkeypatch) -> None:
+    """A throttled or unavailable S3 read must be retried, not fail the run for good."""
+    from collector.errors import TransientStorageError
+    from collector.storage import S3Storage
+
+    repo = _setup_worker(monkeypatch)
+
+    def throttled(self, key):
+        raise TransientStorageError("S3 SlowDown")
+
+    monkeypatch.setattr(S3Storage, "read_releases", throttled)
+    event = _sqs_event({"run_id": "run-throttled", "source": "beatport", "s3_key": "raw/k"})
+
+    with pytest.raises(TransientStorageError):
+        lambda_handler(event, context=None)
+    assert repo.failed_runs[0] == ("run-throttled", "canonicalization_transient_failure")
+    reset_settings_cache()

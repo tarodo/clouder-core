@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError as PydanticValidationError
 
-from .errors import StorageError
+from .errors import StorageError, TransientStorageError
 from .logging_utils import log_event
 from .providers import registry
 from .repositories import (
@@ -155,7 +155,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             )
             processed += 1
         except Exception as exc:
-            is_permanent = isinstance(exc, _PERMANENT_ERRORS)
+            is_permanent = isinstance(exc, _PERMANENT_ERRORS) and not isinstance(exc, TransientStorageError)
             error_code = (
                 "spotify_permanent_failure"
                 if is_permanent
