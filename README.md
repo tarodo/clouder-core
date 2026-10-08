@@ -128,6 +128,12 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 
 ![Analytics cards](docs/assets/analytics.png)
 
+**Operations** — production, last 7 days, from the CloudWatch dashboard defined in Terraform ([`infra/dashboard.tf`](infra/dashboard.tf); refresh with `scripts/dashboard_snapshots.py`). Aurora scales to zero between sessions, and with a handful of requests per window the p95 shows the first request after a resume — the price of `min_acu = 0` ([ADR-0014](docs/adr/0014-aurora-min-acu-zero.md)):
+
+![Lambda errors](docs/assets/dashboard-lambda-errors.png)
+![API latency p95](docs/assets/dashboard-api-latency-p95.png)
+![Aurora capacity](docs/assets/dashboard-aurora-capacity.png)
+
 ## By the numbers
 
 | | |

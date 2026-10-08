@@ -128,3 +128,7 @@ aws logs tail /aws/apigateway/clouder-prod-collector-api --follow --format short
 aws logs filter-log-events --log-group-name /aws/apigateway/clouder-prod-collector-api \
   --filter-pattern '{ ($.status = "4*") || ($.status = "5*") }' --max-items 50
 ```
+
+## Overview dashboard
+
+`clouder-prod-overview` (defined in `infra/dashboard.tf`) puts every alarmed signal on one page: Lambda errors for all functions, API 4xx/5xx and p95 latency, oldest message age per queue, DLQ depth, Aurora ACU, failed data-quality checks and auto-ingest runs, telemetry delivery freshness. `scripts/dashboard_snapshots.py` renders chosen widgets of the live dashboard into `docs/assets/` for the README.
