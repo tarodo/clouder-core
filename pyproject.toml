@@ -20,3 +20,8 @@ files = ["src/collector"]
 
 [tool.coverage.run]
 source = ["src/collector"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = false
+skip_covered = true

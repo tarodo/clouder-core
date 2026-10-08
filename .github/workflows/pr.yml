@@ -204,10 +204,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: Run tests
+      - name: Run tests with coverage (gate in pyproject.toml)
         env:
           PYTHONPATH: src
-        run: pytest -q
+        run: |
+          pytest -q --cov --cov-report=term | tee pytest.log
+          grep -E '^TOTAL|Required test coverage' pytest.log >> "$GITHUB_STEP_SUMMARY"
 
   frontend:
     needs: changes
