@@ -9,12 +9,18 @@ Every route is JWT-gated by the API Gateway Lambda Authorizer (spec-A);
 from __future__ import annotations
 
 import json
+import re as _re
 import uuid
-from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
 
 from pydantic import ValidationError as PydanticValidationError
 
+# Imported for the tests: they assert finalize no longer dispatches inline (it moved to a worker).
+from .artist_enrichment.auto_dispatch import (
+    try_dispatch_artists_for_track,
+    try_dispatch_artists_for_triage_block,  # noqa: F401
+)
+from .comments.dispatch import try_dispatch_comment_collection
 from .curation import (
     BadQueryParamError,
     CoverMissingError,
@@ -28,9 +34,7 @@ from .curation import (
     InvalidTagNameError,
     InvalidTagPayloadError,
     NotFoundError,
-    PaginatedResult,
     PlaylistNotFoundError,
-    SpotifyNotAuthorizedError,
     SpotifyNotFoundError,
     TagNotFoundError,
     TooManyTagsError,
@@ -39,13 +43,10 @@ from .curation import (
     ValidationError,
     utc_now,
 )
+from .curation.auto_enrich_dispatch import enqueue_block_auto_enrich
 from .curation.categories_repository import (
     CategoriesRepository,
     create_default_categories_repository,
-)
-from .curation.tags_repository import (
-    TagsRepository,
-    create_default_tags_repository,
 )
 from .curation.categories_service import (
     normalize_category_name,
@@ -84,27 +85,25 @@ from .curation.schemas import (
     ResolveMatchIn,
     TransferTracksIn,
 )
+from .curation.tags_repository import (
+    TagsRepository,
+    create_default_tags_repository,
+)
 from .curation.triage_repository import (
     TriageRepository,
     create_default_triage_repository,
 )
+
 # Single-track dispatch runs inline (fast). The *_for_triage_block names are
 # imported but no longer called here — finalize enqueues to the dispatch worker
 # instead (see enqueue_block_auto_enrich). They stay importable so the finalize
 # tests can patch+assert-not-called as a regression guard against re-inlining.
 from .label_enrichment.auto_dispatch import (
     try_dispatch_for_track,
-    try_dispatch_for_triage_block,
+    try_dispatch_for_triage_block,  # noqa: F401  (see above)
 )
-from .artist_enrichment.auto_dispatch import (
-    try_dispatch_artists_for_track,
-    try_dispatch_artists_for_triage_block,
-)
-from .curation.auto_enrich_dispatch import enqueue_block_auto_enrich
-from .comments.dispatch import try_dispatch_comment_collection
 from .logging_utils import log_event
 from .providers.ytmusic.normalize import result_to_ref
-
 
 # ---------- Constants -------------------------------------------------------
 
@@ -1678,7 +1677,6 @@ def _soft_delete_triage_block(
 
 # ---------- Track-tags handlers (spec 2026-05-11) ---------------------------
 
-import re as _re
 
 _HEX_COLOR_RE = _re.compile(r"^#[0-9A-Fa-f]{6}$")
 _MAX_TAG_NAME = 64
@@ -2087,6 +2085,7 @@ def _playlists_factory() -> Any:
 def _build_s3_storage():
     """Build an S3Storage for cover ops in the curation Lambda."""
     import boto3
+
     from collector.settings import get_api_settings
     from collector.storage import S3Storage
 
@@ -2108,6 +2107,7 @@ def _build_spotify_user_client(user_id: str, correlation_id: str):
     """
     import boto3
     import requests as _requests
+
     from collector.auth.auth_settings import (
         get_auth_settings,
         resolve_oauth_client_credentials,
@@ -2155,14 +2155,15 @@ def _build_ytmusic_user_client(user_id: str, correlation_id: str):
     """
     import boto3
     import requests as _requests
+
     from collector.auth.auth_settings import (
         get_auth_settings,
         resolve_ytmusic_oauth_credentials,
     )
     from collector.auth.kms_envelope import KmsEnvelope
     from collector.auth.ytmusic_oauth import YtmusicOAuthClient
-    from collector.curation.ytmusic_token_resolver import YtmusicTokenResolver
     from collector.curation.youtube_data_api_client import YoutubeDataApiClient
+    from collector.curation.ytmusic_token_resolver import YtmusicTokenResolver
     from collector.data_api import create_default_data_api_client
     from collector.settings import get_data_api_settings
 

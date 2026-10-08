@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import json
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 from statistics import median
 from typing import Any
-
-from pydantic import BaseModel, ValidationError
 
 from .schemas import LabelInfo
 from .vendors.pricing import estimate_cost
@@ -257,13 +255,13 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
                 if isinstance(item, str) and item.strip():
                     all_items.append(item.strip())
         seen: dict[str, str] = {}  # lowercase → first-cased value
-        counts: Counter[str] = Counter()
+        item_counts: Counter[str] = Counter()
         for item in all_items:
             key = item.lower()
             if key not in seen:
                 seen[key] = item
-            counts[key] += 1
-        merged[field] = [seen[k] for k in sorted(seen.keys(), key=lambda k: -counts[k])]
+            item_counts[key] += 1
+        merged[field] = [seen[k] for k in sorted(seen.keys(), key=lambda k: -item_counts[k])]
         prov[field] = f"union({len(seen)})"
 
     # ai_signals: list of dicts, dedup by (kind, description normalized)
@@ -274,9 +272,9 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
                 continue
             kind = sig.get("kind") or ""
             desc = (sig.get("description") or "").strip().lower()
-            key = (kind, desc)
-            if key not in seen_signals and desc:
-                seen_signals[key] = sig
+            sig_key = (kind, desc)
+            if sig_key not in seen_signals and desc:
+                seen_signals[sig_key] = sig
     merged["ai_signals"] = list(seen_signals.values())
     prov["ai_signals"] = f"union({len(seen_signals)})"
 
@@ -360,7 +358,7 @@ def _merge_narrative(
                 raise KeyError(f"Missing narrative key: {key}")
         usage = resp.usage
         cost = estimate_cost(deepseek_model, usage.prompt_tokens, usage.completion_tokens)
-        meta = {
+        meta: dict[str, Any] = {
             "narrative_cost_usd": cost,
             "narrative_latency_ms": latency_ms,
         }

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from collector.spotify_handler import _extract_album_type
 
 

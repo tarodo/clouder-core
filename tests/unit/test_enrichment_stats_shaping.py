@@ -17,7 +17,6 @@ if str(SCRIPTS_DIR) not in sys.path:
 import enrichment_stats  # noqa: E402
 import openai_usage_report  # noqa: E402
 
-
 # ── enrichment_stats.cutoff_date ───────────────────────────────────────────
 
 

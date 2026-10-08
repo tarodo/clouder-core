@@ -24,7 +24,7 @@ from .social_links import SocialsResolver
 try:
     from openai import OpenAI
 except ImportError:  # pragma: no cover — module imported lazily in tests
-    OpenAI = None  # type: ignore[assignment]
+    OpenAI = None  # type: ignore[assignment,misc]
 
 
 def _build_repository() -> LabelEnrichmentRepository:

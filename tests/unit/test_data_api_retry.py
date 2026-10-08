@@ -5,10 +5,10 @@ import pytest
 from botocore.exceptions import ClientError
 
 from collector.data_api_retry import (
-    retry_data_api,
-    retry_data_api_pre_execution,
     PRE_EXECUTION_ERROR_CODES,
     TRANSIENT_ERROR_CODES,
+    retry_data_api,
+    retry_data_api_pre_execution,
 )
 
 

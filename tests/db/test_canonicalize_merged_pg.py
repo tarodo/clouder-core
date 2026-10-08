@@ -6,12 +6,12 @@ from __future__ import annotations
 import copy
 from datetime import datetime, timedelta, timezone
 
+from pg_data_api import seed_run
+from synthetic import synthetic_week
+
 from collector.canonicalize import Canonicalizer
 from collector.normalize import normalize_tracks
 from collector.repositories import ClouderRepository
-
-from pg_data_api import seed_run
-from synthetic import synthetic_week
 
 T1 = datetime(2026, 3, 1, 16, 0, tzinfo=timezone.utc)
 T2 = T1 + timedelta(hours=1)

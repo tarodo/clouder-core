@@ -15,3 +15,7 @@ google-genai>=0.4.0
 openai>=1.50.0
 duckdb>=1.0
 pglast>=6,<7
+ruff
+mypy
+pytest-cov
+pip-audit

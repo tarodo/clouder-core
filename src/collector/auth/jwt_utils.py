@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 
-
 _ALGO = "HS256"
 _TYPE_ACCESS = "access"
 _TYPE_REFRESH = "refresh"

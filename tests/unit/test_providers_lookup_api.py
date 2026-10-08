@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from collector.errors import VendorDisabledError
-from collector.providers.base import LookupProvider, VendorTrackRef
 from collector.providers.apple.lookup import AppleLookup
+from collector.providers.base import LookupProvider, VendorTrackRef
 from collector.providers.deezer.lookup import DeezerLookup
 from collector.providers.spotify.lookup import SpotifyLookup
 from collector.providers.tidal.lookup import TidalLookup

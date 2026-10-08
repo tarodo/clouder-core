@@ -1,9 +1,7 @@
-import os
 
 import pytest
 
 from collector.settings import (
-    LabelEnrichmentWorkerSettings,
     get_label_enrichment_worker_settings,
     reset_settings_cache,
 )

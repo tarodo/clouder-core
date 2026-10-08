@@ -3,14 +3,35 @@
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass
-from datetime import date, datetime, timezone
 import json
 import os
 import re
 import time
 import uuid
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
 from typing import Any, Mapping
+
+from pydantic import ValidationError as PydanticValidationError
+
+from .errors import AdminRequiredError, AppError, ValidationError
+from .logging_utils import log_event
+from .models import (
+    ProcessingOutcome,
+    ProcessingReason,
+    ProcessingStatus,
+    RunStatus,
+    compute_iso_week_date_range,
+)
+from .providers import registry
+from .repositories import (
+    CreateIngestRunCmd,
+    create_clouder_repository_from_env,
+    utc_now,
+)
+from .schemas import AdminIngestRequestIn, CollectRequestIn, validation_error_message
+from .settings import ApiSettings, get_api_settings
+from .storage import S3Storage, create_default_s3_client
 
 _PHASE_PREFIX = re.compile(r"^\[phase=([^\]]+)\] ")
 
@@ -22,27 +43,6 @@ def _split_phase_prefix(msg: str | None) -> tuple[str | None, str | None]:
     if not m:
         return None, msg
     return m.group(1), msg[m.end():]
-
-from pydantic import ValidationError as PydanticValidationError
-
-from .providers import registry
-from .errors import AdminRequiredError, AppError, ValidationError
-from .logging_utils import log_event
-from .models import (
-    ProcessingOutcome,
-    ProcessingReason,
-    ProcessingStatus,
-    RunStatus,
-    compute_iso_week_date_range,
-)
-from .repositories import (
-    CreateIngestRunCmd,
-    create_clouder_repository_from_env,
-    utc_now,
-)
-from .schemas import AdminIngestRequestIn, CollectRequestIn, validation_error_message
-from .settings import ApiSettings, get_api_settings
-from .storage import S3Storage, create_default_s3_client
 
 
 @dataclass(frozen=True)
@@ -619,6 +619,8 @@ def _handle_admin_ingest(
         period_end_iso = std_end.isoformat()
         is_custom = False
     else:
+        if request.period_start is None or request.period_end is None:
+            raise ValidationError("period_start and period_end are required for a custom range")
         period_start_iso = request.period_start.isoformat()
         period_end_iso = request.period_end.isoformat()
         is_custom = True
@@ -762,8 +764,8 @@ def _handle_admin_coverage(
     spotify_by_style: dict[int, list[dict[str, Any]]] = {}
     for row in stats_rows:
         try:
-            sid = int(row.get("beatport_style_id"))
-        except (TypeError, ValueError):
+            sid = int(row["beatport_style_id"])
+        except (KeyError, TypeError, ValueError):
             continue
         spotify_by_style.setdefault(sid, []).append(
             {
@@ -855,7 +857,8 @@ def _handle_analytics_funnel(
     event: Mapping[str, Any], correlation_id: str
 ) -> dict[str, Any]:
     """Personal: own data for any signed-in user; admins may pass ?user_id."""
-    from datetime import time as dtime, timedelta
+    from datetime import time as dtime
+    from datetime import timedelta
 
     from .analytics_handler import (
         AnalyticsError,
@@ -1331,7 +1334,7 @@ def _enqueue_canonicalization(
             run_id=run_id,
             processing_status=result.processing_status.value,
             processing_outcome=result.processing_outcome.value,
-            processing_reason=result.processing_reason.value,
+            processing_reason=result.processing_reason.value if result.processing_reason else None,
         )
         return result
 
@@ -1347,7 +1350,7 @@ def _enqueue_canonicalization(
             run_id=run_id,
             processing_status=result.processing_status.value,
             processing_outcome=result.processing_outcome.value,
-            processing_reason=result.processing_reason.value,
+            processing_reason=result.processing_reason.value if result.processing_reason else None,
         )
         return result
 
@@ -1402,7 +1405,7 @@ def _enqueue_canonicalization(
             error_message=str(exc)[:500],
             processing_status=result.processing_status.value,
             processing_outcome=result.processing_outcome.value,
-            processing_reason=result.processing_reason.value,
+            processing_reason=result.processing_reason.value if result.processing_reason else None,
         )
         return result
 

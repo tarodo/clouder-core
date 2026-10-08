@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from collector.curation.schemas import ResolveMatchIn, YT_VIDEO_ID_RE
+from collector.curation.schemas import YT_VIDEO_ID_RE, ResolveMatchIn
 
 
 def test_accept_requires_valid_video_id():

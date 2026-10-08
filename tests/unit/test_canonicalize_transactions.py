@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from collector.canonicalize import Canonicalizer
-from collector.normalize import NormalizedBundle, NormalizedRelation
 from collector.models import (
     NormalizedAlbum,
     NormalizedArtist,
@@ -15,6 +14,7 @@ from collector.models import (
     NormalizedStyle,
     NormalizedTrack,
 )
+from collector.normalize import NormalizedBundle, NormalizedRelation
 
 
 def _bundle_with_one_label() -> NormalizedBundle:

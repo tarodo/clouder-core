@@ -52,7 +52,7 @@ class AutoIngestRepository:
             "runs_per_day": int(row["runs_per_day"]),
             "timezone": row["timezone"],
             "periods_per_run": int(row["periods_per_run"]),
-            "backfill_floor": _iso(row["backfill_floor"])[:10],
+            "backfill_floor": (_iso(row["backfill_floor"]) or "")[:10],
             "planned_runs": list(_json(row["planned_runs"]) or []),
             "last_run": _json(row["last_run"]),
             "updated_at": _iso(row["updated_at"]),

@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from collector import curation_handler
 from collector.curation import (
     PaginatedResult,
     TagNameConflictError,

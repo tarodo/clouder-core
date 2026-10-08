@@ -12,7 +12,6 @@ from typing import Iterable, Sequence
 
 from . import InvalidSpotifyRefError, OrderMismatchError, ValidationError
 
-
 MAX_NAME_LENGTH = 100
 MAX_DESCRIPTION_LENGTH = 300
 MAX_PLAYLISTS_PER_USER = 200

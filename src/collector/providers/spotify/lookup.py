@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import VendorTrackRef
 from ...spotify_client import SpotifyClient, SpotifySearchResult
+from ..base import VendorTrackRef
 
 
 class SpotifyLookup:

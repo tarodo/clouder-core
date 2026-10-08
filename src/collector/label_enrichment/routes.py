@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -109,9 +109,10 @@ def handle_post_enrich(event: Mapping[str, Any]) -> tuple[int, dict]:
             )
         else:
             # label_name path — must have style per the model_validator
-            resolved_id = repo.upsert_label_by_name(item.label_name)
-            resolved_name = item.label_name
-            resolved_style = item.style  # validated non-empty by model_validator
+            # The model_validator guarantees label_name (and style) on this path.
+            resolved_id = repo.upsert_label_by_name(cast(str, item.label_name))
+            resolved_name = cast(str, item.label_name)
+            resolved_style = cast(str, item.style)  # validated non-empty by model_validator
         label_ids.append((resolved_id, resolved_name, resolved_style))
 
     spec = RunSpec(

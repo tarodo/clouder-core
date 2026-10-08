@@ -6,7 +6,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-
 SUPPORTED_VENDORS = ("gemini", "openai", "tavily_deepseek")
 
 

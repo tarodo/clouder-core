@@ -14,7 +14,6 @@ from collector.curation.categories_service import (
 )
 from collector.curation.triage_repository import TriageRepository
 
-
 # ---- normalize_category_name -----------------------------------------------
 
 def test_normalize_lowercases_and_trims() -> None:

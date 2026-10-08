@@ -3,9 +3,9 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from collector.label_enrichment.aggregator import (
-    merge_cells,
     _filter_parseable,
     _merge_deterministic,
+    merge_cells,
 )
 
 

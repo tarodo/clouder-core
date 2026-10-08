@@ -1,4 +1,8 @@
-from collector.artist_enrichment.prompts import PROMPTS, get_prompt, load_builtin_prompts
+from collector.artist_enrichment.prompts import (
+    PROMPTS,
+    get_prompt,
+    load_builtin_prompts,
+)
 from collector.artist_enrichment.prompts.base import render_user
 from collector.artist_enrichment.schemas import ArtistInfo
 

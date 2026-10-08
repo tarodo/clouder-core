@@ -103,7 +103,9 @@ def run(
         log_event("INFO", "auto_ingest_run_skipped", reason="busy")
         return {"skipped": "busy"}
     if collect is None:
-        from .handler import collect_period as collect
+        from .handler import collect_period
+
+        collect = collect_period
     correlation_id = f"auto-ingest-{uuid.uuid4()}"
     # Progress for the admin panel, overwritten by the final summary below.
     progress = {"at": now.isoformat(), "manual": manual, "in_progress": True,
@@ -132,7 +134,7 @@ def run(
             floor=date.fromisoformat(settings["backfill_floor"]),
             budget=int(settings["periods_per_run"]),
         )
-        outcomes = []
+        outcomes: list[dict[str, Any]] = []
         token_rejected = False
         for style_id, week_year, week_number in pairs:
             start, end = saturday_week_range(week_year, week_number)
@@ -142,7 +144,7 @@ def run(
                 iso_year=None, iso_week=None,
                 week_year=week_year, week_number=week_number, is_custom_range=False,
             )
-            outcome = {"style_id": style_id, "week_year": week_year, "week_number": week_number}
+            outcome: dict[str, Any] = {"style_id": style_id, "week_year": week_year, "week_number": week_number}
             repo.set_last_run({**progress, "current": dict(outcome), "pairs": outcomes,
                                "total": len(pairs)})
             try:

@@ -18,16 +18,16 @@ from datetime import datetime, timezone
 
 import boto3
 
+from collector.curation.playlists_repository import MatchInput
 from collector.data_api import create_default_data_api_client
 from collector.models import normalize_text
 from collector.settings import (
-    get_data_api_settings,
     get_api_settings,
+    get_data_api_settings,
     get_spotify_worker_settings,
 )
 from collector.spotify_client import SpotifyClient
 from collector.vendor_match.enqueue import YTMUSIC_VENDOR, enqueue_vendor_matches
-from collector.curation.playlists_repository import MatchInput
 
 
 def _find_artistless(data_api) -> list[dict]:

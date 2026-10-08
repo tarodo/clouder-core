@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from decimal import Decimal
 
 from collector.curation.playlists_repository import PlaylistsRepository
 

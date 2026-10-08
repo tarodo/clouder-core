@@ -63,7 +63,6 @@ from collector.curation.triage_service import (
 )
 from collector.curation_handler import lambda_handler
 
-
 # ---------- Fake triage repository ------------------------------------------
 
 
@@ -586,7 +585,7 @@ def test_list_triage_blocks_paginated(fake_triage_repo, context):
 
 
 def test_list_triage_blocks_status_filter(fake_triage_repo, context):
-    bid_a = _create_block(fake_triage_repo, name="A")
+    _create_block(fake_triage_repo, name="A")
     bid_b = _create_block(fake_triage_repo, name="B")
     # Finalize one so we can filter.
     fake_triage_repo.finalize_block(

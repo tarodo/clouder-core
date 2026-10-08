@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -9,8 +8,8 @@ from collector.auth.spotify_oauth import (
     SpotifyOAuthClient,
     SpotifyOAuthError,
     SpotifyProfile,
-    SpotifyTokenSet,
     SpotifyTokenRevokedError,
+    SpotifyTokenSet,
 )
 
 

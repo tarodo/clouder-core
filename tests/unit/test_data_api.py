@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
-
-import json
 
 import pytest
 
@@ -17,7 +16,6 @@ from collector.data_api import (
     _to_parameter,
     _to_rows,
 )
-
 
 # ── _to_field tests ──────────────────────────────────────────────────
 

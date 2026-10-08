@@ -8,15 +8,16 @@ Covers the 4 label cases (a)-(d) from task-5-brief.md plus one artist mirror:
   (d) socials_resolver=None keeps old behavior byte-for-byte
 """
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
 from collector.artist_enrichment.orchestrator import enrich_artist_for_run
-from collector.artist_enrichment.repository import ArtistContext
 from collector.artist_enrichment.prompts import get_prompt as get_artist_prompt
-from collector.artist_enrichment.prompts import load_builtin_prompts as load_artist_prompts
+from collector.artist_enrichment.prompts import (
+    load_builtin_prompts as load_artist_prompts,
+)
+from collector.artist_enrichment.repository import ArtistContext
 from collector.artist_enrichment.schemas import ArtistInfo
 from collector.label_enrichment.orchestrator import enrich_label_for_run
 from collector.label_enrichment.prompts import PROMPTS, get_prompt, load_builtin_prompts

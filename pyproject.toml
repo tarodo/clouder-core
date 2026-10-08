@@ -1,0 +1,22 @@
+[tool.ruff]
+target-version = "py312"
+src = ["src", "tests", "scripts"]
+extend-exclude = ["graphify-out", "experiments", "frontend", "dbt", "alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+ignore = ["B904", "B905"]  # raise-from and zip(strict=) are style changes across ~40 call sites
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011", "B017", "E402"]  # local helpers before imports are fine in tests
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+explicit_package_bases = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+files = ["src/collector"]
+
+[tool.coverage.run]
+source = ["src/collector"]

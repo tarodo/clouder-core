@@ -8,7 +8,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from collector.artist_enrichment.aggregator import _filter_parseable, _merge_deterministic, merge_cells
+from collector.artist_enrichment.aggregator import (
+    _filter_parseable,
+    _merge_deterministic,
+    merge_cells,
+)
 from collector.artist_enrichment.schemas import ArtistInfo
 
 

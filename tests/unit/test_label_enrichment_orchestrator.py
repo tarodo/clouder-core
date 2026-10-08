@@ -6,7 +6,9 @@ from collector.label_enrichment.orchestrator import (
     run_vendors_parallel,
 )
 from collector.label_enrichment.prompts import (
-    PROMPTS, load_builtin_prompts, get_prompt,
+    PROMPTS,
+    get_prompt,
+    load_builtin_prompts,
 )
 from collector.label_enrichment.schemas import LabelInfo
 from collector.label_enrichment.vendors.base import VendorResponse
@@ -246,6 +248,7 @@ def test_enrich_label_without_on_outcome_does_not_crash():
 
 def test_build_adapters_rejects_unknown_vendor():
     import pytest
+
     from collector.label_enrichment.orchestrator import build_adapters_from_run_config
     from collector.label_enrichment.settings_provider import LabelEnrichmentSecrets
 

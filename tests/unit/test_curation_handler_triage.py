@@ -19,7 +19,6 @@ from collector.curation import (
     InactiveBucketError,
     InactiveStagingFinalizeError,
     InvalidStateError,
-    NotFoundError,
     StyleMismatchError,
     TracksNotInSourceError,
 )
@@ -32,7 +31,6 @@ from collector.curation.triage_repository import (
     TriageBlockSummaryRow,
     TriageBucketRow,
 )
-
 
 # ---------- Helpers ---------------------------------------------------------
 
@@ -1139,11 +1137,10 @@ def test_soft_delete_triage_block_returns_404_when_missing(
 
 
 def test_create_triage_block_forwards_and_serializes_flags() -> None:
+    from collector.curation.triage_repository import TriageBlockRow
     from collector.curation_handler import (
         _create_triage_block,
-        _serialize_triage_block,
     )
-    from collector.curation.triage_repository import TriageBlockRow
 
     captured = {}
 

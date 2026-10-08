@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from ..schemas import LabelInfoRequest
 from . import register
 from .base import PromptConfig
 from .label_v3_app_fields import APP_FIELDS_BLOCK
-from ..schemas import LabelInfoRequest
 
 V2_SYSTEM_NO_AI = (
     "You research music labels. Output structured facts only.\n"

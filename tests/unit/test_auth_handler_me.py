@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from collector import auth_handler
 from collector.auth import auth_settings
 from collector.auth.auth_repository import SessionRow, UserRow
-from collector import auth_handler
 
 
 @pytest.fixture(autouse=True)

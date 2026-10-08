@@ -7,7 +7,6 @@ from pydantic import ValidationError
 from collector.telemetry_schemas import (
     EVENT_NAMES,
     HOT_PROPS,
-    PROP_ALLOWLIST,
     validate_event,
 )
 

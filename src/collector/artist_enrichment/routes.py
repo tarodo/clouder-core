@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -102,8 +102,9 @@ def handle_post_enrich(event: Mapping[str, Any]) -> tuple[int, dict]:
             resolved_name = row["name"]
         else:
             # artist_name path — must have style per the model_validator
-            resolved_id = repo.upsert_artist_by_name(item.artist_name)
-            resolved_name = item.artist_name
+            # The model_validator guarantees artist_name (and style) on this path.
+            resolved_id = repo.upsert_artist_by_name(cast(str, item.artist_name))
+            resolved_name = cast(str, item.artist_name)
         artist_ids.append((resolved_id, resolved_name))
 
     spec = RunSpec(

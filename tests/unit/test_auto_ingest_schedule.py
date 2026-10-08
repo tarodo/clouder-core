@@ -4,7 +4,12 @@ import json
 import random
 from datetime import datetime, timezone
 
-from collector.auto_ingest_schedule import MIN_GAP, apply_schedule, plan_times, window_end
+from collector.auto_ingest_schedule import (
+    MIN_GAP,
+    apply_schedule,
+    plan_times,
+    window_end,
+)
 
 UTC = timezone.utc
 

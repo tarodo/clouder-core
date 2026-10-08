@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
@@ -20,13 +19,6 @@ from .auth.auth_settings import (
     resolve_oauth_client_credentials,
     resolve_ytmusic_oauth_credentials,
 )
-from .auth.ytmusic_oauth import (
-    YtmusicAuthError,
-    YtmusicAuthExpired,
-    YtmusicAuthPending,
-    YtmusicAuthSlowDown,
-    YtmusicOAuthClient,
-)
 from .auth.jwt_utils import (
     InvalidTokenError,
     issue_access_token,
@@ -39,6 +31,13 @@ from .auth.spotify_oauth import (
     SpotifyOAuthClient,
     SpotifyOAuthError,
     SpotifyTokenRevokedError,
+)
+from .auth.ytmusic_oauth import (
+    YtmusicAuthError,
+    YtmusicAuthExpired,
+    YtmusicAuthPending,
+    YtmusicAuthSlowDown,
+    YtmusicOAuthClient,
 )
 from .data_api import create_default_data_api_client
 from .errors import (
@@ -54,7 +53,6 @@ from .errors import (
 )
 from .logging_utils import log_event
 from .settings import get_data_api_settings
-
 
 SPOTIFY_SCOPES = (
     "user-read-email user-read-private "

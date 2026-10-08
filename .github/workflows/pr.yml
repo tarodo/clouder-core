@@ -32,7 +32,9 @@ jobs:
               - 'tests/**'
               - 'alembic/**'
               - 'requirements*.txt'
+              - 'requirements*.in'
               - 'pytest.ini'
+              - 'pyproject.toml'
               - 'scripts/**'
               - '.github/workflows/pr.yml'
             infra:
@@ -159,6 +161,30 @@ jobs:
           dbt build --target ci --full-refresh --exclude resource_type:seed
       - name: Parse the Athena target
         run: dbt parse --target prod
+
+  lint:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dev deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check src tests scripts
+
+      - name: Mypy
+        run: mypy
 
   tests:
     needs: changes

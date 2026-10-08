@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-from collector.label_enrichment.vendors.openai_gpt import OpenAIAdapter
 from collector.label_enrichment.schemas import LabelInfoRequest
+from collector.label_enrichment.vendors.openai_gpt import OpenAIAdapter
 
 
 class FakeResponses:

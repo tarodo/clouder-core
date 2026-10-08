@@ -13,7 +13,13 @@ import sys
 from pathlib import Path
 
 from collector.settings import get_vendor_match_settings
-from collector.vendor_match.evaluate import drifted, load_gold, read_labels, render_report, sweep
+from collector.vendor_match.evaluate import (
+    drifted,
+    load_gold,
+    read_labels,
+    render_report,
+    sweep,
+)
 
 
 def main(argv: list[str] | None = None) -> str:

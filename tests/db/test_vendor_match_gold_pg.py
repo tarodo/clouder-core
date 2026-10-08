@@ -5,7 +5,12 @@ from __future__ import annotations
 import json
 
 from collector.curation.playlists_repository import PlaylistsRepository
-from collector.vendor_match.gold import auto_population, auto_sample, duplicate_artists, review_accepts
+from collector.vendor_match.gold import (
+    auto_population,
+    auto_sample,
+    duplicate_artists,
+    review_accepts,
+)
 
 
 def _seed(pg) -> None:

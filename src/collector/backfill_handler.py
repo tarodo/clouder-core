@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from collections import Counter
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Mapping, Sequence
 
 from .canonicalize import Canonicalizer
@@ -77,7 +77,7 @@ def plan(params: Mapping[str, Any], repository: Any) -> dict[str, Any]:
         {
             "run_id": str(row["run_id"]),
             "s3_key": str(row["raw_s3_key"]),
-            "observed_at": as_utc_datetime(row["started_at"]).isoformat(),
+            "observed_at": _required_utc(row["started_at"]).isoformat(),
             "status": str(row["status"]),
             "style_id": row["style_id"],
             "period_end": _iso(row["period_end"]),
@@ -206,3 +206,10 @@ def _storage() -> S3Storage:
         bucket_name=settings.raw_bucket_name,
         raw_prefix=settings.raw_prefix,
     )
+
+
+def _required_utc(value: Any) -> datetime:
+    observed = as_utc_datetime(value)
+    if observed is None:
+        raise ValueError("ingest run without started_at")
+    return observed

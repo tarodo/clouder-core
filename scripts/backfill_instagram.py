@@ -23,7 +23,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-
 _URL_FIELDS = ("website", "bandcamp_url", "soundcloud_url", "twitter_url",
                "beatport_url", "discogs_url", "residentadvisor_url")
 
@@ -163,7 +162,7 @@ def main() -> None:
             rows = rows[: args.limit]
         print(f"== {kind}: {len(rows)} entities without instagram")
 
-        def process(row: dict) -> tuple[dict, object]:
+        def process(row: dict, kind: str = kind) -> tuple[dict, object]:
             merged = {f: row.get(f) for f in _URL_FIELDS}
             merged["instagram_url"] = None
             result = resolver.resolve(

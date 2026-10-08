@@ -10,7 +10,6 @@ from typing import Any
 
 import pytest
 
-from collector.errors import StorageError
 from collector.settings import reset_settings_cache
 from collector.worker_handler import lambda_handler
 

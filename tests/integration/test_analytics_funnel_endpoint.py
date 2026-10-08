@@ -9,9 +9,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from collector import handler
+from collector.providers import registry
 from collector.repositories import ClouderRepository
 from collector.settings import reset_settings_cache
-from collector.providers import registry
 
 
 @pytest.fixture(autouse=True)

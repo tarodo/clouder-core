@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import date as date_type, datetime, timedelta
-from typing import Any, Iterable, Sequence
+from datetime import date as date_type
+from datetime import timedelta
+from typing import Any, Sequence
 from uuid import uuid4
 
 from collector.curation import (
@@ -15,18 +16,15 @@ from collector.curation import (
     NotFoundError,
     StyleMismatchError,
     TracksNotInSourceError,
-    ValidationError,
     utc_now,
 )
 from collector.curation.triage_service import (
-    BUCKET_TYPE_DISCARD,
     BUCKET_TYPE_FAV,
     BUCKET_TYPE_NEW,
     BUCKET_TYPE_NOT,
     BUCKET_TYPE_OLD,
     BUCKET_TYPE_UNCLASSIFIED,
     TECHNICAL_BUCKET_TYPES,
-    TRACK_IDS_MAX,
 )
 from collector.data_api import DataAPIClient
 
@@ -154,7 +152,6 @@ class TriageRepository:
                     "style_not_found",
                     f"clouder_styles row not found: {style_id}",
                 )
-            style_name = style_rows[0]["name"]
 
             # 2. Insert triage_blocks row.
             block_id = str(uuid4())

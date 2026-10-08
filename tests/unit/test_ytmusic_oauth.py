@@ -1,5 +1,5 @@
-import json
 import io
+import json
 from urllib.error import HTTPError
 
 import pytest

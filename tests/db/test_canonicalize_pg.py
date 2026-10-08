@@ -3,12 +3,12 @@ set-based rewrite (docs/superpowers/plans/2026-10-07-set-based-canonicalization.
 
 from __future__ import annotations
 
+from pg_data_api import CANONICAL_TABLES, count_rows, seed_run
+from synthetic import synthetic_week
+
 from collector.canonicalize import Canonicalizer
 from collector.normalize import normalize_tracks
 from collector.repositories import ClouderRepository
-
-from pg_data_api import CANONICAL_TABLES, count_rows, seed_run
-from synthetic import synthetic_week
 
 # 1,200 tracks -> ~720 artists and ~545 albums: phases larger than one 500-id lookup.
 TRACKS = 1200

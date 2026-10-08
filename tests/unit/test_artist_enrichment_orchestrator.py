@@ -1,4 +1,4 @@
-from collector.artist_enrichment.orchestrator import enrich_artist_for_run, run_vendors_parallel
+from collector.artist_enrichment.orchestrator import enrich_artist_for_run
 from collector.artist_enrichment.prompts import get_prompt, load_builtin_prompts
 from collector.artist_enrichment.repository import ArtistContext
 from collector.artist_enrichment.schemas import ArtistInfo

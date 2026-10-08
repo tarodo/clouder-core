@@ -1,13 +1,10 @@
 """Unit tests for SpotifyEnricher (release_type extraction)."""
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from collector.providers.base import EnrichProvider, EnrichResult
 from collector.providers.spotify.enrich import SpotifyEnricher
-from collector.providers.spotify.lookup import SpotifyLookup
 from collector.spotify_client import SpotifySearchResult
 
 

@@ -2,8 +2,8 @@ import pytest
 
 from collector.label_enrichment.prompts import (
     PROMPTS,
-    load_builtin_prompts,
     get_prompt,
+    load_builtin_prompts,
 )
 from collector.label_enrichment.prompts.base import render_user
 from collector.label_enrichment.schemas import LabelInfo

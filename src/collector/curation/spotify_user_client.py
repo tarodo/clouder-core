@@ -21,7 +21,6 @@ from . import (
     SpotifyScopeInsufficientError,
 )
 
-
 _BASE = "https://api.spotify.com/v1"
 _MAX_RETRIES_429 = 1
 _MAX_RETRIES_5XX = 1

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from decimal import Decimal
-import json
 from typing import Any, Dict, Iterable, Iterator, Mapping
 
 from .data_api_retry import retry_data_api, retry_data_api_pre_execution

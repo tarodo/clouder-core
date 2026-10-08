@@ -18,9 +18,7 @@ from collector.settings import get_data_api_settings
 from . import (
     NameConflictError,
     NotFoundError,
-    OrderMismatchError,
     PaginatedResult,
-    utc_now,
 )
 from .categories_service import validate_reorder_set
 

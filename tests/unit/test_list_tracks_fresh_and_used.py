@@ -1,7 +1,7 @@
 """Tests for fresh=true + used_in_playlist projection in list_tracks."""
 from __future__ import annotations
+
 from collector.curation.categories_repository import CategoriesRepository
-from collector.curation.tags_repository import TagsRepository
 
 
 class _FakeDataAPI:
