@@ -117,7 +117,8 @@ def test_api_lambda_can_start_auto_ingest() -> None:
         r"AUTO_INGEST_FUNCTION_NAME\s*=\s*local\.auto_ingest_lambda_name",
         _block(_tf("lambda.tf"), 'resource "aws_lambda_function" "collector"'),
     )
-    invoke = _statement(_tf("iam.tf"), "AllowInvokeAutoIngest")
+    role = _block(_tf("lambda_roles.tf"), 'module "role_collector"')
+    invoke = next(line for line in role.splitlines() if '"InvokeAutoIngest"' in line)
     assert '"lambda:InvokeFunction"' in invoke and "aws_lambda_function.auto_ingest.arn" in invoke
 
 

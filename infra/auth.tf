@@ -37,11 +37,11 @@ resource "aws_ssm_parameter" "jwt_signing_key" {
 # `var.spotify_client_id_ssm_parameter` / `var.spotify_client_secret_ssm_parameter`,
 # and the auth_handler reads from those same names.
 
-# ── auth_handler Lambda (reuses collector_lambda role) ──────────────
+# ── auth_handler Lambda (own role: module.role_auth_handler) ───────
 
 resource "aws_lambda_function" "auth_handler" {
   function_name = local.auth_handler_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_auth_handler.arn
   runtime       = "python3.12"
   handler       = "collector.auth_handler.lambda_handler"
   filename      = local.lambda_zip_file
