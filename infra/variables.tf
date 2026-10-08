@@ -234,9 +234,16 @@ variable "spotify_search_queue_retention_seconds" {
 }
 
 variable "alarm_sns_topic_arn" {
-  description = "SNS topic ARN to send DLQ depth alarms to. Empty string disables alarm actions."
+  description = "Existing SNS topic ARN for every alarm. Empty = the topic created for alarm_email, if set."
   type        = string
   default     = ""
+}
+
+variable "alarm_email" {
+  description = "Email subscribed to the alarm topic (GitHub secret ALARM_EMAIL). Empty = no topic, alarms notify no one."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "spotify_client_id_ssm_parameter" {

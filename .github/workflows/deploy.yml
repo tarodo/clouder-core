@@ -169,6 +169,7 @@ jobs:
         env:
           # Public, but Beatport can rotate it: a secret + manual deploy fixes it without code.
           TF_VAR_beatport_client_id: ${{ secrets.BEATPORT_CLIENT_ID }}
+          TF_VAR_alarm_email: ${{ secrets.ALARM_EMAIL }}
         run: |
           terraform apply -auto-approve -input=false \
             -var="environment=prod" \

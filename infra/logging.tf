@@ -91,6 +91,6 @@ resource "aws_cloudwatch_metric_alarm" "dlq_depth" {
     QueueName = each.value
   }
 
-  alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
-  ok_actions    = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
 }

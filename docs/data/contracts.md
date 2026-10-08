@@ -53,7 +53,7 @@ artist appear on other tracks.
 - **Metrics and alarms.** Log metric filters on the canonicalization worker turn these into
   `CLOUDER/DataContracts` metrics `QuarantinedRecords` and `ContractDrift`, with the alarms
   `clouder-prod-quarantined-records` and `clouder-prod-contract-drift` (daily sum ≥ 1; they
-  notify only when `alarm_sns_topic_arn` is set, like every alarm here).
+  email the owner through the alarm topic, like every alarm here — `docs/ops/deploy.md`).
 - **Backfill.** A replay screens the same way; the summary carries `records_quarantined` and
   the union of `drift_fields`. A dry run writes no quarantine object; an apply writes it (the
   backfill role may put objects under `_quarantine/` only).

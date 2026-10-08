@@ -1,6 +1,6 @@
 # Entity resolution and matcher quality
 
-Status: method and tooling shipped; "After" is filled from the owner's first export.
+Status: measured on 2026-10-08 from the owner's first export and labelled sample.
 
 ## Why
 
@@ -61,14 +61,30 @@ candidate is accepted automatically at ≥ 0.92; otherwise the top five are stor
 
 ## After
 
-Pending the owner's first export (`scripts/export_match_gold.py`); filled from
-`scripts/eval_vendor_match.py`: measured precision at 0.92, the lowest-cost threshold, and
-the review load each would produce.
+Export of 2026-10-07, labels of 2026-10-08: 193 gold items — 87 review accepts with the right
+answer among the candidates, 6 accepted from a pasted URL, and 100 automatic matches labelled
+by hand (all 100 correct).
+
+| Threshold | Precision | Wrong auto-matches | Sent to review (of 565) |
+|---|---|---|---|
+| 0.90 | 94.7 % | 27 | 55 |
+| 0.91 (lowest cost) | 100 % | 0 | 92 |
+| **0.92 (current)** | **100 %** | **0** | **93** |
+| 0.96 | 100 % | 0 | 126 |
+
+- Precision at 0.92 is 100 % on the labelled sample; with no error in 100, the error rate is
+  below about 3 % at 95 % confidence (rule of three).
+- Below 0.91 the review queue catches real mistakes: at 0.90, 27 wrong videos would be
+  published automatically.
+- 0.91 would save one review out of 93 with no margin to spare, so the threshold **stays at
+  0.92**.
 
 ## What it buys
 
-Filled with "After": the precision of today's automatic matches, and how much review work a
-data-backed threshold saves at that precision.
+The automatic matches are measured, not assumed: none wrong in the sample, and the threshold
+is argued from data. Lowering it to 0.90 would save 38 reviews and publish 27 wrong videos;
+raising it would add reviews without gaining precision. The same two commands re-measure after
+any scorer change.
 
 ## Duplicate artists
 
@@ -78,6 +94,10 @@ The export therefore measures before anything is merged: how many normalized nam
 shared by several artists, and how many of those groups include an artist without a Beatport
 identity (for example one created by a Spotify playlist import, ADR-0021) — the case most
 likely to be a real duplicate. Merge tooling is decided from those numbers.
+
+Measured on 2026-10-07: 19 shared names (38 artists); 4 of the groups include an artist
+without a Beatport identity. Four candidates do not justify merge tooling; they are reviewed by
+hand.
 
 ## Scale
 
