@@ -147,7 +147,16 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 
 ## Running it locally
 
-`make help` lists the shortcuts (`make test`, `make test-db`, `make lint`, `make typecheck`, `make cov`, `make lock`, …); the raw commands:
+**Try the pipeline without AWS.** `make local-db && make demo` starts PostgreSQL in Docker, migrates it and pushes one synthetic Beatport week (300 tracks plus two malformed records) through the production code — contract screening, set-based canonicalization, the nightly data-quality checks — then replays the week to show it changes nothing. The Data API is replaced by a psycopg stand-in with the same transaction visibility. Output, trimmed:
+
+```json
+{"screen": {"valid": 300, "quarantined": 2},
+ "first_run": {"tracks_created": 300, "artists_created": 157, "albums_created": 119, "labels_created": 40},
+ "second_run": {"tracks_created": 0, "tracks_changed": 0, "artists_created": 0},
+ "checks": [{"name": "stuck_ingest_runs", "value": 0.0, "passed": true}, ...]}
+```
+
+`make help` lists the other shortcuts (`make test`, `make test-db`, `make lint`, `make typecheck`, `make cov`, `make lock`, …); the raw commands:
 
 ```bash
 # Backend tests (dependencies are locked: requirements-*.in → requirements-*.txt)
@@ -155,7 +164,7 @@ python -m pip install -r requirements-dev.txt
 pytest -q
 
 # Tests against a real PostgreSQL (migrate the schema first)
-docker run -d -p 55433:5432 -e POSTGRES_PASSWORD=postgres postgres:16
+docker compose up -d --wait db   # Postgres 16 on localhost:55433
 PYTHONPATH=src ALEMBIC_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:55433/postgres \
   alembic upgrade head
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres pytest tests/db -q
