@@ -158,6 +158,52 @@ locals {
   api_gw_host = replace(aws_apigatewayv2_api.collector.api_endpoint, "https://", "")
 }
 
+# Security headers on every response. CSP is report-only until the Spotify Web
+# Playback SDK's needs are confirmed in the browser console; then switch the
+# header to Content-Security-Policy.
+resource "aws_cloudfront_response_headers_policy" "security" {
+  name = "${local.name_prefix}-security-headers"
+
+  security_headers_config {
+    strict_transport_security {
+      access_control_max_age_sec = 31536000
+      include_subdomains         = true
+      override                   = true
+    }
+    content_type_options {
+      override = true
+    }
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+  }
+
+  custom_headers_config {
+    items {
+      header   = "Content-Security-Policy-Report-Only"
+      override = true
+      value = join("; ", [
+        "default-src 'self'",
+        "script-src 'self' https://sdk.scdn.co",
+        "frame-src https://sdk.scdn.co",
+        "connect-src 'self' https://api.spotify.com https://*.spotify.com wss://*.spotify.com https://${aws_s3_bucket.raw.bucket}.s3.amazonaws.com",
+        "img-src 'self' data: https://i.scdn.co https://*.scdn.co https://*.spotifycdn.com https://i.ytimg.com https://${aws_s3_bucket.raw.bucket}.s3.amazonaws.com",
+        "media-src 'self' https://*.scdn.co",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'none'",
+      ])
+    }
+  }
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -191,6 +237,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress               = true
     cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # CachingOptimized
 
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+
     function_association {
       event_type   = "viewer-request"
       function_arn = aws_cloudfront_function.spa_router.arn
@@ -200,28 +248,30 @@ resource "aws_cloudfront_distribution" "frontend" {
   dynamic "ordered_cache_behavior" {
     for_each = local.api_gw_pure_path_patterns
     content {
-      path_pattern             = ordered_cache_behavior.value
-      target_origin_id         = "api-gw"
-      viewer_protocol_policy   = "redirect-to-https"
-      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-      cached_methods           = ["GET", "HEAD"]
-      compress                 = true
-      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
-      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader
+      path_pattern               = ordered_cache_behavior.value
+      target_origin_id           = "api-gw"
+      viewer_protocol_policy     = "redirect-to-https"
+      allowed_methods            = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods             = ["GET", "HEAD"]
+      compress                   = true
+      cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+      origin_request_policy_id   = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader
+      response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
     }
   }
 
   dynamic "ordered_cache_behavior" {
     for_each = local.api_gw_spa_aware_path_patterns
     content {
-      path_pattern             = ordered_cache_behavior.value
-      target_origin_id         = "api-gw"
-      viewer_protocol_policy   = "redirect-to-https"
-      allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-      cached_methods           = ["GET", "HEAD"]
-      compress                 = true
-      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
-      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader
+      path_pattern               = ordered_cache_behavior.value
+      target_origin_id           = "api-gw"
+      viewer_protocol_policy     = "redirect-to-https"
+      allowed_methods            = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods             = ["GET", "HEAD"]
+      compress                   = true
+      cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+      origin_request_policy_id   = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader
+      response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
 
       function_association {
         event_type   = "viewer-request"

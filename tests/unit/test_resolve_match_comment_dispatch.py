@@ -35,15 +35,15 @@ def _event(action, vendor="ytmusic", vendor_track_id="dQw4w9WgXcQ"):
 
 def test_accept_ytmusic_dispatches(monkeypatch):
     calls = []
-    monkeypatch.setattr(ch, "try_dispatch_comment_collection", lambda **kw: calls.append(kw))
-    monkeypatch.setattr(ch, "_scope_check", lambda *a, **k: None)
+    monkeypatch.setattr("collector.curation.routes_playlists.try_dispatch_comment_collection", lambda **kw: calls.append(kw))
+    monkeypatch.setattr("collector.curation.routes_playlists._scope_check", lambda *a, **k: None)
     ch._handle_resolve_match(_event("accept"), FakeRepo(), "u1", "corr")
     assert calls == [{"track_id": "t1", "video_id": "dQw4w9WgXcQ", "platform": "youtube"}]
 
 
 def test_reject_does_not_dispatch(monkeypatch):
     calls = []
-    monkeypatch.setattr(ch, "try_dispatch_comment_collection", lambda **kw: calls.append(kw))
-    monkeypatch.setattr(ch, "_scope_check", lambda *a, **k: None)
+    monkeypatch.setattr("collector.curation.routes_playlists.try_dispatch_comment_collection", lambda **kw: calls.append(kw))
+    monkeypatch.setattr("collector.curation.routes_playlists._scope_check", lambda *a, **k: None)
     ch._handle_resolve_match(_event("reject"), FakeRepo(), "u1", "corr")
     assert calls == []

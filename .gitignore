@@ -56,3 +56,5 @@ dbt/.user.yml
 .coverage
 coverage.xml
 pytest.log
+# Spotify gold-set exports (scripts/export_spotify_gold.py): catalog rows, never committed
+spotify_gold_*

@@ -334,6 +334,8 @@ export RAW_BUCKET_NAME='beatport-prod-raw-<acct>'   # required by SpotifyWorkerS
 
 Analytics reads the lake live; the only bootstrap step is for the silver history: after the first green dbt build, set the Terraform variable `silver_events_table = "clouder_silver.events"` (until then the Lambda reads bronze only). Home cards and `/admin/analytics` show data as soon as telemetry lands (Firehose buffers ~5 min). Telemetry must be on in the frontend build (`VITE_TELEMETRY_ENABLED=true`, default in `scripts/deploy_frontend.sh`).
 
+**Guardrails.** The workgroup enforces its own settings (results always land in `athena-results/`, expiring after 7 days) and cancels any single query that scans more than 10 GiB — the largest scan so far is a few hundred MB. A query cancelled with "Bytes scanned limit was exceeded" usually means a missing `dt` filter: add the partition predicate rather than raising the cap.
+
 **Smoke test the ingest:**
 
 ```bash

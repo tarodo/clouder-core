@@ -6,8 +6,27 @@ import gzip
 import json
 from typing import Any, Dict, List, Tuple
 
-from .errors import StorageError
+from botocore.exceptions import BotoCoreError, ClientError
+
+from .errors import StorageError, TransientStorageError
 from .logging_utils import log_event
+
+_TRANSIENT_S3_CODES = frozenset({
+    "SlowDown", "InternalError", "ServiceUnavailable", "RequestTimeout",
+    "RequestTimeTooSkewed", "Throttling", "ThrottlingException",
+})
+
+
+def _s3_failure(message: str, exc: Exception) -> StorageError:
+    """Classify an S3 call failure: retryable ones become TransientStorageError."""
+    if isinstance(exc, ClientError):
+        code = exc.response.get("Error", {}).get("Code", "")
+        status = int(exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode") or 0)
+        if code in _TRANSIENT_S3_CODES or status >= 500:
+            return TransientStorageError(message)
+    elif isinstance(exc, (BotoCoreError, ConnectionError, TimeoutError)):
+        return TransientStorageError(message)
+    return StorageError(message)
 
 
 def create_default_s3_client() -> Any:
@@ -79,7 +98,7 @@ class S3Storage:
                 s3_size_bytes=len(meta_bytes),
             )
         except Exception as exc:
-            raise StorageError() from exc
+            raise _s3_failure("Failed to persist artifacts", exc) from exc
 
         log_event(
             "INFO",
@@ -108,7 +127,7 @@ class S3Storage:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
             raw_bytes = response["Body"].read()
         except Exception as exc:
-            raise StorageError(f"Failed to read object from S3: {key}") from exc
+            raise _s3_failure(f"Failed to read object from S3: {key}", exc) from exc
 
         try:
             decoded = gzip.decompress(raw_bytes).decode("utf-8")
@@ -180,7 +199,7 @@ class S3Storage:
                 s3_size_bytes=len(meta_bytes),
             )
         except Exception as exc:
-            raise StorageError() from exc
+            raise _s3_failure("Failed to persist artifacts", exc) from exc
 
         return results_key, meta_key
 
@@ -189,7 +208,7 @@ class S3Storage:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
             raw_bytes = response["Body"].read()
         except Exception as exc:
-            raise StorageError(f"Failed to read object from S3: {key}") from exc
+            raise _s3_failure(f"Failed to read object from S3: {key}", exc) from exc
 
         try:
             decoded = gzip.decompress(raw_bytes).decode("utf-8")
@@ -265,7 +284,7 @@ class S3Storage:
             )
             return response["Body"].read()
         except Exception as exc:
-            raise StorageError(f"Failed to read cover: {s3_key}") from exc
+            raise _s3_failure(f"Failed to read cover: {s3_key}", exc) from exc
 
     def _base_key(self, style_id: int, iso_year: int, iso_week: int) -> str:
         return (

@@ -18,6 +18,35 @@ resource "aws_glue_catalog_database" "gold" {
   name = "clouder_gold"
 }
 
+# Privacy tombstones (docs/privacy.md): scripts/delete_user.py writes one JSON
+# line per deleted user; stg_events anti-joins them. No lifecycle rule: they
+# must outlive every bronze file they filter.
+resource "aws_glue_catalog_table" "deleted_users" {
+  database_name = aws_glue_catalog_database.analytics.name
+  name          = "deleted_users"
+  table_type    = "EXTERNAL_TABLE"
+  parameters    = { classification = "json" }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.analytics_lake.bucket}/governance/deleted_users/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+
+    ser_de_info {
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+    }
+
+    columns {
+      name = "user_id"
+      type = "string"
+    }
+    columns {
+      name = "deleted_at"
+      type = "string"
+    }
+  }
+}
+
 resource "aws_cloudwatch_log_group" "dbt" {
   name              = "/aws/codebuild/${local.dbt_project_name}"
   retention_in_days = var.log_retention_days
@@ -110,9 +139,12 @@ data "aws_iam_policy_document" "dbt" {
     resources = [local.analytics_lake_arn]
   }
   statement {
-    sid       = "AllowReadBronze"
-    actions   = ["s3:GetObject"]
-    resources = ["${local.analytics_lake_arn}/bronze/*"]
+    sid     = "AllowReadBronze"
+    actions = ["s3:GetObject"]
+    resources = [
+      "${local.analytics_lake_arn}/bronze/*",
+      "${local.analytics_lake_arn}/governance/deleted_users/*",
+    ]
   }
   statement {
     sid = "AllowWriteLakehouseAndResults"

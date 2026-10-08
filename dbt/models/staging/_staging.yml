@@ -17,6 +17,8 @@ unit_tests:
       - input: source('bronze', 'events')
         rows:
           - {event_id: e1, ts_client: 'not-a-date', ts_server: '2026-10-04T10:12:00+00:00', dt: '2026-10-04'}
+      - input: source('governance', 'deleted_users')
+        rows: []
     expect:
       rows:
         - {event_id: e1, ts_client_utc: null}

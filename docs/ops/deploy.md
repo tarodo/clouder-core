@@ -85,6 +85,7 @@ Secrets are scoped to the **`production` environment** (not repo-root) in GitHub
 | `BEATPORT_PASSWORD` | `production` environment | Synced to `/clouder/beatport/password` SSM (auto-ingest login; step skipped while unset) |
 | `BEATPORT_CLIENT_ID` | `production` environment | `TF_VAR_beatport_client_id` → auto-ingest Lambda env `BEATPORT_CLIENT_ID` (public OAuth id from the JS of `api.beatport.com/v4/docs/`; not in code). Unset: deploy passes, the login fails at step `client_id`. Change it and run Deploy by hand if Beatport rotates the id |
 | `ALARM_EMAIL` | `production` environment | `TF_VAR_alarm_email` → SNS topic `clouder-prod-alarms` with an email subscription; every CloudWatch alarm (and its OK) goes there. AWS first mails a confirmation link — nothing is delivered until it is clicked. Unset: no topic, alarms stay console-only |
+| `BUDGET_MONTHLY_LIMIT` | `production` environment | `TF_VAR_budget_monthly_limit` → AWS Budgets `clouder-prod-monthly` (a plain number of USD), emailing `ALARM_EMAIL` at 80 % of actual and 100 % of forecast spend. Unset (or no `ALARM_EMAIL`): no budget. The amount is a secret only because the repo is public |
 | `AWS_GITHUB_ROLE_ARN` | Repo root | OIDC role assumption in both workflows |
 
 GitHub Actions repo variables (not secrets): `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `SPOTIFY_OAUTH_REDIRECT_URI`, `ADMIN_SPOTIFY_IDS`, `ALLOWED_FRONTEND_REDIRECTS`.

@@ -43,6 +43,10 @@ class StorageError(AppError):
         super().__init__(status_code=500, error_code="storage_error", message=message)
 
 
+class TransientStorageError(StorageError):
+    """An S3 failure that can heal on retry: throttling, 5xx, timeouts, network."""
+
+
 class SpotifyAuthError(AppError):
     def __init__(self, message: str = "Spotify authentication failed") -> None:
         super().__init__(

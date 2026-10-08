@@ -9,7 +9,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .canonicalize import Canonicalizer
 from .contracts import screen_run
-from .errors import StorageError
+from .errors import StorageError, TransientStorageError
 from .logging_utils import log_event
 from .normalize import normalize_tracks
 from .repositories import as_utc_datetime, create_clouder_repository_from_env, utc_now
@@ -158,7 +158,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 correlation_id=correlation_id,
             )
         except Exception as exc:
-            is_permanent = isinstance(exc, _PERMANENT_ERRORS)
+            is_permanent = isinstance(exc, _PERMANENT_ERRORS) and not isinstance(exc, TransientStorageError)
             error_code = (
                 "canonicalization_permanent_failure"
                 if is_permanent

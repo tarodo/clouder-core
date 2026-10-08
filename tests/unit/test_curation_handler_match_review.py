@@ -1,6 +1,7 @@
 import json
 
 from collector import curation_handler as ch
+from collector.curation import NotFoundError, TrackNotInUserScopeError
 from collector.curation.playlists_repository import ReviewRow, YtmusicStatus
 
 
@@ -60,7 +61,7 @@ def test_candidates_404_when_no_open_review():
     try:
         ch._handle_match_candidates(_event(qs={"vendor": "ytmusic"}), repo, "u1", "c1")
         assert False, "expected NotFoundError"
-    except ch.NotFoundError:
+    except NotFoundError:
         pass
 
 
@@ -101,7 +102,7 @@ def test_resolve_out_of_scope_raises():
     try:
         ch._handle_resolve_match(_event(body=body), repo, "u1", "c1")
         assert False, "expected TrackNotInUserScopeError"
-    except ch.TrackNotInUserScopeError:
+    except TrackNotInUserScopeError:
         pass
 
 

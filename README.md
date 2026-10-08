@@ -70,7 +70,7 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 - An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
 
 **Cloud & infrastructure**
-- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 228 Terraform resource definitions.
+- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 233 Terraform resource definitions.
 - GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
 - A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function, routed to email through SNS.
 
@@ -128,6 +128,12 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 
 ![Analytics cards](docs/assets/analytics.png)
 
+**Operations** — production, last 7 days, from the CloudWatch dashboard defined in Terraform ([`infra/dashboard.tf`](infra/dashboard.tf); refresh with `scripts/dashboard_snapshots.py`). Aurora scales to zero between sessions, and with a handful of requests per window the p95 shows the first request after a resume — the price of `min_acu = 0` ([ADR-0014](docs/adr/0014-aurora-min-acu-zero.md)):
+
+![Lambda errors](docs/assets/dashboard-lambda-errors.png)
+![API latency p95](docs/assets/dashboard-api-latency-p95.png)
+![Aurora capacity](docs/assets/dashboard-aurora-capacity.png)
+
 ## By the numbers
 
 | | |
@@ -135,13 +141,22 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 | Canonical catalog | ~98k canonical tracks (2026-10-07), from 107,795 raw records |
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
-| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 228 Terraform resource definitions |
+| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 233 Terraform resource definitions |
 | API | 105 operations |
 | Delivery | 265+ merged pull requests; every merge to `main` deploys to production |
 
 ## Running it locally
 
-`make help` lists the shortcuts (`make test`, `make test-db`, `make lint`, `make typecheck`, `make cov`, `make lock`, …); the raw commands:
+**Try the pipeline without AWS.** `make local-db && make demo` starts PostgreSQL in Docker, migrates it and pushes one synthetic Beatport week (300 tracks plus two malformed records) through the production code — contract screening, set-based canonicalization, the nightly data-quality checks — then replays the week to show it changes nothing. The Data API is replaced by a psycopg stand-in with the same transaction visibility. Output, trimmed:
+
+```json
+{"screen": {"valid": 300, "quarantined": 2},
+ "first_run": {"tracks_created": 300, "artists_created": 157, "albums_created": 119, "labels_created": 40},
+ "second_run": {"tracks_created": 0, "tracks_changed": 0, "artists_created": 0},
+ "checks": [{"name": "stuck_ingest_runs", "value": 0.0, "passed": true}, ...]}
+```
+
+`make help` lists the other shortcuts (`make test`, `make test-db`, `make lint`, `make typecheck`, `make cov`, `make lock`, …); the raw commands:
 
 ```bash
 # Backend tests (dependencies are locked: requirements-*.in → requirements-*.txt)
@@ -149,7 +164,7 @@ python -m pip install -r requirements-dev.txt
 pytest -q
 
 # Tests against a real PostgreSQL (migrate the schema first)
-docker run -d -p 55433:5432 -e POSTGRES_PASSWORD=postgres postgres:16
+docker compose up -d --wait db   # Postgres 16 on localhost:55433
 PYTHONPATH=src ALEMBIC_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:55433/postgres \
   alembic upgrade head
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres pytest tests/db -q

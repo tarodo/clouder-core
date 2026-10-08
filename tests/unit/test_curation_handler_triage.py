@@ -21,6 +21,7 @@ from collector.curation import (
     InvalidStateError,
     StyleMismatchError,
     TracksNotInSourceError,
+    deps,
 )
 from collector.curation.triage_repository import (
     BucketTrackRowOut,
@@ -155,7 +156,7 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
             return fake_row
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeTriageRepo(),
     )
@@ -209,7 +210,7 @@ def test_create_triage_block_returns_503_when_db_not_configured(
     monkeypatch, context
 ) -> None:
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: None,
     )
@@ -236,7 +237,7 @@ def test_create_triage_block_validation_error_on_bad_dates(
 ) -> None:
     # Don't even hit the repo; pydantic should reject date_to < date_from.
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: object(),  # repo never invoked
     )
@@ -276,7 +277,7 @@ def test_inactive_staging_error_attaches_inactive_buckets(
             )
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: RaisingRepo(),
     )
@@ -312,7 +313,7 @@ def test_tracks_not_in_source_error_attaches_payload(
             )
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: RaisingRepo(),
     )
@@ -433,7 +434,7 @@ def test_list_blocks_by_style_happy_path(monkeypatch, context) -> None:
             return rows, 12
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -484,7 +485,7 @@ def test_list_blocks_all_happy_path(monkeypatch, context) -> None:
             return rows, 1
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -515,7 +516,7 @@ def test_get_triage_block_happy_path(monkeypatch, context) -> None:
             return fake
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -545,7 +546,7 @@ def test_get_triage_block_returns_404_when_missing(
             return None
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -584,7 +585,7 @@ def test_list_bucket_tracks_happy_path(monkeypatch, context) -> None:
             return rows, 5
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -630,7 +631,7 @@ def test_list_bucket_tracks_happy_path(monkeypatch, context) -> None:
 
 def test_list_blocks_rejects_bad_limit(monkeypatch, context) -> None:
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: object(),  # repo never invoked
     )
@@ -649,7 +650,7 @@ def test_list_blocks_rejects_bad_limit(monkeypatch, context) -> None:
 
 def test_list_blocks_rejects_bad_offset(monkeypatch, context) -> None:
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: object(),
     )
@@ -668,7 +669,7 @@ def test_list_blocks_rejects_bad_offset(monkeypatch, context) -> None:
 
 def test_list_blocks_rejects_unknown_status(monkeypatch, context) -> None:
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: object(),
     )
@@ -732,7 +733,7 @@ def test_move_tracks_happy_path(monkeypatch, context) -> None:
             return MoveResult(moved=2)
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -775,7 +776,7 @@ def test_move_tracks_inactive_bucket_returns_422(
             )
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -806,7 +807,7 @@ def test_move_tracks_invalid_state_returns_422(monkeypatch, context) -> None:
             )
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -846,7 +847,7 @@ def test_transfer_tracks_happy_path(monkeypatch, context) -> None:
             return TransferResult(transferred=3)
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -887,7 +888,7 @@ def test_transfer_tracks_style_mismatch_returns_422(
             )
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -920,7 +921,7 @@ def test_transfer_tracks_not_in_source_returns_422(
             )
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -980,12 +981,12 @@ def test_finalize_triage_block_happy_path(monkeypatch, context) -> None:
             return FinalizeResult(block=fake_block, promoted=promoted)
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_categories_repository",
         lambda: sentinel_cat_repo,
     )
@@ -1028,12 +1029,12 @@ def test_finalize_triage_block_inactive_buckets_returns_409(
             )
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_categories_repository",
         lambda: object(),
     )
@@ -1061,12 +1062,12 @@ def test_finalize_triage_block_returns_503_when_categories_factory_none(
             raise AssertionError("repo.finalize_block should not be invoked")
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_categories_repository",
         lambda: None,
     )
@@ -1092,7 +1093,7 @@ def test_soft_delete_triage_block_happy_path(monkeypatch, context) -> None:
             return True
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -1119,7 +1120,7 @@ def test_soft_delete_triage_block_returns_404_when_missing(
             return False
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )

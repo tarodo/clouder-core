@@ -15,3 +15,9 @@ sources:
       - name: catalog_export
         identifier: bronze_catalog_export
         description: Nightly NDJSON snapshot of the Aurora catalog, partitioned by snapshot_dt and tbl; expires after 14 days.
+  - name: governance
+    description: Privacy tombstones written by scripts/delete_user.py (docs/privacy.md).
+    schema: clouder_analytics
+    tables:
+      - name: deleted_users
+        description: One JSON row per deleted user (user_id, deleted_at); silver and gold exclude these users.

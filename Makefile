@@ -3,13 +3,20 @@ VENV   ?= .venv/bin
 PY     := PYTHONPATH=src $(VENV)/python
 TEST_DATABASE_URL ?= postgresql://postgres:postgres@localhost:55433/postgres
 
-.PHONY: help bootstrap test test-db lint typecheck cov lock openapi package frontend-test screenshots dbt-ci
+.PHONY: help bootstrap local-db demo test test-db lint typecheck cov lock openapi package frontend-test screenshots dbt-ci
 
 help:            ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
 
 bootstrap:       ## create .venv with the locked dev deps
 	python3.12 -m venv .venv && $(VENV)/pip install -r requirements-dev.txt
+
+local-db:        ## Postgres in Docker (docker-compose.yml), migrated — for test-db and demo
+	docker compose up -d --wait db
+	PYTHONPATH=src ALEMBIC_DATABASE_URL=$(subst postgresql://,postgresql+psycopg://,$(TEST_DATABASE_URL)) $(VENV)/alembic upgrade head
+
+demo:            ## run one synthetic week through the real pipeline on the local Postgres
+	$(PY) scripts/demo_pipeline.py --database-url $(TEST_DATABASE_URL)
 
 test:            ## backend tests (real-Postgres tests skip without TEST_DATABASE_URL)
 	$(VENV)/pytest -q

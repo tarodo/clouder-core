@@ -51,6 +51,11 @@ version into the open versions (gaps-and-islands on a row hash): a missed night 
 repeated snapshot changes nothing, and history outlives the 14-day snapshot expiry. The first
 build starts history from the oldest retained snapshot.
 
+**Deleted users.** `stg_events` drops every user listed in `clouder_analytics.deleted_users`
+(tombstones written by `scripts/delete_user.py`), so silver and gold never rebuild a deleted
+user's events; the data test `assert_deleted_users_absent` checks it on every build. See
+[`docs/privacy.md`](../privacy.md).
+
 **`gold.fct_play`.** One row per play — the analytics Lambda's rule (playing stretches capped at
 the track's duration, 10-minute fallback) — with the track's style as of the play date; plays
 before history starts take the earliest known version.

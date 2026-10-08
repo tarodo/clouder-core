@@ -126,3 +126,6 @@ All functions share one Python package (`src/collector/`); each has its own entr
 - Why-this-way questions → [`docs/adr/README.md`](adr/README.md).
 - Where to look in the code → [`docs/engineering-highlights.md`](engineering-highlights.md).
 - What breaks at 10× / 100× → [`docs/scalability.md`](scalability.md).
+- Personal data and deleting a user → [`docs/privacy.md`](privacy.md).
+- Threat model → [`docs/security.md`](security.md); failure modes, RPO / RTO → [`docs/ops/failure-modes.md`](ops/failure-modes.md).
+- Design rationale → [`docs/design/data-platform.md`](design/data-platform.md), [`docs/design/decisions-to-revisit.md`](design/decisions-to-revisit.md); incidents → [`docs/postmortems/`](postmortems/README.md).

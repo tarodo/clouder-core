@@ -8,14 +8,12 @@ call the Data API, read the cluster secret and put metrics into CLOUDER/DataQual
 
 from __future__ import annotations
 
-import time
 from dataclasses import asdict
 from datetime import datetime, timezone
-from typing import Any, Callable, Mapping, Sequence
-
-from botocore.exceptions import ClientError
+from typing import Any, Mapping, Sequence
 
 from .data_api import create_default_data_api_client
+from .data_api_retry import wake_database
 from .data_quality import NAMESPACE, CheckResult, run_checks
 from .logging_utils import log_event
 from .settings import get_data_api_settings
@@ -25,32 +23,6 @@ def _cloudwatch() -> Any:
     import boto3
 
     return boto3.client("cloudwatch")
-
-
-def wake_database(
-    client: Any,
-    *,
-    deadline_s: float = 60.0,
-    sleep: Callable[[float], None] = time.sleep,
-    clock: Callable[[], float] = time.monotonic,
-) -> None:
-    """Probe with SELECT 1 until a resuming Aurora answers or the deadline passes.
-
-    A resume can outlast the Data API client's own retries; without the probe
-    every check would be recorded as failed and the alarm would fire on a paused
-    database instead of bad data. Other errors, and a resume that never ends,
-    propagate so the Lambda fails and EventBridge retries it.
-    """
-    start = clock()
-    while True:
-        try:
-            client.execute("SELECT 1")
-            return
-        except ClientError as exc:
-            resuming = exc.response.get("Error", {}).get("Code") == "DatabaseResumingException"
-            if not resuming or clock() - start >= deadline_s:
-                raise
-            sleep(5)
 
 
 def publish(results: Sequence[CheckResult], cloudwatch: Any, *, now: datetime) -> int:

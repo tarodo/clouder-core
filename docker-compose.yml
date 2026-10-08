@@ -1,0 +1,12 @@
+# Local Postgres for the real-database tests and `make demo` — no AWS account needed.
+# Same major version as CI (.github/workflows/pr.yml) and close to Aurora.
+services:
+  db:
+    image: postgres:16
+    ports: ["55433:5432"]
+    environment:
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      retries: 30

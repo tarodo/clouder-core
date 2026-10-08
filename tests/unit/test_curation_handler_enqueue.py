@@ -11,7 +11,7 @@ def test_add_playlist_tracks_enqueues_ytmusic(monkeypatch):
     def fake_enqueue(repo, added_track_ids, correlation_id):
         captured["ids"] = list(added_track_ids)
 
-    monkeypatch.setattr(ch, "_enqueue_ytmusic", fake_enqueue)
+    monkeypatch.setattr("collector.curation.routes_playlists._enqueue_ytmusic", fake_enqueue)
 
     class Repo:
         def validate_tracks_in_scope(self, *, user_id, track_ids):

@@ -17,7 +17,7 @@ def test_curation_error_response_logs_5xx_with_status_and_reason():
         status_code=409,
         reason="SERVICE_UNAVAILABLE",
     )
-    with patch.object(curation_handler, "log_event") as le:
+    with patch("collector.curation.http.log_event") as le:
         resp = curation_handler._curation_error_response(exc, "corr-9")
 
     assert resp["statusCode"] == 502
@@ -33,7 +33,7 @@ def test_curation_error_response_logs_5xx_with_status_and_reason():
 
 
 def test_curation_error_response_does_not_log_4xx():
-    with patch.object(curation_handler, "log_event") as le:
+    with patch("collector.curation.http.log_event") as le:
         resp = curation_handler._curation_error_response(ValidationError("bad"), "corr-9")
 
     assert resp["statusCode"] == 422
@@ -44,7 +44,7 @@ def test_curation_error_response_logs_5xx_without_status_reason_attrs():
     # Bare CurationError (http_status 500, e.g. SpotifyApiError siblings) has no
     # status_code/reason attrs; the getattr(..., None) default must keep logging.
     exc = CurationError("kaboom")  # default http_status = 500
-    with patch.object(curation_handler, "log_event") as le:
+    with patch("collector.curation.http.log_event") as le:
         resp = curation_handler._curation_error_response(exc, "corr-x")
 
     assert resp["statusCode"] == 500

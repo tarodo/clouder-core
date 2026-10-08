@@ -348,7 +348,7 @@ def context() -> SimpleNamespace:
 def fake_triage_repo(monkeypatch) -> FakeTriageRepo:
     repo = FakeTriageRepo()
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_triage_repository",
+        "collector.curation.deps.create_default_triage_repository",
         lambda: repo,
     )
     return repo
@@ -733,7 +733,7 @@ def test_finalize_block_happy(fake_triage_repo, context, monkeypatch):
     # finalize handler also requires the categories_repo factory; satisfy
     # it with a MagicMock so the flow reaches the triage repo.
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: MagicMock(),
     )
     resp = lambda_handler(
@@ -756,7 +756,7 @@ def test_finalize_block_inactive_staging_409(
 ):
     bid = _create_block(fake_triage_repo)
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: MagicMock(),
     )
     inactive_payload = [
@@ -885,13 +885,13 @@ def test_create_category_triggers_snapshot(monkeypatch, context):
     repo = CategoriesRepository(data_api=data_api)
 
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: repo,
     )
     # Triage factory is gated separately but is not exercised by the
     # category-create handler -- we still stub it so the gate passes.
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_triage_repository",
+        "collector.curation.deps.create_default_triage_repository",
         lambda: MagicMock(),
     )
 
@@ -949,15 +949,15 @@ def test_soft_delete_category_triggers_inactive_mark(monkeypatch, context):
     repo = CategoriesRepository(data_api=data_api)
 
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: repo,
     )
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_triage_repository",
+        "collector.curation.deps.create_default_triage_repository",
         lambda: MagicMock(),
     )
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_tags_repository",
+        "collector.curation.deps.create_default_tags_repository",
         lambda: MagicMock(),
     )
 
