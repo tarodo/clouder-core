@@ -20,7 +20,20 @@ locals {
     auto_ingest      = aws_lambda_function.auto_ingest.function_name
   }
 
-  all_lambdas = merge(local.api_lambdas, local.worker_lambdas)
+  # Everything else: errors only. Analytics answers through Athena in seconds,
+  # so it stays out of the API p95 latency alarms.
+  other_lambdas = {
+    analytics_api        = aws_lambda_function.analytics.function_name
+    telemetry            = aws_lambda_function.telemetry.function_name
+    artist_enricher      = aws_lambda_function.artist_enricher_worker.function_name
+    auto_enrich_dispatch = aws_lambda_function.auto_enrich_dispatch_worker.function_name
+    comments_collect     = aws_lambda_function.comments_collect_worker.function_name
+    backfill             = aws_lambda_function.backfill.function_name
+    catalog_export       = aws_lambda_function.catalog_export.function_name
+    db_migration         = aws_lambda_function.db_migration.function_name
+  }
+
+  all_lambdas = merge(local.api_lambdas, local.worker_lambdas, local.other_lambdas)
 }
 
 # ── Lambda errors (all functions) ────────────────────────────────

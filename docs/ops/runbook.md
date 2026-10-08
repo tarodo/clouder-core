@@ -213,6 +213,22 @@ A new upstream field that is fine: add it to `FIELDS` in `src/collector/contract
 
 ---
 
+## Telemetry delivery stalled
+
+**Symptom**
+
+Alarm `clouder-prod-telemetry-delivery-freshness`: Firehose records waited over 15 minutes for S3 delivery (the buffer is 300 s).
+
+**Diagnosis**
+
+`aws firehose describe-delivery-stream --delivery-stream-name clouder-prod-telemetry` (look at `Destinations[0].ExtendedS3DestinationDescription` and recent errors), and the Firehose error log group. Usual causes: the delivery role lost S3/Glue access, or the Glue table schema no longer matches the Parquet conversion.
+
+**Fix**
+
+Restore the permission or the schema through Terraform; Firehose retries for 24 h, so data buffered meanwhile is delivered once the cause is gone.
+
+---
+
 ## Auto-ingest run failed
 
 **Symptom**

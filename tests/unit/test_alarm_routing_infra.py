@@ -41,3 +41,20 @@ def test_every_alarm_routes_through_the_shared_actions() -> None:
         r'alarm_topic_arn\s*=\s*var\.alarm_sns_topic_arn != "" \? var\.alarm_sns_topic_arn : try\(aws_sns_topic\.alarms\[0\]\.arn, ""\)',
         tf,
     )
+
+
+def test_every_lambda_has_an_errors_alarm() -> None:
+    tf = _all_tf()
+    functions = set(re.findall(r'^resource "aws_lambda_function" "([a-z_]+)"', tf, re.M))
+    locals_block = (INFRA / "alarms.tf").read_text().split("all_lambdas")[0]
+    alarmed = set(re.findall(r"aws_lambda_function\.([a-z_]+)\.function_name", locals_block))
+    assert len(functions) >= 18 and functions == alarmed
+
+
+def test_firehose_delivery_freshness_alarm() -> None:
+    tf = (INFRA / "telemetry.tf").read_text()
+    alarm = tf[tf.index('resource "aws_cloudwatch_metric_alarm" "telemetry_delivery_freshness"'):]
+    alarm = alarm[: alarm.index("\n}\n")]
+    assert 'namespace           = "AWS/Firehose"' in alarm
+    assert 'metric_name         = "DeliveryToS3.DataFreshness"' in alarm
+    assert "local.alarm_actions" in alarm and 'treat_missing_data  = "notBreaching"' in alarm

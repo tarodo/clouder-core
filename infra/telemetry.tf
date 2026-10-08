@@ -409,3 +409,25 @@ resource "aws_apigatewayv2_route" "telemetry_post" {
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
+
+# Telemetry that stops reaching S3 (IAM, Glue schema, bucket policy) would otherwise
+# show up only as empty analytics. Buffer is 300 s, so 900 s means three missed flushes.
+resource "aws_cloudwatch_metric_alarm" "telemetry_delivery_freshness" {
+  alarm_name          = "${local.name_prefix}-telemetry-delivery-freshness"
+  alarm_description   = "Firehose telemetry records waited over 15 min for S3 delivery — docs/ops/runbook.md"
+  namespace           = "AWS/Firehose"
+  metric_name         = "DeliveryToS3.DataFreshness"
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 900
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    DeliveryStreamName = aws_kinesis_firehose_delivery_stream.telemetry.name
+  }
+
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
+}
