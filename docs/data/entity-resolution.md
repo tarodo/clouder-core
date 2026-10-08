@@ -86,6 +86,36 @@ is argued from data. Lowering it to 0.90 would save 38 reviews and publish 27 wr
 raising it would add reviews without gaining precision. The same two commands re-measure after
 any scorer change.
 
+## Spotify matching quality
+
+Coverage is measured nightly (`spotify_match_pct`, 96.85 %); correctness was not. The worker
+links every track the same way (`identity_map.match_type = 'isrc_match'`), so the export
+recovers how each link was made by comparing ISRCs:
+
+| Tier | How the worker found it | How the export recognises it |
+|---|---|---|
+| `isrc` | exact ISRC search | the Spotify track's ISRC equals the catalog's |
+| `isrc_neighbour` | sibling ISRC (last digit ± 1 or 2) with a title/artist check | ISRCs differ only in the last character |
+| `metadata` | text search with strict or relaxed similarity and a duration check (ADR-0006) | ISRCs differ |
+| `no_payload` | linked without a stored Spotify payload | no `source_entities` row for the Spotify id |
+
+**Method.** `scripts/export_spotify_gold.py` (read-only) samples each tier and the
+searched-but-not-found tracks deterministically (md5 order) and records each population.
+Each match has a Spotify link, each miss a Spotify search link. The owner marks y/n: for a
+match, y = the right recording; for a miss, y = really not on Spotify.
+`scripts/eval_spotify_match.py` reports precision per tier and estimates recall as
+correct matches ÷ (correct matches + estimated misses), where misses = the miss sample's
+"it was on Spotify" share × all not-found tracks. Tiers without labels are left out, so the
+estimate leans low until every tier is labelled.
+
+**After:** pending the owner's labels.
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/export_spotify_gold.py --per-tier 50
+PYTHONPATH=src .venv/bin/python scripts/eval_spotify_match.py spotify_gold_<ts>.jsonl \
+    --labels spotify_gold_<ts>_labels.csv
+```
+
 ## Duplicate artists
 
 Equal names are not necessarily duplicates: Beatport keeps distinct artists that share a name,
