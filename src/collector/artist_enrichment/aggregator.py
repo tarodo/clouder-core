@@ -13,8 +13,8 @@ from collections import Counter
 from statistics import median
 from typing import Any
 
-from .schemas import ArtistInfo
 from ..label_enrichment.vendors.pricing import estimate_cost
+from .schemas import ArtistInfo
 
 NARRATIVE_FIELDS = ("tagline", "bio", "summary", "ai_reasoning", "notes")
 URL_FIELDS = (
@@ -259,9 +259,9 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
                 continue
             kind = sig.get("kind") or ""
             desc = (sig.get("description") or "").strip().lower()
-            key = (kind, desc)
-            if key not in seen_signals and desc:
-                seen_signals[key] = sig
+            sig_key = (kind, desc)
+            if sig_key not in seen_signals and desc:
+                seen_signals[sig_key] = sig
     merged["ai_signals"] = list(seen_signals.values())
     prov["ai_signals"] = f"union({len(seen_signals)})"
 
@@ -342,7 +342,7 @@ def _merge_narrative(
                 raise KeyError(f"Missing narrative key: {key}")
         usage = resp.usage
         cost = estimate_cost(deepseek_model, usage.prompt_tokens, usage.completion_tokens)
-        meta = {"narrative_cost_usd": cost, "narrative_latency_ms": latency_ms}
+        meta: dict[str, Any] = {"narrative_cost_usd": cost, "narrative_latency_ms": latency_ms}
         return {k: parsed_narrative[k] for k in NARRATIVE_FIELDS}, meta
     except Exception:
         latency_ms = (time.monotonic() - t0) * 1000

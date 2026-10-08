@@ -161,10 +161,9 @@ resource "aws_cloudwatch_log_group" "catalog_export" {
 }
 
 # ── catalog_export: own least-privilege role ──
-# NOTE: this is a DELIBERATE least-privilege choice. The existing enrichment
-# workers reuse the shared collector role (iam.tf, aws_iam_role.collector_lambda);
-# these exporters do NOT — each gets its own role so the analytics contour never
-# widens the collector's blast radius (spec section 13).
+# Least privilege, like every Lambda since the per-function roles
+# (lambda_roles.tf): the analytics contour never widens another function's
+# blast radius (spec section 13).
 
 resource "aws_iam_role" "catalog_export" {
   name               = "${local.name_prefix}-catalog-export-role"

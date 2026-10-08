@@ -2,8 +2,6 @@
 import json
 from unittest.mock import patch
 
-import pytest
-
 from collector.handler import lambda_handler
 
 

@@ -7,7 +7,6 @@ from collector.auth.pkce import (
     generate_code_verifier,
 )
 
-
 _BASE64URL_NOPAD = re.compile(r"^[A-Za-z0-9_-]+$")
 
 

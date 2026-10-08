@@ -118,3 +118,7 @@ Distinguishing Aurora cold-start from other 503 causes:
 - API GW timeout on a long Beatport crawl: Lambda log shows `request_received` but no `collection_completed`.
 
 **Fix**: set `aurora_serverless_min_acu = 0.5` in `infra/terraform.tfvars` if first-request latency matters more than the cost of keeping 0.5 ACU warm.
+
+## Data protection
+
+The cluster has `deletion_protection = true`, keeps automated backups for 7 days (point-in-time restore inside that window) and writes a final snapshot (`clouder-prod-aurora-final`) if it is ever deleted. To delete it deliberately: set `deletion_protection = false` in `infra/rds.tf`, apply, then destroy. A restore goes to a new cluster (`aws rds restore-db-cluster-to-point-in-time`), and the Terraform variables then point at it.

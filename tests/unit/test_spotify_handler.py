@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gzip
 import json
 from io import BytesIO
 from typing import Any
@@ -350,7 +349,7 @@ def test_no_follow_up_when_all_tracks_processed(monkeypatch) -> None:
         _fake_search_results(("ISRC001", "ct1", "sp1")),
     )
 
-    with patch.dict("sys.modules", {"boto3": MagicMock()}) as mock_modules:
+    with patch.dict("sys.modules", {"boto3": MagicMock()}):
         event = _sqs_event({"batch_size": 2000})
         response = lambda_handler(event, context=None)
 
@@ -420,6 +419,7 @@ def test_default_batch_size_used_when_not_specified(monkeypatch) -> None:
 def test_update_cmds_carry_spotify_release_date() -> None:
     """spec-D: handler patches release_date into UpdateSpotifyResultCmd."""
     from datetime import date
+
     from collector.spotify_handler import (
         _extract_album_type,
         _extract_release_date,

@@ -134,7 +134,7 @@ def test_store_comments_all_writes_share_transaction_id():
     # All execute() calls that are writes (DELETE and UPDATE) must carry tx "tx-1".
     write_calls = [c for c in api.calls if "SELECT" not in c[0]]
     assert write_calls, "expected at least one non-SELECT execute call"
-    for sql, params, tx_id in write_calls:
+    for sql, _params, tx_id in write_calls:
         assert tx_id == "tx-1", f"write call missing transaction_id: {sql!r}"
     # The batch insert must also carry tx "tx-1".
     assert len(api.batch_calls) == 1

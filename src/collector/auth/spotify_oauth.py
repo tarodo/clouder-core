@@ -8,9 +8,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Callable
-
 from urllib.error import HTTPError, URLError
-
 
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 ME_URL = "https://api.spotify.com/v1/me"

@@ -242,6 +242,29 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.collector.id
   name        = "$default"
   auto_deploy = true
+
+  # Stage-wide limit for every route: the SPA fires about ten calls per page load, so
+  # a closed group of DJs stays far below it; a runaway client gets 429 instead of
+  # running up Lambda and Aurora.
+  default_route_settings {
+    throttling_burst_limit = 200
+    throttling_rate_limit  = 100
+  }
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_access.arn
+    format = jsonencode({
+      requestId          = "$context.requestId"
+      ip                 = "$context.identity.sourceIp"
+      routeKey           = "$context.routeKey"
+      status             = "$context.status"
+      responseLength     = "$context.responseLength"
+      integrationLatency = "$context.integrationLatency"
+      responseLatency    = "$context.responseLatency"
+      integrationError   = "$context.integrationErrorMessage"
+      authorizerError    = "$context.authorizer.error"
+    })
+  }
 }
 
 resource "aws_apigatewayv2_route" "auto_enrich_labels_get" {

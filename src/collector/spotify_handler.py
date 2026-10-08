@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, cast
 from uuid import uuid4
 
 from pydantic import ValidationError as PydanticValidationError
 
-from .errors import SpotifyAuthError, SpotifyUnavailableError, StorageError
+from .errors import StorageError
 from .logging_utils import log_event
+from .providers import registry
 from .repositories import (
     ClouderRepository,
     UpdateSpotifyResultCmd,
@@ -23,9 +24,13 @@ from .repositories import (
 )
 from .schemas import SpotifySearchMessage, validation_error_message
 from .settings import get_spotify_worker_settings
-from .providers import registry
-from .spotify_client import SpotifySearchResult  # type still needed in _process_results_chunk
+from .spotify_client import (
+    SpotifySearchResult,  # type still needed in _process_results_chunk
+)
 from .storage import S3Storage, create_default_s3_client
+
+if TYPE_CHECKING:
+    from .providers.spotify.lookup import SpotifyLookup
 
 _PERMANENT_ERRORS = (ValueError, TypeError, KeyError, StorageError)
 _CHUNK_SIZE = 200
@@ -265,7 +270,7 @@ def _search_and_persist(
     tracks: list[dict[str, Any]],
     deadline_provider: Any = None,
 ) -> None:
-    client = registry.get_lookup("spotify")
+    client = cast("SpotifyLookup", registry.get_lookup("spotify"))
 
     search_input = [
         {

@@ -3,7 +3,6 @@ import pytest
 from pydantic import ValidationError
 
 from collector.label_enrichment.messages import (
-    EnrichLabelInput,
     EnrichLabelsRequestIn,
     LabelEnrichmentMessage,
 )

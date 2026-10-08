@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from pg_data_api import truncate_canonical
 
 

@@ -1,8 +1,9 @@
 """Unit tests for provider registry and VENDORS_ENABLED gating."""
 from __future__ import annotations
 
-import pytest
 from collections.abc import Iterator
+
+import pytest
 
 from collector.errors import VendorDisabledError
 from collector.providers import registry

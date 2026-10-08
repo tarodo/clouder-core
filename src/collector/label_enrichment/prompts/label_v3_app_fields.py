@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from ..schemas import LabelInfo
 from . import register
 from .base import PromptConfig
 from .label_v2_facts import SYSTEM as V2_SYSTEM
-from ..schemas import LabelInfo
 
 APP_FIELDS_BLOCK = (
     "\n\n"

@@ -8,7 +8,6 @@ from collector.errors import VendorDisabledError
 from collector.providers import registry
 from collector.providers.base import ExportProvider, LookupProvider
 
-
 _STUB_VENDORS = ["ytmusic", "deezer", "apple", "tidal"]
 
 

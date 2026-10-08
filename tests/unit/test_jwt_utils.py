@@ -14,7 +14,6 @@ from collector.auth.jwt_utils import (
     verify_refresh_token,
 )
 
-
 SECRET = "0" * 32
 
 

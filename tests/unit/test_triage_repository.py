@@ -5,10 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from collector.curation.triage_repository import (
-    TriageRepository,
     TriageBlockRow,
-    TriageBucketRow,
-    BucketTrackRowOut,
+    TriageRepository,
 )
 
 
@@ -55,7 +53,7 @@ def test_dataclasses_have_expected_fields() -> None:
 
 
 from datetime import date
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -66,10 +64,6 @@ from collector.curation import (
     NotFoundError,
     StyleMismatchError,
     TracksNotInSourceError,
-)
-from collector.curation.triage_repository import (
-    TriageRepository,
-    TriageBlockRow,
 )
 
 

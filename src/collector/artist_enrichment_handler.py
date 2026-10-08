@@ -7,7 +7,6 @@ from typing import Any, Mapping
 
 from pydantic import ValidationError as PydanticValidationError
 
-from .data_api import create_default_data_api_client
 from .artist_enrichment.messages import ArtistEnrichmentMessage
 from .artist_enrichment.orchestrator import (
     build_adapters_from_run_config,
@@ -16,14 +15,15 @@ from .artist_enrichment.orchestrator import (
 from .artist_enrichment.prompts import get_prompt, load_builtin_prompts
 from .artist_enrichment.repository import ArtistEnrichmentRepository
 from .artist_enrichment.settings_provider import ArtistEnrichmentSecrets
+from .data_api import create_default_data_api_client
 from .logging_utils import log_event
-from .settings import get_data_api_settings, get_artist_enrichment_worker_settings
+from .settings import get_artist_enrichment_worker_settings, get_data_api_settings
 from .social_links import SocialsResolver
 
 try:
     from openai import OpenAI
 except ImportError:  # pragma: no cover — module imported lazily in tests
-    OpenAI = None  # type: ignore[assignment]
+    OpenAI = None  # type: ignore[assignment,misc]
 
 
 def _build_clients() -> tuple[ArtistEnrichmentRepository, Any]:
@@ -35,7 +35,9 @@ def _build_clients() -> tuple[ArtistEnrichmentRepository, Any]:
         secret_arn=str(settings.aurora_secret_arn),
         database=settings.aurora_database,
     )
-    from .artist_enrichment.auto_repository import AutoEnrichRepository  # lazy — not in 1A
+    from .artist_enrichment.auto_repository import (
+        AutoEnrichRepository,  # lazy — not in 1A
+    )
     return ArtistEnrichmentRepository(data_api=client), AutoEnrichRepository(data_api=client)
 
 

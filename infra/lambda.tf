@@ -1,6 +1,6 @@
 resource "aws_lambda_function" "collector" {
   function_name = local.lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_collector.arn
   runtime       = "python3.12"
   handler       = "collector.handler.lambda_handler"
   filename      = local.lambda_zip_file
@@ -36,7 +36,7 @@ resource "aws_lambda_function" "collector" {
 
 resource "aws_lambda_function" "canonicalization_worker" {
   function_name = local.canonicalization_worker_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_canonicalization_worker.arn
   runtime       = "python3.12"
   handler       = "collector.worker_handler.lambda_handler"
   filename      = local.lambda_zip_file
@@ -64,7 +64,7 @@ resource "aws_lambda_function" "canonicalization_worker" {
 
 resource "aws_lambda_function" "db_migration" {
   function_name = local.migration_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_db_migration.arn
   runtime       = "python3.12"
   handler       = "collector.migration_handler.lambda_handler"
   filename      = local.lambda_zip_file
@@ -105,7 +105,7 @@ resource "aws_lambda_event_source_mapping" "canonicalization_queue" {
 
 resource "aws_lambda_function" "spotify_search_worker" {
   function_name = local.spotify_search_worker_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_spotify_search_worker.arn
   runtime       = "python3.12"
   handler       = "collector.spotify_handler.lambda_handler"
   filename      = local.lambda_zip_file
@@ -148,7 +148,7 @@ resource "aws_lambda_event_source_mapping" "spotify_search_queue" {
 
 resource "aws_lambda_function" "vendor_match_worker" {
   function_name = local.vendor_match_worker_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_vendor_match_worker.arn
   runtime       = "python3.12"
   handler       = "collector.vendor_match_handler.lambda_handler"
   filename      = local.lambda_zip_file
@@ -191,7 +191,7 @@ resource "aws_lambda_event_source_mapping" "vendor_match_queue" {
 
 resource "aws_lambda_function" "label_enricher_worker" {
   function_name = local.label_enrichment_worker_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_label_enricher_worker.arn
   runtime       = "python3.12"
   handler       = "collector.label_enrichment_handler.lambda_handler"
   filename      = local.lambda_zip_file
@@ -241,7 +241,7 @@ resource "aws_lambda_event_source_mapping" "label_enrichment_queue" {
 
 resource "aws_lambda_function" "artist_enricher_worker" {
   function_name = local.artist_enrichment_worker_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_artist_enricher_worker.arn
   runtime       = "python3.12"
   handler       = "collector.artist_enrichment_handler.lambda_handler"
   filename      = local.lambda_zip_file
@@ -291,7 +291,7 @@ resource "aws_lambda_event_source_mapping" "artist_enrichment_queue" {
 
 resource "aws_lambda_function" "auto_enrich_dispatch_worker" {
   function_name = local.auto_enrich_dispatch_worker_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_auto_enrich_dispatch_worker.arn
   runtime       = "python3.12"
   handler       = "collector.auto_enrich_dispatch_handler.lambda_handler"
   filename      = local.lambda_zip_file
@@ -332,7 +332,7 @@ resource "aws_lambda_event_source_mapping" "auto_enrich_dispatch_queue" {
 # Shared developer key for the YouTube Data API v3 comment provider.
 resource "aws_lambda_function" "comments_collect_worker" {
   function_name = local.comments_collect_worker_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_comments_collect_worker.arn
   runtime       = "python3.12"
   handler       = "collector.comments_collect_handler.lambda_handler"
   filename      = local.lambda_zip_file

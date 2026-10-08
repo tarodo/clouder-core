@@ -39,8 +39,9 @@ def test_list_runs_returns_items_sorted_by_created_at_desc(monkeypatch):
 
 
 def test_runs_list_passes_source_filter(monkeypatch):
-    from collector import handler
     from unittest.mock import MagicMock
+
+    from collector import handler
 
     fake_repo = MagicMock()
     fake_repo.list_runs.return_value = ([], None)

@@ -1,11 +1,10 @@
 # ── curation Lambda (spec-C: categories) ───────────────────────────
 # Owns user-overlay routes for curation (spec-C now; spec-D/E will append).
-# Reuses aws_iam_role.collector_lambda — it already has Aurora Data API +
-# Secrets Manager permissions for the master cluster secret.
+# Own least-privilege role: module.role_curation (lambda_roles.tf).
 
 resource "aws_lambda_function" "curation" {
   function_name = local.curation_lambda_name
-  role          = aws_iam_role.collector_lambda.arn
+  role          = module.role_curation.arn
   runtime       = "python3.12"
   handler       = "collector.curation_handler.lambda_handler"
   filename      = local.lambda_zip_file

@@ -1,8 +1,5 @@
-import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
-
-import pytest
 
 from collector.label_enrichment.repository import (
     LabelEnrichmentRepository,
@@ -111,8 +108,8 @@ def test_get_run_returns_dict_or_none():
     assert repo.get_run("missing") is None
 
 
-from collector.label_enrichment.vendors.base import VendorResponse
 from collector.label_enrichment.schemas import LabelInfo
+from collector.label_enrichment.vendors.base import VendorResponse
 
 
 def _ok_vendor_response() -> VendorResponse:

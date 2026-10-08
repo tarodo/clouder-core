@@ -18,7 +18,6 @@ from collector.logging_utils import log_event
 
 from . import SpotifyNotAuthorizedError
 
-
 _REFRESH_LEEWAY_SECONDS = 60
 
 

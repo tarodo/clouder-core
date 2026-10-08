@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from collector import auth_handler
 from collector.auth import auth_settings
 from collector.auth.auth_repository import SessionRow, VendorTokenRow
 from collector.auth.jwt_utils import issue_refresh_token
@@ -16,8 +17,6 @@ from collector.auth.spotify_oauth import (
     SpotifyTokenRevokedError,
     SpotifyTokenSet,
 )
-from collector import auth_handler
-
 
 SECRET = "0" * 32
 

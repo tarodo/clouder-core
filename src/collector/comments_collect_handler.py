@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import requests
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+import requests
 from pydantic import ValidationError as PydanticValidationError
 
 from .comments.messages import CommentCollectMessage

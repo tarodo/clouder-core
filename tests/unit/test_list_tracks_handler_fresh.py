@@ -1,8 +1,10 @@
 """Handler parses ?fresh=1/0 and threads it into repo.list_tracks."""
 from __future__ import annotations
+
 from unittest.mock import MagicMock
-from collector.curation_handler import _handle_list_tracks
+
 from collector.curation import PaginatedResult
+from collector.curation_handler import _handle_list_tracks
 
 
 def _make_event(fresh: str | None) -> dict:

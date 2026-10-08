@@ -160,7 +160,7 @@ class TavilyDeepSeekAdapter:
             merged.append(r)
         results = merged
 
-        citations = [r.get("url") for r in results if r.get("url")]
+        citations: list[str] = [url for r in results if (url := r.get("url"))]
         snippets_block = "\n\n".join(
             f"[{i + 1}] {r.get('title', '')}\nURL: {r.get('url', '')}\n{r.get('content', '')[:500]}"
             for i, r in enumerate(results)

@@ -27,8 +27,11 @@ from collector.curation.schemas import (
     MoveTracksIn,
     TransferTracksIn,
 )
-from collector.schemas import AdminIngestRequestIn, AutoIngestSettingsIn, CollectRequestIn
-
+from collector.schemas import (
+    AdminIngestRequestIn,
+    AutoIngestSettingsIn,
+    CollectRequestIn,
+)
 
 # ── shared response schemas ────────────────────────────────────────────────
 

@@ -10,7 +10,6 @@ from .auth.auth_settings import resolve_jwt_signing_key
 from .auth.jwt_utils import InvalidTokenError, verify_access_token
 from .logging_utils import log_event
 
-
 _SIGNING_KEY: tuple[str, float] | None = None
 _KEY_TTL_SECONDS = 300
 

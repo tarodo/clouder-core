@@ -6,13 +6,12 @@ import os
 import threading
 
 import pytest
+from pg_data_api import PgDataAPIClient, count_rows, seed_run
+from synthetic import synthetic_week
 
 from collector.canonicalize import Canonicalizer
 from collector.normalize import normalize_tracks
 from collector.repositories import ClouderRepository
-
-from pg_data_api import PgDataAPIClient, count_rows, seed_run
-from synthetic import synthetic_week
 
 
 def test_concurrent_run_reuses_identity_claimed_first(pg) -> None:

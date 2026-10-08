@@ -94,3 +94,8 @@ resource "aws_cloudwatch_metric_alarm" "dlq_depth" {
   alarm_actions = local.alarm_actions
   ok_actions    = local.alarm_actions
 }
+
+resource "aws_cloudwatch_log_group" "api_access" {
+  name              = "/aws/apigateway/${local.name_prefix}-collector-api"
+  retention_in_days = var.log_retention_days
+}

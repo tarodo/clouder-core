@@ -31,7 +31,6 @@ from collector.curation.playlists_repository import (
 )
 from collector.curation_handler import lambda_handler
 
-
 # ---------- Fake repository ------------------------------------------------
 
 
@@ -204,7 +203,7 @@ class FakePlaylistsRepo:
             return False
         removed_pos = self.tracks[(playlist_id, track_id)]["position"]
         del self.tracks[(playlist_id, track_id)]
-        for (pid, t), v in self.tracks.items():
+        for (pid, _t), v in self.tracks.items():
             if pid == playlist_id and v["position"] > removed_pos:
                 v["position"] -= 1
         if p["spotify_playlist_id"]:

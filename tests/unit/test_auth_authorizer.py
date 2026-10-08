@@ -5,9 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from collector.auth.jwt_utils import issue_access_token
 from collector import auth_authorizer
-
+from collector.auth.jwt_utils import issue_access_token
 
 SECRET = "0" * 32
 

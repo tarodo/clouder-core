@@ -11,7 +11,6 @@ import collector.curation_handler as ch
 from collector.comments.repository import CollectionRow, CommentRow
 from collector.curation import ValidationError
 
-
 # ---------------------------------------------------------------------------
 # Fakes
 # ---------------------------------------------------------------------------

@@ -85,7 +85,7 @@ def test_head_cover_returns_none_when_404() -> None:
         pass
 
     err = _NoSuch("NoSuchKey")
-    setattr(err, "response", {"Error": {"Code": "NoSuchKey"}})
+    err.response = {"Error": {"Code": "NoSuchKey"}}
     client.head_object.side_effect = err
     s = _storage(client)
     assert s.head_cover("covers/u/p/1.jpg") is None

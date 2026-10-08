@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import time
 from unittest.mock import MagicMock
 
-import pytest
-
-from collector.auth.kms_envelope import KmsEnvelope, EnvelopePayload
+from collector.auth.kms_envelope import EnvelopePayload, KmsEnvelope
 
 
 def _make_kms_client(plaintext_key: bytes) -> MagicMock:

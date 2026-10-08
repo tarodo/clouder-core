@@ -6,7 +6,6 @@ from typing import Iterable, Sequence
 
 from . import OrderMismatchError, ValidationError
 
-
 _MAX_NAME_LENGTH = 64
 
 

@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import urllib.parse
-import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -25,7 +22,6 @@ from collector.auth.spotify_oauth import (
     SpotifyProfile,
     SpotifyTokenSet,
 )
-
 
 SECRET = "0" * 32
 

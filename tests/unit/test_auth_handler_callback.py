@@ -7,15 +7,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from collector import auth_handler
 from collector.auth import auth_settings
-from collector.auth.auth_repository import UserRow
 from collector.auth.kms_envelope import EnvelopePayload
 from collector.auth.spotify_oauth import (
     SpotifyOAuthError,
     SpotifyProfile,
     SpotifyTokenSet,
 )
-from collector import auth_handler
 
 
 def _event(*, code: str, state: str, cookies: list[str]) -> dict:

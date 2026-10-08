@@ -12,14 +12,12 @@ from collector.curation import (
     NotFoundError,
     OrderMismatchError,
     PaginatedResult,
-    ValidationError,
 )
 from collector.curation.categories_repository import (
     CategoryRow,
     TrackInCategoryRow,
 )
 from collector.curation_handler import lambda_handler
-
 
 # ---------- Fake repository --------------------------------------------------
 
@@ -1022,7 +1020,6 @@ def test_recreate_after_soft_delete(fake_repo, context):
 
 
 def test_cross_style_namesakes_coexist(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
     r1 = lambda_handler(
         _event(
             method="POST",

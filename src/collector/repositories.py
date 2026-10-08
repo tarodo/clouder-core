@@ -13,7 +13,6 @@ from .models import RunStatus
 from .saturday_week import first_saturday, weeks_in_year
 from .settings import get_data_api_settings
 
-
 # ponytail: ids per `IN (...)` identity lookup. 500 rows of (external_id, clouder_id)
 # stay far under the Data API 1 MB response cap; raise only with a measured reason.
 _LOOKUP_CHUNK = 500

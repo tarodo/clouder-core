@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from ..schemas import LabelInfo
 from . import register
 from .base import PromptConfig
-from ..schemas import LabelInfo
 
 SYSTEM = (
     "You research music labels. Output structured facts only.\n"

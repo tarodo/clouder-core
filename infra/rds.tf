@@ -15,8 +15,12 @@ resource "aws_rds_cluster" "aurora" {
   storage_encrypted     = true
   copy_tags_to_snapshot = true
 
-  skip_final_snapshot = true
-  deletion_protection = false
+  # Production data: no accidental delete, a final snapshot if it is ever deleted on
+  # purpose (lift deletion_protection first — docs/ops/aurora.md), and a week of backups.
+  deletion_protection       = true
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "${local.name_prefix}-aurora-final"
+  backup_retention_period   = 7
 
   serverlessv2_scaling_configuration {
     min_capacity             = var.aurora_serverless_min_acu

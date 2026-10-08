@@ -1,5 +1,5 @@
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -178,6 +178,7 @@ def test_worker_parses_jsonb_strings_from_data_api(monkeypatch):
 def test_worker_build_repository_passes_kwargs_from_settings(monkeypatch):
     """Regression: _build_repository was called with no args and TypeError'd."""
     from types import SimpleNamespace
+
     from collector import label_enrichment_handler
 
     fake_settings = SimpleNamespace(
@@ -215,6 +216,7 @@ def test_worker_build_repository_passes_kwargs_from_settings(monkeypatch):
 
 def test_worker_build_repository_raises_when_not_configured(monkeypatch):
     from types import SimpleNamespace
+
     from collector import label_enrichment_handler
 
     monkeypatch.setattr(

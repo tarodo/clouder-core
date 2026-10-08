@@ -1,4 +1,5 @@
 import json
+
 import collector.auto_enrich_dispatch_handler as h
 
 

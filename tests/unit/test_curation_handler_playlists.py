@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-from collector.curation_handler import lambda_handler, _playlist_track_response
+from collector.curation_handler import _playlist_track_response, lambda_handler
 
 
 def _event(method: str, path: str, body: dict | None = None,

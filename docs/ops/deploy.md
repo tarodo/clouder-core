@@ -11,12 +11,18 @@ CLOUDER uses two GitHub Actions workflows: `pr.yml` for pre-merge validation and
 | `alembic-check` | `src/**`, `alembic/**`, `requirements*.txt` | Spin ephemeral Postgres 16, run `alembic upgrade head` twice (idempotency check), then the real-Postgres tests (`tests/db`, `TEST_DATABASE_URL`) |
 | `dbt` | `dbt/**` | `dbt seed` / `run --empty` / `build` on DuckDB with fixtures (unit + data tests), then `dbt parse --target prod` |
 | `terraform` | `infra/**` | `terraform fmt -check`, `terraform init` (remote S3 backend), `terraform validate`, `scripts/package_lambda.sh`, `terraform plan -var="environment=prod" -var="canonicalization_enabled=true"` |
-| `tests` | `src/**`, `tests/**` | `pytest -q` with `PYTHONPATH=src` |
+| `lint` | backend paths | `ruff check src tests scripts` and `mypy` (config in `pyproject.toml`) |
+| `tests` | `src/**`, `tests/**` | `pytest -q --cov` with `PYTHONPATH=src`; fails under 80 % line coverage; TOTAL goes to the job summary |
+| `deps` | always | `uv pip compile` re-run must not change `requirements-*.txt`; `pip-audit` on both locks; `pnpm audit --prod --audit-level high` |
 | `frontend` | `frontend/**`, `docs/api/openapi.yaml` | `pnpm api:types` + diff-check `src/api/schema.d.ts` against `docs/api/openapi.yaml` (fails if out of sync), `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` |
 
 OpenAPI types check: if `docs/api/openapi.yaml` is updated without regenerating `frontend/src/api/schema.d.ts`, the `frontend` job fails. Run `pnpm api:types` from `frontend/` and commit the result.
 
 Terraform backend: state bucket and lock table names come from GitHub Actions repo variables `TF_STATE_BUCKET` and `TF_LOCK_TABLE`. Backend key: `clouder-core/prod/terraform.tfstate`.
+
+## Dependencies
+
+Declared in `requirements-lambda.in` (Lambda runtime; boto3 comes with the runtime) and `requirements-dev.in` (adds test and CI tools), locked into the matching `.txt` files with `uv pip compile --universal --python-version 3.12 <file>.in -o <file>.txt`. uv keeps existing pins, so recompiling only changes what an edited `.in` asks for; `--upgrade-package <name>` bumps one dependency. Dependabot opens weekly grouped PRs for pip, npm, GitHub Actions and Terraform.
 
 ## Deploy pipeline
 
@@ -25,7 +31,7 @@ Terraform backend: state bucket and lock table names come from GitHub Actions re
 Order of steps:
 
 1. **Package Lambda** — `scripts/package_lambda.sh`
-   - Installs `requirements-lambda.txt` into `dist/lambda_build/`
+   - Installs `requirements-lambda.txt` (locked from `requirements-lambda.in` with `uv pip compile --universal --python-version 3.12`) into `dist/lambda_build/`
    - Copies `src/collector/` → `dist/lambda_build/collector/`
    - Copies `alembic/` → `dist/lambda_build/db_migrations/` (packaging rename; code references `db_migrations` at Lambda runtime)
    - Produces `dist/collector.zip`

@@ -1,6 +1,7 @@
 """Unit tests for artist enrichment HTTP route handlers."""
 
 import json
+
 import collector.artist_enrichment.routes as routes
 
 
@@ -63,8 +64,9 @@ def test_post_enrich_creates_run_and_enqueues(monkeypatch):
 
 
 def test_post_enrich_rejects_unknown_prompt(monkeypatch):
-    from collector.errors import ValidationError
     import pytest
+
+    from collector.errors import ValidationError
     _setup(monkeypatch)
     event = {"body": json.dumps({
         "artists": [{"artist_id": "a1"}],

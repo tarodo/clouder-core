@@ -21,7 +21,7 @@ def test_revision_metadata() -> None:
 
 
 def test_upgrade_creates_users_table() -> None:
-    mig = _load_migration_module()
+    _load_migration_module()
     src = Path("alembic/versions/20260426_11_users.py").read_text()
     assert 'create_table(\n        "users"' in src
     assert '"spotify_id"' in src

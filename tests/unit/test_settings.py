@@ -91,8 +91,8 @@ def test_spotify_json_must_be_object(monkeypatch):
 
 
 def test_spotify_creds_from_ssm(monkeypatch):
-    from collector import settings as s
     from collector import secrets
+    from collector import settings as s
 
     monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
     monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
@@ -121,8 +121,8 @@ def test_spotify_creds_from_ssm(monkeypatch):
 
 
 def test_spotify_ssm_wins_over_secrets_manager(monkeypatch):
-    from collector import settings as s
     from collector import secrets
+    from collector import settings as s
 
     monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
     monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
@@ -161,8 +161,9 @@ def test_spotify_ssm_wins_over_secrets_manager(monkeypatch):
 def test_spotify_partial_ssm_falls_through_to_secrets_manager(monkeypatch):
     """Only one SSM env set → SSM branch is skipped, SM JSON path runs."""
     import json as _json
-    from collector import settings as s
+
     from collector import secrets
+    from collector import settings as s
 
     monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
     monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)

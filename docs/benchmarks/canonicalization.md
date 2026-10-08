@@ -94,6 +94,29 @@ Downstream, the Spotify ISRC search for the same tracks took 290 s and 308 s (~4
 one track per request, so it — not canonicalization — now sets the time until a week is fully
 enriched.
 
+## Scale (after, 2026-10-08)
+
+The same benchmark at 10× and 100× the mean (671) and largest (3,656) production week
+(`scripts/bench_canonicalize.py --tracks 6710 36560 67100 365600`, local Postgres 16):
+
+| dataset | scenario | tracks | artists | labels | albums | Data API calls | calls / 1k tracks | local s | modelled s @30/60/100 ms |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| synthetic-6710 | cold | 6710 | 3503 | 945 | 2700 | 278 | 41 | 2.39 | 8.3 / 16.7 / 27.8 |
+| synthetic-6710 | warm | 6710 | 3503 | 945 | 2700 | 274 | 41 | 8.24 | 8.2 / 16.4 / 27.4 |
+| synthetic-36560 | cold | 36560 | 19115 | 5081 | 14750 | 1385 | 38 | 20.51 | 41.5 / 83.1 / 138.5 |
+| synthetic-36560 | warm | 36560 | 19115 | 5081 | 14750 | 1381 | 38 | 10.23 | 41.4 / 82.9 / 138.1 |
+| synthetic-67100 | cold | 67100 | 34991 | 9356 | 27165 | 2520 | 38 | 23.62 | 75.6 / 151.2 / 252.0 |
+| synthetic-67100 | warm | 67100 | 34991 | 9356 | 27165 | 2516 | 37 | 21.11 | 75.5 / 151.0 / 251.6 |
+| synthetic-365600 | cold | 365600 | 190610 | 51121 | 147626 | 13601 | 37 | 156.6 | 408.0 / 816.1 / 1360.1 |
+| synthetic-365600 | warm | 365600 | 190610 | 51121 | 147626 | 13597 | 37 | 120.51 | 407.9 / 815.8 / 1359.7 |
+
+Calls grow linearly (~38 per 1,000 tracks) — no per-entity term left. The modelled
+seconds assume small calls; production batches are large, and the measured production rate
+after the change is 9.9–14.8 s per 1,000 tracks. At that rate 10× the largest week
+(36,560 tracks) needs about 6–9 minutes and fits the 900 s Lambda timeout; 100× the largest
+week (365,600) needs over an hour and does not — what changes there is in
+[scalability notes](../scalability.md).
+
 ## What changed
 
 - **Identity resolution:** per phase (per 200-track chunk for tracks) one batch claims a fresh

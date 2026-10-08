@@ -20,13 +20,13 @@ from collector.settings import get_data_api_settings
 if TYPE_CHECKING:
     from .tags_repository import TagsRepository, TrackTagRow
 
+from ..repositories import ClouderRepository, UpsertVendorMatchCmd
 from . import (
     PlaylistLimitReachedError,
     PlaylistNameConflictError,
     PlaylistNotFoundError,
     PlaylistTrackLimitError,
 )
-from ..repositories import ClouderRepository, UpsertVendorMatchCmd
 from .playlists_service import (
     MAX_PLAYLISTS_PER_USER,
     MAX_TRACKS_PER_PLAYLIST,

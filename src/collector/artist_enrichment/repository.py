@@ -9,13 +9,13 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Callable, Mapping, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from ..data_api import DataAPIClient
 
 if TYPE_CHECKING:
-    from .schemas import ArtistInfo
     from ..label_enrichment.vendors.base import VendorResponse
+    from .schemas import ArtistInfo
 
 
 def _utc_now() -> datetime:

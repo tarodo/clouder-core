@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from ..schemas import ArtistInfoRequest
 from . import register
 from .base import PromptConfig
-from ..schemas import ArtistInfoRequest
 
 SYSTEM = (
     "You research electronic-music artists. Output structured facts only.\n"

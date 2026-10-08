@@ -30,8 +30,8 @@ from .base import (
 
 def _build_beatport() -> ProviderBundle:
     """Construct the Beatport bundle. Imports inlined to avoid import cycles."""
-    from .beatport import BeatportProvider
     from ..settings import get_api_settings
+    from .beatport import BeatportProvider
 
     return ProviderBundle(
         ingest=BeatportProvider(base_url=get_api_settings().beatport_api_base_url),
@@ -40,10 +40,10 @@ def _build_beatport() -> ProviderBundle:
 
 def _build_spotify() -> ProviderBundle:
     """Construct the Spotify bundle. Imports inlined to avoid import cycles."""
+    from ..settings import get_spotify_worker_settings
     from .spotify.enrich import SpotifyEnricher
     from .spotify.export import SpotifyExporter
     from .spotify.lookup import SpotifyLookup
-    from ..settings import get_spotify_worker_settings
 
     sp_settings = get_spotify_worker_settings()
     spotify_lookup = SpotifyLookup(
@@ -52,35 +52,36 @@ def _build_spotify() -> ProviderBundle:
     )
     return ProviderBundle(
         lookup=spotify_lookup,
-        enrich=SpotifyEnricher(lookup=spotify_lookup),
+        # Track-identity enricher; predates the prompt-shaped EnrichProvider protocol.
+        enrich=SpotifyEnricher(lookup=spotify_lookup),  # type: ignore[arg-type]
         export=SpotifyExporter(),
     )
 
 
 def _build_ytmusic() -> ProviderBundle:
-    from .ytmusic.lookup import YTMusicLookup
     from .ytmusic.export import YTMusicExporter
+    from .ytmusic.lookup import YTMusicLookup
 
     return ProviderBundle(lookup=YTMusicLookup(), export=YTMusicExporter())
 
 
 def _build_deezer() -> ProviderBundle:
-    from .deezer.lookup import DeezerLookup
     from .deezer.export import DeezerExporter
+    from .deezer.lookup import DeezerLookup
 
     return ProviderBundle(lookup=DeezerLookup(), export=DeezerExporter())
 
 
 def _build_apple() -> ProviderBundle:
-    from .apple.lookup import AppleLookup
     from .apple.export import AppleExporter
+    from .apple.lookup import AppleLookup
 
     return ProviderBundle(lookup=AppleLookup(), export=AppleExporter())
 
 
 def _build_tidal() -> ProviderBundle:
-    from .tidal.lookup import TidalLookup
     from .tidal.export import TidalExporter
+    from .tidal.lookup import TidalLookup
 
     return ProviderBundle(lookup=TidalLookup(), export=TidalExporter())
 

@@ -213,6 +213,38 @@ A new upstream field that is fine: add it to `FIELDS` in `src/collector/contract
 
 ---
 
+## 429 Too Many Requests from the API
+
+**Symptom**
+
+The SPA or a script gets HTTP 429 from API Gateway.
+
+**Diagnosis**
+
+The `$default` stage limits every route to 100 requests/s with a burst of 200 (`infra/api_gateway.tf`). Count 429s per route in the access log: `aws logs filter-log-events --log-group-name /aws/apigateway/clouder-prod-collector-api --filter-pattern '{ $.status = "429" }'`.
+
+**Fix**
+
+A client loop or a script is the usual cause — fix it. If real traffic outgrew the limit, raise `throttling_rate_limit` / `throttling_burst_limit` and deploy.
+
+---
+
+## Telemetry delivery stalled
+
+**Symptom**
+
+Alarm `clouder-prod-telemetry-delivery-freshness`: Firehose records waited over 15 minutes for S3 delivery (the buffer is 300 s).
+
+**Diagnosis**
+
+`aws firehose describe-delivery-stream --delivery-stream-name clouder-prod-telemetry` (look at `Destinations[0].ExtendedS3DestinationDescription` and recent errors), and the Firehose error log group. Usual causes: the delivery role lost S3/Glue access, or the Glue table schema no longer matches the Parquet conversion.
+
+**Fix**
+
+Restore the permission or the schema through Terraform; Firehose retries for 24 h, so data buffered meanwhile is delivered once the cause is gone.
+
+---
+
 ## Auto-ingest run failed
 
 **Symptom**

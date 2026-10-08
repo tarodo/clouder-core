@@ -25,7 +25,6 @@ import time
 from datetime import date
 from typing import Any
 
-
 _CELLS_SQL = """
 SELECT 'label' AS kind,
        to_char(created_at, 'YYYY-MM') AS month,

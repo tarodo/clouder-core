@@ -11,7 +11,6 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List
-
 from urllib.error import HTTPError, URLError
 
 from .errors import SpotifyAuthError, SpotifyUnavailableError

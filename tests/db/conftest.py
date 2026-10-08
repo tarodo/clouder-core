@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 
 import pytest
-
 from pg_data_api import PgDataAPIClient, truncate_canonical
 
 

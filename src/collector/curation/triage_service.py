@@ -12,7 +12,6 @@ from collector.curation import (
     ValidationError,
 )
 
-
 # Bucket type constants -- mirror the CHECK constraint values.
 BUCKET_TYPE_NEW = "NEW"
 BUCKET_TYPE_OLD = "OLD"

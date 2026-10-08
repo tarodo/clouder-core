@@ -14,7 +14,7 @@ Exercises the registry + VENDORS_ENABLED path to verify real wiring.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 

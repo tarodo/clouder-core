@@ -1,4 +1,5 @@
 import json
+
 import collector.artist_enrichment.auto_routes as ar
 
 

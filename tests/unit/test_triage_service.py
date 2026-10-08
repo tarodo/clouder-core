@@ -13,13 +13,13 @@ from collector.curation import (
     ValidationError,
 )
 from collector.curation.triage_service import (
-    BUCKET_TYPE_NEW,
-    BUCKET_TYPE_OLD,
-    BUCKET_TYPE_NOT,
     BUCKET_TYPE_DISCARD,
-    BUCKET_TYPE_UNCLASSIFIED,
-    BUCKET_TYPE_STAGING,
     BUCKET_TYPE_FAV,
+    BUCKET_TYPE_NEW,
+    BUCKET_TYPE_NOT,
+    BUCKET_TYPE_OLD,
+    BUCKET_TYPE_STAGING,
+    BUCKET_TYPE_UNCLASSIFIED,
     TECHNICAL_BUCKET_TYPES,
     classify_bucket_type,
     validate_block_input,

@@ -8,8 +8,8 @@ from datetime import date
 import pytest
 
 from collector import handler
-from collector.settings import reset_settings_cache
 from collector.providers import registry
+from collector.settings import reset_settings_cache
 
 
 @pytest.fixture(autouse=True)

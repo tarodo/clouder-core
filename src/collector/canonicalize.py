@@ -7,14 +7,14 @@ winners back, instead of a Data API round-trip per entity. See ADR-0022.
 
 from __future__ import annotations
 
-from collections import Counter
-from contextlib import nullcontext
-from datetime import datetime
-from decimal import Decimal
 import hashlib
 import json
 import math
 import time
+from collections import Counter
+from contextlib import nullcontext
+from datetime import datetime
+from decimal import Decimal
 from typing import Any, Callable, Iterable, Mapping, Sequence
 from uuid import uuid4
 

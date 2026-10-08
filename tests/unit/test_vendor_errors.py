@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from collector.errors import (
     MatchFailedError,
     UserTokenMissingError,

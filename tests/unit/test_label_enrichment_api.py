@@ -1,5 +1,5 @@
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -203,6 +203,7 @@ def test_routes_build_repository_passes_kwargs_from_settings(monkeypatch):
     resource_arn/secret_arn/database into create_default_data_api_client.
     """
     from types import SimpleNamespace
+
     from collector.label_enrichment import routes
 
     fake_settings = SimpleNamespace(
@@ -240,6 +241,7 @@ def test_routes_build_repository_passes_kwargs_from_settings(monkeypatch):
 
 def test_routes_build_repository_raises_when_not_configured(monkeypatch):
     from types import SimpleNamespace
+
     from collector.label_enrichment import routes
 
     monkeypatch.setattr(

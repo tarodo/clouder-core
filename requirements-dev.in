@@ -1,0 +1,12 @@
+# Dev/test/CI tools on top of the Lambda runtime deps. Lock: `make lock`.
+-r requirements-lambda.in
+pytest
+pytest-cov
+boto3
+moto[kms,ssm,secretsmanager]>=5
+pyyaml
+duckdb>=1.0
+pglast>=6,<7
+ruff
+mypy
+pip-audit

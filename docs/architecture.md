@@ -77,7 +77,7 @@ flowchart LR
     ATH --- BRZ & SIL
 ```
 
-Every CloudWatch alarm (27) notifies one SNS topic with an email subscription.
+Every CloudWatch alarm notifies one SNS topic with an email subscription.
 
 ## Lambda functions
 
@@ -113,7 +113,8 @@ All functions share one Python package (`src/collector/`); each has its own entr
 - **Playback.** Spotify Web Playback SDK is lazy-loaded on the first play. The CLOUDER auth refresh stream bundles a Spotify access token; the SPA keeps it in memory only. See [`docs/frontend/playback.md`](frontend/playback.md) and ADR-0011, ADR-0013.
 - **Analytics lakehouse.** Telemetry lands in bronze through Firehose; a nightly dbt build on Athena turns it and the catalog snapshots into Iceberg silver/gold (deduplicated events, SCD2 track history, plays). The Home cards read silver history plus the live bronze tail. See [`docs/data/lakehouse.md`](data/lakehouse.md).
 - **Data quality.** A nightly Lambda runs eleven SQL checks (freshness, volume, completeness, integrity, plausibility) with SLOs. See [`docs/data/data-quality.md`](data/data-quality.md) and ADR-0023.
-- **Alerting.** 27 CloudWatch alarms (Lambda errors, API latency, DLQ depth, data quality, contract drift, failed dbt build, failed auto-ingest run) notify one SNS topic with an email subscription. See [`docs/ops/deploy.md`](ops/deploy.md).
+- **Alerting.** CloudWatch alarms (errors on every Lambda, API latency, DLQ depth, Firehose delivery, data quality, contract drift, failed dbt build, failed auto-ingest run) notify one SNS topic with an email subscription. See [`docs/ops/deploy.md`](ops/deploy.md).
+- **Access control.** Every Lambda runs under its own least-privilege role (`infra/lambda_roles.tf`); the API stage is rate-limited and writes JSON access logs.
 - **Operations.** Aurora Serverless v2 with `min_acu=0` (auto-pause). Migrations run via a dedicated Lambda before the API code is updated. See [`docs/ops/aurora.md`](ops/aurora.md) and [`docs/ops/deploy.md`](ops/deploy.md).
 
 ## Where to read next
@@ -123,3 +124,5 @@ All functions share one Python package (`src/collector/`); each has its own entr
 - New frontend contributor → [`docs/frontend/README.md`](frontend/README.md).
 - Ops / on-call → [`docs/ops/runbook.md`](ops/runbook.md).
 - Why-this-way questions → [`docs/adr/README.md`](adr/README.md).
+- Where to look in the code → [`docs/engineering-highlights.md`](engineering-highlights.md).
+- What breaks at 10× / 100× → [`docs/scalability.md`](scalability.md).

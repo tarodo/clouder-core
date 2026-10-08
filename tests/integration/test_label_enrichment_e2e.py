@@ -7,14 +7,14 @@ Step 1 for how this is normally wired).
 
 import json
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from collector.handler import lambda_handler as api_handler
-from collector.label_enrichment_handler import lambda_handler as worker_handler
 from collector.label_enrichment.schemas import LabelInfo
 from collector.label_enrichment.vendors.base import VendorResponse
+from collector.label_enrichment_handler import lambda_handler as worker_handler
 
 
 def _admin_event(body: dict) -> dict:

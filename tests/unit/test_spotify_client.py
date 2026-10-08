@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from collector.errors import SpotifyAuthError, SpotifyUnavailableError
-from collector.spotify_client import SpotifyClient, SpotifySearchResult, _album_release_sort_key
+from collector.spotify_client import (
+    SpotifyClient,
+    SpotifySearchResult,
+    _album_release_sort_key,
+)
 
 
 class FakeResponse:

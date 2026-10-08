@@ -1,4 +1,5 @@
 import json
+
 import collector.artist_enrichment.auto_dispatch as ad
 from collector.artist_enrichment.repository import RunSpec
 
@@ -12,7 +13,9 @@ class FakeAutoRepo:
         self._ids_for_track = ids_for_track or []
         self._ids_for_block = ids_for_block or []
         self.attached = None
-    def get_config(self, kind): assert kind == "artists"; return self._cfg
+    def get_config(self, kind):
+        assert kind == "artists"
+        return self._cfg
     def claim_artists(self, ids): return list(self._claim)
     def attach_run(self, ids, run_id): self.attached = (list(ids), run_id)
     def artist_ids_for_track(self, track_id): return list(self._ids_for_track)
@@ -22,7 +25,9 @@ class FakeAutoRepo:
 class FakeArtistRepo:
     def __init__(self): self.created = None
     def get_artists_by_ids(self, ids): return {aid: f"name-{aid}" for aid in ids}
-    def create_run(self, spec): self.created = spec; return "run-1"
+    def create_run(self, spec):
+        self.created = spec
+        return "run-1"
 
 
 class FakeSQS:
