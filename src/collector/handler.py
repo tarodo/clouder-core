@@ -677,6 +677,7 @@ def _auto_ingest_view(repo: Any) -> dict[str, Any]:
             "periods_per_run", "backfill_floor", "updated_at")},
         "planned_runs": settings["planned_runs"],
         "last_run": settings["last_run"],
+        "running": settings["running"],
         "due_week": {"week_year": week_year, "week_number": week_number},
         "stuck": repo.stuck_pairs(utc_now()),
     }

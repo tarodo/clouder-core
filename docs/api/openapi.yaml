@@ -6128,6 +6128,7 @@ components:
       - settings
       - planned_runs
       - last_run
+      - running
       - due_week
       - stuck
       properties:
@@ -6174,10 +6175,10 @@ components:
         last_run:
           type: object
           nullable: true
+          description: The last run's summary, or the running one's progress (in_progress).
           required:
           - at
           - manual
-          - ok
           - pairs
           properties:
             at:
@@ -6187,6 +6188,26 @@ components:
               type: boolean
             ok:
               type: boolean
+            in_progress:
+              type: boolean
+            current:
+              type: object
+              nullable: true
+              description: The period being fetched; null while logging in.
+              required:
+              - style_id
+              - week_year
+              - week_number
+              properties:
+                style_id:
+                  type: integer
+                week_year:
+                  type: integer
+                week_number:
+                  type: integer
+            total:
+              type: integer
+              nullable: true
             failed_step:
               type: string
               description: Set when login failed (credentials | login | authorize
@@ -6225,6 +6246,9 @@ components:
                     nullable: true
                   error:
                     type: string
+        running:
+          type: boolean
+          description: A run holds the lease right now.
         due_week:
           type: object
           required:

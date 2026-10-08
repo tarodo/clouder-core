@@ -32,7 +32,8 @@ class FakeRepo:
     def __init__(self) -> None:
         self.saved = None
         self.settings = {**VALID, "enabled": False, "planned_runs": ["2026-10-07T21:00:00+00:00"],
-                         "last_run": {"ok": True, "pairs": []}, "updated_at": "2026-10-07T00:00:00+00:00"}
+                         "last_run": {"ok": True, "pairs": []}, "updated_at": "2026-10-07T00:00:00+00:00",
+                         "running": True}
 
     def get_settings(self):
         return dict(self.settings)
@@ -67,6 +68,7 @@ def test_get_returns_settings_plan_and_due_week(wiring) -> None:
     assert body["last_run"] == {"ok": True, "pairs": []}
     assert set(body["due_week"]) == {"week_year", "week_number"}
     assert body["stuck"][0]["style_id"] == 81
+    assert body["running"] is True  # the panel polls while a run holds the lease
 
 
 def test_put_saves_and_replans(wiring) -> None:

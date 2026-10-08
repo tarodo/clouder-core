@@ -144,3 +144,11 @@ def test_stuck_pairs_are_retried_after_a_week(repo) -> None:
                             at=NOW - timedelta(days=8, minutes=-minutes))
 
     assert repo.stuck_pairs(NOW) == []
+
+
+def test_settings_report_a_run_in_progress(repo) -> None:
+    assert repo.get_settings()["running"] is False
+    assert repo.acquire_lease(datetime.now(timezone.utc))
+    assert repo.get_settings()["running"] is True
+    repo.release_lease()
+    assert repo.get_settings()["running"] is False

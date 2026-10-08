@@ -40,7 +40,8 @@ class AutoIngestRepository:
         (row,) = self._data_api.execute(
             """
             SELECT enabled, mode, fixed_times, runs_per_day, timezone, periods_per_run,
-                   backfill_floor, planned_runs, last_run, updated_at
+                   backfill_floor, planned_runs, last_run, updated_at,
+                   COALESCE(running_until > now(), false) AS running
             FROM auto_ingest_settings WHERE id = 1
             """
         )
@@ -55,6 +56,7 @@ class AutoIngestRepository:
             "planned_runs": list(_json(row["planned_runs"]) or []),
             "last_run": _json(row["last_run"]),
             "updated_at": _iso(row["updated_at"]),
+            "running": bool(row["running"]),
         }
 
     def save_settings(

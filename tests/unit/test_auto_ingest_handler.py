@@ -122,7 +122,9 @@ class FakeRepo:
         self.attempts.append((style_id, week_year, week_number, ok, run_id, error))
 
     def set_last_run(self, summary):
-        self.last_run = summary
+        import json
+
+        self.last_run = json.loads(json.dumps(summary))  # stored as JSON, like the row
 
     def set_plan(self, planned, now):
         self.planned = planned
@@ -226,3 +228,31 @@ def test_failed_period_is_recorded_and_the_run_continues(events) -> None:
     assert [p["ok"] for p in result["pairs"]] == [True, False, True]
     assert repo.last_run == result and repo.released is True
     assert TOKEN not in repr(result) + repr(repo.attempts) + repr(events)
+
+
+def test_progress_is_visible_while_the_run_works(events) -> None:
+    repo = FakeRepo()
+    during_login, during_fetch = [], []
+
+    def login(u, p):
+        during_login.append(repo.last_run)
+        return TOKEN
+
+    def collect(params, correlation_id, **kwargs):
+        during_fetch.append(repo.last_run)
+        return _collect_ok(params, correlation_id, **kwargs)
+
+    handler.run(Ctx(), repo=repo, now=NOW, manual=True, collect=collect,
+                login=login, read_credentials=lambda: ("u", "p"))
+
+    (start,) = during_login
+    assert start["in_progress"] is True and start["current"] is None and start["pairs"] == []
+    assert [p["current"] for p in during_fetch] == [
+        {"style_id": 81, "week_year": 2026, "week_number": 39},
+        {"style_id": 96, "week_year": 2026, "week_number": 39},
+        {"style_id": 81, "week_year": 2026, "week_number": 38},
+    ]
+    assert [len(p["pairs"]) for p in during_fetch] == [0, 1, 2]
+    assert all(p["in_progress"] and p["total"] == 3 and p["manual"] for p in during_fetch)
+    assert "in_progress" not in repo.last_run  # the final summary replaces the progress
+    assert TOKEN not in repr(during_login + during_fetch)

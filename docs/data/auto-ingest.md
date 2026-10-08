@@ -70,6 +70,11 @@ backfill floor (default 2026-01-03, week 1 of 2026).
 4. Save `last_run` (per-pair outcome) and log `auto_ingest_run_completed` (`count`,
    `runs_failed`); a run whose every pair failed also logs `auto_ingest_run_failed`.
 
+While it works, the run keeps a progress record in `last_run` (`in_progress`, the period being
+fetched, done/total); `GET /admin/auto-ingest` reports `running` while the lease is held, and
+the admin panel polls every 10 s then (and for 90 s after "Run now") to show it. A progress
+record without a lease is shown as an interrupted run.
+
 ## Security
 
 - Credentials: GitHub environment `production` secrets `BEATPORT_USERNAME` /

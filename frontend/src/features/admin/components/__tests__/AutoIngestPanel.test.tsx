@@ -6,13 +6,14 @@ import { describe, expect, it } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { testTheme } from '../../../../test/theme';
 import { server } from '../../../../test/setup';
-import { AutoIngestPanel } from '../AutoIngestPanel';
+import { AutoIngestPanel, autoIngestPollInterval } from '../AutoIngestPanel';
 import type { AutoIngestState } from '../../../../api/autoIngest';
 
 const PLANNED = '2026-10-08T14:30:00+00:00';
 
 function state(over: Partial<AutoIngestState['settings']> = {}): AutoIngestState {
   return {
+    running: false,
     settings: {
       enabled: true,
       mode: 'fixed',
@@ -58,8 +59,7 @@ function serve(initial: AutoIngestState) {
   return calls;
 }
 
-function renderPanel() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderPanel(qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
     <QueryClientProvider client={qc}>
       <MantineProvider theme={testTheme}>
@@ -142,5 +142,69 @@ describe('AutoIngestPanel', () => {
     expect(screen.getByText(/Mainstage · 2026-W39 — BeatportUnavailableError 503/)).toBeInTheDocument();
     expect(screen.getByText(/Style 12 · 2026-W2 — HTTPError 404/)).toBeInTheDocument();
     expect(screen.getByText('Due week: 2026-W39')).toBeInTheDocument();
+  });
+});
+
+
+describe('AutoIngestPanel progress', () => {
+  function running(over: Partial<AutoIngestState> = {}): AutoIngestState {
+    return {
+      ...state(),
+      running: true,
+      last_run: {
+        at: '2026-10-08T03:50:00+00:00', manual: true, in_progress: true,
+        current: { style_id: 81, week_year: 2026, week_number: 38 }, total: 3,
+        pairs: [{ style_id: 6, week_year: 2026, week_number: 38, ok: true, run_id: 'r', item_count: 1465 }],
+      },
+      ...over,
+    };
+  }
+
+  it('shows the period being fetched and blocks a second run', async () => {
+    serve(running());
+    renderPanel();
+    expect(await screen.findByText('Funky House · 2026-W38 (2/3)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run now' })).toBeDisabled();
+  });
+
+  it('shows the login step before the first period', async () => {
+    serve(running({ last_run: { at: '2026-10-08T03:50:00+00:00', manual: true, in_progress: true,
+                                current: null, total: null, pairs: [] } }));
+    renderPanel();
+    expect(await screen.findByText('Logging in to Beatport…')).toBeInTheDocument();
+  });
+
+  it('a progress record without a lease is an interrupted run', async () => {
+    serve(running({ running: false }));
+    renderPanel();
+    expect(await screen.findByText(/Interrupted/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run now' })).toBeEnabled();
+  });
+
+  it('polls every 10 s while a run holds the lease or right after Run now', () => {
+    const idle = state();
+    expect(autoIngestPollInterval(running(), null, 0)).toBe(10_000);
+    expect(autoIngestPollInterval(idle, null, 0)).toBe(false);
+    expect(autoIngestPollInterval(idle, 1_000, 60_000)).toBe(10_000); // waiting for the run to start
+    expect(autoIngestPollInterval(idle, 1_000, 200_000)).toBe(false);
+    expect(autoIngestPollInterval(undefined, null, 0)).toBe(false);
+  });
+
+  it('polling during a run keeps an unsaved edit', async () => {
+    let calls = 0;
+    server.use(
+      http.get('http://localhost/admin/auto-ingest', () => {
+        calls += 1; // last_run changes on every poll, the settings do not
+        return HttpResponse.json(running({ last_run: { ...running().last_run!, total: 2 + calls } }));
+      }),
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderPanel(qc);
+    const periods = await screen.findByLabelText('Periods per run');
+    await userEvent.clear(periods);
+    await userEvent.type(periods, '7');
+    await qc.refetchQueries({ queryKey: ['admin', 'autoIngest'] });
+    await waitFor(() => expect(calls).toBeGreaterThan(1));
+    expect(screen.getByLabelText('Periods per run')).toHaveValue('7');
   });
 });

@@ -658,7 +658,7 @@ _AUTO_INGEST_RUN_PAIR = {
 
 AUTO_INGEST_STATE = {
     "type": "object",
-    "required": ["settings", "planned_runs", "last_run", "due_week", "stuck"],
+    "required": ["settings", "planned_runs", "last_run", "running", "due_week", "stuck"],
     "properties": {
         "settings": {
             "type": "object",
@@ -679,17 +679,32 @@ AUTO_INGEST_STATE = {
         "last_run": {
             "type": "object",
             "nullable": True,
-            "required": ["at", "manual", "ok", "pairs"],
+            "description": "The last run's summary, or the running one's progress (in_progress).",
+            "required": ["at", "manual", "pairs"],
             "properties": {
                 "at": {"type": "string", "format": "date-time"},
                 "manual": {"type": "boolean"},
                 "ok": {"type": "boolean"},
+                "in_progress": {"type": "boolean"},
+                "current": {
+                    "type": "object",
+                    "nullable": True,
+                    "description": "The period being fetched; null while logging in.",
+                    "required": ["style_id", "week_year", "week_number"],
+                    "properties": {
+                        "style_id": {"type": "integer"},
+                        "week_year": {"type": "integer"},
+                        "week_number": {"type": "integer"},
+                    },
+                },
+                "total": {"type": "integer", "nullable": True},
                 "failed_step": {"type": "string", "description": "Set when login failed (credentials | login | authorize | token)."},
                 "status": {"type": ["integer", "string"], "nullable": True},
                 "due_week": {"type": "array", "items": {"type": "integer"}},
                 "pairs": {"type": "array", "items": _AUTO_INGEST_RUN_PAIR},
             },
         },
+        "running": {"type": "boolean", "description": "A run holds the lease right now."},
         "due_week": {
             "type": "object",
             "required": ["week_year", "week_number"],
