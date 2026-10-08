@@ -4,6 +4,10 @@
 
 [![Deploy](https://github.com/tarodo/clouder-core/actions/workflows/deploy.yml/badge.svg)](https://github.com/tarodo/clouder-core/actions/workflows/deploy.yml)
 
+![Curating a week of releases one keystroke per track: the 596 tracks left count down to “Bucket finished”](docs/assets/demo.gif)
+
+*Sample data, sped up: a week of new releases cleared one keystroke per track.*
+
 Every week brings a new wave of electronic-music releases on Beatport. For a DJ, turning "what came out this week" into "what goes into my set" means pulling the releases, matching each track across Spotify and YouTube Music, checking labels and artists, auditioning, and sorting into playlists. CLOUDER automates the data side of that workflow and gives a small group of DJs a fast, keyboard-first app for the human side.
 
 Under the hood it is a real data system: scheduled batch ingestion into an S3 raw zone, a canonical catalog in Aurora PostgreSQL built by entity resolution, data contracts and nightly data-quality checks, asynchronous enrichment workers, and an Iceberg lakehouse built by dbt on Athena. Everything is defined in Terraform and deployed by GitHub Actions on every merge to `main`.
