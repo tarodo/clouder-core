@@ -155,7 +155,7 @@ def test_client_id_is_set_from_a_github_secret() -> None:
     fn = _block(_tf("auto_ingest.tf"), 'resource "aws_lambda_function" "auto_ingest"')
     assert re.search(r"BEATPORT_CLIENT_ID\s*=\s*var\.beatport_client_id", fn)
     variable = _block(_tf("variables.tf"), 'variable "beatport_client_id"')
-    assert 'default     = ""' in variable  # unset secret → the code's built-in id
+    assert 'default     = ""' in variable  # unset secret: deploy passes, the login reports client_id
     workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "deploy.yml").read_text())
     apply = next(s for s in workflow["jobs"]["deploy"]["steps"] if s.get("name") == "Terraform apply")
     assert apply["env"]["TF_VAR_beatport_client_id"] == "${{ secrets.BEATPORT_CLIENT_ID }}"

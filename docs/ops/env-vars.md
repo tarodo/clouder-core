@@ -125,7 +125,7 @@ Also carries `RAW_BUCKET_NAME`, `RAW_PREFIX`, `BEATPORT_API_BASE_URL`, `CANONICA
 |------|------|---------|-----------------|
 | `BEATPORT_USERNAME_SSM_PARAMETER` | string | — | `/clouder/beatport/username` (SecureString, synced from GitHub by the deploy workflow) |
 | `BEATPORT_PASSWORD_SSM_PARAMETER` | string | — | `/clouder/beatport/password` (same) |
-| `BEATPORT_CLIENT_ID` | string | public API docs client | OAuth client id for the login flow, from GitHub secret `BEATPORT_CLIENT_ID` (`var.beatport_client_id`); empty = the built-in id |
+| `BEATPORT_CLIENT_ID` | string | — | OAuth client id for the login flow, from GitHub secret `BEATPORT_CLIENT_ID` (`var.beatport_client_id`); empty = the login fails at step `client_id` |
 | `AUTO_INGEST_SCHEDULE_GROUP` | string | — | EventBridge Scheduler group holding the `run-*` one-time schedules |
 | `AUTO_INGEST_SCHEDULER_ROLE_ARN` | string | — | Role the one-time schedules use to invoke this function |
 
