@@ -127,3 +127,4 @@ All functions share one Python package (`src/collector/`); each has its own entr
 - Where to look in the code → [`docs/engineering-highlights.md`](engineering-highlights.md).
 - What breaks at 10× / 100× → [`docs/scalability.md`](scalability.md).
 - Personal data and deleting a user → [`docs/privacy.md`](privacy.md).
+- Threat model → [`docs/security.md`](security.md); failure modes, RPO / RTO → [`docs/ops/failure-modes.md`](ops/failure-modes.md).
