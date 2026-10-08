@@ -33,6 +33,11 @@ def test_budget_exists_only_when_the_limit_is_configured() -> None:
     assert variable and re.search(r'default\s*=\s*""', variable.group(1))  # no amount in the repo
     deploy = (ROOT / ".github" / "workflows" / "deploy.yml").read_text()
     assert "TF_VAR_budget_monthly_limit: ${{ secrets.BUDGET_MONTHLY_LIMIT }}" in deploy
+    # No amount anywhere in the public repo, not even as an example.
+    docs_row = next(line for line in (ROOT / "docs" / "ops" / "deploy.md").read_text().splitlines()
+                    if "BUDGET_MONTHLY_LIMIT" in line)
+    for text in (variable.group(1), docs_row):
+        assert not re.search(r"e\.g\.[^|]*\d", text), text
 
 
 def test_raw_bucket_moves_old_versions_to_glacier_ir_and_never_expires_them() -> None:

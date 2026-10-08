@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collector.spotify_gold import export_gold
+from collector.spotify_gold import _MATCHES_SQL, export_gold
 
 
 def _track(pg, n: int, isrc: str, spotify_id: str | None, spotify_isrc: str | None, searched: bool) -> None:
@@ -53,3 +53,5 @@ def test_export_samples_each_match_tier_and_the_misses(pg) -> None:
     assert miss["track_id"] == "t8"
     assert miss["search_url"] == "https://open.spotify.com/search/Artist%20A%20Night%20Drive%208"
     assert pg.execute("SELECT count(*) AS n FROM clouder_tracks")[0]["n"] == before  # read-only
+    # The Data API caps a response at 1 MB; whole Spotify payloads (market lists) would blow it.
+    assert all("payload" not in row for row in pg.execute(_MATCHES_SQL, {"n": 3}))

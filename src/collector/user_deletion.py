@@ -102,8 +102,12 @@ def delete_covers(s3: Any, bucket: str, user_id: str) -> int:
         for page in s3.get_paginator("list_object_versions").paginate(Bucket=bucket, Prefix=prefix)
         for v in page.get("Versions", []) + page.get("DeleteMarkers", [])
     ]
+    failed = []
     for i in range(0, len(objects), 1000):  # DeleteObjects takes at most 1000 keys
-        s3.delete_objects(Bucket=bucket, Delete={"Objects": objects[i:i + 1000], "Quiet": True})
+        resp = s3.delete_objects(Bucket=bucket, Delete={"Objects": objects[i:i + 1000], "Quiet": True})
+        failed += [f"{e['Key']} ({e.get('Code')})" for e in resp.get("Errors", [])]
+    if failed:  # per-key failures come back with HTTP 200
+        raise RuntimeError(f"S3 kept {len(failed)} cover object versions: {', '.join(failed[:10])}")
     return len(objects)
 
 
@@ -126,9 +130,10 @@ def purge_lake(
         ContentType="application/json",
     )
     for table in _LAKE_TABLES:
+        # Athena accepts ExecutionParameters only for SELECT, INSERT, CTAS and UNLOAD;
+        # user_id is a validated UUID, so inlining it is safe.
         qid = athena.start_query_execution(
-            QueryString=f"DELETE FROM {table} WHERE user_id = ?",
-            ExecutionParameters=[f"'{user_id}'"],
+            QueryString=f"DELETE FROM {table} WHERE user_id = '{user_id}'",
             WorkGroup=workgroup,
         )["QueryExecutionId"]
         while True:

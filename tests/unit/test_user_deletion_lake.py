@@ -29,7 +29,8 @@ class FakeS3:
 
     def delete_objects(self, *, Bucket: str, Delete: dict) -> dict:
         self.deleted += Delete["Objects"]
-        return {}
+        return {"Errors": [{"Key": o["Key"], "Code": "AccessDenied"} for o in Delete["Objects"]
+                           if o["Key"].endswith("locked.jpg")]}
 
     def put_object(self, **kwargs) -> dict:
         self.put = kwargs
@@ -69,17 +70,26 @@ def test_purge_lake_writes_the_tombstone_before_deleting_derived_rows() -> None:
 
     assert s3.put["Key"] == f"governance/deleted_users/{UID}.json"
     assert json.loads(s3.put["Body"]) == {"user_id": UID, "deleted_at": "2026-10-08T12:00:00+00:00"}
+    # Athena takes ExecutionParameters only for SELECT/INSERT/CTAS/UNLOAD: the
+    # (UUID-validated) id is inlined.
     assert [q["QueryString"] for q in athena.queries] == [
-        "DELETE FROM clouder_silver.events WHERE user_id = ?",
-        "DELETE FROM clouder_gold.fct_play WHERE user_id = ?",
+        f"DELETE FROM clouder_silver.events WHERE user_id = '{UID}'",
+        f"DELETE FROM clouder_gold.fct_play WHERE user_id = '{UID}'",
     ]
-    assert all(q["ExecutionParameters"] == [f"'{UID}'"] and q["WorkGroup"] == "wg" for q in athena.queries)
+    assert all("ExecutionParameters" not in q and q["WorkGroup"] == "wg" for q in athena.queries)
 
 
 def test_purge_lake_fails_loudly_when_athena_fails() -> None:
     with pytest.raises(RuntimeError, match="FAILED"):
         purge_lake(FakeS3([]), FakeAthena("FAILED"), user_id=UID, lake_bucket="lake",
                    workgroup="wg", now=datetime.now(timezone.utc), sleep=lambda _: None)
+
+
+def test_delete_covers_fails_when_s3_refuses_a_version() -> None:
+    # DeleteObjects answers 200 and lists per-key failures in Errors.
+    s3 = FakeS3([{"Key": f"covers/{UID}/p1/locked.jpg", "VersionId": "v1"}])
+    with pytest.raises(RuntimeError, match="locked.jpg"):
+        delete_covers(s3, "raw", UID)
 
 
 def test_lake_steps_refuse_an_id_that_is_not_a_uuid() -> None:

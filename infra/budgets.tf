@@ -3,7 +3,7 @@
 # public); without it, or without an alarm email, no budget is created.
 
 variable "budget_monthly_limit" {
-  description = "Monthly cost budget in USD, e.g. \"50\". Empty = no budget."
+  description = "Monthly cost budget in USD (a plain number). Empty = no budget."
   type        = string
   default     = ""
 }

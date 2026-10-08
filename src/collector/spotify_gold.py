@@ -12,7 +12,6 @@ estimate. No Lambda calls this module.
 
 from __future__ import annotations
 
-import json
 from typing import Any, Mapping
 from urllib.parse import quote
 
@@ -24,7 +23,12 @@ _ARTISTS = """(SELECT COALESCE(STRING_AGG(DISTINCT a.name, ', ' ORDER BY a.name)
 
 _MATCHES_SQL = """
 WITH m AS (
-    SELECT t.id AS track_id, t.isrc, t.title, t.length_ms, t.spotify_id, se.payload,
+    SELECT t.id AS track_id, t.isrc, t.title, t.length_ms, t.spotify_id,
+           se.payload->>'name' AS spotify_title,
+           se.payload->'external_ids'->>'isrc' AS spotify_isrc,
+           (se.payload->>'duration_ms')::bigint AS spotify_duration_ms,
+           (SELECT STRING_AGG(a->>'name', ', ') FROM jsonb_array_elements(se.payload->'artists') a)
+               AS spotify_artists,
            CASE WHEN se.payload IS NULL THEN 'no_payload'
                 WHEN upper(se.payload->'external_ids'->>'isrc') = upper(t.isrc) THEN 'isrc'
                 WHEN left(upper(se.payload->'external_ids'->>'isrc'), -1) = left(upper(t.isrc), -1)
@@ -39,7 +43,8 @@ WITH m AS (
            count(*) OVER (PARTITION BY tier) AS population
     FROM m
 )
-SELECT r.*, """ + _ARTISTS.format(t="r") + """
+SELECT r.track_id, r.isrc, r.title, r.length_ms, r.spotify_id, r.spotify_title, r.spotify_isrc,
+       r.spotify_duration_ms, r.spotify_artists, r.tier, r.population, """ + _ARTISTS.format(t="r") + """
 FROM ranked r WHERE rn <= :n
 ORDER BY tier, rn
 """
@@ -56,16 +61,11 @@ FROM (
 """
 
 
-def _json(value: Any) -> Any:
-    return json.loads(value) if isinstance(value, str) else (value or {})
-
-
 def export_gold(client: Any, per_tier: int) -> list[dict[str, Any]]:
     population: dict[str, Any] = {"kind": "population", **dict.fromkeys(TIERS, 0), "not_found": 0}
     records: list[dict[str, Any]] = []
     for row in client.execute(_MATCHES_SQL, {"n": per_tier}):
         population[row["tier"]] = int(row["population"])
-        sp = _json(row["payload"])
         records.append({
             "kind": "match",
             "tier": row["tier"],
@@ -76,10 +76,10 @@ def export_gold(client: Any, per_tier: int) -> list[dict[str, Any]]:
             "length_ms": row["length_ms"],
             "spotify_id": row["spotify_id"],
             "spotify_url": f"https://open.spotify.com/track/{row['spotify_id']}",
-            "spotify_title": sp.get("name"),
-            "spotify_artists": ", ".join(a.get("name", "") for a in sp.get("artists") or []),
-            "spotify_isrc": (sp.get("external_ids") or {}).get("isrc"),
-            "spotify_duration_ms": sp.get("duration_ms"),
+            "spotify_title": row["spotify_title"],
+            "spotify_artists": row["spotify_artists"] or "",
+            "spotify_isrc": row["spotify_isrc"],
+            "spotify_duration_ms": row["spotify_duration_ms"],
         })
     for row in client.execute(_NOT_FOUND_SQL, {"n": per_tier}):
         population["not_found"] = int(row["population"])
