@@ -81,6 +81,7 @@ Secrets are scoped to the **`production` environment** (not repo-root) in GitHub
 | `SPOTIFY_CLIENT_SECRET` | `production` environment | Synced to `/clouder/spotify/client_secret` SSM |
 | `BEATPORT_USERNAME` | `production` environment | Synced to `/clouder/beatport/username` SSM (auto-ingest login; step skipped while unset) |
 | `BEATPORT_PASSWORD` | `production` environment | Synced to `/clouder/beatport/password` SSM (auto-ingest login; step skipped while unset) |
+| `BEATPORT_CLIENT_ID` | `production` environment | Optional. `TF_VAR_beatport_client_id` → auto-ingest Lambda env `BEATPORT_CLIENT_ID`; unset = the public id built into `collector.beatport_auth`. Change it and run Deploy by hand if Beatport rotates the id |
 | `AWS_GITHUB_ROLE_ARN` | Repo root | OIDC role assumption in both workflows |
 
 GitHub Actions repo variables (not secrets): `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `SPOTIFY_OAUTH_REDIRECT_URI`, `ADMIN_SPOTIFY_IDS`, `ALLOWED_FRONTEND_REDIRECTS`.

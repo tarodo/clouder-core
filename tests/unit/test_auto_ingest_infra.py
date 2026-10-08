@@ -148,3 +148,14 @@ def test_auto_ingest_crashes_and_timeouts_raise_the_errors_alarm() -> None:
 def test_a_manual_deploy_only_ships_main() -> None:
     workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "deploy.yml").read_text())
     assert workflow["jobs"]["deploy"]["if"] == "github.ref == 'refs/heads/main'"
+
+
+def test_client_id_is_set_from_a_github_secret() -> None:
+    # Beatport can rotate its public client id; a secret + manual deploy fixes it without code.
+    fn = _block(_tf("auto_ingest.tf"), 'resource "aws_lambda_function" "auto_ingest"')
+    assert re.search(r"BEATPORT_CLIENT_ID\s*=\s*var\.beatport_client_id", fn)
+    variable = _block(_tf("variables.tf"), 'variable "beatport_client_id"')
+    assert 'default     = ""' in variable  # unset secret → the code's built-in id
+    workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "deploy.yml").read_text())
+    apply = next(s for s in workflow["jobs"]["deploy"]["steps"] if s.get("name") == "Terraform apply")
+    assert apply["env"]["TF_VAR_beatport_client_id"] == "${{ secrets.BEATPORT_CLIENT_ID }}"
