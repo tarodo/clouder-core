@@ -75,6 +75,9 @@ backfill floor (default 2026-01-03, week 1 of 2026).
 - Credentials: GitHub environment `production` secrets `BEATPORT_USERNAME` /
   `BEATPORT_PASSWORD` → deploy step → SSM SecureString `/clouder/beatport/username` and
   `/clouder/beatport/password`. The auto-ingest role may read exactly those two parameters.
+  The OAuth client id is public (Beatport's API docs page); an optional secret
+  `BEATPORT_CLIENT_ID` overrides the built-in one through the Lambda env, so a rotated id is
+  fixed with a secret and a manual deploy.
 - The token lives in the run's memory only: it is obtained per run, passed to the fetch, and
   never written to a log, S3, SQS, the database or a return value (CLAUDE.md #5). Login
   errors carry the step and HTTP status, never a body.

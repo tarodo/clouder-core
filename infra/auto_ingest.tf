@@ -119,6 +119,7 @@ resource "aws_lambda_function" "auto_ingest" {
     variables = {
       BEATPORT_USERNAME_SSM_PARAMETER = local.beatport_username_ssm
       BEATPORT_PASSWORD_SSM_PARAMETER = local.beatport_password_ssm
+      BEATPORT_CLIENT_ID              = var.beatport_client_id
       RAW_BUCKET_NAME                 = aws_s3_bucket.raw.bucket
       RAW_PREFIX                      = var.raw_prefix
       BEATPORT_API_BASE_URL           = var.beatport_api_base_url

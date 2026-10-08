@@ -174,3 +174,19 @@ def test_real_opener_carries_the_session_and_reads_the_redirect(monkeypatch) -> 
 
     assert seen["authorize_cookie"] == "sessionid=S1"
     assert seen["token_cookie"] is None  # like the tested reference: token call outside the session
+
+
+@pytest.mark.parametrize("env, expected", [("custom-id", "custom-id"), ("", None)])
+def test_client_id_comes_from_the_environment(monkeypatch, env, expected) -> None:
+    # The deploy passes an empty value while the GitHub secret is unset.
+    from collector.beatport_auth import DEFAULT_CLIENT_ID
+
+    monkeypatch.setenv("BEATPORT_CLIENT_ID", env)
+    opener = Opener(login=Response(200, b"{}"), authorize=_redirect(), token=_token_ok())
+
+    fetch_access_token("user", PASSWORD, opener=opener)
+
+    _, authorize, token = opener.requests
+    want = expected or DEFAULT_CLIENT_ID
+    assert urllib.parse.parse_qs(urllib.parse.urlparse(authorize.full_url).query)["client_id"] == [want]
+    assert urllib.parse.parse_qs(token.data.decode())["client_id"] == [want]
