@@ -16,17 +16,17 @@ Under the hood it is a real data system: scheduled batch ingestion into an S3 ra
 
 ## Measured results
 
-Each change below started from a measured problem and ends with a measured result on production data.
+The engineering decisions behind the system and what each one bought, measured on production data.
 
-| Area | Before | After | Details |
-|---|---|---|---|
-| Canonicalization | Row-by-row RDS Data API calls: 2,805 for an average week; ~241 s per 1,000 tracks | Set-based SQL: 55 calls for the same week; 9.9–14.8 s per 1,000 tracks in production (16–24× faster) | [benchmark](docs/benchmarks/canonicalization.md), [ADR-0022](docs/adr/0022-set-based-canonicalization.md) |
-| Reprocessing | Replaying an old run rolled newer values back and rewrote every row; no preview | Replay-safe writes, dry-run diff; 153 runs / 100,268 tracks replayed in 7 min 56 s, and a second run changes nothing | [backfill](docs/ops/backfill.md), [ADR-0024](docs/adr/0024-replayable-canonicalization-backfill.md) |
-| Lakehouse | 1,243 small Parquet files; aggregate query 6.1–7.0 s; track history lost after 14 days | Iceberg silver/gold built by dbt: 38 files, 0.77 s (~8×), SCD2 track history, deduplicated events | [lakehouse](docs/data/lakehouse.md), [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md), [lineage](https://tarodo.github.io/clouder-core/) |
-| Data contract | A malformed record was dropped silently; a new upstream field went unnoticed for weeks | Records screened against a contract: quarantine with reasons, drift alarms (replayed history: the alarm would have fired on 2026-09-13) | [contracts](docs/data/contracts.md), [ADR-0026](docs/adr/0026-raw-data-contract.md) |
-| Data quality | Pipeline health was alarmed, the data was not; a stuck run was found by hand | 11 nightly SQL checks with SLOs; the first run caught two styles lagging a week behind | [data quality](docs/data/data-quality.md), [ADR-0023](docs/adr/0023-sql-data-quality-checks.md) |
-| Entity resolution | YouTube Music auto-match threshold (0.92) picked by hand; precision unknown | 100 of 100 hand-labelled automatic matches correct (error < ~3 % at 95 % confidence); lowering to 0.90 would publish 27 wrong videos | [entity resolution](docs/data/entity-resolution.md) |
-| Ingest | Manual: an admin pasted a Beatport token per style and week | Scheduled (EventBridge Scheduler): login per run, the due week of every style first, then an even backfill | [auto-ingest](docs/data/auto-ingest.md), [ADR-0027](docs/adr/0027-auto-ingest.md) |
+| Decision | Result | Details |
+|---|---|---|
+| Set-based SQL canonicalization instead of row-by-row Data API calls | 55 calls for an average week; 9.9–14.8 s per 1,000 tracks (16–24× faster) | [benchmark](docs/benchmarks/canonicalization.md), [ADR-0022](docs/adr/0022-set-based-canonicalization.md) |
+| Replay-safe writes keyed on observation time, previewed as a dry-run diff | 153 runs / 100,268 tracks replayed in 7 min 56 s; a second run changes nothing | [backfill](docs/ops/backfill.md), [ADR-0024](docs/adr/0024-replayable-canonicalization-backfill.md) |
+| Iceberg silver/gold built by dbt on Athena | Aggregate query in 0.77 s (~8× faster), SCD2 track history, deduplicated events | [lakehouse](docs/data/lakehouse.md), [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md), [lineage](https://tarodo.github.io/clouder-core/) |
+| A data contract on every raw record, with quarantine and drift alarms | Bad records never reach the catalog; on replayed history the drift alarm would have fired on 2026-09-13 | [contracts](docs/data/contracts.md), [ADR-0026](docs/adr/0026-raw-data-contract.md) |
+| 11 nightly SQL data-quality checks with SLOs | The first run caught two styles lagging a week behind | [data quality](docs/data/data-quality.md), [ADR-0023](docs/adr/0023-sql-data-quality-checks.md) |
+| The YouTube Music matcher measured on human decisions and a labelled sample | 100 of 100 automatic matches correct (error < ~3 % at 95 % confidence); the 0.92 threshold stays, since 0.90 would publish 27 wrong videos | [entity resolution](docs/data/entity-resolution.md) |
+| Scheduled ingest (EventBridge Scheduler) with a Beatport login per run | The due week of every style first, then an even backfill, with no manual step | [auto-ingest](docs/data/auto-ingest.md), [ADR-0027](docs/adr/0027-auto-ingest.md) |
 
 ## Architecture
 
