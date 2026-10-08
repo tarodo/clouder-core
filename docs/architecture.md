@@ -1,80 +1,117 @@
 # CLOUDER Architecture
 
-CLOUDER is a multi-tenant SaaS for DJs. A shared canonical music catalogue is fed by a serverless ingest pipeline; per-user overlays (playlists, tags, curation state) sit on top. The user-facing surface is a React SPA that talks to a single API Gateway endpoint.
+CLOUDER is a multi-tenant SaaS for DJs. A shared canonical music catalogue is fed by a serverless ingest pipeline; per-user overlays (playlists, tags, curation state) sit on top. The user-facing surface is a React SPA that talks to a single API Gateway endpoint. Everything below is defined in Terraform (`infra/`) and deployed by GitHub Actions on every merge to `main`.
 
 ## System overview
 
 ```mermaid
 flowchart LR
-    subgraph SPA["React SPA (Vite + Mantine 9)"]
-        UI[UI: triage, curate, categories, player]
+    SPA["React SPA<br/>S3 + CloudFront"] --> APIGW["API Gateway HTTP API<br/>Lambda authorizer"]
+
+    subgraph API["API Lambdas"]
+        CAPI["collector-api"]
+        CUR["curation"]
+        AUTH["auth-handler"]
+        AAPI["analytics-api"]
+        TEL["telemetry"]
     end
 
-    subgraph API["AWS HTTP API Gateway"]
-        APIGW[API Gateway routes]
+    subgraph Ingest["Ingest & canonicalization"]
+        SCHED["EventBridge Scheduler"] --> AI["auto-ingest"]
+        RAW[("S3 raw zone<br/>style / year / week")]
+        Q1[["SQS canonicalization + DLQ"]]
+        CAN["canonicalization-worker"]
     end
 
-    subgraph Lambdas["AWS Lambdas"]
-        AH["auth-handler"]
-        CH["collector-api (API Lambda)"]
-        SH["ai-search-worker"]
+    subgraph Enrich["Enrichment (SQS + DLQ per worker)"]
         SPW["spotify-search-worker"]
         VMW["vendor-match-worker"]
-        WH["canonicalization-worker (Worker Lambda)"]
-        MH["migration"]
-        BF["backfill (Step Functions task)"]
+        LEN["label / artist enricher workers"]
+        DSP["auto-enrich-dispatch-worker"]
+        CMT["comments-collect-worker"]
     end
 
-    subgraph Lakehouse["Analytics lakehouse"]
-        DBT["dbt build (CodeBuild, nightly)"]
-        SIL[(Iceberg silver / gold)]
+    subgraph Batch["Scheduled & on-demand jobs"]
+        BF["Step Functions backfill<br/>(backfill λ)"]
+        DQ["data-quality λ<br/>nightly"]
+        EXP["catalog-export λ<br/>nightly"]
+        DBT["Step Functions transform<br/>CodeBuild dbt build"]
     end
 
-    subgraph Storage
-        S3[(S3 raw/bp/releases/*)]
-        SQS[(SQS canonicalization queue + DLQ)]
-        Aurora[(Aurora PostgreSQL Serverless v2)]
+    subgraph Lake["Analytics lakehouse"]
+        FH["Kinesis Data Firehose<br/>JSON → Parquet"]
+        BRZ[("S3 bronze")]
+        SIL[("Iceberg silver / gold")]
+        ATH["Athena + Glue Data Catalog"]
     end
 
-    subgraph Vendors
-        BP[[Beatport API]]
-        SP[[Spotify Web API + Web Playback SDK]]
-        PX[[Perplexity API]]
-    end
+    DB[("Aurora PostgreSQL Serverless v2<br/>via RDS Data API")]
+    BP[["Beatport API"]]
+    VENDORS[["Spotify · YouTube Music · YouTube Data API<br/>Gemini · OpenAI · Tavily · DeepSeek"]]
 
-    UI <--> APIGW
-    APIGW --> AH
-    APIGW --> CH
-    AH <--> Aurora
-    AH <--> SP
-    CH --> BP
-    CH --> S3
-    CH --> SQS
-    SQS --> WH
-    WH --> S3
-    WH --> Aurora
-    SH <--> PX
-    SH <--> Aurora
-    SPW <--> SP
-    SPW <--> Aurora
-    VMW <--> SP
-    VMW <--> Aurora
-    MH --> Aurora
-    BF --> S3
-    BF --> Aurora
-    DBT --> SIL
-    UI <--> SP
+    APIGW --> CAPI & CUR & AUTH & AAPI & TEL
+    CAPI & AI --> BP
+    CAPI & AI --> RAW
+    CAPI & AI --> Q1
+    Q1 --> CAN
+    RAW --> CAN
+    CAN --> DB
+    CAN -->|SQS| SPW
+    CAPI -->|SQS| LEN
+    CUR -->|SQS| VMW & DSP
+    DSP -->|SQS| LEN & CMT
+    SPW & VMW & LEN & CMT --> VENDORS
+    SPW & VMW & LEN & CMT --> DB
+    CUR & AUTH --> DB
+    BF --> RAW
+    BF --> DB
+    DQ --> DB
+    EXP --> DB
+    EXP --> BRZ
+    TEL --> FH --> BRZ
+    BRZ --> DBT --> SIL
+    AAPI --> ATH
+    ATH --- BRZ & SIL
 ```
+
+Every CloudWatch alarm (27) notifies one SNS topic with an email subscription.
+
+## Lambda functions
+
+All functions share one Python package (`src/collector/`); each has its own entry module. AWS names carry the `clouder-prod-` prefix.
+
+| Function | Entry module | Trigger | Purpose |
+|---|---|---|---|
+| `collector-api` | `collector.handler` | API Gateway | Admin ingest, catalog reads, admin endpoints (coverage, enrichment, auto-ingest settings) |
+| `curation` | `collector.curation_handler` | API Gateway | Triage, categories, playlists, tags, publishing to Spotify / YouTube Music |
+| `auth-handler` | `collector.auth_handler` | API Gateway | Spotify OAuth (PKCE) login, callback, refresh-token rotation |
+| `auth-authorizer` | `collector.auth_authorizer` | API Gateway authorizer | Validates the CLOUDER JWT on every protected route |
+| `analytics-api` | `collector.analytics_handler` | API Gateway | Listening / funnel / time-per-track analytics from Athena |
+| `telemetry` | `collector.telemetry_handler` | API Gateway | Validates SPA telemetry batches and forwards them to Firehose |
+| `auto-ingest` | `collector.auto_ingest_handler` | EventBridge Scheduler | Plans daily runs; logs in to Beatport and ingests due and backfill weeks |
+| `canonicalization-worker` | `collector.worker_handler` | SQS | Contract screening, normalization, canonical upserts |
+| `spotify-search-worker` | `collector.spotify_handler` | SQS | ISRC lookup + metadata fallback against Spotify |
+| `vendor-match-worker` | `collector.vendor_match_handler` | SQS | YouTube Music matching with fuzzy scoring and a review queue |
+| `label-enricher-worker` | `collector.label_enrichment_handler` | SQS | Multi-vendor LLM research on labels |
+| `artist-enricher-worker` | `collector.artist_enrichment_handler` | SQS | Multi-vendor LLM research on artists |
+| `auto-enrich-dispatch-worker` | `collector.auto_enrich_dispatch_handler` | SQS | Fans out label, artist and comment enrichment for a finalized triage block |
+| `comments-collect-worker` | `collector.comments_collect_handler` | SQS | Collects YouTube comments for one video per message |
+| `backfill` | `collector.backfill_handler` | Step Functions | Plans and replays stored raw runs (dry run or apply) |
+| `data-quality` | `collector.data_quality_handler` | EventBridge (00:10 UTC) | Eleven read-only SQL checks → CloudWatch metrics |
+| `catalog-export` | `collector.catalog_export_handler` | EventBridge (00:00 UTC) | Nightly catalog snapshot into the lake (`bronze/catalog_export/`) |
+| `db-migration` | `collector.migration_handler` | Deploy workflow | Runs Alembic migrations before the API code ships |
 
 ## Subsystems
 
-- **Ingest.** API Lambda fetches a Beatport weekly snapshot, writes `releases.json.gz + meta.json` to S3, enqueues a canonicalization job, and records an `ingest_runs` row. See [`docs/data/raw-ingestion.md`](data/raw-ingestion.md). The auto-ingest Lambda runs the same path on an EventBridge Scheduler plan set in the admin: it logs in to Beatport per run and ingests the due week of every visible style, then backfills. See [`docs/data/auto-ingest.md`](data/auto-ingest.md).
-- **Canonicalization.** SQS-triggered worker reads the raw snapshot, normalises tracks / artists / albums / labels, and upserts canonical entities into Aurora via the RDS Data API. See [`docs/data/canonicalization.md`](data/canonicalization.md). Stored raw runs can be replayed — previewed first as a dry run — by the backfill state machine. See [`docs/ops/backfill.md`](ops/backfill.md).
-- **Search and enrichment.** Per-track ISRC lookup against Spotify, plus a metadata-fallback path for misses. Perplexity is used to flag AI-suspected labels and artists. Results are cached in vendor-match tables. See [`docs/data/search-and-enrichment.md`](data/search-and-enrichment.md).
-- **Curation.** The SPA's tap-to-assign UX assigns tracks from triage buckets into per-user playlists. Optimistic shrink keeps the cursor stable. See [`docs/frontend/features.md`](frontend/features.md) and ADR-0010, ADR-0012.
+- **Ingest.** The API Lambda (admin, on demand) and the auto-ingest Lambda (scheduled) fetch a Beatport style × Saturday-week, write `releases.json.gz + meta.json` to S3, record an `ingest_runs` row and enqueue canonicalization. Auto-ingest logs in per run and ingests the due week of every visible style first, then backfills evenly. See [`docs/data/raw-ingestion.md`](data/raw-ingestion.md) and [`docs/data/auto-ingest.md`](data/auto-ingest.md).
+- **Canonicalization.** The SQS worker screens raw records against a data contract (bad records go to quarantine, drift raises an alarm), normalizes tracks / artists / albums / labels and upserts them set-based through the RDS Data API. Writes are replay-safe, so stored raw runs can be replayed — previewed first as a dry run — by the backfill state machine. See [`docs/data/canonicalization.md`](data/canonicalization.md), [`docs/data/contracts.md`](data/contracts.md) and [`docs/ops/backfill.md`](ops/backfill.md).
+- **Search and enrichment.** Spotify ISRC lookup with a metadata fallback, YouTube Music matching with a human review queue, and multi-vendor LLM research on labels and artists (Gemini, OpenAI, Tavily + DeepSeek). See [`docs/data/search-and-enrichment.md`](data/search-and-enrichment.md), [`docs/data/entity-resolution.md`](data/entity-resolution.md), ADR-0016 and ADR-0017.
+- **Curation.** The SPA's tap-to-assign UX moves tracks from triage buckets into per-user categories and playlists. Optimistic shrink keeps the cursor stable. See [`docs/frontend/features.md`](frontend/features.md) and ADR-0010, ADR-0012.
 - **Playback.** Spotify Web Playback SDK is lazy-loaded on the first play. The CLOUDER auth refresh stream bundles a Spotify access token; the SPA keeps it in memory only. See [`docs/frontend/playback.md`](frontend/playback.md) and ADR-0011, ADR-0013.
 - **Analytics lakehouse.** Telemetry lands in bronze through Firehose; a nightly dbt build on Athena turns it and the catalog snapshots into Iceberg silver/gold (deduplicated events, SCD2 track history, plays). The Home cards read silver history plus the live bronze tail. See [`docs/data/lakehouse.md`](data/lakehouse.md).
-- **Operations.** Aurora Serverless v2 with `min_acu=0` (auto-pause). Migrations run via a dedicated Lambda. See [`docs/ops/aurora.md`](ops/aurora.md) and [`docs/ops/deploy.md`](ops/deploy.md).
+- **Data quality.** A nightly Lambda runs eleven SQL checks (freshness, volume, completeness, integrity, plausibility) with SLOs. See [`docs/data/data-quality.md`](data/data-quality.md) and ADR-0023.
+- **Alerting.** 27 CloudWatch alarms (Lambda errors, API latency, DLQ depth, data quality, contract drift, failed dbt build, failed auto-ingest run) notify one SNS topic with an email subscription. See [`docs/ops/deploy.md`](ops/deploy.md).
+- **Operations.** Aurora Serverless v2 with `min_acu=0` (auto-pause). Migrations run via a dedicated Lambda before the API code is updated. See [`docs/ops/aurora.md`](ops/aurora.md) and [`docs/ops/deploy.md`](ops/deploy.md).
 
 ## Where to read next
 
