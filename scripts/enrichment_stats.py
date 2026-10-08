@@ -25,13 +25,6 @@ import time
 from datetime import date
 from typing import Any
 
-_DEFAULT_CLUSTER_ARN = (
-    "arn:aws:rds:us-east-1:223458487728:cluster:clouder-prod-aurora"
-)
-_DEFAULT_SECRET_ARN = (
-    "arn:aws:secretsmanager:us-east-1:223458487728:"
-    "secret:rds!cluster-1ebed129-3946-4c55-a18e-72b53364e0e6-pCk4dS"
-)
 
 _CELLS_SQL = """
 SELECT 'label' AS kind,
@@ -88,10 +81,15 @@ def cutoff_date(months: int, today: date | None = None) -> date:
     return date(year, month0 + 1, 1)
 
 
-def resolve_arn(cli_value: str | None, env_var: str, default: str) -> str:
-    if cli_value:
-        return cli_value
-    return os.environ.get(env_var) or default
+def require_arn(cli_value: str | None, name: str) -> str:
+    """--{name}-arn, else AURORA_{NAME}_ARN (the Lambdas' name) or CLOUDER_{NAME}_ARN; no default."""
+    value = (cli_value or os.environ.get(f"AURORA_{name}_ARN")
+             or os.environ.get(f"CLOUDER_{name}_ARN") or "").strip()
+    if not value:
+        print(f"AURORA_{name}_ARN is not set (or pass --{name.lower()}-arn); "
+              "refusing to guess a cluster", file=sys.stderr)
+        raise SystemExit(2)
+    return value
 
 
 def fetch(
@@ -239,8 +237,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--months", type=int, default=3)
     args = parser.parse_args(argv)
 
-    cluster_arn = resolve_arn(args.cluster_arn, "CLOUDER_CLUSTER_ARN", _DEFAULT_CLUSTER_ARN)
-    secret_arn = resolve_arn(args.secret_arn, "CLOUDER_SECRET_ARN", _DEFAULT_SECRET_ARN)
+    cluster_arn = require_arn(args.cluster_arn, "CLUSTER")
+    secret_arn = require_arn(args.secret_arn, "SECRET")
     cutoff = cutoff_date(args.months)
 
     import boto3

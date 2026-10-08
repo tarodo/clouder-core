@@ -1641,7 +1641,7 @@ Expected: 4 passed.
 Run:
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core-backfill && sed -e 's#${backfill_function_arn}#arn:aws:lambda:eu-central-1:223458487728:function:x#' -e 's#${data_quality_function_arn}#arn:aws:lambda:eu-central-1:223458487728:function:y#' infra/backfill.asl.json > "$SCRATCH/asl.json" && aws stepfunctions validate-state-machine-definition --definition "file://$SCRATCH/asl.json" --type STANDARD --query result --output text
+cd /Users/roman/Projects/clouder-projects/clouder-core-backfill && sed -e 's#${backfill_function_arn}#arn:aws:lambda:eu-central-1:000000000000:function:x#' -e 's#${data_quality_function_arn}#arn:aws:lambda:eu-central-1:000000000000:function:y#' infra/backfill.asl.json > "$SCRATCH/asl.json" && aws stepfunctions validate-state-machine-definition --definition "file://$SCRATCH/asl.json" --type STANDARD --query result --output text
 ```
 
 Expected: `OK`. If the call is not permitted, record `Task 5: Ruling: ASL validated by the contract test only` and rely on `terraform apply` in deploy.

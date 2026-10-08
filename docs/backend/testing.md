@@ -38,7 +38,6 @@ Test individual functions and modules in isolation. Examples:
 
 - `test_canonicalize.py` — canonicalization logic with a `FakeDataAPI`.
 - `test_beatport_client.py` — HTTP client with mocked `requests`.
-- `test_ai_flag_propagation.py` — `propagate_ai_flag` logic.
 - `test_auth_handler_*.py` — auth handler routes with fake repository and JWT utils.
 
 Unit tests do not need real Aurora, real AWS credentials, or real vendor API keys.

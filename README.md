@@ -1,48 +1,191 @@
 # CLOUDER
 
-> A weekly track-curation tool for a small circle of DJs.
+**A serverless data pipeline on AWS — and the DJ curation app built on it.**
 
-CLOUDER pulls fresh weekly releases from Beatport into your personal canonical library, lets you triage them with one keystroke, and ships the keepers straight into Spotify-ready playlists you can play in the browser.
+[![Deploy](https://github.com/tarodo/clouder-core/actions/workflows/deploy.yml/badge.svg)](https://github.com/tarodo/clouder-core/actions/workflows/deploy.yml)
 
-**Who it's for.** DJs who buy or audition new releases every week and need a fast, repeatable workflow from "what came out this week" to "what's going into the set."
+Every week brings a new wave of electronic-music releases on Beatport. For a DJ, turning "what came out this week" into "what goes into my set" means pulling the releases, matching each track across Spotify and YouTube Music, checking labels and artists, auditioning, and sorting into playlists. CLOUDER automates the data side of that workflow and gives a small group of DJs a fast, keyboard-first app for the human side.
 
-## Features
+Under the hood it is a real data system: scheduled batch ingestion into an S3 raw zone, a canonical catalog in Aurora PostgreSQL built by entity resolution, data contracts and nightly data-quality checks, asynchronous enrichment workers, and an Iceberg lakehouse built by dbt on Athena. Everything is defined in Terraform and deployed by GitHub Actions on every merge to `main`.
 
-- **Weekly automated ingest** from Beatport into a personal canonical catalogue.
-- **Tap-to-curate workflow** — one key per destination playlist, optimistic shrinks the queue.
-- **In-browser playback** via the Spotify Web Playback SDK, keyboard-first hotkeys.
-- **AI-assisted screening** — labels and artists are checked for AI-generated content and flagged.
-- **Per-DJ playlists and tags** layered on a shared canonical catalogue.
+> **Status:** in production for a small closed group of DJs (access goes through a Spotify allow-list), so the screenshots below are rendered from the app's components with sample data.
 
----
+## Measured results
 
-## For developers
+Each change below started from a measured problem and ends with a measured result on production data.
 
-CLOUDER is a serverless ingest pipeline (Lambda + S3 + SQS + Aurora PostgreSQL) plus a React 19 SPA. The backend is Python; the frontend is Mantine 9 + react-router 7. Infrastructure is Terraform.
+| Area | Before | After | Details |
+|---|---|---|---|
+| Canonicalization | Row-by-row RDS Data API calls: 2,805 for an average week; ~241 s per 1,000 tracks | Set-based SQL: 55 calls for the same week; 9.9–14.8 s per 1,000 tracks in production (16–24× faster) | [benchmark](docs/benchmarks/canonicalization.md), [ADR-0022](docs/adr/0022-set-based-canonicalization.md) |
+| Reprocessing | Replaying an old run rolled newer values back and rewrote every row; no preview | Replay-safe writes, dry-run diff; 153 runs / 100,268 tracks replayed in 7 min 56 s, and a second run changes nothing | [backfill](docs/ops/backfill.md), [ADR-0024](docs/adr/0024-replayable-canonicalization-backfill.md) |
+| Lakehouse | 1,243 small Parquet files; aggregate query 6.1–7.0 s; track history lost after 14 days | Iceberg silver/gold built by dbt: 38 files, 0.77 s (~8×), SCD2 track history, deduplicated events | [lakehouse](docs/data/lakehouse.md), [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md), [lineage](https://tarodo.github.io/clouder-core/) |
+| Data contract | A malformed record was dropped silently; a new upstream field went unnoticed for weeks | Records screened against a contract: quarantine with reasons, drift alarms (replayed history: the alarm would have fired on 2026-09-13) | [contracts](docs/data/contracts.md), [ADR-0026](docs/adr/0026-raw-data-contract.md) |
+| Data quality | Pipeline health was alarmed, the data was not; a stuck run was found by hand | 11 nightly SQL checks with SLOs; the first run caught two styles lagging a week behind | [data quality](docs/data/data-quality.md), [ADR-0023](docs/adr/0023-sql-data-quality-checks.md) |
+| Entity resolution | YouTube Music auto-match threshold (0.92) picked by hand; precision unknown | 100 of 100 hand-labelled automatic matches correct (error < ~3 % at 95 % confidence); lowering to 0.90 would publish 27 wrong videos | [entity resolution](docs/data/entity-resolution.md) |
+| Ingest | Manual: an admin pasted a Beatport token per style and week | Scheduled (EventBridge Scheduler): login per run, the due week of every style first, then an even backfill | [auto-ingest](docs/data/auto-ingest.md), [ADR-0027](docs/adr/0027-auto-ingest.md) |
 
-**Start here:**
+## Architecture
 
-- **System overview** — [`docs/architecture.md`](docs/architecture.md)
-- **Architecture decisions** — [`docs/adr/`](docs/adr/)
-
-**By role:**
-
-- Backend / API / worker dev — [`docs/backend/`](docs/backend/)
-- Data engineer — [`docs/data/`](docs/data/)
-- Frontend dev — [`docs/frontend/`](docs/frontend/)
-- Ops / SRE — [`docs/ops/`](docs/ops/)
-- API consumer — [`docs/api/`](docs/api/)
-
-**Local quickstart:**
-
-```bash
-python -m pip install -r requirements-dev.txt
-pytest -q
+```mermaid
+flowchart LR
+  SPA["React SPA<br/>S3 + CloudFront"] --> APIGW["API Gateway<br/>Lambda authorizer"]
+  APIGW --> API["API Lambdas<br/>collector · curation · auth<br/>analytics · telemetry"]
+  SCHED["EventBridge Scheduler"] --> AI["auto-ingest λ"]
+  API & AI -->|"Beatport API"| RAW[("S3 raw zone")]
+  API & AI --> Q[["SQS + DLQ"]]
+  API & AI --> DB
+  Q --> CAN["canonicalization λ<br/>contract · set-based upserts"]
+  RAW --> CAN
+  CAN --> DB[("Aurora PostgreSQL<br/>via RDS Data API")]
+  CAN -->|SQS| ENR["enrichment workers<br/>Spotify · YouTube Music · LLM research"]
+  API -->|SQS| ENR
+  ENR --> DB
+  BF["Step Functions backfill"] --> RAW & DB
+  DQ["nightly DQ checks"] --> DB
+  API -->|telemetry| FH["Kinesis Firehose"] --> BRZ[("S3 bronze")]
+  DB -->|nightly export| BRZ
+  BRZ --> DBT["Step Functions + CodeBuild<br/>dbt build"] --> SIL[("Iceberg silver / gold")]
+  SIL & BRZ --> ATH["Athena"] --> API
 ```
 
-For the SPA: see [`frontend/README.md`](frontend/README.md).
-For deployment: see [`docs/ops/deploy.md`](docs/ops/deploy.md).
+The full diagram and the list of all 18 Lambda functions are in [`docs/architecture.md`](docs/architecture.md). Key decisions (all 27 in [`docs/adr/`](docs/adr/README.md)):
+
+| Decision | Why | ADR |
+|---|---|---|
+| RDS Data API instead of a DB driver in Lambda | Survives Aurora auto-pause; no connection pooling; most functions need no VPC | [0001](docs/adr/0001-data-api-runtime.md) |
+| Shared canonical catalog + per-user overlay | One ingest serves every user; curation state stays private | [0002](docs/adr/0002-multi-tenant-overlay.md) |
+| Provider abstraction behind `VENDORS_ENABLED` | Add or disable a music vendor without touching pipeline code | [0004](docs/adr/0004-provider-abstraction.md) |
+| Aurora Serverless v2 with `min_acu = 0` | Pauses when idle; the cold-start trade-off is documented with a mitigation | [0014](docs/adr/0014-aurora-min-acu-zero.md) |
+| Plain SQL checks + CloudWatch, not a DQ framework | Eleven checks did not justify a framework's dependencies | [0023](docs/adr/0023-sql-data-quality-checks.md) |
+| Iceberg + dbt only where live queries fell short | Deduplication, history and small files were real problems | [0025](docs/adr/0025-iceberg-dbt-lakehouse.md) |
+| Login per run for scheduled ingest | No long-lived Beatport token stored anywhere | [0027](docs/adr/0027-auto-ingest.md) |
+
+## What this project demonstrates
+
+**Data engineering**
+- Partitioned raw zone on S3 with run metadata and a run state machine; replay-safe, idempotent reprocessing from raw with a dry-run diff.
+- Canonicalization through an identity map (`source × entity_type × external_id → canonical id`), set-based upserts sized to the Data API limits.
+- Cross-vendor entity resolution: ISRC matching, metadata fallback, fuzzy scoring, a human review queue, and measured precision.
+- Data contracts with record-level quarantine and drift alarms; nightly data-quality checks with SLOs.
+- An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
+
+**Cloud & infrastructure**
+- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 228 Terraform resource definitions.
+- GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
+- 27 CloudWatch alarms routed to email through SNS.
+
+**Software engineering**
+- About 3,300 automated tests: ~2,080 backend (including 51 against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
+- 27 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
+
+## AWS services
+
+| Service | How it is used |
+|---|---|
+| **Lambda** (Python 3.12) | 18 functions: API handlers and a JWT authorizer, SQS workers, scheduled jobs, backfill steps, DB migrations |
+| **API Gateway** (HTTP API) | 105 operations; everything except the auth routes (`/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/logout`) goes through a Lambda authorizer |
+| **SQS** | 7 work queues, each with a dead-letter queue and redrive policy |
+| **Step Functions** | Backfill (plan → map over runs → summarize → DQ check) and the nightly dbt transform |
+| **EventBridge / Scheduler** | Nightly catalog export and data-quality checks; daily auto-ingest planning with one-time run schedules |
+| **S3** | Versioned raw zone with a quarantine prefix; analytics lake; SPA hosting |
+| **Aurora PostgreSQL Serverless v2** | Canonical catalog and user data via the RDS Data API; auto-pause |
+| **Kinesis Data Firehose** | Telemetry ingest with JSON → Parquet conversion and dynamic partitioning |
+| **Glue Data Catalog + Athena** | Bronze tables with partition projection; Iceberg silver/gold; per-user analytics |
+| **CodeBuild** | Runs `dbt build` for the nightly transform |
+| **CloudWatch + SNS** | Structured JSON logs, log metric filters, 27 alarms, email notifications |
+| **KMS / SSM / Secrets Manager** | Envelope encryption of users' OAuth tokens; vendor credentials; Aurora credentials |
+| **CloudFront** | SPA delivery with Origin Access Control |
+| **IAM** | GitHub OIDC deploy role; scoped roles per data prefix, queue and schedule group |
+
+## Data pipeline
+
+1. **Ingest.** The auto-ingest Lambda runs at times set in the admin (fixed, or N random per day). It logs in to Beatport, picks the due Saturday-week of every visible style first and then backfills missing weeks evenly, and for each one writes `releases.json.gz` + `meta.json` to the S3 raw zone, records an `ingest_runs` row and enqueues canonicalization. An admin can run the same path on demand.
+2. **Screen and canonicalize.** An SQS worker screens every raw record against the data contract (failures go to quarantine with reasons, drift raises an alarm), normalizes it into typed entities and upserts them set-based. Writes use the observation time, so replaying an older run never overwrites newer data.
+3. **Enrich.** Workers look tracks up on Spotify (ISRC, then metadata), match them to YouTube Music with fuzzy scoring and a review queue, and research labels and artists across several LLM and search vendors.
+4. **Curate.** Users triage the week's tracks with one keystroke per destination; categories, tags and playlists form a private overlay on the shared catalog and can be published to Spotify or YouTube Music.
+5. **Check.** Every night eleven SQL checks measure freshness, volume, completeness, integrity and plausibility and publish CloudWatch metrics with an alarm.
+6. **Analyze.** Telemetry flows through Firehose into the bronze lake; a nightly export snapshots catalog dimensions; a nightly dbt build turns both into Iceberg silver/gold, which the analytics API reads together with the live bronze tail.
+7. **Reprocess.** When canonicalization changes, the backfill state machine replays stored raw runs — first as a dry run that reports what would change, then for real.
+
+## Screenshots
+
+Rendered from the app's React components with sample data (`cd frontend && pnpm screenshots`); the live app is behind a Spotify allow-list.
+
+**Curate** — one keystroke per destination:
+
+![Curate view](docs/assets/curate.png)
+
+**Triage** — the week's tracks split into buckets:
+
+![Triage buckets](docs/assets/triage.png)
+
+**Admin** — ingest coverage by style × week and the auto-ingest schedule:
+
+![Coverage and auto-ingest](docs/assets/coverage.png)
+
+**Analytics** — listening, curation funnel and time per track:
+
+![Analytics cards](docs/assets/analytics.png)
+
+## By the numbers
+
+| | |
+|---|---|
+| Canonical catalog | ~98k canonical tracks (2026-10-07), from 107,795 raw records |
+| Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
+| Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
+| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 228 Terraform resource definitions |
+| API | 105 operations |
+| Delivery | 265+ merged pull requests; every merge to `main` deploys to production |
+
+## Running it locally
+
+```bash
+# Backend tests
+python -m pip install -r requirements-dev.txt
+pytest -q
+
+# Tests against a real PostgreSQL (migrate the schema first)
+docker run -d -p 55433:5432 -e POSTGRES_PASSWORD=postgres postgres:16
+PYTHONPATH=src ALEMBIC_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:55433/postgres \
+  alembic upgrade head
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres pytest tests/db -q
+
+# Frontend (pnpm test:browser for the real-browser layout tests)
+(cd frontend && pnpm install && pnpm test)
+
+# dbt on DuckDB with fixtures
+(cd dbt && pip install -r requirements.txt && export DBT_PROFILES_DIR=. \
+  && dbt seed --target ci && dbt run --target ci --empty && dbt build --target ci --full-refresh --exclude resource_type:seed)
+```
+
+Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/deploy.md)).
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| `src/collector/` | Lambda handlers, providers, data-access layer, pipeline logic |
+| `frontend/` | Vite + React 19 + Mantine SPA |
+| `infra/` | Terraform for every AWS resource |
+| `dbt/` | Lakehouse models (Athena in prod, DuckDB in CI) |
+| `alembic/` | Database migrations |
+| `tests/` | Unit, integration and real-PostgreSQL tests |
+| `docs/` | Architecture, ADRs, data, backend, frontend and ops guides |
+| `experiments/` | Isolated sandboxes whose results fed production decisions |
+
+## Known limitations & next steps
+
+- One production environment; changes are verified by CI, local real-PostgreSQL tests and dry runs rather than a staging stack.
+- 11 of the 18 Lambda functions share one IAM role. Next: a role per function.
+- API Gateway has no throttling or access logs yet, and Aurora deletion protection is off.
+- Matching precision is measured for YouTube Music only. Next: a labelled sample for Spotify.
+- Built for a closed group of DJs: about 98k tracks, growing by 3–5k a week.
+
+## How this was built
+
+I designed, built and operate CLOUDER end to end — product, data model, backend, frontend, infrastructure and on-call. Development is AI-assisted: I use coding agents for implementation and keep design decisions in ADRs, changes in reviewed pull requests with CI gates, and specifications and plans in [`docs/superpowers/`](docs/superpowers/). Every merge to `main` deploys to production.
 
 ## License
 
-Private — internal use only.
+Source-available, all rights reserved — see [LICENSE](LICENSE).

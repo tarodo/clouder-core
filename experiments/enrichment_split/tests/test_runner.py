@@ -6,7 +6,7 @@ from splitlab.facts_pass import FactsResult
 from splitlab.narrative_pass import NarrativeResult
 from splitlab.runner import run_experiment
 
-SETTINGS = Settings(openai_api_key="x", tavily_api_key="y")
+SETTINGS = Settings(openai_api_key="x", tavily_api_key="y", cluster_arn="c", secret_arn="s")
 
 SAMPLE = {
     "labels": [

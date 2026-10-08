@@ -156,7 +156,7 @@ with repository.transaction() as txn_id:
 
 The function is decorated with `@functools.lru_cache(maxsize=32)`. The first call for a given `secret_arn` fetches from AWS Secrets Manager and caches the result for the lifetime of the Lambda container.
 
-Consequence: if a Perplexity or Spotify API key is rotated in Secrets Manager, the running container continues using the old value until it is recycled (Lambda updates a function's env var, cold-starts, or the platform recycles the sandbox). To force a pick-up of a rotated key:
+Consequence: if a vendor API key (Spotify, Gemini, OpenAI, …) is rotated in Secrets Manager, the running container continues using the old value until it is recycled (Lambda updates a function's env var, cold-starts, or the platform recycles the sandbox). To force a pick-up of a rotated key:
 
 1. Update the secret value in Secrets Manager.
 2. Force a container recycle: deploy a no-op config change to the Lambda function, or wait for the platform to recycle the container naturally (typically within 15 minutes of last invocation).

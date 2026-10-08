@@ -21,9 +21,9 @@ aws logs tail \
 aws logs tail \
   "/aws/lambda/$(cd infra && terraform output -raw migration_lambda_function_name)"
 
-# AI search worker
+# Label enrichment worker
 aws logs tail \
-  "/aws/lambda/$(cd infra && terraform output -raw ai_search_worker_lambda_function_name)" \
+  "/aws/lambda/$(cd infra && terraform output -raw label_enricher_worker_lambda_function_name)" \
   --follow
 
 # Spotify search worker

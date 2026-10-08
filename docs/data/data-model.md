@@ -30,9 +30,9 @@ External sources (Beatport, Spotify)
    clouder_track_artists
         |
         v
-   Enrichment            per-entity AI results; vendor match cache
+   Enrichment            label/artist research; vendor match cache
    ─────────────
-   ai_search_results
+   clouder_label_info / clouder_artist_info
    vendor_track_map
    match_review_queue
         |
@@ -117,7 +117,7 @@ erDiagram
 |---|---|---|
 | id | String(36) PK | |
 | name / normalized_name | Text | `normalized_name` = lower + trim + collapsed whitespace |
-| is_ai_suspected | Boolean default FALSE | Set by Perplexity search propagation (ADR-0008) |
+| is_ai_suspected | Boolean default FALSE | Set by label enrichment (ADR-0008, ADR-0016) |
 | created_at / updated_at | TIMESTAMPTZ | |
 
 ### clouder_styles
@@ -160,7 +160,7 @@ Index: `idx_album_match (normalized_title, release_date, label_id)`. Canonicaliz
 | spotify_searched_at | TIMESTAMPTZ nullable | NULL = not yet searched; NOT NULL + spotify_id NULL = searched, not found |
 | spotify_release_date | Date nullable | From `album.release_date` adjusted by `release_date_precision`. Partial index. Used by triage block classification: NULL→UNCLASSIFIED, before date_from→OLD, compilation→NOT, else→NEW |
 | release_type | String(16) nullable | Mirror of parent album's `release_type` (ADR-0007) |
-| is_ai_suspected | Boolean default FALSE | Propagated from `ai_search_results` (ADR-0008) |
+| is_ai_suspected | Boolean default FALSE | Soft flag (ADR-0008); no current writer sets it on tracks |
 | origin | Text default `'beatport'` | `beatport` \| `spotify_user_import` |
 | created_at / updated_at | TIMESTAMPTZ | |
 
