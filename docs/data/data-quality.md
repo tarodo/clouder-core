@@ -52,8 +52,8 @@ the RDS Data API with its own role (Data API, the cluster secret, `PutMetricData
 namespace), logs a `dq_check_result` event per check, publishes every measured value plus
 `FailedChecks` to the CloudWatch namespace `CLOUDER/DataQuality`, and the alarm
 `clouder-prod-data-quality-failed-checks` fires on `FailedChecks ≥ 1`. The failing check's name
-is in that night's `dq_check_result` logs. Like every other alarm here, it notifies only when
-`alarm_sns_topic_arn` is set; until then it is visible in the CloudWatch console. One combined
+is in that night's `dq_check_result` logs. Like every other alarm here, it emails the owner
+through the alarm topic (`clouder-prod-alarms`, GitHub secret `ALARM_EMAIL`). One combined
 alarm means a check that stays red masks new failures until it is fixed — runs older than two
 weeks are left out of `stuck_ingest_runs` and the review backlog is recorded only, so the
 alarm reflects recent, actionable problems. Why plain SQL and CloudWatch

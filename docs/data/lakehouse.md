@@ -64,8 +64,8 @@ CI runs them on DuckDB for every change under `dbt/` and parses the Athena targe
 CodeBuild project at 00:30 UTC — after the catalog export (00:00) and the data-quality checks
 (00:10). CodeBuild clones `main`, installs the pinned dbt versions and runs `dbt build` (unit
 tests stay in CI) and `dbt source freshness`. One retry; a failure ends the execution failed and
-puts `clouder-prod-transform-failed` into ALARM (it notifies only when `alarm_sns_topic_arn` is
-set, like every alarm here).
+puts `clouder-prod-transform-failed` into ALARM (it emails the owner through the alarm topic,
+like every alarm here).
 
 **Hot/cold read path.** The analytics Lambda reads events as one relation: history older than
 three days from `clouder_silver.events`, the last three days from `bronze_events` — each `dt`

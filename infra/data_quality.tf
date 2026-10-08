@@ -110,6 +110,6 @@ resource "aws_cloudwatch_metric_alarm" "data_quality_failed_checks" {
   comparison_operator = "GreaterThanOrEqualToThreshold"
   treat_missing_data  = "missing"
 
-  alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
-  ok_actions    = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
 }

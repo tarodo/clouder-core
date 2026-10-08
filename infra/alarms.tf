@@ -46,8 +46,8 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
     FunctionName = each.value
   }
 
-  alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
-  ok_actions    = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
 }
 
 # ── Lambda duration p95 (API-facing only) ────────────────────────
@@ -71,8 +71,8 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration_p95" {
     FunctionName = each.value
   }
 
-  alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
-  ok_actions    = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
 }
 
 # ── Lambda throttles (label_enricher) ────────────────────────────
@@ -97,8 +97,8 @@ resource "aws_cloudwatch_metric_alarm" "label_enricher_throttles" {
     FunctionName = aws_lambda_function.label_enricher_worker.function_name
   }
 
-  alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
-  ok_actions    = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
 }
 
 # ── Aurora alarms ────────────────────────────────────────────────
@@ -118,6 +118,27 @@ resource "aws_cloudwatch_metric_alarm" "aurora_acu_near_max" {
     DBClusterIdentifier = aws_rds_cluster.aurora.cluster_identifier
   }
 
-  alarm_actions = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
-  ok_actions    = var.alarm_sns_topic_arn != "" ? [var.alarm_sns_topic_arn] : []
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
+}
+
+# ── Notifications ────────────────────────────────────────────────
+# One topic for every alarm, email-subscribed from the GitHub secret ALARM_EMAIL (the
+# address stays out of this public repo). AWS mails a confirmation link first; nothing is
+# delivered until it is clicked. An existing topic (alarm_sns_topic_arn) takes precedence.
+resource "aws_sns_topic" "alarms" {
+  count = var.alarm_email != "" && var.alarm_sns_topic_arn == "" ? 1 : 0
+  name  = "${local.name_prefix}-alarms"
+}
+
+resource "aws_sns_topic_subscription" "alarm_email" {
+  count     = length(aws_sns_topic.alarms)
+  topic_arn = aws_sns_topic.alarms[0].arn
+  protocol  = "email"
+  endpoint  = var.alarm_email
+}
+
+locals {
+  alarm_topic_arn = var.alarm_sns_topic_arn != "" ? var.alarm_sns_topic_arn : try(aws_sns_topic.alarms[0].arn, "")
+  alarm_actions   = local.alarm_topic_arn != "" ? [local.alarm_topic_arn] : []
 }
