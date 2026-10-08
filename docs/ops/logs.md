@@ -117,3 +117,14 @@ aws rds modify-db-cluster \
 ```
 
 The cluster identifier `clouder-prod-aurora` is derived from `var.project=beatport` + `var.environment=prod` + suffix `-aurora` (defined in `infra/main.tf` as `local.db_cluster_identifier`).
+
+## API Gateway access logs
+
+Every request to the HTTP API lands as one JSON line in `/aws/apigateway/clouder-prod-collector-api` (request id, source IP, route key, status, latencies, integration and authorizer errors):
+
+```bash
+aws logs tail /aws/apigateway/clouder-prod-collector-api --follow --format short
+# 4xx/5xx only
+aws logs filter-log-events --log-group-name /aws/apigateway/clouder-prod-collector-api \
+  --filter-pattern '{ $.status >= 400 }' --max-items 50
+```
