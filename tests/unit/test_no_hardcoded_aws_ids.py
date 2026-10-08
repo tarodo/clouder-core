@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -30,8 +31,9 @@ def test_scripts_require_aurora_env(tmp_path) -> None:
     env = {"PATH": "/usr/bin:/bin", "PYTHONPATH": str(ROOT / "src"), "HOME": str(tmp_path),
            "AWS_CONFIG_FILE": "/dev/null", "AWS_SHARED_CREDENTIALS_FILE": "/dev/null",
            "AWS_EC2_METADATA_DISABLED": "true", "AWS_DEFAULT_REGION": "us-east-1"}
-    for script in ("scripts/enrichment_stats.py", "scripts/backfill_instagram.py"):
-        run = subprocess.run([sys.executable, script], cwd=ROOT, env=env,
+    for script, *args in (("scripts/enrichment_stats.py",), ("scripts/backfill_instagram.py",),
+                          ("scripts/delete_user.py", "--user-id", str(uuid.uuid4()), "--dry-run")):
+        run = subprocess.run([sys.executable, script, *args], cwd=ROOT, env=env,
                              capture_output=True, text=True)
         assert run.returncode == 2, (script, run.returncode, run.stderr[-300:])
         assert "AURORA_CLUSTER_ARN" in run.stderr

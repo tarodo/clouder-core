@@ -30,3 +30,8 @@ seeds:
         release_type: varchar
         is_ai_suspected: varchar
         spotify_release_date: varchar
+  - name: deleted_users
+    config:
+      column_types:
+        user_id: varchar
+        deleted_at: varchar

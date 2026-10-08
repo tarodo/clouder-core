@@ -126,3 +126,4 @@ All functions share one Python package (`src/collector/`); each has its own entr
 - Why-this-way questions → [`docs/adr/README.md`](adr/README.md).
 - Where to look in the code → [`docs/engineering-highlights.md`](engineering-highlights.md).
 - What breaks at 10× / 100× → [`docs/scalability.md`](scalability.md).
+- Personal data and deleting a user → [`docs/privacy.md`](privacy.md).

@@ -31,3 +31,14 @@ def test_dbt_may_ensure_its_own_glue_databases() -> None:
     spec = (INFRA / "lakehouse.tf").read_text()
     block = re.search(r'sid = "AllowWriteLakehouseCatalog"(.*?)\n  \}', spec, re.S).group(1)
     assert '"glue:CreateDatabase"' in block
+
+
+def test_dbt_can_read_the_deleted_user_tombstones() -> None:
+    # stg_events anti-joins clouder_analytics.deleted_users; without the table
+    # (or read access to its prefix) every nightly build fails.
+    tf = "".join(p.read_text() for p in INFRA.glob("*.tf"))
+    table = re.search(r'resource "aws_glue_catalog_table" "deleted_users" \{(.*?)\n\}', tf, re.S)
+    assert table and 'name          = "deleted_users"' in table.group(1)
+    assert "/governance/deleted_users/" in table.group(1)
+    lakehouse = (INFRA / "lakehouse.tf").read_text()
+    assert '"${local.analytics_lake_arn}/governance/deleted_users/*"' in lakehouse
