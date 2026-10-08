@@ -32,7 +32,7 @@ Applies to any Lambda that uses `src/collector/providers/registry.py`. Comma-sep
 |-------|--------|-------|
 | `beatport` | Active | Ingest adapter |
 | `spotify` | Active | ISRC lookup + enrichment |
-| `ytmusic` | Active | Metadata lookup for matching; playlist publish |
+| `ytmusic` | Active | Metadata lookup for matching (the registry's exporter is a stub; publishing runs in curation) |
 | `deezer` | Stub | Raises `VendorDisabledError` on use |
 | `apple` | Stub | Raises `VendorDisabledError` on use |
 | `tidal` | Stub | Raises `VendorDisabledError` on use |

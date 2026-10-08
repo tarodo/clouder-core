@@ -53,12 +53,15 @@ flowchart LR
     CAPI & AI --> BP
     CAPI & AI --> RAW
     CAPI & AI --> Q1
+    CAPI & AI --> DB
     Q1 --> CAN
     RAW --> CAN
     CAN --> DB
     CAN -->|SQS| SPW
+    CAPI & BF -->|SQS| SPW
     CAPI -->|SQS| LEN
-    CUR -->|SQS| VMW & DSP
+    CUR -->|SQS| VMW & DSP & CMT
+    CUR -->|publish| VENDORS
     DSP -->|SQS| LEN & CMT
     SPW & VMW & LEN & CMT --> VENDORS
     SPW & VMW & LEN & CMT --> DB
@@ -82,11 +85,11 @@ All functions share one Python package (`src/collector/`); each has its own entr
 
 | Function | Entry module | Trigger | Purpose |
 |---|---|---|---|
-| `collector-api` | `collector.handler` | API Gateway | Admin ingest, catalog reads, admin endpoints (coverage, enrichment, auto-ingest settings) |
+| `collector-api` | `collector.handler` | API Gateway | Admin ingest, catalog reads, the curation funnel (from Aurora), admin endpoints (coverage, enrichment, auto-ingest settings) |
 | `curation` | `collector.curation_handler` | API Gateway | Triage, categories, playlists, tags, publishing to Spotify / YouTube Music |
 | `auth-handler` | `collector.auth_handler` | API Gateway | Spotify OAuth (PKCE) login, callback, refresh-token rotation |
 | `auth-authorizer` | `collector.auth_authorizer` | API Gateway authorizer | Validates the CLOUDER JWT on every protected route |
-| `analytics-api` | `collector.analytics_handler` | API Gateway | Listening / funnel / time-per-track analytics from Athena |
+| `analytics-api` | `collector.analytics_handler` | API Gateway | Listening and time-per-track analytics from Athena |
 | `telemetry` | `collector.telemetry_handler` | API Gateway | Validates SPA telemetry batches and forwards them to Firehose |
 | `auto-ingest` | `collector.auto_ingest_handler` | EventBridge Scheduler | Plans daily runs; logs in to Beatport and ingests due and backfill weeks |
 | `canonicalization-worker` | `collector.worker_handler` | SQS | Contract screening, normalization, canonical upserts |

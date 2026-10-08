@@ -22,7 +22,7 @@ import { CoverageMatrix } from '../features/admin/components/CoverageMatrix';
 import type { CoveragePayload } from '../features/admin/hooks/useCoverage';
 import { AutoIngestPanel } from '../features/admin/components/AutoIngestPanel';
 import { AUTO_INGEST_KEY } from '../features/admin/hooks/useAutoIngest';
-import { FunnelCard, ListeningCard, TimePerTrackCard } from '../features/analytics/components/AnalyticsCards';
+import { FunnelCard, ListeningCard, TimePerTrackCard, fmtMinutes } from '../features/analytics/components/AnalyticsCards';
 import { tzOffsetMin } from '../features/analytics/hooks/useAnalytics';
 
 const OUT = '../../../docs/assets';
@@ -158,24 +158,28 @@ describe('README screenshots', () => {
       </Frame>,
     );
     await screen.findByText('Due week: 2026-W39');
+    // Pinned locale/timezone: the 09:41 UTC run reads as such on any machine.
+    expect(screen.getByText('10/8/2026, 9:41:00 AM')).toBeTruthy();
     await shoot('coverage');
   });
 
   test('analytics', async () => {
     const qs = `tz_offset_min=${tzOffsetMin()}`;
+    // A deterministic but irregular month; weekends run longer.
     const daily = Array.from({ length: 30 }, (_, i) => {
       const d = new Date(Date.UTC(2026, 8, 9 + i));
-      const minutes = 20 + ((i * 47) % 95);
-      return { dt: d.toISOString().slice(0, 10), listened_ms: minutes * 60_000, tracks: Math.round(minutes / 3) };
+      const weekend = d.getUTCDay() === 0 || d.getUTCDay() === 6;
+      const minutes = (weekend ? 70 : 25) + ((i * 37 + i * i * 11) % 41);
+      return { dt: d.toISOString().slice(0, 10), listened_ms: minutes * 60_000, tracks: Math.round(minutes / 3.2) };
+    });
+    const total = (days: typeof daily) => ({
+      listened_ms: days.reduce((sum, d) => sum + d.listened_ms, 0),
+      tracks: days.reduce((sum, d) => sum + d.tracks, 0),
     });
     const qc = client((c) => {
       c.setQueryData(['analytics', 'listening', qs], {
         today: '2026-10-08',
-        totals: {
-          day: { listened_ms: 52 * 60_000, tracks: 17 },
-          week: { listened_ms: 6.4 * 3_600_000, tracks: 131 },
-          month: { listened_ms: 31.5 * 3_600_000, tracks: 642 },
-        },
+        totals: { day: total(daily.slice(-1)), week: total(daily.slice(-7)), month: total(daily) },
         daily,
       });
       c.setQueryData(['analytics', 'funnel', qs], {
@@ -216,6 +220,9 @@ describe('README screenshots', () => {
       </Frame>,
     );
     await screen.findByText('Funky House');
+    // Headline totals agree with the bars.
+    const month = daily.reduce((sum, d) => sum + d.listened_ms, 0);
+    expect(screen.getByText(fmtMinutes(month))).toBeTruthy();
     await shoot('analytics');
   });
 });

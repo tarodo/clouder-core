@@ -1,9 +1,11 @@
 Copyright (c) 2026 Roman (github.com/tarodo). All rights reserved.
 
 This repository is published so that its source code can be read and evaluated,
-for example as part of a job application or a technical review.
+for example as part of a job application or a technical review. You may view
+the code, clone the repository and run it locally, including its tests, for
+that evaluation only.
 
-No license is granted to use, copy, modify, merge, publish, distribute,
+Beyond that, no license is granted to use, copy, modify, merge, publish, distribute,
 sublicense or sell the software or any part of it, or to run it as a service,
 without prior written permission from the copyright holder.
 

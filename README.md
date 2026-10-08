@@ -33,6 +33,7 @@ flowchart LR
   SCHED["EventBridge Scheduler"] --> AI["auto-ingest λ"]
   API & AI -->|"Beatport API"| RAW[("S3 raw zone")]
   API & AI --> Q[["SQS + DLQ"]]
+  API & AI --> DB
   Q --> CAN["canonicalization λ<br/>contract · set-based upserts"]
   RAW --> CAN
   CAN --> DB[("Aurora PostgreSQL<br/>via RDS Data API")]
@@ -69,12 +70,12 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 - An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
 
 **Cloud & infrastructure**
-- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 228 Terraform resources.
+- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 228 Terraform resource definitions.
 - GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
 - 27 CloudWatch alarms routed to email through SNS.
 
 **Software engineering**
-- About 3,300 automated tests: ~2,070 backend (including 51 against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
+- About 3,300 automated tests: ~2,080 backend (including 51 against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
 - 27 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
 
 ## AWS services
@@ -82,7 +83,7 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 | Service | How it is used |
 |---|---|
 | **Lambda** (Python 3.12) | 18 functions: API handlers and a JWT authorizer, SQS workers, scheduled jobs, backfill steps, DB migrations |
-| **API Gateway** (HTTP API) | 104 operations; everything except the OAuth login/callback/refresh routes goes through a Lambda authorizer |
+| **API Gateway** (HTTP API) | 105 operations; everything except the auth routes (`/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/logout`) goes through a Lambda authorizer |
 | **SQS** | 7 work queues, each with a dead-letter queue and redrive policy |
 | **Step Functions** | Backfill (plan → map over runs → summarize → DQ check) and the nightly dbt transform |
 | **EventBridge / Scheduler** | Nightly catalog export and data-quality checks; daily auto-ingest planning with one-time run schedules |
@@ -130,11 +131,11 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 
 | | |
 |---|---|
-| Canonical catalog | ~100k tracks (2026-10-07 replay), from 107,795 raw records |
+| Canonical catalog | ~98k canonical tracks (2026-10-07), from 107,795 raw records |
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
-| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 228 Terraform resources |
-| API | 104 operations |
+| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 228 Terraform resource definitions |
+| API | 105 operations |
 | Delivery | 265+ merged pull requests; every merge to `main` deploys to production |
 
 ## Running it locally
@@ -144,16 +145,18 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 python -m pip install -r requirements-dev.txt
 pytest -q
 
-# Tests against a real PostgreSQL
+# Tests against a real PostgreSQL (migrate the schema first)
 docker run -d -p 55433:5432 -e POSTGRES_PASSWORD=postgres postgres:16
+PYTHONPATH=src ALEMBIC_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:55433/postgres \
+  alembic upgrade head
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres pytest tests/db -q
 
-# Frontend
-cd frontend && pnpm install && pnpm test        # pnpm test:browser for layout tests
+# Frontend (pnpm test:browser for the real-browser layout tests)
+(cd frontend && pnpm install && pnpm test)
 
 # dbt on DuckDB with fixtures
-cd dbt && pip install -r requirements.txt
-DBT_PROFILES_DIR=. dbt seed --target ci && DBT_PROFILES_DIR=. dbt build --target ci
+(cd dbt && pip install -r requirements.txt && export DBT_PROFILES_DIR=. \
+  && dbt seed --target ci && dbt run --target ci --empty && dbt build --target ci --full-refresh --exclude resource_type:seed)
 ```
 
 Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/deploy.md)).
@@ -177,7 +180,7 @@ Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/dep
 - 11 of the 18 Lambda functions share one IAM role. Next: a role per function.
 - API Gateway has no throttling or access logs yet, and Aurora deletion protection is off.
 - Matching precision is measured for YouTube Music only. Next: a labelled sample for Spotify.
-- Built for a closed group of DJs: about 100k tracks, growing by 3–5k a week.
+- Built for a closed group of DJs: about 98k tracks, growing by 3–5k a week.
 
 ## How this was built
 

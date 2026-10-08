@@ -7,9 +7,11 @@ import re
 from test_docs_links import ROOT, live_docs
 
 REMOVED = re.compile(
-    r"search_handler|ai_search_results|ai[-_]search[-_]worker|AI_SEARCH_QUEUE_URL|perplexity",
+    r"\bsearch_handler\b|ai_search_results|ai[-_]search[-_]worker|AI_SEARCH_QUEUE_URL|perplexity"
+    r"|propagate_ai_flag",
     re.IGNORECASE,
 )
+MONEY = re.compile(r"[$€£]\s?\d|\d\s?(USD|EUR)\b|per month|/month", re.IGNORECASE)
 
 
 def deployed_handlers() -> set[str]:
@@ -18,9 +20,12 @@ def deployed_handlers() -> set[str]:
 
 
 def test_every_deployed_lambda_is_in_the_architecture_doc() -> None:
+    tf = "\n".join(p.read_text() for p in (ROOT / "infra").glob("*.tf"))
+    # Every Lambda resource contributes a handler the regex can read — none slips past.
+    assert len(deployed_handlers()) == len(re.findall(r'^resource "aws_lambda_function"', tf, re.M))
     doc = (ROOT / "docs" / "architecture.md").read_text()
-    missing = sorted(h for h in deployed_handlers() if f"`{h}`" not in doc)
-    assert len(deployed_handlers()) >= 18 and missing == []
+    documented = set(re.findall(r"`(collector\.[a-z_]+)`", doc))
+    assert documented == deployed_handlers()  # nothing missing, nothing stale
 
 
 def test_live_docs_do_not_describe_removed_components() -> None:
@@ -30,3 +35,33 @@ def test_live_docs_do_not_describe_removed_components() -> None:
             if REMOVED.search(line):
                 hits.append(f"{doc.relative_to(ROOT)}:{n}: {line.strip()[:80]}")
     assert hits == []
+
+
+def test_docs_have_no_money_figures() -> None:
+    extra = [*sorted((ROOT / "docs" / "adr").glob("*.md")), ROOT / "frontend" / "README.md", ROOT / "dbt" / "README.md"]
+    hits = []
+    for doc in [*live_docs(), *(p for p in extra if p.exists())]:
+        for n, line in enumerate(doc.read_text(encoding="utf-8").splitlines(), 1):
+            if MONEY.search(line):
+                hits.append(f"{doc.relative_to(ROOT)}:{n}: {line.strip()[:80]}")
+    assert hits == []
+
+
+def test_diagrams_show_the_api_and_ingest_writes_to_aurora() -> None:
+    readme = (ROOT / "README.md").read_text()
+    arch = (ROOT / "docs" / "architecture.md").read_text()
+    assert re.search(r"^\s*API & AI --> DB\b", readme, re.M)
+    for edge in (r"CAPI & AI --> DB", r"CAPI & BF -->\|SQS\| SPW", r"CUR -->\|SQS\| VMW & DSP & CMT"):
+        assert re.search(edge, arch), edge
+
+
+def test_architecture_table_puts_the_funnel_on_the_collector() -> None:
+    rows = {r.split("|")[1].strip(): r for r in (ROOT / "docs" / "architecture.md").read_text().splitlines()
+            if r.startswith("| `")}
+    assert "funnel" not in rows["`analytics-api`"] and "funnel" in rows["`collector-api`"]
+
+
+def test_env_vars_do_not_claim_registry_publishing() -> None:
+    row = next(r for r in (ROOT / "docs" / "ops" / "env-vars.md").read_text().splitlines()
+               if r.startswith("| `ytmusic`"))
+    assert "playlist publish" not in row  # the registry exporter is a stub

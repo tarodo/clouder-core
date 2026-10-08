@@ -29,7 +29,7 @@ Two root causes produce this symptom:
 **Fix**
 
 - **Immediate**: retry the same request after 5–10 s. Aurora will be warm for subsequent requests.
-- **Persistent cold-start elimination**: set `aurora_serverless_min_acu = 0.5` in `infra/terraform.tfvars`, then `terraform apply`. Cost: ~$43/month more than `min_acu=0`. See `docs/ops/aurora.md` and ADR-0014.
+- **Persistent cold-start elimination**: set `aurora_serverless_min_acu = 0.5` in `infra/terraform.tfvars`, then `terraform apply`. Cost: an always-warm 0.5 ACU instead of nothing while idle. See `docs/ops/aurora.md` and ADR-0014.
 
 ---
 

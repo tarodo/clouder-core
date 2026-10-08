@@ -177,7 +177,7 @@ See also: [ADR-0005](../adr/0005-iam-auth-migration.md).
 
 **Mitigation options:**
 - Retry the same request after a few seconds; the run was likely already created.
-- To eliminate Aurora cold-start latency: set `aurora_serverless_min_acu = 0.5` in `infra/terraform.tfvars` (adds ~$43/month to keep the cluster warm, but eliminates the 503 on first request after idle).
+- To eliminate Aurora cold-start latency: set `aurora_serverless_min_acu = 0.5` in `infra/terraform.tfvars` (pays for an always-warm 0.5 ACU, but eliminates the 503 on first request after idle).
 - Distinguish the API Gateway timeout from application errors: the application always returns `{"error_code": ..., "message": ..., "correlation_id": ...}` (camelCase statusCode in Lambda response); API Gateway's own timeout uses `{"message": "Service Unavailable"}` without `error_code`.
 
 See also: [ADR-0014](../adr/0014-aurora-min-acu-zero.md).
@@ -190,7 +190,7 @@ See also: [ADR-0014](../adr/0014-aurora-min-acu-zero.md).
 
 **Why:** Instagram is the highest-value social field and the cheapest one worth a dedicated pass; running it unconditionally would double Tavily spend on entities the vendor merge already resolved.
 
-**Provenance & cost:** Fields the resolver fills land in `*_info.provenance` as `socials_tier{N}` (1/2/3). Tavily spend (`tavily_credits * TAVILY_USD_PER_CREDIT`, $0.008/credit) is added straight into the run's `cost_usd` counter — it is NOT recorded in any per-cell `usage` jsonb, since the resolver runs once per entity after all vendor cells are written.
+**Provenance & cost:** Fields the resolver fills land in `*_info.provenance` as `socials_tier{N}` (1/2/3). Tavily spend (`tavily_credits * TAVILY_USD_PER_CREDIT`) is added straight into the run's `cost_usd` counter — it is NOT recorded in any per-cell `usage` jsonb, since the resolver runs once per entity after all vendor cells are written.
 
 **Mitigation:** The resolver is disabled by construction when `TAVILY_API_KEY` is empty (`socials_resolver = SocialsResolver(...) if settings.tavily_api_key else None` in both handlers) — no separate feature flag. `SocialsResolver.resolve` never raises; a Tavily failure returns `SocialsResult(error=...)` with zero updates.
 
@@ -200,7 +200,7 @@ See also: [ADR-0014](../adr/0014-aurora-min-acu-zero.md).
 
 ### OpenAI enrichment knobs: `OPENAI_MAX_TOOL_CALLS` is a soft cap
 
-**What:** Both enrichment worker settings classes read `OPENAI_MAX_TOOL_CALLS` (default `3`) and `OPENAI_REASONING_EFFORT` (default `""` = not sent). Per-cell `usage` jsonb now also carries `web_search_calls` (billed at `WEB_SEARCH_FEE_PER_CALL_USD` = $0.01 each, added to `cost_usd`) and `reasoning_tokens`.
+**What:** Both enrichment worker settings classes read `OPENAI_MAX_TOOL_CALLS` (default `3`) and `OPENAI_REASONING_EFFORT` (default `""` = not sent). Per-cell `usage` jsonb now also carries `web_search_calls` (billed at `WEB_SEARCH_FEE_PER_CALL_USD` each, added to `cost_usd`) and `reasoning_tokens`.
 
 **Why:** `max_tool_calls` bounds the OpenAI Responses API's web-search tool loop, but the split experiment (`docs/superpowers/specs/2026-07-16-enrichment-split-experiment-report.md`) measured only ~1.7 average searches even with the cap set to 1 — the model rarely maxes it out. `reasoning_effort` is a latency knob only; reasoning tokens are comped by OpenAI regardless of the setting.
 
@@ -212,7 +212,7 @@ See also: [ADR-0014](../adr/0014-aurora-min-acu-zero.md).
 
 ### List endpoints do not project `is_ai_suspected`
 
-**What:** `GET /labels`, `GET /artists`, and `GET /tracks` do not include the `is_ai_suspected` field in their response items, even though `clouder_labels.is_ai_suspected` is set by `propagate_ai_flag`.
+**What:** `GET /labels`, `GET /artists`, and `GET /tracks` do not include the `is_ai_suspected` field in their response items, even though `clouder_labels.is_ai_suspected` is set by `project_ai_suspected` (label enrichment).
 
 **Why:** The SQL in `ClouderRepository.list_labels` (and equivalents) does not `SELECT is_ai_suspected`. This was an oversight when the column was added.
 

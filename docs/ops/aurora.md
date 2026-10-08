@@ -18,7 +18,7 @@ Controlled by three Terraform variables (`infra/variables.tf`):
 
 Current production configuration: `min_acu=0`, `aurora_auto_pause_seconds=300`.
 
-Trade-off: `min_acu=0` saves approximately **$43/month** compared to always-warm `min_acu=0.5`. The cost is a cold-start latency risk: the first request after 300 s of inactivity may time out through API Gateway's 29 s hard limit (see [Cold-start behaviour](#cold-start-behaviour) below).
+Trade-off: `min_acu=0` removes the cost of an always-warm `min_acu=0.5` cluster. The cost is a cold-start latency risk: the first request after 300 s of inactivity may time out through API Gateway's 29 s hard limit (see [Cold-start behaviour](#cold-start-behaviour) below).
 
 To eliminate cold-start 503s at the cost of the above savings:
 
@@ -117,4 +117,4 @@ Distinguishing Aurora cold-start from other 503 causes:
 - Aurora cold-start: happens on the first request after an idle period. The Lambda's CloudWatch log group shows no log lines for the request (Lambda was not invoked at all, or Aurora connection timed out before handler body ran).
 - API GW timeout on a long Beatport crawl: Lambda log shows `request_received` but no `collection_completed`.
 
-**Fix**: set `aurora_serverless_min_acu = 0.5` in `infra/terraform.tfvars` if first-request latency matters more than the ~$43/month cost.
+**Fix**: set `aurora_serverless_min_acu = 0.5` in `infra/terraform.tfvars` if first-request latency matters more than the cost of keeping 0.5 ACU warm.

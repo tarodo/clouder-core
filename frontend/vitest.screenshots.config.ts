@@ -22,6 +22,8 @@ export default defineConfig({
       provider: 'playwright',
       headless: true,
       name: 'chromium',
+      // Same picture on any machine: fixed locale and timezone.
+      providerOptions: { context: { locale: 'en-US', timezoneId: 'UTC' } },
     },
     globals: true,
     setupFiles: ['./src/test/browser-setup.ts'],
