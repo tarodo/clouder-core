@@ -149,7 +149,7 @@ a follow-up ticket. The plan:
   AWS CLI today drifts from `infra/terraform.tfvars`. See [Known dev
   drift](#known-dev-drift).
 
-Estimated cost for the audience scale: < $1/month CloudFront + S3.
+At the audience scale, CloudFront + S3 cost next to nothing.
 
 ---
 
@@ -194,8 +194,8 @@ Lambdas + Aurora there, point `frontend/.env.local` at the dev API GW.
   - First step toward a "staging" environment when a second person
     joins.
 - **Cons:**
-  - ~$60–80/month: one Aurora Serverless v2 cluster (min ACU 0.5,
-    ~$43/mo) + duplicated Lambdas (free tier mostly covers them) +
+  - Running cost: one more Aurora Serverless v2 cluster (min ACU
+    0.5, always warm) + duplicated Lambdas (free tier mostly covers them) +
     duplicated KMS keys + duplicated CloudFront if you also stage the
     SPA.
   - Terraform refactor: bind every resource name to a variable so
