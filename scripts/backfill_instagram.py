@@ -18,15 +18,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-DEFAULT_CLUSTER_ARN = "arn:aws:rds:us-east-1:223458487728:cluster:clouder-prod-aurora"
-DEFAULT_SECRET_ARN = (
-    "arn:aws:secretsmanager:us-east-1:223458487728:"
-    "secret:rds!cluster-1ebed129-3946-4c55-a18e-72b53364e0e6-pCk4dS"
-)
 
 _URL_FIELDS = ("website", "bandcamp_url", "soundcloud_url", "twitter_url",
                "beatport_url", "discogs_url", "residentadvisor_url")
@@ -105,17 +101,30 @@ def load_tavily_key(env_file: str | None) -> str:
     raise SystemExit("TAVILY_API_KEY not set (env or --env-file)")
 
 
+def require_arn(cli_value: str | None, name: str) -> str:
+    """--{name}-arn, else AURORA_{NAME}_ARN (the Lambdas' name) or CLOUDER_{NAME}_ARN; no default."""
+    value = (cli_value or os.environ.get(f"AURORA_{name}_ARN")
+             or os.environ.get(f"CLOUDER_{name}_ARN") or "").strip()
+    if not value:
+        print(f"AURORA_{name}_ARN is not set (or pass --{name.lower()}-arn); "
+              "refusing to guess a cluster", file=sys.stderr)
+        raise SystemExit(2)
+    return value
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true", help="resolve but write nothing")
     parser.add_argument("--limit", type=int, default=None, help="max entities PER KIND")
     parser.add_argument("--kind", choices=["label", "artist"], default=None)
     parser.add_argument("--concurrency", type=int, default=3)
-    parser.add_argument("--cluster-arn", default=os.environ.get("CLOUDER_CLUSTER_ARN", DEFAULT_CLUSTER_ARN))
-    parser.add_argument("--secret-arn", default=os.environ.get("CLOUDER_SECRET_ARN", DEFAULT_SECRET_ARN))
+    parser.add_argument("--cluster-arn", default=None)
+    parser.add_argument("--secret-arn", default=None)
     parser.add_argument("--database", default="clouder")
     parser.add_argument("--env-file", default="experiments/artists/.env")
     args = parser.parse_args()
+    args.cluster_arn = require_arn(args.cluster_arn, "CLUSTER")
+    args.secret_arn = require_arn(args.secret_arn, "SECRET")
 
     import boto3
 

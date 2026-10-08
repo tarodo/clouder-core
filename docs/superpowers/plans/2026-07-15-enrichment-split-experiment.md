@@ -202,10 +202,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-CLUSTER_ARN = "arn:aws:rds:us-east-1:223458487728:cluster:clouder-prod-aurora"
+CLUSTER_ARN = "arn:aws:rds:us-east-1:<account-id>:cluster:clouder-prod-aurora"
 SECRET_ARN = (
-    "arn:aws:secretsmanager:us-east-1:223458487728:"
-    "secret:rds!cluster-1ebed129-3946-4c55-a18e-72b53364e0e6-pCk4dS"
+    "arn:aws:secretsmanager:us-east-1:<account-id>:"
+    "secret:rds!cluster-<secret-suffix>"
 )
 
 

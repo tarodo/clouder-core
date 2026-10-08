@@ -250,7 +250,7 @@ Two paths:
 # "Known dev drift" below):
 cd infra
 terraform init -input=false \
-  -backend-config="bucket=beatport-prod-tfstate-223458487728" \
+  -backend-config="bucket=<tfstate-bucket>" \
   -backend-config="key=clouder-core/prod/terraform.tfstate" \
   -backend-config="region=us-east-1" \
   -backend-config="dynamodb_table=beatport-prod-tf-locks" \

@@ -8,6 +8,8 @@ def test_load_settings_reads_env_file(tmp_path: Path):
     env.write_text(
         'OPENAI_API_KEY="sk-test-123"\n'
         "TAVILY_API_KEY=tvly-test-456\n"
+        "AURORA_CLUSTER_ARN=arn:aws:rds:us-east-1:000000000000:cluster:clouder-prod-aurora\n"
+        "AURORA_SECRET_ARN=arn:aws:secretsmanager:us-east-1:000000000000:secret:x\n"
         "IGNORED_LINE\n"
         "# comment\n"
     )

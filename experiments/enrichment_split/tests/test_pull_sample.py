@@ -1,7 +1,7 @@
 from splitlab.config import Settings
 from splitlab.pull_sample import pull
 
-SETTINGS = Settings(openai_api_key="x", tavily_api_key="y")
+SETTINGS = Settings(openai_api_key="x", tavily_api_key="y", cluster_arn="c", secret_arn="s")
 
 
 def fake_execute_factory(rows_by_marker):
