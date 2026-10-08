@@ -8430,11 +8430,20 @@ export interface components {
                 updated_at: string | null;
             };
             planned_runs: string[];
+            /** @description The last run's summary, or the running one's progress (in_progress). */
             last_run: {
                 /** Format: date-time */
                 at: string;
                 manual: boolean;
-                ok: boolean;
+                ok?: boolean;
+                in_progress?: boolean;
+                /** @description The period being fetched; null while logging in. */
+                current?: {
+                    style_id: number;
+                    week_year: number;
+                    week_number: number;
+                } | null;
+                total?: number | null;
                 /** @description Set when login failed (credentials | login | authorize | token). */
                 failed_step?: string;
                 status?: ((number | null) | (string | null)) | null;
@@ -8449,6 +8458,8 @@ export interface components {
                     error?: string;
                 }[];
             } | null;
+            /** @description A run holds the lease right now. */
+            running: boolean;
             due_week: {
                 week_year: number;
                 week_number: number;

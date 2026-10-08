@@ -105,7 +105,11 @@ def run(
     if collect is None:
         from .handler import collect_period as collect
     correlation_id = f"auto-ingest-{uuid.uuid4()}"
+    # Progress for the admin panel, overwritten by the final summary below.
+    progress = {"at": now.isoformat(), "manual": manual, "in_progress": True,
+                "current": None, "pairs": [], "total": None}
     try:
+        repo.set_last_run(progress)
         try:
             username, password = (read_credentials or _read_credentials)()
             token = login(username, password)
@@ -139,6 +143,8 @@ def run(
                 week_year=week_year, week_number=week_number, is_custom_range=False,
             )
             outcome = {"style_id": style_id, "week_year": week_year, "week_number": week_number}
+            repo.set_last_run({**progress, "current": dict(outcome), "pairs": outcomes,
+                               "total": len(pairs)})
             try:
                 result = collect(
                     params, correlation_id, api_request_id="auto-ingest",

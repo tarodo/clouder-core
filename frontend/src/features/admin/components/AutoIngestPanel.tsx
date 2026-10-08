@@ -5,6 +5,7 @@ import {
   Card,
   Group,
   List,
+  Loader,
   NumberInput,
   SegmentedControl,
   Select,
@@ -18,7 +19,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
-import type { AutoIngestSettingsBody } from '../../../api/autoIngest';
+import type { AutoIngestSettingsBody, AutoIngestState } from '../../../api/autoIngest';
 import { useAutoIngest } from '../hooks/useAutoIngest';
 import { useSaveAutoIngest } from '../hooks/useSaveAutoIngest';
 import { useRunAutoIngest } from '../hooks/useRunAutoIngest';
@@ -59,16 +60,33 @@ function week(y: number, n: number): string {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+const POLL_MS = 10_000;
+// Run now is asynchronous: keep polling until the run has taken its lease (Aurora may be waking).
+const START_WINDOW_MS = 90_000;
+
+export function autoIngestPollInterval(
+  data: AutoIngestState | undefined,
+  awaitingSince: number | null,
+  now: number,
+): number | false {
+  if (data?.running) return POLL_MS;
+  return awaitingSince !== null && now - awaitingSince < START_WINDOW_MS ? POLL_MS : false;
+}
+
 export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, string> }) {
   const { t } = useTranslation();
-  const query = useAutoIngest();
+  const [awaitingSince, setAwaitingSince] = useState<number | null>(null);
+  const query = useAutoIngest((data) => autoIngestPollInterval(data, awaitingSince, Date.now()));
   const save = useSaveAutoIngest();
   const run = useRunAutoIngest();
   const [form, setForm] = useState<Form | null>(null);
 
+  // Re-init only when the saved settings change: polling refreshes last_run every 10 s, and
+  // structural sharing keeps `settings` the same object while it is unchanged.
+  const saved = query.data?.settings;
   useEffect(() => {
-    if (!query.data) return;
-    const s = query.data.settings;
+    if (!saved) return;
+    const s = saved;
     setForm({
       enabled: s.enabled,
       mode: s.mode,
@@ -79,7 +97,7 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
       periodsPerRun: s.periods_per_run,
       floor: s.backfill_floor,
     });
-  }, [query.data]);
+  }, [saved]);
 
   const zones = useMemo(
     () => Array.from(new Set(['UTC', form?.timezone ?? 'UTC', ...Intl.supportedValuesOf('timeZone')])),
@@ -130,6 +148,7 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
   const runNow = async () => {
     try {
       await run.mutateAsync();
+      setAwaitingSince(Date.now());
       notifications.show({ color: 'green', title: t('admin.auto_ingest.run_started'), message: '' });
     } catch (err) {
       notifications.show({
@@ -141,6 +160,7 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
   };
 
   const last = data.last_run;
+  const inProgress = !!last?.in_progress;
 
   return (
     <Card withBorder>
@@ -172,7 +192,7 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
           {form.mode === 'fixed' ? (
             <TextInput
               label={t('admin.auto_ingest.times')}
-              description={t('admin.auto_ingest.times_hint')}
+              placeholder="09:00, 15:00, 21:00"
               value={form.times}
               onChange={(e) => set({ times: e.currentTarget.value })}
               error={timesOk ? null : t('admin.auto_ingest.times_invalid')}
@@ -180,7 +200,6 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
           ) : (
             <NumberInput
               label={t('admin.auto_ingest.runs_per_day')}
-              description={t('admin.auto_ingest.runs_per_day_hint')}
               min={1}
               max={12}
               allowDecimal={false}
@@ -207,7 +226,6 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
           <TextInput
             type="date"
             label={t('admin.auto_ingest.floor')}
-            description={t('admin.auto_ingest.floor_hint')}
             min="2000-01-01"
             max={today()}
             value={form.floor}
@@ -219,7 +237,7 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
           <Button onClick={submit} loading={save.isPending} disabled={!valid}>
             {t('admin.auto_ingest.save')}
           </Button>
-          <Button variant="default" onClick={runNow} loading={run.isPending}>
+          <Button variant="default" onClick={runNow} loading={run.isPending} disabled={data.running}>
             {t('admin.auto_ingest.run_now')}
           </Button>
         </Group>
@@ -238,7 +256,27 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
             )}
           </Stack>
           <Stack gap={4}>
-            <Text fw={600} size="sm">{t('admin.auto_ingest.last_run')}</Text>
+            <Text fw={600} size="sm">
+              {inProgress && data.running ? t('admin.auto_ingest.current_run') : t('admin.auto_ingest.last_run')}
+            </Text>
+            {inProgress && (
+              data.running ? (
+                <Group gap={6} wrap="nowrap">
+                  <Loader size="xs" />
+                  <Text size="sm">
+                    {last?.current
+                      ? t('admin.auto_ingest.fetching', {
+                          pair: `${styleName(last.current.style_id)} · ${week(last.current.week_year, last.current.week_number)}`,
+                          n: (last.pairs?.length ?? 0) + 1,
+                          total: last.total ?? '?',
+                        })
+                      : t('admin.auto_ingest.logging_in')}
+                  </Text>
+                </Group>
+              ) : (
+                <Text size="sm" c="red">{t('admin.auto_ingest.interrupted')}</Text>
+              )
+            )}
             {!last ? (
               <Text size="sm" c="dimmed">{t('admin.auto_ingest.never_run')}</Text>
             ) : (
@@ -255,7 +293,7 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
                     })}
                   </Text>
                 )}
-                {last.pairs.length === 0 && !last.failed_step && (
+                {last.pairs.length === 0 && !last.failed_step && !inProgress && (
                   <Text size="sm" c="dimmed">{t('admin.auto_ingest.nothing_due')}</Text>
                 )}
                 <List size="sm">
