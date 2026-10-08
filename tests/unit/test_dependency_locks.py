@@ -48,3 +48,19 @@ def test_ci_checks_locks_and_audits() -> None:
     run = "\n".join(s.get("run", "") for s in jobs["deps"]["steps"])
     assert "uv pip compile" in run and "git diff --exit-code" in run
     assert "pip-audit" in run and "pnpm audit --prod --audit-level high" in run
+
+
+def test_shared_pins_are_equal() -> None:
+    # Dependabot may bump one lock and not the other; CI must test what ships.
+    lam, dev = pinned(ROOT / "requirements-lambda.txt"), pinned(ROOT / "requirements-dev.txt")
+    assert {n: (v, dev[n]) for n, v in lam.items() if n in dev and dev[n] != v} == {}
+    assert set(lam) <= set(dev)
+
+
+def test_ci_uses_a_pinned_uv_and_fails_on_test_failures() -> None:
+    jobs = yaml.safe_load((ROOT / ".github" / "workflows" / "pr.yml").read_text())["jobs"]
+    setup = next(s for s in jobs["deps"]["steps"] if "setup-uv" in s.get("uses", ""))
+    assert re.fullmatch(r"\d+\.\d+\.\d+", str(setup["with"]["version"]))
+    # `pytest … | tee` returns tee's status unless pipefail is on.
+    run = next(s["run"] for s in jobs["tests"]["steps"] if "pytest" in s.get("run", ""))
+    assert run.lstrip().startswith("set -o pipefail")

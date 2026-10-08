@@ -65,4 +65,7 @@ resource "aws_iam_role_policy" "this" {
 
 output "arn" {
   value = aws_iam_role.this.arn
+  # A function must not switch to this role before its policy exists — this edge also
+  # pulls the policy into `-target=aws_lambda_function.<fn>` applies (deploy phase 1).
+  depends_on = [aws_iam_role_policy.this]
 }

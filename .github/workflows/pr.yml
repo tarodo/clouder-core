@@ -170,6 +170,8 @@ jobs:
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.7"  # the lock header and output format must not drift
 
       - name: Locks match their .in files
         run: |
@@ -235,6 +237,7 @@ jobs:
         env:
           PYTHONPATH: src
         run: |
+          set -o pipefail
           pytest -q --cov --cov-report=term | tee pytest.log
           grep -E '^TOTAL|Required test coverage' pytest.log >> "$GITHUB_STEP_SUMMARY"
 

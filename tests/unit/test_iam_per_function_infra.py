@@ -101,3 +101,12 @@ def test_each_role_writes_only_its_own_logs() -> None:
         group = re.search(r"log_group_arn\s*=\s*aws_cloudwatch_log_group\.([a-z_]+)\.arn", block)
         assert group, function
         assert f"aws_cloudwatch_log_group.{group.group(1)}" in fn or group.group(1) in fn, function
+
+
+def test_role_arn_waits_for_its_policy() -> None:
+    # deploy.yml's first phase is `-target=aws_lambda_function.db_migration`; without this
+    # edge the targeted apply skips the inline policy and hands the function a role that
+    # only has a trust policy (and a VPC function update fails without ec2:CreateNetworkInterface).
+    module = (INFRA / "modules" / "lambda_role" / "main.tf").read_text()
+    output = module[module.index('output "arn"'):]
+    assert re.search(r"depends_on\s*=\s*\[aws_iam_role_policy\.this\]", output)

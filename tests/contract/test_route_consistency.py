@@ -52,3 +52,11 @@ def test_every_route_is_handled_in_code() -> None:
         elif f'"{key}"' not in code:
             unhandled.append(key)
     assert unhandled == []
+
+
+def test_no_route_in_code_is_missing_from_terraform() -> None:
+    # A key the handlers dispatch on but API Gateway never routes answers 404 in prod.
+    code_key = re.compile(r'"((?:GET|POST|PUT|PATCH|DELETE) /[^"\s]*)"')
+    src = ROOT / "src" / "collector"
+    in_code = {k for p in src.rglob("*.py") for k in code_key.findall(p.read_text())}
+    assert sorted(in_code - terraform_routes()) == []

@@ -221,7 +221,7 @@ The SPA or a script gets HTTP 429 from API Gateway.
 
 **Diagnosis**
 
-The `$default` stage limits every route to 100 requests/s with a burst of 200 (`infra/api_gateway.tf`). Count 429s per route in the access log: `aws logs filter-log-events --log-group-name /aws/apigateway/clouder-prod-collector-api --filter-pattern '{ $.status = 429 }'`.
+The `$default` stage limits every route to 100 requests/s with a burst of 200 (`infra/api_gateway.tf`). Count 429s per route in the access log: `aws logs filter-log-events --log-group-name /aws/apigateway/clouder-prod-collector-api --filter-pattern '{ $.status = "429" }'`.
 
 **Fix**
 

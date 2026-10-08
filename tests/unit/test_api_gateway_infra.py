@@ -26,3 +26,11 @@ def test_api_throttling_and_access_logs() -> None:
     group = _block((INFRA / "logging.tf").read_text(), 'resource "aws_cloudwatch_log_group" "api_access"')
     assert '"/aws/apigateway/${local.name_prefix}-collector-api"' in group
     assert "retention_in_days = var.log_retention_days" in group
+
+
+def test_access_log_filters_match_string_status() -> None:
+    # jsonencode writes $context.status as a JSON string, so numeric filters match nothing.
+    docs = Path(__file__).resolve().parents[2] / "docs" / "ops"
+    text = (docs / "logs.md").read_text() + (docs / "runbook.md").read_text()
+    assert not re.search(r"\$\.status\s*(>=|<=|>|<|=)\s*\d", text)
+    assert '$.status = "429"' in text

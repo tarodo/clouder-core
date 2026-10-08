@@ -124,7 +124,7 @@ Every request to the HTTP API lands as one JSON line in `/aws/apigateway/clouder
 
 ```bash
 aws logs tail /aws/apigateway/clouder-prod-collector-api --follow --format short
-# 4xx/5xx only
+# 4xx/5xx only (status is logged as a string)
 aws logs filter-log-events --log-group-name /aws/apigateway/clouder-prod-collector-api \
-  --filter-pattern '{ $.status >= 400 }' --max-items 50
+  --filter-pattern '{ ($.status = "4*") || ($.status = "5*") }' --max-items 50
 ```

@@ -78,7 +78,7 @@ module "role_curation" {
     # Playlist covers: presigned upload/download, head, read for publishing.
     { sid = "PlaylistCovers", actions = ["s3:PutObject", "s3:GetObject"], resources = ["${aws_s3_bucket.raw.arn}/covers/*"] },
     {
-      # Without ListBucket a missing cover answers 403 instead of 404.
+      # Kept from the old shared policy (prefix-limited): lets S3 report a missing key as such.
       sid         = "ListCovers"
       actions     = ["s3:ListBucket"]
       resources   = [aws_s3_bucket.raw.arn]
