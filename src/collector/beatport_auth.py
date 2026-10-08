@@ -18,8 +18,6 @@ import urllib.request
 from typing import Any
 
 API = "https://api.beatport.com/v4"
-# Public client id of Beatport's own API docs (https://api.beatport.com/v4/docs/).
-DEFAULT_CLIENT_ID = "0GIvkCltVIuPkkwSJHp6NDb3s0potTjLBQr388Dd"
 REDIRECT_URI = f"{API}/auth/o/post-message/"
 _REDIRECTS = (301, 302, 303, 307, 308)
 
@@ -69,9 +67,13 @@ def fetch_access_token(
 ) -> str:
     # Login and authorize share a cookie session; the token exchange runs outside
     # it, exactly like the tested reference (HP/bp_t/bp_token_api.py).
+    # The public OAuth client id of Beatport's API docs page comes from config only
+    # (GitHub secret BEATPORT_CLIENT_ID → Lambda env), so a rotated id needs no code change.
+    client_id = client_id or os.environ.get("BEATPORT_CLIENT_ID")
+    if not client_id:
+        raise BeatportAuthError("client_id", "missing")
     session = opener or _default_opener()
     plain = opener or urllib.request.build_opener()
-    client_id = client_id or os.environ.get("BEATPORT_CLIENT_ID") or DEFAULT_CLIENT_ID
 
     _call(session, "login", urllib.request.Request(
         f"{API}/auth/login/",

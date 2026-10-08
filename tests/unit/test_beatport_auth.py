@@ -14,6 +14,11 @@ PASSWORD = "s3cret-pass"
 TOKEN = "TOKEN-123"
 
 
+@pytest.fixture(autouse=True)
+def _client_id(monkeypatch):
+    monkeypatch.setenv("BEATPORT_CLIENT_ID", "test-client")
+
+
 class Response:
     def __init__(self, status: int, body: bytes = b"", headers: dict | None = None) -> None:
         self.status = status
@@ -176,17 +181,29 @@ def test_real_opener_carries_the_session_and_reads_the_redirect(monkeypatch) -> 
     assert seen["token_cookie"] is None  # like the tested reference: token call outside the session
 
 
-@pytest.mark.parametrize("env, expected", [("custom-id", "custom-id"), ("", None)])
-def test_client_id_comes_from_the_environment(monkeypatch, env, expected) -> None:
-    # The deploy passes an empty value while the GitHub secret is unset.
-    from collector.beatport_auth import DEFAULT_CLIENT_ID
 
-    monkeypatch.setenv("BEATPORT_CLIENT_ID", env)
+def test_client_id_comes_from_the_environment(monkeypatch) -> None:
+    monkeypatch.setenv("BEATPORT_CLIENT_ID", "custom-id")
     opener = Opener(login=Response(200, b"{}"), authorize=_redirect(), token=_token_ok())
 
     fetch_access_token("user", PASSWORD, opener=opener)
 
     _, authorize, token = opener.requests
-    want = expected or DEFAULT_CLIENT_ID
-    assert urllib.parse.parse_qs(urllib.parse.urlparse(authorize.full_url).query)["client_id"] == [want]
-    assert urllib.parse.parse_qs(token.data.decode())["client_id"] == [want]
+    assert urllib.parse.parse_qs(urllib.parse.urlparse(authorize.full_url).query)["client_id"] == ["custom-id"]
+    assert urllib.parse.parse_qs(token.data.decode())["client_id"] == ["custom-id"]
+
+
+@pytest.mark.parametrize("env", ["", None])
+def test_missing_client_id_fails_before_any_request(monkeypatch, env) -> None:
+    # No id in code: the GitHub secret BEATPORT_CLIENT_ID is the only source.
+    if env is None:
+        monkeypatch.delenv("BEATPORT_CLIENT_ID", raising=False)
+    else:
+        monkeypatch.setenv("BEATPORT_CLIENT_ID", env)
+    opener = Opener(login=Response(200, b"{}"), authorize=_redirect(), token=_token_ok())
+
+    with pytest.raises(BeatportAuthError) as caught:
+        fetch_access_token("user", PASSWORD, opener=opener)
+
+    assert (caught.value.step, caught.value.status) == ("client_id", "missing")
+    assert opener.requests == []

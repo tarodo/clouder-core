@@ -225,6 +225,7 @@ Alarm `clouder-prod-auto-ingest-failed`, or the admin's Auto-ingest panel shows 
 **Fix**
 
 - `credentials`: the SSM parameters are missing or unreadable — add the GitHub secrets `BEATPORT_USERNAME` / `BEATPORT_PASSWORD` (environment `production`) and run the Deploy workflow by hand.
+- `client_id` (`missing`): the GitHub secret `BEATPORT_CLIENT_ID` is unset — add it (current id: the JS of `https://api.beatport.com/v4/docs/`) and run Deploy by hand.
 - `login` 401/403: the password changed — update the GitHub secret, redeploy.
 - `authorize` / `token`: first suspect a rotated client id — take the current one from the JS of `https://api.beatport.com/v4/docs/`, set the GitHub secret `BEATPORT_CLIENT_ID`, run Deploy by hand, rerun `auth_check`. If that does not help, Beatport changed its login flow — disable auto-ingest in the admin; manual ingest with a pasted token still works.
 - `catalog_auth`: login worked but the catalog API rejected the token (401/403) — check the account's catalog access; no pair was charged.

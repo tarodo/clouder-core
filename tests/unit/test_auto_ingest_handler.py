@@ -27,6 +27,14 @@ def test_auth_check_ok(monkeypatch, events) -> None:
     assert TOKEN not in repr(events) and "pw" not in repr(events)
 
 
+def test_auth_check_names_a_missing_client_id(monkeypatch, events) -> None:
+    monkeypatch.setattr(handler, "_read_credentials", lambda: ("user", "pw"))
+    monkeypatch.delenv("BEATPORT_CLIENT_ID", raising=False)
+
+    result = handler.lambda_handler({"action": "auth_check"}, None)
+
+    assert result == {"ok": False, "step": "client_id", "status": "missing"}
+
 def test_auth_check_reports_failed_step(monkeypatch, events) -> None:
     monkeypatch.setattr(handler, "_read_credentials", lambda: ("user", "pw"))
 

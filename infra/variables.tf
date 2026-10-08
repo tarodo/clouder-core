@@ -666,7 +666,7 @@ variable "comments_collect_batch_size" {
 }
 
 variable "beatport_client_id" {
-  description = "Beatport API v4 public OAuth client id for the auto-ingest login (GitHub secret BEATPORT_CLIENT_ID). Empty = the id built into collector.beatport_auth."
+  description = "Beatport API v4 public OAuth client id for the auto-ingest login (GitHub secret BEATPORT_CLIENT_ID). Empty = the login fails at step client_id."
   type        = string
   default     = ""
 }
