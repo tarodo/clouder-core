@@ -329,7 +329,7 @@ class FakePlaylistsRepo:
 def fake_repo(monkeypatch) -> FakePlaylistsRepo:
     repo = FakePlaylistsRepo()
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_playlists_repository",
+        "collector.curation.deps.create_default_playlists_repository",
         lambda: repo,
     )
     return repo
@@ -347,7 +347,7 @@ def fake_s3(monkeypatch):
     s3.head_cover.return_value = {"size": 1024, "content_type": "image/jpeg"}
     s3.read_cover_bytes.return_value = b"\xff\xd8jpegbytes"
     monkeypatch.setattr(
-        "collector.curation_handler._build_s3_storage",
+        "collector.curation.deps._build_s3_storage",
         lambda: s3,
     )
     return s3
@@ -380,7 +380,7 @@ def fake_spotify_client(monkeypatch):
                         artists=(SimpleNamespace(name="Nu Zau"),)),
     ]
     monkeypatch.setattr(
-        "collector.curation_handler._build_spotify_user_client",
+        "collector.curation.deps._build_spotify_user_client",
         lambda user_id, correlation_id: client,
     )
     return client
@@ -836,7 +836,7 @@ def test_export_playlist_includes_tracks_comments_and_enrichment(
         )
     }
     monkeypatch.setattr(
-        "collector.curation_handler._comments_factory", lambda: comments_repo,
+        "collector.curation.deps._comments_factory", lambda: comments_repo,
     )
 
     resp = lambda_handler(

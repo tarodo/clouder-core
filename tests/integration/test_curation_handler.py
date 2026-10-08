@@ -282,7 +282,7 @@ def fake_repo(monkeypatch) -> FakeRepo:
 
     repo = FakeRepo()
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: repo,
     )
     # Stub TagsRepository factory so handlers that inline-instantiate it
@@ -293,7 +293,7 @@ def fake_repo(monkeypatch) -> FakeRepo:
     tags_repo.list_tags_for_tracks.return_value = {}
     tags_repo.cleanup_orphaned_track_tags.return_value = 0
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_tags_repository",
+        "collector.curation.deps.create_default_tags_repository",
         lambda: tags_repo,
     )
     return repo

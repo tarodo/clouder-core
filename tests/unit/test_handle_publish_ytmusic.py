@@ -25,8 +25,8 @@ def test_handle_publish_ytmusic_returns_payload():
             assert kwargs["confirm_overwrite"] is True
             return result
 
-    with patch.object(curation_handler, "_build_ytmusic_user_client", return_value=object()), \
-         patch.object(curation_handler, "_build_s3_storage", return_value=object()), \
+    with patch("collector.curation.deps._build_ytmusic_user_client", return_value=object()), \
+         patch("collector.curation.deps._build_s3_storage", return_value=object()), \
          patch("collector.curation.ytmusic_publish_service.YtmusicPublishService",
                return_value=FakeSvc()):
         resp = curation_handler._handle_publish_ytmusic(

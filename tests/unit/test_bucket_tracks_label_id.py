@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from collector import curation_handler
+from collector.curation import deps
 from collector.curation.triage_repository import BucketTrackRowOut
 
 
@@ -67,7 +68,7 @@ def test_bucket_tracks_response_includes_label_id(monkeypatch) -> None:
             return [row], 1
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )
@@ -116,7 +117,7 @@ def test_bucket_tracks_response_includes_artist_objects(monkeypatch) -> None:
             return [row], 1
 
     monkeypatch.setattr(
-        curation_handler,
+        deps,
         "create_default_triage_repository",
         lambda: FakeRepo(),
     )

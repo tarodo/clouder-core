@@ -65,7 +65,7 @@ def context() -> SimpleNamespace:
 def fake_tags(monkeypatch) -> MagicMock:
     repo = MagicMock()
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_tags_repository",
+        "collector.curation.deps.create_default_tags_repository",
         lambda: repo,
     )
     return repo
@@ -525,7 +525,7 @@ def test_get_category_tracks_with_tag_filter_passes_params_to_repo(
         items=[], total=0, limit=50, offset=0,
     )
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: fake_cat,
     )
     resp = lambda_handler(
@@ -552,7 +552,7 @@ def test_get_category_tracks_default_match_is_all(
         items=[], total=0, limit=50, offset=0,
     )
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: fake_cat,
     )
     lambda_handler(
@@ -574,7 +574,7 @@ def test_get_category_tracks_no_tag_filter_passes_none(
         items=[], total=0, limit=50, offset=0,
     )
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: fake_cat,
     )
     lambda_handler(
@@ -595,7 +595,7 @@ def test_get_category_tracks_invalid_match_returns_400(
 ) -> None:
     fake_cat = MagicMock()
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: fake_cat,
     )
     resp = lambda_handler(
@@ -621,7 +621,7 @@ def test_remove_track_passes_tags_repo_to_categories_repo(
     fake_cat = MagicMock()
     fake_cat.remove_track.return_value = True
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: fake_cat,
     )
     resp = lambda_handler(
@@ -642,7 +642,7 @@ def test_soft_delete_passes_tags_repo_to_categories_repo(
     fake_cat = MagicMock()
     fake_cat.soft_delete.return_value = True
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_categories_repository",
+        "collector.curation.deps.create_default_categories_repository",
         lambda: fake_cat,
     )
     resp = lambda_handler(

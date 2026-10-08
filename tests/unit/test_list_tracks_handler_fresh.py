@@ -26,7 +26,7 @@ def _fake_repo():
 def test_handler_fresh_1_passes_true(monkeypatch):
     repo = _fake_repo()
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_tags_repository",
+        "collector.curation.deps.create_default_tags_repository",
         lambda: MagicMock(),
     )
     _handle_list_tracks(_make_event("1"), repo, "u-1", "corr-1")
@@ -36,7 +36,7 @@ def test_handler_fresh_1_passes_true(monkeypatch):
 def test_handler_fresh_0_passes_false(monkeypatch):
     repo = _fake_repo()
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_tags_repository",
+        "collector.curation.deps.create_default_tags_repository",
         lambda: MagicMock(),
     )
     _handle_list_tracks(_make_event("0"), repo, "u-1", "corr-1")
@@ -46,7 +46,7 @@ def test_handler_fresh_0_passes_false(monkeypatch):
 def test_handler_fresh_absent_passes_false(monkeypatch):
     repo = _fake_repo()
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_tags_repository",
+        "collector.curation.deps.create_default_tags_repository",
         lambda: MagicMock(),
     )
     _handle_list_tracks(_make_event(None), repo, "u-1", "corr-1")

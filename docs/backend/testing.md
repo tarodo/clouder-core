@@ -44,7 +44,7 @@ Unit tests do not need real Aurora, real AWS credentials, or real vendor API key
 
 ### Integration tests (`tests/integration/`)
 
-Test a full handler invocation (Lambda event → response) using fake in-memory implementations of the repository and external clients. Example: `tests/integration/test_curation_handler.py` imports `lambda_handler` from `collector.curation_handler` and drives it with crafted API Gateway event dicts, using `FakeRepo` as the backing store.
+Test a full handler invocation (Lambda event → response) using fake in-memory implementations of the repository and external clients. Example: `tests/integration/test_curation_handler.py` imports `lambda_handler` from `collector.curation_handler` and drives it with crafted API Gateway event dicts, using `FakeRepo` as the backing store. The curation routes live in `collector.curation.routes_*` and reach repositories and vendor clients through `collector.curation.deps`, so tests patch `collector.curation.deps.<factory>`.
 
 These tests catch routing bugs, request parsing errors, and cross-component interactions that unit tests miss, without requiring real infrastructure.
 

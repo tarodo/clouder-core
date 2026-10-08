@@ -50,7 +50,7 @@ def _event(playlist_id="pl-1", qs=None):
 
 def _call(playlist_id="pl-1", qs=None, playlists_repo=None, comments_repo=None):
     event = _event(playlist_id=playlist_id, qs=qs)
-    with patch("collector.curation_handler._comments_factory", return_value=comments_repo):
+    with patch("collector.curation.deps._comments_factory", return_value=comments_repo):
         return ch._handle_list_playlist_comments(event, playlists_repo, "u1", "corr")
 
 
@@ -106,7 +106,7 @@ def test_missing_id_path_param_raises_validation_error():
     playlists_repo = FakePlaylistsRepo([])
     comments_repo = FakeCommentsRepo({})
     with pytest.raises(ValidationError):
-        with patch("collector.curation_handler._comments_factory", return_value=comments_repo):
+        with patch("collector.curation.deps._comments_factory", return_value=comments_repo):
             ch._handle_list_playlist_comments(event, playlists_repo, "u1", "corr")
 
 

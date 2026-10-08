@@ -4,7 +4,8 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-from collector.curation_handler import _playlist_track_response, lambda_handler
+from collector.curation.routes_playlists import _playlist_track_response
+from collector.curation_handler import lambda_handler
 
 
 def _event(method: str, path: str, body: dict | None = None,
@@ -22,7 +23,7 @@ def _event(method: str, path: str, body: dict | None = None,
 
 def _patch_factory(repo: MagicMock):
     return patch(
-        "collector.curation_handler.create_default_playlists_repository",
+        "collector.curation.deps.create_default_playlists_repository",
         return_value=repo,
     )
 
@@ -123,7 +124,7 @@ def test_list_playlist_tracks_returns_paginated(monkeypatch) -> None:
     repo = MagicMock()
     repo.list_tracks.return_value = ([], 0)
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_tags_repository",
+        "collector.curation.deps.create_default_tags_repository",
         lambda: MagicMock(),
     )
     with _patch_factory(repo):
@@ -202,7 +203,7 @@ def test_cover_upload_url_returns_presign_metadata() -> None:
     repo = MagicMock()
     repo.get.return_value = _row()  # exists
     with _patch_factory(repo), patch(
-        "collector.curation_handler._build_s3_storage"
+        "collector.curation.deps._build_s3_storage"
     ) as s3_factory:
         s3 = MagicMock()
         s3.cover_key.return_value = "covers/u-1/p-1/123.jpg"
@@ -224,7 +225,7 @@ def test_cover_confirm_400_when_missing() -> None:
     repo = MagicMock()
     repo.get.return_value = _row()
     with _patch_factory(repo), patch(
-        "collector.curation_handler._build_s3_storage"
+        "collector.curation.deps._build_s3_storage"
     ) as s3_factory:
         s3 = MagicMock()
         s3.head_cover.return_value = None
@@ -278,7 +279,7 @@ def test_list_playlist_tracks_returns_enriched_fields(monkeypatch) -> None:
     repo.list_tracks.return_value = ([row], 1)
     fake_tags_repo = MagicMock()
     monkeypatch.setattr(
-        "collector.curation_handler.create_default_tags_repository",
+        "collector.curation.deps.create_default_tags_repository",
         lambda: fake_tags_repo,
     )
     with _patch_factory(repo):
@@ -305,7 +306,7 @@ def test_publish_returns_412_when_no_spotify_token() -> None:
     repo.get.return_value = _row()
     from collector.curation import SpotifyNotAuthorizedError as _ENA
     with _patch_factory(repo), patch(
-        "collector.curation_handler._build_spotify_user_client",
+        "collector.curation.deps._build_spotify_user_client",
         side_effect=_ENA("no token"),
     ):
         resp = lambda_handler(
