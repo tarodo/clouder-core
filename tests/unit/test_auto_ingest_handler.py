@@ -256,3 +256,39 @@ def test_progress_is_visible_while_the_run_works(events) -> None:
     assert all(p["in_progress"] and p["total"] == 3 and p["manual"] for p in during_fetch)
     assert "in_progress" not in repo.last_run  # the final summary replaces the progress
     assert TOKEN not in repr(during_login + during_fetch)
+
+
+# ── paused Aurora ─────────────────────────────────────────────────────────────
+
+def _resuming_once():
+    from botocore.exceptions import ClientError
+
+    class DataApi:
+        def __init__(self):
+            self.calls = 0
+
+        def execute(self, sql, params=None, transaction_id=None):
+            self.calls += 1
+            if self.calls == 1:
+                raise ClientError({"Error": {"Code": "DatabaseResumingException", "Message": "resuming"}},
+                                  "ExecuteStatement")
+            return []
+
+    return DataApi()
+
+
+@pytest.mark.parametrize("action", ["run", "plan"])
+def test_handler_waits_for_a_paused_aurora(monkeypatch, action) -> None:
+    # A scheduled run that meets a paused Aurora must not fail (and fire the errors alarm).
+    client = _resuming_once()
+    seen = []
+    monkeypatch.setattr(handler, "_data_api_client", lambda: client)
+    monkeypatch.setattr(handler, "_sleep", lambda s: None)
+    monkeypatch.setattr(handler, "run", lambda ctx, *, repo, now, manual: seen.append(("run", repo)) or {})
+    monkeypatch.setattr(handler, "plan", lambda ctx, *, repo, scheduler, now, rng: seen.append(("plan", repo)) or {})
+    monkeypatch.setitem(__import__("sys").modules, "boto3", type("B", (), {"client": staticmethod(lambda n: None)}))
+
+    handler.lambda_handler({"action": action}, Ctx())
+
+    assert client.calls == 2  # the probe retried once, then the action ran
+    assert [name for name, _ in seen] == [action]

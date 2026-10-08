@@ -109,3 +109,29 @@ def _retry(
         return wrapper  # type: ignore[return-value]
 
     return decorator
+
+
+def wake_database(
+    client: Any,
+    *,
+    deadline_s: float = 60.0,
+    sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
+) -> None:
+    """Probe with SELECT 1 until a resuming Aurora answers or the deadline passes.
+
+    A resume can outlast the Data API client's own retries; without the probe
+    every check would be recorded as failed and the alarm would fire on a paused
+    database instead of bad data. Other errors, and a resume that never ends,
+    propagate so the Lambda fails and EventBridge retries it.
+    """
+    start = clock()
+    while True:
+        try:
+            client.execute("SELECT 1")
+            return
+        except ClientError as exc:
+            resuming = exc.response.get("Error", {}).get("Code") == "DatabaseResumingException"
+            if not resuming or clock() - start >= deadline_s:
+                raise
+            sleep(5)

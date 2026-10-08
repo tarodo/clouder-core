@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 import uuid
 from datetime import date, datetime
 from typing import Any, Callable, Mapping
@@ -23,6 +24,7 @@ from .auto_ingest_plan import choose_periods, due_week
 from .auto_ingest_repository import AutoIngestRepository
 from .auto_ingest_schedule import apply_schedule, plan_times
 from .beatport_auth import BeatportAuthError, fetch_access_token
+from .data_api_retry import wake_database
 from .errors import UpstreamAuthError
 from .logging_utils import log_event
 from .repositories import utc_now
@@ -186,16 +188,27 @@ def run(
         repo.release_lease()
 
 
-def _repository() -> AutoIngestRepository:
+def _data_api_client() -> Any:
     from .data_api import create_default_data_api_client
     from .settings import get_data_api_settings
 
     settings = get_data_api_settings()
-    return AutoIngestRepository(create_default_data_api_client(
+    return create_default_data_api_client(
         resource_arn=str(settings.aurora_cluster_arn),
         secret_arn=str(settings.aurora_secret_arn),
         database=settings.aurora_database,
-    ))
+    )
+
+
+_sleep = time.sleep
+
+
+def _repository() -> AutoIngestRepository:
+    # Scheduled runs often meet a paused Aurora (auto-pause after 300 s idle); wait for
+    # it instead of failing the first attempt and firing the errors alarm.
+    client = _data_api_client()
+    wake_database(client, sleep=_sleep)
+    return AutoIngestRepository(client)
 
 
 def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, Any]:
