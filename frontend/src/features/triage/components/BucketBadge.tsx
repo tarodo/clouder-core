@@ -23,7 +23,7 @@ export function BucketBadge({ bucket, size = 'sm' }: BucketBadgeProps) {
       size={size}
       variant="outline"
       color={color}
-      ff={isStaging ? 'sans' : 'mono'}
+      ff={isStaging ? 'text' : 'monospace'}
     >
       {bucketLabel(bucket, t)}
     </Badge>
