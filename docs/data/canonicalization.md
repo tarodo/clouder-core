@@ -103,28 +103,26 @@ A track's `release_type` is NULL until its ISRC lookup succeeds. A track that is
 
 ## is_ai_suspected propagation
 
-`is_ai_suspected` is a soft flag on `clouder_labels`, `clouder_artists`, and `clouder_tracks`. It is not authoritative — the source of truth is `ai_search_results.result`. See ADR-0008.
+`is_ai_suspected` is a soft flag on `clouder_labels`, `clouder_artists` and `clouder_tracks`. It is not authoritative: the source of truth is the merged enrichment result (`clouder_label_info` / `clouder_artist_info`). See ADR-0008, ADR-0016 and ADR-0017.
 
-**Write path**: `search_handler.py:propagate_ai_flag` is called after saving an `ai_search_results` row.
-
-Rules (source: `src/collector/search_handler.py:propagate_ai_flag`):
+**Write path**: `project_ai_suspected` in `src/collector/label_enrichment/repository.py` and `src/collector/artist_enrichment/repository.py`, called after a run merges its vendor results.
 
 ```python
-def propagate_ai_flag(repository, *, entity_type, entity_id, result, threshold):
-    if result.confidence < threshold:
-        return                                                    # too weak → no-op
-    if result.ai_content in (SUSPECTED, CONFIRMED):
-        repository.update_entity_is_ai_suspected(entity_type, entity_id, True)
-    elif result.ai_content == NONE_DETECTED:
-        repository.update_entity_is_ai_suspected(entity_type, entity_id, False)  # explicit clear
-    # ai_content == UNKNOWN → no-op
+def project_ai_suspected(self, entity_id, merged, threshold):
+    if merged.confidence < threshold:
+        return                                         # too weak → no change
+    if merged.ai_content in (SUSPECTED, CONFIRMED):
+        value = True
+    elif merged.ai_content == NONE_DETECTED:
+        value = False                                  # explicit clear
+    else:
+        return                                         # UNKNOWN → no change
+    # UPDATE clouder_labels / clouder_artists SET is_ai_suspected = :value
 ```
 
-`threshold` defaults to `0.6` (`AI_FLAG_CONFIDENCE_THRESHOLD`, set on the `clouder-prod-label-enricher-worker` and `clouder-prod-artist-enricher-worker` Lambdas — see `infra/lambda.tf`).
+`threshold` defaults to `0.6` (`AI_FLAG_CONFIDENCE_THRESHOLD`, set on the `clouder-prod-label-enricher-worker` and `clouder-prod-artist-enricher-worker` Lambdas — see `infra/lambda.tf`). No current writer sets the flag on tracks.
 
-`ai_content=unknown` is always a no-op regardless of confidence. `none_detected` with confidence ≥ threshold explicitly clears the flag (sets to `false`).
-
-The flag can be set on labels, artists, or tracks depending on which entity type the Perplexity prompt targets. Current production prompts target labels (`entity_type='label'`). Artist and track-level propagation uses the same function but is triggered by artist-specific prompt slugs when enabled.
+The default prompts (`label_v4_no_ai`, `artist_v2_no_ai`) no longer ask about AI content, so their results carry `ai_content = unknown` and leave the flag unchanged; it moves only when an AI-aware prompt version is chosen for a run.
 
 To verify the current flag status, query Aurora directly (the `GET /labels` API does not project `is_ai_suspected`):
 

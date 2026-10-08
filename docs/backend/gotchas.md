@@ -119,7 +119,7 @@ See also: [ADR-0005](../adr/0005-iam-auth-migration.md).
 
 **Why:** Fetching secrets on every invocation would add latency and cost. The cache is bounded to the container lifetime, which is acceptable for long-lived API keys.
 
-**Mitigation:** After rotating a Perplexity or Spotify API key, force a container recycle (deploy a no-op env var change to the Lambda). The new key will be picked up on the next cold start. There is no in-process way to invalidate the cache without a restart.
+**Mitigation:** After rotating a vendor API key (Spotify, Gemini, OpenAI, …), force a container recycle (deploy a no-op env var change to the Lambda). The new key will be picked up on the next cold start. There is no in-process way to invalidate the cache without a restart.
 
 ---
 
@@ -137,11 +137,11 @@ See also: [ADR-0005](../adr/0005-iam-auth-migration.md).
 
 ### Lambda reserved concurrency is off by default
 
-**What:** `var.enable_lambda_reserved_concurrency` defaults to `false`. When `true`, the AI search worker gets 2, Spotify search worker gets 3, and vendor match worker gets 2 reserved concurrent executions.
+**What:** `var.enable_lambda_reserved_concurrency` defaults to `false`. When `true`, the Spotify search worker gets 3, the vendor match worker 2, and the label and artist enricher workers 10 each reserved concurrent executions (25 in total).
 
-**Why:** AWS new accounts have a `ConcurrentExecutions` quota of 10, and `UnreservedConcurrentExecution` has a hard floor of 10. Assigning any reserved concurrency to these three workers (total 7) would consume the entire budget, tripping `InvalidParameterValueException` on `terraform apply`.
+**Why:** AWS new accounts have a `ConcurrentExecutions` quota of 10, and `UnreservedConcurrentExecution` has a hard floor of 10. Assigning any reserved concurrency would consume the entire budget, tripping `InvalidParameterValueException` on `terraform apply`. The auto-ingest Lambda keeps runs apart with a lease instead (ADR-0027).
 
-**Mitigation:** Raise the account quota (`L-B99A9384`) to at least 17 via AWS Service Quotas, then set `enable_lambda_reserved_concurrency = true` in `infra/terraform.tfvars`. Until then, workers run unreserved and Perplexity 429s flow through SQS retry → DLQ.
+**Mitigation:** Raise the account quota (`L-B99A9384`) to at least 35 via AWS Service Quotas, then set `enable_lambda_reserved_concurrency = true` in `infra/terraform.tfvars`. Until then, workers run unreserved and vendor 429s flow through SQS retry → DLQ.
 
 ---
 

@@ -11,6 +11,6 @@ Canonical schema, raw ingestion, transforms, search and enrichment.
 - [Raw data contract](contracts.md) — the Beatport record contract, quarantine, drift alarms.
 - [Lakehouse](lakehouse.md) — dbt + Iceberg silver/gold, SCD2 track history, nightly build.
 - [Entity resolution](entity-resolution.md) — identity map, ISRC and fuzzy matching, review queue, measured matcher quality.
-- [Search and enrichment](search-and-enrichment.md) — Spotify ISRC + metadata fallback, Perplexity label search, vendor-match cache, AI flag.
+- [Search and enrichment](search-and-enrichment.md) — Spotify ISRC + metadata fallback, YouTube Music matching, vendor-match cache, LLM label/artist research.
 
 See also [`docs/architecture.md`](../architecture.md), [`docs/adr/`](../adr/).

@@ -2,7 +2,7 @@
 
 ## Overview
 
-All Lambda functions share a single Python package: `src/collector/`. Each Lambda has its own entry-point module; there is no shared `lambda_handler` dispatcher. The functions documented in detail below are:
+All Lambda functions share a single Python package: `src/collector/`. Each Lambda has its own entry-point module; there is no shared `lambda_handler` dispatcher. The full inventory (18 functions, their triggers and purpose) is in [`docs/architecture.md`](../architecture.md#lambda-functions). This page documents in detail:
 
 | Lambda (AWS name) | Entry-point module | Trigger |
 |---|---|---|
@@ -12,9 +12,7 @@ All Lambda functions share a single Python package: `src/collector/`. Each Lambd
 | `clouder-prod-vendor-match-worker` | `collector.vendor_match_handler` | SQS |
 | `clouder-prod-db-migration` | `collector.migration_handler` | Direct invoke (post-deploy) |
 
-Auth flows are handled by a separate Lambda (`collector.auth_handler`) documented below; see [Auth handler](#auth-handler).
-
-This table is **not exhaustive** — prod also runs `clouder-prod-curation`, `clouder-prod-telemetry`, `clouder-prod-analytics-api`, `clouder-prod-label-enricher-worker`, `clouder-prod-artist-enricher-worker`, `clouder-prod-auto-enrich-dispatch-worker`, `clouder-prod-comments-collect-worker`, `clouder-prod-catalog-export` (nightly 00:00 UTC), and `clouder-prod-auth-authorizer`.
+Auth flows are handled by a separate Lambda (`collector.auth_handler`) documented below; see [Auth handler](#auth-handler). Label/artist enrichment, auto-ingest, backfill, data quality and the analytics Lambdas have their own pages under `docs/data/` and `docs/ops/`.
 
 The AWS resource prefix is `clouder-prod-`, derived from `var.project` + `var.environment` in Terraform. A few resources deliberately keep the older `beatport-prod-*` name (renaming them would mean data loss): the `raw` ingest bucket, the analytics-lake bucket, the Athena workgroup, and the frontend bucket / OAC / CloudFront functions.
 
@@ -104,7 +102,7 @@ For each SQS record:
 3. Normalize via `normalize_tracks` → a `NormalizedBundle` of tracks, artists, labels, albums, relations.
 4. Canonicalize via `Canonicalizer(repository).process_run(run_id, bundle)` — upserts into Aurora.
 5. Mark run `COMPLETED` in `clouder_ingest_runs`.
-6. Enqueue follow-up AI-search messages (up to 500 labels) and a Spotify-search message.
+6. Enqueue a Spotify-search message for the run (best-effort).
 
 ### Retry and DLQ behavior
 
@@ -113,50 +111,11 @@ For each SQS record:
 
 ### Idempotency
 
-The canonicalization upserts use `ON CONFLICT DO UPDATE` so retrying a message that was already partially processed is safe. However, the follow-up enqueue (step 6) is best-effort; duplicate search messages are harmless because search results are also upserted.
+The canonicalization upserts use `ON CONFLICT DO UPDATE` so retrying a message that was already partially processed is safe. The follow-up enqueue (step 6) is best-effort; a duplicate Spotify-search message is harmless because searches upsert.
 
 Keep `CANONICALIZATION_QUEUE_VISIBILITY_TIMEOUT_SECONDS >= CANONICALIZATION_WORKER_LAMBDA_TIMEOUT_SECONDS` in Terraform to avoid duplicate processing while a worker is still running.
 
 See also: [data-api.md](data-api.md), [gotchas.md](gotchas.md).
-
----
-
-## AI Search Worker (`collector.search_handler`)
-
-**Entry point:** `src/collector/search_handler.py:lambda_handler`
-
-### Trigger
-
-SQS (`AI_SEARCH_QUEUE_URL`). Messages are sent by the API Lambda (on ingest) and by the canonicalization worker (post-run).
-
-### Message schema
-
-`EntitySearchMessage` — fields: `entity_type`, `entity_id`, `prompt_slug`, `prompt_version`, `context` (dict). Current entity type: `label`. The `context` dict for labels carries `label_name` and `styles`.
-
-### Processing flow
-
-1. Parse message; invalid records are skipped without DLQ.
-2. Resolve enricher: `registry.get_enricher_for_prompt(prompt_slug)`. If no enabled vendor handles this slug, logs a warning and returns `False` (message deleted, not retried).
-3. Call `enricher.enrich(entity_type, entity_id, context, correlation_id)` — for labels this is `PerplexityLabelEnricher`.
-4. Persist result to `ai_search_results` via `repository.save_search_result`.
-5. Call `propagate_ai_flag` which sets/clears `is_ai_suspected` on the canonical entity row when `result.confidence >= AI_FLAG_CONFIDENCE_THRESHOLD` (default 0.6).
-
-### AI flag propagation rules
-
-Defined in `propagate_ai_flag` (`src/collector/search_handler.py:26`):
-
-- `confidence < threshold` → no-op.
-- `ai_content in {suspected, confirmed}` → set `is_ai_suspected = True`.
-- `ai_content == none_detected` → set `is_ai_suspected = False` (explicit clear).
-- `ai_content == unknown` → no-op.
-
-`ai_content = unknown` is a no-op; results with weak confidence are also no-ops. The authoritative AI finding is always in `ai_search_results.result` (JSONB).
-
-### Retry behavior
-
-Same permanent/transient split as the canonicalization worker. `ValueError`, `TypeError`, `KeyError`, `NotImplementedError` → permanent (message deleted). All other exceptions re-raise → SQS retry → DLQ.
-
-See also: [providers.md](providers.md), [ADR-0008](../adr/0008-ai-suspected-flag.md).
 
 ---
 

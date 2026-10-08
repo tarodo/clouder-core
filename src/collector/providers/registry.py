@@ -1,7 +1,7 @@
 """Provider registry — single public surface for vendor lookups.
 
 VENDORS_ENABLED env var controls which vendors can be resolved:
-  VENDORS_ENABLED="beatport,spotify,perplexity_label"
+  VENDORS_ENABLED="beatport,spotify,ytmusic"
 
 Vendors not in the list raise VendorDisabledError on access. Provider
 instances are constructed lazily — a vendor's bundle is only built when

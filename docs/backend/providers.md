@@ -10,8 +10,10 @@ Four Protocol interfaces cover the distinct capabilities a vendor may expose:
 |---|---|---|
 | `IngestProvider` | Fetch raw releases from the source platform | Beatport |
 | `LookupProvider` | Search for tracks by ISRC or metadata | Spotify |
-| `EnrichProvider` | AI / external-data enrichment for canonical entities | Perplexity (label, artist stub) |
+| `EnrichProvider` | External-data enrichment for canonical entities | Spotify (track identity) |
 | `ExportProvider` | Create playlists on the vendor platform | Spotify (stub), YT Music (stub), Deezer (stub), Apple (stub), Tidal (stub) |
+
+Label and artist research (Gemini, OpenAI, Tavily + DeepSeek) does not go through the registry: its vendor adapters live in `src/collector/label_enrichment/vendors/` and are shared by artist enrichment (ADR-0016, ADR-0017).
 
 All four are defined in `src/collector/providers/base.py` as `runtime_checkable` Protocols. The `ProviderBundle` dataclass (also in `base.py`) groups the four optional roles for a single vendor.
 
@@ -21,7 +23,7 @@ See also: [handlers.md](handlers.md), [ADR-0004](../adr/0004-provider-abstractio
 
 ## `VENDORS_ENABLED` Gate
 
-**Env var:** `VENDORS_ENABLED` — comma-separated list of vendor names, e.g. `"beatport,spotify,perplexity_label"`.
+**Env var:** `VENDORS_ENABLED` — comma-separated list of vendor names, e.g. `"beatport,spotify,ytmusic"`.
 
 The registry (`src/collector/providers/registry.py`) reads this on every access call via `_enabled_vendors()`. Vendors whose name is not in the set raise `VendorDisabledError` before the bundle is even constructed.
 
@@ -81,14 +83,6 @@ These vendors wrap real client implementations. Provider classes are thin adapte
 - **Enrich role:** `EnrichProvider` — wraps `SpotifyLookup`; current enrichment is track identity (ISRC → Spotify URI), not freeform AI text.
 - **Export role:** `ExportProvider` — stub; `create_playlist` raises `VendorDisabledError(reason="not_implemented")` until implemented.
 - **Settings:** `get_spotify_worker_settings()` (reads `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` or SSM/SM fallbacks).
-
-### Perplexity (`label enrich`, `artist stub`)
-
-- **Bundles:** `perplexity_label` → `ProviderBundle(enrich=PerplexityLabelEnricher(...))`, `perplexity_artist` → `ProviderBundle(enrich=PerplexityArtistEnricher(...))`
-- **Adapters:** `src/collector/providers/perplexity/{label,artist}.py`
-- **Role:** `EnrichProvider` — issues a structured prompt to the Perplexity API and returns an `EnrichResult` whose `payload` includes `ai_content`, `confidence`, and supporting evidence.
-- **`prompt_slug`:** Used by `get_enricher_for_prompt` to route search messages. The label enricher handles `"label_info"`; the artist enricher is a stub.
-- **Settings:** `get_search_worker_settings().perplexity_api_key` (resolved from `PERPLEXITY_API_KEY` / `PERPLEXITY_API_KEY_SSM_PARAMETER` / `PERPLEXITY_API_KEY_SECRET_ARN`).
 
 ### YT Music (`lookup`)
 

@@ -32,37 +32,14 @@ Applies to any Lambda that uses `src/collector/providers/registry.py`. Comma-sep
 |-------|--------|-------|
 | `beatport` | Active | Ingest adapter |
 | `spotify` | Active | ISRC lookup + enrichment |
-| `perplexity_label` | Active | AI label content analysis |
-| `perplexity_artist` | Stub | Raises `VendorDisabledError` on use |
-| `ytmusic` | Stub | Raises `VendorDisabledError` on use |
+| `ytmusic` | Active | Metadata lookup for matching; playlist publish |
 | `deezer` | Stub | Raises `VendorDisabledError` on use |
 | `apple` | Stub | Raises `VendorDisabledError` on use |
 | `tidal` | Stub | Raises `VendorDisabledError` on use |
 
-Example: `VENDORS_ENABLED=beatport,spotify,perplexity_label`
+Example: `VENDORS_ENABLED=beatport,spotify,ytmusic`
 
 Adding a new vendor: create the adapter under `src/collector/providers/<vendor>/`, register a builder in `src/collector/providers/registry.py`, and add the name to `VENDORS_ENABLED`. See `docs/backend/providers.md` and ADR-0004.
-
----
-
-## AI search worker (superseded — Lambda no longer exists)
-
-> **Superseded.** There is no `ai-search-worker` Lambda in prod and no `src/collector/search_handler.py` in the codebase; the Perplexity screening path was replaced by the label and artist enrichment subsystems ([ADR-0016](../adr/0016-label-enrichment.md), [ADR-0017](../adr/0017-artist-enrichment.md)), which run on `clouder-prod-label-enricher-worker` / `clouder-prod-artist-enricher-worker` and use the OpenAI / Tavily / DeepSeek credentials synced by the deploy workflow. `AI_FLAG_CONFIDENCE_THRESHOLD` now lives on those two Lambdas. The table below is retained for history and needs a refresh pass.
-
-| Name | Type | Default | Source / Purpose |
-|------|------|---------|-----------------|
-| `PERPLEXITY_API_KEY` | string | — | **Direct** — highest precedence; skips SSM/SM lookup |
-| `PERPLEXITY_API_KEY_SSM_PARAMETER` | string | `/clouder/perplexity/api_key` | SSM SecureString parameter name — used in prod (synced by deploy workflow) |
-| `PERPLEXITY_API_KEY_SECRET_ARN` | string | — | Legacy Secrets Manager ARN — used only if neither of the above is set |
-| `AI_FLAG_CONFIDENCE_THRESHOLD` | float | `0.6` | Minimum confidence from a label search result to set/clear `is_ai_suspected`; below this threshold the flag is unchanged |
-| `VENDORS_ENABLED` | string | — | Must include `perplexity_label` for this worker to function |
-| `AURORA_CLUSTER_ARN` | string | — | Aurora cluster ARN |
-| `AURORA_SECRET_ARN` | string | — | Aurora master secret ARN |
-| `AURORA_DATABASE` | string | `clouder` | Database name |
-
-Credential resolution order: `PERPLEXITY_API_KEY` (env) > `PERPLEXITY_API_KEY_SSM_PARAMETER` > `PERPLEXITY_API_KEY_SECRET_ARN`.
-
-See also `docs/data/search-and-enrichment.md` for the AI search pipeline.
 
 ---
 

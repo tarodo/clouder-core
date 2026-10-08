@@ -8,7 +8,8 @@ CLOUDER uses two GitHub Actions workflows: `pr.yml` for pre-merge validation and
 
 | Job | Trigger path | Steps |
 |-----|-------------|-------|
-| `alembic-check` | `src/**`, `alembic/**`, `requirements*.txt` | Spin ephemeral Postgres 16, run `alembic upgrade head` twice (idempotency check) |
+| `alembic-check` | `src/**`, `alembic/**`, `requirements*.txt` | Spin ephemeral Postgres 16, run `alembic upgrade head` twice (idempotency check), then the real-Postgres tests (`tests/db`, `TEST_DATABASE_URL`) |
+| `dbt` | `dbt/**` | `dbt seed` / `run --empty` / `build` on DuckDB with fixtures (unit + data tests), then `dbt parse --target prod` |
 | `terraform` | `infra/**` | `terraform fmt -check`, `terraform init` (remote S3 backend), `terraform validate`, `scripts/package_lambda.sh`, `terraform plan -var="environment=prod" -var="canonicalization_enabled=true"` |
 | `tests` | `src/**`, `tests/**` | `pytest -q` with `PYTHONPATH=src` |
 | `frontend` | `frontend/**`, `docs/api/openapi.yaml` | `pnpm api:types` + diff-check `src/api/schema.d.ts` against `docs/api/openapi.yaml` (fails if out of sync), `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` |
@@ -19,7 +20,7 @@ Terraform backend: state bucket and lock table names come from GitHub Actions re
 
 ## Deploy pipeline
 
-`.github/workflows/deploy.yml` — triggered on push to `main`. Runs in the `production` environment.
+`.github/workflows/deploy.yml` — triggered on push to `main`, or by hand (`workflow_dispatch`, `main` only — e.g. to re-sync a changed secret). Runs in the `production` environment.
 
 Order of steps:
 
@@ -29,22 +30,13 @@ Order of steps:
    - Copies `alembic/` → `dist/lambda_build/db_migrations/` (packaging rename; code references `db_migrations` at Lambda runtime)
    - Produces `dist/collector.zip`
 
-2. **Sync secrets to SSM Parameter Store** — pushes GitHub Secrets as SSM SecureStrings before Terraform runs so Lambda env vars reference stable SSM paths:
-   - `/clouder/perplexity/api_key`
-   - `/clouder/spotify/client_id`
-   - `/clouder/spotify/client_secret`
+2. **Sync secrets to SSM Parameter Store** — pushes GitHub Secrets as SSM SecureStrings before Terraform runs, so Lambda env vars reference stable SSM paths:
+   - `/clouder/gemini/api_key`, `/clouder/openai/api_key`, `/clouder/tavily/api_key`, `/clouder/deepseek/api_key`
+   - `/clouder/spotify/client_id`, `/clouder/spotify/client_secret`
+   - `/clouder/ytmusic/client_id`, `/clouder/ytmusic/client_secret`, `/clouder/youtube/api_key`
+   - `/clouder/beatport/username`, `/clouder/beatport/password` (auto-ingest; skipped while unset)
 
-3. **Terraform apply** — `terraform apply -auto-approve` with prod vars:
-   ```
-   -var="environment=prod"
-   -var="canonicalization_enabled=true"
-   -var="ai_search_enabled=true"
-   -var="spotify_search_enabled=true"
-   -var="perplexity_api_key_ssm_parameter=/clouder/perplexity/api_key"
-   -var="spotify_client_id_ssm_parameter=/clouder/spotify/client_id"
-   -var="spotify_client_secret_ssm_parameter=/clouder/spotify/client_secret"
-   -var="migration_aurora_auth_mode=iam"
-   ```
+3. **Terraform apply, two phases** — first `-target=aws_lambda_function.db_migration` (so the migration Lambda carries the new Alembic revisions), then step 4, then the full apply. A single apply once updated the API before the schema and produced 2 min 40 s of HTTP 500s (2026-09-20). The `-var` list lives in `deploy.yml`; `TF_VAR_beatport_client_id` and `TF_VAR_alarm_email` come from secrets on the full apply.
 
 4. **Run DB migrations** — invokes the migration Lambda synchronously:
    ```bash
@@ -56,7 +48,9 @@ Order of steps:
    ```
    Checks `FunctionError` in meta and `status != "ok"` in response body; fails the workflow if either is set.
 
-5. **Frontend deploy** — `scripts/deploy_frontend.sh` (see [Frontend deploy](#frontend-deploy) below).
+5. **Full Terraform apply** — the rest of the stack, including the API Lambdas.
+
+6. **Frontend deploy** — `scripts/deploy_frontend.sh` (see [Frontend deploy](#frontend-deploy) below).
 
 ## Frontend deploy
 
@@ -76,9 +70,11 @@ Secrets are scoped to the **`production` environment** (not repo-root) in GitHub
 
 | Secret | Scope | Used by |
 |--------|-------|---------|
-| `PERPLEXITY_API_KEY` | `production` environment | Synced to `/clouder/perplexity/api_key` SSM |
+| `GEMINI_API_KEY`, `OPENAI_API_KEY`, `TAVILY_API_KEY`, `DEEPSEEK_API_KEY` | `production` environment | Synced to `/clouder/<vendor>/api_key` SSM (label/artist enrichment) |
 | `SPOTIFY_CLIENT_ID` | `production` environment | Synced to `/clouder/spotify/client_id` SSM |
 | `SPOTIFY_CLIENT_SECRET` | `production` environment | Synced to `/clouder/spotify/client_secret` SSM |
+| `YTMUSIC_CLIENT_ID`, `YTMUSIC_CLIENT_SECRET` | `production` environment | Synced to `/clouder/ytmusic/client_{id,secret}` SSM (YouTube Music OAuth) |
+| `YOUTUBE_API_KEY` | `production` environment | Synced to `/clouder/youtube/api_key` SSM (YouTube Data API, comments) |
 | `BEATPORT_USERNAME` | `production` environment | Synced to `/clouder/beatport/username` SSM (auto-ingest login; step skipped while unset) |
 | `BEATPORT_PASSWORD` | `production` environment | Synced to `/clouder/beatport/password` SSM (auto-ingest login; step skipped while unset) |
 | `BEATPORT_CLIENT_ID` | `production` environment | `TF_VAR_beatport_client_id` → auto-ingest Lambda env `BEATPORT_CLIENT_ID` (public OAuth id from the JS of `api.beatport.com/v4/docs/`; not in code). Unset: deploy passes, the login fails at step `client_id`. Change it and run Deploy by hand if Beatport rotates the id |

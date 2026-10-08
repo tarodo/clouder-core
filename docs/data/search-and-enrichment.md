@@ -1,6 +1,6 @@
 # Search and enrichment
 
-After canonicalization, two asynchronous workers enrich canonical tracks and labels with data from Spotify and Perplexity. A third worker (`vendor_match_handler`) maintains a per-vendor match cache.
+After canonicalization, asynchronous workers enrich canonical tracks with Spotify data and match them to YouTube Music (`vendor_match_handler`, a per-vendor match cache). Labels and artists get multi-vendor LLM research (Gemini, OpenAI, Tavily + DeepSeek) — see the last section.
 
 ---
 
@@ -107,65 +107,6 @@ Log event on hit: `spotify_isrc_neighbour_match` (includes `isrc`, `spotify_isrc
 
 ---
 
-## Perplexity label and artist screening (superseded)
-
-> **Superseded.** Neither the `ai-search-worker` Lambda nor `src/collector/search_handler.py` exists any more. Label and artist screening now run through the enrichment subsystems — see [ADR-0016](../adr/0016-label-enrichment.md) and [ADR-0017](../adr/0017-artist-enrichment.md), served by the `clouder-prod-label-enricher-worker` and `clouder-prod-artist-enricher-worker` Lambdas. The rest of this section is retained for the `ai_search_results` schema and history, and needs a refresh pass.
-
-The worker receives `EntitySearchMessage` (entity type + entity ID + prompt slug + version), queries Perplexity, and saves the structured result to `ai_search_results`. It then calls `propagate_ai_flag` to update `is_ai_suspected` on the canonical entity.
-
-`ai_search_results` schema:
-
-| Column | Type | Notes |
-|---|---|---|
-| id | String(36) PK | UUID |
-| entity_type | String(32) | `label`, `artist` |
-| entity_id | String(36) | UUID of canonical entity |
-| prompt_slug | String(64) | e.g. `label_info` |
-| prompt_version | String(16) | e.g. `v1` |
-| result | JSONB | Full `LabelSearchResult` as JSON |
-| searched_at | TIMESTAMPTZ | |
-
-Unique index: `(entity_type, entity_id, prompt_slug, prompt_version)`. Re-searching overwrites on conflict.
-
-`result` is JSONB, not flat columns. To query inner fields:
-
-```sql
--- Labels suspected of AI content with confidence
-SELECT
-    cl.id,
-    cl.name,
-    asr.result->>'ai_content'         AS ai_content,
-    (asr.result->>'confidence')::float AS confidence
-FROM ai_search_results asr
-JOIN clouder_labels cl ON cl.id = asr.entity_id
-WHERE asr.entity_type = 'label'
-  AND asr.result->>'ai_content' IN ('suspected', 'confirmed')
-ORDER BY confidence DESC
-LIMIT 20;
-```
-
-**Propagation rules** (ADR-0008):
-
-| `ai_content` | `confidence >= threshold` | Effect on `is_ai_suspected` |
-|---|---|---|
-| `suspected` or `confirmed` | yes | Set `TRUE` |
-| `none_detected` | yes | Set `FALSE` (explicit clear) |
-| `unknown` | any | No-op |
-| any | no | No-op |
-
-Default threshold: `0.6` (`AI_FLAG_CONFIDENCE_THRESHOLD` env var).
-
-Credential resolution for Perplexity:
-1. `PERPLEXITY_API_KEY` (direct)
-2. `PERPLEXITY_API_KEY_SSM_PARAMETER` (SSM SecureString name)
-3. `PERPLEXITY_API_KEY_SECRET_ARN` (Secrets Manager)
-
-Secrets are `lru_cache`-cached per container. Rotated keys require a Lambda recycle.
-
-**Known gap**: `GET /labels` does not project `is_ai_suspected`. Query Aurora directly to verify the flag.
-
----
-
 ## Vendor match cache
 
 **Worker**: `clouder-prod-vendor-match-worker` Lambda, SQS-triggered.
@@ -205,36 +146,14 @@ This prevents duplicate pending entries when the worker retries the same track. 
 
 ---
 
-## Result schema
+## Label and artist research
 
-`ai_search_results.result` stores the full `LabelSearchResult` Pydantic model as JSONB.
+Labels and artists are researched by `clouder-prod-label-enricher-worker` and `clouder-prod-artist-enricher-worker` (SQS). A run asks several vendors (Gemini, OpenAI, Tavily + DeepSeek) with a versioned prompt, stores each vendor's answer as a cell, and merges the answers into one profile.
 
-Key inner fields (source: `src/collector/search/schemas.py`):
+| Table | Holds |
+|---|---|
+| `clouder_label_enrichment_runs` / `clouder_artist_enrichment_runs` | One row per run: prompt slug and version, vendors and models, merge vendor, status, cell counts |
+| `clouder_label_enrichment_cells` / `clouder_artist_enrichment_cells` | One row per vendor answer: parsed result, citations, token usage, latency, error |
+| `clouder_label_info` / `clouder_artist_info` | The merged profile shown in the app |
 
-| Field | Type | Values |
-|---|---|---|
-| `ai_content` | string | `unknown`, `none_detected`, `suspected`, `confirmed` |
-| `confidence` | float 0..1 | Model's self-assessed accuracy |
-| `label_name` | string | |
-| `size` | string | `micro`, `small`, `medium`, `large`, `major`, `unknown` |
-| `age` | string | `new`, `young`, `established`, `veteran`, `unknown` |
-| `founded_year` | int or null | |
-| `sources` | array of strings | URLs used |
-
-Example query — all labels where AI content was confirmed or suspected with high confidence:
-
-```sql
-SELECT
-    cl.name,
-    asr.result->>'ai_content'          AS ai_content,
-    asr.result->>'ai_content_details'  AS details,
-    (asr.result->>'confidence')::float AS confidence,
-    asr.searched_at
-FROM ai_search_results asr
-JOIN clouder_labels cl ON cl.id = asr.entity_id
-WHERE asr.entity_type = 'label'
-  AND asr.prompt_slug = 'label_info'
-  AND asr.result->>'ai_content' IN ('suspected', 'confirmed')
-  AND (asr.result->>'confidence')::float >= 0.6
-ORDER BY asr.searched_at DESC;
-```
+Runs are started from the admin (single entity or backlog) or automatically when a triage block is finalized (`auto-enrich-dispatch-worker`). The `is_ai_suspected` projection is described in [canonicalization.md](canonicalization.md#is_ai_suspected-propagation). Design and economics: ADR-0016 (labels), ADR-0017 (artists).

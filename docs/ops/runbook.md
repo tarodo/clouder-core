@@ -146,7 +146,7 @@ During development, avoid replaying raw HTTP requests that include the `refresh_
 InvalidParameterValueException: The requested ReservedConcurrentExecutions ... will leave account-level UnreservedConcurrentExecution below the minimum threshold of 10.
 ```
 
-Or workers behave as if unthrottled (Perplexity/Spotify 429s flowing back through SQS retry → DLQ) despite `enable_lambda_reserved_concurrency=true` being set.
+Or workers behave as if unthrottled (vendor 429s flowing back through SQS retry → DLQ) despite `enable_lambda_reserved_concurrency=true` being set.
 
 **Diagnosis**
 
@@ -154,12 +154,13 @@ AWS new accounts start with a `ConcurrentExecutions` quota of 10. The reserved c
 
 | Lambda | Reserved |
 |--------|---------|
-| `ai_search_worker` | 2 |
 | `spotify_search_worker` | 3 |
 | `vendor_match_worker` | 2 |
-| **Total** | **7** |
+| `label_enricher_worker` | 10 |
+| `artist_enricher_worker` | 10 |
+| **Total** | **25** |
 
-AWS requires at least 10 unreserved concurrent executions in the account. With a quota of 10, reserving 7 leaves only 3 unreserved — below the floor — triggering `InvalidParameterValueException`.
+AWS requires at least 10 unreserved concurrent executions in the account. With a quota of 10, reserving 25 is impossible — below the floor — triggering `InvalidParameterValueException`.
 
 Controlled by `var.enable_lambda_reserved_concurrency` in `infra/variables.tf` (default `false`).
 
@@ -168,7 +169,7 @@ Controlled by `var.enable_lambda_reserved_concurrency` in `infra/variables.tf` (
 1. Request a quota increase via AWS Service Quotas:
    - Service: Lambda
    - Quota: `Concurrent executions` (quota code `L-B99A9384`)
-   - Target: 17 or higher (10 unreserved floor + 7 reserved)
+   - Target: 35 or higher (10 unreserved floor + 25 reserved)
 
 2. After the quota is approved, set the Terraform variable:
    ```hcl
@@ -178,7 +179,7 @@ Controlled by `var.enable_lambda_reserved_concurrency` in `infra/variables.tf` (
 
 3. Run `terraform apply`.
 
-Until the quota is raised, leave `enable_lambda_reserved_concurrency = false`. Workers run unreserved and Perplexity/Spotify 429s flow to DLQ for retry.
+Until the quota is raised, leave `enable_lambda_reserved_concurrency = false`. Workers run unreserved and vendor 429s flow to DLQ for retry.
 
 ## Nightly dbt build failed
 
