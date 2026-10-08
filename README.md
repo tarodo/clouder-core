@@ -48,7 +48,7 @@ flowchart LR
   SIL & BRZ --> ATH["Athena"] --> API
 ```
 
-The full diagram and the list of all 18 Lambda functions are in [`docs/architecture.md`](docs/architecture.md). Key decisions (all 27 in [`docs/adr/`](docs/adr/README.md)):
+The full diagram and the list of all 18 Lambda functions are in [`docs/architecture.md`](docs/architecture.md); [`docs/engineering-highlights.md`](docs/engineering-highlights.md) points to the code worth reading first. Key decisions (all 27 in [`docs/adr/`](docs/adr/README.md)):
 
 | Decision | Why | ADR |
 |---|---|---|
@@ -72,10 +72,11 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 **Cloud & infrastructure**
 - 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 228 Terraform resource definitions.
 - GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
-- 27 CloudWatch alarms routed to email through SNS.
+- A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function, routed to email through SNS.
 
 **Software engineering**
-- About 3,300 automated tests: ~2,080 backend (including 51 against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
+- About 3,300 automated tests: ~2,090 backend (including 51 against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
+- CI gates on every PR: ruff and mypy, an 80 % coverage floor, locked Python dependencies with pip-audit, a runtime `pnpm audit`, a route-consistency check (Terraform ↔ OpenAPI ↔ handler code); Dependabot for pip, npm, Actions and Terraform.
 - 27 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
 
 ## AWS services
@@ -92,10 +93,10 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 | **Kinesis Data Firehose** | Telemetry ingest with JSON → Parquet conversion and dynamic partitioning |
 | **Glue Data Catalog + Athena** | Bronze tables with partition projection; Iceberg silver/gold; per-user analytics |
 | **CodeBuild** | Runs `dbt build` for the nightly transform |
-| **CloudWatch + SNS** | Structured JSON logs, log metric filters, 27 alarms, email notifications |
+| **CloudWatch + SNS** | Structured JSON logs, API access logs, log metric filters, alarms on every function's errors and on data/pipeline health, email notifications |
 | **KMS / SSM / Secrets Manager** | Envelope encryption of users' OAuth tokens; vendor credentials; Aurora credentials |
 | **CloudFront** | SPA delivery with Origin Access Control |
-| **IAM** | GitHub OIDC deploy role; scoped roles per data prefix, queue and schedule group |
+| **IAM** | A least-privilege execution role per Lambda (its own log group and only what its code uses); GitHub OIDC deploy role |
 
 ## Data pipeline
 
@@ -140,8 +141,10 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 
 ## Running it locally
 
+`make help` lists the shortcuts (`make test`, `make test-db`, `make lint`, `make typecheck`, `make cov`, `make lock`, …); the raw commands:
+
 ```bash
-# Backend tests
+# Backend tests (dependencies are locked: requirements-*.in → requirements-*.txt)
 python -m pip install -r requirements-dev.txt
 pytest -q
 
@@ -177,8 +180,7 @@ Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/dep
 ## Known limitations & next steps
 
 - One production environment; changes are verified by CI, local real-PostgreSQL tests and dry runs rather than a staging stack.
-- 11 of the 18 Lambda functions share one IAM role. Next: a role per function.
-- API Gateway has no throttling or access logs yet, and Aurora deletion protection is off.
+- Throughput limits are measured, not guessed: canonicalization fits a 10× week easily and reaches the Lambda timeout around 100× the largest week — see [scalability notes](docs/scalability.md).
 - Matching precision is measured for YouTube Music only. Next: a labelled sample for Spotify.
 - Built for a closed group of DJs: about 98k tracks, growing by 3–5k a week.
 
