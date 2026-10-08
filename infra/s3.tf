@@ -10,6 +10,28 @@ resource "aws_s3_bucket_versioning" "raw" {
   }
 }
 
+# Old versions are the backup of the raw zone: they move to Glacier Instant
+# Retrieval (still millisecond reads for a restore) and are never expired.
+resource "aws_s3_bucket_lifecycle_configuration" "raw" {
+  bucket     = aws_s3_bucket.raw.id
+  depends_on = [aws_s3_bucket_versioning.raw]
+
+  rule {
+    id     = "noncurrent-to-glacier-ir"
+    status = "Enabled"
+    filter {}
+
+    noncurrent_version_transition {
+      noncurrent_days = 30
+      storage_class   = "GLACIER_IR"
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "raw" {
   bucket = aws_s3_bucket.raw.id
 

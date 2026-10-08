@@ -26,15 +26,17 @@ variable "athena_workgroup" {
   default = "beatport-prod-analytics"
 }
 
-# Dedicated Athena workgroup for the analytics-api (the var above named it but no
-# resource created it, so start_query_execution failed with InvalidRequestException).
-# enforce=false so the handler's explicit OutputLocation + per-query result reuse apply.
+# Dedicated Athena workgroup for the analytics-api and the nightly dbt build.
+# Enforced settings pin every query's results to athena-results/ (per-query result
+# reuse still applies); the cutoff cancels any single query scanning over 10 GiB —
+# the largest scan so far is a few hundred MB.
 resource "aws_athena_workgroup" "analytics" {
   name          = var.athena_workgroup
   force_destroy = true
 
   configuration {
-    enforce_workgroup_configuration = false
+    enforce_workgroup_configuration = true
+    bytes_scanned_cutoff_per_query  = 10737418240
     result_configuration {
       output_location = "s3://${var.analytics_lake_bucket}/athena-results/"
     }
