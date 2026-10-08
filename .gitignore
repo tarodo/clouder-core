@@ -1,7 +1,7 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-dist/*.zip
+dist/
 
 # Terraform local artifacts and state
 .terraform/
@@ -51,3 +51,8 @@ dbt/logs/
 dbt/dbt_packages/
 .venv-dbt/
 dbt/.user.yml
+
+# Coverage artifacts
+.coverage
+coverage.xml
+pytest.log

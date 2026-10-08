@@ -162,6 +162,33 @@ jobs:
       - name: Parse the Athena target
         run: dbt parse --target prod
 
+  deps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Locks match their .in files
+        run: |
+          uv pip compile --universal --python-version 3.12 requirements-lambda.in -o requirements-lambda.txt -q
+          uv pip compile --universal --python-version 3.12 requirements-dev.in -o requirements-dev.txt -q
+          git diff --exit-code requirements-lambda.txt requirements-dev.txt
+
+      - name: Python vulnerabilities
+        run: uvx pip-audit -r requirements-lambda.txt -r requirements-dev.txt --progress-spinner off
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Frontend runtime vulnerabilities (dev-only ones go to Dependabot)
+        working-directory: frontend
+        run: pnpm audit --prod --audit-level high
+
   lint:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
