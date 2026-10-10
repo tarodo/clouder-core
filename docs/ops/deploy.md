@@ -10,7 +10,7 @@ CLOUDER uses two GitHub Actions workflows: `pr.yml` for pre-merge validation and
 |-----|-------------|-------|
 | `alembic-check` | `src/**`, `alembic/**`, `requirements*.txt` | Spin ephemeral Postgres 16, run `alembic upgrade head` twice (idempotency check), then the real-Postgres tests (`tests/db`, `TEST_DATABASE_URL`) |
 | `dbt` | `dbt/**` | `dbt seed` / `run --empty` / `build` on DuckDB with fixtures (unit + data tests), then `dbt parse --target prod` |
-| `terraform` | `infra/**` | `terraform fmt -check`, `terraform init` (remote S3 backend), `terraform validate`, `scripts/package_lambda.sh`, `terraform plan -var="environment=prod" -var="canonicalization_enabled=true"` |
+| `terraform` | `infra/**` | `scripts/package_lambda.sh`, `terraform fmt -check`, then under the read-only role `clouder-prod-gha-plan`: `terraform init` (remote S3 backend), `terraform validate`, `terraform plan -var-file=prod.tfvars` with the deploy's `TF_VAR_*` inputs — the plan is what the deploy would apply ([ADR-0028](../adr/0028-ci-roles.md)). Dependabot PRs (no secrets) run `init -backend=false` + `validate` only |
 | `lint` | backend paths | `ruff check src tests scripts` and `mypy` (config in `pyproject.toml`) |
 | `tests` | `src/**`, `tests/**` | `pytest -q --cov` with `PYTHONPATH=src`; fails under 80 % line coverage; TOTAL goes to the job summary |
 | `deps` | always | `uv pip compile` re-run must not change `requirements-*.txt`; `pip-audit` on both locks; `pnpm audit --prod --audit-level high` |
@@ -22,11 +22,13 @@ Terraform backend: state bucket and lock table names come from GitHub Actions re
 
 ## Dependencies
 
-Declared in `requirements-lambda.in` (Lambda runtime; boto3 comes with the runtime) and `requirements-dev.in` (adds test and CI tools), locked into the matching `.txt` files with `uv pip compile --universal --python-version 3.12 <file>.in -o <file>.txt`. uv keeps existing pins, so recompiling only changes what an edited `.in` asks for; `--upgrade-package <name>` bumps one dependency. Dependabot opens weekly grouped PRs for pip, npm, GitHub Actions and Terraform.
+Declared in `requirements-lambda.in` (Lambda runtime; boto3 comes with the runtime) and `requirements-dev.in` (adds test and CI tools), locked into the matching `.txt` files with `uv pip compile --universal --python-version 3.12 <file>.in -o <file>.txt`. uv keeps existing pins, so recompiling only changes what an edited `.in` asks for; `--upgrade-package <name>` bumps one dependency. Dependabot opens weekly PRs for npm, GitHub Actions, Terraform and the dbt requirements; root Python locks are upgraded with `make upgrade` (Dependabot's own compile would fail the lock-drift check), and its pip security PRs need `make lock` on their branch.
 
 ## Deploy pipeline
 
 `.github/workflows/deploy.yml` — triggered on push to `main`, or by hand (`workflow_dispatch`, `main` only — e.g. to re-sync a changed secret). Runs in the `production` environment.
+
+Deploys never overlap: job-level `concurrency: deploy-production` queues a second merge behind the first.
 
 Order of steps:
 
@@ -35,6 +37,7 @@ Order of steps:
    - Copies `src/collector/` → `dist/lambda_build/collector/`
    - Copies `alembic/` → `dist/lambda_build/db_migrations/` (packaging rename; code references `db_migrations` at Lambda runtime)
    - Produces `dist/collector.zip`
+   - Runs, with the frontend build (`scripts/deploy_frontend.sh build`), before AWS credentials are configured: pip and pnpm run third-party install code.
 
 2. **Sync secrets to SSM Parameter Store** — pushes GitHub Secrets as SSM SecureStrings before Terraform runs, so Lambda env vars reference stable SSM paths:
    - `/clouder/gemini/api_key`, `/clouder/openai/api_key`, `/clouder/tavily/api_key`, `/clouder/deepseek/api_key`
@@ -42,7 +45,7 @@ Order of steps:
    - `/clouder/ytmusic/client_id`, `/clouder/ytmusic/client_secret`, `/clouder/youtube/api_key`
    - `/clouder/beatport/username`, `/clouder/beatport/password` (auto-ingest; skipped while unset)
 
-3. **Terraform apply, two phases** — first `-target=aws_lambda_function.db_migration` (so the migration Lambda carries the new Alembic revisions), then step 4, then the full apply. A single apply once updated the API before the schema and produced 2 min 40 s of HTTP 500s (2026-09-20). The `-var` list lives in `deploy.yml`; `TF_VAR_beatport_client_id` and `TF_VAR_alarm_email` come from secrets on the full apply.
+3. **Terraform apply, two phases** — first `-target=aws_lambda_function.db_migration` (so the migration Lambda carries the new Alembic revisions), then step 4, then the full apply. A single apply once updated the API before the schema and produced 2 min 40 s of HTTP 500s (2026-09-20). Both phases read `infra/prod.tfvars` and the job-level `TF_VAR_*` inputs; `pr.yml` passes the same ones to the PR plan.
 
 4. **Run DB migrations** — invokes the migration Lambda synchronously:
    ```bash
@@ -60,10 +63,10 @@ Order of steps:
 
 ## Frontend deploy
 
-`scripts/deploy_frontend.sh`:
+`scripts/deploy_frontend.sh` (no argument: both modes; the deploy runs `build` before AWS credentials exist and `publish` after the apply):
 
-1. `pnpm install --frozen-lockfile && pnpm build` from `frontend/`
-2. Reads `BUCKET` and `DIST_ID` from `terraform output` (`frontend_bucket`, `frontend_distribution_id`)
+1. `build`: `pnpm install --frozen-lockfile && pnpm build` from `frontend/`
+2. `publish`: reads `BUCKET` and `DIST_ID` from `terraform output` (`frontend_bucket`, `frontend_distribution_id`)
 3. `aws s3 sync dist/ s3://$BUCKET/ --delete` for hashed assets with `Cache-Control: public,max-age=31536000,immutable`, excluding `index.html`
 4. `aws s3 cp dist/index.html` with `Cache-Control: no-cache,no-store,must-revalidate`
 5. `aws cloudfront create-invalidation --paths "/index.html"` — forces CDN to serve the fresh shell on next viewer request
@@ -72,7 +75,7 @@ CloudFront distribution and S3 bucket are managed in `infra/frontend.tf`.
 
 ## GitHub Secrets
 
-Secrets are scoped to the **`production` environment** (not repo-root) in GitHub Actions settings. The deploy workflow references them as `${{ secrets.* }}` only within the `environment: production` job context.
+Credentials — the vendor keys, the Beatport login and the deploy role — are scoped to the **`production` environment**. Terraform inputs that are not credentials are repo-root secrets, because the pull-request plan must see the same values as the deploy; Terraform marks the email and the budget `sensitive`, so no plan prints them. Workflows pass secrets to shell steps only through `env`.
 
 | Secret | Scope | Used by |
 |--------|-------|---------|
@@ -83,10 +86,11 @@ Secrets are scoped to the **`production` environment** (not repo-root) in GitHub
 | `YOUTUBE_API_KEY` | `production` environment | Synced to `/clouder/youtube/api_key` SSM (YouTube Data API, comments) |
 | `BEATPORT_USERNAME` | `production` environment | Synced to `/clouder/beatport/username` SSM (auto-ingest login; step skipped while unset) |
 | `BEATPORT_PASSWORD` | `production` environment | Synced to `/clouder/beatport/password` SSM (auto-ingest login; step skipped while unset) |
-| `BEATPORT_CLIENT_ID` | `production` environment | `TF_VAR_beatport_client_id` → auto-ingest Lambda env `BEATPORT_CLIENT_ID` (public OAuth id from the JS of `api.beatport.com/v4/docs/`; not in code). Unset: deploy passes, the login fails at step `client_id`. Change it and run Deploy by hand if Beatport rotates the id |
-| `ALARM_EMAIL` | `production` environment | `TF_VAR_alarm_email` → SNS topic `clouder-prod-alarms` with an email subscription; every CloudWatch alarm (and its OK) goes there. AWS first mails a confirmation link — nothing is delivered until it is clicked. Unset: no topic, alarms stay console-only |
-| `BUDGET_MONTHLY_LIMIT` | `production` environment | `TF_VAR_budget_monthly_limit` → AWS Budgets `clouder-prod-monthly` (a plain number of USD), emailing `ALARM_EMAIL` at 80 % of actual and 100 % of forecast spend. Unset (or no `ALARM_EMAIL`): no budget. The amount is a secret only because the repo is public |
-| `AWS_GITHUB_ROLE_ARN` | Repo root | OIDC role assumption in both workflows |
+| `BEATPORT_CLIENT_ID` | Repo root | `TF_VAR_beatport_client_id` → auto-ingest Lambda env `BEATPORT_CLIENT_ID` (public OAuth id from the JS of `api.beatport.com/v4/docs/`; not in code). Unset: deploy passes, the login fails at step `client_id`. Change it and run Deploy by hand if Beatport rotates the id |
+| `ALARM_EMAIL` | Repo root | `TF_VAR_alarm_email` → SNS topic `clouder-prod-alarms` with an email subscription; every CloudWatch alarm (and its OK) goes there. AWS first mails a confirmation link — nothing is delivered until it is clicked. Unset: no topic, alarms stay console-only |
+| `BUDGET_MONTHLY_LIMIT` | Repo root | `TF_VAR_budget_monthly_limit` → AWS Budgets `clouder-prod-monthly` (a plain number of USD), emailing `ALARM_EMAIL` at 80 % of actual and 100 % of forecast spend. Unset (or no `ALARM_EMAIL`): no budget. The amount is a secret only because the repo is public |
+| `AWS_GITHUB_ROLE_ARN` | `production` environment | Deploy role (OIDC), trusted only by this environment ([ADR-0028](../adr/0028-ci-roles.md)) |
+| `AWS_PLAN_ROLE_ARN` | Repo root | Read-only plan role `clouder-prod-gha-plan` for PR checks (`terraform output gha_plan_role_arn`) |
 
 GitHub Actions repo variables (not secrets): `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `SPOTIFY_OAUTH_REDIRECT_URI`, `ADMIN_SPOTIFY_IDS`, `ALLOWED_FRONTEND_REDIRECTS`.
 

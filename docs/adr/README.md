@@ -58,3 +58,4 @@ Trade-offs accepted. What becomes harder. Cross-references to topical docs.
 | 0025 | [Iceberg silver/gold built by dbt on Athena](0025-iceberg-dbt-lakehouse.md) |
 | 0026 | [Raw Beatport data contract as data, with quarantine and drift alarms](0026-raw-data-contract.md) |
 | 0027 | [Auto-ingest with a per-run Beatport login and EventBridge Scheduler](0027-auto-ingest.md) |
+| 0028 | [A read-only plan role for pull requests, an environment-gated deploy role](0028-ci-roles.md) |

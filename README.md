@@ -52,7 +52,7 @@ flowchart LR
   SIL & BRZ --> ATH["Athena"] --> API
 ```
 
-The full diagram and the list of all 18 Lambda functions are in [`docs/architecture.md`](docs/architecture.md); [`docs/engineering-highlights.md`](docs/engineering-highlights.md) points to the code worth reading first. Key decisions (all 27 in [`docs/adr/`](docs/adr/README.md)):
+The full diagram and the list of all 18 Lambda functions are in [`docs/architecture.md`](docs/architecture.md); [`docs/engineering-highlights.md`](docs/engineering-highlights.md) points to the code worth reading first. Key decisions (all 28 in [`docs/adr/`](docs/adr/README.md)):
 
 | Decision | Why | ADR |
 |---|---|---|
@@ -81,7 +81,7 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 **Software engineering**
 - About 3,300 automated tests: ~2,090 backend (including 51 against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
 - CI gates on every PR: ruff and mypy, an 80 % coverage floor, locked Python dependencies with pip-audit, a runtime `pnpm audit`, a route-consistency check (Terraform ↔ OpenAPI ↔ handler code); Dependabot for pip, npm, Actions and Terraform.
-- 27 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
+- 28 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
 
 ## AWS services
 
