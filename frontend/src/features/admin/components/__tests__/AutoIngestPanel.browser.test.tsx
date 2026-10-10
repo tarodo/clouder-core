@@ -2,7 +2,7 @@ import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
-import { page } from '@vitest/browser/context';
+import { page } from 'vitest/browser';
 import '../../../../i18n';
 import { AutoIngestPanel } from '../AutoIngestPanel';
 import { AUTO_INGEST_KEY } from '../../hooks/useAutoIngest';

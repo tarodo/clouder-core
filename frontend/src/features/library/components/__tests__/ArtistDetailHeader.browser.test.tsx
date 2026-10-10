@@ -5,7 +5,7 @@
  * artist name heading, not on a separate row above it.
  *
  * jsdom can't verify getBoundingClientRect geometry — this lives in the
- * browser harness (@vitest/browser + Playwright).
+ * browser harness (vitest browser mode, Playwright).
  */
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

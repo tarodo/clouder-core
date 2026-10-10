@@ -5,7 +5,7 @@
  */
 import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
-import { page } from '@vitest/browser/context';
+import { page } from 'vitest/browser';
 import { MemoryRouter } from 'react-router';
 import { MantineProvider, Paper, SimpleGrid, Stack } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
