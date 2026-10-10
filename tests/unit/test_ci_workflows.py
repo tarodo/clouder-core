@@ -96,8 +96,10 @@ def test_plan_and_apply_get_the_same_inputs() -> None:
     assert "-var-file=prod.tfvars" in plan["run"] and "-var=" not in plan["run"]
 
 
-HUMAN = "github.event.pull_request.user.login != 'dependabot[bot]'"
-BOT = "github.event.pull_request.user.login == 'dependabot[bot]'"
+# github.actor, not the PR author: secrets follow the actor, so a person pushing a fix
+# to a Dependabot branch still gets the plan.
+HUMAN = "github.actor != 'dependabot[bot]'"
+BOT = "github.actor == 'dependabot[bot]'"
 
 
 def test_pull_requests_plan_with_the_read_only_role() -> None:
@@ -120,3 +122,11 @@ def test_dependabot_prs_validate_without_aws() -> None:
     assert any(s.get("if") == BOT and "-backend=false" in s.get("run", "") for s in steps)
     validate = next(s for s in steps if s.get("run", "").strip() == "terraform validate")
     assert "if" not in validate
+
+
+def test_only_the_terraform_job_can_mint_oidc_tokens() -> None:
+    # Every PR job installs third-party code (pip, pnpm); only the plan needs AWS.
+    assert "id-token" not in PR.get("permissions", {})
+    holders = {name for name, job in PR["jobs"].items() if job.get("permissions", {}).get("id-token") == "write"}
+    assert holders == {"terraform"}
+    assert PR["jobs"]["terraform"]["permissions"] == {"contents": "read", "id-token": "write"}
