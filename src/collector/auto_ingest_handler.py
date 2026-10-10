@@ -19,23 +19,16 @@ import uuid
 from datetime import date, datetime
 from typing import Any, Callable, Mapping
 
-from . import secrets
 from .auto_ingest_plan import choose_periods, due_week
 from .auto_ingest_repository import AutoIngestRepository
 from .auto_ingest_schedule import apply_schedule, plan_times
 from .beatport_auth import BeatportAuthError, fetch_access_token
+from .beatport_auth import read_credentials as _read_credentials
 from .data_api_retry import wake_database
 from .errors import UpstreamAuthError
 from .logging_utils import log_event
 from .repositories import utc_now
 from .saturday_week import saturday_week_range
-
-
-def _read_credentials() -> tuple[str, str]:
-    return (
-        secrets._fetch_ssm_parameter(os.environ["BEATPORT_USERNAME_SSM_PARAMETER"]),
-        secrets._fetch_ssm_parameter(os.environ["BEATPORT_PASSWORD_SSM_PARAMETER"]),
-    )
 
 
 def auth_check() -> dict[str, Any]:

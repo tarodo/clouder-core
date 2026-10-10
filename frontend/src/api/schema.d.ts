@@ -627,7 +627,7 @@ export interface paths {
         put?: never;
         /**
          * Admin: trigger Beatport ingest with Saturday-week or custom range.
-         * @description Saturday-week semantics. If `period_start` and `period_end` are omitted, the server computes them from `(week_year, week_number)`. If both are present the run is recorded with `is_custom_range = true`.
+         * @description Saturday-week semantics. If `period_start` and `period_end` are omitted, the server computes them from `(week_year, week_number)`. If both are present the run is recorded with `is_custom_range = true`. The server logs in to Beatport with the auto-ingest credentials; the client never sends a Beatport token.
          */
         post: {
             parameters: {
@@ -642,8 +642,7 @@ export interface paths {
                      * @example {
                      *       "style_id": 90,
                      *       "week_year": 2026,
-                     *       "week_number": 17,
-                     *       "bp_token": "REDACTED"
+                     *       "week_number": 17
                      *     }
                      */
                     "application/json": components["schemas"]["AdminIngestRequestIn"];
@@ -686,8 +685,17 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description beatport_unavailable. */
+                /** @description beatport_login_failed / beatport_unavailable. */
                 502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description beatport_credentials_unavailable. */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -8256,8 +8264,6 @@ export interface components {
              * @default null
              */
             period_end: string | null;
-            /** Bp Token */
-            bp_token: string;
         };
         /**
          * AutoIngestSettingsIn

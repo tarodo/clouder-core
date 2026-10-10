@@ -57,6 +57,16 @@ def _call(opener: Any, step: str, request: urllib.request.Request, timeout: floa
         raise BeatportAuthError(step, "network") from None
 
 
+def read_credentials() -> tuple[str, str]:
+    """Username and password from the SSM parameters named in the Lambda env."""
+    from . import secrets
+
+    return (
+        secrets._fetch_ssm_parameter(os.environ["BEATPORT_USERNAME_SSM_PARAMETER"]),
+        secrets._fetch_ssm_parameter(os.environ["BEATPORT_PASSWORD_SSM_PARAMETER"]),
+    )
+
+
 def fetch_access_token(
     username: str,
     password: str,

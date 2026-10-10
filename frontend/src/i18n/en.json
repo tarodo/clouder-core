@@ -23,8 +23,7 @@
   },
   "user_menu": {
     "signed_in_as": "Signed in as {{name}}",
-    "sign_out": "Sign out",
-    "reset_bp_token": "Reset Beatport token"
+    "sign_out": "Sign out"
   },
   "empty_state": {
     "coming_soon_title": "Coming soon",
@@ -852,17 +851,12 @@
     "ingest": {
       "start": "Start ingest",
       "override": "Override date range",
-      "token_loaded": "Beatport token loaded",
-      "reset": "Reset",
-      "token_label": "Beatport token",
-      "token_placeholder": "Paste bp_token",
       "standard_week": "Standard week: {{start}} – {{end}}",
       "failed_title": "Ingest failed",
       "unknown_error": "Unknown error"
     },
     "errors": {
       "validation": "Request was invalid.",
-      "bp_token_invalid": "Beatport token rejected. Check or regenerate.",
       "db_not_configured": "Database is unavailable. Try again.",
       "internal": "Unexpected error.",
       "admin_required": "Admin access required."

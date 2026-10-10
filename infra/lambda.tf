@@ -26,6 +26,10 @@ resource "aws_lambda_function" "collector" {
       LOG_LEVEL                   = "INFO"
       VENDORS_ENABLED             = "beatport"
       AUTO_INGEST_FUNCTION_NAME   = local.auto_ingest_lambda_name
+      # Coverage-cell ingest logs in to Beatport itself, like auto-ingest.
+      BEATPORT_USERNAME_SSM_PARAMETER = local.beatport_username_ssm
+      BEATPORT_PASSWORD_SSM_PARAMETER = local.beatport_password_ssm
+      BEATPORT_CLIENT_ID              = var.beatport_client_id
     }
   }
 

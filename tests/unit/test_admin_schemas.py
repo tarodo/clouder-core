@@ -11,7 +11,6 @@ def _base_payload() -> dict:
         "style_id": 1,
         "week_year": 2026,
         "week_number": 5,
-        "bp_token": "abc",
     }
 
 
@@ -57,8 +56,9 @@ def test_period_end_before_start_is_rejected():
         AdminIngestRequestIn.model_validate(payload)
 
 
-def test_blank_bp_token_is_rejected():
-    payload = _base_payload() | {"bp_token": "   "}
+def test_a_beatport_token_from_the_client_is_rejected():
+    # The API logs in to Beatport itself; the browser never handles the token.
+    payload = _base_payload() | {"bp_token": "abc"}
     with pytest.raises(ValidationError):
         AdminIngestRequestIn.model_validate(payload)
 

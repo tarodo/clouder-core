@@ -74,7 +74,7 @@ aws lambda list-functions --query "Functions[?starts_with(FunctionName,'clouder-
 
 ### `bp_token` must never be logged or stored
 
-**What:** The Beatport API token (`bp_token`) from the ingest request body is a user credential. It must not appear in any log line or be written to S3.
+**What:** The Beatport API token (`bp_token`) that the ingest handlers obtain by logging in server-side is a credential. It must not appear in any log line or be written to S3.
 
 **Why:** Structlog events in `handler.py` are sent to CloudWatch. S3 raw objects are stored for audit purposes. Leaking the token into either would expose user credentials.
 

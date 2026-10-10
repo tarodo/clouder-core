@@ -19,7 +19,6 @@ Two API routes both delegate to `_run_beatport_ingest`:
 
 ```json
 {
-  "bp_token": "<beatport API token>",
   "style_id": 1,
   "week_year": 2026,
   "week_number": 18,
@@ -34,7 +33,7 @@ Two API routes both delegate to `_run_beatport_ingest`:
 
 Both routes require the caller to be an admin (enforced by `_require_admin` before dispatch, which checks the Lambda authorizer context for `is_admin=true`).
 
-`bp_token` is a Beatport API token. It must never be logged or stored in S3. `_run_beatport_ingest` only records style/week metadata in `meta`, not the token itself.
+The client sends no Beatport token: the handler logs in with the SSM credentials auto-ingest uses (`beatport_auth.read_credentials` + `fetch_access_token`) and passes the token only to the fetch. It must never be logged or stored in S3; `meta` records style and week only. Missing credentials return 503 `beatport_credentials_unavailable`, a rejected login 502 `beatport_login_failed`.
 
 ---
 

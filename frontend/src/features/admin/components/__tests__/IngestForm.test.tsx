@@ -2,16 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { testTheme } from '../../../../test/theme';
 import { server } from '../../../../test/setup';
 import { IngestForm } from '../IngestForm';
-import { bpTokenStore } from '../../lib/bpTokenStore';
-
-afterEach(() => {
-  bpTokenStore.clear();
-});
 
 function ui(props: React.ComponentProps<typeof IngestForm>) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -25,7 +20,7 @@ function ui(props: React.ComponentProps<typeof IngestForm>) {
 }
 
 describe('IngestForm', () => {
-  it('disables submit when no token', () => {
+  it('asks for no Beatport token: the server logs in itself', () => {
     render(
       ui({
         styleId: 1,
@@ -35,11 +30,11 @@ describe('IngestForm', () => {
         onStarted: vi.fn(),
       }),
     );
-    expect(screen.getByRole('button', { name: 'Start ingest' })).toBeDisabled();
+    expect(screen.queryByPlaceholderText(/bp_token/i)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Start ingest' })).toBeEnabled();
   });
 
   it('submits standard range when override off', async () => {
-    bpTokenStore.set('tok');
     let captured: unknown = null;
     server.use(
       http.post('http://localhost/admin/beatport/ingest', async ({ request }) => {
@@ -62,13 +57,12 @@ describe('IngestForm', () => {
       style_id: 1,
       week_year: 2026,
       week_number: 5,
-      bp_token: 'tok',
     });
+    expect(captured).not.toHaveProperty('bp_token');
     expect(captured).not.toHaveProperty('period_start');
   });
 
   it('submits override range when toggled', async () => {
-    bpTokenStore.set('tok');
     let captured: unknown = null;
     server.use(
       http.post('http://localhost/admin/beatport/ingest', async ({ request }) => {
