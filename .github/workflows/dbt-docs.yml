@@ -27,8 +27,8 @@ jobs:
     env:
       DBT_PROFILES_DIR: .
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
@@ -38,8 +38,8 @@ jobs:
           dbt run --target ci
           dbt docs generate --target ci --static
           mkdir -p site && cp target/static_index.html site/index.html
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dbt/site
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
