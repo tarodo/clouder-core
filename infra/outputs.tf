@@ -131,3 +131,8 @@ output "transform_state_machine_arn" {
   description = "Nightly dbt build state machine (docs/data/lakehouse.md)."
   value       = aws_sfn_state_machine.transform.arn
 }
+
+output "gha_plan_role_arn" {
+  description = "Read-only role for terraform plan in pull requests (GitHub secret AWS_PLAN_ROLE_ARN)"
+  value       = aws_iam_role.gha_plan.arn
+}
