@@ -64,14 +64,6 @@ Rule: **never persist `spotifyAccessToken` to localStorage, sessionStorage, or c
 
 See `docs/adr/0011-spotify-token-bundling.md`.
 
-## Beatport token in memory only
+## No Beatport token in the browser
 
-`frontend/src/features/admin/lib/bpTokenStore.ts`
-
-`bpTokenStore` is a module-scoped store for the Beatport API token entered by admins. It implements `useSyncExternalStore` subscription so components re-render on change (`useBpToken()` hook).
-
-Lifecycle: token survives soft navigations within the tab but is wiped on tab close or hard reload (no localStorage, no sessionStorage, no cookies). This is intentional — Beatport tokens must not be persisted.
-
-The `UserMenu` renders a "Reset Beatport token" item exclusively for users where `is_admin` is true. Clicking it calls `bpTokenStore.clear()`.
-
-Token is sent once in `POST /admin/beatport/ingest`. Do not log it on the frontend, do not pass it in URL query parameters (would leak in `Referer` headers).
+The SPA never handles a Beatport token. An ingest started from the Coverage page sends only the style and period to `POST /admin/beatport/ingest`; the API Lambda logs in to Beatport with the SSM credentials auto-ingest uses and keeps the token in memory for that request.

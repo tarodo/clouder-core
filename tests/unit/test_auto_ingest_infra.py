@@ -160,3 +160,20 @@ def test_client_id_is_set_from_a_github_secret() -> None:
     workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "deploy.yml").read_text())
     apply = next(s for s in workflow["jobs"]["deploy"]["steps"] if s.get("name") == "Terraform apply")
     assert apply["env"]["TF_VAR_beatport_client_id"] == "${{ secrets.BEATPORT_CLIENT_ID }}"
+
+
+def test_api_lambda_logs_in_to_beatport_like_auto_ingest() -> None:
+    # Coverage-cell ingest logs in server-side with the same SSM credentials.
+    fn = _block(_tf("lambda.tf"), 'resource "aws_lambda_function" "collector"')
+    for key, value in {
+        "BEATPORT_USERNAME_SSM_PARAMETER": "local.beatport_username_ssm",
+        "BEATPORT_PASSWORD_SSM_PARAMETER": "local.beatport_password_ssm",
+        "BEATPORT_CLIENT_ID": "var.beatport_client_id",
+    }.items():
+        assert re.search(rf"{key}\s*=\s*{re.escape(value)}", fn), key
+    role = _block(_tf("lambda_roles.tf"), 'module "role_collector"')
+    assert "local.st_ssm_kms" in role
+    block = role[role.index('"ReadBeatportCredentials"'):]
+    block = block[: block.index("}")]
+    assert '"ssm:GetParameter"' in block
+    assert "local.beatport_username_ssm" in block and "local.beatport_password_ssm" in block

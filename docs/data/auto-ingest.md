@@ -96,6 +96,7 @@ record without a lease is shown as an interrupted run.
 | Check the login from AWS | `aws lambda invoke --function-name clouder-prod-auto-ingest --cli-binary-format raw-in-base64-out --payload '{"action":"auth_check"}' out.json && cat out.json` → `{"ok": true}` |
 | Enable / change the schedule | Admin → Coverage → Auto-ingest → Save |
 | Run once now | "Run now" in the admin, or the same invoke with `{"action":"run","manual":true}` |
+| Ingest one style × week | Admin → Coverage → click the cell → Start ingest. The API logs in with the same credentials; no token is asked for |
 | Disable | Switch off and Save (pending runs are deleted). Emergency stop until the next deploy: `aws lambda put-function-concurrency --function-name clouder-prod-auto-ingest --reserved-concurrent-executions 0` |
 | Re-sync credentials | Update the GitHub secrets, then run the Deploy workflow by hand (`workflow_dispatch`) |
 | Alarm | `clouder-prod-auto-ingest-failed` (≥ 1 failed run per day) — runbook "Auto-ingest run failed" |

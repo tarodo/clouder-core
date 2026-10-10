@@ -59,7 +59,7 @@ Body parsing is handled by `_parse_json_body`: base64-decodes when `isBase64Enco
 4. Enqueue a canonicalization SQS message (`CANONICALIZATION_QUEUE_URL`).
 5. Return 200 JSON with `run_id`, `s3_object_key`, and processing status.
 
-The `bp_token` from the request body must never be logged or written to S3. Structlog calls in this path deliberately exclude it.
+The handler logs in to Beatport itself (SSM credentials, as auto-ingest does); the resulting `bp_token` must never be logged or written to S3. Structlog calls in this path deliberately exclude it.
 
 ### `GET /runs/{run_id}`
 

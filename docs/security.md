@@ -51,7 +51,7 @@ GitHub Actions ──OIDC──▶ AWS (Terraform, Lambda code, SSM)
 |---|---|
 | A vendor key leaking or being overspent | Keys live in SSM, read at runtime by the one function that needs them. Enrichment runs only on demand or for finalized triage blocks, through SQS with DLQs and a throttle alarm. |
 | Prompt injection through web search results in LLM enrichment | LLM output is stored as data and shown as text; it never runs as code, SQL or tool calls. |
-| Beatport credentials exposed | They exist only in GitHub secrets and SSM; auto-ingest logs in per run and keeps the token in memory. The admin's own `bp_token` is passed per request and is never logged or stored. |
+| Beatport credentials exposed | They exist only in GitHub secrets and SSM; auto-ingest logs in per run and keeps the token in memory. Ingests started from the Coverage page log in the same way server-side; no Beatport token ever reaches the browser. |
 
 ### 4. GitHub ↔ AWS
 

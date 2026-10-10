@@ -55,7 +55,7 @@ def test_auth_check_reports_missing_credentials(monkeypatch, events) -> None:
     def missing(name):
         raise RuntimeError("ParameterNotFound")
 
-    monkeypatch.setattr(handler.secrets, "_fetch_ssm_parameter", missing)
+    monkeypatch.setattr("collector.secrets._fetch_ssm_parameter", missing)
 
     assert handler.lambda_handler({"action": "auth_check"}, None) == {
         "ok": False, "step": "credentials", "status": None,
@@ -76,7 +76,7 @@ def test_credentials_failure_logs_the_cause_not_the_value(monkeypatch, events) -
     def denied(name):
         raise ClientError({"Error": {"Code": "AccessDeniedException", "Message": "no"}}, "GetParameter")
 
-    monkeypatch.setattr(handler.secrets, "_fetch_ssm_parameter", denied)
+    monkeypatch.setattr("collector.secrets._fetch_ssm_parameter", denied)
 
     handler.lambda_handler({"action": "auth_check"}, None)
 

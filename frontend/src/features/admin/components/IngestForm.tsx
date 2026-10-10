@@ -11,9 +11,7 @@ import {
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { saturdayWeekRange } from '../lib/saturdayWeek';
-import { useBpToken } from '../lib/bpTokenStore';
 import { useStartIngest } from '../hooks/useStartIngest';
-import { BpTokenInput } from './BpTokenInput';
 
 interface Props {
   styleId: number;
@@ -34,17 +32,14 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
   const [start, setStart] = useState(fmt(stdStart));
   const [end, setEnd] = useState(fmt(stdEnd));
   const [styleIdValue, setStyleIdValue] = useState<number>(styleId);
-  const token = useBpToken();
   const mutation = useStartIngest();
 
   const submit = () => {
-    if (!token) return;
     if (styleIdValue < 1) return;
     const payload = {
       style_id: styleIdValue,
       week_year: weekYear,
       week_number: weekNumber,
-      bp_token: token,
       ...(override ? { period_start: start, period_end: end } : {}),
     };
     mutation.mutate(payload, {
@@ -54,7 +49,6 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
 
   return (
     <Stack gap="sm">
-      <BpTokenInput />
       <NumberInput
         label="Beatport style ID"
         value={styleIdValue}
@@ -98,7 +92,7 @@ export function IngestForm({ styleId, weekYear, weekNumber, onStarted }: Props) 
           {(mutation.error as Error)?.message ?? t('admin.ingest.unknown_error')}
         </Alert>
       )}
-      <Button onClick={submit} loading={mutation.isPending} disabled={!token}>
+      <Button onClick={submit} loading={mutation.isPending}>
         {t('admin.ingest.start')}
       </Button>
     </Stack>

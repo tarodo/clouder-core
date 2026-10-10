@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
@@ -6,7 +6,6 @@ import { I18nextProvider } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import i18n from '../../i18n';
 import { AuthContext, type AuthContextValue } from '../../auth/AuthProvider';
-import { bpTokenStore } from '../../features/admin/lib/bpTokenStore';
 import { UserMenu } from '../UserMenu';
 
 function makeAuth(signOut: AuthContextValue['signOut'] = vi.fn(), is_admin = false): AuthContextValue {
@@ -63,30 +62,10 @@ describe('UserMenu', () => {
   });
 });
 
-describe('Reset Beatport token item', () => {
-  afterEach(() => {
-    bpTokenStore.clear();
-  });
-
-  it('hides Reset Beatport token for non-admin', async () => {
-    wrap(<UserMenu />, makeAuth(vi.fn(), false));
-    await userEvent.click(screen.getByRole('button', { name: /Roman/ }));
-    expect(screen.queryByText(/Reset Beatport token/i)).toBeNull();
-  });
-
-  it('hides Reset Beatport token for admin without token', async () => {
+describe('Beatport token', () => {
+  it('offers no Beatport token reset: the browser never holds one', async () => {
     wrap(<UserMenu />, makeAuth(vi.fn(), true));
     await userEvent.click(screen.getByRole('button', { name: /Roman/ }));
-    expect(screen.queryByText(/Reset Beatport token/i)).toBeNull();
-  });
-
-  it('shows and clears store for admin with token', async () => {
-    bpTokenStore.set('abc');
-    wrap(<UserMenu />, makeAuth(vi.fn(), true));
-    await userEvent.click(screen.getByRole('button', { name: /Roman/ }));
-    const item = await screen.findByRole('menuitem', { name: /Reset Beatport token/i });
-    expect(item).toBeInTheDocument();
-    await userEvent.click(item);
-    expect(bpTokenStore.get()).toBeNull();
+    expect(screen.queryByText(/Beatport token/i)).toBeNull();
   });
 });

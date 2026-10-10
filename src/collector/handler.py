@@ -14,6 +14,8 @@ from typing import Any, Mapping
 
 from pydantic import ValidationError as PydanticValidationError
 
+from .beatport_auth import BeatportAuthError, fetch_access_token
+from .beatport_auth import read_credentials as read_beatport_credentials
 from .errors import AdminRequiredError, AppError, ValidationError
 from .logging_utils import log_event
 from .models import (
@@ -627,7 +629,7 @@ def _handle_admin_ingest(
 
     params = _IngestParams(
         style_id=request.style_id,
-        bp_token=request.bp_token,
+        bp_token=_beatport_token(correlation_id),
         period_start=period_start_iso,
         period_end=period_end_iso,
         iso_year=None,
@@ -637,6 +639,25 @@ def _handle_admin_ingest(
         is_custom_range=is_custom,
     )
     return _run_beatport_ingest(event, context, params, correlation_id)
+
+
+def _beatport_token(correlation_id: str) -> str:
+    """Log in with the SSM credentials auto-ingest uses. The token lives only in
+    this invocation's memory: it is never returned, logged or stored."""
+    try:
+        username, password = read_beatport_credentials()
+    except Exception as exc:  # missing env/parameter, IAM, KMS: name the cause, never a value
+        log_event("ERROR", "beatport_login_failed", correlation_id=correlation_id,
+                  phase="credentials", error_type=type(exc).__name__)
+        raise AppError(status_code=503, error_code="beatport_credentials_unavailable",
+                       message="Beatport credentials are not configured") from exc
+    try:
+        return fetch_access_token(username, password)
+    except BeatportAuthError as exc:
+        log_event("ERROR", "beatport_login_failed", correlation_id=correlation_id,
+                  phase=exc.step, status_code=exc.status)
+        raise AppError(status_code=502, error_code="beatport_login_failed",
+                       message=f"Beatport login failed at step {exc.step}") from exc
 
 
 def _auto_ingest_repository() -> Any:

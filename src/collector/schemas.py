@@ -123,15 +123,6 @@ class AdminIngestRequestIn(BaseModel):
     week_number: StrictInt = Field(ge=1, le=53)
     period_start: date | None = None
     period_end: date | None = None
-    bp_token: str = Field(min_length=1)
-
-    @field_validator("bp_token")
-    @classmethod
-    def _normalize_bp_token(cls, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("bp_token is required and must be a non-empty string")
-        return normalized
 
     @model_validator(mode="after")
     def _validate_range_constraints(self) -> "AdminIngestRequestIn":

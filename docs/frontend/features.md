@@ -81,7 +81,7 @@ These prefixes collide with SPA route paths. The proxy applies a `bypass` functi
 Admin surfaces are gated at two levels:
 
 1. **Route loader** (`requireAdmin`) — redirects non-admins to `/` before the admin page mounts. Evaluated on every navigation.
-2. **UI** — the `Admin` nav item in `AppShellLayout` renders only when `auth.state.user.is_admin` is truthy. The "Reset Beatport token" item in `UserMenu` is also admin-only.
+2. **UI** — the `Admin` nav item in `AppShellLayout` renders only when `auth.state.user.is_admin` is truthy.
 
 The `is_admin` flag comes from the `/me` endpoint, stored in `AuthProvider` state after each `/auth/refresh` round-trip.
 

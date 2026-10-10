@@ -46,7 +46,7 @@ def _ctx() -> Any:
 def test_admin_ingest_rejects_non_admin():
     response = handler.lambda_handler(
         _event(
-            {"style_id": 1, "week_year": 2026, "week_number": 5, "bp_token": "tok"},
+            {"style_id": 1, "week_year": 2026, "week_number": 5},
             is_admin=False,
         ),
         _ctx(),
@@ -63,7 +63,6 @@ def test_admin_ingest_validation_only_period_start():
                 "style_id": 1,
                 "week_year": 2026,
                 "week_number": 5,
-                "bp_token": "tok",
                 "period_start": "2026-01-31",
             }
         ),
@@ -112,6 +111,8 @@ def _stub_pipeline(monkeypatch):
     )
 
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
+    monkeypatch.setattr("collector.handler.read_beatport_credentials", lambda: ("user", "pass"))
+    monkeypatch.setattr("collector.handler.fetch_access_token", lambda username, password: "srv-tok")
 
     return fake_repo, fake_client
 
@@ -124,7 +125,6 @@ def test_admin_ingest_happy_path_default_range(monkeypatch):
                 "style_id": 7,
                 "week_year": 2026,
                 "week_number": 5,
-                "bp_token": "tok",
             }
         ),
         _ctx(),
@@ -155,7 +155,6 @@ def test_admin_ingest_happy_path_with_override(monkeypatch):
                 "style_id": 7,
                 "week_year": 2026,
                 "week_number": 5,
-                "bp_token": "tok",
                 "period_start": "2026-01-25",
                 "period_end": "2026-02-02",
             }
@@ -196,7 +195,74 @@ def test_manual_admin_ingest_is_marked_manual(monkeypatch):
     fake_repo, _ = _stub_pipeline(monkeypatch)
 
     handler.lambda_handler(
-        _event({"style_id": 7, "week_year": 2026, "week_number": 5, "bp_token": "tok"}), _ctx()
+        _event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx()
     )
 
     assert fake_repo.create_ingest_run.call_args[0][0].meta["trigger"] == "manual"
+
+
+def test_admin_ingest_logs_in_server_side(monkeypatch):
+    # The SPA no longer handles a Beatport token: the API logs in with the SSM
+    # credentials auto-ingest uses, and the token goes only to the fetch.
+    _, fake_client = _stub_pipeline(monkeypatch)
+    logins = []
+    monkeypatch.setattr("collector.handler.fetch_access_token",
+                        lambda username, password: logins.append((username, password)) or "srv-tok")
+
+    response = handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
+
+    assert response["statusCode"] == 200
+    assert logins == [("user", "pass")]
+    assert fake_client.fetch_weekly_releases.call_args.kwargs["bp_token"] == "srv-tok"
+    assert "srv-tok" not in response["body"]
+
+
+def test_admin_ingest_rejects_a_token_from_the_browser(monkeypatch):
+    _stub_pipeline(monkeypatch)
+    response = handler.lambda_handler(
+        _event({"style_id": 7, "week_year": 2026, "week_number": 5, "bp_token": "tok"}), _ctx()
+    )
+    assert response["statusCode"] == 400
+
+
+def test_admin_ingest_reports_missing_credentials(monkeypatch):
+    _, fake_client = _stub_pipeline(monkeypatch)
+
+    def missing():
+        raise KeyError("BEATPORT_USERNAME_SSM_PARAMETER")
+
+    monkeypatch.setattr("collector.handler.read_beatport_credentials", missing)
+
+    response = handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
+
+    assert response["statusCode"] == 503
+    assert json.loads(response["body"])["error_code"] == "beatport_credentials_unavailable"
+    fake_client.fetch_weekly_releases.assert_not_called()
+
+
+def test_admin_ingest_reports_a_rejected_login(monkeypatch):
+    from collector.beatport_auth import BeatportAuthError
+
+    _, fake_client = _stub_pipeline(monkeypatch)
+
+    def rejected(username, password):
+        raise BeatportAuthError("login", 401)
+
+    monkeypatch.setattr("collector.handler.fetch_access_token", rejected)
+
+    response = handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
+
+    body = json.loads(response["body"])
+    assert (response["statusCode"], body["error_code"]) == (502, "beatport_login_failed")
+    assert "login" in body["message"]
+    fake_client.fetch_weekly_releases.assert_not_called()
+
+
+def test_invalid_request_is_rejected_before_logging_in(monkeypatch):
+    _stub_pipeline(monkeypatch)
+    monkeypatch.setattr("collector.handler.fetch_access_token",
+                        lambda username, password: pytest.fail("logged in for an invalid request"))
+    response = handler.lambda_handler(
+        _event({"style_id": 7, "week_year": 2026, "week_number": 5, "period_start": "2026-01-31"}), _ctx()
+    )
+    assert response["statusCode"] == 400

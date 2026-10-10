@@ -28,6 +28,8 @@ def reset_caches(monkeypatch):
     # Enough config to get past _load_api_settings and reach the upstream call,
     # so the test exercises the real 403 path seen in production.
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
+    monkeypatch.setattr(handler, "read_beatport_credentials", lambda: ("user", "pass"))
+    monkeypatch.setattr(handler, "fetch_access_token", lambda username, password: "tok")
     yield
     reset_settings_cache()
     registry.reset_cache()
@@ -43,7 +45,7 @@ def _event_without_correlation_header() -> dict[str, Any]:
         },
         "rawPath": "/admin/beatport/ingest",
         "body": json.dumps(
-            {"style_id": 1, "week_year": 2026, "week_number": 5, "bp_token": "tok"}
+            {"style_id": 1, "week_year": 2026, "week_number": 5}
         ),
         "isBase64Encoded": False,
         "headers": {},

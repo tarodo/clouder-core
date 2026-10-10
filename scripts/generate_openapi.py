@@ -1685,7 +1685,9 @@ ROUTES: list[dict[str, Any]] = [
         "description": (
             "Saturday-week semantics. If `period_start` and `period_end` are "
             "omitted, the server computes them from `(week_year, week_number)`. "
-            "If both are present the run is recorded with `is_custom_range = true`."
+            "If both are present the run is recorded with `is_custom_range = true`. "
+            "The server logs in to Beatport with the auto-ingest credentials; the "
+            "client never sends a Beatport token."
         ),
         "requestBody": {
             "required": True,
@@ -1699,7 +1701,6 @@ ROUTES: list[dict[str, Any]] = [
             "style_id": 90,
             "week_year": 2026,
             "week_number": 17,
-            "bp_token": "REDACTED",
         },
         "responses": {
             "200": _make_response(
@@ -1710,7 +1711,8 @@ ROUTES: list[dict[str, Any]] = [
             "400": _error(400, "validation_error."),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
-            "502": _error(502, "beatport_unavailable."),
+            "502": _error(502, "beatport_login_failed / beatport_unavailable."),
+            "503": _error(503, "beatport_credentials_unavailable."),
         },
     },
     {

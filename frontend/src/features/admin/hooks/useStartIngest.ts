@@ -6,7 +6,6 @@ export interface IngestInput {
   style_id: number;
   week_year: number;
   week_number: number;
-  bp_token: string;
   period_start?: string;
   period_end?: string;
 }

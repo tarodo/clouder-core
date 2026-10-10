@@ -378,14 +378,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
-          description: beatport_unavailable.
+          description: beatport_login_failed / beatport_unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: beatport_credentials_unavailable.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       description: Saturday-week semantics. If `period_start` and `period_end` are
         omitted, the server computes them from `(week_year, week_number)`. If both
-        are present the run is recorded with `is_custom_range = true`.
+        are present the run is recorded with `is_custom_range = true`. The server
+        logs in to Beatport with the auto-ingest credentials; the client never sends
+        a Beatport token.
       requestBody:
         required: true
         content:
@@ -396,7 +404,6 @@ paths:
               style_id: 90
               week_year: 2026
               week_number: 17
-              bp_token: REDACTED
       security:
       - BearerAuth: []
       tags:
@@ -5793,15 +5800,10 @@ components:
           - type: 'null'
           default: null
           title: Period End
-        bp_token:
-          minLength: 1
-          title: Bp Token
-          type: string
       required:
       - style_id
       - week_year
       - week_number
-      - bp_token
       title: AdminIngestRequestIn
       type: object
     AutoIngestSettingsIn:

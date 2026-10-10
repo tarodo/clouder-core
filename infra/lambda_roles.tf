@@ -62,6 +62,13 @@ module "role_collector" {
       ]
     },
     { sid = "InvokeAutoIngest", actions = ["lambda:InvokeFunction"], resources = [aws_lambda_function.auto_ingest.arn] },
+    local.st_ssm_kms,
+    {
+      sid     = "ReadBeatportCredentials"
+      actions = ["ssm:GetParameter"]
+      resources = [for p in [local.beatport_username_ssm, local.beatport_password_ssm] :
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${p}"]
+    },
   ]
 }
 
