@@ -164,3 +164,25 @@ def test_claim_is_stamped_before_the_upstream_call(monkeypatch) -> None:
 
     assert seen["claimed_at_during_search"] is not None
     reset_settings_cache()
+
+
+def test_a_batch_cut_short_by_the_deadline_hands_back_the_rest(monkeypatch) -> None:
+    # 2026-10-10: a paced 2000-track batch searched 1,055 before the Lambda's
+    # deadline; the other 945 stayed stamped "searched, not found" for good.
+    repo, _ = _setup(monkeypatch)
+
+    from collector.spotify_client import SpotifySearchResult
+
+    def cut_short(self, tracks, correlation_id, **_kwargs):
+        first = tracks[0]
+        return [SpotifySearchResult(isrc=first["isrc"], clouder_track_id=first["clouder_track_id"],
+                                    spotify_track={"id": "sp1", "name": "n"}, spotify_id="sp1")]
+
+    monkeypatch.setattr(
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc", cut_short
+    )
+
+    assert lambda_handler(_event(), context=None) == {"processed": 1}
+
+    assert repo.released == [repo.claimed_at]  # the unsearched rows go back to the queue
+    reset_settings_cache()

@@ -234,6 +234,7 @@ def _process_spotify_search(
             correlation_id=correlation_id,
             batch_id=batch_id,
             tracks=tracks,
+            claimed_at=claimed_at,
             deadline_provider=deadline_provider,
         )
     except SpotifyRateLimitedError as exc:
@@ -306,6 +307,7 @@ def _search_and_persist(
     correlation_id: str,
     batch_id: str,
     tracks: list[dict[str, Any]],
+    claimed_at: datetime,
     deadline_provider: Any = None,
 ) -> None:
     client = cast("SpotifyLookup", registry.get_lookup("spotify"))
@@ -365,6 +367,17 @@ def _search_and_persist(
     for chunk_start in range(0, len(results), _CHUNK_SIZE):
         chunk = results[chunk_start : chunk_start + _CHUNK_SIZE]
         _process_results_chunk(repository, chunk, now)
+
+    if len(results) < len(tracks):
+        # The search stopped before the Lambda deadline: hand the unsearched rows
+        # back so the follow-up below picks them up, instead of leaving them
+        # stamped "searched, not found".
+        _release_claim(
+            repository=repository,
+            claimed_at=claimed_at,
+            correlation_id=correlation_id,
+            batch_id=batch_id,
+        )
 
     log_event(
         "INFO",
