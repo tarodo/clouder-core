@@ -24,7 +24,8 @@ destroyed and every Lambda changing, so nobody could read it as a preview.
 - `github-actions-terraform` (created at bootstrap, outside Terraform) is trusted only by
   `repo:tarodo/clouder-core:environment:production`; its ARN is a secret of that environment.
 - AWS credentials are configured after the Lambda is packaged and the frontend built, so no
-  dependency install (pip, pnpm with install scripts) runs with them.
+  dependency install (pip, pnpm with install scripts) runs with them. In `pr.yml` only the
+  `terraform` job may request an OIDC token; the other jobs install third-party code without it.
 - `infra/prod.tfvars` holds every non-secret production value; the PR plan and both deploy phases
   read it with the same `TF_VAR_*` inputs. Inputs that are not credentials (alarm email, budget
   amount, Beatport client id) are repository secrets so the plan can see them; Terraform marks the
@@ -35,9 +36,11 @@ destroyed and every Lambda changing, so nobody could read it as a preview.
 
 ## Consequences
 
-- A pull request can read the account's configuration — including the Terraform state, which
-  holds the JWT signing key — but change nothing and read none of the vendor secrets or user data.
-  Reading state is inherent to planning.
+- A pull request can read the account's configuration and the Terraform state but change no
+  AWS resource and read no vendor secret. The state holds the JWT signing key, which is enough
+  to mint an application session, so plan access is roughly application-admin — acceptable
+  while only the owner can push branches, and the reason to move the key out of state before
+  anyone else can (write-only attributes, or generating it outside Terraform).
 - The PR plan is a faithful preview: a change it does not show is not applied.
 - The deploy role is still AdministratorAccess ([known gap](../security.md#known-gaps)); only the
   `production` environment, which accepts protected branches only, can assume it. Any step of the

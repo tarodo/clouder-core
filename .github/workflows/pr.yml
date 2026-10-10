@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   changes:
@@ -94,6 +93,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
+    # The only job that talks to AWS; every other job installs third-party code
+    # without the right to mint an OIDC token (ADR-0028).
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: infra
@@ -118,15 +122,15 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Configure AWS credentials (OIDC)
-        # Dependabot gets no repository secrets: its PRs validate without AWS (ADR-0028).
-        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        # Dependabot-triggered runs get no repository secrets: they validate without AWS (ADR-0028).
+        if: github.actor != 'dependabot[bot]'
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_PLAN_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Terraform init
-        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        if: github.actor != 'dependabot[bot]'
         env:
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
           TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
@@ -139,7 +143,7 @@ jobs:
             -backend-config="encrypt=true"
 
       - name: Terraform init (no backend, Dependabot)
-        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        if: github.actor == 'dependabot[bot]'
         run: terraform init -input=false -backend=false
 
       - name: Terraform validate
@@ -147,7 +151,7 @@ jobs:
 
       # The same inputs as deploy.yml, so the plan shows what the deploy would apply.
       - name: Terraform plan
-        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        if: github.actor != 'dependabot[bot]'
         env:
           TF_VAR_spotify_oauth_redirect_uri: ${{ vars.SPOTIFY_OAUTH_REDIRECT_URI }}
           TF_VAR_admin_spotify_ids: ${{ vars.ADMIN_SPOTIFY_IDS }}
