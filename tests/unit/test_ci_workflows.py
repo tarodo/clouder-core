@@ -94,3 +94,29 @@ def test_plan_and_apply_get_the_same_inputs() -> None:
     plan = _plan_step()
     assert plan["env"] == TF_INPUTS
     assert "-var-file=prod.tfvars" in plan["run"] and "-var=" not in plan["run"]
+
+
+HUMAN = "github.event.pull_request.user.login != 'dependabot[bot]'"
+BOT = "github.event.pull_request.user.login == 'dependabot[bot]'"
+
+
+def test_pull_requests_plan_with_the_read_only_role() -> None:
+    creds = next(s for s in PR["jobs"]["terraform"]["steps"] if "configure-aws-credentials" in s.get("uses", ""))
+    assert creds["with"]["role-to-assume"] == "${{ secrets.AWS_PLAN_ROLE_ARN }}"
+    assert "AWS_GITHUB_ROLE_ARN" not in (WF / "pr.yml").read_text()
+
+
+def test_dependabot_prs_validate_without_aws() -> None:
+    # Dependabot gets no repository secrets, so it cannot assume a role.
+    steps = PR["jobs"]["terraform"]["steps"]
+    for s in steps:
+        needs_aws = (
+            "configure-aws-credentials" in s.get("uses", "")
+            or "-backend-config" in s.get("run", "")
+            or "terraform plan" in s.get("run", "")
+        )
+        if needs_aws:
+            assert s.get("if") == HUMAN, s.get("name")
+    assert any(s.get("if") == BOT and "-backend=false" in s.get("run", "") for s in steps)
+    validate = next(s for s in steps if s.get("run", "").strip() == "terraform validate")
+    assert "if" not in validate

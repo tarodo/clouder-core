@@ -1,12 +1,17 @@
 version: 2
 updates:
+  # Root Python locks are compiled by uv (`make lock` / `make upgrade`); Dependabot's
+  # own compile differs from `uv pip compile --universal` and fails the lock-drift check,
+  # so version-update PRs are off here. Security-update PRs still open (re-lock with
+  # `make lock` on their branch).
   - package-ecosystem: pip
     directory: /
     schedule: { interval: weekly }
+    open-pull-requests-limit: 0
+  - package-ecosystem: pip
+    directory: /dbt
+    schedule: { interval: weekly }
     open-pull-requests-limit: 5
-    groups:
-      python-minor:
-        update-types: [minor, patch]
   - package-ecosystem: npm
     directory: /frontend
     schedule: { interval: weekly }
@@ -14,6 +19,10 @@ updates:
     groups:
       npm-minor:
         update-types: [minor, patch]
+    ignore:
+      # v7 adds the React Compiler rules (6 errors today) — an upgrade of its own.
+      - dependency-name: eslint-plugin-react-hooks
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
@@ -23,3 +32,7 @@ updates:
   - package-ecosystem: terraform
     directory: /infra
     schedule: { interval: weekly }
+    ignore:
+      # AWS provider v6 is a migration of its own.
+      - dependency-name: hashicorp/aws
+        update-types: [version-update:semver-major]

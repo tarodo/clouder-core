@@ -4,6 +4,146 @@
   "graph": {},
   "nodes": [
     {
+      "label": "2026-10-10-phase1-ci-access.md",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access",
+      "community": 431,
+      "norm_label": "2026-10-10-phase1-ci-access.md"
+    },
+    {
+      "label": "Phase 1 \u2014 CI access to AWS, a truthful Terraform plan, Dependabot Implementation Plan",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_phase_1_ci_access_to_aws_a_truthful_terraform_plan_dependabot_implementation_plan",
+      "community": 431,
+      "norm_label": "phase 1 \u2014 ci access to aws, a truthful terraform plan, dependabot implementation plan"
+    },
+    {
+      "label": "Global Constraints",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_global_constraints",
+      "community": 431,
+      "norm_label": "global constraints"
+    },
+    {
+      "label": "Review Focus",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "community": 431,
+      "norm_label": "review focus"
+    },
+    {
+      "label": "Task 0: Pre-flight (out-of-band, no commit)",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L33",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_0_pre_flight_out_of_band_no_commit",
+      "community": 431,
+      "norm_label": "task 0: pre-flight (out-of-band, no commit)"
+    },
+    {
+      "label": "Task 1: Read-only plan role in Terraform",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L80",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_1_read_only_plan_role_in_terraform",
+      "community": 431,
+      "norm_label": "task 1: read-only plan role in terraform"
+    },
+    {
+      "label": "Task 2: One `prod.tfvars`, a committed provider lock, a sensitive budget",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L203",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_2_one_prod_tfvars_a_committed_provider_lock_a_sensitive_budget",
+      "community": 431,
+      "norm_label": "task 2: one `prod.tfvars`, a committed provider lock, a sensitive budget"
+    },
+    {
+      "label": "Task 3: Workflows read the same inputs; no secrets in shell; package before credentials; one deploy at a time",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L315",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_3_workflows_read_the_same_inputs_no_secrets_in_shell_package_before_credentials_one_deploy_at_a_time",
+      "community": 431,
+      "norm_label": "task 3: workflows read the same inputs; no secrets in shell; package before credentials; one deploy at a time"
+    },
+    {
+      "label": "Task 4: PR A \u2014 open, verify the plan, merge, deploy, wire the plan role",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L663",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_4_pr_a_open_verify_the_plan_merge_deploy_wire_the_plan_role",
+      "community": 431,
+      "norm_label": "task 4: pr a \u2014 open, verify the plan, merge, deploy, wire the plan role"
+    },
+    {
+      "label": "Task 5: PR B \u2014 the PR plan runs read-only; Dependabot passes CI; docs and ADR",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L693",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_5_pr_b_the_pr_plan_runs_read_only_dependabot_passes_ci_docs_and_adr",
+      "community": 431,
+      "norm_label": "task 5: pr b \u2014 the pr plan runs read-only; dependabot passes ci; docs and adr"
+    },
+    {
+      "label": "Task 6: PR B \u2014 open, verify the read-only plan, merge",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L931",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_6_pr_b_open_verify_the_read_only_plan_merge",
+      "community": 431,
+      "norm_label": "task 6: pr b \u2014 open, verify the read-only plan, merge"
+    },
+    {
+      "label": "Task 7: Lock the deploy role to `production` (out-of-band)",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L940",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_7_lock_the_deploy_role_to_production_out_of_band",
+      "community": 431,
+      "norm_label": "task 7: lock the deploy role to `production` (out-of-band)"
+    },
+    {
+      "label": "Task 8: Clear the PR backlog",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L971",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_8_clear_the_pr_backlog",
+      "community": 431,
+      "norm_label": "task 8: clear the pr backlog"
+    },
+    {
+      "label": "Task 9: Close the phase",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L995",
+      "_origin": "ast",
+      "id": "plans_2026_10_10_phase1_ci_access_task_9_close_the_phase",
+      "community": 431,
+      "norm_label": "task 9: close the phase"
+    },
+    {
       "label": "deploy_frontend.sh",
       "file_type": "code",
       "source_file": "scripts/deploy_frontend.sh",
@@ -13,9 +153,9 @@
         "kind": "file"
       },
       "_origin": "ast",
-      "id": "scripts_deploy_frontend",
       "community": 515,
-      "norm_label": "deploy_frontend.sh"
+      "norm_label": "deploy_frontend.sh",
+      "id": "scripts_deploy_frontend"
     },
     {
       "label": "deploy_frontend.sh script",
@@ -27,9 +167,9 @@
         "kind": "bash_entrypoint"
       },
       "_origin": "ast",
-      "id": "users_roman_projects_clouder_projects_clouder_core_p1_scripts_deploy_frontend_sh__entry",
       "community": 515,
-      "norm_label": "deploy_frontend.sh script"
+      "norm_label": "deploy_frontend.sh script",
+      "id": "users_roman_projects_clouder_projects_clouder_core_p1_scripts_deploy_frontend_sh__entry"
     },
     {
       "label": "test_ci_workflows.py",
@@ -37,9 +177,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows",
       "community": 357,
-      "norm_label": "test_ci_workflows.py"
+      "norm_label": "test_ci_workflows.py",
+      "id": "unit_test_ci_workflows"
     },
     {
       "label": "_first()",
@@ -47,9 +187,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L28",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_first",
       "community": 357,
-      "norm_label": "_first()"
+      "norm_label": "_first()",
+      "id": "unit_test_ci_workflows_first"
     },
     {
       "label": "_plan_step()",
@@ -57,9 +197,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L32",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_plan_step",
       "community": 357,
-      "norm_label": "_plan_step()"
+      "norm_label": "_plan_step()",
+      "id": "unit_test_ci_workflows_plan_step"
     },
     {
       "label": "test_secrets_reach_shell_steps_only_through_env()",
@@ -67,9 +207,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L36",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_test_secrets_reach_shell_steps_only_through_env",
       "community": 357,
-      "norm_label": "test_secrets_reach_shell_steps_only_through_env()"
+      "norm_label": "test_secrets_reach_shell_steps_only_through_env()",
+      "id": "unit_test_ci_workflows_test_secrets_reach_shell_steps_only_through_env"
     },
     {
       "label": "test_lambda_is_packaged_before_any_aws_credentials()",
@@ -77,9 +217,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L44",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_test_lambda_is_packaged_before_any_aws_credentials",
       "community": 357,
-      "norm_label": "test_lambda_is_packaged_before_any_aws_credentials()"
+      "norm_label": "test_lambda_is_packaged_before_any_aws_credentials()",
+      "id": "unit_test_ci_workflows_test_lambda_is_packaged_before_any_aws_credentials"
     },
     {
       "label": "test_frontend_dependencies_install_before_any_aws_credentials()",
@@ -87,9 +227,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L51",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_test_frontend_dependencies_install_before_any_aws_credentials",
       "community": 357,
-      "norm_label": "test_frontend_dependencies_install_before_any_aws_credentials()"
+      "norm_label": "test_frontend_dependencies_install_before_any_aws_credentials()",
+      "id": "unit_test_ci_workflows_test_frontend_dependencies_install_before_any_aws_credentials"
     },
     {
       "label": "_run_frontend_deploy()",
@@ -97,9 +237,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L61",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_run_frontend_deploy",
       "community": 10,
-      "norm_label": "_run_frontend_deploy()"
+      "norm_label": "_run_frontend_deploy()",
+      "id": "unit_test_ci_workflows_run_frontend_deploy"
     },
     {
       "label": "Path",
@@ -107,9 +247,9 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "path",
       "community": 10,
-      "norm_label": "path"
+      "norm_label": "path",
+      "id": "path"
     },
     {
       "label": "test_frontend_build_mode_never_touches_aws()",
@@ -117,9 +257,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L73",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_test_frontend_build_mode_never_touches_aws",
       "community": 10,
-      "norm_label": "test_frontend_build_mode_never_touches_aws()"
+      "norm_label": "test_frontend_build_mode_never_touches_aws()",
+      "id": "unit_test_ci_workflows_test_frontend_build_mode_never_touches_aws"
     },
     {
       "label": "test_frontend_publish_mode_installs_nothing()",
@@ -127,9 +267,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L79",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_test_frontend_publish_mode_installs_nothing",
       "community": 10,
-      "norm_label": "test_frontend_publish_mode_installs_nothing()"
+      "norm_label": "test_frontend_publish_mode_installs_nothing()",
+      "id": "unit_test_ci_workflows_test_frontend_publish_mode_installs_nothing"
     },
     {
       "label": "test_deploys_never_run_concurrently()",
@@ -137,9 +277,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L85",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_test_deploys_never_run_concurrently",
       "community": 357,
-      "norm_label": "test_deploys_never_run_concurrently()"
+      "norm_label": "test_deploys_never_run_concurrently()",
+      "id": "unit_test_ci_workflows_test_deploys_never_run_concurrently"
     },
     {
       "label": "test_plan_and_apply_get_the_same_inputs()",
@@ -147,9 +287,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L92",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_test_plan_and_apply_get_the_same_inputs",
       "community": 357,
-      "norm_label": "test_plan_and_apply_get_the_same_inputs()"
+      "norm_label": "test_plan_and_apply_get_the_same_inputs()",
+      "id": "unit_test_ci_workflows_test_plan_and_apply_get_the_same_inputs"
     },
     {
       "label": "CI hardening around AWS (ADR-0028): same inputs for plan and apply, secrets only",
@@ -157,149 +297,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "unit_test_ci_workflows_rationale_1",
       "community": 357,
-      "norm_label": "ci hardening around aws (adr-0028): same inputs for plan and apply, secrets only"
-    },
-    {
-      "label": "2026-10-10-phase1-ci-access.md",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "2026-10-10-phase1-ci-access.md",
-      "id": "plans_2026_10_10_phase1_ci_access"
-    },
-    {
-      "label": "Phase 1 \u2014 CI access to AWS, a truthful Terraform plan, Dependabot Implementation Plan",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "phase 1 \u2014 ci access to aws, a truthful terraform plan, dependabot implementation plan",
-      "id": "plans_2026_10_10_phase1_ci_access_phase_1_ci_access_to_aws_a_truthful_terraform_plan_dependabot_implementation_plan"
-    },
-    {
-      "label": "Global Constraints",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L13",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "global constraints",
-      "id": "plans_2026_10_10_phase1_ci_access_global_constraints"
-    },
-    {
-      "label": "Review Focus",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L23",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "review focus",
-      "id": "plans_2026_10_10_phase1_ci_access_review_focus"
-    },
-    {
-      "label": "Task 0: Pre-flight (out-of-band, no commit)",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L33",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 0: pre-flight (out-of-band, no commit)",
-      "id": "plans_2026_10_10_phase1_ci_access_task_0_pre_flight_out_of_band_no_commit"
-    },
-    {
-      "label": "Task 1: Read-only plan role in Terraform",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L80",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 1: read-only plan role in terraform",
-      "id": "plans_2026_10_10_phase1_ci_access_task_1_read_only_plan_role_in_terraform"
-    },
-    {
-      "label": "Task 2: One `prod.tfvars`, a committed provider lock, a sensitive budget",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L203",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 2: one `prod.tfvars`, a committed provider lock, a sensitive budget",
-      "id": "plans_2026_10_10_phase1_ci_access_task_2_one_prod_tfvars_a_committed_provider_lock_a_sensitive_budget"
-    },
-    {
-      "label": "Task 3: Workflows read the same inputs; no secrets in shell; package before credentials; one deploy at a time",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L315",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 3: workflows read the same inputs; no secrets in shell; package before credentials; one deploy at a time",
-      "id": "plans_2026_10_10_phase1_ci_access_task_3_workflows_read_the_same_inputs_no_secrets_in_shell_package_before_credentials_one_deploy_at_a_time"
-    },
-    {
-      "label": "Task 4: PR A \u2014 open, verify the plan, merge, deploy, wire the plan role",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L663",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 4: pr a \u2014 open, verify the plan, merge, deploy, wire the plan role",
-      "id": "plans_2026_10_10_phase1_ci_access_task_4_pr_a_open_verify_the_plan_merge_deploy_wire_the_plan_role"
-    },
-    {
-      "label": "Task 5: PR B \u2014 the PR plan runs read-only; Dependabot passes CI; docs and ADR",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L688",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 5: pr b \u2014 the pr plan runs read-only; dependabot passes ci; docs and adr",
-      "id": "plans_2026_10_10_phase1_ci_access_task_5_pr_b_the_pr_plan_runs_read_only_dependabot_passes_ci_docs_and_adr"
-    },
-    {
-      "label": "Task 6: PR B \u2014 open, verify the read-only plan, merge",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L926",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 6: pr b \u2014 open, verify the read-only plan, merge",
-      "id": "plans_2026_10_10_phase1_ci_access_task_6_pr_b_open_verify_the_read_only_plan_merge"
-    },
-    {
-      "label": "Task 7: Lock the deploy role to `production` (out-of-band)",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L935",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 7: lock the deploy role to `production` (out-of-band)",
-      "id": "plans_2026_10_10_phase1_ci_access_task_7_lock_the_deploy_role_to_production_out_of_band"
-    },
-    {
-      "label": "Task 8: Clear the PR backlog",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L966",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 8: clear the pr backlog",
-      "id": "plans_2026_10_10_phase1_ci_access_task_8_clear_the_pr_backlog"
-    },
-    {
-      "label": "Task 9: Close the phase",
-      "file_type": "document",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L990",
-      "_origin": "ast",
-      "community": 431,
-      "norm_label": "task 9: close the phase",
-      "id": "plans_2026_10_10_phase1_ci_access_task_9_close_the_phase"
+      "norm_label": "ci hardening around aws (adr-0028): same inputs for plan and apply, secrets only",
+      "id": "unit_test_ci_workflows_rationale_1"
     },
     {
       "label": "test_alarm_routing_infra.py",
@@ -117065,6 +117065,136 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access",
+      "target": "plans_2026_10_10_phase1_ci_access_phase_1_ci_access_to_aws_a_truthful_terraform_plan_dependabot_implementation_plan"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L13",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_phase_1_ci_access_to_aws_a_truthful_terraform_plan_dependabot_implementation_plan",
+      "target": "plans_2026_10_10_phase1_ci_access_global_constraints"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_phase_1_ci_access_to_aws_a_truthful_terraform_plan_dependabot_implementation_plan",
+      "target": "plans_2026_10_10_phase1_ci_access_review_focus"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L33",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_0_pre_flight_out_of_band_no_commit"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L80",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_1_read_only_plan_role_in_terraform"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L203",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_2_one_prod_tfvars_a_committed_provider_lock_a_sensitive_budget"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L315",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_3_workflows_read_the_same_inputs_no_secrets_in_shell_package_before_credentials_one_deploy_at_a_time"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L663",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_4_pr_a_open_verify_the_plan_merge_deploy_wire_the_plan_role"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L688",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_5_pr_b_the_pr_plan_runs_read_only_dependabot_passes_ci_docs_and_adr"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L926",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_6_pr_b_open_verify_the_read_only_plan_merge"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L935",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_7_lock_the_deploy_role_to_production_out_of_band"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L966",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_8_clear_the_pr_backlog"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
+      "source_location": "L990",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
+      "target": "plans_2026_10_10_phase1_ci_access_task_9_close_the_phase"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "scripts/deploy_frontend.sh",
       "source_location": "L1",
       "weight": 1.0,
@@ -117098,9 +117228,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L61",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows",
-      "target": "unit_test_ci_workflows_run_frontend_deploy",
-      "confidence_score": 1.0
+      "target": "unit_test_ci_workflows_run_frontend_deploy"
     },
     {
       "relation": "contains",
@@ -117118,9 +117248,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L73",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows",
-      "target": "unit_test_ci_workflows_test_frontend_build_mode_never_touches_aws",
-      "confidence_score": 1.0
+      "target": "unit_test_ci_workflows_test_frontend_build_mode_never_touches_aws"
     },
     {
       "relation": "contains",
@@ -117128,9 +117258,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L51",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows",
-      "target": "unit_test_ci_workflows_test_frontend_dependencies_install_before_any_aws_credentials",
-      "confidence_score": 1.0
+      "target": "unit_test_ci_workflows_test_frontend_dependencies_install_before_any_aws_credentials"
     },
     {
       "relation": "contains",
@@ -117138,9 +117268,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L79",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows",
-      "target": "unit_test_ci_workflows_test_frontend_publish_mode_installs_nothing",
-      "confidence_score": 1.0
+      "target": "unit_test_ci_workflows_test_frontend_publish_mode_installs_nothing"
     },
     {
       "relation": "contains",
@@ -117189,9 +117319,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L54",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows_test_frontend_dependencies_install_before_any_aws_credentials",
-      "target": "unit_test_ci_workflows_first",
-      "confidence_score": 1.0
+      "target": "unit_test_ci_workflows_first"
     },
     {
       "relation": "calls",
@@ -117222,9 +117352,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L61",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows_run_frontend_deploy",
-      "target": "path",
-      "confidence_score": 1.0
+      "target": "path"
     },
     {
       "relation": "calls",
@@ -117233,9 +117363,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L74",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows_test_frontend_build_mode_never_touches_aws",
-      "target": "unit_test_ci_workflows_run_frontend_deploy",
-      "confidence_score": 1.0
+      "target": "unit_test_ci_workflows_run_frontend_deploy"
     },
     {
       "relation": "calls",
@@ -117244,9 +117374,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L80",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows_test_frontend_publish_mode_installs_nothing",
-      "target": "unit_test_ci_workflows_run_frontend_deploy",
-      "confidence_score": 1.0
+      "target": "unit_test_ci_workflows_run_frontend_deploy"
     },
     {
       "relation": "references",
@@ -117618,9 +117748,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L73",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows_test_frontend_build_mode_never_touches_aws",
-      "target": "path",
-      "confidence_score": 1.0
+      "target": "path"
     },
     {
       "relation": "references",
@@ -117629,9 +117759,9 @@
       "source_file": "tests/unit/test_ci_workflows.py",
       "source_location": "L79",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "unit_test_ci_workflows_test_frontend_publish_mode_installs_nothing",
-      "target": "path",
-      "confidence_score": 1.0
+      "target": "path"
     },
     {
       "relation": "references",
@@ -117687,136 +117817,6 @@
       "confidence_score": 1.0,
       "source": "unit_test_raw_sql_parses_test_statement_is_valid_postgres",
       "target": "path"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L1",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access",
-      "target": "plans_2026_10_10_phase1_ci_access_phase_1_ci_access_to_aws_a_truthful_terraform_plan_dependabot_implementation_plan"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L13",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_phase_1_ci_access_to_aws_a_truthful_terraform_plan_dependabot_implementation_plan",
-      "target": "plans_2026_10_10_phase1_ci_access_global_constraints"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L23",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_phase_1_ci_access_to_aws_a_truthful_terraform_plan_dependabot_implementation_plan",
-      "target": "plans_2026_10_10_phase1_ci_access_review_focus"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L33",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_0_pre_flight_out_of_band_no_commit"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L80",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_1_read_only_plan_role_in_terraform"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L203",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_2_one_prod_tfvars_a_committed_provider_lock_a_sensitive_budget"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L315",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_3_workflows_read_the_same_inputs_no_secrets_in_shell_package_before_credentials_one_deploy_at_a_time"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L663",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_4_pr_a_open_verify_the_plan_merge_deploy_wire_the_plan_role"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L688",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_5_pr_b_the_pr_plan_runs_read_only_dependabot_passes_ci_docs_and_adr"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L926",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_6_pr_b_open_verify_the_read_only_plan_merge"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L935",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_7_lock_the_deploy_role_to_production_out_of_band"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L966",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_8_clear_the_pr_backlog"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/superpowers/plans/2026-10-10-phase1-ci-access.md",
-      "source_location": "L990",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "plans_2026_10_10_phase1_ci_access_review_focus",
-      "target": "plans_2026_10_10_phase1_ci_access_task_9_close_the_phase"
     },
     {
       "relation": "contains",

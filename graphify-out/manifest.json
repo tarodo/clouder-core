@@ -5180,8 +5180,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/pr.yml": {
-    "mtime": 1791657715.316174,
-    "ast_hash": "da9b02133afd8342ec826696b5a7257d",
+    "mtime": 1791659052.5456405,
+    "ast_hash": "11ec5ad2c9b5ff7123af476ff02a4098",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -5190,8 +5190,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1791656930.9156797,
-    "ast_hash": "544f49e4545cacbddd9a9e9eb69c9f15",
+    "mtime": 1791659052.6578398,
+    "ast_hash": "a2713f43f35753e2ab0d310bd239a75b",
     "semantic_hash": ""
   },
   "docs/CLOUDER Design System _standalone_.html": {
@@ -5300,8 +5300,8 @@
     "semantic_hash": "093ce38da0ab3656015b78fd8724bee6"
   },
   "docs/adr/README.md": {
-    "mtime": 1791656930.939758,
-    "ast_hash": "42fa749caccf02fec411563a0a7d3e20",
+    "mtime": 1791659052.6583974,
+    "ast_hash": "3fb9e52b08bca264653635ffeb9e1ec2",
     "semantic_hash": ""
   },
   "docs/api/README.md": {
@@ -5790,8 +5790,8 @@
     "semantic_hash": ""
   },
   "docs/ops/deploy.md": {
-    "mtime": 1791656930.9960356,
-    "ast_hash": "7363b812399f6dace063612328d33526",
+    "mtime": 1791659052.6588953,
+    "ast_hash": "69c7dfd65ae38b364a55a1c75c8bb62f",
     "semantic_hash": ""
   },
   "docs/ops/env-vars.md": {
@@ -7325,8 +7325,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_dependency_locks.py": {
-    "mtime": 1791656931.6682186,
-    "ast_hash": "2f969e26456178f019365e9e5a034ddc",
+    "mtime": 1791659052.5465832,
+    "ast_hash": "aff13f923b628a534d2f0544611c6373",
     "semantic_hash": ""
   },
   "tests/unit/test_iam_per_function_infra.py": {
@@ -7335,8 +7335,8 @@
     "semantic_hash": ""
   },
   ".github/dependabot.yml": {
-    "mtime": 1791656930.914598,
-    "ast_hash": "cb9d6531de1d52d72ee2f63037f099cb",
+    "mtime": 1791659052.5453906,
+    "ast_hash": "c8e8565fc02e9bc339835b334e91e650",
     "semantic_hash": ""
   },
   "docs/engineering-highlights.md": {
@@ -7555,8 +7555,8 @@
     "semantic_hash": ""
   },
   "docs/security.md": {
-    "mtime": 1791656930.998424,
-    "ast_hash": "d935b4f27d72a456ae49793d3f7df8f6",
+    "mtime": 1791659052.6591318,
+    "ast_hash": "e0382b2302de4a1a73564fe17ccdb48e",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-08-p2-senior.md": {
@@ -7665,8 +7665,13 @@
     "semantic_hash": ""
   },
   "tests/unit/test_ci_workflows.py": {
-    "mtime": 1791658205.3906825,
-    "ast_hash": "a0393842f8a11d60a1f0c350e14fd522",
+    "mtime": 1791659052.5463576,
+    "ast_hash": "0c275d3e01125d67c1bb4f1f855a2e88",
+    "semantic_hash": ""
+  },
+  "docs/adr/0028-ci-roles.md": {
+    "mtime": 1791659052.658102,
+    "ast_hash": "a16676e8396af6b41be5fe3fcef82a4d",
     "semantic_hash": ""
   }
 }

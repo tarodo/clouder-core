@@ -64,3 +64,12 @@ def test_ci_uses_a_pinned_uv_and_fails_on_test_failures() -> None:
     # `pytest … | tee` returns tee's status unless pipefail is on.
     run = next(s["run"] for s in jobs["tests"]["steps"] if "pytest" in s.get("run", ""))
     assert run.lstrip().startswith("set -o pipefail")
+
+
+def test_pip_version_updates_go_through_uv_not_dependabot() -> None:
+    # Dependabot's compiled lock differs from `uv pip compile --universal`, so its pip
+    # PRs always fail the lock-drift check; security updates still open.
+    config = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text())
+    pip_root = next(u for u in config["updates"] if (u["package-ecosystem"], u["directory"]) == ("pip", "/"))
+    assert pip_root["open-pull-requests-limit"] == 0
+    assert "upgrade:" in (ROOT / "Makefile").read_text()

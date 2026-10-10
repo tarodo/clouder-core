@@ -2574,7 +2574,7 @@ Cohesion: 0.50
 Nodes (4): 6.1 R4 in code, 6.2 Spotify enrichment patch, 6.3 UNCLASSIFIED is "data missing", not "rejected", 6. R4 Classification + Spotify Enrichment Patch
 
 ## Knowledge Gaps
-- **2912 isolated node(s):** `deploy_frontend.sh script`, `Global Constraints`, `Task 0: Pre-flight (out-of-band, no commit)`, `Task 1: Read-only plan role in Terraform`, `Task 2: One `prod.tfvars`, a committed provider lock, a sensitive budget` (+2907 more)
+- **2912 isolated node(s):** `Global Constraints`, `Task 0: Pre-flight (out-of-band, no commit)`, `Task 1: Read-only plan role in Terraform`, `Task 2: One `prod.tfvars`, a committed provider lock, a sensitive budget`, `Task 3: Workflows read the same inputs; no secrets in shell; package before credentials; one deploy at a time` (+2907 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **58 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -2591,7 +2591,7 @@ _Questions this graph is uniquely positioned to answer:_
   _`datetime` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 8 inferred relationships involving `ClouderRepository` (e.g. with `Canonicalizer` and `_ReadOnlyRepository`) actually correct?**
   _`ClouderRepository` has 8 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `deploy_frontend.sh script`, `CI hardening around AWS (ADR-0028): same inputs for plan and apply, secrets only`, `Global Constraints` to the rest of the system?**
+- **What connects `Global Constraints`, `Task 0: Pre-flight (out-of-band, no commit)`, `Task 1: Read-only plan role in Terraform` to the rest of the system?**
   _3769 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Playlists UI` be split into smaller, more focused modules?**
   _Cohesion score 0.04144750683778666 - nodes in this community are weakly interconnected._

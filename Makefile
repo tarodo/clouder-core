@@ -3,7 +3,7 @@ VENV   ?= .venv/bin
 PY     := PYTHONPATH=src $(VENV)/python
 TEST_DATABASE_URL ?= postgresql://postgres:postgres@localhost:55433/postgres
 
-.PHONY: help bootstrap local-db demo test test-db lint typecheck cov lock openapi package frontend-test screenshots dbt-ci
+.PHONY: help bootstrap local-db demo test test-db lint typecheck cov lock upgrade openapi package frontend-test screenshots dbt-ci
 
 help:            ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
@@ -37,6 +37,10 @@ cov:             ## tests with the 80 % coverage gate
 lock:            ## re-lock Python deps after editing a requirements-*.in file
 	uv pip compile --universal --python-version 3.12 requirements-lambda.in -o requirements-lambda.txt
 	uv pip compile --universal --python-version 3.12 requirements-dev.in -o requirements-dev.txt
+
+upgrade:         ## re-lock Python deps at the newest versions the .in files allow
+	uv pip compile --universal --python-version 3.12 --upgrade requirements-lambda.in -o requirements-lambda.txt
+	uv pip compile --universal --python-version 3.12 --upgrade requirements-dev.in -o requirements-dev.txt
 
 openapi:         ## regenerate docs/api/openapi.yaml and the frontend types
 	$(PY) scripts/generate_openapi.py
