@@ -27,7 +27,8 @@ TOKENS = "local.st_user_tokens"
 
 REQUIRED: dict[str, list[str]] = {
     "collector": [*DB, RAW, q("canonicalization"), q("spotify_search"), q("label_enrichment"),
-                  q("artist_enrichment"), "aws_lambda_function.auto_ingest.arn"],
+                  q("artist_enrichment"), "aws_lambda_function.auto_ingest.arn",
+                  '"sqs:GetQueueAttributes"'],
     "curation": [*DB, COVERS, TOKENS, SSM, q("label_enrichment"), q("artist_enrichment"),
                  q("vendor_match"), q("auto_enrich_dispatch"), q("comments_collect"),
                  "var.spotify_client_id_ssm_parameter", "var.ytmusic_client_id_ssm_parameter"],

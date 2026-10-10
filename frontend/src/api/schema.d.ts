@@ -2153,6 +2153,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/spotify/search-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: Spotify search state — queue, pause and track backlog. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Search status. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SpotifySearchStatus"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/auto-ingest/run": {
         parameters: {
             query?: never;
@@ -8477,6 +8531,27 @@ export interface components {
                 last_attempt_at?: string | null;
                 last_error?: string | null;
             }[];
+        };
+        SpotifySearchStatus: {
+            /**
+             * @description running: a worker holds a message; queued: a message waits; paused: Spotify banned the app until paused_until; idle: nothing to do.
+             * @enum {string}
+             */
+            status: "running" | "queued" | "paused" | "idle";
+            /** Format: date-time */
+            paused_until: string | null;
+            queue: {
+                waiting_messages: number;
+                in_flight: number;
+                delayed: number;
+            };
+            tracks: {
+                /** @description Tracks with an ISRC never searched yet. */
+                waiting: number;
+                /** @description Searched without a Spotify match. */
+                not_found: number;
+                searched_last_10_min: number;
+            };
         };
         CollectResponse: {
             /** Format: uuid */

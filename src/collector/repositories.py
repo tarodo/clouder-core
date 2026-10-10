@@ -1144,6 +1144,23 @@ class ClouderRepository:
         )
         return int(rows[0]["cnt"]) if rows else 0
 
+    def spotify_search_counts(self, since: datetime) -> dict[str, int]:
+        """Tracks waiting for the Spotify search, searched without a match, and
+        claimed or searched since *since* (a batch in progress counts as searched)."""
+        (row,) = self._data_api.execute(
+            """
+            SELECT
+                count(*) FILTER (WHERE spotify_searched_at IS NULL) AS waiting,
+                count(*) FILTER (WHERE spotify_searched_at IS NOT NULL AND spotify_id IS NULL)
+                    AS not_found,
+                count(*) FILTER (WHERE spotify_searched_at >= :since) AS searched_recently
+            FROM clouder_tracks
+            WHERE isrc IS NOT NULL
+            """,
+            {"since": since},
+        )
+        return {key: int(row[key] or 0) for key in ("waiting", "not_found", "searched_recently")}
+
     def batch_update_spotify_results(
         self,
         commands: list[UpdateSpotifyResultCmd],

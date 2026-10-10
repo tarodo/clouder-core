@@ -659,6 +659,38 @@ _AUTO_INGEST_RUN_PAIR = {
     },
 }
 
+SPOTIFY_SEARCH_STATUS = {
+    "type": "object",
+    "required": ["status", "paused_until", "queue", "tracks"],
+    "properties": {
+        "status": {
+            "type": "string",
+            "enum": ["running", "queued", "paused", "idle"],
+            "description": "running: a worker holds a message; queued: a message waits; "
+                           "paused: Spotify banned the app until paused_until; idle: nothing to do.",
+        },
+        "paused_until": {"type": ["string", "null"], "format": "date-time"},
+        "queue": {
+            "type": "object",
+            "required": ["waiting_messages", "in_flight", "delayed"],
+            "properties": {
+                "waiting_messages": {"type": "integer"},
+                "in_flight": {"type": "integer"},
+                "delayed": {"type": "integer"},
+            },
+        },
+        "tracks": {
+            "type": "object",
+            "required": ["waiting", "not_found", "searched_last_10_min"],
+            "properties": {
+                "waiting": {"type": "integer", "description": "Tracks with an ISRC never searched yet."},
+                "not_found": {"type": "integer", "description": "Searched without a Spotify match."},
+                "searched_last_10_min": {"type": "integer"},
+            },
+        },
+    },
+}
+
 AUTO_INGEST_STATE = {
     "type": "object",
     "required": ["settings", "planned_runs", "last_run", "running", "due_week", "stuck"],
@@ -2284,6 +2316,17 @@ ROUTES: list[dict[str, Any]] = [
         "responses": {
             "200": _make_response(200, "Saved state (replanning runs asynchronously).", {"$ref": "#/components/schemas/AutoIngestState"}),
             "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/spotify/search-status",
+        "auth": ADMIN,
+        "summary": "Admin: Spotify search state — queue, pause and track backlog.",
+        "responses": {
+            "200": _make_response(200, "Search status.", {"$ref": "#/components/schemas/SpotifySearchStatus"}),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
         },
@@ -4448,6 +4491,7 @@ def build_openapi() -> dict[str, Any]:
                 "MeResponse": ME_RESPONSE,
                 "RunResponse": RUN_RESPONSE,
                 "AutoIngestState": AUTO_INGEST_STATE,
+                "SpotifySearchStatus": SPOTIFY_SEARCH_STATUS,
                 "CollectResponse": COLLECT_RESPONSE,
                 "LabelEnrichRunResponse": LABEL_ENRICH_RUN_RESPONSE,
                 "LabelSummary": LABEL_SUMMARY,
