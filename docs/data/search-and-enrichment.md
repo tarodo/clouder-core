@@ -31,6 +31,8 @@ For each track, it calls `GET https://api.spotify.com/v1/search?q=isrc:{ISRC}&ty
 
 **Retry**: transient codes `{408, 429, 500, 502, 503, 504}` → exponential backoff (base 0.5 s, max 4 retries). On `429`, respects `Retry-After` header capped at 120 s. Permanent errors skip the track.
 
+**Rate limits.** At most two workers drain the queue (`maximum_concurrency` on the SQS trigger), and each spaces its calls by `SPOTIFY_MIN_REQUEST_INTERVAL_MS` (650 ms in production), so the app stays near 3 requests a second. When Spotify still asks for a wait longer than 120 s (a ban: on 2026-10-10 it asked for five hours), the worker hands its claimed tracks back, records the ban in `vendor_rate_limits`, and sends one `resume` message delayed up to 15 minutes. Until the ban ends every invocation leaves Spotify alone: plain triggers are dropped, and the resume message re-arms itself. The first one after the ban searches the backlog. A ban is not a Lambda error, so the errors alarm stays quiet.
+
 **After search** (for all tracks — found and not found):
 - `clouder_tracks.spotify_searched_at` is set to now.
 - On hit: `clouder_tracks.spotify_id` is set; `source_entities(source='spotify')` + `identity_map(match_type='isrc_match', confidence=1.000)` are upserted; `release_type` and `spotify_release_date` are written.

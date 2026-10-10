@@ -209,6 +209,18 @@ variable "spotify_search_worker_lambda_memory_mb" {
   default     = 512
 }
 
+variable "spotify_search_max_concurrency" {
+  description = "Most Spotify search workers draining the queue at once (the SQS trigger allows 2 at least)."
+  type        = number
+  default     = 2
+}
+
+variable "spotify_min_request_interval_ms" {
+  description = "Pause between Spotify API calls in one search worker; with 2 workers, 650 ms keeps the total near 3 requests a second."
+  type        = number
+  default     = 650
+}
+
 variable "spotify_search_batch_size" {
   description = "SQS batch size for Spotify search worker lambda"
   type        = number

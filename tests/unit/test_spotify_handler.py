@@ -28,6 +28,9 @@ class FakeRepo:
         self.released: list = []
         self.claimed_at: Any = None
 
+    def get_vendor_blocked_until(self, vendor):
+        return None
+
     def claim_tracks_for_spotify_search(
         self, limit: int, claimed_at: Any
     ) -> list[dict[str, Any]]:
@@ -73,6 +76,9 @@ class FakeRepoWithRemaining:
         self._search_call_count = 0
         self.released: list = []
         self.claimed_at: Any = None
+
+    def get_vendor_blocked_until(self, vendor):
+        return None
 
     def claim_tracks_for_spotify_search(
         self, limit: int, claimed_at: Any

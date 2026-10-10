@@ -113,6 +113,8 @@ class SpotifySearchMessage(BaseModel):
 
     batch_size: StrictInt = Field(default=2000, ge=1, le=5000)
     auto_continue: bool = Field(default=True)
+    # The one delayed message that carries a search over a Spotify ban.
+    resume: bool = Field(default=False)
 
 
 class AdminIngestRequestIn(BaseModel):

@@ -134,6 +134,7 @@ resource "aws_lambda_function" "spotify_search_worker" {
       LOG_LEVEL                           = "INFO"
       VENDORS_ENABLED                     = "spotify"
       SPOTIFY_METADATA_FALLBACK_ENABLED   = "true"
+      SPOTIFY_MIN_REQUEST_INTERVAL_MS     = var.spotify_min_request_interval_ms
     }
   }
 
@@ -146,6 +147,12 @@ resource "aws_lambda_event_source_mapping" "spotify_search_queue" {
   event_source_arn = aws_sqs_queue.spotify_search.arn
   function_name    = aws_lambda_function.spotify_search_worker.arn
   batch_size       = var.spotify_search_batch_size
+
+  # One queue, a bounded number of workers draining it: extra messages wait in
+  # the queue instead of multiplying the request rate (Spotify ban, 2026-10-10).
+  scaling_config {
+    maximum_concurrency = var.spotify_search_max_concurrency
+  }
 }
 
 # ── Vendor Match worker ──────────────────────────────────────────

@@ -229,6 +229,22 @@ A client loop or a script is the usual cause — fix it. If real traffic outgrew
 
 ---
 
+## Spotify search paused (rate-limit ban)
+
+**Symptom**
+
+Tracks stay without a Spotify link; the worker logs `spotify_search_paused` (`reason`: `rate_limited`, then `trigger_dropped` / `resume`) with `retry_after` in seconds.
+
+**Diagnosis**
+
+Spotify answered 429 with a Retry-After over 120 s. The ban end is in `vendor_rate_limits` (`vendor = 'spotify'`). Note the call rate that led to it: `ConcurrentExecutions` of `clouder-prod-spotify-search-worker` (capped at 2) and the `spotify_search_completed` volume.
+
+**Fix**
+
+Nothing: the resume message starts the search when the ban ends. If bans repeat, raise `spotify_min_request_interval_ms` or lower `spotify_search_max_concurrency` (Terraform variables).
+
+---
+
 ## Telemetry delivery stalled
 
 **Symptom**

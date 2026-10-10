@@ -13,17 +13,16 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List
 from urllib.error import HTTPError, URLError
 
-from .errors import SpotifyAuthError, SpotifyUnavailableError
+from .errors import SpotifyAuthError, SpotifyRateLimitedError, SpotifyUnavailableError
 from .logging_utils import log_event
 from .vendor_match.scorer import best_artist_sim, string_sim
 
 TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 API_BASE_URL = "https://api.spotify.com/v1"
-# Spotify can return Retry-After values larger than the Lambda timeout (15 min).
-# Sleeping that long blocks the worker until it's hard-killed. Cap at this value
-# and raise SpotifyUnavailableError when exceeded — SQS visibility timeout
-# (16 min) becomes the natural cool-down.
+# Spotify can return Retry-After values larger than the Lambda timeout (15 min) —
+# hours, when it bans the client. Waits above this cap raise
+# SpotifyRateLimitedError; the worker records the ban and pauses (spotify_handler).
 _MAX_RETRY_AFTER_SECONDS = 120.0
 
 
@@ -44,6 +43,8 @@ class SpotifyClient:
         max_retries: int = 4,
         backoff_base_seconds: float = 0.5,
         sleep_fn: Callable[[float], None] = time.sleep,
+        min_request_interval_s: float = 0.0,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
@@ -51,6 +52,11 @@ class SpotifyClient:
         self.max_retries = max_retries
         self.backoff_base_seconds = backoff_base_seconds
         self.sleep_fn = sleep_fn
+        # Spacing between API calls: one client sends at most 1/interval requests a
+        # second (the queue trigger caps how many clients run at once).
+        self.min_request_interval_s = min_request_interval_s
+        self._clock = clock
+        self._next_request_at = 0.0
         self._access_token: str | None = None
         self._token_expires_at: float = 0.0
 
@@ -463,6 +469,7 @@ class SpotifyClient:
         }
 
         for attempt in range(self.max_retries + 1):
+            self._pace()
             request = urllib.request.Request(
                 url=url, method="GET", headers=headers
             )
@@ -496,10 +503,7 @@ class SpotifyClient:
                             retry_after=delay,
                             attempt=attempt + 1,
                         )
-                        raise SpotifyUnavailableError(
-                            f"Spotify rate limit cooldown {delay}s exceeds cap "
-                            f"{_MAX_RETRY_AFTER_SECONDS}s"
-                        ) from exc
+                        raise SpotifyRateLimitedError(retry_after=delay) from exc
                     if delay and attempt < self.max_retries:
                         log_event(
                             "INFO",
@@ -527,6 +531,14 @@ class SpotifyClient:
                 ) from exc
 
         raise SpotifyUnavailableError("Spotify API request failed")
+
+    def _pace(self) -> None:
+        if self.min_request_interval_s <= 0:
+            return
+        wait = self._next_request_at - self._clock()
+        if wait > 0:
+            self.sleep_fn(wait)
+        self._next_request_at = self._clock() + self.min_request_interval_s
 
     def _sleep_backoff(self, attempt: int) -> None:
         jitter = random.uniform(0.0, 0.25)
