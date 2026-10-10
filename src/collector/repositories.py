@@ -964,6 +964,26 @@ class ClouderRepository:
             {"limit": limit, "claimed_at": claimed_at},
         )
 
+    def get_vendor_blocked_until(self, vendor: str) -> datetime | None:
+        rows = self._data_api.execute(
+            "SELECT blocked_until FROM vendor_rate_limits WHERE vendor = :vendor",
+            {"vendor": vendor},
+        )
+        return as_utc_datetime(rows[0]["blocked_until"]) if rows else None
+
+    def set_vendor_blocked_until(self, vendor: str, until: datetime, now: datetime) -> None:
+        """Record a ban; a shorter one never cuts an existing ban short."""
+        self._data_api.execute(
+            """
+            INSERT INTO vendor_rate_limits (vendor, blocked_until, updated_at)
+            VALUES (:vendor, :until, :now)
+            ON CONFLICT (vendor) DO UPDATE SET
+                blocked_until = GREATEST(vendor_rate_limits.blocked_until, EXCLUDED.blocked_until),
+                updated_at = EXCLUDED.updated_at
+            """,
+            {"vendor": vendor, "until": until, "now": now},
+        )
+
     def release_spotify_search_claim(
         self, claimed_at: datetime, now: datetime
     ) -> int:

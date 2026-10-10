@@ -56,6 +56,7 @@ Adding a new vendor: create the adapter under `src/collector/providers/<vendor>/
 | `SPOTIFY_FUZZY_TITLE_MIN` | float | `0.90` | Minimum title similarity for strict-tier acceptance (stage 2) |
 | `SPOTIFY_FUZZY_ARTIST_MIN` | float | `0.85` | Minimum artist similarity for strict-tier acceptance (stage 2) |
 | `SPOTIFY_FUZZY_DURATION_TOLERANCE_MS` | int | `3000` | Max duration delta (ms) for strict-tier acceptance; relaxed tier ignores this |
+| `SPOTIFY_MIN_REQUEST_INTERVAL_MS` | int | `0` (Terraform: `650`) | Pause between Spotify API calls in one worker; the queue trigger runs at most `spotify_search_max_concurrency` (2) workers |
 | `VENDORS_ENABLED` | string | — | Must include `spotify` |
 | `AURORA_CLUSTER_ARN` | string | — | Aurora cluster ARN |
 | `AURORA_SECRET_ARN` | string | — | Aurora master secret ARN |

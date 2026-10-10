@@ -61,6 +61,14 @@ class SpotifyUnavailableError(AppError):
         )
 
 
+class SpotifyRateLimitedError(SpotifyUnavailableError):
+    """Spotify asked us to wait longer than a Lambda can (429 + long Retry-After)."""
+
+    def __init__(self, retry_after: float) -> None:
+        super().__init__(f"Spotify rate limit: retry after {retry_after:.0f}s")
+        self.retry_after = retry_after
+
+
 class VendorUnavailableError(AppError):
     def __init__(self, vendor: str, reason: str = "") -> None:
         super().__init__(

@@ -273,7 +273,7 @@ def test_rate_limit_long_cooldown_raises_unavailable() -> None:
         )
 
     with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
-        with pytest.raises(SpotifyUnavailableError, match="exceeds cap"):
+        with pytest.raises(SpotifyUnavailableError, match="retry after 1296s"):
             client.search_tracks_by_isrc(
                 tracks=[{"clouder_track_id": "ct1", "isrc": "ZZ1"}],
                 correlation_id="cid-rl",

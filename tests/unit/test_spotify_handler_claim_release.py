@@ -30,6 +30,9 @@ class ClaimingRepo:
         self.released: list[Any] = []
         self.updated_spotify: list[dict] = []
 
+    def get_vendor_blocked_until(self, vendor):
+        return None
+
     def claim_tracks_for_spotify_search(self, limit, claimed_at):
         self.claimed_at = claimed_at
         return TRACKS[:limit]

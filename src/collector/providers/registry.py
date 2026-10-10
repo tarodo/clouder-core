@@ -49,6 +49,7 @@ def _build_spotify() -> ProviderBundle:
     spotify_lookup = SpotifyLookup(
         client_id=sp_settings.spotify_client_id,
         client_secret=sp_settings.spotify_client_secret,
+        min_request_interval_s=sp_settings.min_request_interval_ms / 1000,
     )
     return ProviderBundle(
         lookup=spotify_lookup,

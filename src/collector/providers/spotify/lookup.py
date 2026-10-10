@@ -23,10 +23,12 @@ class SpotifyLookup:
         client_id: str,
         client_secret: str,
         client: SpotifyClient | None = None,
+        min_request_interval_s: float = 0.0,
     ) -> None:
         self._client = client or SpotifyClient(
             client_id=client_id,
             client_secret=client_secret,
+            min_request_interval_s=min_request_interval_s,
         )
 
     def lookup_batch_by_isrc(

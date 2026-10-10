@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, datetime
+import math
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Mapping, cast
 from uuid import uuid4
 
 from pydantic import ValidationError as PydanticValidationError
 
-from .errors import StorageError, TransientStorageError
+from .errors import SpotifyRateLimitedError, StorageError, TransientStorageError
 from .logging_utils import log_event
 from .providers import registry
 from .repositories import (
@@ -39,6 +40,7 @@ _CHUNK_SIZE = 200
 # API calls per ISRC miss. With Spotify's ~180 req/min sustained quota, batches
 # above 200 risk hitting hard rate limits with multi-minute Retry-After values.
 _MAX_FOLLOW_UP_BATCH_SIZE = 200
+_MAX_SQS_DELAY_SECONDS = 900
 
 
 def _extract_album_type(spotify_track: Mapping[str, Any] | None) -> str | None:
@@ -185,6 +187,22 @@ def _process_spotify_search(
     deadline_provider: Any = None,
 ) -> None:
     batch_id = uuid4().hex[:12]
+    now = utc_now()
+    blocked_until = repository.get_vendor_blocked_until("spotify")
+    if blocked_until is not None and blocked_until > now:
+        # Spotify banned us: leave it alone. Plain triggers end here; the one
+        # resume message re-arms itself until the ban is over.
+        log_event(
+            "INFO",
+            "spotify_search_paused",
+            correlation_id=correlation_id,
+            retry_after=round((blocked_until - now).total_seconds()),
+            reason="resume" if message.resume else "trigger_dropped",
+        )
+        if message.resume:
+            _enqueue_resume(settings, message, correlation_id, blocked_until - now)
+        return
+
     claimed_at = utc_now()
     tracks = repository.claim_tracks_for_spotify_search(
         limit=message.batch_size, claimed_at=claimed_at
@@ -218,6 +236,26 @@ def _process_spotify_search(
             tracks=tracks,
             deadline_provider=deadline_provider,
         )
+    except SpotifyRateLimitedError as exc:
+        # A ban is not an error: hand the rows back, remember the ban, and carry
+        # the search over it with one delayed message.
+        _release_claim(
+            repository=repository,
+            claimed_at=claimed_at,
+            correlation_id=correlation_id,
+            batch_id=batch_id,
+        )
+        now = utc_now()
+        repository.set_vendor_blocked_until("spotify", now + timedelta(seconds=exc.retry_after), now)
+        log_event(
+            "WARNING",
+            "spotify_search_paused",
+            correlation_id=correlation_id,
+            batch_id=batch_id,
+            retry_after=exc.retry_after,
+            reason="rate_limited",
+        )
+        _enqueue_resume(settings, message, correlation_id, timedelta(seconds=exc.retry_after))
     except Exception:
         # The rows are already stamped as searched. Hand back whatever this
         # batch never managed to resolve, so the SQS redelivery re-searches
@@ -424,6 +462,31 @@ def _process_results_chunk(
     ]
     if track_ids_with_type:
         repository.propagate_release_type_to_albums(track_ids_with_type)
+
+
+def _enqueue_resume(
+    settings: Any,
+    message: SpotifySearchMessage,
+    correlation_id: str,
+    remaining: timedelta,
+) -> None:
+    """Send the resume message, due when the ban ends (SQS delays at most 15 min)."""
+    queue_url = settings.spotify_search_queue_url.strip()
+    if not queue_url:
+        log_event("WARNING", "spotify_follow_up_skipped", correlation_id=correlation_id,
+                  reason="no_queue_url")
+        return
+    delay = min(_MAX_SQS_DELAY_SECONDS, max(1, math.ceil(remaining.total_seconds())))
+    body = {"batch_size": min(message.batch_size, _MAX_FOLLOW_UP_BATCH_SIZE), "resume": True}
+    import boto3
+
+    boto3.client("sqs").send_message(
+        QueueUrl=queue_url,
+        MessageBody=json.dumps(body, separators=(",", ":")),
+        DelaySeconds=delay,
+        MessageAttributes={"correlation_id": {"DataType": "String", "StringValue": correlation_id}},
+    )
+    log_event("INFO", "spotify_resume_enqueued", correlation_id=correlation_id, retry_after=delay)
 
 
 def _enqueue_follow_up_if_needed(

@@ -165,6 +165,8 @@ class SpotifyWorkerSettings(_SettingsBase):
     metadata_fallback_duration_tolerance_ms: int = Field(
         default=3000, alias="SPOTIFY_FUZZY_DURATION_TOLERANCE_MS", ge=0
     )
+    # Pause between Spotify API calls in one worker (0 = no pacing).
+    min_request_interval_ms: int = Field(default=0, alias="SPOTIFY_MIN_REQUEST_INTERVAL_MS", ge=0)
 
 
 class MigrationSettings(_SettingsBase):
