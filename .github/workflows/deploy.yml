@@ -11,12 +11,6 @@ permissions:
   contents: read
   id-token: write
 
-# One deploy at a time: a second merge waits for the first instead of racing it for
-# the Terraform state lock and the frontend bucket.
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-
 env:
   AWS_REGION: us-east-1
 
@@ -26,6 +20,12 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
+    # One deploy at a time: a second merge waits for the first instead of racing it for
+    # the Terraform state lock and the frontend bucket. Job-level, so a dispatch from
+    # another branch (skipped by `if`) never takes a waiting main deploy's place.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: infra
@@ -49,10 +49,26 @@ jobs:
         with:
           python-version: '3.12'
 
-      # Before any AWS credentials exist: pip install runs third-party code.
+      # Before any AWS credentials exist: pip and pnpm installs run third-party code.
       - name: Package Lambda
         working-directory: .
         run: scripts/package_lambda.sh
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Build frontend
+        working-directory: .
+        run: scripts/deploy_frontend.sh build
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -165,18 +181,6 @@ jobs:
       - name: Terraform apply
         run: terraform apply -auto-approve -input=false -var-file=prod.tfvars
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
       - name: Deploy frontend (S3 + CloudFront)
         working-directory: .
-        run: scripts/deploy_frontend.sh
+        run: scripts/deploy_frontend.sh publish

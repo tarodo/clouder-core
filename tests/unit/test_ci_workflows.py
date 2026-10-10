@@ -3,11 +3,15 @@ no dependency install with credentials, one deploy at a time."""
 
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
 
 import yaml
 
-WF = Path(__file__).resolve().parents[2] / ".github" / "workflows"
+ROOT = Path(__file__).resolve().parents[2]
+WF = ROOT / ".github" / "workflows"
+FRONTEND_DEPLOY = ROOT / "scripts" / "deploy_frontend.sh"
 DEPLOY = yaml.safe_load((WF / "deploy.yml").read_text())
 PR = yaml.safe_load((WF / "pr.yml").read_text())
 
@@ -44,8 +48,45 @@ def test_lambda_is_packaged_before_any_aws_credentials() -> None:
         assert package < creds
 
 
+def test_frontend_dependencies_install_before_any_aws_credentials() -> None:
+    # pnpm runs dependencies' install scripts (esbuild has a postinstall).
+    steps = DEPLOY["jobs"]["deploy"]["steps"]
+    build = _first(steps, lambda s: s.get("run", "").strip() == "scripts/deploy_frontend.sh build")
+    creds = _first(steps, lambda s: "configure-aws-credentials" in s.get("uses", ""))
+    publish = _first(steps, lambda s: s.get("run", "").strip() == "scripts/deploy_frontend.sh publish")
+    apply = _first(steps, lambda s: s.get("name") == "Terraform apply")
+    assert build < creds < apply < publish
+
+
+def _run_frontend_deploy(tmp_path: Path, mode: str) -> str:
+    log = tmp_path / "calls.log"
+    log.touch()
+    for tool in ("pnpm", "aws", "terraform"):
+        fake = tmp_path / tool
+        fake.write_text(f'#!/bin/sh\necho "{tool} $*" >> "{log}"\n')
+        fake.chmod(0o755)
+    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
+    subprocess.run(["bash", str(FRONTEND_DEPLOY), mode], env=env, check=True, capture_output=True)
+    return log.read_text()
+
+
+def test_frontend_build_mode_never_touches_aws(tmp_path: Path) -> None:
+    calls = _run_frontend_deploy(tmp_path, "build")
+    assert "pnpm install --frozen-lockfile" in calls and "pnpm build" in calls
+    assert "aws " not in calls and "terraform " not in calls
+
+
+def test_frontend_publish_mode_installs_nothing(tmp_path: Path) -> None:
+    calls = _run_frontend_deploy(tmp_path, "publish")
+    assert "pnpm" not in calls
+    assert "aws s3 sync" in calls and "aws cloudfront create-invalidation" in calls
+
+
 def test_deploys_never_run_concurrently() -> None:
-    assert DEPLOY["concurrency"] == {"group": "deploy-production", "cancel-in-progress": False}
+    # Job-level: a manual dispatch from another branch skips the job, so it never
+    # takes the slot of a main deploy waiting in the queue.
+    assert "concurrency" not in DEPLOY
+    assert DEPLOY["jobs"]["deploy"]["concurrency"] == {"group": "deploy-production", "cancel-in-progress": False}
 
 
 def test_plan_and_apply_get_the_same_inputs() -> None:
