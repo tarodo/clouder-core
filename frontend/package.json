@@ -71,5 +71,10 @@
     "vite": "^7.3.7",
     "vitest": "^4.1.11",
     "vitest-browser-react": "^2.3.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "js-yaml@>=4.0.0 <4.3.2": "^4.3.2"
+    }
   }
 }
