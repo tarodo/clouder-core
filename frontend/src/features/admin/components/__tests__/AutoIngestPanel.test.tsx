@@ -124,7 +124,8 @@ describe('AutoIngestPanel', () => {
     serve(state({ updated_at: null }));
     renderPanel();
     const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    expect(await screen.findByLabelText('Timezone')).toHaveValue(zone);
+    // Mantine labels both the input (combobox) and its listbox.
+    expect(await screen.findByRole('combobox', { name: 'Timezone' })).toHaveValue(zone);
   });
 
   it('Run now starts a run', async () => {
