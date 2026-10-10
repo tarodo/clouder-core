@@ -118,12 +118,15 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Configure AWS credentials (OIDC)
+        # Dependabot gets no repository secrets: its PRs validate without AWS (ADR-0028).
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_PLAN_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Terraform init
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
           TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
@@ -135,11 +138,16 @@ jobs:
             -backend-config="dynamodb_table=$TF_LOCK_TABLE" \
             -backend-config="encrypt=true"
 
+      - name: Terraform init (no backend, Dependabot)
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        run: terraform init -input=false -backend=false
+
       - name: Terraform validate
         run: terraform validate
 
       # The same inputs as deploy.yml, so the plan shows what the deploy would apply.
       - name: Terraform plan
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           TF_VAR_spotify_oauth_redirect_uri: ${{ vars.SPOTIFY_OAUTH_REDIRECT_URI }}
           TF_VAR_admin_spotify_ids: ${{ vars.ADMIN_SPOTIFY_IDS }}
