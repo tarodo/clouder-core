@@ -676,12 +676,17 @@ aws iam get-role --role-name clouder-prod-gha-plan --query 'Role.Arn' --output t
   | gh secret set AWS_PLAN_ROLE_ARN --repo tarodo/clouder-core
 ```
 
-- [ ] **Step 7: Drop the `production` duplicates** of the six values now read at repo level (the deploy just proved the repo copies work):
+- [ ] **Step 7: Drop the `production` duplicates** — only for values that exist at repo level, or the next deploy loses them. Check first, delete only what the check lists:
 
 ```bash
+gh variable list --repo tarodo/clouder-core --json name --jq '.[].name'   # expect the three below
+gh secret list --repo tarodo/clouder-core --json name --jq '.[].name'     # BEATPORT_CLIENT_ID must be here before its env copy goes
 for n in SPOTIFY_OAUTH_REDIRECT_URI ADMIN_SPOTIFY_IDS ALLOWED_FRONTEND_REDIRECTS; do gh variable delete "$n" --env production --repo tarodo/clouder-core; done
-for n in BEATPORT_CLIENT_ID ALARM_EMAIL BUDGET_MONTHLY_LIMIT; do gh secret delete "$n" --env production --repo tarodo/clouder-core; done
+gh secret delete ALARM_EMAIL --env production --repo tarodo/clouder-core
+# Only after `gh secret set BEATPORT_CLIENT_ID --repo tarodo/clouder-core` (value from the env copy):
+gh secret delete BEATPORT_CLIENT_ID --env production --repo tarodo/clouder-core
 ```
+`BUDGET_MONTHLY_LIMIT` is unset in both places (no budget exists); nothing to move.
 
 ---
 
