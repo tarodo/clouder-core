@@ -689,3 +689,9 @@ variable "beatport_client_id" {
   type        = string
   default     = ""
 }
+
+variable "github_repository" {
+  description = "owner/name of the GitHub repository whose pull requests may assume the plan role."
+  type        = string
+  default     = "tarodo/clouder-core"
+}

@@ -6,6 +6,7 @@ variable "budget_monthly_limit" {
   description = "Monthly cost budget in USD (a plain number). Empty = no budget."
   type        = string
   default     = ""
+  sensitive   = true
 }
 
 resource "aws_budgets_budget" "monthly" {

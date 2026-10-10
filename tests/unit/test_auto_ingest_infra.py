@@ -158,8 +158,8 @@ def test_client_id_is_set_from_a_github_secret() -> None:
     variable = _block(_tf("variables.tf"), 'variable "beatport_client_id"')
     assert 'default     = ""' in variable  # unset secret: deploy passes, the login reports client_id
     workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "deploy.yml").read_text())
-    apply = next(s for s in workflow["jobs"]["deploy"]["steps"] if s.get("name") == "Terraform apply")
-    assert apply["env"]["TF_VAR_beatport_client_id"] == "${{ secrets.BEATPORT_CLIENT_ID }}"
+    # Job-level, so both apply phases and the PR plan see it (ADR-0028).
+    assert workflow["jobs"]["deploy"]["env"]["TF_VAR_beatport_client_id"] == "${{ secrets.BEATPORT_CLIENT_ID }}"
 
 
 def test_api_lambda_logs_in_to_beatport_like_auto_ingest() -> None:

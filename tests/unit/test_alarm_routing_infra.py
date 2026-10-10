@@ -26,8 +26,8 @@ def test_email_topic_is_created_from_a_secret() -> None:
     assert re.search(r'default\s*=\s*""', block.split("}")[0])  # no secret → no topic, deploy passes
     # The address is not in the public repo: it comes from the GitHub secret at deploy.
     workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "deploy.yml").read_text())
-    apply = next(s for s in workflow["jobs"]["deploy"]["steps"] if s.get("name") == "Terraform apply")
-    assert apply["env"]["TF_VAR_alarm_email"] == "${{ secrets.ALARM_EMAIL }}"
+    # Job-level, so both apply phases and the PR plan see it (ADR-0028).
+    assert workflow["jobs"]["deploy"]["env"]["TF_VAR_alarm_email"] == "${{ secrets.ALARM_EMAIL }}"
 
 
 def test_every_alarm_routes_through_the_shared_actions() -> None:
