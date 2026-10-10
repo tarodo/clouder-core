@@ -820,6 +820,17 @@
       "styles_hint": "Unchecked styles are hidden from this matrix and from every user's style pickers. Tracks are kept.",
       "styles_toggle_failed": "Failed to update style visibility."
     },
+    "spotify_status": {
+      "title": "Spotify search",
+      "running": "Searching",
+      "queued": "Queued",
+      "paused": "Paused",
+      "paused_until": "Paused until {{time}}",
+      "idle": "Idle",
+      "waiting": "Waiting for search",
+      "recent": "Searched in the last 10 min",
+      "not_found": "Not found on Spotify"
+    },
     "spotify_not_found": {
       "title": "Tracks not on Spotify",
       "subtitle": "Tracks still waiting for a Spotify match.",

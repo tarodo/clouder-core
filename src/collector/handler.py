@@ -9,7 +9,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Mapping
 
 from pydantic import ValidationError as PydanticValidationError
@@ -67,6 +67,7 @@ _ADMIN_ROUTES = frozenset({
     "GET /admin/runs",
     "GET /tracks/spotify-not-found",
     "POST /admin/spotify/retry-not-found",
+    "GET /admin/spotify/search-status",
     "POST /admin/labels/enrich",
     "POST /admin/labels/{label_id}/enrich-auto",
     "GET /admin/labels/enrich/options",
@@ -192,6 +193,8 @@ def _route(
         return _handle_spotify_not_found(event, correlation_id)
     if route_key == "POST /admin/spotify/retry-not-found":
         return _handle_spotify_retry_not_found(event, correlation_id)
+    if route_key == "GET /admin/spotify/search-status":
+        return _handle_spotify_search_status(correlation_id)
     if route_key == "POST /admin/labels/enrich":
         from .label_enrichment.routes import handle_post_enrich
         status, body = handle_post_enrich(event)
@@ -1184,6 +1187,61 @@ def _parse_iso_date_field(payload: Mapping[str, Any], name: str) -> date:
         return date.fromisoformat(raw.strip())
     except ValueError:
         raise ValidationError(f"{name} must be an ISO date (YYYY-MM-DD)")
+
+
+def _handle_spotify_search_status(correlation_id: str) -> dict[str, Any]:
+    """Admin view of the Spotify search: the queue (SQS) and the backlog (Aurora)."""
+    repository = create_clouder_repository_from_env()
+    if repository is None:
+        return _json_response(
+            503,
+            {"error_code": "db_not_configured", "message": "Database is not configured"},
+            correlation_id,
+        )
+    now = utc_now()
+    counts = repository.spotify_search_counts(since=now - timedelta(minutes=10))
+    blocked_until = repository.get_vendor_blocked_until("spotify")
+    paused_until = blocked_until if blocked_until is not None and blocked_until > now else None
+
+    queue = {"waiting_messages": 0, "in_flight": 0, "delayed": 0}
+    queue_url = _load_api_settings().spotify_search_queue_url.strip()
+    if queue_url:
+        attrs = create_default_sqs_client().get_queue_attributes(
+            QueueUrl=queue_url,
+            AttributeNames=[
+                "ApproximateNumberOfMessages",
+                "ApproximateNumberOfMessagesNotVisible",
+                "ApproximateNumberOfMessagesDelayed",
+            ],
+        )["Attributes"]
+        queue = {
+            "waiting_messages": int(attrs.get("ApproximateNumberOfMessages", 0)),
+            "in_flight": int(attrs.get("ApproximateNumberOfMessagesNotVisible", 0)),
+            "delayed": int(attrs.get("ApproximateNumberOfMessagesDelayed", 0)),
+        }
+
+    if paused_until is not None:
+        status = "paused"
+    elif queue["in_flight"]:
+        status = "running"
+    elif queue["waiting_messages"] or queue["delayed"]:
+        status = "queued"
+    else:
+        status = "idle"
+    return _json_response(
+        200,
+        {
+            "status": status,
+            "paused_until": paused_until.isoformat() if paused_until else None,
+            "queue": queue,
+            "tracks": {
+                "waiting": counts["waiting"],
+                "not_found": counts["not_found"],
+                "searched_last_10_min": counts["searched_recently"],
+            },
+        },
+        correlation_id,
+    )
 
 
 def _handle_spotify_retry_not_found(

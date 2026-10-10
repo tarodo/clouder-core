@@ -62,6 +62,8 @@ module "role_collector" {
       ]
     },
     { sid = "InvokeAutoIngest", actions = ["lambda:InvokeFunction"], resources = [aws_lambda_function.auto_ingest.arn] },
+    # Admin Spotify search status reads the queue depth.
+    { sid = "ReadSpotifyQueueDepth", actions = ["sqs:GetQueueAttributes"], resources = [aws_sqs_queue.spotify_search.arn] },
     local.st_ssm_kms,
     {
       sid     = "ReadBeatportCredentials"

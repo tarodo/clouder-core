@@ -88,7 +88,7 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 | Service | How it is used |
 |---|---|
 | **Lambda** (Python 3.12) | 18 functions: API handlers and a JWT authorizer, SQS workers, scheduled jobs, backfill steps, DB migrations |
-| **API Gateway** (HTTP API) | 105 operations; everything except the auth routes (`/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/logout`) goes through a Lambda authorizer |
+| **API Gateway** (HTTP API) | 106 operations; everything except the auth routes (`/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/logout`) goes through a Lambda authorizer |
 | **SQS** | 7 work queues, each with a dead-letter queue and redrive policy |
 | **Step Functions** | Backfill (plan → map over runs → summarize → DQ check) and the nightly dbt transform |
 | **EventBridge / Scheduler** | Nightly catalog export and data-quality checks; daily auto-ingest planning with one-time run schedules |
@@ -146,7 +146,7 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
 | Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 233 Terraform resource definitions |
-| API | 105 operations |
+| API | 106 operations |
 | Delivery | 265+ merged pull requests; every merge to `main` deploys to production |
 
 ## Running it locally

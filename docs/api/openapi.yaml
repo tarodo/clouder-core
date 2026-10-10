@@ -1460,6 +1460,27 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/spotify/search-status:
+    get:
+      summary: 'Admin: Spotify search state — queue, pause and track backlog.'
+      responses:
+        '200':
+          description: Search status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotifySearchStatus'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /admin/auto-ingest/run:
     post:
       summary: 'Admin: start an auto-ingest run now (asynchronous, also when disabled).'
@@ -6282,6 +6303,56 @@ components:
               last_error:
                 type: string
                 nullable: true
+    SpotifySearchStatus:
+      type: object
+      required:
+      - status
+      - paused_until
+      - queue
+      - tracks
+      properties:
+        status:
+          type: string
+          enum:
+          - running
+          - queued
+          - paused
+          - idle
+          description: 'running: a worker holds a message; queued: a message waits;
+            paused: Spotify banned the app until paused_until; idle: nothing to do.'
+        paused_until:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        queue:
+          type: object
+          required:
+          - waiting_messages
+          - in_flight
+          - delayed
+          properties:
+            waiting_messages:
+              type: integer
+            in_flight:
+              type: integer
+            delayed:
+              type: integer
+        tracks:
+          type: object
+          required:
+          - waiting
+          - not_found
+          - searched_last_10_min
+          properties:
+            waiting:
+              type: integer
+              description: Tracks with an ISRC never searched yet.
+            not_found:
+              type: integer
+              description: Searched without a Spotify match.
+            searched_last_10_min:
+              type: integer
     CollectResponse:
       type: object
       properties:
