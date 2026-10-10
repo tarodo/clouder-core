@@ -3675,8 +3675,8 @@
     "semantic_hash": "fb70e3f8604bd192cb59f43be348536d"
   },
   "scripts/deploy_frontend.sh": {
-    "mtime": 1791656931.6271648,
-    "ast_hash": "7f2613b519b842ed79ef4b5a16002e34",
+    "mtime": 1791658216.45655,
+    "ast_hash": "a89b89de688be0f2436e24570cff3c62",
     "semantic_hash": ""
   },
   "scripts/generate_openapi.py": {
@@ -5175,8 +5175,8 @@
     "semantic_hash": "c725925a5155d6994ca645790fad9b4c"
   },
   ".github/workflows/deploy.yml": {
-    "mtime": 1791657685.4594402,
-    "ast_hash": "9c19e393d9ce7dd05795aac0a8ed5866",
+    "mtime": 1791658229.0687892,
+    "ast_hash": "054229e6f2aca966dda7efc745442b9f",
     "semantic_hash": ""
   },
   ".github/workflows/pr.yml": {
@@ -7650,8 +7650,8 @@
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-10-phase1-ci-access.md": {
-    "mtime": 1791657181.5623848,
-    "ast_hash": "b7efe35bcba6dacfb948acfc068b3151",
+    "mtime": 1791658251.4882884,
+    "ast_hash": "44804cc5d27d556dc0f4bb5ac6e1a6ed",
     "semantic_hash": ""
   },
   "infra/.terraform.lock.hcl": {
@@ -7665,8 +7665,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_ci_workflows.py": {
-    "mtime": 1791657660.8115375,
-    "ast_hash": "6869fe8736605c2927cfe076968bc6d0",
+    "mtime": 1791658205.3906825,
+    "ast_hash": "a0393842f8a11d60a1f0c350e14fd522",
     "semantic_hash": ""
   }
 }
