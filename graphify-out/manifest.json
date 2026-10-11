@@ -5175,8 +5175,8 @@
     "semantic_hash": "c725925a5155d6994ca645790fad9b4c"
   },
   ".github/workflows/deploy.yml": {
-    "mtime": 1791687190.694862,
-    "ast_hash": "c0434efcbbe2aa48f5defd8641ae97eb",
+    "mtime": 1791687858.621831,
+    "ast_hash": "340dba6c6248b6da579a3b52d6586b99",
     "semantic_hash": ""
   },
   ".github/workflows/pr.yml": {
@@ -5185,8 +5185,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1791656930.9151392,
-    "ast_hash": "b2601f53d26d4a594c69b7d13d907461",
+    "mtime": 1791688760.125665,
+    "ast_hash": "fbb52b94147e0016dd65239c2566efff",
     "semantic_hash": ""
   },
   "README.md": {
@@ -5640,8 +5640,8 @@
     "semantic_hash": ""
   },
   "docs/backend/gotchas.md": {
-    "mtime": 1791685350.1046443,
-    "ast_hash": "2172c63a8de125f72546f7fc6ed977a5",
+    "mtime": 1791688760.1266146,
+    "ast_hash": "f09dcdb2c90731074927775dce6ef293",
     "semantic_hash": ""
   },
   "docs/backend/handlers.md": {
@@ -5790,8 +5790,8 @@
     "semantic_hash": ""
   },
   "docs/ops/deploy.md": {
-    "mtime": 1791687251.5230534,
-    "ast_hash": "1f94d14056f05a9af2a8f854878c6234",
+    "mtime": 1791687871.787074,
+    "ast_hash": "cb553cdf752b889054a6bb2e6fced820",
     "semantic_hash": ""
   },
   "docs/ops/env-vars.md": {
@@ -5800,13 +5800,13 @@
     "semantic_hash": ""
   },
   "docs/ops/logs.md": {
-    "mtime": 1791685350.1139488,
-    "ast_hash": "7a4b03a45b3e6caa6dbb59162ef494f1",
+    "mtime": 1791688760.1290684,
+    "ast_hash": "7aca28f998a20fdff1903ce7fe9491f2",
     "semantic_hash": ""
   },
   "docs/ops/runbook.md": {
-    "mtime": 1791685350.1141455,
-    "ast_hash": "f7558d649820217c6b55b9c6ca4c169b",
+    "mtime": 1791688760.130123,
+    "ast_hash": "2c88735ce8089d5bc01a87f67e3a35be",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-06-08-triage-finalize-dispatch-phase1-inline-optimization.md": {
@@ -6850,8 +6850,8 @@
     "semantic_hash": ""
   },
   "docs/data/data-quality.md": {
-    "mtime": 1791685350.1072388,
-    "ast_hash": "cbb280beb06660ef63a3351d19cbc58b",
+    "mtime": 1791688760.1286945,
+    "ast_hash": "274d5dc914389426c4227b94fb2b15ba",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-data-quality-checks.md": {
@@ -6960,8 +6960,8 @@
     "semantic_hash": ""
   },
   "infra/lakehouse.tf": {
-    "mtime": 1791656931.6236224,
-    "ast_hash": "003c6118e82e118b136c15d0c621ab1e",
+    "mtime": 1791688560.1062698,
+    "ast_hash": "fa8cfcfcb524c5252363b02d9f8879d6",
     "semantic_hash": ""
   },
   "infra/transform.asl.json": {
@@ -7005,8 +7005,8 @@
     "semantic_hash": ""
   },
   "dbt/models/sources.yml": {
-    "mtime": 1791656930.9233148,
-    "ast_hash": "6a0235b74206856b5aba677110bc4e9d",
+    "mtime": 1791688560.1057875,
+    "ast_hash": "cf98292fc913832ca734e72268d4ccf3",
     "semantic_hash": ""
   },
   "dbt/models/staging/_staging.yml": {
@@ -7035,8 +7035,8 @@
     "semantic_hash": ""
   },
   "docs/data/lakehouse.md": {
-    "mtime": 1791685350.1077392,
-    "ast_hash": "2834699ad6b4768b494b594bd64e312f",
+    "mtime": 1791688760.1281693,
+    "ast_hash": "5f55c91cebf746ac653a976a76b40577",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-lakehouse-dbt.md": {
@@ -7050,8 +7050,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_lakehouse_infra.py": {
-    "mtime": 1791656931.6766806,
-    "ast_hash": "ae7be605eeef9c8408361db4c0f6ec27",
+    "mtime": 1791688545.359961,
+    "ast_hash": "3cdd238be5deeeea72d56a615c7f434a",
     "semantic_hash": ""
   },
   "infra/data_contracts.tf": {
@@ -7370,8 +7370,8 @@
     "semantic_hash": ""
   },
   "infra/dashboard.tf": {
-    "mtime": 1791656931.6226814,
-    "ast_hash": "72c9a7077b85190229cf2a80a44a2b29",
+    "mtime": 1791688679.4107757,
+    "ast_hash": "af48879ae5e376d6713889ebe7bc1621",
     "semantic_hash": ""
   },
   "scripts/dashboard_snapshots.py": {
@@ -7455,8 +7455,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_dashboard_infra.py": {
-    "mtime": 1791656931.667562,
-    "ast_hash": "3ece442892a471581facf8b21b29e5ea",
+    "mtime": 1791688668.6576493,
+    "ast_hash": "62e8ce834304f7f38d2ccfdd355490aa",
     "semantic_hash": ""
   },
   "tests/unit/test_dashboard_snapshots.py": {
@@ -7515,8 +7515,8 @@
     "semantic_hash": ""
   },
   "docs/ops/failure-modes.md": {
-    "mtime": 1791687251.522019,
-    "ast_hash": "09cc84b6bbaf4bf41348979f0aed3b33",
+    "mtime": 1791688760.1296573,
+    "ast_hash": "e4ce2b09dc400f1e5f74f3929f35a683",
     "semantic_hash": ""
   },
   "docs/postmortems/2026-04-15-identity-lookup-outside-transaction.md": {
@@ -7665,8 +7665,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_ci_workflows.py": {
-    "mtime": 1791687172.885312,
-    "ast_hash": "119f03b2affccb18cc03f2f1c7fbbcfe",
+    "mtime": 1791687840.9216104,
+    "ast_hash": "83be33840e0fbbec016aa8125e81678c",
     "semantic_hash": ""
   },
   "docs/adr/0028-ci-roles.md": {
@@ -7740,28 +7740,33 @@
     "semantic_hash": ""
   },
   "scripts/smoke.py": {
-    "mtime": 1791687127.2746341,
-    "ast_hash": "a5bdf561bfd1a965fe453b1ebbadfc6a",
+    "mtime": 1791687858.6214006,
+    "ast_hash": "6ee285633c5f0d703f7f3cb37812256c",
     "semantic_hash": ""
   },
   "tests/unit/test_smoke.py": {
-    "mtime": 1791687096.378293,
-    "ast_hash": "bfbd00777f8b1f0e549a486f9515ea8d",
+    "mtime": 1791687840.9228604,
+    "ast_hash": "2a480e52844488d404d4ff1b7325712e",
     "semantic_hash": ""
   },
   "scripts/api_aliases.py": {
-    "mtime": 1791687189.5622761,
-    "ast_hash": "c1db74c9cfbd9b90aceef08a2ea590bd",
+    "mtime": 1791687858.6210766,
+    "ast_hash": "368d80724ba6e25097762e91caff4f17",
     "semantic_hash": ""
   },
   "tests/unit/test_api_aliases.py": {
-    "mtime": 1791687172.8808672,
-    "ast_hash": "f57453b0803dd779f6e27e9f1ce5ae35",
+    "mtime": 1791687840.9201486,
+    "ast_hash": "6788be777d6ff1ba6b6b6e9c55c35139",
     "semantic_hash": ""
   },
   "docs/adr/0029-api-aliases-smoke-rollback.md": {
     "mtime": 1791687251.500321,
     "ast_hash": "5d162f52543aaa7ebaa9aef0b8f481c5",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-10-11-phase4-pipeline-seams.md": {
+    "mtime": 1791688532.9251885,
+    "ast_hash": "191a55942573835af475789c0de3da67",
     "semantic_hash": ""
   }
 }
