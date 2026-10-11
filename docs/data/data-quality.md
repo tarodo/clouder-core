@@ -50,7 +50,8 @@ leaves Aurora awake (it auto-pauses after 300 s idle), and a wake-up probe (`SEL
 the run instead of failing every check. The Lambda runs the checks through
 the RDS Data API with its own role (Data API, the cluster secret, `PutMetricData` limited to its
 namespace), logs a `dq_check_result` event per check, publishes every measured value plus
-`FailedChecks` to the CloudWatch namespace `CLOUDER/DataQuality`, and the alarm
+`FailedChecks` to the CloudWatch namespace `CLOUDER/DataQuality` (charted per check on the
+`clouder-prod-overview` dashboard, with the completeness SLO lines), and the alarm
 `clouder-prod-data-quality-failed-checks` fires on `FailedChecks ≥ 1`. The failing check's name
 is in that night's `dq_check_result` logs. Like every other alarm here, it emails the owner
 through the alarm topic (`clouder-prod-alarms`, GitHub secret `ALARM_EMAIL`). One combined

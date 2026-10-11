@@ -49,9 +49,9 @@ For scripts that import `yaml`, `pydantic`, etc. (which are in `.venv` but not i
 
 **What:** Almost all AWS resources are named with prefix `clouder-prod-` (e.g. `clouder-prod-collector-api`, `clouder-prod-vendor-match-worker`, Aurora cluster `clouder-prod-aurora`). A small set deliberately keeps the older `beatport-prod-*` name.
 
-**Why:** Terraform derives the prefix from `var.project` + `var.environment`. The exceptions were left alone on purpose — renaming them means data loss or a needless cascade: the `raw` ingest bucket, the analytics-lake bucket, the Athena workgroup, and the frontend bucket / OAC / CloudFront functions. (The Beatport ingest *provider* code is legitimately named too — it is the upstream source.)
+**Why:** Terraform derives the prefix from `var.project` + `var.environment`. The exceptions were left alone on purpose — renaming them means data loss or a needless cascade: the `raw` ingest bucket, the Terraform state bucket, the Athena workgroup (`beatport-prod-analytics`), and the frontend OAC / CloudFront functions. The lake (`clouder-prod-analytics-lake`) and frontend buckets carry the new prefix. (The Beatport ingest *provider* code is legitimately named too — it is the upstream source.)
 
-**Mitigation:** Use `clouder-prod-` when looking up Lambdas, SQS queues, or Aurora in the Console or CLI; reach for `beatport-prod-` only for the buckets/workgroup above. Example:
+**Mitigation:** Use `clouder-prod-` when looking up Lambdas, SQS queues, or Aurora in the Console or CLI; reach for `beatport-prod-` only for the resources above. Example:
 
 ```bash
 aws logs tail "/aws/lambda/clouder-prod-collector-api" --follow

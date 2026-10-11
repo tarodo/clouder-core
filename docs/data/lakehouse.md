@@ -62,13 +62,17 @@ before history starts take the earliest known version.
 
 **Tests.** dbt unit tests (dedup, lookback window, SCD2 first build / incremental fold / no-op
 rerun / revert, play capping, point-in-time style), data tests (`unique`, `not_null`,
-`accepted_values`, one open version per track, non-overlapping versions) and source freshness.
+`accepted_values`, one open version per track, non-overlapping versions) and source freshness:
+the catalog export must carry today's snapshot (`error_after` one day), telemetry only warns —
+it follows users, and a quiet day is normal.
 CI runs them on DuckDB for every change under `dbt/` and parses the Athena target.
 
 **Nightly build.** `clouder-prod-transform` (Step Functions) starts the `clouder-prod-dbt`
 CodeBuild project at 00:30 UTC — after the catalog export (00:00) and the data-quality checks
 (00:10). CodeBuild clones `main`, installs the pinned dbt versions and runs `dbt build` (unit
-tests stay in CI) and `dbt source freshness`. One retry; a failure ends the execution failed and
+tests stay in CI), then `dbt source freshness`. A missed catalog export fails that second step:
+silver/gold still advance (the build ran first), but the night goes red instead of passing on a
+stale style dictionary. One retry; a failure ends the execution failed and
 puts `clouder-prod-transform-failed` into ALARM (it emails the owner through the alarm topic,
 like every alarm here).
 

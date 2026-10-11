@@ -197,6 +197,34 @@ Fix forward on `main`, then start the state machine by hand (`aws stepfunctions 
 
 ---
 
+## Stale catalog export
+
+**Symptom**
+
+Alarm `clouder-prod-transform-failed`; the CodeBuild log ends with `ERROR STALE` for `source bronze.catalog_export` after a green `dbt build`.
+
+**Diagnosis**
+
+The 00:00 UTC export did not write today's snapshot. Check its errors and the newest partition:
+
+```bash
+aws logs tail /aws/lambda/clouder-prod-catalog-export --since 12h
+aws s3 ls "s3://clouder-prod-analytics-lake/bronze/catalog_export/" | tail -2   # snapshot_dt=<today>/ expected
+```
+
+**Fix**
+
+Fix the cause (usually Aurora or a timeout), re-run the export, then the transform:
+
+```bash
+aws lambda invoke --function-name clouder-prod-catalog-export /dev/stdout
+aws stepfunctions start-execution --state-machine-arn $(cd infra && terraform output -raw transform_state_machine_arn)
+```
+
+Silver/gold advanced anyway (the build runs before the freshness check); only the track → style dictionary is a day old until the re-run.
+
+---
+
 ## Contract drift or quarantined records
 
 **Symptom**
