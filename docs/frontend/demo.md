@@ -15,10 +15,10 @@ sample catalog.
   bundle contains no demo code (the PR checks that the `pnpm build` output has no MSW worker code).
 - `src/demo/seed.ts` builds the catalog: two invented styles (Melodic House & Techno, Afro House), each with a finalized and an open
   triage week, three categories, playlists and tags. Seeded, so every visitor sees the same week.
-- About 60 % of the tracks carry one of 20 covers (`src/demo/covers.ts`): abstract SVGs drawn
-  in the browser, five motifs × four palettes, so the demo ships no image files. The first track
-  a visitor curates in each style always has one. The track types carry an optional
-  `cover_url`, which the production API does not send yet.
+- Every track and seeded playlist carries one of 20 covers (`src/demo/covers.ts`): abstract
+  SVGs drawn in the browser, five motifs × four palettes, so the demo ships no image files.
+  Playlists a visitor creates start without one, as in the app. The track types carry an
+  optional `cover_url`, which the production API does not send yet.
 - The Library shows invented profiles (`src/demo/profiles.ts`): six hand-written labels and 24
   generated artists, with country, years, styles and collaborators. They carry no links, so a
   made-up name never points at someone's real account.

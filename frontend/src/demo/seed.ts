@@ -25,7 +25,7 @@ export interface DemoTrack {
   spotify_id: string;
   key_name: string;
   key_camelot: string;
-  /** Index into the 20 demo covers; null = the release has no artwork. */
+  /** Index into the 20 demo covers; null until the seed draws one. */
   cover: number | null;
 }
 
@@ -379,7 +379,7 @@ export function buildSeed(): DemoSeed {
       created_at: at('2026-09-20', 15),
       updated_at: at('2026-09-27', 23),
       tracks: [...fromCategory(2, 2, '2026-09-21'), ...fromCategory(5, 2, '2026-09-22')],
-      cover: null,
+      cover: 8,
     },
   ];
   const TAGS: [string, string, string][] = [
@@ -403,16 +403,9 @@ export function buildSeed(): DemoSeed {
   );
 
   // Separate random streams, so adding artwork and profiles leaves the catalog above unchanged.
-  // About 60 % of the tracks get one of the 20 covers; releases share them.
+  // Every release gets one of the 20 covers; releases share them.
   const coverRand = rng(41);
-  for (const t of tracks) {
-    if (coverRand() < 0.6) t.cover = Math.floor(coverRand() * DEMO_COVER_COUNT);
-  }
-  // The first track a visitor curates in each style shows artwork.
-  for (const t of tracks) {
-    if (/^t-\d+-0$/.test(t.id) && t.cover === null)
-      t.cover = Math.floor(coverRand() * DEMO_COVER_COUNT);
-  }
+  for (const t of tracks) t.cover = Math.floor(coverRand() * DEMO_COVER_COUNT);
   // A track plays its style's clip, so it takes that clip's length (bar, seek keys, Length).
   for (const t of tracks) t.length_ms = clipOf(t.style_id, t.id)?.ms ?? t.length_ms;
   const profileRand = rng(77);
