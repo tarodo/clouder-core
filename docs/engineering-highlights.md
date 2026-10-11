@@ -8,7 +8,7 @@ implementation and the document that measured or decided it.
    of two calls per entity: 41–92× fewer round-trips, 16–24× faster per track in production.
    [Benchmark](benchmarks/canonicalization.md), [ADR-0022](adr/0022-set-based-canonicalization.md).
 
-2. **Replay-safe writes** — `read_track_state` in [`src/collector/repositories.py`](../src/collector/repositories.py).
+2. **Replay-safe writes** — `read_track_state` in [`src/collector/repositories/catalog_writes.py`](../src/collector/repositories/catalog_writes.py).
    Writes carry the observation time; an older observation never overwrites a newer one, so
    any stored raw run can be replayed — dry run first — and a second replay changes nothing.
    [Backfill](ops/backfill.md), [ADR-0024](adr/0024-replayable-canonicalization-backfill.md).
