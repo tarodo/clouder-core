@@ -9,12 +9,19 @@ sources:
         identifier: bronze_events
         description: Telemetry events delivered by Firehose (Parquet, partitioned by dt and event_name; at-least-once).
         loaded_at_field: "from_iso8601_timestamp(ts_server)"
+        # Warn only: telemetry follows users, not the pipeline; quiet days are normal.
         freshness:
           warn_after: {count: 1, period: day}
           filter: "dt >= cast(current_date - interval '3' day as varchar)"
       - name: catalog_export
         identifier: bronze_catalog_export
         description: Nightly NDJSON snapshot of the Aurora catalog, partitioned by snapshot_dt and tbl; expires after 14 days.
+        # The nightly export (00:00 UTC) writes one snapshot per day; the 00:30 build must see
+        # today's. Stale = the export failed -> the job fails -> transform-failed alarm.
+        loaded_at_field: "cast(snapshot_dt as timestamp)"
+        freshness:
+          error_after: {count: 1, period: day}
+          filter: "snapshot_dt >= cast(current_date - interval '3' day as varchar)"
   - name: governance
     description: Privacy tombstones written by scripts/delete_user.py (docs/privacy.md).
     schema: clouder_analytics

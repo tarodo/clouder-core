@@ -42,3 +42,20 @@ def test_dbt_can_read_the_deleted_user_tombstones() -> None:
     assert "/governance/deleted_users/" in table.group(1)
     lakehouse = (INFRA / "lakehouse.tf").read_text()
     assert '"${local.analytics_lake_arn}/governance/deleted_users/*"' in lakehouse
+
+
+def test_freshness_failures_fail_the_nightly_job() -> None:
+    tf = (INFRA / "lakehouse.tf").read_text()
+    start = tf.index("buildspec = <<-YAML")
+    spec = tf[start:tf.index("    YAML", start)]
+    assert "dbt source freshness" in spec and "|| true" not in spec
+    assert spec.index("dbt build") < spec.index("dbt source freshness")  # data still flows when stale
+
+
+def test_catalog_export_freshness_errors_and_telemetry_only_warns() -> None:
+    import yaml
+
+    sources = yaml.safe_load((INFRA.parent / "dbt" / "models" / "sources.yml").read_text())
+    tables = {t["name"]: t for s in sources["sources"] for t in s["tables"]}
+    assert tables["catalog_export"]["freshness"]["error_after"] == {"count": 1, "period": "day"}
+    assert "error_after" not in tables["events"]["freshness"]
