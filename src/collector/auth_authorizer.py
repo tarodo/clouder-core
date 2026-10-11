@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
@@ -11,29 +10,9 @@ from .auth.auth_settings import resolve_jwt_signing_key
 from .auth.jwt_utils import InvalidTokenError, verify_access_token
 from .logging_utils import log_event
 
-_SIGNING_KEY: tuple[str, float] | None = None
-_KEY_TTL_SECONDS = 300
-
 
 def _now() -> datetime:
     return datetime.now(UTC)
-
-
-def _reset_signing_key_cache() -> None:
-    global _SIGNING_KEY
-    _SIGNING_KEY = None
-
-
-def _cached_signing_key() -> str:
-    global _SIGNING_KEY
-    now_mono = time.monotonic()
-    if _SIGNING_KEY is not None:
-        key, expires = _SIGNING_KEY
-        if now_mono < expires:
-            return key
-    key = resolve_jwt_signing_key()
-    _SIGNING_KEY = (key, now_mono + _KEY_TTL_SECONDS)
-    return key
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
@@ -46,7 +25,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         return {"isAuthorized": False}
 
     try:
-        secret = _cached_signing_key()
+        secret = resolve_jwt_signing_key()  # cached with a TTL in auth_settings
         claims = verify_access_token(token=token, secret=secret, now=_now())
     except (InvalidTokenError, RuntimeError) as exc:
         log_event(

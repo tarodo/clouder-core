@@ -55,3 +55,17 @@ def test_fetch_ssm_parameter_rejects_missing_parameter_field(monkeypatch) -> Non
 
     with pytest.raises(RuntimeError, match="malformed"):
         secrets._fetch_ssm_parameter("/clouder/missing")
+
+
+def test_uncached_fetch_reads_ssm_every_time(monkeypatch) -> None:
+    # The JWT key's rotation depends on this (collector.auth.auth_settings).
+    from collector import secrets
+
+    fake_client = MagicMock()
+    fake_client.get_parameter.return_value = {"Parameter": {"Value": "v"}}
+    monkeypatch.setattr(secrets, "_ssm_client", lambda: fake_client)
+
+    secrets.fetch_ssm_parameter("/clouder/auth/jwt_signing_key")
+    secrets.fetch_ssm_parameter("/clouder/auth/jwt_signing_key")
+
+    assert fake_client.get_parameter.call_count == 2

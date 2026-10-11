@@ -115,7 +115,7 @@ See also: [ADR-0005](../adr/0005-iam-auth-migration.md).
 
 ### Secrets cached per container; rotation requires Lambda recycle
 
-**What:** `settings._fetch_secret_string` (`src/collector/settings.py:14`) is decorated with `@functools.lru_cache`. SSM parameters are similarly cached in `secrets._fetch_ssm_parameter` (`src/collector/secrets.py:22`).
+**What:** `settings._fetch_secret_string` (`src/collector/settings.py:14`) is decorated with `@functools.lru_cache`. SSM parameters are similarly cached in `secrets._fetch_ssm_parameter` (`src/collector/secrets.py`) — except the JWT signing key, which `auth_settings.resolve_jwt_signing_key` re-reads every 5 minutes (`JWT_KEY_TTL_SECONDS`), so `scripts/rotate_jwt_key.py` needs no redeploy.
 
 **Why:** Fetching secrets on every invocation would add latency and cost. The cache is bounded to the container lifetime, which is acceptable for long-lived API keys.
 

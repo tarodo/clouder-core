@@ -57,7 +57,7 @@ GitHub Actions ──OIDC──▶ AWS (Terraform, Lambda code, SSM)
 
 | Threat | Control |
 |---|---|
-| Long-lived cloud credentials in CI | No AWS keys anywhere: both workflows assume roles through GitHub OIDC. Pull requests plan under a read-only role (`clouder-prod-gha-plan`) that only pull-request jobs can assume and only the `terraform` job may request; it cannot change AWS resources or read vendor secrets, but it reads the Terraform state, whose JWT signing key makes it roughly application-admin; credentials are configured after the Lambda is packaged and the frontend built, so no dependency install runs with them ([ADR-0028](adr/0028-ci-roles.md)). |
+| Long-lived cloud credentials in CI | No AWS keys anywhere: both workflows assume roles through GitHub OIDC. Pull requests plan under a read-only role (`clouder-prod-gha-plan`) that only pull-request jobs can assume and only the `terraform` job may request; it cannot change AWS resources or read any application secret — vendor credentials and the JWT signing key live only in SSM, outside the Terraform state, under an explicit Deny; credentials are configured after the Lambda is packaged and the frontend built, so no dependency install runs with them ([ADR-0028](adr/0028-ci-roles.md)). |
 | A malicious or careless change deployed | `main` takes changes only through pull requests with 8 required checks (tests with a coverage gate, lint, types, Terraform, dbt, dependency audit, frontend); admins are not exempt. Only jobs in the `production` environment, which accepts protected branches only, can assume the deploy role; its ARN and the credentials it syncs to SSM exist only there. |
 | A vulnerable dependency | Locked Python dependencies with `pip-audit`, `pnpm audit` on runtime packages, Dependabot for pip, npm, Actions and Terraform. |
 | Secrets or account ids in the public repo | Scripts take ARNs from the environment; a test fails on any real account id in a tracked file. |
@@ -65,10 +65,9 @@ GitHub Actions ──OIDC──▶ AWS (Terraform, Lambda code, SSM)
 ## Known gaps
 
 - **The deploy role has AdministratorAccess.** Only the `production` environment can assume it, so a compromised `main` controls the whole account. The fix is a scoped Terraform role; it is deferred because the Terraform surface changes often and branch protection guards the path.
-- **The JWT signing key is in the Terraform state.** Whoever can plan — today only the owner's pull requests — can read it and mint sessions. Moving it out of state (a write-only attribute, or generating it outside Terraform) comes before anyone else gets push access.
 - **Minimum TLS is CloudFront's default for `*.cloudfront.net` (TLSv1).** Browsers negotiate TLS 1.2+ anyway; enforcing it needs a custom domain with an ACM certificate.
 - **CSP is report-only.** Enforcing needs an inventory of what the Spotify Web Playback SDK loads.
 - **No WAF.** Throttling and authorizer checks cover the current scale; a WAF is worth it once sign-up is open.
-- **HS256 with one shared key.** Fine with one issuer and one verifier in the same account. Rotating it signs every user out.
+- **HS256 with one shared key.** Fine with one issuer and one verifier in the same account. Rotating it signs every user out (`scripts/rotate_jwt_key.py`, runbook: *Rotate the JWT signing key*).
 - **An access token outlives a revocation by up to 30 minutes.** Revocation acts on refresh tokens; access tokens are not checked against a deny list.
 - **YouTube Music publishing runs in Google's OAuth "Testing" mode:** refresh tokens expire after 7 days and only listed test users can connect.

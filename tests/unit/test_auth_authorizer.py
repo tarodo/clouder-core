@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from collector import auth_authorizer
+from collector.auth.auth_settings import reset_auth_settings_cache
 from collector.auth.jwt_utils import issue_access_token
 
 SECRET = "0" * 32
@@ -14,10 +15,10 @@ SECRET = "0" * 32
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
     monkeypatch.setenv("JWT_SIGNING_KEY", SECRET)
-    auth_authorizer._reset_signing_key_cache()
+    reset_auth_settings_cache()
     monkeypatch.setattr(auth_authorizer, "_now", lambda: datetime(2026, 4, 26, 12, 0, tzinfo=UTC))
     yield
-    auth_authorizer._reset_signing_key_cache()
+    reset_auth_settings_cache()
 
 
 def _event(*, header: str | None) -> dict:
@@ -91,3 +92,19 @@ def test_wrong_secret_unauthorized() -> None:
         SimpleNamespace(aws_request_id="A"),
     )
     assert response == {"isAuthorized": False}
+
+
+def test_a_new_key_is_used_as_soon_as_the_settings_return_it(monkeypatch) -> None:
+    # One TTL lives in auth_settings; a second cache here would double the rotation window.
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
+    first = issue_access_token(
+        secret=SECRET, user_id="u-1", session_id="s-1", is_admin=False, ttl_seconds=1800, now=now
+    )
+    assert auth_authorizer.lambda_handler(_event(header=f"Bearer {first}"), None)["isAuthorized"]
+
+    rotated = "1" * 32
+    monkeypatch.setenv("JWT_SIGNING_KEY", rotated)
+    second = issue_access_token(
+        secret=rotated, user_id="u-1", session_id="s-2", is_admin=False, ttl_seconds=1800, now=now
+    )
+    assert auth_authorizer.lambda_handler(_event(header=f"Bearer {second}"), None)["isAuthorized"]

@@ -13,19 +13,20 @@ resource "aws_kms_alias" "user_tokens" {
 
 # ── SSM SecureString parameters ─────────────────────────────────────
 
-resource "random_password" "jwt_signing_key" {
-  length  = 64
-  special = false
+# The JWT signing key is not Terraform's: a resource here put it in the state, which the
+# read-only pull-request role can read (ADR-0028). scripts/rotate_jwt_key.py writes it
+# straight to SSM; the auth Lambdas read it by name (var.jwt_signing_key_ssm_parameter).
+removed {
+  from = aws_ssm_parameter.jwt_signing_key
+  lifecycle {
+    destroy = false
+  }
 }
 
-resource "aws_ssm_parameter" "jwt_signing_key" {
-  name        = var.jwt_signing_key_ssm_parameter
-  description = "HS256 secret used by auth_handler and auth_authorizer (spec-A)"
-  type        = "SecureString"
-  value       = random_password.jwt_signing_key.result
-
+removed {
+  from = random_password.jwt_signing_key
   lifecycle {
-    ignore_changes = [value]
+    destroy = false
   }
 }
 
