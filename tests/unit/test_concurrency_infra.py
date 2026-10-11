@@ -69,3 +69,22 @@ def test_account_concurrency_alarm_warns_before_the_quota() -> None:
     assert re.search(r"threshold\s*=\s*local\.lambda_concurrency_quota \* 0\.8", body)
     assert "dimensions" not in body  # account-wide, not one function
     assert "local.alarm_actions" in body
+
+
+def test_every_api_function_alarms_on_throttles() -> None:
+    body = _block("resource", 'aws_cloudwatch_metric_alarm" "api_throttles')
+    assert re.search(r"for_each\s*=\s*local\.api_functions", body)
+    assert re.search(r'metric_name\s*=\s*"Throttles"', body)
+    assert re.search(r"threshold\s*=\s*1\b", body)
+    assert "local.alarm_actions" in body
+
+
+def test_api_5xx_alarm() -> None:
+    body = _block("resource", 'aws_cloudwatch_metric_alarm" "api_5xx')
+    assert re.search(r'namespace\s*=\s*"AWS/ApiGateway"', body)
+    assert re.search(r'metric_name\s*=\s*"5xx"', body)
+    # One 503 after an Aurora resume is expected (ADR-0014); five in five minutes is not.
+    assert re.search(r"threshold\s*=\s*5\b", body) and re.search(r"period\s*=\s*300\b", body)
+    assert "aws_apigatewayv2_api.collector.id" in body
+    assert "aws_apigatewayv2_stage.default.name" in body
+    assert "local.alarm_actions" in body
