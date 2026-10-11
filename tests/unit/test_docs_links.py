@@ -11,7 +11,7 @@ LINK = re.compile(r"\]\(([^)\s]+)\)")
 
 
 def live_docs() -> list[Path]:
-    docs = [ROOT / "README.md", *sorted((ROOT / "docs").rglob("*.md"))]
+    docs = [ROOT / "README.md", ROOT / "SECURITY.md", *sorted((ROOT / "docs").rglob("*.md"))]
     return [p for p in docs if not str(p.relative_to(ROOT)).startswith(HISTORICAL)]
 
 
