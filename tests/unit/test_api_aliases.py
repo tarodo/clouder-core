@@ -48,14 +48,14 @@ def test_snapshot_skips_functions_without_the_alias() -> None:
 def test_restore_moves_only_aliases_that_changed() -> None:
     aa = _load("api_aliases")
     client = FakeLambda({"p-collector-api": "8", "p-curation": "3"})
-    assert aa.restore(client, {"p-collector-api": "7", "p-curation": "3"}) == ["p-collector-api"]
+    assert aa.restore(client, {"p-collector-api": "7", "p-curation": "3"}) == (["p-collector-api"], {})
     assert client.updates == [("p-collector-api", "7")]
 
 
 def test_restoring_an_empty_snapshot_does_nothing() -> None:
     aa = _load("api_aliases")
     client = FakeLambda({"p-collector-api": "8"})
-    assert aa.restore(client, {}) == [] and client.updates == []
+    assert aa.restore(client, {}) == ([], {}) and client.updates == []
 
 
 def test_alias_functions_match_the_smoke_checks_and_terraform() -> None:
@@ -63,3 +63,19 @@ def test_alias_functions_match_the_smoke_checks_and_terraform() -> None:
     assert set(aa.API_FUNCTIONS) == set(smoke.LAMBDA_CHECKS)
     tf = (ROOT / "infra" / "lambda_aliases.tf").read_text()
     assert tf.count("= aws_lambda_function.") == len(aa.API_FUNCTIONS)
+
+
+def test_restore_keeps_going_after_one_function_fails() -> None:
+    # A throttle on one alias must not leave the others on the bad version.
+    aa = _load("api_aliases")
+    client = FakeLambda({"p-collector-api": "8", "p-curation": "4"})
+    real_update = client.update_alias
+
+    def flaky(FunctionName: str, Name: str, FunctionVersion: str) -> dict:  # noqa: N803
+        if FunctionName == "p-collector-api":
+            raise RuntimeError("TooManyRequestsException")
+        return real_update(FunctionName=FunctionName, Name=Name, FunctionVersion=FunctionVersion)
+
+    client.update_alias = flaky
+    changed, errors = aa.restore(client, {"p-collector-api": "7", "p-curation": "3"})
+    assert changed == ["p-curation"] and list(errors) == ["p-collector-api"]

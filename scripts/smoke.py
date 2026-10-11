@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 from typing import Any, Callable
@@ -94,15 +95,20 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def _fetch(url: str) -> tuple[int, dict, str]:
+    # One retry after 5 s for a 5xx or a network error: CloudFront or API Gateway may blip
+    # right after a deploy, and a false failure would roll back a healthy deploy.
     opener = urllib.request.build_opener(_NoRedirect)
-    for attempt in range(2):  # one retry: CloudFront or API Gateway may blip right after a deploy
+    for attempt in range(2):
         try:
             with opener.open(url, timeout=20) as resp:
                 return resp.status, dict(resp.headers), resp.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as err:
-            if err.code >= 500 and attempt == 0:
-                continue
-            return err.code, dict(err.headers), err.read().decode("utf-8", "replace")
+            if err.code < 500 or attempt == 1:
+                return err.code, dict(err.headers), err.read().decode("utf-8", "replace")
+        except (urllib.error.URLError, TimeoutError):
+            if attempt == 1:
+                raise
+        time.sleep(5)
     raise AssertionError("unreachable")
 
 

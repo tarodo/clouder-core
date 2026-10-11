@@ -32,13 +32,17 @@ def snapshot(client: Any, functions: list[str]) -> dict[str, str]:
     return versions
 
 
-def restore(client: Any, versions: dict[str, str]) -> list[str]:
-    changed = []
+def restore(client: Any, versions: dict[str, str]) -> tuple[list[str], dict[str, str]]:
+    """Point each alias back; one failing function never stops the others."""
+    changed, errors = [], {}
     for function, version in versions.items():
-        if client.get_alias(FunctionName=function, Name=ALIAS)["FunctionVersion"] != version:
-            client.update_alias(FunctionName=function, Name=ALIAS, FunctionVersion=version)
-            changed.append(function)
-    return changed
+        try:
+            if client.get_alias(FunctionName=function, Name=ALIAS)["FunctionVersion"] != version:
+                client.update_alias(FunctionName=function, Name=ALIAS, FunctionVersion=version)
+                changed.append(function)
+        except Exception as exc:  # throttling, transient API errors: report, keep going
+            errors[function] = repr(exc)
+    return changed, errors
 
 
 if __name__ == "__main__":
@@ -55,5 +59,9 @@ if __name__ == "__main__":
     if ns.cmd == "snapshot":
         json.dump(snapshot(client, [f"{ns.prefix}-{s}" for s in API_FUNCTIONS]), sys.stdout)
     else:
-        for function in restore(client, json.loads(Path(ns.file).read_text())):
+        changed, errors = restore(client, json.loads(Path(ns.file).read_text()))
+        for function in changed:
             print(f"rolled back {function}")
+        for function, error in errors.items():
+            print(f"FAILED {function}: {error}")
+        sys.exit(1 if errors else 0)

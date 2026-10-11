@@ -141,3 +141,10 @@ def test_deploy_snapshots_aliases_smokes_and_rolls_back() -> None:
     assert steps[snapshot]["id"] == "snapshot"
     assert steps[rollback]["if"] == "failure() && steps.snapshot.outcome == 'success'"
     assert "scripts/smoke.py" in steps[smoke]["run"] and "api_aliases.py restore" in steps[rollback]["run"]
+
+
+def test_deploy_prints_the_alias_snapshot() -> None:
+    # The snapshot is the manual-rollback input if the automatic restore fails half-way.
+    snapshot = next(s for s in DEPLOY["jobs"]["deploy"]["steps"] if s.get("name") == "Snapshot API aliases")
+    assert 'cat "$RUNNER_TEMP/aliases.json"' in snapshot["run"]
+    assert "| tee" not in snapshot["run"]  # no pipefail in the default shell: tee would hide a failure

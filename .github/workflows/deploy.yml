@@ -99,7 +99,9 @@ jobs:
       - name: Snapshot API aliases
         id: snapshot
         working-directory: .
-        run: python scripts/api_aliases.py snapshot --prefix clouder-prod > "$RUNNER_TEMP/aliases.json"
+        run: |
+          python scripts/api_aliases.py snapshot --prefix clouder-prod > "$RUNNER_TEMP/aliases.json"
+          cat "$RUNNER_TEMP/aliases.json"  # the manual-rollback input if the restore fails half-way
 
       - name: Sync Beatport credentials to SSM (auto-ingest)
         working-directory: .

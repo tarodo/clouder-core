@@ -103,3 +103,36 @@ def test_main_returns_zero_when_everything_answers() -> None:
         return (401, {}, "") if url.endswith("/styles") else (200, {}, '<div id="root"></div>')
 
     assert smoke.main("https://api.example", "https://site.example", "clouder-prod", invoke, fetch) == 0
+
+
+def test_fetch_retries_a_network_error_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    import urllib.error
+    import urllib.request
+
+    smoke = _smoke()
+    calls = {"n": 0}
+
+    class Resp:
+        status = 200
+        headers = {}
+
+        def read(self) -> bytes:
+            return b"ok"
+
+        def __enter__(self) -> "Resp":
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            return None
+
+    class Opener:
+        def open(self, url: str, timeout: int) -> Resp:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise urllib.error.URLError("connection reset")
+            return Resp()
+
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *_a: Opener())
+    monkeypatch.setattr(smoke.time, "sleep", lambda _s: None)
+    assert smoke._fetch("https://site.example/") == (200, {}, "ok")
+    assert calls["n"] == 2
