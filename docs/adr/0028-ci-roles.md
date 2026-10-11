@@ -37,10 +37,12 @@ destroyed and every Lambda changing, so nobody could read it as a preview.
 ## Consequences
 
 - A pull request can read the account's configuration and the Terraform state but change no
-  AWS resource and read no vendor secret. The state holds the JWT signing key, which is enough
-  to mint an application session, so plan access is roughly application-admin — acceptable
-  while only the owner can push branches, and the reason to move the key out of state before
-  anyone else can (write-only attributes, or generating it outside Terraform).
+  AWS resource and read no application secret. The JWT signing key used to sit in the state
+  (`random_password`), which made plan access roughly application-admin; on 2026-10-11 it
+  left Terraform (`removed` blocks, the SSM parameter kept), `/clouder/auth/*` joined the
+  Deny, and the key is rotated, since old state versions still hold the old value. A
+  write-only attribute would not have been enough: the provider's read of the parameter
+  decrypts it, so the role would still have needed to read it.
 - The PR plan is a faithful preview: a change it does not show is not applied.
 - The deploy role is still AdministratorAccess ([known gap](../security.md#known-gaps)); only the
   `production` environment, which accepts protected branches only, can assume it. Any step of the
@@ -48,3 +50,5 @@ destroyed and every Lambda changing, so nobody could read it as a preview.
   boundary; the trust policy is.
 - Rebuilding the account needs the GitHub OIDC provider and the deploy role first; the plan role
   then comes from the first apply.
+- The JWT signing key is also outside Terraform: on a new account run `scripts/rotate_jwt_key.py`
+  once before the auth Lambdas serve traffic.

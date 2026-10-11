@@ -374,6 +374,20 @@ Start the `clouder-prod-backfill` state machine with a dry run (`--input '{}'`, 
 
 ---
 
+## Rotate the JWT signing key
+
+**When:** the key may have leaked; anyone gained read access to the Terraform state or to `/clouder/auth/*`; or on a new account (it creates the parameter).
+
+**Effect:** every user is signed out — access and refresh tokens are both JWTs signed with this key. Warm Lambdas pick the new key up within 5 minutes; until then a token signed by one container can be rejected by another, so rotate when nobody is curating.
+
+```bash
+python scripts/rotate_jwt_key.py   # prints the new SSM version, never the key
+```
+
+Terraform does not manage this parameter (ADR-0028): a deploy never changes it, and `terraform plan` never reads it.
+
+---
+
 ## Running a one-off script against prod
 
 **When**
