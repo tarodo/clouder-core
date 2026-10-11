@@ -165,6 +165,10 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 ![API latency p95](docs/assets/dashboard-api-latency-p95.png)
 ![Aurora capacity](docs/assets/dashboard-aurora-capacity.png)
 
+Data quality is charted next to the pipeline: one point per nightly check run against its SLO line ([data-quality.md](docs/data/data-quality.md)):
+
+![Data quality: completeness](docs/assets/dashboard-data-quality-completeness.png)
+
 ## By the numbers
 
 | | |
