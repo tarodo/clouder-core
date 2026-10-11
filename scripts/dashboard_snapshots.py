@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-DEFAULT_WIDGETS = ["Lambda errors", "API latency p95 (ms)", "Aurora capacity (ACU)"]
+DEFAULT_WIDGETS = ["Lambda errors", "API latency p95 (ms)", "Aurora capacity (ACU)", "Data quality: completeness (%)"]
 OUT_DIR = Path(__file__).resolve().parents[1] / "docs" / "assets"
 
 
