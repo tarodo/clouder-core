@@ -9,7 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 # Each alternative needs a real path character after the prefix, so this line never matches itself.
-LOCAL_PATH = re.compile(r"/Users/[A-Za-z]|/private/tmp/claude-\d|/home/[a-z]+/")
+# `/home/` only as a path root, not inside `features/home/routes/`.
+LOCAL_PATH = re.compile(r"/Users/[A-Za-z]|/private/tmp/claude-\d|(?<![\w/.-])/home/[a-z]+/")
 
 
 def test_tracked_markdown_has_no_local_paths() -> None:

@@ -18,7 +18,7 @@
 - Live docs = `README.md` and `docs/**/*.md` except `docs/superpowers/`, `docs/archive/`, `docs/adr/` (ADRs are historical records and stay as written).
 - Removed components that must not appear in live docs: `search_handler`, `ai_search_results`, `ai-search-worker` / `ai_search_worker`, `AI_SEARCH_QUEUE_URL`, Perplexity (any case).
 - No git history rewrite: the real account id stays in old commits (an account id is not a credential; rewriting a public history is destructive).
-- Branch `docs/p0-presentation`, worktree `../clouder-core-p0`; `$VENV=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin`; commits via caveman-commit rules (Conventional Commits, no AI attribution); `git restore graphify-out` before commits.
+- Branch `docs/p0-presentation`, worktree `../clouder-core-p0`; `$VENV=<repo>/.venv/bin`; commits via caveman-commit rules (Conventional Commits, no AI attribution); `git restore graphify-out` before commits.
 
 ## Review Focus
 

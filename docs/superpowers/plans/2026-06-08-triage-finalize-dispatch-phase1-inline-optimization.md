@@ -11,7 +11,7 @@
 **Scope note:** This plan is independently shippable and fully fixes the production bug. Phase 2 (async dispatch worker) is a separate follow-up plan and reuses the optimized code from this plan.
 
 **Run tests with** (worktree `.venv` lives at the MAIN repo root):
-`/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest`
+`<repo>/.venv/bin/pytest`
 
 ---
 
@@ -64,7 +64,7 @@ def test_dispatch_count_fields_are_allowed():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_logging_utils_dispatch_fields.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_logging_utils_dispatch_fields.py -q`
 Expected: FAIL — these fields are not yet in the allowlist.
 
 - [ ] **Step 3: Add the fields to the allowlist**
@@ -81,7 +81,7 @@ In `src/collector/logging_utils.py`, inside the `ALLOWED_LOG_FIELDS` set, add th
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_logging_utils_dispatch_fields.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_logging_utils_dispatch_fields.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Add a `*_dispatch_started` marker in both dispatch functions**
@@ -106,7 +106,7 @@ In `src/collector/label_enrichment/auto_dispatch.py`, at the top of `_dispatch_l
 
 - [ ] **Step 6: Run the full dispatch test files to confirm nothing broke**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_auto_dispatch.py tests/unit/test_artist_auto_dispatch.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_auto_dispatch.py tests/unit/test_artist_auto_dispatch.py -q`
 Expected: PASS (the `started` log adds no behavior the existing tests assert against).
 
 - [ ] **Step 7: Commit**
@@ -166,7 +166,7 @@ def test_get_artists_by_ids_empty_input_no_query():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_artist_enrichment_repository_reads.py -q -k get_artists_by_ids`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_artist_enrichment_repository_reads.py -q -k get_artists_by_ids`
 Expected: FAIL with `AttributeError: 'ArtistEnrichmentRepository' object has no attribute 'get_artists_by_ids'`
 
 - [ ] **Step 3: Implement the method**
@@ -199,7 +199,7 @@ Add the method to `ArtistEnrichmentRepository` (just below `get_artist_by_id`):
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_artist_enrichment_repository_reads.py -q -k get_artists_by_ids`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_artist_enrichment_repository_reads.py -q -k get_artists_by_ids`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -262,7 +262,7 @@ def test_resolve_helpers_empty_input_no_query():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_label_enrichment_repository.py -q -k "get_labels_by_ids or derive_styles_for_labels or resolve_helpers"`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_label_enrichment_repository.py -q -k "get_labels_by_ids or derive_styles_for_labels or resolve_helpers"`
 Expected: FAIL with `AttributeError` on the new methods.
 
 - [ ] **Step 3: Implement the methods**
@@ -321,7 +321,7 @@ In `src/collector/label_enrichment/repository.py`, add `_IN_CHUNK = 500` near th
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_label_enrichment_repository.py -q -k "get_labels_by_ids or derive_styles_for_labels or resolve_helpers"`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_label_enrichment_repository.py -q -k "get_labels_by_ids or derive_styles_for_labels or resolve_helpers"`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -374,7 +374,7 @@ def test_claim_artists_empty_returns_empty_no_query():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_artist_enrichment_auto_repository.py -q -k claim_artists`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_artist_enrichment_auto_repository.py -q -k claim_artists`
 Expected: FAIL — current loop issues one UPDATE + one INSERT *per id* (`calls.count("UPDATE") == 3`).
 
 - [ ] **Step 3: Rewrite `claim_artists` set-based**
@@ -446,7 +446,7 @@ Note: a reclaimed id now has a `queued` row, so the insert's `NOT EXISTS (state)
 
 - [ ] **Step 4: Run test + the full auto-repo suite**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_artist_enrichment_auto_repository.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_artist_enrichment_auto_repository.py -q`
 Expected: PASS (new round-trip test + all existing claim/state tests).
 
 - [ ] **Step 5: Commit**
@@ -498,7 +498,7 @@ def test_claim_labels_empty_returns_empty_no_query():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_auto_enrich_repository.py -q -k claim_labels`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_auto_enrich_repository.py -q -k claim_labels`
 Expected: FAIL — current loop issues UPDATE+INSERT per id.
 
 - [ ] **Step 3: Rewrite `claim_labels` set-based**
@@ -568,7 +568,7 @@ In `src/collector/label_enrichment/auto_repository.py`, add `_IN_CHUNK = 500` ne
 
 - [ ] **Step 4: Run test + full label auto-repo suite**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_auto_enrich_repository.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_auto_enrich_repository.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -625,7 +625,7 @@ def test_attach_run_single_update_for_many_ids():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_artist_enrichment_auto_repository.py tests/unit/test_auto_enrich_repository.py -q -k attach_run_single_update`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_artist_enrichment_auto_repository.py tests/unit/test_auto_enrich_repository.py -q -k attach_run_single_update`
 Expected: FAIL — current loop issues one UPDATE per id (`len(calls) == 3` / `2`).
 
 - [ ] **Step 3: Rewrite both `attach_run` set-based**
@@ -674,7 +674,7 @@ In `src/collector/label_enrichment/auto_repository.py`, replace the body of `att
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_artist_enrichment_auto_repository.py tests/unit/test_auto_enrich_repository.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_artist_enrichment_auto_repository.py tests/unit/test_auto_enrich_repository.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -730,7 +730,7 @@ Update `test_happy_path_creates_run_and_enqueues_per_artist` body assertions:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_artist_auto_dispatch.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_artist_auto_dispatch.py -q`
 Expected: FAIL — `_dispatch_artists` still calls `get_artist_by_id` / `send_message`, not the batch APIs.
 
 - [ ] **Step 3: Rewrite the resolve + SQS section of `_dispatch_artists`**
@@ -779,7 +779,7 @@ Replace the per-message SQS loop with a batched send:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_artist_auto_dispatch.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_artist_auto_dispatch.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -830,7 +830,7 @@ In `test_dispatch_no_claims_skips_run` and `test_dispatch_disabled_does_nothing`
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_auto_dispatch.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_auto_dispatch.py -q`
 Expected: FAIL — `_dispatch_labels` still uses `get_label_by_id` / `derive_style_for_label` / `send_message`.
 
 - [ ] **Step 3: Rewrite the resolve + SQS section of `_dispatch_labels`**
@@ -876,7 +876,7 @@ Replace the per-message SQS loop with:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_auto_dispatch.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_auto_dispatch.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -894,7 +894,7 @@ git commit -m "perf(label-enrich): batch resolve + send_message_batch dispatch"
 
 - [ ] **Step 1: Run the entire unit suite**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q`
+Run: `<repo>/.venv/bin/pytest -q`
 Expected: PASS (no regressions across the collector test suite).
 
 - [ ] **Step 2: Grep for stragglers — no remaining per-item resolve/send in dispatch**

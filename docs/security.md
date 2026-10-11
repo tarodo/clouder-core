@@ -66,6 +66,7 @@ GitHub Actions ──OIDC──▶ AWS (Terraform, Lambda code, SSM)
 
 - **The deploy role has AdministratorAccess.** Only the `production` environment can assume it, so a compromised `main` controls the whole account. The fix is a scoped Terraform role; it is deferred because the Terraform surface changes often and branch protection guards the path.
 - **The JWT signing key is in the Terraform state.** Whoever can plan — today only the owner's pull requests — can read it and mint sessions. Moving it out of state (a write-only attribute, or generating it outside Terraform) comes before anyone else gets push access.
+- **Minimum TLS is CloudFront's default for `*.cloudfront.net` (TLSv1).** Browsers negotiate TLS 1.2+ anyway; enforcing it needs a custom domain with an ACM certificate.
 - **CSP is report-only.** Enforcing needs an inventory of what the Spotify Web Playback SDK loads.
 - **No WAF.** Throttling and authorizer checks cover the current scale; a WAF is worth it once sign-up is open.
 - **HS256 with one shared key.** Fine with one issuer and one verifier in the same account. Rotating it signs every user out.

@@ -18,7 +18,7 @@
 - `log_event` keeps only `ALLOWED_LOG_FIELDS`; field names in drift events are joined strings.
 - The worker's IAM role is not widened: quarantine objects go under the existing `${raw_prefix}/` write grant; metrics come from log metric filters, not `PutMetricData`.
 - Telemetry already has an edge contract (`TelemetryEnvelope`, `extra="forbid"`, allowlisted props → `props_extra`); it is documented, not changed.
-- No money figures in docs. Branch `feat/raw-data-contract` from `origin/main`, worktree `../clouder-core-contract`; `$VENV=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin`; `terraform fmt -check` passes.
+- No money figures in docs. Branch `feat/raw-data-contract` from `origin/main`, worktree `../clouder-core-contract`; `$VENV=<repo>/.venv/bin`; `terraform fmt -check` passes.
 
 ## Spec
 

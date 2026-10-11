@@ -52,7 +52,7 @@
 - Create `src/collector/analytics_handler.py` (validation + query-building half only)
 - Test: `tests/unit/test_analytics_handler.py`
 
-Worktree note: the venv lives at the MAIN repo root. Use the absolute pytest binary `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest`; it runs with cwd at the worktree root where `pytest.ini` sets `PYTHONPATH=src`.
+Worktree note: the venv lives at the MAIN repo root. Use the absolute pytest binary `<repo>/.venv/bin/pytest`; it runs with cwd at the worktree root where `pytest.ini` sets `PYTHONPATH=src`.
 
 - [ ] **Step 1: Write the failing test** (`tests/unit/test_analytics_handler.py`)
 ```python
@@ -199,7 +199,7 @@ def test_ops_latency_has_p50_and_p95():
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
-  - Command: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_analytics_handler.py -q`
+  - Command: `<repo>/.venv/bin/pytest tests/unit/test_analytics_handler.py -q`
   - Expected: collection error `ModuleNotFoundError: No module named 'collector.analytics_handler'`.
 
 - [ ] **Step 3: Write minimal implementation** (`src/collector/analytics_handler.py`)
@@ -441,7 +441,7 @@ def build_queries(
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
-  - Command: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_analytics_handler.py -q`
+  - Command: `<repo>/.venv/bin/pytest tests/unit/test_analytics_handler.py -q`
   - Expected: `20 passed` (16 test functions; `test_validate_params_rejects_bad_input` parametrizes into 5 nodes → 15 + 5 = 20).
 
 - [ ] **Step 5: Commit** — generate the subject+body via the `caveman:caveman-commit` skill on the staged diff (CLAUDE.md forbids hand-written subjects), then commit with a non-indented heredoc:
@@ -576,7 +576,7 @@ def test_handler_404_for_unknown_dashboard():
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
-  - Command: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_analytics_handler.py -q`
+  - Command: `<repo>/.venv/bin/pytest tests/unit/test_analytics_handler.py -q`
   - Expected: failures with `AttributeError: module 'collector.analytics_handler' has no attribute 'lambda_handler'` / `'_cached_rows'` / `'_ATHENA_CLIENT'`.
 
 - [ ] **Step 3: Write minimal implementation** (append to `src/collector/analytics_handler.py` — all imports it needs are already at the top of the module from Task 1)
@@ -720,9 +720,9 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
 > `log_event(level, message, **fields)` lands the event name under the `message` key (structlog `EventRenamer("message")`, `logging_utils.py:111`) and drops any field not in `ALLOWED_LOG_FIELDS`; `correlation_id`, `status_code`, `error_code` are all allowlisted (`logging_utils.py:14+`). Envelope/query rows are never logged.
 
 - [ ] **Step 4: Run test to verify it passes**
-  - Command: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_analytics_handler.py -q`
+  - Command: `<repo>/.venv/bin/pytest tests/unit/test_analytics_handler.py -q`
   - Expected: `26 passed` (Task 1's 20 + 6 handler tests).
-  - Full-suite sanity: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q` — stays green (no new failures).
+  - Full-suite sanity: `<repo>/.venv/bin/pytest -q` — stays green (no new failures).
 
 - [ ] **Step 5: Commit** — caveman-commit the staged diff, then:
 ```bash
@@ -837,7 +837,7 @@ def _analytics_route(name: str, summary: str, description: str) -> dict:
 - [ ] **Step 5: Regenerate both artifacts and verify**
   - Commands:
     ```bash
-    PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python scripts/generate_openapi.py
+    PYTHONPATH=src <repo>/.venv/bin/python scripts/generate_openapi.py
     grep -c "/v1/analytics/" docs/api/openapi.yaml
     pnpm -C frontend run api:types
     pnpm -C frontend run typecheck
@@ -1652,11 +1652,11 @@ import { AdminAnalyticsPage } from '../features/admin/routes/AdminAnalyticsPage'
     pnpm -C frontend run typecheck
     pnpm -C frontend run lint
     pnpm -C frontend run test
-    PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python scripts/generate_openapi.py
+    PYTHONPATH=src <repo>/.venv/bin/python scripts/generate_openapi.py
     git diff --exit-code docs/api/openapi.yaml
     pnpm -C frontend run api:types
     git diff --exit-code frontend/src/api/schema.d.ts
-    /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q
+    <repo>/.venv/bin/pytest -q
     ```
   - Expected: `typecheck` exit 0; `lint` exit 0; the full vitest suite green (new analytics tests included); both `git diff --exit-code` show **no diff** (generated artifacts already committed in Task 3); full pytest suite green (includes the 26 analytics tests). The `requireAdmin` loader itself stays covered by the existing `frontend/src/auth/__tests__/requireAdmin.test.ts`, so admin enforcement is verified end to end (frontend gate + backend `_require_admin`).
 

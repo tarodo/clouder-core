@@ -429,4 +429,4 @@ Ship in this order — each step is independently verifiable and reversible:
 
 ---
 
-*Spec written to `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/docs/superpowers/specs/2026-06-27-clouder-analytics-pipeline-design.md`.*
+*Spec written to `<repo>/.claude/worktrees/service_improve/docs/superpowers/specs/2026-06-27-clouder-analytics-pipeline-design.md`.*

@@ -35,8 +35,8 @@ No modification to `infra/main.tf` (the two lambda names live in a `locals` bloc
 
 - [ ] Local `main` may lag `origin/main` (worktree-stale-main gotcha). Fetch and branch:
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve fetch origin
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve checkout -b feat/analytics-catalog-ops-export origin/main
+  git -C <repo>/.claude/worktrees/service_improve fetch origin
+  git -C <repo>/.claude/worktrees/service_improve checkout -b feat/analytics-catalog-ops-export origin/main
   ```
   Expected output: `Switched to a new branch 'feat/analytics-catalog-ops-export'`. (Branch name carries no user/agent prefix — CLAUDE.md policy.)
 
@@ -169,9 +169,9 @@ No modification to `infra/main.tf` (the two lambda names live in a `locals` bloc
 
 - [ ] **Run it, expect FAIL** (module does not exist yet):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_catalog_export_handler.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_catalog_export_handler.py -q
   ```
   Expected: collection error, last lines contain `ModuleNotFoundError: No module named 'collector.catalog_export_handler'` and the summary `1 error` (exit code 2).
 
@@ -301,16 +301,16 @@ No modification to `infra/main.tf` (the two lambda names live in a `locals` bloc
 
 - [ ] **Run it, expect PASS**:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_catalog_export_handler.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_catalog_export_handler.py -q
   ```
   Expected: last line `6 passed` (exit code 0).
 
 - [ ] **Commit.** Generate the subject via the `caveman:caveman-commit` skill (CLAUDE.md forbids hand-written subjects), then commit with a non-indented heredoc body (EOF at column 0, no `Co-Authored-By`):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add src/collector/catalog_export_handler.py tests/unit/test_catalog_export_handler.py
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add src/collector/catalog_export_handler.py tests/unit/test_catalog_export_handler.py
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(analytics): add catalog_export handler
 
   Page Aurora dims through the Data API to bronze/catalog_export NDJSON.
@@ -446,9 +446,9 @@ No modification to `infra/main.tf` (the two lambda names live in a `locals` bloc
 
 - [ ] **Run it, expect FAIL**:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_ops_log_export_handler.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_ops_log_export_handler.py -q
   ```
   Expected: collection error, last lines contain `ModuleNotFoundError: No module named 'collector.ops_log_export_handler'`, summary `1 error` (exit code 2).
 
@@ -579,16 +579,16 @@ No modification to `infra/main.tf` (the two lambda names live in a `locals` bloc
 
 - [ ] **Run it, expect PASS**:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_ops_log_export_handler.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_ops_log_export_handler.py -q
   ```
   Expected: last line `5 passed` (exit code 0).
 
 - [ ] **Commit** (caveman-commit subject, heredoc body, no AI trailer):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add src/collector/ops_log_export_handler.py tests/unit/test_ops_log_export_handler.py
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add src/collector/ops_log_export_handler.py tests/unit/test_ops_log_export_handler.py
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(analytics): add ops_log_export handler
 
   Pull worker/dispatch/collector log groups to bronze/ops NDJSON; event
@@ -609,8 +609,8 @@ No modification to `infra/main.tf` (the two lambda names live in a `locals` bloc
 
 - [ ] **Run the baseline `terraform validate`** to confirm the config is currently valid before adding files (records the starting state):
   ```bash
-  terraform -chdir=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra init -backend=false -input=false
-  terraform -chdir=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra validate
+  terraform -chdir=<repo>/.claude/worktrees/service_improve/infra init -backend=false -input=false
+  terraform -chdir=<repo>/.claude/worktrees/service_improve/infra validate
   ```
   Expected: `Success! The configuration is valid.`
   **Network requirement (no offline shortcut):** `terraform validate` needs the AWS provider, which `init` downloads from registry.terraform.io — this requires network access. `infra/.terraform/` does **not** exist in this worktree, so there is no `.terraform-already-present` fallback: `init` must run and succeed first. If the sandbox has no network, the HCL gate (this step and the post-create `validate` below) must be run in an environment that can reach the Terraform registry — do not claim `validate` can run offline here.
@@ -941,23 +941,23 @@ No modification to `infra/main.tf` (the two lambda names live in a `locals` bloc
 
 - [ ] **Run `terraform validate`, expect PASS** (the AWS provider is already downloaded by the baseline `init` above; this step does not re-init):
   ```bash
-  terraform -chdir=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra validate
+  terraform -chdir=<repo>/.claude/worktrees/service_improve/infra validate
   ```
-  Expected: `Success! The configuration is valid.` (If validation complains the zip path does not exist, build it once: `bash /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/scripts/package_lambda.sh` — `filebase64sha256(local.lambda_zip_file)` reads the artifact at plan time, but `terraform validate` does not, so this is only needed if a later `plan` is run.)
+  Expected: `Success! The configuration is valid.` (If validation complains the zip path does not exist, build it once: `bash <repo>/.claude/worktrees/service_improve/scripts/package_lambda.sh` — `filebase64sha256(local.lambda_zip_file)` reads the artifact at plan time, but `terraform validate` does not, so this is only needed if a later `plan` is run.)
 
 - [ ] **Re-run the full unit suite for both handlers, expect 11 passed** (guards against regressions from any import churn):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_catalog_export_handler.py \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_ops_log_export_handler.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_catalog_export_handler.py \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_ops_log_export_handler.py -q
   ```
   Expected: last line `11 passed` (exit code 0).
 
 - [ ] **Commit** (caveman-commit subject, heredoc body, no AI trailer):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add infra/analytics.tf infra/analytics_export.tf
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add infra/analytics.tf infra/analytics_export.tf
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(infra): wire catalog/ops export lambdas + glue tables
 
   Analytics lake bucket + clouder_analytics Glue DB, two lightweight Glue

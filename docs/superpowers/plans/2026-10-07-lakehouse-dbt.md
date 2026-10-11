@@ -20,7 +20,7 @@
 - Glue databases `clouder_silver`, `clouder_gold`; table data under `s3://clouder-prod-analytics-lake/lakehouse/`; dbt query results under `athena-results/dbt/` (expires with the existing 7-day rule).
 - Least privilege: CodeBuild role (logs, Athena on the workgroup, Glue read on `clouder_analytics` and read/write on `clouder_silver`/`clouder_gold`, S3 read `bronze/*`, read/write `lakehouse/*` and `athena-results/*`); state machine role (start/stop/describe the build + the managed CodeBuild events rule); analytics Lambda gains read on `clouder_silver` and `lakehouse/clouder_silver/*`.
 - No money figures in docs. Repo is public: no data, only code and model docs, on GitHub Pages.
-- Branch `feat/lakehouse-dbt` from `origin/main`, worktree `../clouder-core-lakehouse`; commits/PR via `caveman:caveman-commit`; `$VENV=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin`; `$DBT=/Users/roman/Projects/clouder-projects/clouder-core/.venv-dbt/bin` (created in Task 1); `terraform fmt -check` passes.
+- Branch `feat/lakehouse-dbt` from `origin/main`, worktree `../clouder-core-lakehouse`; commits/PR via `caveman:caveman-commit`; `$VENV=<repo>/.venv/bin`; `$DBT=<repo>/.venv-dbt/bin` (created in Task 1); `terraform fmt -check` passes.
 
 ## Spec
 
@@ -70,12 +70,12 @@
 
 - [ ] **Step 1: Local dbt environment**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core && python3.12 -m venv .venv-dbt 2>/dev/null || /Users/roman/.pyenv/versions/3.12.0/bin/python -m venv .venv-dbt; .venv-dbt/bin/pip install -q 'dbt-core~=1.11.0' 'dbt-athena==1.11.1' 'dbt-duckdb==1.11.0' && .venv-dbt/bin/dbt --version | head -6`
+Run: `cd <repo> && python3.12 -m venv .venv-dbt 2>/dev/null || python -m venv .venv-dbt; .venv-dbt/bin/pip install -q 'dbt-core~=1.11.0' 'dbt-athena==1.11.1' 'dbt-duckdb==1.11.0' && .venv-dbt/bin/dbt --version | head -6`
 Expected: dbt core 1.11.x with plugins athena 1.11.1 and duckdb 1.11.0. Ensure `.venv-dbt/` is git-ignored (`git check-ignore .venv-dbt`); if not, add it to `.gitignore` in this task.
 
 - [ ] **Step 2: Write the failing CI check**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core-lakehouse/dbt 2>/dev/null && DBT_PROFILES_DIR=. $DBT/dbt build --target ci || echo "no dbt project"`
+Run: `cd <repo>/dbt 2>/dev/null && DBT_PROFILES_DIR=. $DBT/dbt build --target ci || echo "no dbt project"`
 Expected: `no dbt project`.
 
 - [ ] **Step 3: Project files**
@@ -300,7 +300,7 @@ seeds:
 
 - [ ] **Step 4: Run the CI build locally**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core-lakehouse/dbt && rm -f target/ci.duckdb && DBT_PROFILES_DIR=. $DBT/dbt seed --target ci && DBT_PROFILES_DIR=. $DBT/dbt build --target ci --exclude resource_type:seed && DBT_PROFILES_DIR=. $DBT/dbt parse --target prod`
+Run: `cd <repo>/dbt && rm -f target/ci.duckdb && DBT_PROFILES_DIR=. $DBT/dbt seed --target ci && DBT_PROFILES_DIR=. $DBT/dbt build --target ci --exclude resource_type:seed && DBT_PROFILES_DIR=. $DBT/dbt parse --target prod`
 Expected: seed 2 OK; build PASS=3 (view + 2 tests); parse succeeds with no connection (prod profile not contacted).
 
 - [ ] **Step 5: CI job**

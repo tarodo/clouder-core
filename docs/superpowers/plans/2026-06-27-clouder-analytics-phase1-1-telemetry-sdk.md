@@ -124,7 +124,7 @@ describe('api() suppressAuthFailure', () => {
   });
 });
 ```
-- [ ] Run it, expect FAIL: `cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/frontend && pnpm test src/api/client.test.ts` → TS error `Object literal may only specify known properties … 'suppressAuthFailure'` and the suppressed test fails because `auth:expired` still fires.
+- [ ] Run it, expect FAIL: `cd <repo>/.claude/worktrees/service_improve/frontend && pnpm test src/api/client.test.ts` → TS error `Object literal may only specify known properties … 'suppressAuthFailure'` and the suppressed test fails because `auth:expired` still fires.
 - [ ] Edit `frontend/src/api/client.ts` — replace the `api()` signature + body. New signature destructures the option out so it never reaches `fetch`:
 ```ts
 export interface ApiInit extends RequestInit {
@@ -169,7 +169,7 @@ export async function api<T = unknown>(path: string, init: ApiInit = {}): Promis
 - [ ] Typecheck + lint: `pnpm typecheck && pnpm lint` → exit 0.
 - [ ] Commit: create the branch and commit. Generate the subject via the `caveman:caveman-commit` skill, then:
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve && git checkout -b feat/telemetry-sdk && git add frontend/src/api/client.ts frontend/src/api/client.test.ts && git commit -m "<caveman-commit subject>"
+cd <repo>/.claude/worktrees/service_improve && git checkout -b feat/telemetry-sdk && git add frontend/src/api/client.ts frontend/src/api/client.test.ts && git commit -m "<caveman-commit subject>"
 ```
 
 ---
@@ -606,10 +606,10 @@ const BACKEND_ONLY_PREFIXES = [
 ```
 - [ ] Verify config:
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra && terraform fmt -check frontend.tf && grep -c '"/v1\*"' frontend.tf
+cd <repo>/.claude/worktrees/service_improve/infra && terraform fmt -check frontend.tf && grep -c '"/v1\*"' frontend.tf
 ```
 → `fmt` exits 0 (no reformat needed), grep prints `1`.
-- [ ] Verify frontend still typechecks: `cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/frontend && pnpm typecheck && grep -c "'/v1'" vite.config.ts` → exit 0, grep prints `1`.
+- [ ] Verify frontend still typechecks: `cd <repo>/.claude/worktrees/service_improve/frontend && pnpm typecheck && grep -c "'/v1'" vite.config.ts` → exit 0, grep prints `1`.
 - [ ] Commit via caveman-commit: `git add frontend/vite.config.ts infra/frontend.tf && git commit -m "<subject>"`.
 
 ---
@@ -1714,9 +1714,9 @@ pnpm test src/features/playlists/components/AddTracksModal.telemetry.test.tsx sr
 
 **Files:** none (verification only)
 
-- [ ] Run the whole frontend suite: `cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/frontend && pnpm test` → `Test Files … passed`, `Tests … passed`, exit 0 (no regressions in playback/triage/curate/playlists).
+- [ ] Run the whole frontend suite: `cd <repo>/.claude/worktrees/service_improve/frontend && pnpm test` → `Test Files … passed`, `Tests … passed`, exit 0 (no regressions in playback/triage/curate/playlists).
 - [ ] CI gates: `pnpm typecheck && pnpm lint && pnpm build` → all exit 0 (the production `vite build` runs `tsc -b` and the `__APP_VERSION__` `define`).
-- [ ] Confirm no backend/OpenAPI drift was introduced (this increment adds no API route — that is Increment 2): `cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve && git diff --name-only origin/main -- docs/api/openapi.yaml frontend/src/api/schema.d.ts` → prints nothing.
+- [ ] Confirm no backend/OpenAPI drift was introduced (this increment adds no API route — that is Increment 2): `cd <repo>/.claude/worktrees/service_improve && git diff --name-only origin/main -- docs/api/openapi.yaml frontend/src/api/schema.d.ts` → prints nothing.
 - [ ] Manual sanity (flag default off): `grep -n "VITE_TELEMETRY_ENABLED" frontend/.env.local 2>/dev/null || echo "flag unset → track() no-ops in dev, as designed"`.
 - [ ] Create the deferred-work follow-ups (Increment 1b: categories/playlists `track_view`; Increment 1c: playback secondary events + `playlist_reorder`, with the queueDispatch-status / auto-advance-vs-skip design note) as tracked issues so the uncovered §3.2 fire-points are not lost.
 - [ ] Use superpowers:finishing-a-development-branch to open the PR. PR title + body generated via the `caveman:caveman-commit` skill (no hand-written subject, no `Co-Authored-By` trailer). PR body must state: SDK behind `VITE_TELEMETRY_ENABLED` (default off), the explicit deferrals (Increment 1b categories/playlists `track_view`; Increment 1c playback `pause`/`ended`/`skip`, playback `hotkey_used`, `playlist_reorder`; playback `play`/`seek` render-emit assertion deferred — logic covered by `telemetryMap` unit tests), and that `/v1/telemetry` has no backend yet (Increment 2). Then `gh pr create` from the worktree against `origin/main`.

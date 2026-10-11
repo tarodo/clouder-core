@@ -19,7 +19,7 @@
 - New routes in all three places (handler, `scripts/generate_openapi.py`, `infra/api_gateway.tf`); regenerate `docs/api/openapi.yaml` and `frontend/src/api/schema.d.ts`.
 - Frontend gates: `pnpm typecheck`, `pnpm lint`, `pnpm test`.
 - Ships disabled (`enabled = false`); no money figures in docs.
-- `$VENV=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin`; PG tests `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres` (migrate the container to head first); commits via caveman-commit rules.
+- `$VENV=<repo>/.venv/bin`; PG tests `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres` (migrate the container to head first); commits via caveman-commit rules.
 
 ## Review Focus
 

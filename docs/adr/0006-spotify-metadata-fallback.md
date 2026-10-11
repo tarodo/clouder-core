@@ -24,7 +24,7 @@ When an ISRC lookup returns zero items and `SPOTIFY_METADATA_FALLBACK_ENABLED=tr
 
 - The fallback adds latency to tracks that miss the ISRC lookup: up to 3 additional Spotify API calls (4 neighbour ISRCs checked in stage 1, 1 text search in stage 2). Spotify rate limits apply; `SPOTIFY_METADATA_FALLBACK_ENABLED` should not be enabled on high-volume batches without monitoring DLQ depth.
 - On stage 2 reject, `spotify_metadata_fallback_scores` is logged with `best_title_sim` and `best_artist_sim`. Use this to tune thresholds without re-running the batch.
-- Thresholds are configurable via env vars on `beatport-prod-spotify-search-worker`: `SPOTIFY_FUZZY_TITLE_MIN` (default `0.90`), `SPOTIFY_FUZZY_ARTIST_MIN` (default `0.85`), `SPOTIFY_FUZZY_DURATION_TOLERANCE_MS` (default `3000`).
+- Thresholds are configurable via env vars on `clouder-prod-spotify-search-worker`: `SPOTIFY_FUZZY_TITLE_MIN` (default `0.90`), `SPOTIFY_FUZZY_ARTIST_MIN` (default `0.85`), `SPOTIFY_FUZZY_DURATION_TOLERANCE_MS` (default `3000`).
 - The fallback does NOT apply when the track has no ISRC at all (not a miss, simply absent from Beatport data). Only tracks where a primary ISRC lookup returned 0 items enter the fallback.
 - Title and artist normalisation (`_normalize_title_for_match`) strips feat. clauses and mix-type parentheticals. Changing this function affects both stage 1 and stage 2 matching.
 

@@ -13,8 +13,8 @@
 ## Conventions for every task
 
 - **Worktree venv:** `.venv` lives at the MAIN repo root. Run pytest by absolute path:
-  `WT=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/add_comments_collect`
-  `PYTEST=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest`
+  `WT=<repo>/.claude/worktrees/add_comments_collect`
+  `PYTEST=<repo>/.venv/bin/pytest`
   Run from `$WT`. `pytest.ini` sets `PYTHONPATH=src`.
 - Branch is already `feat/youtube-video-aware-match` (off `origin/main`).
 - Commit with plain `git commit -m "..."` (Conventional Commits). NO `Co-Authored-By`/AI trailer (a hook blocks it). ACTUALLY RUN `git commit` and report the SHA.
@@ -352,7 +352,7 @@ git rev-parse --short HEAD
 
 - [ ] **Step 1: Backend suite**
 
-Run: `cd $WT && /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q`
+Run: `cd $WT && <repo>/.venv/bin/pytest -q`
 Expected: all pass (no migration/infra/frontend/OpenAPI touched).
 
 - [ ] **Step 2: Confirm scope**

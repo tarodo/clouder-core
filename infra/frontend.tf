@@ -287,8 +287,11 @@ resource "aws_cloudfront_distribution" "frontend" {
   # /me 404 → HTML), so it is intentionally absent.
 
   viewer_certificate {
+    # The default *.cloudfront.net certificate forces TLSv1 whatever is set here, so
+    # anything else is a perpetual plan diff. TLS 1.2 minimum needs a custom domain
+    # with an ACM certificate (docs/security.md, known gaps).
     cloudfront_default_certificate = true
-    minimum_protocol_version       = "TLSv1.2_2021"
+    minimum_protocol_version       = "TLSv1"
   }
 
   restrictions {

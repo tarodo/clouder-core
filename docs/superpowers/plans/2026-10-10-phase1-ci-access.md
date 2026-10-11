@@ -12,8 +12,8 @@
 
 ## Global Constraints
 
-- Work in the worktree `/Users/roman/Projects/clouder-projects/clouder-core-p1` (branch `feat/ci-plan-role` from `origin/main`); PR B gets a fresh branch from `origin/main` after PR A merges.
-- Run tests with the main repo's venv: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest …` from the worktree root.
+- Work in the worktree `<repo>` (branch `feat/ci-plan-role` from `origin/main`); PR B gets a fresh branch from `origin/main` after PR A merges.
+- Run tests with the main repo's venv: `PYTHONPATH=src <repo>/.venv/bin/pytest …` from the worktree root.
 - Commit and PR text come from the `caveman:caveman-commit` skill; subject `type(scope): subject` ≤ 50 chars; multi-line bodies via heredoc; no `Co-Authored-By`, no "Generated with" footer.
 - `main` is PR-only with 8 required checks; every merge to `main` deploys to production.
 - No real AWS account id in any tracked file (`tests/unit/test_docs_freshness.py` and friends fail); build ARNs from `data.aws_caller_identity.current`.
@@ -32,7 +32,7 @@
 
 ### Task 0: Pre-flight (out-of-band, no commit)
 
-**Files:** none in the repo; scratchpad `$S=/private/tmp/claude-501/-Users-roman-Projects-clouder-projects-clouder-core/<session>/scratchpad`.
+**Files:** none in the repo; scratchpad `$S=<scratchpad>`.
 
 - [ ] **Step 1: Save the current trust policy for rollback**
 
@@ -117,7 +117,7 @@ def test_only_pull_request_jobs_can_assume_the_plan_role() -> None:
 
 - [ ] **Step 2: Run it to see it fail**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_ci_roles_infra.py -q`
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest tests/unit/test_ci_roles_infra.py -q`
 Expected: FAIL — `FileNotFoundError: …/infra/ci_roles.tf`.
 
 - [ ] **Step 3: Implement** — `infra/ci_roles.tf`
@@ -188,7 +188,7 @@ output "gha_plan_role_arn" {
 
 - [ ] **Step 4: Run the test and `terraform fmt`**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_ci_roles_infra.py -q && (cd infra && terraform fmt -check -recursive)`
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest tests/unit/test_ci_roles_infra.py -q && (cd infra && terraform fmt -check -recursive)`
 Expected: `2 passed`, fmt prints nothing.
 
 - [ ] **Step 5: Commit** (message via `caveman:caveman-commit`; expected shape `feat(infra): read-only plan role for PRs`)
@@ -256,7 +256,7 @@ def test_both_applies_read_prod_tfvars_and_nothing_else() -> None:
 
 - [ ] **Step 2: Run them to see them fail**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_deploy_order.py -q`
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest tests/unit/test_deploy_order.py -q`
 Expected: 2 FAIL (`FileNotFoundError` for `prod.tfvars`; `-var-file` missing).
 
 - [ ] **Step 3: Create `infra/prod.tfvars`**
@@ -300,7 +300,7 @@ Expected: `.terraform.lock.hcl` lists `hashicorp/aws` (5.x) and `hashicorp/rando
 
 - [ ] **Step 7: Run the tests**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_deploy_order.py tests/unit/test_guardrails_infra.py -q`
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest tests/unit/test_deploy_order.py tests/unit/test_guardrails_infra.py -q`
 Expected: `test_prod_tfvars_keeps_the_deployed_values` passes; `test_both_applies_read_prod_tfvars_and_nothing_else` still fails (Task 3 changes `deploy.yml`); guardrails pass.
 
 - [ ] **Step 8: Commit** (expected shape `chore(infra): prod.tfvars and provider lock`)
@@ -384,7 +384,7 @@ def test_plan_and_apply_get_the_same_inputs() -> None:
 
 - [ ] **Step 2: Run to see failures**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_ci_workflows.py -q`
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest tests/unit/test_ci_workflows.py -q`
 Expected: 4 FAIL.
 
 - [ ] **Step 3: Replace `.github/workflows/deploy.yml`** with exactly:
@@ -643,12 +643,12 @@ In `tests/unit/test_deploy_order.py`, `import re` became unused when Task 2 repl
 
 - [ ] **Step 5: Run the tests**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_ci_workflows.py tests/unit/test_deploy_order.py tests/unit/test_guardrails_infra.py tests/unit/test_dependency_locks.py -q`
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest tests/unit/test_ci_workflows.py tests/unit/test_deploy_order.py tests/unit/test_guardrails_infra.py tests/unit/test_dependency_locks.py -q`
 Expected: all pass.
 
 - [ ] **Step 6: Full backend suite + lint**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q && /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/ruff check src tests scripts`
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest -q && <repo>/.venv/bin/ruff check src tests scripts`
 Expected: all pass (DB tests skip), ruff clean.
 
 - [ ] **Step 7: Commit** (expected shape `ci: same plan inputs, secrets via env`)
@@ -743,7 +743,7 @@ def test_pip_version_updates_go_through_uv_not_dependabot() -> None:
     assert "upgrade:" in (ROOT / "Makefile").read_text()
 ```
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_ci_workflows.py tests/unit/test_dependency_locks.py -q` → 3 FAIL.
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest tests/unit/test_ci_workflows.py tests/unit/test_dependency_locks.py -q` → 3 FAIL.
 
 - [ ] **Step 3: `pr.yml` `terraform` job** — keep Task 3's version and change these steps exactly:
 
@@ -921,7 +921,7 @@ Add to `docs/adr/README.md` after the 0027 row:
 
 - [ ] **Step 9: Run everything**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q && /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/ruff check src tests scripts`
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest -q && <repo>/.venv/bin/ruff check src tests scripts`
 Expected: all pass (doc-link and README-count guards included).
 
 - [ ] **Step 10: Commit** in two commits (messages via `caveman:caveman-commit`): `ci: plan PRs with read-only role` (pr.yml, dependabot.yml, Makefile, tests) and `docs: CI roles ADR and deploy docs` (ADR, README, security.md, deploy.md).

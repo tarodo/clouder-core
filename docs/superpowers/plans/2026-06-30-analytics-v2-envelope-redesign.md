@@ -62,7 +62,7 @@ Expected: `Success! The configuration is valid.` (run `terraform init` first if 
 
 - [ ] **Step 5: Run the unit suite to confirm nothing broke**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core && pytest -q`
+Run: `cd <repo> && pytest -q`
 Expected: PASS (telemetry tests still green — they do not touch dbt).
 
 - [ ] **Step 6: Commit**
@@ -169,7 +169,7 @@ def test_each_event_flattens_into_hot_and_tail(event_name):
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core && pytest tests/unit/test_telemetry_schemas.py -q`
+Run: `cd <repo> && pytest tests/unit/test_telemetry_schemas.py -q`
 Expected: FAIL — `ImportError: cannot import name 'HOT_PROPS'` and `KeyError`/assertion errors on the flat keys.
 
 - [ ] **Step 3: Implement the flat shape in `telemetry_schemas.py`**
@@ -232,7 +232,7 @@ Replace the `return { ... }` block of `validate_event` (lines 115-128) with:
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core && pytest tests/unit/test_telemetry_schemas.py -q`
+Run: `cd <repo> && pytest tests/unit/test_telemetry_schemas.py -q`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -320,7 +320,7 @@ def test_user_id_stamped_from_authorizer_not_client():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core && pytest tests/unit/test_telemetry_handler.py -q`
+Run: `cd <repo> && pytest tests/unit/test_telemetry_handler.py -q`
 Expected: FAIL — `record["props"]` no longer a string (KeyError) and `record["user_id"]` missing because the handler still emits nested `context`/`props`.
 
 - [ ] **Step 3: Update the handler emit loop**
@@ -340,7 +340,7 @@ Replace the per-event body (lines 110-116) of `lambda_handler` with:
 
 - [ ] **Step 4: Run the full telemetry suite to verify it passes**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core && pytest tests/unit/test_telemetry_handler.py tests/unit/test_telemetry_schemas.py -q`
+Run: `cd <repo> && pytest tests/unit/test_telemetry_handler.py tests/unit/test_telemetry_schemas.py -q`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -631,7 +631,7 @@ EOF
 
 - [ ] **Step 1: Run the full backend suite**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core && pytest -q`
+Run: `cd <repo> && pytest -q`
 Expected: PASS.
 
 - [ ] **Step 2: Confirm no `beatport`-prefixed assumptions were touched**

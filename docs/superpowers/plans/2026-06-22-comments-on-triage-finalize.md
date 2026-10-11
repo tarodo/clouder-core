@@ -14,9 +14,9 @@
 
 - **This is a git worktree.** The Python venv lives at the MAIN repo root and `pytest` is NOT on `PATH`. Run tests with the absolute binary path, from the worktree directory (the current working directory):
 
-  `PYTEST = /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest`
+  `PYTEST = <repo>/.venv/bin/pytest`
 
-  Example: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comment_dispatch.py -q`
+  Example: `<repo>/.venv/bin/pytest tests/unit/test_comment_dispatch.py -q`
 
 - Frontend commands run from `frontend/` with `pnpm` (deps already installed in this worktree; if a fresh checkout, run `pnpm install` first).
 - Commit messages are Conventional Commits (a PreToolUse hook enforces the subject and strips any AI-attribution trailer). No `Co-Authored-By`.
@@ -82,7 +82,7 @@ def test_video_id_still_parses_when_present():
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comment_message.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comment_message.py -q`
 Expected: FAIL — `test_video_id_defaults_to_empty_when_omitted` raises a pydantic `ValidationError` (field required).
 
 - [ ] **Step 3: Make `video_id` optional**
@@ -101,7 +101,7 @@ class CommentCollectMessage(BaseModel):
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comment_message.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comment_message.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -134,7 +134,7 @@ def test_dispatch_sends_for_empty_video(monkeypatch):
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comment_dispatch.py::test_dispatch_sends_for_empty_video -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comment_dispatch.py::test_dispatch_sends_for_empty_video -q`
 Expected: FAIL — nothing is sent (current code returns early on empty `video_id`); `assert len(sqs.sent) == 1` fails.
 
 - [ ] **Step 3: Remove the early-return guard**
@@ -181,7 +181,7 @@ def try_dispatch_comment_collection(
 
 - [ ] **Step 4: Run the whole dispatch test file**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comment_dispatch.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comment_dispatch.py -q`
 Expected: PASS (all tests, including the rewritten one).
 
 - [ ] **Step 5: Commit**
@@ -228,7 +228,7 @@ def test_start_collection_empty_seed_inserts_when_not_collected():
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comments_repository.py -q -k start_collection_empty_seed`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comments_repository.py -q -k start_collection_empty_seed`
 Expected: FAIL — `test_start_collection_empty_seed_skips_when_already_collected` returns `"colNEW"` instead of `None` (current guard compares `external_video_id == video_id`, i.e. `"vidOLD" == ""`, which is False so it does not skip).
 
 - [ ] **Step 3: Update the idempotency guard**
@@ -248,7 +248,7 @@ In `src/collector/comments/repository.py`, in `start_collection`, change the ski
 
 - [ ] **Step 4: Run the repository tests**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comments_repository.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comments_repository.py -q`
 Expected: PASS (new tests plus the existing ones).
 
 - [ ] **Step 5: Commit**
@@ -329,7 +329,7 @@ def test_no_seed_no_meta_marks_disabled(monkeypatch):
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comments_collect_handler.py -q -k no_seed`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comments_collect_handler.py -q -k no_seed`
 Expected: FAIL — with no seed, current code calls `provider.collect("")` first. For `test_no_seed_resolves_primary_via_search` that raises `KeyError("")` → handler stores `"failed"`, not `"collected"`.
 
 - [ ] **Step 3: Add the no-seed resolution to `_resolve_and_collect`**
@@ -395,7 +395,7 @@ def _resolve_and_collect(
 
 - [ ] **Step 4: Run the worker tests**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comments_collect_handler.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comments_collect_handler.py -q`
 Expected: PASS (new no-seed tests plus all existing seeded tests).
 
 - [ ] **Step 5: Commit**
@@ -432,7 +432,7 @@ def test_promoted_track_ids_for_block():
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comments_repository.py::test_promoted_track_ids_for_block -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comments_repository.py::test_promoted_track_ids_for_block -q`
 Expected: FAIL — `AttributeError: 'CommentsRepository' object has no attribute 'promoted_track_ids_for_block'`.
 
 - [ ] **Step 3: Add the method**
@@ -457,7 +457,7 @@ In `src/collector/comments/repository.py`, add this method to `CommentsRepositor
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comments_repository.py::test_promoted_track_ids_for_block -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comments_repository.py::test_promoted_track_ids_for_block -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -536,7 +536,7 @@ def test_never_raises(monkeypatch):
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comments_auto_dispatch.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comments_auto_dispatch.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'collector.comments.auto_dispatch'`.
 
 - [ ] **Step 3: Create the module**
@@ -594,7 +594,7 @@ def try_dispatch_comments_for_triage_block(
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_comments_auto_dispatch.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_comments_auto_dispatch.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -663,7 +663,7 @@ def test_worker_raises_on_unparseable_record(monkeypatch):
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_auto_enrich_dispatch_handler.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_auto_enrich_dispatch_handler.py -q`
 Expected: FAIL — `AttributeError: <module 'collector.auto_enrich_dispatch_handler'> does not have the attribute 'try_dispatch_comments_for_triage_block'`.
 
 - [ ] **Step 3: Add the import and the call**
@@ -686,7 +686,7 @@ Add the call in `lambda_handler`, after `try_dispatch_artists_for_triage_block(.
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_auto_enrich_dispatch_handler.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_auto_enrich_dispatch_handler.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -753,7 +753,7 @@ Expected: no output (empty).
 
 - [ ] **Step 4: Run the vendor-match suite**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_vendor_match_handler.py tests/unit/test_resolve_match_comment_dispatch.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_vendor_match_handler.py tests/unit/test_resolve_match_comment_dispatch.py -q`
 Expected: PASS — `test_vendor_match_handler.py` still green (it never asserted comment dispatch), and `test_resolve_match_comment_dispatch.py` (manual accept path, unchanged) still green.
 
 - [ ] **Step 5: Commit**
@@ -875,7 +875,7 @@ git commit -m "feat(categories): show comments panel in the category player"
 
 - [ ] **Step 1: Run the whole backend suite**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q`
+Run: `<repo>/.venv/bin/pytest -q`
 Expected: PASS (no failures, no errors).
 
 - [ ] **Step 2: Run the frontend gates**

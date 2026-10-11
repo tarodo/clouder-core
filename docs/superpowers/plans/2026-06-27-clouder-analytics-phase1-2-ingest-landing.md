@@ -45,8 +45,8 @@
 
 - [ ] Worktree's local `main` may lag origin (known gotcha). Fetch and branch from origin:
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve fetch origin
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve switch -c feat/telemetry-ingest-landing origin/main
+  git -C <repo>/.claude/worktrees/service_improve fetch origin
+  git -C <repo>/.claude/worktrees/service_improve switch -c feat/telemetry-ingest-landing origin/main
   ```
 - [ ] Run, expect: `Switched to a new branch 'feat/telemetry-ingest-landing'`.
 
@@ -55,8 +55,8 @@
 ### Task 1: Envelope validation (`telemetry_schemas.py`)
 
 **Files:**
-- Create `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src/collector/telemetry_schemas.py`
-- Test: `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_telemetry_schemas.py`
+- Create `<repo>/.claude/worktrees/service_improve/src/collector/telemetry_schemas.py`
+- Test: `<repo>/.claude/worktrees/service_improve/tests/unit/test_telemetry_schemas.py`
 
 - [ ] Write the failing test file (FULL):
   ```python
@@ -149,9 +149,9 @@
   ```
 - [ ] Run, expect FAIL (module missing):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-    /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest \
-    /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_telemetry_schemas.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+    <repo>/.venv/bin/pytest \
+    <repo>/.claude/worktrees/service_improve/tests/unit/test_telemetry_schemas.py -q
   ```
   Expected: collection error `ModuleNotFoundError: No module named 'collector.telemetry_schemas'`.
 - [ ] Write the implementation (FULL):
@@ -288,15 +288,15 @@
   ```
 - [ ] Run, expect PASS:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-    /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest \
-    /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_telemetry_schemas.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+    <repo>/.venv/bin/pytest \
+    <repo>/.claude/worktrees/service_improve/tests/unit/test_telemetry_schemas.py -q
   ```
   Expected last line: `20 passed`.
 - [ ] Commit: stage the two files, generate the subject via the **caveman:caveman-commit** skill, then:
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add src/collector/telemetry_schemas.py tests/unit/test_telemetry_schemas.py
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "<caveman-commit subject>"
+  git -C <repo>/.claude/worktrees/service_improve add src/collector/telemetry_schemas.py tests/unit/test_telemetry_schemas.py
+  git -C <repo>/.claude/worktrees/service_improve commit -m "<caveman-commit subject>"
   ```
   (Conventional Commits; no `Co-Authored-By` trailer.)
 
@@ -305,8 +305,8 @@
 ### Task 2: Telemetry handler (`telemetry_handler.py`)
 
 **Files:**
-- Create `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src/collector/telemetry_handler.py`
-- Test: `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_telemetry_handler.py`
+- Create `<repo>/.claude/worktrees/service_improve/src/collector/telemetry_handler.py`
+- Test: `<repo>/.claude/worktrees/service_improve/tests/unit/test_telemetry_handler.py`
 
 - [ ] Write the failing test file (FULL). Firehose is injected via the `firehose_client=` kwarg (DI — no boto3 patching):
   ```python
@@ -479,9 +479,9 @@
   ```
 - [ ] Run, expect FAIL (module missing):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-    /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest \
-    /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_telemetry_handler.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+    <repo>/.venv/bin/pytest \
+    <repo>/.claude/worktrees/service_improve/tests/unit/test_telemetry_handler.py -q
   ```
   Expected: `ModuleNotFoundError: No module named 'collector.telemetry_handler'`.
 - [ ] Write the implementation (FULL):
@@ -627,16 +627,16 @@
   ```
 - [ ] Run, expect PASS:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-    /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest \
-    /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_telemetry_handler.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+    <repo>/.venv/bin/pytest \
+    <repo>/.claude/worktrees/service_improve/tests/unit/test_telemetry_handler.py -q
   ```
   Expected last line: `11 passed`.
 - [ ] Full unit suite still green (no regression):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-    /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest \
-    /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+    <repo>/.venv/bin/pytest \
+    <repo>/.claude/worktrees/service_improve/tests/unit -q
   ```
   Expected: exit 0, final line `... passed` (the pre-existing count + 31 new = 20 schemas + 11 handler).
 - [ ] Commit: stage `src/collector/telemetry_handler.py` + `tests/unit/test_telemetry_handler.py`, generate subject via **caveman:caveman-commit**, then `git ... commit -m "<subject>"`.
@@ -646,7 +646,7 @@
 ### Task 3: OpenAPI `/v1/telemetry` route + `TelemetryEnvelope` component
 
 **Files:**
-- Modify `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/scripts/generate_openapi.py` (add schema dict near other inline schemas ~L1245; add ROUTES entry before the closing `]` at ~L3727; register schema in `build_openapi()` components ~L3861-3892)
+- Modify `<repo>/.claude/worktrees/service_improve/scripts/generate_openapi.py` (add schema dict near other inline schemas ~L1245; add ROUTES entry before the closing `]` at ~L3727; register schema in `build_openapi()` components ~L3861-3892)
 - Regenerated: `docs/api/openapi.yaml`, `frontend/src/api/schema.d.ts`
 - Test (assertion): inline `python -c` + `git diff --stat`
 
@@ -742,20 +742,20 @@
   ```
 - [ ] Regenerate the OpenAPI doc:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-    /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python \
-    /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/scripts/generate_openapi.py
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+    <repo>/.venv/bin/python \
+    <repo>/.claude/worktrees/service_improve/scripts/generate_openapi.py
   ```
   Expected: `wrote .../docs/api/openapi.yaml  (<bytes>)`.
 - [ ] Assert the route + component landed and no broken `$ref` (every `$ref` target resolves):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-    /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python - <<'EOF'
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+    <repo>/.venv/bin/python - <<'EOF'
   import re, yaml, pathlib
-  d = yaml.safe_load(pathlib.Path("/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/docs/api/openapi.yaml").read_text())
+  d = yaml.safe_load(pathlib.Path("<repo>/.claude/worktrees/service_improve/docs/api/openapi.yaml").read_text())
   assert "/v1/telemetry" in d["paths"], "route missing"
   assert "TelemetryEnvelope" in d["components"]["schemas"], "component missing"
-  text = pathlib.Path("/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/docs/api/openapi.yaml").read_text()
+  text = pathlib.Path("<repo>/.claude/worktrees/service_improve/docs/api/openapi.yaml").read_text()
   refs = {m.split("/")[-1] for m in re.findall(r"#/components/schemas/(\w+)", text)}
   missing = refs - set(d["components"]["schemas"])
   assert not missing, f"broken schema refs: {missing}"
@@ -766,7 +766,7 @@
   Expected: `OPENAPI OK`.
 - [ ] Regenerate the frontend types and run the CI gates (these run from `frontend/`; the harness resets cwd, so use a single compound command):
   ```bash
-  cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/frontend && pnpm api:types && pnpm typecheck && pnpm lint
+  cd <repo>/.claude/worktrees/service_improve/frontend && pnpm api:types && pnpm typecheck && pnpm lint
   ```
   Expected: `schema.d.ts` rewritten, `tsc -b --noEmit` exits 0, `eslint src` exits 0 (no errors). If `pnpm` is missing/offline, note it and run the three commands when network is available — the CI gate requires `schema.d.ts` to match `openapi.yaml`.
 - [ ] Commit: stage `scripts/generate_openapi.py docs/api/openapi.yaml frontend/src/api/schema.d.ts`, generate subject via **caveman:caveman-commit**, then `git ... commit -m "<subject>"`.
@@ -776,8 +776,8 @@
 ### Task 4: Register the `/v1` prefix in CloudFront + Vite (MUST-FIX 1)
 
 **Files:**
-- Modify `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra/frontend.tf` (`api_gw_pure_path_patterns` ~L124-140)
-- Modify `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/frontend/vite.config.ts` (`BACKEND_ONLY_PREFIXES` ~L14-27)
+- Modify `<repo>/.claude/worktrees/service_improve/infra/frontend.tf` (`api_gw_pure_path_patterns` ~L124-140)
+- Modify `<repo>/.claude/worktrees/service_improve/frontend/vite.config.ts` (`BACKEND_ONLY_PREFIXES` ~L14-27)
 
 - [ ] In `infra/frontend.tf`, add `"/v1*"` as the last entry of `api_gw_pure_path_patterns` (after `"/tags*",`). `/v1` is a pure API prefix (no SPA-route collision), so the existing `dynamic "ordered_cache_behavior"` loop over that local auto-creates the CachingDisabled / AllViewerExceptHostHeader behavior to the `api-gw` origin. One registration covers `/v1/telemetry` now and `/v1/analytics/*` in Increment 5.
   ```hcl
@@ -793,13 +793,13 @@
   ```
 - [ ] Verify both edits (grep, not a test — these are config arrays):
   ```bash
-  grep -n '"/v1\*"' /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra/frontend.tf
-  grep -n "'/v1'" /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/frontend/vite.config.ts
+  grep -n '"/v1\*"' <repo>/.claude/worktrees/service_improve/infra/frontend.tf
+  grep -n "'/v1'" <repo>/.claude/worktrees/service_improve/frontend/vite.config.ts
   ```
   Expected: one match in each file.
 - [ ] Confirm Vite config still typechecks (it is part of `tsconfig`-adjacent tooling but is plain TS — `terraform fmt` covers the HCL in Task 5). Run the frontend typecheck again to be safe:
   ```bash
-  cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/frontend && pnpm typecheck
+  cd <repo>/.claude/worktrees/service_improve/frontend && pnpm typecheck
   ```
   Expected: exits 0.
 - [ ] Commit: stage `infra/frontend.tf frontend/vite.config.ts`, generate subject via **caveman:caveman-commit**, then `git ... commit -m "<subject>"`.
@@ -809,9 +809,9 @@
 ### Task 5: `infra/telemetry.tf` — Lambda + role + Firehose + S3 lake + Glue + outputs
 
 **Files:**
-- Modify `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra/main.tf` (add `telemetry_lambda_name` local in the locals block ~L34)
-- Create `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra/telemetry.tf`
-- Modify `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra/outputs.tf` (append two outputs read by the Task 6 runbook)
+- Modify `<repo>/.claude/worktrees/service_improve/infra/main.tf` (add `telemetry_lambda_name` local in the locals block ~L34)
+- Create `<repo>/.claude/worktrees/service_improve/infra/telemetry.tf`
+- Modify `<repo>/.claude/worktrees/service_improve/infra/outputs.tf` (append two outputs read by the Task 6 runbook)
 
 - [ ] In `infra/main.tf` add the lambda-name local next to `curation_lambda_name`:
   ```hcl
@@ -1152,7 +1152,7 @@
   ```
 - [ ] Format + validate (run from `infra/`; terraform `init -backend=false` is needed for a clean-room validate if `.terraform` is absent):
   ```bash
-  cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra && terraform fmt && terraform validate
+  cd <repo>/.claude/worktrees/service_improve/infra && terraform fmt && terraform validate
   ```
   Expected: `terraform fmt` lists `telemetry.tf` (and `main.tf`/`outputs.tf` if reformatted), `terraform validate` prints `Success! The configuration is valid.` If `validate` errors with "provider not initialized", first run `terraform init -backend=false` then re-run `terraform validate`.
 - [ ] Commit: stage `infra/main.tf infra/telemetry.tf infra/outputs.tf`, generate subject via **caveman:caveman-commit**, then `git ... commit -m "<subject>"`.
@@ -1165,13 +1165,13 @@
 
 - [ ] Build the shared zip + apply (telemetry shares the one artifact):
   ```bash
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/scripts/package_lambda.sh
-  cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra && terraform apply
+  <repo>/.claude/worktrees/service_improve/scripts/package_lambda.sh
+  cd <repo>/.claude/worktrees/service_improve/infra && terraform apply
   ```
   Expected: `aws_lambda_function.telemetry`, `aws_kinesis_firehose_delivery_stream.telemetry`, `aws_s3_bucket.analytics_lake`, `aws_glue_catalog_table.bronze_events`, `aws_apigatewayv2_route.telemetry_post` created.
 - [ ] Obtain a JWT bearer (manual `/auth/login` → `/auth/callback` flow, per the OpenAPI description) and POST a 2-event batch **through the CloudFront domain** — this proves the new `/v1*` ordered_cache_behavior routes to the api-gw origin, not the SPA shell (which is the headline of MUST-FIX 1). `frontend_url` resolves to `https://<dist>.cloudfront.net`; CloudFront forwards the `Authorization` header via the `AllViewerExceptHostHeader` origin-request policy, so the Bearer POST works end-to-end:
   ```bash
-  API="$(cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra && terraform output -raw frontend_url)"
+  API="$(cd <repo>/.claude/worktrees/service_improve/infra && terraform output -raw frontend_url)"
   curl -sS -X POST "$API/v1/telemetry" \
     -H "Authorization: Bearer $JWT" -H "Content-Type: application/json" -H "Accept: application/json" \
     -d '{"events":[
@@ -1183,7 +1183,7 @@
   - (Optional gateway-route-only check: repeat against `terraform output -raw api_endpoint` — the direct API Gateway invoke URL — to isolate the gateway from CloudFront if the CloudFront hit fails.)
 - [ ] After the Firehose buffer flushes (≤ 5 min), confirm a Parquet object landed under the partitioned prefix (and nothing was routed to `bronze/_errors/`, which would mean props failed format conversion):
   ```bash
-  LAKE="$(cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra && terraform output -raw analytics_lake_bucket)"
+  LAKE="$(cd <repo>/.claude/worktrees/service_improve/infra && terraform output -raw analytics_lake_bucket)"
   aws s3 ls "s3://$LAKE/bronze/events/" --recursive | grep -E 'dt=.*/event_name=.*\.parquet'
   aws s3 ls "s3://$LAKE/bronze/_errors/" --recursive  # expect: empty (no conversion failures)
   ```
@@ -1199,7 +1199,7 @@
   Expected: scalar result `>= 2`.
 - [ ] Confirm logs carry only allowlisted fields and no `bp_token`:
   ```bash
-  LAMBDA="$(cd /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra && terraform output -raw telemetry_lambda_name)"
+  LAMBDA="$(cd <repo>/.claude/worktrees/service_improve/infra && terraform output -raw telemetry_lambda_name)"
   aws logs filter-log-events --log-group-name "/aws/lambda/$LAMBDA" --filter-pattern '"telemetry_ingest"' | grep -i bp_token
   ```
   Expected: **no matches** (grep exits 1). The `telemetry_ingest` line shows `message`, `user_id`, `status_code`, `duration_ms`, `count` only (structlog `EventRenamer` puts the event name under `message`).
@@ -1213,14 +1213,14 @@
 
 - [ ] Full unit suite + final verification:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src \
-    /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest \
-    /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src \
+    <repo>/.venv/bin/pytest \
+    <repo>/.claude/worktrees/service_improve/tests/unit -q
   ```
   Expected: exit 0.
 - [ ] Push the branch and open a PR. Generate **both the PR title and body** via the **caveman:caveman-commit** skill before `gh pr create` (repo policy). PR body multi-line via non-indented heredoc, EOF at column 0; no AI-attribution trailer:
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve push -u origin feat/telemetry-ingest-landing
+  git -C <repo>/.claude/worktrees/service_improve push -u origin feat/telemetry-ingest-landing
   gh pr create --title "<caveman-commit title>" --body "$(cat <<'EOF'
   <caveman-commit body>
   EOF

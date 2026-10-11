@@ -131,7 +131,7 @@ variable "aurora_master_username" {
 }
 
 variable "aurora_serverless_min_acu" {
-  description = "Aurora Serverless v2 min ACU. 0 = auto-pause после aurora_auto_pause_seconds (риск 503 cold-start через API GW, но ~$43/мес экономии). 0.5 = всегда warm."
+  description = "Aurora Serverless v2 min ACU. 0 = auto-pause after aurora_auto_pause_seconds (cold-start 503 risk through API Gateway; see ADR-0014). 0.5 = always warm."
   type        = number
   default     = 0
 }
@@ -454,7 +454,7 @@ variable "curation_lambda_memory_mb" {
 }
 
 variable "cors_allowed_origins" {
-  description = "Список origin-ов для CORS на API Gateway. Пустой список = CORS отключён."
+  description = "CORS origins for API Gateway. An empty list disables CORS."
   type        = list(string)
   default     = []
 }

@@ -50,12 +50,12 @@
 - [ ] **Step 1: Worktree from `origin/main`, plan copied, Postgres migrated**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git fetch origin
 git worktree add -b feat/matching-quality-eval ../clouder-core-er origin/main
 cp docs/superpowers/plans/2026-10-07-matching-quality-eval.md ../clouder-core-er/docs/superpowers/plans/
 cd ../clouder-core-er
-export VENV=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin
+export VENV=<repo>/.venv/bin
 docker run -d --rm --name er-pg -p 55433:5432 -e POSTGRES_PASSWORD=postgres postgres:16   # skip if already running
 PYTHONPATH=src ALEMBIC_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:55433/postgres $VENV/alembic upgrade head
 export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres
@@ -817,7 +817,7 @@ match_gold_*
 - [ ] **Step 6: Smoke-run the export against the test database**
 
 Run (after seeding through the PG test once, or on the empty DB):
-`PYTHONPATH=src $VENV/python scripts/export_match_gold.py --database-url $TEST_DATABASE_URL --out-dir /private/tmp/claude-501/-Users-roman-Projects-clouder-projects-clouder-core/fe99b3d1-788f-44e4-99e2-ed8e884d3f45/scratchpad`
+`PYTHONPATH=src $VENV/python scripts/export_match_gold.py --database-url $TEST_DATABASE_URL --out-dir <scratchpad>`
 Expected: prints the counts line and two paths; both files exist.
 
 - [ ] **Step 7: Full suite, commit** — `feat(vendor-match): export matching gold set`

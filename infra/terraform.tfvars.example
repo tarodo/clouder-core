@@ -32,5 +32,5 @@ admin_spotify_ids                    = "your_spotify_id_here"
 spotify_oauth_redirect_uri           = "http://localhost:5173/auth/return"
 allowed_frontend_redirects           = "/, /dashboard"
 
-# CORS: укажи origin-ы фронта. Пустой список = CORS отключён (только server-to-server).
+# CORS: list the frontend origins. An empty list disables CORS (server-to-server only).
 cors_allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
