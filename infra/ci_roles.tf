@@ -33,9 +33,8 @@ resource "aws_iam_role" "gha_plan" {
   assume_role_policy = data.aws_iam_policy_document.gha_plan_assume.json
 }
 
-# Planning reads every managed resource and the state (which holds the JWT signing
-# key); it never needs to write. The SSM SecureString read works through the
-# aws/ssm managed key's own policy.
+# Planning reads every managed resource and the state; it never needs to write. The
+# state holds no secret: the JWT signing key and vendor credentials live only in SSM.
 resource "aws_iam_role_policy_attachment" "gha_plan_read_only" {
   role       = aws_iam_role.gha_plan.name
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
@@ -43,8 +42,7 @@ resource "aws_iam_role_policy_attachment" "gha_plan_read_only" {
 
 # ReadOnlyAccess also reads data: every SecureString (the aws/ssm key lets any principal
 # in the account decrypt), S3 objects, logs, queue messages, query results. A plan needs
-# none of it — the one secret it reads is the JWT signing key parameter, which
-# Terraform manages and the state already holds.
+# none of it: Terraform manages no SecureString.
 data "aws_iam_policy_document" "gha_plan_no_data" {
   statement {
     sid     = "NoSecrets"

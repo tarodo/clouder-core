@@ -378,10 +378,12 @@ Start the `clouder-prod-backfill` state machine with a dry run (`--input '{}'`, 
 
 **When:** the key may have leaked; anyone gained read access to the Terraform state or to `/clouder/auth/*`; or on a new account (it creates the parameter).
 
-**Effect:** every user is signed out — access and refresh tokens are both JWTs signed with this key. Warm Lambdas pick the new key up within 5 minutes; until then a token signed by one container can be rejected by another, so rotate when nobody is curating.
+**Effect:** every user is signed out — access and refresh tokens are both JWTs signed with this key. Old tokens stop working within 10 minutes: warm Lambdas re-read the key every 5 minutes and API Gateway caches authorizer answers for 5 more. Until then a token signed by one container can be rejected by another, so rotate when nobody is curating.
+
+**Order:** rotate only after the deploy that took the key out of Terraform (2026-10-11, ADR-0028) has applied — a refresh before that would copy the new key into a state version.
 
 ```bash
-python scripts/rotate_jwt_key.py   # prints the new SSM version, never the key
+.venv/bin/python scripts/rotate_jwt_key.py   # us-east-1; prints the new SSM version, never the key
 ```
 
 Terraform does not manage this parameter (ADR-0028): a deploy never changes it, and `terraform plan` never reads it.

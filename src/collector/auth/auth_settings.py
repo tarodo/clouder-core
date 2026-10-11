@@ -7,6 +7,8 @@ import os
 import time
 from dataclasses import dataclass
 
+from collector.logging_utils import log_event
+
 # The key is re-read this often, so a rotation (scripts/rotate_jwt_key.py) reaches warm
 # containers without a deploy.
 JWT_KEY_TTL_SECONDS = 300.0
@@ -62,7 +64,14 @@ def resolve_jwt_signing_key() -> str:
     if ssm_name:
         now = time.monotonic()
         if _jwt_key is None or now - _jwt_key[1] >= JWT_KEY_TTL_SECONDS:
-            _jwt_key = (secrets.fetch_ssm_parameter(ssm_name), now)
+            try:
+                _jwt_key = (secrets.fetch_ssm_parameter(ssm_name), now)
+            except Exception as exc:
+                if _jwt_key is None:
+                    raise
+                # A throttled refetch keeps the warm container serving; retry after a TTL.
+                log_event("WARNING", "jwt_key_refetch_failed", error_type=type(exc).__name__)
+                _jwt_key = (_jwt_key[0], now)
         return _jwt_key[0]
     raise RuntimeError(
         "JWT signing key not configured: set JWT_SIGNING_KEY or JWT_SIGNING_KEY_SSM_PARAMETER"

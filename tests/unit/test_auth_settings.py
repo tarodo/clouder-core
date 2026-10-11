@@ -148,3 +148,37 @@ def test_resolve_oauth_client_credentials_ssm(monkeypatch) -> None:
     assert cid == "cid-ssm"
     assert csec == "csec-ssm"
     assert sorted(fetched) == ["/c/id", "/c/secret"]
+
+
+def test_a_failed_refetch_keeps_the_cached_key(monkeypatch) -> None:
+    # A throttled SSM call at the TTL boundary must not fail requests on a warm container.
+    monkeypatch.delenv("JWT_SIGNING_KEY", raising=False)
+    monkeypatch.setenv("JWT_SIGNING_KEY_SSM_PARAMETER", "/clouder/auth/jwt_signing_key")
+    calls = []
+
+    def fetch(name):
+        calls.append(name)
+        if len(calls) > 1:
+            raise RuntimeError("ThrottlingException")
+        return "cached-key"
+
+    monkeypatch.setattr("collector.secrets.fetch_ssm_parameter", fetch)
+    clock = [1000.0]
+    monkeypatch.setattr(mod.time, "monotonic", lambda: clock[0])
+
+    assert mod.resolve_jwt_signing_key() == "cached-key"
+    clock[0] += mod.JWT_KEY_TTL_SECONDS + 1
+    assert mod.resolve_jwt_signing_key() == "cached-key"
+    assert len(calls) == 2
+
+
+def test_a_failed_first_fetch_still_raises(monkeypatch) -> None:
+    monkeypatch.delenv("JWT_SIGNING_KEY", raising=False)
+    monkeypatch.setenv("JWT_SIGNING_KEY_SSM_PARAMETER", "/clouder/auth/jwt_signing_key")
+
+    def fetch(name):
+        raise RuntimeError("AccessDenied")
+
+    monkeypatch.setattr("collector.secrets.fetch_ssm_parameter", fetch)
+    with pytest.raises(RuntimeError):
+        mod.resolve_jwt_signing_key()

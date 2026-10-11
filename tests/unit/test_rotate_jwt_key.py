@@ -44,3 +44,20 @@ def test_two_rotations_never_repeat_a_key() -> None:
     mod.main([], ssm=ssm)
     assert ssm.puts[0]["Value"] != ssm.puts[1]["Value"]
     assert ssm.puts[0]["Name"] == "/clouder/auth/jwt_signing_key"  # the default
+
+
+def test_writes_in_the_production_region_whatever_the_default(monkeypatch, capsys) -> None:
+    # A wrong default region would create a new parameter there and report success.
+    import sys
+    import types
+
+    regions = []
+    fake_boto3 = types.SimpleNamespace(
+        client=lambda service, region_name=None: regions.append(region_name) or FakeSSM()
+    )
+    monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
+
+    _load().main([])
+
+    assert regions == ["us-east-1"]
+    assert "us-east-1" in capsys.readouterr().out
