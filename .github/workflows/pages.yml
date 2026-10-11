@@ -49,6 +49,11 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
+      # The demo's music (made with Suno) lives in a release, not in git: 35 MB of mp3.
+      - name: Demo audio
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download demo-audio-v1 --repo ${{ github.repository }} --dir frontend/demo-public/audio --pattern '*.mp3'
       - name: SPA demo (MSW in the browser, sample data)
         working-directory: frontend
         run: |

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { CLIPS } from '../clips';
 import { DemoDb, DemoError } from '../db';
+
+const CLIP_MS = Object.fromEntries(
+  Object.values(CLIPS)
+    .flat()
+    .map((c) => [c.file, c.ms]),
+);
 
 function first<T>(xs: readonly T[]): T {
   const [x] = xs;
@@ -181,6 +188,27 @@ describe('DemoDb', () => {
     expect(new DemoDb().labels({ style: 'melodic-house-and-techno' }).items.length).toBeGreaterThan(
       0,
     );
+  });
+
+  it('gives every track a preview clip of its own style, using every clip', () => {
+    const db = new DemoDb();
+    const used = new Set<string>();
+    for (const st of db.styles('mine')) {
+      const prefix = st.id === 's-afro' ? 'afro' : 'melodic';
+      for (const b of db.blocksByStyle(st.id)) {
+        for (const bucket of db.block(b.id).buckets) {
+          for (const t of db.bucketTracks(b.id, bucket.id)) {
+            const clip = db.clipFor(t.spotify_id!);
+            expect(clip).toMatch(new RegExp(`^${prefix}-\\d\\.mp3$`));
+            // The bar, the seek keys and the Length label all agree with what plays.
+            expect(t.length_ms).toBe(CLIP_MS[clip!]);
+            used.add(clip!);
+          }
+        }
+      }
+    }
+    expect(used.size).toBe(8);
+    expect(db.clipFor('unknown')).toBeNull();
   });
 
   it('returns no tracks for an unknown bucket and 404s an unknown block', () => {

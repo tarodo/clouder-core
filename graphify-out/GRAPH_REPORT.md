@@ -1,16 +1,16 @@
 # Graph Report - clouder-core-p1  (2026-10-11)
 
 ## Corpus Check
-- 1560 files · ~1,158,353 words
+- 1561 files · ~1,160,444 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 12172 nodes · 24872 edges · 664 communities (601 shown, 63 thin omitted)
+- 12210 nodes · 24931 edges · 657 communities (592 shown, 65 thin omitted)
 - Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 1353 edges (avg confidence: 0.7)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0ae67a5e`
+- Built from commit: `c8d1cf61`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -520,14 +520,13 @@
 - [[_COMMUNITY_Community 571|Community 571]]
 - [[_COMMUNITY_Community 572|Community 572]]
 - [[_COMMUNITY_Community 573|Community 573]]
-- [[_COMMUNITY_Community 574|Community 574]]
 - [[_COMMUNITY_Community 575|Community 575]]
 - [[_COMMUNITY_Community 576|Community 576]]
 - [[_COMMUNITY_Community 577|Community 577]]
 - [[_COMMUNITY_Community 578|Community 578]]
 - [[_COMMUNITY_Community 579|Community 579]]
+- [[_COMMUNITY_Community 580|Community 580]]
 - [[_COMMUNITY_Community 581|Community 581]]
-- [[_COMMUNITY_Community 582|Community 582]]
 - [[_COMMUNITY_Community 583|Community 583]]
 - [[_COMMUNITY_Community 584|Community 584]]
 - [[_COMMUNITY_Community 585|Community 585]]
@@ -565,17 +564,14 @@
 - [[_COMMUNITY_Community 620|Community 620]]
 - [[_COMMUNITY_Community 621|Community 621]]
 - [[_COMMUNITY_Community 623|Community 623]]
-- [[_COMMUNITY_Community 624|Community 624]]
 - [[_COMMUNITY_Community 626|Community 626]]
 - [[_COMMUNITY_Community 627|Community 627]]
-- [[_COMMUNITY_Community 628|Community 628]]
 - [[_COMMUNITY_Community 629|Community 629]]
 - [[_COMMUNITY_Community 630|Community 630]]
 - [[_COMMUNITY_Community 631|Community 631]]
 - [[_COMMUNITY_Community 632|Community 632]]
 - [[_COMMUNITY_Community 633|Community 633]]
 - [[_COMMUNITY_Community 634|Community 634]]
-- [[_COMMUNITY_Community 635|Community 635]]
 - [[_COMMUNITY_Community 636|Community 636]]
 - [[_COMMUNITY_Community 637|Community 637]]
 - [[_COMMUNITY_Community 638|Community 638]]
@@ -584,7 +580,6 @@
 - [[_COMMUNITY_Community 641|Community 641]]
 - [[_COMMUNITY_Community 642|Community 642]]
 - [[_COMMUNITY_Community 643|Community 643]]
-- [[_COMMUNITY_Community 644|Community 644]]
 - [[_COMMUNITY_Community 645|Community 645]]
 - [[_COMMUNITY_Community 646|Community 646]]
 - [[_COMMUNITY_Community 647|Community 647]]
@@ -592,17 +587,14 @@
 - [[_COMMUNITY_Community 649|Community 649]]
 - [[_COMMUNITY_Community 650|Community 650]]
 - [[_COMMUNITY_Community 651|Community 651]]
-- [[_COMMUNITY_Community 652|Community 652]]
 - [[_COMMUNITY_Community 653|Community 653]]
-- [[_COMMUNITY_Community 654|Community 654]]
 - [[_COMMUNITY_Community 655|Community 655]]
 - [[_COMMUNITY_Community 656|Community 656]]
 - [[_COMMUNITY_Community 657|Community 657]]
 - [[_COMMUNITY_Community 658|Community 658]]
+- [[_COMMUNITY_Community 659|Community 659]]
 - [[_COMMUNITY_Community 660|Community 660]]
 - [[_COMMUNITY_Community 663|Community 663]]
-- [[_COMMUNITY_Community 667|Community 667]]
-- [[_COMMUNITY_Community 669|Community 669]]
 - [[_COMMUNITY_Community 675|Community 675]]
 
 ## God Nodes (most connected - your core abstractions)
@@ -618,125 +610,129 @@
 10. `ClouderRepository` - 73 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `test_legacy_direct_invoke_still_collects()` --calls--> `lambda_handler()`  [INFERRED]
+  tests/unit/test_collector_api_routes.py → src/collector/comments_collect_handler.py
+- `test_unknown_route_is_404()` --calls--> `lambda_handler()`  [INFERRED]
+  tests/unit/test_collector_api_routes.py → src/collector/comments_collect_handler.py
 - `test_playlist_not_found_uses_subclass_pattern()` --calls--> `PlaylistNotFoundError`  [INFERRED]
   tests/unit/test_playlists_errors.py → src/collector/curation/__init__.py
 - `test_validate_name_rejects_control_chars()` --calls--> `validate_playlist_name()`  [INFERRED]
   tests/unit/test_playlists_service.py → src/collector/curation/playlists_service.py
 - `test_validate_name_rejects_empty()` --calls--> `validate_playlist_name()`  [INFERRED]
   tests/unit/test_playlists_service.py → src/collector/curation/playlists_service.py
-- `test_validate_name_rejects_too_long()` --calls--> `validate_playlist_name()`  [INFERRED]
-  tests/unit/test_playlists_service.py → src/collector/curation/playlists_service.py
-- `test_track_tag_row_dataclass_shape()` --calls--> `TrackTagRow`  [INFERRED]
-  tests/unit/test_tags_repository.py → src/collector/curation/tags_repository.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (664 total, 63 thin omitted)
+## Communities (657 total, 65 thin omitted)
 
 ### Community 0 - "Playlists UI"
-Cohesion: 0.10
-Nodes (14): ArtistContext, _normalize_name(), Aurora Data API persistence for artist enrichment (core write path)., Disambiguation context from the artist's tracks: dominant style,         up to 3, RunSpec, _utc_now(), AIContentStatus, ArtistInfo (+6 more)
+Cohesion: 0.17
+Nodes (7): FakeRepo, FakeSQS, Unit tests for artist enrichment HTTP route handlers., _setup(), test_get_artist_user_404_when_missing(), test_post_enrich_creates_run_and_enqueues(), test_post_enrich_rejects_unknown_prompt()
 
 ### Community 1 - "Curation API Handler"
-Cohesion: 0.07
-Nodes (106): Lambda handler for the user-curation surface (spec-C/D/E).  `_ROUTE_TABLE` is th, log_event(), _build_sqs_client(), enqueue_block_auto_enrich(), _queue_url(), Enqueue one block-level auto-enrichment dispatch message.  Called from the final, _curation_error_response(), _error() (+98 more)
+Cohesion: 0.09
+Nodes (87): try_dispatch_artists_for_track(), Lambda handler for the user-curation surface (spec-C/D/E).  `_ROUTE_TABLE` is th, log_event(), _build_sqs_client(), enqueue_block_auto_enrich(), _queue_url(), Enqueue one block-level auto-enrichment dispatch message.  Called from the final, _curation_error_response() (+79 more)
 
 ### Community 2 - "API Route Handlers (admin/enrich)"
-Cohesion: 0.14
-Nodes (16): BucketTrackRow(), track, PlaylistTrackRowProps, PlaylistTrackRowView(), ViewProps, joinArtists(), TrackRow(), UsedInPlaylistBadge() (+8 more)
+Cohesion: 0.11
+Nodes (20): BucketTrackRow(), track, PlaylistTrackRow(), PlaylistTrackRowProps, PlaylistTrackRowView(), ViewProps, joinArtists(), TrackRow() (+12 more)
 
 ### Community 3 - "Admin Coverage/Enrich UI"
-Cohesion: 0.05
-Nodes (58): AbstractContextManager, _chunks(), _identity_cmd(), _log_phase(), _payload_hash(), Canonicalization workflow for Beatport entities.  Identities are resolved set-ba, Map external ids to clouder ids in two Data API calls, race-safe.          Claim, _source_entity_cmd() (+50 more)
+Cohesion: 0.06
+Nodes (44): _chunks(), _identity_cmd(), _log_phase(), _payload_hash(), Canonicalization workflow for Beatport entities.  Identities are resolved set-ba, Map external ids to clouder ids in two Data API calls, race-safe.          Claim, _source_entity_cmd(), CanonicalizationResult (+36 more)
 
 ### Community 4 - "Auto-Enrich Config (FE API)"
-Cohesion: 0.22
-Nodes (3): newId(), NOW(), DemoBlock
+Cohesion: 0.07
+Nodes (38): create_default_categories_repository(), _categories_factory(), _playlists_factory(), Repository and vendor-client factories for the curation routes.  Route modules c, _tags_factory(), _triage_factory(), _no_content(), BadQueryParamError (+30 more)
 
 ### Community 5 - "KMS Envelope & Auth Crypto"
-Cohesion: 0.13
-Nodes (16): ColorSwatchPicker(), ColorSwatchPickerProps, TagFormFields(), TagFormFieldsProps, TagFormMode, isPaletteColor(), NEUTRAL_SOFT, pickPillTextColor() (+8 more)
+Cohesion: 0.04
+Nodes (44): ActiveBlocksList(), ActiveBlocksListProps, CountersGrid(), CountersGridProps, CurateSkeleton(), HomeSkeleton(), NoStylesEmpty(), ResumeHero() (+36 more)
 
 ### Community 6 - "Library Artist/Label UI"
-Cohesion: 0.03
-Nodes (83): call(), CallOptions, ensureOk(), PlayArgs, SeekArgs, spotifyApi, TransferArgs, AuthProvider() (+75 more)
+Cohesion: 0.11
+Nodes (24): lastDeviceStore, transition(), clampMs(), pctToMs(), ListenEvent, PLAYING, resolvePlaybackSource(), seekEventProps() (+16 more)
 
 ### Community 7 - "Artist Enrichment Repository"
-Cohesion: 0.09
-Nodes (39): extract_instagram(), extract_profiles(), handle_of(), _known_official_urls(), _norm(), Three-tier Instagram-first socials resolver.  Ported (logic kept as close to ver, Thin Tavily REST wrapper over ``httpx.Client`` with deterministic     credit cou, 3-tier instagram-first socials resolution against Tavily.      Tier 1: one basic (+31 more)
+Cohesion: 0.08
+Nodes (40): Client, extract_instagram(), extract_profiles(), handle_of(), _known_official_urls(), _norm(), Three-tier Instagram-first socials resolver.  Ported (logic kept as close to ver, Thin Tavily REST wrapper over ``httpx.Client`` with deterministic     credit cou (+32 more)
 
 ### Community 8 - "Triage Finalize UI"
-Cohesion: 0.03
-Nodes (58): RunDetail, RunSummary, RunDetail, ArtistOverviewTab(), ArtistStylesTab(), EmptyState(), EmptyStateProps, FullScreenLoader() (+50 more)
+Cohesion: 0.06
+Nodes (22): loadSpotifySdk(), __resetSdkLoaderForTests(), waitForReady(), createFakeSpotifyPlayer(), FakeSpotifyPlayer, installSpotifySdkMock(), Listener, uninstallSpotifySdkMock() (+14 more)
 
 ### Community 9 - "Bucket Player UI"
-Cohesion: 0.03
-Nodes (71): Action, AuthContext, AuthContextValue, AuthState, CallbackResponse, getAuthSnapshot(), Me, RefreshResponse (+63 more)
+Cohesion: 0.04
+Nodes (60): Action, AuthContext, AuthContextValue, AuthState, CallbackResponse, getAuthSnapshot(), Me, RefreshResponse (+52 more)
 
 ### Community 10 - "Curation Error Types"
-Cohesion: 0.03
-Nodes (79): ArtistDetail, ArtistsListResponse, ArtistSummary, BacklogArtist, EnrichBody, EnrichmentOptions, RunCell, RunsListResponse (+71 more)
+Cohesion: 0.08
+Nodes (17): PlaybackTrack, PlayerCard(), PlayerCardProps, SCRUB_OPACITY, SEEK_CHIP_PCTS, useScrubDebounce(), baseProps, sampleTrack (+9 more)
 
 ### Community 11 - "Playlist/Bucket Track Rows"
-Cohesion: 0.05
-Nodes (90): Any, _extract_api_request_id(), _extract_correlation_id(), _extract_route_key(), _iso(), _json_response(), _load_api_settings(), _parse_date_param() (+82 more)
+Cohesion: 0.08
+Nodes (49): _extract_api_request_id(), _iso(), _json_response(), _load_api_settings(), _parse_date_param(), _parse_iso_date_field(), _parse_json_body(), Event parsing and JSON responses shared by the collector-API routes. (+41 more)
 
 ### Community 12 - "Spotify Backend Client"
-Cohesion: 0.17
-Nodes (13): ImportSpotifyModal(), ImportSpotifyModalProps, RefValidation, validateRefs(), ImportSpotifyPlaylistModal(), ImportSpotifyPlaylistModalProps, ImportSpotifyPlaylistInput, useImportSpotifyPlaylist() (+5 more)
+Cohesion: 0.02
+Nodes (136): api(), ApiInit, notifyAuthFailure(), RefreshResponse, tryRefreshOnce(), AddToPlaylistSubmenu(), AddToPlaylistSubmenuProps, CopyPlaylistButton() (+128 more)
 
 ### Community 13 - "Admin Artist API Types"
-Cohesion: 0.16
-Nodes (22): _as_key(), _as_non_empty_str(), normalize_tracks(), Extract (key_name, key_camelot) from a Beatport item's `key` object.      key_na, _counts(), _fingerprint(), Dry run on a real Postgres: writes nothing, predicts what apply does., _second_week() (+14 more)
+Cohesion: 0.09
+Nodes (22): _invoke_auto_ingest(), Asynchronous: replan after a save, or a manual run., AppError, Base typed error used to map to API responses., UserTokenMissingError, VendorAuthError, VendorQuotaError, VendorUnavailableError (+14 more)
 
 ### Community 14 - "Enrichment Data Models"
-Cohesion: 0.15
-Nodes (16): Retry decorator for RDS Data API client methods.      Retries only on transient, Retry decorator for RDS Data API calls where the operation must     not be re-ex, _retry(), retry_data_api(), retry_data_api_pre_execution(), F, Tests for Data API retry wrapper., commit/rollback should not retry on post-execution codes. (+8 more)
+Cohesion: 0.12
+Nodes (20): Thin wrapper over AWS RDS Data API., Consecutive groups whose JSON size stays within `budget`; an item larger     tha, Retry wrapper for RDS Data API transient errors.  Aurora Serverless v2 with min_, Retry decorator for RDS Data API client methods.      Retries only on transient, Retry decorator for RDS Data API calls where the operation must     not be re-ex, _retry(), retry_data_api(), retry_data_api_pre_execution() (+12 more)
 
 ### Community 15 - "Categories/Triage Repository"
-Cohesion: 0.12
-Nodes (25): _utc_now(), datetime, _utc_now(), _utc_now(), as_utc_datetime(), A timestamp from the Data API ('YYYY-MM-DD HH:MM:SS[.fff]', UTC) or the     driv, _local(), main() (+17 more)
+Cohesion: 0.09
+Nodes (30): _utc_now(), datetime, Hide/show a style in the catalog and the coverage matrix. Returns         False, as_utc_datetime(), A timestamp from the Data API ('YYYY-MM-DD HH:MM:SS[.fff]', UTC) or the     driv, UpdateSpotifyResultCmd, Spotify search state: claims, results, not-found tracks, vendor bans., Read-only peek used to decide whether a follow-up batch is needed.          Must (+22 more)
 
 ### Community 16 - "Frontend Auth Provider"
-Cohesion: 0.03
-Nodes (83): _auto_ingest_repository(), create_default_sqs_client(), _invoke_auto_ingest(), Collaborators of the collector-API routes.  Route modules call these through the, Asynchronous: replan after a save, or a manual run., _build_auto_repository(), AutoEnrichRepository, _build_clients() (+75 more)
+Cohesion: 0.07
+Nodes (78): Any, _extract_correlation_id(), _extract_route_key(), _parse_pagination_params(), _require_admin(), _handle_get_styles(), _handle_list(), _handle_put_my_styles() (+70 more)
 
 ### Community 17 - "Frontend API Errors & Types"
 Cohesion: 0.02
-Nodes (73): tokenStore, BLOCK, TRACK, ANALYTICS_DEFAULTS, handlers, PLAYLIST_DEFAULTS, server, testTheme (+65 more)
+Nodes (73): tokenStore, ForceToggle(), ForceToggleProps, categoryTracksKey(), ANALYTICS_DEFAULTS, handlers, PLAYLIST_DEFAULTS, server (+65 more)
 
 ### Community 18 - "Vendor Stubs (Apple/Deezer)"
 Cohesion: 0.08
 Nodes (55): evaluate(), export_gold(), Read-only Spotify matching gold set and its evaluation (offline).  The worker st, Labels: True = a correct match, or truly absent from Spotify; False = wrong, or, render_report(), Spotify gold-set export on real Postgres: stratified by how the match was made,, test_export_samples_each_match_tier_and_the_misses(), _track() (+47 more)
 
 ### Community 19 - "Backend Error Hierarchy"
-Cohesion: 0.07
-Nodes (26): ArtistEnrichmentRepository, Resolve {artist_id: name} for many ids in chunked set-based queries., Return decoded merged ArtistInfo for a user-facing detail page.          When `c, Admin runs list, sorted by created_at DESC., Per-cell breakdown for a run. Joined with clouder_artists for artist_name., Per-artist enrichment history., Admin artist list with optional status filter.          `status` accepts: `none`, FakeDataAPI (+18 more)
+Cohesion: 0.06
+Nodes (27): ArtistEnrichmentRepository, _normalize_name(), Resolve {artist_id: name} for many ids in chunked set-based queries., Return decoded merged ArtistInfo for a user-facing detail page.          When `c, Admin runs list, sorted by created_at DESC., Per-cell breakdown for a run. Joined with clouder_artists for artist_name., Per-artist enrichment history., Admin artist list with optional status filter.          `status` accepts: `none` (+19 more)
 
 ### Community 20 - "Admin Label API Types"
 Cohesion: 0.25
 Nodes (22): lambda_handler(), _admin_event(), Tests that collector handler dispatches all artist route_keys to the correct han, A non-admin request to an admin artist route gets a 403., Return a stub callable that returns a sentinel (200, {"h": name})., history route must be dispatched (not shadowed by bare {artist_id})., _stub(), test_admin_artist_routes_require_admin() (+14 more)
 
 ### Community 21 - "Label Auto-Dispatch Worker"
-Cohesion: 0.05
-Nodes (16): LabelEnrichmentRepository, _normalize_label(), Atomically bump counters and flip to 'completed' once cells_total is reached., Resolve {label_id: name} for many ids in chunked set-based queries., Most common style per label, in one chunked query. Absent => no tracks., User-facing label list with page-based pagination.          Includes a LEFT JOIN, Admin label list with optional status filter.          `status` accepts: `none`,, Admin runs list, sorted by created_at DESC. (+8 more)
+Cohesion: 0.06
+Nodes (29): LabelEnrichmentRepository, Atomically bump counters and flip to 'completed' once cells_total is reached., Resolve {label_id: name} for many ids in chunked set-based queries., Most common style per label, in one chunked query. Absent => no tracks., User-facing label list with page-based pagination.          Includes a LEFT JOIN, Admin label list with optional status filter.          `status` accepts: `none`,, Admin runs list, sorted by created_at DESC., Per-cell breakdown for a run. Joined with clouder_labels for label_name. (+21 more)
 
 ### Community 22 - "Auth Handler & Settings"
 Cohesion: 0.11
 Nodes (19): FakeDataApi, FakeTxDataApi, UserStylesRepository: per-user style selection reads., FakeDataApi plus a transaction() context manager., Minimal stub: records (sql, params) per call, returns scripted rows., test_count_selection_counts_pref_rows_only(), test_count_selection_ignores_hidden_styles(), test_list_all_keeps_created_at_desc_order() (+11 more)
+
+### Community 23 - "Storage & Ingest Schemas"
+Cohesion: 0.08
+Nodes (10): ArtistsListResponse, LabelsListResponse, DemoDb, found(), newId(), NOW(), DemoBlock, DemoCategory (+2 more)
 
 ### Community 24 - "Playlists Repository"
 Cohesion: 0.17
 Nodes (11): CreateTriageBlockDialog(), CreateTriageBlockDialogProps, useCreateTriageBlock(), isoWeekOf(), CreateTriageBlockInput, createTriageBlockSchema, triageDateInput, triageDateRangeSchema (+3 more)
 
 ### Community 25 - "Artist Auto-Dispatch Worker"
-Cohesion: 0.10
-Nodes (13): ActiveBlocksList(), ActiveBlocksListProps, CountersGrid(), CountersGridProps, HomeSkeleton(), NoStylesEmpty(), ResumeHero(), ResumeHeroProps (+5 more)
+Cohesion: 0.21
+Nodes (5): EndOfQueue(), EndOfQueueProps, nextSuggestedBucket(), PRIORITY, pauseMock
 
 ### Community 26 - "Admin Backlog UI"
-Cohesion: 0.19
-Nodes (10): BeatportClient, is_retryable_status(), Beatport API client with pagination and retry semantics., _url_hash(), UpstreamAuthError, UpstreamUnavailableError, BeatportProvider — IngestProvider adapter over BeatportClient., test_fetch_weekly_releases_rejects_malformed_next_link() (+2 more)
+Cohesion: 0.12
+Nodes (15): BeatportClient, is_retryable_status(), Beatport API client with pagination and retry semantics., _url_hash(), UpstreamAuthError, UpstreamUnavailableError, BeatportProvider, BeatportProvider — IngestProvider adapter over BeatportClient. (+7 more)
 
 ### Community 27 - "Enrichment Aggregator"
 Cohesion: 0.09
@@ -747,16 +743,16 @@ Cohesion: 0.25
 Nodes (8): 2026-09-20 — API code shipped before its migration, Detection gap, Fix, Follow-ups, Impact, Root cause, Summary, Timeline (UTC+4)
 
 ### Community 29 - "Provider Protocols"
-Cohesion: 0.03
-Nodes (90): api(), ApiInit, notifyAuthFailure(), RefreshResponse, tryRefreshOnce(), ApiError, AddTracksModal(), AddTracksModalProps (+82 more)
+Cohesion: 0.05
+Nodes (51): AddTracksModal(), AddTracksModalProps, CategoriesList(), CategoriesListProps, CategoryDetailHeader(), CategoryDetailHeaderProps, CategoryFormDialog(), CategoryFormDialogProps (+43 more)
 
 ### Community 30 - "Auto-Enrich Repository"
-Cohesion: 0.07
-Nodes (18): AuthRepository, _b64d(), _b64d_optional(), _b64e(), Aurora Data API repository for users / sessions / vendor tokens.  Bytea columns, SessionRow, _to_session_row(), _to_user_row() (+10 more)
+Cohesion: 0.06
+Nodes (30): AuthRepository, _b64d(), _b64d_optional(), _b64e(), Aurora Data API repository for users / sessions / vendor tokens.  Bytea columns, SessionRow, _to_session_row(), _to_user_row() (+22 more)
 
 ### Community 31 - "Enrichment Orchestrator"
-Cohesion: 0.04
-Nodes (74): UpsertVendorTokenCmd, AuthSettings, get_auth_settings(), _parse_csv(), Auth Lambda settings + secret resolution., resolve_jwt_signing_key(), resolve_oauth_client_credentials(), resolve_ytmusic_oauth_credentials() (+66 more)
+Cohesion: 0.11
+Nodes (44): UpsertVendorTokenCmd, AuthSettings, get_auth_settings(), _parse_csv(), Auth Lambda settings + secret resolution., resolve_jwt_signing_key(), resolve_oauth_client_credentials(), resolve_ytmusic_oauth_credentials() (+36 more)
 
 ### Community 32 - "Community 32"
 Cohesion: 0.12
@@ -764,27 +760,27 @@ Nodes (16): API, Backend, Data model, Decisions, Edge cases, Frontend, `GET /sty
 
 ### Community 34 - "Community 34"
 Cohesion: 0.03
-Nodes (68): AddToPlaylistSubmenu(), AddToPlaylistSubmenuProps, CategoryPlayerPanel(), CategoryPlayerPanelProps, HOTKEY_LABELS, PlayerPanelPlaylistCloud(), PlayerPanelPlaylistCloudProps, PlayerPanelTagCloud() (+60 more)
+Nodes (85): ArtistsPanel(), PanelArtist, Props, CategoryPlayerPanel(), CategoryPlayerPanelProps, CommentsPanel(), Props, HOTKEY_LABELS (+77 more)
 
 ### Community 35 - "Community 35"
 Cohesion: 0.04
-Nodes (61): AppleExporter, Apple export stub — raises VendorDisabledError until implemented., AppleLookup, Apple lookup stub — raises VendorDisabledError until implemented., Raised when a registry lookup cannot be served. The .reason attribute     discri, VendorDisabledError, get_spotify_worker_settings(), DeezerExporter (+53 more)
+Nodes (74): AppleExporter, Apple export stub — raises VendorDisabledError until implemented., AppleLookup, Apple lookup stub — raises VendorDisabledError until implemented., Application-level errors for the collector Lambda., Raised when a registry lookup cannot be served. The .reason attribute     discri, VendorDisabledError, Pydantic schemas for external input boundaries. (+66 more)
 
 ### Community 36 - "Community 36"
 Cohesion: 0.13
 Nodes (25): _make_grounding_chunk(), _mock_response(), Tests for GeminiFlashAdapter using injected fake clients., 503 UNAVAILABLE errors are retried with exponential backoff., Quota errors are retried; success on the third attempt counts as ok., When grounding_metadata has no URLs, copy parsed.sources into citations., test_run_bad_json(), test_run_exception_path() (+17 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.25
-Nodes (20): Each data-quality check's SQL against a real Postgres., _run(), _style(), test_bpm_and_length_out_of_range(), test_isrc_coverage_ignores_user_imports(), test_isrc_coverage_pct(), test_orphan_identities_and_artists_without_identity(), test_review_backlog_days() (+12 more)
+Cohesion: 0.06
+Nodes (53): ClientError, Check, check_by_name(), CheckResult, expected_week_end(), _passes(), Nightly data-quality checks (docs/data/data-quality.md).  Each check is one read, End (Friday) of the latest Saturday-week that should already be ingested. (+45 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.08
-Nodes (27): YTMusicLookup is implemented (not a stub): no ISRC search on YT Music., test_ytmusic_lookup_by_isrc_returns_none_not_stub(), FakeYT, test_isrc_lookup_always_none(), test_metadata_falls_back_to_videos_when_songs_empty(), test_metadata_skips_results_without_video_id(), test_metadata_uses_songs_pass_first(), test_build_query_joins_and_collapses_whitespace() (+19 more)
+Cohesion: 0.11
+Nodes (18): FakeYT, test_isrc_lookup_always_none(), test_metadata_falls_back_to_videos_when_songs_empty(), test_metadata_skips_results_without_video_id(), test_metadata_uses_songs_pass_first(), test_build_query_joins_and_collapses_whitespace(), test_result_to_ref_handles_missing_album_and_duration(), test_result_to_ref_maps_song_fields_and_strips_topic() (+10 more)
 
 ### Community 39 - "Community 39"
-Cohesion: 0.11
-Nodes (32): _from_field(), _to_field(), _to_parameter(), _to_rows(), Tests for DataAPIClient and its parameter/field encoding., test_datetime_is_serialized_for_rds_data_api_timestamp(), test_from_field_blob(), test_from_field_boolean() (+24 more)
+Cohesion: 0.05
+Nodes (44): DataAPIClient, _from_field(), Send parameter sets in requests that stay under the Data API's body         limi, _to_field(), _to_parameter(), _to_rows(), Exposed for collaborators that need read access to other tables         from ins, FakeRdsDataClient (+36 more)
 
 ### Community 40 - "Community 40"
 Cohesion: 0.11
@@ -811,8 +807,8 @@ Cohesion: 0.06
 Nodes (34): [0.1.0] — 2026-03-14, [1.0.0] — 2026-05-31, [1.1.0] — 2026-07-02, [2.0.0] — 2026-10-08, [2.1.0] — 2026-10-11, Build and CI, Build and CI, Build and CI (+26 more)
 
 ### Community 46 - "Community 46"
-Cohesion: 0.15
-Nodes (3): ApiViewsMixin, Hide/show a style in the catalog and the coverage matrix. Returns         False, Distinct tracks per curation stage, dated by when the work happened.          Bl
+Cohesion: 0.05
+Nodes (31): mutateAsync, { removeAsync }, TRACK, TrackRowActions(), AddTrackToCategoryInput, useAddTrackToCategory(), BLOCK, TRACK (+23 more)
 
 ### Community 47 - "Community 47"
 Cohesion: 0.09
@@ -820,7 +816,7 @@ Nodes (39): ReviewRow, YtmusicStatus, Move only out-of-place items so YouTube or
 
 ### Community 48 - "Community 48"
 Cohesion: 0.11
-Nodes (20): Spotify asked us to wait longer than a Lambda can (429 + long Retry-After)., SpotifyAuthError, SpotifyRateLimitedError, SpotifyUnavailableError, Spotify Web API client with Client Credentials auth and retry semantics., Map each Spotify track id to its ordered artist names (batched)., Spotify text search fallback when ISRC lookup returned no items.          Builds, Try ISRCs that differ from the query by ±1, ±2 in the last digit.          Sibli (+12 more)
+Nodes (18): Spotify asked us to wait longer than a Lambda can (429 + long Retry-After)., SpotifyAuthError, SpotifyRateLimitedError, SpotifyUnavailableError, Spotify Web API client with Client Credentials auth and retry semantics., Map each Spotify track id to its ordered artist names (batched)., Spotify text search fallback when ISRC lookup returned no items.          Builds, Try ISRCs that differ from the query by ±1, ±2 in the last digit.          Sibli (+10 more)
 
 ### Community 49 - "Community 49"
 Cohesion: 0.09
@@ -831,48 +827,48 @@ Cohesion: 0.09
 Nodes (53): _make(), _now(), Same track_id twice with different source_triage_block_id must not     abort the, source_triage_block_id round-trips correctly on newly-added path     (used by sp, LEFT JOIN with no matching artists yields artists_json='[]' → []., Track with no album → label is None., _stock_track_row(), test_add_track_returns_added_when_newly_inserted() (+45 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.13
-Nodes (22): SpotifyArtistRef, SpotifyPlaylistRef, SpotifyTrackPayload, SpotifyUserClient, _track_payload(), _client(), HTTP-shaped unit tests for the user-OAuth Spotify Web API client.  `requests` is, _Resp (+14 more)
+Cohesion: 0.25
+Nodes (17): _client(), HTTP-shaped unit tests for the user-OAuth Spotify Web API client.  `requests` is, _Resp, test_401_propagates_as_not_authorized(), test_403_insufficient_scope_propagates(), test_404_propagates_as_not_found(), test_429_persistent_raises_rate_limited(), test_429_with_retry_after_retries_then_succeeds() (+9 more)
 
 ### Community 52 - "Community 52"
 Cohesion: 0.13
 Nodes (14): Deployment (manual, after review), File Structure, Global Constraints, Per-user style selection — Implementation Plan, Task 10: Browser test for reorder + full gate run, Task 1: Migration + ORM model, Task 2: Repository reads, Task 3: Repository write — `replace_selection` (+6 more)
 
 ### Community 53 - "Community 53"
-Cohesion: 0.18
-Nodes (9): export_catalog(), _ndjson(), _empty_tables(), FakeDataAPI, FakeS3, Mimics DataAPIClient.execute with offset paging over canned rows., test_empty_table_writes_no_object(), test_ndjson_serializes_dates_via_default_str() (+1 more)
+Cohesion: 0.16
+Nodes (11): export_catalog(), lambda_handler(), _ndjson(), Daily Aurora catalog snapshot to the analytics lake (bronze/catalog_export/).  R, _empty_tables(), FakeDataAPI, FakeS3, Mimics DataAPIClient.execute with offset paging over canned rows. (+3 more)
 
 ### Community 54 - "Community 54"
 Cohesion: 0.13
-Nodes (28): Dry-run view: the reads a run needs pass through, every other call is     droppe, _ReadOnlyRepository, CanonicalizationResult, CollectRequest, EntityType, normalize_text(), NormalizedAlbum, NormalizedArtist (+20 more)
+Nodes (28): normalize_text(), _as_date_str(), _as_key(), _as_list(), _as_non_empty_str(), _as_positive_int(), _dedupe_relations(), normalize_tracks() (+20 more)
 
 ### Community 55 - "Community 55"
-Cohesion: 0.09
-Nodes (32): ArtistEnrichmentWorkerSettings, CommentCollectionWorkerSettings, DataApiSettings, _fetch_secret_string(), get_comment_collection_worker_settings(), get_label_enrichment_worker_settings(), get_logging_settings(), get_vendor_match_settings() (+24 more)
+Cohesion: 0.07
+Nodes (38): _build_alembic_database_url(), lambda_handler(), Lambda handler that executes Alembic migrations against Aurora., _rds_client(), _read_secret(), MigrationCommand, ArtistEnrichmentWorkerSettings, CommentCollectionWorkerSettings (+30 more)
 
 ### Community 56 - "Community 56"
 Cohesion: 0.32
 Nodes (11): _ctx(), _event(), FakeRepo, Integration tests for GET /v1/analytics/funnel (personal; admins may pick a user, reset_caches(), test_funnel_admin_reads_any_user(), test_funnel_non_admin_cannot_read_another_user(), test_funnel_non_admin_reads_own() (+3 more)
 
 ### Community 57 - "Community 57"
-Cohesion: 0.57
-Nodes (6): _fake_repo(), _make_event(), Handler parses ?fresh=1/0 and threads it into repo.list_tracks., test_handler_fresh_0_passes_false(), test_handler_fresh_1_passes_true(), test_handler_fresh_absent_passes_false()
+Cohesion: 0.44
+Nodes (8): InvalidMatchError, _handle_list_tracks(), _fake_repo(), _make_event(), Handler parses ?fresh=1/0 and threads it into repo.list_tracks., test_handler_fresh_0_passes_false(), test_handler_fresh_1_passes_true(), test_handler_fresh_absent_passes_false()
 
 ### Community 58 - "Community 58"
 Cohesion: 0.24
 Nodes (13): GET /styles — personal list, catalog scope, fallbacks., test_get_styles_rejects_unknown_scope(), test_get_styles_rejects_unknown_scope_without_db(), test_get_styles_scope_all_returns_catalog_with_flags(), test_get_styles_with_selection_returns_personal_list(), test_get_styles_without_db_returns_503(), test_get_styles_without_selection_falls_back_to_catalog(), test_get_styles_without_user_returns_401() (+5 more)
 
 ### Community 59 - "Community 59"
-Cohesion: 0.09
-Nodes (39): CommentsRepository, Track ids promoted into the user's categories by finalizing this block., Insert/refresh a pending collection. Returns the collection id, or         None, _coll_row(), _comment_row(), FakeDataAPI, Returns canned rows by SQL substring; records calls; fakes a transaction., DELETE, batch INSERT, and UPDATE must all run under the same transaction. (+31 more)
+Cohesion: 0.10
+Nodes (38): CommentsRepository, Track ids promoted into the user's categories by finalizing this block., Insert/refresh a pending collection. Returns the collection id, or         None, _coll_row(), _comment_row(), FakeDataAPI, Returns canned rows by SQL substring; records calls; fakes a transaction., DELETE, batch INSERT, and UPDATE must all run under the same transaction. (+30 more)
 
 ### Community 60 - "Community 60"
 Cohesion: 0.10
-Nodes (28): _date(), _iso(), lambda_handler(), plan(), Task Lambda behind the backfill state machine (docs/ops/backfill.md).  Replays s, replay(), _repository(), _required_utc() (+20 more)
+Nodes (32): _function_arn(), plan(), _date(), _iso(), lambda_handler(), plan(), Task Lambda behind the backfill state machine (docs/ops/backfill.md).  Replays s, replay() (+24 more)
 
 ### Community 61 - "Community 61"
-Cohesion: 0.06
-Nodes (56): BucketTrackRowOut, Aurora Data API repository for spec-D triage., Row returned by GET /triage/blocks/{id}/buckets/{bucket_id}/tracks., TriageBlockRow, TriageBlockSummaryRow, TriageRepository, date_type, _event() (+48 more)
+Cohesion: 0.09
+Nodes (44): TriageBlockSummaryRow, TriageRepository, _api_with_responses(), _create_block_responses(), _FakeTx, Unit tests for TriageRepository (mocked Data API)., Spot-check the classify INSERT-FROM-SELECT statement., Spot-check the disliked-label branch and old_offset_weeks calculation. (+36 more)
 
 ### Community 62 - "Community 62"
 Cohesion: 0.11
@@ -883,28 +879,28 @@ Cohesion: 0.27
 Nodes (15): _ctx(), _event(), FakeRepo, FakeSqs, _install(), Integration tests for POST /admin/spotify/retry-not-found., reset_caches(), test_retry_db_not_configured_503() (+7 more)
 
 ### Community 64 - "Community 64"
-Cohesion: 0.22
-Nodes (14): SocialsResult, _ArtistStubAdapter, FakeSocialsResolver, _label_adapter(), Socials post-pass integration: label + artist enrichment orchestrators.  Covers, updates exist (e.g. only twitter found) but instagram_tier is None ->     proven, Records calls; returns a preset SocialsResult., _run_label_enrich() (+6 more)
+Cohesion: 0.07
+Nodes (23): ArtistContext, Disambiguation context from the artist's tracks: dominant style,         up to 3, SocialsResult, FakeAutoRepo, FakeRepo, test_handler_enriches_one_artist(), FakeMergeClient, FakeRepo (+15 more)
 
 ### Community 65 - "Community 65"
-Cohesion: 0.14
-Nodes (7): FinalizeResult, MoveResult, TransferResult, TriageBucketRow, fake_triage_repo(), FakeTriageRepo, In-memory TriageRepository for handler-level integration tests.
+Cohesion: 0.08
+Nodes (12): CsrfStateMismatchError, PremiumRequiredError, RefreshReplayDetectedError, SpotifyRevokedError, test_admin_required_is_403(), test_cannot_revoke_current_is_400(), test_csrf_state_mismatch_is_400(), test_oauth_exchange_failed_is_502() (+4 more)
 
 ### Community 66 - "Community 66"
 Cohesion: 0.14
 Nodes (45): _event(), spec-D will reuse add_tracks_bulk inside its triage finalize TX., _read(), test_add_track_200_already_present(), test_add_track_201(), test_add_track_404_track_missing(), test_create_category_201(), test_create_category_404_style() (+37 more)
 
 ### Community 67 - "Community 67"
-Cohesion: 0.16
-Nodes (16): _repo(), test_attach_run_updates_last_run_id(), test_claim_empty_input_is_noop(), test_claim_inserts_brand_new_label(), test_claim_reclaims_stale_queued_via_update(), test_claim_retries_failed_label_via_update(), test_claim_skips_when_neither_update_nor_insert_match(), test_get_config_parses_jsonb_strings() (+8 more)
+Cohesion: 0.20
+Nodes (10): iconForDeviceType(), SpotifyDevice, SpotifyDeviceType, DeviceIndicator(), DeviceIndicatorProps, DeviceList(), DeviceListProps, DeviceRow() (+2 more)
 
 ### Community 68 - "Community 68"
-Cohesion: 0.02
-Nodes (126): BucketBadge(), BucketBadgeProps, BucketCard(), BucketCardMode, BucketCardProps, BucketDistributeButtons(), BucketDistributeButtonsProps, BucketGrid() (+118 more)
+Cohesion: 0.20
+Nodes (10): DestinationGrid(), DestinationGridProps, activeStaging(), byDiscard(), byPosition(), byTechType(), resolveStagingHotkeys(), stagingOverflow() (+2 more)
 
 ### Community 69 - "Community 69"
-Cohesion: 0.07
-Nodes (26): AutoIngestSettingsIn, CanonicalizationMessage, Pydantic schemas for external input boundaries., PUT /admin/auto-ingest (docs/data/auto-ingest.md)., SpotifySearchMessage, VendorMatchMessage, _enqueue_follow_up_if_needed(), _enqueue_resume() (+18 more)
+Cohesion: 0.06
+Nodes (33): AbstractContextManager, Dry-run view: the reads a run needs pass through, every other call is     droppe, _ReadOnlyRepository, The planner replays the run behind each raw object — the latest one written to i, _run(), test_list_replayable_runs_orders_by_observation_time(), test_list_replayable_runs_picks_latest_run_per_raw_object(), _identity() (+25 more)
 
 ### Community 70 - "Community 70"
 Cohesion: 0.08
@@ -922,77 +918,73 @@ Nodes (30): _ok_vendor_response(), Regression: Data API returns JSONB columns as
 Cohesion: 0.27
 Nodes (8): _extract_json(), GeminiFlashAdapter, _lat(), _parse_retry_delay(), Google Gemini 2.5 Flash adapter via the google-genai SDK., Strip markdown fences and return the first balanced JSON object substring., _schema_hint(), _zero_usage()
 
-### Community 74 - "Community 74"
-Cohesion: 0.18
-Nodes (17): Check, check_by_name(), CheckResult, expected_week_end(), _passes(), Nightly data-quality checks (docs/data/data-quality.md).  Each check is one read, End (Friday) of the latest Saturday-week that should already be ingested., run_checks() (+9 more)
-
 ### Community 75 - "Community 75"
 Cohesion: 0.17
 Nodes (40): lambda_handler(), _event(), Unit tests for `collector.curation_handler` track-tag routes (spec 2026-05-11)., remove is idempotent — 204 even when no row was deleted., _read(), _stock_tag_row(), test_create_tag_400_invalid_color(), test_create_tag_400_invalid_name_empty() (+32 more)
 
 ### Community 76 - "Community 76"
-Cohesion: 0.12
-Nodes (19): EnvelopePayload, _b64d(), _b64e(), _OAuthClientLike, _parse_expires_at(), Read + KMS-decrypt + refresh the user's YouTube Music OAuth token.  Storage shap, ResolvedYtmusicToken, YtmusicTokenResolver (+11 more)
+Cohesion: 0.08
+Nodes (27): EnvelopePayload, KmsEnvelope, KMS envelope encryption with AES-GCM and a 5-min in-memory data-key cache., Wraps KMS GenerateDataKey/Decrypt with AES-GCM and a small TTL cache., _b64d(), _b64e(), _OAuthClientLike, _parse_expires_at() (+19 more)
 
 ### Community 77 - "Community 77"
 Cohesion: 0.14
 Nodes (21): Gold-set extraction against a real Postgres., The export must rebuild exactly the input the vendor-match worker scored., _seed(), test_auto_population_counts_fuzzy_matches(), test_auto_sample_returns_fuzzy_matches_with_query_fields(), test_duplicate_artists_counts_name_groups(), test_gold_query_fields_match_vendor_match_inputs(), test_review_accepts_keeps_latest_resolution_per_track() (+13 more)
 
 ### Community 78 - "Community 78"
-Cohesion: 0.13
-Nodes (17): Counter, _build_narrative_prompt(), _filter_parseable(), _highest_confidence_cell(), merge_cells(), _merge_deterministic(), _merge_narrative(), _rank_list_round_robin() (+9 more)
+Cohesion: 0.26
+Nodes (8): ColorSwatchPicker(), ColorSwatchPickerProps, isPaletteColor(), NEUTRAL_SOFT, pickPillTextColor(), softTagColors, TAG_PALETTE, TagPaletteColor
 
 ### Community 79 - "Community 79"
 Cohesion: 0.20
 Nodes (9): Analytics v2 — Rollup Runner + Serving Implementation Plan (Plan 3 of 4), File Structure, Key mechanics, Self-Review, Task 1: Extend `sessions_sql` with `ts_start` / `ts_end` + ordered column lists, Task 2: The scheduled rollup runner, Task 3: Rewrite the serving handler for the per-user daily dashboard, Task 4: Route registration (openapi) + infra (routes, rollup Lambda, schedule) (+1 more)
 
 ### Community 80 - "Community 80"
-Cohesion: 0.36
-Nodes (7): retry_vendor decorator tests (Plan 4 Task 3)., test_no_retry_on_auth_error(), test_raises_after_exhausting_retries(), test_retry_honours_quota_retry_after(), test_retry_on_unavailable_succeeds(), Retry on VendorUnavailableError / VendorQuotaError with full jitter.      Vendor, retry_vendor()
+Cohesion: 0.11
+Nodes (12): PlanningState, Ctx, FakeRepo, _resuming_once(), test_a_rejected_token_stops_the_run_without_blaming_the_pairs(), test_failed_period_is_recorded_and_the_run_continues(), test_handler_waits_for_a_paused_aurora(), test_login_failure_is_reported_and_releases_the_lease() (+4 more)
 
 ### Community 81 - "Community 81"
-Cohesion: 0.05
-Nodes (44): 10. Acceptance Criteria, 11. References, 1. Context and Goal, 2. Scope, 3. Architectural Decisions, 4.1 `categories`, 4.2 `category_tracks`, 4.3 Rationale notes (+36 more)
+Cohesion: 0.06
+Nodes (33): 10. Acceptance Criteria, 11. References, 1. Context and Goal, 2. Scope, 3. Architectural Decisions, 4.1 `categories`, 4.2 `category_tracks`, 4.3 Rationale notes (+25 more)
 
 ### Community 82 - "Community 82"
-Cohesion: 0.16
-Nodes (15): LabelsListResponse, EntityTabs(), Props, LibraryFilters(), Props, StyleOption, labelsListKey(), LabelsListMy (+7 more)
+Cohesion: 0.14
+Nodes (11): MoveToMenu(), MoveToMenuProps, moveDestinationsFor(), TECHNICAL_TYPES, TechnicalBucketType, buckets, staging, stagingInactive (+3 more)
 
 ### Community 83 - "Community 83"
 Cohesion: 0.12
-Nodes (32): _event(), _fake_block_row(), _fake_bucket_track_row(), _fake_summary_row(), Unit tests for `collector.curation_handler` (spec-D triage routes).  The spec-C, Pad a short tag to a 36-char UUID-shaped string for schema validation., _read(), test_create_triage_block_invokes_repo() (+24 more)
+Nodes (28): _event(), _fake_bucket_track_row(), _fake_summary_row(), Unit tests for `collector.curation_handler` (spec-D triage routes).  The spec-C, Pad a short tag to a 36-char UUID-shaped string for schema validation., _read(), test_create_triage_block_returns_503_when_db_not_configured(), test_create_triage_block_validation_error_on_bad_dates() (+20 more)
 
 ### Community 84 - "Community 84"
 Cohesion: 0.08
 Nodes (26): After this lands, Architecture, Authenticated request, Backend / infra coordination, Bootstrap (page load), CI, Data flow, Decisions log (from brainstorming) (+18 more)
 
 ### Community 85 - "Community 85"
-Cohesion: 0.05
-Nodes (41): CurateSetupPage(), CurateSetupPageProps, CurateSkeleton(), TransferBlockOption(), TransferBlockOptionProps, TransferModal(), TriageBlockRow(), TriageBlockRowProps (+33 more)
+Cohesion: 0.02
+Nodes (125): ApiError, BucketGrid(), BucketPlayerPanel(), BucketPlayerPanelProps, BucketTrackRowProps, BucketTracksList(), BucketTracksListProps, CurateSetupPage() (+117 more)
 
 ### Community 86 - "Community 86"
-Cohesion: 0.06
-Nodes (37): CategoriesRepository, CategoryRow, create_default_categories_repository(), Aurora Data API repository for spec-C categories.  Tenancy: every method takes `, Insert (track, source_triage_block_id) pairs idempotently.          Used by both, Add one track to a category. Idempotent on (category_id, track_id).          Ret, TrackInCategoryRow, Ensure the requested id list equals the actual alive set, no dups.      Used by (+29 more)
+Cohesion: 0.10
+Nodes (27): CategoriesRepository, CategoryRow, Aurora Data API repository for spec-C categories.  Tenancy: every method takes `, Insert (track, source_triage_block_id) pairs idempotently.          Used by both, Add one track to a category. Idempotent on (category_id, track_id).          Ret, TrackInCategoryRow, Pure helpers for spec-C categories: normalization, validation, reorder checks., Ensure the requested id list equals the actual alive set, no dups.      Used by (+19 more)
 
 ### Community 87 - "Community 87"
 Cohesion: 0.15
 Nodes (17): apply_schedule(), _fixed(), plan_times(), _random(), When auto-ingest runs (docs/data/auto-ingest.md).  The planner runs daily at 00:, The planner's next run after `now` (UTC)., Replace the pending one-time run schedules in `group` with `times`., window_end() (+9 more)
 
 ### Community 88 - "Community 88"
-Cohesion: 0.10
-Nodes (16): AutoEnrichConfigIn, PUT body schema for auto-enrichment config., PUT /admin/auto-enrich/artists body.      When `enabled` is False the model/prom, AutoEnrichRepository, _parse_json_col(), Aurora Data API persistence for auto-enrichment config + artist claim state., Stamp last_run_id on the given state rows.          Intended to be called with t, Worker touch: flip a queued auto-state row to completed/failed.          No-op f (+8 more)
+Cohesion: 0.15
+Nodes (8): _handle_admin_runs(), AutoIngestRepository, _iso(), _json(), Auto-ingest settings, run lease, attempts and planning state (docs/data/auto-ing, Pairs whose last three attempts of the past week all failed and that no run has, repo(), test_process_one_records_no_match_when_no_candidates()
 
 ### Community 89 - "Community 89"
-Cohesion: 0.05
-Nodes (40): 10.10 Anti-patterns from old code worth NOT repeating, 10.1 Spotify API integration, 10.2 Raw-layer block creation (most subtle flow in the OLD product), 10.3 ISRC enrichment match logic, 10.4 Release-playlist import (Spotify → local), 10.5 Auth + token storage, 10.6 Frontend token-refresh details (worth re-using when frontend ships), 10.7 Background processing (+32 more)
+Cohesion: 0.07
+Nodes (29): 1. Context and Goal, 2. Scope, 3.1 Old version (clouder_dj_old), 3.2 New version (clouder-core), 3.3 Functional delta, 3. Architectural Diff, 4.1 Auth & User Model, 4.2 Beatport Ingestion (+21 more)
 
 ### Community 90 - "Community 90"
 Cohesion: 0.05
 Nodes (39): 10. i18n Keys, 11.1 Unit (Vitest + Testing Library), 11.2 Integration (Vitest + MSW), 11.3 No E2E, 11.4 Coverage, 11. Testing, 12. Delivery, 13.1 Edge cases worth a comment (+31 more)
 
 ### Community 91 - "Community 91"
-Cohesion: 0.08
-Nodes (12): DataAPIClient, Send parameter sets in requests that stay under the Data API's body         limi, Exposed for collaborators that need read access to other tables         from ins, FakeRdsDataClient, test_batch_execute_sends_an_oversized_parameter_set_on_its_own(), test_batch_execute_sends_parameter_sets(), test_batch_execute_skips_empty_parameter_sets(), test_batch_execute_splits_requests_under_the_data_api_size_limit() (+4 more)
+Cohesion: 0.17
+Nodes (9): BucketBadge(), BucketCard(), BucketCardMode, BucketCardProps, BucketGridProps, bucketLabel(), staging, tech (+1 more)
 
 ### Community 92 - "Community 92"
 Cohesion: 0.05
@@ -1039,8 +1031,8 @@ Cohesion: 0.67
 Nodes (3): PromptConfig, Prompt configuration and rendering helpers., render_user()
 
 ### Community 106 - "Community 106"
-Cohesion: 0.18
-Nodes (12): MyStylesSection(), SelectedStyleRow(), SelectedStyleRowProps, SelectedStyleRowView(), ViewProps, allStylesKey, CatalogStyle, PaginatedCatalogStyles (+4 more)
+Cohesion: 0.17
+Nodes (9): BucketBadgeProps, BucketDistributeButtons(), BucketDistributeButtonsProps, FinalizeSummaryRow(), FinalizeSummaryRowProps, UseBucketDistributeArgs, TriageBucket, discard (+1 more)
 
 ### Community 124 - "Community 124"
 Cohesion: 0.40
@@ -1059,8 +1051,8 @@ Cohesion: 0.05
 Nodes (37): 10. i18n Keys, 11.1 Unit (Vitest + Testing Library), 11.2 Integration (Vitest + MSW), 11.3 No E2E, 11.4 Coverage, 11. Testing, 12. Delivery, 13.1 Edge cases worth a comment (+29 more)
 
 ### Community 129 - "Community 129"
-Cohesion: 0.20
-Nodes (18): ContractReport, json_type(), Contract for raw Beatport track records (docs/data/contracts.md).  The contract, Split a run into records to canonicalize and records to quarantine, and     repo, _required_violations(), screen(), _record(), test_a_conforming_run_is_clean() (+10 more)
+Cohesion: 0.19
+Nodes (20): ContractReport, json_type(), Contract for raw Beatport track records (docs/data/contracts.md).  The contract, Split a run into records to canonicalize and records to quarantine, and     repo, Screen one run: quarantine what cannot be canonicalized (unless a dry run)     a, _required_violations(), screen(), screen_run() (+12 more)
 
 ### Community 130 - "Community 130"
 Cohesion: 0.06
@@ -1071,12 +1063,12 @@ Cohesion: 0.06
 Nodes (35): Aggregator, Architecture, Async via SQS, Concurrency, Data model — DDL summary, `GET /admin/labels/enrich-runs/{run_id}`, `GET /admin/labels/{label_id}`, Implementation phasing (+27 more)
 
 ### Community 132 - "Community 132"
-Cohesion: 0.11
-Nodes (24): CollectionRow, CommentRow, Return ALL comments (up to limit_per_track) for many tracks at once.          Re, _event(), FakeCommentsRepo, test_limit_defaults_and_caps(), test_no_collection_returns_pending_envelope(), test_returns_collected_comments() (+16 more)
+Cohesion: 0.18
+Nodes (16): _call(), _event(), FakeCommentsRepo, FakePlaylistsRepo, Unit tests for GET /playlists/{id}/comments handler., Missing 'id' path parameter must raise ValidationError (→ 422 via the router)., If _comments_factory() returns None, respond 503 db_not_configured., For platform != 'youtube', video_url should be None even when collected. (+8 more)
 
 ### Community 133 - "Community 133"
-Cohesion: 0.16
-Nodes (13): ClientError, _client_error(), FakeCloudWatch, Publishing data-quality results and the Lambda entry point., _results(), _resuming(), test_handler_runs_checks_publishes_and_reports(), test_publish_skips_checks_without_value() (+5 more)
+Cohesion: 0.12
+Nodes (16): `apiClient` (`src/api/client.ts`), `ApiError` (`src/api/error.ts`), `AppShellLayout` (`src/routes/_layout.tsx`), `AuthProvider` (`src/auth/AuthProvider.tsx`), `bootstrapPromise` (`src/auth/bootstrap.ts`), Components (in scope for A2), `EmptyState` (`src/components/EmptyState.tsx`), i18n (`src/i18n/`) (+8 more)
 
 ### Community 134 - "Community 134"
 Cohesion: 0.06
@@ -1084,7 +1076,7 @@ Nodes (34): 10. Implementation Order, 11. Open Questions / Follow-ups, 1. Contex
 
 ### Community 135 - "Community 135"
 Cohesion: 0.05
-Nodes (43): _storage(), An S3 failure that can heal on retry: throttling, 5xx, timeouts, network., StorageError, TransientStorageError, create_default_s3_client(), S3 persistence for weekly snapshots., Records a run could not canonicalize, with the contract's reasons         (docs/, Classify an S3 call failure: retryable ones become TransientStorageError. (+35 more)
+Nodes (45): MatchFailedError, An S3 failure that can heal on retry: throttling, 5xx, timeouts, network., Worker-internal non-fatal: trigger review queue routing. Not an AppError., StorageError, TransientStorageError, CanonicalizationMessage, S3 persistence for weekly snapshots., Records a run could not canonicalize, with the contract's reasons         (docs/ (+37 more)
 
 ### Community 136 - "Community 136"
 Cohesion: 0.06
@@ -1095,8 +1087,8 @@ Cohesion: 0.15
 Nodes (33): _bind_tx(), _make(), _now(), test_add_track_tag_idempotent(), test_add_track_tag_raises_when_foreign_tag(), test_add_track_tag_raises_when_track_not_in_category(), test_cleanup_orphaned_track_tags_deletes_when_no_categories(), test_cleanup_orphaned_track_tags_empty_short_circuits() (+25 more)
 
 ### Community 138 - "Community 138"
-Cohesion: 0.14
-Nodes (12): CreateTriageBlockInput, PendingCreateError, STATUSES, TriageBlockDetail, UseCreateOptions, DEFAULT_DELAYS, PendingCreatePayload, PendingPage (+4 more)
+Cohesion: 0.08
+Nodes (23): call(), CallOptions, ensureOk(), PlayArgs, SeekArgs, spotifyApi, TransferArgs, AuthProvider() (+15 more)
 
 ### Community 139 - "Community 139"
 Cohesion: 0.09
@@ -1111,16 +1103,16 @@ Cohesion: 0.06
 Nodes (31): Acceptance Criteria, ADR Set, Audience Map, CLAUDE.md Design, Distribution principle, Documentation Overhaul Design, Files preserved without change, Files removed (+23 more)
 
 ### Community 142 - "Community 142"
-Cohesion: 0.12
-Nodes (24): test_build_report_no_aggregated_section_when_merged_dir_absent(), test_build_report_renders_aggregated_section(), test_build_report_renders_sections(), _write_cell(), _write_manifest(), _write_merged(), Path, main() (+16 more)
+Cohesion: 0.27
+Nodes (12): Regenerate the report from an existing run directory., report(), _aggregated_one(), _aggregated_section(), build_report(), _details_section(), _fixture_section(), _ground_truth_expected() (+4 more)
 
 ### Community 143 - "Community 143"
 Cohesion: 0.07
 Nodes (30): Admin gate, Alembic invocation, API Lambda (`collector.handler`), Auth Handler, Auth modes, Canonicalization Worker (`collector.worker_handler`), Deadline-aware execution, Error response shape (+22 more)
 
 ### Community 144 - "Community 144"
-Cohesion: 0.11
-Nodes (13): PlaylistLimitReachedError, PlaylistNameConflictError, PlaylistNotFoundError, PlaylistTrackLimitError, AppendTracksResult, PlaylistRow, PlaylistTrackRow, Aurora Data API repository for playlists (spec 2026-05-11).  Tenancy: every meth (+5 more)
+Cohesion: 0.12
+Nodes (9): PlaylistNameConflictError, AppendTracksResult, PlaylistRow, PlaylistTrackRow, Per-track YT Music status. matched > needs_review > not_found > pending., Partial update. None values mean "leave as is".          If the row is already p, _row(), FakePlaylistsRepo (+1 more)
 
 ### Community 145 - "Community 145"
 Cohesion: 0.06
@@ -1143,12 +1135,12 @@ Cohesion: 0.14
 Nodes (20): FakeResp, FakeSession, FakeYtClient, _provider(), Item with no topLevelComment must yield a blank CollectedComment, not raise., test_collect_caps_at_limit(), test_collect_empty_items_returns_empty(), test_collect_missing_top_level_comment_does_not_crash() (+12 more)
 
 ### Community 150 - "Community 150"
-Cohesion: 0.09
-Nodes (60): _build_repository(), _build_sqs_client(), _extract_user_id(), handle_get_artist(), handle_get_artist_history(), handle_get_artist_user(), handle_get_artists_list(), handle_get_backlog() (+52 more)
+Cohesion: 0.27
+Nodes (8): CollectionRow, CommentRow, Return ALL comments (up to limit_per_track) for many tracks at once.          Re, _event(), FakeCommentsRepo, test_limit_defaults_and_caps(), test_no_collection_returns_pending_envelope(), test_returns_collected_comments()
 
 ### Community 151 - "Community 151"
-Cohesion: 0.11
-Nodes (21): _auth_response(), _empty_search_response(), FakeResponse, _make_client(), Tests for SpotifyClient: auth, search, retry, rate limiting., Second call should reuse the cached token, not re-authenticate., When multiple tracks match the same ISRC, return the earliest by release date., Tracks with year-only dates should still sort correctly. (+13 more)
+Cohesion: 0.10
+Nodes (22): _auth_response(), _empty_search_response(), FakeResponse, _make_client(), Tests for SpotifyClient: auth, search, retry, rate limiting., Second call should reuse the cached token, not re-authenticate., When multiple tracks match the same ISRC, return the earliest by release date., Tracks with year-only dates should still sort correctly. (+14 more)
 
 ### Community 152 - "Community 152"
 Cohesion: 0.11
@@ -1179,16 +1171,16 @@ Cohesion: 0.07
 Nodes (28): Architecture, Cross-feature contract, Data flow, Edge cases, Error mapping, File structure, Files touched (summary), Goals (+20 more)
 
 ### Community 159 - "Community 159"
-Cohesion: 0.11
-Nodes (35): CommentPlatformDisabledError, CollectedComment, Platform-agnostic comment captured from an external video/track., _event(), FakeProvider, FakeRepo, FallbackFakeRepo, FallbackProvider (+27 more)
+Cohesion: 0.17
+Nodes (19): CommentPlatformDisabledError, _event(), FakeProvider, FakeRepo, _MetaRepo, _msg(), _patch(), No-seed provider: resolve_alternate_videos returns ids; collect scripted by id. (+11 more)
 
 ### Community 160 - "Community 160"
-Cohesion: 0.14
-Nodes (13): Thin adapter — delegates batch ISRC search to SpotifyClient.      The underlying, SpotifyLookup, _FakeSpotifyClient, Per-track LookupProvider API tests (Plan 4 Task 0a)., Spotify fuzzy metadata search is a follow-up — returns [] today., test_spotify_lookup_by_isrc_hit_returns_vendor_track_ref(), test_spotify_lookup_by_isrc_miss_returns_none(), test_spotify_lookup_by_metadata_returns_empty_for_now() (+5 more)
+Cohesion: 0.12
+Nodes (15): Thin adapter — delegates batch ISRC search to SpotifyClient.      The underlying, SpotifyLookup, _FakeSpotifyClient, Per-track LookupProvider API tests (Plan 4 Task 0a)., YTMusicLookup is implemented (not a stub): no ISRC search on YT Music., Spotify fuzzy metadata search is a follow-up — returns [] today., test_spotify_lookup_by_isrc_hit_returns_vendor_track_ref(), test_spotify_lookup_by_isrc_miss_returns_none() (+7 more)
 
 ### Community 161 - "Community 161"
-Cohesion: 0.08
-Nodes (27): normalize_playlist_name(), parse_spotify_playlist_ref(), parse_spotify_ref(), Lowercase + trim + collapse internal whitespace., Return the 22-char Spotify track ID or raise InvalidSpotifyRefError.      Accept, Return the 22-char Spotify playlist ID or raise InvalidSpotifyRefError.      Acc, validate_description(), test_normalize_lowercases_trims_collapses() (+19 more)
+Cohesion: 0.07
+Nodes (30): normalize_playlist_name(), parse_spotify_playlist_ref(), parse_spotify_ref(), Pure helpers for playlists (spec 2026-05-11): validation, normalization, Spotify, Same contract as categories_service.validate_reorder_set., Lowercase + trim + collapse internal whitespace., Return the 22-char Spotify track ID or raise InvalidSpotifyRefError.      Accept, Return the 22-char Spotify playlist ID or raise InvalidSpotifyRefError.      Acc (+22 more)
 
 ### Community 162 - "Community 162"
 Cohesion: 0.07
@@ -1203,16 +1195,16 @@ Cohesion: 0.08
 Nodes (32): fmtCount(), fmtMinutes(), fmtSec(), FunnelCard(), ListeningCard(), Period, PERIODS, STAGES (+24 more)
 
 ### Community 165 - "Community 165"
-Cohesion: 0.09
-Nodes (41): _normalize_title_for_match(), Lowercase + strip common suffixes (Radio Edit / Extended Mix / feat. X /     Rem, _make_client(), Tests for Spotify metadata-fallback scoring + accept gate., Query string must use first artist with country tag stripped, not full list., Same track / different master: title 1.0 + artist 1.0, duration 75s out → relaxe, If both strict and relaxed candidates exist, strict wins., Spotify's 'Fealty - Radio Edit' should match BP's 'Fealty' after normalization. (+33 more)
+Cohesion: 0.07
+Nodes (48): _first_query_artist(), _normalize_title_for_match(), Pick the first artist for Spotify's `artist:` search operator.      Spotify's ar, Lowercase + strip common suffixes (Radio Edit / Extended Mix / feat. X /     Rem, _make_client(), Tests for Spotify metadata-fallback scoring + accept gate., Query string must use first artist with country tag stripped, not full list., Same track / different master: title 1.0 + artist 1.0, duration 75s out → relaxe (+40 more)
 
 ### Community 166 - "Community 166"
 Cohesion: 0.07
 Nodes (26): 1. `infra/frontend.tf` (new file), 2. `infra/outputs.tf` (additions), 3. `scripts/deploy_frontend.sh` (new file), 4. Backend env updates (via `terraform.tfvars` or `-var=`), 5. Spotify Developer Dashboard (manual), Architecture, CloudFront behavior policies, Cold-load SPA (+18 more)
 
 ### Community 167 - "Community 167"
-Cohesion: 0.24
-Nodes (14): FakeDataApi, _fixed_now(), LabelEnrichmentRepository: user label preference CRUD., Minimal stub: records (sql, params) per call, returns scripted rows., test_delete_user_label_pref_emits_delete_sql(), test_get_label_info_for_user_includes_my_preference_when_info_present(), test_get_label_info_for_user_returns_minimal_payload_when_info_missing(), test_get_label_info_for_user_returns_none_when_label_missing() (+6 more)
+Cohesion: 0.05
+Nodes (50): CellDetailDrawer(), Props, CoverageMatrix(), Props, COLORS, CoverageMatrixCell, Props, fmt() (+42 more)
 
 ### Community 168 - "Community 168"
 Cohesion: 0.14
@@ -1267,8 +1259,8 @@ Cohesion: 0.09
 Nodes (22): AI-flag projection, API surface (full parity), Architecture, `artist_auto_enrich_state`, Artist Enrichment — Backend + Auto-Dispatch (Design Spec), Auto-dispatch (requirement 2), `auto_enrich_config` (existing table — no schema change), `clouder_artist_enrichment_cells` (+14 more)
 
 ### Community 181 - "Community 181"
-Cohesion: 0.13
-Nodes (20): Spotify OAuth client (authorization-code + PKCE, /me, refresh-grant)., Raised when Spotify returns invalid_grant on refresh — user must re-OAuth., SpotifyOAuthClient, SpotifyOAuthError, SpotifyProfile, SpotifyTokenRevokedError, SpotifyTokenSet, _event() (+12 more)
+Cohesion: 0.09
+Nodes (26): Spotify OAuth client (authorization-code + PKCE, /me, refresh-grant)., Raised when Spotify returns invalid_grant on refresh — user must re-OAuth., SpotifyOAuthClient, SpotifyOAuthError, SpotifyProfile, SpotifyTokenRevokedError, SpotifyTokenSet, _ctx() (+18 more)
 
 ### Community 182 - "Community 182"
 Cohesion: 0.09
@@ -1291,28 +1283,28 @@ Cohesion: 0.10
 Nodes (20): API contract, Architecture, Backend, Backend implementation, Background, Categories tracks table improvements — design, `CategoriesRepository.list_tracks`, Formatter (+12 more)
 
 ### Community 187 - "Community 187"
-Cohesion: 0.15
-Nodes (15): _client(), _event(), PausableRepo, Spotify rate limits: pace requests, and treat a long ban as a pause, not an erro, _Response, _run(), _setup(), test_a_long_ban_pauses_the_search_instead_of_failing() (+7 more)
+Cohesion: 0.18
+Nodes (14): _client(), _event(), PausableRepo, Spotify rate limits: pace requests, and treat a long ban as a pause, not an erro, _run(), _setup(), test_a_long_ban_pauses_the_search_instead_of_failing(), test_a_long_retry_after_raises_a_rate_limit_error_with_the_wait() (+6 more)
 
 ### Community 188 - "Community 188"
 Cohesion: 0.10
 Nodes (20): `batch_execute(sql, parameter_sets, transaction_id=None) -> None`, `begin_transaction() -> str`, `commit_transaction(transaction_id) -> None`, Correlated `EXISTS` after `GROUP BY`, Data API Client Reference, `DataAPIClient` Interface, `execute(sql, params=None, transaction_id=None) -> list[dict]`, Factory (+12 more)
 
 ### Community 189 - "Community 189"
-Cohesion: 0.12
-Nodes (24): _extract_album_type(), _extract_release_date(), Pull `album.album_type` from a Spotify track payload (values:     album | single, Pull `album.release_date` + `album.release_date_precision` and parse     accordi, Unit tests for Spotify release_type extraction and propagation., test_extract_album_type_album(), test_extract_album_type_compilation(), test_extract_album_type_missing_album_returns_none() (+16 more)
+Cohesion: 0.09
+Nodes (37): SpotifySearchMessage, _enqueue_follow_up_if_needed(), _enqueue_resume(), _extract_album_type(), _extract_message_attribute(), _extract_release_date(), _process_results_chunk(), _process_spotify_search() (+29 more)
 
 ### Community 190 - "Community 190"
-Cohesion: 0.17
-Nodes (7): RunsListResponse, PageHeader(), PageHeaderProps, useEnrichmentRuns(), UseRunsParams, AdminEnrichmentRunsPage(), mockPages
+Cohesion: 0.23
+Nodes (14): FallbackFakeRepo, FallbackProvider, _fb_event(), _patch_fb(), Primary collect raises/returns per script; resolver returns alts; each     alt's, A generic (non-disabled) error while collecting an alternate aborts the     reco, test_disabled_primary_all_alternates_disabled(), test_disabled_primary_alternate_empty_marks_empty() (+6 more)
 
 ### Community 191 - "Community 191"
 Cohesion: 0.11
-Nodes (12): PlanningState, Ctx, FakeRepo, _resuming_once(), test_a_rejected_token_stops_the_run_without_blaming_the_pairs(), test_failed_period_is_recorded_and_the_run_continues(), test_handler_waits_for_a_paused_aurora(), test_login_failure_is_reported_and_releases_the_lease() (+4 more)
+Nodes (13): FinalizeResult, MoveResult, TransferResult, TriageBlockRow, TriageBucketRow, fake_triage_repo(), FakeTriageRepo, In-memory TriageRepository for handler-level integration tests. (+5 more)
 
 ### Community 192 - "Community 192"
-Cohesion: 0.09
-Nodes (31): aggregate(), build_deepseek_client(), build_vendors(), list_fixtures(), list_vendors(), _parse_csv(), Merge per-vendor cells in a run into consensus ArtistInfo per fixture., Run the prompts × vendors × fixtures matrix. (+23 more)
+Cohesion: 0.07
+Nodes (36): _build_narrative_prompt(), _filter_parseable(), _highest_confidence_cell(), merge_cells(), _merge_deterministic(), _merge_narrative(), _rank_list_round_robin(), Multi-vendor consensus aggregator for ArtistInfo cells.  The single public entry (+28 more)
 
 ### Community 193 - "Community 193"
 Cohesion: 0.10
@@ -1331,12 +1323,12 @@ Cohesion: 0.27
 Nodes (19): _cell(), _mock_deepseek_response(), _parsed(), Tests for artlab.aggregate., test_filter_parseable_drops_errored_and_none(), test_merge_cells_all_failed_returns_placeholder(), test_merge_cells_handles_malformed_deepseek_json(), test_merge_cells_narrative_fallback_on_error() (+11 more)
 
 ### Community 197 - "Community 197"
-Cohesion: 0.27
-Nodes (11): Regenerate the report from an existing run directory., report(), _aggregated_one(), _aggregated_section(), build_report(), _details_section(), _fixture_section(), _load_cells() (+3 more)
+Cohesion: 0.24
+Nodes (8): TagFormFields(), TagFormFieldsProps, TagFormMode, CreateTagInput, createTagSchema, renameTagSchema, tagColorSchema, tagNameSchema
 
 ### Community 198 - "Community 198"
-Cohesion: 0.12
-Nodes (16): _album_release_sort_key(), _first_query_artist(), _isrc_neighbours(), Extract a sortable release date string from a Spotify track.      Spotify releas, Pick the first artist for Spotify's `artist:` search operator.      Spotify's ar, Generate sibling ISRCs by varying the last digit ±1, ±2.      Beatport sometimes, test_album_release_sort_key_edge_cases(), test_first_query_artist_handles_empty() (+8 more)
+Cohesion: 0.20
+Nodes (11): ImportSpotifyModal(), ImportSpotifyModalProps, RefValidation, validateRefs(), ImportSpotifyPlaylistModal(), ImportSpotifyPlaylistModalProps, useImportSpotifyPlaylist(), useImportSpotifyTracks() (+3 more)
 
 ### Community 199 - "Community 199"
 Cohesion: 0.09
@@ -1375,8 +1367,8 @@ Cohesion: 0.17
 Nodes (11): After merge (not a task — loop follow-up), Global Constraints, Replayable Canonicalization and Backfill Implementation Plan, Review Focus, Spec, Task 1: Event-time, replay-safe canonical writes with change counts, Task 2: Dry-run canonicalization, Task 3: Live worker uses the run's observation time (+3 more)
 
 ### Community 208 - "Community 208"
-Cohesion: 0.08
-Nodes (26): ArtistProfile, buildArtistProfile(), COUNTRIES, LABEL_PROFILES, LabelProfile, SOUND, STORY, TAGLINES (+18 more)
+Cohesion: 0.06
+Nodes (38): Clip, clipOf(), CLIPS, demoCover(), CategoryTrackQuery, coverOf(), DemoError, Preference (+30 more)
 
 ### Community 209 - "Community 209"
 Cohesion: 0.11
@@ -1403,8 +1395,8 @@ Cohesion: 0.12
 Nodes (15): After merge, Global Constraints, P2 senior-level differentiators Implementation Plan, Review Focus, Task 10: Local demo without AWS, Task 11: Spotify matching quality tooling, Task 1: Auto-ingest waits for a paused Aurora, Task 2: Transient storage errors are retried (+7 more)
 
 ### Community 216 - "Community 216"
-Cohesion: 0.02
-Nodes (139): CommentsPanel(), Props, CopyPlaylistButton(), CopyPlaylistButtonProps, CoverPicker(), CoverPickerProps, DriftBadge(), DriftTarget (+131 more)
+Cohesion: 0.16
+Nodes (16): _repo(), test_attach_run_updates_last_run_id(), test_claim_empty_input_is_noop(), test_claim_inserts_brand_new_label(), test_claim_reclaims_stale_queued_via_update(), test_claim_retries_failed_label_via_update(), test_claim_skips_when_neither_update_nor_insert_match(), test_get_config_parses_jsonb_strings() (+8 more)
 
 ### Community 217 - "Community 217"
 Cohesion: 0.15
@@ -1415,8 +1407,8 @@ Cohesion: 0.19
 Nodes (11): _mock_response(), test_run_returns_error_when_no_parse(), test_run_returns_parsed(), _valid_parsed(), _mock_response(), Tests for OpenAIGPTAdapter using injected fake clients., test_run_returns_error_when_no_parse(), test_run_returns_parsed() (+3 more)
 
 ### Community 219 - "Community 219"
-Cohesion: 0.06
-Nodes (29): ArtistInfoRequest, Vendor-facing schema: ArtistInfo minus AI-detection fields.      Structured outp, get_prompt(), load_builtin_prompts(), Import the built-in prompt modules so they self-register., register(), get_prompt(), load_builtin_prompts() (+21 more)
+Cohesion: 0.07
+Nodes (32): get_prompt(), load_builtin_prompts(), Import the built-in prompt modules so they self-register., register(), _make_prompt(), test_registry_register_and_get(), test_registry_rejects_duplicate(), get_prompt() (+24 more)
 
 ### Community 220 - "Community 220"
 Cohesion: 0.12
@@ -1431,8 +1423,8 @@ Cohesion: 0.12
 Nodes (16): 0. Backend touch (plan 2A), 1. API client + hooks, 2. Player `ArtistsPanel` (requirement 4), 3. Library (requirement 3), 4. Admin (requirement 1), 5. Preferences, 6. AI badge, Architecture (+8 more)
 
 ### Community 223 - "Community 223"
-Cohesion: 0.15
-Nodes (16): _lat(), OpenAI GPT adapter via the Responses API., _to_dict(), _zero_usage(), _fake_parsed(), test_openai_client_built_with_timeout_and_no_retries(), test_openai_returns_error_on_api_exception(), test_openai_returns_error_when_no_parsed() (+8 more)
+Cohesion: 0.11
+Nodes (19): LabelInfoRequest, Vendor-facing schema: LabelInfo minus AI-detection fields.      Structured outpu, label_v4_no_ai — label_v3_app_fields minus every AI-detection mention., _lat(), OpenAI GPT adapter via the Responses API., _to_dict(), _zero_usage(), _fake_parsed() (+11 more)
 
 ### Community 224 - "Community 224"
 Cohesion: 0.40
@@ -1443,12 +1435,12 @@ Cohesion: 0.13
 Nodes (15): Accessor functions, Adding a New Vendor, Beatport (`ingest`), Lazy builders, `lookup_by_isrc(isrc: str) -> VendorTrackRef | None`, `lookup_by_metadata(artist, title, duration_ms, album) -> list[VendorTrackRef]`, Overview, Per-Track Lookup Methods (+7 more)
 
 ### Community 226 - "Community 226"
-Cohesion: 0.16
-Nodes (13): AutoEnrichConfigBody, AutoEnrichConfigResponse, AutoEnrichConfigBody, AutoEnrichConfigResponse, useArtistAutoEnrichConfig(), useAutoEnrichConfig(), useSaveArtistAutoEnrichConfig(), useSaveAutoEnrichConfig() (+5 more)
+Cohesion: 0.31
+Nodes (12): Change, Deploy, deploys_per_week(), fetch_changes(), fetch_deploys(), _fmt(), _git(), lead_times() (+4 more)
 
 ### Community 227 - "Community 227"
-Cohesion: 0.10
-Nodes (44): _beatport_track_row(), _make_data_api(), _make_repo(), Unit tests for PlaylistsRepository.  DataAPIClient is stubbed with a MagicMock t, Regression for C1: a Spotify playlist can legitimately contain the     same trac, Regression: same Data API constraint as scope-check — the dedup SELECT     insid, Status flip is organizational, not Spotify-visible — must not mark drift., Regression: Aurora Data API failed status-only patches with     `could not deter (+36 more)
+Cohesion: 0.12
+Nodes (38): _beatport_track_row(), _make_data_api(), _make_repo(), Unit tests for PlaylistsRepository.  DataAPIClient is stubbed with a MagicMock t, Status flip is organizational, not Spotify-visible — must not mark drift., list_tracks with tags_repo attaches artists, label, bpm, mix_name,     spotify_r, When tags_repo is omitted, tags field defaults to empty tuple., test_append_tracks_dedups_against_existing() (+30 more)
 
 ### Community 228 - "Community 228"
 Cohesion: 0.12
@@ -1475,8 +1467,8 @@ Cohesion: 0.12
 Nodes (15): Cause 1 — cover upload always uses `insert`, Cause 2 — reorder is never reflected on YouTube, Cause 3 (contributing) — reorder does not flag ytmusic republish, Chosen approach, Design, Fix 1 — cover: insert → update fallback, Fix 2 — reorder: minimal-move position sync, Fix 3 — flag ytmusic dirty on reorder (+7 more)
 
 ### Community 234 - "Community 234"
-Cohesion: 0.12
-Nodes (16): `apiClient` (`src/api/client.ts`), `ApiError` (`src/api/error.ts`), `AppShellLayout` (`src/routes/_layout.tsx`), `AuthProvider` (`src/auth/AuthProvider.tsx`), `bootstrapPromise` (`src/auth/bootstrap.ts`), Components (in scope for A2), `EmptyState` (`src/components/EmptyState.tsx`), i18n (`src/i18n/`) (+8 more)
+Cohesion: 0.17
+Nodes (12): _match_tier(), Classify a candidate against per-component fuzzy gates.      Returns:         's, title>=0.95 AND artist>=0.95 → accept as 'relaxed' regardless of duration delta., title=0.92, artist=0.92 — pass min thresholds but below 0.95 relaxed gate.     W, Cannot enforce duration if either side is None — collapse to strict pass., test_match_tier_fail_when_artist_below_min(), test_match_tier_fail_when_dur_out_and_text_not_perfect(), test_match_tier_fail_when_title_below_min() (+4 more)
 
 ### Community 235 - "Community 235"
 Cohesion: 0.18
@@ -1487,15 +1479,15 @@ Cohesion: 0.13
 Nodes (14): `alembic-check`, CI Beyond `pytest`, `FakeDataAPI`, `FakeDataAPI` and `FakeRepo`, `FakeRepo`, `FakeRepo` signature mirroring, `frontend` (schema drift check), Integration tests (`tests/integration/`) (+6 more)
 
 ### Community 237 - "Community 237"
-Cohesion: 0.10
-Nodes (23): CellDetailDrawer(), Props, CoverageMatrix(), Props, COLORS, CoverageMatrixCell, Props, Props (+15 more)
+Cohesion: 0.18
+Nodes (5): make_fixture(), StubVendor, make_fixture(), StubVendor, Fixture
 
 ### Community 238 - "Community 238"
 Cohesion: 0.14
 Nodes (13): After merge (loop follow-up), Global Constraints, Lakehouse Layer (Iceberg + dbt) Implementation Plan, Review Focus, Spec, Task 1: dbt project, fixtures, CI job, Task 2: `silver.events` — incremental Iceberg MERGE with dedup, Task 3: `silver.dim_track_history` — SCD2 from catalog snapshots (+5 more)
 
 ### Community 239 - "Community 239"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (14): OPEN QUESTIONS · CLOUDER iter-2a → frontend, Q10 — Mobile thumb-zone vs design intent в Curate, Q11 — Theme switching без FOUC, Q12 — Accent magenta scope, Q13 — Empty states · "Coming soon" pages, Q1 — Dark theme parity (iter-2a), Q2 — Иконки, Q3 — DatePicker мобильный fullscreen vs popover (+6 more)
 
 ### Community 240 - "Community 240"
@@ -1531,16 +1523,16 @@ Cohesion: 0.12
 Nodes (16): 1. Two-pass enrichment (the core change), 2. AI detection off — reversible, 3. Frontend — hide AI surfaces, 4. Instrumentation + honest pricing, 5. Experiment gate (prove it before prod), 6. Analytics scripts, 7. Testing, ADDENDUM 2026-07-16 — production shape after the experiment (this section governs) (+8 more)
 
 ### Community 249 - "Community 249"
-Cohesion: 0.24
-Nodes (14): _err(), _make_adapter(), _ok(), Helper that mirrors test_enrich_label_for_run_writes_cells_upserts_info_and_incr, _run_enrich_label_for_run_with(), test_build_adapters_forwards_openai_knobs(), test_build_adapters_from_run_config_returns_three_adapters(), test_build_adapters_rejects_unknown_vendor() (+6 more)
+Cohesion: 0.18
+Nodes (11): 10.10 Anti-patterns from old code worth NOT repeating, 10.1 Spotify API integration, 10.2 Raw-layer block creation (most subtle flow in the OLD product), 10.3 ISRC enrichment match logic, 10.4 Release-playlist import (Spotify → local), 10.5 Auth + token storage, 10.6 Frontend token-refresh details (worth re-using when frontend ships), 10.7 Background processing (+3 more)
 
 ### Community 250 - "Community 250"
-Cohesion: 0.08
-Nodes (34): _identity(), Set-based repository SQL against a real Postgres., test_claim_keeps_the_existing_winner(), test_claims_are_invisible_outside_their_transaction_until_commit(), test_find_identities_resolves_more_than_one_chunk(), Decimal, UpsertVendorMatchCmd, Record a terminal 'no match found' outcome so the read surface can         retur (+26 more)
+Cohesion: 0.19
+Nodes (18): aggregate_costs(), aggregate_usage(), _bucket_month(), default_since(), fetch_costs(), fetch_usage(), _get(), main() (+10 more)
 
 ### Community 251 - "Community 251"
-Cohesion: 0.04
-Nodes (37): ArtistsPanel(), PanelArtist, Props, CurateCard(), CurateCardProps, formatBpm(), formatLengthMs(), formatReleaseDate() (+29 more)
+Cohesion: 0.11
+Nodes (16): CurateSession(), CurateSessionProps, DIGIT_CODES, BUCKETS, setup(), useCurateHotkeys(), UseCurateHotkeysArgs, SEEK_PCT (+8 more)
 
 ### Community 252 - "Community 252"
 Cohesion: 0.09
@@ -1576,11 +1568,11 @@ Nodes (13): _call(), _ctx(), _event(), FakeRepo, FakeSqs, GET /admin/spotify/sea
 
 ### Community 260 - "Community 260"
 Cohesion: 0.04
-Nodes (58): Pure helpers for spec-C categories: normalization, validation, reorder checks., ConfirmOverwriteRequiredError, CoverMissingError, CoverTooLargeError, CurationError, InactiveBucketError, InactiveStagingFinalizeError, InvalidSpotifyRefError (+50 more)
+Nodes (61): ConfirmOverwriteRequiredError, CoverMissingError, CoverTooLargeError, CurationError, InactiveBucketError, InactiveStagingFinalizeError, InvalidSpotifyRefError, InvalidStateError (+53 more)
 
 ### Community 261 - "Community 261"
-Cohesion: 0.20
-Nodes (16): VendorTrackMatch, _base_message(), _clear_cache(), _event(), FakeLookup, FakeRepo, vendor_match_handler unit tests (Plan 4 Task 7)., _spotify_ref() (+8 more)
+Cohesion: 0.10
+Nodes (26): Decimal, UpsertVendorMatchCmd, VendorTrackMatch, VendorMatchMixin, _make_repo(), Repository tests for vendor_match_map + match_review_queue (Plan 4 Task 5)., test_get_vendor_match_hit_builds_dataclass(), test_get_vendor_match_miss_returns_none() (+18 more)
 
 ### Community 262 - "Community 262"
 Cohesion: 0.27
@@ -1591,12 +1583,12 @@ Cohesion: 0.22
 Nodes (8): Approach B — full Aurora rename (only if the identifier itself must change), beatport → clouder Infra Rename — Migration Plan (Plan F), Blast radius, Edits, Execution gate (MANDATORY — cannot be done in the build env), Recommended strategy: **Approach A — stateless rename now, pin stateful**, Two tiers, Why this is a plan, not an auto-executed change
 
 ### Community 264 - "Community 264"
-Cohesion: 0.24
-Nodes (9): EnrichmentOptions, EnqueueDrawer(), Props, EnrichConfigForm(), EnrichConfigValue, Props, useEnqueueEnrichment(), useEnrichmentOptions() (+1 more)
+Cohesion: 0.23
+Nodes (12): _build_merge_client(), lambda_handler(), Regression: production Data API returns JSONB columns as JSON-encoded     string, Regression: _build_repository was called with no args and TypeError'd., _run_row(), _sqs_event(), test_worker_build_repository_passes_kwargs_from_settings(), test_worker_dispatches_orchestrator() (+4 more)
 
 ### Community 265 - "Community 265"
-Cohesion: 0.16
-Nodes (16): AutoIngestSettingsBody, AutoIngestState, AutoIngestPanel(), autoIngestPollInterval(), Form, intIn(), parseTimes(), timesValid() (+8 more)
+Cohesion: 0.20
+Nodes (14): AutoIngestSettingsBody, AutoIngestState, AutoIngestPanel(), autoIngestPollInterval(), Form, intIn(), parseTimes(), timesValid() (+6 more)
 
 ### Community 266 - "Community 266"
 Cohesion: 0.13
@@ -1604,7 +1596,7 @@ Nodes (14): Enrichment Split Experiment Implementation Plan, File Structure, Glo
 
 ### Community 267 - "Community 267"
 Cohesion: 0.12
-Nodes (16): scripts, api:types, build, build:demo, dev, dev:demo, format, lint (+8 more)
+Nodes (17): scripts, api:types, build, build:demo, demo:audio, dev, dev:demo, format (+9 more)
 
 ### Community 268 - "Community 268"
 Cohesion: 0.15
@@ -1699,28 +1691,24 @@ Cohesion: 0.42
 Nodes (9): _ctx(), _event(), Integration tests for GET /admin/runs., reset_caches(), test_admin_runs_db_not_configured_503(), test_admin_runs_missing_param_400(), test_admin_runs_negative_param_rejected(), test_admin_runs_requires_admin() (+1 more)
 
 ### Community 291 - "Community 291"
-Cohesion: 0.19
-Nodes (14): fmt(), IngestForm(), Props, Props, YearNavigator(), IngestInput, IngestResponse, useStartIngest() (+6 more)
+Cohesion: 0.18
+Nodes (11): 5.10 `DELETE /categories/{id}/tracks/{track_id}` — remove track, 5.1 `POST /styles/{style_id}/categories` — create, 5.2 `GET /styles/{style_id}/categories` — list by style, 5.3 `GET /categories` — cross-style list, 5.4 `GET /categories/{id}` — detail, 5.5 `PATCH /categories/{id}` — rename, 5.6 `DELETE /categories/{id}` — soft-delete, 5.7 `PUT /styles/{style_id}/categories/order` — reorder (+3 more)
 
 ### Community 292 - "Community 292"
 Cohesion: 0.29
 Nodes (7): _extract_json(), KimiAdapter, _lat(), Kimi (Moonshot AI) adapter via the OpenAI-compatible SDK with $web_search builti, Strip markdown fences and return the first balanced JSON object substring., _schema_hint(), _zero_usage()
-
-### Community 293 - "Community 293"
-Cohesion: 0.17
-Nodes (7): FakeRepo, FakeSQS, Unit tests for artist enrichment HTTP route handlers., _setup(), test_get_artist_user_404_when_missing(), test_post_enrich_creates_run_and_enqueues(), test_post_enrich_rejects_unknown_prompt()
 
 ### Community 294 - "Community 294"
 Cohesion: 0.22
 Nodes (9): After (first run, 2026-10-07 12:46 UTC), Before (2026-10-06), Checks, Data quality, How it runs, How to read the numbers, SLOs, What it buys (+1 more)
 
 ### Community 295 - "Community 295"
-Cohesion: 0.08
-Nodes (22): LibraryQuery, DemoBanner(), API_PREFIXES, Ctx, demoHandlers(), DemoRoute, demoRoutes(), Method (+14 more)
+Cohesion: 0.09
+Nodes (22): CurateCard(), CurateCardProps, formatBpm(), formatLengthMs(), formatReleaseDate(), LibraryQuery, API_PREFIXES, Ctx (+14 more)
 
 ### Community 296 - "Community 296"
-Cohesion: 0.22
-Nodes (8): KmsEnvelope, KMS envelope encryption with AES-GCM and a 5-min in-memory data-key cache., Wraps KMS GenerateDataKey/Decrypt with AES-GCM and a small TTL cache., _make_kms_client(), test_decrypt_caches_unwrapped_data_key(), test_encrypt_caches_data_key_within_ttl(), test_encrypt_decrypt_round_trip(), test_encrypt_refreshes_data_key_after_ttl()
+Cohesion: 0.27
+Nodes (8): BucketTrackRowOut, Row returned by GET /triage/blocks/{id}/buckets/{bucket_id}/tracks., _event(), Triage bucket tracks must expose label_id and artist id/name/role objects., GET /triage/blocks/{}/buckets/{}/tracks rows must include label_id., GET bucket tracks must return artists as {id, name, role} dicts, not plain strin, test_bucket_tracks_response_includes_artist_objects(), test_bucket_tracks_response_includes_label_id()
 
 ### Community 297 - "Community 297"
 Cohesion: 0.20
@@ -1735,8 +1723,8 @@ Cohesion: 0.17
 Nodes (11): Global Constraints, Review Focus, Set-Based Canonicalization Implementation Plan, Spec, Task 0: Branch, Task 1: Real-Postgres harness and characterization tests, Task 2: Benchmark harness and the "before" baseline, Task 3: Set-based repository methods (+3 more)
 
 ### Community 300 - "Community 300"
-Cohesion: 0.27
-Nodes (23): reset_settings_cache(), lambda_handler(), _happy_event(), _happy_s3_data(), Tests for SQS worker lambda: message parsing, error classification, happy path., StorageError (permanent) should NOT re-raise → SQS deletes the message., RuntimeError (transient) should re-raise → SQS retries the message., A throttled or unavailable S3 read must be retried, not fail the run for good. (+15 more)
+Cohesion: 0.18
+Nodes (29): get_vendor_match_settings(), reset_settings_cache(), lambda_handler(), _clear_cache(), VendorMatchSettings tests (Plan 4 Task 0b)., test_defaults(), test_env_override(), test_threshold_bounds_rejected() (+21 more)
 
 ### Community 301 - "Community 301"
 Cohesion: 0.30
@@ -1759,8 +1747,8 @@ Cohesion: 0.20
 Nodes (10): Aurora, Canonicalization — measured, Data API limits, Ingest, Lakehouse, Lambda versions, Matching, Scalability notes (+2 more)
 
 ### Community 306 - "Community 306"
-Cohesion: 0.31
-Nodes (10): _make_adapter(), _make_llm_client(), Tests for TavilyDeepSeekAdapter using httpx.MockTransport and MagicMock LLM., Handler that distinguishes general vs social pass by include_domains key., _tavily_error_transport(), _tavily_ok_transport(), test_bad_json_from_deepseek(), test_deepseek_exception() (+2 more)
+Cohesion: 0.17
+Nodes (15): _build_narrative_prompt(), _filter_parseable(), _highest_confidence_cell(), merge_cells(), _merge_deterministic(), _merge_narrative(), _rank_list_round_robin(), Multi-vendor consensus aggregator for LabelInfo cells.  The single public entry (+7 more)
 
 ### Community 307 - "Community 307"
 Cohesion: 0.14
@@ -1815,12 +1803,12 @@ Cohesion: 0.20
 Nodes (9): Breaking changes that touch this handoff, Button focus override, DatePicker — `onChange` returns string, Decision: do NOT use `v8CssVariablesResolver`, Form validation — `schemaResolver` instead of `zodResolver`, Mantine 7 → 9 Migration Notes · CLOUDER iter-2a, Migration checklist (frontend), Spec snippet patches (+1 more)
 
 ### Community 321 - "Community 321"
-Cohesion: 0.18
-Nodes (9): RunProgressToast(), RunPayload, TERMINAL, useRunPoller(), RunMeta, RunsState, runsTrackerStore, AdminLayout() (+1 more)
+Cohesion: 0.36
+Nodes (7): _b64url_nopad(), derive_code_challenge(), generate_code_verifier(), PKCE helpers for Spotify OAuth (RFC 7636)., test_derive_code_challenge_is_base64url_no_padding(), test_derive_code_challenge_known_vector(), test_generate_code_verifier_is_base64url_no_padding()
 
 ### Community 322 - "Community 322"
-Cohesion: 0.29
-Nodes (12): _make(), test_create_session_inserts_row(), test_delete_vendor_token(), test_get_active_session_filters_by_revoked_and_expiry(), test_get_user_by_spotify_id_returns_user_row(), test_get_vendor_token_decodes_bytes(), test_list_user_sessions_returns_active_only(), test_revoke_all_sessions_for_user() (+4 more)
+Cohesion: 0.22
+Nodes (9): _album_release_sort_key(), _isrc_neighbours(), Extract a sortable release date string from a Spotify track.      Spotify releas, Generate sibling ISRCs by varying the last digit ±1, ±2.      Beatport sometimes, test_album_release_sort_key_edge_cases(), test_isrc_neighbours_returns_closest_first_within_0_9(), test_isrc_neighbours_returns_empty_when_last_not_digit(), test_isrc_neighbours_skips_carry_when_last_is_nine() (+1 more)
 
 ### Community 323 - "Community 323"
 Cohesion: 0.20
@@ -1855,7 +1843,7 @@ Cohesion: 0.29
 Nodes (4): _event(), FakeRepo, test_accept_ytmusic_dispatches(), test_reject_does_not_dispatch()
 
 ### Community 331 - "Community 331"
-Cohesion: 0.11
+Cohesion: 0.10
 Nodes (20): Canonicalizer, _comparable(), Values to write (None keeps the column) and the fields that change.      A fresh, track_update(), FakeRepo, Two artists with the same name but different beatport_ids must create     two se, _raw_track(), test_canonicalizer_auto_creates_entities_when_no_matches() (+12 more)
 
 ### Community 332 - "Community 332"
@@ -1863,8 +1851,8 @@ Cohesion: 0.25
 Nodes (8): 2026-10-07 — Backfill never converged on tracks merged by ISRC, Detection gap, Fix, Follow-ups, Impact, Root cause, Summary, Timeline (UTC+4)
 
 ### Community 333 - "Community 333"
-Cohesion: 0.26
-Nodes (7): CategoryFormDialog(), CategoryFormDialogProps, CategoryFormMode, categoryNameSchema, CreateCategoryInput, createCategorySchema, RenameCategoryInput
+Cohesion: 0.31
+Nodes (6): _build_search_query(), _lat(), Tavily + DeepSeek two-stage adapter.  Stage 1: Tavily search retrieves relevant, TavilyDeepSeekAdapter, _zero_usage(), Build a focused Tavily query from the rendered user prompt.      The artist prom
 
 ### Community 334 - "Community 334"
 Cohesion: 0.17
@@ -1879,8 +1867,8 @@ Cohesion: 0.32
 Nodes (11): _base_payload(), test_a_beatport_token_from_the_client_is_rejected(), test_both_period_fields_present_is_valid(), test_extra_fields_forbidden(), test_minimal_payload_is_valid(), test_only_period_end_is_rejected(), test_only_period_start_is_rejected(), test_period_end_before_start_is_rejected() (+3 more)
 
 ### Community 338 - "Community 338"
-Cohesion: 0.27
-Nodes (7): LabelChannelLinks(), ChannelKind, ChannelMeta, CHANNELS, ChannelSource, PickedChannel, pickTopChannels()
+Cohesion: 0.04
+Nodes (66): ArtistDetail, LabelDetail, ArtistChannelLinks(), ArtistDetailHeader(), Props, ArtistOverviewTab(), ArtistPreferenceButtons(), Props (+58 more)
 
 ### Community 339 - "Community 339"
 Cohesion: 0.17
@@ -1899,12 +1887,12 @@ Cohesion: 0.22
 Nodes (8): Done when, File structure, Phase 1 · Increment 3 — Catalog + Ops Export Lambdas — Implementation Plan, Task 0: Branch off origin/main, Task 1: `catalog_export` handler (Data API → NDJSON), Task 2: `ops_log_export` handler (CloudWatch Logs → NDJSON), Task 3: Terraform — Glue tables, IAM roles, Lambda functions, log groups, Tasks
 
 ### Community 343 - "Community 343"
-Cohesion: 0.17
-Nodes (12): _match_tier(), Classify a candidate against per-component fuzzy gates.      Returns:         's, title>=0.95 AND artist>=0.95 → accept as 'relaxed' regardless of duration delta., title=0.92, artist=0.92 — pass min thresholds but below 0.95 relaxed gate.     W, Cannot enforce duration if either side is None — collapse to strict pass., test_match_tier_fail_when_artist_below_min(), test_match_tier_fail_when_dur_out_and_text_not_perfect(), test_match_tier_fail_when_title_below_min() (+4 more)
+Cohesion: 0.20
+Nodes (6): cache, dots(), f(), MOTIFS, Palette, PALETTES
 
 ### Community 345 - "Community 345"
-Cohesion: 0.19
-Nodes (13): MatchInput, Metadata for tracks not yet matched to `vendor`, ready to enqueue., main(), Enqueue YT Music match jobs for tracks already in playlists.  Usage:     PYTHONP, FakeSqs, _inp(), test_enqueue_no_queue_url_is_noop(), test_enqueue_sends_one_message_per_input() (+5 more)
+Cohesion: 0.17
+Nodes (14): MatchInput, Metadata for tracks not yet matched to `vendor`, ready to enqueue., main(), Enqueue YT Music match jobs for tracks already in playlists.  Usage:     PYTHONP, FakeSqs, _inp(), test_enqueue_no_queue_url_is_noop(), test_enqueue_sends_one_message_per_input() (+6 more)
 
 ### Community 346 - "Community 346"
 Cohesion: 0.25
@@ -1915,20 +1903,20 @@ Cohesion: 0.39
 Nodes (7): _patch_clients(), test_dispatch_claims_creates_run_and_enqueues(), test_dispatch_disabled_does_nothing(), test_dispatch_no_claims_skips_run(), test_dispatch_no_config_does_nothing(), test_try_dispatch_for_track_resolves_label(), test_try_dispatch_for_track_skips_when_no_label()
 
 ### Community 349 - "Community 349"
-Cohesion: 0.05
-Nodes (42): 10.1 Edge cases worth code comments, 10.2 Future flags, 10.3 Cross-spec dependencies, 10. Open Items, Edge Cases, Future Flags, 11. Acceptance Criteria, 12. References, 1. Context and Goal, 2. Scope (+34 more)
+Cohesion: 0.22
+Nodes (9): 7.1 Lambda layout, 7.2 `triage_repository.py` — public surface, 7.3 `triage_service.py` — public surface, 7.4 `categories_repository.py` / `categories_service.py` — patches (spec-C), 7.5 `curation_handler.py` — adding 9 handlers, 7.6 `schemas.py` — extensions, 7.7 Logging, 7.8 Transactions and retry (+1 more)
 
 ### Community 350 - "Community 350"
 Cohesion: 0.39
 Nodes (8): GET /labels returns paginated label list with style/q/sort filters., test_list_labels_passes_q_sort_and_page(), test_list_labels_rejects_bad_limit(), test_list_labels_rejects_bad_page(), test_list_labels_rejects_bad_sort(), test_list_labels_rejects_non_integer_limit(), test_list_labels_returns_items_and_total(), _user_event()
 
 ### Community 352 - "Community 352"
-Cohesion: 0.05
-Nodes (37): ADR-0001: RDS Data API at Lambda runtime (vs psycopg), Consequences, Context, Decision, ADR-0003: Saturday-week as canonical period, Consequences, Context, Decision (+29 more)
+Cohesion: 0.04
+Nodes (46): ADR-0001: RDS Data API at Lambda runtime (vs psycopg), Consequences, Context, Decision, ADR-0003: Saturday-week as canonical period, Consequences, Context, Decision (+38 more)
 
 ### Community 353 - "Community 353"
-Cohesion: 0.20
-Nodes (6): cache, dots(), f(), MOTIFS, Palette, PALETTES
+Cohesion: 0.31
+Nodes (6): _build_search_query(), _lat(), Tavily + DeepSeek two-stage adapter.  Stage 1: Tavily search retrieves relevant, Build a focused Tavily query from the rendered user prompt.      The current pro, TavilyDeepSeekAdapter, _zero_usage()
 
 ### Community 354 - "Community 354"
 Cohesion: 0.33
@@ -1942,17 +1930,13 @@ Nodes (11): 1. The Instagram mechanism works — this was the experiment's main 
 Cohesion: 0.25
 Nodes (7): Adding RU later, Catalog file, Domain terms — never translated, i18n Setup · CLOUDER iter-2a, Init, Library, Usage
 
-### Community 357 - "Community 357"
-Cohesion: 0.31
-Nodes (6): _lat(), OpenAIGPTAdapter, OpenAI GPT adapter via the Responses API., Best-effort serialization for the `raw` field.      SDK Response objects use Typ, _to_dict(), _zero_usage()
-
 ### Community 358 - "Community 358"
-Cohesion: 0.17
-Nodes (15): _build_narrative_prompt(), _filter_parseable(), _highest_confidence_cell(), merge_cells(), _merge_deterministic(), _merge_narrative(), _rank_list_round_robin(), Multi-vendor consensus aggregator for LabelInfo cells.  The single public entry (+7 more)
+Cohesion: 0.25
+Nodes (5): _gateway_routes(), collector-api: the router serves exactly the gateway routes; routes live in coll, test_legacy_direct_invoke_still_collects(), test_route_table_serves_exactly_the_gateway_routes(), test_unknown_route_is_404()
 
 ### Community 360 - "Community 360"
-Cohesion: 0.29
-Nodes (7): _build_alembic_database_url(), lambda_handler(), Lambda handler that executes Alembic migrations against Aurora., _rds_client(), _read_secret(), MigrationCommand, get_migration_settings()
+Cohesion: 0.25
+Nodes (8): AuthProvider and tokenStore, Bootstrap flow, Frontend Auth Reference, No Beatport token in the browser, Refresh-cookie replay detection, Spotify access token bundling, Token refresh scheduling, Token storage
 
 ### Community 361 - "Community 361"
 Cohesion: 0.18
@@ -1967,16 +1951,16 @@ Cohesion: 0.23
 Nodes (7): FakeDataAPI, FakeTx, test_get_open_review_none_when_absent(), test_get_open_review_parses_candidates(), test_get_open_review_parses_string_json_candidates(), test_resolve_accept_upserts_and_resolves(), test_resolve_reject_deletes_pending_and_marks_no_match()
 
 ### Community 364 - "Community 364"
-Cohesion: 0.05
-Nodes (37): AuthProvider and tokenStore, Bootstrap flow, Frontend Auth Reference, No Beatport token in the browser, Refresh-cookie replay detection, Spotify access token bundling, Token refresh scheduling, Token storage (+29 more)
+Cohesion: 0.11
+Nodes (17): Cold-start auto-recovery, `DatePickerInput` is undriveable in jsdom, `DatePickerInput type="range"` emits strings, not Dates, Frontend UI Gotchas, Hook rules and early Navigate, Hooks after an early conditional return = lint error, `just-tapped` is scale-only, Mantine 9 specifics (+9 more)
 
 ### Community 365 - "Community 365"
 Cohesion: 0.25
 Nodes (7): Conventions for every task, File Structure, Notes / decisions baked in, Task 1: Pure token-set matcher, Task 2: Use the matcher in the resolver, Task 3: Full verification + finish, Video-aware Comment-Match Implementation Plan
 
 ### Community 366 - "Community 366"
-Cohesion: 0.10
-Nodes (15): _Cell, _execute_cell(), _new_run_id(), Matrix runner: prompts × vendors × fixtures → JSON cells + manifest., Drop Authorization-like fields from raw responses before persisting., run_matrix(), RunResult, RunSpec (+7 more)
+Cohesion: 0.18
+Nodes (10): _Cell, _execute_cell(), _new_run_id(), Matrix runner: prompts × vendors × fixtures → JSON cells + manifest., Drop Authorization-like fields from raw responses before persisting., run_matrix(), RunResult, RunSpec (+2 more)
 
 ### Community 367 - "Community 367"
 Cohesion: 0.20
@@ -1984,11 +1968,11 @@ Nodes (9): Global Constraints, Phase 3 — Safe deploy: reproducible package, AP
 
 ### Community 368 - "Community 368"
 Cohesion: 0.06
-Nodes (37): _build_artist_repository(), _build_auto_repository(), _build_data_api(), _build_sqs_client(), _dispatch_artists(), _queue_url(), Best-effort auto-enrichment dispatch for artists from curation actions.  Mirror, _safe() (+29 more)
+Nodes (34): _build_artist_repository(), _build_auto_repository(), _build_data_api(), _build_sqs_client(), _dispatch_artists(), _queue_url(), Best-effort auto-enrichment dispatch for artists from curation actions.  Mirror, _safe() (+26 more)
 
 ### Community 369 - "Community 369"
-Cohesion: 0.42
-Nodes (9): _merge_snapshot(), _process(), Replays of stored runs on a real Postgres: event time decides, not processing or, test_out_of_order_replays_converge(), test_replaying_an_older_run_keeps_newer_values(), test_replaying_the_same_run_changes_nothing_and_keeps_updated_at(), test_same_run_replay_is_fresh_even_if_stamped_later(), _track() (+1 more)
+Cohesion: 0.36
+Nodes (9): _album_of(), _merge(), _process(), Canonical tracks fed by two Beatport tracks (the early ISRC heuristic, 2026-03,, Point a second Beatport id at an existing canonical track (legacy heuristic)., bp 1 on an EP (week 1), bp 9001 = the same recording on a compilation (week 2)., test_merged_track_takes_the_newest_source_whatever_the_order(), test_merged_track_within_one_run_is_stable() (+1 more)
 
 ### Community 370 - "Community 370"
 Cohesion: 0.25
@@ -2003,16 +1987,16 @@ Cohesion: 0.23
 Nodes (14): _make_grounding_chunk(), _mock_response(), Tests for GeminiFlashAdapter using injected fake clients., 503 UNAVAILABLE errors are retried with exponential backoff., Quota errors are retried; success on the third attempt counts as ok., When grounding_metadata has no URLs, copy parsed.sources into citations., test_run_bad_json(), test_run_exception_path() (+6 more)
 
 ### Community 374 - "Community 374"
-Cohesion: 0.19
-Nodes (16): _make_adapter(), _make_llm_client(), Tests for TavilyDeepSeekAdapter using httpx.MockTransport and MagicMock LLM., Second Tavily call fails — first-pass results still flow through., Handler that distinguishes general vs social pass by include_domains key., _tavily_error_transport(), _tavily_ok_transport(), test_bad_json_from_deepseek() (+8 more)
+Cohesion: 0.12
+Nodes (26): _make_adapter(), _make_llm_client(), Tests for TavilyDeepSeekAdapter using httpx.MockTransport and MagicMock LLM., Second Tavily call fails — first-pass results still flow through., Handler that distinguishes general vs social pass by include_domains key., _tavily_error_transport(), _tavily_ok_transport(), test_bad_json_from_deepseek() (+18 more)
 
 ### Community 375 - "Community 375"
 Cohesion: 0.25
 Nodes (7): Costs by month (line items, USD), Enrichment OpenAI usage & cost analysis — 2026-07-15, Headline findings, Implications for the design (amendments to the approved spec), Per-run economics (prod, gpt-5.4-mini), Recommendation summary, Reproducing
 
 ### Community 376 - "Community 376"
-Cohesion: 0.15
-Nodes (17): _build_narrative_prompt(), _filter_parseable(), _highest_confidence_cell(), merge_cells(), _merge_deterministic(), _merge_narrative(), _rank_list_round_robin(), Multi-vendor consensus aggregator for ArtistInfo cells.  The single public entry (+9 more)
+Cohesion: 0.05
+Nodes (54): _build_narrative_prompt(), _filter_parseable(), _highest_confidence_cell(), merge_cells(), _merge_deterministic(), _merge_narrative(), _rank_list_round_robin(), Multi-vendor consensus aggregator for LabelInfo cells.  The single public entry (+46 more)
 
 ### Community 377 - "Community 377"
 Cohesion: 0.22
@@ -2020,11 +2004,11 @@ Nodes (14): _block(), Terraform and deploy-workflow contracts for auto-ingest., 
 
 ### Community 378 - "Community 378"
 Cohesion: 0.22
-Nodes (9): 6.1 Mount → first render, 6.2 Assign (key press or button click), 6.3 Undo (`U` key, no UI button on desktop), 6.4 Skip / Prev (`J` / `K`), 6.5 Pagination, 6.6 Hotkey resolution (layout-safe), 6.7 Cache invalidation already handled by `useMoveTracks`, 6.8 No `useMoveTracks` modification needed (+1 more)
+Nodes (9): 10. i18n Keys, 13. Open Items, Edge Cases, Future Flags, 14. Acceptance Criteria, 15. References, 1. Context and Goal, 2. Scope, 8. Error / Empty / Loading UX Mapping, 9. Code Layout (+1 more)
 
 ### Community 379 - "Community 379"
-Cohesion: 0.16
-Nodes (3): FakeAutoRepo, FakeRepo, test_handler_enriches_one_artist()
+Cohesion: 0.12
+Nodes (14): SpotifyNotFoundTable(), BADGE_COLOR, SearchStatus, SpotifySearchStatus(), RetryInput, RetryResponse, useRetrySpotifySearch(), SpotifyNotFoundItem (+6 more)
 
 ### Community 380 - "Community 380"
 Cohesion: 0.40
@@ -2067,8 +2051,8 @@ Cohesion: 0.24
 Nodes (13): make_client(), _raising_client(), Return a client whose urlopen always raises HTTPError with a JSON body., responses: list of (status, body) returned in order., test_access_denied_raises_denied(), test_device_code_httperror_without_allow_error_raises_autherror(), test_exchange_expired_raises_expired(), test_exchange_httperror_pending_is_parsed() (+5 more)
 
 ### Community 390 - "Community 390"
-Cohesion: 0.12
-Nodes (13): _enable_all_stubs(), Contract tests — every stub vendor satisfies LookupProvider/ExportProvider Proto, MonkeyPatch, Unit tests for provider registry and VENDORS_ENABLED gating., Disabled vendor must not instantiate its provider — important so     that unrela, Regression guard: every enricher built from `_BUILDERS` must expose     a unique, test_disabled_vendor_does_not_build_bundle(), test_enabled_vendors_empty() (+5 more)
+Cohesion: 0.06
+Nodes (28): CaptureFixture, _enable_all_stubs(), Contract tests — every stub vendor satisfies LookupProvider/ExportProvider Proto, MonkeyPatch, Unit tests for provider registry and VENDORS_ENABLED gating., Disabled vendor must not instantiate its provider — important so     that unrela, Regression guard: every enricher built from `_BUILDERS` must expose     a unique, test_disabled_vendor_does_not_build_bundle() (+20 more)
 
 ### Community 391 - "Community 391"
 Cohesion: 0.14
@@ -2091,20 +2075,20 @@ Cohesion: 0.50
 Nodes (7): test_build_report_no_aggregated_section_when_merged_dir_absent(), test_build_report_renders_aggregated_section(), test_build_report_renders_sections(), _write_cell(), _write_manifest(), _write_merged(), Write a merged/<file>.json record to a run dir.
 
 ### Community 398 - "Community 398"
-Cohesion: 0.06
-Nodes (29): AISignal, AISignal, GroundTruth, BaseModel, AddTrackIn, AddTracksIn, CoverUploadUrlIn, CreateCategoryIn (+21 more)
+Cohesion: 0.04
+Nodes (41): ArtistEnrichmentMessage, EnrichArtistInput, EnrichArtistsRequestIn, SQS message schema for artist enrichment (HTTP request models added in 1B)., Body of one SQS message — one per artist, one Lambda invocation.      The disamb, POST /admin/artists/enrich body., AISignal, GroundTruth (+33 more)
 
 ### Community 399 - "Community 399"
-Cohesion: 0.10
-Nodes (17): ADR-0011: Spotify token bundled with CLOUDER auth refresh, Consequences, Context, Decision, ADR-0015: Refresh-cookie replay = revoke all sessions, Consequences, Context, Decision (+9 more)
+Cohesion: 0.25
+Nodes (8): Auth Flow Reference, Error codes, OAuth callback, OAuth start, Related endpoints, Replay detection, Sequence diagram, Token refresh
 
 ### Community 400 - "Community 400"
 Cohesion: 0.13
 Nodes (25): AccessClaims, _decode(), InvalidTokenError, issue_access_token(), HS256 JWT issue / verify helpers for spec-A access and refresh tokens., RefreshClaims, verify_access_token(), verify_refresh_token() (+17 more)
 
 ### Community 401 - "Community 401"
-Cohesion: 0.11
-Nodes (23): main(), splitlab CLI: pull-sample | run | report., load_settings(), _parse_env(), Settings: .env loader (no python-dotenv dep) + fixed experiment constants., Settings, _default_execute(), pull() (+15 more)
+Cohesion: 0.12
+Nodes (24): test_build_report_no_aggregated_section_when_merged_dir_absent(), test_build_report_renders_aggregated_section(), test_build_report_renders_sections(), _write_cell(), _write_manifest(), _write_merged(), Path, main() (+16 more)
 
 ### Community 402 - "Community 402"
 Cohesion: 0.25
@@ -2162,6 +2146,10 @@ Nodes (9): _event(), FakeRepo, Admin API for auto-ingest: settings, plan status,
 Cohesion: 0.20
 Nodes (10): Delivery metrics, Dependencies, Deploy, Deploy pipeline, Frontend deploy, GitHub Secrets, How a change reaches production, Manual operations (+2 more)
 
+### Community 420 - "Community 420"
+Cohesion: 0.11
+Nodes (35): _handle_analytics_funnel(), Personal: own data for any signed-in user; admins may pass ?user_id., AnalyticsError, _check_dates(), _client(), _correlation_id(), create_default_athena_client(), events_source() (+27 more)
+
 ### Community 421 - "Community 421"
 Cohesion: 0.22
 Nodes (9): After, Before (2026-10-07, the whole raw zone: 154 objects, 107,795 records), How to respond, Not done, and why, Raw data contract, The contract, What changed, What it buys (+1 more)
@@ -2178,8 +2166,16 @@ Nodes (4): ADR-0018: Triage staging-bucket auditioning + create-time classificat
 Cohesion: 0.22
 Nodes (8): Global Constraints, Phase 7 — SPA demo on sample data (GitHub Pages) Implementation Plan, Review Focus, Task 1: Sample catalog + in-memory store, Task 2: MSW handlers + worker start, Task 3: Wire the demo mode into the app, Task 4: One Pages site — landing, `/lineage/`, `/demo/`, Task 5: PR, review, merge, deploy, verify
 
+### Community 425 - "Community 425"
+Cohesion: 0.25
+Nodes (8): 8.1 Alembic migration `20260428_15_triage.py`, 8.2 Terraform additions (`infra/curation.tf`), 8.3 Packaging, 8.4 OpenAPI regen, 8.5 CI / deploy, 8.6 Env vars, 8.7 Known runtime risks (documented), 8. Migration & Infrastructure
+
+### Community 427 - "Community 427"
+Cohesion: 0.42
+Nodes (9): _merge_snapshot(), _process(), Replays of stored runs on a real Postgres: event time decides, not processing or, test_out_of_order_replays_converge(), test_replaying_an_older_run_keeps_newer_values(), test_replaying_the_same_run_changes_nothing_and_keeps_updated_at(), test_same_run_replay_is_fresh_even_if_stamped_later(), _track() (+1 more)
+
 ### Community 428 - "Community 428"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (4): Data, Engineering highlights, Operations, Postmortems
 
 ### Community 429 - "Community 429"
@@ -2187,8 +2183,8 @@ Cohesion: 0.25
 Nodes (8): Alternatives considered, Architecture, Design: the CLOUDER data platform, Evolution, Failure modes, Goals, Non-goals, SLOs
 
 ### Community 430 - "Community 430"
-Cohesion: 0.31
-Nodes (14): _candidate(), _clear_cache(), Fuzzy scorer tests (Plan 4 Task 4)., test_album_bonus_when_match(), test_album_bonus_zero_when_mismatch(), test_artist_mismatch(), test_duration_outside_tolerance_penalises(), test_duration_unknown_is_not_ok() (+6 more)
+Cohesion: 0.23
+Nodes (17): _candidate(), _clear_cache(), Fuzzy scorer tests (Plan 4 Task 4)., test_album_bonus_when_match(), test_album_bonus_zero_when_mismatch(), test_artist_mismatch(), test_duration_outside_tolerance_penalises(), test_duration_unknown_is_not_ok() (+9 more)
 
 ### Community 431 - "Community 431"
 Cohesion: 0.14
@@ -2203,8 +2199,8 @@ Cohesion: 0.40
 Nodes (4): ClouderTheme, magenta, MantineThemeOther, neutral
 
 ### Community 434 - "Community 434"
-Cohesion: 0.31
-Nodes (12): Change, Deploy, deploys_per_week(), fetch_changes(), fetch_deploys(), _fmt(), _git(), lead_times() (+4 more)
+Cohesion: 0.32
+Nodes (6): DEFAULT_DELAYS, PendingFinalizeBlock, ScheduleArgs, schedulePendingFinalizeRecovery(), finalized, inProgress
 
 ### Community 435 - "Community 435"
 Cohesion: 0.40
@@ -2231,8 +2227,8 @@ Cohesion: 0.47
 Nodes (9): _correlation_for(), _ctx(), _event_without_correlation_header(), _log_lines(), One request must carry one correlation_id across every log line.  `_extract_corr, reset_caches(), test_failed_ingest_logs_one_correlation_id(), test_failed_ingest_response_matches_logged_correlation_id() (+1 more)
 
 ### Community 441 - "Community 441"
-Cohesion: 0.43
-Nodes (6): load_tavily_key(), main(), provenance_label(), One-off backfill: fill missing instagram_url for already-enriched entities.  Run, --{name}-arn, else AURORA_{NAME}_ARN (the Lambdas' name) or CLOUDER_{NAME}_ARN;, require_arn()
+Cohesion: 0.25
+Nodes (5): buckets, moveMutate, playSpy, queueTracks, renderDistribute()
 
 ### Community 442 - "Community 442"
 Cohesion: 0.70
@@ -2245,10 +2241,6 @@ Nodes (4): _admin_event(), GET /admin/labels/{label_id}/history exposes per-labe
 ### Community 444 - "Community 444"
 Cohesion: 0.60
 Nodes (4): _admin_event(), GET /admin/labels/backlog lists labels without (current) enrichment., test_backlog_requires_admin(), test_backlog_returns_items_and_total_estimate()
-
-### Community 446 - "Community 446"
-Cohesion: 0.22
-Nodes (9): 10. i18n Keys, 13. Open Items, Edge Cases, Future Flags, 14. Acceptance Criteria, 15. References, 1. Context and Goal, 2. Scope, 8. Error / Empty / Loading UX Mapping, 9. Code Layout (+1 more)
 
 ### Community 447 - "Community 447"
 Cohesion: 0.60
@@ -2267,7 +2259,7 @@ Cohesion: 0.60
 Nodes (4): _load_migration(), Sanity check that migration 19 has a clean revision chain., test_migration_19_chain(), test_migration_19_upgrade_downgrade_callable()
 
 ### Community 451 - "Community 451"
-Cohesion: 0.18
+Cohesion: 0.20
 Nodes (8): ACTION, ASSIGN, HotkeyOverlay(), HotkeyOverlayProps, KeyRow, NAVIGATE, PLAYBACK, SYSTEM
 
 ### Community 452 - "Community 452"
@@ -2279,16 +2271,16 @@ Cohesion: 0.50
 Nodes (4): ADR-0002: Multi-tenant overlay model, Consequences, Context, Decision
 
 ### Community 455 - "Community 455"
-Cohesion: 0.40
-Nodes (4): ADR-0009: Frontend stack — React 19 + Mantine 9, Consequences, Context, Decision
+Cohesion: 0.43
+Nodes (7): Tests for Spotify not-found retry repository methods., _repo(), test_count_not_found_applies_date_filters(), test_count_spotify_pending_in_range(), test_find_not_found_applies_date_filters(), test_find_not_found_without_dates_keeps_old_sql(), test_reset_spotify_not_found_counts_returned_rows()
 
 ### Community 457 - "Community 457"
 Cohesion: 0.50
 Nodes (4): ADR-0014: Aurora Serverless v2 `min_acu=0`, Consequences, Context, Decision
 
 ### Community 459 - "Community 459"
-Cohesion: 0.28
-Nodes (7): ArtistHistoryCell, ArtistHistoryResponse, ArtistHistoryDrawer(), groupByRun(), Props, RunGroup, STATUS_COLOR
+Cohesion: 0.33
+Nodes (4): DestinationButton(), DestinationButtonProps, newBucket, stage
 
 ### Community 461 - "Community 461"
 Cohesion: 0.18
@@ -2307,7 +2299,7 @@ Cohesion: 0.40
 Nodes (4): ADR-0013: PlaybackProvider in authenticated layout, SDK lazy-loaded, Consequences, Context, Decision
 
 ### Community 470 - "Community 470"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (6): _first(), _plan_step(), CI hardening around AWS (ADR-0028): same inputs for plan and apply, secrets only, test_frontend_dependencies_install_before_any_aws_credentials(), test_lambda_is_packaged_before_any_aws_credentials(), test_plan_and_apply_get_the_same_inputs()
 
 ### Community 471 - "Community 471"
@@ -2317,6 +2309,10 @@ Nodes (4): Delete, Read flow, S3 Layout for Covers, Upload flow
 ### Community 472 - "Community 472"
 Cohesion: 0.50
 Nodes (4): Cross-feature invalidations, Data Flow, Mutation patterns, Query keys (`lib/queryKeys.ts`)
+
+### Community 475 - "Community 475"
+Cohesion: 0.43
+Nodes (6): load_tavily_key(), main(), provenance_label(), One-off backfill: fill missing instagram_url for already-enriched entities.  Run, --{name}-arn, else AURORA_{NAME}_ARN (the Lambdas' name) or CLOUDER_{NAME}_ARN;, require_arn()
 
 ### Community 476 - "Community 476"
 Cohesion: 0.67
@@ -2330,21 +2326,17 @@ Nodes (3): _admin_event(), GET /admin/labels/enrich-runs/{run_id} now includes c
 Cohesion: 0.83
 Nodes (3): downgrade(), _quote_identifier(), upgrade()
 
-### Community 516 - "Community 516"
-Cohesion: 0.22
-Nodes (6): ArtistEnrichmentMessage, EnrichArtistInput, EnrichArtistsRequestIn, SQS message schema for artist enrichment (HTTP request models added in 1B)., Body of one SQS message — one per artist, one Lambda invocation.      The disamb, POST /admin/artists/enrich body.
-
 ### Community 517 - "Community 517"
 Cohesion: 0.16
 Nodes (11): deployed_handlers(), _lambda_suffixes(), Live docs describe the system that is deployed, not the one that was removed., test_docs_call_lambdas_by_their_current_names(), test_docs_have_no_money_figures(), test_every_deployed_lambda_is_in_the_architecture_doc(), test_live_docs_do_not_describe_removed_components(), test_long_lambda_invokes_in_docs_wait_for_the_result() (+3 more)
 
 ### Community 519 - "Community 519"
-Cohesion: 0.08
-Nodes (42): BaseException, auth_check(), _error_text(), _function_arn(), lambda_handler(), plan(), Auto-ingest Lambda (docs/data/auto-ingest.md).  - `plan`: turn the admin schedul, run() (+34 more)
+Cohesion: 0.04
+Nodes (59): _auto_ingest_repository(), create_default_sqs_client(), Collaborators of the collector-API routes.  Route modules call these through the, AutoEnrichRepository, Stamp last_run_id on the given state rows.          Intended to be called with t, Worker touch: flip a queued auto-state row to completed/failed.          No-op f, _build_repository(), _build_auto_repository() (+51 more)
 
 ### Community 520 - "Community 520"
-Cohesion: 0.12
-Nodes (17): BaseSettings, aggregate(), build_deepseek_client(), build_vendors(), list_fixtures(), list_vendors(), _parse_csv(), Merge per-vendor cells in a run into consensus LabelInfo per fixture. (+9 more)
+Cohesion: 0.09
+Nodes (28): BaseSettings, aggregate(), build_deepseek_client(), build_vendors(), list_fixtures(), list_vendors(), _parse_csv(), Merge per-vendor cells in a run into consensus LabelInfo per fixture. (+20 more)
 
 ### Community 521 - "Community 521"
 Cohesion: 0.60
@@ -2359,24 +2351,24 @@ Cohesion: 0.15
 Nodes (12): 1. Credentials and token, 2. Which periods to ingest, 3. Scheduling, 4. Running, 5. Admin, 6. Observability, docs, rollout, Auto-ingest — design, Constraints (+4 more)
 
 ### Community 543 - "Community 543"
-Cohesion: 0.16
-Nodes (18): BacklogResponse, BacklogLabel, BacklogTable(), Props, BacklogToolbar(), Props, StyleFilterOption, useAllStyles() (+10 more)
+Cohesion: 0.03
+Nodes (88): ArtistHistoryCell, ArtistHistoryResponse, ArtistSummary, BacklogArtist, BacklogResponse, EnrichBody, EnrichmentOptions, RunCell (+80 more)
 
 ### Community 544 - "Community 544"
 Cohesion: 0.25
 Nodes (8): 1. Browser ↔ API, 2. Lambda ↔ data stores, 3. Lambda ↔ third parties, 4. GitHub ↔ AWS, Assets, Known gaps, Security: threat model, Trust boundaries
 
 ### Community 545 - "Community 545"
-Cohesion: 0.31
-Nodes (6): _lat(), OpenAIGPTAdapter, OpenAI GPT adapter via the Responses API., Best-effort serialization for the `raw` field.      SDK Response objects use Typ, _to_dict(), _zero_usage()
+Cohesion: 0.43
+Nodes (6): _bundle_with_one_label(), _echo_repo(), Verify all canonicalize phases run within a transaction., MagicMock repo whose identity lookups return what was just claimed., test_every_phase_call_passes_transaction_id(), test_transaction_rolled_back_on_failure()
 
 ### Community 546 - "Community 546"
 Cohesion: 0.50
 Nodes (4): ADR-0022: Set-based, claim-then-read canonicalization, Consequences, Context, Decision
 
 ### Community 547 - "Community 547"
-Cohesion: 0.11
-Nodes (9): label_v2_facts — facts-discipline prompt: numbers, sources, no guessing., label_v3_app_fields — label_v2_facts plus logo, socials, tagline for app integra, Load and validate fixtures.yaml., AISignal, FixturesFile, GroundTruth, LabelInfo, Data models for the label sandbox. (+1 more)
+Cohesion: 0.12
+Nodes (7): label_v2_facts — facts-discipline prompt: numbers, sources, no guessing., label_v3_app_fields — label_v2_facts plus logo, socials, tagline for app integra, Load and validate fixtures.yaml., FixturesFile, LabelInfo, Data models for the label sandbox., label_v1_baseline — port of the production label prompt onto the new schema.
 
 ### Community 548 - "Community 548"
 Cohesion: 0.50
@@ -2396,7 +2388,7 @@ Nodes (8): After (production, 2026-10-07), Backfill: replaying the raw zone, Bef
 
 ### Community 552 - "Community 552"
 Cohesion: 0.06
-Nodes (33): date, test_settings_default_and_round_trip(), The planner replays the run behind each raw object — the latest one written to i, _run(), test_list_replayable_runs_orders_by_observation_time(), test_list_replayable_runs_picks_latest_run_per_raw_object(), The run behind each raw object — the latest one written to its key.          Re-, Read-only peek used to decide whether a follow-up batch is needed.          Must (+25 more)
+Nodes (43): choose_periods(), Which (style, Saturday-week) pairs an auto-ingest run takes (docs/data/auto-inge, The due week, then older weeks while they start on or after the floor., weeks_back(), first_saturday(), _last_saturday_on_or_before(), Saturday-anchored week math.  Convention used by the admin Beatport ingest UI., saturday_week_range() (+35 more)
 
 ### Community 554 - "Community 554"
 Cohesion: 0.50
@@ -2436,15 +2428,15 @@ Nodes (4): _event(), _run(), test_route_is_personal(), test_stage_by_style_perce
 
 ### Community 563 - "Community 563"
 Cohesion: 0.08
-Nodes (31): Atomically claim artists eligible for an auto-search.          Two set-based sta, Auto-ingest settings, run lease, attempts and planning state (docs/data/auto-ing, One run at a time (the account's Lambda quota rules out reserved concurrency)., Auto-ingest settings, lease, attempts and planning state on a real Postgres., _run(), _style(), test_a_completed_run_clears_a_stuck_pair(), test_an_ingest_still_pending_is_not_a_failure() (+23 more)
+Nodes (31): Atomically claim artists eligible for an auto-search.          Two set-based sta, One run at a time (the account's Lambda quota rules out reserved concurrency)., Auto-ingest settings, lease, attempts and planning state on a real Postgres., _run(), _style(), test_a_completed_run_clears_a_stuck_pair(), test_an_ingest_still_pending_is_not_a_failure(), test_an_ingest_whose_canonicalization_failed_counts_as_a_failed_attempt() (+23 more)
 
 ### Community 564 - "Community 564"
 Cohesion: 0.33
 Nodes (5): _block(), Every Lambda runs under its own least-privilege role (matrix derived from env +, role_block(), test_each_role_writes_only_its_own_logs(), test_role_matrix()
 
 ### Community 566 - "Community 566"
-Cohesion: 0.36
-Nodes (7): _b64url_nopad(), derive_code_challenge(), generate_code_verifier(), PKCE helpers for Spotify OAuth (RFC 7636)., test_derive_code_challenge_is_base64url_no_padding(), test_derive_code_challenge_known_vector(), test_generate_code_verifier_is_base64url_no_padding()
+Cohesion: 0.08
+Nodes (22): Adding a route, Demo on sample data, How it works, Playback, Publishing, Admin gating, Feature-folder convention, Frontend Features Reference (+14 more)
 
 ### Community 567 - "Community 567"
 Cohesion: 0.33
@@ -2455,8 +2447,8 @@ Cohesion: 0.31
 Nodes (6): _build_search_query(), _lat(), Tavily + DeepSeek two-stage adapter.  Stage 1: Tavily search retrieves relevant, Build a focused Tavily query from the rendered user prompt.      The current pro, TavilyDeepSeekAdapter, _zero_usage()
 
 ### Community 570 - "Community 570"
-Cohesion: 0.32
-Nodes (7): compute_iso_week_date_range(), Return ISO week boundaries as date strings (YYYY-MM-DD)., validate_collect_request(), test_compute_iso_week_range_handles_year_boundary(), test_compute_iso_week_range_returns_date_only_strings(), test_validate_collect_request_rejects_invalid_week_combo(), test_validate_collect_request_rejects_non_integer_style_id()
+Cohesion: 0.22
+Nodes (9): 6.1 Mount → first render, 6.2 Assign (key press or button click), 6.3 Undo (`U` key, no UI button on desktop), 6.4 Skip / Prev (`J` / `K`), 6.5 Pagination, 6.6 Hotkey resolution (layout-safe), 6.7 Cache invalidation already handled by `useMoveTracks`, 6.8 No `useMoveTracks` modification needed (+1 more)
 
 ### Community 571 - "Community 571"
 Cohesion: 0.29
@@ -2465,10 +2457,6 @@ Nodes (7): Aurora, Cold-start behaviour, Data protection, IAM authentication, Ma
 ### Community 573 - "Community 573"
 Cohesion: 0.40
 Nodes (5): CLOUDER Architecture, Lambda functions, Subsystems, System overview, Where to read next
-
-### Community 574 - "Community 574"
-Cohesion: 0.39
-Nodes (5): _make_prompt(), test_registry_register_and_get(), test_registry_rejects_duplicate(), test_render_user_with_release(), test_render_user_without_release()
 
 ### Community 576 - "Community 576"
 Cohesion: 0.38
@@ -2483,16 +2471,16 @@ Cohesion: 0.25
 Nodes (8): After (production, 2026-10-07), Before (2026-10-07), How to run, Lakehouse: silver and gold on Iceberg, built by dbt, Not done, and why, What changed, What it buys, Why
 
 ### Community 579 - "Community 579"
-Cohesion: 0.18
-Nodes (13): SpotifySearchResult, EnrichResult, SpotifyEnricher — wraps SpotifyLookup to expose release_type as EnrichResult.  C, SpotifyEnricher, test_enrich_result_required_fields(), _FakeLookup, Unit tests for SpotifyEnricher (release_type extraction)., test_enricher_implements_protocol() (+5 more)
+Cohesion: 0.33
+Nodes (9): SpotifySearchResult, SpotifyEnricher, _FakeLookup, Unit tests for SpotifyEnricher (release_type extraction)., test_enricher_implements_protocol(), test_enricher_rejects_wrong_entity_type(), test_enricher_returns_album_type_when_found(), test_enricher_returns_no_isrc_when_missing() (+1 more)
+
+### Community 580 - "Community 580"
+Cohesion: 0.29
+Nodes (6): findNextPlayable(), PlayableTrack, tA, tB, tC, tD
 
 ### Community 581 - "Community 581"
 Cohesion: 0.40
 Nodes (4): ADR-0020: Canonical top-level routes for artist/label detail pages, Consequences, Context, Decision
-
-### Community 582 - "Community 582"
-Cohesion: 0.40
-Nodes (4): ADR-0012: Optimistic shrink, reducer ADVANCE no-op, Consequences, Context, Decision
 
 ### Community 585 - "Community 585"
 Cohesion: 0.60
@@ -2502,17 +2490,21 @@ Nodes (4): _block(), The Spotify search queue is drained by a bounded number of 
 Cohesion: 0.29
 Nodes (6): After merge (gate), Auto-ingest Phase A (credentials, Beatport login, spike) Implementation Plan, Global Constraints, Review Focus, Task 1: `beatport_auth.fetch_access_token`, Task 2: `auto_ingest_handler` (`auth_check`), Lambda, role, deploy step
 
+### Community 588 - "Community 588"
+Cohesion: 0.53
+Nodes (4): _event(), test_logout_invalid_token_silently_succeeds(), test_logout_revokes_session_and_clears_cookie(), test_logout_without_cookie_still_returns_204()
+
 ### Community 589 - "Community 589"
-Cohesion: 0.23
-Nodes (6): _ctx(), FakeOAuth, End-to-end auth flow with in-memory fakes for KMS, OAuth, repo., test_full_login_to_logout_flow(), test_non_premium_blocks_at_callback(), _wire()
+Cohesion: 0.40
+Nodes (4): Snapshot and restore the `live` alias of the API Lambdas (ADR-0029).  The deploy, Point each alias back; one failing function never stops the others., restore(), snapshot()
 
 ### Community 590 - "Community 590"
 Cohesion: 0.33
 Nodes (6): Entry points, ingest_runs state machine, Operational notes, Raw ingestion, S3 raw layout, Saturday-week convention
 
 ### Community 591 - "Community 591"
-Cohesion: 0.33
-Nodes (4): xAI Grok adapter via the Responses API., Best-effort serialization for the `raw` field.      SDK Response objects use Typ, _to_dict(), XAIGrokAdapter
+Cohesion: 0.50
+Nodes (4): ADR-0011: Spotify token bundled with CLOUDER auth refresh, Consequences, Context, Decision
 
 ### Community 593 - "Community 593"
 Cohesion: 0.50
@@ -2527,16 +2519,12 @@ Cohesion: 0.50
 Nodes (4): ADR-0017: Artist enrichment mirrors label enrichment (parallel package, not shared engine), Consequences, Context, Decision
 
 ### Community 597 - "Community 597"
-Cohesion: 0.07
-Nodes (19): Client, PerplexitySonarAdapter, Perplexity sonar adapter via httpx., _build_search_query(), _lat(), Tavily + DeepSeek two-stage adapter.  Stage 1: Tavily search retrieves relevant, TavilyDeepSeekAdapter, _zero_usage() (+11 more)
+Cohesion: 0.04
+Nodes (31): AnthropicClaudeAdapter, Anthropic Claude adapter., Best-effort serialization for the `raw` field. SDK objects vary in shape., _to_dict(), _lat(), OpenAIGPTAdapter, OpenAI GPT adapter via the Responses API., Best-effort serialization for the `raw` field.      SDK Response objects use Typ (+23 more)
 
 ### Community 598 - "Community 598"
 Cohesion: 0.40
 Nodes (3): _fn(), API Gateway calls the `live` alias of each API function (phase 3, ADR-0029)., test_api_functions_publish_versions()
-
-### Community 600 - "Community 600"
-Cohesion: 0.32
-Nodes (6): DEFAULT_DELAYS, PendingFinalizeBlock, ScheduleArgs, schedulePendingFinalizeRecovery(), finalized, inProgress
 
 ### Community 601 - "Community 601"
 Cohesion: 0.11
@@ -2548,19 +2536,15 @@ Nodes (6): _block(), Cost and safety guardrails a reviewer would otherwise check
 
 ### Community 604 - "Community 604"
 Cohesion: 0.50
-Nodes (3): Vendor adapter protocol and response container., VendorAdapter, VendorResponse
-
-### Community 606 - "Community 606"
-Cohesion: 0.27
-Nodes (7): _identity(), Round-trip counts of the set-based repository API (fake Data API)., RecordingDataAPI, test_batch_writes_skip_empty_lists(), test_claim_identities_never_overwrites_existing_rows(), test_find_identities_chunks_in_list_by_500(), test_find_identities_dedups_and_skips_empty()
+Nodes (4): ADR-0019: YouTube Music as a second vendor (match + publish), mirrored not shared, Consequences, Context, Decision
 
 ### Community 608 - "Community 608"
-Cohesion: 0.12
-Nodes (17): AISignalKind, ArtistType, AIContentStatus, AISignalKind, ArtistType, Data models for the artist sandbox., Enum, ActivityLevel (+9 more)
+Cohesion: 0.16
+Nodes (30): AISignalKind, ArtistType, AIContentStatus, AISignalKind, ArtistType, Data models for the artist sandbox., CollectRequest, EntityType (+22 more)
 
 ### Community 609 - "Community 609"
-Cohesion: 0.22
-Nodes (9): Auto-advance, Frontend Playback Reference, Hotkeys, Optimistic shrink and cursor, PlaybackProvider lifecycle, Queue source discriminated union, Spotify token plumbing, `useCurateHotkeys` (`frontend/src/features/curate/hooks/useCurateHotkeys.ts`) (+1 more)
+Cohesion: 0.11
+Nodes (23): main(), splitlab CLI: pull-sample | run | report., load_settings(), _parse_env(), Settings: .env loader (no python-dotenv dep) + fixed experiment constants., Settings, _default_execute(), pull() (+15 more)
 
 ### Community 611 - "Community 611"
 Cohesion: 0.33
@@ -2574,10 +2558,6 @@ Nodes (4): Migration 36 hands back the rows a deadline-cut Spotify batch left st
 Cohesion: 0.48
 Nodes (6): _dashboard(), The overview dashboard shows every signal an alarm watches., test_dashboard_charts_every_data_quality_slo(), test_dashboard_covers_every_alarmed_signal(), test_dashboard_opens_on_a_week_with_each_widget_period(), test_overview_dashboard_is_defined_as_code()
 
-### Community 614 - "Community 614"
-Cohesion: 0.29
-Nodes (5): BeatportProvider, Thin adapter — delegates everything to BeatportClient.      Exists so handlers d, Unit tests for the BeatportProvider adapter., test_beatport_provider_delegates_to_client(), test_beatport_provider_implements_protocol()
-
 ### Community 615 - "Community 615"
 Cohesion: 0.50
 Nodes (4): Data stores, Failure modes, Failure modes, RPO and RTO, Known gaps
@@ -2586,33 +2566,21 @@ Nodes (4): Data stores, Failure modes, Failure modes, RPO and RTO, Known gaps
 Cohesion: 0.57
 Nodes (6): _make_repo(), _params_from_call(), Unit tests for set_run_failed phase prefix and truncation., test_set_run_failed_prepends_phase(), test_set_run_failed_truncates_long_message_keeping_prefix(), test_set_run_failed_without_phase_unchanged()
 
-### Community 619 - "Community 619"
-Cohesion: 0.43
-Nodes (4): Props, RunHistoryList(), CellRun, useCellRuns()
-
 ### Community 623 - "Community 623"
 Cohesion: 0.22
 Nodes (8): Global Constraints, Phase 2 — Docs that match production, guarded by tests Implementation Plan, Review Focus, Task 1: Guard tests (RED), Task 2: Make docs and config true, Task 3: Zero ESLint warnings without changing behavior, Task 4: README sections from audit §12, Task 5: PR, review, merge, deploy, verify
 
-### Community 624 - "Community 624"
-Cohesion: 0.33
-Nodes (4): AnthropicClaudeAdapter, Anthropic Claude adapter., Best-effort serialization for the `raw` field. SDK objects vary in shape., _to_dict()
-
 ### Community 626 - "Community 626"
 Cohesion: 0.33
-Nodes (4): AnthropicClaudeAdapter, Anthropic Claude adapter., Best-effort serialization for the `raw` field. SDK objects vary in shape., _to_dict()
+Nodes (6): 11. Acceptance Criteria, 12. References, 1. Context and Goal, 2. Scope, 3. Architectural Decisions, spec-D — Triage (Layer 2 + promotion)
 
 ### Community 627 - "Community 627"
-Cohesion: 0.40
-Nodes (5): 11.1 Unit tests, 11.2 Integration test (`curate-flow.test.tsx`), 11.3 Test infra reuse, 11.4 Out-of-scope tests, 11. Testing
-
-### Community 628 - "Community 628"
-Cohesion: 0.40
-Nodes (5): 12.1 Branch + commits, 12.2 Smoke against prod API GW, 12.3 PR, 12.4 Roadmap update, 12. Delivery
+Cohesion: 0.33
+Nodes (6): 4.1 `triage_blocks`, 4.2 `triage_buckets`, 4.3 `triage_bucket_tracks`, 4.4 Changes to existing tables, 4.5 Rationale notes, 4. Data Model
 
 ### Community 629 - "Community 629"
 Cohesion: 0.40
-Nodes (5): 7.1 Param validation, 7.2 Picker validation, 7.3 Hotkey validation, 7.4 No client-side track-id validation, 7. Validation
+Nodes (3): AutoEnrichConfigIn, PUT body schema for auto-enrichment config., PUT /admin/auto-enrich/artists body.      When `enabled` is False the model/prom
 
 ### Community 630 - "Community 630"
 Cohesion: 0.25
@@ -2628,15 +2596,11 @@ Nodes (4): xAI Grok adapter via the Responses API., Best-effort serialization fo
 
 ### Community 633 - "Community 633"
 Cohesion: 0.07
-Nodes (28): _build_repository(), lambda_handler(), SQS-driven Lambda that collects comments for one video per record., Collect from the primary video; on CommentsDisabledError, fall back to up to, _resolve_and_collect(), _utc_now(), _build_repository(), _build_repository() (+20 more)
+Nodes (32): _build_repository(), lambda_handler(), SQS-driven Lambda that collects comments for one video per record., Collect from the primary video; on CommentsDisabledError, fall back to up to, _resolve_and_collect(), _utc_now(), _build_repository(), _build_repository() (+24 more)
 
 ### Community 634 - "Community 634"
 Cohesion: 0.48
 Nodes (5): _admin_event(), test_enrich_auto_404_when_label_missing(), test_enrich_auto_409_when_no_config(), test_enrich_auto_enqueues_with_config_settings(), test_enrich_auto_rejects_non_admin()
-
-### Community 635 - "Community 635"
-Cohesion: 0.29
-Nodes (5): EnrichLabelsRequestIn, LabelEnrichmentMessage, SQS message + HTTP request schemas for label enrichment., Body of one SQS message — one per label, one Lambda invocation., POST /admin/labels/enrich body.
 
 ### Community 636 - "Community 636"
 Cohesion: 0.29
@@ -2644,7 +2608,7 @@ Nodes (3): _listening(), History from silver, the last day live from bronze: eac
 
 ### Community 637 - "Community 637"
 Cohesion: 0.40
-Nodes (4): Snapshot and restore the `live` alias of the API Lambdas (ADR-0029).  The deploy, Point each alias back; one failing function never stops the others., restore(), snapshot()
+Nodes (5): 9.1 Unit, 9.2 Integration (`tests/integration/test_triage_handler.py`), 9.3 No load tests in scope, 9.4 Coverage, 9. Testing
 
 ### Community 638 - "Community 638"
 Cohesion: 0.32
@@ -2659,8 +2623,8 @@ Cohesion: 0.25
 Nodes (7): Global Constraints, Phase 6 — Releases, CHANGELOG, SECURITY.md, DORA metrics Implementation Plan, Review Focus, Task 1: Tags (local), `cliff.toml`, `CHANGELOG.md`, Task 2: `SECURITY.md`, Task 3: `scripts/dora.py` + README line, Task 4: PR, review, merge, tags, Releases, verify
 
 ### Community 641 - "Community 641"
-Cohesion: 0.32
-Nodes (4): ClouderTheme, magenta, MantineThemeOther, neutral
+Cohesion: 0.09
+Nodes (18): DemoBanner(), demoHandlers(), AudioLike, demoSpotifyApi(), Listener, DEMO_STRINGS, installPlayer(), startDemo() (+10 more)
 
 ### Community 642 - "Community 642"
 Cohesion: 0.67
@@ -2669,10 +2633,6 @@ Nodes (5): _patch_all(), _sqs_event(), test_worker_processes_each_record(), test
 ### Community 643 - "Community 643"
 Cohesion: 0.47
 Nodes (5): CHANGELOG.md has one line per merged pull request, newest release first., _sections(), test_entries_are_pull_requests_not_branch_commits(), test_releases_are_newest_first(), _versions()
-
-### Community 644 - "Community 644"
-Cohesion: 0.17
-Nodes (5): Only one SSM env set → SSM branch is skipped, SM JSON path runs., Spotify creds stored as JSON {client_id, client_secret} in Secrets Manager., test_api_settings_require_raw_bucket(), test_spotify_credentials_resolved_from_secret_arn(), test_spotify_partial_ssm_falls_through_to_secrets_manager()
 
 ### Community 645 - "Community 645"
 Cohesion: 0.50
@@ -2683,12 +2643,12 @@ Cohesion: 0.50
 Nodes (4): _block(), The public API has a stage-wide rate limit and JSON access logs., test_access_log_filters_match_string_status(), test_api_throttling_and_access_logs()
 
 ### Community 647 - "Community 647"
-Cohesion: 0.31
-Nodes (10): CaptureFixture, The post-deploy smoke test is harmless and reports every failure (phase 3, ADR-0, _smoke(), test_check_http_flags_status_redirect_and_body(), test_check_lambda_flags_wrong_status_and_function_errors(), test_each_smoke_event_is_answered_before_any_io(), test_every_api_function_has_a_smoke_check(), test_fetch_retries_a_network_error_once() (+2 more)
+Cohesion: 0.40
+Nodes (5): 11.1 Unit tests, 11.2 Integration test (`curate-flow.test.tsx`), 11.3 Test infra reuse, 11.4 Out-of-scope tests, 11. Testing
 
 ### Community 648 - "Community 648"
-Cohesion: 0.67
-Nodes (3): _demo(), `make demo`: the real contract, normalize, canonicalize and data-quality code on, test_demo_runs_the_pipeline_and_a_replay_changes_nothing()
+Cohesion: 0.40
+Nodes (5): 12.1 Branch + commits, 12.2 Smoke against prod API GW, 12.3 PR, 12.4 Roadmap update, 12. Delivery
 
 ### Community 649 - "Community 649"
 Cohesion: 0.53
@@ -2698,65 +2658,57 @@ Nodes (5): ClouderRepository: admin style visibility (coverage flag + toggle)., 
 Cohesion: 0.18
 Nodes (11): 5.10 `DELETE /triage/blocks/{id}` — soft-delete, 5.1 Response shapes, 5.2 `POST /triage/blocks` — create triage block, 5.3 `GET /styles/{style_id}/triage/blocks` — list by style, 5.4 `GET /triage/blocks` — cross-style list, 5.5 `GET /triage/blocks/{id}` — detail, 5.6 `GET /triage/blocks/{id}/buckets/{bucket_id}/tracks` — list tracks in a bucket, 5.7 `POST /triage/blocks/{id}/move` — move tracks (intra-block batch) (+3 more)
 
-### Community 652 - "Community 652"
-Cohesion: 0.50
-Nodes (3): Vendor adapter protocol and response container., VendorAdapter, VendorResponse
-
 ### Community 653 - "Community 653"
-Cohesion: 0.50
-Nodes (3): DemoError, first(), firstOpenBlock()
+Cohesion: 0.40
+Nodes (5): 7.1 Param validation, 7.2 Picker validation, 7.3 Hotkey validation, 7.4 No client-side track-id validation, 7. Validation
 
 ### Community 655 - "Community 655"
 Cohesion: 0.18
 Nodes (10): _Cell, _execute_cell(), _new_run_id(), Matrix runner: prompts × vendors × fixtures → JSON cells + manifest., Drop Authorization-like fields from raw responses before persisting., run_matrix(), RunResult, RunSpec (+2 more)
 
-### Community 657 - "Community 657"
-Cohesion: 0.36
-Nodes (9): _album_of(), _merge(), _process(), Canonical tracks fed by two Beatport tracks (the early ISRC heuristic, 2026-03,, Point a second Beatport id at an existing canonical track (legacy heuristic)., bp 1 on an EP (week 1), bp 9001 = the same recording on a compilation (week 2)., test_merged_track_takes_the_newest_source_whatever_the_order(), test_merged_track_within_one_run_is_stable() (+1 more)
+### Community 656 - "Community 656"
+Cohesion: 0.50
+Nodes (4): 10.1 Edge cases worth code comments, 10.2 Future flags, 10.3 Cross-spec dependencies, 10. Open Items, Edge Cases, Future Flags
 
 ### Community 658 - "Community 658"
 Cohesion: 0.67
 Nodes (3): _batch_data_api(), Data API fake that records execute/batch_execute calls., test_import_tracks_batch_inserts_new_track_and_artists()
+
+### Community 659 - "Community 659"
+Cohesion: 0.50
+Nodes (4): 6.1 R4 in code, 6.2 Spotify enrichment patch, 6.3 UNCLASSIFIED is "data missing", not "rejected", 6. R4 Classification + Spotify Enrichment Patch
 
 ### Community 660 - "Community 660"
 Cohesion: 0.22
 Nodes (7): _default_post(), Thin Tavily REST wrapper (stdlib only) with deterministic credit counting.  Pric, TavilyClient, make_client(), test_extract_counts_credits_per_five_urls(), test_extract_empty_is_free_noop(), test_search_counts_one_credit_and_sends_params()
 
 ### Community 663 - "Community 663"
-Cohesion: 0.09
-Nodes (36): _build_narrative_prompt(), _filter_parseable(), _highest_confidence_cell(), merge_cells(), _merge_deterministic(), _merge_narrative(), _rank_list_round_robin(), Multi-vendor consensus aggregator for ArtistInfo cells.  The single public entry (+28 more)
-
-### Community 667 - "Community 667"
-Cohesion: 0.39
-Nodes (5): _make_prompt(), test_registry_register_and_get(), test_registry_rejects_duplicate(), test_render_user_with_context(), test_render_user_without_context()
-
-### Community 669 - "Community 669"
-Cohesion: 0.29
-Nodes (6): findNextPlayable(), PlayableTrack, tA, tB, tC, tD
+Cohesion: 0.06
+Nodes (45): _build_narrative_prompt(), _filter_parseable(), _highest_confidence_cell(), merge_cells(), _merge_deterministic(), _merge_narrative(), _rank_list_round_robin(), Multi-vendor consensus aggregator for ArtistInfo cells.  The single public entry (+37 more)
 
 ### Community 675 - "Community 675"
-Cohesion: 0.13
-Nodes (15): BacklogResponse, EnrichBody, LabelHistoryCell, LabelHistoryResponse, RunCell, RunSummary, groupByRun(), LabelHistoryDrawer() (+7 more)
+Cohesion: 0.04
+Nodes (49): AutoEnrichConfigBody, AutoEnrichConfigResponse, AutoEnrichConfigBody, AutoEnrichConfigResponse, EnrichBody, EnrichmentOptions, LabelHistoryCell, LabelHistoryResponse (+41 more)
 
 ## Knowledge Gaps
-- **3033 isolated node(s):** `How it works`, `Adding a route`, `Publishing`, `Palette`, `PALETTES` (+3028 more)
+- **3039 isolated node(s):** `neutral`, `magenta`, `ClouderTheme`, `MantineThemeOther`, `clouder-artist-lab` (+3034 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **63 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **65 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `api()` connect `Provider Protocols` to `Triage Finalize UI`, `Bucket Player UI`, `Curation Error Types`, `Community 265`, `Community 138`, `Community 264`, `Spotify Backend Client`, `Frontend API Errors & Types`, `Community 543`, `Community 34`, `Community 675`, `Community 164`, `Community 291`, `Community 190`, `Community 321`, `Community 68`, `Community 459`, `Community 82`, `Community 85`, `Community 216`, `Community 226`, `Community 106`, `Community 619`, `Community 237`?**
-  _High betweenness centrality (0.023) - this node is a cross-community bridge._
-- **Why does `log_event()` connect `Curation API Handler` to `Community 129`, `Admin Coverage/Enrich UI`, `Community 260`, `Community 519`, `Community 135`, `Playlist/Bucket Track Rows`, `Enrichment Data Models`, `Community 400`, `Frontend Auth Provider`, `Admin Label API Types`, `Community 150`, `Community 663`, `Admin Backlog UI`, `Enrichment Orchestrator`, `Community 163`, `Community 300`, `Community 556`, `Community 44`, `Community 48`, `Community 53`, `Community 60`, `Community 69`, `Community 74`, `Community 75`, `Community 76`, `Community 86`, `Community 217`, `Community 345`, `Community 360`, `Community 368`, `Community 633`?**
-  _High betweenness centrality (0.018) - this node is a cross-community bridge._
-- **Why does `video_matches()` connect `Community 203` to `Community 149`, `Community 38`?**
-  _High betweenness centrality (0.014) - this node is a cross-community bridge._
+- **Why does `log_event()` connect `Curation API Handler` to `Community 129`, `Admin Coverage/Enrich UI`, `Auto-Enrich Config (FE API)`, `Community 260`, `Community 519`, `Community 264`, `Community 135`, `Playlist/Bucket Track Rows`, `Enrichment Data Models`, `Frontend Auth Provider`, `Community 400`, `Admin Label API Types`, `Community 663`, `Admin Backlog UI`, `Enrichment Orchestrator`, `Community 163`, `Community 420`, `Community 37`, `Community 35`, `Community 300`, `Community 556`, `Community 44`, `Community 48`, `Community 53`, `Community 55`, `Community 60`, `Community 189`, `Community 75`, `Community 76`, `Community 86`, `Community 217`, `Community 345`, `Community 368`, `Community 376`, `Community 633`?**
+  _High betweenness centrality (0.029) - this node is a cross-community bridge._
+- **Why does `YoutubeDataApiClient` connect `Community 44` to `Community 260`, `Community 519`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **Why does `api()` connect `Spotify Backend Client` to `Community 34`, `Community 675`, `Community 164`, `KMS Envelope & Auth Crypto`, `Community 167`, `Bucket Player UI`, `Community 265`, `Community 46`, `Frontend API Errors & Types`, `Community 338`, `Community 85`, `Community 379`, `Provider Protocols`, `Community 543`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `datetime` (e.g. with `test_funnel_returns_ordered_zero_filled_stages()` and `test_repository_funnel_sql_binds_user_and_windows()`) actually correct?**
   _`datetime` has 4 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `How it works`, `Adding a route`, `Publishing` to the rest of the system?**
-  _3923 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Playlists UI` be split into smaller, more focused modules?**
-  _Cohesion score 0.10098522167487685 - nodes in this community are weakly interconnected._
+- **What connects `# NOTE: source_triage_block_id has no FK in spec-C; spec-D adds it.`, `neutral`, `magenta` to the rest of the system?**
+  _3929 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Curation API Handler` be split into smaller, more focused modules?**
-  _Cohesion score 0.07190265486725664 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08789153810191679 - nodes in this community are weakly interconnected._
+- **Should `API Route Handlers (admin/enrich)` be split into smaller, more focused modules?**
+  _Cohesion score 0.1066066066066066 - nodes in this community are weakly interconnected._

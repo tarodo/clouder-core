@@ -15,7 +15,7 @@ export function DemoBanner() {
       style={{ zIndex: 1000 }}
     >
       <Text size="xs">
-        <b>Demo</b> · sample data, a reload starts over · playback needs Spotify ·{' '}
+        <b>Demo</b> · sample data, a reload starts over · music made with Suno ·{' '}
         <Anchor
           href="https://github.com/tarodo/clouder-core"
           target="_blank"

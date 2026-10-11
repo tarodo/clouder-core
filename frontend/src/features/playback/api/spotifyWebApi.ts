@@ -1,6 +1,7 @@
 import { spotifyTokenStore } from '../../../auth/spotifyTokenStore';
 import type { SpotifyDevice } from '../lib/deviceTypes';
 import { isDemo } from '../../../demo/mode';
+import { demoSpotifyApi } from '../../../demo/spotifyBridge';
 
 const BASE = 'https://api.spotify.com';
 
@@ -29,8 +30,12 @@ async function call(
   body: unknown | null,
   opts: CallOptions,
 ): Promise<Response> {
-  // The demo runs on sample data with a fake token: Spotify stays out of it.
-  if (isDemo()) throw new Error('spotify_unavailable_in_demo');
+  // The demo answers with its own player (src/demo/player.ts); Spotify stays out of it.
+  if (isDemo()) {
+    const demo = demoSpotifyApi();
+    if (!demo) throw new Error('spotify_unavailable_in_demo');
+    return ensureOk(await demo(method, path, body));
+  }
   const token = spotifyTokenStore.get();
   if (!token) throw new Error('spotify_token_missing');
 
