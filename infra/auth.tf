@@ -41,6 +41,7 @@ resource "aws_ssm_parameter" "jwt_signing_key" {
 
 resource "aws_lambda_function" "auth_handler" {
   function_name = local.auth_handler_lambda_name
+  publish       = true # versions behind the live alias (lambda_aliases.tf)
   role          = module.role_auth_handler.arn
   runtime       = "python3.12"
   handler       = "collector.auth_handler.lambda_handler"
@@ -111,6 +112,7 @@ resource "aws_iam_role_policy" "auth_authorizer" {
 
 resource "aws_lambda_function" "auth_authorizer" {
   function_name = local.auth_authorizer_lambda_name
+  publish       = true # versions behind the live alias (lambda_aliases.tf)
   role          = aws_iam_role.auth_authorizer.arn
   runtime       = "python3.12"
   handler       = "collector.auth_authorizer.lambda_handler"
@@ -149,19 +151,25 @@ resource "aws_lambda_permission" "auth_authorizer_apigw" {
 resource "aws_apigatewayv2_integration" "auth_lambda" {
   api_id                 = aws_apigatewayv2_api.collector.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.auth_handler.invoke_arn
+  integration_uri        = aws_lambda_alias.live["auth_handler"].invoke_arn
   payload_format_version = "2.0"
+
+  # The alias permission must exist before API Gateway calls the alias.
+  depends_on = [aws_lambda_permission.api_live]
 }
 
 resource "aws_apigatewayv2_authorizer" "jwt" {
   api_id                            = aws_apigatewayv2_api.collector.id
   authorizer_type                   = "REQUEST"
-  authorizer_uri                    = aws_lambda_function.auth_authorizer.invoke_arn
+  authorizer_uri                    = aws_lambda_alias.live["auth_authorizer"].invoke_arn
   authorizer_payload_format_version = "2.0"
   enable_simple_responses           = true
   identity_sources                  = ["$request.header.Authorization"]
   authorizer_result_ttl_in_seconds  = var.auth_authorizer_cache_ttl_seconds
   name                              = "${local.name_prefix}-jwt-authorizer"
+
+  # The alias permission must exist before API Gateway calls the alias.
+  depends_on = [aws_lambda_permission.api_live]
 }
 
 # Public routes (no authorizer)

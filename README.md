@@ -97,7 +97,7 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 - An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
 
 **Cloud & infrastructure**
-- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 237 Terraform resource definitions.
+- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 239 Terraform resource definitions.
 - GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
 - A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function, routed to email through SNS.
 
@@ -172,7 +172,7 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 | Canonical catalog | ~98k canonical tracks (2026-10-07), from 107,795 raw records |
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
-| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 237 Terraform resource definitions |
+| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 239 Terraform resource definitions |
 | API | 106 operations |
 | Delivery | 265+ merged pull requests; every merge to `main` deploys to production |
 

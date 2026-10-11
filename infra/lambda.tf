@@ -1,5 +1,6 @@
 resource "aws_lambda_function" "collector" {
   function_name = local.lambda_name
+  publish       = true # versions behind the live alias (lambda_aliases.tf)
   role          = module.role_collector.arn
   runtime       = "python3.12"
   handler       = "collector.handler.lambda_handler"

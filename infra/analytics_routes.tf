@@ -135,6 +135,7 @@ resource "aws_iam_role_policy" "analytics_api" {
 
 resource "aws_lambda_function" "analytics" {
   function_name = "${local.name_prefix}-analytics-api"
+  publish       = true # versions behind the live alias (lambda_aliases.tf)
   role          = aws_iam_role.analytics_api.arn
   runtime       = "python3.12"
   handler       = "collector.analytics_handler.lambda_handler"
@@ -168,8 +169,11 @@ resource "aws_lambda_permission" "analytics_apigw" {
 resource "aws_apigatewayv2_integration" "analytics" {
   api_id                 = aws_apigatewayv2_api.collector.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.analytics.invoke_arn
+  integration_uri        = aws_lambda_alias.live["analytics"].invoke_arn
   payload_format_version = "2.0"
+
+  # The alias permission must exist before API Gateway calls the alias.
+  depends_on = [aws_lambda_permission.api_live]
 }
 
 locals {
