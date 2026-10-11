@@ -265,14 +265,12 @@ export function buildSeed(): DemoSeed {
       added_at: at(date, h),
     });
     // The past week's 18 tracks were finalized into the three categories, 6 each.
-    ids
-      .slice(30)
-      .forEach((id, k) =>
-        item(cats, k % 3).tracks.push({
-          ...entry(id, '2026-10-02', 12 + (k % 6)),
-          source_triage_block_id: past,
-        }),
-      );
+    ids.slice(30).forEach((id, k) =>
+      item(cats, k % 3).tracks.push({
+        ...entry(id, '2026-10-02', 12 + (k % 6)),
+        source_triage_block_id: past,
+      }),
+    );
 
     const staging = (blockId: string, withTracks: DemoEntry[][]) =>
       cats.map((c, ci) => ({
