@@ -585,8 +585,8 @@
     "semantic_hash": ""
   },
   "frontend/package.json": {
-    "mtime": 1791696978.2641513,
-    "ast_hash": "b7c56bc5661593d6b73a5dafd7b9a506",
+    "mtime": 1791698527.8452885,
+    "ast_hash": "49f3686a6ea4044f00bd663ce3d89adf",
     "semantic_hash": ""
   },
   "frontend/src/__tests__/curate-flow.test.tsx": {
@@ -3445,8 +3445,8 @@
     "semantic_hash": "ba2029d6b53019dd7319aed82ad4284e"
   },
   "frontend/src/main.tsx": {
-    "mtime": 1791696991.5042675,
-    "ast_hash": "74cf7f6212f80c5ee3b2c60f594ffe87",
+    "mtime": 1791698527.8445344,
+    "ast_hash": "181380ef4386631ec578e5b61c0e1ad7",
     "semantic_hash": ""
   },
   "frontend/src/routes/__tests__/_layout.burger.test.tsx": {
@@ -7655,8 +7655,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_ci_workflows.py": {
-    "mtime": 1791697343.6476314,
-    "ast_hash": "dd7627b55c6d9f9264130bc6f6b94bf3",
+    "mtime": 1791697422.1965573,
+    "ast_hash": "ed958e918ac00676e9a657b48b9fa233",
     "semantic_hash": ""
   },
   "docs/adr/0028-ci-roles.md": {
@@ -7900,13 +7900,13 @@
     "semantic_hash": ""
   },
   "frontend/src/demo/__tests__/db.test.ts": {
-    "mtime": 1791696771.6215813,
-    "ast_hash": "c0c90b32d632b2a9f6979f895e7e45e7",
+    "mtime": 1791698496.1717,
+    "ast_hash": "f2c8a13131f8694414a89def252e5731",
     "semantic_hash": ""
   },
   "frontend/src/demo/db.ts": {
-    "mtime": 1791696771.665427,
-    "ast_hash": "cd65536ca9db7a995f1ed751a6014d94",
+    "mtime": 1791698528.3287296,
+    "ast_hash": "b2e08cfa1b60277becaa90e184a80e9b",
     "semantic_hash": ""
   },
   "frontend/src/demo/samples.ts": {
@@ -7915,8 +7915,8 @@
     "semantic_hash": ""
   },
   "frontend/src/demo/seed.ts": {
-    "mtime": 1791696881.7647445,
-    "ast_hash": "1df3a8bdbf0226c6c251a6eed980e02b",
+    "mtime": 1791698527.8431518,
+    "ast_hash": "bfb1342a050cdfb85b6d4e00c6b2a998",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-11-phase7-spa-demo.md": {
@@ -7925,8 +7925,8 @@
     "semantic_hash": ""
   },
   "frontend/src/demo/DemoBanner.tsx": {
-    "mtime": 1791696881.7192342,
-    "ast_hash": "a9068fead5ab98efdb42ef4ee34fc11f",
+    "mtime": 1791698527.8440745,
+    "ast_hash": "57c06c75bbe2e6377c096f609059737e",
     "semantic_hash": ""
   },
   "frontend/src/demo/__tests__/handlers.test.ts": {
@@ -7940,17 +7940,17 @@
     "semantic_hash": ""
   },
   "frontend/src/demo/handlers.ts": {
-    "mtime": 1791696929.3615549,
-    "ast_hash": "7e758324d04d571d743ec691a6cac79c",
+    "mtime": 1791698515.2643847,
+    "ast_hash": "667e1f67e71d280b5767e233c8b3a544",
     "semantic_hash": ""
   },
   "frontend/src/demo/start.ts": {
-    "mtime": 1791696881.2720838,
-    "ast_hash": "0f66644055852a3453eab0b9465da0b5",
+    "mtime": 1791698527.8437726,
+    "ast_hash": "4d93ecd06e534af9fe33626552a7a3f1",
     "semantic_hash": ""
   },
   "frontend/demo-public/mockServiceWorker.js": {
-    "mtime": 1791697206.3506413,
+    "mtime": 1791698580.7838151,
     "ast_hash": "c8f0dfa140ec246071c4cc5a03df5c9d",
     "semantic_hash": ""
   },
@@ -7970,18 +7970,23 @@
     "semantic_hash": ""
   },
   ".github/workflows/pages.yml": {
-    "mtime": 1791697307.3639648,
-    "ast_hash": "1aca7b5a898bcdd29445c862558ec1f4",
+    "mtime": 1791697423.2442076,
+    "ast_hash": "081e18e199811feeda58ea4e0f98e1dc",
     "semantic_hash": ""
   },
   "docs/frontend/demo.md": {
-    "mtime": 1791697332.5920618,
-    "ast_hash": "394673870250dcaf24c94334ebb97633",
+    "mtime": 1791698715.6347334,
+    "ast_hash": "17708cec3bb00c4d6b3fecf13237a37b",
     "semantic_hash": ""
   },
   "pages/index.html": {
-    "mtime": 1791697331.549006,
-    "ast_hash": "d2bf6dab6e2fa2169fe05f04de7123b2",
+    "mtime": 1791698527.8459694,
+    "ast_hash": "49f9a8f3788ebb4492fc8b2d40f399cb",
+    "semantic_hash": ""
+  },
+  "frontend/src/demo/__tests__/strings.test.ts": {
+    "mtime": 1791698496.1719468,
+    "ast_hash": "6c969251d1f03f7104bf9244284c3a9e",
     "semantic_hash": ""
   }
 }

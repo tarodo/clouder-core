@@ -7655,8 +7655,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_ci_workflows.py": {
-    "mtime": 1791697343.6476314,
-    "ast_hash": "dd7627b55c6d9f9264130bc6f6b94bf3",
+    "mtime": 1791697422.1965573,
+    "ast_hash": "ed958e918ac00676e9a657b48b9fa233",
     "semantic_hash": ""
   },
   "docs/adr/0028-ci-roles.md": {
@@ -7970,8 +7970,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/pages.yml": {
-    "mtime": 1791697307.3639648,
-    "ast_hash": "1aca7b5a898bcdd29445c862558ec1f4",
+    "mtime": 1791697423.2442076,
+    "ast_hash": "081e18e199811feeda58ea4e0f98e1dc",
     "semantic_hash": ""
   },
   "docs/frontend/demo.md": {
