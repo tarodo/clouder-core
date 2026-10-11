@@ -85,7 +85,7 @@ export function sampleTimePerTrack(days = 30): TimePerTrackResponse {
 export const COVERAGE_STYLES = [
   'Funky House',
   'Mainstage',
-  'Drum & Bass',
+  'Tech House',
   'Melodic House & Techno',
   'Techno (Peak Time)',
   'Afro House',

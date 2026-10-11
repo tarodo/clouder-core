@@ -1,5 +1,5 @@
 /**
- * The demo's sample catalog: three styles, a finalized and an open triage week each,
+ * The demo's sample catalog: two styles, a finalized and an open triage week each,
  * categories, playlists and tags. Everything is invented and seeded, so every visitor
  * sees the same week.
  */
@@ -96,7 +96,6 @@ export interface DemoSeed {
 }
 
 const STYLES: (DemoStyle & { bpm: number; categories: string[] })[] = [
-  { id: 's-dnb', name: 'Drum & Bass', bpm: 174, categories: ['Liquid', 'Rollers', 'Peak time'] },
   {
     id: 's-melodic',
     name: 'Melodic House & Techno',
@@ -367,7 +366,7 @@ export function buildSeed(): DemoSeed {
       status: 'active',
       created_at: at('2026-10-05', 12),
       updated_at: at('2026-10-08', 21),
-      tracks: [...fromCategory(1, 4, '2026-10-06'), ...fromCategory(6, 2, '2026-10-07')],
+      tracks: [...fromCategory(1, 4, '2026-10-06'), ...fromCategory(4, 2, '2026-10-07')],
       cover: 13,
     },
     {
@@ -378,7 +377,7 @@ export function buildSeed(): DemoSeed {
       status: 'completed',
       created_at: at('2026-09-20', 15),
       updated_at: at('2026-09-27', 23),
-      tracks: [...fromCategory(2, 2, '2026-09-21'), ...fromCategory(8, 2, '2026-09-22')],
+      tracks: [...fromCategory(2, 2, '2026-09-21'), ...fromCategory(5, 2, '2026-09-22')],
       cover: null,
     },
   ];

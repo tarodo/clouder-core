@@ -47,7 +47,9 @@ describe('demo handlers', () => {
   });
 
   it('serves the library: lists, profiles and likes', async () => {
-    const list = await (await get('/labels?style=drum-and-bass&sort=name&page=1&limit=24')).json();
+    const list = await (
+      await get('/labels?style=melodic-house-and-techno&sort=name&page=1&limit=24')
+    ).json();
     expect(list.items.length).toBeGreaterThan(0);
     const label = list.items[0];
     const detail = await (await get(`/labels/${label.id}`)).json();
