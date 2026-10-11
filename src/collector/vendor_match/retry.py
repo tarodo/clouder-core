@@ -37,9 +37,7 @@ def retry_vendor(
                     last_exc = exc
                     if attempt == max_retries - 1:
                         break
-                    delay = random.uniform(
-                        0.0, min(max_delay, base_delay * (2**attempt))
-                    )
+                    delay = random.uniform(0.0, min(max_delay, base_delay * (2**attempt)))
                     if isinstance(exc, VendorQuotaError) and exc.retry_after:
                         delay = max(delay, float(exc.retry_after))
                     time.sleep(delay)

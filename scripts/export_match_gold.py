@@ -81,13 +81,15 @@ def main(argv: list[str] | None = None) -> tuple[Path, Path]:
             names = ", ".join(
                 a.get("name", "") for a in cand.get("artists") or [] if isinstance(a, dict)
             )
-            writer.writerow([
-                record["track_id"],
-                f"{record['artist']} — {record['title']}",
-                f"{names} — {cand.get('title', '')}",
-                f"https://music.youtube.com/watch?v={cand.get('videoId', '')}",
-                "",
-            ])
+            writer.writerow(
+                [
+                    record["track_id"],
+                    f"{record['artist']} — {record['title']}",
+                    f"{names} — {cand.get('title', '')}",
+                    f"https://music.youtube.com/watch?v={cand.get('videoId', '')}",
+                    "",
+                ]
+            )
 
     print(
         f"{len(reviews)} review accepts, {len(sample)} auto-accepted matches -> {gold}\n"

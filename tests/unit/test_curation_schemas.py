@@ -27,9 +27,7 @@ def test_rename_category_in_accepts_name() -> None:
 
 
 def test_reorder_in_accepts_id_array() -> None:
-    obj = ReorderCategoriesIn.model_validate(
-        {"category_ids": ["a", "b", "c"]}
-    )
+    obj = ReorderCategoriesIn.model_validate({"category_ids": ["a", "b", "c"]})
     assert obj.category_ids == ["a", "b", "c"]
 
 

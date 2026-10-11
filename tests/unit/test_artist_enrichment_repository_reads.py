@@ -14,6 +14,7 @@ class FakeDataAPI:
 def test_upsert_user_artist_pref_rejects_bad_status():
     repo = ArtistEnrichmentRepository(FakeDataAPI())
     import pytest
+
     with pytest.raises(ValueError):
         repo.upsert_user_artist_pref(user_id="u", artist_id="a", status="bogus")
 
@@ -28,7 +29,21 @@ def test_upsert_user_artist_pref_writes_prefs_table():
 
 
 def test_get_artist_info_for_user_strips_admin_fields():
-    api = FakeDataAPI(responses=[[{"merged": {"artist_name": "ANNA", "summary": "x", "provenance": {"a": 1}, "cost_usd": 9}, "my_preference": "liked"}]])
+    api = FakeDataAPI(
+        responses=[
+            [
+                {
+                    "merged": {
+                        "artist_name": "ANNA",
+                        "summary": "x",
+                        "provenance": {"a": 1},
+                        "cost_usd": 9,
+                    },
+                    "my_preference": "liked",
+                }
+            ]
+        ]
+    )
     repo = ArtistEnrichmentRepository(api)
     out = repo.get_artist_info_for_user("a", user_id="u")
     assert out["artist_name"] == "ANNA"
@@ -37,15 +52,32 @@ def test_get_artist_info_for_user_strips_admin_fields():
 
 
 def test_list_artists_counts_tracks_via_track_artists():
-    api = FakeDataAPI(responses=[
-        [{"id": "a", "name": "ANNA", "status": "completed", "tagline": None, "country": "Brazil",
-          "active_since": 2008, "primary_styles": ["techno"], "artist_type": "solo",
-          "ai_content": "none_detected", "updated_at": None, "dominant_style": "techno",
-          "track_count": 12, "my_preference": None}],
-        [{"c": 1}],
-    ])
+    api = FakeDataAPI(
+        responses=[
+            [
+                {
+                    "id": "a",
+                    "name": "ANNA",
+                    "status": "completed",
+                    "tagline": None,
+                    "country": "Brazil",
+                    "active_since": 2008,
+                    "primary_styles": ["techno"],
+                    "artist_type": "solo",
+                    "ai_content": "none_detected",
+                    "updated_at": None,
+                    "dominant_style": "techno",
+                    "track_count": 12,
+                    "my_preference": None,
+                }
+            ],
+            [{"c": 1}],
+        ]
+    )
     repo = ArtistEnrichmentRepository(api)
-    items, total = repo.list_artists(style=None, q=None, sort="name", page=1, limit=50, user_id="u", my="all")
+    items, total = repo.list_artists(
+        style=None, q=None, sort="name", page=1, limit=50, user_id="u", my="all"
+    )
     # the list query must count tracks via the many-to-many join, not albums
     list_sql = api.calls[0][0]
     assert "clouder_track_artists" in list_sql
@@ -57,10 +89,21 @@ def test_list_artists_counts_tracks_via_track_artists():
 
 
 def test_list_backlog_joins_track_artists():
-    api = FakeDataAPI(responses=[
-        [{"id": "a", "name": "ANNA", "style": "techno", "track_count": 5, "status": "none", "last_attempted_at": None}],
-        [{"c": 1}],
-    ])
+    api = FakeDataAPI(
+        responses=[
+            [
+                {
+                    "id": "a",
+                    "name": "ANNA",
+                    "style": "techno",
+                    "track_count": 5,
+                    "status": "none",
+                    "last_attempted_at": None,
+                }
+            ],
+            [{"c": 1}],
+        ]
+    )
     repo = ArtistEnrichmentRepository(api)
     items, _cursor, total = repo.list_backlog(style=None, status="none", cursor=None, limit=100)
     assert "clouder_track_artists" in api.calls[0][0]
@@ -79,6 +122,7 @@ def test_get_artists_by_ids_one_query_returns_name_map():
             ]
 
     from collector.artist_enrichment.repository import ArtistEnrichmentRepository
+
     repo = ArtistEnrichmentRepository(data_api=FakeDataAPI())
     result = repo.get_artists_by_ids(["a1", "a2"])
     assert result == {"a1": "Artist One", "a2": "Artist Two"}
@@ -92,4 +136,5 @@ def test_get_artists_by_ids_empty_input_no_query():
             raise AssertionError("should not query for empty input")
 
     from collector.artist_enrichment.repository import ArtistEnrichmentRepository
+
     assert ArtistEnrichmentRepository(data_api=FakeDataAPI()).get_artists_by_ids([]) == {}

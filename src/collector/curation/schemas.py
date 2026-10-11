@@ -114,9 +114,7 @@ class PatchPlaylistIn(BaseModel):
             and self.is_public is None
             and self.status is None
         ):
-            raise ValueError(
-                "At least one of name/description/is_public/status must be set"
-            )
+            raise ValueError("At least one of name/description/is_public/status must be set")
         return self
 
 

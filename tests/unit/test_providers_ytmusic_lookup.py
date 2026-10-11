@@ -17,12 +17,18 @@ def test_isrc_lookup_always_none():
 
 
 def test_metadata_uses_songs_pass_first():
-    fake = FakeYT({
-        "songs": [
-            {"videoId": "v1", "title": "Lost Track",
-             "artists": [{"name": "Guri"}], "duration_seconds": 225},
-        ],
-    })
+    fake = FakeYT(
+        {
+            "songs": [
+                {
+                    "videoId": "v1",
+                    "title": "Lost Track",
+                    "artists": [{"name": "Guri"}],
+                    "duration_seconds": 225,
+                },
+            ],
+        }
+    )
     lookup = YTMusicLookup(client=fake)
     refs = lookup.lookup_by_metadata("Guri", "Lost Track", 225_000, None)
     assert [r.vendor_track_id for r in refs] == ["v1"]
@@ -30,10 +36,12 @@ def test_metadata_uses_songs_pass_first():
 
 
 def test_metadata_falls_back_to_videos_when_songs_empty():
-    fake = FakeYT({
-        "songs": [],
-        "videos": [{"videoId": "v2", "title": "Edit", "artists": [{"name": "Guri"}]}],
-    })
+    fake = FakeYT(
+        {
+            "songs": [],
+            "videos": [{"videoId": "v2", "title": "Edit", "artists": [{"name": "Guri"}]}],
+        }
+    )
     lookup = YTMusicLookup(client=fake)
     refs = lookup.lookup_by_metadata("Guri", "Edit", None, None)
     assert [r.vendor_track_id for r in refs] == ["v2"]

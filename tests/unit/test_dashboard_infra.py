@@ -29,7 +29,7 @@ def test_dashboard_covers_every_alarmed_signal() -> None:
         "for q in local.dlq_queues",
         '"AWS/SQS", "ApproximateNumberOfMessagesVisible"',
         '"AWS/RDS", "ServerlessDatabaseCapacity"',
-        "local.data_quality_namespace, \"FailedChecks\"",
+        'local.data_quality_namespace, "FailedChecks"',
         '"CLOUDER/AutoIngest", "AutoIngestRunFailed"',
         '"AWS/Firehose", "DeliveryToS3.DataFreshness"',
     ):

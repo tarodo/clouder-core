@@ -40,7 +40,11 @@ def _event(*, cookies: list[str]) -> dict:
 def test_logout_revokes_session_and_clears_cookie(monkeypatch) -> None:
     now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     token = issue_refresh_token(
-        secret=SECRET, user_id="u", session_id="s", ttl_seconds=600, now=now,
+        secret=SECRET,
+        user_id="u",
+        session_id="s",
+        ttl_seconds=600,
+        now=now,
     )
     repo = MagicMock()
     monkeypatch.setattr(auth_handler, "_build_auth_repository", lambda: repo)

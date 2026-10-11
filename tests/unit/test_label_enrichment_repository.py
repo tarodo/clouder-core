@@ -25,8 +25,11 @@ def test_create_run_inserts_with_correct_cells_total():
         prompt_slug="label_v3_app_fields",
         prompt_version="v1",
         vendors=["gemini", "openai", "tavily_deepseek"],
-        models={"gemini": "gemini-3-flash-preview", "openai": "gpt-5.4-mini",
-                "tavily_deepseek": "deepseek-v4-flash"},
+        models={
+            "gemini": "gemini-3-flash-preview",
+            "openai": "gpt-5.4-mini",
+            "tavily_deepseek": "deepseek-v4-flash",
+        },
         merge_vendor="deepseek",
         merge_model="deepseek-v4-flash",
         requested_labels=4,
@@ -72,7 +75,7 @@ def test_derive_style_for_label_returns_none_when_no_tracks():
 def test_upsert_label_by_name_returns_existing_id():
     repo, data_api = _repo_with_fake()
     data_api.execute.side_effect = [
-        [{"id": "existing-id"}],   # SELECT match
+        [{"id": "existing-id"}],  # SELECT match
     ]
     label_id = repo.upsert_label_by_name("Drumcode")
     assert label_id == "existing-id"
@@ -81,8 +84,8 @@ def test_upsert_label_by_name_returns_existing_id():
 def test_upsert_label_by_name_creates_new_row_when_missing():
     repo, data_api = _repo_with_fake()
     data_api.execute.side_effect = [
-        [],                        # SELECT no match
-        [],                        # INSERT
+        [],  # SELECT no match
+        [],  # INSERT
     ]
     label_id = repo.upsert_label_by_name("Brand New Label")
     assert isinstance(label_id, str) and len(label_id) == 36
@@ -94,13 +97,23 @@ def test_upsert_label_by_name_creates_new_row_when_missing():
 
 def test_get_run_returns_dict_or_none():
     repo, data_api = _repo_with_fake()
-    data_api.execute.return_value = [{
-        "id": "r1", "status": "running", "prompt_slug": "label_v3_app_fields",
-        "prompt_version": "v1", "vendors": ["gemini"], "models": {"gemini": "x"},
-        "merge_vendor": "deepseek", "merge_model": "deepseek-v4-flash",
-        "requested_labels": 1, "cells_total": 1, "cells_ok": 0, "cells_error": 0,
-        "cost_usd": 0,
-    }]
+    data_api.execute.return_value = [
+        {
+            "id": "r1",
+            "status": "running",
+            "prompt_slug": "label_v3_app_fields",
+            "prompt_version": "v1",
+            "vendors": ["gemini"],
+            "models": {"gemini": "x"},
+            "merge_vendor": "deepseek",
+            "merge_model": "deepseek-v4-flash",
+            "requested_labels": 1,
+            "cells_total": 1,
+            "cells_ok": 0,
+            "cells_error": 0,
+            "cost_usd": 0,
+        }
+    ]
     row = repo.get_run("r1")
     assert row["id"] == "r1"
 
@@ -212,6 +225,7 @@ def test_upsert_label_info_writes_denormalized_columns():
     # Activity defaults to UNKNOWN enum — must serialize to "unknown" str, not "ActivityLevel.UNKNOWN".
     assert isinstance(params["activity"], str) and params["activity"] == "unknown"
     from decimal import Decimal
+
     assert params["ai_confidence"] == Decimal("0.90") or float(params["ai_confidence"]) == 0.9
     assert params["last_release_date"] == "2026-04-01"
     assert isinstance(params["merged"], dict)
@@ -249,7 +263,10 @@ def test_project_ai_suspected_sets_true_when_confirmed_high_confidence():
     repo, data_api = _repo_with_fake()
     data_api.execute.return_value = []
     merged = LabelInfo(
-        label_name="X", ai_reasoning="r", summary="s", confidence=0.8,
+        label_name="X",
+        ai_reasoning="r",
+        summary="s",
+        confidence=0.8,
         ai_content="confirmed",
     )
     repo.project_ai_suspected("lbl-1", merged, threshold=0.5)
@@ -264,7 +281,10 @@ def test_project_ai_suspected_sets_false_when_none_detected_high_confidence():
     repo, data_api = _repo_with_fake()
     data_api.execute.return_value = []
     merged = LabelInfo(
-        label_name="X", ai_reasoning="r", summary="s", confidence=0.6,
+        label_name="X",
+        ai_reasoning="r",
+        summary="s",
+        confidence=0.6,
         ai_content="none_detected",
     )
     repo.project_ai_suspected("lbl-1", merged, threshold=0.5)
@@ -275,7 +295,10 @@ def test_project_ai_suspected_sets_false_when_none_detected_high_confidence():
 def test_project_ai_suspected_no_op_when_below_threshold():
     repo, data_api = _repo_with_fake()
     merged = LabelInfo(
-        label_name="X", ai_reasoning="r", summary="s", confidence=0.3,
+        label_name="X",
+        ai_reasoning="r",
+        summary="s",
+        confidence=0.3,
         ai_content="confirmed",
     )
     repo.project_ai_suspected("lbl-1", merged, threshold=0.5)
@@ -284,23 +307,27 @@ def test_project_ai_suspected_no_op_when_below_threshold():
 
 def test_get_label_info_joins_label_name():
     repo, data_api = _repo_with_fake()
-    data_api.execute.return_value = [{
-        "label_id": "lbl-1",
-        "label_name": "Drumcode",
-        "last_run_id": "run-1",
-        "prompt_slug": "label_v3_app_fields",
-        "prompt_version": "v1",
-        "merged": {"label_name": "Drumcode"},
-        "provenance": {},
-        "ai_content": "none_detected",
-        "ai_confidence": 0.9,
-        "status": "active",
-        "primary_styles": ["techno"],
-        "tagline": None, "country": "Sweden",
-        "founded_year": 1996, "activity": "steady",
-        "last_release_date": None,
-        "updated_at": "2026-05-18T21:00:00+00:00",
-    }]
+    data_api.execute.return_value = [
+        {
+            "label_id": "lbl-1",
+            "label_name": "Drumcode",
+            "last_run_id": "run-1",
+            "prompt_slug": "label_v3_app_fields",
+            "prompt_version": "v1",
+            "merged": {"label_name": "Drumcode"},
+            "provenance": {},
+            "ai_content": "none_detected",
+            "ai_confidence": 0.9,
+            "status": "active",
+            "primary_styles": ["techno"],
+            "tagline": None,
+            "country": "Sweden",
+            "founded_year": 1996,
+            "activity": "steady",
+            "last_release_date": None,
+            "updated_at": "2026-05-18T21:00:00+00:00",
+        }
+    ]
     row = repo.get_label_info("lbl-1")
     assert row["label_name"] == "Drumcode"
     sql, _ = data_api.execute.call_args[0]
@@ -315,15 +342,23 @@ def test_get_run_parses_jsonb_strings_from_data_api():
     from decimal import Decimal as _Decimal
 
     repo, data_api = _repo_with_fake()
-    data_api.execute.return_value = [{
-        "id": "r1", "status": "running", "prompt_slug": "label_v3_app_fields",
-        "prompt_version": "v1",
-        "vendors": '["gemini", "openai"]',
-        "models": '{"gemini": "gemini-3-flash-preview"}',
-        "merge_vendor": "deepseek", "merge_model": "deepseek-v4-flash",
-        "requested_labels": 1, "cells_total": 1, "cells_ok": 0, "cells_error": 0,
-        "cost_usd": _Decimal("0.0123"),
-    }]
+    data_api.execute.return_value = [
+        {
+            "id": "r1",
+            "status": "running",
+            "prompt_slug": "label_v3_app_fields",
+            "prompt_version": "v1",
+            "vendors": '["gemini", "openai"]',
+            "models": '{"gemini": "gemini-3-flash-preview"}',
+            "merge_vendor": "deepseek",
+            "merge_model": "deepseek-v4-flash",
+            "requested_labels": 1,
+            "cells_total": 1,
+            "cells_ok": 0,
+            "cells_error": 0,
+            "cost_usd": _Decimal("0.0123"),
+        }
+    ]
     row = repo.get_run("r1")
     assert row["vendors"] == ["gemini", "openai"]
     assert row["models"] == {"gemini": "gemini-3-flash-preview"}
@@ -338,23 +373,27 @@ def test_get_label_info_parses_jsonb_strings_from_data_api():
     from decimal import Decimal as _Decimal
 
     repo, data_api = _repo_with_fake()
-    data_api.execute.return_value = [{
-        "label_id": "lbl-1",
-        "label_name": "Drumcode",
-        "last_run_id": "run-1",
-        "prompt_slug": "label_v3_app_fields",
-        "prompt_version": "v1",
-        "merged": '{"label_name": "Drumcode", "confidence": 0.9}',
-        "provenance": '{"status": "majority(2/3 definitive)"}',
-        "ai_content": "none_detected",
-        "ai_confidence": _Decimal("0.9"),
-        "status": "active",
-        "primary_styles": ["techno"],
-        "tagline": None, "country": "Sweden",
-        "founded_year": 1996, "activity": "steady",
-        "last_release_date": None,
-        "updated_at": "2026-05-18T21:00:00+00:00",
-    }]
+    data_api.execute.return_value = [
+        {
+            "label_id": "lbl-1",
+            "label_name": "Drumcode",
+            "last_run_id": "run-1",
+            "prompt_slug": "label_v3_app_fields",
+            "prompt_version": "v1",
+            "merged": '{"label_name": "Drumcode", "confidence": 0.9}',
+            "provenance": '{"status": "majority(2/3 definitive)"}',
+            "ai_content": "none_detected",
+            "ai_confidence": _Decimal("0.9"),
+            "status": "active",
+            "primary_styles": ["techno"],
+            "tagline": None,
+            "country": "Sweden",
+            "founded_year": 1996,
+            "activity": "steady",
+            "last_release_date": None,
+            "updated_at": "2026-05-18T21:00:00+00:00",
+        }
+    ]
     row = repo.get_label_info("lbl-1")
     assert row["merged"] == {"label_name": "Drumcode", "confidence": 0.9}
     assert row["provenance"] == {"status": "majority(2/3 definitive)"}
@@ -365,15 +404,17 @@ def test_get_label_info_parses_jsonb_strings_from_data_api():
 def test_get_label_info_for_user_returns_decoded_merged_blob():
     """User-facing endpoint must decode the merged JSONB and strip admin fields."""
     repo, data_api = _repo_with_fake()
-    data_api.execute.return_value = [{
-        "merged": (
-            '{"label_name": "Fokuz", "country": "NL", "tagline": "soulful d&b", '
-            '"summary": "Rotterdam.", "primary_styles": ["liquid"], '
-            '"website": "https://fokuzrecordings.com", '
-            '"ai_content": "none_detected", "ai_reasoning": "no signals", '
-            '"confidence": 0.92, "run_id": "leaked-run", "provenance": "leaked"}'
-        ),
-    }]
+    data_api.execute.return_value = [
+        {
+            "merged": (
+                '{"label_name": "Fokuz", "country": "NL", "tagline": "soulful d&b", '
+                '"summary": "Rotterdam.", "primary_styles": ["liquid"], '
+                '"website": "https://fokuzrecordings.com", '
+                '"ai_content": "none_detected", "ai_reasoning": "no signals", '
+                '"confidence": 0.92, "run_id": "leaked-run", "provenance": "leaked"}'
+            ),
+        }
+    ]
     row = repo.get_label_info_for_user("lbl-1")
     assert row is not None
     assert row["label_name"] == "Fokuz"
@@ -424,8 +465,12 @@ def test_create_run_defaults_source_manual():
     repo, data_api = _repo_with_fake()
     data_api.execute.return_value = []
     spec = RunSpec(
-        prompt_slug="s", prompt_version="v", vendors=["gemini"],
-        models={"gemini": "g"}, merge_vendor="deepseek", merge_model="m",
+        prompt_slug="s",
+        prompt_version="v",
+        vendors=["gemini"],
+        models={"gemini": "g"},
+        merge_vendor="deepseek",
+        merge_model="m",
         requested_labels=1,
     )
     repo.create_run(spec)
@@ -437,9 +482,14 @@ def test_create_run_accepts_source_auto():
     repo, data_api = _repo_with_fake()
     data_api.execute.return_value = []
     spec = RunSpec(
-        prompt_slug="s", prompt_version="v", vendors=["gemini"],
-        models={"gemini": "g"}, merge_vendor="deepseek", merge_model="m",
-        requested_labels=1, source="auto",
+        prompt_slug="s",
+        prompt_version="v",
+        vendors=["gemini"],
+        models={"gemini": "g"},
+        merge_vendor="deepseek",
+        merge_model="m",
+        requested_labels=1,
+        source="auto",
     )
     repo.create_run(spec)
     sql, params = data_api.execute.call_args[0]
@@ -465,6 +515,7 @@ def test_get_labels_by_ids_single_query_name_map():
             return [{"id": "l1", "name": "Label One"}, {"id": "l2", "name": "Label Two"}]
 
     from collector.label_enrichment.repository import LabelEnrichmentRepository
+
     repo = LabelEnrichmentRepository(data_api=FakeDataAPI())
     assert repo.get_labels_by_ids(["l1", "l2"]) == {"l1": "Label One", "l2": "Label Two"}
     assert len(captured) == 1
@@ -479,6 +530,7 @@ def test_derive_styles_for_labels_top_style_per_label():
             ]
 
     from collector.label_enrichment.repository import LabelEnrichmentRepository
+
     repo = LabelEnrichmentRepository(data_api=FakeDataAPI())
     assert repo.derive_styles_for_labels(["l1", "l2"]) == {"l1": "techno", "l2": "house"}
 
@@ -489,6 +541,7 @@ def test_resolve_helpers_empty_input_no_query():
             raise AssertionError("no query for empty input")
 
     from collector.label_enrichment.repository import LabelEnrichmentRepository
+
     repo = LabelEnrichmentRepository(data_api=FakeDataAPI())
     assert repo.get_labels_by_ids([]) == {}
     assert repo.derive_styles_for_labels([]) == {}

@@ -6,8 +6,16 @@ from collector.curation.playlists_repository import ReviewRow, YtmusicStatus
 
 
 def _candidate(vid="dQw4w9WgXcQ", score=0.9):
-    return {"ref": {"videoId": vid, "title": "Hold Me", "artists": [{"name": "ARTYS"}],
-                    "album": {"name": "EP"}, "duration_seconds": 418}, "score": score}
+    return {
+        "ref": {
+            "videoId": vid,
+            "title": "Hold Me",
+            "artists": [{"name": "ARTYS"}],
+            "album": {"name": "EP"},
+            "duration_seconds": 418,
+        },
+        "score": score,
+    }
 
 
 class Repo:
@@ -18,16 +26,22 @@ class Repo:
         self._status = status
         self.accepted = None
         self.rejected = None
+
     def get(self, *, user_id, playlist_id):
         return object() if self._owns else None
+
     def validate_tracks_in_scope(self, *, user_id, track_ids):
         return set(track_ids) if self._in_scope else set()
+
     def get_open_review(self, *, track_id, vendor):
         return self._review
+
     def resolve_review_accept(self, *, clouder_track_id, vendor, vendor_track_id, payload, now):
         self.accepted = (clouder_track_id, vendor, vendor_track_id, payload)
+
     def resolve_review_reject(self, *, clouder_track_id, vendor, now):
         self.rejected = (clouder_track_id, vendor)
+
     def fetch_ytmusic_status(self, track_ids):
         return {t: self._status for t in track_ids}
 
@@ -68,9 +82,12 @@ def test_candidates_404_when_no_open_review():
 def test_resolve_accept_writes_and_returns_status():
     repo = Repo(
         review=ReviewRow(candidates=[_candidate()]),
-        status=YtmusicStatus(status="matched", video_id="dQw4w9WgXcQ",
-                             url="https://music.youtube.com/watch?v=dQw4w9WgXcQ",
-                             confidence=1.0),
+        status=YtmusicStatus(
+            status="matched",
+            video_id="dQw4w9WgXcQ",
+            url="https://music.youtube.com/watch?v=dQw4w9WgXcQ",
+            confidence=1.0,
+        ),
     )
     body = {"vendor": "ytmusic", "action": "accept", "vendor_track_id": "dQw4w9WgXcQ"}
     resp = ch._handle_resolve_match(_event(body=body), repo, "u1", "c1")
@@ -80,8 +97,10 @@ def test_resolve_accept_writes_and_returns_status():
 
 
 def test_resolve_accept_manual_url_payload():
-    repo = Repo(review=ReviewRow(candidates=[_candidate(vid="aaaaaaaaaaa")]),
-                status=YtmusicStatus(status="matched"))
+    repo = Repo(
+        review=ReviewRow(candidates=[_candidate(vid="aaaaaaaaaaa")]),
+        status=YtmusicStatus(status="matched"),
+    )
     body = {"vendor": "ytmusic", "action": "accept", "vendor_track_id": "bbbbbbbbbbb"}
     ch._handle_resolve_match(_event(body=body), repo, "u1", "c1")
     assert repo.accepted[3]["source"] == "manual_url"

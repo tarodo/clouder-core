@@ -173,6 +173,7 @@ class TestCreateTriageBlockInPopulateOptions:
 class TestExtraFieldsRejected:
     def test_create_triage_block_in_rejects_unknown_field(self) -> None:
         from datetime import date
+
         with pytest.raises(ValidationError):
             CreateTriageBlockIn(
                 style_id="00000000-0000-0000-0000-000000000001",

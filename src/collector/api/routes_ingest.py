@@ -59,7 +59,7 @@ class _IngestParams:
     style_id: int
     bp_token: str
     period_start: str  # YYYY-MM-DD
-    period_end: str    # YYYY-MM-DD
+    period_end: str  # YYYY-MM-DD
     iso_year: int | None
     iso_week: int | None
     week_year: int | None
@@ -216,9 +216,7 @@ def collect_period(
         "processing_status": enqueue_result.processing_status.value,
         "processing_outcome": enqueue_result.processing_outcome.value,
         "processing_reason": (
-            enqueue_result.processing_reason.value
-            if enqueue_result.processing_reason
-            else None
+            enqueue_result.processing_reason.value if enqueue_result.processing_reason else None
         ),
     }
 
@@ -242,22 +240,16 @@ def collect_period(
         processing_status=enqueue_result.processing_status.value,
         processing_outcome=enqueue_result.processing_outcome.value,
         processing_reason=(
-            enqueue_result.processing_reason.value
-            if enqueue_result.processing_reason
-            else None
+            enqueue_result.processing_reason.value if enqueue_result.processing_reason else None
         ),
     )
     return response
 
 
-def _handle_collect(
-    event: Mapping[str, Any], context: Any, correlation_id: str
-) -> dict[str, Any]:
+def _handle_collect(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
     body = _parse_json_body(event)
     request = _parse_collect_request(body)
-    week_start, week_end = compute_iso_week_date_range(
-        request.iso_year, request.iso_week
-    )
+    week_start, week_end = compute_iso_week_date_range(request.iso_year, request.iso_week)
     params = _IngestParams(
         style_id=request.style_id,
         bp_token=request.bp_token,
@@ -284,9 +276,7 @@ def _handle_admin_ingest(
     from ..saturday_week import saturday_week_range
 
     if request.period_start is None:
-        std_start, std_end = saturday_week_range(
-            request.week_year, request.week_number
-        )
+        std_start, std_end = saturday_week_range(request.week_year, request.week_number)
         period_start_iso = std_start.isoformat()
         period_end_iso = std_end.isoformat()
         is_custom = False
@@ -317,17 +307,33 @@ def _beatport_token(correlation_id: str) -> str:
     try:
         username, password = deps.read_beatport_credentials()
     except Exception as exc:  # missing env/parameter, IAM, KMS: name the cause, never a value
-        log_event("ERROR", "beatport_login_failed", correlation_id=correlation_id,
-                  phase="credentials", error_type=type(exc).__name__)
-        raise AppError(status_code=503, error_code="beatport_credentials_unavailable",
-                       message="Beatport credentials are not configured") from exc
+        log_event(
+            "ERROR",
+            "beatport_login_failed",
+            correlation_id=correlation_id,
+            phase="credentials",
+            error_type=type(exc).__name__,
+        )
+        raise AppError(
+            status_code=503,
+            error_code="beatport_credentials_unavailable",
+            message="Beatport credentials are not configured",
+        ) from exc
     try:
         return deps.fetch_access_token(username, password)
     except BeatportAuthError as exc:
-        log_event("ERROR", "beatport_login_failed", correlation_id=correlation_id,
-                  phase=exc.step, status_code=exc.status)
-        raise AppError(status_code=502, error_code="beatport_login_failed",
-                       message=f"Beatport login failed at step {exc.step}") from exc
+        log_event(
+            "ERROR",
+            "beatport_login_failed",
+            correlation_id=correlation_id,
+            phase=exc.step,
+            status_code=exc.status,
+        )
+        raise AppError(
+            status_code=502,
+            error_code="beatport_login_failed",
+            message=f"Beatport login failed at step {exc.step}",
+        ) from exc
 
 
 def _parse_collect_request(payload: Mapping[str, Any]) -> CollectRequestIn:
@@ -442,9 +448,19 @@ def _auto_ingest_view(repo: Any) -> dict[str, Any]:
     settings = repo.get_settings()
     week_year, week_number = due_week(deps.utc_now().date())
     return {
-        "settings": {k: settings[k] for k in (
-            "enabled", "mode", "fixed_times", "runs_per_day", "timezone",
-            "periods_per_run", "backfill_floor", "updated_at")},
+        "settings": {
+            k: settings[k]
+            for k in (
+                "enabled",
+                "mode",
+                "fixed_times",
+                "runs_per_day",
+                "timezone",
+                "periods_per_run",
+                "backfill_floor",
+                "updated_at",
+            )
+        },
         "planned_runs": settings["planned_runs"],
         "last_run": settings["last_run"],
         "running": settings["running"],
@@ -453,11 +469,15 @@ def _auto_ingest_view(repo: Any) -> dict[str, Any]:
     }
 
 
-def _handle_auto_ingest_get(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_auto_ingest_get(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     return _json_response(200, _auto_ingest_view(deps._auto_ingest_repository()), correlation_id)
 
 
-def _handle_auto_ingest_put(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_auto_ingest_put(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     from ..schemas import AutoIngestSettingsIn
 
     try:
@@ -472,6 +492,8 @@ def _handle_auto_ingest_put(event: Mapping[str, Any], context: Any, correlation_
     return _json_response(200, _auto_ingest_view(repo), correlation_id)
 
 
-def _handle_auto_ingest_run(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_auto_ingest_run(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     deps._invoke_auto_ingest({"action": "run", "manual": True})
     return _json_response(202, {"accepted": True}, correlation_id)

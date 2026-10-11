@@ -16,6 +16,7 @@ from collector.curation.triage_repository import TriageRepository
 
 # ---- normalize_category_name -----------------------------------------------
 
+
 def test_normalize_lowercases_and_trims() -> None:
     assert normalize_category_name("  Tech House  ") == "tech house"
 
@@ -37,6 +38,7 @@ def test_normalize_pure_whitespace_yields_empty() -> None:
 
 
 # ---- validate_category_name ------------------------------------------------
+
 
 def test_validate_accepts_normal_name() -> None:
     validate_category_name("Tech House")  # no exception
@@ -73,6 +75,7 @@ def test_validate_rejects_newlines() -> None:
 
 # ---- validate_reorder_set --------------------------------------------------
 
+
 def test_reorder_set_passes_on_exact_match() -> None:
     validate_reorder_set(actual={"a", "b", "c"}, requested=["a", "b", "c"])
 
@@ -97,6 +100,7 @@ def test_reorder_set_rejects_duplicates() -> None:
 
 
 # ---- Spec-D side-effects (T16): create snapshot + soft_delete inactivate ----
+
 
 def _now() -> datetime:
     return datetime(2026, 4, 28, 12, 0, tzinfo=UTC)

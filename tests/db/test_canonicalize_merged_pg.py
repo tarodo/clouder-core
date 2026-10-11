@@ -57,7 +57,11 @@ def _two_releases():
     original["release"] = {"id": 7_000_001, "name": "Original EP", "label": {"id": 1, "name": "L"}}
     compilation = copy.deepcopy(original)
     compilation["id"] = 9001
-    compilation["release"] = {"id": 7_000_002, "name": "Compilation", "label": {"id": 1, "name": "L"}}
+    compilation["release"] = {
+        "id": 7_000_002,
+        "name": "Compilation",
+        "label": {"id": 1, "name": "L"},
+    }
     return week1, [compilation]
 
 

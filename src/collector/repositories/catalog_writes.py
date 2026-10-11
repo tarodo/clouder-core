@@ -18,8 +18,15 @@ from .commands import (
 
 # Track columns a Beatport observation may set after creation (conservative merge).
 TRACK_MERGE_FIELDS = (
-    "mix_name", "isrc", "bpm", "length_ms", "key_name", "key_camelot",
-    "publish_date", "album_id", "style_id",
+    "mix_name",
+    "isrc",
+    "bpm",
+    "length_ms",
+    "key_name",
+    "key_camelot",
+    "publish_date",
+    "album_id",
+    "style_id",
 )
 
 
@@ -328,9 +335,7 @@ class CatalogWritesMixin(RepositoryBase):
         if not track_ids:
             return
         placeholders = ", ".join(f":id_{i}" for i in range(len(track_ids)))
-        params: dict[str, Any] = {
-            f"id_{i}": tid for i, tid in enumerate(track_ids)
-        }
+        params: dict[str, Any] = {f"id_{i}": tid for i, tid in enumerate(track_ids)}
         self._data_api.execute(
             f"""
             UPDATE clouder_albums a

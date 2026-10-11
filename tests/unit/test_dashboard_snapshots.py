@@ -23,8 +23,20 @@ class FakeCloudWatch:
     def get_dashboard(self, *, DashboardName: str) -> dict:
         assert DashboardName == "clouder-prod-overview"
         widgets = [
-            {"properties": {"title": "Lambda errors", "metrics": [["AWS/Lambda", "Errors"]], "stat": "Sum"}},
-            {"properties": {"title": "DLQ depth", "metrics": [["AWS/SQS", "X"]], "stat": "Maximum"}},
+            {
+                "properties": {
+                    "title": "Lambda errors",
+                    "metrics": [["AWS/Lambda", "Errors"]],
+                    "stat": "Sum",
+                }
+            },
+            {
+                "properties": {
+                    "title": "DLQ depth",
+                    "metrics": [["AWS/SQS", "X"]],
+                    "stat": "Maximum",
+                }
+            },
         ]
         return {"DashboardBody": json.dumps({"widgets": widgets})}
 
@@ -40,8 +52,16 @@ def test_renders_the_chosen_widgets_over_a_week(tmp_path) -> None:
 
     assert written == [tmp_path / "dashboard-lambda-errors.png"]
     assert written[0].read_bytes() == b"\x89PNG"
-    assert cw.rendered == [{"title": "Lambda errors", "metrics": [["AWS/Lambda", "Errors"]], "stat": "Sum",
-                            "start": "-P7D", "width": 800, "height": 300}]
+    assert cw.rendered == [
+        {
+            "title": "Lambda errors",
+            "metrics": [["AWS/Lambda", "Errors"]],
+            "stat": "Sum",
+            "start": "-P7D",
+            "width": 800,
+            "height": 300,
+        }
+    ]
 
 
 def test_unknown_widget_title_fails_loudly(tmp_path) -> None:

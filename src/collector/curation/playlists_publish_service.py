@@ -66,12 +66,15 @@ class PlaylistsPublishService:
             )
 
         rows, _total = self._repo.list_tracks(
-            user_id=user_id, playlist_id=playlist_id,
-            limit=10_000, offset=0,
+            user_id=user_id,
+            playlist_id=playlist_id,
+            limit=10_000,
+            offset=0,
         )
         skipped = [
             {"track_id": r.track_id, "title": r.title, "reason": "no_spotify_id"}
-            for r in rows if not r.spotify_id
+            for r in rows
+            if not r.spotify_id
         ]
         uris = [f"spotify:track:{r.spotify_id}" for r in rows if r.spotify_id]
         if not uris:
@@ -82,8 +85,10 @@ class PlaylistsPublishService:
             raise SpotifyNotAuthorizedError("User has no linked Spotify identity")
 
         log_event(
-            "INFO", "playlist_publish_started",
-            user_id=user_id, playlist_id=playlist_id,
+            "INFO",
+            "playlist_publish_started",
+            user_id=user_id,
+            playlist_id=playlist_id,
             first_time=not bool(playlist.spotify_playlist_id),
             track_count=len(uris),
             has_cover=bool(playlist.cover_s3_key),
@@ -103,8 +108,10 @@ class PlaylistsPublishService:
                 if not treat_404_as_orphan:
                     raise SpotifyApiError(str(exc)) from exc
                 log_event(
-                    "WARNING", "playlist_publish_orphan_recreated",
-                    user_id=user_id, playlist_id=playlist_id,
+                    "WARNING",
+                    "playlist_publish_orphan_recreated",
+                    user_id=user_id,
+                    playlist_id=playlist_id,
                     old_spotify_playlist_id=target_id,
                 )
                 target_id = None
@@ -132,8 +139,10 @@ class PlaylistsPublishService:
             except Exception as exc:
                 cover_failed = True
                 log_event(
-                    "WARNING", "playlist_publish_partial_fail",
-                    user_id=user_id, playlist_id=playlist_id,
+                    "WARNING",
+                    "playlist_publish_partial_fail",
+                    user_id=user_id,
+                    playlist_id=playlist_id,
                     stage="cover",
                     error_message=str(exc),
                     error_type=type(exc).__name__,
@@ -141,14 +150,19 @@ class PlaylistsPublishService:
 
         now = self._now()
         self._repo.set_publish_state(
-            user_id=user_id, playlist_id=playlist_id,
-            spotify_playlist_id=target_id, now=now,
+            user_id=user_id,
+            playlist_id=playlist_id,
+            spotify_playlist_id=target_id,
+            now=now,
             mark_dirty=cover_failed,
         )
         log_event(
-            "INFO", "playlist_publish_succeeded",
-            user_id=user_id, playlist_id=playlist_id,
-            spotify_playlist_id=target_id, skipped=len(skipped),
+            "INFO",
+            "playlist_publish_succeeded",
+            user_id=user_id,
+            playlist_id=playlist_id,
+            spotify_playlist_id=target_id,
+            skipped=len(skipped),
             cover_failed=cover_failed,
         )
         return PublishResult(

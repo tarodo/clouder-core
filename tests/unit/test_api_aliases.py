@@ -42,13 +42,19 @@ class FakeLambda:
 def test_snapshot_skips_functions_without_the_alias() -> None:
     aa = _load("api_aliases")
     client = FakeLambda({"p-collector-api": "7", "p-curation": "3"})
-    assert aa.snapshot(client, ["p-collector-api", "p-curation", "p-telemetry"]) == {"p-collector-api": "7", "p-curation": "3"}
+    assert aa.snapshot(client, ["p-collector-api", "p-curation", "p-telemetry"]) == {
+        "p-collector-api": "7",
+        "p-curation": "3",
+    }
 
 
 def test_restore_moves_only_aliases_that_changed() -> None:
     aa = _load("api_aliases")
     client = FakeLambda({"p-collector-api": "8", "p-curation": "3"})
-    assert aa.restore(client, {"p-collector-api": "7", "p-curation": "3"}) == (["p-collector-api"], {})
+    assert aa.restore(client, {"p-collector-api": "7", "p-curation": "3"}) == (
+        ["p-collector-api"],
+        {},
+    )
     assert client.updates == [("p-collector-api", "7")]
 
 

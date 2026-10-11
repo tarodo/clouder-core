@@ -56,8 +56,11 @@ def top_score(item: GoldItem) -> tuple[float, bool] | None:
     best: tuple[float, bool] | None = None
     for ref, is_match in item.candidates:
         total = score_candidate(
-            candidate=ref, artist=item.artist, title=item.title,
-            duration_ms=item.duration_ms, album=item.album,
+            candidate=ref,
+            artist=item.artist,
+            title=item.title,
+            duration_ms=item.duration_ms,
+            album=item.album,
         ).total
         if best is None or total > best[0]:
             best = (total, is_match)

@@ -14,15 +14,18 @@ class FakeSqs:
 
 
 def _inp(track_id="t1", artist="Guri", title="Lost Track"):
-    return MatchInput(track_id=track_id, artist=artist, title=title,
-                      isrc="GB1", duration_ms=225000, album="EP")
+    return MatchInput(
+        track_id=track_id, artist=artist, title=title, isrc="GB1", duration_ms=225000, album="EP"
+    )
 
 
 def test_enqueue_sends_one_message_per_input():
     sqs = FakeSqs()
     n = enqueue_vendor_matches(
-        track_inputs=[_inp("t1"), _inp("t2")], vendor="ytmusic",
-        queue_url="http://q", sqs=sqs,
+        track_inputs=[_inp("t1"), _inp("t2")],
+        vendor="ytmusic",
+        queue_url="http://q",
+        sqs=sqs,
     )
     assert n == 2
     assert len(sqs.sent) == 2
@@ -31,21 +34,27 @@ def test_enqueue_sends_one_message_per_input():
 
 def test_enqueue_no_queue_url_is_noop():
     sqs = FakeSqs()
-    assert enqueue_vendor_matches(track_inputs=[_inp()], vendor="ytmusic",
-                                  queue_url="", sqs=sqs) == 0
+    assert (
+        enqueue_vendor_matches(track_inputs=[_inp()], vendor="ytmusic", queue_url="", sqs=sqs) == 0
+    )
     assert sqs.sent == []
 
 
 def test_enqueue_skips_invalid_input():
     # empty artist fails VendorMatchMessage validation -> skipped, not raised
     sqs = FakeSqs()
-    bad = MatchInput(track_id="t1", artist="", title="X", isrc=None,
-                     duration_ms=None, album=None)
-    assert enqueue_vendor_matches(track_inputs=[bad], vendor="ytmusic",
-                                  queue_url="http://q", sqs=sqs) == 0
+    bad = MatchInput(track_id="t1", artist="", title="X", isrc=None, duration_ms=None, album=None)
+    assert (
+        enqueue_vendor_matches(track_inputs=[bad], vendor="ytmusic", queue_url="http://q", sqs=sqs)
+        == 0
+    )
 
 
 def test_enqueue_swallows_sqs_errors():
     sqs = FakeSqs(fail=True)
-    assert enqueue_vendor_matches(track_inputs=[_inp()], vendor="ytmusic",
-                                  queue_url="http://q", sqs=sqs) == 0
+    assert (
+        enqueue_vendor_matches(
+            track_inputs=[_inp()], vendor="ytmusic", queue_url="http://q", sqs=sqs
+        )
+        == 0
+    )

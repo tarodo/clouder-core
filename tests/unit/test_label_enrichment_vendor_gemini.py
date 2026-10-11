@@ -11,9 +11,7 @@ def _fake_response(text: str, in_tok: int = 100, out_tok: int = 50) -> SimpleNam
 
 
 def test_gemini_parses_valid_payload():
-    payload = (
-        '{"label_name":"Drumcode","ai_reasoning":"none","summary":"techno","confidence":0.9}'
-    )
+    payload = '{"label_name":"Drumcode","ai_reasoning":"none","summary":"techno","confidence":0.9}'
     client = MagicMock()
     client.models.generate_content.return_value = _fake_response(payload)
     adapter = GeminiAdapter(api_key="x", default_model="gemini-3-flash-preview", client=client)
@@ -40,7 +38,7 @@ def test_gemini_returns_error_on_api_exception():
 
 
 def test_gemini_handles_fenced_json():
-    fenced = "```json\n{\"label_name\":\"X\",\"ai_reasoning\":\"r\",\"summary\":\"s\",\"confidence\":0.1}\n```"
+    fenced = '```json\n{"label_name":"X","ai_reasoning":"r","summary":"s","confidence":0.1}\n```'
     client = MagicMock()
     client.models.generate_content.return_value = _fake_response(fenced)
     adapter = GeminiAdapter(api_key="x", default_model="gemini-3-flash-preview", client=client)

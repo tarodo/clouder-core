@@ -53,7 +53,9 @@ class SpotifyOAuthClient:
         self._client_secret = client_secret
         self._redirect_uri = redirect_uri
         self._timeout = timeout_seconds
-        self._urlopen = urlopen or (lambda req, timeout: urllib.request.urlopen(req, timeout=timeout))
+        self._urlopen = urlopen or (
+            lambda req, timeout: urllib.request.urlopen(req, timeout=timeout)
+        )
 
     def authorize_url(self, *, state: str, code_challenge: str, scopes: str) -> str:
         params = {
@@ -118,9 +120,7 @@ class SpotifyOAuthClient:
         )
 
     def _post_token(self, body: str) -> dict:
-        credentials = base64.b64encode(
-            f"{self._client_id}:{self._client_secret}".encode()
-        ).decode()
+        credentials = base64.b64encode(f"{self._client_id}:{self._client_secret}".encode()).decode()
         request = urllib.request.Request(
             url=TOKEN_URL,
             data=body.encode("utf-8"),
@@ -149,9 +149,7 @@ class SpotifyOAuthClient:
                 raise SpotifyTokenRevokedError(
                     f"spotify token endpoint reported invalid_grant: {parsed}"
                 )
-            raise SpotifyOAuthError(
-                f"spotify token endpoint returned HTTP {status}: {parsed}"
-            )
+            raise SpotifyOAuthError(f"spotify token endpoint returned HTTP {status}: {parsed}")
 
         return parsed
 

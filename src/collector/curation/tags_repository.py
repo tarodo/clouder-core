@@ -86,9 +86,7 @@ class TagsRepository:
             )
         except Exception as exc:
             if "uq_user_tags_user_normalized_name" in str(exc):
-                raise TagNameConflictError(
-                    "Tag with this name already exists"
-                ) from exc
+                raise TagNameConflictError("Tag with this name already exists") from exc
             raise
         return _row_to_tag(rows[0])
 
@@ -181,9 +179,7 @@ class TagsRepository:
             )
         except Exception as exc:
             if "uq_user_tags_user_normalized_name" in str(exc):
-                raise TagNameConflictError(
-                    "Tag with this name already exists"
-                ) from exc
+                raise TagNameConflictError("Tag with this name already exists") from exc
             raise
         if not rows:
             raise TagNotFoundError()
@@ -284,10 +280,14 @@ class TagsRepository:
 
         def _do(tx_id: str) -> list[TagRow]:
             self._assert_track_in_any_active_category(
-                user_id=user_id, track_id=track_id, transaction_id=tx_id,
+                user_id=user_id,
+                track_id=track_id,
+                transaction_id=tx_id,
             )
             self._assert_tag_ids_owned(
-                user_id=user_id, tag_ids=ordered, transaction_id=tx_id,
+                user_id=user_id,
+                tag_ids=ordered,
+                transaction_id=tx_id,
             )
             self._data_api.execute(
                 "DELETE FROM track_tags WHERE user_id = :user_id AND track_id = :track_id",
@@ -302,9 +302,7 @@ class TagsRepository:
                     "created_at": now,
                 }
                 for i, tid in enumerate(ordered):
-                    value_clauses.append(
-                        f"(:user_id, :track_id, :tg{i}, :created_at)"
-                    )
+                    value_clauses.append(f"(:user_id, :track_id, :tg{i}, :created_at)")
                     params[f"tg{i}"] = tid
                 self._data_api.execute(
                     f"""
@@ -315,7 +313,9 @@ class TagsRepository:
                     transaction_id=tx_id,
                 )
             return self._select_track_tags(
-                user_id=user_id, track_id=track_id, transaction_id=tx_id,
+                user_id=user_id,
+                track_id=track_id,
+                transaction_id=tx_id,
             )
 
         if transaction_id is not None:
@@ -334,10 +334,14 @@ class TagsRepository:
     ) -> list[TagRow]:
         def _do(tx_id: str) -> list[TagRow]:
             self._assert_track_in_any_active_category(
-                user_id=user_id, track_id=track_id, transaction_id=tx_id,
+                user_id=user_id,
+                track_id=track_id,
+                transaction_id=tx_id,
             )
             self._assert_tag_ids_owned(
-                user_id=user_id, tag_ids=[tag_id], transaction_id=tx_id,
+                user_id=user_id,
+                tag_ids=[tag_id],
+                transaction_id=tx_id,
             )
             self._data_api.execute(
                 """
@@ -354,7 +358,9 @@ class TagsRepository:
                 transaction_id=tx_id,
             )
             return self._select_track_tags(
-                user_id=user_id, track_id=track_id, transaction_id=tx_id,
+                user_id=user_id,
+                track_id=track_id,
+                transaction_id=tx_id,
             )
 
         if transaction_id is not None:
@@ -362,9 +368,7 @@ class TagsRepository:
         with self._data_api.transaction() as tx_id:
             return _do(tx_id)
 
-    def remove_track_tag(
-        self, *, user_id: str, track_id: str, tag_id: str
-    ) -> bool:
+    def remove_track_tag(self, *, user_id: str, track_id: str, tag_id: str) -> bool:
         rows = self._data_api.execute(
             """
             DELETE FROM track_tags

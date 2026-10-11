@@ -14,12 +14,7 @@ def _load_migration(filename: str):
 
 
 def _read_source(filename: str) -> str:
-    return (
-        Path(__file__).resolve().parents[2]
-        / "alembic"
-        / "versions"
-        / filename
-    ).read_text()
+    return (Path(__file__).resolve().parents[2] / "alembic" / "versions" / filename).read_text()
 
 
 def test_revision_metadata() -> None:

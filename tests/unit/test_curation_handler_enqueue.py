@@ -1,4 +1,5 @@
 """Unit tests for curation_handler helpers (enqueue wiring etc.)."""
+
 from __future__ import annotations
 
 
@@ -19,7 +20,9 @@ def test_add_playlist_tracks_enqueues_ytmusic(monkeypatch):
 
         def append_tracks(self, *, user_id, playlist_id, track_ids, now):
             return AppendTracksResult(
-                added_track_ids=["t1"], skipped_duplicates=["t2"], position_after=1,
+                added_track_ids=["t1"],
+                skipped_duplicates=["t2"],
+                position_after=1,
             )
 
     event = {

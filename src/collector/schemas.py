@@ -131,9 +131,7 @@ class AdminIngestRequestIn(BaseModel):
         from .saturday_week import weeks_in_year
 
         if (self.period_start is None) != (self.period_end is None):
-            raise ValueError(
-                "period_start and period_end must both be present or both absent"
-            )
+            raise ValueError("period_start and period_end must both be present or both absent")
         if (
             self.period_start is not None
             and self.period_end is not None

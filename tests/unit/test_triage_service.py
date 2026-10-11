@@ -30,9 +30,7 @@ from collector.curation.triage_service import (
 
 class TestValidateBlockInput:
     def test_happy_path(self) -> None:
-        validate_block_input(
-            "Tech House", date(2026, 4, 20), date(2026, 4, 26)
-        )
+        validate_block_input("Tech House", date(2026, 4, 20), date(2026, 4, 26))
 
     def test_empty_name(self) -> None:
         with pytest.raises(ValidationError):
@@ -40,28 +38,20 @@ class TestValidateBlockInput:
 
     def test_whitespace_name(self) -> None:
         with pytest.raises(ValidationError):
-            validate_block_input(
-                "   ", date(2026, 4, 20), date(2026, 4, 26)
-            )
+            validate_block_input("   ", date(2026, 4, 20), date(2026, 4, 26))
 
     def test_long_name(self) -> None:
         with pytest.raises(ValidationError):
-            validate_block_input(
-                "x" * 129, date(2026, 4, 20), date(2026, 4, 26)
-            )
+            validate_block_input("x" * 129, date(2026, 4, 20), date(2026, 4, 26))
 
     def test_inverted_window(self) -> None:
         with pytest.raises(ValidationError):
-            validate_block_input(
-                "X", date(2026, 4, 26), date(2026, 4, 20)
-            )
+            validate_block_input("X", date(2026, 4, 26), date(2026, 4, 20))
 
 
 class TestValidateTrackIds:
     def test_happy_path(self) -> None:
-        validate_track_ids(
-            ["00000000-0000-0000-0000-000000000001"]
-        )
+        validate_track_ids(["00000000-0000-0000-0000-000000000001"])
 
     def test_empty(self) -> None:
         with pytest.raises(ValidationError):

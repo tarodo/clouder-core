@@ -126,15 +126,17 @@ def test_limits_exposed_as_module_constants() -> None:
 
 
 def test_parse_playlist_uri_form() -> None:
-    assert parse_spotify_playlist_ref(
-        "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M"
-    ) == "37i9dQZF1DXcBWIGoYBM5M"
+    assert (
+        parse_spotify_playlist_ref("spotify:playlist:37i9dQZF1DXcBWIGoYBM5M")
+        == "37i9dQZF1DXcBWIGoYBM5M"
+    )
 
 
 def test_parse_playlist_url_form() -> None:
-    assert parse_spotify_playlist_ref(
-        "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=x"
-    ) == "37i9dQZF1DXcBWIGoYBM5M"
+    assert (
+        parse_spotify_playlist_ref("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=x")
+        == "37i9dQZF1DXcBWIGoYBM5M"
+    )
 
 
 def test_parse_playlist_bare_id() -> None:

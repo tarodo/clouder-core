@@ -7,14 +7,43 @@ from collector.contracts import screen
 def _record(**overrides):
     base = {key: None for key in contracts.FIELDS}
     base.update(
-        id=1, name="Track", mix_name="Original Mix", isrc="QZ1", bpm=128, length_ms=300000,
-        publish_date="2026-09-26", new_release_date="2026-09-26", key={"name": "A Minor"},
-        artists=[{"id": 2, "name": "A"}], release={"id": 3, "name": "R"}, genre={"id": 1, "name": "G"},
-        remixers=[], bsrc_remixer=[], free_downloads=[], available_worldwide=True, exclusive=False,
-        is_available_for_streaming=True, is_dj_edit=False, is_dj_version=False, is_explicit=False,
-        is_hype=False, is_ugc_remix=False, pre_order=False, catalog_number="C1", current_status={},
-        encoded_date="2026-09-01T00:00:00", image={}, length="5:00", price={}, publish_status="published",
-        sale_type={}, sample_end_ms=1, sample_start_ms=0, sample_url="u", slug="track", url="u",
+        id=1,
+        name="Track",
+        mix_name="Original Mix",
+        isrc="QZ1",
+        bpm=128,
+        length_ms=300000,
+        publish_date="2026-09-26",
+        new_release_date="2026-09-26",
+        key={"name": "A Minor"},
+        artists=[{"id": 2, "name": "A"}],
+        release={"id": 3, "name": "R"},
+        genre={"id": 1, "name": "G"},
+        remixers=[],
+        bsrc_remixer=[],
+        free_downloads=[],
+        available_worldwide=True,
+        exclusive=False,
+        is_available_for_streaming=True,
+        is_dj_edit=False,
+        is_dj_version=False,
+        is_explicit=False,
+        is_hype=False,
+        is_ugc_remix=False,
+        pre_order=False,
+        catalog_number="C1",
+        current_status={},
+        encoded_date="2026-09-01T00:00:00",
+        image={},
+        length="5:00",
+        price={},
+        publish_status="published",
+        sale_type={},
+        sample_end_ms=1,
+        sample_start_ms=0,
+        sample_url="u",
+        slug="track",
+        url="u",
     )
     base.update(overrides)
     return base
@@ -30,7 +59,9 @@ def test_records_normalize_would_skip_are_quarantined_with_reasons() -> None:
     report = screen([_record(id=1), _record(id=0), _record(id=2, name="  "), "not a dict"])
     assert [r["id"] for r in report.valid] == [1]
     assert [q["reasons"] for q in report.quarantined] == [
-        ["id: not a positive integer"], ["name: empty"], ["record: not an object"],
+        ["id: not a positive integer"],
+        ["name: empty"],
+        ["record: not an object"],
     ]
 
 
@@ -101,7 +132,7 @@ def test_drift_log_names_each_kind(monkeypatch) -> None:
 
     contracts.screen_run(rows, run_id="r", storage=None, write=False)
 
-    (message, fields), = events
+    ((message, fields),) = events
     assert message == "contract_drift"
     assert fields["missing_fields"] == "catalog_number"
     assert fields["unknown_fields"] == "is_new"

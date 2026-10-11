@@ -11,7 +11,8 @@ def test_positive_second_artist_format():
 
 def test_noise_in_title_still_matches():
     assert video_matches(
-        "Lychee", "Back In Time",
+        "Lychee",
+        "Back In Time",
         "Lychee - Back in Time (Official Video) [Fokuz Recordings]",
     )
 
@@ -23,7 +24,8 @@ def test_stopword_missing_in_title_still_matches():
 
 def test_negative_different_track_same_artist():
     assert not video_matches(
-        "Dysfunctional Family", "Overwhelmingly Positive",
+        "Dysfunctional Family",
+        "Overwhelmingly Positive",
         "Dysfunctional Family Christmas (Music Video)",
     )
 
@@ -38,7 +40,9 @@ def test_version_original_rejects_remix():
 
 def test_version_remix_track_matches_remix_video():
     assert video_matches(
-        "Lychee", "Back In Time (Klute Remix)", "Lychee - Back in Time (Klute Remix)",
+        "Lychee",
+        "Back In Time (Klute Remix)",
+        "Lychee - Back in Time (Klute Remix)",
     )
 
 

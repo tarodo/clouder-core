@@ -38,17 +38,24 @@ def test_publish_skips_checks_without_value() -> None:
     (call,) = cw.calls
     assert call["Namespace"] == "CLOUDER/DataQuality"
     assert [(m["MetricName"], m["Value"]) for m in call["MetricData"]] == [
-        ("stuck_ingest_runs", 1.0), ("spotify_match_pct", 96.9), ("FailedChecks", 1)]
+        ("stuck_ingest_runs", 1.0),
+        ("spotify_match_pct", 96.9),
+        ("FailedChecks", 1),
+    ]
     assert failed == 1
 
 
 def test_handler_runs_checks_publishes_and_reports(monkeypatch) -> None:
     cw = FakeCloudWatch()
     monkeypatch.setenv("AURORA_CLUSTER_ARN", "arn:aws:rds:us-east-1:000000000000:cluster:c")
-    monkeypatch.setenv("AURORA_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:000000000000:secret:s")
+    monkeypatch.setenv(
+        "AURORA_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:000000000000:secret:s"
+    )
     monkeypatch.setenv("AURORA_DATABASE", "clouder")
     reset_settings_cache()  # get_data_api_settings is lru_cached
-    monkeypatch.setattr(data_quality_handler, "create_default_data_api_client", lambda **_: object())
+    monkeypatch.setattr(
+        data_quality_handler, "create_default_data_api_client", lambda **_: object()
+    )
     monkeypatch.setattr(data_quality_handler, "run_checks", lambda client, today: _results())
     monkeypatch.setattr(data_quality_handler, "wake_database", lambda client: None)
     monkeypatch.setattr(data_quality_handler, "_cloudwatch", lambda: cw)
@@ -56,14 +63,19 @@ def test_handler_runs_checks_publishes_and_reports(monkeypatch) -> None:
     out = data_quality_handler.lambda_handler({}, None)
 
     assert out["failed_checks"] == 1
-    assert [r["name"] for r in out["results"]] == ["stuck_ingest_runs", "isrc_coverage_pct", "spotify_match_pct"]
+    assert [r["name"] for r in out["results"]] == [
+        "stuck_ingest_runs",
+        "isrc_coverage_pct",
+        "spotify_match_pct",
+    ]
     assert len(cw.calls) == 1
     reset_settings_cache()
 
 
 def _resuming() -> ClientError:
-    return ClientError({"Error": {"Code": "DatabaseResumingException", "Message": "resuming"}},
-                       "ExecuteStatement")
+    return ClientError(
+        {"Error": {"Code": "DatabaseResumingException", "Message": "resuming"}}, "ExecuteStatement"
+    )
 
 
 class Waking:
@@ -80,8 +92,9 @@ class Waking:
 def test_wake_database_waits_for_a_resuming_aurora() -> None:
     client = Waking(failures=3)
 
-    data_quality_handler.wake_database(client, deadline_s=60, sleep=lambda s: None,
-                                       clock=iter(range(0, 1000, 5)).__next__)
+    data_quality_handler.wake_database(
+        client, deadline_s=60, sleep=lambda s: None, clock=iter(range(0, 1000, 5)).__next__
+    )
 
     assert client.calls == 4
 
@@ -90,8 +103,9 @@ def test_wake_database_gives_up_after_the_deadline() -> None:
     client = Waking(failures=10**6)
 
     with pytest.raises(ClientError):
-        data_quality_handler.wake_database(client, deadline_s=60, sleep=lambda s: None,
-                                           clock=iter(range(0, 1000, 20)).__next__)
+        data_quality_handler.wake_database(
+            client, deadline_s=60, sleep=lambda s: None, clock=iter(range(0, 1000, 20)).__next__
+        )
     assert client.calls == 3
 
 
@@ -100,5 +114,6 @@ def test_wake_database_does_not_hide_other_errors() -> None:
     client = Waking(failures=1, error=other)
 
     with pytest.raises(ClientError):
-        data_quality_handler.wake_database(client, deadline_s=60, sleep=lambda s: None,
-                                           clock=iter(range(0, 1000, 5)).__next__)
+        data_quality_handler.wake_database(
+            client, deadline_s=60, sleep=lambda s: None, clock=iter(range(0, 1000, 5)).__next__
+        )

@@ -61,9 +61,7 @@ class KmsEnvelope:
         key, data_key_enc = self._fresh_data_key()
         nonce = os.urandom(12)
         ciphertext = AESGCM(key).encrypt(nonce, plaintext, associated_data=None)
-        return EnvelopePayload(
-            data_key_enc=data_key_enc, nonce=nonce, ciphertext=ciphertext
-        )
+        return EnvelopePayload(data_key_enc=data_key_enc, nonce=nonce, ciphertext=ciphertext)
 
     def decrypt(self, payload: EnvelopePayload) -> bytes:
         key = self._unwrap_data_key(payload.data_key_enc)
@@ -75,9 +73,7 @@ class KmsEnvelope:
             key, wrapped, expires = self._enc_cache
             if now < expires:
                 return key, wrapped
-        response = self._kms.generate_data_key(
-            KeyId=self._key_arn, KeySpec="AES_256"
-        )
+        response = self._kms.generate_data_key(KeyId=self._key_arn, KeySpec="AES_256")
         key = response["Plaintext"]
         wrapped = response["CiphertextBlob"]
         self._enc_cache = (key, wrapped, now + self._cache_ttl_seconds)

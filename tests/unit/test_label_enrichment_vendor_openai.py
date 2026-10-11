@@ -17,9 +17,7 @@ def _fake_parsed() -> LabelInfo:
 def test_openai_uses_output_parsed():
     parsed = _fake_parsed()
     usage = SimpleNamespace(input_tokens=200, output_tokens=80)
-    response = SimpleNamespace(
-        output_parsed=parsed, usage=usage, citations=[], output=[]
-    )
+    response = SimpleNamespace(output_parsed=parsed, usage=usage, citations=[], output=[])
     client = MagicMock()
     client.responses.parse.return_value = response
     adapter = OpenAIAdapter(api_key="x", default_model="gpt-5.4-mini", client=client)
@@ -32,9 +30,7 @@ def test_openai_uses_output_parsed():
 
 
 def test_openai_returns_error_when_no_parsed():
-    response = SimpleNamespace(
-        output_parsed=None, usage=None, citations=[], output=[]
-    )
+    response = SimpleNamespace(output_parsed=None, usage=None, citations=[], output=[])
     client = MagicMock()
     client.responses.parse.return_value = response
     adapter = OpenAIAdapter(api_key="x", default_model="gpt-5.4-mini", client=client)

@@ -50,11 +50,17 @@ def test_finalize_enqueues_block_auto_enrich():
     repo.finalize_block.return_value = finalize_result
 
     cat_repo = MagicMock()
-    with patch("collector.curation.routes_triage.enqueue_block_auto_enrich") as enqueue, \
-         patch("collector.curation.routes_triage.try_dispatch_for_triage_block") as labels_inline, \
-         patch("collector.curation.routes_triage.try_dispatch_artists_for_triage_block") as artists_inline, \
-         patch("collector.curation.deps.create_default_categories_repository", return_value=cat_repo), \
-         patch("collector.curation.routes_triage._serialize_triage_block", return_value={}):
+    with (
+        patch("collector.curation.routes_triage.enqueue_block_auto_enrich") as enqueue,
+        patch("collector.curation.routes_triage.try_dispatch_for_triage_block") as labels_inline,
+        patch(
+            "collector.curation.routes_triage.try_dispatch_artists_for_triage_block"
+        ) as artists_inline,
+        patch(
+            "collector.curation.deps.create_default_categories_repository", return_value=cat_repo
+        ),
+        patch("collector.curation.routes_triage._serialize_triage_block", return_value={}),
+    ):
         ch._finalize_triage_block(_finalize_event(), repo, "u1", "corr-1")
     enqueue.assert_called_once()
     assert enqueue.call_args.kwargs["block_id"] == "blk-1"

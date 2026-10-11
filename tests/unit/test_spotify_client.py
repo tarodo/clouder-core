@@ -48,13 +48,9 @@ def _auth_response() -> FakeResponse:
 
 
 def _search_response(track_id: str = "sp1", track_name: str = "Test") -> FakeResponse:
-    return FakeResponse({
-        "tracks": {
-            "items": [
-                {"id": track_id, "name": track_name, "popularity": 42}
-            ]
-        }
-    })
+    return FakeResponse(
+        {"tracks": {"items": [{"id": track_id, "name": track_name, "popularity": 42}]}}
+    )
 
 
 def _empty_search_response() -> FakeResponse:
@@ -203,15 +199,29 @@ def test_search_picks_earliest_track_by_release_date() -> None:
         call_count += 1
         if call_count == 1:
             return _auth_response()
-        return FakeResponse({
-            "tracks": {
-                "items": [
-                    {"id": "sp_remaster", "name": "Track (Remaster)", "album": {"release_date": "2020-06-15"}},
-                    {"id": "sp_original", "name": "Track", "album": {"release_date": "2005-03-01"}},
-                    {"id": "sp_deluxe", "name": "Track (Deluxe)", "album": {"release_date": "2021-01-10"}},
-                ]
+        return FakeResponse(
+            {
+                "tracks": {
+                    "items": [
+                        {
+                            "id": "sp_remaster",
+                            "name": "Track (Remaster)",
+                            "album": {"release_date": "2020-06-15"},
+                        },
+                        {
+                            "id": "sp_original",
+                            "name": "Track",
+                            "album": {"release_date": "2005-03-01"},
+                        },
+                        {
+                            "id": "sp_deluxe",
+                            "name": "Track (Deluxe)",
+                            "album": {"release_date": "2021-01-10"},
+                        },
+                    ]
+                }
             }
-        })
+        )
 
     with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
         results = client.search_tracks_by_isrc(
@@ -234,14 +244,16 @@ def test_search_handles_partial_release_dates() -> None:
         call_count += 1
         if call_count == 1:
             return _auth_response()
-        return FakeResponse({
-            "tracks": {
-                "items": [
-                    {"id": "sp_new", "name": "New", "album": {"release_date": "2022"}},
-                    {"id": "sp_old", "name": "Old", "album": {"release_date": "1998-05"}},
-                ]
+        return FakeResponse(
+            {
+                "tracks": {
+                    "items": [
+                        {"id": "sp_new", "name": "New", "album": {"release_date": "2022"}},
+                        {"id": "sp_old", "name": "Old", "album": {"release_date": "1998-05"}},
+                    ]
+                }
             }
-        })
+        )
 
     with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
         results = client.search_tracks_by_isrc(
@@ -268,9 +280,7 @@ def test_rate_limit_long_cooldown_raises_unavailable() -> None:
             return default
 
     def fake_urlopen(request, timeout=None):
-        raise HTTPError(
-            url=request.full_url, code=429, msg="rate", hdrs=_Headers(), fp=None
-        )
+        raise HTTPError(url=request.full_url, code=429, msg="rate", hdrs=_Headers(), fp=None)
 
     with patch("collector.spotify_client.urllib.request.urlopen", fake_urlopen):
         with pytest.raises(SpotifyUnavailableError, match="retry after 1296s"):
@@ -286,7 +296,9 @@ def test_rate_limit_short_cooldown_sleeps_and_retries() -> None:
 
     sleep_calls: list[float] = []
     client = SpotifyClient(
-        client_id="x", client_secret="y", sleep_fn=sleep_calls.append,
+        client_id="x",
+        client_secret="y",
+        sleep_fn=sleep_calls.append,
     )
     client._access_token = "tok"
     client._token_expires_at = 9e18
@@ -303,8 +315,11 @@ def test_rate_limit_short_cooldown_sleeps_and_retries() -> None:
         call_count["n"] += 1
         if call_count["n"] == 1:
             raise HTTPError(
-                url=request.full_url, code=429, msg="rate",
-                hdrs=_Headers(), fp=None,
+                url=request.full_url,
+                code=429,
+                msg="rate",
+                hdrs=_Headers(),
+                fp=None,
             )
         return FakeResponse({"tracks": {"items": []}})
 
@@ -322,13 +337,15 @@ def test_rate_limit_short_cooldown_sleeps_and_retries() -> None:
 def test_get_tracks_maps_ids_to_artists() -> None:
     client = _make_client()
     client._ensure_token = MagicMock()  # skip auth
-    client._request = MagicMock(return_value={
-        "tracks": [
-            {"id": "a", "artists": [{"name": "Guri"}, {"name": "Nu Zau"}]},
-            {"id": "b", "artists": [{"name": "Solee"}]},
-            None,  # unavailable track id
-        ]
-    })
+    client._request = MagicMock(
+        return_value={
+            "tracks": [
+                {"id": "a", "artists": [{"name": "Guri"}, {"name": "Nu Zau"}]},
+                {"id": "b", "artists": [{"name": "Solee"}]},
+                None,  # unavailable track id
+            ]
+        }
+    )
     out = client.get_tracks(["a", "b", "c"], correlation_id="cid")
     assert out == {"a": ["Guri", "Nu Zau"], "b": ["Solee"]}
     # Batched into one call for ≤50 ids.

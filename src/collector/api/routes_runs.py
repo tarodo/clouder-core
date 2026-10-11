@@ -19,10 +19,12 @@ def _split_phase_prefix(msg: str | None) -> tuple[str | None, str | None]:
     m = _PHASE_PREFIX.match(msg)
     if not m:
         return None, msg
-    return m.group(1), msg[m.end():]
+    return m.group(1), msg[m.end() :]
 
 
-def _handle_admin_runs(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_admin_runs(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     qs = event.get("queryStringParameters") or {}
     qs = qs if isinstance(qs, Mapping) else {}
 
@@ -65,9 +67,7 @@ def _handle_admin_runs(event: Mapping[str, Any], context: Any, correlation_id: s
     return _json_response(200, {"items": items, "correlation_id": correlation_id}, correlation_id)
 
 
-def _handle_get_run(
-    event: Mapping[str, Any], context: Any, correlation_id: str
-) -> dict[str, Any]:
+def _handle_get_run(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
     del context
     api_request_id = _extract_api_request_id(event)
     path_parameters = event.get("pathParameters")

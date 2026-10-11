@@ -23,9 +23,7 @@ def _fetch_ssm_parameter(name: str) -> str:
     response = _ssm_client().get_parameter(Name=name, WithDecryption=True)
     parameter = response.get("Parameter")
     if not isinstance(parameter, dict):
-        raise RuntimeError(
-            f"ssm response malformed, missing Parameter field (name={name})"
-        )
+        raise RuntimeError(f"ssm response malformed, missing Parameter field (name={name})")
     value = parameter.get("Value")
     if not isinstance(value, str) or not value:
         raise RuntimeError(f"ssm parameter is empty or not a string (name={name})")

@@ -58,11 +58,18 @@ def _pg_text_array(items: list[str]) -> str:
 _IN_CHUNK = 500
 
 # Admin-only fields stripped from user-facing responses.
-_USER_FACING_FORBIDDEN = frozenset({
-    "run_id", "prompt_slug", "prompt_version",
-    "vendors_used", "merged_at_run_id",
-    "token_cost", "cost_usd", "provenance",
-})
+_USER_FACING_FORBIDDEN = frozenset(
+    {
+        "run_id",
+        "prompt_slug",
+        "prompt_version",
+        "vendors_used",
+        "merged_at_run_id",
+        "token_cost",
+        "cost_usd",
+        "provenance",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -259,15 +266,17 @@ class LabelEnrichmentRepository:
                     "ai_content": r.get("ai_content"),
                     "updated_at": r.get("updated_at"),
                 }
-            items.append({
-                "id": r["id"],
-                "name": r["name"],
-                "style": r.get("dominant_style") or "",
-                "status": r.get("status") or "none",
-                "track_count": int(r.get("track_count") or 0),
-                "info": info,
-                "my_preference": r.get("my_preference"),
-            })
+            items.append(
+                {
+                    "id": r["id"],
+                    "name": r["name"],
+                    "style": r.get("dominant_style") or "",
+                    "status": r.get("status") or "none",
+                    "track_count": int(r.get("track_count") or 0),
+                    "info": info,
+                    "my_preference": r.get("my_preference"),
+                }
+            )
 
         count_params = {k: v for k, v in params.items() if k not in ("lim", "off")}
         total_rows = self._data_api.execute(
@@ -303,9 +312,7 @@ class LabelEnrichmentRepository:
         pre-aggregated in CTEs so we don't fire correlated subqueries for
         each of the ~2.6k labels on every request.
         """
-        stale_clause = (
-            "li.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'"
-        )
+        stale_clause = "li.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'"
         where: list[str] = []
         params: dict[str, Any] = {"lim": limit + 1}
         if style:
@@ -374,7 +381,7 @@ class LabelEnrichmentRepository:
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
             LEFT JOIN label_dominant_style lds ON lds.label_id = lbl.id
-            WHERE {' AND '.join(where) if where else 'TRUE'}
+            WHERE {" AND ".join(where) if where else "TRUE"}
             ORDER BY COALESCE(ltc.cnt, 0) DESC, lbl.id DESC
             LIMIT :lim
             """,
@@ -411,7 +418,7 @@ class LabelEnrichmentRepository:
             SELECT COUNT(*) AS c FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
-            WHERE {' AND '.join(total_where) if total_where else 'TRUE'}
+            WHERE {" AND ".join(total_where) if total_where else "TRUE"}
             """,
             total_params,
         )
@@ -452,7 +459,7 @@ class LabelEnrichmentRepository:
                    merge_vendor, merge_model, requested_labels, cells_total,
                    cells_ok, cells_error, cost_usd, created_at, started_at, finished_at, source
             FROM clouder_label_enrichment_runs
-            WHERE {' AND '.join(where) if where else 'TRUE'}
+            WHERE {" AND ".join(where) if where else "TRUE"}
             ORDER BY created_at DESC, id DESC
             LIMIT :lim
             """,
@@ -696,9 +703,7 @@ class LabelEnrichmentRepository:
         cell_id = str(uuid.uuid4())
         ts = self._now()
         status = "ok" if response.error is None and response.parsed is not None else "error"
-        parsed_payload = (
-            response.parsed.model_dump() if response.parsed is not None else None
-        )
+        parsed_payload = response.parsed.model_dump() if response.parsed is not None else None
         self._data_api.execute(
             """
             INSERT INTO clouder_label_enrichment_cells (
@@ -922,10 +927,7 @@ class LabelEnrichmentRepository:
             """,
             {"user_id": user_id, "status": status, "lim": limit, "off": offset},
         )
-        items = [
-            {"id": r["id"], "name": r["name"], "my_preference": r["status"]}
-            for r in rows
-        ]
+        items = [{"id": r["id"], "name": r["name"], "my_preference": r["status"]} for r in rows]
         total_rows = self._data_api.execute(
             """
             SELECT COUNT(*) AS c

@@ -64,9 +64,7 @@ def _serialize_triage_block(row, correlation_id: str) -> dict[str, Any]:
     }
 
 
-def _create_triage_block(
-    event, triage_repo: TriageRepository, user_id: str, correlation_id: str
-):
+def _create_triage_block(event, triage_repo: TriageRepository, user_id: str, correlation_id: str):
     schema = CreateTriageBlockIn.model_validate(_parse_body(event))
     out = triage_repo.create_block(
         user_id=user_id,
@@ -90,9 +88,7 @@ def _create_triage_block(
         date_from=out.date_from,
         date_to=out.date_to,
     )
-    return _json_response(
-        201, _serialize_triage_block(out, correlation_id), correlation_id
-    )
+    return _json_response(201, _serialize_triage_block(out, correlation_id), correlation_id)
 
 
 def _serialize_block_summary(row) -> dict[str, Any]:
@@ -143,9 +139,7 @@ def _parse_status_query(event: Mapping[str, Any]) -> str | None:
     return status
 
 
-def _list_triage_blocks_by_style(
-    event, repo: TriageRepository, user_id: str, correlation_id: str
-):
+def _list_triage_blocks_by_style(event, repo: TriageRepository, user_id: str, correlation_id: str):
     style_id = (event.get("pathParameters") or {}).get("style_id")
     if not style_id:
         raise ValidationError("style_id is required in path")
@@ -181,9 +175,7 @@ def _list_triage_blocks_by_style(
     )
 
 
-def _list_triage_blocks_all(
-    event, repo: TriageRepository, user_id: str, correlation_id: str
-):
+def _list_triage_blocks_all(event, repo: TriageRepository, user_id: str, correlation_id: str):
     limit, offset = _parse_pagination(event)
     status = _parse_status_query(event)
 
@@ -206,9 +198,7 @@ def _list_triage_blocks_all(
     )
 
 
-def _get_triage_block(
-    event, repo: TriageRepository, user_id: str, correlation_id: str
-):
+def _get_triage_block(event, repo: TriageRepository, user_id: str, correlation_id: str):
     block_id = (event.get("pathParameters") or {}).get("id")
     if not block_id:
         raise ValidationError("id is required in path")
@@ -218,14 +208,10 @@ def _get_triage_block(
             "triage_block_not_found",
             f"triage block not found: {block_id}",
         )
-    return _json_response(
-        200, _serialize_triage_block(out, correlation_id), correlation_id
-    )
+    return _json_response(200, _serialize_triage_block(out, correlation_id), correlation_id)
 
 
-def _list_bucket_tracks(
-    event, repo: TriageRepository, user_id: str, correlation_id: str
-):
+def _list_bucket_tracks(event, repo: TriageRepository, user_id: str, correlation_id: str):
     pp = event.get("pathParameters") or {}
     block_id = pp.get("id")
     bucket_id = pp.get("bucket_id")
@@ -256,9 +242,7 @@ def _list_bucket_tracks(
     )
 
 
-def _move_tracks(
-    event, repo: TriageRepository, user_id: str, correlation_id: str
-):
+def _move_tracks(event, repo: TriageRepository, user_id: str, correlation_id: str):
     block_id = (event.get("pathParameters") or {}).get("id")
     if not block_id:
         raise ValidationError("id is required in path")
@@ -288,9 +272,7 @@ def _move_tracks(
     )
 
 
-def _transfer_tracks(
-    event, repo: TriageRepository, user_id: str, correlation_id: str
-):
+def _transfer_tracks(event, repo: TriageRepository, user_id: str, correlation_id: str):
     src_block_id = (event.get("pathParameters") or {}).get("src_id")
     if not src_block_id:
         raise ValidationError("src_id is required in path")
@@ -318,9 +300,7 @@ def _transfer_tracks(
     )
 
 
-def _finalize_triage_block(
-    event, repo: TriageRepository, user_id: str, correlation_id: str
-):
+def _finalize_triage_block(event, repo: TriageRepository, user_id: str, correlation_id: str):
     block_id = (event.get("pathParameters") or {}).get("id")
     if not block_id:
         raise ValidationError("id is required in path")
@@ -329,9 +309,7 @@ def _finalize_triage_block(
     if cat_repo is None:
         # Triage factory already gated on db config, so this is a defensive
         # mismatch guard — both factories read the same Aurora env vars.
-        return _error(
-            503, "db_not_configured", "Database not configured", correlation_id
-        )
+        return _error(503, "db_not_configured", "Database not configured", correlation_id)
 
     out = repo.finalize_block(
         user_id=user_id,
@@ -358,15 +336,11 @@ def _finalize_triage_block(
     )
 
 
-def _soft_delete_triage_block(
-    event, repo: TriageRepository, user_id: str, correlation_id: str
-):
+def _soft_delete_triage_block(event, repo: TriageRepository, user_id: str, correlation_id: str):
     block_id = (event.get("pathParameters") or {}).get("id")
     if not block_id:
         raise ValidationError("id is required in path")
-    deleted = repo.soft_delete_block(
-        user_id=user_id, block_id=block_id
-    )
+    deleted = repo.soft_delete_block(user_id=user_id, block_id=block_id)
     if not deleted:
         raise NotFoundError(
             "triage_block_not_found",

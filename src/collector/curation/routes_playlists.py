@@ -105,8 +105,7 @@ def _playlist_track_response(row) -> dict[str, Any]:
         "beatport_track_id": getattr(row, "beatport_track_id", None),
         "beatport_slug": getattr(row, "beatport_slug", None),
         "tags": [
-            {"id": t.tag_id, "name": t.name, "color": t.color}
-            for t in getattr(row, "tags", ())
+            {"id": t.tag_id, "name": t.name, "color": t.color} for t in getattr(row, "tags", ())
         ],
         "ytmusic": getattr(row, "ytmusic", None),
     }
@@ -154,9 +153,12 @@ def _handle_match_candidates(event, repo, user_id, correlation_id):
         raise NotFoundError("no_open_review", "No open review for this track")
     return _json_response(
         200,
-        {"vendor": vendor,
-         "candidates": [p for c in review.candidates
-                        if (p := _project_candidate(c)) is not None]},
+        {
+            "vendor": vendor,
+            "candidates": [
+                p for c in review.candidates if (p := _project_candidate(c)) is not None
+            ],
+        },
         correlation_id,
     )
 
@@ -164,8 +166,12 @@ def _handle_match_candidates(event, repo, user_id, correlation_id):
 def _ytmusic_status_dict(status) -> dict[str, Any] | None:
     if status is None:
         return None
-    return {"status": status.status, "video_id": status.video_id,
-            "url": status.url, "confidence": status.confidence}
+    return {
+        "status": status.status,
+        "video_id": status.video_id,
+        "url": status.url,
+        "confidence": status.confidence,
+    }
 
 
 def _handle_resolve_match(event, repo, user_id, correlation_id):
@@ -192,8 +198,11 @@ def _handle_resolve_match(event, repo, user_id, correlation_id):
                     payload = ref
                     break
         repo.resolve_review_accept(
-            clouder_track_id=track_id, vendor=body.vendor,
-            vendor_track_id=body.vendor_track_id, payload=payload, now=utc_now(),
+            clouder_track_id=track_id,
+            vendor=body.vendor,
+            vendor_track_id=body.vendor_track_id,
+            payload=payload,
+            now=utc_now(),
         )
         if body.vendor == "ytmusic":
             try_dispatch_comment_collection(
@@ -201,13 +210,20 @@ def _handle_resolve_match(event, repo, user_id, correlation_id):
             )
     else:
         repo.resolve_review_reject(
-            clouder_track_id=track_id, vendor=body.vendor, now=utc_now(),
+            clouder_track_id=track_id,
+            vendor=body.vendor,
+            now=utc_now(),
         )
 
     log_event(
-        "INFO", "match_review_resolved",
-        correlation_id=correlation_id, user_id=user_id,
-        playlist_id=pid, track_id=track_id, vendor=body.vendor, action=body.action,
+        "INFO",
+        "match_review_resolved",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
+        track_id=track_id,
+        vendor=body.vendor,
+        action=body.action,
     )
     status = repo.fetch_ytmusic_status([track_id]).get(track_id)
     return _json_response(200, {"ytmusic": _ytmusic_status_dict(status)}, correlation_id)
@@ -233,7 +249,8 @@ def _enqueue_ytmusic(repo, added_track_ids, correlation_id) -> None:
         if not queue_url:
             return
         inputs = repo.fetch_unmatched_match_inputs(
-            track_ids=list(added_track_ids), vendor=YTMUSIC_VENDOR,
+            track_ids=list(added_track_ids),
+            vendor=YTMUSIC_VENDOR,
         )
         enqueue_vendor_matches(
             track_inputs=inputs,
@@ -244,8 +261,10 @@ def _enqueue_ytmusic(repo, added_track_ids, correlation_id) -> None:
         )
     except Exception as exc:  # pragma: no cover - defensive
         log_event(
-            "ERROR", "vendor_match_enqueue_unexpected",
-            correlation_id=correlation_id, error_message=str(exc),
+            "ERROR",
+            "vendor_match_enqueue_unexpected",
+            correlation_id=correlation_id,
+            error_message=str(exc),
         )
 
 
@@ -267,8 +286,11 @@ def _handle_create_playlist(event, repo: PlaylistsRepository, user_id, correlati
         now=utc_now(),
     )
     log_event(
-        "INFO", "playlist_created",
-        correlation_id=correlation_id, user_id=user_id, playlist_id=row.id,
+        "INFO",
+        "playlist_created",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=row.id,
     )
     payload = _playlist_response(row)
     payload["correlation_id"] = correlation_id
@@ -282,7 +304,10 @@ def _handle_list_playlists(event, repo: PlaylistsRepository, user_id, correlatio
     if status is not None and status not in ("active", "completed"):
         raise ValidationError("status must be 'active' or 'completed'")
     rows, total = repo.list_all(
-        user_id=user_id, limit=limit, offset=offset, status=status,
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+        status=status,
     )
     storage = _build_storage_if_needed(rows)
     return _json_response(
@@ -323,15 +348,21 @@ def _handle_patch_playlist(event, repo: PlaylistsRepository, user_id, correlatio
     if body.description is not None:
         validate_description(body.description)
     row = repo.patch(
-        user_id=user_id, playlist_id=pid,
-        name=name, normalized_name=normalized,
-        description=body.description, is_public=body.is_public,
+        user_id=user_id,
+        playlist_id=pid,
+        name=name,
+        normalized_name=normalized,
+        description=body.description,
+        is_public=body.is_public,
         status=body.status,
         now=utc_now(),
     )
     log_event(
-        "INFO", "playlist_patched",
-        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+        "INFO",
+        "playlist_patched",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
     )
     storage = deps._build_s3_storage() if row.cover_s3_key else None
     payload = _playlist_response(row, storage)
@@ -347,8 +378,11 @@ def _handle_delete_playlist(event, repo: PlaylistsRepository, user_id, correlati
     if not ok:
         raise PlaylistNotFoundError()
     log_event(
-        "INFO", "playlist_deleted",
-        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+        "INFO",
+        "playlist_deleted",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
     )
     return {
         "statusCode": 204,
@@ -366,7 +400,10 @@ def _handle_list_playlist_tracks(event, repo, user_id, correlation_id):
     if tags_repo is None:
         return _error(503, "db_not_configured", "Database not configured", correlation_id)
     rows, total = repo.list_tracks(
-        user_id=user_id, playlist_id=pid, limit=limit, offset=offset,
+        user_id=user_id,
+        playlist_id=pid,
+        limit=limit,
+        offset=offset,
         tags_repo=tags_repo,
     )
     return _json_response(
@@ -388,21 +425,28 @@ def _handle_add_playlist_tracks(event, repo, user_id, correlation_id):
         raise ValidationError("id is required in path")
     body = AddTracksIn.model_validate(_parse_body(event))
     visible = repo.validate_tracks_in_scope(
-        user_id=user_id, track_ids=body.track_ids,
+        user_id=user_id,
+        track_ids=body.track_ids,
     )
     missing = [t for t in body.track_ids if t not in visible]
     if missing:
         raise TrackNotInUserScopeError(
-            "Some tracks are not accessible to the user", missing,
+            "Some tracks are not accessible to the user",
+            missing,
         )
     result = repo.append_tracks(
-        user_id=user_id, playlist_id=pid,
-        track_ids=body.track_ids, now=utc_now(),
+        user_id=user_id,
+        playlist_id=pid,
+        track_ids=body.track_ids,
+        now=utc_now(),
     )
     log_event(
-        "INFO", "playlist_track_added",
-        correlation_id=correlation_id, user_id=user_id,
-        playlist_id=pid, n=len(result.added_track_ids),
+        "INFO",
+        "playlist_track_added",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
+        n=len(result.added_track_ids),
     )
     _enqueue_ytmusic(repo, result.added_track_ids, correlation_id)
     return _json_response(
@@ -424,14 +468,20 @@ def _handle_remove_playlist_track(event, repo, user_id, correlation_id):
     if not pid or not track_id:
         raise ValidationError("id and track_id are required in path")
     ok = repo.remove_track(
-        user_id=user_id, playlist_id=pid, track_id=track_id, now=utc_now(),
+        user_id=user_id,
+        playlist_id=pid,
+        track_id=track_id,
+        now=utc_now(),
     )
     if not ok:
         raise PlaylistNotFoundError("Playlist or track not found")
     log_event(
-        "INFO", "playlist_track_removed",
-        correlation_id=correlation_id, user_id=user_id,
-        playlist_id=pid, track_id=track_id,
+        "INFO",
+        "playlist_track_removed",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
+        track_id=track_id,
     )
     return {
         "statusCode": 204,
@@ -446,13 +496,18 @@ def _handle_reorder_playlist_tracks(event, repo, user_id, correlation_id):
         raise ValidationError("id is required in path")
     body = ReorderPlaylistTracksIn.model_validate(_parse_body(event))
     repo.reorder_tracks(
-        user_id=user_id, playlist_id=pid,
-        ordered_track_ids=body.track_ids, now=utc_now(),
+        user_id=user_id,
+        playlist_id=pid,
+        ordered_track_ids=body.track_ids,
+        now=utc_now(),
     )
     log_event(
-        "INFO", "playlist_track_reordered",
-        correlation_id=correlation_id, user_id=user_id,
-        playlist_id=pid, size=len(body.track_ids),
+        "INFO",
+        "playlist_track_reordered",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
+        size=len(body.track_ids),
     )
     return _json_response(200, {"correlation_id": correlation_id}, correlation_id)
 
@@ -468,19 +523,25 @@ def _handle_cover_upload_url(event, repo, user_id, correlation_id):
     storage = deps._build_s3_storage()
     epoch_ms = int(utc_now().timestamp() * 1000)
     s3_key = storage.cover_key(
-        user_id=user_id, playlist_id=pid, epoch_ms=epoch_ms,
+        user_id=user_id,
+        playlist_id=pid,
+        epoch_ms=epoch_ms,
     )
     url = storage.presigned_cover_put_url(
-        s3_key=s3_key, content_type=body.content_type, expires_in=300,
+        s3_key=s3_key,
+        content_type=body.content_type,
+        expires_in=300,
     )
     log_event(
-        "INFO", "playlist_cover_upload_url_issued",
-        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+        "INFO",
+        "playlist_cover_upload_url_issued",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
     )
     return _json_response(
         200,
-        {"upload_url": url, "s3_key": s3_key, "expires_in": 300,
-         "correlation_id": correlation_id},
+        {"upload_url": url, "s3_key": s3_key, "expires_in": 300, "correlation_id": correlation_id},
         correlation_id,
     )
 
@@ -500,17 +561,21 @@ def _handle_cover_confirm(event, repo, user_id, correlation_id):
     if info is None:
         raise CoverMissingError(f"No object at {s3_key}")
     if info["size"] > MAX_COVER_BYTES:
-        raise CoverTooLargeError(
-            f"Cover exceeds {MAX_COVER_BYTES} bytes ({info['size']})"
-        )
+        raise CoverTooLargeError(f"Cover exceeds {MAX_COVER_BYTES} bytes ({info['size']})")
     ok = repo.set_cover(
-        user_id=user_id, playlist_id=pid, s3_key=s3_key, now=utc_now(),
+        user_id=user_id,
+        playlist_id=pid,
+        s3_key=s3_key,
+        now=utc_now(),
     )
     if not ok:
         raise PlaylistNotFoundError()
     log_event(
-        "INFO", "playlist_cover_confirmed",
-        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+        "INFO",
+        "playlist_cover_confirmed",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
     )
     row = repo.get(user_id=user_id, playlist_id=pid)
     # Storage already built above for HEAD; reuse for presigned GET URL.
@@ -527,8 +592,11 @@ def _handle_cover_delete(event, repo, user_id, correlation_id):
     if not ok:
         raise PlaylistNotFoundError()
     log_event(
-        "INFO", "playlist_cover_deleted",
-        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+        "INFO",
+        "playlist_cover_deleted",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
     )
     row = repo.get(user_id=user_id, playlist_id=pid)
     # Cover was just cleared; cover_url will be None regardless of storage.
@@ -557,8 +625,11 @@ def _handle_import_spotify(event, repo, user_id, correlation_id):
         spotify_ids.append(sid)
 
     log_event(
-        "INFO", "playlist_spotify_import_requested",
-        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+        "INFO",
+        "playlist_spotify_import_requested",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
         refs_count=len(body.spotify_refs),
     )
 
@@ -571,21 +642,28 @@ def _handle_import_spotify(event, repo, user_id, correlation_id):
         except SpotifyNotFoundError as exc:
             skipped.append({"ref": sid, "reason": "not_found"})
             log_event(
-                "WARNING", "playlist_spotify_import_failed",
-                correlation_id=correlation_id, user_id=user_id,
-                spotify_id=sid, reason=str(exc),
+                "WARNING",
+                "playlist_spotify_import_failed",
+                correlation_id=correlation_id,
+                user_id=user_id,
+                spotify_id=sid,
+                reason=str(exc),
             )
 
     inputs = [
         ImportTrackInput(
-            spotify_id=p.id, title=p.name, isrc=p.isrc,
+            spotify_id=p.id,
+            title=p.name,
+            isrc=p.isrc,
             length_ms=p.duration_ms,
             artists=[a.name for a in p.artists if a.name],
         )
         for p in payloads
     ]
     track_ids = repo.import_tracks_batch(
-        user_id=user_id, tracks=inputs, now=utc_now(),
+        user_id=user_id,
+        tracks=inputs,
+        now=utc_now(),
     )
     added_details = [
         {"track_id": tid, "spotify_id": p.id, "title": p.name}
@@ -594,8 +672,10 @@ def _handle_import_spotify(event, repo, user_id, correlation_id):
 
     if track_ids:
         result = repo.append_tracks(
-            user_id=user_id, playlist_id=pid,
-            track_ids=track_ids, now=utc_now(),
+            user_id=user_id,
+            playlist_id=pid,
+            track_ids=track_ids,
+            now=utc_now(),
         )
         position_after = result.position_after
         # Tracks already in this playlist surface as skipped duplicates.
@@ -629,7 +709,8 @@ def _handle_import_spotify_playlist(event, repo, user_id, correlation_id):
     try:
         sp_name = sp_client.get_playlist_name(playlist_sid)
         payloads = sp_client.get_playlist_tracks(
-            playlist_sid, limit=MAX_IMPORT_PLAYLIST_TRACKS + 1,
+            playlist_sid,
+            limit=MAX_IMPORT_PLAYLIST_TRACKS + 1,
         )
     except SpotifyNotFoundError:
         # The Spotify playlist doesn't exist or isn't accessible to this
@@ -649,26 +730,36 @@ def _handle_import_spotify_playlist(event, repo, user_id, correlation_id):
         raise ValidationError("Name must be non-empty")
     playlist_id = str(uuid.uuid4())
     repo.create(
-        user_id=user_id, playlist_id=playlist_id, name=name,
-        normalized_name=normalized, description=None, is_public=True,
+        user_id=user_id,
+        playlist_id=playlist_id,
+        name=name,
+        normalized_name=normalized,
+        description=None,
+        is_public=True,
         now=utc_now(),
     )
 
     try:
         inputs = [
             ImportTrackInput(
-                spotify_id=p.id, title=p.name, isrc=p.isrc,
+                spotify_id=p.id,
+                title=p.name,
+                isrc=p.isrc,
                 length_ms=p.duration_ms,
                 artists=[a.name for a in p.artists if a.name],
             )
             for p in payloads
         ]
         track_ids = repo.import_tracks_batch(
-            user_id=user_id, tracks=inputs, now=utc_now(),
+            user_id=user_id,
+            tracks=inputs,
+            now=utc_now(),
         )
         result = repo.append_tracks(
-            user_id=user_id, playlist_id=playlist_id,
-            track_ids=track_ids, now=utc_now(),
+            user_id=user_id,
+            playlist_id=playlist_id,
+            track_ids=track_ids,
+            now=utc_now(),
         )
     except Exception:
         # Don't leave an orphan, empty playlist behind if anything after
@@ -679,9 +770,13 @@ def _handle_import_spotify_playlist(event, repo, user_id, correlation_id):
     _enqueue_ytmusic(repo, result.added_track_ids, correlation_id)
 
     log_event(
-        "INFO", "playlist_spotify_playlist_imported",
-        correlation_id=correlation_id, user_id=user_id, playlist_id=playlist_id,
-        imported=len(result.added_track_ids), truncated=truncated,
+        "INFO",
+        "playlist_spotify_playlist_imported",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=playlist_id,
+        imported=len(result.added_track_ids),
+        truncated=truncated,
     )
     return _json_response(
         201,
@@ -711,7 +806,8 @@ def _handle_publish_ytmusic(event, repo, user_id, correlation_id):
 
     svc = YtmusicPublishService(repo=repo, ytmusic_client=yt_client, storage=storage)
     result = svc.publish(
-        user_id=user_id, playlist_id=pid,
+        user_id=user_id,
+        playlist_id=pid,
         confirm_overwrite=body.confirm_overwrite,
     )
     return _json_response(
@@ -746,11 +842,14 @@ def _handle_publish(event, repo, user_id, correlation_id):
     user_repo = UserSpotifyIdReader(repo.data_api)
 
     svc = PlaylistsPublishService(
-        repo=repo, spotify_client=sp_client,
-        user_repo=user_repo, storage=storage,
+        repo=repo,
+        spotify_client=sp_client,
+        user_repo=user_repo,
+        storage=storage,
     )
     result = svc.publish(
-        user_id=user_id, playlist_id=pid,
+        user_id=user_id,
+        playlist_id=pid,
         confirm_overwrite=body.confirm_overwrite,
     )
     return _json_response(
@@ -792,7 +891,10 @@ def _handle_export_playlist(event, repo, user_id, correlation_id):
         raise PlaylistNotFoundError()
 
     rows, _total = repo.list_tracks(
-        user_id=user_id, playlist_id=pid, limit=10_000, offset=0,
+        user_id=user_id,
+        playlist_id=pid,
+        limit=10_000,
+        offset=0,
     )
 
     comments_by_track: dict[str, list[dict[str, Any]]] = {}
@@ -821,7 +923,9 @@ def _handle_export_playlist(event, repo, user_id, correlation_id):
 
     artist_ids, label_ids = collect_entity_ids(rows)
     artist_info, label_info = fetch_entity_info(
-        repo.data_api, artist_ids=artist_ids, label_ids=label_ids,
+        repo.data_api,
+        artist_ids=artist_ids,
+        label_ids=label_ids,
     )
 
     payload = build_playlist_export(
@@ -832,8 +936,11 @@ def _handle_export_playlist(event, repo, user_id, correlation_id):
         label_info=label_info,
     )
     log_event(
-        "INFO", "playlist_exported",
-        correlation_id=correlation_id, user_id=user_id, playlist_id=pid,
+        "INFO",
+        "playlist_exported",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        playlist_id=pid,
     )
     payload["correlation_id"] = correlation_id
     return _json_response(200, payload, correlation_id)
@@ -846,9 +953,7 @@ def _serialize_comment(c) -> dict[str, Any]:
         "text": c.text,
         "like_count": c.like_count,
         "published_at": (
-            c.published_at.isoformat()
-            if hasattr(c.published_at, "isoformat")
-            else c.published_at
+            c.published_at.isoformat() if hasattr(c.published_at, "isoformat") else c.published_at
         ),
     }
 
@@ -867,9 +972,7 @@ def _handle_list_track_comments(event, repo, user_id, correlation_id):
         limit = 5
     limit = max(1, min(limit, 100))
 
-    collection, comments = repo.list_comments(
-        track_id=track_id, platform=platform, limit=limit
-    )
+    collection, comments = repo.list_comments(track_id=track_id, platform=platform, limit=limit)
     if collection is None:
         return _json_response(
             200,
@@ -924,13 +1027,15 @@ def _handle_list_playlist_comments(event, playlists_repo, user_id, correlation_i
     for r in rows:
         tid = r.track_id
         if tid not in by_track:
-            tracks_out.append({
-                "track_id": tid,
-                "status": "pending",
-                "comment_count": 0,
-                "video_url": None,
-                "comments": [],
-            })
+            tracks_out.append(
+                {
+                    "track_id": tid,
+                    "status": "pending",
+                    "comment_count": 0,
+                    "video_url": None,
+                    "comments": [],
+                }
+            )
         else:
             collection, comments = by_track[tid]
             video_url = (
@@ -938,13 +1043,15 @@ def _handle_list_playlist_comments(event, playlists_repo, user_id, correlation_i
                 if platform == "youtube"
                 else None
             )
-            tracks_out.append({
-                "track_id": tid,
-                "status": collection.status,
-                "comment_count": collection.comment_count,
-                "video_url": video_url,
-                "comments": [_serialize_comment(c) for c in comments],
-            })
+            tracks_out.append(
+                {
+                    "track_id": tid,
+                    "status": collection.status,
+                    "comment_count": collection.comment_count,
+                    "video_url": video_url,
+                    "comments": [_serialize_comment(c) for c in comments],
+                }
+            )
 
     return _json_response(
         200,

@@ -38,11 +38,18 @@ _STYLE_SLUG_EXPR = (
 )
 
 # Admin-only fields stripped from user-facing responses.
-_USER_FACING_FORBIDDEN = frozenset({
-    "run_id", "prompt_slug", "prompt_version",
-    "vendors_used", "merged_at_run_id",
-    "token_cost", "cost_usd", "provenance",
-})
+_USER_FACING_FORBIDDEN = frozenset(
+    {
+        "run_id",
+        "prompt_slug",
+        "prompt_version",
+        "vendors_used",
+        "merged_at_run_id",
+        "token_cost",
+        "cost_usd",
+        "provenance",
+    }
+)
 
 
 def _normalize_name(name: str) -> str:
@@ -315,8 +322,14 @@ class ArtistEnrichmentRepository:
 
     # ── artist_info ─────────────────────────────────────────────────
     def upsert_artist_info(
-        self, *, artist_id: str, last_run_id: str, prompt_slug: str,
-        prompt_version: str, merged: ArtistInfo, provenance: Mapping[str, Any],
+        self,
+        *,
+        artist_id: str,
+        last_run_id: str,
+        prompt_slug: str,
+        prompt_version: str,
+        merged: ArtistInfo,
+        provenance: Mapping[str, Any],
     ) -> None:
         ts = self._now()
         payload = merged.model_dump(mode="json")  # coerces enums to wire str
@@ -512,7 +525,7 @@ class ArtistEnrichmentRepository:
                    merge_vendor, merge_model, requested_artists, cells_total,
                    cells_ok, cells_error, cost_usd, created_at, started_at, finished_at, source
             FROM clouder_artist_enrichment_runs
-            WHERE {' AND '.join(where) if where else 'TRUE'}
+            WHERE {" AND ".join(where) if where else "TRUE"}
             ORDER BY created_at DESC, id DESC
             LIMIT :lim
             """,
@@ -668,10 +681,7 @@ class ArtistEnrichmentRepository:
             """,
             {"user_id": user_id, "status": status, "lim": limit, "off": offset},
         )
-        items = [
-            {"id": r["id"], "name": r["name"], "my_preference": r["status"]}
-            for r in rows
-        ]
+        items = [{"id": r["id"], "name": r["name"], "my_preference": r["status"]} for r in rows]
         total_rows = self._data_api.execute(
             """
             SELECT COUNT(*) AS c
@@ -780,15 +790,17 @@ class ArtistEnrichmentRepository:
                     "ai_content": r.get("ai_content"),
                     "updated_at": r.get("updated_at"),
                 }
-            items.append({
-                "id": r["id"],
-                "name": r["name"],
-                "style": r.get("dominant_style") or "",
-                "status": r.get("status") or "none",
-                "track_count": int(r.get("track_count") or 0),
-                "info": info,
-                "my_preference": r.get("my_preference"),
-            })
+            items.append(
+                {
+                    "id": r["id"],
+                    "name": r["name"],
+                    "style": r.get("dominant_style") or "",
+                    "status": r.get("status") or "none",
+                    "track_count": int(r.get("track_count") or 0),
+                    "info": info,
+                    "my_preference": r.get("my_preference"),
+                }
+            )
 
         count_params = {k: v for k, v in params.items() if k not in ("lim", "off")}
         total_rows = self._data_api.execute(
@@ -822,9 +834,7 @@ class ArtistEnrichmentRepository:
         Per-artist stats (track_count, dominant style) are pre-aggregated in
         CTEs over `clouder_track_artists` (many-to-many).
         """
-        stale_clause = (
-            "ai.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'"
-        )
+        stale_clause = "ai.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'"
         where: list[str] = []
         params: dict[str, Any] = {"lim": limit + 1}
         if style:
@@ -886,7 +896,7 @@ class ArtistEnrichmentRepository:
             LEFT JOIN clouder_artist_info ai ON ai.artist_id = art.id
             LEFT JOIN artist_track_counts atc ON atc.artist_id = art.id
             LEFT JOIN artist_dominant_style ads ON ads.artist_id = art.id
-            WHERE {' AND '.join(where) if where else 'TRUE'}
+            WHERE {" AND ".join(where) if where else "TRUE"}
             ORDER BY COALESCE(atc.cnt, 0) DESC, art.id DESC
             LIMIT :lim
             """,
@@ -923,7 +933,7 @@ class ArtistEnrichmentRepository:
             SELECT COUNT(*) AS c FROM clouder_artists art
             LEFT JOIN clouder_artist_info ai ON ai.artist_id = art.id
             LEFT JOIN artist_track_counts atc ON atc.artist_id = art.id
-            WHERE {' AND '.join(total_where) if total_where else 'TRUE'}
+            WHERE {" AND ".join(total_where) if total_where else "TRUE"}
             """,
             total_params,
         )

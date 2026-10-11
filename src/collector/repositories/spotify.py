@@ -82,9 +82,7 @@ class SpotifySearchMixin(RepositoryBase):
             {"vendor": vendor, "until": until, "now": now},
         )
 
-    def release_spotify_search_claim(
-        self, claimed_at: datetime, now: datetime
-    ) -> int:
+    def release_spotify_search_claim(self, claimed_at: datetime, now: datetime) -> int:
         """Hand back rows claimed at *claimed_at* that never got a result.
 
         Rows the batch did manage to persist carry the completion timestamp

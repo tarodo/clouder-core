@@ -17,17 +17,34 @@ from collector.vendor_match.evaluate import (
 )
 
 
-def _ref(vid: str, title: str, artists: tuple[str, ...] = ("Artist A",),
-         duration_ms: int | None = 300_000) -> VendorTrackRef:
-    return VendorTrackRef(vendor="ytmusic", vendor_track_id=vid, isrc=None,
-                          artist_names=artists, title=title, duration_ms=duration_ms,
-                          album_name=None, raw_payload={})
+def _ref(
+    vid: str,
+    title: str,
+    artists: tuple[str, ...] = ("Artist A",),
+    duration_ms: int | None = 300_000,
+) -> VendorTrackRef:
+    return VendorTrackRef(
+        vendor="ytmusic",
+        vendor_track_id=vid,
+        isrc=None,
+        artist_names=artists,
+        title=title,
+        duration_ms=duration_ms,
+        album_name=None,
+        raw_payload={},
+    )
 
 
 def _item(track_id: str, candidates, source: str = "review_accept") -> GoldItem:
-    return GoldItem(track_id=track_id, artist="Artist A", title="Night Drive",
-                    duration_ms=300_000, album=None, candidates=tuple(candidates),
-                    source=source)
+    return GoldItem(
+        track_id=track_id,
+        artist="Artist A",
+        title="Night Drive",
+        duration_ms=300_000,
+        album=None,
+        candidates=tuple(candidates),
+        source=source,
+    )
 
 
 def _raw(vid: str | None, title: str, artist: str = "Artist A") -> dict:
@@ -38,8 +55,10 @@ def _raw(vid: str | None, title: str, artist: str = "Artist A") -> dict:
 
 
 def test_top_score_reports_best_candidate_and_its_label() -> None:
-    item = _item("t1", [(_ref("bad", "Something Else", ("Other",)), False),
-                        (_ref("good", "Night Drive"), True)])
+    item = _item(
+        "t1",
+        [(_ref("bad", "Something Else", ("Other",)), False), (_ref("good", "Night Drive"), True)],
+    )
 
     score, is_match = top_score(item)
 
@@ -64,8 +83,12 @@ def test_sweep_counts_accepts_mistakes_and_review() -> None:
         thresholds=(round(weak - 0.01, 3), round(weak + 0.01, 3)),
     )
 
-    assert (below_weak.auto_accepted, below_weak.auto_correct, below_weak.auto_wrong,
-            below_weak.review) == (3, 2, 1, 1)
+    assert (
+        below_weak.auto_accepted,
+        below_weak.auto_correct,
+        below_weak.auto_wrong,
+        below_weak.review,
+    ) == (3, 2, 1, 1)
     assert (above_weak.auto_accepted, above_weak.auto_wrong, above_weak.review) == (2, 1, 2)
     assert above_weak.precision == 0.5
     assert above_weak.cost == 1 * 10.0 + 2 * 1.0
@@ -79,20 +102,37 @@ def test_best_threshold_takes_lowest_cost_then_higher_threshold() -> None:
 
 
 def test_load_gold_labels_candidates_by_chosen_id() -> None:
-    record = {"kind": "review_accept", "track_id": "t1", "artist": "Artist A",
-              "title": "Night Drive", "duration_ms": 300_000, "album": None,
-              "chosen_id": "v2", "candidates": [_raw("v1", "Night"), _raw("v2", "Night Drive")]}
+    record = {
+        "kind": "review_accept",
+        "track_id": "t1",
+        "artist": "Artist A",
+        "title": "Night Drive",
+        "duration_ms": 300_000,
+        "album": None,
+        "chosen_id": "v2",
+        "candidates": [_raw("v1", "Night"), _raw("v2", "Night Drive")],
+    }
 
     (item,) = load_gold([record])
 
     assert item.source == "review_accept"
-    assert [(ref.vendor_track_id, ok) for ref, ok in item.candidates] == [("v1", False), ("v2", True)]
+    assert [(ref.vendor_track_id, ok) for ref, ok in item.candidates] == [
+        ("v1", False),
+        ("v2", True),
+    ]
 
 
 def test_load_gold_marks_pasted_url_as_manual() -> None:
-    record = {"kind": "review_accept", "track_id": "t1", "artist": "Artist A",
-              "title": "Night Drive", "duration_ms": None, "album": None,
-              "chosen_id": "pasted", "candidates": [_raw("v1", "Night Drive")]}
+    record = {
+        "kind": "review_accept",
+        "track_id": "t1",
+        "artist": "Artist A",
+        "title": "Night Drive",
+        "duration_ms": None,
+        "album": None,
+        "chosen_id": "pasted",
+        "candidates": [_raw("v1", "Night Drive")],
+    }
 
     (item,) = load_gold([record])
     (result,) = sweep([item], thresholds=(0.0,))
@@ -102,9 +142,16 @@ def test_load_gold_marks_pasted_url_as_manual() -> None:
 
 
 def test_load_gold_skips_candidates_without_video_id() -> None:
-    record = {"kind": "review_accept", "track_id": "t1", "artist": "Artist A",
-              "title": "Night Drive", "duration_ms": None, "album": None,
-              "chosen_id": "v2", "candidates": [_raw(None, "Night Drive"), _raw("v2", "Night Drive")]}
+    record = {
+        "kind": "review_accept",
+        "track_id": "t1",
+        "artist": "Artist A",
+        "title": "Night Drive",
+        "duration_ms": None,
+        "album": None,
+        "chosen_id": "v2",
+        "candidates": [_raw(None, "Night Drive"), _raw("v2", "Night Drive")],
+    }
 
     (item,) = load_gold([record])
 
@@ -112,8 +159,14 @@ def test_load_gold_skips_candidates_without_video_id() -> None:
 
 
 def test_load_gold_keeps_only_labelled_auto_samples() -> None:
-    sample = {"kind": "auto_sample", "artist": "Artist A", "title": "Night Drive",
-              "duration_ms": 300_000, "album": None, "confidence": 0.97}
+    sample = {
+        "kind": "auto_sample",
+        "artist": "Artist A",
+        "title": "Night Drive",
+        "duration_ms": 300_000,
+        "album": None,
+        "confidence": 0.97,
+    }
     records = [
         {**sample, "track_id": "s1", "candidate": _raw("y1", "Night Drive")},
         {**sample, "track_id": "s2", "candidate": _raw("y2", "Night Drive")},
@@ -122,7 +175,9 @@ def test_load_gold_keeps_only_labelled_auto_samples() -> None:
 
     items = load_gold(records, labels={"s1": False})
 
-    assert [(i.track_id, i.source, i.candidates[0][1]) for i in items] == [("s1", "auto_sample", False)]
+    assert [(i.track_id, i.source, i.candidates[0][1]) for i in items] == [
+        ("s1", "auto_sample", False)
+    ]
 
 
 def test_read_labels_accepts_y_n_and_skips_blank() -> None:
@@ -132,13 +187,20 @@ def test_read_labels_accepts_y_n_and_skips_blank() -> None:
 
 
 def test_report_states_current_and_best_threshold_and_duplicates() -> None:
-    items = [_item("a", [(_ref("a1", "Night Drive"), True)]),
-             _item("s", [(_ref("s1", "Night Drive"), True)], source="auto_sample")]
+    items = [
+        _item("a", [(_ref("a1", "Night Drive"), True)]),
+        _item("s", [(_ref("s1", "Night Drive"), True)], source="auto_sample"),
+    ]
     results = sweep(items)
 
-    report = render_report(items, results, current=0.92, fp_cost=10.0, review_cost=1.0,
-                           duplicates={"name_groups": 4, "artists_in_groups": 9,
-                                       "groups_with_non_beatport_artist": 1})
+    report = render_report(
+        items,
+        results,
+        current=0.92,
+        fp_cost=10.0,
+        review_cost=1.0,
+        duplicates={"name_groups": 4, "artists_in_groups": 9, "groups_with_non_beatport_artist": 1},
+    )
 
     assert "| 0.92 |" in report
     assert "Lowest-cost threshold" in report
@@ -163,10 +225,17 @@ def test_report_handles_empty_gold_set() -> None:
 
 
 def test_load_gold_carries_production_score() -> None:
-    record = {"kind": "review_accept", "track_id": "t1", "artist": "Artist A",
-              "title": "Night Drive", "duration_ms": 300_000, "album": None,
-              "chosen_id": "v1", "stored_top_score": 0.95,
-              "candidates": [_raw("v1", "Night Drive")]}
+    record = {
+        "kind": "review_accept",
+        "track_id": "t1",
+        "artist": "Artist A",
+        "title": "Night Drive",
+        "duration_ms": 300_000,
+        "album": None,
+        "chosen_id": "v1",
+        "stored_top_score": 0.95,
+        "candidates": [_raw("v1", "Night Drive")],
+    }
 
     (item,) = load_gold([record])
 
@@ -185,15 +254,22 @@ def test_rescoring_drift_is_detected() -> None:
 def test_report_lists_items_that_rescore_differently() -> None:
     items = [_item("a", [(_ref("a1", "Night Drive"), True)])]
 
-    report = render_report(items, sweep(items), current=0.92, fp_cost=10.0,
-                           review_cost=1.0, drifted_items=2)
+    report = render_report(
+        items, sweep(items), current=0.92, fp_cost=10.0, review_cost=1.0, drifted_items=2
+    )
 
     assert "2 items re-score differently" in report
 
 
 def test_auto_samples_stand_for_their_population() -> None:
-    sample = {"kind": "auto_sample", "artist": "Artist A", "title": "Night Drive",
-              "duration_ms": 300_000, "album": None, "confidence": 0.95}
+    sample = {
+        "kind": "auto_sample",
+        "artist": "Artist A",
+        "title": "Night Drive",
+        "duration_ms": 300_000,
+        "album": None,
+        "confidence": 0.95,
+    }
     records = [
         {**sample, "track_id": "s1", "candidate": _raw("y1", "Night Drive")},
         {**sample, "track_id": "s2", "candidate": _raw("y2", "Night Drive")},
@@ -224,8 +300,10 @@ def test_report_without_labels_never_recommends_above_current() -> None:
 
 
 def test_report_states_precision_of_newly_accepted_band() -> None:
-    items = [_item("c1", [(_ref("c1", "Night Drive (Club Edit)"), True)]),
-             _item("c2", [(_ref("c2", "Night Drive (Club Edit)"), True)])]
+    items = [
+        _item("c1", [(_ref("c1", "Night Drive (Club Edit)"), True)]),
+        _item("c2", [(_ref("c2", "Night Drive (Club Edit)"), True)]),
+    ]
 
     report = render_report(items, sweep(items), current=0.92, fp_cost=10.0, review_cost=1.0)
 

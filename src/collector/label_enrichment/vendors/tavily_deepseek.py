@@ -145,7 +145,7 @@ class TavilyDeepSeekAdapter:
                 },
             )
             social_resp.raise_for_status()
-            social_results = (social_resp.json().get("results") or [])
+            social_results = social_resp.json().get("results") or []
         except Exception:
             social_results = []
 

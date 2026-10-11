@@ -86,10 +86,12 @@ def test_funnel_rejects_bad_offset(monkeypatch):
 
 
 def test_funnel_returns_ordered_zero_filled_stages(monkeypatch):
-    repo = FakeRepo([
-        {"stage": "playlisted", "day": 0, "week": 2, "month": 10},
-        {"stage": "triaged", "day": 120, "week": 500, "month": 1000},
-    ])
+    repo = FakeRepo(
+        [
+            {"stage": "playlisted", "day": 0, "week": 2, "month": 10},
+            {"stage": "triaged", "day": 120, "week": 500, "month": 1000},
+        ]
+    )
     monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr(
         "collector.api.deps.utc_now",
@@ -121,7 +123,11 @@ def test_repository_funnel_sql_binds_user_and_windows():
     sql, params = fake.execute.call_args[0]
     assert params == {"user_id": "me", "day_start": d, "week_start": d, "month_start": d}
     assert "count(DISTINCT track_id) FILTER (WHERE at >= :day_start)" in sql
-    assert "b.deleted_at IS NULL" in sql and "c.deleted_at IS NULL" in sql and "p.deleted_at IS NULL" in sql
+    assert (
+        "b.deleted_at IS NULL" in sql
+        and "c.deleted_at IS NULL" in sql
+        and "p.deleted_at IS NULL" in sql
+    )
     # work-based: a row moved by the user (added_at after the block's creation
     # stamp) is a decision, dated by the move; moving back to NEW is an undo.
     assert "tbt.added_at > b.created_at" in sql

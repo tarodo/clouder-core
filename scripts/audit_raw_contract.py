@@ -53,7 +53,9 @@ def main() -> None:
     source.add_argument("--dir", help="local mirror of the raw prefix")
     source.add_argument("--bucket", help="raw bucket (read-only)")
     parser.add_argument("--prefix", default="raw/bp/releases/")
-    parser.add_argument("--without", action="append", default=[], help="drop a field from the contract")
+    parser.add_argument(
+        "--without", action="append", default=[], help="drop a field from the contract"
+    )
     args = parser.parse_args()
 
     for name in args.without:
@@ -78,10 +80,14 @@ def main() -> None:
                 "empty": report.null_share_over,
             }
             drift = {k: v for k, v in kinds.items() if v}
-            print(f"{modified:%Y-%m-%d %H:%M} {key}: quarantined={len(report.quarantined)}"
-                  f" {reasons or ''} drift={drift or ''}")
-    print(f"\nobjects={len(objects)} records={records} quarantined={quarantined} "
-          f"objects_with_drift={drifting}")
+            print(
+                f"{modified:%Y-%m-%d %H:%M} {key}: quarantined={len(report.quarantined)}"
+                f" {reasons or ''} drift={drift or ''}"
+            )
+    print(
+        f"\nobjects={len(objects)} records={records} quarantined={quarantined} "
+        f"objects_with_drift={drifting}"
+    )
     for name, (modified, key) in sorted(first_seen.items(), key=lambda kv: kv[1]):
         print(f"unknown field {name!r} first seen {modified:%Y-%m-%d %H:%M} in {key}")
 

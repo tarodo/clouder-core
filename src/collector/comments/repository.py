@@ -130,7 +130,11 @@ class CommentsRepository:
                 )
             set_evid = ", external_video_id = :evid" if external_video_id is not None else ""
             update_params: dict[str, Any] = {
-                "s": status, "n": len(comments), "e": error, "now": now, "c": collection_id,
+                "s": status,
+                "n": len(comments),
+                "e": error,
+                "now": now,
+                "c": collection_id,
             }
             if external_video_id is not None:
                 update_params["evid"] = external_video_id

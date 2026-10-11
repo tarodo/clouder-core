@@ -6,6 +6,7 @@ from collector.curation.playlists_repository import PlaylistsRepository
 class FakeTx:
     def __enter__(self):
         return "tx-1"
+
     def __exit__(self, *a):
         return False
 
@@ -14,11 +15,13 @@ class FakeDataAPI:
     def __init__(self, review_rows):
         self.review_rows = review_rows
         self.calls = []
+
     def execute(self, sql, params=None, transaction_id=None):
         self.calls.append((sql, params, transaction_id))
         if "FROM match_review_queue" in sql and "SELECT" in sql:
             return self.review_rows
         return []
+
     def transaction(self):
         return FakeTx()
 
@@ -41,8 +44,11 @@ def test_resolve_accept_upserts_and_resolves():
     repo = PlaylistsRepository(api)
     now = datetime(2026, 5, 30, tzinfo=UTC)
     repo.resolve_review_accept(
-        clouder_track_id="t1", vendor="ytmusic", vendor_track_id="dQw4w9WgXcQ",
-        payload={"videoId": "dQw4w9WgXcQ"}, now=now,
+        clouder_track_id="t1",
+        vendor="ytmusic",
+        vendor_track_id="dQw4w9WgXcQ",
+        payload={"videoId": "dQw4w9WgXcQ"},
+        now=now,
     )
     sqls = " ".join(c[0] for c in api.calls)
     assert "INSERT INTO vendor_track_map" in sqls

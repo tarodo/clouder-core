@@ -158,9 +158,7 @@ class LineageMixin(RepositoryBase):
             transaction_id=transaction_id,
         )
 
-    def upsert_identity(
-        self, cmd: UpsertIdentityCmd, transaction_id: str | None = None
-    ) -> None:
+    def upsert_identity(self, cmd: UpsertIdentityCmd, transaction_id: str | None = None) -> None:
         self._data_api.execute(
             """
             INSERT INTO identity_map (

@@ -1,4 +1,5 @@
 """Unit tests for set_run_failed phase prefix and truncation."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

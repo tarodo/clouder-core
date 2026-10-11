@@ -51,7 +51,9 @@ _HANDLE = r"[A-Za-z0-9_.\-]{2,60}"
 
 _PATTERNS: dict[str, re.Pattern[str]] = {
     "instagram_url": re.compile(rf"instagram\.com/({_HANDLE})"),
-    "twitter_url": re.compile(rf"(?:^|[^a-z0-9.])(?:www\.)?(?:twitter|x)\.com/({_HANDLE})", re.IGNORECASE),
+    "twitter_url": re.compile(
+        rf"(?:^|[^a-z0-9.])(?:www\.)?(?:twitter|x)\.com/({_HANDLE})", re.IGNORECASE
+    ),
     "soundcloud_url": re.compile(rf"soundcloud\.com/({_HANDLE})"),
     "beatport_url": re.compile(rf"beatport\.com/label/({_HANDLE})"),
     "residentadvisor_url": re.compile(rf"ra\.co/labels/({_HANDLE})"),
@@ -203,7 +205,9 @@ def _known_official_urls(merged: dict) -> list[str]:
 
 @dataclass
 class SocialsResult:
-    updates: dict[str, str]  # only fields that were empty in `merged` and got a validated/regex value
+    updates: dict[
+        str, str
+    ]  # only fields that were empty in `merged` and got a validated/regex value
     instagram_tier: int | None  # 1/2/3 or None
     tavily_credits: int
     error: str | None = None
@@ -295,9 +299,7 @@ class SocialsResolver:
             # Bass" returned reels only). extract_instagram() skips /p/ and
             # /reel/ post URLs that handle_of() would mis-read as handles.
             if instagram_tier is None:
-                topup = tavily.search(
-                    f'"{name}"', max_results=5, include_domains=["instagram.com"]
-                )
+                topup = tavily.search(f'"{name}"', max_results=5, include_domains=["instagram.com"])
                 for r in topup.get("results") or []:
                     profile_url = extract_instagram(r.get("url") or "")
                     handle3 = handle_of(profile_url) if profile_url else None
@@ -316,5 +318,8 @@ class SocialsResolver:
             )
         except Exception as exc:
             return SocialsResult(
-                updates={}, instagram_tier=None, tavily_credits=tavily.credits_used, error=f"{type(exc).__name__}: {exc}"
+                updates={},
+                instagram_tier=None,
+                tavily_credits=tavily.credits_used,
+                error=f"{type(exc).__name__}: {exc}",
             )

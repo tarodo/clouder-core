@@ -20,12 +20,8 @@ def test_module_exposes_repository_class() -> None:
     assert hasattr(TriageRepository, "transfer_tracks")
     assert hasattr(TriageRepository, "finalize_block")
     assert hasattr(TriageRepository, "soft_delete_block")
-    assert hasattr(
-        TriageRepository, "snapshot_category_into_active_blocks"
-    )
-    assert hasattr(
-        TriageRepository, "mark_staging_inactive_for_category"
-    )
+    assert hasattr(TriageRepository, "snapshot_category_into_active_blocks")
+    assert hasattr(TriageRepository, "mark_staging_inactive_for_category")
 
 
 def test_dataclasses_have_expected_fields() -> None:
@@ -196,9 +192,7 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
             [{"id": "b-1"}],
             [
                 {"id": f"t-{i}", "bucket_type": t}
-                for i, t in enumerate(
-                    ["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"]
-                )
+                for i, t in enumerate(["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"])
             ],
             [],  # no alive categories
             [],  # classify INSERT
@@ -271,9 +265,7 @@ def test_create_block_classify_sql_includes_disliked_branch_and_offset() -> None
             [{"id": "b-1"}],
             [
                 {"id": f"t-{i}", "bucket_type": t}
-                for i, t in enumerate(
-                    ["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"]
-                )
+                for i, t in enumerate(["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"])
             ],
             [],  # no alive categories
             [],  # classify INSERT
@@ -323,9 +315,7 @@ def test_create_block_classify_sql_includes_disliked_branch_and_offset() -> None
 
     # Verify the INSERT INTO triage_blocks persisted the new columns.
     (block_insert_call,) = [
-        c
-        for c in api.execute.call_args_list
-        if "INSERT INTO triage_blocks" in c.args[0]
+        c for c in api.execute.call_args_list if "INSERT INTO triage_blocks" in c.args[0]
     ]
     block_params = block_insert_call.args[1]
     assert block_params["old_offset_weeks"] == 2
@@ -429,9 +419,7 @@ def test_list_blocks_by_style_style_not_found() -> None:
     api = _api_with_responses([[]])
     repo = TriageRepository(api)
     with pytest.raises(NotFoundError) as ei:
-        repo.list_blocks_by_style(
-            user_id="u-1", style_id="missing", limit=50, offset=0
-        )
+        repo.list_blocks_by_style(user_id="u-1", style_id="missing", limit=50, offset=0)
     assert ei.value.error_code == "style_not_found"
 
 
@@ -564,9 +552,7 @@ def test_move_tracks_tracks_not_in_source() -> None:
 
 
 def test_move_tracks_happy_path() -> None:
-    ids_present = [
-        {"track_id": f"00000000-0000-0000-0000-{n:012d}"} for n in (1, 2)
-    ]
+    ids_present = [{"track_id": f"00000000-0000-0000-0000-{n:012d}"} for n in (1, 2)]
     api = _api_with_responses(
         [
             [
@@ -782,14 +768,8 @@ def test_finalize_block_inactive_staging_with_tracks_returns_409() -> None:
 def test_finalize_block_calls_add_tracks_bulk_per_staging() -> None:
     """Active staging buckets each call add_tracks_bulk inside the same TX."""
     track_rows_per_bucket = {
-        "bk-cat1": [
-            {"track_id": f"00000000-0000-0000-0000-{n:012d}"}
-            for n in range(3)
-        ],
-        "bk-cat2": [
-            {"track_id": f"00000000-0000-0000-0000-{n + 100:012d}"}
-            for n in range(2)
-        ],
+        "bk-cat1": [{"track_id": f"00000000-0000-0000-0000-{n:012d}"} for n in range(3)],
+        "bk-cat2": [{"track_id": f"00000000-0000-0000-0000-{n + 100:012d}"} for n in range(2)],
     }
     api = _api_with_responses(
         [
@@ -839,10 +819,7 @@ def test_finalize_block_calls_add_tracks_bulk_per_staging() -> None:
 
 
 def test_finalize_block_chunks_above_500() -> None:
-    track_rows = [
-        {"track_id": f"00000000-0000-0000-0000-{n:012d}"}
-        for n in range(1100)
-    ]
+    track_rows = [{"track_id": f"00000000-0000-0000-0000-{n:012d}"} for n in range(1100)]
     api = _api_with_responses(
         [
             [{"id": "b-1", "status": "IN_PROGRESS"}],
@@ -883,8 +860,7 @@ def test_finalize_block_chunks_above_500() -> None:
     )
     assert fake_categories_repo.add_tracks_bulk.call_count == 3
     chunk_sizes = [
-        len(call.kwargs["items"])
-        for call in fake_categories_repo.add_tracks_bulk.call_args_list
+        len(call.kwargs["items"]) for call in fake_categories_repo.add_tracks_bulk.call_args_list
     ]
     assert chunk_sizes == [500, 500, 100]
 
@@ -892,17 +868,13 @@ def test_finalize_block_chunks_above_500() -> None:
 def test_soft_delete_block_returns_true_on_success() -> None:
     api = _api_with_responses([[{"id": "b-1"}]])
     repo = TriageRepository(api)
-    assert (
-        repo.soft_delete_block(user_id="u-1", block_id="b-1") is True
-    )
+    assert repo.soft_delete_block(user_id="u-1", block_id="b-1") is True
 
 
 def test_soft_delete_block_returns_false_when_not_found() -> None:
     api = _api_with_responses([[]])
     repo = TriageRepository(api)
-    assert (
-        repo.soft_delete_block(user_id="u-1", block_id="missing") is False
-    )
+    assert repo.soft_delete_block(user_id="u-1", block_id="missing") is False
 
 
 def test_snapshot_inserts_one_staging_per_active_block() -> None:
@@ -921,11 +893,7 @@ def test_snapshot_inserts_one_staging_per_active_block() -> None:
         transaction_id="tx-1",
     )
     assert out == 2
-    inserts = [
-        c
-        for c in api.execute.call_args_list
-        if "INSERT INTO triage_buckets" in c.args[0]
-    ]
+    inserts = [c for c in api.execute.call_args_list if "INSERT INTO triage_buckets" in c.args[0]]
     assert len(inserts) == 2
     for c in inserts:
         assert "ON CONFLICT" in c.args[0]
@@ -947,9 +915,7 @@ def test_snapshot_no_active_blocks_is_zero() -> None:
 
 
 def test_mark_staging_inactive_updates_only_staging() -> None:
-    api = _api_with_responses(
-        [[{"id": "bk-stg-1"}, {"id": "bk-stg-2"}]]
-    )
+    api = _api_with_responses([[{"id": "bk-stg-1"}, {"id": "bk-stg-2"}]])
     repo = TriageRepository(api)
     out = repo.mark_staging_inactive_for_category(
         user_id="u-1",
@@ -989,14 +955,12 @@ def _create_block_responses(detail_overrides: dict[str, Any]) -> list[list[dict[
         [{"id": "b-1"}],
         [
             {"id": f"t-{i}", "bucket_type": t}
-            for i, t in enumerate(
-                ["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"]
-            )
+            for i, t in enumerate(["NEW", "OLD", "NOT", "DISCARD", "UNCLASSIFIED", "FAV"])
         ],
-        [],   # no alive categories
-        [],   # classify INSERT
+        [],  # no alive categories
+        [],  # classify INSERT
         [detail],
-        [],   # buckets-with-counts
+        [],  # buckets-with-counts
     ]
 
 
@@ -1076,9 +1040,7 @@ def test_create_block_persists_all_flags() -> None:
         include_favorites=False,
     )
     (block_insert_call,) = [
-        c
-        for c in api.execute.call_args_list
-        if "INSERT INTO triage_blocks" in c.args[0]
+        c for c in api.execute.call_args_list if "INSERT INTO triage_blocks" in c.args[0]
     ]
     p = block_insert_call.args[1]
     assert p["include_disliked_labels"] is True

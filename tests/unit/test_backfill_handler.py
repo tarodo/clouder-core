@@ -51,7 +51,9 @@ def test_plan_defaults_to_dry_run_and_shapes_runs() -> None:
 def test_plan_passes_filters() -> None:
     repo = PlanRepo([])
 
-    plan({"dry_run": False, "style_ids": [1, 13], "since": "2026-08-01", "until": "2026-09-30"}, repo)
+    plan(
+        {"dry_run": False, "style_ids": [1, 13], "since": "2026-08-01", "until": "2026-09-30"}, repo
+    )
 
     assert repo.calls == [
         {"style_ids": [1, 13], "since": date(2026, 8, 1), "until": date(2026, 9, 30)}
@@ -96,9 +98,16 @@ def _stub_canonicalizer(monkeypatch, created: int):
         def process_run(self, run_id, bundle, observed_at=None):
             seen["observed_at"] = observed_at
             return CanonicalizationResult(
-                run_id=run_id, tracks_total=1, tracks_processed=1, artists_total=0,
-                labels_total=0, albums_total=0, styles_total=0,
-                tracks_created=created, tracks_changed=2, track_field_changes={"bpm": 2},
+                run_id=run_id,
+                tracks_total=1,
+                tracks_processed=1,
+                artists_total=0,
+                labels_total=0,
+                albums_total=0,
+                styles_total=0,
+                tracks_created=created,
+                tracks_changed=2,
+                track_field_changes={"bpm": 2},
             )
 
     monkeypatch.setattr(backfill_handler, "Canonicalizer", Stub)
@@ -113,8 +122,12 @@ def _stub_canonicalizer(monkeypatch, created: int):
 
 
 RUN = {
-    "run_id": "r-1", "s3_key": "k", "observed_at": "2026-09-20T09:15:00+00:00",
-    "status": "FAILED", "style_id": 1, "period_end": "2026-09-18",
+    "run_id": "r-1",
+    "s3_key": "k",
+    "observed_at": "2026-09-20T09:15:00+00:00",
+    "status": "FAILED",
+    "style_id": 1,
+    "period_end": "2026-09-18",
 }
 
 
@@ -152,7 +165,12 @@ def test_replay_apply_keeps_completed_run_history(monkeypatch) -> None:
 
 def test_summarize_adds_counts_and_lists_failures() -> None:
     ok = {"run_id": "a", "tracks_total": 10, "tracks_changed": 2, "track_field_changes": {"bpm": 2}}
-    ok2 = {"run_id": "b", "tracks_total": 5, "tracks_created": 1, "track_field_changes": {"bpm": 1, "isrc": 1}}
+    ok2 = {
+        "run_id": "b",
+        "tracks_total": 5,
+        "tracks_created": 1,
+        "track_field_changes": {"bpm": 1, "isrc": 1},
+    }
     bad = {"run_id": "c", "failed": True, "error": "RuntimeError"}
 
     out = summarize([ok, ok2, bad], dry_run=True)

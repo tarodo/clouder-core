@@ -19,14 +19,16 @@ def _track(pg, tid, *, isrc="ISRC", searched_at=None, spotify_id=None):
 
 
 def test_waiting_not_found_and_recent(pg) -> None:
-    pg.execute("INSERT INTO clouder_styles (id, name, normalized_name, created_at, updated_at)"
-               " VALUES ('st', 'S', 's', now(), now())")
+    pg.execute(
+        "INSERT INTO clouder_styles (id, name, normalized_name, created_at, updated_at)"
+        " VALUES ('st', 'S', 's', now(), now())"
+    )
     _track(pg, "w1")
     _track(pg, "w2")
-    _track(pg, "no-isrc", isrc=None)                                                # never searched
-    _track(pg, "nf-old", searched_at=NOW - timedelta(days=2))                       # not found
-    _track(pg, "nf-new", searched_at=NOW - timedelta(minutes=3))                    # not found, recent
-    _track(pg, "found", searched_at=NOW - timedelta(minutes=5), spotify_id="sp1")   # found, recent
+    _track(pg, "no-isrc", isrc=None)  # never searched
+    _track(pg, "nf-old", searched_at=NOW - timedelta(days=2))  # not found
+    _track(pg, "nf-new", searched_at=NOW - timedelta(minutes=3))  # not found, recent
+    _track(pg, "found", searched_at=NOW - timedelta(minutes=5), spotify_id="sp1")  # found, recent
 
     counts = ClouderRepository(pg).spotify_search_counts(since=NOW - timedelta(minutes=10))
 

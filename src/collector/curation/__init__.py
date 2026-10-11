@@ -85,9 +85,7 @@ class InactiveStagingFinalizeError(CurationError):
     error_code = "inactive_buckets_have_tracks"
     http_status = 409
 
-    def __init__(
-        self, message: str, inactive_buckets: list[dict[str, object]]
-    ) -> None:
+    def __init__(self, message: str, inactive_buckets: list[dict[str, object]]) -> None:
         super().__init__(message)
         self.inactive_buckets = inactive_buckets
 
@@ -98,9 +96,7 @@ class TracksNotInSourceError(CurationError):
     error_code = "tracks_not_in_source"
     http_status = 422
 
-    def __init__(
-        self, message: str, not_in_source: list[str]
-    ) -> None:
+    def __init__(self, message: str, not_in_source: list[str]) -> None:
         super().__init__(message)
         self.not_in_source = not_in_source
 

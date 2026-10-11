@@ -32,16 +32,10 @@ def get_auth_settings() -> AuthSettings:
     return AuthSettings(
         kms_user_tokens_key_arn=os.environ["KMS_USER_TOKENS_KEY_ARN"],
         spotify_oauth_redirect_uri=os.environ["SPOTIFY_OAUTH_REDIRECT_URI"],
-        allowed_frontend_redirects=_parse_csv(
-            os.environ.get("ALLOWED_FRONTEND_REDIRECTS", "")
-        ),
+        allowed_frontend_redirects=_parse_csv(os.environ.get("ALLOWED_FRONTEND_REDIRECTS", "")),
         admin_spotify_ids=_parse_csv(os.environ.get("ADMIN_SPOTIFY_IDS", "")),
-        access_token_ttl_seconds=int(
-            os.environ.get("JWT_ACCESS_TOKEN_TTL_SECONDS", "1800")
-        ),
-        refresh_token_ttl_seconds=int(
-            os.environ.get("JWT_REFRESH_TOKEN_TTL_SECONDS", "604800")
-        ),
+        access_token_ttl_seconds=int(os.environ.get("JWT_ACCESS_TOKEN_TTL_SECONDS", "1800")),
+        refresh_token_ttl_seconds=int(os.environ.get("JWT_REFRESH_TOKEN_TTL_SECONDS", "604800")),
     )
 
 
@@ -94,9 +88,7 @@ def resolve_ytmusic_oauth_credentials() -> tuple[str, str]:
         return cid, csec
 
     ssm_id = os.environ.get("YTMUSIC_OAUTH_CLIENT_ID_SSM_PARAMETER", "").strip()
-    ssm_sec = os.environ.get(
-        "YTMUSIC_OAUTH_CLIENT_SECRET_SSM_PARAMETER", ""
-    ).strip()
+    ssm_sec = os.environ.get("YTMUSIC_OAUTH_CLIENT_SECRET_SSM_PARAMETER", "").strip()
     if ssm_id and ssm_sec:
         return (
             cid or secrets._fetch_ssm_parameter(ssm_id),

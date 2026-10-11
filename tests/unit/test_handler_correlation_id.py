@@ -45,9 +45,7 @@ def _event_without_correlation_header() -> dict[str, Any]:
             "authorizer": {"lambda": {"is_admin": True}},
         },
         "rawPath": "/admin/beatport/ingest",
-        "body": json.dumps(
-            {"style_id": 1, "week_year": 2026, "week_number": 5}
-        ),
+        "body": json.dumps({"style_id": 1, "week_year": 2026, "week_number": 5}),
         "isBase64Encoded": False,
         "headers": {},
     }
@@ -94,9 +92,7 @@ def test_failed_ingest_logs_one_correlation_id(monkeypatch, capsys) -> None:
     assert received == failed
 
 
-def test_failed_ingest_response_matches_logged_correlation_id(
-    monkeypatch, capsys
-) -> None:
+def test_failed_ingest_response_matches_logged_correlation_id(monkeypatch, capsys) -> None:
     class FailingClient:
         def fetch_weekly_releases(self, **_kwargs):
             raise UpstreamAuthError()

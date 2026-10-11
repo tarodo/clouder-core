@@ -53,16 +53,12 @@ class FakeRepo:
 @pytest.fixture
 def repo(monkeypatch):
     fake = FakeRepo()
-    monkeypatch.setattr(
-        "collector.api.deps.create_clouder_repository_from_env", lambda: fake
-    )
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: fake)
     return fake
 
 
 def test_requires_admin(repo):
-    response = handler.lambda_handler(
-        _event({"is_hidden": True}, is_admin=False), _ctx()
-    )
+    response = handler.lambda_handler(_event({"is_hidden": True}, is_admin=False), _ctx())
     assert response["statusCode"] == 403
     assert json.loads(response["body"])["error_code"] == "admin_required"
     assert repo.calls == []
@@ -78,9 +74,7 @@ def test_sets_visibility(repo, is_hidden):
     assert repo.calls == [("uuid-bf", is_hidden)]
 
 
-@pytest.mark.parametrize(
-    "body", [None, {}, {"is_hidden": "true"}, {"is_hidden": 1}, ["x"]]
-)
+@pytest.mark.parametrize("body", [None, {}, {"is_hidden": "true"}, {"is_hidden": 1}, ["x"]])
 def test_rejects_invalid_body(repo, body):
     response = handler.lambda_handler(_event(body), _ctx())
     assert response["statusCode"] == 400
@@ -99,9 +93,7 @@ def test_unknown_style_404(monkeypatch):
 
 
 def test_db_not_configured_503(monkeypatch):
-    monkeypatch.setattr(
-        "collector.api.deps.create_clouder_repository_from_env", lambda: None
-    )
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: None)
     response = handler.lambda_handler(_event({"is_hidden": True}), _ctx())
     assert response["statusCode"] == 503
     assert json.loads(response["body"])["error_code"] == "db_not_configured"

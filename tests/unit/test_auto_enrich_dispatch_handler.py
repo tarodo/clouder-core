@@ -8,12 +8,15 @@ def _sqs_event(*bodies):
 
 
 def _patch_all(monkeypatch, calls):
-    monkeypatch.setattr(h, "try_dispatch_for_triage_block",
-                        lambda **kw: calls.append(("labels", kw)))
-    monkeypatch.setattr(h, "try_dispatch_artists_for_triage_block",
-                        lambda **kw: calls.append(("artists", kw)))
-    monkeypatch.setattr(h, "try_dispatch_comments_for_triage_block",
-                        lambda **kw: calls.append(("comments", kw)))
+    monkeypatch.setattr(
+        h, "try_dispatch_for_triage_block", lambda **kw: calls.append(("labels", kw))
+    )
+    monkeypatch.setattr(
+        h, "try_dispatch_artists_for_triage_block", lambda **kw: calls.append(("artists", kw))
+    )
+    monkeypatch.setattr(
+        h, "try_dispatch_comments_for_triage_block", lambda **kw: calls.append(("comments", kw))
+    )
 
 
 def test_worker_runs_all_three_dispatches_per_block(monkeypatch):
@@ -39,5 +42,6 @@ def test_worker_processes_each_record(monkeypatch):
 def test_worker_raises_on_unparseable_record(monkeypatch):
     _patch_all(monkeypatch, [])
     import pytest
+
     with pytest.raises(Exception):
         h.lambda_handler({"Records": [{"body": "not json"}]}, None)

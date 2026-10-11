@@ -69,9 +69,7 @@ def issue_refresh_token(
     return jwt.encode(payload, secret, algorithm=_ALGO)
 
 
-def verify_access_token(
-    *, token: str, secret: str, now: datetime
-) -> AccessClaims:
+def verify_access_token(*, token: str, secret: str, now: datetime) -> AccessClaims:
     payload = _decode(token=token, secret=secret, now=now, expected_type=_TYPE_ACCESS)
     try:
         return AccessClaims(
@@ -83,9 +81,7 @@ def verify_access_token(
         raise InvalidTokenError(f"missing claim: {exc}") from exc
 
 
-def verify_refresh_token(
-    *, token: str, secret: str, now: datetime
-) -> RefreshClaims:
+def verify_refresh_token(*, token: str, secret: str, now: datetime) -> RefreshClaims:
     payload = _decode(token=token, secret=secret, now=now, expected_type=_TYPE_REFRESH)
     try:
         return RefreshClaims(
@@ -96,9 +92,7 @@ def verify_refresh_token(
         raise InvalidTokenError(f"missing claim: {exc}") from exc
 
 
-def _decode(
-    *, token: str, secret: str, now: datetime, expected_type: str
-) -> dict:
+def _decode(*, token: str, secret: str, now: datetime, expected_type: str) -> dict:
     now_ts = int(now.astimezone(UTC).timestamp())
     try:
         payload = jwt.decode(

@@ -19,10 +19,18 @@ def test_list_runs_returns_items_sorted_by_created_at_desc(monkeypatch):
     fake_repo = MagicMock()
     fake_repo.list_runs.return_value = (
         [
-            {"id": "r-1", "status": "completed", "created_at": "2026-05-19T14:00:00Z",
-             "cells_total": 3, "cells_ok": 3, "cells_error": 0, "cost_usd": 0.015,
-             "prompt_slug": "label_v3_app_fields", "prompt_version": "v1",
-             "vendors": ["gemini", "openai", "tavily_deepseek"]},
+            {
+                "id": "r-1",
+                "status": "completed",
+                "created_at": "2026-05-19T14:00:00Z",
+                "cells_total": 3,
+                "cells_ok": 3,
+                "cells_error": 0,
+                "cost_usd": 0.015,
+                "prompt_slug": "label_v3_app_fields",
+                "prompt_version": "v1",
+                "vendors": ["gemini", "openai", "tavily_deepseek"],
+            },
         ],
         None,
     )
@@ -64,5 +72,6 @@ def test_runs_list_rejects_bad_source(monkeypatch):
     resp = handler.lambda_handler(_admin_event({"source": "bogus"}), None)
     assert resp["statusCode"] == 400
     import json
+
     body = json.loads(resp["body"])
     assert "source" in body["message"]

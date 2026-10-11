@@ -83,8 +83,14 @@ LIST_RESPONSE_TEMPLATE = {
 CATEGORY_RESPONSE = {
     "type": "object",
     "required": [
-        "id", "style_id", "style_name", "name",
-        "position", "track_count", "created_at", "updated_at",
+        "id",
+        "style_id",
+        "style_name",
+        "name",
+        "position",
+        "track_count",
+        "created_at",
+        "updated_at",
     ],
     "properties": {
         "id": {"type": "string", "format": "uuid"},
@@ -390,9 +396,16 @@ TRIAGE_BUCKET_ROW = {
 TRIAGE_BLOCK_DETAIL = {
     "type": "object",
     "required": [
-        "id", "style_id", "style_name", "name",
-        "date_from", "date_to", "status",
-        "created_at", "updated_at", "buckets",
+        "id",
+        "style_id",
+        "style_name",
+        "name",
+        "date_from",
+        "date_to",
+        "status",
+        "created_at",
+        "updated_at",
+        "buckets",
     ],
     "properties": {
         "id": {"type": "string", "format": "uuid"},
@@ -424,9 +437,16 @@ TRIAGE_BLOCK_DETAIL = {
 TRIAGE_BLOCK_SUMMARY = {
     "type": "object",
     "required": [
-        "id", "style_id", "style_name", "name",
-        "date_from", "date_to", "status",
-        "created_at", "updated_at", "track_count",
+        "id",
+        "style_id",
+        "style_name",
+        "name",
+        "date_from",
+        "date_to",
+        "status",
+        "created_at",
+        "updated_at",
+        "track_count",
     ],
     "properties": {
         "id": {"type": "string", "format": "uuid"},
@@ -461,7 +481,11 @@ TRIAGE_BLOCK_LIST_RESPONSE = {
 BUCKET_TRACK_ROW = {
     "type": "object",
     "required": [
-        "track_id", "title", "is_ai_suspected", "artists", "added_at",
+        "track_id",
+        "title",
+        "is_ai_suspected",
+        "artists",
+        "added_at",
     ],
     "properties": {
         "track_id": {"type": "string", "format": "uuid"},
@@ -497,7 +521,11 @@ BUCKET_TRACKS_LIST_RESPONSE = {
 PLAYLIST_TRACK_RESPONSE = {
     "type": "object",
     "required": [
-        "track_id", "title", "is_ai_suspected", "artists", "added_at",
+        "track_id",
+        "title",
+        "is_ai_suspected",
+        "artists",
+        "added_at",
     ],
     "properties": {
         "track_id": {"type": "string", "format": "uuid"},
@@ -592,9 +620,7 @@ FINALIZE_OUT = {
         "promoted": {
             "type": "object",
             "additionalProperties": {"type": "integer"},
-            "description": (
-                "Per-category promoted track counts keyed by category_id."
-            ),
+            "description": ("Per-category promoted track counts keyed by category_id."),
         },
         "correlation_id": {"type": "string"},
     },
@@ -667,7 +693,7 @@ SPOTIFY_SEARCH_STATUS = {
             "type": "string",
             "enum": ["running", "queued", "paused", "idle"],
             "description": "running: a worker holds a message; queued: a message waits; "
-                           "paused: Spotify banned the app until paused_until; idle: nothing to do.",
+            "paused: Spotify banned the app until paused_until; idle: nothing to do.",
         },
         "paused_until": {"type": ["string", "null"], "format": "date-time"},
         "queue": {
@@ -683,8 +709,14 @@ SPOTIFY_SEARCH_STATUS = {
             "type": "object",
             "required": ["waiting", "not_found", "searched_last_10_min"],
             "properties": {
-                "waiting": {"type": "integer", "description": "Tracks with an ISRC never searched yet."},
-                "not_found": {"type": "integer", "description": "Searched without a Spotify match."},
+                "waiting": {
+                    "type": "integer",
+                    "description": "Tracks with an ISRC never searched yet.",
+                },
+                "not_found": {
+                    "type": "integer",
+                    "description": "Searched without a Spotify match.",
+                },
                 "searched_last_10_min": {"type": "integer"},
             },
         },
@@ -697,8 +729,16 @@ AUTO_INGEST_STATE = {
     "properties": {
         "settings": {
             "type": "object",
-            "required": ["enabled", "mode", "fixed_times", "runs_per_day", "timezone",
-                         "periods_per_run", "backfill_floor", "updated_at"],
+            "required": [
+                "enabled",
+                "mode",
+                "fixed_times",
+                "runs_per_day",
+                "timezone",
+                "periods_per_run",
+                "backfill_floor",
+                "updated_at",
+            ],
             "properties": {
                 "enabled": {"type": "boolean"},
                 "mode": {"type": "string", "enum": ["fixed", "random"]},
@@ -733,7 +773,10 @@ AUTO_INGEST_STATE = {
                     },
                 },
                 "total": {"type": "integer", "nullable": True},
-                "failed_step": {"type": "string", "description": "Set when login failed (credentials | login | authorize | token)."},
+                "failed_step": {
+                    "type": "string",
+                    "description": "Set when login failed (credentials | login | authorize | token).",
+                },
                 "status": {"type": ["integer", "string"], "nullable": True},
                 "due_week": {"type": "array", "items": {"type": "integer"}},
                 "pairs": {"type": "array", "items": _AUTO_INGEST_RUN_PAIR},
@@ -847,8 +890,15 @@ REFRESH_RESPONSE = {
 
 LABEL_ENRICH_REQUEST = {
     "type": "object",
-    "required": ["labels", "vendors", "models", "prompt_slug",
-                 "prompt_version", "merge_vendor", "merge_model"],
+    "required": [
+        "labels",
+        "vendors",
+        "models",
+        "prompt_slug",
+        "prompt_version",
+        "merge_vendor",
+        "merge_model",
+    ],
     "properties": {
         "labels": {
             "type": "array",
@@ -917,8 +967,13 @@ LABEL_ENRICH_RUN_RESPONSE = {
             "items": {
                 "type": "object",
                 "required": [
-                    "cell_id", "label_id", "label_name", "vendor",
-                    "status", "latency_ms", "cost_usd",
+                    "cell_id",
+                    "label_id",
+                    "label_name",
+                    "vendor",
+                    "status",
+                    "latency_ms",
+                    "cost_usd",
                 ],
                 "properties": {
                     "cell_id": {"type": "string"},
@@ -1078,7 +1133,10 @@ LABEL_HISTORY_CELL = {
         "cost_usd": {"type": ["number", "null"]},
         "error_message": {"type": ["string", "null"]},
         "parsed": {"type": ["object", "null"], "additionalProperties": True},
-        "citations": {"type": ["array", "null"], "items": {"type": "object", "additionalProperties": True}},
+        "citations": {
+            "type": ["array", "null"],
+            "items": {"type": "object", "additionalProperties": True},
+        },
     },
 }
 
@@ -1125,8 +1183,15 @@ ENRICHMENT_OPTIONS = {
 
 LABEL_INFO_RESPONSE = {
     "type": "object",
-    "required": ["label_id", "label_name", "merged", "status",
-                 "ai_content", "ai_confidence", "updated_at"],
+    "required": [
+        "label_id",
+        "label_name",
+        "merged",
+        "status",
+        "ai_content",
+        "ai_confidence",
+        "updated_at",
+    ],
     "properties": {
         "label_id": {"type": "string", "format": "uuid"},
         "label_name": {"type": "string"},
@@ -1152,8 +1217,15 @@ LABEL_INFO_RESPONSE = {
 
 ARTIST_ENRICH_REQUEST = {
     "type": "object",
-    "required": ["artists", "vendors", "models", "prompt_slug",
-                 "prompt_version", "merge_vendor", "merge_model"],
+    "required": [
+        "artists",
+        "vendors",
+        "models",
+        "prompt_slug",
+        "prompt_version",
+        "merge_vendor",
+        "merge_model",
+    ],
     "properties": {
         "artists": {
             "type": "array",
@@ -1222,8 +1294,13 @@ ARTIST_ENRICH_RUN_RESPONSE = {
             "items": {
                 "type": "object",
                 "required": [
-                    "cell_id", "artist_id", "artist_name", "vendor",
-                    "status", "latency_ms", "cost_usd",
+                    "cell_id",
+                    "artist_id",
+                    "artist_name",
+                    "vendor",
+                    "status",
+                    "latency_ms",
+                    "cost_usd",
                 ],
                 "properties": {
                     "cell_id": {"type": "string"},
@@ -1383,7 +1460,10 @@ ARTIST_HISTORY_CELL = {
         "cost_usd": {"type": ["number", "null"]},
         "error_message": {"type": ["string", "null"]},
         "parsed": {"type": ["object", "null"], "additionalProperties": True},
-        "citations": {"type": ["array", "null"], "items": {"type": "object", "additionalProperties": True}},
+        "citations": {
+            "type": ["array", "null"],
+            "items": {"type": "object", "additionalProperties": True},
+        },
     },
 }
 
@@ -1400,8 +1480,15 @@ ARTIST_HISTORY_RESPONSE = {
 
 ARTIST_INFO_RESPONSE = {
     "type": "object",
-    "required": ["artist_id", "artist_name", "merged", "status",
-                 "ai_content", "ai_confidence", "updated_at"],
+    "required": [
+        "artist_id",
+        "artist_name",
+        "merged",
+        "status",
+        "ai_content",
+        "ai_confidence",
+        "updated_at",
+    ],
     "properties": {
         "artist_id": {"type": "string", "format": "uuid"},
         "artist_name": {"type": "string"},
@@ -1436,10 +1523,18 @@ TELEMETRY_ENVELOPE = {
         "event_name": {
             "type": "string",
             "enum": [
-                "triage_session_start", "triage_session_end", "track_view",
-                "track_categorized", "playback_play", "playback_pause",
-                "playback_seek", "playback_ended", "playback_skip",
-                "hotkey_used", "playlist_add", "playlist_reorder",
+                "triage_session_start",
+                "triage_session_end",
+                "track_view",
+                "track_categorized",
+                "playback_play",
+                "playback_pause",
+                "playback_seek",
+                "playback_ended",
+                "playback_skip",
+                "hotkey_used",
+                "playlist_add",
+                "playlist_reorder",
                 "playlist_publish",
             ],
         },
@@ -1449,8 +1544,14 @@ TELEMETRY_ENVELOPE = {
         "context": {
             "type": "object",
             "properties": {
-                "device": {"type": ["string", "null"], "enum": ["desktop", "mobile", "tablet", None]},
-                "route": {"type": ["string", "null"], "description": "Matched route pattern (no PII)."},
+                "device": {
+                    "type": ["string", "null"],
+                    "enum": ["desktop", "mobile", "tablet", None],
+                },
+                "route": {
+                    "type": ["string", "null"],
+                    "description": "Matched route pattern (no PII).",
+                },
                 "app_version": {"type": ["string", "null"]},
             },
             "additionalProperties": False,
@@ -1485,12 +1586,20 @@ COMMON_AUTH_ERRORS = {
 }
 
 PERSONAL_ANALYTICS_PARAMS = [
-    {"name": "tz_offset_min", "in": "query", "required": False,
-     "schema": {"type": "integer", "minimum": -840, "maximum": 840},
-     "description": "Browser UTC offset in minutes (east-positive); local days. Default 0."},
-    {"name": "user_id", "in": "query", "required": False,
-     "schema": {"type": "string"},
-     "description": "Admins only: user to scope to. Defaults to the caller."},
+    {
+        "name": "tz_offset_min",
+        "in": "query",
+        "required": False,
+        "schema": {"type": "integer", "minimum": -840, "maximum": 840},
+        "description": "Browser UTC offset in minutes (east-positive); local days. Default 0.",
+    },
+    {
+        "name": "user_id",
+        "in": "query",
+        "required": False,
+        "schema": {"type": "string"},
+        "description": "Admins only: user to scope to. Defaults to the caller.",
+    },
 ]
 
 ROUTES: list[dict[str, Any]] = [
@@ -1587,9 +1696,7 @@ ROUTES: list[dict[str, Any]] = [
             "Reads refresh-JWT cookie, marks session as revoked. Idempotent: returns 204 "
             "even if cookie is missing or invalid."
         ),
-        "responses": {
-            "204": {"description": "Logged out (or no-op if no valid session)."}
-        },
+        "responses": {"204": {"description": "Logged out (or no-op if no valid session)."}},
     },
     # ── /me + session management ────────────────────────────────────
     {
@@ -1649,12 +1756,16 @@ ROUTES: list[dict[str, Any]] = [
         "description": "Exchanges the device_code. 202 while pending; 200 once the account is linked.",
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "properties": {"device_code": {"type": "string"}},
-                "required": ["device_code"],
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {"device_code": {"type": "string"}},
+                        "required": ["device_code"],
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "responses": {
             "200": _make_response(200, "Account linked.", {"type": "object"}),
@@ -1810,12 +1921,16 @@ ROUTES: list[dict[str, Any]] = [
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["is_hidden"],
-                "properties": {"is_hidden": {"type": "boolean"}},
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["is_hidden"],
+                        "properties": {"is_hidden": {"type": "boolean"}},
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"is_hidden": True},
         "responses": {
@@ -1852,24 +1967,26 @@ ROUTES: list[dict[str, Any]] = [
         ),
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["publish_date_from", "publish_date_to"],
-                "properties": {
-                    "publish_date_from": {"type": "string", "format": "date"},
-                    "publish_date_to": {"type": "string", "format": "date"},
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["publish_date_from", "publish_date_to"],
+                        "properties": {
+                            "publish_date_from": {"type": "string", "format": "date"},
+                            "publish_date_to": {"type": "string", "format": "date"},
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {
             "publish_date_from": "2026-06-01",
             "publish_date_to": "2026-06-30",
         },
         "responses": {
-            "200": _make_response(
-                200, "Tracks reset and search enqueued.", {"type": "object"}
-            ),
+            "200": _make_response(200, "Tracks reset and search enqueued.", {"type": "object"}),
             "400": _error(400, "validation_error."),
             "500": _error(500, "enqueue_failed."),
             "503": _error(503, "db_not_configured."),
@@ -2246,7 +2363,10 @@ ROUTES: list[dict[str, Any]] = [
                             "properties": {
                                 "enabled": {"type": "boolean"},
                                 "vendors": {"type": "array", "items": {"type": "string"}},
-                                "models": {"type": "object", "additionalProperties": {"type": "string"}},
+                                "models": {
+                                    "type": "object",
+                                    "additionalProperties": {"type": "string"},
+                                },
                                 "prompt_slug": {"type": "string", "nullable": True},
                                 "prompt_version": {"type": "string", "nullable": True},
                                 "merge_vendor": {"type": "string"},
@@ -2276,7 +2396,10 @@ ROUTES: list[dict[str, Any]] = [
                         "properties": {
                             "enabled": {"type": "boolean"},
                             "vendors": {"type": "array", "items": {"type": "string"}},
-                            "models": {"type": "object", "additionalProperties": {"type": "string"}},
+                            "models": {
+                                "type": "object",
+                                "additionalProperties": {"type": "string"},
+                            },
                             "prompt_slug": {"type": "string", "nullable": True},
                             "prompt_version": {"type": "string", "nullable": True},
                             "merge_vendor": {"type": "string", "enum": ["deepseek"]},
@@ -2299,7 +2422,9 @@ ROUTES: list[dict[str, Any]] = [
         "auth": ADMIN,
         "summary": "Admin: auto-ingest settings, planned runs, last run, due week, stuck pairs.",
         "responses": {
-            "200": _make_response(200, "Auto-ingest state.", {"$ref": "#/components/schemas/AutoIngestState"}),
+            "200": _make_response(
+                200, "Auto-ingest state.", {"$ref": "#/components/schemas/AutoIngestState"}
+            ),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
         },
@@ -2311,10 +2436,18 @@ ROUTES: list[dict[str, Any]] = [
         "summary": "Admin: save auto-ingest settings and replan today's runs.",
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AutoIngestSettingsIn"}}},
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/AutoIngestSettingsIn"}
+                }
+            },
         },
         "responses": {
-            "200": _make_response(200, "Saved state (replanning runs asynchronously).", {"$ref": "#/components/schemas/AutoIngestState"}),
+            "200": _make_response(
+                200,
+                "Saved state (replanning runs asynchronously).",
+                {"$ref": "#/components/schemas/AutoIngestState"},
+            ),
             "400": _error(400, "validation_error."),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
@@ -2326,7 +2459,9 @@ ROUTES: list[dict[str, Any]] = [
         "auth": ADMIN,
         "summary": "Admin: Spotify search state — queue, pause and track backlog.",
         "responses": {
-            "200": _make_response(200, "Search status.", {"$ref": "#/components/schemas/SpotifySearchStatus"}),
+            "200": _make_response(
+                200, "Search status.", {"$ref": "#/components/schemas/SpotifySearchStatus"}
+            ),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
         },
@@ -2337,10 +2472,15 @@ ROUTES: list[dict[str, Any]] = [
         "auth": ADMIN,
         "summary": "Admin: start an auto-ingest run now (asynchronous, also when disabled).",
         "responses": {
-            "202": _make_response(202, "Run started.", {
-                "type": "object", "required": ["accepted"],
-                "properties": {"accepted": {"type": "boolean"}},
-            }),
+            "202": _make_response(
+                202,
+                "Run started.",
+                {
+                    "type": "object",
+                    "required": ["accepted"],
+                    "properties": {"accepted": {"type": "boolean"}},
+                },
+            ),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
         },
@@ -2378,7 +2518,16 @@ ROUTES: list[dict[str, Any]] = [
             "with `selected` and `position`. Styles hidden by an admin are "
             "never returned."
         ),
-        "parameters": [*PAGINATION_PARAMS, {"name": "scope", "in": "query", "required": False, "schema": {"type": "string", "enum": ["all"]}, "description": "`all` returns the full catalog with selection flags."}],
+        "parameters": [
+            *PAGINATION_PARAMS,
+            {
+                "name": "scope",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "enum": ["all"]},
+                "description": "`all` returns the full catalog with selection flags.",
+            },
+        ],
         "responses": {
             "200": _make_response(200, "Paginated items.", LIST_RESPONSE_TEMPLATE),
             "400": _error(400, "validation_error (limit/offset/scope)."),
@@ -2397,18 +2546,22 @@ ROUTES: list[dict[str, Any]] = [
         ),
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "properties": {
-                    "style_ids": {
-                        "type": "array",
-                        "maxItems": 100,
-                        "items": {"type": "string"},
-                    },
-                },
-                "required": ["style_ids"],
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "style_ids": {
+                                "type": "array",
+                                "maxItems": 100,
+                                "items": {"type": "string"},
+                            },
+                        },
+                        "required": ["style_ids"],
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "responses": {
             "204": {"description": "Selection replaced."},
@@ -2422,7 +2575,21 @@ ROUTES: list[dict[str, Any]] = [
         "path": "/tracks/spotify-not-found",
         "auth": ADMIN,
         "summary": "List tracks searched on Spotify but not matched.",
-        "parameters": [*PAGINATION_PARAMS, {"name": "publish_date_from", "in": "query", "required": False, "schema": {"type": "string", "format": "date"}}, {"name": "publish_date_to", "in": "query", "required": False, "schema": {"type": "string", "format": "date"}}],
+        "parameters": [
+            *PAGINATION_PARAMS,
+            {
+                "name": "publish_date_from",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "format": "date"},
+            },
+            {
+                "name": "publish_date_to",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "format": "date"},
+            },
+        ],
         "responses": {
             "200": _make_response(200, "Paginated items.", LIST_RESPONSE_TEMPLATE),
             **COMMON_AUTH_ERRORS,
@@ -2440,16 +2607,25 @@ ROUTES: list[dict[str, Any]] = [
             "within (user_id, style_id, deleted_at IS NULL)."
         ),
         "parameters": [
-            {"name": "style_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "style_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["name"],
-                "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 64}},
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 64}},
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"name": "Tribal essentials"},
         "responses": {
@@ -2466,7 +2642,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "List categories of a style (paginated, ordered by position).",
         "parameters": [
-            {"name": "style_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "style_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
             *PAGINATION_PARAMS,
         ],
         "responses": {
@@ -2486,16 +2667,30 @@ ROUTES: list[dict[str, Any]] = [
             "422 order_mismatch on extra/missing/duplicate ids."
         ),
         "parameters": [
-            {"name": "style_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "style_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["category_ids"],
-                "properties": {"category_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}}},
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["category_ids"],
+                        "properties": {
+                            "category_ids": {
+                                "type": "array",
+                                "items": {"type": "string", "format": "uuid"},
+                            }
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {
             "category_ids": [
@@ -2505,7 +2700,9 @@ ROUTES: list[dict[str, Any]] = [
             ]
         },
         "responses": {
-            "200": _make_response(200, "Reordered categories in their new order.", REORDER_RESPONSE),
+            "200": _make_response(
+                200, "Reordered categories in their new order.", REORDER_RESPONSE
+            ),
             "404": _error(404, "style_not_found."),
             "422": _error(422, "order_mismatch (set of ids does not equal the alive set)."),
             **COMMON_AUTH_ERRORS,
@@ -2529,7 +2726,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Get one category.",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "200": _make_response(200, "Category.", CATEGORY_RESPONSE),
@@ -2543,16 +2745,25 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Rename category. style_id is immutable.",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["name"],
-                "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 64}},
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 64}},
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"name": "Renamed category"},
         "responses": {
@@ -2569,7 +2780,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Soft-delete category. Tracks remain in category_tracks but are filtered.",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "204": {"description": "Soft-deleted."},
@@ -2583,7 +2799,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "List tracks in a category.",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
             *PAGINATION_PARAMS,
             {
                 "name": "search",
@@ -2635,21 +2856,32 @@ ROUTES: list[dict[str, Any]] = [
             "if the (category, track) pair already exists. First-write-wins on added_at + source."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["track_id"],
-                "properties": {"track_id": {"type": "string", "format": "uuid"}},
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["track_id"],
+                        "properties": {"track_id": {"type": "string", "format": "uuid"}},
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"track_id": "aaaaaaaa-1111-1111-1111-111111111111"},
         "responses": {
             "201": _make_response(201, "Track added.", ADD_TRACK_RESPONSE),
-            "200": _make_response(200, "Track already in category (no change).", ADD_TRACK_RESPONSE),
+            "200": _make_response(
+                200, "Track already in category (no change).", ADD_TRACK_RESPONSE
+            ),
             "404": _error(404, "category_not_found or track_not_found."),
             "422": _error(422, "validation_error."),
             **COMMON_AUTH_ERRORS,
@@ -2661,8 +2893,18 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Remove a track from a category (hard delete of the membership row).",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
-            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
+            {
+                "name": "track_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "204": {"description": "Track removed."},
@@ -2685,9 +2927,13 @@ ROUTES: list[dict[str, Any]] = [
         ),
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "$ref": "#/components/schemas/CreateTriageBlockIn",
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/CreateTriageBlockIn",
+                    }
+                }
+            },
         },
         "request_example": {
             "style_id": "11111111-1111-1111-1111-111111111111",
@@ -2730,7 +2976,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "List the user's triage blocks for a style (paginated).",
         "parameters": [
-            {"name": "style_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "style_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
             *PAGINATION_PARAMS,
             {
                 "name": "status",
@@ -2753,7 +3004,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Get one triage block with its buckets + per-bucket counts.",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "200": _make_response(200, "Triage block detail.", TRIAGE_BLOCK_DETAIL),
@@ -2767,14 +3023,22 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "List tracks in a bucket (paginated, optional search).",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
-            {"name": "bucket_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
+            {
+                "name": "bucket_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
             *PAGINATION_PARAMS,
         ],
         "responses": {
-            "200": _make_response(
-                200, "Paginated bucket tracks.", BUCKET_TRACKS_LIST_RESPONSE
-            ),
+            "200": _make_response(200, "Paginated bucket tracks.", BUCKET_TRACKS_LIST_RESPONSE),
             "404": _error(404, "triage_block_not_found or bucket_not_found."),
             "422": _error(422, "validation_error (limit/offset out of range)."),
             **COMMON_AUTH_ERRORS,
@@ -2791,13 +3055,22 @@ ROUTES: list[dict[str, Any]] = [
             "are silently no-op (counted in `moved` only when actually moved)."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "$ref": "#/components/schemas/MoveTracksIn",
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/MoveTracksIn",
+                    }
+                }
+            },
         },
         "request_example": {
             "from_bucket_id": "11111111-1111-1111-1111-111111111111",
@@ -2826,13 +3099,22 @@ ROUTES: list[dict[str, Any]] = [
             "leave the source block entirely (deleted from source bucket membership)."
         ),
         "parameters": [
-            {"name": "src_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "src_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "$ref": "#/components/schemas/TransferTracksIn",
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/TransferTracksIn",
+                    }
+                }
+            },
         },
         "request_example": {
             "target_bucket_id": "44444444-4444-4444-4444-444444444444",
@@ -2843,8 +3125,7 @@ ROUTES: list[dict[str, Any]] = [
             "404": _error(404, "triage_block_not_found / bucket_not_found / tracks_not_in_source."),
             "409": _error(
                 409,
-                "invalid_state (target block not IN_PROGRESS), "
-                "inactive_bucket, or style_mismatch.",
+                "invalid_state (target block not IN_PROGRESS), inactive_bucket, or style_mismatch.",
             ),
             "422": _error(422, "validation_error."),
             **COMMON_AUTH_ERRORS,
@@ -2862,7 +3143,12 @@ ROUTES: list[dict[str, Any]] = [
             "row. Block status flips to FINALIZED. Idempotent on repeated calls."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "200": _make_response(200, "Triage block finalized.", FINALIZE_OUT),
@@ -2887,7 +3173,12 @@ ROUTES: list[dict[str, Any]] = [
             "404 only if the block never existed for this user."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "204": {"description": "Triage block soft-deleted."},
@@ -2908,15 +3199,19 @@ ROUTES: list[dict[str, Any]] = [
         ),
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["name"],
-                "properties": {
-                    "name": {"type": "string", "minLength": 1, "maxLength": 64},
-                    "color": {"type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$"},
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string", "minLength": 1, "maxLength": 64},
+                            "color": {"type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$"},
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"name": "Vocal", "color": "#ff8800"},
         "responses": {
@@ -2951,18 +3246,27 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Rename or recolour a tag (partial update).",
         "parameters": [
-            {"name": "tag_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "tag_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "minLength": 1, "maxLength": 64},
-                    "color": {"type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$"},
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "minLength": 1, "maxLength": 64},
+                            "color": {"type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$"},
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"name": "Vocal F"},
         "responses": {
@@ -2979,7 +3283,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Delete a tag (cascades to all track_tags rows).",
         "parameters": [
-            {"name": "tag_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "tag_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "204": {"description": "Tag deleted."},
@@ -2994,7 +3303,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "List the user's tags attached to a track.",
         "parameters": [
-            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "track_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "200": _make_response(200, "Tag list (may be empty).", TRACK_TAGS_RESPONSE),
@@ -3012,7 +3326,12 @@ ROUTES: list[dict[str, Any]] = [
             "(default youtube), `limit` (default 5, max 100)."
         ),
         "parameters": [
-            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "track_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
             {"name": "platform", "in": "query", "required": False, "schema": {"type": "string"}},
             {"name": "limit", "in": "query", "required": False, "schema": {"type": "integer"}},
         ],
@@ -3032,28 +3351,39 @@ ROUTES: list[dict[str, Any]] = [
             "blocks cannot be tagged."
         ),
         "parameters": [
-            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "track_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["tag_ids"],
-                "properties": {
-                    "tag_ids": {
-                        "type": "array",
-                        "maxItems": 50,
-                        "uniqueItems": True,
-                        "items": {"type": "string", "format": "uuid"},
-                    },
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["tag_ids"],
+                        "properties": {
+                            "tag_ids": {
+                                "type": "array",
+                                "maxItems": 50,
+                                "uniqueItems": True,
+                                "items": {"type": "string", "format": "uuid"},
+                            },
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
-        "request_example": {"tag_ids": [
-            "11111111-1111-1111-1111-111111111111",
-            "22222222-2222-2222-2222-222222222222",
-        ]},
+        "request_example": {
+            "tag_ids": [
+                "11111111-1111-1111-1111-111111111111",
+                "22222222-2222-2222-2222-222222222222",
+            ]
+        },
         "responses": {
             "200": _make_response(200, "Updated tag set.", SET_TRACK_TAGS_RESPONSE),
             "400": _error(400, "invalid_tag_ids or too_many_tags."),
@@ -3068,20 +3398,31 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Attach a single tag to a track (idempotent).",
         "parameters": [
-            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "track_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["tag_id"],
-                "properties": {"tag_id": {"type": "string", "format": "uuid"}},
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["tag_id"],
+                        "properties": {"tag_id": {"type": "string", "format": "uuid"}},
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"tag_id": "11111111-1111-1111-1111-111111111111"},
         "responses": {
-            "201": _make_response(201, "Updated tag set (idempotent on conflict).", SET_TRACK_TAGS_RESPONSE),
+            "201": _make_response(
+                201, "Updated tag set (idempotent on conflict).", SET_TRACK_TAGS_RESPONSE
+            ),
             "400": _error(400, "invalid_tag_ids."),
             "404": _error(404, "tag_not_found."),
             "422": _error(422, "track_not_in_any_category."),
@@ -3094,8 +3435,18 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Detach a tag from a track (idempotent — 204 either way).",
         "parameters": [
-            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
-            {"name": "tag_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "track_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
+            {
+                "name": "tag_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "204": {"description": "Tag detached (or was already absent)."},
@@ -3115,18 +3466,26 @@ ROUTES: list[dict[str, Any]] = [
         ),
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["name"],
-                "properties": {
-                    "name": {"type": "string", "minLength": 1, "maxLength": 100},
-                    "description": {"type": ["string", "null"], "maxLength": 300},
-                    "is_public": {"type": "boolean", "default": False},
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name"],
+                        "properties": {
+                            "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                            "description": {"type": ["string", "null"], "maxLength": 300},
+                            "is_public": {"type": "boolean", "default": False},
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
-        "request_example": {"name": "Saturday techno", "description": "rolling weekly mix", "is_public": False},
+        "request_example": {
+            "name": "Saturday techno",
+            "description": "rolling weekly mix",
+            "is_public": False,
+        },
         "responses": {
             "201": _make_response(201, "Playlist created.", {"type": "object"}),
             "400": _error(400, "validation_error."),
@@ -3140,7 +3499,16 @@ ROUTES: list[dict[str, Any]] = [
         "path": "/playlists",
         "auth": AUTH,
         "summary": "List the user's playlists (paginated, optional status filter).",
-        "parameters": [*PAGINATION_PARAMS, {"name": "status", "in": "query", "required": False, "schema": {"type": "string", "enum": ["active", "completed"]}, "description": "Optional status filter. Omit to return all."}],
+        "parameters": [
+            *PAGINATION_PARAMS,
+            {
+                "name": "status",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "enum": ["active", "completed"]},
+                "description": "Optional status filter. Omit to return all.",
+            },
+        ],
         "responses": {
             "200": _make_response(200, "Paginated playlists.", LIST_RESPONSE_TEMPLATE),
             **COMMON_AUTH_ERRORS,
@@ -3152,7 +3520,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Fetch a single playlist by id.",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "200": _make_response(200, "Playlist found.", {"type": "object"}),
@@ -3166,20 +3539,29 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Rename or update playlist metadata (partial update).",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "minLength": 1, "maxLength": 100},
-                    "description": {"type": ["string", "null"], "maxLength": 300},
-                    "is_public": {"type": "boolean"},
-                    "status": {"type": "string", "enum": ["active", "completed"]},
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                            "description": {"type": ["string", "null"], "maxLength": 300},
+                            "is_public": {"type": "boolean"},
+                            "status": {"type": "string", "enum": ["active", "completed"]},
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"name": "Saturday techno v2"},
         "responses": {
@@ -3196,7 +3578,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Delete a playlist (cascades to tracks/cover/publish state).",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "204": {"description": "Playlist deleted."},
@@ -3210,7 +3597,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "List tracks in a playlist (paginated, ordered by position).",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
             *PAGINATION_PARAMS,
         ],
         "responses": {
@@ -3230,11 +3622,18 @@ ROUTES: list[dict[str, Any]] = [
             "collection completes for that track. Query: `platform` (default youtube)."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
             {"name": "platform", "in": "query", "required": False, "schema": {"type": "string"}},
         ],
         "responses": {
-            "200": _make_response(200, "Per-track comments for the playlist.", PLAYLIST_COMMENTS_RESPONSE),
+            "200": _make_response(
+                200, "Per-track comments for the playlist.", PLAYLIST_COMMENTS_RESPONSE
+            ),
             "404": _error(404, "playlist_not_found."),
             **COMMON_AUTH_ERRORS,
         },
@@ -3254,7 +3653,12 @@ ROUTES: list[dict[str, Any]] = [
             "not on playlist render."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "200": _make_response(200, "Export payload.", PLAYLIST_EXPORT_RESPONSE),
@@ -3272,16 +3676,25 @@ ROUTES: list[dict[str, Any]] = [
             "Adds at the end of the playlist; idempotent on duplicate add."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["track_id"],
-                "properties": {"track_id": {"type": "string", "format": "uuid"}},
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["track_id"],
+                        "properties": {"track_id": {"type": "string", "format": "uuid"}},
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"track_id": "11111111-1111-1111-1111-111111111111"},
         "responses": {
@@ -3297,8 +3710,18 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Remove a track from a playlist (idempotent — 204 either way).",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
-            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
+            {
+                "name": "track_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "204": {"description": "Track removed (or was already absent)."},
@@ -3317,27 +3740,38 @@ ROUTES: list[dict[str, Any]] = [
             "match the current membership exactly."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["track_ids"],
-                "properties": {
-                    "track_ids": {
-                        "type": "array",
-                        "uniqueItems": True,
-                        "items": {"type": "string", "format": "uuid"},
-                    },
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["track_ids"],
+                        "properties": {
+                            "track_ids": {
+                                "type": "array",
+                                "uniqueItems": True,
+                                "items": {"type": "string", "format": "uuid"},
+                            },
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
-        "request_example": {"track_ids": [
-            "11111111-1111-1111-1111-111111111111",
-            "22222222-2222-2222-2222-222222222222",
-        ]},
+        "request_example": {
+            "track_ids": [
+                "11111111-1111-1111-1111-111111111111",
+                "22222222-2222-2222-2222-222222222222",
+            ]
+        },
         "responses": {
             "200": _make_response(200, "Reorder applied.", {"type": "object"}),
             "400": _error(400, "validation_error or order_mismatch."),
@@ -3356,18 +3790,27 @@ ROUTES: list[dict[str, Any]] = [
             "upload completes."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["content_type"],
-                "properties": {
-                    "content_type": {"type": "string", "enum": ["image/jpeg", "image/png"]},
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["content_type"],
+                        "properties": {
+                            "content_type": {"type": "string", "enum": ["image/jpeg", "image/png"]},
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"content_type": "image/jpeg"},
         "responses": {
@@ -3387,16 +3830,25 @@ ROUTES: list[dict[str, Any]] = [
             "cover key on the playlist. Rejects oversized or missing objects."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["s3_key"],
-                "properties": {"s3_key": {"type": "string"}},
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["s3_key"],
+                        "properties": {"s3_key": {"type": "string"}},
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "responses": {
             "200": _make_response(200, "Cover persisted.", {"type": "object"}),
@@ -3411,7 +3863,12 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Clear the playlist cover.",
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "responses": {
             "200": _make_response(200, "Cover cleared (idempotent).", {"type": "object"}),
@@ -3430,23 +3887,34 @@ ROUTES: list[dict[str, Any]] = [
             "target playlist (deduped against existing membership)."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["spotify_ref"],
-                "properties": {
-                    "spotify_ref": {
-                        "type": "string",
-                        "description": "Spotify playlist URL, URI, or bare id.",
-                    },
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["spotify_ref"],
+                        "properties": {
+                            "spotify_ref": {
+                                "type": "string",
+                                "description": "Spotify playlist URL, URI, or bare id.",
+                            },
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
-        "request_example": {"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        "request_example": {
+            "spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+        },
         "responses": {
             "201": _make_response(201, "Import accepted; returns counts.", {"type": "object"}),
             "400": _error(400, "invalid_spotify_ref."),
@@ -3469,25 +3937,33 @@ ROUTES: list[dict[str, Any]] = [
         ),
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["spotify_ref"],
-                "properties": {
-                    "spotify_ref": {
-                        "type": "string",
-                        "description": "Spotify playlist URL, URI, or bare id.",
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Optional name override (defaults to the Spotify playlist name).",
-                    },
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["spotify_ref"],
+                        "properties": {
+                            "spotify_ref": {
+                                "type": "string",
+                                "description": "Spotify playlist URL, URI, or bare id.",
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Optional name override (defaults to the Spotify playlist name).",
+                            },
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
-        "request_example": {"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
+        "request_example": {
+            "spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+        },
         "responses": {
-            "201": _make_response(201, "Mirror playlist created; returns counts.", {"type": "object"}),
+            "201": _make_response(
+                201, "Mirror playlist created; returns counts.", {"type": "object"}
+            ),
             "400": _error(400, "invalid_spotify_ref."),
             "404": _error(404, "playlist_not_found."),
             "409": _error(409, "playlist name already exists."),
@@ -3508,21 +3984,32 @@ ROUTES: list[dict[str, Any]] = [
             "destructive replacement of remote contents."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": False,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "properties": {
-                    "confirm_overwrite": {"type": "boolean", "default": False},
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "confirm_overwrite": {"type": "boolean", "default": False},
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"confirm_overwrite": True},
         "responses": {
-            "200": _make_response(200, "Playlist published; returns Spotify playlist id.", {"type": "object"}),
+            "200": _make_response(
+                200, "Playlist published; returns Spotify playlist id.", {"type": "object"}
+            ),
             "400": _error(400, "nothing_to_publish (playlist has no tracks)."),
             "404": _error(404, "playlist_not_found."),
             "409": _error(409, "confirm_overwrite_required."),
@@ -3543,21 +4030,32 @@ ROUTES: list[dict[str, Any]] = [
             "skipped. On overwrite the client must pass `confirm_overwrite=true`."
         ),
         "parameters": [
-            {"name": "id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
+            {
+                "name": "id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
         ],
         "requestBody": {
             "required": False,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "properties": {
-                    "confirm_overwrite": {"type": "boolean", "default": False},
-                },
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "confirm_overwrite": {"type": "boolean", "default": False},
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "request_example": {"confirm_overwrite": True},
         "responses": {
-            "200": _make_response(200, "Playlist published; returns YouTube Music playlist id.", {"type": "object"}),
+            "200": _make_response(
+                200, "Playlist published; returns YouTube Music playlist id.", {"type": "object"}
+            ),
             "400": _error(400, "nothing_to_publish (no matched YouTube Music tracks)."),
             "404": _error(404, "playlist_not_found."),
             "409": _error(409, "confirm_overwrite_required."),
@@ -3635,17 +4133,25 @@ ROUTES: list[dict[str, Any]] = [
         ],
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["vendor", "action"],
-                "properties": {
-                    "vendor": {"type": "string"},
-                    "action": {"type": "string", "enum": ["accept", "reject"]},
-                    "vendor_track_id": {"type": ["string", "null"]},
-                },
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["vendor", "action"],
+                        "properties": {
+                            "vendor": {"type": "string"},
+                            "action": {"type": "string", "enum": ["accept", "reject"]},
+                            "vendor_track_id": {"type": ["string", "null"]},
+                        },
+                    }
+                }
+            },
         },
-        "request_example": {"vendor": "ytmusic", "action": "accept", "vendor_track_id": "dQw4w9WgXcQ"},
+        "request_example": {
+            "vendor": "ytmusic",
+            "action": "accept",
+            "vendor_track_id": "dQw4w9WgXcQ",
+        },
         "responses": {
             "200": _make_response(
                 200,
@@ -3671,7 +4177,10 @@ ROUTES: list[dict[str, Any]] = [
                 },
             ),
             "404": _error(404, "playlist_not_found or track_not_in_user_scope."),
-            "422": _error(422, "validation_error (invalid body, or missing/invalid vendor_track_id for accept)."),
+            "422": _error(
+                422,
+                "validation_error (invalid body, or missing/invalid vendor_track_id for accept).",
+            ),
             **COMMON_AUTH_ERRORS,
         },
     },
@@ -3682,8 +4191,7 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Set or clear the current user's label preference.",
         "description": (
-            "Body: {\"status\": \"liked\" | \"disliked\" | \"none\"}. "
-            "\"none\" deletes the row. Returns 204."
+            'Body: {"status": "liked" | "disliked" | "none"}. "none" deletes the row. Returns 204.'
         ),
         "parameters": [
             {
@@ -4003,7 +4511,10 @@ ROUTES: list[dict[str, Any]] = [
                             "properties": {
                                 "enabled": {"type": "boolean"},
                                 "vendors": {"type": "array", "items": {"type": "string"}},
-                                "models": {"type": "object", "additionalProperties": {"type": "string"}},
+                                "models": {
+                                    "type": "object",
+                                    "additionalProperties": {"type": "string"},
+                                },
                                 "prompt_slug": {"type": "string", "nullable": True},
                                 "prompt_version": {"type": "string", "nullable": True},
                                 "merge_vendor": {"type": "string"},
@@ -4033,7 +4544,10 @@ ROUTES: list[dict[str, Any]] = [
                         "properties": {
                             "enabled": {"type": "boolean"},
                             "vendors": {"type": "array", "items": {"type": "string"}},
-                            "models": {"type": "object", "additionalProperties": {"type": "string"}},
+                            "models": {
+                                "type": "object",
+                                "additionalProperties": {"type": "string"},
+                            },
                             "prompt_slug": {"type": "string", "nullable": True},
                             "prompt_version": {"type": "string", "nullable": True},
                             "merge_vendor": {"type": "string", "enum": ["deepseek"]},
@@ -4138,8 +4652,7 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Set or clear the current user's artist preference.",
         "description": (
-            "Body: {\"status\": \"liked\" | \"disliked\" | \"none\"}. "
-            "\"none\" deletes the row. Returns 204."
+            'Body: {"status": "liked" | "disliked" | "none"}. "none" deletes the row. Returns 204.'
         ),
         "parameters": [
             {
@@ -4229,16 +4742,22 @@ ROUTES: list[dict[str, Any]] = [
         ),
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": {
-                "type": "object",
-                "required": ["events"],
-                "properties": {"events": {
-                    "type": "array",
-                    "maxItems": 256,
-                    "items": {"$ref": "#/components/schemas/TelemetryEnvelope"},
-                }},
-                "additionalProperties": False,
-            }}},
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["events"],
+                        "properties": {
+                            "events": {
+                                "type": "array",
+                                "maxItems": 256,
+                                "items": {"$ref": "#/components/schemas/TelemetryEnvelope"},
+                            }
+                        },
+                        "additionalProperties": False,
+                    }
+                }
+            },
         },
         "responses": {
             "202": _make_response(
@@ -4264,8 +4783,8 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Listening time + distinct tracks: today / 7 days / 30 days.",
         "description": "Read live from bronze_events. Per-play time = gap to the next "
-                       "play, capped at track duration. Returns `totals.{day,week,month}` "
-                       "and a zero-filled 30-day `daily` series.",
+        "play, capped at track duration. Returns `totals.{day,week,month}` "
+        "and a zero-filled 30-day `daily` series.",
         "parameters": PERSONAL_ANALYTICS_PARAMS,
         "responses": {
             "200": _make_response(200, "Listening totals + daily series.", {"type": "object"}),
@@ -4281,16 +4800,24 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Listen-time percentiles per stage x style.",
         "description": "p50/p90 of per-play listen time (playing stretches, capped at track "
-                       "length) per stage (triage / category / playlist) and style, plus an "
-                       "all-styles row (`style_id` = `*`); unknown style = null. Style comes "
-                       "from the nightly catalog snapshot.",
+        "length) per stage (triage / category / playlist) and style, plus an "
+        "all-styles row (`style_id` = `*`); unknown style = null. Style comes "
+        "from the nightly catalog snapshot.",
         "parameters": [
-            {"name": "days", "in": "query", "required": False,
-             "schema": {"type": "integer", "enum": [30, 90]},
-             "description": "Window in days. Default 30."},
-            {"name": "user_id", "in": "query", "required": False,
-             "schema": {"type": "string"},
-             "description": "Admins only: user to scope to. Defaults to the caller."},
+            {
+                "name": "days",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "enum": [30, 90]},
+                "description": "Window in days. Default 30.",
+            },
+            {
+                "name": "user_id",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string"},
+                "description": "Admins only: user to scope to. Defaults to the caller.",
+            },
         ],
         "responses": {
             "200": _make_response(200, "Rows per style with a cell per stage.", {"type": "object"}),
@@ -4306,8 +4833,8 @@ ROUTES: list[dict[str, Any]] = [
         "auth": AUTH,
         "summary": "Curation funnel for today / 7 days / 30 days.",
         "description": "Distinct tracks per stage, dated by when the work happened: `triaged` "
-                       "(moved out of NEW in triage), `categorized` (staged to a category, open "
-                       "or finalized block, or added outside triage), `playlisted` (added to a playlist).",
+        "(moved out of NEW in triage), `categorized` (staged to a category, open "
+        "or finalized block, or added outside triage), `playlisted` (added to a playlist).",
         "parameters": PERSONAL_ANALYTICS_PARAMS,
         "responses": {
             "200": _make_response(200, "Funnel stages.", {"type": "object"}),
@@ -4321,6 +4848,7 @@ ROUTES: list[dict[str, Any]] = [
 
 
 # ── builder ───────────────────────────────────────────────────────────
+
 
 def _security_for(auth: str) -> list[dict[str, Any]]:
     if auth == PUBLIC:
@@ -4340,9 +4868,7 @@ def _operation(route: dict) -> dict:
     if "requestBody" in route:
         op["requestBody"] = route["requestBody"]
         if "request_example" in route:
-            op["requestBody"]["content"]["application/json"]["example"] = route[
-                "request_example"
-            ]
+            op["requestBody"]["content"]["application/json"]["example"] = route["request_example"]
     op["security"] = _security_for(route["auth"])
     op["tags"] = {
         PUBLIC: ["auth"],
@@ -4363,9 +4889,7 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
         ("MoveTracksIn", MoveTracksIn),
         ("TransferTracksIn", TransferTracksIn),
     ):
-        js = model.model_json_schema(
-            ref_template="#/components/schemas/{model}"
-        )
+        js = model.model_json_schema(ref_template="#/components/schemas/{model}")
         # Promote any nested $defs into top-level components.schemas.
         if "$defs" in js:
             for sub_name, sub in js.pop("$defs").items():
@@ -4431,7 +4955,7 @@ def build_openapi() -> dict[str, Any]:
                 "`is_admin=true` on the JWT, set from the `ADMIN_SPOTIFY_IDS` env var on each login.\n\n"
                 "## Error envelope\n\n"
                 "All domain errors return `{error_code, message, correlation_id}`. "
-                "API Gateway 503 (cold-start timeout) returns `{\"message\":\"Service Unavailable\"}` "
+                'API Gateway 503 (cold-start timeout) returns `{"message":"Service Unavailable"}` '
                 "(capital S/U) — retry the request after a few seconds.\n\n"
                 "**Generated** by `scripts/generate_openapi.py` — do not edit by hand."
             ),

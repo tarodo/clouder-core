@@ -1,4 +1,5 @@
 """Unit tests for the comment-provider Protocol surface and shared type."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

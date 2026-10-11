@@ -25,21 +25,15 @@ def _safe(fn) -> None:
     try:
         fn()
     except Exception as exc:
-        log_event(
-            "ERROR", "comments_auto_dispatch_error", error_message=str(exc)[:500]
-        )
+        log_event("ERROR", "comments_auto_dispatch_error", error_message=str(exc)[:500])
 
 
-def try_dispatch_comments_for_triage_block(
-    *, block_id: str, user_id: str | None
-) -> None:
+def try_dispatch_comments_for_triage_block(*, block_id: str, user_id: str | None) -> None:
     def _run() -> None:
         if not user_id:
             return
         repo = _build_repository()
-        track_ids = repo.promoted_track_ids_for_block(
-            block_id=block_id, user_id=user_id
-        )
+        track_ids = repo.promoted_track_ids_for_block(block_id=block_id, user_id=user_id)
         for track_id in track_ids:
             try_dispatch_comment_collection(track_id=track_id, platform="youtube")
 

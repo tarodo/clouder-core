@@ -79,7 +79,10 @@ def test_list_user_label_prefs_paginates_and_filters_by_status():
     repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
 
     items, total = repo.list_user_label_prefs(
-        user_id="u-1", status="liked", page=2, limit=2,
+        user_id="u-1",
+        status="liked",
+        page=2,
+        limit=2,
     )
 
     assert total == 7
@@ -103,11 +106,18 @@ def test_list_labels_projects_my_preference_via_left_join():
     api.script(
         [
             {
-                "id": "lbl-1", "name": "Fokuz", "dominant_style": "drum-and-bass",
-                "track_count": 3, "status": "completed",
-                "tagline": "t", "country": "NL", "founded_year": 2007,
-                "primary_styles": ["liquid"], "activity": "steady",
-                "ai_content": "none_detected", "updated_at": _fixed_now(),
+                "id": "lbl-1",
+                "name": "Fokuz",
+                "dominant_style": "drum-and-bass",
+                "track_count": 3,
+                "status": "completed",
+                "tagline": "t",
+                "country": "NL",
+                "founded_year": 2007,
+                "primary_styles": ["liquid"],
+                "activity": "steady",
+                "ai_content": "none_detected",
+                "updated_at": _fixed_now(),
                 "my_preference": "liked",
             },
         ],
@@ -116,8 +126,13 @@ def test_list_labels_projects_my_preference_via_left_join():
     repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
 
     items, total = repo.list_labels(
-        style=None, q=None, sort="name", page=1, limit=50,
-        user_id="u-1", my="all",
+        style=None,
+        q=None,
+        sort="name",
+        page=1,
+        limit=50,
+        user_id="u-1",
+        my="all",
     )
 
     assert total == 1
@@ -135,8 +150,13 @@ def test_list_labels_my_liked_uses_inner_filter():
     repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
 
     repo.list_labels(
-        style=None, q=None, sort="name", page=1, limit=50,
-        user_id="u-1", my="liked",
+        style=None,
+        q=None,
+        sort="name",
+        page=1,
+        limit=50,
+        user_id="u-1",
+        my="liked",
     )
 
     main_sql, params = api.calls[0]
@@ -150,8 +170,13 @@ def test_list_labels_my_unrated_uses_anti_join():
     repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
 
     repo.list_labels(
-        style=None, q=None, sort="name", page=1, limit=50,
-        user_id="u-1", my="unrated",
+        style=None,
+        q=None,
+        sort="name",
+        page=1,
+        limit=50,
+        user_id="u-1",
+        my="unrated",
     )
 
     main_sql, _ = api.calls[0]
@@ -161,15 +186,17 @@ def test_list_labels_my_unrated_uses_anti_join():
 def test_get_label_info_for_user_includes_my_preference_when_info_present():
     api = FakeDataApi()
     api.script(
-        [{
-            "merged": {
-                "label_name": "Fokuz",
-                "country": "NL",
-                "summary": "Rotterdam liquid label.",
-                "ai_content": "none_detected",
-            },
-            "my_preference": "liked",
-        }],
+        [
+            {
+                "merged": {
+                    "label_name": "Fokuz",
+                    "country": "NL",
+                    "summary": "Rotterdam liquid label.",
+                    "ai_content": "none_detected",
+                },
+                "my_preference": "liked",
+            }
+        ],
     )
     repo = LabelEnrichmentRepository(data_api=api, now=_fixed_now)
 

@@ -3,6 +3,7 @@
 The builder is pure: all reads happen before it is called, so these tests feed
 plain row stubs and assert on the emitted JSON shape.
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -30,9 +31,16 @@ def _row(
     mix_name=None,
 ):
     return SimpleNamespace(
-        track_id=track_id, title=title, artists=tuple(artists), label=label,
-        spotify_id=spotify_id, ytmusic=ytmusic, isrc=isrc, mix_name=mix_name,
-        beatport_track_id=beatport_track_id, beatport_slug=beatport_slug,
+        track_id=track_id,
+        title=title,
+        artists=tuple(artists),
+        label=label,
+        spotify_id=spotify_id,
+        ytmusic=ytmusic,
+        isrc=isrc,
+        mix_name=mix_name,
+        beatport_track_id=beatport_track_id,
+        beatport_slug=beatport_slug,
     )
 
 
@@ -46,8 +54,11 @@ def test_beatport_url_uses_placeholder_slug_and_skips_missing_id() -> None:
 
 def test_collect_entity_ids_dedupes_in_first_seen_order() -> None:
     rows = [
-        _row(track_id="t-1", artists=[{"id": "a1", "name": "A"}, {"id": "a2", "name": "B"}],
-             label={"id": "l1", "name": "L"}),
+        _row(
+            track_id="t-1",
+            artists=[{"id": "a1", "name": "A"}, {"id": "a2", "name": "B"}],
+            label={"id": "l1", "name": "L"},
+        ),
         _row(track_id="t-2", artists=[{"id": "a1", "name": "A"}], label={"id": "l1", "name": "L"}),
     ]
     assert collect_entity_ids(rows) == (["a1", "a2"], ["l1"])
@@ -56,15 +67,20 @@ def test_collect_entity_ids_dedupes_in_first_seen_order() -> None:
 def test_build_export_shapes_tracks_and_dedupes_entities() -> None:
     rows = [
         _row(
-            track_id="t-1", title="One", mix_name="Extended Mix", isrc="ISRC1",
+            track_id="t-1",
+            title="One",
+            mix_name="Extended Mix",
+            isrc="ISRC1",
             artists=[{"id": "a1", "name": "Guri"}, {"id": "a2", "name": "Nu Zau"}],
             label={"id": "l1", "name": "Label X"},
             spotify_id="spt1",
             ytmusic={"status": "matched", "url": "https://music.youtube.com/watch?v=v1"},
-            beatport_track_id="bp1", beatport_slug="one",
+            beatport_track_id="bp1",
+            beatport_slug="one",
         ),
         _row(
-            track_id="t-2", title="Two",
+            track_id="t-2",
+            title="Two",
             artists=[{"id": "a1", "name": "Guri"}],
             label={"id": "l1", "name": "Label X"},
             ytmusic={"status": "needs_review", "url": None},
@@ -73,8 +89,16 @@ def test_build_export_shapes_tracks_and_dedupes_entities() -> None:
     out = build_playlist_export(
         playlist_name="My Set",
         track_rows=rows,
-        comments_by_track={"t-1": [{"author": "bob", "text": "fire", "like_count": 3,
-                                    "published_at": "2026-01-01T00:00:00Z"}]},
+        comments_by_track={
+            "t-1": [
+                {
+                    "author": "bob",
+                    "text": "fire",
+                    "like_count": 3,
+                    "published_at": "2026-01-01T00:00:00Z",
+                }
+            ]
+        },
         artist_info={"a1": {"country": "RO"}},
         label_info={"l1": {"country": "DE"}},
     )
@@ -108,16 +132,17 @@ def test_fetch_entity_info_strips_admin_fields_and_decodes_json() -> None:
     def _execute(sql, params=None, transaction_id=None):
         if "clouder_artist_info" in sql:
             # merged arrives as a JSON string from the Data API
-            return [{"artist_id": "a1",
-                     "merged": '{"country": "RO", "cost_usd": 0.12, "run_id": "r1"}'}]
+            return [
+                {"artist_id": "a1", "merged": '{"country": "RO", "cost_usd": 0.12, "run_id": "r1"}'}
+            ]
         if "clouder_label_info" in sql:
             return [{"label_id": "l1", "merged": {"country": "DE", "provenance": "x"}}]
         return []
 
     api.execute.side_effect = _execute
     artists, labels = fetch_entity_info(api, artist_ids=["a1"], label_ids=["l1"])
-    assert artists == {"a1": {"country": "RO"}}   # cost_usd / run_id stripped
-    assert labels == {"l1": {"country": "DE"}}    # provenance stripped
+    assert artists == {"a1": {"country": "RO"}}  # cost_usd / run_id stripped
+    assert labels == {"l1": {"country": "DE"}}  # provenance stripped
 
 
 def test_fetch_entity_info_no_ids_makes_no_queries() -> None:

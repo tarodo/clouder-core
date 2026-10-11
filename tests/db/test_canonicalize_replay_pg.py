@@ -14,7 +14,9 @@ from collector.repositories import ClouderRepository
 
 T1 = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 T2 = T1 + timedelta(days=7)
-MERGE_COLUMNS = "mix_name, isrc, bpm, length_ms, key_name, key_camelot, publish_date, album_id, style_id"
+MERGE_COLUMNS = (
+    "mix_name, isrc, bpm, length_ms, key_name, key_camelot, publish_date, album_id, style_id"
+)
 
 
 def _process(pg, run_id, raw, observed_at):

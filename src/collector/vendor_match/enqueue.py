@@ -32,8 +32,10 @@ def enqueue_vendor_matches(
     """Send one message per input. Returns the count actually sent."""
     if not queue_url:
         log_event(
-            "WARNING", "vendor_match_enqueue_skipped",
-            reason="no_queue_url", vendor=vendor,
+            "WARNING",
+            "vendor_match_enqueue_skipped",
+            reason="no_queue_url",
+            vendor=vendor,
         )
         return 0
 
@@ -51,8 +53,11 @@ def enqueue_vendor_matches(
             )
         except Exception as exc:  # pydantic validation (e.g. empty artist/title)
             log_event(
-                "WARNING", "vendor_match_enqueue_invalid",
-                track_id=inp.track_id, vendor=vendor, error_message=str(exc),
+                "WARNING",
+                "vendor_match_enqueue_invalid",
+                track_id=inp.track_id,
+                vendor=vendor,
+                error_message=str(exc),
             )
             continue
         try:
@@ -60,12 +65,18 @@ def enqueue_vendor_matches(
             sent += 1
         except Exception as exc:
             log_event(
-                "ERROR", "vendor_match_enqueue_failed",
-                track_id=inp.track_id, vendor=vendor, error_message=str(exc),
+                "ERROR",
+                "vendor_match_enqueue_failed",
+                track_id=inp.track_id,
+                vendor=vendor,
+                error_message=str(exc),
             )
 
     log_event(
-        "INFO", "vendor_match_enqueued",
-        vendor=vendor, count=sent, correlation_id=correlation_id,
+        "INFO",
+        "vendor_match_enqueued",
+        vendor=vendor,
+        count=sent,
+        correlation_id=correlation_id,
     )
     return sent

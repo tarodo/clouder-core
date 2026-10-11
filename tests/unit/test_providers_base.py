@@ -1,4 +1,5 @@
 """Unit tests for provider Protocol surface and shared types."""
+
 from __future__ import annotations
 
 import pytest

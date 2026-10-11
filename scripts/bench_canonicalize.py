@@ -106,7 +106,10 @@ def main() -> None:
     )
     parser.add_argument("--database-url", default=os.environ.get("TEST_DATABASE_URL"))
     parser.add_argument(
-        "--tracks", type=int, nargs="+", default=[671, 3656],
+        "--tracks",
+        type=int,
+        nargs="+",
+        default=[671, 3656],
         help="synthetic week sizes (default: prod mean and max run)",
     )
     parser.add_argument("--raw-file", type=Path, help="real releases.json.gz instead of synthetic")

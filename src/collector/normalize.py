@@ -86,9 +86,7 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
         if isinstance(release, dict):
             bp_release_id = _as_positive_int(release.get("id"))
             release_name = _as_non_empty_str(release.get("name"))
-            release_date = _as_date_str(
-                item.get("publish_date") or item.get("new_release_date")
-            )
+            release_date = _as_date_str(item.get("publish_date") or item.get("new_release_date"))
 
             label = release.get("label")
             if isinstance(label, dict):
@@ -151,9 +149,7 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
             length_ms=_as_positive_int(item.get("length_ms")),
             key_name=key_name,
             key_camelot=key_camelot,
-            publish_date=_as_date_str(
-                item.get("publish_date") or item.get("new_release_date")
-            ),
+            publish_date=_as_date_str(item.get("publish_date") or item.get("new_release_date")),
             bp_release_id=bp_release_id,
             bp_genre_id=bp_genre_id,
             bp_artist_ids=tuple(dict.fromkeys(artist_ids)),

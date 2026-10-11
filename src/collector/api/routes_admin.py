@@ -11,7 +11,9 @@ from . import deps
 from .http import _iso, _json_response, _parse_json_body
 
 
-def _handle_admin_coverage(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_admin_coverage(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     qs = event.get("queryStringParameters") or {}
     raw = qs.get("week_year") if isinstance(qs, Mapping) else None
     if not raw or not raw.isdigit():
@@ -99,7 +101,9 @@ def _handle_admin_coverage(event: Mapping[str, Any], context: Any, correlation_i
     )
 
 
-def _handle_admin_style_visibility(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_admin_style_visibility(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     payload = _parse_json_body(event)
     is_hidden = payload.get("is_hidden")
     if not isinstance(is_hidden, bool):
@@ -136,7 +140,9 @@ def _handle_admin_style_visibility(event: Mapping[str, Any], context: Any, corre
     )
 
 
-def _handle_admin_users(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_admin_users(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     repository = deps.create_clouder_repository_from_env()
     if repository is None:
         return _json_response(

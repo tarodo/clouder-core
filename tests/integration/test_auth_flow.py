@@ -45,14 +45,18 @@ class FakeOAuth:
 
     def exchange_code(self, *, code, code_verifier):
         return SpotifyTokenSet(
-            access_token="AT-1", refresh_token="RT-1",
-            expires_in=3600, scope="user-read-email",
+            access_token="AT-1",
+            refresh_token="RT-1",
+            expires_in=3600,
+            scope="user-read-email",
         )
 
     def get_me(self, *, access_token):
         return SpotifyProfile(
-            spotify_id="sp-user", display_name="Roman",
-            email="r@x", product="premium",
+            spotify_id="sp-user",
+            display_name="Roman",
+            email="r@x",
+            product="premium",
         )
 
     def refresh(self, *, refresh_token):
@@ -60,7 +64,8 @@ class FakeOAuth:
         return SpotifyTokenSet(
             access_token=f"AT-{self.refresh_calls + 1}",
             refresh_token=f"RT-{self.refresh_calls + 1}",
-            expires_in=3600, scope=None,
+            expires_in=3600,
+            scope=None,
         )
 
 
@@ -73,10 +78,13 @@ class FakeRepo:
 
     def upsert_user(self, cmd: UpsertUserCmd) -> None:
         row = UserRow(
-            id=cmd.id, spotify_id=cmd.spotify_id,
-            display_name=cmd.display_name, email=cmd.email,
+            id=cmd.id,
+            spotify_id=cmd.spotify_id,
+            display_name=cmd.display_name,
+            email=cmd.email,
             is_admin=cmd.is_admin,
-            created_at=cmd.now.isoformat(), updated_at=cmd.now.isoformat(),
+            created_at=cmd.now.isoformat(),
+            updated_at=cmd.now.isoformat(),
         )
         self.users[row.id] = row
         self.users_by_spotify[row.spotify_id] = row
@@ -87,12 +95,23 @@ class FakeRepo:
     def get_user_by_id(self, user_id):
         return self.users.get(user_id)
 
-    def create_session(self, *, session_id, user_id, refresh_token_hash,
-                       user_agent, ip_address, created_at, expires_at):
+    def create_session(
+        self,
+        *,
+        session_id,
+        user_id,
+        refresh_token_hash,
+        user_agent,
+        ip_address,
+        created_at,
+        expires_at,
+    ):
         self.sessions[session_id] = SessionRow(
-            id=session_id, user_id=user_id,
+            id=session_id,
+            user_id=user_id,
             refresh_token_hash=refresh_token_hash,
-            user_agent=user_agent, ip_address=ip_address,
+            user_agent=user_agent,
+            ip_address=ip_address,
             created_at=created_at.isoformat(),
             last_used_at=created_at.isoformat(),
             expires_at=expires_at.isoformat(),
@@ -108,9 +127,11 @@ class FakeRepo:
     def rotate_session(self, *, session_id, new_hash, last_used_at):
         s = self.sessions[session_id]
         self.sessions[session_id] = SessionRow(
-            id=s.id, user_id=s.user_id,
+            id=s.id,
+            user_id=s.user_id,
             refresh_token_hash=new_hash,
-            user_agent=s.user_agent, ip_address=s.ip_address,
+            user_agent=s.user_agent,
+            ip_address=s.ip_address,
             created_at=s.created_at,
             last_used_at=last_used_at.isoformat(),
             expires_at=s.expires_at,
@@ -131,15 +152,16 @@ class FakeRepo:
                 self.revoke_session(sid, revoked_at=revoked_at)
 
     def list_active_sessions(self, *, user_id, now):
-        return [s for s in self.sessions.values()
-                if s.user_id == user_id and s.revoked_at is None]
+        return [s for s in self.sessions.values() if s.user_id == user_id and s.revoked_at is None]
 
     def upsert_vendor_token(self, cmd: UpsertVendorTokenCmd) -> None:
         self.vendor_tokens[(cmd.user_id, cmd.vendor)] = VendorTokenRow(
-            user_id=cmd.user_id, vendor=cmd.vendor,
+            user_id=cmd.user_id,
+            vendor=cmd.vendor,
             access_token_enc=cmd.access_token_enc,
             refresh_token_enc=cmd.refresh_token_enc,
-            data_key_enc=cmd.data_key_enc, scope=cmd.scope,
+            data_key_enc=cmd.data_key_enc,
+            scope=cmd.scope,
             expires_at=cmd.expires_at.isoformat() if cmd.expires_at else None,
             updated_at=cmd.updated_at.isoformat(),
         )
@@ -223,7 +245,7 @@ def test_full_login_to_logout_flow(monkeypatch) -> None:
     refresh_token = refresh_cookie.split("=", 1)[1].split(";")[0]
     assert len(repo.users) == 1
     user_id = next(iter(repo.users))
-    assert (repo.users[user_id].spotify_id, ) == ("sp-user", )
+    assert (repo.users[user_id].spotify_id,) == ("sp-user",)
 
     # 3. GET /me (simulate authorizer context)
     me_response = auth_handler.lambda_handler(
@@ -265,7 +287,9 @@ def test_full_login_to_logout_flow(monkeypatch) -> None:
     assert refresh_response["statusCode"] == 200
     refresh_body = json.loads(refresh_response["body"])
     assert refresh_body["spotify_access_token"] == "AT-2"
-    new_refresh_cookie = next(c for c in refresh_response["cookies"] if c.startswith("refresh_token="))
+    new_refresh_cookie = next(
+        c for c in refresh_response["cookies"] if c.startswith("refresh_token=")
+    )
     new_refresh_token = new_refresh_cookie.split("=", 1)[1].split(";")[0]
     assert new_refresh_token != refresh_token
 
@@ -303,8 +327,10 @@ def test_non_premium_blocks_at_callback(monkeypatch) -> None:
     repo = FakeRepo()
     oauth = FakeOAuth()
     oauth.get_me = lambda *, access_token: SpotifyProfile(
-        spotify_id="sp-free", display_name=None,
-        email=None, product="free",
+        spotify_id="sp-free",
+        display_name=None,
+        email=None,
+        product="free",
     )
     kms = FakeKms()
     _wire(monkeypatch, repo=repo, oauth=oauth, kms=kms, now=now)

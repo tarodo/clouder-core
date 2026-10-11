@@ -43,8 +43,14 @@ def _default_opener() -> Any:
     )
 
 
-def _call(opener: Any, step: str, request: urllib.request.Request, timeout: float,
-          *, redirect: bool = False) -> tuple[int, Any, bytes]:
+def _call(
+    opener: Any,
+    step: str,
+    request: urllib.request.Request,
+    timeout: float,
+    *,
+    redirect: bool = False,
+) -> tuple[int, Any, bytes]:
     try:
         response = opener.open(request, timeout=timeout)
         return response.status, response.headers, response.read()
@@ -85,35 +91,56 @@ def fetch_access_token(
     session = opener or _default_opener()
     plain = opener or urllib.request.build_opener()
 
-    _call(session, "login", urllib.request.Request(
-        f"{API}/auth/login/",
-        data=json.dumps({"username": username, "password": password}).encode(),
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
-        method="POST",
-    ), timeout)
+    _call(
+        session,
+        "login",
+        urllib.request.Request(
+            f"{API}/auth/login/",
+            data=json.dumps({"username": username, "password": password}).encode(),
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            method="POST",
+        ),
+        timeout,
+    )
 
     query = urllib.parse.urlencode(
         {"response_type": "code", "client_id": client_id, "redirect_uri": REDIRECT_URI}
     )
-    status, headers, _ = _call(session, "authorize", urllib.request.Request(
-        f"{API}/auth/o/authorize/?{query}",
-    ), timeout, redirect=True)
+    status, headers, _ = _call(
+        session,
+        "authorize",
+        urllib.request.Request(
+            f"{API}/auth/o/authorize/?{query}",
+        ),
+        timeout,
+        redirect=True,
+    )
     location = headers.get("Location", "") if status in _REDIRECTS else ""
     code = urllib.parse.parse_qs(urllib.parse.urlparse(location).query).get("code", [None])[0]
     if not code:
         raise BeatportAuthError("authorize", status)
 
-    status, _, body = _call(plain, "token", urllib.request.Request(
-        f"{API}/auth/o/token/",
-        data=urllib.parse.urlencode({
-            "client_id": client_id,
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": REDIRECT_URI,
-        }).encode(),
-        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
-        method="POST",
-    ), timeout)
+    status, _, body = _call(
+        plain,
+        "token",
+        urllib.request.Request(
+            f"{API}/auth/o/token/",
+            data=urllib.parse.urlencode(
+                {
+                    "client_id": client_id,
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": REDIRECT_URI,
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+            },
+            method="POST",
+        ),
+        timeout,
+    )
     try:
         token = json.loads(body).get("access_token")
     except (ValueError, AttributeError):

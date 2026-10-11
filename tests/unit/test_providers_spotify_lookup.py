@@ -1,4 +1,5 @@
 """Unit tests for SpotifyLookup adapter."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -48,9 +49,7 @@ def test_spotify_lookup_delegates_to_client(monkeypatch: pytest.MonkeyPatch) -> 
 
     assert len(results) == 1
     assert results[0].spotify_id == "sp1"
-    assert captured["tracks"] == [
-        {"clouder_track_id": "t1", "isrc": "USRC00000001"}
-    ]
+    assert captured["tracks"] == [{"clouder_track_id": "t1", "isrc": "USRC00000001"}]
     assert captured["correlation_id"] == "corr-9"
 
 

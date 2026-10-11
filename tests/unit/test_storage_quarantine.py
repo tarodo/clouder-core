@@ -39,5 +39,7 @@ class Reader:
 
 def test_read_releases_keeps_records_that_are_not_objects() -> None:
     # They reach the contract and are quarantined, instead of vanishing here.
-    storage = S3Storage(s3_client=Reader(["x", {"id": 1}]), bucket_name="b", raw_prefix="raw/bp/releases")
+    storage = S3Storage(
+        s3_client=Reader(["x", {"id": 1}]), bucket_name="b", raw_prefix="raw/bp/releases"
+    )
     assert storage.read_releases("k") == ["x", {"id": 1}]

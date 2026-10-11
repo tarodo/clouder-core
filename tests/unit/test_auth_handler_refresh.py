@@ -65,9 +65,13 @@ def _refresh_jwt(now: datetime, *, user_id: str = "u-1", session_id: str = "s-1"
 
 def _stored_session(now: datetime, *, hash_str: str) -> SessionRow:
     return SessionRow(
-        id="s-1", user_id="u-1", refresh_token_hash=hash_str,
-        user_agent=None, ip_address=None,
-        created_at=now.isoformat(), last_used_at=now.isoformat(),
+        id="s-1",
+        user_id="u-1",
+        refresh_token_hash=hash_str,
+        user_agent=None,
+        ip_address=None,
+        created_at=now.isoformat(),
+        last_used_at=now.isoformat(),
         expires_at=(now + timedelta(days=7)).isoformat(),
         revoked_at=None,
     )
@@ -75,11 +79,14 @@ def _stored_session(now: datetime, *, hash_str: str) -> SessionRow:
 
 def _vendor_token(now: datetime) -> VendorTokenRow:
     return VendorTokenRow(
-        user_id="u-1", vendor="spotify",
+        user_id="u-1",
+        vendor="spotify",
         access_token_enc=EnvelopePayload(b"K", b"n" * 12, b"OLD-AT").serialize(),
         refresh_token_enc=EnvelopePayload(b"K", b"n" * 12, b"OLD-RT").serialize(),
-        data_key_enc=b"K", scope=None,
-        expires_at=now.isoformat(), updated_at=now.isoformat(),
+        data_key_enc=b"K",
+        scope=None,
+        expires_at=now.isoformat(),
+        updated_at=now.isoformat(),
     )
 
 
@@ -98,7 +105,10 @@ def test_refresh_happy_path_rotates_tokens(monkeypatch) -> None:
 
     oauth = MagicMock()
     oauth.refresh.return_value = SpotifyTokenSet(
-        access_token="NEW-AT", refresh_token="NEW-RT", expires_in=3600, scope=None,
+        access_token="NEW-AT",
+        refresh_token="NEW-RT",
+        expires_in=3600,
+        scope=None,
     )
 
     _wire(monkeypatch, oauth=oauth, repo=repo, envelope=envelope, now=now)
@@ -127,7 +137,8 @@ def test_refresh_missing_cookie_returns_401(monkeypatch) -> None:
     _wire(monkeypatch, oauth=oauth, repo=repo, envelope=envelope, now=now)
 
     response = auth_handler.lambda_handler(
-        _event(cookies=[]), SimpleNamespace(aws_request_id="L"),
+        _event(cookies=[]),
+        SimpleNamespace(aws_request_id="L"),
     )
 
     assert response["statusCode"] == 401

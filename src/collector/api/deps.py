@@ -32,13 +32,16 @@ def _auto_ingest_repository() -> Any:
 
     settings = get_data_api_settings()
     if not settings.is_configured:
-        raise AppError(status_code=503, error_code="db_not_configured",
-                       message="Database is not configured")
-    return AutoIngestRepository(create_default_data_api_client(
-        resource_arn=str(settings.aurora_cluster_arn),
-        secret_arn=str(settings.aurora_secret_arn),
-        database=settings.aurora_database,
-    ))
+        raise AppError(
+            status_code=503, error_code="db_not_configured", message="Database is not configured"
+        )
+    return AutoIngestRepository(
+        create_default_data_api_client(
+            resource_arn=str(settings.aurora_cluster_arn),
+            secret_arn=str(settings.aurora_secret_arn),
+            database=settings.aurora_database,
+        )
+    )
 
 
 def _invoke_auto_ingest(payload: Mapping[str, Any]) -> None:
@@ -47,8 +50,11 @@ def _invoke_auto_ingest(payload: Mapping[str, Any]) -> None:
 
     name = os.environ.get("AUTO_INGEST_FUNCTION_NAME", "").strip()
     if not name:
-        raise AppError(status_code=503, error_code="config_error",
-                       message="AUTO_INGEST_FUNCTION_NAME is not set")
+        raise AppError(
+            status_code=503,
+            error_code="config_error",
+            message="AUTO_INGEST_FUNCTION_NAME is not set",
+        )
     boto3.client("lambda").invoke(
         FunctionName=name, InvocationType="Event", Payload=json.dumps(dict(payload)).encode()
     )

@@ -20,7 +20,9 @@ from .http import (
 )
 
 
-def _handle_spotify_not_found(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_spotify_not_found(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     repository = deps.create_clouder_repository_from_env()
     if repository is None:
         return _json_response(
@@ -41,9 +43,7 @@ def _handle_spotify_not_found(event: Mapping[str, Any], context: Any, correlatio
             and publish_date_to is not None
             and publish_date_from > publish_date_to
         ):
-            raise ValidationError(
-                "publish_date_from must be <= publish_date_to"
-            )
+            raise ValidationError("publish_date_from must be <= publish_date_to")
     except ValidationError as exc:
         return _json_response(
             400,
@@ -99,7 +99,9 @@ def _handle_spotify_not_found(event: Mapping[str, Any], context: Any, correlatio
     )
 
 
-def _handle_spotify_search_status(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_spotify_search_status(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     """Admin view of the Spotify search: the queue (SQS) and the backlog (Aurora)."""
     repository = deps.create_clouder_repository_from_env()
     if repository is None:
@@ -154,7 +156,9 @@ def _handle_spotify_search_status(event: Mapping[str, Any], context: Any, correl
     )
 
 
-def _handle_spotify_retry_not_found(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_spotify_retry_not_found(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     payload = _parse_json_body(event)
 
     publish_date_from = _parse_iso_date_field(payload, "publish_date_from")
@@ -192,12 +196,8 @@ def _handle_spotify_retry_not_found(event: Mapping[str, Any], context: Any, corr
         )
 
     now = deps.utc_now()
-    reset_count = repository.reset_spotify_not_found(
-        publish_date_from, publish_date_to, now
-    )
-    pending_count = repository.count_spotify_pending_in_range(
-        publish_date_from, publish_date_to
-    )
+    reset_count = repository.reset_spotify_not_found(publish_date_from, publish_date_to, now)
+    pending_count = repository.count_spotify_pending_in_range(publish_date_from, publish_date_to)
 
     log_event(
         "INFO",
@@ -213,9 +213,7 @@ def _handle_spotify_retry_not_found(event: Mapping[str, Any], context: Any, corr
             client = deps.create_default_sqs_client()
             client.send_message(
                 QueueUrl=queue_url,
-                MessageBody=json.dumps(
-                    message, ensure_ascii=False, separators=(",", ":")
-                ),
+                MessageBody=json.dumps(message, ensure_ascii=False, separators=(",", ":")),
                 MessageAttributes={
                     "correlation_id": {
                         "DataType": "String",

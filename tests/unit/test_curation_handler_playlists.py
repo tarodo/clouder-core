@@ -1,4 +1,5 @@
 """Handler-level smoke tests for /playlists routes. Repository is a stub."""
+
 from __future__ import annotations
 
 import json
@@ -8,8 +9,9 @@ from collector.curation.routes_playlists import _playlist_track_response
 from collector.curation_handler import lambda_handler
 
 
-def _event(method: str, path: str, body: dict | None = None,
-           path_params: dict | None = None) -> dict:
+def _event(
+    method: str, path: str, body: dict | None = None, path_params: dict | None = None
+) -> dict:
     return {
         "requestContext": {
             "routeKey": f"{method} {path}",
@@ -30,11 +32,20 @@ def _patch_factory(repo: MagicMock):
 
 def _row(**overrides) -> MagicMock:
     base = dict(
-        id="p-1", user_id="u-1", name="My Set", normalized_name="my set",
-        description=None, is_public=False, cover_s3_key=None,
-        cover_uploaded_at=None, spotify_playlist_id=None,
-        last_published_at=None, needs_republish=False, track_count=0,
-        ytmusic_playlist_id=None, ytmusic_last_published_at=None,
+        id="p-1",
+        user_id="u-1",
+        name="My Set",
+        normalized_name="my set",
+        description=None,
+        is_public=False,
+        cover_s3_key=None,
+        cover_uploaded_at=None,
+        spotify_playlist_id=None,
+        last_published_at=None,
+        needs_republish=False,
+        track_count=0,
+        ytmusic_playlist_id=None,
+        ytmusic_last_published_at=None,
         ytmusic_needs_republish=False,
         status="active",
         created_at="2026-05-12T10:00:00+00:00",
@@ -77,9 +88,7 @@ def test_patch_playlist_returns_200() -> None:
     repo.patch.return_value = _row(name="renamed", normalized_name="renamed")
     with _patch_factory(repo):
         resp = lambda_handler(
-            _event("PATCH", "/playlists/{id}",
-                   body={"name": "renamed"},
-                   path_params={"id": "p-1"}),
+            _event("PATCH", "/playlists/{id}", body={"name": "renamed"}, path_params={"id": "p-1"}),
             None,
         )
     assert resp["statusCode"] == 200
@@ -129,8 +138,7 @@ def test_list_playlist_tracks_returns_paginated(monkeypatch) -> None:
     )
     with _patch_factory(repo):
         resp = lambda_handler(
-            _event("GET", "/playlists/{id}/tracks",
-                   path_params={"id": "p-1"}),
+            _event("GET", "/playlists/{id}/tracks", path_params={"id": "p-1"}),
             None,
         )
     assert resp["statusCode"] == 200
@@ -148,9 +156,12 @@ def test_add_tracks_resolves_scope_then_appends() -> None:
     repo.append_tracks.return_value = append_result
     with _patch_factory(repo):
         resp = lambda_handler(
-            _event("POST", "/playlists/{id}/tracks",
-                   body={"track_ids": ["t-1", "t-2"]},
-                   path_params={"id": "p-1"}),
+            _event(
+                "POST",
+                "/playlists/{id}/tracks",
+                body={"track_ids": ["t-1", "t-2"]},
+                path_params={"id": "p-1"},
+            ),
             None,
         )
     assert resp["statusCode"] == 201
@@ -164,9 +175,12 @@ def test_add_tracks_returns_404_for_out_of_scope() -> None:
     repo.validate_tracks_in_scope.return_value = {"t-1"}
     with _patch_factory(repo):
         resp = lambda_handler(
-            _event("POST", "/playlists/{id}/tracks",
-                   body={"track_ids": ["t-1", "t-foreign"]},
-                   path_params={"id": "p-1"}),
+            _event(
+                "POST",
+                "/playlists/{id}/tracks",
+                body={"track_ids": ["t-1", "t-foreign"]},
+                path_params={"id": "p-1"},
+            ),
             None,
         )
     assert resp["statusCode"] == 404
@@ -179,8 +193,11 @@ def test_remove_track_204() -> None:
     repo.remove_track.return_value = True
     with _patch_factory(repo):
         resp = lambda_handler(
-            _event("DELETE", "/playlists/{id}/tracks/{track_id}",
-                   path_params={"id": "p-1", "track_id": "t-1"}),
+            _event(
+                "DELETE",
+                "/playlists/{id}/tracks/{track_id}",
+                path_params={"id": "p-1", "track_id": "t-1"},
+            ),
             None,
         )
     assert resp["statusCode"] == 204
@@ -191,9 +208,12 @@ def test_reorder_tracks_200() -> None:
     repo.reorder_tracks.return_value = None
     with _patch_factory(repo):
         resp = lambda_handler(
-            _event("POST", "/playlists/{id}/tracks/order",
-                   body={"track_ids": ["t-2", "t-1"]},
-                   path_params={"id": "p-1"}),
+            _event(
+                "POST",
+                "/playlists/{id}/tracks/order",
+                body={"track_ids": ["t-2", "t-1"]},
+                path_params={"id": "p-1"},
+            ),
             None,
         )
     assert resp["statusCode"] == 200
@@ -202,17 +222,18 @@ def test_reorder_tracks_200() -> None:
 def test_cover_upload_url_returns_presign_metadata() -> None:
     repo = MagicMock()
     repo.get.return_value = _row()  # exists
-    with _patch_factory(repo), patch(
-        "collector.curation.deps._build_s3_storage"
-    ) as s3_factory:
+    with _patch_factory(repo), patch("collector.curation.deps._build_s3_storage") as s3_factory:
         s3 = MagicMock()
         s3.cover_key.return_value = "covers/u-1/p-1/123.jpg"
         s3.presigned_cover_put_url.return_value = "https://signed"
         s3_factory.return_value = s3
         resp = lambda_handler(
-            _event("POST", "/playlists/{id}/cover/upload-url",
-                   body={"content_type": "image/jpeg"},
-                   path_params={"id": "p-1"}),
+            _event(
+                "POST",
+                "/playlists/{id}/cover/upload-url",
+                body={"content_type": "image/jpeg"},
+                path_params={"id": "p-1"},
+            ),
             None,
         )
     assert resp["statusCode"] == 200
@@ -224,16 +245,17 @@ def test_cover_upload_url_returns_presign_metadata() -> None:
 def test_cover_confirm_400_when_missing() -> None:
     repo = MagicMock()
     repo.get.return_value = _row()
-    with _patch_factory(repo), patch(
-        "collector.curation.deps._build_s3_storage"
-    ) as s3_factory:
+    with _patch_factory(repo), patch("collector.curation.deps._build_s3_storage") as s3_factory:
         s3 = MagicMock()
         s3.head_cover.return_value = None
         s3_factory.return_value = s3
         resp = lambda_handler(
-            _event("POST", "/playlists/{id}/cover/confirm",
-                   body={"s3_key": "covers/u-1/p-1/123.jpg"},
-                   path_params={"id": "p-1"}),
+            _event(
+                "POST",
+                "/playlists/{id}/cover/confirm",
+                body={"s3_key": "covers/u-1/p-1/123.jpg"},
+                path_params={"id": "p-1"},
+            ),
             None,
         )
     assert resp["statusCode"] == 400
@@ -284,8 +306,7 @@ def test_list_playlist_tracks_returns_enriched_fields(monkeypatch) -> None:
     )
     with _patch_factory(repo):
         resp = lambda_handler(
-            _event("GET", "/playlists/{id}/tracks",
-                   path_params={"id": "p-1"}),
+            _event("GET", "/playlists/{id}/tracks", path_params={"id": "p-1"}),
             None,
         )
     assert resp["statusCode"] == 200
@@ -305,14 +326,21 @@ def test_publish_returns_412_when_no_spotify_token() -> None:
     repo = MagicMock()
     repo.get.return_value = _row()
     from collector.curation import SpotifyNotAuthorizedError as _ENA
-    with _patch_factory(repo), patch(
-        "collector.curation.deps._build_spotify_user_client",
-        side_effect=_ENA("no token"),
+
+    with (
+        _patch_factory(repo),
+        patch(
+            "collector.curation.deps._build_spotify_user_client",
+            side_effect=_ENA("no token"),
+        ),
     ):
         resp = lambda_handler(
-            _event("POST", "/playlists/{id}/publish",
-                   body={"confirm_overwrite": False},
-                   path_params={"id": "p-1"}),
+            _event(
+                "POST",
+                "/playlists/{id}/publish",
+                body={"confirm_overwrite": False},
+                path_params={"id": "p-1"},
+            ),
             None,
         )
     assert resp["statusCode"] == 412

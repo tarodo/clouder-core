@@ -37,20 +37,12 @@ def _bundle_with_one_label() -> NormalizedBundle:
 
 def _full_bundle() -> NormalizedBundle:
     return NormalizedBundle(
-        labels=(
-            NormalizedLabel(
-                bp_label_id=1, name="L", normalized_name="l", payload={"id": 1}
-            ),
-        ),
+        labels=(NormalizedLabel(bp_label_id=1, name="L", normalized_name="l", payload={"id": 1}),),
         styles=(
-            NormalizedStyle(
-                bp_genre_id=10, name="S", normalized_name="s", payload={"id": 10}
-            ),
+            NormalizedStyle(bp_genre_id=10, name="S", normalized_name="s", payload={"id": 10}),
         ),
         artists=(
-            NormalizedArtist(
-                bp_artist_id=20, name="A", normalized_name="a", payload={"id": 20}
-            ),
+            NormalizedArtist(bp_artist_id=20, name="A", normalized_name="a", payload={"id": 20}),
         ),
         albums=(
             NormalizedAlbum(

@@ -90,10 +90,14 @@ class ContractReport:
 
     @property
     def drift_fields(self) -> tuple[str, ...]:
-        return tuple(sorted(
-            set(self.unknown_fields) | set(self.missing_fields)
-            | set(self.type_drift) | set(self.null_share_over)
-        ))
+        return tuple(
+            sorted(
+                set(self.unknown_fields)
+                | set(self.missing_fields)
+                | set(self.type_drift)
+                | set(self.null_share_over)
+            )
+        )
 
 
 def json_type(value: Any) -> str:

@@ -32,8 +32,13 @@ class FakeDataAPI:
 
 def _empty_tables(except_for: dict[str, list[dict]]) -> dict[str, list[dict]]:
     tables = [
-        "clouder_tracks", "clouder_artists", "clouder_track_artists",
-        "clouder_labels", "clouder_albums", "categories", "category_tracks",
+        "clouder_tracks",
+        "clouder_artists",
+        "clouder_track_artists",
+        "clouder_labels",
+        "clouder_albums",
+        "categories",
+        "category_tracks",
         "clouder_styles",
     ]
     out = {t: [] for t in tables}
@@ -75,16 +80,26 @@ def test_empty_table_writes_no_object() -> None:
     counts = export_catalog(api, s3, "lake", "2026-06-27", page=2)
 
     assert counts == {
-        "clouder_tracks": 0, "clouder_artists": 0, "clouder_track_artists": 0,
-        "clouder_labels": 0, "clouder_albums": 0, "categories": 0,
-        "category_tracks": 0, "clouder_styles": 0,
+        "clouder_tracks": 0,
+        "clouder_artists": 0,
+        "clouder_track_artists": 0,
+        "clouder_labels": 0,
+        "clouder_albums": 0,
+        "categories": 0,
+        "category_tracks": 0,
+        "clouder_styles": 0,
     }
     assert s3.objects == {}
 
 
 def test_ndjson_serializes_dates_via_default_str() -> None:
-    rows = [{"id": "t1", "created_at": datetime(2026, 6, 27, tzinfo=UTC),
-             "publish_date": date(2026, 6, 1)}]
+    rows = [
+        {
+            "id": "t1",
+            "created_at": datetime(2026, 6, 27, tzinfo=UTC),
+            "publish_date": date(2026, 6, 1),
+        }
+    ]
     api = FakeDataAPI(_empty_tables({"clouder_tracks": rows}))
     s3 = FakeS3()
 
@@ -109,9 +124,7 @@ def test_no_psycopg_or_columnar_imports() -> None:
             imported.update(a.name.split(".")[0] for a in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module:
             imported.add(node.module.split(".")[0])
-    assert imported & {
-        "psycopg", "psycopg2", "pyarrow", "awswrangler", "pandas"
-    } == set()
+    assert imported & {"psycopg", "psycopg2", "pyarrow", "awswrangler", "pandas"} == set()
 
 
 def test_exported_tables_match_glue_tbl_enum():

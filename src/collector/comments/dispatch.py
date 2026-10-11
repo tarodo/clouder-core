@@ -55,19 +55,22 @@ def try_dispatch_comment_collection(
         )
         if collection_id is None:
             log_event(
-                "INFO", "comment_dispatch_skipped_collected",
-                track_id=track_id, platform=platform,
+                "INFO",
+                "comment_dispatch_skipped_collected",
+                track_id=track_id,
+                platform=platform,
             )
             return
         msg = CommentCollectMessage(
             track_id=track_id, platform=platform, video_id=video_id, collection_id=collection_id
         )
-        _build_sqs_client().send_message(
-            QueueUrl=_queue_url(), MessageBody=msg.model_dump_json()
-        )
+        _build_sqs_client().send_message(QueueUrl=_queue_url(), MessageBody=msg.model_dump_json())
         log_event(
-            "INFO", "comment_dispatch_enqueued",
-            track_id=track_id, platform=platform, collection_id=collection_id,
+            "INFO",
+            "comment_dispatch_enqueued",
+            track_id=track_id,
+            platform=platform,
+            collection_id=collection_id,
         )
 
     _safe(_run)

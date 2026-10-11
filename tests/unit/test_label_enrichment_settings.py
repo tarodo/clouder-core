@@ -1,4 +1,3 @@
-
 import pytest
 
 from collector.settings import (
@@ -10,10 +9,15 @@ from collector.settings import (
 @pytest.fixture(autouse=True)
 def _isolate(monkeypatch):
     for key in (
-        "GEMINI_API_KEY", "OPENAI_API_KEY", "TAVILY_API_KEY", "DEEPSEEK_API_KEY",
+        "GEMINI_API_KEY",
+        "OPENAI_API_KEY",
+        "TAVILY_API_KEY",
+        "DEEPSEEK_API_KEY",
         "AI_FLAG_CONFIDENCE_THRESHOLD",
-        "GEMINI_API_KEY_SECRET_ARN", "OPENAI_API_KEY_SECRET_ARN",
-        "TAVILY_API_KEY_SECRET_ARN", "DEEPSEEK_API_KEY_SECRET_ARN",
+        "GEMINI_API_KEY_SECRET_ARN",
+        "OPENAI_API_KEY_SECRET_ARN",
+        "TAVILY_API_KEY_SECRET_ARN",
+        "DEEPSEEK_API_KEY_SECRET_ARN",
     ):
         monkeypatch.delenv(key, raising=False)
     reset_settings_cache()

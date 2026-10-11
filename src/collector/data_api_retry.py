@@ -3,6 +3,7 @@
 Aurora Serverless v2 with min_acu=0 pauses after idle; first call after
 wake throws DatabaseResumingException. Wrap Data API calls with exp backoff.
 """
+
 from __future__ import annotations
 
 import functools

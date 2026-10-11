@@ -263,9 +263,7 @@ class Canonicalizer:
         )
         missing = candidates.keys() - resolved.keys()
         if missing and not self._dry_run:
-            raise RuntimeError(
-                f"identity claim did not resolve {len(missing)} {entity_type} ids"
-            )
+            raise RuntimeError(f"identity claim did not resolve {len(missing)} {entity_type} ids")
         # Dry run: nothing was claimed, so ids without an identity would be created
         # under the candidate id.
         resolved = {**{ext: candidates[ext] for ext in missing}, **resolved}
@@ -374,8 +372,7 @@ class Canonicalizer:
                 transaction_id=transaction_id,
             )
         album_ids = {
-            album.bp_release_id: resolved[str(album.bp_release_id)]
-            for album in bundle.albums
+            album.bp_release_id: resolved[str(album.bp_release_id)] for album in bundle.albums
         }
         _log_phase(run_id, "albums", len(album_ids), started)
         return album_ids, len(created)
@@ -420,9 +417,7 @@ class Canonicalizer:
             max(1, math.ceil(len(bundle.tracks) / TRACK_CHUNK_SIZE)) if bundle.tracks else 0
         )
 
-        for chunk_index, chunk in enumerate(
-            _chunks(bundle.tracks, TRACK_CHUNK_SIZE), start=1
-        ):
+        for chunk_index, chunk in enumerate(_chunks(bundle.tracks, TRACK_CHUNK_SIZE), start=1):
             chunk_started = time.perf_counter()
             log_event(
                 "INFO",
@@ -474,9 +469,7 @@ class Canonicalizer:
                         else None
                     )
                     style_id = (
-                        style_ids.get(track.bp_genre_id)
-                        if track.bp_genre_id is not None
-                        else None
+                        style_ids.get(track.bp_genre_id) if track.bp_genre_id is not None else None
                     )
                     publish_date = parse_iso_date(track.publish_date)
                     if str(track.bp_track_id) in created:
@@ -537,9 +530,7 @@ class Canonicalizer:
                                 )
                             )
 
-                self._repository.batch_create_tracks(
-                    new_tracks, transaction_id=transaction_id
-                )
+                self._repository.batch_create_tracks(new_tracks, transaction_id=transaction_id)
                 self._repository.batch_conservative_update_tracks(
                     updates, transaction_id=transaction_id
                 )
@@ -561,6 +552,7 @@ class Canonicalizer:
 
         _log_phase(run_id, "tracks", len(track_ids), started)
         return track_ids, counts, field_changes
+
 
 def _payload_hash(payload: Mapping[str, Any]) -> str:
     canonical_payload = json.dumps(

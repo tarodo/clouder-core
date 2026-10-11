@@ -17,7 +17,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-DEFAULT_WIDGETS = ["Lambda errors", "API latency p95 (ms)", "Aurora capacity (ACU)", "Data quality: completeness (%)"]
+DEFAULT_WIDGETS = [
+    "Lambda errors",
+    "API latency p95 (ms)",
+    "Aurora capacity (ACU)",
+    "Data quality: completeness (%)",
+]
 OUT_DIR = Path(__file__).resolve().parents[1] / "docs" / "assets"
 
 
@@ -27,7 +32,9 @@ def snapshot(cloudwatch: Any, dashboard: str, titles: list[str], out_dir: Path) 
     written = []
     for title in titles:
         widget = {**by_title[title], "start": "-P7D", "width": 800, "height": 300}
-        png = cloudwatch.get_metric_widget_image(MetricWidget=json.dumps(widget), OutputFormat="png")
+        png = cloudwatch.get_metric_widget_image(
+            MetricWidget=json.dumps(widget), OutputFormat="png"
+        )
         slug = re.sub(r"[^a-z0-9]+", "-", title.lower().split("(")[0]).strip("-")
         path = out_dir / f"dashboard-{slug}.png"
         path.write_bytes(png["MetricWidgetImage"])

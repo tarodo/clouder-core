@@ -44,6 +44,7 @@ def _build_label_repository() -> LabelEnrichmentRepository:
 
 def _build_sqs_client():
     import boto3
+
     return boto3.client("sqs")
 
 
@@ -58,23 +59,31 @@ def _dispatch_labels(*, label_ids: list[str], source_hint: str, user_id: str | N
     if not label_ids:
         return
     log_event(
-        "INFO", "auto_enrich_dispatch_started",
-        source_hint=source_hint, candidate_labels=len(label_ids),
+        "INFO",
+        "auto_enrich_dispatch_started",
+        source_hint=source_hint,
+        candidate_labels=len(label_ids),
     )
     auto_repo = _build_auto_repository()
     cfg = auto_repo.get_config(_KIND)
     if not cfg or not cfg.get("enabled"):
         log_event(
-            "INFO", "auto_enrich_skipped_disabled",
-            source_hint=source_hint, candidate_labels=len(label_ids),
+            "INFO",
+            "auto_enrich_skipped_disabled",
+            source_hint=source_hint,
+            candidate_labels=len(label_ids),
         )
         return
 
     claimed = auto_repo.claim_labels(sorted(set(label_ids)))
     if not claimed:
         log_event(
-            "INFO", "auto_enrich_dispatched",
-            claimed=0, skipped=len(set(label_ids)), run_id=None, source_hint=source_hint,
+            "INFO",
+            "auto_enrich_dispatched",
+            claimed=0,
+            skipped=len(set(label_ids)),
+            run_id=None,
+            source_hint=source_hint,
         )
         return
 
@@ -124,14 +133,19 @@ def _dispatch_labels(*, label_ids: list[str], source_hint: str, user_id: str | N
         failed += len(resp.get("Failed", []))
     if failed:
         log_event(
-            "ERROR", "auto_enrich_enqueue_partial_failure",
-            run_id=run_id, error_message=f"{failed} of {len(entries)} sqs entries failed",
+            "ERROR",
+            "auto_enrich_enqueue_partial_failure",
+            run_id=run_id,
+            error_message=f"{failed} of {len(entries)} sqs entries failed",
         )
 
     log_event(
-        "INFO", "auto_enrich_dispatched",
-        claimed=len(resolved), skipped=len(set(label_ids)) - len(claimed),
-        run_id=run_id, source_hint=source_hint,
+        "INFO",
+        "auto_enrich_dispatched",
+        claimed=len(resolved),
+        skipped=len(set(label_ids)) - len(claimed),
+        run_id=run_id,
+        source_hint=source_hint,
     )
 
 
@@ -149,6 +163,7 @@ def try_dispatch_for_track(*, track_id: str, user_id: str | None) -> None:
         if not label_id:
             return
         _dispatch_labels(label_ids=[label_id], source_hint="single", user_id=user_id)
+
     _safe(_run)
 
 
@@ -159,4 +174,5 @@ def try_dispatch_for_triage_block(*, block_id: str, user_id: str | None) -> None
         if not label_ids:
             return
         _dispatch_labels(label_ids=label_ids, source_hint="triage", user_id=user_id)
+
     _safe(_run)

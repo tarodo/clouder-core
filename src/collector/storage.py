@@ -11,10 +11,17 @@ from botocore.exceptions import BotoCoreError, ClientError
 from .errors import StorageError, TransientStorageError
 from .logging_utils import log_event
 
-_TRANSIENT_S3_CODES = frozenset({
-    "SlowDown", "InternalError", "ServiceUnavailable", "RequestTimeout",
-    "RequestTimeTooSkewed", "Throttling", "ThrottlingException",
-})
+_TRANSIENT_S3_CODES = frozenset(
+    {
+        "SlowDown",
+        "InternalError",
+        "ServiceUnavailable",
+        "RequestTimeout",
+        "RequestTimeTooSkewed",
+        "Throttling",
+        "ThrottlingException",
+    }
+)
 
 
 def _s3_failure(message: str, exc: Exception) -> StorageError:
@@ -49,27 +56,27 @@ class S3Storage:
         meta: dict[str, Any],
     ) -> tuple[str, str]:
         style_id = int(meta["style_id"])
-        year_raw = meta.get("iso_year") if meta.get("iso_year") is not None else meta.get("week_year")
-        week_raw = meta.get("iso_week") if meta.get("iso_week") is not None else meta.get("week_number")
+        year_raw = (
+            meta.get("iso_year") if meta.get("iso_year") is not None else meta.get("week_year")
+        )
+        week_raw = (
+            meta.get("iso_week") if meta.get("iso_week") is not None else meta.get("week_number")
+        )
         if year_raw is None or week_raw is None:
-            raise StorageError("S3 key requires either iso_year/iso_week or week_year/week_number in meta")
+            raise StorageError(
+                "S3 key requires either iso_year/iso_week or week_year/week_number in meta"
+            )
         year = int(year_raw)
         week = int(week_raw)
 
-        base_key = self._base_key(
-            style_id=style_id, iso_year=year, iso_week=week
-        )
+        base_key = self._base_key(style_id=style_id, iso_year=year, iso_week=week)
         releases_key = f"{base_key}/releases.json.gz"
         meta_key = f"{base_key}/meta.json"
 
         releases_bytes = gzip.compress(
-            json.dumps(releases, ensure_ascii=False, separators=(",", ":")).encode(
-                "utf-8"
-            )
+            json.dumps(releases, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         )
-        meta_bytes = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode(
-            "utf-8"
-        )
+        meta_bytes = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
         try:
             self._put_object(
@@ -157,20 +164,14 @@ class S3Storage:
         if not batch_token:
             batch_token = searched_at.replace("-", "").replace(":", "") or "unknown"
 
-        base_key = (
-            f"{spotify_prefix}/date={searched_date}/{correlation_id}/{batch_token}"
-        )
+        base_key = f"{spotify_prefix}/date={searched_date}/{correlation_id}/{batch_token}"
         results_key = f"{base_key}/results.json.gz"
         meta_key = f"{base_key}/meta.json"
 
         results_bytes = gzip.compress(
-            json.dumps(results, ensure_ascii=False, separators=(",", ":")).encode(
-                "utf-8"
-            )
+            json.dumps(results, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         )
-        meta_bytes = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode(
-            "utf-8"
-        )
+        meta_bytes = json.dumps(meta, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
         try:
             self._put_object(
@@ -262,7 +263,8 @@ class S3Storage:
     def head_cover(self, s3_key: str) -> dict | None:
         try:
             head = self.s3_client.head_object(
-                Bucket=self.bucket_name, Key=s3_key,
+                Bucket=self.bucket_name,
+                Key=s3_key,
             )
         except Exception as exc:
             code = ""
@@ -280,16 +282,15 @@ class S3Storage:
     def read_cover_bytes(self, s3_key: str) -> bytes:
         try:
             response = self.s3_client.get_object(
-                Bucket=self.bucket_name, Key=s3_key,
+                Bucket=self.bucket_name,
+                Key=s3_key,
             )
             return response["Body"].read()
         except Exception as exc:
             raise _s3_failure(f"Failed to read cover: {s3_key}", exc) from exc
 
     def _base_key(self, style_id: int, iso_year: int, iso_week: int) -> str:
-        return (
-            f"{self.raw_prefix}/style_id={style_id}/year={iso_year}/week={iso_week:02d}"
-        )
+        return f"{self.raw_prefix}/style_id={style_id}/year={iso_year}/week={iso_week:02d}"
 
     def _put_object(
         self,

@@ -114,23 +114,16 @@ def _row(raw: Mapping[str, Any]) -> PlaylistRow:
         description=raw.get("description"),
         is_public=bool(raw["is_public"]),
         cover_s3_key=raw.get("cover_s3_key"),
-        cover_uploaded_at=(
-            str(raw["cover_uploaded_at"])
-            if raw.get("cover_uploaded_at") else None
-        ),
+        cover_uploaded_at=(str(raw["cover_uploaded_at"]) if raw.get("cover_uploaded_at") else None),
         spotify_playlist_id=raw.get("spotify_playlist_id"),
-        last_published_at=(
-            str(raw["last_published_at"])
-            if raw.get("last_published_at") else None
-        ),
+        last_published_at=(str(raw["last_published_at"]) if raw.get("last_published_at") else None),
         needs_republish=bool(raw["needs_republish"]),
         track_count=int(raw.get("track_count") or 0),
         created_at=str(raw["created_at"]),
         updated_at=str(raw["updated_at"]),
         ytmusic_playlist_id=raw.get("ytmusic_playlist_id"),
         ytmusic_last_published_at=(
-            str(raw["ytmusic_last_published_at"])
-            if raw.get("ytmusic_last_published_at") else None
+            str(raw["ytmusic_last_published_at"]) if raw.get("ytmusic_last_published_at") else None
         ),
         ytmusic_needs_republish=bool(raw.get("ytmusic_needs_republish")),
         status=raw.get("status") or "active",
@@ -269,17 +262,14 @@ class PlaylistsRepository:
                 )
             except Exception as exc:
                 if "uq_playlists_user_normname" in str(exc):
-                    raise PlaylistNameConflictError(
-                        "Playlist name already exists"
-                    ) from exc
+                    raise PlaylistNameConflictError("Playlist name already exists") from exc
                 raise
             return _row(rows[0])
 
     def get(self, *, user_id: str, playlist_id: str) -> PlaylistRow | None:
         rows = self._data_api.execute(
-            _PLAYLIST_SELECT
-            + " WHERE p.id = :id AND p.user_id = :user_id "
-              "AND p.deleted_at IS NULL",
+            _PLAYLIST_SELECT + " WHERE p.id = :id AND p.user_id = :user_id "
+            "AND p.deleted_at IS NULL",
             {"id": playlist_id, "user_id": user_id},
         )
         return _row(rows[0]) if rows else None
@@ -304,8 +294,8 @@ class PlaylistsRepository:
         rows = self._data_api.execute(
             _PLAYLIST_SELECT
             + f" WHERE p.user_id = :user_id AND p.deleted_at IS NULL{status_clause} "
-              "ORDER BY p.created_at DESC, p.id ASC "
-              "LIMIT :limit OFFSET :offset",
+            "ORDER BY p.created_at DESC, p.id ASC "
+            "LIMIT :limit OFFSET :offset",
             params,
         )
         count_params: dict[str, Any] = {"user_id": user_id}
@@ -386,9 +376,7 @@ class PlaylistsRepository:
             )
         except Exception as exc:
             if "uq_playlists_user_normname" in str(exc):
-                raise PlaylistNameConflictError(
-                    "Playlist name already exists"
-                ) from exc
+                raise PlaylistNameConflictError("Playlist name already exists") from exc
             raise
         if not rows:
             raise PlaylistNotFoundError()
@@ -400,9 +388,7 @@ class PlaylistsRepository:
             raise PlaylistNotFoundError()
         return result
 
-    def soft_delete(
-        self, *, user_id: str, playlist_id: str, now: datetime
-    ) -> bool:
+    def soft_delete(self, *, user_id: str, playlist_id: str, now: datetime) -> bool:
         rows = self._data_api.execute(
             """
             UPDATE playlists SET deleted_at = :now, updated_at = :now
@@ -444,8 +430,7 @@ class PlaylistsRepository:
                 return AppendTracksResult([], [], start)
 
             count_rows = self._data_api.execute(
-                "SELECT COUNT(*) AS cnt FROM playlist_tracks "
-                "WHERE playlist_id = :id",
+                "SELECT COUNT(*) AS cnt FROM playlist_tracks WHERE playlist_id = :id",
                 {"id": playlist_id},
                 transaction_id=tx_id,
             )
@@ -538,8 +523,7 @@ class PlaylistsRepository:
                 raise PlaylistNotFoundError()
 
             pos_rows = self._data_api.execute(
-                "SELECT position FROM playlist_tracks "
-                "WHERE playlist_id = :id AND track_id = :tid",
+                "SELECT position FROM playlist_tracks WHERE playlist_id = :id AND track_id = :tid",
                 {"id": playlist_id, "tid": track_id},
                 transaction_id=tx_id,
             )
@@ -548,8 +532,7 @@ class PlaylistsRepository:
             removed_pos = int(pos_rows[0]["position"])
 
             self._data_api.execute(
-                "DELETE FROM playlist_tracks "
-                "WHERE playlist_id = :id AND track_id = :tid",
+                "DELETE FROM playlist_tracks WHERE playlist_id = :id AND track_id = :tid",
                 {"id": playlist_id, "tid": track_id},
                 transaction_id=tx_id,
             )
@@ -592,9 +575,7 @@ class PlaylistsRepository:
             # back with desired positions. Avoids stepping on the
             # (playlist_id, position) UNIQUE even though it is DEFERRABLE.
             self._data_api.execute(
-                "UPDATE playlist_tracks "
-                "SET position = position + :offset "
-                "WHERE playlist_id = :id",
+                "UPDATE playlist_tracks SET position = position + :offset WHERE playlist_id = :id",
                 {"id": playlist_id, "offset": len(actual_ids) + 1},
                 transaction_id=tx_id,
             )
@@ -665,8 +646,7 @@ class PlaylistsRepository:
             {"id": playlist_id, "limit": limit, "offset": offset},
         )
         total_rows = self._data_api.execute(
-            "SELECT COUNT(*) AS total FROM playlist_tracks pt2 "
-            "WHERE pt2.playlist_id = :id",
+            "SELECT COUNT(*) AS total FROM playlist_tracks pt2 WHERE pt2.playlist_id = :id",
             {"id": playlist_id},
         )
         total = int(total_rows[0]["total"]) if total_rows else 0
@@ -705,12 +685,10 @@ class PlaylistsRepository:
 
         if tags_repo is not None and out:
             grouped = tags_repo.list_tags_for_tracks(
-                user_id=user_id, track_ids=[row.track_id for row in out],
+                user_id=user_id,
+                track_ids=[row.track_id for row in out],
             )
-            out = [
-                replace(row, tags=tuple(grouped.get(row.track_id, [])))
-                for row in out
-            ]
+            out = [replace(row, tags=tuple(grouped.get(row.track_id, []))) for row in out]
         if out:
             statuses = self.fetch_ytmusic_status([row.track_id for row in out])
             out = [
@@ -721,7 +699,9 @@ class PlaylistsRepository:
                         "video_id": s.video_id,
                         "url": s.url,
                         "confidence": s.confidence,
-                    } if (s := statuses.get(row.track_id)) else None,
+                    }
+                    if (s := statuses.get(row.track_id))
+                    else None,
                 )
                 for row in out
             ]
@@ -894,8 +874,7 @@ class PlaylistsRepository:
             sid_ph = ", ".join(f":s{i}" for i in range(len(unique_sids)))
             sid_params = {f"s{i}": sid for i, sid in enumerate(unique_sids)}
             existing_rows = self._data_api.execute(
-                f"SELECT spotify_id, id FROM clouder_tracks "
-                f"WHERE spotify_id IN ({sid_ph})",
+                f"SELECT spotify_id, id FROM clouder_tracks WHERE spotify_id IN ({sid_ph})",
                 sid_params,
                 transaction_id=tx_id,
             )
@@ -910,16 +889,18 @@ class PlaylistsRepository:
                     continue
                 new_id = str(uuid.uuid4())
                 id_by_sid[t.spotify_id] = new_id
-                new_track_rows.append({
-                    "id": new_id,
-                    "title": t.title,
-                    "normalized_title": normalize_text(t.title),
-                    "isrc": t.isrc,
-                    "length_ms": t.length_ms,
-                    "spotify_id": t.spotify_id,
-                    "origin": "spotify_user_import",
-                    "now": now,
-                })
+                new_track_rows.append(
+                    {
+                        "id": new_id,
+                        "title": t.title,
+                        "normalized_title": normalize_text(t.title),
+                        "isrc": t.isrc,
+                        "length_ms": t.length_ms,
+                        "spotify_id": t.spotify_id,
+                        "origin": "spotify_user_import",
+                        "now": now,
+                    }
+                )
             new_sids = {row["spotify_id"] for row in new_track_rows}
             if new_track_rows:
                 self._data_api.batch_execute(
@@ -955,19 +936,21 @@ class PlaylistsRepository:
                     n_params,
                     transaction_id=tx_id,
                 )
-                artist_id_by_norm: dict[str, str] = {
-                    r["normalized_name"]: r["id"] for r in found
-                }
+                artist_id_by_norm: dict[str, str] = {r["normalized_name"]: r["id"] for r in found}
                 new_artist_rows: list[dict] = []
                 for norm, display in name_by_norm.items():
                     if norm in artist_id_by_norm:
                         continue
                     aid = str(uuid.uuid4())
                     artist_id_by_norm[norm] = aid
-                    new_artist_rows.append({
-                        "id": aid, "name": display,
-                        "normalized_name": norm, "now": now,
-                    })
+                    new_artist_rows.append(
+                        {
+                            "id": aid,
+                            "name": display,
+                            "normalized_name": norm,
+                            "now": now,
+                        }
+                    )
                 if new_artist_rows:
                     self._data_api.batch_execute(
                         """
@@ -992,9 +975,13 @@ class PlaylistsRepository:
                         if aid in seen:
                             continue
                         seen.add(aid)
-                        link_rows.append({
-                            "track_id": tid, "artist_id": aid, "role": "main",
-                        })
+                        link_rows.append(
+                            {
+                                "track_id": tid,
+                                "artist_id": aid,
+                                "role": "main",
+                            }
+                        )
                 if link_rows:
                     self._data_api.batch_execute(
                         """
@@ -1079,9 +1066,7 @@ class PlaylistsRepository:
             )
         return out
 
-    def fetch_ytmusic_status(
-        self, track_ids: list[str]
-    ) -> dict[str, YtmusicStatus]:
+    def fetch_ytmusic_status(self, track_ids: list[str]) -> dict[str, YtmusicStatus]:
         """Per-track YT Music status. matched > needs_review > not_found > pending."""
         if not track_ids:
             return {}
@@ -1157,8 +1142,13 @@ class PlaylistsRepository:
         return ReviewRow(candidates=list(candidates))
 
     def resolve_review_accept(
-        self, *, clouder_track_id: str, vendor: str, vendor_track_id: str,
-        payload: dict, now: datetime,
+        self,
+        *,
+        clouder_track_id: str,
+        vendor: str,
+        vendor_track_id: str,
+        payload: dict,
+        now: datetime,
     ) -> None:
         with self._data_api.transaction() as tx:
             ClouderRepository(self._data_api).upsert_vendor_match(
@@ -1206,9 +1196,7 @@ class PlaylistsRepository:
 
     # ---------- Helpers ------------------------------------------------------
 
-    def _mark_dirty_if_published(
-        self, playlist_id: str, now: datetime, tx_id: str
-    ) -> None:
+    def _mark_dirty_if_published(self, playlist_id: str, now: datetime, tx_id: str) -> None:
         self._data_api.execute(
             "UPDATE playlists SET needs_republish = TRUE, updated_at = :now "
             "WHERE id = :id AND spotify_playlist_id IS NOT NULL",

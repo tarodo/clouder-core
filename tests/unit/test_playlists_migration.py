@@ -1,4 +1,5 @@
 """Sanity check that migration 19 has a clean revision chain."""
+
 from __future__ import annotations
 
 import importlib.util

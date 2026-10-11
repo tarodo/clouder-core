@@ -18,17 +18,11 @@ def test_extract_album_type_missing_field_returns_none() -> None:
 
 
 def test_extract_album_type_single() -> None:
-    assert (
-        _extract_album_type({"id": "sp1", "album": {"album_type": "single"}})
-        == "single"
-    )
+    assert _extract_album_type({"id": "sp1", "album": {"album_type": "single"}}) == "single"
 
 
 def test_extract_album_type_compilation() -> None:
-    assert (
-        _extract_album_type({"album": {"album_type": "compilation"}})
-        == "compilation"
-    )
+    assert _extract_album_type({"album": {"album_type": "compilation"}}) == "compilation"
 
 
 def test_extract_album_type_album() -> None:

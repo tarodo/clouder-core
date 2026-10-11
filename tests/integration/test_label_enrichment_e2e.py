@@ -40,9 +40,11 @@ def _stub_vendor_response(vendor: str) -> VendorResponse:
             status="active",
             primary_styles=["techno"],
         ),
-        raw={}, citations=[],
+        raw={},
+        citations=[],
         usage={"input_tokens": 100, "output_tokens": 50, "cost_usd": 0.002},
-        latency_ms=200, model=f"{vendor}-model",
+        latency_ms=200,
+        model=f"{vendor}-model",
     )
 
 
@@ -56,7 +58,9 @@ def repo_and_sqs(monkeypatch):
             captured_messages.append(MessageBody)
 
     real_repo = MagicMock()
-    real_repo.upsert_label_by_name.side_effect = lambda name: f"lbl-{name.lower().replace(' ', '-')}"
+    real_repo.upsert_label_by_name.side_effect = lambda name: (
+        f"lbl-{name.lower().replace(' ', '-')}"
+    )
     real_repo.create_run.return_value = "run-1"
 
     run_state = {
@@ -73,15 +77,18 @@ def repo_and_sqs(monkeypatch):
         "merge_vendor": "deepseek",
         "merge_model": "deepseek-v4-flash",
         "cells_total": 3,
-        "cells_ok": 0, "cells_error": 0,
+        "cells_ok": 0,
+        "cells_error": 0,
     }
     real_repo.get_run.return_value = run_state
 
     monkeypatch.setattr(
-        "collector.label_enrichment.routes._build_repository", lambda: real_repo,
+        "collector.label_enrichment.routes._build_repository",
+        lambda: real_repo,
     )
     monkeypatch.setattr(
-        "collector.label_enrichment.routes._build_sqs_client", lambda: FakeSqs(),
+        "collector.label_enrichment.routes._build_sqs_client",
+        lambda: FakeSqs(),
     )
     # The worker builds both the label repo and an auto-enrich repo via
     # _build_clients(); the auto repo only stamps label_auto_enrich_state
@@ -93,8 +100,15 @@ def repo_and_sqs(monkeypatch):
     monkeypatch.setenv("LABEL_ENRICHMENT_QUEUE_URL", "https://sqs.example/q")
 
     # Stub vendor factory in the worker
-    def fake_adapters(*, vendor_names, models, secrets, request_timeout_s,
-                       openai_max_tool_calls=3, openai_reasoning_effort=""):
+    def fake_adapters(
+        *,
+        vendor_names,
+        models,
+        secrets,
+        request_timeout_s,
+        openai_max_tool_calls=3,
+        openai_reasoning_effort="",
+    ):
         adapters = []
         for v in vendor_names:
             a = MagicMock()
@@ -112,24 +126,35 @@ def repo_and_sqs(monkeypatch):
     # Stub merge client
     merge = MagicMock()
     merge.chat.completions.create.return_value = SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps({
-            "tagline": "Swedish techno powerhouse.",
-            "summary": "Established techno label.",
-            "ai_reasoning": "No AI signals.",
-            "notes": None,
-        })))],
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(
+                    content=json.dumps(
+                        {
+                            "tagline": "Swedish techno powerhouse.",
+                            "summary": "Established techno label.",
+                            "ai_reasoning": "No AI signals.",
+                            "notes": None,
+                        }
+                    )
+                )
+            )
+        ],
         usage=SimpleNamespace(prompt_tokens=200, completion_tokens=80),
     )
     monkeypatch.setattr(
-        "collector.label_enrichment_handler._build_merge_client", lambda *a, **k: merge,
+        "collector.label_enrichment_handler._build_merge_client",
+        lambda *a, **k: merge,
     )
 
     # Stub settings
     monkeypatch.setattr(
         "collector.label_enrichment_handler.get_label_enrichment_worker_settings",
         lambda: MagicMock(
-            gemini_api_key="g", openai_api_key="o",
-            tavily_api_key="t", deepseek_api_key="d",
+            gemini_api_key="g",
+            openai_api_key="o",
+            tavily_api_key="t",
+            deepseek_api_key="d",
             request_timeout_s=30.0,
             ai_flag_confidence_threshold=0.5,
         ),

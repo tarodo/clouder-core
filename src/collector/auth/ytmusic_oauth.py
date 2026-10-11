@@ -76,16 +76,13 @@ class YtmusicOAuthClient:
         )
 
     def request_device_code(self) -> YtmusicDeviceCode:
-        body = urllib.parse.urlencode(
-            {"client_id": self._client_id, "scope": YTMUSIC_SCOPE}
-        )
+        body = urllib.parse.urlencode({"client_id": self._client_id, "scope": YTMUSIC_SCOPE})
         payload = self._post(DEVICE_CODE_URL, body)
         return YtmusicDeviceCode(
             device_code=str(payload["device_code"]),
             user_code=str(payload["user_code"]),
             verification_url=str(
-                payload.get("verification_url")
-                or payload.get("verification_uri")
+                payload.get("verification_url") or payload.get("verification_uri")
             ),
             interval=int(payload.get("interval", 5)),
             expires_in=int(payload.get("expires_in", 1800)),
@@ -133,9 +130,7 @@ class YtmusicOAuthClient:
             raise YtmusicAuthExpired(err)
         raise YtmusicAuthError(f"google oauth error: {payload}")
 
-    def _token_set(
-        self, payload: dict, *, fallback_refresh: str | None
-    ) -> YtmusicTokenSet:
+    def _token_set(self, payload: dict, *, fallback_refresh: str | None) -> YtmusicTokenSet:
         access = payload.get("access_token")
         if not isinstance(access, str) or not access:
             raise YtmusicAuthError("token response missing access_token")
@@ -167,9 +162,7 @@ class YtmusicOAuthClient:
             # states (authorization_pending/slow_down/...). Parse it.
             raw = exc.read().decode("utf-8") if hasattr(exc, "read") else ""
             if not allow_error:
-                raise YtmusicAuthError(
-                    f"google oauth HTTP {exc.code}: {raw[:200]}"
-                ) from exc
+                raise YtmusicAuthError(f"google oauth HTTP {exc.code}: {raw[:200]}") from exc
         except (URLError, TimeoutError) as exc:
             raise YtmusicAuthError(f"google oauth request failed: {exc}") from exc
         try:

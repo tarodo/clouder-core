@@ -44,12 +44,15 @@ from collector.repositories import ClouderRepository, utc_now  # noqa: E402
 MALFORMED = [{"id": 0, "name": "no id"}, {"id": 999_999, "name": " "}]
 
 
-def _ingest(repo: ClouderRepository, client: PgDataAPIClient, run_id: str,
-            raw: list[dict[str, Any]]) -> tuple[dict[str, int], CanonicalizationResult]:
+def _ingest(
+    repo: ClouderRepository, client: PgDataAPIClient, run_id: str, raw: list[dict[str, Any]]
+) -> tuple[dict[str, int], CanonicalizationResult]:
     seed_run(client, run_id)
     report = screen(raw)
     result = Canonicalizer(repo).process_run(run_id=run_id, bundle=normalize_tracks(report.valid))
-    repo.set_run_completed(run_id=run_id, processed_count=result.tracks_processed, finished_at=utc_now())
+    repo.set_run_completed(
+        run_id=run_id, processed_count=result.tracks_processed, finished_at=utc_now()
+    )
     return {"valid": len(report.valid), "quarantined": len(report.quarantined)}, result
 
 
@@ -63,12 +66,25 @@ def run(database_url: str, tracks: int = 300) -> dict[str, Any]:
         _, second = _ingest(repo, client, "demo-week-replay", raw)
         return {
             "screen": screened,
-            "first_run": {k: getattr(first, k) for k in (
-                "tracks_created", "artists_created", "albums_created", "labels_created", "styles_created")},
+            "first_run": {
+                k: getattr(first, k)
+                for k in (
+                    "tracks_created",
+                    "artists_created",
+                    "albums_created",
+                    "labels_created",
+                    "styles_created",
+                )
+            },
             "catalog": {table: count_rows(client, table) for table in CANONICAL_TABLES},
-            "second_run": {k: getattr(second, k) for k in ("tracks_created", "tracks_changed", "artists_created")},
-            "checks": [{"name": c.name, "value": c.value, "passed": c.passed}
-                       for c in run_checks(client, date.today())],
+            "second_run": {
+                k: getattr(second, k)
+                for k in ("tracks_created", "tracks_changed", "artists_created")
+            },
+            "checks": [
+                {"name": c.name, "value": c.value, "passed": c.passed}
+                for c in run_checks(client, date.today())
+            ],
         }
     finally:
         client.close()
@@ -76,8 +92,12 @@ def run(database_url: str, tracks: int = 300) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the pipeline on a local Postgres")
-    parser.add_argument("--database-url", default=os.environ.get(
-        "TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:55433/postgres"))
+    parser.add_argument(
+        "--database-url",
+        default=os.environ.get(
+            "TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:55433/postgres"
+        ),
+    )
     parser.add_argument("--tracks", type=int, default=300)
     args = parser.parse_args(argv)
     print(json.dumps(run(args.database_url, args.tracks), indent=2, default=str))

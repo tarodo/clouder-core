@@ -14,14 +14,28 @@ def _value(pg, name: str):
     return result
 
 
-def _run(pg, run_id, style_id, status="COMPLETED", items=100, period_end="2026-10-02",
-         started="now()", custom=False):
+def _run(
+    pg,
+    run_id,
+    style_id,
+    status="COMPLETED",
+    items=100,
+    period_end="2026-10-02",
+    started="now()",
+    custom=False,
+):
     pg.execute(
         "INSERT INTO ingest_runs (run_id, source, style_id, raw_s3_key, status, item_count, "
         f"started_at, period_end, is_custom_range) VALUES (:id, 'beatport', :style, 'k', :status, "
         f":items, {started}, CAST(:end AS date), :custom)",
-        {"id": run_id, "style": style_id, "status": status, "items": items, "end": period_end,
-         "custom": custom},
+        {
+            "id": run_id,
+            "style": style_id,
+            "status": status,
+            "items": items,
+            "end": period_end,
+            "custom": custom,
+        },
     )
 
 
@@ -39,8 +53,18 @@ def _style(pg, bp_id, *, hidden=False):
     )
 
 
-def _track(pg, tid, *, created="now()", isrc="ISRC", searched="now()", spotify_id=None,
-           bpm=None, length_ms=None, origin="beatport"):
+def _track(
+    pg,
+    tid,
+    *,
+    created="now()",
+    isrc="ISRC",
+    searched="now()",
+    spotify_id=None,
+    bpm=None,
+    length_ms=None,
+    origin="beatport",
+):
     pg.execute(
         "INSERT INTO clouder_tracks (id, title, normalized_title, isrc, bpm, length_ms, "
         f"spotify_id, spotify_searched_at, created_at, updated_at, origin) VALUES (:id, 'T', 't', "
@@ -60,9 +84,9 @@ def test_stuck_ingest_runs(pg) -> None:
 
 
 def test_styles_behind(pg) -> None:
-    _run(pg, "s1", 1, period_end="2026-10-02")   # up to date
-    _run(pg, "s2", 2, period_end="2026-09-25")   # one week behind
-    _run(pg, "s3", 3, period_end="2026-06-05")   # inactive: older than 8 weeks
+    _run(pg, "s1", 1, period_end="2026-10-02")  # up to date
+    _run(pg, "s2", 2, period_end="2026-09-25")  # one week behind
+    _run(pg, "s3", 3, period_end="2026-06-05")  # inactive: older than 8 weeks
 
     assert _value(pg, "styles_behind").value == 1.0
 
@@ -72,11 +96,11 @@ def test_weekly_volume_anomalies_compares_latest_week_with_median(pg) -> None:
     for i, end in enumerate(weeks):
         _run(pg, f"a{i}", 7, items=100, period_end=end)
         _run(pg, f"b{i}", 8, items=100, period_end=end)
-    _run(pg, "a-retry", 7, items=90, period_end="2026-09-25")   # same week twice: counted once
+    _run(pg, "a-retry", 7, items=90, period_end="2026-09-25")  # same week twice: counted once
     _run(pg, "a-latest", 7, items=30, period_end="2026-10-02")  # collapse: anomaly
     _run(pg, "b-latest", 8, items=110, period_end="2026-10-02")  # normal
     _run(pg, "c0", 9, items=100, period_end="2026-09-25")
-    _run(pg, "c-latest", 9, items=5, period_end="2026-10-02")    # < 4 weeks of history: skipped
+    _run(pg, "c-latest", 9, items=5, period_end="2026-10-02")  # < 4 weeks of history: skipped
 
     assert _value(pg, "weekly_volume_anomalies").value == 1.0
 
@@ -114,7 +138,8 @@ def test_orphan_identities_and_artists_without_identity(pg) -> None:
     for aid in ("a1", "a2", "a3"):
         pg.execute(
             "INSERT INTO clouder_artists (id, name, normalized_name, created_at, updated_at) "
-            "VALUES (:id, 'A', 'a', now(), now())", {"id": aid},
+            "VALUES (:id, 'A', 'a', now(), now())",
+            {"id": aid},
         )
     for ext, kind, cid in (("1", "track", "t1"), ("2", "track", "missing"), ("3", "artist", "a1")):
         pg.execute(
@@ -156,7 +181,10 @@ def test_empty_database_passes_with_nothing_to_measure(pg) -> None:
 
     assert all(r.passed for r in results)
     assert {r.name for r in results if r.value is None} >= {
-        "isrc_coverage_pct", "spotify_match_pct", "review_backlog_days"}
+        "isrc_coverage_pct",
+        "spotify_match_pct",
+        "review_backlog_days",
+    }
     assert len(results) == len(CHECKS)
 
 

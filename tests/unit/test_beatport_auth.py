@@ -31,7 +31,9 @@ class Response:
         return self._body
 
 
-def _http_error(url: str, code: int, headers: dict | None = None, body: bytes = b"") -> urllib.error.HTTPError:
+def _http_error(
+    url: str, code: int, headers: dict | None = None, body: bytes = b""
+) -> urllib.error.HTTPError:
     msg = Message()
     for k, v in (headers or {}).items():
         msg[k] = v
@@ -48,7 +50,13 @@ class Opener:
     def open(self, request, timeout=None):
         self.requests.append(request)
         path = urllib.parse.urlparse(request.full_url).path
-        step = "login" if path.endswith("/auth/login/") else "authorize" if "authorize" in path else "token"
+        step = (
+            "login"
+            if path.endswith("/auth/login/")
+            else "authorize"
+            if "authorize" in path
+            else "token"
+        )
         answer = self.answers[step]
         if isinstance(answer, Exception):
             raise answer
@@ -57,7 +65,8 @@ class Opener:
 
 def _redirect(code="abc"):
     return _http_error(
-        "https://api.beatport.com/v4/auth/o/authorize/", 302,
+        "https://api.beatport.com/v4/auth/o/authorize/",
+        302,
         {"Location": f"https://api.beatport.com/v4/auth/o/post-message/?code={code}"},
     )
 
@@ -83,8 +92,14 @@ def test_three_step_flow_returns_the_access_token() -> None:
     "step, answers",
     [
         ("login", {"login": _http_error("u", 401, body=b'{"detail": "bad"}')}),
-        ("token", {"login": Response(200), "authorize": _redirect(),
-                   "token": _http_error("u", 400, body=TOKEN.encode())}),
+        (
+            "token",
+            {
+                "login": Response(200),
+                "authorize": _redirect(),
+                "token": _http_error("u", 400, body=TOKEN.encode()),
+            },
+        ),
     ],
 )
 def test_each_failing_step_is_named_without_secrets(step, answers) -> None:
@@ -157,12 +172,17 @@ def test_real_opener_carries_the_session_and_reads_the_redirect(monkeypatch) -> 
                 self._send(200, {"Set-Cookie": "sessionid=S1; Path=/; HttpOnly"}, b"{}")
             else:
                 seen["token_cookie"] = self.headers.get("Cookie")
-                self._send(200, {"Content-Type": "application/json"},
-                           json.dumps({"access_token": TOKEN}).encode())
+                self._send(
+                    200,
+                    {"Content-Type": "application/json"},
+                    json.dumps({"access_token": TOKEN}).encode(),
+                )
 
         def do_GET(self):
             if self.path.startswith("/v4/auth/o/post-message/"):
-                self._send(200, {"Content-Type": "text/html"}, b"<html>done</html>")  # like Beatport
+                self._send(
+                    200, {"Content-Type": "text/html"}, b"<html>done</html>"
+                )  # like Beatport
                 return
             seen["authorize_cookie"] = self.headers.get("Cookie")
             self._send(302, {"Location": f"{api}/auth/o/post-message/?code=abc"})
@@ -181,7 +201,6 @@ def test_real_opener_carries_the_session_and_reads_the_redirect(monkeypatch) -> 
     assert seen["token_cookie"] is None  # like the tested reference: token call outside the session
 
 
-
 def test_client_id_comes_from_the_environment(monkeypatch) -> None:
     monkeypatch.setenv("BEATPORT_CLIENT_ID", "custom-id")
     opener = Opener(login=Response(200, b"{}"), authorize=_redirect(), token=_token_ok())
@@ -189,7 +208,9 @@ def test_client_id_comes_from_the_environment(monkeypatch) -> None:
     fetch_access_token("user", PASSWORD, opener=opener)
 
     _, authorize, token = opener.requests
-    assert urllib.parse.parse_qs(urllib.parse.urlparse(authorize.full_url).query)["client_id"] == ["custom-id"]
+    assert urllib.parse.parse_qs(urllib.parse.urlparse(authorize.full_url).query)["client_id"] == [
+        "custom-id"
+    ]
     assert urllib.parse.parse_qs(token.data.decode())["client_id"] == ["custom-id"]
 
 

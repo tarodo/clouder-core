@@ -15,8 +15,12 @@ def _run(pg, run_id, key, started_at, style_id, period_end, status="COMPLETED"):
                 CAST(:period_end AS DATE))
         """,
         {
-            "run_id": run_id, "style_id": style_id, "key": key, "status": status,
-            "started_at": started_at, "period_end": period_end,
+            "run_id": run_id,
+            "style_id": style_id,
+            "key": key,
+            "status": status,
+            "started_at": started_at,
+            "period_end": period_end,
         },
     )
 

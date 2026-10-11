@@ -40,7 +40,12 @@ def test_every_declared_dependency_is_pinned() -> None:
 def test_dependabot_watches_every_ecosystem() -> None:
     config = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text())
     seen = {(u["package-ecosystem"], u["directory"]) for u in config["updates"]}
-    assert seen >= {("pip", "/"), ("npm", "/frontend"), ("github-actions", "/"), ("terraform", "/infra")}
+    assert seen >= {
+        ("pip", "/"),
+        ("npm", "/frontend"),
+        ("github-actions", "/"),
+        ("terraform", "/infra"),
+    }
 
 
 def test_ci_checks_locks_and_audits() -> None:
@@ -70,6 +75,8 @@ def test_pip_version_updates_go_through_uv_not_dependabot() -> None:
     # Dependabot's compiled lock differs from `uv pip compile --universal`, so its pip
     # PRs always fail the lock-drift check; security updates still open.
     config = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text())
-    pip_root = next(u for u in config["updates"] if (u["package-ecosystem"], u["directory"]) == ("pip", "/"))
+    pip_root = next(
+        u for u in config["updates"] if (u["package-ecosystem"], u["directory"]) == ("pip", "/")
+    )
     assert pip_root["open-pull-requests-limit"] == 0
     assert "upgrade:" in (ROOT / "Makefile").read_text()

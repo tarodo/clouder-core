@@ -58,9 +58,7 @@ def _category_response(row) -> dict[str, Any]:
     }
 
 
-def _handle_create_category(
-    event, repo: CategoriesRepository, user_id: str, correlation_id: str
-):
+def _handle_create_category(event, repo: CategoriesRepository, user_id: str, correlation_id: str):
     style_id = (event.get("pathParameters") or {}).get("style_id")
     if not style_id:
         raise ValidationError("style_id is required in path")
@@ -99,7 +97,10 @@ def _handle_list_by_style(event, repo, user_id, correlation_id):
         raise ValidationError("style_id is required in path")
     limit, offset = _parse_pagination(event)
     result = repo.list_by_style(
-        user_id=user_id, style_id=style_id, limit=limit, offset=offset,
+        user_id=user_id,
+        style_id=style_id,
+        limit=limit,
+        offset=offset,
     )
     return _paginated_response(result, _category_response, correlation_id)
 
@@ -157,7 +158,10 @@ def _handle_soft_delete(event, repo, user_id, correlation_id):
     tags_repo = deps.create_default_tags_repository()
     if tags_repo is None:
         return _error(
-            503, "db_not_configured", "Database not configured", correlation_id,
+            503,
+            "db_not_configured",
+            "Database not configured",
+            correlation_id,
         )
     deleted = repo.soft_delete(
         user_id=user_id,
@@ -216,8 +220,7 @@ def _track_in_category_response(item) -> dict[str, Any]:
     track["added_at"] = item.added_at
     track["source_triage_block_id"] = item.source_triage_block_id
     track["tags"] = [
-        {"id": t.tag_id, "name": t.name, "color": t.color}
-        for t in getattr(item, "tags", ())
+        {"id": t.tag_id, "name": t.name, "color": t.color} for t in getattr(item, "tags", ())
     ]
     track["used_in_playlist"] = bool(track.get("used_in_playlist", False))
     return track
@@ -233,9 +236,7 @@ def _handle_list_tracks(event, repo, user_id, correlation_id):
 
     sort = (qp.get("sort") or "added_at").lower()
     if sort not in _SORT_VALUES:
-        raise BadQueryParamError(
-            f"sort must be one of {sorted(_SORT_VALUES)}"
-        )
+        raise BadQueryParamError(f"sort must be one of {sorted(_SORT_VALUES)}")
     order = (qp.get("order") or "desc").lower()
     if order not in _ORDER_VALUES:
         raise BadQueryParamError("order must be 'asc' or 'desc'")
@@ -249,22 +250,29 @@ def _handle_list_tracks(event, repo, user_id, correlation_id):
     tags_repo = deps.create_default_tags_repository()
     if tags_repo is None:
         return _error(
-            503, "db_not_configured", "Database not configured", correlation_id,
+            503,
+            "db_not_configured",
+            "Database not configured",
+            correlation_id,
         )
 
     fresh_raw = (qp.get("fresh") or "").strip()
     fresh = fresh_raw == "1"
 
     result = repo.list_tracks(
-        user_id=user_id, category_id=cid,
-        limit=limit, offset=offset, search=search,
-        sort=sort, order=order,
-        tag_ids=tag_ids or None, tag_match=tag_match, tags_repo=tags_repo,
+        user_id=user_id,
+        category_id=cid,
+        limit=limit,
+        offset=offset,
+        search=search,
+        sort=sort,
+        order=order,
+        tag_ids=tag_ids or None,
+        tag_match=tag_match,
+        tags_repo=tags_repo,
         fresh=fresh,
     )
-    return _paginated_response(
-        result, _track_in_category_response, correlation_id
-    )
+    return _paginated_response(result, _track_in_category_response, correlation_id)
 
 
 def _handle_add_track(event, repo, user_id, correlation_id):
@@ -273,8 +281,11 @@ def _handle_add_track(event, repo, user_id, correlation_id):
         raise ValidationError("id is required in path")
     body = AddTrackIn.model_validate(_parse_body(event))
     result, was_new = repo.add_track(
-        user_id=user_id, category_id=cid, track_id=body.track_id,
-        source_triage_block_id=None, now=utc_now(),
+        user_id=user_id,
+        category_id=cid,
+        track_id=body.track_id,
+        source_triage_block_id=None,
+        now=utc_now(),
     )
     log_event(
         "INFO",
@@ -306,10 +317,16 @@ def _handle_remove_track(event, repo, user_id, correlation_id):
     tags_repo = deps.create_default_tags_repository()
     if tags_repo is None:
         return _error(
-            503, "db_not_configured", "Database not configured", correlation_id,
+            503,
+            "db_not_configured",
+            "Database not configured",
+            correlation_id,
         )
     deleted = repo.remove_track(
-        user_id=user_id, category_id=cid, track_id=tid, tags_repo=tags_repo,
+        user_id=user_id,
+        category_id=cid,
+        track_id=tid,
+        tags_repo=tags_repo,
     )
     if not deleted:
         raise NotFoundError("track_not_in_category", "Track not in category")

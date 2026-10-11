@@ -63,7 +63,8 @@ def test_presigned_get_url() -> None:
     client.generate_presigned_url.return_value = "https://signed-get"
     s = _storage(client)
     url = s.presigned_cover_get_url(
-        s3_key="covers/u/p/1.jpg", expires_in=3600,
+        s3_key="covers/u/p/1.jpg",
+        expires_in=3600,
     )
     assert url == "https://signed-get"
 
@@ -71,7 +72,8 @@ def test_presigned_get_url() -> None:
 def test_head_cover_returns_size_when_present() -> None:
     client = MagicMock()
     client.head_object.return_value = {
-        "ContentLength": 12345, "ContentType": "image/jpeg",
+        "ContentLength": 12345,
+        "ContentType": "image/jpeg",
     }
     s = _storage(client)
     info = s.head_cover("covers/u/p/1.jpg")

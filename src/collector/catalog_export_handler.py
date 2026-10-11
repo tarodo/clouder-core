@@ -6,6 +6,7 @@ key, and writes line-delimited JSON to S3. Intentionally lightweight: no
 columnar or DataFrame dependency is bundled, so the collector zip stays small —
 a Glue table types the columns and Athena casts on read (spec section 6).
 """
+
 from __future__ import annotations
 
 import json
@@ -22,36 +23,52 @@ from .settings import get_data_api_settings
 # is stable and keyset-upgradeable. Columns are the real db_models.py /
 # categories-migration names. See _PAGE for the page-size constraint.
 _EXPORTS: tuple[tuple[str, str], ...] = (
-    ("clouder_tracks",
-     "SELECT id, title, bpm, key_name, key_camelot, spotify_release_date, "
-     "publish_date, album_id, style_id, isrc, release_type, is_ai_suspected, "
-     "origin, created_at, updated_at "
-     "FROM clouder_tracks ORDER BY id LIMIT :limit OFFSET :offset"),
-    ("clouder_artists",
-     "SELECT id, name, normalized_name, is_ai_suspected, created_at, updated_at "
-     "FROM clouder_artists ORDER BY id LIMIT :limit OFFSET :offset"),
-    ("clouder_track_artists",
-     "SELECT track_id, artist_id, role "
-     "FROM clouder_track_artists ORDER BY track_id, artist_id, role "
-     "LIMIT :limit OFFSET :offset"),
-    ("clouder_labels",
-     "SELECT id, name, normalized_name, is_ai_suspected, created_at, updated_at "
-     "FROM clouder_labels ORDER BY id LIMIT :limit OFFSET :offset"),
-    ("clouder_albums",
-     "SELECT id, title, label_id, release_date, release_type, created_at, "
-     "updated_at FROM clouder_albums ORDER BY id LIMIT :limit OFFSET :offset"),
-    ("categories",
-     "SELECT id, user_id, style_id, name, normalized_name, position, "
-     "created_at, updated_at, deleted_at "
-     "FROM categories ORDER BY id LIMIT :limit OFFSET :offset"),
-    ("category_tracks",
-     "SELECT category_id, track_id, added_at, source_triage_block_id "
-     "FROM category_tracks ORDER BY category_id, track_id "
-     "LIMIT :limit OFFSET :offset"),
+    (
+        "clouder_tracks",
+        "SELECT id, title, bpm, key_name, key_camelot, spotify_release_date, "
+        "publish_date, album_id, style_id, isrc, release_type, is_ai_suspected, "
+        "origin, created_at, updated_at "
+        "FROM clouder_tracks ORDER BY id LIMIT :limit OFFSET :offset",
+    ),
+    (
+        "clouder_artists",
+        "SELECT id, name, normalized_name, is_ai_suspected, created_at, updated_at "
+        "FROM clouder_artists ORDER BY id LIMIT :limit OFFSET :offset",
+    ),
+    (
+        "clouder_track_artists",
+        "SELECT track_id, artist_id, role "
+        "FROM clouder_track_artists ORDER BY track_id, artist_id, role "
+        "LIMIT :limit OFFSET :offset",
+    ),
+    (
+        "clouder_labels",
+        "SELECT id, name, normalized_name, is_ai_suspected, created_at, updated_at "
+        "FROM clouder_labels ORDER BY id LIMIT :limit OFFSET :offset",
+    ),
+    (
+        "clouder_albums",
+        "SELECT id, title, label_id, release_date, release_type, created_at, "
+        "updated_at FROM clouder_albums ORDER BY id LIMIT :limit OFFSET :offset",
+    ),
+    (
+        "categories",
+        "SELECT id, user_id, style_id, name, normalized_name, position, "
+        "created_at, updated_at, deleted_at "
+        "FROM categories ORDER BY id LIMIT :limit OFFSET :offset",
+    ),
+    (
+        "category_tracks",
+        "SELECT category_id, track_id, added_at, source_triage_block_id "
+        "FROM category_tracks ORDER BY category_id, track_id "
+        "LIMIT :limit OFFSET :offset",
+    ),
     # Style names for the per-style analytics (incl. hidden styles).
-    ("clouder_styles",
-     "SELECT id, name, normalized_name, created_at, updated_at "
-     "FROM clouder_styles ORDER BY id LIMIT :limit OFFSET :offset"),
+    (
+        "clouder_styles",
+        "SELECT id, name, normalized_name, created_at, updated_at "
+        "FROM clouder_styles ORDER BY id LIMIT :limit OFFSET :offset",
+    ),
 )
 
 # ponytail: the BINDING constraint on page size is the RDS Data API ~1MB
@@ -67,8 +84,7 @@ def _ndjson(rows: Iterable[dict[str, Any]]) -> bytes:
     # default=str renders datetime/date/Decimal deterministically (ISO-ish);
     # Athena/dbt cast on read.
     return "".join(
-        json.dumps(r, ensure_ascii=False, separators=(",", ":"), default=str) + "\n"
-        for r in rows
+        json.dumps(r, ensure_ascii=False, separators=(",", ":"), default=str) + "\n" for r in rows
     ).encode("utf-8")
 
 
@@ -86,12 +102,11 @@ def export_catalog(
             rows = data_api.execute(sql, {"limit": page, "offset": offset})
             if not rows:
                 break
-            key = (
-                f"bronze/catalog_export/snapshot_dt={snapshot_dt}/{table}/"
-                f"part-{part:05d}.json"
-            )
+            key = f"bronze/catalog_export/snapshot_dt={snapshot_dt}/{table}/part-{part:05d}.json"
             s3_client.put_object(
-                Bucket=bucket, Key=key, Body=_ndjson(rows),
+                Bucket=bucket,
+                Key=key,
+                Body=_ndjson(rows),
                 ContentType="application/x-ndjson",
             )
             total += len(rows)
@@ -100,8 +115,7 @@ def export_catalog(
                 break
             offset += page
         counts[table] = total
-        log_event("INFO", "catalog_export_table_written",
-                  s3_bucket=bucket, total_count=total)
+        log_event("INFO", "catalog_export_table_written", s3_bucket=bucket, total_count=total)
     return counts
 
 
@@ -117,9 +131,7 @@ def lambda_handler(event: Any, context: Any) -> dict[str, Any]:
         database=settings.aurora_database,
     )
     bucket = os.environ["ANALYTICS_LAKE_BUCKET"]
-    snapshot_dt = (event or {}).get("snapshot_dt") or datetime.now(
-        UTC
-    ).strftime("%Y-%m-%d")
+    snapshot_dt = (event or {}).get("snapshot_dt") or datetime.now(UTC).strftime("%Y-%m-%d")
     counts = export_catalog(data_api, boto3.client("s3"), bucket, snapshot_dt)
     log_event("INFO", "catalog_export_completed", item_count=sum(counts.values()))
     return {"snapshot_dt": snapshot_dt, "counts": counts}

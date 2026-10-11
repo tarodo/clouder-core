@@ -35,9 +35,7 @@ def weeks_in_year(year: int) -> int:
 def saturday_week_range(year: int, week: int) -> tuple[date, date]:
     limit = weeks_in_year(year)
     if week < 1 or week > limit:
-        raise ValueError(
-            f"week {week} out of range for year {year} (1..{limit})"
-        )
+        raise ValueError(f"week {week} out of range for year {year} (1..{limit})")
     start = first_saturday(year) + timedelta(days=(week - 1) * 7)
     end = start + timedelta(days=6)
     return start, end

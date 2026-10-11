@@ -61,9 +61,11 @@ class FakeRepo:
 
 class FakeSqs:
     def __init__(self, visible=0, in_flight=0, delayed=0):
-        self.attrs = {"ApproximateNumberOfMessages": str(visible),
-                      "ApproximateNumberOfMessagesNotVisible": str(in_flight),
-                      "ApproximateNumberOfMessagesDelayed": str(delayed)}
+        self.attrs = {
+            "ApproximateNumberOfMessages": str(visible),
+            "ApproximateNumberOfMessagesNotVisible": str(in_flight),
+            "ApproximateNumberOfMessagesDelayed": str(delayed),
+        }
         self.asked = None
 
     def get_queue_attributes(self, *, QueueUrl, AttributeNames):
@@ -88,7 +90,9 @@ def test_running_when_a_worker_holds_a_message(monkeypatch):
     assert body["queue"] == {"waiting_messages": 0, "in_flight": 1, "delayed": 0}
     assert body["paused_until"] is None
     assert sqs.asked[0] == QUEUE
-    assert datetime.now(UTC) - repo.since == pytest.approx(timedelta(minutes=10), abs=timedelta(seconds=5))
+    assert datetime.now(UTC) - repo.since == pytest.approx(
+        timedelta(minutes=10), abs=timedelta(seconds=5)
+    )
 
 
 def test_queued_when_a_message_waits_for_a_worker(monkeypatch):
@@ -109,8 +113,9 @@ def test_paused_during_a_spotify_ban(monkeypatch):
 
 
 def test_an_expired_ban_is_not_a_pause(monkeypatch):
-    _, body = _call(monkeypatch, FakeRepo(blocked_until=datetime.now(UTC) - timedelta(minutes=1)),
-                    FakeSqs())
+    _, body = _call(
+        monkeypatch, FakeRepo(blocked_until=datetime.now(UTC) - timedelta(minutes=1)), FakeSqs()
+    )
     assert (body["status"], body["paused_until"]) == ("idle", None)
 
 

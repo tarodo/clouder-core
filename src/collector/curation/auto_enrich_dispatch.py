@@ -16,6 +16,7 @@ from ..logging_utils import log_event
 
 def _build_sqs_client():
     import boto3
+
     return boto3.client("sqs")
 
 
@@ -35,6 +36,8 @@ def enqueue_block_auto_enrich(*, block_id: str, user_id: str | None) -> None:
         )
     except Exception as exc:
         log_event(
-            "ERROR", "auto_enrich_block_enqueue_error",
-            block_id=block_id, error_message=str(exc)[:500],
+            "ERROR",
+            "auto_enrich_block_enqueue_error",
+            block_id=block_id,
+            error_message=str(exc)[:500],
         )

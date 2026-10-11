@@ -52,9 +52,7 @@ def _event(body: dict, correlation_id: str | None = None) -> dict:
         "requestContext": {
             "requestId": "api-req-1",
             "routeKey": "POST /collect_bp_releases",
-            "authorizer": {
-                "lambda": {"user_id": "admin", "session_id": "s", "is_admin": True}
-            },
+            "authorizer": {"lambda": {"user_id": "admin", "session_id": "s", "is_admin": True}},
         },
         "headers": headers,
         "body": json.dumps(body),
@@ -67,9 +65,7 @@ def _get_run_event(run_id: str) -> dict:
         "requestContext": {
             "requestId": "api-req-2",
             "routeKey": "GET /runs/{run_id}",
-            "authorizer": {
-                "lambda": {"user_id": "u", "session_id": "s", "is_admin": False}
-            },
+            "authorizer": {"lambda": {"user_id": "u", "session_id": "s", "is_admin": False}},
         },
         "headers": {"x-correlation-id": "cid-run"},
         "pathParameters": {"run_id": run_id},
@@ -228,7 +224,9 @@ def test_beatport_auth_error_returns_sanitized_payload(monkeypatch, context) -> 
     assert len(fake_s3.calls) == 0
 
 
-def test_enqueue_exception_returns_failed_outcome_without_breaking_collection(monkeypatch, context) -> None:
+def test_enqueue_exception_returns_failed_outcome_without_breaking_collection(
+    monkeypatch, context
+) -> None:
     fake_s3 = FakeS3Client()
     fake_sqs = FakeSQSClient()
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
@@ -287,9 +285,7 @@ def test_invalid_body_returns_validation_error(monkeypatch, context) -> None:
             "requestContext": {
                 "requestId": "api-req-1",
                 "routeKey": "POST /collect_bp_releases",
-                "authorizer": {
-                    "lambda": {"user_id": "admin", "session_id": "s", "is_admin": True}
-                },
+                "authorizer": {"lambda": {"user_id": "admin", "session_id": "s", "is_admin": True}},
             },
             "headers": {},
             "body": "{bad-json}",
@@ -308,9 +304,7 @@ def _list_event(route_key: str, query_params: dict | None = None) -> dict:
         "requestContext": {
             "requestId": "api-req-list",
             "routeKey": route_key,
-            "authorizer": {
-                "lambda": {"user_id": "u", "session_id": "s", "is_admin": False}
-            },
+            "authorizer": {"lambda": {"user_id": "u", "session_id": "s", "is_admin": False}},
         },
         "headers": {"x-correlation-id": "cid-list"},
         "queryStringParameters": query_params,
@@ -348,9 +342,7 @@ def test_list_tracks_returns_paginated_results(monkeypatch, context) -> None:
 
     monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: FakeRepo())
 
-    response = lambda_handler(
-        _list_event("GET /tracks", {"limit": "10", "offset": "5"}), context
-    )
+    response = lambda_handler(_list_event("GET /tracks", {"limit": "10", "offset": "5"}), context)
 
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
@@ -383,9 +375,7 @@ def test_list_styles_returns_results(monkeypatch, context) -> None:
         def count_for_user(self, *, user_id, search):
             return 1
 
-    monkeypatch.setattr(
-        "collector.user_styles.routes._build_repository", lambda: FakeRepo()
-    )
+    monkeypatch.setattr("collector.user_styles.routes._build_repository", lambda: FakeRepo())
 
     response = lambda_handler(_list_event("GET /styles"), context)
 
@@ -398,9 +388,7 @@ def test_list_styles_returns_results(monkeypatch, context) -> None:
 def test_list_invalid_limit_returns_validation_error(monkeypatch, context) -> None:
     monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: object())
 
-    response = lambda_handler(
-        _list_event("GET /tracks", {"limit": "999"}), context
-    )
+    response = lambda_handler(_list_event("GET /tracks", {"limit": "999"}), context)
 
     assert response["statusCode"] == 400
     body = json.loads(response["body"])

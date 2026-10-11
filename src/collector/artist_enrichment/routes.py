@@ -49,6 +49,7 @@ def _build_auto_repository() -> AutoEnrichRepository:
 
 def _build_sqs_client():
     import boto3
+
     return boto3.client("sqs")
 
 
@@ -144,9 +145,14 @@ def handle_post_enrich_auto(event: Mapping[str, Any]) -> tuple[int, dict]:
         return 404, {"error_code": "artist_not_found", "message": "artist not found"}
 
     cfg = _build_auto_repository().get_config("artists")
-    if not cfg or not cfg.get("vendors") or not cfg.get("prompt_slug") \
-            or not cfg.get("prompt_version") or not cfg.get("merge_vendor") \
-            or not cfg.get("merge_model"):
+    if (
+        not cfg
+        or not cfg.get("vendors")
+        or not cfg.get("prompt_slug")
+        or not cfg.get("prompt_version")
+        or not cfg.get("merge_vendor")
+        or not cfg.get("merge_model")
+    ):
         return 409, {
             "error_code": "auto_config_missing",
             "message": "auto-enrich config is not set up",
@@ -170,11 +176,13 @@ def handle_post_enrich_auto(event: Mapping[str, Any]) -> tuple[int, dict]:
     sqs = _build_sqs_client()
     sqs.send_message(
         QueueUrl=_queue_url(),
-        MessageBody=json.dumps({
-            "run_id": run_id,
-            "artist_id": artist_id,
-            "artist_name": row["name"],
-        }),
+        MessageBody=json.dumps(
+            {
+                "run_id": run_id,
+                "artist_id": artist_id,
+                "artist_name": row["name"],
+            }
+        ),
     )
     return 202, {"run_id": run_id, "queued_artists": 1}
 
@@ -240,9 +248,7 @@ def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
     style = (qs.get("style") or "").strip() or None
     status = (qs.get("status") or "").strip() or None
     if status and status not in _BACKLOG_STATUSES:
-        raise ValidationError(
-            "status must be one of: " + ", ".join(_BACKLOG_STATUSES)
-        )
+        raise ValidationError("status must be one of: " + ", ".join(_BACKLOG_STATUSES))
     cursor = (qs.get("cursor") or "").strip() or None
     try:
         limit = int(qs.get("limit") or "100")
@@ -253,7 +259,10 @@ def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
 
     repo = _build_repository()
     items, next_cursor, total = repo.list_backlog(
-        style=style, status=status, cursor=cursor, limit=limit,
+        style=style,
+        status=status,
+        cursor=cursor,
+        limit=limit,
     )
     return 200, {"items": items, "next_cursor": next_cursor, "total_estimate": total}
 
@@ -284,7 +293,9 @@ def handle_put_artist_preference(event: Mapping[str, Any]) -> tuple[int, dict]:
         repo.delete_user_artist_pref(user_id=user_id, artist_id=artist_id)
     else:
         repo.upsert_user_artist_pref(
-            user_id=user_id, artist_id=artist_id, status=status,
+            user_id=user_id,
+            artist_id=artist_id,
+            status=status,
         )
     return 204, {}
 
@@ -312,7 +323,10 @@ def handle_get_my_artist_preferences(event: Mapping[str, Any]) -> tuple[int, dic
         raise ValidationError("user_id is required")
     repo = _build_repository()
     items, total = repo.list_user_artist_prefs(
-        user_id=user_id, status=status, page=page, limit=limit,
+        user_id=user_id,
+        status=status,
+        page=page,
+        limit=limit,
     )
     return 200, {"items": items, "total": total, "page": page, "limit": limit}
 
@@ -382,7 +396,12 @@ def handle_get_artists_list(event: Mapping[str, Any]) -> tuple[int, dict]:
     repo = _build_repository()
     user_id = _extract_user_id(event)
     items, total = repo.list_artists(
-        style=style, q=q, sort=sort, page=page, limit=limit,
-        user_id=user_id, my=my,
+        style=style,
+        q=q,
+        sort=sort,
+        page=page,
+        limit=limit,
+        user_id=user_id,
+        my=my,
     )
     return 200, {"items": items, "total": total, "page": page, "limit": limit}

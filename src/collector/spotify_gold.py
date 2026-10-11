@@ -22,7 +22,8 @@ _ARTISTS = """(SELECT COALESCE(STRING_AGG(DISTINCT a.name, ', ' ORDER BY a.name)
                  FROM clouder_track_artists cta JOIN clouder_artists a ON a.id = cta.artist_id
                 WHERE cta.track_id = {t}.track_id) AS artist_names"""
 
-_MATCHES_SQL = """
+_MATCHES_SQL = (
+    """
 WITH m AS (
     SELECT t.id AS track_id, t.isrc, t.title, t.length_ms, t.spotify_id,
            se.payload->>'name' AS spotify_title,
@@ -45,13 +46,19 @@ WITH m AS (
     FROM m
 )
 SELECT r.track_id, r.isrc, r.title, r.length_ms, r.spotify_id, r.spotify_title, r.spotify_isrc,
-       r.spotify_duration_ms, r.spotify_artists, r.tier, r.population, """ + _ARTISTS.format(t="r") + """
+       r.spotify_duration_ms, r.spotify_artists, r.tier, r.population, """
+    + _ARTISTS.format(t="r")
+    + """
 FROM ranked r WHERE rn <= :n
 ORDER BY tier, rn
 """
+)
 
-_NOT_FOUND_SQL = """
-SELECT s.*, """ + _ARTISTS.format(t="s") + """
+_NOT_FOUND_SQL = (
+    """
+SELECT s.*, """
+    + _ARTISTS.format(t="s")
+    + """
 FROM (
     SELECT t.id AS track_id, t.isrc, t.title, count(*) OVER () AS population
     FROM clouder_tracks t
@@ -60,6 +67,7 @@ FROM (
     LIMIT :n
 ) s
 """
+)
 
 
 def export_gold(client: Any, per_tier: int) -> list[dict[str, Any]]:
@@ -67,31 +75,36 @@ def export_gold(client: Any, per_tier: int) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for row in client.execute(_MATCHES_SQL, {"n": per_tier}):
         population[row["tier"]] = int(row["population"])
-        records.append({
-            "kind": "match",
-            "tier": row["tier"],
-            "track_id": row["track_id"],
-            "isrc": row["isrc"],
-            "artist": row["artist_names"],
-            "title": row["title"],
-            "length_ms": row["length_ms"],
-            "spotify_id": row["spotify_id"],
-            "spotify_url": f"https://open.spotify.com/track/{row['spotify_id']}",
-            "spotify_title": row["spotify_title"],
-            "spotify_artists": row["spotify_artists"] or "",
-            "spotify_isrc": row["spotify_isrc"],
-            "spotify_duration_ms": row["spotify_duration_ms"],
-        })
+        records.append(
+            {
+                "kind": "match",
+                "tier": row["tier"],
+                "track_id": row["track_id"],
+                "isrc": row["isrc"],
+                "artist": row["artist_names"],
+                "title": row["title"],
+                "length_ms": row["length_ms"],
+                "spotify_id": row["spotify_id"],
+                "spotify_url": f"https://open.spotify.com/track/{row['spotify_id']}",
+                "spotify_title": row["spotify_title"],
+                "spotify_artists": row["spotify_artists"] or "",
+                "spotify_isrc": row["spotify_isrc"],
+                "spotify_duration_ms": row["spotify_duration_ms"],
+            }
+        )
     for row in client.execute(_NOT_FOUND_SQL, {"n": per_tier}):
         population["not_found"] = int(row["population"])
-        records.append({
-            "kind": "not_found",
-            "track_id": row["track_id"],
-            "isrc": row["isrc"],
-            "artist": row["artist_names"],
-            "title": row["title"],
-            "search_url": "https://open.spotify.com/search/" + quote(f"{row['artist_names']} {row['title']}"),
-        })
+        records.append(
+            {
+                "kind": "not_found",
+                "track_id": row["track_id"],
+                "isrc": row["isrc"],
+                "artist": row["artist_names"],
+                "title": row["title"],
+                "search_url": "https://open.spotify.com/search/"
+                + quote(f"{row['artist_names']} {row['title']}"),
+            }
+        )
     return [*records, population]
 
 
@@ -100,19 +113,28 @@ def evaluate(records: list[Mapping[str, Any]], labels: Mapping[str, bool]) -> di
     population = next(r for r in records if r["kind"] == "population")
     tiers = {}
     for tier in TIERS:
-        got = [labels[r["track_id"]] for r in records
-               if r["kind"] == "match" and r["tier"] == tier and r["track_id"] in labels]
+        got = [
+            labels[r["track_id"]]
+            for r in records
+            if r["kind"] == "match" and r["tier"] == tier and r["track_id"] in labels
+        ]
         tiers[tier] = {
             "labelled": len(got),
             "correct": sum(got),
             "precision": sum(got) / len(got) if got else None,
             "population": population.get(tier, 0),
         }
-    misses = [labels[r["track_id"]] for r in records if r["kind"] == "not_found" and r["track_id"] in labels]
+    misses = [
+        labels[r["track_id"]]
+        for r in records
+        if r["kind"] == "not_found" and r["track_id"] in labels
+    ]
     missed = (len(misses) - sum(misses)) / len(misses) * population["not_found"] if misses else None
     # ponytail: tiers without labels are left out of the found count, so the recall
     # estimate leans low until every tier is labelled.
-    found = sum(t["precision"] * t["population"] for t in tiers.values() if t["precision"] is not None)
+    found = sum(
+        t["precision"] * t["population"] for t in tiers.values() if t["precision"] is not None
+    )
     recall = found / (found + missed) if missed is not None and found + missed else None
     return {"tiers": tiers, "missed_estimate": missed, "recall_estimate": recall}
 
@@ -121,10 +143,14 @@ def render_report(result: Mapping[str, Any]) -> str:
     lines = ["| Tier | Population | Labelled | Correct | Precision |", "|---|---|---|---|---|"]
     for tier, t in result["tiers"].items():
         precision = f"{t['precision']:.1%}" if t["precision"] is not None else "—"
-        lines.append(f"| {tier} | {t['population']} | {t['labelled']} | {t['correct']} | {precision} |")
+        lines.append(
+            f"| {tier} | {t['population']} | {t['labelled']} | {t['correct']} | {precision} |"
+        )
     if result["recall_estimate"] is None:
         lines.append("\nRecall: label the not-found sample and at least one tier.")
     else:
-        lines.append(f"\nEstimated missed tracks: {result['missed_estimate']:.0f}; "
-                     f"recall ≈ {result['recall_estimate']:.1%}.")
+        lines.append(
+            f"\nEstimated missed tracks: {result['missed_estimate']:.0f}; "
+            f"recall ≈ {result['recall_estimate']:.1%}."
+        )
     return "\n".join(lines) + "\n"

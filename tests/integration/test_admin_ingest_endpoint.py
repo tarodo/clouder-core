@@ -90,9 +90,7 @@ def _stub_pipeline(monkeypatch):
             return ("s3-key", None)
 
     monkeypatch.setattr("collector.api.deps.S3Storage", FakeS3Storage)
-    monkeypatch.setattr(
-        "collector.api.deps.create_default_s3_client", lambda: MagicMock()
-    )
+    monkeypatch.setattr("collector.api.deps.create_default_s3_client", lambda: MagicMock())
 
     fake_client = MagicMock()
     fake_client.fetch_weekly_releases.return_value = ([], 1)
@@ -113,7 +111,9 @@ def _stub_pipeline(monkeypatch):
 
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     monkeypatch.setattr("collector.api.deps.read_beatport_credentials", lambda: ("user", "pass"))
-    monkeypatch.setattr("collector.api.deps.fetch_access_token", lambda username, password: "srv-tok")
+    monkeypatch.setattr(
+        "collector.api.deps.fetch_access_token", lambda username, password: "srv-tok"
+    )
 
     return fake_repo, fake_client
 
@@ -179,15 +179,26 @@ def test_admin_ingest_happy_path_with_override(monkeypatch):
 def test_collect_period_marks_auto_runs(monkeypatch):
     fake_repo, fake_client = _stub_pipeline(monkeypatch)
     params = routes_ingest.IngestParams(
-        style_id=7, bp_token="tok", period_start="2026-01-31", period_end="2026-02-06",
-        iso_year=None, iso_week=None, week_year=2026, week_number=5, is_custom_range=False,
+        style_id=7,
+        bp_token="tok",
+        period_start="2026-01-31",
+        period_end="2026-02-06",
+        iso_year=None,
+        iso_week=None,
+        week_year=2026,
+        week_number=5,
+        is_custom_range=False,
     )
 
     result = routes_ingest.collect_period(
         params, "corr-1", api_request_id="auto-ingest", lambda_request_id="lr-2", trigger="auto"
     )
 
-    assert (result["week_year"], result["week_number"], result["run_status"]) == (2026, 5, "RAW_SAVED")
+    assert (result["week_year"], result["week_number"], result["run_status"]) == (
+        2026,
+        5,
+        "RAW_SAVED",
+    )
     assert fake_repo.create_ingest_run.call_args[0][0].meta["trigger"] == "auto"
     assert fake_client.fetch_weekly_releases.call_args.kwargs["bp_token"] == "tok"
 
@@ -195,9 +206,7 @@ def test_collect_period_marks_auto_runs(monkeypatch):
 def test_manual_admin_ingest_is_marked_manual(monkeypatch):
     fake_repo, _ = _stub_pipeline(monkeypatch)
 
-    handler.lambda_handler(
-        _event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx()
-    )
+    handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
 
     assert fake_repo.create_ingest_run.call_args[0][0].meta["trigger"] == "manual"
 
@@ -207,10 +216,14 @@ def test_admin_ingest_logs_in_server_side(monkeypatch):
     # credentials auto-ingest uses, and the token goes only to the fetch.
     _, fake_client = _stub_pipeline(monkeypatch)
     logins = []
-    monkeypatch.setattr("collector.api.deps.fetch_access_token",
-                        lambda username, password: logins.append((username, password)) or "srv-tok")
+    monkeypatch.setattr(
+        "collector.api.deps.fetch_access_token",
+        lambda username, password: logins.append((username, password)) or "srv-tok",
+    )
 
-    response = handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
+    response = handler.lambda_handler(
+        _event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx()
+    )
 
     assert response["statusCode"] == 200
     assert logins == [("user", "pass")]
@@ -234,7 +247,9 @@ def test_admin_ingest_reports_missing_credentials(monkeypatch):
 
     monkeypatch.setattr("collector.api.deps.read_beatport_credentials", missing)
 
-    response = handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
+    response = handler.lambda_handler(
+        _event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx()
+    )
 
     assert response["statusCode"] == 503
     assert json.loads(response["body"])["error_code"] == "beatport_credentials_unavailable"
@@ -251,7 +266,9 @@ def test_admin_ingest_reports_a_rejected_login(monkeypatch):
 
     monkeypatch.setattr("collector.api.deps.fetch_access_token", rejected)
 
-    response = handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
+    response = handler.lambda_handler(
+        _event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx()
+    )
 
     body = json.loads(response["body"])
     assert (response["statusCode"], body["error_code"]) == (502, "beatport_login_failed")
@@ -261,9 +278,12 @@ def test_admin_ingest_reports_a_rejected_login(monkeypatch):
 
 def test_invalid_request_is_rejected_before_logging_in(monkeypatch):
     _stub_pipeline(monkeypatch)
-    monkeypatch.setattr("collector.api.deps.fetch_access_token",
-                        lambda username, password: pytest.fail("logged in for an invalid request"))
+    monkeypatch.setattr(
+        "collector.api.deps.fetch_access_token",
+        lambda username, password: pytest.fail("logged in for an invalid request"),
+    )
     response = handler.lambda_handler(
-        _event({"style_id": 7, "week_year": 2026, "week_number": 5, "period_start": "2026-01-31"}), _ctx()
+        _event({"style_id": 7, "week_year": 2026, "week_number": 5, "period_start": "2026-01-31"}),
+        _ctx(),
     )
     assert response["statusCode"] == 400

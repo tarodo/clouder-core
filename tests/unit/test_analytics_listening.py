@@ -20,11 +20,29 @@ _ROWS = [
     # t1 again: next play is days later -> capped at 300s
     ("e4", "u1", "2026-10-04", _B, "2026-10-04T10:10:00.000Z", "playback_play", "t1", 300000),
     # unknown duration, last play -> 10-min fallback; 23:30Z = next local day at +180
-    ("e5", "u1", "2026-10-05", "2026-10-05T23:30:05+00:00", "2026-10-05T23:30:00.000Z", "playback_play", "t3", 0),
+    (
+        "e5",
+        "u1",
+        "2026-10-05",
+        "2026-10-05T23:30:05+00:00",
+        "2026-10-05T23:30:00.000Z",
+        "playback_play",
+        "t3",
+        0,
+    ),
     # other user: excluded
     ("e6", "u2", "2026-10-04", _B, "2026-10-04T10:00:00.000Z", "playback_play", "t9", 300000),
     # before the month window: excluded from totals
-    ("e7", "u1", "2026-08-01", "2026-08-01T10:00:00+00:00", "2026-08-01T10:00:00.000Z", "playback_play", "t8", 300000),
+    (
+        "e7",
+        "u1",
+        "2026-08-01",
+        "2026-08-01T10:00:00+00:00",
+        "2026-08-01T10:00:00.000Z",
+        "playback_play",
+        "t8",
+        300000,
+    ),
 ]
 
 
@@ -36,8 +54,11 @@ def con():
         "ts_server VARCHAR, ts_client VARCHAR, event_name VARCHAR, track_id VARCHAR, "
         "duration_ms BIGINT, source VARCHAR)"
     )
-    c.executemany("INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
-        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)", _ROWS)
+    c.executemany(
+        "INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
+        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)",
+        _ROWS,
+    )
     yield c
     c.close()
 
@@ -170,7 +191,10 @@ def test_pause_resume_and_end_cut_listen_time():
         "ts_server VARCHAR, ts_client VARCHAR, event_name VARCHAR, track_id VARCHAR, "
         "duration_ms BIGINT, source VARCHAR)"
     )
-    c.executemany("INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
-        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)", _PAUSE_ROWS)
+    c.executemany(
+        "INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
+        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)",
+        _PAUSE_ROWS,
+    )
     out = _run(c, date(2026, 10, 4), 0)
     assert out["totals"]["day"] == {"listened_ms": 390000, "tracks": 3}

@@ -144,8 +144,7 @@ def test_create_maps_unique_violation_to_name_conflict() -> None:
     class FakeUniqueViolation(Exception):
         def __str__(self) -> str:
             return (
-                "duplicate key value violates unique constraint "
-                '"uq_categories_user_style_normname"'
+                'duplicate key value violates unique constraint "uq_categories_user_style_normname"'
             )
 
     data_api.execute.side_effect = [
@@ -201,18 +200,21 @@ def test_list_by_style_returns_rows_and_total() -> None:
     data_api.execute.side_effect = [
         [
             {
-                "id": "c1", "user_id": "u1", "style_id": "s1",
-                "style_name": "House", "name": "Tech",
-                "normalized_name": "tech", "position": 0,
+                "id": "c1",
+                "user_id": "u1",
+                "style_id": "s1",
+                "style_name": "House",
+                "name": "Tech",
+                "normalized_name": "tech",
+                "position": 0,
                 "track_count": 0,
-                "created_at": "x", "updated_at": "x",
+                "created_at": "x",
+                "updated_at": "x",
             }
         ],
         [{"total": 1}],
     ]
-    result = repo.list_by_style(
-        user_id="u1", style_id="s1", limit=50, offset=0
-    )
+    result = repo.list_by_style(user_id="u1", style_id="s1", limit=50, offset=0)
     assert result.total == 1
     assert len(result.items) == 1
     list_sql = data_api.execute.call_args_list[0].args[0]
@@ -222,7 +224,10 @@ def test_list_by_style_returns_rows_and_total() -> None:
     assert "c.style_id = :style_id" in list_sql
     assert "LIMIT :limit OFFSET :offset" in list_sql
     assert list_params == {
-        "user_id": "u1", "style_id": "s1", "limit": 50, "offset": 0,
+        "user_id": "u1",
+        "style_id": "s1",
+        "limit": 50,
+        "offset": 0,
     }
     count_sql = data_api.execute.call_args_list[1].args[0]
     assert "COUNT(*)" in count_sql
@@ -256,11 +261,16 @@ def test_rename_updates_and_returns_row() -> None:
         [{"id": "c1"}],  # UPDATE returning at least one row -> success
         [
             {
-                "id": "c1", "user_id": "u1", "style_id": "s1",
-                "style_name": "House", "name": "Deep",
-                "normalized_name": "deep", "position": 0,
+                "id": "c1",
+                "user_id": "u1",
+                "style_id": "s1",
+                "style_name": "House",
+                "name": "Deep",
+                "normalized_name": "deep",
+                "position": 0,
                 "track_count": 0,
-                "created_at": "x", "updated_at": "x",
+                "created_at": "x",
+                "updated_at": "x",
             }
         ],
     ]
@@ -288,8 +298,11 @@ def test_rename_raises_not_found_when_no_row() -> None:
     data_api.execute.side_effect = [[]]
     with pytest.raises(NotFoundError) as exc:
         repo.rename(
-            user_id="u1", category_id="missing",
-            name="x", normalized_name="x", now=_now(),
+            user_id="u1",
+            category_id="missing",
+            name="x",
+            normalized_name="x",
+            now=_now(),
         )
     assert exc.value.error_code == "category_not_found"
 
@@ -300,15 +313,17 @@ def test_rename_maps_unique_violation_to_name_conflict() -> None:
     class FakeUniqueViolation(Exception):
         def __str__(self) -> str:
             return (
-                "duplicate key value violates unique constraint "
-                "\"uq_categories_user_style_normname\""
+                'duplicate key value violates unique constraint "uq_categories_user_style_normname"'
             )
 
     data_api.execute.side_effect = [FakeUniqueViolation()]
     with pytest.raises(NameConflictError):
         repo.rename(
-            user_id="u1", category_id="c1",
-            name="x", normalized_name="x", now=_now(),
+            user_id="u1",
+            category_id="c1",
+            name="x",
+            normalized_name="x",
+            now=_now(),
         )
 
 
@@ -319,9 +334,7 @@ def test_soft_delete_updates_deleted_at() -> None:
     # 1: UPDATE categories ... RETURNING -> one row (success)
     # 2: spec-D mark_staging_inactive_for_category -> no buckets to inactivate
     data_api.execute.side_effect = [[{"id": "c1"}], []]
-    deleted = repo.soft_delete(
-        user_id="u1", category_id="c1", now=_now()
-    )
+    deleted = repo.soft_delete(user_id="u1", category_id="c1", now=_now())
     assert deleted is True
     sql = data_api.execute.call_args_list[0].args[0]
     params = data_api.execute.call_args_list[0].args[1]
@@ -345,9 +358,7 @@ def test_soft_delete_returns_false_when_no_row() -> None:
     data_api.transaction.return_value.__enter__.return_value = "tx-1"
     data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.return_value = []
-    deleted = repo.soft_delete(
-        user_id="u1", category_id="missing", now=_now()
-    )
+    deleted = repo.soft_delete(user_id="u1", category_id="missing", now=_now())
     assert deleted is False
     # Only the UPDATE attempt; no inactivate when category was already gone.
     assert data_api.execute.call_count == 1
@@ -368,18 +379,42 @@ def test_reorder_validates_set_and_updates_positions() -> None:
         [{"id": "a"}],
         [{"id": "b"}],
         [
-            {"id": "c", "user_id": "u1", "style_id": "s1",
-             "style_name": "House", "name": "C", "normalized_name": "c",
-             "position": 0, "track_count": 0,
-             "created_at": "x", "updated_at": "x"},
-            {"id": "a", "user_id": "u1", "style_id": "s1",
-             "style_name": "House", "name": "A", "normalized_name": "a",
-             "position": 1, "track_count": 0,
-             "created_at": "x", "updated_at": "x"},
-            {"id": "b", "user_id": "u1", "style_id": "s1",
-             "style_name": "House", "name": "B", "normalized_name": "b",
-             "position": 2, "track_count": 0,
-             "created_at": "x", "updated_at": "x"},
+            {
+                "id": "c",
+                "user_id": "u1",
+                "style_id": "s1",
+                "style_name": "House",
+                "name": "C",
+                "normalized_name": "c",
+                "position": 0,
+                "track_count": 0,
+                "created_at": "x",
+                "updated_at": "x",
+            },
+            {
+                "id": "a",
+                "user_id": "u1",
+                "style_id": "s1",
+                "style_name": "House",
+                "name": "A",
+                "normalized_name": "a",
+                "position": 1,
+                "track_count": 0,
+                "created_at": "x",
+                "updated_at": "x",
+            },
+            {
+                "id": "b",
+                "user_id": "u1",
+                "style_id": "s1",
+                "style_name": "House",
+                "name": "B",
+                "normalized_name": "b",
+                "position": 2,
+                "track_count": 0,
+                "created_at": "x",
+                "updated_at": "x",
+            },
         ],
     ]
     result = repo.reorder(
@@ -424,13 +459,15 @@ def test_reorder_raises_order_mismatch_on_extra_id() -> None:
     data_api.transaction.return_value.__enter__.return_value = "tx-1"
     data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.side_effect = [
-        [{"id": "s1", "name": "House"}],   # style lookup
-        [{"id": "a"}, {"id": "b"}],         # current set
+        [{"id": "s1", "name": "House"}],  # style lookup
+        [{"id": "a"}, {"id": "b"}],  # current set
     ]
     with pytest.raises(OrderMismatchError):
         repo.reorder(
-            user_id="u1", style_id="s1",
-            ordered_ids=["a", "b", "c"], now=_now(),
+            user_id="u1",
+            style_id="s1",
+            ordered_ids=["a", "b", "c"],
+            now=_now(),
         )
 
 
@@ -451,7 +488,7 @@ def test_add_tracks_bulk_validates_category_ownership() -> None:
 def test_add_tracks_bulk_inserts_and_returns_count() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = [
-        [{"id": "c1"}],            # category exists
+        [{"id": "c1"}],  # category exists
         [{"id": "t1"}, {"id": "t2"}],  # track existence
         [{"track_id": "t1"}, {"track_id": "t2"}],  # INSERT ON CONFLICT RETURNING
     ]
@@ -470,13 +507,15 @@ def test_add_tracks_bulk_inserts_and_returns_count() -> None:
 def test_add_tracks_bulk_raises_track_not_found() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = [
-        [{"id": "c1"}],       # category exists
-        [{"id": "t1"}],       # only one of the requested tracks exists
+        [{"id": "c1"}],  # category exists
+        [{"id": "t1"}],  # only one of the requested tracks exists
     ]
     with pytest.raises(NotFoundError) as exc:
         repo.add_tracks_bulk(
-            user_id="u1", category_id="c1",
-            items=[("t1", None), ("t-missing", None)], now=_now(),
+            user_id="u1",
+            category_id="c1",
+            items=[("t1", None), ("t-missing", None)],
+            now=_now(),
         )
     assert exc.value.error_code == "track_not_found"
 
@@ -504,9 +543,9 @@ def test_add_tracks_bulk_dedups_duplicate_track_ids_in_items() -> None:
     abort the INSERT. First-src-wins."""
     repo, data_api = _make()
     data_api.execute.side_effect = [
-        [{"id": "c1"}],            # category exists
-        [{"id": "t1"}],            # only one unique track to check
-        [{"track_id": "t1"}],       # one INSERT row returned
+        [{"id": "c1"}],  # category exists
+        [{"id": "t1"}],  # only one unique track to check
+        [{"track_id": "t1"}],  # one INSERT row returned
     ]
     inserted = repo.add_tracks_bulk(
         user_id="u1",
@@ -542,15 +581,15 @@ def test_add_tracks_bulk_idempotent_returns_zero_when_all_existing() -> None:
 def test_add_track_returns_added_when_newly_inserted() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = [
-        [{"id": "c1"}],            # category lookup (inside add_tracks_bulk)
-        [{"id": "t1"}],            # track lookup
-        [{"track_id": "t1"}],       # INSERT returning -> newly inserted
+        [{"id": "c1"}],  # category lookup (inside add_tracks_bulk)
+        [{"id": "t1"}],  # track lookup
+        [{"track_id": "t1"}],  # INSERT returning -> newly inserted
         [
             {
                 "added_at": "2026-04-27T12:00:00+00:00",
                 "source_triage_block_id": None,
             }
-        ],                          # post-insert SELECT for canonical shape
+        ],  # post-insert SELECT for canonical shape
     ]
     result, was_new = repo.add_track(
         user_id="u1",
@@ -595,7 +634,7 @@ def test_add_track_returns_existing_when_already_present() -> None:
     data_api.execute.side_effect = [
         [{"id": "c1"}],
         [{"id": "t1"}],
-        [],   # ON CONFLICT DO NOTHING -> empty
+        [],  # ON CONFLICT DO NOTHING -> empty
         [
             {
                 "added_at": "2026-04-01T00:00:00Z",
@@ -622,11 +661,9 @@ def test_remove_track_returns_true_on_delete() -> None:
     # Validate category ownership first (one execute), then delete
     data_api.execute.side_effect = [
         [{"id": "c1"}],
-        [{"track_id": "t1"}],   # DELETE RETURNING
+        [{"track_id": "t1"}],  # DELETE RETURNING
     ]
-    deleted = repo.remove_track(
-        user_id="u1", category_id="c1", track_id="t1"
-    )
+    deleted = repo.remove_track(user_id="u1", category_id="c1", track_id="t1")
     assert deleted is True
     cat_sql = data_api.execute.call_args_list[0].args[0]
     cat_params = data_api.execute.call_args_list[0].args[1]
@@ -643,9 +680,7 @@ def test_remove_track_raises_category_not_found() -> None:
     data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.side_effect = [[]]
     with pytest.raises(NotFoundError) as exc:
-        repo.remove_track(
-            user_id="u1", category_id="missing", track_id="t1"
-        )
+        repo.remove_track(user_id="u1", category_id="missing", track_id="t1")
     assert exc.value.error_code == "category_not_found"
     cat_sql = data_api.execute.call_args_list[0].args[0]
     cat_params = data_api.execute.call_args_list[0].args[1]
@@ -659,11 +694,9 @@ def test_remove_track_returns_false_when_not_in_category() -> None:
     data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.side_effect = [
         [{"id": "c1"}],
-        [],   # DELETE RETURNING -> empty
+        [],  # DELETE RETURNING -> empty
     ]
-    deleted = repo.remove_track(
-        user_id="u1", category_id="c1", track_id="t-missing"
-    )
+    deleted = repo.remove_track(user_id="u1", category_id="c1", track_id="t-missing")
     assert deleted is False
 
 
@@ -678,11 +711,16 @@ def test_remove_track_calls_tags_cleanup_on_delete() -> None:
     tags_repo = MagicMock()
     tags_repo.cleanup_orphaned_track_tags.return_value = 0
     deleted = repo.remove_track(
-        user_id="u1", category_id="c1", track_id="t1", tags_repo=tags_repo,
+        user_id="u1",
+        category_id="c1",
+        track_id="t1",
+        tags_repo=tags_repo,
     )
     assert deleted is True
     tags_repo.cleanup_orphaned_track_tags.assert_called_once_with(
-        user_id="u1", track_ids=["t1"], transaction_id="tx-1",
+        user_id="u1",
+        track_ids=["t1"],
+        transaction_id="tx-1",
     )
 
 
@@ -696,7 +734,10 @@ def test_remove_track_skips_tags_cleanup_when_nothing_deleted() -> None:
     ]
     tags_repo = MagicMock()
     deleted = repo.remove_track(
-        user_id="u1", category_id="c1", track_id="t1", tags_repo=tags_repo,
+        user_id="u1",
+        category_id="c1",
+        track_id="t1",
+        tags_repo=tags_repo,
     )
     assert deleted is False
     tags_repo.cleanup_orphaned_track_tags.assert_not_called()
@@ -707,18 +748,23 @@ def test_soft_delete_calls_tags_cleanup_for_member_tracks() -> None:
     data_api.transaction.return_value.__enter__.return_value = "tx-1"
     data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.side_effect = [
-        [{"track_id": "t1"}, {"track_id": "t2"}],   # SELECT member tracks
-        [{"id": "c1"}],                              # UPDATE deleted_at returning
-        [],                                          # mark_staging_inactive_for_category
+        [{"track_id": "t1"}, {"track_id": "t2"}],  # SELECT member tracks
+        [{"id": "c1"}],  # UPDATE deleted_at returning
+        [],  # mark_staging_inactive_for_category
     ]
     tags_repo = MagicMock()
     tags_repo.cleanup_orphaned_track_tags.return_value = 0
     ok = repo.soft_delete(
-        user_id="u1", category_id="c1", now=_now(), tags_repo=tags_repo,
+        user_id="u1",
+        category_id="c1",
+        now=_now(),
+        tags_repo=tags_repo,
     )
     assert ok is True
     tags_repo.cleanup_orphaned_track_tags.assert_called_once_with(
-        user_id="u1", track_ids=["t1", "t2"], transaction_id="tx-1",
+        user_id="u1",
+        track_ids=["t1", "t2"],
+        transaction_id="tx-1",
     )
 
 
@@ -727,13 +773,16 @@ def test_soft_delete_skips_tags_cleanup_when_no_members() -> None:
     data_api.transaction.return_value.__enter__.return_value = "tx-1"
     data_api.transaction.return_value.__exit__.return_value = False
     data_api.execute.side_effect = [
-        [],                  # SELECT member tracks — empty
-        [{"id": "c1"}],      # UPDATE deleted_at returning
-        [],                  # mark_staging_inactive
+        [],  # SELECT member tracks — empty
+        [{"id": "c1"}],  # UPDATE deleted_at returning
+        [],  # mark_staging_inactive
     ]
     tags_repo = MagicMock()
     ok = repo.soft_delete(
-        user_id="u1", category_id="c1", now=_now(), tags_repo=tags_repo,
+        user_id="u1",
+        category_id="c1",
+        now=_now(),
+        tags_repo=tags_repo,
     )
     assert ok is True
     tags_repo.cleanup_orphaned_track_tags.assert_not_called()
@@ -744,8 +793,11 @@ def test_list_tracks_validates_category() -> None:
     data_api.execute.side_effect = [[]]
     with pytest.raises(NotFoundError) as exc:
         repo.list_tracks(
-            user_id="u1", category_id="missing",
-            limit=50, offset=0, search=None,
+            user_id="u1",
+            category_id="missing",
+            limit=50,
+            offset=0,
+            search=None,
         )
     assert exc.value.error_code == "category_not_found"
     cat_sql = data_api.execute.call_args_list[0].args[0]
@@ -762,13 +814,20 @@ def test_list_tracks_handles_empty_artists() -> None:
         [{"id": "c1"}],
         [
             {
-                "id": "t1", "title": "Song", "mix_name": None,
-                "isrc": None, "bpm": None, "length_ms": None,
-                "publish_date": None, "spotify_id": None,
-                "release_type": None, "is_ai_suspected": False,
+                "id": "t1",
+                "title": "Song",
+                "mix_name": None,
+                "isrc": None,
+                "bpm": None,
+                "length_ms": None,
+                "publish_date": None,
+                "spotify_id": None,
+                "release_type": None,
+                "is_ai_suspected": False,
                 "spotify_release_date": None,
                 "artists_json": "[]",
-                "label_id": None, "label_name": None,
+                "label_id": None,
+                "label_name": None,
                 "added_at": "2026-04-27T12:00:00Z",
                 "source_triage_block_id": None,
             }
@@ -776,8 +835,11 @@ def test_list_tracks_handles_empty_artists() -> None:
         [{"total": 1}],
     ]
     result = repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=50, offset=0, search=None,
+        user_id="u1",
+        category_id="c1",
+        limit=50,
+        offset=0,
+        search=None,
     )
     assert result.items[0].track["artists"] == []
     assert result.items[0].track["label"] is None
@@ -790,16 +852,20 @@ def test_list_tracks_returns_rows_and_total() -> None:
         [{"id": "c1"}],
         [
             {
-                "id": "t1", "title": "Song", "mix_name": None,
-                "isrc": "X", "bpm": 124, "length_ms": 360000,
-                "publish_date": None, "spotify_id": None,
-                "release_type": "single", "is_ai_suspected": False,
+                "id": "t1",
+                "title": "Song",
+                "mix_name": None,
+                "isrc": "X",
+                "bpm": 124,
+                "length_ms": 360000,
+                "publish_date": None,
+                "spotify_id": None,
+                "release_type": "single",
+                "is_ai_suspected": False,
                 "spotify_release_date": "2026-01-15",
-                "artists_json": (
-                    '[{"id":"a1","name":"Artist A"},'
-                    '{"id":"a2","name":"Artist B"}]'
-                ),
-                "label_id": "l1", "label_name": "Cool Label",
+                "artists_json": ('[{"id":"a1","name":"Artist A"},{"id":"a2","name":"Artist B"}]'),
+                "label_id": "l1",
+                "label_name": "Cool Label",
                 "added_at": "2026-04-27T12:00:00Z",
                 "source_triage_block_id": None,
             }
@@ -807,8 +873,11 @@ def test_list_tracks_returns_rows_and_total() -> None:
         [{"total": 1}],
     ]
     result = repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=50, offset=0, search=None,
+        user_id="u1",
+        category_id="c1",
+        limit=50,
+        offset=0,
+        search=None,
     )
     assert result.total == 1
     item = result.items[0]
@@ -831,8 +900,11 @@ def test_list_tracks_applies_search_lowercased() -> None:
         [{"total": 0}],
     ]
     repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=50, offset=0, search="  Tech  ",
+        user_id="u1",
+        category_id="c1",
+        limit=50,
+        offset=0,
+        search="  Tech  ",
     )
     list_sql = data_api.execute.call_args_list[1].args[0]
     list_params = data_api.execute.call_args_list[1].args[1]
@@ -847,13 +919,20 @@ def test_list_tracks_label_null_when_no_album() -> None:
         [{"id": "c1"}],
         [
             {
-                "id": "t1", "title": "Song", "mix_name": None,
-                "isrc": None, "bpm": None, "length_ms": None,
-                "publish_date": None, "spotify_id": None,
-                "release_type": None, "is_ai_suspected": False,
+                "id": "t1",
+                "title": "Song",
+                "mix_name": None,
+                "isrc": None,
+                "bpm": None,
+                "length_ms": None,
+                "publish_date": None,
+                "spotify_id": None,
+                "release_type": None,
+                "is_ai_suspected": False,
                 "spotify_release_date": None,
                 "artists_json": "[]",
-                "label_id": None, "label_name": None,
+                "label_id": None,
+                "label_name": None,
                 "added_at": "2026-04-27T12:00:00Z",
                 "source_triage_block_id": None,
             }
@@ -861,8 +940,11 @@ def test_list_tracks_label_null_when_no_album() -> None:
         [{"total": 1}],
     ]
     result = repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=50, offset=0, search=None,
+        user_id="u1",
+        category_id="c1",
+        limit=50,
+        offset=0,
+        search=None,
     )
     assert result.items[0].track["label"] is None
 
@@ -870,11 +952,16 @@ def test_list_tracks_label_null_when_no_album() -> None:
 def test_list_tracks_default_sort_added_at_desc() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = [
-        [{"id": "c1"}], [], [{"total": 0}],
+        [{"id": "c1"}],
+        [],
+        [{"total": 0}],
     ]
     repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=50, offset=0, search=None,
+        user_id="u1",
+        category_id="c1",
+        limit=50,
+        offset=0,
+        search=None,
     )
     list_sql = data_api.execute.call_args_list[1].args[0]
     assert "ORDER BY ct.added_at DESC, t.id ASC" in list_sql
@@ -883,12 +970,18 @@ def test_list_tracks_default_sort_added_at_desc() -> None:
 def test_list_tracks_sort_title_asc() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = [
-        [{"id": "c1"}], [], [{"total": 0}],
+        [{"id": "c1"}],
+        [],
+        [{"total": 0}],
     ]
     repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=50, offset=0, search=None,
-        sort="title", order="asc",
+        user_id="u1",
+        category_id="c1",
+        limit=50,
+        offset=0,
+        search=None,
+        sort="title",
+        order="asc",
     )
     list_sql = data_api.execute.call_args_list[1].args[0]
     assert "ORDER BY t.title ASC, t.id ASC" in list_sql
@@ -897,44 +990,58 @@ def test_list_tracks_sort_title_asc() -> None:
 def test_list_tracks_sort_spotify_release_date_nulls_last_asc() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = [
-        [{"id": "c1"}], [], [{"total": 0}],
+        [{"id": "c1"}],
+        [],
+        [{"total": 0}],
     ]
     repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=50, offset=0, search=None,
-        sort="spotify_release_date", order="asc",
+        user_id="u1",
+        category_id="c1",
+        limit=50,
+        offset=0,
+        search=None,
+        sort="spotify_release_date",
+        order="asc",
     )
     list_sql = data_api.execute.call_args_list[1].args[0]
-    assert (
-        "ORDER BY t.spotify_release_date ASC NULLS LAST, t.id ASC" in list_sql
-    )
+    assert "ORDER BY t.spotify_release_date ASC NULLS LAST, t.id ASC" in list_sql
 
 
 def test_list_tracks_sort_spotify_release_date_nulls_last_desc() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = [
-        [{"id": "c1"}], [], [{"total": 0}],
+        [{"id": "c1"}],
+        [],
+        [{"total": 0}],
     ]
     repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=50, offset=0, search=None,
-        sort="spotify_release_date", order="desc",
+        user_id="u1",
+        category_id="c1",
+        limit=50,
+        offset=0,
+        search=None,
+        sort="spotify_release_date",
+        order="desc",
     )
     list_sql = data_api.execute.call_args_list[1].args[0]
-    assert (
-        "ORDER BY t.spotify_release_date DESC NULLS LAST, t.id ASC" in list_sql
-    )
+    assert "ORDER BY t.spotify_release_date DESC NULLS LAST, t.id ASC" in list_sql
 
 
 def test_list_tracks_search_combines_with_sort() -> None:
     repo, data_api = _make()
     data_api.execute.side_effect = [
-        [{"id": "c1"}], [], [{"total": 0}],
+        [{"id": "c1"}],
+        [],
+        [{"total": 0}],
     ]
     repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=50, offset=0, search="tech",
-        sort="title", order="asc",
+        user_id="u1",
+        category_id="c1",
+        limit=50,
+        offset=0,
+        search="tech",
+        sort="title",
+        order="asc",
     )
     list_sql = data_api.execute.call_args_list[1].args[0]
     list_params = data_api.execute.call_args_list[1].args[1]
@@ -948,13 +1055,20 @@ def test_list_tracks_search_combines_with_sort() -> None:
 
 def _stock_track_row() -> dict[str, object]:
     return {
-        "id": "t1", "title": "Song", "mix_name": None,
-        "isrc": None, "bpm": None, "length_ms": None,
-        "publish_date": None, "spotify_id": None,
-        "release_type": None, "is_ai_suspected": False,
+        "id": "t1",
+        "title": "Song",
+        "mix_name": None,
+        "isrc": None,
+        "bpm": None,
+        "length_ms": None,
+        "publish_date": None,
+        "spotify_id": None,
+        "release_type": None,
+        "is_ai_suspected": False,
         "spotify_release_date": None,
         "artists_json": "[]",
-        "label_id": None, "label_name": None,
+        "label_id": None,
+        "label_name": None,
         "added_at": "2026-04-27T12:00:00Z",
         "source_triage_block_id": None,
     }
@@ -972,9 +1086,13 @@ def test_list_tracks_filters_with_match_all() -> None:
         "t1": [TrackTagRow(track_id="t1", tag_id="tg1", name="Vocal", color="#f00")]
     }
     page = repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=20, offset=0, search=None,
-        tag_ids=["tg1", "tg2"], tag_match="all",
+        user_id="u1",
+        category_id="c1",
+        limit=20,
+        offset=0,
+        search=None,
+        tag_ids=["tg1", "tg2"],
+        tag_match="all",
         tags_repo=tags_repo,
     )
     assert page.total == 1
@@ -989,7 +1107,8 @@ def test_list_tracks_filters_with_match_all() -> None:
     assert main_params["tag1"] == "tg2"
     # fan-in is called with the page's track ids
     tags_repo.list_tags_for_tracks.assert_called_once_with(
-        user_id="u1", track_ids=["t1"],
+        user_id="u1",
+        track_ids=["t1"],
     )
 
 
@@ -1003,9 +1122,13 @@ def test_list_tracks_filters_with_match_any() -> None:
     tags_repo = MagicMock()
     tags_repo.list_tags_for_tracks.return_value = {}
     page = repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=20, offset=0, search=None,
-        tag_ids=["tg1"], tag_match="any",
+        user_id="u1",
+        category_id="c1",
+        limit=20,
+        offset=0,
+        search=None,
+        tag_ids=["tg1"],
+        tag_match="any",
         tags_repo=tags_repo,
     )
     assert page.total == 0
@@ -1028,13 +1151,17 @@ def test_list_tracks_no_tag_filter_still_populates_tags_when_repo_passed() -> No
         "t1": [TrackTagRow(track_id="t1", tag_id="tg1", name="Vocal", color="#f00")]
     }
     page = repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=20, offset=0, search=None,
+        user_id="u1",
+        category_id="c1",
+        limit=20,
+        offset=0,
+        search=None,
         tags_repo=tags_repo,
     )
     assert page.items[0].tags[0].name == "Vocal"
     tags_repo.list_tags_for_tracks.assert_called_once_with(
-        user_id="u1", track_ids=["t1"],
+        user_id="u1",
+        track_ids=["t1"],
     )
 
 
@@ -1046,7 +1173,10 @@ def test_list_tracks_without_tags_repo_returns_empty_tags_tuple() -> None:
         [{"total": 1}],
     ]
     page = repo.list_tracks(
-        user_id="u1", category_id="c1",
-        limit=20, offset=0, search=None,
+        user_id="u1",
+        category_id="c1",
+        limit=20,
+        offset=0,
+        search=None,
     )
     assert page.items[0].tags == ()

@@ -33,7 +33,9 @@ def publish(results: Sequence[CheckResult], cloudwatch: Any, *, now: datetime) -
         for r in results
         if r.value is not None
     ]
-    metric_data.append({"MetricName": "FailedChecks", "Value": failed, "Unit": "Count", "Timestamp": now})
+    metric_data.append(
+        {"MetricName": "FailedChecks", "Value": failed, "Unit": "Count", "Timestamp": now}
+    )
     cloudwatch.put_metric_data(Namespace=NAMESPACE, MetricData=metric_data)
     return failed
 
@@ -52,8 +54,12 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
     results = run_checks(client, now.date())
     for r in results:
         log_event(
-            "INFO" if r.passed else "WARNING", "dq_check_result",
-            check=r.name, value=r.value, threshold=r.threshold, passed=r.passed,
+            "INFO" if r.passed else "WARNING",
+            "dq_check_result",
+            check=r.name,
+            value=r.value,
+            threshold=r.threshold,
+            passed=r.passed,
         )
     failed = publish(results, _cloudwatch(), now=now)
     log_event("INFO", "dq_run_completed", failed_checks=failed, count=len(results))

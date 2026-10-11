@@ -9,9 +9,9 @@ _D = "2026-10-05"
 # (event_id, track_id, source, ts_client, duration_ms) — all playback_play, user u1.
 # Listen time = gap to the next play (no pause events here), last one capped by duration.
 _PLAYS = [
-    ("e1", "t1", "triage_player", "10:00:00", 600000),    # -> 6s   House
-    ("e2", "t2", "triage_player", "10:00:06", 600000),    # -> 10s  House
-    ("e3", "t3", "triage_player", "10:00:16", 600000),    # -> 44s  Techno
+    ("e1", "t1", "triage_player", "10:00:00", 600000),  # -> 6s   House
+    ("e2", "t2", "triage_player", "10:00:06", 600000),  # -> 10s  House
+    ("e3", "t3", "triage_player", "10:00:16", 600000),  # -> 44s  Techno
     ("e4", "t1", "category_player", "10:01:00", 600000),  # -> 60s  House
     ("e5", "t9", "playlist_player", "10:02:00", 600000),  # -> 180s no style in dict
     ("e6", "t2", "playlist_player", "10:05:00", 200000),  # -> 200s House (last: duration)
@@ -28,9 +28,23 @@ def con():
     )
     c.executemany(
         "INSERT INTO bronze_events VALUES (?,?,?,?,?,?,?,?,?)",
-        [(e, "u1", _D, f"{_D}T10:10:00+00:00", f"{_D}T{t}.000Z", "playback_play", tr, src, dur)
-         for e, tr, src, t, dur in _PLAYS]
-        + [("x1", "u2", _D, f"{_D}T10:10:00+00:00", f"{_D}T10:00:00.000Z", "playback_play", "t1", "triage_player", 1)],
+        [
+            (e, "u1", _D, f"{_D}T10:10:00+00:00", f"{_D}T{t}.000Z", "playback_play", tr, src, dur)
+            for e, tr, src, t, dur in _PLAYS
+        ]
+        + [
+            (
+                "x1",
+                "u2",
+                _D,
+                f"{_D}T10:10:00+00:00",
+                f"{_D}T10:00:00.000Z",
+                "playback_play",
+                "t1",
+                "triage_player",
+                1,
+            )
+        ],
     )
     c.execute(
         "CREATE TABLE bronze_catalog_export (id VARCHAR, style_id VARCHAR, name VARCHAR, "
@@ -103,5 +117,7 @@ def test_route_is_personal(monkeypatch):
     ok = ah.lambda_handler(_event(qs={"days": "90"}), None)
     assert ok["statusCode"] == 200 and seen == ["me"]
     assert ah.lambda_handler(_event(qs={"user_id": "other"}), None)["statusCode"] == 403
-    assert ah.lambda_handler(_event(is_admin=True, qs={"user_id": "other"}), None)["statusCode"] == 200
+    assert (
+        ah.lambda_handler(_event(is_admin=True, qs={"user_id": "other"}), None)["statusCode"] == 200
+    )
     assert seen == ["me", "other"]

@@ -67,9 +67,7 @@ class IngestRunsMixin(RepositoryBase):
             },
         )
 
-    def set_run_completed(
-        self, run_id: str, processed_count: int, finished_at: datetime
-    ) -> None:
+    def set_run_completed(self, run_id: str, processed_count: int, finished_at: datetime) -> None:
         self._data_api.execute(
             """
             UPDATE ingest_runs

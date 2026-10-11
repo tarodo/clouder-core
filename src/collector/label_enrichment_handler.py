@@ -76,9 +76,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         deepseek_api_key=settings.deepseek_api_key,
     )
     merge_client = _build_merge_client(settings.deepseek_api_key, settings.request_timeout_s)
-    socials_resolver = (
-        SocialsResolver(settings.tavily_api_key) if settings.tavily_api_key else None
-    )
+    socials_resolver = SocialsResolver(settings.tavily_api_key) if settings.tavily_api_key else None
 
     processed = 0
     for index, record in enumerate(records):

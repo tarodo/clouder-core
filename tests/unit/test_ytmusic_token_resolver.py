@@ -15,9 +15,7 @@ class FakeEnvelope:
 
 
 def _enc(value: str) -> str:
-    payload = EnvelopePayload(
-        data_key_enc=b"k", nonce=b"0" * 12, ciphertext=value.encode("utf-8")
-    )
+    payload = EnvelopePayload(data_key_enc=b"k", nonce=b"0" * 12, ciphertext=value.encode("utf-8"))
     return base64.b64encode(payload.serialize()).decode("ascii")
 
 
@@ -40,10 +38,13 @@ class FakeOAuth:
 
     def refresh(self, *, refresh_token):
         from collector.auth.ytmusic_oauth import YtmusicTokenSet
+
         self.refreshed = True
         return YtmusicTokenSet(
-            access_token=self.new_access, refresh_token=refresh_token,
-            expires_in=3599, scope="s",
+            access_token=self.new_access,
+            refresh_token=refresh_token,
+            expires_in=3599,
+            scope="s",
         )
 
 
@@ -60,11 +61,14 @@ def test_no_token_raises():
 
 def test_valid_token_no_refresh():
     future = datetime.now(UTC) + timedelta(hours=1)
-    rows = [{
-        "access_token_enc": _enc("AT"),
-        "refresh_token_enc": _enc("RT"),
-        "data_key_enc": "", "expires_at": future,
-    }]
+    rows = [
+        {
+            "access_token_enc": _enc("AT"),
+            "refresh_token_enc": _enc("RT"),
+            "data_key_enc": "",
+            "expires_at": future,
+        }
+    ]
     oauth = FakeOAuth()
     resolver = YtmusicTokenResolver(
         data_api=FakeDataApi(rows), envelope=FakeEnvelope(), oauth_client=oauth
@@ -76,16 +80,17 @@ def test_valid_token_no_refresh():
 
 def test_expired_token_refreshes_and_persists():
     past = datetime.now(UTC) - timedelta(minutes=1)
-    rows = [{
-        "access_token_enc": _enc("OLD"),
-        "refresh_token_enc": _enc("RT"),
-        "data_key_enc": "", "expires_at": past,
-    }]
+    rows = [
+        {
+            "access_token_enc": _enc("OLD"),
+            "refresh_token_enc": _enc("RT"),
+            "data_key_enc": "",
+            "expires_at": past,
+        }
+    ]
     api = FakeDataApi(rows)
     oauth = FakeOAuth(new_access="NEW")
-    resolver = YtmusicTokenResolver(
-        data_api=api, envelope=FakeEnvelope(), oauth_client=oauth
-    )
+    resolver = YtmusicTokenResolver(data_api=api, envelope=FakeEnvelope(), oauth_client=oauth)
     token = resolver.resolve(user_id="u1")
     assert token.token_dict["access_token"] == "NEW"
     assert oauth.refreshed is True
@@ -98,18 +103,25 @@ def test_token_dict_has_all_ytmusicapi_oauth_keys():
     # Omitting expires_in (the original bug) made ytmusicapi treat the dict as
     # browser headers -> YT Music writes failed with HTTP 400 "invalid argument".
     future = datetime.now(UTC) + timedelta(hours=1)
-    rows = [{
-        "access_token_enc": _enc("AT"),
-        "refresh_token_enc": _enc("RT"),
-        "data_key_enc": "", "expires_at": future,
-    }]
+    rows = [
+        {
+            "access_token_enc": _enc("AT"),
+            "refresh_token_enc": _enc("RT"),
+            "data_key_enc": "",
+            "expires_at": future,
+        }
+    ]
     resolver = YtmusicTokenResolver(
         data_api=FakeDataApi(rows), envelope=FakeEnvelope(), oauth_client=FakeOAuth()
     )
     td = resolver.resolve(user_id="u1").token_dict
     required = {
-        "scope", "token_type", "access_token",
-        "refresh_token", "expires_at", "expires_in",
+        "scope",
+        "token_type",
+        "access_token",
+        "refresh_token",
+        "expires_at",
+        "expires_in",
     }
     assert required <= set(td.keys())
     assert isinstance(td["expires_in"], int) and td["expires_in"] > 0

@@ -36,9 +36,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
 
     repository = create_clouder_repository_from_env()
     if repository is None:
-        raise RuntimeError(
-            "AURORA Data API configuration is required for vendor_match worker"
-        )
+        raise RuntimeError("AURORA Data API configuration is required for vendor_match worker")
 
     processed = 0
     for record in records:
@@ -67,9 +65,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     return {"processed": processed}
 
 
-def _process_one(
-    message: VendorMatchMessage, repository: ClouderRepository
-) -> bool:
+def _process_one(message: VendorMatchMessage, repository: ClouderRepository) -> bool:
     log_event(
         "INFO",
         "vendor_match_started",
@@ -206,16 +202,12 @@ def _process_one(
 
 
 @retry_vendor(max_retries=3)
-def _try_isrc(
-    lookup: LookupProvider, message: VendorMatchMessage
-) -> VendorTrackRef | None:
+def _try_isrc(lookup: LookupProvider, message: VendorMatchMessage) -> VendorTrackRef | None:
     return lookup.lookup_by_isrc(message.isrc or "")
 
 
 @retry_vendor(max_retries=3)
-def _try_metadata(
-    lookup: LookupProvider, message: VendorMatchMessage
-) -> list[VendorTrackRef]:
+def _try_metadata(lookup: LookupProvider, message: VendorMatchMessage) -> list[VendorTrackRef]:
     return lookup.lookup_by_metadata(
         message.artist, message.title, message.duration_ms, message.album
     )

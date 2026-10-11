@@ -25,9 +25,7 @@ def _fetch_secret_string(secret_arn: str) -> str:
     value = resp.get("SecretString")
     if not isinstance(value, str) or not value:
         if resp.get("SecretBinary"):
-            raise RuntimeError(
-                f"secret is SecretBinary, expected SecretString (arn={secret_arn})"
-            )
+            raise RuntimeError(f"secret is SecretBinary, expected SecretString (arn={secret_arn})")
         raise RuntimeError(f"secret is empty or not a string (arn={secret_arn})")
     return value
 
@@ -92,9 +90,7 @@ def _resolve_spotify_credentials() -> tuple[str, str]:
                 f"spotify credentials secret is not valid JSON (arn={arn}): {exc}"
             ) from exc
         if not isinstance(data, dict):
-            raise RuntimeError(
-                f"spotify credentials secret JSON must be an object (arn={arn})"
-            )
+            raise RuntimeError(f"spotify credentials secret JSON must be an object (arn={arn})")
         client_id = client_id or str(data.get("client_id", ""))
         client_secret = client_secret or str(data.get("client_secret", ""))
 
@@ -126,15 +122,11 @@ class ApiSettings(_SettingsBase):
     )
     canonicalization_enabled: bool = Field(
         default=True,
-        validation_alias=AliasChoices(
-            "CANONICALIZATION_ENABLED", "CANONICALIZE_ENABLED"
-        ),
+        validation_alias=AliasChoices("CANONICALIZATION_ENABLED", "CANONICALIZE_ENABLED"),
     )
     canonicalization_queue_url: str = Field(
         default="",
-        validation_alias=AliasChoices(
-            "CANONICALIZATION_QUEUE_URL", "CANONICALIZE_QUEUE_URL"
-        ),
+        validation_alias=AliasChoices("CANONICALIZATION_QUEUE_URL", "CANONICALIZE_QUEUE_URL"),
     )
     spotify_search_enabled: bool = Field(default=False, alias="SPOTIFY_SEARCH_ENABLED")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
@@ -184,10 +176,15 @@ class LoggingSettings(_SettingsBase):
 
 class VendorMatchSettings(_SettingsBase):
     fuzzy_match_threshold: float = Field(
-        default=0.92, alias="FUZZY_MATCH_THRESHOLD", ge=0.0, le=1.0,
+        default=0.92,
+        alias="FUZZY_MATCH_THRESHOLD",
+        ge=0.0,
+        le=1.0,
     )
     fuzzy_duration_tolerance_ms: int = Field(
-        default=3000, alias="FUZZY_DURATION_TOLERANCE_MS", ge=0,
+        default=3000,
+        alias="FUZZY_DURATION_TOLERANCE_MS",
+        ge=0,
     )
 
 
@@ -197,13 +194,19 @@ class LabelEnrichmentWorkerSettings(_SettingsBase):
     tavily_api_key: str = Field(default="")
     deepseek_api_key: str = Field(default="")
     ai_flag_confidence_threshold: float = Field(
-        default=0.5, alias="AI_FLAG_CONFIDENCE_THRESHOLD", ge=0.0, le=1.0,
+        default=0.5,
+        alias="AI_FLAG_CONFIDENCE_THRESHOLD",
+        ge=0.0,
+        le=1.0,
     )
     request_timeout_s: float = Field(
-        default=300.0, alias="LABEL_ENRICHMENT_REQUEST_TIMEOUT_S", ge=1.0,
+        default=300.0,
+        alias="LABEL_ENRICHMENT_REQUEST_TIMEOUT_S",
+        ge=1.0,
     )
     label_enrichment_queue_url: str = Field(
-        default="", alias="LABEL_ENRICHMENT_QUEUE_URL",
+        default="",
+        alias="LABEL_ENRICHMENT_QUEUE_URL",
     )
     openai_max_tool_calls: int = Field(default=3, alias="OPENAI_MAX_TOOL_CALLS")
     openai_reasoning_effort: str = Field(default="", alias="OPENAI_REASONING_EFFORT")
@@ -215,13 +218,19 @@ class ArtistEnrichmentWorkerSettings(_SettingsBase):
     tavily_api_key: str = Field(default="")
     deepseek_api_key: str = Field(default="")
     ai_flag_confidence_threshold: float = Field(
-        default=0.5, alias="AI_FLAG_CONFIDENCE_THRESHOLD", ge=0.0, le=1.0,
+        default=0.5,
+        alias="AI_FLAG_CONFIDENCE_THRESHOLD",
+        ge=0.0,
+        le=1.0,
     )
     request_timeout_s: float = Field(
-        default=300.0, alias="ARTIST_ENRICHMENT_REQUEST_TIMEOUT_S", ge=1.0,
+        default=300.0,
+        alias="ARTIST_ENRICHMENT_REQUEST_TIMEOUT_S",
+        ge=1.0,
     )
     artist_enrichment_queue_url: str = Field(
-        default="", alias="ARTIST_ENRICHMENT_QUEUE_URL",
+        default="",
+        alias="ARTIST_ENRICHMENT_QUEUE_URL",
     )
     openai_max_tool_calls: int = Field(default=3, alias="OPENAI_MAX_TOOL_CALLS")
     openai_reasoning_effort: str = Field(default="", alias="OPENAI_REASONING_EFFORT")

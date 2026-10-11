@@ -46,9 +46,7 @@ def _json_response(
     }
 
 
-def _error(
-    status: int, error_code: str, message: str, correlation_id: str
-) -> dict[str, Any]:
+def _error(status: int, error_code: str, message: str, correlation_id: str) -> dict[str, Any]:
     return _json_response(
         status,
         {
@@ -60,9 +58,7 @@ def _error(
     )
 
 
-def _curation_error_response(
-    exc: CurationError, correlation_id: str
-) -> dict[str, Any]:
+def _curation_error_response(exc: CurationError, correlation_id: str) -> dict[str, Any]:
     """Map a CurationError to an HTTP envelope, attaching structured payloads
     for error subclasses that carry them (InactiveStagingFinalizeError,
     TracksNotInSourceError)."""
@@ -144,9 +140,7 @@ def _parse_pagination(event: Mapping[str, Any]) -> tuple[int, int]:
     return limit, offset
 
 
-def _paginated_response(
-    result, mapper, correlation_id: str
-) -> dict[str, Any]:
+def _paginated_response(result, mapper, correlation_id: str) -> dict[str, Any]:
     return _json_response(
         200,
         {

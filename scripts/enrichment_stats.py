@@ -82,11 +82,18 @@ def cutoff_date(months: int, today: date | None = None) -> date:
 
 def require_arn(cli_value: str | None, name: str) -> str:
     """--{name}-arn, else AURORA_{NAME}_ARN (the Lambdas' name) or CLOUDER_{NAME}_ARN; no default."""
-    value = (cli_value or os.environ.get(f"AURORA_{name}_ARN")
-             or os.environ.get(f"CLOUDER_{name}_ARN") or "").strip()
+    value = (
+        cli_value
+        or os.environ.get(f"AURORA_{name}_ARN")
+        or os.environ.get(f"CLOUDER_{name}_ARN")
+        or ""
+    ).strip()
     if not value:
-        print(f"AURORA_{name}_ARN is not set (or pass --{name.lower()}-arn); "
-              "refusing to guess a cluster", file=sys.stderr)
+        print(
+            f"AURORA_{name}_ARN is not set (or pass --{name.lower()}-arn); "
+            "refusing to guess a cluster",
+            file=sys.stderr,
+        )
         raise SystemExit(2)
     return value
 
@@ -184,9 +191,7 @@ def shape_cells_stats(rows: list[dict]) -> list[dict]:
                 "avg_tavily_credits": g["tavily_credits_sum"] / cells,
                 "avg_cost_usd": g["cost_usd_sum"] / cells,
                 "avg_latency_ms": (
-                    g["latency_ms_sum"] / g["latency_ms_count"]
-                    if g["latency_ms_count"]
-                    else 0.0
+                    g["latency_ms_sum"] / g["latency_ms_count"] if g["latency_ms_count"] else 0.0
                 ),
                 "error_count": g["error_count"],
             }
@@ -201,9 +206,7 @@ def shape_instagram_fill(rows: list[dict]) -> list[dict]:
         total = int(row.get("total") or 0)
         filled = int(row.get("filled") or 0)
         fill_rate = (filled / total) if total else 0.0
-        out.append(
-            {"kind": row["kind"], "total": total, "filled": filled, "fill_rate": fill_rate}
-        )
+        out.append({"kind": row["kind"], "total": total, "filled": filled, "fill_rate": fill_rate})
     return out
 
 

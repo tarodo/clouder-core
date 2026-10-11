@@ -73,23 +73,29 @@ class YoutubeDataApiClient:
             "status": {"privacyStatus": _PRIVACY.get(privacy, "private")},
         }
         data = self._request(
-            "POST", f"{_BASE}/playlists",
-            params={"part": "snippet,status"}, json_body=body,
+            "POST",
+            f"{_BASE}/playlists",
+            params={"part": "snippet,status"},
+            json_body=body,
         )
         pid = data.get("id")
         if not isinstance(pid, str):
             raise YtmusicApiError(f"playlists.insert returned no id: {data!r}")
         return pid
 
-    def edit_meta(self, *, playlist_id: str, name: str, description: str | None, privacy: str) -> None:
+    def edit_meta(
+        self, *, playlist_id: str, name: str, description: str | None, privacy: str
+    ) -> None:
         body = {
             "id": playlist_id,
             "snippet": {"title": name, "description": description or ""},
             "status": {"privacyStatus": _PRIVACY.get(privacy, "private")},
         }
         self._request(
-            "PUT", f"{_BASE}/playlists",
-            params={"part": "snippet,status"}, json_body=body,
+            "PUT",
+            f"{_BASE}/playlists",
+            params={"part": "snippet,status"},
+            json_body=body,
         )
 
     def get_existing_items(self, playlist_id: str) -> list[dict]:
@@ -126,8 +132,10 @@ class YoutubeDataApiClient:
                 }
             }
             self._request(
-                "POST", f"{_BASE}/playlistItems",
-                params={"part": "snippet"}, json_body=body,
+                "POST",
+                f"{_BASE}/playlistItems",
+                params={"part": "snippet"},
+                json_body=body,
             )
 
     def move_item(self, playlist_id: str, item_id: str, video_id: str, position: int) -> None:
@@ -142,8 +150,10 @@ class YoutubeDataApiClient:
             },
         }
         self._request(
-            "PUT", f"{_BASE}/playlistItems",
-            params={"part": "snippet"}, json_body=body,
+            "PUT",
+            f"{_BASE}/playlistItems",
+            params={"part": "snippet"},
+            json_body=body,
         )
 
     def set_cover(self, playlist_id: str, image_bytes: bytes) -> None:
@@ -164,9 +174,9 @@ class YoutubeDataApiClient:
         message, reason = self._error_detail(update_resp)
         reason_tag = f" [{reason}]" if reason else ""
         raise YtmusicApiError(
-            f"YouTube cover insert {insert_status} / update {update_status}"
-            f"{reason_tag}: {message}",
-            status_code=update_status, reason=reason,
+            f"YouTube cover insert {insert_status} / update {update_status}{reason_tag}: {message}",
+            status_code=update_status,
+            reason=reason,
         )
 
     def _upload_cover(self, method: str, playlist_id: str, image_bytes: bytes) -> Any:
@@ -174,16 +184,18 @@ class YoutubeDataApiClient:
         method (POST = insert, PUT = update). YouTube requires a square (1:1)
         JPEG/PNG <= 2 MB."""
         content_type = "image/png" if image_bytes[:8].startswith(_PNG_MAGIC) else "image/jpeg"
-        metadata = json.dumps(
-            {"snippet": {"playlistId": playlist_id, "type": _COVER_TYPE}}
-        )
+        metadata = json.dumps({"snippet": {"playlistId": playlist_id, "type": _COVER_TYPE}})
         body = (
-            f"--{_COVER_BOUNDARY}\r\n"
-            "Content-Type: application/json; charset=UTF-8\r\n\r\n"
-            f"{metadata}\r\n"
-            f"--{_COVER_BOUNDARY}\r\n"
-            f"Content-Type: {content_type}\r\n\r\n"
-        ).encode() + image_bytes + f"\r\n--{_COVER_BOUNDARY}--\r\n".encode()
+            (
+                f"--{_COVER_BOUNDARY}\r\n"
+                "Content-Type: application/json; charset=UTF-8\r\n\r\n"
+                f"{metadata}\r\n"
+                f"--{_COVER_BOUNDARY}\r\n"
+                f"Content-Type: {content_type}\r\n\r\n"
+            ).encode()
+            + image_bytes
+            + f"\r\n--{_COVER_BOUNDARY}--\r\n".encode()
+        )
         headers = {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": f"multipart/related; boundary={_COVER_BOUNDARY}",
@@ -220,7 +232,11 @@ class YoutubeDataApiClient:
         status, reason, message = 0, None, None
         for attempt in range(1, len(_RETRY_BACKOFFS) + 2):
             resp = self._session.request(
-                method=method, url=url, params=params, data=body, headers=headers,
+                method=method,
+                url=url,
+                params=params,
+                data=body,
+                headers=headers,
             )
             status = getattr(resp, "status_code", 0)
             if 200 <= status < 300:
@@ -239,11 +255,15 @@ class YoutubeDataApiClient:
                 # Transient YouTube failure (e.g. 409 SERVICE_UNAVAILABLE); the
                 # write never applied, so retrying the same call is safe.
                 log_event(
-                    "WARNING", "ytmusic_api_call_retried",
+                    "WARNING",
+                    "ytmusic_api_call_retried",
                     correlation_id=self._correlation_id,
-                    status_code=status, reason=reason,
-                    phase=f"{method} {endpoint}", attempt=attempt,
-                    sleep_seconds=backoff, error_message=message,
+                    status_code=status,
+                    reason=reason,
+                    phase=f"{method} {endpoint}",
+                    attempt=attempt,
+                    sleep_seconds=backoff,
+                    error_message=message,
                 )
                 self._sleep(backoff)
                 continue
@@ -258,10 +278,14 @@ class YoutubeDataApiClient:
         # the failing call is queryable in CloudWatch even when the caller
         # swallows the error (cover fallback). No token/body is logged.
         log_event(
-            "WARNING", "ytmusic_api_call_failed",
+            "WARNING",
+            "ytmusic_api_call_failed",
             correlation_id=self._correlation_id,
-            status_code=status, reason=reason,
-            phase=f"{method} {endpoint}", attempt=attempt, error_message=message,
+            status_code=status,
+            reason=reason,
+            phase=f"{method} {endpoint}",
+            attempt=attempt,
+            error_message=message,
         )
         if status == 401:
             raise YtmusicNotAuthorizedError(detail)

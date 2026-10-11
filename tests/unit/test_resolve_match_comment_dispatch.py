@@ -27,15 +27,22 @@ def _event(action, vendor="ytmusic", vendor_track_id="dQw4w9WgXcQ"):
     # vendor_track_id is exactly 11 chars to satisfy YT_VIDEO_ID_RE.
     return {
         "pathParameters": {"id": "p1", "track_id": "t1"},
-        "body": json.dumps({
-            "action": action, "vendor": vendor, "vendor_track_id": vendor_track_id,
-        }),
+        "body": json.dumps(
+            {
+                "action": action,
+                "vendor": vendor,
+                "vendor_track_id": vendor_track_id,
+            }
+        ),
     }
 
 
 def test_accept_ytmusic_dispatches(monkeypatch):
     calls = []
-    monkeypatch.setattr("collector.curation.routes_playlists.try_dispatch_comment_collection", lambda **kw: calls.append(kw))
+    monkeypatch.setattr(
+        "collector.curation.routes_playlists.try_dispatch_comment_collection",
+        lambda **kw: calls.append(kw),
+    )
     monkeypatch.setattr("collector.curation.routes_playlists._scope_check", lambda *a, **k: None)
     ch._handle_resolve_match(_event("accept"), FakeRepo(), "u1", "corr")
     assert calls == [{"track_id": "t1", "video_id": "dQw4w9WgXcQ", "platform": "youtube"}]
@@ -43,7 +50,10 @@ def test_accept_ytmusic_dispatches(monkeypatch):
 
 def test_reject_does_not_dispatch(monkeypatch):
     calls = []
-    monkeypatch.setattr("collector.curation.routes_playlists.try_dispatch_comment_collection", lambda **kw: calls.append(kw))
+    monkeypatch.setattr(
+        "collector.curation.routes_playlists.try_dispatch_comment_collection",
+        lambda **kw: calls.append(kw),
+    )
     monkeypatch.setattr("collector.curation.routes_playlists._scope_check", lambda *a, **k: None)
     ch._handle_resolve_match(_event("reject"), FakeRepo(), "u1", "corr")
     assert calls == []

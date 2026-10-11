@@ -20,7 +20,9 @@ def test_dispatch_disabled_does_nothing():
     le_repo, sqs = MagicMock(), MagicMock()
     with _patch_clients(auto_repo, le_repo, sqs):
         auto_dispatch._dispatch_labels(
-            label_ids=["lbl-1"], source_hint="single", user_id="u1",
+            label_ids=["lbl-1"],
+            source_hint="single",
+            user_id="u1",
         )
     auto_repo.claim_labels.assert_not_called()
     sqs.send_message_batch.assert_not_called()
@@ -38,9 +40,13 @@ def test_dispatch_no_config_does_nothing():
 def test_dispatch_claims_creates_run_and_enqueues():
     auto_repo = MagicMock()
     auto_repo.get_config.return_value = {
-        "enabled": True, "vendors": ["gemini"], "models": {"gemini": "g"},
-        "prompt_slug": "s", "prompt_version": "v",
-        "merge_vendor": "deepseek", "merge_model": "m",
+        "enabled": True,
+        "vendors": ["gemini"],
+        "models": {"gemini": "g"},
+        "prompt_slug": "s",
+        "prompt_version": "v",
+        "merge_vendor": "deepseek",
+        "merge_model": "m",
     }
     auto_repo.claim_labels.return_value = ["lbl-1", "lbl-2"]
     le_repo = MagicMock()
@@ -51,7 +57,9 @@ def test_dispatch_claims_creates_run_and_enqueues():
     sqs.send_message_batch.return_value = {"Successful": [], "Failed": []}
     with _patch_clients(auto_repo, le_repo, sqs):
         auto_dispatch._dispatch_labels(
-            label_ids=["lbl-1", "lbl-2"], source_hint="triage", user_id="u1",
+            label_ids=["lbl-1", "lbl-2"],
+            source_hint="triage",
+            user_id="u1",
         )
     spec = le_repo.create_run.call_args[0][0]
     assert spec.source == "auto"
@@ -70,9 +78,13 @@ def test_dispatch_claims_creates_run_and_enqueues():
 def test_dispatch_no_claims_skips_run():
     auto_repo = MagicMock()
     auto_repo.get_config.return_value = {
-        "enabled": True, "vendors": ["gemini"], "models": {"gemini": "g"},
-        "prompt_slug": "s", "prompt_version": "v",
-        "merge_vendor": "deepseek", "merge_model": "m",
+        "enabled": True,
+        "vendors": ["gemini"],
+        "models": {"gemini": "g"},
+        "prompt_slug": "s",
+        "prompt_version": "v",
+        "merge_vendor": "deepseek",
+        "merge_model": "m",
     }
     auto_repo.claim_labels.return_value = []
     le_repo, sqs = MagicMock(), MagicMock()

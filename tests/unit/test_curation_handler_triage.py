@@ -137,9 +137,17 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
 
     class FakeTriageRepo:
         def create_block(
-            self, *, user_id, style_id, name, date_from, date_to,
-            old_offset_weeks=0, include_disliked_labels=False,
-            include_disliked_artists=True, compilations_to_not=True,
+            self,
+            *,
+            user_id,
+            style_id,
+            name,
+            date_from,
+            date_to,
+            old_offset_weeks=0,
+            include_disliked_labels=False,
+            include_disliked_artists=True,
+            compilations_to_not=True,
             include_favorites=True,
         ):
             captured.update(
@@ -207,9 +215,7 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
     assert captured["include_favorites"] is True
 
 
-def test_create_triage_block_returns_503_when_db_not_configured(
-    monkeypatch, context
-) -> None:
+def test_create_triage_block_returns_503_when_db_not_configured(monkeypatch, context) -> None:
     monkeypatch.setattr(
         deps,
         "create_default_triage_repository",
@@ -233,9 +239,7 @@ def test_create_triage_block_returns_503_when_db_not_configured(
     assert payload["error_code"] == "db_not_configured"
 
 
-def test_create_triage_block_validation_error_on_bad_dates(
-    monkeypatch, context
-) -> None:
+def test_create_triage_block_validation_error_on_bad_dates(monkeypatch, context) -> None:
     # Don't even hit the repo; pydantic should reject date_to < date_from.
     monkeypatch.setattr(
         deps,
@@ -263,9 +267,7 @@ def test_create_triage_block_validation_error_on_bad_dates(
 # ---------- Error envelope mapping for new triage error types --------------
 
 
-def test_inactive_staging_error_attaches_inactive_buckets(
-    monkeypatch, context
-) -> None:
+def test_inactive_staging_error_attaches_inactive_buckets(monkeypatch, context) -> None:
     inactive = [
         {"id": "buck-1", "category_id": "cat-1", "track_count": 3},
         {"id": "buck-2", "category_id": "cat-2", "track_count": 1},
@@ -273,9 +275,7 @@ def test_inactive_staging_error_attaches_inactive_buckets(
 
     class RaisingRepo:
         def create_block(self, **_kw):
-            raise InactiveStagingFinalizeError(
-                "2 inactive staging bucket(s) hold tracks", inactive
-            )
+            raise InactiveStagingFinalizeError("2 inactive staging bucket(s) hold tracks", inactive)
 
     monkeypatch.setattr(
         deps,
@@ -302,16 +302,12 @@ def test_inactive_staging_error_attaches_inactive_buckets(
     assert payload["correlation_id"] == "cid-unit-1"
 
 
-def test_tracks_not_in_source_error_attaches_payload(
-    monkeypatch, context
-) -> None:
+def test_tracks_not_in_source_error_attaches_payload(monkeypatch, context) -> None:
     missing = ["t-aaa", "t-bbb"]
 
     class RaisingRepo:
         def create_block(self, **_kw):
-            raise TracksNotInSourceError(
-                "2 track(s) not present in source bucket", missing
-            )
+            raise TracksNotInSourceError("2 track(s) not present in source bucket", missing)
 
     monkeypatch.setattr(
         deps,
@@ -372,7 +368,10 @@ def _fake_bucket_track_row(track_id: str = "trk-1") -> BucketTrackRowOut:
         spotify_id="spot-1",
         release_type="single",
         is_ai_suspected=False,
-        artists=[{"id": "a-alice", "name": "Alice", "role": "artist"}, {"id": "a-bob", "name": "Bob", "role": "artist"}],
+        artists=[
+            {"id": "a-alice", "name": "Alice", "role": "artist"},
+            {"id": "a-bob", "name": "Bob", "role": "artist"},
+        ],
         label_name="Anjunadeep",
         label_id="lbl-anjuna",
         added_at="2026-04-28T12:05:00+00:00",
@@ -422,9 +421,7 @@ def test_list_blocks_by_style_happy_path(monkeypatch, context) -> None:
     rows = [_fake_summary_row("blk-1"), _fake_summary_row("blk-2")]
 
     class FakeRepo:
-        def list_blocks_by_style(
-            self, *, user_id, style_id, limit, offset, status
-        ):
+        def list_blocks_by_style(self, *, user_id, style_id, limit, offset, status):
             captured.update(
                 user_id=user_id,
                 style_id=style_id,
@@ -481,7 +478,10 @@ def test_list_blocks_all_happy_path(monkeypatch, context) -> None:
     class FakeRepo:
         def list_blocks_all(self, *, user_id, limit, offset, status):
             captured.update(
-                user_id=user_id, limit=limit, offset=offset, status=status,
+                user_id=user_id,
+                limit=limit,
+                offset=offset,
+                status=status,
             )
             return rows, 1
 
@@ -539,9 +539,7 @@ def test_get_triage_block_happy_path(monkeypatch, context) -> None:
     assert captured == {"user_id": "u1", "block_id": fake.id}
 
 
-def test_get_triage_block_returns_404_when_missing(
-    monkeypatch, context
-) -> None:
+def test_get_triage_block_returns_404_when_missing(monkeypatch, context) -> None:
     class FakeRepo:
         def get_block(self, *, user_id, block_id):
             return None
@@ -572,9 +570,7 @@ def test_list_bucket_tracks_happy_path(monkeypatch, context) -> None:
     ]
 
     class FakeRepo:
-        def list_bucket_tracks(
-            self, *, user_id, block_id, bucket_id, limit, offset, search
-        ):
+        def list_bucket_tracks(self, *, user_id, block_id, bucket_id, limit, offset, search):
             captured.update(
                 user_id=user_id,
                 block_id=block_id,
@@ -613,7 +609,10 @@ def test_list_bucket_tracks_happy_path(monkeypatch, context) -> None:
     assert item["bpm"] == 128
     assert item["release_type"] == "single"
     assert item["is_ai_suspected"] is False
-    assert item["artists"] == [{"id": "a-alice", "name": "Alice", "role": "artist"}, {"id": "a-bob", "name": "Bob", "role": "artist"}]
+    assert item["artists"] == [
+        {"id": "a-alice", "name": "Alice", "role": "artist"},
+        {"id": "a-bob", "name": "Bob", "role": "artist"},
+    ]
     assert item["label_name"] == "Anjunadeep"
     assert item["added_at"] == "2026-04-28T12:05:00+00:00"
 
@@ -721,9 +720,7 @@ def test_move_tracks_happy_path(monkeypatch, context) -> None:
     track_ids = [_uuid("trk1"), _uuid("trk2")]
 
     class FakeRepo:
-        def move_tracks(
-            self, *, user_id, block_id, from_bucket_id, to_bucket_id, track_ids
-        ):
+        def move_tracks(self, *, user_id, block_id, from_bucket_id, to_bucket_id, track_ids):
             captured.update(
                 user_id=user_id,
                 block_id=block_id,
@@ -767,14 +764,10 @@ def test_move_tracks_happy_path(monkeypatch, context) -> None:
     }
 
 
-def test_move_tracks_inactive_bucket_returns_422(
-    monkeypatch, context
-) -> None:
+def test_move_tracks_inactive_bucket_returns_422(monkeypatch, context) -> None:
     class FakeRepo:
         def move_tracks(self, **_kw):
-            raise InactiveBucketError(
-                "target bucket is inactive (its category was soft-deleted)"
-            )
+            raise InactiveBucketError("target bucket is inactive (its category was soft-deleted)")
 
     monkeypatch.setattr(
         deps,
@@ -803,9 +796,7 @@ def test_move_tracks_inactive_bucket_returns_422(
 def test_move_tracks_invalid_state_returns_422(monkeypatch, context) -> None:
     class FakeRepo:
         def move_tracks(self, **_kw):
-            raise InvalidStateError(
-                "triage block is not editable (status != IN_PROGRESS)"
-            )
+            raise InvalidStateError("triage block is not editable (status != IN_PROGRESS)")
 
     monkeypatch.setattr(
         deps,
@@ -836,9 +827,7 @@ def test_transfer_tracks_happy_path(monkeypatch, context) -> None:
     track_ids = [_uuid("trk1"), _uuid("trk2"), _uuid("trk3")]
 
     class FakeRepo:
-        def transfer_tracks(
-            self, *, user_id, src_block_id, target_bucket_id, track_ids
-        ):
+        def transfer_tracks(self, *, user_id, src_block_id, target_bucket_id, track_ids):
             captured.update(
                 user_id=user_id,
                 src_block_id=src_block_id,
@@ -879,14 +868,10 @@ def test_transfer_tracks_happy_path(monkeypatch, context) -> None:
     }
 
 
-def test_transfer_tracks_style_mismatch_returns_422(
-    monkeypatch, context
-) -> None:
+def test_transfer_tracks_style_mismatch_returns_422(monkeypatch, context) -> None:
     class FakeRepo:
         def transfer_tracks(self, **_kw):
-            raise StyleMismatchError(
-                "source and target triage blocks belong to different styles"
-            )
+            raise StyleMismatchError("source and target triage blocks belong to different styles")
 
     monkeypatch.setattr(
         deps,
@@ -910,16 +895,12 @@ def test_transfer_tracks_style_mismatch_returns_422(
     assert payload["error_code"] == "target_block_style_mismatch"
 
 
-def test_transfer_tracks_not_in_source_returns_422(
-    monkeypatch, context
-) -> None:
+def test_transfer_tracks_not_in_source_returns_422(monkeypatch, context) -> None:
     missing = ["trk-x", "trk-y"]
 
     class FakeRepo:
         def transfer_tracks(self, **_kw):
-            raise TracksNotInSourceError(
-                "2 track(s) not present in source block", missing
-            )
+            raise TracksNotInSourceError("2 track(s) not present in source block", missing)
 
     monkeypatch.setattr(
         deps,
@@ -971,9 +952,7 @@ def test_finalize_triage_block_happy_path(monkeypatch, context) -> None:
     sentinel_cat_repo = object()
 
     class FakeRepo:
-        def finalize_block(
-            self, *, user_id, block_id, categories_repository
-        ):
+        def finalize_block(self, *, user_id, block_id, categories_repository):
             captured.update(
                 user_id=user_id,
                 block_id=block_id,
@@ -1016,18 +995,14 @@ def test_finalize_triage_block_happy_path(monkeypatch, context) -> None:
     assert captured["categories_repository"] is sentinel_cat_repo
 
 
-def test_finalize_triage_block_inactive_buckets_returns_409(
-    monkeypatch, context
-) -> None:
+def test_finalize_triage_block_inactive_buckets_returns_409(monkeypatch, context) -> None:
     inactive = [
         {"id": "buck-1", "category_id": "cat-1", "track_count": 4},
     ]
 
     class FakeRepo:
         def finalize_block(self, **_kw):
-            raise InactiveStagingFinalizeError(
-                "1 inactive staging bucket(s) hold tracks", inactive
-            )
+            raise InactiveStagingFinalizeError("1 inactive staging bucket(s) hold tracks", inactive)
 
     monkeypatch.setattr(
         deps,
@@ -1113,9 +1088,7 @@ def test_soft_delete_triage_block_happy_path(monkeypatch, context) -> None:
     assert captured == {"user_id": "u1", "block_id": "blk-1"}
 
 
-def test_soft_delete_triage_block_returns_404_when_missing(
-    monkeypatch, context
-) -> None:
+def test_soft_delete_triage_block_returns_404_when_missing(monkeypatch, context) -> None:
     class FakeRepo:
         def soft_delete_block(self, *, user_id, block_id):
             return False
@@ -1178,13 +1151,13 @@ def test_create_triage_block_forwards_and_serializes_flags() -> None:
         )
     }
     resp = _create_triage_block(event, _Repo(), "u-1", "corr-1")
-    assert captured["include_disliked_labels"] is True   # default, not sent
+    assert captured["include_disliked_labels"] is True  # default, not sent
     assert captured["include_disliked_artists"] is False
     assert captured["compilations_to_not"] is False
     assert captured["include_favorites"] is False
 
     body = json.loads(resp["body"])
-    assert body["include_disliked_labels"] is True   # default, not sent
+    assert body["include_disliked_labels"] is True  # default, not sent
     assert body["include_disliked_artists"] is False
     assert body["compilations_to_not"] is False
     assert body["include_favorites"] is False

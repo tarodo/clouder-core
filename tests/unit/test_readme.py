@@ -15,9 +15,18 @@ def test_readme_has_no_money_or_retired_claims() -> None:
 
 
 def test_readme_has_the_reviewer_sections() -> None:
-    for heading in ("## Architecture", "## Measured results", "## What this project demonstrates",
-                    "## AWS services", "## Data pipeline", "## Screenshots", "## Running it locally",
-                    "## Known limitations", "## How this was built", "## License"):
+    for heading in (
+        "## Architecture",
+        "## Measured results",
+        "## What this project demonstrates",
+        "## AWS services",
+        "## Data pipeline",
+        "## Screenshots",
+        "## Running it locally",
+        "## Known limitations",
+        "## How this was built",
+        "## License",
+    ):
         assert heading in README, heading
     assert "```mermaid" in README and "docs/assets/" in README
 
@@ -35,7 +44,12 @@ def test_readme_counts_match_the_sources() -> None:
     import yaml
 
     spec = yaml.safe_load((ROOT / "docs" / "api" / "openapi.yaml").read_text())
-    ops = sum(1 for path in spec["paths"].values() for m in path if m in {"get", "put", "post", "patch", "delete"})
+    ops = sum(
+        1
+        for path in spec["paths"].values()
+        for m in path
+        if m in {"get", "put", "post", "patch", "delete"}
+    )
     assert set(re.findall(r"(\d+) (?:API )?operations", README)) == {str(ops)}
     tf = "\n".join(p.read_text() for p in (ROOT / "infra").glob("*.tf"))
     lambdas = len(re.findall(r'^resource "aws_lambda_function"', tf, re.M))
@@ -63,7 +77,9 @@ def test_license_allows_evaluation() -> None:
 
 def test_readme_has_the_production_readiness_section_and_no_stale_test_count() -> None:
     assert "## Production readiness" in README
-    assert not re.search(r"\d+ against a real PostgreSQL", README)  # counts drift; say what, not how many
+    assert not re.search(
+        r"\d+ against a real PostgreSQL", README
+    )  # counts drift; say what, not how many
 
 
 def test_frontend_lint_fails_on_warnings() -> None:

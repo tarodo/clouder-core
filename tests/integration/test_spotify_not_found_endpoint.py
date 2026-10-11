@@ -46,19 +46,21 @@ class FakeRepo:
         self.find_kwargs = None
         self.count_kwargs = None
 
-    def find_tracks_not_found_on_spotify(self, limit, offset, search=None,
-                                         publish_date_from=None,
-                                         publish_date_to=None):
+    def find_tracks_not_found_on_spotify(
+        self, limit, offset, search=None, publish_date_from=None, publish_date_to=None
+    ):
         self.find_kwargs = {
-            "limit": limit, "offset": offset, "search": search,
+            "limit": limit,
+            "offset": offset,
+            "search": search,
             "publish_date_from": publish_date_from,
             "publish_date_to": publish_date_to,
         }
         return []
 
-    def count_tracks_not_found_on_spotify(self, search=None,
-                                          publish_date_from=None,
-                                          publish_date_to=None):
+    def count_tracks_not_found_on_spotify(
+        self, search=None, publish_date_from=None, publish_date_to=None
+    ):
         self.count_kwargs = {
             "search": search,
             "publish_date_from": publish_date_from,
@@ -69,17 +71,14 @@ class FakeRepo:
 
 def _install(monkeypatch):
     repo = FakeRepo()
-    monkeypatch.setattr(
-        "collector.api.deps.create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: repo)
     return repo
 
 
 def test_not_found_passes_date_range(monkeypatch):
     repo = _install(monkeypatch)
     response = handler.lambda_handler(
-        _event({"publish_date_from": "2026-06-01",
-                "publish_date_to": "2026-06-30"}),
+        _event({"publish_date_from": "2026-06-01", "publish_date_to": "2026-06-30"}),
         _ctx(),
     )
     assert response["statusCode"] == 200
@@ -98,9 +97,7 @@ def test_not_found_without_dates_passes_none(monkeypatch):
 
 def test_not_found_bad_date_400(monkeypatch):
     _install(monkeypatch)
-    response = handler.lambda_handler(
-        _event({"publish_date_from": "06/01/2026"}), _ctx()
-    )
+    response = handler.lambda_handler(_event({"publish_date_from": "06/01/2026"}), _ctx())
     assert response["statusCode"] == 400
     assert json.loads(response["body"])["error_code"] == "validation_error"
 
@@ -108,8 +105,7 @@ def test_not_found_bad_date_400(monkeypatch):
 def test_not_found_from_after_to_400(monkeypatch):
     _install(monkeypatch)
     response = handler.lambda_handler(
-        _event({"publish_date_from": "2026-07-01",
-                "publish_date_to": "2026-06-01"}),
+        _event({"publish_date_from": "2026-07-01", "publish_date_to": "2026-06-01"}),
         _ctx(),
     )
     assert response["statusCode"] == 400

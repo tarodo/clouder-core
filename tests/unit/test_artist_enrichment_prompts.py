@@ -18,8 +18,13 @@ def test_builtin_artist_v1_registered():
 def test_render_user_with_context():
     load_builtin_prompts()
     cfg = PROMPTS["artist_v1"]
-    out = render_user(cfg, artist_name="ANNA", style="techno",
-                      sample_tracks=["Hidden Beauties"], known_labels=["Drumcode"])
+    out = render_user(
+        cfg,
+        artist_name="ANNA",
+        style="techno",
+        sample_tracks=["Hidden Beauties"],
+        known_labels=["Drumcode"],
+    )
     assert "ANNA" in out and "Hidden Beauties" in out and "Drumcode" in out
     assert "genre hint: techno" in out
 

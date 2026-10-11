@@ -8,25 +8,20 @@ from unittest.mock import MagicMock
 import pytest
 
 
-def _user_event(route: str, *, qs: dict | None = None,
-                body: dict | None = None) -> dict:
+def _user_event(route: str, *, qs: dict | None = None, body: dict | None = None) -> dict:
     return {
         "routeKey": route,
         "pathParameters": {},
         "queryStringParameters": qs or {},
         "body": json.dumps(body) if body is not None else None,
-        "requestContext": {
-            "authorizer": {"lambda": {"is_admin": False, "user_id": "u-1"}}
-        },
+        "requestContext": {"authorizer": {"lambda": {"is_admin": False, "user_id": "u-1"}}},
     }
 
 
 @pytest.fixture
 def fake_repo(monkeypatch):
     repo = MagicMock()
-    monkeypatch.setattr(
-        "collector.user_styles.routes._build_repository", lambda: repo
-    )
+    monkeypatch.setattr("collector.user_styles.routes._build_repository", lambda: repo)
     return repo
 
 
@@ -44,9 +39,7 @@ def test_get_styles_with_selection_returns_personal_list(fake_repo):
     assert body["items"][0]["name"] == "DnB"
     assert body["total"] == 2
     assert body["correlation_id"]
-    fake_repo.list_for_user.assert_called_once_with(
-        user_id="u-1", limit=50, offset=0, search=None
-    )
+    fake_repo.list_for_user.assert_called_once_with(user_id="u-1", limit=50, offset=0, search=None)
     fake_repo.list_all.assert_not_called()
 
 
@@ -72,9 +65,7 @@ def test_get_styles_scope_all_returns_catalog_with_flags(fake_repo):
     ]
     fake_repo.count_all.return_value = 1
 
-    resp = handler.lambda_handler(
-        _user_event("GET /styles", qs={"scope": "all"}), None
-    )
+    resp = handler.lambda_handler(_user_event("GET /styles", qs={"scope": "all"}), None)
 
     assert resp["statusCode"] == 200
     assert json.loads(resp["body"])["items"][0]["selected"] is True
@@ -84,9 +75,7 @@ def test_get_styles_scope_all_returns_catalog_with_flags(fake_repo):
 def test_get_styles_rejects_unknown_scope(fake_repo):
     from collector import handler
 
-    resp = handler.lambda_handler(
-        _user_event("GET /styles", qs={"scope": "mine"}), None
-    )
+    resp = handler.lambda_handler(_user_event("GET /styles", qs={"scope": "mine"}), None)
 
     assert resp["statusCode"] == 400
     assert json.loads(resp["body"])["error_code"] == "validation_error"
@@ -106,9 +95,7 @@ def test_get_styles_without_user_returns_401(monkeypatch):
 def test_get_styles_without_db_returns_503(monkeypatch):
     from collector import handler
 
-    monkeypatch.setattr(
-        "collector.user_styles.routes._build_repository", lambda: None
-    )
+    monkeypatch.setattr("collector.user_styles.routes._build_repository", lambda: None)
 
     resp = handler.lambda_handler(_user_event("GET /styles"), None)
 
@@ -119,13 +106,9 @@ def test_get_styles_without_db_returns_503(monkeypatch):
 def test_get_styles_rejects_unknown_scope_without_db(monkeypatch):
     from collector import handler
 
-    monkeypatch.setattr(
-        "collector.user_styles.routes._build_repository", lambda: None
-    )
+    monkeypatch.setattr("collector.user_styles.routes._build_repository", lambda: None)
 
-    resp = handler.lambda_handler(
-        _user_event("GET /styles", qs={"scope": "mine"}), None
-    )
+    resp = handler.lambda_handler(_user_event("GET /styles", qs={"scope": "mine"}), None)
 
     assert resp["statusCode"] == 400
     assert json.loads(resp["body"])["error_code"] == "validation_error"
@@ -141,22 +124,16 @@ def test_put_my_styles_replaces_selection(fake_repo):
 
     assert resp["statusCode"] == 204
     assert resp["body"] == ""
-    fake_repo.replace_selection.assert_called_once_with(
-        user_id="u-1", style_ids=["sty-2", "sty-1"]
-    )
+    fake_repo.replace_selection.assert_called_once_with(user_id="u-1", style_ids=["sty-2", "sty-1"])
 
 
 def test_put_my_styles_empty_list_clears(fake_repo):
     from collector import handler
 
-    resp = handler.lambda_handler(
-        _user_event("PUT /me/styles", body={"style_ids": []}), None
-    )
+    resp = handler.lambda_handler(_user_event("PUT /me/styles", body={"style_ids": []}), None)
 
     assert resp["statusCode"] == 204
-    fake_repo.replace_selection.assert_called_once_with(
-        user_id="u-1", style_ids=[]
-    )
+    fake_repo.replace_selection.assert_called_once_with(user_id="u-1", style_ids=[])
 
 
 @pytest.mark.parametrize(
@@ -185,9 +162,7 @@ def test_put_my_styles_unknown_style_returns_400(fake_repo):
     from collector import handler
     from collector.errors import ValidationError
 
-    fake_repo.replace_selection.side_effect = ValidationError(
-        "unknown style_id: sty-9"
-    )
+    fake_repo.replace_selection.side_effect = ValidationError("unknown style_id: sty-9")
 
     resp = handler.lambda_handler(
         _user_event("PUT /me/styles", body={"style_ids": ["sty-9"]}), None

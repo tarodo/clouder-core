@@ -48,9 +48,7 @@ def test_write_run_artifacts_creates_releases_and_meta() -> None:
     s3 = FakeS3Client()
     storage = S3Storage(s3_client=s3, bucket_name="test-bucket")
 
-    releases_key, meta_key = storage.write_run_artifacts(
-        releases=[{"id": 1}], meta=_meta()
-    )
+    releases_key, meta_key = storage.write_run_artifacts(releases=[{"id": 1}], meta=_meta())
 
     assert releases_key.endswith("/releases.json.gz")
     assert meta_key.endswith("/meta.json")

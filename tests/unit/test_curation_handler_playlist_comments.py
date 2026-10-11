@@ -1,4 +1,5 @@
 """Unit tests for GET /playlists/{id}/comments handler."""
+
 from __future__ import annotations
 
 import json
@@ -124,7 +125,9 @@ def test_platform_param_non_youtube_gives_none_video_url():
     playlists_repo = FakePlaylistsRepo([_track_row("t1")])
     collection = CollectionRow("col1", "t1", "spotify", "vidA", "collected", 1, None)
     comments_repo = FakeCommentsRepo({"t1": (collection, [])})
-    resp = _call(qs={"platform": "spotify"}, playlists_repo=playlists_repo, comments_repo=comments_repo)
+    resp = _call(
+        qs={"platform": "spotify"}, playlists_repo=playlists_repo, comments_repo=comments_repo
+    )
     body = json.loads(resp["body"])
     assert body["tracks"][0]["video_url"] is None
 

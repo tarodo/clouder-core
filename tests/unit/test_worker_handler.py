@@ -31,7 +31,11 @@ class FakeRepo:
         self.completed_runs.append(run_id)
 
     def set_run_failed(
-        self, run_id: str, error_code: str, error_message: str, finished_at,
+        self,
+        run_id: str,
+        error_code: str,
+        error_message: str,
+        finished_at,
         phase: str | None = None,
     ) -> None:
         del error_message, finished_at, phase
@@ -149,9 +153,7 @@ def _setup_worker(monkeypatch, repo=None, s3_data=None, s3_fail=False, s3_put_fa
     repo = repo or FakeRepo()
     s3 = FakeS3Client(data=s3_data, fail=s3_fail, fail_put=s3_put_fail)
     repo.s3 = s3
-    monkeypatch.setattr(
-        "collector.worker_handler.create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr("collector.worker_handler.create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr("collector.worker_handler.create_default_s3_client", lambda: s3)
     return repo
 
@@ -289,12 +291,8 @@ def test_missing_aurora_config_raises(monkeypatch) -> None:
     reset_settings_cache()
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     monkeypatch.setenv("RAW_PREFIX", "raw/bp/releases")
-    monkeypatch.setattr(
-        "collector.worker_handler.create_clouder_repository_from_env", lambda: None
-    )
-    monkeypatch.setattr(
-        "collector.worker_handler.create_default_s3_client", lambda: object()
-    )
+    monkeypatch.setattr("collector.worker_handler.create_clouder_repository_from_env", lambda: None)
+    monkeypatch.setattr("collector.worker_handler.create_default_s3_client", lambda: object())
 
     with pytest.raises(RuntimeError, match="AURORA Data API"):
         lambda_handler({"Records": [{"body": "{}"}]}, context=None)

@@ -53,6 +53,7 @@ def test_dispatch_sends_for_empty_video(monkeypatch):
 def test_dispatch_never_raises(monkeypatch):
     def boom():
         raise RuntimeError("db down")
+
     monkeypatch.setattr(dispatch, "_build_repository", boom)
     monkeypatch.setenv("COMMENT_COLLECT_QUEUE_URL", "https://q")
     # must not raise

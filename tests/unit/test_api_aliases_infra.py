@@ -29,7 +29,9 @@ def test_every_api_integration_targets_the_alias() -> None:
 def test_alias_permissions_exist_and_gate_the_integrations() -> None:
     aliases = (INFRA / "lambda_aliases.tf").read_text()
     assert re.search(r"qualifier\s*=\s*aws_lambda_alias\.live\[each\.key\]\.name", aliases)
-    blocks = re.findall(r'resource "aws_apigatewayv2_(?:integration|authorizer)" "[a-z_]+" \{(.*?)\n\}', TF, re.S)
+    blocks = re.findall(
+        r'resource "aws_apigatewayv2_(?:integration|authorizer)" "[a-z_]+" \{(.*?)\n\}', TF, re.S
+    )
     assert blocks
     for block in blocks:
         assert "aws_lambda_permission.api_live" in block  # depends_on: permission before switch

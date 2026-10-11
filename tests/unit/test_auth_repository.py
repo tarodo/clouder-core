@@ -113,9 +113,7 @@ def test_rotate_session_updates_hash_and_last_used() -> None:
     repo, data_api = _make()
     now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
 
-    repo.rotate_session(
-        session_id="s-1", new_hash="h2", last_used_at=now
-    )
+    repo.rotate_session(session_id="s-1", new_hash="h2", last_used_at=now)
 
     sql = data_api.execute.call_args.args[0]
     params = data_api.execute.call_args.args[1]

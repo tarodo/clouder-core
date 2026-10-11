@@ -43,7 +43,10 @@ LAMBDA_CHECKS: dict[str, tuple[dict, Any]] = {
     "auth-handler": (_api_event("GET /__smoke"), 404),
     "analytics-api": (_api_event("GET /v1/analytics/__smoke"), 404),
     "telemetry": (_api_event("POST /v1/telemetry"), 400),
-    "auth-authorizer": ({"type": "REQUEST", "headers": {}, "routeArn": "smoke"}, {"isAuthorized": False}),
+    "auth-authorizer": (
+        {"type": "REQUEST", "headers": {}, "routeArn": "smoke"},
+        {"isAuthorized": False},
+    ),
 }
 
 HTTP_CHECKS: list[tuple[str, str, dict]] = [
@@ -80,7 +83,10 @@ def main(api_url: str, site_url: str, prefix: str, invoke: Invoke, fetch: Fetch)
         function = f"{prefix}-{suffix}"
         problem = check_lambda(invoke(function, event), expected)
         failures += problem is not None
-        print(f"{'FAIL' if problem else 'ok  '} lambda {function}" + (f": {problem}" if problem else ""))
+        print(
+            f"{'FAIL' if problem else 'ok  '} lambda {function}"
+            + (f": {problem}" if problem else "")
+        )
     bases = {"api": api_url.rstrip("/"), "site": site_url.rstrip("/")}
     for base, path, expect in HTTP_CHECKS:
         url = bases[base] + path
@@ -115,7 +121,9 @@ def _fetch(url: str) -> tuple[int, dict, str]:
 
 def _invoke(client: Any) -> Invoke:
     def invoke(function: str, event: dict) -> dict:
-        resp = client.invoke(FunctionName=function, Qualifier="live", Payload=json.dumps(event).encode())
+        resp = client.invoke(
+            FunctionName=function, Qualifier="live", Payload=json.dumps(event).encode()
+        )
         payload = json.loads(resp["Payload"].read() or b"{}")
         if resp.get("FunctionError") and "errorMessage" not in payload:
             payload = {"errorMessage": str(payload), "errorType": resp["FunctionError"]}

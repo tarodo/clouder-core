@@ -29,40 +29,42 @@ from .logging_utils import log_event
 
 Route = Callable[[Mapping[str, Any], Any, str], dict[str, Any]]
 
-_ADMIN_ROUTES = frozenset({
-    "POST /collect_bp_releases",          # legacy, kept for backward compatibility
-    "POST /admin/beatport/ingest",
-    "GET /admin/coverage",
-    "PATCH /admin/styles/{style_id}",
-    "GET /admin/runs",
-    "GET /tracks/spotify-not-found",
-    "POST /admin/spotify/retry-not-found",
-    "GET /admin/spotify/search-status",
-    "POST /admin/labels/enrich",
-    "POST /admin/labels/{label_id}/enrich-auto",
-    "GET /admin/labels/enrich/options",
-    "GET /admin/labels/enrich-runs",
-    "GET /admin/labels/enrich-runs/{run_id}",
-    "GET /admin/labels/backlog",
-    "GET /admin/labels/{label_id}",
-    "GET /admin/labels/{label_id}/history",
-    "GET /admin/auto-enrich/labels",
-    "PUT /admin/auto-enrich/labels",
-    "POST /admin/artists/enrich",
-    "POST /admin/artists/{artist_id}/enrich-auto",
-    "GET /admin/artists/enrich/options",
-    "GET /admin/artists/enrich-runs",
-    "GET /admin/artists/enrich-runs/{run_id}",
-    "GET /admin/artists/backlog",
-    "GET /admin/artists/{artist_id}",
-    "GET /admin/artists/{artist_id}/history",
-    "GET /admin/auto-enrich/artists",
-    "PUT /admin/auto-enrich/artists",
-    "GET /admin/users",
-    "GET /admin/auto-ingest",
-    "PUT /admin/auto-ingest",
-    "POST /admin/auto-ingest/run",
-})
+_ADMIN_ROUTES = frozenset(
+    {
+        "POST /collect_bp_releases",  # legacy, kept for backward compatibility
+        "POST /admin/beatport/ingest",
+        "GET /admin/coverage",
+        "PATCH /admin/styles/{style_id}",
+        "GET /admin/runs",
+        "GET /tracks/spotify-not-found",
+        "POST /admin/spotify/retry-not-found",
+        "GET /admin/spotify/search-status",
+        "POST /admin/labels/enrich",
+        "POST /admin/labels/{label_id}/enrich-auto",
+        "GET /admin/labels/enrich/options",
+        "GET /admin/labels/enrich-runs",
+        "GET /admin/labels/enrich-runs/{run_id}",
+        "GET /admin/labels/backlog",
+        "GET /admin/labels/{label_id}",
+        "GET /admin/labels/{label_id}/history",
+        "GET /admin/auto-enrich/labels",
+        "PUT /admin/auto-enrich/labels",
+        "POST /admin/artists/enrich",
+        "POST /admin/artists/{artist_id}/enrich-auto",
+        "GET /admin/artists/enrich/options",
+        "GET /admin/artists/enrich-runs",
+        "GET /admin/artists/enrich-runs/{run_id}",
+        "GET /admin/artists/backlog",
+        "GET /admin/artists/{artist_id}",
+        "GET /admin/artists/{artist_id}/history",
+        "GET /admin/auto-enrich/artists",
+        "PUT /admin/auto-enrich/artists",
+        "GET /admin/users",
+        "GET /admin/auto-ingest",
+        "PUT /admin/auto-ingest",
+        "POST /admin/auto-ingest/run",
+    }
+)
 
 
 def _delegate(module: str, func: str) -> Route:
@@ -99,31 +101,61 @@ _ROUTE_TABLE: dict[str, Route] = {
     "GET /styles": routes_catalog._handle_get_styles,
     "PUT /me/styles": routes_catalog._handle_put_my_styles,
     "POST /admin/labels/enrich": _delegate("label_enrichment.routes", "handle_post_enrich"),
-    "POST /admin/labels/{label_id}/enrich-auto": _delegate("label_enrichment.routes", "handle_post_enrich_auto"),
+    "POST /admin/labels/{label_id}/enrich-auto": _delegate(
+        "label_enrichment.routes", "handle_post_enrich_auto"
+    ),
     "GET /admin/labels/enrich/options": _delegate("label_enrichment.routes", "handle_get_options"),
     "GET /admin/labels/enrich-runs": _delegate("label_enrichment.routes", "handle_get_runs_list"),
-    "GET /admin/labels/enrich-runs/{run_id}": _delegate("label_enrichment.routes", "handle_get_run"),
+    "GET /admin/labels/enrich-runs/{run_id}": _delegate(
+        "label_enrichment.routes", "handle_get_run"
+    ),
     "GET /admin/labels/backlog": _delegate("label_enrichment.routes", "handle_get_backlog"),
-    "GET /admin/labels/{label_id}/history": _delegate("label_enrichment.routes", "handle_get_label_history"),
+    "GET /admin/labels/{label_id}/history": _delegate(
+        "label_enrichment.routes", "handle_get_label_history"
+    ),
     "GET /admin/labels/{label_id}": _delegate("label_enrichment.routes", "handle_get_label"),
-    "GET /admin/auto-enrich/labels": _delegate("label_enrichment.auto_routes", "handle_get_auto_config"),
-    "PUT /admin/auto-enrich/labels": _delegate("label_enrichment.auto_routes", "handle_put_auto_config"),
-    "PUT /labels/{label_id}/preference": _delegate("label_enrichment.routes", "handle_put_label_preference"),
-    "GET /me/label-preferences": _delegate("label_enrichment.routes", "handle_get_my_label_preferences"),
+    "GET /admin/auto-enrich/labels": _delegate(
+        "label_enrichment.auto_routes", "handle_get_auto_config"
+    ),
+    "PUT /admin/auto-enrich/labels": _delegate(
+        "label_enrichment.auto_routes", "handle_put_auto_config"
+    ),
+    "PUT /labels/{label_id}/preference": _delegate(
+        "label_enrichment.routes", "handle_put_label_preference"
+    ),
+    "GET /me/label-preferences": _delegate(
+        "label_enrichment.routes", "handle_get_my_label_preferences"
+    ),
     "GET /labels": _delegate("label_enrichment.routes", "handle_get_labels_list"),
     "GET /labels/{label_id}": _delegate("label_enrichment.routes", "handle_get_label_user"),
     "POST /admin/artists/enrich": _delegate("artist_enrichment.routes", "handle_post_enrich"),
-    "POST /admin/artists/{artist_id}/enrich-auto": _delegate("artist_enrichment.routes", "handle_post_enrich_auto"),
-    "GET /admin/artists/enrich/options": _delegate("artist_enrichment.routes", "handle_get_options"),
+    "POST /admin/artists/{artist_id}/enrich-auto": _delegate(
+        "artist_enrichment.routes", "handle_post_enrich_auto"
+    ),
+    "GET /admin/artists/enrich/options": _delegate(
+        "artist_enrichment.routes", "handle_get_options"
+    ),
     "GET /admin/artists/enrich-runs": _delegate("artist_enrichment.routes", "handle_get_runs_list"),
-    "GET /admin/artists/enrich-runs/{run_id}": _delegate("artist_enrichment.routes", "handle_get_run"),
+    "GET /admin/artists/enrich-runs/{run_id}": _delegate(
+        "artist_enrichment.routes", "handle_get_run"
+    ),
     "GET /admin/artists/backlog": _delegate("artist_enrichment.routes", "handle_get_backlog"),
-    "GET /admin/artists/{artist_id}/history": _delegate("artist_enrichment.routes", "handle_get_artist_history"),
+    "GET /admin/artists/{artist_id}/history": _delegate(
+        "artist_enrichment.routes", "handle_get_artist_history"
+    ),
     "GET /admin/artists/{artist_id}": _delegate("artist_enrichment.routes", "handle_get_artist"),
-    "GET /admin/auto-enrich/artists": _delegate("artist_enrichment.auto_routes", "handle_get_auto_config"),
-    "PUT /admin/auto-enrich/artists": _delegate("artist_enrichment.auto_routes", "handle_put_auto_config"),
-    "PUT /artists/{artist_id}/preference": _delegate("artist_enrichment.routes", "handle_put_artist_preference"),
-    "GET /me/artist-preferences": _delegate("artist_enrichment.routes", "handle_get_my_artist_preferences"),
+    "GET /admin/auto-enrich/artists": _delegate(
+        "artist_enrichment.auto_routes", "handle_get_auto_config"
+    ),
+    "PUT /admin/auto-enrich/artists": _delegate(
+        "artist_enrichment.auto_routes", "handle_put_auto_config"
+    ),
+    "PUT /artists/{artist_id}/preference": _delegate(
+        "artist_enrichment.routes", "handle_put_artist_preference"
+    ),
+    "GET /me/artist-preferences": _delegate(
+        "artist_enrichment.routes", "handle_get_my_artist_preferences"
+    ),
     "GET /artists": _delegate("artist_enrichment.routes", "handle_get_artists_list"),
     "GET /artists/{artist_id}": _delegate("artist_enrichment.routes", "handle_get_artist_user"),
 }

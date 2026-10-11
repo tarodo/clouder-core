@@ -45,9 +45,7 @@ class ApiViewsMixin(RepositoryBase):
         if search:
             where = "WHERE normalized_title LIKE :search"
             params["search"] = f"%{search.lower()}%"
-        rows = self._data_api.execute(
-            f"SELECT count(*) AS cnt FROM clouder_tracks {where}", params
-        )
+        rows = self._data_api.execute(f"SELECT count(*) AS cnt FROM clouder_tracks {where}", params)
         return int(rows[0]["cnt"]) if rows else 0
 
     def list_artists(
@@ -108,9 +106,7 @@ class ApiViewsMixin(RepositoryBase):
         if search:
             where = "WHERE normalized_title LIKE :search"
             params["search"] = f"%{search.lower()}%"
-        rows = self._data_api.execute(
-            f"SELECT count(*) AS cnt FROM clouder_albums {where}", params
-        )
+        rows = self._data_api.execute(f"SELECT count(*) AS cnt FROM clouder_albums {where}", params)
         return int(rows[0]["cnt"]) if rows else 0
 
     def coverage_for_year(self, week_year: int) -> list[dict[str, Any]]:

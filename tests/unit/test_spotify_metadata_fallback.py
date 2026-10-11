@@ -30,7 +30,9 @@ class _Resp:
 
 def _make_client() -> SpotifyClient:
     c = SpotifyClient(
-        client_id="x", client_secret="y", sleep_fn=lambda _: None,
+        client_id="x",
+        client_secret="y",
+        sleep_fn=lambda _: None,
     )
     c._access_token = "tok"
     c._token_expires_at = 9e18
@@ -38,8 +40,12 @@ def _make_client() -> SpotifyClient:
 
 
 def _spotify_track(
-    *, sp_id: str, name: str, artists: list[str],
-    duration_ms: int, isrc: str = "ZZZ123",
+    *,
+    sp_id: str,
+    name: str,
+    artists: list[str],
+    duration_ms: int,
+    isrc: str = "ZZZ123",
 ) -> dict:
     return {
         "id": sp_id,
@@ -59,10 +65,7 @@ def test_first_query_artist_strips_country_suffix() -> None:
 
 def test_first_query_artist_takes_first_of_comma_list() -> None:
     assert _first_query_artist("Kays (UK), Nixxy Rain") == "Kays"
-    assert (
-        _first_query_artist("Alessandro Pierozzi, Luca Belotti")
-        == "Alessandro Pierozzi"
-    )
+    assert _first_query_artist("Alessandro Pierozzi, Luca Belotti") == "Alessandro Pierozzi"
 
 
 def test_first_query_artist_takes_first_of_ampersand_list() -> None:
@@ -140,92 +143,113 @@ def test_normalize_title_handles_empty() -> None:
 
 
 def test_match_tier_strict_when_dur_within_tolerance() -> None:
-    assert _match_tier(
-        title_sim=0.92,
-        artist_sim=0.88,
-        candidate_duration_ms=180_000,
-        query_duration_ms=181_500,
-        title_min=0.90,
-        artist_min=0.85,
-        duration_tolerance_ms=3000,
-    ) == "strict"
+    assert (
+        _match_tier(
+            title_sim=0.92,
+            artist_sim=0.88,
+            candidate_duration_ms=180_000,
+            query_duration_ms=181_500,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+        == "strict"
+    )
 
 
 def test_match_tier_fail_when_title_below_min() -> None:
-    assert _match_tier(
-        title_sim=0.89,
-        artist_sim=0.99,
-        candidate_duration_ms=180_000,
-        query_duration_ms=180_000,
-        title_min=0.90,
-        artist_min=0.85,
-        duration_tolerance_ms=3000,
-    ) == "fail"
+    assert (
+        _match_tier(
+            title_sim=0.89,
+            artist_sim=0.99,
+            candidate_duration_ms=180_000,
+            query_duration_ms=180_000,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+        == "fail"
+    )
 
 
 def test_match_tier_fail_when_artist_below_min() -> None:
-    assert _match_tier(
-        title_sim=1.0,
-        artist_sim=0.84,
-        candidate_duration_ms=180_000,
-        query_duration_ms=180_000,
-        title_min=0.90,
-        artist_min=0.85,
-        duration_tolerance_ms=3000,
-    ) == "fail"
+    assert (
+        _match_tier(
+            title_sim=1.0,
+            artist_sim=0.84,
+            candidate_duration_ms=180_000,
+            query_duration_ms=180_000,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+        == "fail"
+    )
 
 
 def test_match_tier_relaxed_when_dur_outside_but_near_perfect_text() -> None:
     """title>=0.95 AND artist>=0.95 → accept as 'relaxed' regardless of duration delta.
     Same track, different master (radio edit / extended)."""
-    assert _match_tier(
-        title_sim=1.0,
-        artist_sim=1.0,
-        candidate_duration_ms=180_000,
-        query_duration_ms=255_000,  # 75s out
-        title_min=0.90,
-        artist_min=0.85,
-        duration_tolerance_ms=3000,
-    ) == "relaxed"
+    assert (
+        _match_tier(
+            title_sim=1.0,
+            artist_sim=1.0,
+            candidate_duration_ms=180_000,
+            query_duration_ms=255_000,  # 75s out
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+        == "relaxed"
+    )
 
 
 def test_match_tier_fail_when_dur_out_and_text_not_perfect() -> None:
     """title=0.92, artist=0.92 — pass min thresholds but below 0.95 relaxed gate.
     Without strict-duration backup, must fail to avoid wrong-track matches."""
-    assert _match_tier(
-        title_sim=0.92,
-        artist_sim=0.92,
-        candidate_duration_ms=180_000,
-        query_duration_ms=240_000,  # 60s out
-        title_min=0.90,
-        artist_min=0.85,
-        duration_tolerance_ms=3000,
-    ) == "fail"
+    assert (
+        _match_tier(
+            title_sim=0.92,
+            artist_sim=0.92,
+            candidate_duration_ms=180_000,
+            query_duration_ms=240_000,  # 60s out
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+        == "fail"
+    )
 
 
 def test_match_tier_strict_when_query_duration_unknown() -> None:
     """Cannot enforce duration if either side is None — collapse to strict pass."""
-    assert _match_tier(
-        title_sim=0.95,
-        artist_sim=0.90,
-        candidate_duration_ms=180_000,
-        query_duration_ms=None,
-        title_min=0.90,
-        artist_min=0.85,
-        duration_tolerance_ms=3000,
-    ) == "strict"
+    assert (
+        _match_tier(
+            title_sim=0.95,
+            artist_sim=0.90,
+            candidate_duration_ms=180_000,
+            query_duration_ms=None,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+        == "strict"
+    )
 
 
 def test_match_tier_strict_when_candidate_duration_unknown() -> None:
-    assert _match_tier(
-        title_sim=0.95,
-        artist_sim=0.90,
-        candidate_duration_ms=None,
-        query_duration_ms=180_000,
-        title_min=0.90,
-        artist_min=0.85,
-        duration_tolerance_ms=3000,
-    ) == "strict"
+    assert (
+        _match_tier(
+            title_sim=0.95,
+            artist_sim=0.90,
+            candidate_duration_ms=None,
+            query_duration_ms=180_000,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
+        )
+        == "strict"
+    )
 
 
 def test_search_by_metadata_picks_best_when_passes_gate() -> None:
@@ -269,9 +293,13 @@ def test_search_by_metadata_returns_none_when_no_items() -> None:
         return_value=_Resp({"tracks": {"items": []}}),
     ):
         track = client._search_by_metadata(
-            title="Nothing", artist="Nobody", duration_ms=180_000,
+            title="Nothing",
+            artist="Nobody",
+            duration_ms=180_000,
             correlation_id="cid",
-            title_min=0.90, artist_min=0.85, duration_tolerance_ms=3000,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
         )
     assert track is None
 
@@ -295,9 +323,13 @@ def test_search_by_metadata_returns_none_when_all_fail_gate() -> None:
         return_value=_Resp(payload),
     ):
         track = client._search_by_metadata(
-            title="Move On", artist="Guri & Eider", duration_ms=180_000,
+            title="Move On",
+            artist="Guri & Eider",
+            duration_ms=180_000,
             correlation_id="cid",
-            title_min=0.90, artist_min=0.85, duration_tolerance_ms=3000,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
         )
     assert track is None
 
@@ -308,16 +340,30 @@ def test_search_by_metadata_returns_none_for_empty_inputs() -> None:
         "collector.spotify_client.urllib.request.urlopen",
         side_effect=AssertionError("must not be called"),
     ):
-        assert client._search_by_metadata(
-            title="", artist="Some Artist", duration_ms=180_000,
-            correlation_id="cid",
-            title_min=0.90, artist_min=0.85, duration_tolerance_ms=3000,
-        ) is None
-        assert client._search_by_metadata(
-            title="Some Title", artist="", duration_ms=180_000,
-            correlation_id="cid",
-            title_min=0.90, artist_min=0.85, duration_tolerance_ms=3000,
-        ) is None
+        assert (
+            client._search_by_metadata(
+                title="",
+                artist="Some Artist",
+                duration_ms=180_000,
+                correlation_id="cid",
+                title_min=0.90,
+                artist_min=0.85,
+                duration_tolerance_ms=3000,
+            )
+            is None
+        )
+        assert (
+            client._search_by_metadata(
+                title="Some Title",
+                artist="",
+                duration_ms=180_000,
+                correlation_id="cid",
+                title_min=0.90,
+                artist_min=0.85,
+                duration_tolerance_ms=3000,
+            )
+            is None
+        )
 
 
 def test_search_tracks_invokes_metadata_fallback_on_isrc_miss() -> None:
@@ -759,9 +805,13 @@ def test_search_by_metadata_picks_highest_combined_when_multiple_pass() -> None:
         return_value=_Resp(payload),
     ):
         result = client._search_by_metadata(
-            title="Move On", artist="Guri & Eider", duration_ms=181_000,
+            title="Move On",
+            artist="Guri & Eider",
+            duration_ms=181_000,
             correlation_id="cid",
-            title_min=0.90, artist_min=0.85, duration_tolerance_ms=3000,
+            title_min=0.90,
+            artist_min=0.85,
+            duration_tolerance_ms=3000,
         )
     assert result is not None
     track, _tier = result

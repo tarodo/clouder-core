@@ -80,9 +80,7 @@ class YtmusicTokenResolver:
             {"user_id": user_id},
         )
         if not rows:
-            raise YtmusicNotAuthorizedError(
-                f"No YouTube Music token on file for user {user_id}"
-            )
+            raise YtmusicNotAuthorizedError(f"No YouTube Music token on file for user {user_id}")
         row = rows[0]
         expires_at = _parse_expires_at(row["expires_at"])
         now = datetime.now(UTC)
@@ -108,12 +106,8 @@ class YtmusicTokenResolver:
             raise YtmusicNotAuthorizedError("YouTube Music refresh failed") from exc
 
         new_expires = now + timedelta(seconds=round(new_tokens.expires_in))
-        access_payload_new = self._envelope.encrypt(
-            new_tokens.access_token.encode("utf-8")
-        )
-        refresh_payload_new = self._envelope.encrypt(
-            new_tokens.refresh_token.encode("utf-8")
-        )
+        access_payload_new = self._envelope.encrypt(new_tokens.access_token.encode("utf-8"))
+        refresh_payload_new = self._envelope.encrypt(new_tokens.refresh_token.encode("utf-8"))
         self._data_api.execute(
             """
             UPDATE user_vendor_tokens SET
@@ -141,9 +135,7 @@ class YtmusicTokenResolver:
         )
 
     @staticmethod
-    def _token_dict(
-        access_token: str, refresh_token: str, expires_at: datetime
-    ) -> dict:
+    def _token_dict(access_token: str, refresh_token: str, expires_at: datetime) -> dict:
         # ytmusicapi recognises an OAuth token only when the dict carries ALL of
         # Token.members() — scope, token_type, access_token, refresh_token,
         # expires_at AND expires_in (ytmusicapi.auth.oauth.token.OAuthToken.is_oauth).

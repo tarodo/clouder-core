@@ -28,7 +28,10 @@ def test_alarms_fire_on_the_first_quarantined_record_or_drift() -> None:
     assert len(alarms) == 2
     for alarm in alarms:
         assert re.search(r"threshold\s*=\s*1\b", alarm)
-        assert 'treat_missing_data  = "notBreaching"' in alarm or 'treat_missing_data = "notBreaching"' in alarm
+        assert (
+            'treat_missing_data  = "notBreaching"' in alarm
+            or 'treat_missing_data = "notBreaching"' in alarm
+        )
 
 
 def test_backfill_may_write_quarantine_objects() -> None:

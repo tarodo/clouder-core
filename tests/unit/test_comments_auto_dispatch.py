@@ -19,9 +19,7 @@ def test_dispatches_for_each_promoted_track(monkeypatch):
     repo = FakeRepo(["t1", "t2"])
     dispatched = []
     monkeypatch.setattr(ad, "_build_repository", lambda: repo)
-    monkeypatch.setattr(
-        ad, "try_dispatch_comment_collection", lambda **kw: dispatched.append(kw)
-    )
+    monkeypatch.setattr(ad, "try_dispatch_comment_collection", lambda **kw: dispatched.append(kw))
     ad.try_dispatch_comments_for_triage_block(block_id="blk-1", user_id="u1")
     assert repo.seen == ("blk-1", "u1")
     assert dispatched == [
@@ -33,12 +31,11 @@ def test_dispatches_for_each_promoted_track(monkeypatch):
 def test_no_user_id_is_noop(monkeypatch):
     called = []
     monkeypatch.setattr(
-        ad, "_build_repository",
+        ad,
+        "_build_repository",
         lambda: pytest.fail("should not build repository without user_id"),
     )
-    monkeypatch.setattr(
-        ad, "try_dispatch_comment_collection", lambda **kw: called.append(kw)
-    )
+    monkeypatch.setattr(ad, "try_dispatch_comment_collection", lambda **kw: called.append(kw))
     ad.try_dispatch_comments_for_triage_block(block_id="blk-1", user_id=None)
     assert called == []
 

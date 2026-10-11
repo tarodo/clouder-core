@@ -72,11 +72,11 @@ def fake_tags(monkeypatch) -> MagicMock:
     return repo
 
 
-def _stock_tag_row(
-    id: str = "tg1", name: str = "Vocal", color: str | None = "#ff8800"
-) -> TagRow:
+def _stock_tag_row(id: str = "tg1", name: str = "Vocal", color: str | None = "#ff8800") -> TagRow:
     return TagRow(
-        id=id, name=name, color=color,
+        id=id,
+        name=name,
+        color=color,
         created_at="2026-05-11T12:00:00Z",
         updated_at="2026-05-11T12:00:00Z",
     )
@@ -89,7 +89,8 @@ def test_create_tag_returns_201(fake_tags, context) -> None:
     fake_tags.create_tag.return_value = _stock_tag_row()
     resp = lambda_handler(
         _event(
-            method="POST", route="/tags",
+            method="POST",
+            route="/tags",
             body={"name": "Vocal", "color": "#ff8800"},
         ),
         context,
@@ -105,8 +106,9 @@ def test_create_tag_accepts_null_color(fake_tags, context) -> None:
     fake_tags.create_tag.return_value = _stock_tag_row(color=None)
     resp = lambda_handler(
         _event(
-            method="POST", route="/tags",
-            body={"name": "Vocal"},     # color absent
+            method="POST",
+            route="/tags",
+            body={"name": "Vocal"},  # color absent
         ),
         context,
     )
@@ -120,7 +122,8 @@ def test_create_tag_accepts_explicit_null_color(fake_tags, context) -> None:
     fake_tags.create_tag.return_value = _stock_tag_row(color=None)
     resp = lambda_handler(
         _event(
-            method="POST", route="/tags",
+            method="POST",
+            route="/tags",
             body={"name": "Vocal", "color": None},
         ),
         context,
@@ -134,7 +137,8 @@ def test_create_tag_accepts_explicit_null_color(fake_tags, context) -> None:
 def test_create_tag_400_invalid_color(fake_tags, context) -> None:
     resp = lambda_handler(
         _event(
-            method="POST", route="/tags",
+            method="POST",
+            route="/tags",
             body={"name": "Vocal", "color": "blue"},
         ),
         context,
@@ -148,7 +152,8 @@ def test_create_tag_400_invalid_color(fake_tags, context) -> None:
 def test_create_tag_400_invalid_name_empty(fake_tags, context) -> None:
     resp = lambda_handler(
         _event(
-            method="POST", route="/tags",
+            method="POST",
+            route="/tags",
             body={"name": "   ", "color": "#ff8800"},
         ),
         context,
@@ -161,7 +166,8 @@ def test_create_tag_400_invalid_name_empty(fake_tags, context) -> None:
 def test_create_tag_400_invalid_name_too_long(fake_tags, context) -> None:
     resp = lambda_handler(
         _event(
-            method="POST", route="/tags",
+            method="POST",
+            route="/tags",
             body={"name": "x" * 65, "color": "#ff8800"},
         ),
         context,
@@ -175,7 +181,8 @@ def test_create_tag_409_on_duplicate_name(fake_tags, context) -> None:
     fake_tags.create_tag.side_effect = TagNameConflictError("dup")
     resp = lambda_handler(
         _event(
-            method="POST", route="/tags",
+            method="POST",
+            route="/tags",
             body={"name": "Vocal", "color": "#ff8800"},
         ),
         context,
@@ -187,7 +194,10 @@ def test_create_tag_409_on_duplicate_name(fake_tags, context) -> None:
 
 def test_list_tags_returns_items_total(fake_tags, context) -> None:
     fake_tags.list_tags.return_value = PaginatedResult(
-        items=[_stock_tag_row()], total=1, limit=50, offset=0,
+        items=[_stock_tag_row()],
+        total=1,
+        limit=50,
+        offset=0,
     )
     resp = lambda_handler(_event(method="GET", route="/tags"), context)
     status, body = _read(resp)
@@ -198,7 +208,10 @@ def test_list_tags_returns_items_total(fake_tags, context) -> None:
 
 def test_list_tags_passes_search_param(fake_tags, context) -> None:
     fake_tags.list_tags.return_value = PaginatedResult(
-        items=[], total=0, limit=50, offset=0,
+        items=[],
+        total=0,
+        limit=50,
+        offset=0,
     )
     lambda_handler(
         _event(method="GET", route="/tags", query={"search": "vo"}),
@@ -211,7 +224,8 @@ def test_patch_tag_200_renames(fake_tags, context) -> None:
     fake_tags.rename_tag.return_value = _stock_tag_row(name="Vocal F")
     resp = lambda_handler(
         _event(
-            method="PATCH", route="/tags/{tag_id}",
+            method="PATCH",
+            route="/tags/{tag_id}",
             path_params={"tag_id": "tg1"},
             body={"name": "Vocal F"},
         ),
@@ -232,9 +246,10 @@ def test_patch_tag_clears_color_with_explicit_null(fake_tags, context) -> None:
     fake_tags.rename_tag.return_value = _stock_tag_row(color=None)
     resp = lambda_handler(
         _event(
-            method="PATCH", route="/tags/{tag_id}",
+            method="PATCH",
+            route="/tags/{tag_id}",
             path_params={"tag_id": "tg1"},
-            body={"color": None},     # explicit null clears
+            body={"color": None},  # explicit null clears
         ),
         context,
     )
@@ -249,7 +264,8 @@ def test_patch_tag_clears_color_with_explicit_null(fake_tags, context) -> None:
 def test_patch_tag_400_when_no_fields(fake_tags, context) -> None:
     resp = lambda_handler(
         _event(
-            method="PATCH", route="/tags/{tag_id}",
+            method="PATCH",
+            route="/tags/{tag_id}",
             path_params={"tag_id": "tg1"},
             body={},
         ),
@@ -265,7 +281,8 @@ def test_patch_tag_404_when_missing(fake_tags, context) -> None:
     fake_tags.rename_tag.side_effect = TagNotFoundError()
     resp = lambda_handler(
         _event(
-            method="PATCH", route="/tags/{tag_id}",
+            method="PATCH",
+            route="/tags/{tag_id}",
             path_params={"tag_id": "missing"},
             body={"name": "X"},
         ),
@@ -280,7 +297,8 @@ def test_delete_tag_204(fake_tags, context) -> None:
     fake_tags.delete_tag.return_value = True
     resp = lambda_handler(
         _event(
-            method="DELETE", route="/tags/{tag_id}",
+            method="DELETE",
+            route="/tags/{tag_id}",
             path_params={"tag_id": "tg1"},
         ),
         context,
@@ -294,7 +312,8 @@ def test_delete_tag_404_when_missing(fake_tags, context) -> None:
     fake_tags.delete_tag.return_value = False
     resp = lambda_handler(
         _event(
-            method="DELETE", route="/tags/{tag_id}",
+            method="DELETE",
+            route="/tags/{tag_id}",
             path_params={"tag_id": "missing"},
         ),
         context,
@@ -313,7 +332,8 @@ def test_list_track_tags_returns_array(fake_tags, context) -> None:
     }
     resp = lambda_handler(
         _event(
-            method="GET", route="/tracks/{track_id}/tags",
+            method="GET",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
         ),
         context,
@@ -322,7 +342,8 @@ def test_list_track_tags_returns_array(fake_tags, context) -> None:
     assert status == 200
     assert body["tags"] == [{"id": "tg1", "name": "Vocal", "color": "#f00"}]
     fake_tags.list_tags_for_tracks.assert_called_once_with(
-        user_id="u1", track_ids=["t1"],
+        user_id="u1",
+        track_ids=["t1"],
     )
 
 
@@ -330,7 +351,8 @@ def test_list_track_tags_empty_when_no_rows(fake_tags, context) -> None:
     fake_tags.list_tags_for_tracks.return_value = {}
     resp = lambda_handler(
         _event(
-            method="GET", route="/tracks/{track_id}/tags",
+            method="GET",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
         ),
         context,
@@ -344,7 +366,8 @@ def test_put_track_tags_200_replaces(fake_tags, context) -> None:
     fake_tags.set_track_tags.return_value = [_stock_tag_row()]
     resp = lambda_handler(
         _event(
-            method="PUT", route="/tracks/{track_id}/tags",
+            method="PUT",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
             body={"tag_ids": ["tg1"]},
         ),
@@ -356,13 +379,12 @@ def test_put_track_tags_200_replaces(fake_tags, context) -> None:
     assert fake_tags.set_track_tags.call_args.kwargs["tag_ids"] == ["tg1"]
 
 
-def test_put_track_tags_200_clear_all_with_empty_array(
-    fake_tags, context
-) -> None:
+def test_put_track_tags_200_clear_all_with_empty_array(fake_tags, context) -> None:
     fake_tags.set_track_tags.return_value = []
     resp = lambda_handler(
         _event(
-            method="PUT", route="/tracks/{track_id}/tags",
+            method="PUT",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
             body={"tag_ids": []},
         ),
@@ -375,15 +397,12 @@ def test_put_track_tags_200_clear_all_with_empty_array(
     assert fake_tags.set_track_tags.call_args.kwargs["tag_ids"] == []
 
 
-def test_put_track_tags_422_when_not_in_any_category(
-    fake_tags, context
-) -> None:
-    fake_tags.set_track_tags.side_effect = TrackNotInAnyCategoryError(
-        "Track not in any category"
-    )
+def test_put_track_tags_422_when_not_in_any_category(fake_tags, context) -> None:
+    fake_tags.set_track_tags.side_effect = TrackNotInAnyCategoryError("Track not in any category")
     resp = lambda_handler(
         _event(
-            method="PUT", route="/tracks/{track_id}/tags",
+            method="PUT",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
             body={"tag_ids": ["tg1"]},
         ),
@@ -397,7 +416,8 @@ def test_put_track_tags_422_when_not_in_any_category(
 def test_put_track_tags_400_too_many(fake_tags, context) -> None:
     resp = lambda_handler(
         _event(
-            method="PUT", route="/tracks/{track_id}/tags",
+            method="PUT",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
             body={"tag_ids": ["tg" + str(i) for i in range(51)]},
         ),
@@ -412,7 +432,8 @@ def test_put_track_tags_400_too_many(fake_tags, context) -> None:
 def test_put_track_tags_400_duplicates(fake_tags, context) -> None:
     resp = lambda_handler(
         _event(
-            method="PUT", route="/tracks/{track_id}/tags",
+            method="PUT",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
             body={"tag_ids": ["tg1", "tg1"]},
         ),
@@ -426,7 +447,8 @@ def test_put_track_tags_400_duplicates(fake_tags, context) -> None:
 def test_put_track_tags_400_non_array(fake_tags, context) -> None:
     resp = lambda_handler(
         _event(
-            method="PUT", route="/tracks/{track_id}/tags",
+            method="PUT",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
             body={"tag_ids": "not-array"},
         ),
@@ -438,12 +460,11 @@ def test_put_track_tags_400_non_array(fake_tags, context) -> None:
 
 
 def test_put_track_tags_404_foreign_tag(fake_tags, context) -> None:
-    fake_tags.set_track_tags.side_effect = TagNotFoundError(
-        "Unknown tag id: tg-foreign"
-    )
+    fake_tags.set_track_tags.side_effect = TagNotFoundError("Unknown tag id: tg-foreign")
     resp = lambda_handler(
         _event(
-            method="PUT", route="/tracks/{track_id}/tags",
+            method="PUT",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
             body={"tag_ids": ["tg-foreign"]},
         ),
@@ -458,7 +479,8 @@ def test_post_track_tag_201_idempotent(fake_tags, context) -> None:
     fake_tags.add_track_tag.return_value = [_stock_tag_row()]
     resp = lambda_handler(
         _event(
-            method="POST", route="/tracks/{track_id}/tags",
+            method="POST",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
             body={"tag_id": "tg1"},
         ),
@@ -472,7 +494,8 @@ def test_post_track_tag_201_idempotent(fake_tags, context) -> None:
 def test_post_track_tag_400_missing_tag_id(fake_tags, context) -> None:
     resp = lambda_handler(
         _event(
-            method="POST", route="/tracks/{track_id}/tags",
+            method="POST",
+            route="/tracks/{track_id}/tags",
             path_params={"track_id": "t1"},
             body={},
         ),
@@ -487,7 +510,8 @@ def test_delete_track_tag_204(fake_tags, context) -> None:
     fake_tags.remove_track_tag.return_value = True
     resp = lambda_handler(
         _event(
-            method="DELETE", route="/tracks/{track_id}/tags/{tag_id}",
+            method="DELETE",
+            route="/tracks/{track_id}/tags/{tag_id}",
             path_params={"track_id": "t1", "tag_id": "tg1"},
         ),
         context,
@@ -495,18 +519,19 @@ def test_delete_track_tag_204(fake_tags, context) -> None:
     status, _body = _read(resp)
     assert status == 204
     fake_tags.remove_track_tag.assert_called_once_with(
-        user_id="u1", track_id="t1", tag_id="tg1",
+        user_id="u1",
+        track_id="t1",
+        tag_id="tg1",
     )
 
 
-def test_delete_track_tag_204_when_already_gone(
-    fake_tags, context
-) -> None:
+def test_delete_track_tag_204_when_already_gone(fake_tags, context) -> None:
     """remove is idempotent — 204 even when no row was deleted."""
     fake_tags.remove_track_tag.return_value = False
     resp = lambda_handler(
         _event(
-            method="DELETE", route="/tracks/{track_id}/tags/{tag_id}",
+            method="DELETE",
+            route="/tracks/{track_id}/tags/{tag_id}",
             path_params={"track_id": "t1", "tag_id": "missing"},
         ),
         context,
@@ -523,7 +548,10 @@ def test_get_category_tracks_with_tag_filter_passes_params_to_repo(
 ) -> None:
     fake_cat = MagicMock()
     fake_cat.list_tracks.return_value = PaginatedResult(
-        items=[], total=0, limit=50, offset=0,
+        items=[],
+        total=0,
+        limit=50,
+        offset=0,
     )
     monkeypatch.setattr(
         "collector.curation.deps.create_default_categories_repository",
@@ -531,7 +559,8 @@ def test_get_category_tracks_with_tag_filter_passes_params_to_repo(
     )
     resp = lambda_handler(
         _event(
-            method="GET", route="/categories/{id}/tracks",
+            method="GET",
+            route="/categories/{id}/tracks",
             path_params={"id": "c1"},
             query={"tags": "tg1,tg2", "match": "all"},
         ),
@@ -545,12 +574,13 @@ def test_get_category_tracks_with_tag_filter_passes_params_to_repo(
     assert kwargs["tags_repo"] is fake_tags
 
 
-def test_get_category_tracks_default_match_is_all(
-    monkeypatch, fake_tags, context
-) -> None:
+def test_get_category_tracks_default_match_is_all(monkeypatch, fake_tags, context) -> None:
     fake_cat = MagicMock()
     fake_cat.list_tracks.return_value = PaginatedResult(
-        items=[], total=0, limit=50, offset=0,
+        items=[],
+        total=0,
+        limit=50,
+        offset=0,
     )
     monkeypatch.setattr(
         "collector.curation.deps.create_default_categories_repository",
@@ -558,7 +588,8 @@ def test_get_category_tracks_default_match_is_all(
     )
     lambda_handler(
         _event(
-            method="GET", route="/categories/{id}/tracks",
+            method="GET",
+            route="/categories/{id}/tracks",
             path_params={"id": "c1"},
             query={"tags": "tg1"},
         ),
@@ -567,12 +598,13 @@ def test_get_category_tracks_default_match_is_all(
     assert fake_cat.list_tracks.call_args.kwargs["tag_match"] == "all"
 
 
-def test_get_category_tracks_no_tag_filter_passes_none(
-    monkeypatch, fake_tags, context
-) -> None:
+def test_get_category_tracks_no_tag_filter_passes_none(monkeypatch, fake_tags, context) -> None:
     fake_cat = MagicMock()
     fake_cat.list_tracks.return_value = PaginatedResult(
-        items=[], total=0, limit=50, offset=0,
+        items=[],
+        total=0,
+        limit=50,
+        offset=0,
     )
     monkeypatch.setattr(
         "collector.curation.deps.create_default_categories_repository",
@@ -580,7 +612,8 @@ def test_get_category_tracks_no_tag_filter_passes_none(
     )
     lambda_handler(
         _event(
-            method="GET", route="/categories/{id}/tracks",
+            method="GET",
+            route="/categories/{id}/tracks",
             path_params={"id": "c1"},
         ),
         context,
@@ -591,9 +624,7 @@ def test_get_category_tracks_no_tag_filter_passes_none(
     assert kwargs["tags_repo"] is fake_tags
 
 
-def test_get_category_tracks_invalid_match_returns_400(
-    monkeypatch, fake_tags, context
-) -> None:
+def test_get_category_tracks_invalid_match_returns_400(monkeypatch, fake_tags, context) -> None:
     fake_cat = MagicMock()
     monkeypatch.setattr(
         "collector.curation.deps.create_default_categories_repository",
@@ -601,7 +632,8 @@ def test_get_category_tracks_invalid_match_returns_400(
     )
     resp = lambda_handler(
         _event(
-            method="GET", route="/categories/{id}/tracks",
+            method="GET",
+            route="/categories/{id}/tracks",
             path_params={"id": "c1"},
             query={"tags": "tg1", "match": "xor"},
         ),
@@ -616,9 +648,7 @@ def test_get_category_tracks_invalid_match_returns_400(
 # ---------- inline tags_repo wiring on category mutations ------------------
 
 
-def test_remove_track_passes_tags_repo_to_categories_repo(
-    monkeypatch, fake_tags, context
-) -> None:
+def test_remove_track_passes_tags_repo_to_categories_repo(monkeypatch, fake_tags, context) -> None:
     fake_cat = MagicMock()
     fake_cat.remove_track.return_value = True
     monkeypatch.setattr(
@@ -627,7 +657,8 @@ def test_remove_track_passes_tags_repo_to_categories_repo(
     )
     resp = lambda_handler(
         _event(
-            method="DELETE", route="/categories/{id}/tracks/{track_id}",
+            method="DELETE",
+            route="/categories/{id}/tracks/{track_id}",
             path_params={"id": "c1", "track_id": "t1"},
         ),
         context,
@@ -637,9 +668,7 @@ def test_remove_track_passes_tags_repo_to_categories_repo(
     assert fake_cat.remove_track.call_args.kwargs["tags_repo"] is fake_tags
 
 
-def test_soft_delete_passes_tags_repo_to_categories_repo(
-    monkeypatch, fake_tags, context
-) -> None:
+def test_soft_delete_passes_tags_repo_to_categories_repo(monkeypatch, fake_tags, context) -> None:
     fake_cat = MagicMock()
     fake_cat.soft_delete.return_value = True
     monkeypatch.setattr(
@@ -648,7 +677,8 @@ def test_soft_delete_passes_tags_repo_to_categories_repo(
     )
     resp = lambda_handler(
         _event(
-            method="DELETE", route="/categories/{id}",
+            method="DELETE",
+            route="/categories/{id}",
             path_params={"id": "c1"},
         ),
         context,

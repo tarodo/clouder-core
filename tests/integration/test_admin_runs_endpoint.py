@@ -75,9 +75,7 @@ def test_admin_runs_negative_param_rejected():
 
 
 def test_admin_runs_db_not_configured_503(monkeypatch):
-    monkeypatch.setattr(
-        "collector.api.deps.create_clouder_repository_from_env", lambda: None
-    )
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: None)
     response = handler.lambda_handler(
         _event({"style_id": "1", "week_year": "2026", "week_number": "5"}),
         _ctx(),

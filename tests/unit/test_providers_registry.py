@@ -1,4 +1,5 @@
 """Unit tests for provider registry and VENDORS_ENABLED gating."""
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -76,9 +77,7 @@ def test_no_duplicate_prompt_slugs_across_registry(
         if bundle is not None and bundle.enrich is not None:
             slugs.append(bundle.enrich.prompt_slug)
 
-    assert len(slugs) == len(set(slugs)), (
-        f"duplicate prompt_slug across enabled enrichers: {slugs}"
-    )
+    assert len(slugs) == len(set(slugs)), f"duplicate prompt_slug across enabled enrichers: {slugs}"
 
 
 def test_get_lookup_ytmusic_returns_real_impl(monkeypatch):

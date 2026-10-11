@@ -26,9 +26,14 @@ def test_get_returns_defaults_when_no_config():
 def test_get_returns_saved_config():
     repo = MagicMock()
     repo.get_config.return_value = {
-        "kind": "labels", "enabled": True, "vendors": ["gemini"],
-        "models": {"gemini": "g"}, "prompt_slug": "s", "prompt_version": "v",
-        "merge_vendor": "deepseek", "merge_model": "m",
+        "kind": "labels",
+        "enabled": True,
+        "vendors": ["gemini"],
+        "models": {"gemini": "g"},
+        "prompt_slug": "s",
+        "prompt_version": "v",
+        "merge_vendor": "deepseek",
+        "merge_model": "m",
     }
     with patch.object(auto_routes, "_build_repository", return_value=repo):
         status, body = auto_routes.handle_get_auto_config({})
@@ -49,11 +54,19 @@ def test_put_validation_error_when_enabled_without_vendors():
 def test_put_persists_and_returns_204():
     repo = MagicMock()
     with patch.object(auto_routes, "_build_repository", return_value=repo):
-        status, _body = auto_routes.handle_put_auto_config(_put_event({
-            "enabled": True, "vendors": ["gemini"], "models": {"gemini": "g"},
-            "prompt_slug": "s", "prompt_version": "v",
-            "merge_vendor": "deepseek", "merge_model": "m",
-        }))
+        status, _body = auto_routes.handle_put_auto_config(
+            _put_event(
+                {
+                    "enabled": True,
+                    "vendors": ["gemini"],
+                    "models": {"gemini": "g"},
+                    "prompt_slug": "s",
+                    "prompt_version": "v",
+                    "merge_vendor": "deepseek",
+                    "merge_model": "m",
+                }
+            )
+        )
     assert status == 204
     repo.upsert_config.assert_called_once()
     kwargs = repo.upsert_config.call_args.kwargs

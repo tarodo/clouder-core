@@ -44,9 +44,7 @@ class DataAPIClient:
             "includeResultMetadata": True,
         }
         if params:
-            request["parameters"] = [
-                _to_parameter(name, value) for name, value in params.items()
-            ]
+            request["parameters"] = [_to_parameter(name, value) for name, value in params.items()]
         if transaction_id:
             request["transactionId"] = transaction_id
 
@@ -172,9 +170,7 @@ def _to_field(value: Any) -> dict[str, Any]:
     if isinstance(value, date):
         return {"stringValue": value.isoformat()}
     if isinstance(value, (dict, list)):
-        return {
-            "stringValue": json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-        }
+        return {"stringValue": json.dumps(value, ensure_ascii=False, separators=(",", ":"))}
     return {"stringValue": str(value)}
 
 

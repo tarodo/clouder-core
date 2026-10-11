@@ -81,7 +81,9 @@ def _handle_list(event: Mapping[str, Any], context: Any, correlation_id: str) ->
 _FUNNEL_STAGES = ("triaged", "categorized", "playlisted")
 
 
-def _handle_analytics_funnel(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_analytics_funnel(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     """Personal: own data for any signed-in user; admins may pass ?user_id."""
     from datetime import time as dtime
     from datetime import timedelta
@@ -130,13 +132,13 @@ def _handle_analytics_funnel(event: Mapping[str, Any], context: Any, correlation
     )
 
 
-def _handle_get_styles(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_get_styles(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     from ..user_styles.routes import handle_get_styles
 
     limit, offset, search = _parse_pagination_params(event)
-    status, body = handle_get_styles(
-        event, limit=limit, offset=offset, search=search
-    )
+    status, body = handle_get_styles(event, limit=limit, offset=offset, search=search)
     if status == 200:
         body["correlation_id"] = correlation_id
         log_event(
@@ -152,7 +154,9 @@ def _handle_get_styles(event: Mapping[str, Any], context: Any, correlation_id: s
     return _json_response(status, body, correlation_id)
 
 
-def _handle_put_my_styles(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
+def _handle_put_my_styles(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
     from ..user_styles.routes import extract_user_id, handle_put_my_styles
 
     status, body = handle_put_my_styles(event)

@@ -85,9 +85,7 @@ def _build_alembic_database_url() -> str:
     if mode == "iam":
         username = settings.aurora_db_user.strip()
         if not username:
-            raise RuntimeError(
-                "AURORA_DB_USER is required when AURORA_AUTH_MODE=iam"
-            )
+            raise RuntimeError("AURORA_DB_USER is required when AURORA_AUTH_MODE=iam")
         token = _rds_client().generate_db_auth_token(
             DBHostname=settings.aurora_writer_endpoint,
             Port=settings.aurora_port,
@@ -100,9 +98,7 @@ def _build_alembic_database_url() -> str:
         )
 
     if not settings.aurora_secret_arn.strip():
-        raise RuntimeError(
-            "AURORA_SECRET_ARN is required when AURORA_AUTH_MODE=password"
-        )
+        raise RuntimeError("AURORA_SECRET_ARN is required when AURORA_AUTH_MODE=password")
 
     secret = _read_secret(settings.aurora_secret_arn)
     username = str(secret.get("username", "")).strip()
