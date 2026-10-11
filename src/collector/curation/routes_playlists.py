@@ -177,16 +177,18 @@ def _handle_resolve_match(event, repo, user_id, correlation_id):
     _scope_check(repo, user_id, pid, track_id)
 
     if body.action == "accept":
+        video_id = body.vendor_track_id
+        assert video_id is not None  # ResolveMatchIn requires it on accept
         review = repo.get_open_review(track_id=track_id, vendor=body.vendor)
         payload: dict[str, Any] = {
-            "videoId": body.vendor_track_id,
-            "url": f"https://music.youtube.com/watch?v={body.vendor_track_id}",
+            "videoId": video_id,
+            "url": f"https://music.youtube.com/watch?v={video_id}",
             "source": "manual_url",
         }
         if review is not None:
             for c in review.candidates:
                 ref = c.get("ref") or {}
-                if str(ref.get("videoId") or "") == body.vendor_track_id:
+                if str(ref.get("videoId") or "") == video_id:
                     payload = ref
                     break
         repo.resolve_review_accept(
@@ -195,7 +197,7 @@ def _handle_resolve_match(event, repo, user_id, correlation_id):
         )
         if body.vendor == "ytmusic":
             try_dispatch_comment_collection(
-                track_id=track_id, video_id=body.vendor_track_id, platform="youtube"
+                track_id=track_id, video_id=video_id, platform="youtube"
             )
     else:
         repo.resolve_review_reject(

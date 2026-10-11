@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -1330,7 +1331,7 @@ class ClouderRepository:
         )
         return int(rows[0]["cnt"]) if rows else 0
 
-    def transaction(self):
+    def transaction(self) -> AbstractContextManager[str]:
         return self._data_api.transaction()
 
     def get_vendor_match(

@@ -12,8 +12,8 @@ import json
 import math
 import time
 from collections import Counter
-from collections.abc import Callable, Iterable, Mapping, Sequence
-from contextlib import nullcontext
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from contextlib import AbstractContextManager, nullcontext
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -86,7 +86,7 @@ class _ReadOnlyRepository:
     def __init__(self, repository: ClouderRepository) -> None:
         self._repository = repository
 
-    def transaction(self):
+    def transaction(self) -> AbstractContextManager[None]:
         return nullcontext(None)
 
     def __getattr__(self, name: str) -> Any:
@@ -233,7 +233,7 @@ class Canonicalizer:
         entity_type: str,
         external_ids: Sequence[str],
         observed_at: datetime,
-        transaction_id: str,
+        transaction_id: str | None,  # None in a dry run: reads outside a transaction
     ) -> tuple[dict[str, str], set[str]]:
         """Map external ids to clouder ids in two Data API calls, race-safe.
 
@@ -612,8 +612,8 @@ def _identity_cmd(
     )
 
 
-def _chunks(items: Iterable[Any], chunk_size: int):
-    chunk = []
+def _chunks(items: Iterable[Any], chunk_size: int) -> Iterator[list[Any]]:
+    chunk: list[Any] = []
     for item in items:
         chunk.append(item)
         if len(chunk) == chunk_size:

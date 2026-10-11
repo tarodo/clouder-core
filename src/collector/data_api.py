@@ -93,7 +93,7 @@ class DataAPIClient:
             secretArn=self._secret_arn,
             database=self._database,
         )
-        return response["transactionId"]
+        return str(response["transactionId"])
 
     @retry_data_api_pre_execution()
     def commit_transaction(self, transaction_id: str) -> None:

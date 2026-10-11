@@ -21,6 +21,24 @@ explicit_package_bases = true
 ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
 files = ["src/collector"]
+check_untyped_defs = true
+
+# The modules every ingest and DQ result passes through are checked strictly
+# (mypy's `strict` is global-only, so the flags are listed per module).
+[[tool.mypy.overrides]]
+module = [
+  "collector.canonicalize",
+  "collector.contracts",
+  "collector.data_quality",
+  "collector.data_api",
+  "collector.data_api_retry",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+disallow_any_generics = true
+warn_return_any = true
+strict_equality = true
 
 [tool.coverage.run]
 source = ["src/collector"]
