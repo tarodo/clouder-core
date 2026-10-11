@@ -10,7 +10,7 @@
 
 *Sample data, sped up: a week of new releases cleared one keystroke per track.*
 
-**At a glance:** ~98k canonical tracks, 3–5k new every week · 18 Lambda functions, 2 Step Functions workflows · 11 nightly data-quality SLOs · ~3,300 automated tests · every merge to `main` deploys to production.
+**At a glance:** ~143k canonical tracks, 3–5k new every week · 18 Lambda functions, 2 Step Functions workflows · 11 nightly data-quality SLOs · ~3,500 automated tests · every merge to `main` deploys to production behind a smoke test with automatic rollback.
 
 Every week brings a new wave of electronic-music releases on Beatport. For a DJ, turning "what came out this week" into "what goes into my set" means pulling the releases, matching each track across Spotify and YouTube Music, checking labels and artists, auditioning, and sorting into playlists. CLOUDER automates the data side of that workflow and gives a small group of DJs a fast, keyboard-first app for the human side.
 
@@ -100,11 +100,11 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 
 **Cloud & infrastructure**
 - 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 241 Terraform resource definitions.
-- GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
+- GitHub Actions with OIDC and two roles: pull requests plan Terraform under a read-only role, and only the `production` environment can assume the deploy role ([ADR-0028](docs/adr/0028-ci-roles.md)). Deploys land DB migrations before API code, smoke-test the result and roll the API back to the previous Lambda versions in seconds if it fails ([ADR-0029](docs/adr/0029-api-aliases-smoke-rollback.md)).
 - A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function plus throttle and 5xx alarms on the API, routed to email through SNS.
 
 **Software engineering**
-- About 3,300 automated tests: ~2,090 backend (including a suite against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
+- About 3,500 automated tests: ~2,290 backend (including a suite against a real PostgreSQL 16), ~1,220 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
 - CI gates on every PR: ruff and mypy, an 80 % coverage floor, locked Python dependencies with pip-audit, a runtime `pnpm audit`, a route-consistency check (Terraform ↔ OpenAPI ↔ handler code); Dependabot for pip, npm, Actions and Terraform.
 - 29 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
 
@@ -112,7 +112,7 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 
 | Service | How it is used |
 |---|---|
-| **Lambda** (Python 3.12) | 18 functions: API handlers and a JWT authorizer, SQS workers, scheduled jobs, backfill steps, DB migrations |
+| **Lambda** (Python 3.12) | 18 functions: API handlers and a JWT authorizer, SQS workers with per-queue concurrency caps, scheduled jobs, backfill steps, DB migrations; the six API functions serve through a versioned `live` alias for instant rollback |
 | **API Gateway** (HTTP API) | 106 operations; everything except the auth routes (`/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/logout`) goes through a Lambda authorizer |
 | **SQS** | 7 work queues, each with a dead-letter queue and redrive policy |
 | **Step Functions** | Backfill (plan → map over runs → summarize → DQ check) and the nightly dbt transform |
@@ -125,7 +125,7 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 | **CloudWatch + SNS** | Structured JSON logs, API access logs, log metric filters, alarms on every function's errors, API throttles and 5xx, account concurrency and data/pipeline health, email notifications |
 | **KMS / SSM / Secrets Manager** | Envelope encryption of users' OAuth tokens; vendor credentials; Aurora credentials |
 | **CloudFront** | SPA delivery with Origin Access Control |
-| **IAM** | A least-privilege execution role per Lambda (its own log group and only what its code uses); GitHub OIDC deploy role |
+| **IAM** | A least-privilege execution role per Lambda (its own log group and only what its code uses); a read-only role for pull-request plans and an environment-gated deploy role, both through GitHub OIDC |
 
 **Deliberately not used:** Redshift, EMR/Spark, Kinesis Data Streams/MSK, ECS/EKS, Glue ETL jobs. At ~100k tracks and a few hundred events a day they would add cost and moving parts without solving a problem this system has; where an alternative was weighed, the trade-off is recorded — Redshift Serverless and Kafka in [`docs/design/data-platform.md`](docs/design/data-platform.md#alternatives-considered), Glue ETL and Spark in [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md) — and [`docs/scalability.md`](docs/scalability.md) says what changes at 10× and 100×.
 
@@ -140,6 +140,8 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 7. **Reprocess.** When canonicalization changes, the backfill state machine replays stored raw runs — first as a dry run that reports what would change, then for real.
 
 **When something fails.** Each worker has its own queue and dead-letter queue, so a vendor outage delays one kind of enrichment and nothing else. Bad upstream records go to quarantine instead of failing the run. A failed nightly dbt build leaves the analytics cards correct for two more nights, because they read the last three days straight from bronze. Every failure mode, its alarm and its recovery are listed in [`docs/ops/failure-modes.md`](docs/ops/failure-modes.md).
+
+**When the data outgrows a shortcut.** The nightly catalog export timed out two nights running (2026-10-10, 10-11) as scheduled ingestion filled the catalog. Paging by primary key instead of `OFFSET` bought 6 %; the time was CPU spent parsing Data API JSON, and 1024 MB instead of 256 MB took a run from 296 s to 124 s for 433k rows. Keyset paging stayed for correctness: rows written during the export no longer shift the pages ([lakehouse](docs/data/lakehouse.md)).
 
 ## Screenshots
 
@@ -175,12 +177,12 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 
 | | |
 |---|---|
-| Canonical catalog | ~98k canonical tracks (2026-10-07), from 107,795 raw records |
+| Canonical catalog | ~143k canonical tracks (catalog export, 2026-10-11) |
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
-| Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
+| Lambda invocations | 159k in 30 days (2026-09-11 → 10-11), 0.041 % errors |
 | Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 241 Terraform resource definitions |
 | API | 106 operations |
-| Delivery | 290+ merged pull requests; every merge to `main` deploys to production. Last 90 days to 2026-10-11, [DORA](https://dora.dev)-style ([`scripts/dora.py`](scripts/dora.py)): 6.1 deploys a week, median lead time 11 min from first commit to production, 1 of 79 deploy runs failed (recovered in 8 min); one green deploy caused a production incident — 2 min 40 s of errors on one route ([postmortem](docs/postmortems/2026-09-20-deploy-before-migration.md)) |
+| Delivery | 300+ merged pull requests; every merge to `main` deploys to production. Last 90 days to 2026-10-11, [DORA](https://dora.dev)-style ([`scripts/dora.py`](scripts/dora.py)): 7.2 deploys a week, median lead time 11 min from first commit to production, 2 of 94 deploy runs failed (recovered in 8 min); one green deploy caused a production incident — 2 min 40 s of errors on one route ([postmortem](docs/postmortems/2026-09-20-deploy-before-migration.md)) |
 
 ## Production readiness
 
@@ -245,7 +247,8 @@ Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/dep
 - One production environment; changes are verified by CI, local real-PostgreSQL tests and dry runs rather than a staging stack.
 - Throughput limits are measured, not guessed: canonicalization fits a 10× week easily and reaches the Lambda timeout around 100× the largest week — see [scalability notes](docs/scalability.md).
 - Matching precision is measured for YouTube Music only. Next: a labelled sample for Spotify.
-- Built for a closed group of DJs: about 98k tracks, growing by 3–5k a week.
+- Built for a closed group of DJs: about 143k tracks, growing by 3–5k a week.
+- The deploy role is still AdministratorAccess, assumable only from the `production` environment; scoping it to the services Terraform manages is the next security step ([security](docs/security.md#known-gaps)).
 
 ## How this was built
 

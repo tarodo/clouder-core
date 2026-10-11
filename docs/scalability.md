@@ -1,6 +1,6 @@
 # Scalability notes
 
-CLOUDER serves a closed group of DJs: about 98k canonical tracks, 3–5k new tracks a week, a
+CLOUDER serves a closed group of DJs: about 143k canonical tracks (2026-10-11), 3–5k new tracks a week, a
 mean ingest run of 671 tracks and a largest one of 3,656. This page says what each part does at
 10× and 100× that volume, where it stops, and the next step — with measured numbers where they
 exist. It deliberately describes levers, not prices.
