@@ -45,6 +45,9 @@ describe('LabelsTable My column', () => {
       },
     ]);
     expect(screen.getByText('My')).toBeInTheDocument();
+    expect(screen.getByText('NL')).toBeInTheDocument();
+    // Country as a plain ISO code: flag emoji render as letter pairs on Windows anyway.
+    expect(document.body.textContent).not.toMatch(/\p{Regional_Indicator}/u);
     // active heart → aria switches to "Remove preference"
     expect(screen.getByRole('button', { name: /^remove preference$/i })).toBeInTheDocument();
   });

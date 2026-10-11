@@ -2,7 +2,6 @@ import { Group, Title, Text, Anchor, Button } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { useBackOrFallback } from '../hooks/useBackOrFallback';
 import type { ArtistDetail } from '../../../api/artists';
-import { countryFlag } from '../lib/countryFlag';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 import { useAuth } from '../../../auth/useAuth';
 import { useEnrichArtistAuto } from '../hooks/useEnrichArtistAuto';
@@ -50,7 +49,7 @@ export function ArtistDetailHeader({ info, artistId }: Props) {
       <Group gap="xs" mt="xs">
         {country && (
           <Text>
-            {countryFlag(country)} {country}
+            {country}
           </Text>
         )}
         {activeSince !== null && (
