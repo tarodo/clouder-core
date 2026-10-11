@@ -201,27 +201,27 @@ Fix forward on `main`, then start the state machine by hand (`aws stepfunctions 
 
 **Symptom**
 
-Alarm `clouder-prod-transform-failed`; the CodeBuild log ends with `ERROR STALE` for `source bronze.catalog_export` after a green `dbt build`.
+Alarm `clouder-prod-transform-failed`; the CodeBuild log ends with `ERROR STALE` for `source bronze.catalog_export` after a green `dbt build`. Usually `clouder-prod-catalog-export-errors` fired at midnight too.
 
 **Diagnosis**
 
-The 00:00 UTC export did not write today's snapshot. Check its errors and the newest partition:
+The 00:00 UTC export did not finish today's snapshot: it writes `clouder_styles` last, so a run that failed or timed out leaves today's partition without it. Check its errors and today's tables:
 
 ```bash
 aws logs tail /aws/lambda/clouder-prod-catalog-export --since 12h
-aws s3 ls "s3://clouder-prod-analytics-lake/bronze/catalog_export/" | tail -2   # snapshot_dt=<today>/ expected
+aws s3 ls "s3://clouder-prod-analytics-lake/bronze/catalog_export/snapshot_dt=$(date -u +%F)/"   # 8 tables, clouder_styles last
 ```
 
 **Fix**
 
-Fix the cause (usually Aurora or a timeout), re-run the export, then the transform:
+Fix the cause (usually Aurora or the 900 s timeout), re-run the export (it takes minutes; the flag stops the CLI from re-invoking it after 60 s), then the transform:
 
 ```bash
-aws lambda invoke --function-name clouder-prod-catalog-export /dev/stdout
+aws lambda invoke --cli-read-timeout 0 --function-name clouder-prod-catalog-export /dev/stdout
 aws stepfunctions start-execution --state-machine-arn $(cd infra && terraform output -raw transform_state_machine_arn)
 ```
 
-Silver/gold advanced anyway (the build runs before the freshness check); only the track → style dictionary is a day old until the re-run.
+Silver/gold advanced anyway: the build runs before the freshness check and reads only `clouder_tracks`, which the export writes first. The per-style analytics cards read `clouder_styles` from the last three snapshots, so they lose style names after three failed nights.
 
 ---
 
@@ -391,7 +391,7 @@ aws s3 ls "s3://clouder-prod-analytics-lake/bronze/events/" | tail -3   # today'
 **Catalog snapshot (track → style dictionary)** runs nightly at 00:00 UTC (`clouder-prod-catalog-export`). Run it by hand after a deploy or if a night was missed:
 
 ```bash
-aws lambda invoke --function-name clouder-prod-catalog-export /dev/stdout   # {"snapshot_dt": ..., "counts": {...}}
+aws lambda invoke --cli-read-timeout 0 --function-name clouder-prod-catalog-export /dev/stdout   # {"snapshot_dt": ..., "counts": {...}}
 aws s3 ls "s3://clouder-prod-analytics-lake/bronze/catalog_export/" | tail -2
 ```
 

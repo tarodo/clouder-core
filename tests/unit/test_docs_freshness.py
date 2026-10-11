@@ -92,3 +92,12 @@ def test_auto_ingest_doc_reports_production() -> None:
     assert "disabled" not in status
     after = doc.split("## After", 1)[1].split("\n## ", 1)[0]
     assert "Pending" not in after and re.search(r"\d", after)
+
+
+def test_long_lambda_invokes_in_docs_wait_for_the_result() -> None:
+    # The CLI reads for 60 s, then retries a synchronous invoke: a minutes-long export
+    # would run two or three times at once.
+    for doc in live_docs():
+        for line in doc.read_text().splitlines():
+            if "aws lambda invoke" in line and "catalog-export" in line:
+                assert "--cli-read-timeout 0" in line, f"{doc}: {line.strip()}"

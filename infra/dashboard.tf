@@ -83,6 +83,9 @@ locals {
 resource "aws_cloudwatch_dashboard" "overview" {
   dashboard_name = "${local.name_prefix}-overview"
   dashboard_body = jsonencode({
+    # A week, each widget at its own period: data-quality points land once a night.
+    start          = "-P7D"
+    periodOverride = "inherit"
     widgets = [
       for i, w in local.dashboard_widgets : {
         type   = "metric"

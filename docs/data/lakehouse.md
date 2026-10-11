@@ -63,7 +63,8 @@ before history starts take the earliest known version.
 **Tests.** dbt unit tests (dedup, lookback window, SCD2 first build / incremental fold / no-op
 rerun / revert, play capping, point-in-time style), data tests (`unique`, `not_null`,
 `accepted_values`, one open version per track, non-overlapping versions) and source freshness:
-the catalog export must carry today's snapshot (`error_after` one day), telemetry only warns —
+the catalog export must carry a complete snapshot for today (`clouder_styles`, its last table,
+is present; `error_after` one day), telemetry only warns —
 it follows users, and a quiet day is normal.
 CI runs them on DuckDB for every change under `dbt/` and parses the Athena target.
 

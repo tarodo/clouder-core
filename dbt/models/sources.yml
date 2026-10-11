@@ -18,10 +18,12 @@ sources:
         description: Nightly NDJSON snapshot of the Aurora catalog, partitioned by snapshot_dt and tbl; expires after 14 days.
         # The nightly export (00:00 UTC) writes one snapshot per day; the 00:30 build must see
         # today's. Stale = the export failed -> the job fails -> transform-failed alarm.
+        # clouder_styles is exported last: a run cut short (timeout) leaves today's partition
+        # without it, so only its presence proves a complete snapshot.
         loaded_at_field: "cast(snapshot_dt as timestamp)"
         freshness:
           error_after: {count: 1, period: day}
-          filter: "snapshot_dt >= cast(current_date - interval '3' day as varchar)"
+          filter: "snapshot_dt >= cast(current_date - interval '3' day as varchar) and tbl = 'clouder_styles'"
   - name: governance
     description: Privacy tombstones written by scripts/delete_user.py (docs/privacy.md).
     schema: clouder_analytics

@@ -46,3 +46,10 @@ def test_dashboard_charts_every_data_quality_slo() -> None:
         assert f'"{check.name}"' in body, check.name
         if check.comparison == "min":
             assert re.search(rf"value\s*=\s*{check.threshold:g}\b", body), check.name  # SLO line
+
+
+def test_dashboard_opens_on_a_week_with_each_widget_period() -> None:
+    # Data-quality metrics land once a night: the 3 h default range would show them empty.
+    body = _dashboard()
+    assert re.search(r'start\s*=\s*"-P7D"', body)
+    assert re.search(r'periodOverride\s*=\s*"inherit"', body)

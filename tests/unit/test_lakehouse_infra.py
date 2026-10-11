@@ -59,3 +59,22 @@ def test_catalog_export_freshness_errors_and_telemetry_only_warns() -> None:
     tables = {t["name"]: t for s in sources["sources"] for t in s["tables"]}
     assert tables["catalog_export"]["freshness"]["error_after"] == {"count": 1, "period": "day"}
     assert "error_after" not in tables["events"]["freshness"]
+
+
+def test_catalog_freshness_waits_for_the_last_exported_table() -> None:
+    # A timed-out export leaves today's partition with only its first tables;
+    # only the last table's presence proves the export finished.
+    import yaml
+
+    from collector.catalog_export_handler import _EXPORTS
+
+    sources = yaml.safe_load((INFRA.parent / "dbt" / "models" / "sources.yml").read_text())
+    tables = {t["name"]: t for s in sources["sources"] for t in s["tables"]}
+    assert f"tbl = '{_EXPORTS[-1][0]}'" in tables["catalog_export"]["freshness"]["filter"]
+
+
+def test_catalog_export_has_room_to_finish() -> None:
+    # 300 s ran out on 2026-10-09 with ~310k rows; 900 s is the Lambda maximum.
+    tf = (INFRA / "analytics_export.tf").read_text()
+    fn = tf[tf.index('resource "aws_lambda_function" "catalog_export"'):]
+    assert re.search(r"timeout\s*=\s*900\b", fn[: fn.index("environment")])
