@@ -20,7 +20,7 @@ import argparse
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from collector.user_deletion import delete_covers, delete_user, purge_lake
@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     s3, athena = _clients()
     print(f"Cover object versions deleted: {delete_covers(s3, raw_bucket, user_id)}")
     purge_lake(s3, athena, user_id=user_id, lake_bucket=args.lake_bucket,
-               workgroup=args.workgroup, now=datetime.now(timezone.utc))
+               workgroup=args.workgroup, now=datetime.now(UTC))
     print("Lake: tombstone written, silver/gold rows deleted.")
     return 0
 

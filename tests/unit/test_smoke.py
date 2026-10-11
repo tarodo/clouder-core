@@ -6,7 +6,7 @@ import importlib
 import importlib.util
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -114,12 +114,12 @@ def test_fetch_retries_a_network_error_once(monkeypatch: pytest.MonkeyPatch) -> 
 
     class Resp:
         status = 200
-        headers = {}
+        headers: ClassVar[dict[str, str]] = {}
 
         def read(self) -> bytes:
             return b"ok"
 
-        def __enter__(self) -> "Resp":
+        def __enter__(self) -> Resp:
             return self
 
         def __exit__(self, *exc: object) -> None:

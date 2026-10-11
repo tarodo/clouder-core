@@ -84,5 +84,5 @@ def test_get_artist_user_404_when_missing(monkeypatch):
             return None
 
     _setup(monkeypatch, repo=R())
-    status, body = routes.handle_get_artist_user({"pathParameters": {"artist_id": "x"}})
+    status, _body = routes.handle_get_artist_user({"pathParameters": {"artist_id": "x"}})
     assert status == 404

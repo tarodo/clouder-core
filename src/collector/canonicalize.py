@@ -12,10 +12,11 @@ import json
 import math
 import time
 from collections import Counter
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import nullcontext
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any
 from uuid import uuid4
 
 from .logging_utils import log_event

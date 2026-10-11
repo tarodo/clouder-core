@@ -9,7 +9,8 @@ the DLQ after the queue's maxReceiveCount.
 from __future__ import annotations
 
 import json
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from .artist_enrichment.auto_dispatch import try_dispatch_artists_for_triage_block
 from .comments.auto_dispatch import try_dispatch_comments_for_triage_block

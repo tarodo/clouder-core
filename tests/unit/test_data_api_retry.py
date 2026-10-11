@@ -81,7 +81,7 @@ def test_transient_error_codes_full_set():
         "ServiceUnavailableError",
         "ThrottlingException",
     }
-    assert TRANSIENT_ERROR_CODES == expected
+    assert expected == TRANSIENT_ERROR_CODES
 
 
 def test_retry_exhausts_and_reraises(monkeypatch):

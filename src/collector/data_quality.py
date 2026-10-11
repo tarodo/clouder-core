@@ -9,9 +9,10 @@ a broken check cannot hide behind a green run.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any, Sequence
+from typing import Any
 
 from .logging_utils import log_event
 

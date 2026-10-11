@@ -4,11 +4,15 @@ src = ["src", "tests", "scripts"]
 extend-exclude = ["graphify-out", "experiments", "frontend", "dbt", "alembic/versions"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "B"]
-ignore = ["B904", "B905"]  # raise-from and zip(strict=) are style changes across ~40 call sites
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "SIM", "RUF"]
+# B904/B905: raise-from and zip(strict=) are style changes across ~40 call sites.
+# UP042: StrEnum changes str() and f-string output of members.
+ignore = ["B904", "B905", "UP042"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["B011", "B017", "E402"]  # local helpers before imports are fine in tests
+# Local helpers before imports are fine in tests; a nested `pytest.raises` scopes the one call that raises.
+"tests/**" = ["B011", "B017", "E402", "SIM117"]
+"src/collector/*/prompts/**" = ["RUF001", "RUF002"]  # LLM prompt text uses typographic characters on purpose
 
 [tool.mypy]
 python_version = "3.12"

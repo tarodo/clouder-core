@@ -1,12 +1,12 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from collector.label_enrichment.auto_repository import AutoEnrichRepository
 
 
 def _now():
-    return datetime(2026, 5, 25, 12, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 5, 25, 12, 0, 0, tzinfo=UTC)
 
 
 def _repo():

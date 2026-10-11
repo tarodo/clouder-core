@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from collector.auth.auth_repository import (
@@ -20,7 +20,7 @@ def _make() -> tuple[AuthRepository, MagicMock]:
 
 def test_upsert_user_emits_insert_on_conflict() -> None:
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
 
     repo.upsert_user(
         UpsertUserCmd(
@@ -43,7 +43,7 @@ def test_upsert_user_emits_insert_on_conflict() -> None:
 
 def test_get_user_by_spotify_id_returns_user_row() -> None:
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     data_api.execute.return_value = [
         {
             "id": "u-1",
@@ -64,7 +64,7 @@ def test_get_user_by_spotify_id_returns_user_row() -> None:
 
 def test_create_session_inserts_row() -> None:
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
 
     repo.create_session(
         session_id="s-1",
@@ -85,7 +85,7 @@ def test_create_session_inserts_row() -> None:
 
 def test_get_active_session_filters_by_revoked_and_expiry() -> None:
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     data_api.execute.return_value = [
         {
             "id": "s-1",
@@ -111,7 +111,7 @@ def test_get_active_session_filters_by_revoked_and_expiry() -> None:
 
 def test_rotate_session_updates_hash_and_last_used() -> None:
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
 
     repo.rotate_session(
         session_id="s-1", new_hash="h2", last_used_at=now
@@ -127,7 +127,7 @@ def test_rotate_session_updates_hash_and_last_used() -> None:
 
 def test_revoke_session_sets_revoked_at() -> None:
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
 
     repo.revoke_session("s-1", revoked_at=now)
 
@@ -138,7 +138,7 @@ def test_revoke_session_sets_revoked_at() -> None:
 
 def test_revoke_all_sessions_for_user() -> None:
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
 
     repo.revoke_all_user_sessions("u-1", revoked_at=now)
 
@@ -149,7 +149,7 @@ def test_revoke_all_sessions_for_user() -> None:
 
 def test_list_user_sessions_returns_active_only() -> None:
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     data_api.execute.return_value = []
 
     repo.list_active_sessions(user_id="u-1", now=now)
@@ -162,7 +162,7 @@ def test_list_user_sessions_returns_active_only() -> None:
 
 def test_upsert_vendor_token_serializes_bytes() -> None:
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
 
     repo.upsert_vendor_token(
         UpsertVendorTokenCmd(
@@ -190,7 +190,7 @@ def test_get_vendor_token_decodes_bytes() -> None:
     import base64
 
     repo, data_api = _make()
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     data_api.execute.return_value = [
         {
             "user_id": "u-1",

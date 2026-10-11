@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from types import SimpleNamespace
-from typing import Any, Mapping
+from typing import Any
 
 import pytest
 
@@ -375,7 +376,7 @@ def test_create_category_409_on_duplicate(fake_repo, context):
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(
@@ -422,7 +423,7 @@ def test_create_category_422_empty_name(fake_repo, context):
 
 
 def test_list_by_style_returns_paginated(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     for i, name in enumerate(["A", "B", "C"]):
         fake_repo.create(
             user_id="u1", style_id="s1", category_id=f"c{i}",
@@ -447,7 +448,7 @@ def test_list_by_style_returns_paginated(fake_repo, context):
 
 
 def test_list_by_style_paginates_with_limit_offset(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     for i, name in enumerate(["A", "B", "C", "D"]):
         fake_repo.create(
             user_id="u1", style_id="s1", category_id=f"c{i}",
@@ -510,7 +511,7 @@ def test_list_by_style_404_style_missing(fake_repo, context):
 
 
 def test_list_all_returns_cross_style(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="A", normalized_name="a", now=now,
@@ -532,7 +533,7 @@ def test_get_detail_200(fake_repo, context):
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(method="GET", route="/categories/{id}", path_params={"id": "c1"}),
@@ -557,7 +558,7 @@ def test_rename_200(fake_repo, context):
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(
@@ -574,7 +575,7 @@ def test_rename_200(fake_repo, context):
 
 
 def test_rename_409_on_conflict(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -592,7 +593,7 @@ def test_rename_409_on_conflict(fake_repo, context):
         ),
         context,
     )
-    status, body = _read(resp)
+    status, _body = _read(resp)
     assert status == 409
 
 
@@ -615,7 +616,7 @@ def test_rename_422_whitespace_name(fake_repo, context):
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(
@@ -635,7 +636,7 @@ def test_delete_204(fake_repo, context):
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(method="DELETE", route="/categories/{id}", path_params={"id": "c1"}),
@@ -656,7 +657,7 @@ def test_delete_404_already_gone(fake_repo, context):
 
 
 def test_reorder_200(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     for i, name in enumerate(["A", "B", "C"]):
         fake_repo.create(
             user_id="u1", style_id="s1", category_id=f"c{i}",
@@ -678,7 +679,7 @@ def test_reorder_200(fake_repo, context):
 
 
 def test_reorder_422_on_extra_id(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="A", normalized_name="a", now=now,
@@ -707,12 +708,12 @@ def test_reorder_404_style_missing(fake_repo, context):
         ),
         context,
     )
-    status, body = _read(resp)
+    status, _body = _read(resp)
     assert status == 404
 
 
 def test_list_tracks_200(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -742,7 +743,7 @@ def test_list_tracks_200(fake_repo, context):
 
 
 def test_list_tracks_400_invalid_sort(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -762,7 +763,7 @@ def test_list_tracks_400_invalid_sort(fake_repo, context):
 
 
 def test_list_tracks_400_invalid_order(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -782,7 +783,7 @@ def test_list_tracks_400_invalid_order(fake_repo, context):
 
 
 def test_list_tracks_accepts_mixed_case_sort(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -801,7 +802,7 @@ def test_list_tracks_accepts_mixed_case_sort(fake_repo, context):
 
 
 def test_add_track_201(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -823,7 +824,7 @@ def test_add_track_201(fake_repo, context):
 
 
 def test_add_track_200_already_present(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -848,7 +849,7 @@ def test_add_track_200_already_present(fake_repo, context):
 
 
 def test_add_track_404_track_missing(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -868,7 +869,7 @@ def test_add_track_404_track_missing(fake_repo, context):
 
 
 def test_remove_track_204(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -890,7 +891,7 @@ def test_remove_track_204(fake_repo, context):
 
 
 def test_remove_track_404_when_not_in_category(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -911,7 +912,7 @@ def test_remove_track_404_when_not_in_category(fake_repo, context):
 # ---------- Tenancy isolation tests ------------------------------------------
 
 def test_user_b_cannot_see_user_a_category(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="user-a", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -926,12 +927,12 @@ def test_user_b_cannot_see_user_a_category(fake_repo, context):
         ),
         context,
     )
-    status, body = _read(resp)
+    status, _body = _read(resp)
     assert status == 404
 
 
 def test_user_b_cannot_rename_user_a_category(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="user-a", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -946,12 +947,12 @@ def test_user_b_cannot_rename_user_a_category(fake_repo, context):
         ),
         context,
     )
-    status, body = _read(resp)
+    status, _body = _read(resp)
     assert status == 404
 
 
 def test_user_b_cannot_delete_user_a_category(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="user-a", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -969,7 +970,7 @@ def test_user_b_cannot_delete_user_a_category(fake_repo, context):
 
 
 def test_list_by_style_filters_by_user(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="user-a", style_id="s1", category_id="c1",
         name="A", normalized_name="a", now=now,
@@ -996,7 +997,7 @@ def test_list_by_style_filters_by_user(fake_repo, context):
 
 
 def test_recreate_after_soft_delete(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -1047,7 +1048,7 @@ def test_cross_style_namesakes_coexist(fake_repo, context):
 
 def test_spec_d_contract_add_tracks_bulk_round_trip(fake_repo, context):
     """spec-D will reuse add_tracks_bulk inside its triage finalize TX."""
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -1080,7 +1081,7 @@ def test_spec_d_contract_add_tracks_bulk_round_trip(fake_repo, context):
 
 
 def test_tracks_pagination_limits(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -1109,7 +1110,7 @@ def test_tracks_pagination_limits(fake_repo, context):
 
 
 def test_tracks_search(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,
@@ -1137,7 +1138,7 @@ def test_tracks_search(fake_repo, context):
 
 
 def test_track_count_rollup_on_list_and_detail(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
         user_id="u1", style_id="s1", category_id="c1",
         name="Tech", normalized_name="tech", now=now,

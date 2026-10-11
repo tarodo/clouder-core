@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import re
 import uuid
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, Mapping
+from typing import TYPE_CHECKING, Any
 
 from ..data_api import DataAPIClient
 
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 _NORM_RE = re.compile(r"\s+")
@@ -561,10 +563,8 @@ class LabelEnrichmentRepository:
             for json_col in ("parsed", "citations"):
                 v = row.get(json_col)
                 if isinstance(v, str):
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError):
                         row[json_col] = json.loads(v)
-                    except json.JSONDecodeError:
-                        pass
             items.append(row)
         return items
 
@@ -677,10 +677,8 @@ class LabelEnrichmentRepository:
         if isinstance(cost_usd, Decimal):
             row["cost_usd"] = float(cost_usd)
         elif isinstance(cost_usd, str):
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 row["cost_usd"] = float(cost_usd)
-            except (TypeError, ValueError):
-                pass
         return row
 
     # ── cells ───────────────────────────────────────────────────────
@@ -690,7 +688,7 @@ class LabelEnrichmentRepository:
         run_id: str,
         label_id: str,
         vendor: str,
-        response: "VendorResponse",
+        response: VendorResponse,
     ) -> None:
         from .vendors.base import VendorResponse  # local — avoid cycle
 
@@ -747,7 +745,7 @@ class LabelEnrichmentRepository:
         last_run_id: str,
         prompt_slug: str,
         prompt_version: str,
-        merged: "LabelInfo",
+        merged: LabelInfo,
         provenance: Mapping[str, Any],
     ) -> None:
         ts = self._now()
@@ -811,7 +809,7 @@ class LabelEnrichmentRepository:
     def project_ai_suspected(
         self,
         label_id: str,
-        merged: "LabelInfo",
+        merged: LabelInfo,
         threshold: float,
     ) -> None:
         """Mirror merged.ai_content into clouder_labels.is_ai_suspected when confidence >= threshold."""
@@ -866,10 +864,8 @@ class LabelEnrichmentRepository:
         if isinstance(ai_conf, Decimal):
             row["ai_confidence"] = float(ai_conf)
         elif isinstance(ai_conf, str):
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 row["ai_confidence"] = float(ai_conf)
-            except (TypeError, ValueError):
-                pass
         return row
 
     # ── user label preferences ──────────────────────────────────────

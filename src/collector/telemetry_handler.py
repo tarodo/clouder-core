@@ -12,8 +12,9 @@ from __future__ import annotations
 import json
 import os
 import time
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -98,7 +99,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any, *, firehose_client: A
         )
         return _response(400, {"error_code": "batch_too_large", "message": "max 256 events"}, correlation_id)
 
-    ts_server = datetime.now(timezone.utc).isoformat()
+    ts_server = datetime.now(UTC).isoformat()
     records: list[dict[str, bytes]] = []
     rejected = 0
     for raw_event in events:

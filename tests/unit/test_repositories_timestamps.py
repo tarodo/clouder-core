@@ -1,10 +1,10 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from collector.repositories import as_utc_datetime
 
-UTC = timezone.utc
+UTC = UTC
 
 
 @pytest.mark.parametrize(

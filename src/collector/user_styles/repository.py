@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from ..errors import ValidationError
 
@@ -145,7 +146,7 @@ class UserStylesRepository:
         now: datetime | None = None,
     ) -> None:
         """Replace the whole selection; array order becomes `position`."""
-        at = now or datetime.now(timezone.utc)
+        at = now or datetime.now(UTC)
         with self._data_api.transaction() as tx_id:
             if style_ids:
                 placeholders = ", ".join(

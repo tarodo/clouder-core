@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from collector.logging_utils import log_event
 
@@ -182,7 +183,7 @@ class YoutubeDataApiClient:
             f"{metadata}\r\n"
             f"--{_COVER_BOUNDARY}\r\n"
             f"Content-Type: {content_type}\r\n\r\n"
-        ).encode("utf-8") + image_bytes + f"\r\n--{_COVER_BOUNDARY}--\r\n".encode("utf-8")
+        ).encode() + image_bytes + f"\r\n--{_COVER_BOUNDARY}--\r\n".encode()
         headers = {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": f"multipart/related; boundary={_COVER_BOUNDARY}",

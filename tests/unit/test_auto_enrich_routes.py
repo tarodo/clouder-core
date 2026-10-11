@@ -49,7 +49,7 @@ def test_put_validation_error_when_enabled_without_vendors():
 def test_put_persists_and_returns_204():
     repo = MagicMock()
     with patch.object(auto_routes, "_build_repository", return_value=repo):
-        status, body = auto_routes.handle_put_auto_config(_put_event({
+        status, _body = auto_routes.handle_put_auto_config(_put_event({
             "enabled": True, "vendors": ["gemini"], "models": {"gemini": "g"},
             "prompt_slug": "s", "prompt_version": "v",
             "merge_vendor": "deepseek", "merge_model": "m",

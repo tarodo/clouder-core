@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import gzip
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from botocore.exceptions import BotoCoreError, ClientError
 
@@ -45,9 +45,9 @@ class S3Storage:
 
     def write_run_artifacts(
         self,
-        releases: List[Dict[str, Any]],
-        meta: Dict[str, Any],
-    ) -> Tuple[str, str]:
+        releases: list[dict[str, Any]],
+        meta: dict[str, Any],
+    ) -> tuple[str, str]:
         style_id = int(meta["style_id"])
         year_raw = meta.get("iso_year") if meta.get("iso_year") is not None else meta.get("week_year")
         week_raw = meta.get("iso_week") if meta.get("iso_week") is not None else meta.get("week_number")
@@ -108,7 +108,7 @@ class S3Storage:
         )
         return releases_key, meta_key
 
-    def write_quarantine(self, run_id: str, quarantined: List[Dict[str, Any]]) -> str:
+    def write_quarantine(self, run_id: str, quarantined: list[dict[str, Any]]) -> str:
         """Records a run could not canonicalize, with the contract's reasons
         (docs/data/contracts.md). One object per run, overwritten on replay."""
         key = f"{self.raw_prefix}/_quarantine/run_id={run_id}/records.json.gz"
@@ -122,7 +122,7 @@ class S3Storage:
         )
         return key
 
-    def read_releases(self, key: str) -> List[Any]:
+    def read_releases(self, key: str) -> list[Any]:
         try:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
             raw_bytes = response["Body"].read()
@@ -142,10 +142,10 @@ class S3Storage:
 
     def write_spotify_results(
         self,
-        results: List[Dict[str, Any]],
-        meta: Dict[str, Any],
+        results: list[dict[str, Any]],
+        meta: dict[str, Any],
         spotify_prefix: str,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         correlation_id = meta.get("correlation_id", "unknown")
         searched_at = meta.get("searched_at_utc", "") or ""
         searched_date = searched_at[:10] or "unknown"
@@ -203,7 +203,7 @@ class S3Storage:
 
         return results_key, meta_key
 
-    def read_spotify_results(self, key: str) -> List[Dict[str, Any]]:
+    def read_spotify_results(self, key: str) -> list[dict[str, Any]]:
         try:
             response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
             raw_bytes = response["Body"].read()
@@ -298,7 +298,7 @@ class S3Storage:
         content_type: str,
         content_encoding: str | None = None,
     ) -> None:
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "Bucket": self.bucket_name,
             "Key": key,
             "Body": body,

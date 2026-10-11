@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -179,7 +179,7 @@ def _ctx() -> SimpleNamespace:
 
 
 def test_full_login_to_logout_flow(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = FakeRepo()
     oauth = FakeOAuth()
     kms = FakeKms()
@@ -223,7 +223,7 @@ def test_full_login_to_logout_flow(monkeypatch) -> None:
     refresh_token = refresh_cookie.split("=", 1)[1].split(";")[0]
     assert len(repo.users) == 1
     user_id = next(iter(repo.users))
-    assert ("sp-user", ) == (repo.users[user_id].spotify_id, )
+    assert (repo.users[user_id].spotify_id, ) == ("sp-user", )
 
     # 3. GET /me (simulate authorizer context)
     me_response = auth_handler.lambda_handler(
@@ -299,7 +299,7 @@ def test_full_login_to_logout_flow(monkeypatch) -> None:
 
 
 def test_non_premium_blocks_at_callback(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = FakeRepo()
     oauth = FakeOAuth()
     oauth.get_me = lambda *, access_token: SpotifyProfile(

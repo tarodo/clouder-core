@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Type
 
 from pydantic import BaseModel
 
@@ -15,7 +14,7 @@ class PromptConfig:
     description: str
     system: str
     user_template: str
-    schema: Type[BaseModel]
+    schema: type[BaseModel]
     vendor_overrides: dict[str, str] = field(default_factory=dict)
 
 

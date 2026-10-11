@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from collector.curation.playlists_repository import PlaylistsRepository
 
@@ -39,7 +39,7 @@ def test_get_open_review_none_when_absent():
 def test_resolve_accept_upserts_and_resolves():
     api = FakeDataAPI([])
     repo = PlaylistsRepository(api)
-    now = datetime(2026, 5, 30, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 30, tzinfo=UTC)
     repo.resolve_review_accept(
         clouder_track_id="t1", vendor="ytmusic", vendor_track_id="dQw4w9WgXcQ",
         payload={"videoId": "dQw4w9WgXcQ"}, now=now,
@@ -54,7 +54,7 @@ def test_resolve_accept_upserts_and_resolves():
 def test_resolve_reject_deletes_pending_and_marks_no_match():
     api = FakeDataAPI([])
     repo = PlaylistsRepository(api)
-    now = datetime(2026, 5, 30, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 30, tzinfo=UTC)
     repo.resolve_review_reject(clouder_track_id="t1", vendor="ytmusic", now=now)
     sqls = [c[0] for c in api.calls]
     joined = " ".join(sqls)

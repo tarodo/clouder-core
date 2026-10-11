@@ -9,8 +9,9 @@ import re
 import time
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List
+from typing import Any
 from urllib.error import HTTPError, URLError
 
 from .errors import SpotifyAuthError, SpotifyRateLimitedError, SpotifyUnavailableError
@@ -62,7 +63,7 @@ class SpotifyClient:
 
     def search_tracks_by_isrc(
         self,
-        tracks: List[Dict[str, Any]],
+        tracks: list[dict[str, Any]],
         correlation_id: str,
         *,
         metadata_fallback_enabled: bool = False,
@@ -70,7 +71,7 @@ class SpotifyClient:
         artist_min: float = 0.85,
         duration_tolerance_ms: int = 3000,
         deadline_provider: Callable[[], int] | None = None,
-    ) -> List[SpotifySearchResult]:
+    ) -> list[SpotifySearchResult]:
         """Search Spotify for each track by ISRC, with optional metadata fallback.
 
         Args:
@@ -83,7 +84,7 @@ class SpotifyClient:
                 When < 60_000, loop aborts gracefully and returns partial results.
         """
         self._ensure_token(correlation_id)
-        results: List[SpotifySearchResult] = []
+        results: list[SpotifySearchResult] = []
         total = len(tracks)
 
         for index, track in enumerate(tracks):
@@ -253,7 +254,7 @@ class SpotifyClient:
         title_min: float,
         artist_min: float,
         duration_tolerance_ms: int,
-    ) -> tuple[Dict[str, Any], str] | None:
+    ) -> tuple[dict[str, Any], str] | None:
         """Spotify text search fallback when ISRC lookup returned no items.
 
         Builds q=track:<title> artist:<first_artist>, scores each result, and
@@ -279,9 +280,9 @@ class SpotifyClient:
         if not isinstance(items, list) or not items:
             return None
 
-        strict_best: Dict[str, Any] | None = None
+        strict_best: dict[str, Any] | None = None
         strict_combined = -1.0
-        relaxed_best: Dict[str, Any] | None = None
+        relaxed_best: dict[str, Any] | None = None
         relaxed_combined = -1.0
         max_title_sim = 0.0
         max_artist_sim = 0.0
@@ -348,7 +349,7 @@ class SpotifyClient:
         correlation_id: str,
         title_min: float,
         artist_min: float,
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         """Try ISRCs that differ from the query by ±1, ±2 in the last digit.
 
         Sibling ISRCs in the same release are common when Beatport ships an
@@ -383,7 +384,7 @@ class SpotifyClient:
 
     def _search_by_isrc(
         self, isrc: str, correlation_id: str
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         """Search Spotify for a single track by ISRC.
 
         Fetches up to 10 results and returns the earliest by release date.
@@ -423,7 +424,7 @@ class SpotifyClient:
             "Authorization": f"Basic {credentials}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
-        body = "grant_type=client_credentials".encode("utf-8")
+        body = b"grant_type=client_credentials"
 
         log_event(
             "INFO",
@@ -461,7 +462,7 @@ class SpotifyClient:
             expires_in=expires_in,
         )
 
-    def _request(self, url: str, correlation_id: str) -> Dict[str, Any]:
+    def _request(self, url: str, correlation_id: str) -> dict[str, Any]:
         """Execute a GET request to Spotify API with retry logic."""
         headers = {
             "Accept": "application/json",
@@ -546,7 +547,7 @@ class SpotifyClient:
         self.sleep_fn(delay)
 
 
-def _album_release_sort_key(track: Dict[str, Any]) -> str:
+def _album_release_sort_key(track: dict[str, Any]) -> str:
     """Extract a sortable release date string from a Spotify track.
 
     Spotify release_date can be "YYYY", "YYYY-MM", or "YYYY-MM-DD".

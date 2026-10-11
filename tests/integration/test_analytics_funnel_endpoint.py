@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -93,7 +93,7 @@ def test_funnel_returns_ordered_zero_filled_stages(monkeypatch):
     monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr(
         "collector.handler.utc_now",
-        lambda: datetime(2026, 10, 5, 22, 30, tzinfo=timezone.utc),
+        lambda: datetime(2026, 10, 5, 22, 30, tzinfo=UTC),
     )
     response = handler.lambda_handler(_event(qs={"tz_offset_min": "180"}), _ctx())
     assert response["statusCode"] == 200
@@ -107,16 +107,16 @@ def test_funnel_returns_ordered_zero_filled_stages(monkeypatch):
     user_id, w = repo.calls[0]
     assert user_id == "me"  # defaults to the caller
     # local midnight of 2026-10-06 at +03:00 == 2026-10-05T21:00Z
-    assert w["day_start"] == datetime(2026, 10, 5, 21, 0, tzinfo=timezone.utc)
-    assert w["week_start"] == datetime(2026, 9, 29, 21, 0, tzinfo=timezone.utc)
-    assert w["month_start"] == datetime(2026, 9, 6, 21, 0, tzinfo=timezone.utc)
+    assert w["day_start"] == datetime(2026, 10, 5, 21, 0, tzinfo=UTC)
+    assert w["week_start"] == datetime(2026, 9, 29, 21, 0, tzinfo=UTC)
+    assert w["month_start"] == datetime(2026, 9, 6, 21, 0, tzinfo=UTC)
 
 
 def test_repository_funnel_sql_binds_user_and_windows():
     fake = MagicMock()
     fake.execute.return_value = []
     repo = ClouderRepository(data_api=fake)
-    d = datetime(2026, 10, 5, 21, tzinfo=timezone.utc)
+    d = datetime(2026, 10, 5, 21, tzinfo=UTC)
     repo.analytics_funnel("me", day_start=d, week_start=d, month_start=d)
     sql, params = fake.execute.call_args[0]
     assert params == {"user_id": "me", "day_start": d, "week_start": d, "month_start": d}

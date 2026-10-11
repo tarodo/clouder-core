@@ -59,9 +59,8 @@ def _handle_create_tag(
     name = name_raw.strip()
     if not name or len(name) > _MAX_TAG_NAME:
         raise InvalidTagNameError("name must be 1..64 chars")
-    if color is not None:
-        if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
-            raise InvalidTagColorError("color must be #RRGGBB hex or null")
+    if color is not None and (not isinstance(color, str) or not _HEX_COLOR_RE.match(color)):
+        raise InvalidTagColorError("color must be #RRGGBB hex or null")
     row = repo.create_tag(
         user_id=user_id,
         tag_id=str(uuid.uuid4()),
@@ -111,9 +110,8 @@ def _handle_rename_tag(
             raise InvalidTagNameError("name must be 1..64 chars")
         name = name.strip()
         normalized = _normalize_tag_name(name)
-    if has_color and color is not None:
-        if not isinstance(color, str) or not _HEX_COLOR_RE.match(color):
-            raise InvalidTagColorError("color must be #RRGGBB hex or null")
+    if has_color and color is not None and (not isinstance(color, str) or not _HEX_COLOR_RE.match(color)):
+        raise InvalidTagColorError("color must be #RRGGBB hex or null")
     if not has_name and not has_color:
         raise InvalidTagPayloadError(
             "at least one of name|color required"

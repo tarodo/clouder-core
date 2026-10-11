@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from collector.curation.playlists_repository import PlaylistsRepository, _row
 
@@ -34,7 +34,7 @@ def test_row_maps_ytmusic_columns():
 def test_set_ytmusic_publish_state_writes_columns():
     fake = FakeDataApi(rows=[{"id": "p1"}])
     repo = PlaylistsRepository(data_api=fake)
-    now = datetime(2026, 5, 31, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 31, tzinfo=UTC)
     ok = repo.set_ytmusic_publish_state(
         user_id="u1", playlist_id="p1",
         ytmusic_playlist_id="PLabc", now=now,

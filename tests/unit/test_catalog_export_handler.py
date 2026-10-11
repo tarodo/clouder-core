@@ -1,7 +1,7 @@
 import ast
 import json
 import pathlib
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import collector.catalog_export_handler as ceh
 from collector.catalog_export_handler import export_catalog
@@ -83,7 +83,7 @@ def test_empty_table_writes_no_object() -> None:
 
 
 def test_ndjson_serializes_dates_via_default_str() -> None:
-    rows = [{"id": "t1", "created_at": datetime(2026, 6, 27, tzinfo=timezone.utc),
+    rows = [{"id": "t1", "created_at": datetime(2026, 6, 27, tzinfo=UTC),
              "publish_date": date(2026, 6, 1)}]
     api = FakeDataAPI(_empty_tables({"clouder_tracks": rows}))
     s3 = FakeS3()

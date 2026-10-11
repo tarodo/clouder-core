@@ -23,7 +23,7 @@ class SqsSender(Protocol):
 
 def enqueue_vendor_matches(
     *,
-    track_inputs: "list[MatchInput]",
+    track_inputs: list[MatchInput],
     vendor: str,
     queue_url: str,
     sqs: SqsSender,

@@ -7,15 +7,13 @@ all curation specs. Per-spec implementation lives in sibling modules
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Generic, Sequence, TypeVar
-
-T = TypeVar("T")
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
-class PaginatedResult(Generic[T]):
+class PaginatedResult[T]:
     items: Sequence[T]
     total: int
     limit: int
@@ -23,7 +21,7 @@ class PaginatedResult(Generic[T]):
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class CurationError(Exception):

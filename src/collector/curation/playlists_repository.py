@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Literal, Mapping
+from typing import TYPE_CHECKING, Any, Literal
 
 from collector.data_api import DataAPIClient
 from collector.models import normalize_text
@@ -1080,7 +1081,7 @@ class PlaylistsRepository:
 
     def fetch_ytmusic_status(
         self, track_ids: list[str]
-    ) -> dict[str, "YtmusicStatus"]:
+    ) -> dict[str, YtmusicStatus]:
         """Per-track YT Music status. matched > needs_review > not_found > pending."""
         if not track_ids:
             return {}
@@ -1139,7 +1140,7 @@ class PlaylistsRepository:
 
     # ---------- Match review resolve -----------------------------------------
 
-    def get_open_review(self, *, track_id: str, vendor: str) -> "ReviewRow | None":
+    def get_open_review(self, *, track_id: str, vendor: str) -> ReviewRow | None:
         rows = self._data_api.execute(
             """
             SELECT candidates

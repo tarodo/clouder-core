@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 from uuid import uuid4
 
 from .data_api import DataAPIClient, create_default_data_api_client
@@ -1687,7 +1688,7 @@ def parse_iso_date(value: str | None) -> date | None:
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def as_utc_datetime(value: str | datetime | None) -> datetime | None:
@@ -1697,7 +1698,7 @@ def as_utc_datetime(value: str | datetime | None) -> datetime | None:
         return None
     if isinstance(value, str):
         value = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def create_clouder_repository_from_env() -> ClouderRepository | None:

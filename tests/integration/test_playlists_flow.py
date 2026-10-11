@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from types import SimpleNamespace
-from typing import Any, Mapping
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -511,7 +512,7 @@ def test_publish_first_time_full_flow(fake_repo, fake_s3, fake_spotify_client):
 def test_repub_without_confirm_returns_409(fake_repo, fake_s3, fake_spotify_client):
     # Seed playlist with spotify_playlist_id set
     pid = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     fake_repo.playlists[pid] = {
         "id": pid, "user_id": "u1",
         "name": "n", "normalized_name": "n",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Type
+from typing import Any
 
 import openai
 from pydantic import BaseModel
@@ -63,7 +63,7 @@ class OpenAIAdapter:
         self,
         system: str,
         user: str,
-        schema: Type[BaseModel],
+        schema: type[BaseModel],
         model: str | None = None,
     ) -> VendorResponse:
         chosen_model = model or self.default_model
@@ -98,7 +98,7 @@ class OpenAIAdapter:
                     [k for k in ("max_tool_calls", "reasoning") if k in kwargs],
                 )
                 response = self._client.responses.parse(**bare_kwargs)
-        except Exception as exc:  # noqa: BLE001 — never raise
+        except Exception as exc:
             return VendorResponse(
                 parsed=None,
                 raw={},
@@ -161,7 +161,7 @@ class OpenAIAdapter:
 
             parsed = getattr(response, "output_parsed", None)
             raw_dump = _to_dict(response)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             parse_error = f"parse error: {type(exc).__name__}: {exc}"
 
         cost = (

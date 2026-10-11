@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -28,7 +28,7 @@ class FakeDataApi:
 
 
 def _fixed_now() -> datetime:
-    return datetime(2026, 5, 19, 12, 0, tzinfo=timezone.utc)
+    return datetime(2026, 5, 19, 12, 0, tzinfo=UTC)
 
 
 def test_upsert_user_label_pref_emits_upsert_sql():

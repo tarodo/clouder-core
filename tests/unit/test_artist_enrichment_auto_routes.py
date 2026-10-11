@@ -24,6 +24,6 @@ def test_put_auto_config_persists_with_artists_kind(monkeypatch):
     event = {"body": json.dumps({"enabled": True, "vendors": ["openai"],
                                  "models": {"openai": "m"}, "prompt_slug": "artist_v1",
                                  "prompt_version": "v1", "merge_vendor": "deepseek", "merge_model": "d"})}
-    status, body = ar.handle_put_auto_config(event)
+    status, _body = ar.handle_put_auto_config(event)
     assert status == 204
     assert repo.saved["kind"] == "artists" and repo.saved["enabled"] is True

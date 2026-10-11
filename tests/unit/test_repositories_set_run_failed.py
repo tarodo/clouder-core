@@ -1,7 +1,7 @@
 """Unit tests for set_run_failed phase prefix and truncation."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from collector.repositories import ClouderRepository
@@ -26,7 +26,7 @@ def test_set_run_failed_prepends_phase():
         run_id="r1",
         error_code="e",
         error_message="boom",
-        finished_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(UTC),
         phase="normalize",
     )
     params = _params_from_call(data_api)
@@ -40,7 +40,7 @@ def test_set_run_failed_truncates_long_message_keeping_prefix():
         run_id="r1",
         error_code="e",
         error_message="x" * 5000,
-        finished_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(UTC),
         phase="canonicalize",
     )
     params = _params_from_call(data_api)
@@ -55,7 +55,7 @@ def test_set_run_failed_without_phase_unchanged():
         run_id="r1",
         error_code="e",
         error_message="boom",
-        finished_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(UTC),
     )
     params = _params_from_call(data_api)
     assert params["error_message"] == "boom"

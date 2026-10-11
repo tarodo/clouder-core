@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from collector.label_enrichment.repository import (
@@ -8,7 +8,7 @@ from collector.label_enrichment.repository import (
 
 
 def _now():
-    return datetime(2026, 5, 18, 21, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 5, 18, 21, 0, 0, tzinfo=UTC)
 
 
 def _repo_with_fake():

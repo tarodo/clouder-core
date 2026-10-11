@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 
@@ -99,7 +99,7 @@ def verify_refresh_token(
 def _decode(
     *, token: str, secret: str, now: datetime, expected_type: str
 ) -> dict:
-    now_ts = int(now.astimezone(timezone.utc).timestamp())
+    now_ts = int(now.astimezone(UTC).timestamp())
     try:
         payload = jwt.decode(
             token,

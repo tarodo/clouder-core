@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 # Imported for the tests: finalize no longer dispatches inline (it moved to
 # the dispatch worker, see enqueue_block_auto_enrich). The finalize tests

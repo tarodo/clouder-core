@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from .auth.auth_repository import (
     AuthRepository,
@@ -96,7 +97,7 @@ def _build_kms_envelope() -> KmsEnvelope:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:

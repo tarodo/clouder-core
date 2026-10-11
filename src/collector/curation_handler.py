@@ -8,7 +8,8 @@ Every route is JWT-gated by the API Gateway Lambda Authorizer (spec-A);
 
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -121,7 +122,7 @@ def lambda_handler(
         )
     except CurationError as exc:
         return _curation_error_response(exc, correlation_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # `error` is not in ALLOWED_LOG_FIELDS — structlog drops unknown
         # fields silently. Use whitelisted error_message + error_type.
         log_event(

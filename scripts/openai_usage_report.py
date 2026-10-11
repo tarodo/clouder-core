@@ -28,7 +28,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -56,7 +56,7 @@ def to_float(value: Any) -> float:
 
 def _bucket_month(bucket: dict) -> str:
     ts = bucket.get("start_time")
-    return datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m")
+    return datetime.fromtimestamp(int(ts), tz=UTC).strftime("%Y-%m")
 
 
 def aggregate_costs(buckets: list[dict]) -> list[dict]:
@@ -179,7 +179,7 @@ def default_since() -> str:
 
 
 def parse_since(value: str) -> int:
-    dt = datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    dt = datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=UTC)
     return int(dt.timestamp())
 
 

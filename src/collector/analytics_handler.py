@@ -18,8 +18,9 @@ import json
 import os
 import re
 import time
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from .logging_utils import log_event
 
@@ -103,7 +104,7 @@ def parse_tz_offset(raw: Any) -> int:
 def listening_windows(now: datetime, tz_offset_min: int) -> dict[str, date]:
     """Local today + rolling 7/30-day window starts. scan_from pads one UTC day
     so the dt-partition prune never cuts a play that maps into the window."""
-    today = (now.astimezone(timezone.utc) + timedelta(minutes=tz_offset_min)).date()
+    today = (now.astimezone(UTC) + timedelta(minutes=tz_offset_min)).date()
     month_from = today - timedelta(days=29)
     return {
         "today": today,
@@ -297,7 +298,7 @@ def shape_time_per_track(rows: list[dict[str, Any]], *, days: int) -> dict[str, 
 
 def serve_time_per_track(qs: Mapping[str, Any], user_id: str) -> dict[str, Any]:
     days = parse_days(qs.get("days"))
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     sql = time_per_track_sql(
         TRINO,
         scan_from=(today - timedelta(days=days)).isoformat(),
@@ -332,14 +333,14 @@ def shape_listening(rows: list[dict[str, Any]], today: date) -> dict[str, Any]:
 
 def serve_listening(qs: Mapping[str, Any], user_id: str) -> dict[str, Any]:
     off = parse_tz_offset(qs.get("tz_offset_min"))
-    w = listening_windows(datetime.now(timezone.utc), off)
+    w = listening_windows(datetime.now(UTC), off)
     sql = listening_sql(
         TRINO,
         scan_from=w["scan_from"].isoformat(),
         week_from=w["week_from"].isoformat(),
         month_from=w["month_from"].isoformat(),
         tz_offset_min=off,
-        table=events_table(datetime.now(timezone.utc).date()),
+        table=events_table(datetime.now(UTC).date()),
     )
     # Short reuse, no warm-Lambda memo: "today" must move within minutes.
     rows = _run_athena(_client(), sql, [user_id], reuse_minutes=5)

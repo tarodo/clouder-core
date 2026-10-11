@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
-from typing import Any, Iterable, Iterator, Mapping
+from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row

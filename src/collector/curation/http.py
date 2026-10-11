@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from ..logging_utils import log_event
 from . import (
@@ -20,9 +21,13 @@ def _extract_correlation_id(event: Mapping[str, Any]) -> str:
     headers = event.get("headers")
     if isinstance(headers, Mapping):
         for key, value in headers.items():
-            if isinstance(key, str) and key.lower() == "x-correlation-id":
-                if isinstance(value, str) and value.strip():
-                    return value.strip()
+            if (
+                isinstance(key, str)
+                and key.lower() == "x-correlation-id"
+                and isinstance(value, str)
+                and value.strip()
+            ):
+                return value.strip()
     return str(uuid.uuid4())
 
 

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date as date_type
 from datetime import timedelta
-from typing import Any, Sequence
+from typing import Any
 from uuid import uuid4
 
 from collector.curation import (
@@ -1248,7 +1249,7 @@ class TriageRepository:
         )
 
 
-def create_default_triage_repository() -> "TriageRepository | None":
+def create_default_triage_repository() -> TriageRepository | None:
     from collector.settings import get_data_api_settings
 
     settings = get_data_api_settings()

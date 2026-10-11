@@ -30,9 +30,10 @@ end-to-end verification.
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
-from typing import Any, Mapping
+from typing import Any
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -166,7 +167,7 @@ class FakeTriageRepo:
                 "style_not_found",
                 f"clouder_styles row not found: {style_id}",
             )
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         block_id = str(uuid4())
         self.blocks[block_id] = {
             "id": block_id,
@@ -295,7 +296,7 @@ class FakeTriageRepo:
                 f"triage block not found: {block_id}",
             )
         b["status"] = "FINALIZED"
-        b["finalized_at"] = datetime.now(timezone.utc).isoformat()
+        b["finalized_at"] = datetime.now(UTC).isoformat()
         return FinalizeResult(
             block=self._block_to_row(b),
             promoted={"cat-1": 3},
@@ -309,7 +310,7 @@ class FakeTriageRepo:
             or b.get("deleted_at") is not None
         ):
             return False
-        b["deleted_at"] = datetime.now(timezone.utc).isoformat()
+        b["deleted_at"] = datetime.now(UTC).isoformat()
         return True
 
     # ---- spec-D D7/D8 cross-spec hooks (instance methods) -----------

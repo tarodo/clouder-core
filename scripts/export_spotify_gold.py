@@ -16,13 +16,13 @@ import argparse
 import csv
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from collector.spotify_gold import export_gold  # noqa: E402
-from export_match_gold import _client  # noqa: E402  (same prod / local client)
+from collector.spotify_gold import export_gold
+from export_match_gold import _client
 
 
 def main(argv: list[str] | None = None) -> tuple[Path, Path]:
@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> tuple[Path, Path]:
 
     records = export_gold(_client(args.database_url), args.per_tier)
 
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M")
     gold = args.out_dir / f"spotify_gold_{stamp}.jsonl"
     gold.write_text("".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in records),
                     encoding="utf-8")

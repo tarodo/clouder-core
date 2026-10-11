@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import duckdb
 import pytest
@@ -43,7 +43,7 @@ def con():
 
 
 def _run(con, today: date, off: int) -> dict:
-    w = ah.listening_windows(datetime(today.year, today.month, today.day, 12, tzinfo=timezone.utc), 0)
+    w = ah.listening_windows(datetime(today.year, today.month, today.day, 12, tzinfo=UTC), 0)
     sql = ah.listening_sql(
         DUCKDB,
         scan_from=w["scan_from"].isoformat(),
@@ -78,7 +78,7 @@ def test_utc_offset_zero_keeps_late_play_on_utc_day(con):
 
 
 def test_listening_windows_use_local_today():
-    w = ah.listening_windows(datetime(2026, 10, 5, 22, 30, tzinfo=timezone.utc), 180)
+    w = ah.listening_windows(datetime(2026, 10, 5, 22, 30, tzinfo=UTC), 180)
     assert w["today"] == date(2026, 10, 6)
     assert w["week_from"] == date(2026, 9, 30)
     assert w["month_from"] == date(2026, 9, 7)

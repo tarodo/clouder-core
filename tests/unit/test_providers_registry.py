@@ -71,7 +71,7 @@ def test_no_duplicate_prompt_slugs_across_registry(
     registry.reset_cache()
 
     slugs: list[str] = []
-    for name in registry._BUILDERS.keys():
+    for name in registry._BUILDERS:
         bundle = registry._get_bundle(name)
         if bundle is not None and bundle.enrich is not None:
             slugs.append(bundle.enrich.prompt_slug)

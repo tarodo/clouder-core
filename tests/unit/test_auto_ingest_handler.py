@@ -80,18 +80,18 @@ def test_credentials_failure_logs_the_cause_not_the_value(monkeypatch, events) -
 
     handler.lambda_handler({"action": "auth_check"}, None)
 
-    (message, fields), = events
+    (_message, fields), = events
     assert fields["error_type"] == "ClientError"
     assert fields["error_code"] == "AccessDeniedException"
 
 
 # ── plan / run ───────────────────────────────────────────────────────────────
 
-from datetime import datetime, timezone  # noqa: E402
+from datetime import UTC, datetime
 
-from collector.auto_ingest_repository import PlanningState  # noqa: E402
+from collector.auto_ingest_repository import PlanningState
 
-NOW = datetime(2026, 10, 7, 12, 0, tzinfo=timezone.utc)  # due week: 2026-39
+NOW = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)  # due week: 2026-39
 
 
 class FakeRepo:

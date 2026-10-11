@@ -74,7 +74,7 @@ def worker_patches(monkeypatch):
 
 
 def test_worker_dispatches_orchestrator(worker_patches):
-    repo, enrich_calls = worker_patches
+    _repo, enrich_calls = worker_patches
     event = _sqs_event({
         "run_id": "run-1", "label_id": "lbl-1",
         "label_name": "Drumcode", "style": "techno",
@@ -90,7 +90,7 @@ def test_worker_dispatches_orchestrator(worker_patches):
 
 
 def test_worker_drops_invalid_message(worker_patches):
-    repo, enrich_calls = worker_patches
+    _repo, enrich_calls = worker_patches
     event = _sqs_event({"run_id": "", "label_id": "x", "label_name": "y", "style": "z"})
     result = lambda_handler(event, None)
     assert result == {"processed": 0}

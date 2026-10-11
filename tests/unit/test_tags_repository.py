@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,7 +18,7 @@ from collector.curation.tags_repository import (
 
 
 def _now() -> datetime:
-    return datetime(2026, 5, 11, 12, 0, tzinfo=timezone.utc)
+    return datetime(2026, 5, 11, 12, 0, tzinfo=UTC)
 
 
 def _make() -> tuple[TagsRepository, MagicMock]:

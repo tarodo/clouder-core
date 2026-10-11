@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -127,16 +127,19 @@ class AdminIngestRequestIn(BaseModel):
     period_end: date | None = None
 
     @model_validator(mode="after")
-    def _validate_range_constraints(self) -> "AdminIngestRequestIn":
+    def _validate_range_constraints(self) -> AdminIngestRequestIn:
         from .saturday_week import weeks_in_year
 
         if (self.period_start is None) != (self.period_end is None):
             raise ValueError(
                 "period_start and period_end must both be present or both absent"
             )
-        if self.period_start is not None and self.period_end is not None:
-            if self.period_end < self.period_start:
-                raise ValueError("period_end must be on or after period_start")
+        if (
+            self.period_start is not None
+            and self.period_end is not None
+            and self.period_end < self.period_start
+        ):
+            raise ValueError("period_end must be on or after period_start")
         limit = weeks_in_year(self.week_year)
         if self.week_number > limit:
             raise ValueError(
@@ -191,6 +194,6 @@ class AutoIngestSettingsIn(BaseModel):
     @field_validator("backfill_floor")
     @classmethod
     def _floor(cls, value: date) -> date:
-        if not date(2000, 1, 1) <= value <= datetime.now(timezone.utc).date():
+        if not date(2000, 1, 1) <= value <= datetime.now(UTC).date():
             raise ValueError("backfill_floor must be between 2000-01-01 and today")
         return value

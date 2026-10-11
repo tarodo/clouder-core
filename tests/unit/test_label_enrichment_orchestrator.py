@@ -192,10 +192,7 @@ def _run_enrich_label_for_run_with(on_outcome, all_vendors_ok: bool) -> None:
     but controls whether adapters succeed or fail, and passes on_outcome."""
     from types import SimpleNamespace
 
-    if all_vendors_ok:
-        vendor_response = _ok("gemini", "g")
-    else:
-        vendor_response = _err("gemini", "g")
+    vendor_response = _ok("gemini", "g") if all_vendors_ok else _err("gemini", "g")
 
     adapters = [_make_adapter("gemini", "g", vendor_response)]
     prompt = get_prompt("label_v3_app_fields")

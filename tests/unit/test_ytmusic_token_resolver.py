@@ -1,5 +1,5 @@
 import base64
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from collector.auth.kms_envelope import EnvelopePayload
 from collector.curation import YtmusicNotAuthorizedError
@@ -59,7 +59,7 @@ def test_no_token_raises():
 
 
 def test_valid_token_no_refresh():
-    future = datetime.now(timezone.utc) + timedelta(hours=1)
+    future = datetime.now(UTC) + timedelta(hours=1)
     rows = [{
         "access_token_enc": _enc("AT"),
         "refresh_token_enc": _enc("RT"),
@@ -75,7 +75,7 @@ def test_valid_token_no_refresh():
 
 
 def test_expired_token_refreshes_and_persists():
-    past = datetime.now(timezone.utc) - timedelta(minutes=1)
+    past = datetime.now(UTC) - timedelta(minutes=1)
     rows = [{
         "access_token_enc": _enc("OLD"),
         "refresh_token_enc": _enc("RT"),
@@ -97,7 +97,7 @@ def test_token_dict_has_all_ytmusicapi_oauth_keys():
     # scope, token_type, access_token, refresh_token, expires_at, expires_in.
     # Omitting expires_in (the original bug) made ytmusicapi treat the dict as
     # browser headers -> YT Music writes failed with HTTP 400 "invalid argument".
-    future = datetime.now(timezone.utc) + timedelta(hours=1)
+    future = datetime.now(UTC) + timedelta(hours=1)
     rows = [{
         "access_token_enc": _enc("AT"),
         "refresh_token_enc": _enc("RT"),

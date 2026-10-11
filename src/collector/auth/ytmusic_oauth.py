@@ -11,8 +11,9 @@ from __future__ import annotations
 import json
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 from urllib.error import HTTPError, URLError
 
 DEVICE_CODE_URL = "https://oauth2.googleapis.com/device/code"

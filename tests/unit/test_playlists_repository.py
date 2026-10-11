@@ -5,7 +5,7 @@ SQL fragment match — same pattern as test_categories_repository.py.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,7 +23,7 @@ from collector.curation.playlists_repository import (
 
 
 def _utc() -> datetime:
-    return datetime(2026, 5, 12, 10, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 5, 12, 10, 0, 0, tzinfo=UTC)
 
 
 def _make_repo(data_api: MagicMock) -> PlaylistsRepository:

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import io
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
@@ -140,7 +140,7 @@ def test_a_long_ban_pauses_the_search_instead_of_failing(monkeypatch) -> None:
         raise SpotifyRateLimitedError(retry_after=18053.0)
 
     monkeypatch.setattr("collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc", banned)
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
 
     assert _run(sqs, {"batch_size": 100}) == {"processed": 1}  # no Lambda error, no alarm
 
@@ -152,7 +152,7 @@ def test_a_long_ban_pauses_the_search_instead_of_failing(monkeypatch) -> None:
 
 
 def test_while_paused_a_trigger_leaves_spotify_alone(monkeypatch) -> None:
-    repo = PausableRepo(blocked_until=datetime.now(timezone.utc) + timedelta(hours=2))
+    repo = PausableRepo(blocked_until=datetime.now(UTC) + timedelta(hours=2))
     sqs = _setup(monkeypatch, repo)
     monkeypatch.setattr("collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
                         lambda *a, **k: pytest.fail("called Spotify during a ban"))
@@ -164,7 +164,7 @@ def test_while_paused_a_trigger_leaves_spotify_alone(monkeypatch) -> None:
 
 
 def test_while_paused_the_resume_message_re_arms_itself(monkeypatch) -> None:
-    repo = PausableRepo(blocked_until=datetime.now(timezone.utc) + timedelta(seconds=300))
+    repo = PausableRepo(blocked_until=datetime.now(UTC) + timedelta(seconds=300))
     sqs = _setup(monkeypatch, repo)
 
     _run(sqs, {"batch_size": 100, "resume": True})
@@ -176,7 +176,7 @@ def test_while_paused_the_resume_message_re_arms_itself(monkeypatch) -> None:
 
 
 def test_after_the_ban_the_search_runs_again(monkeypatch) -> None:
-    repo = PausableRepo(blocked_until=datetime.now(timezone.utc) - timedelta(seconds=1))
+    repo = PausableRepo(blocked_until=datetime.now(UTC) - timedelta(seconds=1))
     sqs = _setup(monkeypatch, repo)
     monkeypatch.setattr("collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
                         lambda self, tracks, correlation_id, **k: [])

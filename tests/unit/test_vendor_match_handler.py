@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -136,7 +136,7 @@ def test_cache_hit_skips_lookup(monkeypatch) -> None:
     cached = VendorTrackMatch(
         clouder_track_id="track-1", vendor="spotify", vendor_track_id="sp123",
         match_type="isrc", confidence=Decimal("1.000"),
-        matched_at=datetime.now(timezone.utc), payload={},
+        matched_at=datetime.now(UTC), payload={},
     )
     repo = FakeRepo(cache={("track-1", "spotify"): cached})
     lookup = FakeLookup()

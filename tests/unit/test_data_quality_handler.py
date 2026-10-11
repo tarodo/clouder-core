@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from botocore.exceptions import ClientError
@@ -11,7 +11,7 @@ from collector import data_quality_handler
 from collector.data_quality import CheckResult
 from collector.settings import reset_settings_cache
 
-NOW = datetime(2026, 10, 7, 0, 10, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 7, 0, 10, tzinfo=UTC)
 
 
 class FakeCloudWatch:

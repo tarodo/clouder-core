@@ -11,9 +11,9 @@ publish.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 from collector.logging_utils import log_event
 
@@ -44,7 +44,7 @@ class YtmusicPublishService:
         repo,
         ytmusic_client,
         storage=None,
-        now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._repo = repo
         self._yt = ytmusic_client
@@ -149,7 +149,7 @@ class YtmusicPublishService:
             try:
                 image_bytes = self._storage.read_cover_bytes(cover_key)
                 self._yt.set_cover(target_id, image_bytes)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 cover_failed = True
                 log_event(
                     "WARNING", "ytmusic_publish_partial_fail",

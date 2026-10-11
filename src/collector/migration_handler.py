@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 from urllib.parse import quote_plus
 
 from alembic import command
@@ -42,7 +43,7 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
     config = Config(str(alembic_ini_path))
     config.set_main_option("script_location", str(script_location))
 
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
     log_event(
         "INFO",
         "migration_started",
@@ -52,7 +53,7 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
 
     command.upgrade(config, command_payload.revision)
 
-    finished_at = datetime.now(timezone.utc)
+    finished_at = datetime.now(UTC)
     duration_ms = int((finished_at - started_at).total_seconds() * 1000)
     log_event(
         "INFO",

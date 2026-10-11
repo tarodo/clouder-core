@@ -347,7 +347,7 @@ def test_no_follow_up_when_all_tracks_processed(monkeypatch) -> None:
     tracks = [
         {"id": "ct1", "isrc": "ISRC001", "title": "Track 1", "normalized_title": "track 1"},
     ]
-    repo, s3 = _setup(monkeypatch, tracks=tracks)
+    _repo, _s3 = _setup(monkeypatch, tracks=tracks)
     monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123/spotify-q")
 
     monkeypatch.setattr(
@@ -415,7 +415,7 @@ def test_no_follow_up_when_auto_continue_false(monkeypatch) -> None:
 
 
 def test_default_batch_size_used_when_not_specified(monkeypatch) -> None:
-    repo, _ = _setup(monkeypatch, tracks=[])
+    _repo, _ = _setup(monkeypatch, tracks=[])
     event = _sqs_event({})
     response = lambda_handler(event, context=None)
     assert response == {"processed": 1}
@@ -485,7 +485,7 @@ def test_handler_forwards_metadata_kwargs_when_enabled(monkeypatch) -> None:
             "artists": "Guri & Eider",
         }
     ]
-    repo, _ = _setup(monkeypatch, tracks=tracks)
+    _repo, _ = _setup(monkeypatch, tracks=tracks)
     monkeypatch.setenv("SPOTIFY_METADATA_FALLBACK_ENABLED", "true")
     monkeypatch.setenv("SPOTIFY_FUZZY_TITLE_MIN", "0.91")
     monkeypatch.setenv("SPOTIFY_FUZZY_ARTIST_MIN", "0.86")

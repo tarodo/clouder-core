@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Callable, Protocol
+from datetime import UTC, datetime
+from typing import Protocol
 
 from collector.logging_utils import log_event
 
@@ -39,7 +40,7 @@ class PlaylistsPublishService:
         spotify_client,
         user_repo: _UserRepoLike,
         storage,
-        now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._repo = repo
         self._sp = spotify_client

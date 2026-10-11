@@ -29,7 +29,7 @@ class EnrichArtistInput(BaseModel):
     style: str | None = Field(default=None, min_length=1, max_length=128)
 
     @model_validator(mode="after")
-    def _id_or_name_required(self) -> "EnrichArtistInput":
+    def _id_or_name_required(self) -> EnrichArtistInput:
         if not self.artist_id and not self.artist_name:
             raise ValueError("either artist_id or artist_name is required")
         if not self.artist_id and not self.style:
@@ -51,7 +51,7 @@ class EnrichArtistsRequestIn(BaseModel):
     merge_model: str = Field(min_length=1)
 
     @model_validator(mode="after")
-    def _every_vendor_has_a_model(self) -> "EnrichArtistsRequestIn":
+    def _every_vendor_has_a_model(self) -> EnrichArtistsRequestIn:
         for vendor in self.vendors:
             if vendor not in self.models or not self.models[vendor].strip():
                 raise ValueError(f"model missing for vendor {vendor!r}")

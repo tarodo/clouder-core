@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -99,7 +99,7 @@ def test_reorder_set_rejects_duplicates() -> None:
 # ---- Spec-D side-effects (T16): create snapshot + soft_delete inactivate ----
 
 def _now() -> datetime:
-    return datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc)
+    return datetime(2026, 4, 28, 12, 0, tzinfo=UTC)
 
 
 def _data_api_for_create(returned_category_id: str = "c1") -> MagicMock:

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Mapping
+from typing import Any
 
 # A RAW_SAVED run younger than this is still being canonicalized: do not re-ingest it.
 STUCK_WINDOW = timedelta(days=7)  # stuck pairs are retried once their attempts age out

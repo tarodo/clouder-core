@@ -83,7 +83,7 @@ def test_happy_path_creates_run_and_enqueues_per_artist(monkeypatch):
 def test_track_dispatch_resolves_all_roles(monkeypatch):
     # artist_ids_for_track returns MULTIPLE artists (all roles)
     auto = FakeAutoRepo(enabled=True, claim=["a1", "a2", "a3"], ids_for_track=["a1", "a2", "a3"])
-    artist_repo, sqs = _wire(monkeypatch, auto)
+    _artist_repo, sqs = _wire(monkeypatch, auto)
     ad.try_dispatch_artists_for_track(track_id="t1", user_id="u")
     assert len(sqs.sent) == 3
 

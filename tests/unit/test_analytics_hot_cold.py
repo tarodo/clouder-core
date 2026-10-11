@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import duckdb
 import pytest
@@ -36,7 +36,7 @@ def con():
 
 
 def _listening(con, table: str) -> dict:
-    w = ah.listening_windows(datetime(2026, 10, 4, 12, tzinfo=timezone.utc), 0)
+    w = ah.listening_windows(datetime(2026, 10, 4, 12, tzinfo=UTC), 0)
     sql = ah.listening_sql(
         DUCKDB,
         scan_from=w["scan_from"].isoformat(),

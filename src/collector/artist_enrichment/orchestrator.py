@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable
+from typing import Any
 
 from ..label_enrichment.vendors.base import VendorAdapter, VendorResponse
 from ..label_enrichment.vendors.pricing import TAVILY_USD_PER_CREDIT
@@ -62,7 +63,7 @@ def run_vendors_parallel(
             adapter = future_to_adapter[fut]
             try:
                 resp = fut.result()
-            except Exception as exc:  # noqa: BLE001 — vendors must not raise, but be defensive
+            except Exception as exc:
                 resp = VendorResponse(
                     parsed=None, raw={}, citations=[],
                     usage={"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0},
@@ -86,8 +87,8 @@ def enrich_artist_for_run(
     prompt: PromptConfig,
     repository: ArtistEnrichmentRepository,
     ai_flag_threshold: float,
-    on_outcome: "Callable[[str, bool], None] | None" = None,
-    socials_resolver: "SocialsResolver | None" = None,
+    on_outcome: Callable[[str, bool], None] | None = None,
+    socials_resolver: SocialsResolver | None = None,
 ) -> None:
     """End-to-end: derive context, flip status, run vendors, persist cells + merged + counters."""
     context = repository.derive_artist_context(artist_id)
@@ -178,7 +179,7 @@ def build_adapters_from_run_config(
     *,
     vendor_names: list[str],
     models: dict[str, str],
-    secrets: "ArtistEnrichmentSecrets",
+    secrets: ArtistEnrichmentSecrets,
     request_timeout_s: float,
     openai_max_tool_calls: int = 3,
     openai_reasoning_effort: str = "",

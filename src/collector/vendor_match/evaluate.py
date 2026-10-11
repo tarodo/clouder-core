@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import csv
 from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 from ..providers.base import VendorTrackRef
 from ..providers.ytmusic.normalize import result_to_ref

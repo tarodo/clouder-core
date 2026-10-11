@@ -12,7 +12,8 @@ estimate. No Lambda calls this module.
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 from urllib.parse import quote
 
 TIERS = ("isrc", "isrc_neighbour", "metadata", "no_payload")

@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Mapping, cast
+from collections.abc import Mapping
+from typing import Any, cast
 
 from pydantic import ValidationError as PydanticValidationError
 

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import itertools
 import json
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from collector.auto_ingest_schedule import (
     MIN_GAP,
@@ -11,7 +12,7 @@ from collector.auto_ingest_schedule import (
     window_end,
 )
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def _settings(**overrides):
@@ -49,7 +50,7 @@ def test_random_times_are_spaced() -> None:
         times = plan_times(_settings(runs_per_day=6), now, rng=random.Random(seed))
         assert len(times) == 6
         assert all(now < t < window_end(now) for t in times)
-        assert all(b - a >= MIN_GAP for a, b in zip(times, times[1:]))
+        assert all(b - a >= MIN_GAP for a, b in itertools.pairwise(times))
 
 
 def test_replan_mid_window_scales_the_count() -> None:

@@ -20,20 +20,20 @@ class _NotFound(Exception):
 
 
 class FakeLambda:
-    class exceptions:  # noqa: N801 - mirrors boto3's client.exceptions
+    class exceptions:
         ResourceNotFoundException = _NotFound
 
     def __init__(self, aliases: dict[str, str]) -> None:
         self.aliases = dict(aliases)
         self.updates: list[tuple[str, str]] = []
 
-    def get_alias(self, FunctionName: str, Name: str) -> dict:  # noqa: N803 - boto3 casing
+    def get_alias(self, FunctionName: str, Name: str) -> dict:
         assert Name == "live"
         if FunctionName not in self.aliases:
             raise _NotFound(FunctionName)
         return {"FunctionVersion": self.aliases[FunctionName]}
 
-    def update_alias(self, FunctionName: str, Name: str, FunctionVersion: str) -> dict:  # noqa: N803
+    def update_alias(self, FunctionName: str, Name: str, FunctionVersion: str) -> dict:
         self.aliases[FunctionName] = FunctionVersion
         self.updates.append((FunctionName, FunctionVersion))
         return {}
@@ -71,7 +71,7 @@ def test_restore_keeps_going_after_one_function_fails() -> None:
     client = FakeLambda({"p-collector-api": "8", "p-curation": "4"})
     real_update = client.update_alias
 
-    def flaky(FunctionName: str, Name: str, FunctionVersion: str) -> dict:  # noqa: N803
+    def flaky(FunctionName: str, Name: str, FunctionVersion: str) -> dict:
         if FunctionName == "p-collector-api":
             raise RuntimeError("TooManyRequestsException")
         return real_update(FunctionName=FunctionName, Name=Name, FunctionVersion=FunctionVersion)

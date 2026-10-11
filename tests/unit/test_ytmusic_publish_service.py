@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -106,7 +106,7 @@ class FakeStorage:
 
 
 def _now():
-    return datetime(2026, 5, 31, tzinfo=timezone.utc)
+    return datetime(2026, 5, 31, tzinfo=UTC)
 
 
 def _matched(vid):

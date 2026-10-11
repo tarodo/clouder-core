@@ -5,8 +5,9 @@ from __future__ import annotations
 import os
 import struct
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -26,7 +27,7 @@ class EnvelopePayload:
         )
 
     @classmethod
-    def deserialize(cls, blob: bytes) -> "EnvelopePayload":
+    def deserialize(cls, blob: bytes) -> EnvelopePayload:
         (key_len,) = struct.unpack(">I", blob[:4])
         offset = 4
         data_key_enc = blob[offset : offset + key_len]

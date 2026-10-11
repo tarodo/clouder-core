@@ -33,7 +33,7 @@ class BeatportAuthError(Exception):
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     # The authorize redirect carries the code: surface it instead of following it.
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
 
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from unittest.mock import MagicMock
 
 from collector.repositories import ClouderRepository
@@ -16,7 +16,7 @@ def _repo(rows):
 
 def test_reset_spotify_not_found_counts_returned_rows() -> None:
     repo, fake = _repo([{"id": "t1"}, {"id": "t2"}])
-    now = datetime(2026, 7, 13, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 7, 13, 12, 0, tzinfo=UTC)
 
     count = repo.reset_spotify_not_found(date(2026, 6, 1), date(2026, 6, 30), now)
 

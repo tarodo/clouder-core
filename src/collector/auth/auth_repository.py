@@ -8,9 +8,10 @@ not natively support BYTEA parameters.
 from __future__ import annotations
 
 import base64
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
 
 from collector.data_api import DataAPIClient
 

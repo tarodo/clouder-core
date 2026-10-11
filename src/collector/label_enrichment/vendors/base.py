@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, Type
+from typing import Protocol
 
 from pydantic import BaseModel
 
@@ -28,6 +28,6 @@ class VendorAdapter(Protocol):
         self,
         system: str,
         user: str,
-        schema: Type[BaseModel],
+        schema: type[BaseModel],
         model: str | None = None,
     ) -> VendorResponse: ...

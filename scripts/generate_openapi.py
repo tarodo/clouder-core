@@ -2378,15 +2378,7 @@ ROUTES: list[dict[str, Any]] = [
             "with `selected` and `position`. Styles hidden by an admin are "
             "never returned."
         ),
-        "parameters": PAGINATION_PARAMS + [
-            {
-                "name": "scope",
-                "in": "query",
-                "required": False,
-                "schema": {"type": "string", "enum": ["all"]},
-                "description": "`all` returns the full catalog with selection flags.",
-            },
-        ],
+        "parameters": [*PAGINATION_PARAMS, {"name": "scope", "in": "query", "required": False, "schema": {"type": "string", "enum": ["all"]}, "description": "`all` returns the full catalog with selection flags."}],
         "responses": {
             "200": _make_response(200, "Paginated items.", LIST_RESPONSE_TEMPLATE),
             "400": _error(400, "validation_error (limit/offset/scope)."),
@@ -2430,20 +2422,7 @@ ROUTES: list[dict[str, Any]] = [
         "path": "/tracks/spotify-not-found",
         "auth": ADMIN,
         "summary": "List tracks searched on Spotify but not matched.",
-        "parameters": PAGINATION_PARAMS + [
-            {
-                "name": "publish_date_from",
-                "in": "query",
-                "required": False,
-                "schema": {"type": "string", "format": "date"},
-            },
-            {
-                "name": "publish_date_to",
-                "in": "query",
-                "required": False,
-                "schema": {"type": "string", "format": "date"},
-            },
-        ],
+        "parameters": [*PAGINATION_PARAMS, {"name": "publish_date_from", "in": "query", "required": False, "schema": {"type": "string", "format": "date"}}, {"name": "publish_date_to", "in": "query", "required": False, "schema": {"type": "string", "format": "date"}}],
         "responses": {
             "200": _make_response(200, "Paginated items.", LIST_RESPONSE_TEMPLATE),
             **COMMON_AUTH_ERRORS,
@@ -3161,15 +3140,7 @@ ROUTES: list[dict[str, Any]] = [
         "path": "/playlists",
         "auth": AUTH,
         "summary": "List the user's playlists (paginated, optional status filter).",
-        "parameters": PAGINATION_PARAMS + [
-            {
-                "name": "status",
-                "in": "query",
-                "required": False,
-                "schema": {"type": "string", "enum": ["active", "completed"]},
-                "description": "Optional status filter. Omit to return all.",
-            },
-        ],
+        "parameters": [*PAGINATION_PARAMS, {"name": "status", "in": "query", "required": False, "schema": {"type": "string", "enum": ["active", "completed"]}, "description": "Optional status filter. Omit to return all."}],
         "responses": {
             "200": _make_response(200, "Paginated playlists.", LIST_RESPONSE_TEMPLATE),
             **COMMON_AUTH_ERRORS,

@@ -33,7 +33,7 @@ def enqueue_block_auto_enrich(*, block_id: str, user_id: str | None) -> None:
             QueueUrl=_queue_url(),
             MessageBody=json.dumps({"block_id": block_id, "user_id": user_id}),
         )
-    except Exception as exc:  # noqa: BLE001 — best-effort, never break finalize
+    except Exception as exc:
         log_event(
             "ERROR", "auto_enrich_block_enqueue_error",
             block_id=block_id, error_message=str(exc)[:500],

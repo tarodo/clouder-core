@@ -6,7 +6,7 @@ class FakeYT:
         self.by_filter = by_filter
         self.calls = []
 
-    def search(self, query, filter, limit):  # noqa: A002 - matches ytmusicapi
+    def search(self, query, filter, limit):
         self.calls.append((query, filter, limit))
         return self.by_filter.get(filter, [])
 

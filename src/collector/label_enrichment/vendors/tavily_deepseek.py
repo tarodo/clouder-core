@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from typing import Any, Type
+from typing import Any
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -88,7 +88,7 @@ class TavilyDeepSeekAdapter:
         self,
         system: str,
         user: str,
-        schema: Type[BaseModel],
+        schema: type[BaseModel],
         model: str | None = None,
     ) -> VendorResponse:
         chosen = model or self.default_model
@@ -113,7 +113,7 @@ class TavilyDeepSeekAdapter:
             )
             tavily_resp.raise_for_status()
             tavily_body = tavily_resp.json()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return VendorResponse(
                 parsed=None,
                 raw={},
@@ -146,7 +146,7 @@ class TavilyDeepSeekAdapter:
             )
             social_resp.raise_for_status()
             social_results = (social_resp.json().get("results") or [])
-        except Exception:  # noqa: BLE001 — second call is best-effort; failure leaves general results intact
+        except Exception:
             social_results = []
 
         # Merge + dedup by URL
@@ -185,7 +185,7 @@ class TavilyDeepSeekAdapter:
                 response_format={"type": "json_object"},
                 temperature=0.1,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return VendorResponse(
                 parsed=None,
                 raw={"tavily_results": results},
@@ -202,7 +202,7 @@ class TavilyDeepSeekAdapter:
             usage = llm_resp.usage
             input_tokens = getattr(usage, "prompt_tokens", 0) or 0
             output_tokens = getattr(usage, "completion_tokens", 0) or 0
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return VendorResponse(
                 parsed=None,
                 raw={"tavily_results": results},

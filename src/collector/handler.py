@@ -8,9 +8,10 @@ import os
 import re
 import time
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Mapping
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -427,7 +428,7 @@ def collect_period(
     lambda_request_id: str,
     trigger: str = "manual",
 ) -> dict[str, Any]:
-    """Fetch one style × period from Beatport, store it raw, record the run and
+    """Fetch one style x period from Beatport, store it raw, record the run and
     enqueue canonicalization — the admin endpoint and auto-ingest share it.
     `params.bp_token` is used for the fetch only."""
     started_at_perf = time.perf_counter()
@@ -481,7 +482,7 @@ def collect_period(
         "correlation_id": correlation_id,
         "api_request_id": api_request_id,
         "lambda_request_id": lambda_request_id,
-        "collected_at_utc": datetime.now(timezone.utc)
+        "collected_at_utc": datetime.now(UTC)
         .replace(microsecond=0)
         .isoformat()
         .replace("+00:00", "Z"),
@@ -908,7 +909,7 @@ def _handle_analytics_funnel(
     w = listening_windows(utc_now(), off)
 
     def local_midnight_utc(d: date) -> datetime:
-        return datetime.combine(d, dtime(), tzinfo=timezone.utc) - timedelta(minutes=off)
+        return datetime.combine(d, dtime(), tzinfo=UTC) - timedelta(minutes=off)
 
     rows = repository.analytics_funnel(
         user_id,

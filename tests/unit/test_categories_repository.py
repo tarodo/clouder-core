@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -24,7 +24,7 @@ def _make() -> tuple[CategoriesRepository, MagicMock]:
 
 
 def _now() -> datetime:
-    return datetime(2026, 4, 27, 12, 0, tzinfo=timezone.utc)
+    return datetime(2026, 4, 27, 12, 0, tzinfo=UTC)
 
 
 def test_repository_constructs() -> None:

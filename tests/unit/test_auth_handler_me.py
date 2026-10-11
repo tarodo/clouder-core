@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -48,7 +48,7 @@ def _event(*, route: str, user_id: str, session_id: str, is_admin: bool,
 
 
 def test_get_me_returns_user_and_sessions(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     repo.get_user_by_id.return_value = UserRow(
         id="u-1", spotify_id="sp-1", display_name="Roman",
@@ -91,7 +91,7 @@ def test_get_me_returns_user_and_sessions(monkeypatch) -> None:
 
 
 def test_delete_session_revokes_non_current(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     repo.get_active_session.return_value = SessionRow(
         id="s-2", user_id="u-1", refresh_token_hash="h",
@@ -118,7 +118,7 @@ def test_delete_session_revokes_non_current(monkeypatch) -> None:
 
 
 def test_delete_session_current_returns_400(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     monkeypatch.setattr(auth_handler, "_build_auth_repository", lambda: repo)
     monkeypatch.setattr(auth_handler, "_now", lambda: now)
@@ -141,7 +141,7 @@ def test_delete_session_current_returns_400(monkeypatch) -> None:
 
 
 def test_delete_session_belonging_to_other_user_returns_404(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     repo.get_active_session.return_value = SessionRow(
         id="s-2", user_id="u-OTHER", refresh_token_hash="h",

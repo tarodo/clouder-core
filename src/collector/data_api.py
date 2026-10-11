@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Any, Dict, Iterable, Iterator, Mapping
+from typing import Any
 
 from .data_api_retry import retry_data_api, retry_data_api_pre_execution
 
@@ -35,7 +36,7 @@ class DataAPIClient:
         params: Mapping[str, Any] | None = None,
         transaction_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        request: Dict[str, Any] = {
+        request: dict[str, Any] = {
             "resourceArn": self._resource_arn,
             "secretArn": self._secret_arn,
             "database": self._database,
@@ -71,10 +72,10 @@ class DataAPIClient:
     def _batch_execute_chunk(
         self,
         sql: str,
-        parameter_sets: list[list[Dict[str, Any]]],
+        parameter_sets: list[list[dict[str, Any]]],
         transaction_id: str | None,
     ) -> None:
-        request: Dict[str, Any] = {
+        request: dict[str, Any] = {
             "resourceArn": self._resource_arn,
             "secretArn": self._secret_arn,
             "database": self._database,
@@ -135,7 +136,7 @@ def create_default_data_api_client(
 
 
 def _to_parameter(name: str, value: Any) -> dict[str, Any]:
-    parameter: Dict[str, Any] = {
+    parameter: dict[str, Any] = {
         "name": name,
         "value": _to_field(value),
     }
@@ -166,7 +167,7 @@ def _to_field(value: Any) -> dict[str, Any]:
     if isinstance(value, datetime):
         # RDS Data API TIMESTAMP parser expects SQL-like datetime without timezone suffix.
         if value.tzinfo is not None:
-            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+            value = value.astimezone(UTC).replace(tzinfo=None)
         return {"stringValue": value.strftime("%Y-%m-%d %H:%M:%S.%f")}
     if isinstance(value, date):
         return {"stringValue": value.isoformat()}
@@ -192,7 +193,7 @@ def _to_rows(response: Mapping[str, Any]) -> list[dict[str, Any]]:
     for record in records:
         if not isinstance(record, list):
             continue
-        row: Dict[str, Any] = {}
+        row: dict[str, Any] = {}
         for index, field in enumerate(record):
             if index >= len(columns):
                 continue
@@ -226,11 +227,11 @@ def _from_field(field: Any) -> Any:
 
 
 def _size_chunks(
-    items: list[list[Dict[str, Any]]], budget: int
-) -> Iterator[list[list[Dict[str, Any]]]]:
+    items: list[list[dict[str, Any]]], budget: int
+) -> Iterator[list[list[dict[str, Any]]]]:
     """Consecutive groups whose JSON size stays within `budget`; an item larger
     than the budget goes alone (the service decides)."""
-    chunk: list[list[Dict[str, Any]]] = []
+    chunk: list[list[dict[str, Any]]] = []
     size = 2  # the enclosing brackets
     for item in items:
         item_size = len(json.dumps(item, separators=(",", ":"), default=str)) + 1

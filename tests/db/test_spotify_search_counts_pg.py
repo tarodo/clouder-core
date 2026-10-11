@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from collector.repositories import ClouderRepository
 
-NOW = datetime(2026, 10, 10, 15, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 10, 15, 0, tzinfo=UTC)
 
 
 def _track(pg, tid, *, isrc="ISRC", searched_at=None, spotify_id=None):

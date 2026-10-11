@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -84,7 +84,7 @@ def _vendor_token(now: datetime) -> VendorTokenRow:
 
 
 def test_refresh_happy_path_rotates_tokens(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     refresh = _refresh_jwt(now)
     repo = MagicMock()
     repo.get_active_session.return_value = _stored_session(
@@ -120,7 +120,7 @@ def test_refresh_happy_path_rotates_tokens(monkeypatch) -> None:
 
 
 def test_refresh_missing_cookie_returns_401(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     envelope = MagicMock()
     oauth = MagicMock()
@@ -136,7 +136,7 @@ def test_refresh_missing_cookie_returns_401(monkeypatch) -> None:
 
 
 def test_refresh_replay_revokes_session_family(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     refresh = _refresh_jwt(now)
     repo = MagicMock()
     # Stored hash does NOT match the inbound refresh — replay signal.
@@ -158,7 +158,7 @@ def test_refresh_replay_revokes_session_family(monkeypatch) -> None:
 
 
 def test_refresh_spotify_invalid_grant_clears_vendor_token(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     refresh = _refresh_jwt(now)
     repo = MagicMock()
     repo.get_active_session.return_value = _stored_session(
@@ -186,7 +186,7 @@ def test_refresh_spotify_invalid_grant_clears_vendor_token(monkeypatch) -> None:
 
 
 def test_refresh_session_not_found_returns_401(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     refresh = _refresh_jwt(now)
     repo = MagicMock()
     repo.get_active_session.return_value = None

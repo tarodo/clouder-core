@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -156,7 +156,7 @@ class FakeTxDataApi(FakeDataApi):
         self.committed = True
 
 
-_NOW = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 9, 20, 12, 0, tzinfo=UTC)
 
 
 def test_replace_selection_deletes_then_inserts_in_order():

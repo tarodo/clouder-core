@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 import struct
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,7 +18,7 @@ from collector.curation.spotify_token_resolver import (
 
 
 def _utc(offset_s: int = 0) -> datetime:
-    return datetime.now(timezone.utc) + timedelta(seconds=offset_s)
+    return datetime.now(UTC) + timedelta(seconds=offset_s)
 
 
 def _fake_payload_blob() -> bytes:

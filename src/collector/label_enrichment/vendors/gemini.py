@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from typing import Any, Type
+from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
@@ -21,7 +21,7 @@ def _lat(started: float) -> int:
     return int((time.monotonic() - started) * 1000)
 
 
-def _schema_hint(schema: Type[BaseModel]) -> str:
+def _schema_hint(schema: type[BaseModel]) -> str:
     return (
         "\n\nIMPORTANT — OUTPUT FORMAT:\n"
         "Return ONLY a single JSON object that conforms to this schema. "
@@ -85,7 +85,7 @@ class GeminiAdapter:
         self,
         system: str,
         user: str,
-        schema: Type[BaseModel],
+        schema: type[BaseModel],
         model: str | None = None,
     ) -> VendorResponse:
         chosen_model = model or self.default_model
@@ -112,7 +112,7 @@ class GeminiAdapter:
                         config=config,
                     )
                     break
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     exc_msg = str(exc)
                     is_quota = (
                         "RESOURCE_EXHAUSTED" in exc_msg
@@ -136,7 +136,7 @@ class GeminiAdapter:
                     time.sleep(wait)
                     backoff_floor = min(backoff_floor * 1.5, 60.0)
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return VendorResponse(
                 parsed=None,
                 raw={},
@@ -162,7 +162,7 @@ class GeminiAdapter:
                     uri = getattr(web, "uri", None) if web else None
                     if uri:
                         citations.append(uri)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return VendorResponse(
                 parsed=None,
                 raw={"error": "extract failure"},

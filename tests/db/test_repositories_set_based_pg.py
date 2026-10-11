@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from collector.repositories import (
@@ -12,7 +12,7 @@ from collector.repositories import (
     UpsertIdentityCmd,
 )
 
-AT = datetime(2026, 10, 7, tzinfo=timezone.utc)
+AT = datetime(2026, 10, 7, tzinfo=UTC)
 
 
 def _identity(ext: str, clouder_id: str) -> UpsertIdentityCmd:

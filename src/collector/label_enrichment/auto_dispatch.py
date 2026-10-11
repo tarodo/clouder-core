@@ -138,7 +138,7 @@ def _dispatch_labels(*, label_ids: list[str], source_hint: str, user_id: str | N
 def _safe(fn) -> None:
     try:
         fn()
-    except Exception as exc:  # noqa: BLE001 — best-effort, never break curation
+    except Exception as exc:
         log_event("ERROR", "auto_enrich_dispatch_error", error_message=str(exc)[:500])
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from collector.comments.repository import CommentsRepository
 from collector.providers.base import CollectedComment
@@ -36,7 +36,7 @@ class FakeDataAPI:
         return FakeDataAPI._Tx()
 
 
-NOW = datetime(2026, 6, 21, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 21, tzinfo=UTC)
 
 
 def test_start_collection_skips_when_already_collected_same_video():
@@ -59,7 +59,7 @@ def test_start_collection_inserts_when_new():
     repo = CommentsRepository(api)
     result = repo.start_collection(track_id="t1", platform="youtube", video_id="vidA", now=NOW)
     assert result == "colNEW"
-    insert_sql, params, _ = [c for c in api.calls if "INSERT INTO comment_collections" in c[0]][0]
+    _insert_sql, params, _ = next(c for c in api.calls if "INSERT INTO comment_collections" in c[0])
     assert params["t"] == "t1" and params["p"] == "youtube" and params["v"] == "vidA"
 
 
@@ -86,7 +86,7 @@ def test_store_comments_deletes_then_batch_inserts_and_marks_collected():
     assert len(api.batch_calls) == 1
     _, sets, _ = api.batch_calls[0]
     assert [s["eid"] for s in sets] == ["c1", "c2"]
-    update_sql, params, _ = [c for c in api.calls if "UPDATE comment_collections" in c[0]][0]
+    _update_sql, params, _ = next(c for c in api.calls if "UPDATE comment_collections" in c[0])
     assert params["s"] == "collected" and params["n"] == 2
 
 
@@ -96,7 +96,7 @@ def test_store_comments_empty_skips_batch_and_marks_status():
     repo.store_comments(collection_id="col1", platform="youtube", comments=[],
                         status="empty", now=NOW)
     assert api.batch_calls == []
-    update_sql, params, _ = [c for c in api.calls if "UPDATE comment_collections" in c[0]][0]
+    _update_sql, params, _ = next(c for c in api.calls if "UPDATE comment_collections" in c[0])
     assert params["s"] == "empty" and params["n"] == 0
 
 

@@ -28,7 +28,7 @@ class EnrichLabelInput(BaseModel):
     style: str | None = Field(default=None, min_length=1, max_length=128)
 
     @model_validator(mode="after")
-    def _id_or_name_required(self) -> "EnrichLabelInput":
+    def _id_or_name_required(self) -> EnrichLabelInput:
         if not self.label_id and not self.label_name:
             raise ValueError("either label_id or label_name is required")
         if not self.label_id and not self.style:
@@ -50,7 +50,7 @@ class EnrichLabelsRequestIn(BaseModel):
     merge_model: str = Field(min_length=1)
 
     @model_validator(mode="after")
-    def _every_vendor_has_a_model(self) -> "EnrichLabelsRequestIn":
+    def _every_vendor_has_a_model(self) -> EnrichLabelsRequestIn:
         for vendor in self.vendors:
             if vendor not in self.models or not self.models[vendor].strip():
                 raise ValueError(f"model missing for vendor {vendor!r}")

@@ -13,8 +13,9 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 TOMBSTONE_PREFIX = "governance/deleted_users/"
 # Iceberg tables derived from telemetry; the dbt models anti-join the tombstones

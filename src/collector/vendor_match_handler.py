@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Mapping
+from typing import Any
 from uuid import uuid4
 
 from pydantic import ValidationError as PydanticValidationError
@@ -97,7 +98,7 @@ def _process_one(
         )
         return False
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if message.isrc:
         ref = _try_isrc(lookup, message)

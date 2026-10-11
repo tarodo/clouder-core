@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
 from collector.auto_ingest_repository import AutoIngestRepository
 
-NOW = datetime(2026, 10, 7, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
 
 
 @pytest.fixture()
@@ -148,7 +148,7 @@ def test_stuck_pairs_are_retried_after_a_week(repo) -> None:
 
 def test_settings_report_a_run_in_progress(repo) -> None:
     assert repo.get_settings()["running"] is False
-    assert repo.acquire_lease(datetime.now(timezone.utc))
+    assert repo.acquire_lease(datetime.now(UTC))
     assert repo.get_settings()["running"] is True
     repo.release_lease()
     assert repo.get_settings()["running"] is False

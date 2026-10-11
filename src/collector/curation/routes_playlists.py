@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 from typing import Any
 
@@ -670,10 +671,8 @@ def _handle_import_spotify_playlist(event, repo, user_id, correlation_id):
     except Exception:
         # Don't leave an orphan, empty playlist behind if anything after
         # create() fails — it would block retry with a 409 name conflict.
-        try:
+        with contextlib.suppress(Exception):
             repo.soft_delete(user_id=user_id, playlist_id=playlist_id, now=utc_now())
-        except Exception:
-            pass
         raise
     _enqueue_ytmusic(repo, result.added_track_ids, correlation_id)
 

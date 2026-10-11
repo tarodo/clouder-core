@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import time
 from collections import Counter
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from .canonicalize import Canonicalizer
 from .contracts import screen_run

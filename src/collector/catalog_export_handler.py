@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
-from typing import Any, Iterable
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Any
 
 from .data_api import DataAPIClient, create_default_data_api_client
 from .logging_utils import log_event
@@ -117,7 +118,7 @@ def lambda_handler(event: Any, context: Any) -> dict[str, Any]:
     )
     bucket = os.environ["ANALYTICS_LAKE_BUCKET"]
     snapshot_dt = (event or {}).get("snapshot_dt") or datetime.now(
-        timezone.utc
+        UTC
     ).strftime("%Y-%m-%d")
     counts = export_catalog(data_api, boto3.client("s3"), bucket, snapshot_dt)
     log_event("INFO", "catalog_export_completed", item_count=sum(counts.values()))

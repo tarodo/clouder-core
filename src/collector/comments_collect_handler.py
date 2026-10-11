@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 import requests
 from pydantic import ValidationError as PydanticValidationError
@@ -22,7 +23,7 @@ from .settings import get_comment_collection_worker_settings
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _build_repository() -> CommentsRepository:
@@ -136,7 +137,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 collection_id=msg.collection_id, platform=msg.platform,
                 comments=[], status="failed", now=now, error=str(exc)[:500],
             )
-        except Exception as exc:  # noqa: BLE001 — never retry: 1-request budget
+        except Exception as exc:
             repo.store_comments(
                 collection_id=msg.collection_id, platform=msg.platform,
                 comments=[], status="failed", now=now, error=str(exc)[:500],

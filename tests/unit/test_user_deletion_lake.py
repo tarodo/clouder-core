@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -64,7 +64,7 @@ def test_delete_covers_removes_every_version_and_marker_of_this_user_only() -> N
 
 def test_purge_lake_writes_the_tombstone_before_deleting_derived_rows() -> None:
     s3, athena = FakeS3([]), FakeAthena()
-    now = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 8, 12, 0, tzinfo=UTC)
 
     purge_lake(s3, athena, user_id=UID, lake_bucket="lake", workgroup="wg", now=now, sleep=lambda _: None)
 
@@ -82,13 +82,13 @@ def test_purge_lake_writes_the_tombstone_before_deleting_derived_rows() -> None:
 def test_purge_lake_fails_loudly_when_athena_fails() -> None:
     with pytest.raises(RuntimeError, match="FAILED"):
         purge_lake(FakeS3([]), FakeAthena("FAILED"), user_id=UID, lake_bucket="lake",
-                   workgroup="wg", now=datetime.now(timezone.utc), sleep=lambda _: None)
+                   workgroup="wg", now=datetime.now(UTC), sleep=lambda _: None)
 
 
 def test_delete_covers_fails_when_s3_refuses_a_version() -> None:
     # DeleteObjects answers 200 and lists per-key failures in Errors.
     s3 = FakeS3([{"Key": f"covers/{UID}/p1/locked.jpg", "VersionId": "v1"}])
-    with pytest.raises(RuntimeError, match="locked.jpg"):
+    with pytest.raises(RuntimeError, match=r"locked\.jpg"):
         delete_covers(s3, "raw", UID)
 
 

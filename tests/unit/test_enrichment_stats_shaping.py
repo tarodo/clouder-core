@@ -14,8 +14,8 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-import enrichment_stats  # noqa: E402
-import openai_usage_report  # noqa: E402
+import enrichment_stats
+import openai_usage_report
 
 # ── enrichment_stats.cutoff_date ───────────────────────────────────────────
 

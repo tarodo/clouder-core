@@ -118,7 +118,7 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
         vals = [p.get(field) for p in parseds if p.get(field) is not None]
         if vals:
             m = median(vals)
-            merged[field] = int(round(m))
+            merged[field] = round(m)
             prov[field] = f"median:{merged[field]}"
         else:
             merged[field] = None

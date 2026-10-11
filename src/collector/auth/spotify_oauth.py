@@ -6,8 +6,9 @@ import base64
 import json
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 from urllib.error import HTTPError, URLError
 
 TOKEN_URL = "https://accounts.spotify.com/api/token"

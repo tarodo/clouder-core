@@ -33,7 +33,7 @@ def test_fetch_unmatched_match_inputs_filters_and_joins():
     assert inp.isrc == "GB123"
     assert inp.duration_ms == 225000
     assert inp.album == "Lost EP"
-    sql, params = api.calls[-1]
+    _sql, params = api.calls[-1]
     assert params["vendor"] == "ytmusic"
     assert params["t0"] == "t1" and params["t1"] == "t2"
 

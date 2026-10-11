@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from pg_data_api import CANONICAL_TABLES, count_rows, seed_run
 from synthetic import synthetic_week
@@ -12,7 +12,7 @@ from collector.canonicalize import Canonicalizer
 from collector.normalize import normalize_tracks
 from collector.repositories import ClouderRepository
 
-T1 = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
+T1 = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 T2 = T1 + timedelta(days=7)
 COUNTS = (
     "labels_created", "styles_created", "artists_created", "albums_created",

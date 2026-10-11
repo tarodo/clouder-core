@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from collector.repositories import ClouderRepository
 
 
 def test_a_ban_is_stored_and_a_shorter_one_does_not_cut_it(pg) -> None:
     repo = ClouderRepository(pg)
-    now = datetime(2026, 10, 10, 5, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 10, 5, 0, tzinfo=UTC)
     try:
         assert repo.get_vendor_blocked_until("spotify") is None
 

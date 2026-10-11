@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import argparse
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 
@@ -72,7 +72,7 @@ def main() -> None:
         help="preview only (default; explicit for clarity)",
     )
     args = parser.parse_args()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     db = get_data_api_settings()
     data_api = create_default_data_api_client(

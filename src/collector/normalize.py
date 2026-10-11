@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 from .models import (
     EntityType,
@@ -37,12 +38,12 @@ class NormalizedBundle:
 
 
 def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
-    artists_by_id: Dict[int, NormalizedArtist] = {}
-    labels_by_id: Dict[int, NormalizedLabel] = {}
-    styles_by_id: Dict[int, NormalizedStyle] = {}
-    albums_by_id: Dict[int, NormalizedAlbum] = {}
-    tracks_by_id: Dict[int, NormalizedTrack] = {}
-    relations: List[NormalizedRelation] = []
+    artists_by_id: dict[int, NormalizedArtist] = {}
+    labels_by_id: dict[int, NormalizedLabel] = {}
+    styles_by_id: dict[int, NormalizedStyle] = {}
+    albums_by_id: dict[int, NormalizedAlbum] = {}
+    tracks_by_id: dict[int, NormalizedTrack] = {}
+    relations: list[NormalizedRelation] = []
 
     for item in raw_tracks:
         if not isinstance(item, dict):
@@ -52,7 +53,7 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
         if bp_track_id is None:
             continue
 
-        artist_ids: List[int] = []
+        artist_ids: list[int] = []
         for artist in _as_list(item.get("artists")):
             if not isinstance(artist, dict):
                 continue
@@ -93,14 +94,13 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
             if isinstance(label, dict):
                 bp_label_id = _as_positive_int(label.get("id"))
                 label_name = _as_non_empty_str(label.get("name"))
-                if bp_label_id is not None and label_name:
-                    if bp_label_id not in labels_by_id:
-                        labels_by_id[bp_label_id] = NormalizedLabel(
-                            bp_label_id=bp_label_id,
-                            name=label_name,
-                            normalized_name=normalize_text(label_name),
-                            payload=label,
-                        )
+                if bp_label_id is not None and label_name and bp_label_id not in labels_by_id:
+                    labels_by_id[bp_label_id] = NormalizedLabel(
+                        bp_label_id=bp_label_id,
+                        name=label_name,
+                        normalized_name=normalize_text(label_name),
+                        payload=label,
+                    )
 
             if bp_release_id is not None and release_name:
                 if bp_release_id not in albums_by_id:
@@ -128,14 +128,13 @@ def normalize_tracks(raw_tracks: Iterable[dict[str, Any]]) -> NormalizedBundle:
         if isinstance(genre, dict):
             bp_genre_id = _as_positive_int(genre.get("id"))
             genre_name = _as_non_empty_str(genre.get("name"))
-            if bp_genre_id is not None and genre_name:
-                if bp_genre_id not in styles_by_id:
-                    styles_by_id[bp_genre_id] = NormalizedStyle(
-                        bp_genre_id=bp_genre_id,
-                        name=genre_name,
-                        normalized_name=normalize_text(genre_name),
-                        payload=genre,
-                    )
+            if bp_genre_id is not None and genre_name and bp_genre_id not in styles_by_id:
+                styles_by_id[bp_genre_id] = NormalizedStyle(
+                    bp_genre_id=bp_genre_id,
+                    name=genre_name,
+                    normalized_name=normalize_text(genre_name),
+                    payload=genre,
+                )
 
         title = _as_non_empty_str(item.get("name"))
         if not title:

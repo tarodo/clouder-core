@@ -62,7 +62,7 @@ def test_list_backlog_joins_track_artists():
         [{"c": 1}],
     ])
     repo = ArtistEnrichmentRepository(api)
-    items, cursor, total = repo.list_backlog(style=None, status="none", cursor=None, limit=100)
+    items, _cursor, total = repo.list_backlog(style=None, status="none", cursor=None, limit=100)
     assert "clouder_track_artists" in api.calls[0][0]
     assert items[0]["id"] == "a" and total == 1
 

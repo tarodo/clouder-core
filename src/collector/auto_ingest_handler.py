@@ -16,8 +16,9 @@ import os
 import random
 import time
 import uuid
+from collections.abc import Callable, Mapping
 from datetime import date, datetime
-from typing import Any, Callable, Mapping
+from typing import Any
 
 from .auto_ingest_plan import choose_periods, due_week
 from .auto_ingest_repository import AutoIngestRepository

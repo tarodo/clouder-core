@@ -5,7 +5,7 @@ from __future__ import annotations
 import gzip
 import json
 from io import BytesIO
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -36,7 +36,7 @@ class FakeS3Client:
         return {"Body": BytesIO(body)}
 
 
-def _meta(style_id: int = 5, iso_year: int = 2026, iso_week: int = 9) -> Dict[str, Any]:
+def _meta(style_id: int = 5, iso_year: int = 2026, iso_week: int = 9) -> dict[str, Any]:
     return {
         "style_id": style_id,
         "iso_year": iso_year,

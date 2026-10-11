@@ -7,9 +7,10 @@ Cross-user access yields zero rows (mapped to 404 by the handler).
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 from collector.data_api import DataAPIClient
 from collector.logging_utils import log_event
@@ -45,7 +46,7 @@ class TrackInCategoryRow:
     track: Mapping[str, Any]
     added_at: str
     source_triage_block_id: str | None
-    tags: tuple["TrackTagRow", ...] = ()
+    tags: tuple[TrackTagRow, ...] = ()
 
 
 _SORT_COLUMNS = {
@@ -343,7 +344,7 @@ class CategoriesRepository:
         category_id: str,
         now: datetime,
         correlation_id: str | None = None,
-        tags_repo: "TagsRepository | None" = None,
+        tags_repo: TagsRepository | None = None,
     ) -> bool:
         with self._data_api.transaction() as tx_id:
             # When cleanup is requested, snapshot the member track ids
@@ -619,7 +620,7 @@ class CategoriesRepository:
         user_id: str,
         category_id: str,
         track_id: str,
-        tags_repo: "TagsRepository | None" = None,
+        tags_repo: TagsRepository | None = None,
     ) -> bool:
         with self._data_api.transaction() as tx_id:
             cat_rows = self._data_api.execute(
@@ -664,7 +665,7 @@ class CategoriesRepository:
         order: str = "desc",
         tag_ids: list[str] | None = None,
         tag_match: str = "all",
-        tags_repo: "TagsRepository | None" = None,
+        tags_repo: TagsRepository | None = None,
         fresh: bool = False,
     ) -> PaginatedResult[TrackInCategoryRow]:
         cat_rows = self._data_api.execute(
