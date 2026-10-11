@@ -82,6 +82,17 @@ variable "canonicalization_batch_size" {
   default     = 1
 }
 
+variable "canonicalization_max_concurrency" {
+  description = "Most canonicalization workers running at once (SQS event-source maximum_concurrency, 2-1000). Part of the worker budget under the account concurrency quota (infra/concurrency.tf)."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.canonicalization_max_concurrency >= 2 && var.canonicalization_max_concurrency <= 1000
+    error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
+  }
+}
+
 variable "canonicalization_worker_lambda_timeout_seconds" {
   description = "Canonicalization worker Lambda timeout in seconds"
   type        = number
@@ -213,6 +224,11 @@ variable "spotify_search_max_concurrency" {
   description = "Most Spotify search workers draining the queue at once (the SQS trigger allows 2 at least)."
   type        = number
   default     = 2
+
+  validation {
+    condition     = var.spotify_search_max_concurrency >= 2 && var.spotify_search_max_concurrency <= 1000
+    error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
+  }
 }
 
 variable "spotify_min_request_interval_ms" {
@@ -306,6 +322,17 @@ variable "vendor_match_batch_size" {
   description = "SQS batch size for vendor match worker lambda"
   type        = number
   default     = 1
+}
+
+variable "vendor_match_max_concurrency" {
+  description = "Most vendor-match workers running at once (SQS event-source maximum_concurrency, 2-1000). Part of the worker budget under the account concurrency quota (infra/concurrency.tf)."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.vendor_match_max_concurrency >= 2 && var.vendor_match_max_concurrency <= 1000
+    error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
+  }
 }
 
 variable "vendor_match_worker_reserved_concurrency" {
@@ -682,6 +709,17 @@ variable "comments_collect_batch_size" {
   description = "SQS batch size for the comments-collect worker lambda."
   type        = number
   default     = 1
+}
+
+variable "comments_collect_max_concurrency" {
+  description = "Most comments-collect workers running at once (SQS event-source maximum_concurrency, 2-1000). A block finalize enqueues one job per track. Part of the worker budget under the account concurrency quota (infra/concurrency.tf)."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.comments_collect_max_concurrency >= 2 && var.comments_collect_max_concurrency <= 1000
+    error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
+  }
 }
 
 variable "beatport_client_id" {

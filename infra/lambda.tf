@@ -104,6 +104,12 @@ resource "aws_lambda_event_source_mapping" "canonicalization_queue" {
   event_source_arn = aws_sqs_queue.canonicalization.arn
   function_name    = aws_lambda_function.canonicalization_worker.arn
   batch_size       = var.canonicalization_batch_size
+
+  # Every worker is capped so together they leave the API room in the account's
+  # concurrency pool (infra/concurrency.tf, postmortem 2026-10-11).
+  scaling_config {
+    maximum_concurrency = var.canonicalization_max_concurrency
+  }
 }
 
 # ── Spotify Search worker ────────────────────────────────────────
@@ -197,6 +203,10 @@ resource "aws_lambda_event_source_mapping" "vendor_match_queue" {
   function_name    = aws_lambda_function.vendor_match_worker.arn
   batch_size       = var.vendor_match_batch_size
   enabled          = var.vendor_match_enabled
+
+  scaling_config {
+    maximum_concurrency = var.vendor_match_max_concurrency
+  }
 }
 
 # ── Label enrichment worker ──────────────────────────────────────
@@ -373,4 +383,10 @@ resource "aws_lambda_event_source_mapping" "comments_collect_queue" {
   event_source_arn = aws_sqs_queue.comments_collect.arn
   function_name    = aws_lambda_function.comments_collect_worker.arn
   batch_size       = var.comments_collect_batch_size
+
+  # A block finalize enqueues a comment collection per track (131 on 2026-10-11);
+  # uncapped, they took every slot in the account and the API answered 5xx.
+  scaling_config {
+    maximum_concurrency = var.comments_collect_max_concurrency
+  }
 }
