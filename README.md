@@ -79,7 +79,7 @@ s3://<raw-bucket>/                      versioned; old versions move to Glacier 
 
 s3://<analytics-lake>/
   bronze/events/dt=<date>/event_name=<name>/         Firehose → Parquet, Glue partition projection
-  bronze/catalog_export/snapshot_dt=<date>/tbl=<t>/  nightly catalog snapshot (14 days)
+  bronze/catalog_export/snapshot_dt=<date>/<table>/  nightly catalog snapshot (14 days)
   lakehouse/                                         Iceberg silver/gold, built by dbt on Athena
   governance/deleted_users/                          erasure tombstones (see docs/privacy.md)
 ```
@@ -125,7 +125,7 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 | **CloudFront** | SPA delivery with Origin Access Control |
 | **IAM** | A least-privilege execution role per Lambda (its own log group and only what its code uses); GitHub OIDC deploy role |
 
-**Deliberately not used:** Redshift, EMR/Spark, Kinesis Data Streams/MSK, ECS/EKS, Glue ETL jobs. At ~100k tracks and a few hundred events a day they would add cost and moving parts without solving a problem this system has; the alternatives considered are in [`docs/design/data-platform.md`](docs/design/data-platform.md#alternatives-considered), and the point where each would start to pay off is in [`docs/scalability.md`](docs/scalability.md).
+**Deliberately not used:** Redshift, EMR/Spark, Kinesis Data Streams/MSK, ECS/EKS, Glue ETL jobs. At ~100k tracks and a few hundred events a day they would add cost and moving parts without solving a problem this system has; where an alternative was weighed, the trade-off is recorded — Redshift Serverless and Kafka in [`docs/design/data-platform.md`](docs/design/data-platform.md#alternatives-considered), Glue ETL and Spark in [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md) — and [`docs/scalability.md`](docs/scalability.md) says what changes at 10× and 100×.
 
 ## Data pipeline
 

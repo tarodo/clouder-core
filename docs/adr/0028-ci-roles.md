@@ -1,5 +1,5 @@
 # ADR-0028: A read-only plan role for pull requests, an environment-gated deploy role
-Status: Accepted
+Status: Accepted — deploy-role trust and secret scope still to roll out ([known gaps](../security.md#known-gaps))
 Date: 2026-10-10
 
 ## Context
