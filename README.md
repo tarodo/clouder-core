@@ -178,7 +178,7 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
 | Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 239 Terraform resource definitions |
 | API | 106 operations |
-| Delivery | 265+ merged pull requests; every merge to `main` deploys to production |
+| Delivery | 290+ merged pull requests; every merge to `main` deploys to production. [DORA](https://dora.dev) metrics, last 90 days to 2026-10-11 ([`scripts/dora.py`](scripts/dora.py)): 6.2 deploys a week, median lead time 11 min from first commit to production, change failure rate 1 %, median recovery from a failed deploy 8 min |
 
 ## Production readiness
 

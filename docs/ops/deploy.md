@@ -77,6 +77,10 @@ Pull request → 8 required checks (the Terraform plan runs under the read-only 
 
 **After a rollback** the next `terraform apply` moves the aliases forward again, so the fix is a revert PR or a new commit. Not rolled back: the frontend, the SQS workers, DB migrations (written to be backward compatible), SSM values.
 
+## Delivery metrics
+
+`python3 scripts/dora.py [--days 90]` (or `make dora`; needs a full clone and `gh` logged in) computes the four DORA metrics with the DORA 2023 definitions from this repository's own history: deployment frequency (successful `Deploy` runs on `main` per week), lead time for changes (a pull request's first commit → the end of the first successful deploy that started after its merge), change failure rate (failed / finished deploy runs, cancelled ones excluded) and failed-deployment recovery time (the first failed deploy of a streak → the next successful one). The README quotes its output.
+
 ## Frontend deploy
 
 `scripts/deploy_frontend.sh` (no argument: both modes; the deploy runs `build` before AWS credentials exist and `publish` after the apply):
