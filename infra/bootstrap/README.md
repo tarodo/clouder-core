@@ -4,7 +4,7 @@ Things Terraform cannot own, because it needs them to run: the GitHub OIDC provi
 
 ## `deploy-role-policy.json`
 
-The policy of `github-actions-terraform`, the role every deploy assumes (only the `production` environment can). It replaces AdministratorAccess.
+The policy of `github-actions-terraform`, the role every deploy assumes (only the `production` environment can). It replaced AdministratorAccess on 2026-10-11 (applied by the owner as `github-actions-terraform-deploy`); the first deploy under it refreshed every resource and passed its smoke test.
 
 **What it allows**
 
