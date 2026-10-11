@@ -54,7 +54,7 @@ flowchart LR
   SIL & BRZ --> ATH["Athena"] --> API
 ```
 
-The full diagram and the list of all 18 Lambda functions are in [`docs/architecture.md`](docs/architecture.md); [`docs/engineering-highlights.md`](docs/engineering-highlights.md) points to the code worth reading first. Key decisions (all 28 in [`docs/adr/`](docs/adr/README.md)):
+The full diagram and the list of all 18 Lambda functions are in [`docs/architecture.md`](docs/architecture.md); [`docs/engineering-highlights.md`](docs/engineering-highlights.md) points to the code worth reading first. Key decisions (all 29 in [`docs/adr/`](docs/adr/README.md)):
 
 | Decision | Why | ADR |
 |---|---|---|
@@ -97,14 +97,14 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 - An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
 
 **Cloud & infrastructure**
-- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 237 Terraform resource definitions.
+- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 239 Terraform resource definitions.
 - GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
 - A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function, routed to email through SNS.
 
 **Software engineering**
 - About 3,300 automated tests: ~2,090 backend (including a suite against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
 - CI gates on every PR: ruff and mypy, an 80 % coverage floor, locked Python dependencies with pip-audit, a runtime `pnpm audit`, a route-consistency check (Terraform ↔ OpenAPI ↔ handler code); Dependabot for pip, npm, Actions and Terraform.
-- 28 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
+- 29 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
 
 ## AWS services
 
@@ -172,13 +172,13 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 | Canonical catalog | ~98k canonical tracks (2026-10-07), from 107,795 raw records |
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
-| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 237 Terraform resource definitions |
+| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 239 Terraform resource definitions |
 | API | 106 operations |
 | Delivery | 265+ merged pull requests; every merge to `main` deploys to production |
 
 ## Production readiness
 
-- **Delivery.** `main` accepts changes only through pull requests with 8 required checks (tests with an 80 % coverage gate, ruff and mypy, dependency audit, real-PostgreSQL tests, Terraform, dbt, frontend). Pull requests plan Terraform under a read-only AWS role and see the same inputs the deploy applies; every merge deploys through GitHub Actions with OIDC — no long-lived AWS keys — and migrations land before the code that needs them ([ADR-0028](docs/adr/0028-ci-roles.md)).
+- **Delivery.** `main` accepts changes only through pull requests with 8 required checks (tests with an 80 % coverage gate, ruff and mypy, dependency audit, real-PostgreSQL tests, Terraform, dbt, frontend). Pull requests plan Terraform under a read-only AWS role and see the same inputs the deploy applies; every merge deploys through GitHub Actions with OIDC — no long-lived AWS keys — and migrations land before the code that needs them ([ADR-0028](docs/adr/0028-ci-roles.md)). A smoke test gates each deploy and, if it fails, points the API Lambdas back to their previous versions ([ADR-0029](docs/adr/0029-api-aliases-smoke-rollback.md)).
 - **Reliability.** A dead-letter queue on every work queue; permanent and transient errors handled differently; replay-safe writes; Aurora deletion protection with 7-day point-in-time recovery; [failure modes](docs/ops/failure-modes.md) with RPO/RTO; five blameless [postmortems](docs/postmortems/README.md).
 - **Observability.** Error alarms on every Lambda function plus pipeline and data-health alarms, all routed to email through SNS; a CloudWatch dashboard defined in Terraform; structured JSON logs with correlation ids; API access logs.
 - **Data governance.** A data contract on every raw record; nightly data-quality SLOs; documented retention; one command erases a user from Aurora, S3 and the Iceberg tables ([privacy](docs/privacy.md)).

@@ -130,3 +130,21 @@ def test_only_the_terraform_job_can_mint_oidc_tokens() -> None:
     holders = {name for name, job in PR["jobs"].items() if job.get("permissions", {}).get("id-token") == "write"}
     assert holders == {"terraform"}
     assert PR["jobs"]["terraform"]["permissions"] == {"contents": "read", "id-token": "write"}
+
+
+def test_deploy_snapshots_aliases_smokes_and_rolls_back() -> None:
+    steps = DEPLOY["jobs"]["deploy"]["steps"]
+    names = [s.get("name", "") for s in steps]
+    snapshot, apply, smoke, rollback = (names.index(n) for n in (
+        "Snapshot API aliases", "Terraform apply", "Smoke test", "Roll back API aliases"))
+    assert snapshot < apply < smoke < rollback
+    assert steps[snapshot]["id"] == "snapshot"
+    assert steps[rollback]["if"] == "failure() && steps.snapshot.outcome == 'success'"
+    assert "scripts/smoke.py" in steps[smoke]["run"] and "api_aliases.py restore" in steps[rollback]["run"]
+
+
+def test_deploy_prints_the_alias_snapshot() -> None:
+    # The snapshot is the manual-rollback input if the automatic restore fails half-way.
+    snapshot = next(s for s in DEPLOY["jobs"]["deploy"]["steps"] if s.get("name") == "Snapshot API aliases")
+    assert 'cat "$RUNNER_TEMP/aliases.json"' in snapshot["run"]
+    assert "| tee" not in snapshot["run"]  # no pipefail in the default shell: tee would hide a failure

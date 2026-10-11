@@ -59,7 +59,21 @@ Order of steps:
 
 5. **Full Terraform apply** — the rest of the stack, including the API Lambdas.
 
-6. **Frontend deploy** — `scripts/deploy_frontend.sh` (see [Frontend deploy](#frontend-deploy) below).
+6. **Frontend** — `scripts/deploy_frontend.sh publish` (built before AWS credentials existed; see [Frontend deploy](#frontend-deploy)).
+
+7. **Smoke test** — `scripts/smoke.py` invokes each API Lambda's `live` alias with a request it answers before any I/O and fetches `/auth/login` (302 to Spotify), `/styles` without a token (401) and the site (200). Nothing is written and Aurora is not touched.
+
+## How a change reaches production
+
+Pull request → 8 required checks (the Terraform plan runs under the read-only role with the deploy's inputs, so it shows what will be applied) → merge → this pipeline: package and build, snapshot of the API aliases, SSM sync, migration Lambda, migrations, full apply, frontend, smoke test. Deploys never overlap.
+
+## Rollback
+
+**Automatic.** If any step after the snapshot fails — the smoke test included — the deploy points each API function's `live` alias back to the version it had before this deploy (`scripts/api_aliases.py restore`) and the job fails. A function whose alias did not exist yet (the first deploy that creates it) is left alone. The snapshot is printed in the job log; if the restore fails for one function it still restores the others and the step lists what failed. Cancelling a deploy by hand skips the automatic rollback (`failure()` is false on cancel) — restore from the printed snapshot.
+
+**Manual.** `aws lambda update-alias --function-name clouder-prod-<fn> --name live --function-version <N>` (list versions with `aws lambda list-versions-by-function`), or `python scripts/api_aliases.py restore <saved snapshot>`.
+
+**After a rollback** the next `terraform apply` moves the aliases forward again, so the fix is a revert PR or a new commit. Not rolled back: the frontend, the SQS workers, DB migrations (written to be backward compatible), SSM values.
 
 ## Frontend deploy
 

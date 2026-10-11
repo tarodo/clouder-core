@@ -49,6 +49,10 @@ jobs:
         with:
           python-version: '3.12'
 
+      # For scripts/api_aliases.py and scripts/smoke.py (same pin as requirements-dev.txt).
+      - name: Install deploy tools
+        run: pip install boto3==1.43.109
+
       # Before any AWS credentials exist: pip and pnpm installs run third-party code.
       - name: Package Lambda
         working-directory: .
@@ -90,6 +94,14 @@ jobs:
             -backend-config="region=us-east-1" \
             -backend-config="dynamodb_table=$TF_LOCK_TABLE" \
             -backend-config="encrypt=true"
+
+      # Before the apply: if the smoke test fails, the API aliases go back to these versions.
+      - name: Snapshot API aliases
+        id: snapshot
+        working-directory: .
+        run: |
+          python scripts/api_aliases.py snapshot --prefix clouder-prod > "$RUNNER_TEMP/aliases.json"
+          cat "$RUNNER_TEMP/aliases.json"  # the manual-rollback input if the restore fails half-way
 
       - name: Sync Beatport credentials to SSM (auto-ingest)
         working-directory: .
@@ -184,3 +196,17 @@ jobs:
       - name: Deploy frontend (S3 + CloudFront)
         working-directory: .
         run: scripts/deploy_frontend.sh publish
+
+      - name: Smoke test
+        working-directory: .
+        run: |
+          python scripts/smoke.py --prefix clouder-prod \
+            --api "$(cd infra && terraform output -raw api_endpoint)" \
+            --site "$(cd infra && terraform output -raw frontend_url)"
+
+      # ADR-0029: a failed deploy puts the API code back in seconds; the next apply moves
+      # the aliases forward again, so the fix is a revert or a new commit.
+      - name: Roll back API aliases
+        if: failure() && steps.snapshot.outcome == 'success'
+        working-directory: .
+        run: python scripts/api_aliases.py restore "$RUNNER_TEMP/aliases.json"

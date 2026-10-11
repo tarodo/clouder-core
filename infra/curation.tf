@@ -4,6 +4,7 @@
 
 resource "aws_lambda_function" "curation" {
   function_name = local.curation_lambda_name
+  publish       = true # versions behind the live alias (lambda_aliases.tf)
   role          = module.role_curation.arn
   runtime       = "python3.12"
   handler       = "collector.curation_handler.lambda_handler"
@@ -49,8 +50,11 @@ resource "aws_lambda_permission" "curation_apigw" {
 resource "aws_apigatewayv2_integration" "curation" {
   api_id                 = aws_apigatewayv2_api.collector.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.curation.invoke_arn
+  integration_uri        = aws_lambda_alias.live["curation"].invoke_arn
   payload_format_version = "2.0"
+
+  # The alias permission must exist before API Gateway calls the alias.
+  depends_on = [aws_lambda_permission.api_live]
 }
 
 # ── Routes (all JWT-gated) ──────────────────────────────────────────

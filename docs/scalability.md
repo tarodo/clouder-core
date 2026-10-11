@@ -82,6 +82,10 @@ lookback) with Iceberg compaction, so nightly cost tracks new data, not history.
 cards read silver history plus a 3-day bronze tail; at 100× events the main lever is keeping
 queries pruned by date, which the models and the API already do.
 
+## Lambda versions
+
+The six API functions publish a version per code change ([ADR-0029](adr/0029-api-aliases-smoke-rollback.md)): about 25 MB each, ~150 MB per code-changing deploy, against the account's 300 GB code-storage limit (0.45 GB used on 2026-10-11) — roughly 2,000 code deploys before pruning old versions is needed.
+
 ## Aurora
 
 Aurora Serverless v2 runs between 0 (auto-pause) and 2 ACU. At 10× the ceiling is the first

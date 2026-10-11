@@ -366,6 +366,7 @@ resource "aws_cloudwatch_log_group" "telemetry" {
 
 resource "aws_lambda_function" "telemetry" {
   function_name = local.telemetry_lambda_name
+  publish       = true # versions behind the live alias (lambda_aliases.tf)
   role          = aws_iam_role.telemetry_lambda.arn
   runtime       = "python3.12"
   handler       = "collector.telemetry_handler.lambda_handler"
@@ -398,8 +399,11 @@ resource "aws_lambda_permission" "telemetry_apigw" {
 resource "aws_apigatewayv2_integration" "telemetry_lambda" {
   api_id                 = aws_apigatewayv2_api.collector.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.telemetry.invoke_arn
+  integration_uri        = aws_lambda_alias.live["telemetry"].invoke_arn
   payload_format_version = "2.0"
+
+  # The alias permission must exist before API Gateway calls the alias.
+  depends_on = [aws_lambda_permission.api_live]
 }
 
 resource "aws_apigatewayv2_route" "telemetry_post" {
