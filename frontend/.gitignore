@@ -13,4 +13,5 @@ src/api/schema.d.ts.tmp
 # Vitest browser-mode (Playwright) artifacts
 __screenshots__/
 playwright-report/
-
+# vitest 4 screenshot attachments
+.vitest-attachments/

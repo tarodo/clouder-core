@@ -18,11 +18,18 @@ export default defineConfig({
   // vitest 4 checks screenshot paths against server.fs: allow the project and the
   // README image folder, nothing else.
   server: { fs: { allow: [__dirname, path.resolve(__dirname, '../docs/assets')] } },
+  // Pre-bundle what only the screenshots import: a dependency found mid-run reloads the
+  // page and the running shot sees a second React ("reading 'useCallback'").
+  optimizeDeps: { include: ['zustand'] },
   test: {
     browser: {
       enabled: true,
       // Same picture on any machine: fixed locale and timezone.
-      provider: playwright({ contextOptions: { locale: 'en-US', timezoneId: 'UTC' } }),
+      // Headless vitest 4 sizes the page from contextOptions only (Playwright's 1280x720
+      // otherwise), which shrank the 1800px frame to ~0.7x.
+      provider: playwright({
+        contextOptions: { locale: 'en-US', timezoneId: 'UTC', viewport: { width: 1800, height: 1000 } },
+      }),
       headless: true,
       instances: [{ browser: 'chromium' }],
     },
