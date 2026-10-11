@@ -12,7 +12,7 @@ sample catalog.
   `/clouder-core/demo/` and adds the MSW worker (`msw init demo-public`, generated, not committed).
 - `src/main.tsx` starts the worker (`src/demo/start.ts`) before React mounts, because
   `AuthProvider` calls `/auth/refresh` on mount. The production build drops this branch, so its
-  bundle contains no demo code (checked in the PR: `pnpm build` output has no `msw`).
+  bundle contains no demo code (the PR checks that the `pnpm build` output has no MSW worker code).
 - `src/demo/seed.ts` builds the catalog: three invented styles, each with a finalized and an open
   triage week, three categories, playlists and tags. Seeded, so every visitor sees the same week.
 - `src/demo/db.ts` keeps state for the core loop: assigning tracks in Curate, moving them between
