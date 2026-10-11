@@ -199,3 +199,11 @@ def test_pr_builds_the_demo() -> None:
     # The production bundle is checked before the demo build overwrites dist/.
     guard = next(i for i, r in enumerate(runs) if "mockServiceWorker" in r)
     assert runs.index("pnpm build") < guard < runs.index("pnpm build:demo")
+
+
+def test_pages_write_and_oidc_only_in_the_deploy_job() -> None:
+    # The build job runs third-party code (pnpm and pip installs): it gets read-only access.
+    pages = yaml.safe_load((WF / "pages.yml").read_text())
+    assert pages["permissions"] == {"contents": "read"}
+    assert "permissions" not in pages["jobs"]["build"]
+    assert pages["jobs"]["deploy"]["permissions"] == {"pages": "write", "id-token": "write"}
