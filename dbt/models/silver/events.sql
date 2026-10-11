@@ -6,7 +6,7 @@
     format='parquet',
     partitioned_by=['dt'],
     on_schema_change='append_new_columns',
-    post_hook=([
+    post_hook=["{{ delete_expired_events() }}"] + ([
         "optimize {{ this.render_pure() }} rewrite data using bin_pack",
         "vacuum {{ this.render_pure() }}",
     ] if target.type == 'athena' else []),

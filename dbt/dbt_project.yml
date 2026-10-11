@@ -14,6 +14,9 @@ vars:
   # Bronze partitions re-read by silver.events on each run: late arrivals and
   # Firehose redeliveries land in recent dt partitions.
   events_lookback_days: 2
+  # Telemetry retention in silver (and gold, rebuilt from it), counted back from the
+  # newest partition; the S3 rule on bronze/events/ uses the same number (privacy.md).
+  events_retention_days: 400
 
 models:
   clouder:
