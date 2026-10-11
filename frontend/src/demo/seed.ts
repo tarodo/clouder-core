@@ -7,6 +7,8 @@ import type { BucketType } from '../features/triage/lib/bucketLabels';
 import type { TriageStatus } from '../features/triage/hooks/useTriageBlocksByStyle';
 import type { PlaylistStatus } from '../features/playlists/lib/playlistTypes';
 import type { Tag } from '../features/tags/hooks/useTags';
+import { DEMO_COVER_COUNT } from './covers';
+import { buildArtistProfile, type ArtistProfile } from './profiles';
 
 export interface DemoTrack {
   id: string;
@@ -22,6 +24,8 @@ export interface DemoTrack {
   spotify_id: string;
   key_name: string;
   key_camelot: string;
+  /** Index into the 20 demo covers; null = the release has no artwork. */
+  cover: number | null;
 }
 
 export interface DemoEntry {
@@ -69,6 +73,7 @@ export interface DemoPlaylist {
   created_at: string;
   updated_at: string;
   tracks: DemoEntry[];
+  cover: number | null;
 }
 
 export interface DemoStyle {
@@ -85,6 +90,9 @@ export interface DemoSeed {
   playlists: DemoPlaylist[];
   tags: Tag[];
   trackTags: Record<string, string[]>;
+  artists: { id: string; name: string }[];
+  labels: { id: string; name: string }[];
+  artistProfiles: Record<string, ArtistProfile>;
 }
 
 const STYLES: (DemoStyle & { bpm: number; categories: string[] })[] = [
@@ -245,6 +253,7 @@ export function buildSeed(): DemoSeed {
         spotify_id: Array.from({ length: 22 }, () => pick([...BASE62])).join(''),
         key_name,
         key_camelot,
+        cover: null,
       });
     }
 
@@ -348,6 +357,7 @@ export function buildSeed(): DemoSeed {
       created_at: at('2026-10-03', 11),
       updated_at: at('2026-10-09', 20),
       tracks: [...fromCategory(0, 4, '2026-10-04'), ...fromCategory(3, 2, '2026-10-05')],
+      cover: 3,
     },
     {
       id: 'p-peak',
@@ -358,6 +368,7 @@ export function buildSeed(): DemoSeed {
       created_at: at('2026-10-05', 12),
       updated_at: at('2026-10-08', 21),
       tracks: [...fromCategory(1, 4, '2026-10-06'), ...fromCategory(6, 2, '2026-10-07')],
+      cover: 13,
     },
     {
       id: 'p-september',
@@ -368,6 +379,7 @@ export function buildSeed(): DemoSeed {
       created_at: at('2026-09-20', 15),
       updated_at: at('2026-09-27', 23),
       tracks: [...fromCategory(2, 2, '2026-09-21'), ...fromCategory(8, 2, '2026-09-22')],
+      cover: null,
     },
   ];
   const TAGS: [string, string, string][] = [
@@ -390,6 +402,33 @@ export function buildSeed(): DemoSeed {
       .forEach((t, k) => (trackTags[t.track_id] = [item(tags, (ci + k) % tags.length).id])),
   );
 
+  // Separate random streams, so adding artwork and profiles leaves the catalog above unchanged.
+  // About 60 % of the tracks get one of the 20 covers; releases share them.
+  const coverRand = rng(41);
+  for (const t of tracks) {
+    if (coverRand() < 0.6) t.cover = Math.floor(coverRand() * DEMO_COVER_COUNT);
+  }
+  // The first track a visitor curates in each style shows artwork.
+  for (const t of tracks) {
+    if (/^t-\d+-0$/.test(t.id) && t.cover === null)
+      t.cover = Math.floor(coverRand() * DEMO_COVER_COUNT);
+  }
+  const profileRand = rng(77);
+  const pickProfile = <T>(xs: readonly T[]): T => item(xs, Math.floor(profileRand() * xs.length));
+  const styleName = new Map(STYLES.map((s) => [s.id, s.name]));
+  const artistProfiles = Object.fromEntries(
+    artists.map((a, i) => {
+      const styles = [
+        ...new Set(
+          tracks
+            .filter((t) => t.artists.some((x) => x.id === a.id))
+            .map((t) => styleName.get(t.style_id) ?? ''),
+        ),
+      ].filter(Boolean);
+      return [a.id, buildArtistProfile(a.name, styles, pickProfile, i)];
+    }),
+  );
+
   return {
     styles: [...STYLES.map(({ id, name }) => ({ id, name })), ...OTHER_STYLES],
     selected: STYLES.map((s) => s.id),
@@ -399,5 +438,8 @@ export function buildSeed(): DemoSeed {
     playlists,
     tags,
     trackTags,
+    artists,
+    labels,
+    artistProfiles,
   };
 }

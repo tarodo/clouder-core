@@ -30,6 +30,25 @@ import {
   type DemoSeed,
   type DemoTrack,
 } from './seed';
+import type { ArtistDetail, ArtistsListResponse, ArtistSummary } from '../api/artists';
+import type { LabelDetail, LabelsListResponse, LabelSummary } from '../api/labels';
+import { slugifyStyle } from '../features/library/lib/slugifyStyle';
+import { demoCover } from './covers';
+import { LABEL_PROFILES } from './profiles';
+
+export interface LibraryQuery {
+  /** Style id; the list shows who has tracks in it. */
+  style?: string;
+  q?: string;
+  sort?: 'name' | 'recent';
+  my?: 'liked' | 'disliked' | 'unrated';
+  page?: number;
+  limit?: number;
+}
+
+type Preference = 'liked' | 'disliked';
+const PROFILE_UPDATED = '2026-10-01T09:00:00Z';
+const coverOf = (t: DemoTrack): string | null => (t.cover === null ? null : demoCover(t.cover));
 
 export class DemoError extends Error {
   constructor(
@@ -180,6 +199,7 @@ export class DemoDb {
         added_at: e.added_at,
         key_name: t.key_name,
         key_camelot: t.key_camelot,
+        cover_url: coverOf(t),
       }));
   }
 
@@ -283,6 +303,7 @@ export class DemoDb {
         tags: this.trackTags(t.id),
         key_name: t.key_name,
         key_camelot: t.key_camelot,
+        cover_url: coverOf(t),
       }));
     const key = q.sort ?? 'added_at';
     const sign = (q.order ?? (key === 'title' ? 'asc' : 'desc')) === 'asc' ? 1 : -1;
@@ -369,7 +390,7 @@ export class DemoDb {
       ...rest,
       user_id: 'u-demo',
       cover_s3_key: null,
-      cover_url: null,
+      cover_url: p.cover === null ? null : demoCover(p.cover),
       cover_uploaded_at: null,
       spotify_playlist_id: null,
       last_published_at: null,
@@ -410,6 +431,7 @@ export class DemoDb {
       created_at: NOW(),
       updated_at: NOW(),
       tracks: [],
+      cover: null,
     };
     this.s.playlists.push(p);
     return this.playlistOut(p);
@@ -454,6 +476,7 @@ export class DemoDb {
         ytmusic: null,
         key_name: t.key_name,
         key_camelot: t.key_camelot,
+        cover_url: coverOf(t),
       };
     });
   }
@@ -484,6 +507,188 @@ export class DemoDb {
     const byId = new Map(p.tracks.map((t) => [t.track_id, t]));
     const ordered = trackIds.flatMap((tid) => byId.get(tid) ?? []);
     p.tracks = [...ordered, ...p.tracks.filter((t) => !trackIds.includes(t.track_id))];
+  }
+
+  // ── library: labels and artists ──────────────────────────────────────────
+
+  private readonly labelPrefs = new Map<string, Preference>();
+  private readonly artistPrefs = new Map<string, Preference>();
+
+  private stylesOf(tracks: DemoTrack[]): string[] {
+    const ids = new Set(tracks.map((t) => t.style_id));
+    return this.s.styles.filter((st) => ids.has(st.id)).map((st) => st.name);
+  }
+
+  /** Who has tracks in the asked style, filtered, sorted and paged like the API. */
+  private library<T extends { id: string; name: string }>(
+    people: T[],
+    owns: (id: string, t: DemoTrack) => boolean,
+    prefs: Map<string, Preference>,
+    q: LibraryQuery,
+  ): {
+    total: number;
+    page: number;
+    limit: number;
+    rows: { who: T; tracks: DemoTrack[]; style: string }[];
+  } {
+    // The Library route carries a slug of the style name; ids work too.
+    const style = q.style
+      ? this.s.styles.find((st) => st.id === q.style || slugifyStyle(st.name) === q.style)
+      : undefined;
+    if (q.style && !style) return { total: 0, page: 1, limit: q.limit ?? 50, rows: [] };
+    const styleName = style?.name;
+    const rows = people
+      .map((who) => {
+        const tracks = this.s.tracks.filter(
+          (t) => owns(who.id, t) && (!style || t.style_id === style.id),
+        );
+        return { who, tracks, style: styleName ?? this.stylesOf(tracks)[0] ?? '' };
+      })
+      .filter(({ who, tracks }) => {
+        if (!tracks.length) return false;
+        if (q.q && !who.name.toLowerCase().includes(q.q.toLowerCase())) return false;
+        const pref = prefs.get(who.id);
+        return !q.my || (q.my === 'unrated' ? !pref : pref === q.my);
+      })
+      .sort((a, b) => {
+        if (q.sort !== 'recent') return a.who.name.localeCompare(b.who.name);
+        const latest = (r: { tracks: DemoTrack[] }) =>
+          r.tracks
+            .map((t) => t.publish_date)
+            .sort()
+            .at(-1) ?? '';
+        return latest(b).localeCompare(latest(a));
+      });
+    const page = Math.max(1, q.page ?? 1);
+    const limit = Math.max(1, q.limit ?? 50);
+    return { total: rows.length, page, limit, rows: rows.slice((page - 1) * limit, page * limit) };
+  }
+
+  private rawLabel(id: string) {
+    const label = found(
+      this.s.labels.find((l) => l.id === id),
+      'label',
+    );
+    return { label, profile: found(LABEL_PROFILES[label.name], 'label') };
+  }
+
+  labels(q: LibraryQuery): LabelsListResponse {
+    const { rows, ...pageInfo } = this.library(
+      this.s.labels,
+      (id, t) => t.label.id === id,
+      this.labelPrefs,
+      q,
+    );
+    const items: LabelSummary[] = rows.map(({ who, tracks, style }) => {
+      const { profile } = this.rawLabel(who.id);
+      return {
+        id: who.id,
+        name: who.name,
+        style,
+        status: 'completed',
+        track_count: tracks.length,
+        info: {
+          tagline: profile.tagline,
+          country: profile.country,
+          founded_year: profile.founded_year,
+          primary_styles: this.stylesOf(this.s.tracks.filter((t) => t.label.id === who.id)),
+          activity: 'steady',
+          ai_content: 'none_detected',
+          updated_at: PROFILE_UPDATED,
+        },
+        my_preference: this.labelPrefs.get(who.id) ?? null,
+      };
+    });
+    return { items, ...pageInfo };
+  }
+
+  labelDetail(id: string): LabelDetail {
+    const { label, profile } = this.rawLabel(id);
+    const tracks = this.s.tracks.filter((t) => t.label.id === id);
+    const counts = new Map<string, number>();
+    for (const t of tracks)
+      for (const a of t.artists) counts.set(a.name, (counts.get(a.name) ?? 0) + 1);
+    return {
+      label_name: label.name,
+      tagline: profile.tagline,
+      summary: profile.summary,
+      country: profile.country,
+      founded_year: profile.founded_year,
+      notable_artists: [...counts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([name]) => name),
+      primary_styles: this.stylesOf(tracks),
+      secondary_styles: profile.secondary_styles,
+      my_preference: this.labelPrefs.get(id) ?? null,
+    };
+  }
+
+  setLabelPreference(id: string, status: Preference | 'none'): void {
+    this.rawLabel(id);
+    if (status === 'none') this.labelPrefs.delete(id);
+    else this.labelPrefs.set(id, status);
+  }
+
+  private rawArtist(id: string) {
+    const artist = found(
+      this.s.artists.find((a) => a.id === id),
+      'artist',
+    );
+    return { artist, profile: found(this.s.artistProfiles[id], 'artist') };
+  }
+
+  artists(q: LibraryQuery): ArtistsListResponse {
+    const owns = (id: string, t: DemoTrack) => t.artists.some((a) => a.id === id);
+    const { rows, ...pageInfo } = this.library(this.s.artists, owns, this.artistPrefs, q);
+    const items: ArtistSummary[] = rows.map(({ who, tracks, style }) => {
+      const { profile } = this.rawArtist(who.id);
+      return {
+        id: who.id,
+        name: who.name,
+        style,
+        status: 'completed',
+        track_count: tracks.length,
+        info: {
+          tagline: profile.tagline,
+          country: profile.country,
+          active_since: profile.active_since,
+          primary_styles: this.stylesOf(this.s.tracks.filter((t) => owns(who.id, t))),
+          artist_type: profile.artist_type,
+          ai_content: 'none_detected',
+          updated_at: PROFILE_UPDATED,
+        },
+        my_preference: this.artistPrefs.get(who.id) ?? null,
+      };
+    });
+    return { items, ...pageInfo };
+  }
+
+  artistDetail(id: string): ArtistDetail {
+    const { artist, profile } = this.rawArtist(id);
+    const tracks = this.s.tracks.filter((t) => t.artists.some((a) => a.id === id));
+    const collaborators = new Set(
+      tracks.flatMap((t) => t.artists.map((a) => a.name)).filter((n) => n !== artist.name),
+    );
+    return {
+      artist_name: artist.name,
+      tagline: profile.tagline,
+      summary: profile.summary,
+      bio: profile.bio,
+      country: profile.country,
+      active_since: profile.active_since,
+      artist_type: profile.artist_type,
+      notable_collaborators: [...collaborators].slice(0, 4),
+      primary_styles: this.stylesOf(tracks),
+      secondary_styles: [],
+      my_preference: this.artistPrefs.get(id) ?? null,
+    };
+  }
+
+  setArtistPreference(id: string, status: Preference | 'none'): void {
+    this.rawArtist(id);
+    if (status === 'none') this.artistPrefs.delete(id);
+    else this.artistPrefs.set(id, status);
   }
 
   // ── tags ──────────────────────────────────────────────────────────────────

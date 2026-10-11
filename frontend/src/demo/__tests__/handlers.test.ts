@@ -46,6 +46,20 @@ describe('demo handlers', () => {
     );
   });
 
+  it('serves the library: lists, profiles and likes', async () => {
+    const list = await (await get('/labels?style=tech-house&sort=name&page=1&limit=24')).json();
+    expect(list.items.length).toBeGreaterThan(0);
+    const label = list.items[0];
+    const detail = await (await get(`/labels/${label.id}`)).json();
+    expect(detail.label_name).toBe(label.name);
+    const liked = await send('PUT', `/labels/${label.id}/preference`, { status: 'liked' });
+    expect(liked.status).toBe(204);
+    expect((await (await get(`/labels/${label.id}`)).json()).my_preference).toBe('liked');
+    const artists = await (await get('/artists?style=afro-house&sort=name&page=1&limit=24')).json();
+    const artist = await (await get(`/artists/${artists.items[0].id}`)).json();
+    expect(artist.artist_name).toBe(artists.items[0].name);
+  });
+
   it('answers unknown reads with 404 and unknown writes with 403', async () => {
     const read = await get('/admin/labels/backlog?limit=100');
     expect(read.status).toBe(404);

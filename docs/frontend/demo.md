@@ -15,6 +15,13 @@ sample catalog.
   bundle contains no demo code (the PR checks that the `pnpm build` output has no MSW worker code).
 - `src/demo/seed.ts` builds the catalog: three invented styles, each with a finalized and an open
   triage week, three categories, playlists and tags. Seeded, so every visitor sees the same week.
+- About 60 % of the tracks carry one of 20 covers (`src/demo/covers.ts`): abstract SVGs drawn
+  in the browser, five motifs × four palettes, so the demo ships no image files. The first track
+  a visitor curates in each style always has one. The track types carry an optional
+  `cover_url`, which the production API does not send yet.
+- The Library shows invented profiles (`src/demo/profiles.ts`): six hand-written labels and 24
+  generated artists, with country, years, styles and collaborators. They carry no links, so a
+  made-up name never points at someone's real account.
 - `src/demo/db.ts` keeps state for the core loop: assigning tracks in Curate, moving them between
   buckets, finalizing a week into categories, editing categories, playlists and tags, choosing
   styles. A reload starts over.
