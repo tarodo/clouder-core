@@ -73,6 +73,8 @@ Pull request → 8 required checks (the Terraform plan runs under the read-only 
 
 **Manual.** `aws lambda update-alias --function-name clouder-prod-<fn> --name live --function-version <N>` (list versions with `aws lambda list-versions-by-function`), or `python scripts/api_aliases.py restore <saved snapshot>`.
 
+**Drilled 2026-10-11** after the first deploy that published version 2 of the six API functions: `api_aliases.py restore` to version 1 took 3 s, `scripts/smoke.py` against version 1 passed 9/9, the restore back to version 2 took 2 s and the smoke passed again. Requests in flight finish on the version they started on; new ones see the switch at once.
+
 **After a rollback** the next `terraform apply` moves the aliases forward again, so the fix is a revert PR or a new commit. Not rolled back: the frontend, the SQS workers, DB migrations (written to be backward compatible), SSM values.
 
 ## Frontend deploy
