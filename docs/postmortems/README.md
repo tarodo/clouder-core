@@ -10,3 +10,4 @@ Blameless write-ups of what went wrong, why the tests did not catch it, and what
 | 2026-10-07 | [Backfill never converged on tracks merged by ISRC](2026-10-07-backfill-merged-tracks.md) | A replay must be idempotent across every source of a row, not per source |
 | 2026-10-08 | [Artist enricher logs dropped for months under the shared role](2026-10-08-artist-enricher-logs-dropped.md) | Hand-kept allow-lists drift; tie permissions to the resource that needs them |
 | 2026-10-11 | [Background workers took the API's Lambda capacity: 16 API requests failed, no alarm fired](2026-10-11-api-throttled-by-worker-burst.md) | A shared limit needs a budget and an alarm on running out, not only on errors |
+| 2026-10-11 | [Game day: Aurora point-in-time restore — RTO 16 min 46 s to a queryable copy, RPO 3 min 14 s](2026-10-11-game-day-aurora-restore.md) (a drill, not an incident) | A recovery is a number only after it has been run; the repoint is still a plan |

@@ -121,4 +121,10 @@ Distinguishing Aurora cold-start from other 503 causes:
 
 ## Data protection
 
-The cluster has `deletion_protection = true`, keeps automated backups for 7 days (point-in-time restore inside that window) and writes a final snapshot (`clouder-prod-aurora-final`) if it is ever deleted. To delete it deliberately: set `deletion_protection = false` in `infra/rds.tf`, apply, then destroy. A restore goes to a new cluster (`aws rds restore-db-cluster-to-point-in-time`), and the Terraform variables then point at it.
+The cluster has `deletion_protection = true`, keeps automated backups for 7 days (point-in-time restore inside that window) and writes a final snapshot (`clouder-prod-aurora-final`) if it is ever deleted. To delete it deliberately: set `deletion_protection = false` in `infra/rds.tf`, apply, then destroy. A restore goes to a new cluster. `scripts/restore_drill.py restore` does it end to end — latest restorable time, production subnets and security group, a writer, the managed master secret, the Data API — and `verify` compares row counts and newest timestamps with production; rehearsed on 2026-10-11 in 16 min 46 s with identical counts ([game day](../postmortems/2026-10-11-game-day-aurora-restore.md)).
+
+**Repoint (not rehearsed yet).** Terraform tracks the cluster and its writer by identifier, so the restored copy takes over the production identifiers:
+
+1. Rename the damaged cluster and writer out of the way: `aws rds modify-db-cluster --db-cluster-identifier clouder-prod-aurora --new-db-cluster-identifier clouder-prod-aurora-broken --apply-immediately` and the same with `modify-db-instance` for `clouder-prod-aurora-writer`.
+2. Restore to the time before the damage (`--restore-to-time`, not the latest time) under the identifiers `clouder-prod-aurora` / `clouder-prod-aurora-writer`, with the managed master secret and the Data API, as the drill script does.
+3. Deploy: the refresh picks up the new master secret, and the apply updates the Lambdas that read it. Keep `-broken` until the data is checked; it keeps deletion protection.
