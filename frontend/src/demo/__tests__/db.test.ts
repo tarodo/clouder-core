@@ -111,41 +111,24 @@ describe('DemoDb', () => {
     expect(first(db.blocksByStyle('s-melodic', 'FINALIZED')).name).toMatch(/^Week 39 · Sep 26/);
   });
 
-  it('gives some releases a cover, drawn from at most 20 designs', () => {
+  it('gives every track and every seeded playlist a cover from the 20 designs', () => {
     const db = new DemoDb();
-    const block = db.block(firstOpenBlock(db).id);
-    const tracks = block.buckets.flatMap((b) => db.bucketTracks(block.id, b.id));
-    const covers = tracks.map((t) => t.cover_url ?? null);
-    expect(covers.some((c) => c === null)).toBe(true);
-    const drawn = covers.filter((c): c is string => c !== null);
-    expect(drawn.length).toBeGreaterThan(tracks.length / 3);
-    expect(drawn.every((c) => c.startsWith('data:image/svg+xml'))).toBe(true);
-    const all = new Set(
-      db
-        .styles('mine')
-        .flatMap((st) =>
-          db
-            .blocksByStyle(st.id)
-            .flatMap((b) =>
-              db
-                .block(b.id)
-                .buckets.flatMap((bk) => db.bucketTracks(b.id, bk.id).map((t) => t.cover_url)),
-            ),
-        ),
-    );
-    all.delete(null);
-    all.delete(undefined);
-    expect(all.size).toBeGreaterThan(10);
-    expect(all.size).toBeLessThanOrEqual(20);
-  });
-
-  it('shows artwork on the first track a visitor curates in each style', () => {
-    const db = new DemoDb();
-    for (const st of db.styles('mine')) {
-      const block = db.block(first(db.blocksByStyle(st.id, 'IN_PROGRESS')).id);
-      const fresh = block.buckets.find((b) => b.bucket_type === 'NEW')!;
-      expect(first(db.bucketTracks(block.id, fresh.id)).cover_url, st.name).toBeTruthy();
-    }
+    const covers = db
+      .styles('mine')
+      .flatMap((st) =>
+        db
+          .blocksByStyle(st.id)
+          .flatMap((b) =>
+            db
+              .block(b.id)
+              .buckets.flatMap((bk) => db.bucketTracks(b.id, bk.id).map((t) => t.cover_url)),
+          ),
+      );
+    expect(covers.length).toBeGreaterThan(50);
+    expect(covers.every((c) => c?.startsWith('data:image/svg+xml'))).toBe(true);
+    expect(new Set(covers).size).toBeGreaterThan(10);
+    expect(new Set(covers).size).toBeLessThanOrEqual(20);
+    for (const p of db.playlists({})) expect(p.cover_url, p.name).toBeTruthy();
   });
 
   it('describes the label and artists of every track', () => {
