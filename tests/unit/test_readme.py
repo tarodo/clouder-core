@@ -57,3 +57,15 @@ def test_readme_lists_every_route_without_the_authorizer() -> None:
 def test_license_allows_evaluation() -> None:
     license_text = (ROOT / "LICENSE").read_text()
     assert "clone" in license_text and "run" in license_text and "evaluat" in license_text
+
+
+def test_readme_has_the_production_readiness_section_and_no_stale_test_count() -> None:
+    assert "## Production readiness" in README
+    assert not re.search(r"\d+ against a real PostgreSQL", README)  # counts drift; say what, not how many
+
+
+def test_frontend_lint_fails_on_warnings() -> None:
+    import json
+
+    scripts = json.loads((ROOT / "frontend" / "package.json").read_text())["scripts"]
+    assert "--max-warnings=0" in scripts["lint"]
