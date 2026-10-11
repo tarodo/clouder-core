@@ -1,6 +1,7 @@
 import { Button, Center, Stack, Text, Title } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
+import { isDemo } from '../demo/mode';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -15,7 +16,8 @@ export function LoginPage() {
   }
 
   const onSignIn = () => {
-    window.location.href = '/auth/login';
+    // The demo has no OAuth: reloading its root signs the visitor back in.
+    window.location.href = isDemo() ? import.meta.env.BASE_URL : '/auth/login';
   };
 
   return (

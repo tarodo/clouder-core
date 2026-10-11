@@ -9,7 +9,9 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:demo": "msw init demo-public --no-save && vite --mode demo",
     "build": "tsc -b && vite build",
+    "build:demo": "msw init demo-public --no-save && tsc -b && vite build --mode demo",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint src --max-warnings=0",

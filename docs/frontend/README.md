@@ -7,5 +7,6 @@ React 19 + Mantine 9 SPA. This folder documents architecture and conventions; fo
 - [Auth](auth.md) — auth provider, token store, refresh-cookie semantics, Spotify token bundling.
 - [Testing](testing.md) — vitest + jsdom shims, MSW, MantineProvider in tests.
 - [Gotchas](gotchas.md) — frontend-only sharp edges.
+- [Demo](demo.md) — the SPA on sample data (MSW in the browser), published on GitHub Pages.
 
 See also [`docs/architecture.md`](../architecture.md), [`docs/adr/`](../adr/).

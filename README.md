@@ -3,6 +3,8 @@
 **A serverless data pipeline on AWS — and the DJ curation app built on it.**
 
 [![Deploy](https://github.com/tarodo/clouder-core/actions/workflows/deploy.yml/badge.svg)](https://github.com/tarodo/clouder-core/actions/workflows/deploy.yml)
+[![Try the demo](https://img.shields.io/badge/demo-try%20it%20on%20sample%20data-black)](https://tarodo.github.io/clouder-core/demo/)
+[![dbt lineage](https://img.shields.io/badge/dbt-lineage-orange)](https://tarodo.github.io/clouder-core/lineage/)
 
 ![Curating a week of releases one keystroke per track: the 596 tracks left count down to “Bucket finished”](docs/assets/demo.gif)
 
@@ -14,7 +16,7 @@ Every week brings a new wave of electronic-music releases on Beatport. For a DJ,
 
 Under the hood it is a real data system: scheduled batch ingestion into an S3 raw zone, a canonical catalog in Aurora PostgreSQL built by entity resolution, data contracts and nightly data-quality checks, asynchronous enrichment workers, and an Iceberg lakehouse built by dbt on Athena. Everything is defined in Terraform and deployed by GitHub Actions on every merge to `main`.
 
-> **Status:** in production for a small closed group of DJs (access goes through a Spotify allow-list), so the screenshots below are rendered from the app's components with sample data.
+> **Status:** in production for a small closed group of DJs (access goes through a Spotify allow-list). **[Try the app on sample data](https://tarodo.github.io/clouder-core/demo/)** — the same code in your browser, no login; the screenshots below are rendered from its components.
 
 ## Measured results
 
@@ -24,7 +26,7 @@ The engineering decisions behind the system and what each one bought, measured o
 |---|---|---|
 | Set-based SQL canonicalization instead of row-by-row Data API calls | 55 calls for an average week; 9.9–14.8 s per 1,000 tracks (16–24× faster) | [benchmark](docs/benchmarks/canonicalization.md), [ADR-0022](docs/adr/0022-set-based-canonicalization.md) |
 | Replay-safe writes keyed on observation time, previewed as a dry-run diff | 153 runs / 100,268 tracks replayed in 7 min 56 s; a second run changes nothing | [backfill](docs/ops/backfill.md), [ADR-0024](docs/adr/0024-replayable-canonicalization-backfill.md) |
-| Iceberg silver/gold built by dbt on Athena | Aggregate query in 0.77 s (~8× faster), SCD2 track history, deduplicated events | [lakehouse](docs/data/lakehouse.md), [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md), [lineage](https://tarodo.github.io/clouder-core/) |
+| Iceberg silver/gold built by dbt on Athena | Aggregate query in 0.77 s (~8× faster), SCD2 track history, deduplicated events | [lakehouse](docs/data/lakehouse.md), [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md), [lineage](https://tarodo.github.io/clouder-core/lineage/) |
 | A data contract on every raw record, with quarantine and drift alarms | Bad records never reach the catalog; on replayed history the drift alarm would have fired on 2026-09-13 | [contracts](docs/data/contracts.md), [ADR-0026](docs/adr/0026-raw-data-contract.md) |
 | 11 nightly SQL data-quality checks with SLOs | The first run caught two styles lagging a week behind | [data quality](docs/data/data-quality.md), [ADR-0023](docs/adr/0023-sql-data-quality-checks.md) |
 | The YouTube Music matcher measured on human decisions and a labelled sample | 100 of 100 automatic matches correct (error < ~3 % at 95 % confidence); the 0.92 threshold stays, since 0.90 would publish 27 wrong videos | [entity resolution](docs/data/entity-resolution.md) |
