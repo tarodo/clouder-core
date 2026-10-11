@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,7 +18,7 @@ from collector.curation.tags_repository import (
 
 
 def _now() -> datetime:
-    return datetime(2026, 5, 11, 12, 0, tzinfo=timezone.utc)
+    return datetime(2026, 5, 11, 12, 0, tzinfo=UTC)
 
 
 def _make() -> tuple[TagsRepository, MagicMock]:
@@ -216,21 +216,32 @@ def test_set_track_tags_replaces_set() -> None:
     repo, data_api = _make()
     _bind_tx(data_api)
     data_api.execute.side_effect = [
-        [{"x": 1}],                           # category probe
-        [{"id": "tg1"}, {"id": "tg2"}],       # tag ownership probe
-        [],                                    # DELETE existing
-        [],                                    # INSERT new
-        [                                      # SELECT joined for return
-            {"id": "tg1", "name": "Vocal", "color": "#f00",
-             "created_at": "2026-05-11T12:00:00Z",
-             "updated_at": "2026-05-11T12:00:00Z"},
-            {"id": "tg2", "name": "Dark", "color": "#000",
-             "created_at": "2026-05-11T12:00:00Z",
-             "updated_at": "2026-05-11T12:00:00Z"},
+        [{"x": 1}],  # category probe
+        [{"id": "tg1"}, {"id": "tg2"}],  # tag ownership probe
+        [],  # DELETE existing
+        [],  # INSERT new
+        [  # SELECT joined for return
+            {
+                "id": "tg1",
+                "name": "Vocal",
+                "color": "#f00",
+                "created_at": "2026-05-11T12:00:00Z",
+                "updated_at": "2026-05-11T12:00:00Z",
+            },
+            {
+                "id": "tg2",
+                "name": "Dark",
+                "color": "#000",
+                "created_at": "2026-05-11T12:00:00Z",
+                "updated_at": "2026-05-11T12:00:00Z",
+            },
         ],
     ]
     result = repo.set_track_tags(
-        user_id="u1", track_id="t1", tag_ids=["tg1", "tg2"], now=_now(),
+        user_id="u1",
+        track_id="t1",
+        tag_ids=["tg1", "tg2"],
+        now=_now(),
     )
     assert [r.id for r in result] == ["tg1", "tg2"]
 
@@ -239,9 +250,9 @@ def test_set_track_tags_empty_clears() -> None:
     repo, data_api = _make()
     _bind_tx(data_api)
     data_api.execute.side_effect = [
-        [{"x": 1}],   # category probe
-        [],            # DELETE existing
-        [],            # SELECT joined returns empty
+        [{"x": 1}],  # category probe
+        [],  # DELETE existing
+        [],  # SELECT joined returns empty
     ]
     result = repo.set_track_tags(user_id="u1", track_id="t1", tag_ids=[], now=_now())
     assert result == []
@@ -251,18 +262,25 @@ def test_set_track_tags_dedupes_input() -> None:
     repo, data_api = _make()
     _bind_tx(data_api)
     data_api.execute.side_effect = [
-        [{"x": 1}],          # category probe
-        [{"id": "tg1"}],     # tag ownership probe — only tg1 needed
-        [],                   # DELETE
-        [],                   # INSERT
+        [{"x": 1}],  # category probe
+        [{"id": "tg1"}],  # tag ownership probe — only tg1 needed
+        [],  # DELETE
+        [],  # INSERT
         [
-            {"id": "tg1", "name": "Vocal", "color": "#f00",
-             "created_at": "2026-05-11T12:00:00Z",
-             "updated_at": "2026-05-11T12:00:00Z"},
+            {
+                "id": "tg1",
+                "name": "Vocal",
+                "color": "#f00",
+                "created_at": "2026-05-11T12:00:00Z",
+                "updated_at": "2026-05-11T12:00:00Z",
+            },
         ],
     ]
     result = repo.set_track_tags(
-        user_id="u1", track_id="t1", tag_ids=["tg1", "tg1"], now=_now(),
+        user_id="u1",
+        track_id="t1",
+        tag_ids=["tg1", "tg1"],
+        now=_now(),
     )
     assert [r.id for r in result] == ["tg1"]
 
@@ -281,12 +299,15 @@ def test_set_track_tags_raises_when_foreign_tag() -> None:
     repo, data_api = _make()
     _bind_tx(data_api)
     data_api.execute.side_effect = [
-        [{"x": 1}],         # category probe ok
-        [{"id": "tg1"}],    # only one of two requested tag_ids is owned
+        [{"x": 1}],  # category probe ok
+        [{"id": "tg1"}],  # only one of two requested tag_ids is owned
     ]
     with pytest.raises(TagNotFoundError):
         repo.set_track_tags(
-            user_id="u1", track_id="t1", tag_ids=["tg1", "tg2"], now=_now(),
+            user_id="u1",
+            track_id="t1",
+            tag_ids=["tg1", "tg2"],
+            now=_now(),
         )
 
 
@@ -294,13 +315,17 @@ def test_add_track_tag_idempotent() -> None:
     repo, data_api = _make()
     _bind_tx(data_api)
     data_api.execute.side_effect = [
-        [{"x": 1}],          # category probe
-        [{"id": "tg1"}],     # tag ownership probe
-        [],                   # INSERT ON CONFLICT DO NOTHING
+        [{"x": 1}],  # category probe
+        [{"id": "tg1"}],  # tag ownership probe
+        [],  # INSERT ON CONFLICT DO NOTHING
         [
-            {"id": "tg1", "name": "Vocal", "color": "#f00",
-             "created_at": "2026-05-11T12:00:00Z",
-             "updated_at": "2026-05-11T12:00:00Z"},
+            {
+                "id": "tg1",
+                "name": "Vocal",
+                "color": "#f00",
+                "created_at": "2026-05-11T12:00:00Z",
+                "updated_at": "2026-05-11T12:00:00Z",
+            },
         ],
     ]
     out = repo.add_track_tag(user_id="u1", track_id="t1", tag_id="tg1", now=_now())
@@ -319,8 +344,8 @@ def test_add_track_tag_raises_when_foreign_tag() -> None:
     repo, data_api = _make()
     _bind_tx(data_api)
     data_api.execute.side_effect = [
-        [{"x": 1}],   # category probe ok
-        [],            # tag ownership probe — empty (not owned)
+        [{"x": 1}],  # category probe ok
+        [],  # tag ownership probe — empty (not owned)
     ]
     with pytest.raises(TagNotFoundError):
         repo.add_track_tag(user_id="u1", track_id="t1", tag_id="tg1", now=_now())
@@ -342,7 +367,7 @@ def test_list_tags_for_tracks_groups_by_track() -> None:
     repo, data_api = _make()
     data_api.execute.return_value = [
         {"track_id": "t1", "id": "tg1", "name": "Vocal", "color": "#f00"},
-        {"track_id": "t1", "id": "tg2", "name": "Dark",  "color": "#000"},
+        {"track_id": "t1", "id": "tg2", "name": "Dark", "color": "#000"},
         {"track_id": "t2", "id": "tg1", "name": "Vocal", "color": "#f00"},
     ]
     grouped = repo.list_tags_for_tracks(user_id="u1", track_ids=["t1", "t2"])
@@ -361,7 +386,9 @@ def test_cleanup_orphaned_track_tags_deletes_when_no_categories() -> None:
     repo, data_api = _make()
     data_api.execute.return_value = [{"track_id": "t1"}, {"track_id": "t1"}]
     n = repo.cleanup_orphaned_track_tags(
-        user_id="u1", track_ids=["t1"], transaction_id="tx-1",
+        user_id="u1",
+        track_ids=["t1"],
+        transaction_id="tx-1",
     )
     assert n == 2
     sql = data_api.execute.call_args.args[0]
@@ -371,7 +398,9 @@ def test_cleanup_orphaned_track_tags_deletes_when_no_categories() -> None:
 def test_cleanup_orphaned_track_tags_empty_short_circuits() -> None:
     repo, data_api = _make()
     n = repo.cleanup_orphaned_track_tags(
-        user_id="u1", track_ids=[], transaction_id="tx-1",
+        user_id="u1",
+        track_ids=[],
+        transaction_id="tx-1",
     )
     assert n == 0
     data_api.execute.assert_not_called()
@@ -404,9 +433,13 @@ def test_create_tag_accepts_null_color() -> None:
 def test_rename_tag_with_color_none_does_not_emit_color_set_clause() -> None:
     repo, data_api = _make()
     data_api.execute.return_value = [
-        {"id": "tg1", "name": "Vocal", "color": None,
-         "created_at": "2026-05-11T12:00:00Z",
-         "updated_at": "2026-05-11T12:01:00Z"}
+        {
+            "id": "tg1",
+            "name": "Vocal",
+            "color": None,
+            "created_at": "2026-05-11T12:00:00Z",
+            "updated_at": "2026-05-11T12:01:00Z",
+        }
     ]
     row = repo.rename_tag(
         user_id="u1",
@@ -424,14 +457,21 @@ def test_rename_tag_with_color_none_does_not_emit_color_set_clause() -> None:
 def test_rename_tag_clears_color_when_clear_color_true() -> None:
     repo, data_api = _make()
     data_api.execute.return_value = [
-        {"id": "tg1", "name": "Vocal", "color": None,
-         "created_at": "2026-05-11T12:00:00Z",
-         "updated_at": "2026-05-11T12:01:00Z"}
+        {
+            "id": "tg1",
+            "name": "Vocal",
+            "color": None,
+            "created_at": "2026-05-11T12:00:00Z",
+            "updated_at": "2026-05-11T12:01:00Z",
+        }
     ]
     row = repo.rename_tag(
-        user_id="u1", tag_id="tg1",
-        name=None, normalized_name=None,
-        color=None, clear_color=True,
+        user_id="u1",
+        tag_id="tg1",
+        name=None,
+        normalized_name=None,
+        color=None,
+        clear_color=True,
         now=_now(),
     )
     sql = data_api.execute.call_args.args[0]

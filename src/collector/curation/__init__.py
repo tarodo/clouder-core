@@ -7,15 +7,13 @@ all curation specs. Per-spec implementation lives in sibling modules
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Generic, Sequence, TypeVar
-
-T = TypeVar("T")
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
-class PaginatedResult(Generic[T]):
+class PaginatedResult[T]:
     items: Sequence[T]
     total: int
     limit: int
@@ -23,7 +21,7 @@ class PaginatedResult(Generic[T]):
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class CurationError(Exception):
@@ -87,9 +85,7 @@ class InactiveStagingFinalizeError(CurationError):
     error_code = "inactive_buckets_have_tracks"
     http_status = 409
 
-    def __init__(
-        self, message: str, inactive_buckets: list[dict[str, object]]
-    ) -> None:
+    def __init__(self, message: str, inactive_buckets: list[dict[str, object]]) -> None:
         super().__init__(message)
         self.inactive_buckets = inactive_buckets
 
@@ -100,9 +96,7 @@ class TracksNotInSourceError(CurationError):
     error_code = "tracks_not_in_source"
     http_status = 422
 
-    def __init__(
-        self, message: str, not_in_source: list[str]
-    ) -> None:
+    def __init__(self, message: str, not_in_source: list[str]) -> None:
         super().__init__(message)
         self.not_in_source = not_in_source
 

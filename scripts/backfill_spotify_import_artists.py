@@ -10,11 +10,12 @@ Usage:
     PYTHONPATH=src .venv/bin/python scripts/backfill_spotify_import_artists.py --dry-run
     PYTHONPATH=src .venv/bin/python scripts/backfill_spotify_import_artists.py --apply
 """
+
 from __future__ import annotations
 
 import argparse
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 
@@ -48,7 +49,8 @@ def _upsert_artist(data_api, name: str, now: datetime, tx_id: str) -> str:
     norm = normalize_text(name)
     found = data_api.execute(
         "SELECT id FROM clouder_artists WHERE normalized_name = :n LIMIT 1",
-        {"n": norm}, transaction_id=tx_id,
+        {"n": norm},
+        transaction_id=tx_id,
     )
     if found:
         return found[0]["id"]
@@ -68,11 +70,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true", help="write changes (default: dry-run)")
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="preview only (default; explicit for clarity)",
     )
     args = parser.parse_args()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     db = get_data_api_settings()
     data_api = create_default_data_api_client(
@@ -108,7 +111,8 @@ def main() -> None:
                     VALUES (:tid, :aid, 'main')
                     ON CONFLICT DO NOTHING
                     """,
-                    {"tid": r["id"], "aid": aid}, transaction_id=tx_id,
+                    {"tid": r["id"], "aid": aid},
+                    transaction_id=tx_id,
                 )
         healed.append(r["id"])
 
@@ -119,14 +123,19 @@ def main() -> None:
                 MatchInput(
                     track_id=r["id"],
                     artist=", ".join(artists_by_sid.get(r["spotify_id"], [])),
-                    title=r["title"], isrc=r.get("isrc"),
-                    duration_ms=r.get("length_ms"), album=None,
+                    title=r["title"],
+                    isrc=r.get("isrc"),
+                    duration_ms=r.get("length_ms"),
+                    album=None,
                 )
-                for r in rows if r["id"] in healed
+                for r in rows
+                if r["id"] in healed
             ]
             n = enqueue_vendor_matches(
-                track_inputs=inputs, vendor=YTMUSIC_VENDOR,
-                queue_url=queue_url, sqs=boto3.client("sqs"),
+                track_inputs=inputs,
+                vendor=YTMUSIC_VENDOR,
+                queue_url=queue_url,
+                sqs=boto3.client("sqs"),
                 correlation_id="backfill",
             )
             print(f"re-enqueued {n} ytmusic matches")

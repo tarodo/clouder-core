@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from collector.repositories import (
     ClouderRepository,
@@ -24,7 +24,7 @@ def test_batch_update_spotify_results_includes_release_date() -> None:
     cmd = UpdateSpotifyResultCmd(
         track_id="t-1",
         spotify_id="sp-1",
-        searched_at=datetime.now(timezone.utc),
+        searched_at=datetime.now(UTC),
         release_type="album",
         spotify_release_date=date(2024, 3, 15),
     )
@@ -48,7 +48,7 @@ def test_batch_update_spotify_results_release_date_default_none() -> None:
     cmd = UpdateSpotifyResultCmd(
         track_id="t-2",
         spotify_id="sp-2",
-        searched_at=datetime.now(timezone.utc),
+        searched_at=datetime.now(UTC),
     )
     repo.batch_update_spotify_results([cmd])
 

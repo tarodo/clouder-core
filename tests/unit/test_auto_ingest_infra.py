@@ -29,7 +29,9 @@ def test_deploy_skips_beatport_sync_without_secrets() -> None:
         "BP_PASS": "${{ secrets.BEATPORT_PASSWORD }}",
     }
     script = step["run"]
-    assert re.search(r'if \[ -z "\$BP_USER" \] \|\| \[ -z "\$BP_PASS" \]; then\s.*exit 0', script, re.S)
+    assert re.search(
+        r'if \[ -z "\$BP_USER" \] \|\| \[ -z "\$BP_PASS" \]; then\s.*exit 0', script, re.S
+    )
     for name in ("/clouder/beatport/username", "/clouder/beatport/password"):
         assert f"--name {name}" in script
     # `--value=...`: a password starting with "-" must not be parsed as an option.
@@ -78,7 +80,12 @@ def test_scheduler_role_may_only_invoke_auto_ingest() -> None:
 def test_auto_ingest_role_can_ingest_and_schedule() -> None:
     tf = _tf("auto_ingest.tf")
     data_api = _statement(tf, "AllowRdsDataApi")
-    for action in ("ExecuteStatement", "BatchExecuteStatement", "BeginTransaction", "CommitTransaction"):
+    for action in (
+        "ExecuteStatement",
+        "BatchExecuteStatement",
+        "BeginTransaction",
+        "CommitTransaction",
+    ):
         assert f'"rds-data:{action}"' in data_api
     assert "aws_rds_cluster.aurora.arn" in data_api
     assert "master_user_secret" in _statement(tf, "AllowReadDatabaseSecret")
@@ -156,10 +163,15 @@ def test_client_id_is_set_from_a_github_secret() -> None:
     fn = _block(_tf("auto_ingest.tf"), 'resource "aws_lambda_function" "auto_ingest"')
     assert re.search(r"BEATPORT_CLIENT_ID\s*=\s*var\.beatport_client_id", fn)
     variable = _block(_tf("variables.tf"), 'variable "beatport_client_id"')
-    assert 'default     = ""' in variable  # unset secret: deploy passes, the login reports client_id
+    assert (
+        'default     = ""' in variable
+    )  # unset secret: deploy passes, the login reports client_id
     workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "deploy.yml").read_text())
     # Job-level, so both apply phases and the PR plan see it (ADR-0028).
-    assert workflow["jobs"]["deploy"]["env"]["TF_VAR_beatport_client_id"] == "${{ secrets.BEATPORT_CLIENT_ID }}"
+    assert (
+        workflow["jobs"]["deploy"]["env"]["TF_VAR_beatport_client_id"]
+        == "${{ secrets.BEATPORT_CLIENT_ID }}"
+    )
 
 
 def test_api_lambda_logs_in_to_beatport_like_auto_ingest() -> None:
@@ -173,7 +185,7 @@ def test_api_lambda_logs_in_to_beatport_like_auto_ingest() -> None:
         assert re.search(rf"{key}\s*=\s*{re.escape(value)}", fn), key
     role = _block(_tf("lambda_roles.tf"), 'module "role_collector"')
     assert "local.st_ssm_kms" in role
-    block = role[role.index('"ReadBeatportCredentials"'):]
+    block = role[role.index('"ReadBeatportCredentials"') :]
     block = block[: block.index("}")]
     assert '"ssm:GetParameter"' in block
     assert "local.beatport_username_ssm" in block and "local.beatport_password_ssm" in block

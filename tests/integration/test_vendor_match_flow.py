@@ -113,9 +113,7 @@ class FakeLookup:
         self.isrc_calls += 1
         return self._isrc
 
-    def lookup_by_metadata(
-        self, artist, title, duration_ms, album
-    ) -> list[VendorTrackRef]:
+    def lookup_by_metadata(self, artist, title, duration_ms, album) -> list[VendorTrackRef]:
         self.metadata_calls += 1
         return self._metadata
 
@@ -125,9 +123,7 @@ def _install_fake_spotify(monkeypatch, lookup: FakeLookup) -> None:
 
     monkeypatch.setenv("VENDORS_ENABLED", "spotify")
     registry.reset_cache()
-    monkeypatch.setitem(
-        registry._BUILDERS, "spotify", lambda: ProviderBundle(lookup=lookup)
-    )
+    monkeypatch.setitem(registry._BUILDERS, "spotify", lambda: ProviderBundle(lookup=lookup))
 
 
 def _ref(**overrides) -> VendorTrackRef:
@@ -163,9 +159,7 @@ def test_scenario_isrc_cache_hit(monkeypatch) -> None:
     repo = FakeRepo()
     lookup = FakeLookup(by_isrc=_ref())
     _install_fake_spotify(monkeypatch, lookup)
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
 
     vendor_match_handler.lambda_handler(_event(), None)
 
@@ -178,9 +172,7 @@ def test_scenario_fuzzy_match_writes_cache(monkeypatch) -> None:
     repo = FakeRepo()
     lookup = FakeLookup(by_isrc=None, by_metadata=[_ref()])
     _install_fake_spotify(monkeypatch, lookup)
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
 
     vendor_match_handler.lambda_handler(_event(isrc=None), None)
 
@@ -200,9 +192,7 @@ def test_scenario_low_confidence_routes_to_review(monkeypatch) -> None:
     )
     lookup = FakeLookup(by_isrc=None, by_metadata=[bad])
     _install_fake_spotify(monkeypatch, lookup)
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
 
     vendor_match_handler.lambda_handler(_event(isrc=None), None)
 
@@ -215,9 +205,7 @@ def test_scenario_second_call_is_cache_hit(monkeypatch) -> None:
     repo = FakeRepo()
     lookup = FakeLookup(by_isrc=_ref())
     _install_fake_spotify(monkeypatch, lookup)
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
 
     vendor_match_handler.lambda_handler(_event(), None)
     vendor_match_handler.lambda_handler(_event(), None)
@@ -230,9 +218,7 @@ def test_scenario_vendor_disabled_skips(monkeypatch) -> None:
     repo = FakeRepo()
     monkeypatch.setenv("VENDORS_ENABLED", "")
     registry.reset_cache()
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
 
     result = vendor_match_handler.lambda_handler(_event(), None)
 
@@ -245,9 +231,7 @@ def test_scenario_no_candidates(monkeypatch) -> None:
     repo = FakeRepo()
     lookup = FakeLookup(by_isrc=None, by_metadata=[])
     _install_fake_spotify(monkeypatch, lookup)
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
 
     vendor_match_handler.lambda_handler(_event(isrc=None), None)
 

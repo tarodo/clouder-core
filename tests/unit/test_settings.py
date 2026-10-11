@@ -36,9 +36,7 @@ def test_spotify_credentials_resolved_from_secret_arn(monkeypatch):
     monkeypatch.setattr(s, "_fetch_secret_string", fake_fetch)
     if hasattr(s, "reset_settings_cache"):
         s.reset_settings_cache()
-    if hasattr(s, "_fetch_secret_string") and hasattr(
-        s._fetch_secret_string, "cache_clear"
-    ):
+    if hasattr(s, "_fetch_secret_string") and hasattr(s._fetch_secret_string, "cache_clear"):
         s._fetch_secret_string.cache_clear()
 
     settings = s.get_spotify_worker_settings()
@@ -78,9 +76,7 @@ def test_spotify_json_must_be_object(monkeypatch):
         "SPOTIFY_CREDENTIALS_SECRET_ARN",
         "arn:aws:secretsmanager:us-east-1:123:secret:SpotifyCreds-xyz",
     )
-    monkeypatch.setattr(
-        s, "_fetch_secret_string", lambda _arn: '["not", "an", "object"]'
-    )
+    monkeypatch.setattr(s, "_fetch_secret_string", lambda _arn: '["not", "an", "object"]')
     if hasattr(s, "reset_settings_cache"):
         s.reset_settings_cache()
 
@@ -97,12 +93,8 @@ def test_spotify_creds_from_ssm(monkeypatch):
     monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
     monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
-    monkeypatch.setenv(
-        "SPOTIFY_CLIENT_ID_SSM_PARAMETER", "/clouder/spotify/client_id"
-    )
-    monkeypatch.setenv(
-        "SPOTIFY_CLIENT_SECRET_SSM_PARAMETER", "/clouder/spotify/client_secret"
-    )
+    monkeypatch.setenv("SPOTIFY_CLIENT_ID_SSM_PARAMETER", "/clouder/spotify/client_id")
+    monkeypatch.setenv("SPOTIFY_CLIENT_SECRET_SSM_PARAMETER", "/clouder/spotify/client_secret")
 
     def fake_ssm(name: str) -> str:
         return {
@@ -127,12 +119,8 @@ def test_spotify_ssm_wins_over_secrets_manager(monkeypatch):
     monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
     monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
-    monkeypatch.setenv(
-        "SPOTIFY_CLIENT_ID_SSM_PARAMETER", "/clouder/spotify/client_id"
-    )
-    monkeypatch.setenv(
-        "SPOTIFY_CLIENT_SECRET_SSM_PARAMETER", "/clouder/spotify/client_secret"
-    )
+    monkeypatch.setenv("SPOTIFY_CLIENT_ID_SSM_PARAMETER", "/clouder/spotify/client_id")
+    monkeypatch.setenv("SPOTIFY_CLIENT_SECRET_SSM_PARAMETER", "/clouder/spotify/client_secret")
     monkeypatch.setenv(
         "SPOTIFY_CREDENTIALS_SECRET_ARN",
         "arn:aws:secretsmanager:us-east-1:123:secret:s-abc",
@@ -168,9 +156,7 @@ def test_spotify_partial_ssm_falls_through_to_secrets_manager(monkeypatch):
     monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
     monkeypatch.delenv("SPOTIFY_CLIENT_SECRET", raising=False)
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
-    monkeypatch.setenv(
-        "SPOTIFY_CLIENT_ID_SSM_PARAMETER", "/clouder/spotify/client_id"
-    )
+    monkeypatch.setenv("SPOTIFY_CLIENT_ID_SSM_PARAMETER", "/clouder/spotify/client_id")
     monkeypatch.delenv("SPOTIFY_CLIENT_SECRET_SSM_PARAMETER", raising=False)
     monkeypatch.setenv(
         "SPOTIFY_CREDENTIALS_SECRET_ARN",

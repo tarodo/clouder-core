@@ -1,4 +1,5 @@
 """Unit tests for SpotifyEnricher (release_type extraction)."""
+
 from __future__ import annotations
 
 import pytest

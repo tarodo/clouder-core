@@ -14,7 +14,9 @@ LOCAL_PATH = re.compile(r"/Users/[A-Za-z]|/private/tmp/claude-\d|(?<![\w/.-])/ho
 
 
 def test_tracked_markdown_has_no_local_paths() -> None:
-    files = subprocess.run(["git", "ls-files", "*.md"], cwd=ROOT, capture_output=True, text=True, check=True)
+    files = subprocess.run(
+        ["git", "ls-files", "*.md"], cwd=ROOT, capture_output=True, text=True, check=True
+    )
     hits = []
     for rel in files.stdout.split():
         for n, line in enumerate((ROOT / rel).read_text(encoding="utf-8").splitlines(), 1):

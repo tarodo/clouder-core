@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable
+from typing import Any
 
 from ..logging_utils import log_event
 from ..social_links import SocialsResolver
@@ -59,11 +60,14 @@ def run_vendors_parallel(
             adapter = future_to_adapter[fut]
             try:
                 resp = fut.result()
-            except Exception as exc:  # noqa: BLE001 — vendors must not raise, but be defensive
+            except Exception as exc:  # vendors must not raise, but be defensive
                 resp = VendorResponse(
-                    parsed=None, raw={}, citations=[],
+                    parsed=None,
+                    raw={},
+                    citations=[],
                     usage={"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0},
-                    latency_ms=0, model=adapter.default_model,
+                    latency_ms=0,
+                    model=adapter.default_model,
                     error=f"adapter raised: {type(exc).__name__}: {exc}",
                 )
             results.append((adapter, resp))
@@ -85,8 +89,8 @@ def enrich_label_for_run(
     prompt: PromptConfig,
     repository: LabelEnrichmentRepository,
     ai_flag_threshold: float,
-    on_outcome: "Callable[[str, bool], None] | None" = None,
-    socials_resolver: "SocialsResolver | None" = None,
+    on_outcome: Callable[[str, bool], None] | None = None,
+    socials_resolver: SocialsResolver | None = None,
 ) -> None:
     """End-to-end: flip run status, run vendors, persist cells + merged + counters.
 
@@ -177,8 +181,11 @@ def _response_from_cell(cell: dict, default_model: str) -> VendorResponse:
         parsed=parsed,
         raw={},
         citations=cell["response"].get("citations") or [],
-        usage=cell["response"].get("usage") or {
-            "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0,
+        usage=cell["response"].get("usage")
+        or {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": 0.0,
         },
         latency_ms=cell["response"].get("latency_ms") or 0,
         model=cell["vendor"].get("model") or default_model,
@@ -190,7 +197,7 @@ def build_adapters_from_run_config(
     *,
     vendor_names: list[str],
     models: dict[str, str],
-    secrets: "LabelEnrichmentSecrets",
+    secrets: LabelEnrichmentSecrets,
     request_timeout_s: float,
     openai_max_tool_calls: int = 3,
     openai_reasoning_effort: str = "",
@@ -206,26 +213,32 @@ def build_adapters_from_run_config(
         if not model:
             raise ValueError(f"model missing for vendor {name!r}")
         if name == "gemini":
-            adapters.append(GeminiAdapter(
-                api_key=secrets.gemini_api_key,
-                default_model=model,
-                timeout_s=request_timeout_s,
-            ))
+            adapters.append(
+                GeminiAdapter(
+                    api_key=secrets.gemini_api_key,
+                    default_model=model,
+                    timeout_s=request_timeout_s,
+                )
+            )
         elif name == "openai":
-            adapters.append(OpenAIAdapter(
-                api_key=secrets.openai_api_key,
-                default_model=model,
-                timeout_s=request_timeout_s,
-                max_tool_calls=openai_max_tool_calls,
-                reasoning_effort=openai_reasoning_effort,
-            ))
+            adapters.append(
+                OpenAIAdapter(
+                    api_key=secrets.openai_api_key,
+                    default_model=model,
+                    timeout_s=request_timeout_s,
+                    max_tool_calls=openai_max_tool_calls,
+                    reasoning_effort=openai_reasoning_effort,
+                )
+            )
         elif name == "tavily_deepseek":
-            adapters.append(TavilyDeepSeekAdapter(
-                tavily_api_key=secrets.tavily_api_key,
-                deepseek_api_key=secrets.deepseek_api_key,
-                default_model=model,
-                timeout_s=request_timeout_s,
-            ))
+            adapters.append(
+                TavilyDeepSeekAdapter(
+                    tavily_api_key=secrets.tavily_api_key,
+                    deepseek_api_key=secrets.deepseek_api_key,
+                    default_model=model,
+                    timeout_s=request_timeout_s,
+                )
+            )
         else:
             raise ValueError(f"unknown vendor {name!r}")
     return adapters

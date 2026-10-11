@@ -1,4 +1,5 @@
 """Tests for Data API retry wrapper."""
+
 from __future__ import annotations
 
 import pytest
@@ -21,9 +22,7 @@ def _client_error(code: str) -> ClientError:
 
 def test_retry_succeeds_on_second_attempt(monkeypatch):
     sleeps: list[float] = []
-    monkeypatch.setattr(
-        "collector.data_api_retry.time.sleep", lambda s: sleeps.append(s)
-    )
+    monkeypatch.setattr("collector.data_api_retry.time.sleep", lambda s: sleeps.append(s))
     calls = {"n": 0}
 
     @retry_data_api(max_attempts=3, base_delay=0.1)
@@ -56,9 +55,7 @@ def test_retry_propagates_non_client_error(monkeypatch):
 
 def test_retry_respects_max_delay_cap(monkeypatch):
     sleeps: list[float] = []
-    monkeypatch.setattr(
-        "collector.data_api_retry.time.sleep", lambda s: sleeps.append(s)
-    )
+    monkeypatch.setattr("collector.data_api_retry.time.sleep", lambda s: sleeps.append(s))
 
     @retry_data_api(max_attempts=6, base_delay=10.0, max_delay=15.0)
     def op() -> None:
@@ -81,7 +78,7 @@ def test_transient_error_codes_full_set():
         "ServiceUnavailableError",
         "ThrottlingException",
     }
-    assert TRANSIENT_ERROR_CODES == expected
+    assert expected == TRANSIENT_ERROR_CODES
 
 
 def test_retry_exhausts_and_reraises(monkeypatch):

@@ -7,7 +7,7 @@ quota unit. The requests session is injected so tests can stub HTTP.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from ..base import CollectedComment
@@ -65,7 +65,7 @@ class YouTubeCommentProvider:
         data = resp.json() or {}
         out: list[CollectedComment] = []
         for rank, item in enumerate((data.get("items") or [])[:limit]):
-            top = ((item.get("snippet") or {}).get("topLevelComment") or {})
+            top = (item.get("snippet") or {}).get("topLevelComment") or {}
             sn = top.get("snippet") or {}
             out.append(
                 CollectedComment(
@@ -97,9 +97,7 @@ class YouTubeCommentProvider:
         from .video_match import video_matches
 
         query = f"{artist} - {title}".strip()
-        raw_results = self._get_ytmusic().search(
-            query, filter="videos", limit=self._search_limit
-        )
+        raw_results = self._get_ytmusic().search(query, filter="videos", limit=self._search_limit)
         out: list[str] = []
         for raw in raw_results or []:
             if not isinstance(raw, dict):
@@ -117,12 +115,12 @@ class YouTubeCommentProvider:
 def _safe_json(resp: Any) -> dict:
     try:
         return resp.json() or {}
-    except Exception:  # noqa: BLE001 — defensive on error bodies
+    except Exception:  # defensive on error bodies
         return {}
 
 
 def _first_error_reason(data: dict) -> str | None:
-    errors = ((data.get("error") or {}).get("errors") or [])
+    errors = (data.get("error") or {}).get("errors") or []
     if errors and isinstance(errors[0], dict):
         return errors[0].get("reason")
     return None
@@ -132,6 +130,6 @@ def _parse_iso(value: Any) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
     except ValueError:
         return None

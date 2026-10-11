@@ -8,9 +8,10 @@ not natively support BYTEA parameters.
 from __future__ import annotations
 
 import base64
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
 
 from collector.data_api import DataAPIClient
 
@@ -183,9 +184,7 @@ class AuthRepository:
             },
         )
 
-    def get_active_session(
-        self, session_id: str, *, now: datetime
-    ) -> SessionRow | None:
+    def get_active_session(self, session_id: str, *, now: datetime) -> SessionRow | None:
         rows = self._data_api.execute(
             """
             SELECT id, user_id, refresh_token_hash, user_agent, ip_address,
@@ -199,9 +198,7 @@ class AuthRepository:
         )
         return _to_session_row(rows[0]) if rows else None
 
-    def rotate_session(
-        self, *, session_id: str, new_hash: str, last_used_at: datetime
-    ) -> None:
+    def rotate_session(self, *, session_id: str, new_hash: str, last_used_at: datetime) -> None:
         self._data_api.execute(
             """
             UPDATE user_sessions
@@ -222,9 +219,7 @@ class AuthRepository:
             {"id": session_id, "revoked_at": revoked_at},
         )
 
-    def revoke_all_user_sessions(
-        self, user_id: str, *, revoked_at: datetime
-    ) -> None:
+    def revoke_all_user_sessions(self, user_id: str, *, revoked_at: datetime) -> None:
         self._data_api.execute(
             """
             UPDATE user_sessions
@@ -234,9 +229,7 @@ class AuthRepository:
             {"user_id": user_id, "revoked_at": revoked_at},
         )
 
-    def list_active_sessions(
-        self, *, user_id: str, now: datetime
-    ) -> list[SessionRow]:
+    def list_active_sessions(self, *, user_id: str, now: datetime) -> list[SessionRow]:
         rows = self._data_api.execute(
             """
             SELECT id, user_id, refresh_token_hash, user_agent, ip_address,
@@ -286,9 +279,7 @@ class AuthRepository:
             },
         )
 
-    def get_vendor_token(
-        self, *, user_id: str, vendor: str
-    ) -> VendorTokenRow | None:
+    def get_vendor_token(self, *, user_id: str, vendor: str) -> VendorTokenRow | None:
         rows = self._data_api.execute(
             """
             SELECT user_id, vendor,

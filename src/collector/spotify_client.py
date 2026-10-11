@@ -9,8 +9,9 @@ import re
 import time
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List
+from typing import Any
 from urllib.error import HTTPError, URLError
 
 from .errors import SpotifyAuthError, SpotifyRateLimitedError, SpotifyUnavailableError
@@ -62,7 +63,7 @@ class SpotifyClient:
 
     def search_tracks_by_isrc(
         self,
-        tracks: List[Dict[str, Any]],
+        tracks: list[dict[str, Any]],
         correlation_id: str,
         *,
         metadata_fallback_enabled: bool = False,
@@ -70,7 +71,7 @@ class SpotifyClient:
         artist_min: float = 0.85,
         duration_tolerance_ms: int = 3000,
         deadline_provider: Callable[[], int] | None = None,
-    ) -> List[SpotifySearchResult]:
+    ) -> list[SpotifySearchResult]:
         """Search Spotify for each track by ISRC, with optional metadata fallback.
 
         Args:
@@ -83,7 +84,7 @@ class SpotifyClient:
                 When < 60_000, loop aborts gracefully and returns partial results.
         """
         self._ensure_token(correlation_id)
-        results: List[SpotifySearchResult] = []
+        results: list[SpotifySearchResult] = []
         total = len(tracks)
 
         for index, track in enumerate(tracks):
@@ -107,15 +108,11 @@ class SpotifyClient:
             searched = index + 1
 
             try:
-                spotify_track = self._search_by_isrc(
-                    isrc=isrc, correlation_id=correlation_id
-                )
+                spotify_track = self._search_by_isrc(isrc=isrc, correlation_id=correlation_id)
             except SpotifyAuthError:
                 self._access_token = None
                 self._ensure_token(correlation_id)
-                spotify_track = self._search_by_isrc(
-                    isrc=isrc, correlation_id=correlation_id
-                )
+                spotify_track = self._search_by_isrc(isrc=isrc, correlation_id=correlation_id)
 
             if spotify_track is None and metadata_fallback_enabled:
                 title = str(track.get("title") or "").strip()
@@ -141,9 +138,7 @@ class SpotifyClient:
                             clouder_track_id=clouder_track_id,
                             isrc=isrc,
                             spotify_id=spotify_track.get("id"),
-                            spotify_isrc=spotify_track.get(
-                                "external_ids", {}
-                            ).get("isrc"),
+                            spotify_isrc=spotify_track.get("external_ids", {}).get("isrc"),
                             searched=searched,
                             total=total,
                         )
@@ -193,9 +188,7 @@ class SpotifyClient:
                             clouder_track_id=clouder_track_id,
                             isrc=isrc,
                             spotify_id=spotify_track.get("id"),
-                            spotify_isrc=spotify_track.get(
-                                "external_ids", {}
-                            ).get("isrc"),
+                            spotify_isrc=spotify_track.get("external_ids", {}).get("isrc"),
                             searched=searched,
                             total=total,
                         )
@@ -222,13 +215,15 @@ class SpotifyClient:
         return results
 
     def get_tracks(
-        self, spotify_ids: list[str], correlation_id: str,
+        self,
+        spotify_ids: list[str],
+        correlation_id: str,
     ) -> dict[str, list[str]]:
         """Map each Spotify track id to its ordered artist names (batched)."""
         self._ensure_token(correlation_id)
         out: dict[str, list[str]] = {}
         for i in range(0, len(spotify_ids), 50):
-            chunk = spotify_ids[i:i + 50]
+            chunk = spotify_ids[i : i + 50]
             url = f"{API_BASE_URL}/tracks?ids={','.join(chunk)}"
             payload = self._request(url=url, correlation_id=correlation_id)
             for track in payload.get("tracks") or []:
@@ -237,10 +232,7 @@ class SpotifyClient:
                 tid = track.get("id")
                 if not tid:
                     continue
-                out[tid] = [
-                    a.get("name") for a in (track.get("artists") or [])
-                    if a.get("name")
-                ]
+                out[tid] = [a.get("name") for a in (track.get("artists") or []) if a.get("name")]
         return out
 
     def _search_by_metadata(
@@ -253,7 +245,7 @@ class SpotifyClient:
         title_min: float,
         artist_min: float,
         duration_tolerance_ms: int,
-    ) -> tuple[Dict[str, Any], str] | None:
+    ) -> tuple[dict[str, Any], str] | None:
         """Spotify text search fallback when ISRC lookup returned no items.
 
         Builds q=track:<title> artist:<first_artist>, scores each result, and
@@ -279,9 +271,9 @@ class SpotifyClient:
         if not isinstance(items, list) or not items:
             return None
 
-        strict_best: Dict[str, Any] | None = None
+        strict_best: dict[str, Any] | None = None
         strict_combined = -1.0
-        relaxed_best: Dict[str, Any] | None = None
+        relaxed_best: dict[str, Any] | None = None
         relaxed_combined = -1.0
         max_title_sim = 0.0
         max_artist_sim = 0.0
@@ -293,9 +285,7 @@ class SpotifyClient:
                 continue
             cand_name = str(item.get("name") or "")
             cand_artists = tuple(
-                str(a.get("name", ""))
-                for a in (item.get("artists") or [])
-                if isinstance(a, dict)
+                str(a.get("name", "")) for a in (item.get("artists") or []) if isinstance(a, dict)
             )
             cand_duration = item.get("duration_ms")
             cand_duration_ms = (
@@ -348,7 +338,7 @@ class SpotifyClient:
         correlation_id: str,
         title_min: float,
         artist_min: float,
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         """Try ISRCs that differ from the query by ±1, ±2 in the last digit.
 
         Sibling ISRCs in the same release are common when Beatport ships an
@@ -368,22 +358,16 @@ class SpotifyClient:
                 continue
             cand_name = str(track.get("name") or "")
             cand_artists = tuple(
-                str(a.get("name", ""))
-                for a in (track.get("artists") or [])
-                if isinstance(a, dict)
+                str(a.get("name", "")) for a in (track.get("artists") or []) if isinstance(a, dict)
             )
-            title_sim = string_sim(
-                _normalize_title_for_match(cand_name), norm_query_title
-            )
+            title_sim = string_sim(_normalize_title_for_match(cand_name), norm_query_title)
             artist_sim = best_artist_sim(cand_artists, artist)
             if title_sim < title_min or artist_sim < artist_min:
                 continue
             return track
         return None
 
-    def _search_by_isrc(
-        self, isrc: str, correlation_id: str
-    ) -> Dict[str, Any] | None:
+    def _search_by_isrc(self, isrc: str, correlation_id: str) -> dict[str, Any] | None:
         """Search Spotify for a single track by ISRC.
 
         Fetches up to 10 results and returns the earliest by release date.
@@ -416,14 +400,12 @@ class SpotifyClient:
 
     def _authenticate(self, correlation_id: str) -> None:
         """Obtain access token via Client Credentials flow."""
-        credentials = base64.b64encode(
-            f"{self._client_id}:{self._client_secret}".encode()
-        ).decode()
+        credentials = base64.b64encode(f"{self._client_id}:{self._client_secret}".encode()).decode()
         headers = {
             "Authorization": f"Basic {credentials}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
-        body = "grant_type=client_credentials".encode("utf-8")
+        body = b"grant_type=client_credentials"
 
         log_event(
             "INFO",
@@ -431,19 +413,13 @@ class SpotifyClient:
             correlation_id=correlation_id,
         )
 
-        request = urllib.request.Request(
-            url=TOKEN_URL, data=body, headers=headers, method="POST"
-        )
+        request = urllib.request.Request(url=TOKEN_URL, data=body, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(
-                request, timeout=self.timeout_seconds
-            ) as response:
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
                 raw = response.read().decode("utf-8")
                 parsed = json.loads(raw)
         except (HTTPError, URLError, TimeoutError) as exc:
-            raise SpotifyAuthError(
-                f"Spotify token request failed: {exc}"
-            ) from exc
+            raise SpotifyAuthError(f"Spotify token request failed: {exc}") from exc
 
         access_token = parsed.get("access_token")
         if not isinstance(access_token, str) or not access_token:
@@ -461,7 +437,7 @@ class SpotifyClient:
             expires_in=expires_in,
         )
 
-    def _request(self, url: str, correlation_id: str) -> Dict[str, Any]:
+    def _request(self, url: str, correlation_id: str) -> dict[str, Any]:
         """Execute a GET request to Spotify API with retry logic."""
         headers = {
             "Accept": "application/json",
@@ -470,25 +446,17 @@ class SpotifyClient:
 
         for attempt in range(self.max_retries + 1):
             self._pace()
-            request = urllib.request.Request(
-                url=url, method="GET", headers=headers
-            )
+            request = urllib.request.Request(url=url, method="GET", headers=headers)
             try:
-                with urllib.request.urlopen(
-                    request, timeout=self.timeout_seconds
-                ) as response:
+                with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
                     raw = response.read().decode("utf-8")
                     parsed = json.loads(raw)
                     if not isinstance(parsed, dict):
-                        raise SpotifyUnavailableError(
-                            "Unexpected Spotify payload type"
-                        )
+                        raise SpotifyUnavailableError("Unexpected Spotify payload type")
                     return parsed
             except HTTPError as exc:
                 if exc.code in (401, 403):
-                    raise SpotifyAuthError(
-                        f"Spotify API returned HTTP {exc.code}"
-                    ) from exc
+                    raise SpotifyAuthError(f"Spotify API returned HTTP {exc.code}") from exc
 
                 if exc.code == 429:
                     retry_after = exc.headers.get("Retry-After") if exc.headers else None
@@ -519,16 +487,12 @@ class SpotifyClient:
                     self._sleep_backoff(attempt)
                     continue
 
-                raise SpotifyUnavailableError(
-                    f"Spotify API returned HTTP {exc.code}"
-                ) from exc
+                raise SpotifyUnavailableError(f"Spotify API returned HTTP {exc.code}") from exc
             except (URLError, TimeoutError, ValueError) as exc:
                 if attempt < self.max_retries:
                     self._sleep_backoff(attempt)
                     continue
-                raise SpotifyUnavailableError(
-                    "Spotify API request failed after retries"
-                ) from exc
+                raise SpotifyUnavailableError("Spotify API request failed after retries") from exc
 
         raise SpotifyUnavailableError("Spotify API request failed")
 
@@ -546,7 +510,7 @@ class SpotifyClient:
         self.sleep_fn(delay)
 
 
-def _album_release_sort_key(track: Dict[str, Any]) -> str:
+def _album_release_sort_key(track: dict[str, Any]) -> str:
     """Extract a sortable release date string from a Spotify track.
 
     Spotify release_date can be "YYYY", "YYYY-MM", or "YYYY-MM-DD".
@@ -611,8 +575,14 @@ _TITLE_SUFFIX_PATTERNS = [
     re.compile(r"[\s]*[\(\[\-][\s]*(feat\.?|ft\.?|featuring)[\s].*?[\)\]]", re.IGNORECASE),
     re.compile(r"[\s]+(feat\.?|ft\.?|featuring)[\s].*$", re.IGNORECASE),
     # "(... Mix)", "[... Mix]", " - ... Mix"
-    re.compile(r"[\s]*[\(\[][^()\[\]]*\b(remix|mix|edit|version|dub|bootleg|rework|vip)\b[^()\[\]]*[\)\]]", re.IGNORECASE),
-    re.compile(r"[\s]*\-[\s]+[^-]*\b(radio edit|extended mix|original mix|club mix|dub mix|remix|edit|vip)\b.*$", re.IGNORECASE),
+    re.compile(
+        r"[\s]*[\(\[][^()\[\]]*\b(remix|mix|edit|version|dub|bootleg|rework|vip)\b[^()\[\]]*[\)\]]",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"[\s]*\-[\s]+[^-]*\b(radio edit|extended mix|original mix|club mix|dub mix|remix|edit|vip)\b.*$",
+        re.IGNORECASE,
+    ),
 ]
 
 

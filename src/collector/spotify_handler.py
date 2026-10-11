@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Mapping
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Mapping, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 from pydantic import ValidationError as PydanticValidationError
@@ -105,9 +106,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     settings = get_spotify_worker_settings()
     repository = create_clouder_repository_from_env()
     if repository is None:
-        raise RuntimeError(
-            "AURORA Data API configuration is required for Spotify search worker"
-        )
+        raise RuntimeError("AURORA Data API configuration is required for Spotify search worker")
 
     storage = S3Storage(
         s3_client=create_default_s3_client(),
@@ -135,9 +134,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             )
             continue
 
-        correlation_id = _extract_message_attribute(record, "correlation_id") or str(
-            uuid4()
-        )
+        correlation_id = _extract_message_attribute(record, "correlation_id") or str(uuid4())
 
         log_event(
             "INFO",
@@ -157,11 +154,11 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             )
             processed += 1
         except Exception as exc:
-            is_permanent = isinstance(exc, _PERMANENT_ERRORS) and not isinstance(exc, TransientStorageError)
+            is_permanent = isinstance(exc, _PERMANENT_ERRORS) and not isinstance(
+                exc, TransientStorageError
+            )
             error_code = (
-                "spotify_permanent_failure"
-                if is_permanent
-                else "spotify_transient_failure"
+                "spotify_permanent_failure" if is_permanent else "spotify_transient_failure"
             )
             log_event(
                 "ERROR",
@@ -247,7 +244,9 @@ def _process_spotify_search(
             batch_id=batch_id,
         )
         now = utc_now()
-        repository.set_vendor_blocked_until("spotify", now + timedelta(seconds=exc.retry_after), now)
+        repository.set_vendor_blocked_until(
+            "spotify", now + timedelta(seconds=exc.retry_after), now
+        )
         log_event(
             "WARNING",
             "spotify_search_paused",
@@ -277,9 +276,7 @@ def _release_claim(
     batch_id: str,
 ) -> None:
     try:
-        released = repository.release_spotify_search_claim(
-            claimed_at=claimed_at, now=utc_now()
-        )
+        released = repository.release_spotify_search_claim(claimed_at=claimed_at, now=utc_now())
     except Exception as exc:
         log_event(
             "ERROR",
@@ -350,9 +347,7 @@ def _search_and_persist(
     meta = {
         "correlation_id": correlation_id,
         "batch_id": batch_id,
-        "searched_at_utc": now.replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z"),
+        "searched_at_utc": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "total_tracks": len(results),
         "found": found_count,
         "not_found": not_found_count,
@@ -470,9 +465,7 @@ def _process_results_chunk(
     repository.batch_update_spotify_results(update_cmds)
 
     # 3. Propagate release_type from the just-updated tracks onto their albums.
-    track_ids_with_type = [
-        cmd.track_id for cmd in update_cmds if cmd.release_type is not None
-    ]
+    track_ids_with_type = [cmd.track_id for cmd in update_cmds if cmd.release_type is not None]
     if track_ids_with_type:
         repository.propagate_release_type_to_albums(track_ids_with_type)
 
@@ -486,8 +479,12 @@ def _enqueue_resume(
     """Send the resume message, due when the ban ends (SQS delays at most 15 min)."""
     queue_url = settings.spotify_search_queue_url.strip()
     if not queue_url:
-        log_event("WARNING", "spotify_follow_up_skipped", correlation_id=correlation_id,
-                  reason="no_queue_url")
+        log_event(
+            "WARNING",
+            "spotify_follow_up_skipped",
+            correlation_id=correlation_id,
+            reason="no_queue_url",
+        )
         return
     delay = min(_MAX_SQS_DELAY_SECONDS, max(1, math.ceil(remaining.total_seconds())))
     body = {"batch_size": min(message.batch_size, _MAX_FOLLOW_UP_BATCH_SIZE), "resume": True}

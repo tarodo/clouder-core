@@ -29,9 +29,7 @@ class SpotifyEnricher:
         correlation_id: str,
     ) -> EnrichResult:
         if entity_type != "track":
-            raise ValueError(
-                f"SpotifyEnricher supports entity_type=track, got {entity_type}"
-            )
+            raise ValueError(f"SpotifyEnricher supports entity_type=track, got {entity_type}")
 
         isrc = context.get("isrc")
         if not isrc:

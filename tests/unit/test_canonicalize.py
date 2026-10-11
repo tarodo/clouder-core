@@ -92,9 +92,7 @@ class FakeRepo:
         yield "tx"
 
 
-def _raw_track(
-    track_id: int = 1, artist_id: int = 713053, artist_name: str = "Nick The Lot"
-):
+def _raw_track(track_id: int = 1, artist_id: int = 713053, artist_name: str = "Nick The Lot"):
     return [
         {
             "id": track_id,
@@ -150,16 +148,10 @@ def test_canonicalizer_auto_creates_entities_when_no_matches() -> None:
 
 def test_canonicalizer_reuses_existing_identity_and_updates_track() -> None:
     repo = FakeRepo()
-    repo.identities[("beatport", "label", "40187")] = IdentityMapEntry(
-        "label", "label-1"
-    )
+    repo.identities[("beatport", "label", "40187")] = IdentityMapEntry("label", "label-1")
     repo.identities[("beatport", "style", "1")] = IdentityMapEntry("style", "style-1")
-    repo.identities[("beatport", "artist", "713053")] = IdentityMapEntry(
-        "artist", "artist-1"
-    )
-    repo.identities[("beatport", "album", "5654120")] = IdentityMapEntry(
-        "album", "album-1"
-    )
+    repo.identities[("beatport", "artist", "713053")] = IdentityMapEntry("artist", "artist-1")
+    repo.identities[("beatport", "album", "5654120")] = IdentityMapEntry("album", "album-1")
     repo.identities[("beatport", "track", "1")] = IdentityMapEntry("track", "track-1")
 
     canonicalizer = Canonicalizer(repo)
@@ -286,8 +278,15 @@ from datetime import date
 from collector.canonicalize import track_update
 
 _FIELDS_NONE = {
-    "mix_name": None, "isrc": None, "bpm": None, "length_ms": None, "key_name": None,
-    "key_camelot": None, "publish_date": None, "album_id": None, "style_id": None,
+    "mix_name": None,
+    "isrc": None,
+    "bpm": None,
+    "length_ms": None,
+    "key_name": None,
+    "key_camelot": None,
+    "publish_date": None,
+    "album_id": None,
+    "style_id": None,
 }
 
 
@@ -329,8 +328,12 @@ def test_reused_track_without_changes_is_not_updated() -> None:
     Canonicalizer(repo).process_run(run_id="run-1", bundle=bundle)
     track = bundle.tracks[0]
     repo.track_states["1"] = {
-        "mix_name": track.mix_name, "isrc": track.isrc, "bpm": track.bpm,
-        "length_ms": track.length_ms, "key_name": None, "key_camelot": None,
+        "mix_name": track.mix_name,
+        "isrc": track.isrc,
+        "bpm": track.bpm,
+        "length_ms": track.length_ms,
+        "key_name": None,
+        "key_camelot": None,
         "publish_date": track.publish_date,
         "album_id": repo.identities[("beatport", "album", "5654120")].clouder_id,
         "style_id": repo.identities[("beatport", "style", "1")].clouder_id,

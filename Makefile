@@ -25,8 +25,9 @@ test-db:         ## real-Postgres tests (migrates the schema first)
 	PYTHONPATH=src ALEMBIC_DATABASE_URL=$(subst postgresql://,postgresql+psycopg://,$(TEST_DATABASE_URL)) $(VENV)/alembic upgrade head
 	TEST_DATABASE_URL=$(TEST_DATABASE_URL) $(VENV)/pytest -q tests/db
 
-lint:            ## ruff
+lint:            ## ruff (lint + format check)
 	$(VENV)/ruff check src tests scripts
+	$(VENV)/ruff format --check src tests scripts
 
 typecheck:       ## mypy (config in pyproject.toml)
 	$(VENV)/mypy

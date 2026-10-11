@@ -18,7 +18,14 @@ from pathlib import Path
 from typing import Any
 
 # Same set as scripts/smoke.py LAMBDA_CHECKS and infra/lambda_aliases.tf.
-API_FUNCTIONS = ("collector-api", "curation", "auth-handler", "auth-authorizer", "analytics-api", "telemetry")
+API_FUNCTIONS = (
+    "collector-api",
+    "curation",
+    "auth-handler",
+    "auth-authorizer",
+    "analytics-api",
+    "telemetry",
+)
 ALIAS = "live"
 
 
@@ -26,7 +33,9 @@ def snapshot(client: Any, functions: list[str]) -> dict[str, str]:
     versions = {}
     for function in functions:
         try:
-            versions[function] = client.get_alias(FunctionName=function, Name=ALIAS)["FunctionVersion"]
+            versions[function] = client.get_alias(FunctionName=function, Name=ALIAS)[
+                "FunctionVersion"
+            ]
         except client.exceptions.ResourceNotFoundException:
             continue
     return versions

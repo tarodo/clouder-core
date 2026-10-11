@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from pg_data_api import CANONICAL_TABLES, count_rows, seed_run
 from synthetic import synthetic_week
@@ -12,11 +12,16 @@ from collector.canonicalize import Canonicalizer
 from collector.normalize import normalize_tracks
 from collector.repositories import ClouderRepository
 
-T1 = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
+T1 = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 T2 = T1 + timedelta(days=7)
 COUNTS = (
-    "labels_created", "styles_created", "artists_created", "albums_created",
-    "tracks_created", "tracks_changed", "tracks_stale",
+    "labels_created",
+    "styles_created",
+    "artists_created",
+    "albums_created",
+    "tracks_created",
+    "tracks_changed",
+    "tracks_stale",
 )
 
 
@@ -41,7 +46,8 @@ def _second_week():
     second = copy.deepcopy(first)
     second[0]["bpm"] = 99
     second[1]["release"] = {
-        "id": 2_999_999, "name": "New Release",
+        "id": 2_999_999,
+        "name": "New Release",
         "label": {"id": 3_999_999, "name": "New Label"},
     }  # an existing track moves to a release that does not exist yet
     second.append({**copy.deepcopy(first[2]), "id": 9_999, "name": "Brand New"})

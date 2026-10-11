@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 from collector import handler
+from collector.api import deps
 from collector.errors import UpstreamAuthError
 from collector.providers import registry
 from collector.settings import reset_settings_cache
@@ -28,8 +29,8 @@ def reset_caches(monkeypatch):
     # Enough config to get past _load_api_settings and reach the upstream call,
     # so the test exercises the real 403 path seen in production.
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
-    monkeypatch.setattr(handler, "read_beatport_credentials", lambda: ("user", "pass"))
-    monkeypatch.setattr(handler, "fetch_access_token", lambda username, password: "tok")
+    monkeypatch.setattr(deps, "read_beatport_credentials", lambda: ("user", "pass"))
+    monkeypatch.setattr(deps, "fetch_access_token", lambda username, password: "tok")
     yield
     reset_settings_cache()
     registry.reset_cache()
@@ -44,9 +45,7 @@ def _event_without_correlation_header() -> dict[str, Any]:
             "authorizer": {"lambda": {"is_admin": True}},
         },
         "rawPath": "/admin/beatport/ingest",
-        "body": json.dumps(
-            {"style_id": 1, "week_year": 2026, "week_number": 5}
-        ),
+        "body": json.dumps({"style_id": 1, "week_year": 2026, "week_number": 5}),
         "isBase64Encoded": False,
         "headers": {},
     }
@@ -93,9 +92,7 @@ def test_failed_ingest_logs_one_correlation_id(monkeypatch, capsys) -> None:
     assert received == failed
 
 
-def test_failed_ingest_response_matches_logged_correlation_id(
-    monkeypatch, capsys
-) -> None:
+def test_failed_ingest_response_matches_logged_correlation_id(monkeypatch, capsys) -> None:
     class FailingClient:
         def fetch_weekly_releases(self, **_kwargs):
             raise UpstreamAuthError()

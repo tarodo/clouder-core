@@ -8,7 +8,7 @@ rows as it selects them, so a second worker cannot pick them up.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -16,7 +16,7 @@ import pytest
 
 from collector.repositories import ClouderRepository
 
-CLAIMED_AT = datetime(2026, 9, 13, 13, 50, 19, tzinfo=timezone.utc)
+CLAIMED_AT = datetime(2026, 9, 13, 13, 50, 19, tzinfo=UTC)
 
 
 def _repo(rows):

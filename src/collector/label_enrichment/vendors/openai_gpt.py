@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Type
+from typing import Any
 
 import openai
 from pydantic import BaseModel
@@ -55,15 +55,13 @@ class OpenAIAdapter:
             # web_search runs are long; the SDK's default retries (2) compound
             # the timeout to ~3x and re-run the web search each time. Disable
             # them — the SQS/worker layer owns retry.
-            self._client = OpenAI(
-                api_key=api_key, timeout=timeout_s, max_retries=0
-            )
+            self._client = OpenAI(api_key=api_key, timeout=timeout_s, max_retries=0)
 
     def run(
         self,
         system: str,
         user: str,
-        schema: Type[BaseModel],
+        schema: type[BaseModel],
         model: str | None = None,
     ) -> VendorResponse:
         chosen_model = model or self.default_model
@@ -75,7 +73,9 @@ class OpenAIAdapter:
             tools=[{"type": "web_search"}],
             text_format=schema,
         )
-        if self._max_tool_calls:  # 0/None -> uncapped: OpenAI rejects max_tool_calls=0, so falsy means "don't send"
+        if (
+            self._max_tool_calls
+        ):  # 0/None -> uncapped: OpenAI rejects max_tool_calls=0, so falsy means "don't send"
             kwargs["max_tool_calls"] = self._max_tool_calls
         if self._reasoning_effort:
             kwargs["reasoning"] = {"effort": self._reasoning_effort}
@@ -89,8 +89,7 @@ class OpenAIAdapter:
                 if not had_knobs:
                     raise
                 bare_kwargs = {
-                    k: v for k, v in kwargs.items()
-                    if k not in ("max_tool_calls", "reasoning")
+                    k: v for k, v in kwargs.items() if k not in ("max_tool_calls", "reasoning")
                 }
                 _LOGGER.warning(
                     "openai_bad_request_retry_bare model=%s dropped=%s",
@@ -98,7 +97,7 @@ class OpenAIAdapter:
                     [k for k in ("max_tool_calls", "reasoning") if k in kwargs],
                 )
                 response = self._client.responses.parse(**bare_kwargs)
-        except Exception as exc:  # noqa: BLE001 — never raise
+        except Exception as exc:  # never raise
             return VendorResponse(
                 parsed=None,
                 raw={},
@@ -144,8 +143,7 @@ class OpenAIAdapter:
 
             output_items = getattr(response, "output", None) or []
             web_search_calls = sum(
-                1 for item in output_items
-                if getattr(item, "type", "") == "web_search_call"
+                1 for item in output_items if getattr(item, "type", "") == "web_search_call"
             )
 
             citations = list(getattr(response, "citations", None) or [])
@@ -155,13 +153,15 @@ class OpenAIAdapter:
                     item_type = getattr(item, "type", None)
                     if item_type and "search" in item_type.lower():
                         for c in getattr(item, "citations", None) or []:
-                            url = getattr(c, "url", None) or (c.get("url") if isinstance(c, dict) else None)
+                            url = getattr(c, "url", None) or (
+                                c.get("url") if isinstance(c, dict) else None
+                            )
                             if url:
                                 citations.append(url)
 
             parsed = getattr(response, "output_parsed", None)
             raw_dump = _to_dict(response)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             parse_error = f"parse error: {type(exc).__name__}: {exc}"
 
         cost = (

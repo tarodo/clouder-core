@@ -5,6 +5,7 @@ Usage:
     python scripts/inspect_raw_sample.py <s3_key>
     # e.g. raw/bp/releases/style_id=5/year=2026/week=9/releases.json.gz
 """
+
 from __future__ import annotations
 
 import gzip
@@ -25,12 +26,7 @@ def main(s3_key: str) -> None:
     if isinstance(payload, list):
         releases = payload
     elif isinstance(payload, dict):
-        releases = (
-            payload.get("releases")
-            or payload.get("data")
-            or payload.get("results")
-            or []
-        )
+        releases = payload.get("releases") or payload.get("data") or payload.get("results") or []
     else:
         releases = []
     print(f"Total releases: {len(releases)}")

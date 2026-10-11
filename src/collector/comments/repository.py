@@ -130,7 +130,11 @@ class CommentsRepository:
                 )
             set_evid = ", external_video_id = :evid" if external_video_id is not None else ""
             update_params: dict[str, Any] = {
-                "s": status, "n": len(comments), "e": error, "now": now, "c": collection_id,
+                "s": status,
+                "n": len(comments),
+                "e": error,
+                "now": now,
+                "c": collection_id,
             }
             if external_video_id is not None:
                 update_params["evid"] = external_video_id
@@ -228,7 +232,7 @@ class CommentsRepository:
             result[tid] = (col, comments_by_track[tid][:limit_per_track])
         return result
 
-    def fetch_track_meta(self, track_ids: list[str]) -> dict[str, "TrackMeta"]:
+    def fetch_track_meta(self, track_ids: list[str]) -> dict[str, TrackMeta]:
         """artist/title/duration for the given tracks (for fallback search).
 
         Unlike playlists_repository.fetch_unmatched_match_inputs, this does NOT
@@ -319,7 +323,7 @@ class CommentsRepository:
         return collection, comments
 
 
-def create_default_comments_repository() -> "CommentsRepository | None":
+def create_default_comments_repository() -> CommentsRepository | None:
     settings = get_data_api_settings()
     if not settings.is_configured:
         return None

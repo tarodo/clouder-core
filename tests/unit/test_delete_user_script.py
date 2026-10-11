@@ -20,10 +20,17 @@ def script(monkeypatch):
     calls: list[tuple] = []
     monkeypatch.setattr(mod, "_data_api", lambda *a: "db")
     monkeypatch.setattr(mod, "_clients", lambda: ("s3", "athena"))
-    monkeypatch.setattr(mod, "delete_user", lambda db, uid, dry_run=False: calls.append(
-        ("aurora", dry_run)) or {"users": 1})
-    monkeypatch.setattr(mod, "delete_covers", lambda s3, bucket, uid: calls.append(("covers", bucket)) or 2)
-    monkeypatch.setattr(mod, "purge_lake", lambda s3, athena, **kw: calls.append(("lake", kw["lake_bucket"])))
+    monkeypatch.setattr(
+        mod,
+        "delete_user",
+        lambda db, uid, dry_run=False: calls.append(("aurora", dry_run)) or {"users": 1},
+    )
+    monkeypatch.setattr(
+        mod, "delete_covers", lambda s3, bucket, uid: calls.append(("covers", bucket)) or 2
+    )
+    monkeypatch.setattr(
+        mod, "purge_lake", lambda s3, athena, **kw: calls.append(("lake", kw["lake_bucket"]))
+    )
     mod.calls = calls
     return mod
 
@@ -42,10 +49,29 @@ def test_wrong_confirmation_aborts_before_any_delete(script, monkeypatch) -> Non
 def test_confirmed_run_deletes_aurora_then_covers_then_lake(script, monkeypatch) -> None:
     monkeypatch.setattr("builtins.input", lambda _: UID)
     assert script.main([*ARGS, "--lake-bucket", "lake"]) == 0
-    assert script.calls == [("aurora", True), ("aurora", False), ("covers", "raw"), ("lake", "lake")]
+    assert script.calls == [
+        ("aurora", True),
+        ("aurora", False),
+        ("covers", "raw"),
+        ("lake", "lake"),
+    ]
 
 
 def test_rejects_a_user_id_that_is_not_a_uuid(script) -> None:
-    assert script.main(["--user-id", "../etc", "--cluster-arn", "c", "--secret-arn", "s",
-                        "--raw-bucket", "raw", "--dry-run"]) == 2
+    assert (
+        script.main(
+            [
+                "--user-id",
+                "../etc",
+                "--cluster-arn",
+                "c",
+                "--secret-arn",
+                "s",
+                "--raw-bucket",
+                "raw",
+                "--dry-run",
+            ]
+        )
+        == 2
+    )
     assert script.calls == []

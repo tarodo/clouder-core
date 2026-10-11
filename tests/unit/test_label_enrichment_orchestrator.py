@@ -27,17 +27,23 @@ def _ok(vendor: str, model: str) -> VendorResponse:
             summary="techno",
             confidence=0.9,
         ),
-        raw={}, citations=[],
+        raw={},
+        citations=[],
         usage={"input_tokens": 100, "output_tokens": 50, "cost_usd": 0.002},
-        latency_ms=200, model=model,
+        latency_ms=200,
+        model=model,
     )
 
 
 def _err(vendor: str, model: str) -> VendorResponse:
     return VendorResponse(
-        parsed=None, raw={}, citations=[],
+        parsed=None,
+        raw={},
+        citations=[],
         usage={"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0},
-        latency_ms=50, model=model, error="boom",
+        latency_ms=50,
+        model=model,
+        error="boom",
     )
 
 
@@ -77,7 +83,13 @@ def test_enrich_label_for_run_writes_cells_upserts_info_and_increments():
     repo = MagicMock()
     merge_client = MagicMock()
     merge_client.chat.completions.create.return_value = SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content='{"tagline":"t","summary":"s","ai_reasoning":"r","notes":null}'))],
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(
+                    content='{"tagline":"t","summary":"s","ai_reasoning":"r","notes":null}'
+                )
+            )
+        ],
         usage=SimpleNamespace(prompt_tokens=200, completion_tokens=80),
     )
 
@@ -120,7 +132,13 @@ def test_enrich_label_for_run_counts_mixed_outcomes():
     repo = MagicMock()
     merge_client = MagicMock()
     merge_client.chat.completions.create.return_value = SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content='{"tagline":"t","summary":"s","ai_reasoning":"r","notes":null}'))],
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(
+                    content='{"tagline":"t","summary":"s","ai_reasoning":"r","notes":null}'
+                )
+            )
+        ],
         usage=SimpleNamespace(prompt_tokens=200, completion_tokens=80),
     )
     enrich_label_for_run(
@@ -154,8 +172,10 @@ def test_build_adapters_from_run_config_returns_three_adapters():
             "tavily_deepseek": "deepseek-v4-flash",
         },
         secrets=LabelEnrichmentSecrets(
-            gemini_api_key="g", openai_api_key="o",
-            tavily_api_key="t", deepseek_api_key="d",
+            gemini_api_key="g",
+            openai_api_key="o",
+            tavily_api_key="t",
+            deepseek_api_key="d",
         ),
         request_timeout_s=30.0,
     )
@@ -176,8 +196,10 @@ def test_build_adapters_forwards_openai_knobs():
         vendor_names=["openai"],
         models={"openai": "gpt-5.4-mini"},
         secrets=LabelEnrichmentSecrets(
-            gemini_api_key="g", openai_api_key="o",
-            tavily_api_key="t", deepseek_api_key="d",
+            gemini_api_key="g",
+            openai_api_key="o",
+            tavily_api_key="t",
+            deepseek_api_key="d",
         ),
         request_timeout_s=30.0,
         openai_max_tool_calls=5,
@@ -192,19 +214,20 @@ def _run_enrich_label_for_run_with(on_outcome, all_vendors_ok: bool) -> None:
     but controls whether adapters succeed or fail, and passes on_outcome."""
     from types import SimpleNamespace
 
-    if all_vendors_ok:
-        vendor_response = _ok("gemini", "g")
-    else:
-        vendor_response = _err("gemini", "g")
+    vendor_response = _ok("gemini", "g") if all_vendors_ok else _err("gemini", "g")
 
     adapters = [_make_adapter("gemini", "g", vendor_response)]
     prompt = get_prompt("label_v3_app_fields")
     repo = MagicMock()
     merge_client = MagicMock()
     merge_client.chat.completions.create.return_value = SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(
-            content='{"tagline":"t","summary":"s","ai_reasoning":"r","notes":null}'
-        ))],
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(
+                    content='{"tagline":"t","summary":"s","ai_reasoning":"r","notes":null}'
+                )
+            )
+        ],
         usage=SimpleNamespace(prompt_tokens=200, completion_tokens=80),
     )
 
@@ -257,8 +280,10 @@ def test_build_adapters_rejects_unknown_vendor():
             vendor_names=["anthropic"],
             models={"anthropic": "claude-opus"},
             secrets=LabelEnrichmentSecrets(
-                gemini_api_key="g", openai_api_key="o",
-                tavily_api_key="t", deepseek_api_key="d",
+                gemini_api_key="g",
+                openai_api_key="o",
+                tavily_api_key="t",
+                deepseek_api_key="d",
             ),
             request_timeout_s=30.0,
         )

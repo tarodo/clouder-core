@@ -96,11 +96,14 @@ def _build_spotify_user_client(user_id: str, correlation_id: str):
         key_arn=auth.kms_user_tokens_key_arn,
     )
     oauth = SpotifyOAuthClient(
-        client_id=cid, client_secret=csec,
+        client_id=cid,
+        client_secret=csec,
         redirect_uri=auth.spotify_oauth_redirect_uri,
     )
     resolver = SpotifyTokenResolver(
-        data_api=data_api, envelope=envelope, oauth_client=oauth,
+        data_api=data_api,
+        envelope=envelope,
+        oauth_client=oauth,
     )
     token = resolver.resolve(user_id=user_id)
     return SpotifyUserClient(
@@ -145,7 +148,9 @@ def _build_ytmusic_user_client(user_id: str, correlation_id: str):
     )
     oauth = YtmusicOAuthClient(client_id=cid, client_secret=csec)
     resolver = YtmusicTokenResolver(
-        data_api=data_api, envelope=envelope, oauth_client=oauth,
+        data_api=data_api,
+        envelope=envelope,
+        oauth_client=oauth,
     )
     token = resolver.resolve(user_id=user_id)
     return YoutubeDataApiClient(

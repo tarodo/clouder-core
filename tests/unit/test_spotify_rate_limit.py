@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import io
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
@@ -78,7 +78,9 @@ def test_a_long_retry_after_raises_a_rate_limit_error_with_the_wait(monkeypatch)
     monkeypatch.setattr("urllib.request.urlopen", banned)
 
     with pytest.raises(SpotifyRateLimitedError) as info:
-        _client(sleep_fn=lambda s: None)._request(url="https://api.spotify.com/v1/a", correlation_id="c")
+        _client(sleep_fn=lambda s: None)._request(
+            url="https://api.spotify.com/v1/a", correlation_id="c"
+        )
 
     assert info.value.retry_after == 18053.0
     assert isinstance(info.value, SpotifyUnavailableError)  # existing handlers keep working
@@ -113,18 +115,33 @@ class PausableRepo:
 def _setup(monkeypatch, repo: PausableRepo) -> MagicMock:
     reset_settings_cache()
     registry.reset_cache()
-    for key, value in {"VENDORS_ENABLED": "spotify", "SPOTIFY_CLIENT_ID": "id",
-                       "SPOTIFY_CLIENT_SECRET": "secret", "RAW_BUCKET_NAME": "b",
-                       "SPOTIFY_RAW_PREFIX": "raw/sp/tracks", "SPOTIFY_SEARCH_QUEUE_URL": QUEUE}.items():
+    for key, value in {
+        "VENDORS_ENABLED": "spotify",
+        "SPOTIFY_CLIENT_ID": "id",
+        "SPOTIFY_CLIENT_SECRET": "secret",
+        "RAW_BUCKET_NAME": "b",
+        "SPOTIFY_RAW_PREFIX": "raw/sp/tracks",
+        "SPOTIFY_SEARCH_QUEUE_URL": QUEUE,
+    }.items():
         monkeypatch.setenv(key, value)
-    monkeypatch.setattr("collector.spotify_handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(
+        "collector.spotify_handler.create_clouder_repository_from_env", lambda: repo
+    )
     monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: MagicMock())
     return MagicMock()
 
 
 def _event(body: dict[str, Any]) -> dict[str, Any]:
-    return {"Records": [{"body": json.dumps(body),
-                         "messageAttributes": {"correlation_id": {"stringValue": "cid", "dataType": "String"}}}]}
+    return {
+        "Records": [
+            {
+                "body": json.dumps(body),
+                "messageAttributes": {
+                    "correlation_id": {"stringValue": "cid", "dataType": "String"}
+                },
+            }
+        ]
+    }
 
 
 def _run(sqs: MagicMock, body: dict[str, Any]) -> dict[str, Any]:
@@ -139,8 +156,10 @@ def test_a_long_ban_pauses_the_search_instead_of_failing(monkeypatch) -> None:
     def banned(self, tracks, correlation_id, **kwargs):
         raise SpotifyRateLimitedError(retry_after=18053.0)
 
-    monkeypatch.setattr("collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc", banned)
-    before = datetime.now(timezone.utc)
+    monkeypatch.setattr(
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc", banned
+    )
+    before = datetime.now(UTC)
 
     assert _run(sqs, {"batch_size": 100}) == {"processed": 1}  # no Lambda error, no alarm
 
@@ -152,10 +171,12 @@ def test_a_long_ban_pauses_the_search_instead_of_failing(monkeypatch) -> None:
 
 
 def test_while_paused_a_trigger_leaves_spotify_alone(monkeypatch) -> None:
-    repo = PausableRepo(blocked_until=datetime.now(timezone.utc) + timedelta(hours=2))
+    repo = PausableRepo(blocked_until=datetime.now(UTC) + timedelta(hours=2))
     sqs = _setup(monkeypatch, repo)
-    monkeypatch.setattr("collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
-                        lambda *a, **k: pytest.fail("called Spotify during a ban"))
+    monkeypatch.setattr(
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
+        lambda *a, **k: pytest.fail("called Spotify during a ban"),
+    )
 
     assert _run(sqs, {"batch_size": 100}) == {"processed": 1}
 
@@ -164,7 +185,7 @@ def test_while_paused_a_trigger_leaves_spotify_alone(monkeypatch) -> None:
 
 
 def test_while_paused_the_resume_message_re_arms_itself(monkeypatch) -> None:
-    repo = PausableRepo(blocked_until=datetime.now(timezone.utc) + timedelta(seconds=300))
+    repo = PausableRepo(blocked_until=datetime.now(UTC) + timedelta(seconds=300))
     sqs = _setup(monkeypatch, repo)
 
     _run(sqs, {"batch_size": 100, "resume": True})
@@ -176,12 +197,15 @@ def test_while_paused_the_resume_message_re_arms_itself(monkeypatch) -> None:
 
 
 def test_after_the_ban_the_search_runs_again(monkeypatch) -> None:
-    repo = PausableRepo(blocked_until=datetime.now(timezone.utc) - timedelta(seconds=1))
+    repo = PausableRepo(blocked_until=datetime.now(UTC) - timedelta(seconds=1))
     sqs = _setup(monkeypatch, repo)
-    monkeypatch.setattr("collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
-                        lambda self, tracks, correlation_id, **k: [])
-    monkeypatch.setattr("collector.spotify_handler.S3Storage.write_spotify_results",
-                        lambda self, **k: ("key", None))
+    monkeypatch.setattr(
+        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
+        lambda self, tracks, correlation_id, **k: [],
+    )
+    monkeypatch.setattr(
+        "collector.spotify_handler.S3Storage.write_spotify_results", lambda self, **k: ("key", None)
+    )
 
     _run(sqs, {"batch_size": 100, "resume": True})
 
@@ -191,9 +215,13 @@ def test_after_the_ban_the_search_runs_again(monkeypatch) -> None:
 def test_the_worker_client_is_paced_from_the_environment(monkeypatch) -> None:
     reset_settings_cache()
     registry.reset_cache()
-    for key, value in {"VENDORS_ENABLED": "spotify", "SPOTIFY_CLIENT_ID": "id",
-                       "SPOTIFY_CLIENT_SECRET": "secret", "RAW_BUCKET_NAME": "b",
-                       "SPOTIFY_MIN_REQUEST_INTERVAL_MS": "650"}.items():
+    for key, value in {
+        "VENDORS_ENABLED": "spotify",
+        "SPOTIFY_CLIENT_ID": "id",
+        "SPOTIFY_CLIENT_SECRET": "secret",
+        "RAW_BUCKET_NAME": "b",
+        "SPOTIFY_MIN_REQUEST_INTERVAL_MS": "650",
+    }.items():
         monkeypatch.setenv(key, value)
 
     assert registry.get_lookup("spotify")._client.min_request_interval_s == pytest.approx(0.65)

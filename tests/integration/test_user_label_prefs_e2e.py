@@ -7,16 +7,15 @@ from typing import Any
 from unittest.mock import MagicMock
 
 
-def _event(route: str, *, body: dict | None = None,
-           path: dict | None = None, qs: dict | None = None) -> dict:
+def _event(
+    route: str, *, body: dict | None = None, path: dict | None = None, qs: dict | None = None
+) -> dict:
     return {
         "routeKey": route,
         "pathParameters": path or {},
         "queryStringParameters": qs or {},
         "body": json.dumps(body) if body is not None else None,
-        "requestContext": {
-            "authorizer": {"lambda": {"is_admin": False, "user_id": "u-1"}}
-        },
+        "requestContext": {"authorizer": {"lambda": {"is_admin": False, "user_id": "u-1"}}},
     }
 
 
@@ -51,7 +50,8 @@ def test_put_then_get_label_returns_my_preference(monkeypatch):
 
     # 1. Start unrated → GET shows my_preference None.
     resp = handler.lambda_handler(
-        _event("GET /labels/{label_id}", path={"label_id": "lbl-1"}), None,
+        _event("GET /labels/{label_id}", path={"label_id": "lbl-1"}),
+        None,
     )
     assert resp["statusCode"] == 200
     assert json.loads(resp["body"])["my_preference"] is None
@@ -69,7 +69,8 @@ def test_put_then_get_label_returns_my_preference(monkeypatch):
 
     # 3. GET reflects new state.
     resp = handler.lambda_handler(
-        _event("GET /labels/{label_id}", path={"label_id": "lbl-1"}), None,
+        _event("GET /labels/{label_id}", path={"label_id": "lbl-1"}),
+        None,
     )
     assert json.loads(resp["body"])["my_preference"] == "liked"
 
@@ -84,6 +85,7 @@ def test_put_then_get_label_returns_my_preference(monkeypatch):
     )
     assert resp["statusCode"] == 204
     resp = handler.lambda_handler(
-        _event("GET /labels/{label_id}", path={"label_id": "lbl-1"}), None,
+        _event("GET /labels/{label_id}", path={"label_id": "lbl-1"}),
+        None,
     )
     assert json.loads(resp["body"])["my_preference"] is None

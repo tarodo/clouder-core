@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import base64
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from . import (
     SpotifyApiError,
@@ -56,7 +57,8 @@ def _track_payload(body: dict) -> SpotifyTrackPayload:
         isrc=(body.get("external_ids") or {}).get("isrc"),
         artists=tuple(
             SpotifyArtistRef(
-                id=a.get("id") or "", name=a.get("name") or "",
+                id=a.get("id") or "",
+                name=a.get("name") or "",
                 spotify_id=a.get("id"),
             )
             for a in (body.get("artists") or [])
@@ -83,12 +85,16 @@ class SpotifyUserClient:
 
     def get_playlist_name(self, spotify_playlist_id: str) -> str:
         body = self._request(
-            "GET", f"{_BASE}/playlists/{spotify_playlist_id}?fields=name",
+            "GET",
+            f"{_BASE}/playlists/{spotify_playlist_id}?fields=name",
         )
         return body.get("name") or ""
 
     def get_playlist_tracks(
-        self, spotify_playlist_id: str, *, limit: int,
+        self,
+        spotify_playlist_id: str,
+        *,
+        limit: int,
     ) -> list[SpotifyTrackPayload]:
         out: list[SpotifyTrackPayload] = []
         offset = 0
@@ -96,8 +102,7 @@ class SpotifyUserClient:
         while len(out) < limit:
             body = self._request(
                 "GET",
-                f"{_BASE}/playlists/{spotify_playlist_id}/tracks"
-                f"?limit={page_size}&offset={offset}",
+                f"{_BASE}/playlists/{spotify_playlist_id}/tracks?limit={page_size}&offset={offset}",
             )
             items = body.get("items") or []
             for item in items:
@@ -158,18 +163,14 @@ class SpotifyUserClient:
             },
         )
 
-    def replace_tracks(
-        self, spotify_playlist_id: str, uris: list[str]
-    ) -> None:
+    def replace_tracks(self, spotify_playlist_id: str, uris: list[str]) -> None:
         self._request(
             "PUT",
             f"{_BASE}/playlists/{spotify_playlist_id}/tracks",
             json_body={"uris": uris},
         )
 
-    def append_tracks(
-        self, spotify_playlist_id: str, uris: list[str]
-    ) -> None:
+    def append_tracks(self, spotify_playlist_id: str, uris: list[str]) -> None:
         if not uris:
             return
         self._request(
@@ -212,7 +213,10 @@ class SpotifyUserClient:
         attempts_5xx = 0
         while True:
             resp = self._session.request(
-                method=method, url=url, headers=headers, data=body,
+                method=method,
+                url=url,
+                headers=headers,
+                data=body,
             )
             status = getattr(resp, "status_code", 0)
             if 200 <= status < 300:
@@ -235,9 +239,7 @@ class SpotifyUserClient:
             if status == 429:
                 if attempts_429 >= _MAX_RETRIES_429:
                     raise SpotifyRateLimitedError("Spotify rate limit persists")
-                retry_after = float(
-                    (resp.headers or {}).get("Retry-After") or "0.0"
-                )
+                retry_after = float((resp.headers or {}).get("Retry-After") or "0.0")
                 self._sleep(retry_after)
                 attempts_429 += 1
                 continue
@@ -249,6 +251,4 @@ class SpotifyUserClient:
                 continue
             if status == 404:
                 raise SpotifyNotFoundError(f"Spotify 404: {url}")
-            raise SpotifyApiError(
-                f"Spotify {status}: unexpected response"
-            )
+            raise SpotifyApiError(f"Spotify {status}: unexpected response")

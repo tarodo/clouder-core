@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Mapping, cast
+from collections.abc import Mapping
+from typing import Any, cast
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -48,6 +49,7 @@ def _build_auto_repository() -> AutoEnrichRepository:
 
 def _build_sqs_client():
     import boto3
+
     return boto3.client("sqs")
 
 
@@ -102,11 +104,7 @@ def handle_post_enrich(event: Mapping[str, Any]) -> tuple[int, dict]:
             resolved_name = row["name"]
             # If caller passed style, prefer it. Otherwise derive from tracks.
             # If no tracks, fall back to "music" so vendors get a non-empty hint.
-            resolved_style = (
-                item.style
-                or repo.derive_style_for_label(resolved_id)
-                or "music"
-            )
+            resolved_style = item.style or repo.derive_style_for_label(resolved_id) or "music"
         else:
             # label_name path — must have style per the model_validator
             # The model_validator guarantees label_name (and style) on this path.
@@ -152,9 +150,14 @@ def handle_post_enrich_auto(event: Mapping[str, Any]) -> tuple[int, dict]:
         return 404, {"error_code": "label_not_found", "message": "label not found"}
 
     cfg = _build_auto_repository().get_config("labels")
-    if not cfg or not cfg.get("vendors") or not cfg.get("prompt_slug") \
-            or not cfg.get("prompt_version") or not cfg.get("merge_vendor") \
-            or not cfg.get("merge_model"):
+    if (
+        not cfg
+        or not cfg.get("vendors")
+        or not cfg.get("prompt_slug")
+        or not cfg.get("prompt_version")
+        or not cfg.get("merge_vendor")
+        or not cfg.get("merge_model")
+    ):
         return 409, {
             "error_code": "auto_config_missing",
             "message": "auto-enrich config is not set up",
@@ -179,12 +182,14 @@ def handle_post_enrich_auto(event: Mapping[str, Any]) -> tuple[int, dict]:
     sqs = _build_sqs_client()
     sqs.send_message(
         QueueUrl=_queue_url(),
-        MessageBody=json.dumps({
-            "run_id": run_id,
-            "label_id": label_id,
-            "label_name": row["name"],
-            "style": style,
-        }),
+        MessageBody=json.dumps(
+            {
+                "run_id": run_id,
+                "label_id": label_id,
+                "label_name": row["name"],
+                "style": style,
+            }
+        ),
     )
     return 202, {"run_id": run_id, "queued_labels": 1}
 
@@ -250,9 +255,7 @@ def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
     style = (qs.get("style") or "").strip() or None
     status = (qs.get("status") or "").strip() or None
     if status and status not in _BACKLOG_STATUSES:
-        raise ValidationError(
-            "status must be one of: " + ", ".join(_BACKLOG_STATUSES)
-        )
+        raise ValidationError("status must be one of: " + ", ".join(_BACKLOG_STATUSES))
     cursor = (qs.get("cursor") or "").strip() or None
     try:
         limit = int(qs.get("limit") or "100")
@@ -263,7 +266,10 @@ def handle_get_backlog(event: Mapping[str, Any]) -> tuple[int, dict]:
 
     repo = _build_repository()
     items, next_cursor, total = repo.list_backlog(
-        style=style, status=status, cursor=cursor, limit=limit,
+        style=style,
+        status=status,
+        cursor=cursor,
+        limit=limit,
     )
     return 200, {"items": items, "next_cursor": next_cursor, "total_estimate": total}
 
@@ -294,7 +300,9 @@ def handle_put_label_preference(event: Mapping[str, Any]) -> tuple[int, dict]:
         repo.delete_user_label_pref(user_id=user_id, label_id=label_id)
     else:
         repo.upsert_user_label_pref(
-            user_id=user_id, label_id=label_id, status=status,
+            user_id=user_id,
+            label_id=label_id,
+            status=status,
         )
     return 204, {}
 
@@ -322,7 +330,10 @@ def handle_get_my_label_preferences(event: Mapping[str, Any]) -> tuple[int, dict
         raise ValidationError("user_id is required")
     repo = _build_repository()
     items, total = repo.list_user_label_prefs(
-        user_id=user_id, status=status, page=page, limit=limit,
+        user_id=user_id,
+        status=status,
+        page=page,
+        limit=limit,
     )
     return 200, {"items": items, "total": total, "page": page, "limit": limit}
 
@@ -392,7 +403,12 @@ def handle_get_labels_list(event: Mapping[str, Any]) -> tuple[int, dict]:
     repo = _build_repository()
     user_id = _extract_user_id(event)
     items, total = repo.list_labels(
-        style=style, q=q, sort=sort, page=page, limit=limit,
-        user_id=user_id, my=my,
+        style=style,
+        q=q,
+        sort=sort,
+        page=page,
+        limit=limit,
+        user_id=user_id,
+        my=my,
     )
     return 200, {"items": items, "total": total, "page": page, "limit": limit}

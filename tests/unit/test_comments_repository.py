@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from collector.comments.repository import CommentsRepository
 from collector.providers.base import CollectedComment
@@ -36,14 +36,18 @@ class FakeDataAPI:
         return FakeDataAPI._Tx()
 
 
-NOW = datetime(2026, 6, 21, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 21, tzinfo=UTC)
 
 
 def test_start_collection_skips_when_already_collected_same_video():
-    api = FakeDataAPI([
-        ("SELECT id, external_video_id, status FROM comment_collections",
-         [{"id": "col1", "external_video_id": "vidA", "status": "collected"}]),
-    ])
+    api = FakeDataAPI(
+        [
+            (
+                "SELECT id, external_video_id, status FROM comment_collections",
+                [{"id": "col1", "external_video_id": "vidA", "status": "collected"}],
+            ),
+        ]
+    )
     repo = CommentsRepository(api)
     result = repo.start_collection(track_id="t1", platform="youtube", video_id="vidA", now=NOW)
     assert result is None
@@ -52,25 +56,33 @@ def test_start_collection_skips_when_already_collected_same_video():
 
 
 def test_start_collection_inserts_when_new():
-    api = FakeDataAPI([
-        ("SELECT id, external_video_id, status FROM comment_collections", []),
-        ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
-    ])
+    api = FakeDataAPI(
+        [
+            ("SELECT id, external_video_id, status FROM comment_collections", []),
+            ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
+        ]
+    )
     repo = CommentsRepository(api)
     result = repo.start_collection(track_id="t1", platform="youtube", video_id="vidA", now=NOW)
     assert result == "colNEW"
-    insert_sql, params, _ = [c for c in api.calls if "INSERT INTO comment_collections" in c[0]][0]
+    _insert_sql, params, _ = next(c for c in api.calls if "INSERT INTO comment_collections" in c[0])
     assert params["t"] == "t1" and params["p"] == "youtube" and params["v"] == "vidA"
 
 
 def test_start_collection_reinserts_when_video_changed():
-    api = FakeDataAPI([
-        ("SELECT id, external_video_id, status FROM comment_collections",
-         [{"id": "col1", "external_video_id": "OLD", "status": "collected"}]),
-        ("INSERT INTO comment_collections", [{"id": "col1"}]),
-    ])
+    api = FakeDataAPI(
+        [
+            (
+                "SELECT id, external_video_id, status FROM comment_collections",
+                [{"id": "col1", "external_video_id": "OLD", "status": "collected"}],
+            ),
+            ("INSERT INTO comment_collections", [{"id": "col1"}]),
+        ]
+    )
     repo = CommentsRepository(api)
-    assert repo.start_collection(track_id="t1", platform="youtube", video_id="NEW", now=NOW) == "col1"
+    assert (
+        repo.start_collection(track_id="t1", platform="youtube", video_id="NEW", now=NOW) == "col1"
+    )
 
 
 def test_store_comments_deletes_then_batch_inserts_and_marks_collected():
@@ -80,36 +92,60 @@ def test_store_comments_deletes_then_batch_inserts_and_marks_collected():
         CollectedComment("c1", "A", None, "hi", 2, NOW, 0),
         CollectedComment("c2", "B", "http://x", "yo", 0, None, 1),
     ]
-    repo.store_comments(collection_id="col1", platform="youtube", comments=comments,
-                        status="collected", now=NOW)
+    repo.store_comments(
+        collection_id="col1", platform="youtube", comments=comments, status="collected", now=NOW
+    )
     assert any("DELETE FROM external_comments" in sql for sql, *_ in api.calls)
     assert len(api.batch_calls) == 1
     _, sets, _ = api.batch_calls[0]
     assert [s["eid"] for s in sets] == ["c1", "c2"]
-    update_sql, params, _ = [c for c in api.calls if "UPDATE comment_collections" in c[0]][0]
+    _update_sql, params, _ = next(c for c in api.calls if "UPDATE comment_collections" in c[0])
     assert params["s"] == "collected" and params["n"] == 2
 
 
 def test_store_comments_empty_skips_batch_and_marks_status():
     api = FakeDataAPI()
     repo = CommentsRepository(api)
-    repo.store_comments(collection_id="col1", platform="youtube", comments=[],
-                        status="empty", now=NOW)
+    repo.store_comments(
+        collection_id="col1", platform="youtube", comments=[], status="empty", now=NOW
+    )
     assert api.batch_calls == []
-    update_sql, params, _ = [c for c in api.calls if "UPDATE comment_collections" in c[0]][0]
+    _update_sql, params, _ = next(c for c in api.calls if "UPDATE comment_collections" in c[0])
     assert params["s"] == "empty" and params["n"] == 0
 
 
 def test_list_comments_returns_collection_and_rows():
-    api = FakeDataAPI([
-        ("SELECT id, track_id, platform, external_video_id, status, comment_count, collected_at",
-         [{"id": "col1", "track_id": "t1", "platform": "youtube",
-           "external_video_id": "vidA", "status": "collected", "comment_count": 2,
-           "collected_at": None}]),
-        ("FROM external_comments",
-         [{"author_name": "A", "author_avatar_url": None, "text": "hi",
-           "like_count": 2, "published_at": None, "rank": 0}]),
-    ])
+    api = FakeDataAPI(
+        [
+            (
+                "SELECT id, track_id, platform, external_video_id, status, comment_count, collected_at",
+                [
+                    {
+                        "id": "col1",
+                        "track_id": "t1",
+                        "platform": "youtube",
+                        "external_video_id": "vidA",
+                        "status": "collected",
+                        "comment_count": 2,
+                        "collected_at": None,
+                    }
+                ],
+            ),
+            (
+                "FROM external_comments",
+                [
+                    {
+                        "author_name": "A",
+                        "author_avatar_url": None,
+                        "text": "hi",
+                        "like_count": 2,
+                        "published_at": None,
+                        "rank": 0,
+                    }
+                ],
+            ),
+        ]
+    )
     repo = CommentsRepository(api)
     collection, comments = repo.list_comments(track_id="t1", platform="youtube", limit=5)
     assert collection is not None and collection.status == "collected"
@@ -129,8 +165,9 @@ def test_store_comments_all_writes_share_transaction_id():
     api = FakeDataAPI()
     repo = CommentsRepository(api)
     comments = [CollectedComment("c1", "A", None, "hi", 1, NOW, 0)]
-    repo.store_comments(collection_id="col1", platform="youtube", comments=comments,
-                        status="collected", now=NOW)
+    repo.store_comments(
+        collection_id="col1", platform="youtube", comments=comments, status="collected", now=NOW
+    )
     # All execute() calls that are writes (DELETE and UPDATE) must carry tx "tx-1".
     write_calls = [c for c in api.calls if "SELECT" not in c[0]]
     assert write_calls, "expected at least one non-SELECT execute call"
@@ -145,6 +182,7 @@ def test_store_comments_all_writes_share_transaction_id():
 # ---------------------------------------------------------------------------
 # list_comments_for_tracks
 # ---------------------------------------------------------------------------
+
 
 def _coll_row(track_id: str, coll_id: str) -> dict:
     return {
@@ -186,12 +224,14 @@ def test_list_comments_for_tracks_two_tracks_grouping():
     c1 = _comment_row("col-1", 0)
     c2 = _comment_row("col-1", 1)
 
-    api = FakeDataAPI([
-        # collections query is identified by the SELECT with comment_collections + IN
-        ("FROM comment_collections", [col1, col2]),
-        # comments query is identified by collection_id IN
-        ("FROM external_comments", [c1, c2]),
-    ])
+    api = FakeDataAPI(
+        [
+            # collections query is identified by the SELECT with comment_collections + IN
+            ("FROM comment_collections", [col1, col2]),
+            # comments query is identified by collection_id IN
+            ("FROM external_comments", [c1, c2]),
+        ]
+    )
     repo = CommentsRepository(api)
     result = repo.list_comments_for_tracks(track_ids=["t1", "t2"], platform="youtube")
 
@@ -215,10 +255,12 @@ def test_list_comments_for_tracks_no_collection_track_absent():
     col1 = _coll_row("t1", "col-1")
     c1 = _comment_row("col-1", 0)
 
-    api = FakeDataAPI([
-        ("FROM comment_collections", [col1]),   # only t1 has a collection
-        ("FROM external_comments", [c1]),
-    ])
+    api = FakeDataAPI(
+        [
+            ("FROM comment_collections", [col1]),  # only t1 has a collection
+            ("FROM external_comments", [c1]),
+        ]
+    )
     repo = CommentsRepository(api)
     result = repo.list_comments_for_tracks(track_ids=["t1", "t2-missing"], platform="youtube")
 
@@ -231,10 +273,12 @@ def test_list_comments_for_tracks_limit_per_track():
     col1 = _coll_row("t1", "col-1")
     comments = [_comment_row("col-1", r) for r in range(5)]
 
-    api = FakeDataAPI([
-        ("FROM comment_collections", [col1]),
-        ("FROM external_comments", comments),
-    ])
+    api = FakeDataAPI(
+        [
+            ("FROM comment_collections", [col1]),
+            ("FROM external_comments", comments),
+        ]
+    )
     repo = CommentsRepository(api)
     result = repo.list_comments_for_tracks(track_ids=["t1"], platform="youtube", limit_per_track=3)
 
@@ -245,15 +289,15 @@ def test_list_comments_for_tracks_limit_per_track():
 
 def test_list_comments_for_tracks_in_clause_params():
     """The params dict contains track-id placeholders t0, t1, ... and platform."""
-    api = FakeDataAPI([
-        ("FROM comment_collections", []),
-    ])
+    api = FakeDataAPI(
+        [
+            ("FROM comment_collections", []),
+        ]
+    )
     repo = CommentsRepository(api)
     repo.list_comments_for_tracks(track_ids=["track-A", "track-B"], platform="youtube")
 
-    coll_call = next(
-        (sql, params) for sql, params, _ in api.calls if "comment_collections" in sql
-    )
+    coll_call = next((sql, params) for sql, params, _ in api.calls if "comment_collections" in sql)
     _, params = coll_call
     assert params["t0"] == "track-A"
     assert params["t1"] == "track-B"
@@ -266,10 +310,12 @@ def test_list_comments_for_tracks_query2_collection_id_params():
     The FakeDataAPI routes by SQL substring and ignores params, so a
     placeholder/param mismatch on this second query would be invisible without
     this assertion (it only surfaces against a real DB)."""
-    api = FakeDataAPI([
-        ("FROM comment_collections", [_coll_row("t1", "col-1"), _coll_row("t2", "col-2")]),
-        ("FROM external_comments", [_comment_row("col-1", 0)]),
-    ])
+    api = FakeDataAPI(
+        [
+            ("FROM comment_collections", [_coll_row("t1", "col-1"), _coll_row("t2", "col-2")]),
+            ("FROM external_comments", [_comment_row("col-1", 0)]),
+        ]
+    )
     repo = CommentsRepository(api)
     repo.list_comments_for_tracks(track_ids=["t1", "t2"], platform="youtube")
 
@@ -283,9 +329,11 @@ def test_list_comments_for_tracks_query2_collection_id_params():
 
 def test_list_comments_for_tracks_no_collections_skips_second_query():
     """If query 1 returns no collections, query 2 (external_comments) is never issued."""
-    api = FakeDataAPI([
-        ("FROM comment_collections", []),
-    ])
+    api = FakeDataAPI(
+        [
+            ("FROM comment_collections", []),
+        ]
+    )
     repo = CommentsRepository(api)
     result = repo.list_comments_for_tracks(track_ids=["t1"], platform="youtube")
 
@@ -297,13 +345,23 @@ def test_list_comments_for_tracks_no_collections_skips_second_query():
 # fetch_track_meta
 # ---------------------------------------------------------------------------
 
+
 def test_fetch_track_meta_maps_rows():
-    api = FakeDataAPI([
-        ("FROM clouder_tracks t", [
-            {"track_id": "t1", "title": "Lost Track",
-             "length_ms": 225000, "artist_names": "Guri, Eider"},
-        ]),
-    ])
+    api = FakeDataAPI(
+        [
+            (
+                "FROM clouder_tracks t",
+                [
+                    {
+                        "track_id": "t1",
+                        "title": "Lost Track",
+                        "length_ms": 225000,
+                        "artist_names": "Guri, Eider",
+                    },
+                ],
+            ),
+        ]
+    )
     repo = CommentsRepository(api)
     meta = repo.fetch_track_meta(["t1"])
     assert "t1" in meta
@@ -318,11 +376,16 @@ def test_fetch_track_meta_empty_input():
 
 
 def test_fetch_track_meta_maps_null_duration():
-    api = FakeDataAPI([
-        ("FROM clouder_tracks t", [
-            {"track_id": "t1", "title": "Solo", "length_ms": None, "artist_names": ""},
-        ]),
-    ])
+    api = FakeDataAPI(
+        [
+            (
+                "FROM clouder_tracks t",
+                [
+                    {"track_id": "t1", "title": "Solo", "length_ms": None, "artist_names": ""},
+                ],
+            ),
+        ]
+    )
     repo = CommentsRepository(api)
     meta = repo.fetch_track_meta(["t1"])["t1"]
     assert meta.duration_ms is None and meta.artist == ""
@@ -332,12 +395,17 @@ def test_fetch_track_meta_maps_null_duration():
 # store_comments with external_video_id
 # ---------------------------------------------------------------------------
 
+
 def test_store_comments_updates_external_video_id_when_provided():
     api = FakeDataAPI()
     repo = CommentsRepository(api)
     repo.store_comments(
-        collection_id="col1", platform="youtube", comments=[],
-        status="collected", now=NOW, external_video_id="alt-vid",
+        collection_id="col1",
+        platform="youtube",
+        comments=[],
+        status="collected",
+        now=NOW,
+        external_video_id="alt-vid",
     )
     update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][:1][0][:2]
     assert "external_video_id = :evid" in update_sql
@@ -348,8 +416,11 @@ def test_store_comments_omits_external_video_id_when_not_provided():
     api = FakeDataAPI()
     repo = CommentsRepository(api)
     repo.store_comments(
-        collection_id="col1", platform="youtube", comments=[],
-        status="empty", now=NOW,
+        collection_id="col1",
+        platform="youtube",
+        comments=[],
+        status="empty",
+        now=NOW,
     )
     update_sql, params = [c for c in api.calls if "UPDATE comment_collections" in c[0]][:1][0][:2]
     assert "external_video_id" not in update_sql
@@ -357,11 +428,15 @@ def test_store_comments_omits_external_video_id_when_not_provided():
 
 
 def test_start_collection_empty_seed_skips_when_already_collected():
-    api = FakeDataAPI([
-        ("SELECT id, external_video_id, status FROM comment_collections",
-         [{"id": "colOLD", "external_video_id": "vidOLD", "status": "collected"}]),
-        ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
-    ])
+    api = FakeDataAPI(
+        [
+            (
+                "SELECT id, external_video_id, status FROM comment_collections",
+                [{"id": "colOLD", "external_video_id": "vidOLD", "status": "collected"}],
+            ),
+            ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
+        ]
+    )
     repo = CommentsRepository(api)
     result = repo.start_collection(track_id="t1", platform="youtube", video_id="", now=NOW)
     assert result is None
@@ -369,19 +444,23 @@ def test_start_collection_empty_seed_skips_when_already_collected():
 
 
 def test_start_collection_empty_seed_inserts_when_not_collected():
-    api = FakeDataAPI([
-        ("SELECT id, external_video_id, status FROM comment_collections", []),
-        ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
-    ])
+    api = FakeDataAPI(
+        [
+            ("SELECT id, external_video_id, status FROM comment_collections", []),
+            ("INSERT INTO comment_collections", [{"id": "colNEW"}]),
+        ]
+    )
     repo = CommentsRepository(api)
     result = repo.start_collection(track_id="t1", platform="youtube", video_id="", now=NOW)
     assert result == "colNEW"
 
 
 def test_promoted_track_ids_for_block():
-    api = FakeDataAPI([
-        ("FROM category_tracks ct", [{"track_id": "t1"}, {"track_id": "t2"}]),
-    ])
+    api = FakeDataAPI(
+        [
+            ("FROM category_tracks ct", [{"track_id": "t1"}, {"track_id": "t2"}]),
+        ]
+    )
     repo = CommentsRepository(api)
     out = repo.promoted_track_ids_for_block(block_id="blk-1", user_id="u1")
     assert out == ["t1", "t2"]

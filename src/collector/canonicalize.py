@@ -12,10 +12,11 @@ import json
 import math
 import time
 from collections import Counter
-from contextlib import nullcontext
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from contextlib import AbstractContextManager, nullcontext
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any
 from uuid import uuid4
 
 from .logging_utils import log_event
@@ -85,7 +86,7 @@ class _ReadOnlyRepository:
     def __init__(self, repository: ClouderRepository) -> None:
         self._repository = repository
 
-    def transaction(self):
+    def transaction(self) -> AbstractContextManager[None]:
         return nullcontext(None)
 
     def __getattr__(self, name: str) -> Any:
@@ -232,7 +233,7 @@ class Canonicalizer:
         entity_type: str,
         external_ids: Sequence[str],
         observed_at: datetime,
-        transaction_id: str,
+        transaction_id: str | None,  # None in a dry run: reads outside a transaction
     ) -> tuple[dict[str, str], set[str]]:
         """Map external ids to clouder ids in two Data API calls, race-safe.
 
@@ -262,9 +263,7 @@ class Canonicalizer:
         )
         missing = candidates.keys() - resolved.keys()
         if missing and not self._dry_run:
-            raise RuntimeError(
-                f"identity claim did not resolve {len(missing)} {entity_type} ids"
-            )
+            raise RuntimeError(f"identity claim did not resolve {len(missing)} {entity_type} ids")
         # Dry run: nothing was claimed, so ids without an identity would be created
         # under the candidate id.
         resolved = {**{ext: candidates[ext] for ext in missing}, **resolved}
@@ -373,8 +372,7 @@ class Canonicalizer:
                 transaction_id=transaction_id,
             )
         album_ids = {
-            album.bp_release_id: resolved[str(album.bp_release_id)]
-            for album in bundle.albums
+            album.bp_release_id: resolved[str(album.bp_release_id)] for album in bundle.albums
         }
         _log_phase(run_id, "albums", len(album_ids), started)
         return album_ids, len(created)
@@ -419,9 +417,7 @@ class Canonicalizer:
             max(1, math.ceil(len(bundle.tracks) / TRACK_CHUNK_SIZE)) if bundle.tracks else 0
         )
 
-        for chunk_index, chunk in enumerate(
-            _chunks(bundle.tracks, TRACK_CHUNK_SIZE), start=1
-        ):
+        for chunk_index, chunk in enumerate(_chunks(bundle.tracks, TRACK_CHUNK_SIZE), start=1):
             chunk_started = time.perf_counter()
             log_event(
                 "INFO",
@@ -473,9 +469,7 @@ class Canonicalizer:
                         else None
                     )
                     style_id = (
-                        style_ids.get(track.bp_genre_id)
-                        if track.bp_genre_id is not None
-                        else None
+                        style_ids.get(track.bp_genre_id) if track.bp_genre_id is not None else None
                     )
                     publish_date = parse_iso_date(track.publish_date)
                     if str(track.bp_track_id) in created:
@@ -536,9 +530,7 @@ class Canonicalizer:
                                 )
                             )
 
-                self._repository.batch_create_tracks(
-                    new_tracks, transaction_id=transaction_id
-                )
+                self._repository.batch_create_tracks(new_tracks, transaction_id=transaction_id)
                 self._repository.batch_conservative_update_tracks(
                     updates, transaction_id=transaction_id
                 )
@@ -560,6 +552,7 @@ class Canonicalizer:
 
         _log_phase(run_id, "tracks", len(track_ids), started)
         return track_ids, counts, field_changes
+
 
 def _payload_hash(payload: Mapping[str, Any]) -> str:
     canonical_payload = json.dumps(
@@ -611,8 +604,8 @@ def _identity_cmd(
     )
 
 
-def _chunks(items: Iterable[Any], chunk_size: int):
-    chunk = []
+def _chunks(items: Iterable[Any], chunk_size: int) -> Iterator[list[Any]]:
+    chunk: list[Any] = []
     for item in items:
         chunk.append(item)
         if len(chunk) == chunk_size:

@@ -9,27 +9,21 @@ def test_fetch_ssm_parameter_decrypts_and_returns_string(monkeypatch) -> None:
     from collector import secrets
 
     fake_client = MagicMock()
-    fake_client.get_parameter.return_value = {
-        "Parameter": {"Value": "secret-value"}
-    }
+    fake_client.get_parameter.return_value = {"Parameter": {"Value": "secret-value"}}
     monkeypatch.setattr(secrets, "_ssm_client", lambda: fake_client)
     secrets._fetch_ssm_parameter.cache_clear()
 
     result = secrets._fetch_ssm_parameter("/clouder/test/key")
 
     assert result == "secret-value"
-    fake_client.get_parameter.assert_called_once_with(
-        Name="/clouder/test/key", WithDecryption=True
-    )
+    fake_client.get_parameter.assert_called_once_with(Name="/clouder/test/key", WithDecryption=True)
 
 
 def test_fetch_ssm_parameter_is_cached(monkeypatch) -> None:
     from collector import secrets
 
     fake_client = MagicMock()
-    fake_client.get_parameter.return_value = {
-        "Parameter": {"Value": "cached-value"}
-    }
+    fake_client.get_parameter.return_value = {"Parameter": {"Value": "cached-value"}}
     monkeypatch.setattr(secrets, "_ssm_client", lambda: fake_client)
     secrets._fetch_ssm_parameter.cache_clear()
 

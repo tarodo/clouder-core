@@ -49,10 +49,12 @@ def _thread(cid, author, text, likes, when, avatar="http://a/x.jpg"):
 
 
 def test_collect_parses_threads_in_order():
-    payload = {"items": [
-        _thread("c1", "Alice", "first", 5, "2025-01-02T10:00:00Z"),
-        _thread("c2", "Bob", "second", 0, "2025-01-03T11:30:00Z"),
-    ]}
+    payload = {
+        "items": [
+            _thread("c1", "Alice", "first", 5, "2025-01-02T10:00:00Z"),
+            _thread("c2", "Bob", "second", 0, "2025-01-03T11:30:00Z"),
+        ]
+    }
     session = FakeSession(FakeResp(200, payload))
     provider = YouTubeCommentProvider(api_key="KEY", session=session)
 
@@ -74,16 +76,16 @@ def test_collect_parses_threads_in_order():
 
 
 def test_collect_caps_at_limit():
-    payload = {"items": [
-        _thread(f"c{i}", "A", "t", 0, "2025-01-02T10:00:00Z") for i in range(10)
-    ]}
+    payload = {"items": [_thread(f"c{i}", "A", "t", 0, "2025-01-02T10:00:00Z") for i in range(10)]}
     provider = YouTubeCommentProvider(api_key="K", session=FakeSession(FakeResp(200, payload)))
     out = provider.collect("v", limit=3)
     assert len(out) == 3
 
 
 def test_collect_empty_items_returns_empty():
-    provider = YouTubeCommentProvider(api_key="K", session=FakeSession(FakeResp(200, {"items": []})))
+    provider = YouTubeCommentProvider(
+        api_key="K", session=FakeSession(FakeResp(200, {"items": []}))
+    )
     assert provider.collect("v") == []
 
 
@@ -123,13 +125,18 @@ class FakeYtClient:
 
 def _video(video_id, title):
     # artists is the uploading channel on purpose — the matcher must ignore it.
-    return {"videoId": video_id, "title": title,
-            "artists": [{"name": "Some Channel"}], "duration_seconds": 200}
+    return {
+        "videoId": video_id,
+        "title": title,
+        "artists": [{"name": "Some Channel"}],
+        "duration_seconds": 200,
+    }
 
 
 def _provider(results):
-    return YouTubeCommentProvider(api_key="K", session=object(),
-                                  ytmusic_client=FakeYtClient(results))
+    return YouTubeCommentProvider(
+        api_key="K", session=object(), ytmusic_client=FakeYtClient(results)
+    )
 
 
 def test_resolve_returns_matching_videos_in_search_order():

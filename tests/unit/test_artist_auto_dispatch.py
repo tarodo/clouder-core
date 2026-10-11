@@ -6,32 +6,57 @@ from collector.artist_enrichment.repository import RunSpec
 
 class FakeAutoRepo:
     def __init__(self, enabled=True, claim=None, ids_for_track=None, ids_for_block=None):
-        self._cfg = {"enabled": enabled, "prompt_slug": "artist_v1", "prompt_version": "v1",
-                     "vendors": ["openai"], "models": {"openai": "m"},
-                     "merge_vendor": "deepseek", "merge_model": "d"} if enabled else {"enabled": False}
+        self._cfg = (
+            {
+                "enabled": enabled,
+                "prompt_slug": "artist_v1",
+                "prompt_version": "v1",
+                "vendors": ["openai"],
+                "models": {"openai": "m"},
+                "merge_vendor": "deepseek",
+                "merge_model": "d",
+            }
+            if enabled
+            else {"enabled": False}
+        )
         self._claim = claim if claim is not None else []
         self._ids_for_track = ids_for_track or []
         self._ids_for_block = ids_for_block or []
         self.attached = None
+
     def get_config(self, kind):
         assert kind == "artists"
         return self._cfg
-    def claim_artists(self, ids): return list(self._claim)
-    def attach_run(self, ids, run_id): self.attached = (list(ids), run_id)
-    def artist_ids_for_track(self, track_id): return list(self._ids_for_track)
-    def artist_ids_for_triage_block(self, block_id): return list(self._ids_for_block)
+
+    def claim_artists(self, ids):
+        return list(self._claim)
+
+    def attach_run(self, ids, run_id):
+        self.attached = (list(ids), run_id)
+
+    def artist_ids_for_track(self, track_id):
+        return list(self._ids_for_track)
+
+    def artist_ids_for_triage_block(self, block_id):
+        return list(self._ids_for_block)
 
 
 class FakeArtistRepo:
-    def __init__(self): self.created = None
-    def get_artists_by_ids(self, ids): return {aid: f"name-{aid}" for aid in ids}
+    def __init__(self):
+        self.created = None
+
+    def get_artists_by_ids(self, ids):
+        return {aid: f"name-{aid}" for aid in ids}
+
     def create_run(self, spec):
         self.created = spec
         return "run-1"
 
 
 class FakeSQS:
-    def __init__(self): self.batches = []
+    def __init__(self):
+        self.batches = []
+
     def send_message_batch(self, **kw):
         self.batches.append(kw)
         return {"Successful": [{"Id": e["Id"]} for e in kw["Entries"]], "Failed": []}
@@ -79,17 +104,18 @@ def test_happy_path_creates_run_and_enqueues_per_artist(monkeypatch):
     assert "style" not in msg
 
 
-
 def test_track_dispatch_resolves_all_roles(monkeypatch):
     # artist_ids_for_track returns MULTIPLE artists (all roles)
     auto = FakeAutoRepo(enabled=True, claim=["a1", "a2", "a3"], ids_for_track=["a1", "a2", "a3"])
-    artist_repo, sqs = _wire(monkeypatch, auto)
+    _artist_repo, sqs = _wire(monkeypatch, auto)
     ad.try_dispatch_artists_for_track(track_id="t1", user_id="u")
     assert len(sqs.sent) == 3
 
 
 def test_dispatch_never_raises(monkeypatch):
-    def boom(): raise RuntimeError("db down")
+    def boom():
+        raise RuntimeError("db down")
+
     monkeypatch.setattr(ad, "_build_auto_repository", boom)
     # must not raise
     ad.try_dispatch_artists_for_track(track_id="t1", user_id="u")

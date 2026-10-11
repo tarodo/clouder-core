@@ -38,8 +38,10 @@ def worker_patches(monkeypatch):
     )
 
     settings_obj = MagicMock(
-        gemini_api_key="g", openai_api_key="o",
-        tavily_api_key="t", deepseek_api_key="d",
+        gemini_api_key="g",
+        openai_api_key="o",
+        tavily_api_key="t",
+        deepseek_api_key="d",
         request_timeout_s=30.0,
         ai_flag_confidence_threshold=0.5,
     )
@@ -74,11 +76,15 @@ def worker_patches(monkeypatch):
 
 
 def test_worker_dispatches_orchestrator(worker_patches):
-    repo, enrich_calls = worker_patches
-    event = _sqs_event({
-        "run_id": "run-1", "label_id": "lbl-1",
-        "label_name": "Drumcode", "style": "techno",
-    })
+    _repo, enrich_calls = worker_patches
+    event = _sqs_event(
+        {
+            "run_id": "run-1",
+            "label_id": "lbl-1",
+            "label_name": "Drumcode",
+            "style": "techno",
+        }
+    )
     result = lambda_handler(event, None)
     assert result == {"processed": 1}
     assert len(enrich_calls) == 1
@@ -90,7 +96,7 @@ def test_worker_dispatches_orchestrator(worker_patches):
 
 
 def test_worker_drops_invalid_message(worker_patches):
-    repo, enrich_calls = worker_patches
+    _repo, enrich_calls = worker_patches
     event = _sqs_event({"run_id": "", "label_id": "x", "label_name": "y", "style": "z"})
     result = lambda_handler(event, None)
     assert result == {"processed": 0}
@@ -100,10 +106,14 @@ def test_worker_drops_invalid_message(worker_patches):
 def test_worker_raises_when_run_missing(worker_patches):
     repo, _ = worker_patches
     repo.get_run.return_value = None
-    event = _sqs_event({
-        "run_id": "missing", "label_id": "lbl-1",
-        "label_name": "x", "style": "y",
-    })
+    event = _sqs_event(
+        {
+            "run_id": "missing",
+            "label_id": "lbl-1",
+            "label_name": "x",
+            "style": "y",
+        }
+    )
     with pytest.raises(RuntimeError, match="run not found"):
         lambda_handler(event, None)
 
@@ -131,8 +141,10 @@ def test_worker_parses_jsonb_strings_from_data_api(monkeypatch):
         lambda: (repo, auto_repo),
     )
     settings_obj = MagicMock(
-        gemini_api_key="g", openai_api_key="o",
-        tavily_api_key="t", deepseek_api_key="d",
+        gemini_api_key="g",
+        openai_api_key="o",
+        tavily_api_key="t",
+        deepseek_api_key="d",
         request_timeout_s=30.0,
         ai_flag_confidence_threshold=0.5,
     )
@@ -143,8 +155,15 @@ def test_worker_parses_jsonb_strings_from_data_api(monkeypatch):
 
     captured: dict = {}
 
-    def fake_build_adapters(*, vendor_names, models, secrets, request_timeout_s,
-                             openai_max_tool_calls=3, openai_reasoning_effort=""):
+    def fake_build_adapters(
+        *,
+        vendor_names,
+        models,
+        secrets,
+        request_timeout_s,
+        openai_max_tool_calls=3,
+        openai_reasoning_effort="",
+    ):
         captured["vendor_names"] = vendor_names
         captured["models"] = models
         return [MagicMock(name="adapter")]
@@ -162,10 +181,14 @@ def test_worker_parses_jsonb_strings_from_data_api(monkeypatch):
         lambda *a, **k: MagicMock(),
     )
 
-    event = _sqs_event({
-        "run_id": "run-1", "label_id": "lbl-1",
-        "label_name": "Drumcode", "style": "techno",
-    })
+    event = _sqs_event(
+        {
+            "run_id": "run-1",
+            "label_id": "lbl-1",
+            "label_name": "Drumcode",
+            "style": "techno",
+        }
+    )
     result = lambda_handler(event, None)
     assert result == {"processed": 1}
     assert captured["vendor_names"] == ["gemini", "openai"]

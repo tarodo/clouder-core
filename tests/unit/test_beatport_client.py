@@ -11,7 +11,9 @@ def test_retryable_status_matrix() -> None:
     assert not is_retryable_status(403)
 
 
-def test_fetch_weekly_releases_uses_tracks_endpoint_and_next_pagination(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fetch_weekly_releases_uses_tracks_endpoint_and_next_pagination(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = BeatportClient(base_url="https://api.beatport.com/v4/catalog")
     calls = []
 

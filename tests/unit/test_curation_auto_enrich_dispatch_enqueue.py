@@ -4,8 +4,11 @@ import collector.curation.auto_enrich_dispatch as d
 
 
 class FakeSQS:
-    def __init__(self): self.sent = []
-    def send_message(self, **kw): self.sent.append(kw)
+    def __init__(self):
+        self.sent = []
+
+    def send_message(self, **kw):
+        self.sent.append(kw)
 
 
 def test_enqueue_sends_one_block_message(monkeypatch):
@@ -19,6 +22,8 @@ def test_enqueue_sends_one_block_message(monkeypatch):
 
 
 def test_enqueue_never_raises(monkeypatch):
-    def boom(): raise RuntimeError("no queue")
+    def boom():
+        raise RuntimeError("no queue")
+
     monkeypatch.setattr(d, "_build_sqs_client", boom)
     d.enqueue_block_auto_enrich(block_id="blk-1", user_id="u1")  # must not raise

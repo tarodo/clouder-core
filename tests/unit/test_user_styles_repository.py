@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -85,10 +85,12 @@ def test_list_all_keeps_created_at_desc_order():
 
 def test_list_catalog_projects_selected_and_position():
     api = FakeDataApi()
-    api.script([
-        {"id": "sty-1", "name": "Drum & Bass", "selected": True, "position": 0},
-        {"id": "sty-2", "name": "House", "selected": False, "position": None},
-    ])
+    api.script(
+        [
+            {"id": "sty-1", "name": "Drum & Bass", "selected": True, "position": 0},
+            {"id": "sty-2", "name": "House", "selected": False, "position": None},
+        ]
+    )
     repo = UserStylesRepository(data_api=api)
 
     rows = repo.list_catalog(user_id="u-1", limit=200, offset=0, search=None)
@@ -106,15 +108,11 @@ def test_list_catalog_projects_selected_and_position():
 @pytest.mark.parametrize(
     "read",
     [
-        lambda repo, search: repo.list_for_user(
-            user_id="u-1", limit=50, offset=0, search=search
-        ),
+        lambda repo, search: repo.list_for_user(user_id="u-1", limit=50, offset=0, search=search),
         lambda repo, search: repo.count_for_user(user_id="u-1", search=search),
         lambda repo, search: repo.list_all(limit=50, offset=0, search=search),
         lambda repo, search: repo.count_all(search),
-        lambda repo, search: repo.list_catalog(
-            user_id="u-1", limit=50, offset=0, search=search
-        ),
+        lambda repo, search: repo.list_catalog(user_id="u-1", limit=50, offset=0, search=search),
     ],
     ids=["list_for_user", "count_for_user", "list_all", "count_all", "list_catalog"],
 )
@@ -156,7 +154,7 @@ class FakeTxDataApi(FakeDataApi):
         self.committed = True
 
 
-_NOW = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 9, 20, 12, 0, tzinfo=UTC)
 
 
 def test_replace_selection_deletes_then_inserts_in_order():
@@ -164,9 +162,7 @@ def test_replace_selection_deletes_then_inserts_in_order():
     api.script([{"id": "sty-1"}, {"id": "sty-2"}])  # validation SELECT
     repo = UserStylesRepository(data_api=api)
 
-    repo.replace_selection(
-        user_id="u-1", style_ids=["sty-2", "sty-1"], now=_NOW
-    )
+    repo.replace_selection(user_id="u-1", style_ids=["sty-2", "sty-1"], now=_NOW)
 
     sqls = [sql for sql, _ in api.calls]
     assert "SELECT id FROM clouder_styles" in sqls[0]
@@ -187,9 +183,7 @@ def test_replace_selection_rejects_unknown_style():
     repo = UserStylesRepository(data_api=api)
 
     with pytest.raises(ValidationError) as exc:
-        repo.replace_selection(
-            user_id="u-1", style_ids=["sty-1", "sty-9"], now=_NOW
-        )
+        repo.replace_selection(user_id="u-1", style_ids=["sty-1", "sty-9"], now=_NOW)
 
     assert "unknown style_id: sty-9" in exc.value.message
     assert not any("INSERT" in sql for sql, _ in api.calls)

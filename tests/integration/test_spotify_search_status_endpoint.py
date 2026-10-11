@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -61,9 +61,11 @@ class FakeRepo:
 
 class FakeSqs:
     def __init__(self, visible=0, in_flight=0, delayed=0):
-        self.attrs = {"ApproximateNumberOfMessages": str(visible),
-                      "ApproximateNumberOfMessagesNotVisible": str(in_flight),
-                      "ApproximateNumberOfMessagesDelayed": str(delayed)}
+        self.attrs = {
+            "ApproximateNumberOfMessages": str(visible),
+            "ApproximateNumberOfMessagesNotVisible": str(in_flight),
+            "ApproximateNumberOfMessagesDelayed": str(delayed),
+        }
         self.asked = None
 
     def get_queue_attributes(self, *, QueueUrl, AttributeNames):
@@ -72,8 +74,8 @@ class FakeSqs:
 
 
 def _call(monkeypatch, repo, sqs, **kwargs):
-    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
-    monkeypatch.setattr("collector.handler.create_default_sqs_client", lambda: sqs)
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr("collector.api.deps.create_default_sqs_client", lambda: sqs)
     response = handler.lambda_handler(_event(**kwargs), _ctx())
     return response["statusCode"], json.loads(response["body"])
 
@@ -88,7 +90,9 @@ def test_running_when_a_worker_holds_a_message(monkeypatch):
     assert body["queue"] == {"waiting_messages": 0, "in_flight": 1, "delayed": 0}
     assert body["paused_until"] is None
     assert sqs.asked[0] == QUEUE
-    assert datetime.now(timezone.utc) - repo.since == pytest.approx(timedelta(minutes=10), abs=timedelta(seconds=5))
+    assert datetime.now(UTC) - repo.since == pytest.approx(
+        timedelta(minutes=10), abs=timedelta(seconds=5)
+    )
 
 
 def test_queued_when_a_message_waits_for_a_worker(monkeypatch):
@@ -102,15 +106,16 @@ def test_idle_when_the_queue_is_empty(monkeypatch):
 
 
 def test_paused_during_a_spotify_ban(monkeypatch):
-    until = datetime.now(timezone.utc) + timedelta(hours=3)
+    until = datetime.now(UTC) + timedelta(hours=3)
     _, body = _call(monkeypatch, FakeRepo(blocked_until=until), FakeSqs(delayed=1))
     assert body["status"] == "paused"
     assert body["paused_until"] == until.isoformat()
 
 
 def test_an_expired_ban_is_not_a_pause(monkeypatch):
-    _, body = _call(monkeypatch, FakeRepo(blocked_until=datetime.now(timezone.utc) - timedelta(minutes=1)),
-                    FakeSqs())
+    _, body = _call(
+        monkeypatch, FakeRepo(blocked_until=datetime.now(UTC) - timedelta(minutes=1)), FakeSqs()
+    )
     assert (body["status"], body["paused_until"]) == ("idle", None)
 
 

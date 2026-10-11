@@ -40,8 +40,7 @@ def _http_with(responses: list[dict]):
     dict in order (queued), httpx-style (.raise_for_status() + .json())."""
     http = MagicMock()
     http.post.side_effect = [
-        SimpleNamespace(raise_for_status=lambda: None, json=lambda body=r: body)
-        for r in responses
+        SimpleNamespace(raise_for_status=lambda: None, json=lambda body=r: body) for r in responses
     ]
     return http
 
@@ -123,13 +122,19 @@ def test_short_name_validation_relaxed():
 
 
 def test_tier1_instagram_from_raw_content():
-    http = _http_with([
-        {"results": [{
-            "url": "https://x.example",
-            "raw_content": "see https://www.instagram.com/anarkick_records ok",
-            "content": "Anarkick Records hard techno label",
-        }]},
-    ])
+    http = _http_with(
+        [
+            {
+                "results": [
+                    {
+                        "url": "https://x.example",
+                        "raw_content": "see https://www.instagram.com/anarkick_records ok",
+                        "content": "Anarkick Records hard techno label",
+                    }
+                ]
+            },
+        ]
+    )
     resolver = SocialsResolver(tavily_api_key="k", http=http)
     r = resolver.resolve(kind="label", name="Anarkick Records", style="hard techno", merged={})
     assert isinstance(r, SocialsResult)
@@ -139,13 +144,19 @@ def test_tier1_instagram_from_raw_content():
 
 
 def test_tier2_extract_known_pages():
-    http = _http_with([
-        {"results": [{"url": "https://irrelevant.example", "raw_content": "nothing here"}]},
-        {"results": [{
-            "url": "https://www.anarkick.com",
-            "raw_content": "follow https://www.instagram.com/anarkick_records",
-        }]},
-    ])
+    http = _http_with(
+        [
+            {"results": [{"url": "https://irrelevant.example", "raw_content": "nothing here"}]},
+            {
+                "results": [
+                    {
+                        "url": "https://www.anarkick.com",
+                        "raw_content": "follow https://www.instagram.com/anarkick_records",
+                    }
+                ]
+            },
+        ]
+    )
     resolver = SocialsResolver(tavily_api_key="k", http=http)
     merged = {"website": "https://www.anarkick.com"}
     r = resolver.resolve(kind="label", name="Anarkick Records", style="hard techno", merged=merged)
@@ -155,14 +166,18 @@ def test_tier2_extract_known_pages():
 
 
 def test_tier3_topup_with_validation():
-    http = _http_with([
-        {"results": []},  # tier1 search: nothing
-        {"results": []},  # tier2 extract on known website: nothing
-        {"results": [
-            {"url": "https://www.instagram.com/ugra.music1111"},  # invalid, skipped
-            {"url": "https://www.instagram.com/anarkick_records"},  # valid
-        ]},
-    ])
+    http = _http_with(
+        [
+            {"results": []},  # tier1 search: nothing
+            {"results": []},  # tier2 extract on known website: nothing
+            {
+                "results": [
+                    {"url": "https://www.instagram.com/ugra.music1111"},  # invalid, skipped
+                    {"url": "https://www.instagram.com/anarkick_records"},  # valid
+                ]
+            },
+        ]
+    )
     resolver = SocialsResolver(tavily_api_key="k", http=http)
     merged = {"website": "https://www.anarkick.com"}
     r = resolver.resolve(kind="label", name="Anarkick Records", style="hard techno", merged=merged)
@@ -172,10 +187,14 @@ def test_tier3_topup_with_validation():
 
 
 def test_no_instagram_anywhere_leaves_updates_empty():
-    http = _http_with([
-        {"results": []},  # tier1: nothing
-        {"results": [{"url": "https://www.instagram.com/totally.unrelated9"}]},  # tier3: no match
-    ])
+    http = _http_with(
+        [
+            {"results": []},  # tier1: nothing
+            {
+                "results": [{"url": "https://www.instagram.com/totally.unrelated9"}]
+            },  # tier3: no match
+        ]
+    )
     resolver = SocialsResolver(tavily_api_key="k", http=http)
     # no known official urls in merged -> tier2 skipped entirely
     r = resolver.resolve(kind="label", name="Anarkick Records", style="hard techno", merged={})
@@ -188,18 +207,24 @@ def test_no_instagram_anywhere_leaves_updates_empty():
 
 
 def test_tier1_candidate_rejected_without_validation_match():
-    http = _http_with([
-        # tier1 search content: an unrelated instagram link surfaces in the results text
-        {"results": [{
-            "url": "https://blog.example/roundup",
-            "content": "Some roundup post mentions instagram.com/totally_other_act",
-            "raw_content": "",
-        }]},
-        # tier2 extract on the known website: nothing useful either
-        {"results": [{"url": "https://www.anarkick.com", "raw_content": "no socials listed"}]},
-        # tier3 targeted instagram search: the correct handle
-        {"results": [{"url": "https://www.instagram.com/anarkick_records"}]},
-    ])
+    http = _http_with(
+        [
+            # tier1 search content: an unrelated instagram link surfaces in the results text
+            {
+                "results": [
+                    {
+                        "url": "https://blog.example/roundup",
+                        "content": "Some roundup post mentions instagram.com/totally_other_act",
+                        "raw_content": "",
+                    }
+                ]
+            },
+            # tier2 extract on the known website: nothing useful either
+            {"results": [{"url": "https://www.anarkick.com", "raw_content": "no socials listed"}]},
+            # tier3 targeted instagram search: the correct handle
+            {"results": [{"url": "https://www.instagram.com/anarkick_records"}]},
+        ]
+    )
     resolver = SocialsResolver(tavily_api_key="k", http=http)
     merged = {"website": "https://www.anarkick.com"}
     r = resolver.resolve(kind="label", name="Anarkick Records", style="hard techno", merged=merged)
@@ -235,17 +260,23 @@ def test_never_raises_on_tavily_error():
 
 
 def test_other_socials_applied_only_to_empty_merged_fields():
-    http = _http_with([
-        {"results": [{
-            "url": "https://x.example",
-            "content": "Anarkick Records hard techno label",
-            "raw_content": (
-                "Instagram: https://www.instagram.com/anarkick_records. "
-                "Soundcloud: https://soundcloud.com/anarkickrecs. "
-                "Bandcamp: https://anarkickrecs.bandcamp.com"
-            ),
-        }]},
-    ])
+    http = _http_with(
+        [
+            {
+                "results": [
+                    {
+                        "url": "https://x.example",
+                        "content": "Anarkick Records hard techno label",
+                        "raw_content": (
+                            "Instagram: https://www.instagram.com/anarkick_records. "
+                            "Soundcloud: https://soundcloud.com/anarkickrecs. "
+                            "Bandcamp: https://anarkickrecs.bandcamp.com"
+                        ),
+                    }
+                ]
+            },
+        ]
+    )
     resolver = SocialsResolver(tavily_api_key="k", http=http)
     merged = {"soundcloud_url": "https://soundcloud.com/already-set"}
     r = resolver.resolve(kind="label", name="Anarkick Records", style="hard techno", merged=merged)
@@ -289,16 +320,22 @@ def test_tier3_uses_quoted_name_only_and_skips_post_urls():
     """Prod repro: genre terms flood instagram.com-restricted search with
     hashtag reels, and post URLs must not be parsed as handles. The real
     profile in the results must win."""
-    http = _http_with([
-        {"results": [{"url": "https://irrelevant.example", "raw_content": "no socials"}]},
-        {"results": [
-            {"url": "https://www.instagram.com/reel/DZMuYg2i3sg"},
-            {"url": "https://www.instagram.com/p/DZDJe_JDOLT"},
-            {"url": "https://www.instagram.com/alexbaws"},
-        ]},
-    ])
+    http = _http_with(
+        [
+            {"results": [{"url": "https://irrelevant.example", "raw_content": "no socials"}]},
+            {
+                "results": [
+                    {"url": "https://www.instagram.com/reel/DZMuYg2i3sg"},
+                    {"url": "https://www.instagram.com/p/DZDJe_JDOLT"},
+                    {"url": "https://www.instagram.com/alexbaws"},
+                ]
+            },
+        ]
+    )
     r = SocialsResolver("k", http=http).resolve(
-        kind="artist", name="Alex Baws", style="Drum & Bass",
+        kind="artist",
+        name="Alex Baws",
+        style="Drum & Bass",
         merged={"instagram_url": None},
     )
     assert r.error is None
@@ -310,12 +347,22 @@ def test_tier3_uses_quoted_name_only_and_skips_post_urls():
 
 
 def test_tier1_query_sanitizes_ampersand_in_style():
-    http = _http_with([
-        {"results": [{"url": "https://x.example",
-                      "raw_content": "see https://www.instagram.com/alexbaws ok"}]},
-    ])
+    http = _http_with(
+        [
+            {
+                "results": [
+                    {
+                        "url": "https://x.example",
+                        "raw_content": "see https://www.instagram.com/alexbaws ok",
+                    }
+                ]
+            },
+        ]
+    )
     SocialsResolver("k", http=http).resolve(
-        kind="artist", name="Alex Baws", style="Drum & Bass",
+        kind="artist",
+        name="Alex Baws",
+        style="Drum & Bass",
         merged={"instagram_url": None},
     )
     tier1_payload = http.post.call_args_list[0].kwargs["json"]

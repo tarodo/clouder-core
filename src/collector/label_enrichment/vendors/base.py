@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, Type
+from typing import Protocol
 
 from pydantic import BaseModel
 
@@ -13,7 +13,7 @@ class VendorResponse:
     parsed: BaseModel | None
     raw: dict
     citations: list[str]
-    usage: dict          # {"input_tokens": int, "output_tokens": int, "cost_usd": float, "web_search_calls": int, "reasoning_tokens": int} — last two present on openai cells
+    usage: dict  # {"input_tokens": int, "output_tokens": int, "cost_usd": float, "web_search_calls": int, "reasoning_tokens": int} — last two present on openai cells
     latency_ms: int
     model: str
     error: str | None = None
@@ -28,6 +28,6 @@ class VendorAdapter(Protocol):
         self,
         system: str,
         user: str,
-        schema: Type[BaseModel],
+        schema: type[BaseModel],
         model: str | None = None,
     ) -> VendorResponse: ...

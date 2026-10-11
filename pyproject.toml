@@ -1,14 +1,19 @@
 [tool.ruff]
 target-version = "py312"
+line-length = 100
 src = ["src", "tests", "scripts"]
 extend-exclude = ["graphify-out", "experiments", "frontend", "dbt", "alembic/versions"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "B"]
-ignore = ["B904", "B905"]  # raise-from and zip(strict=) are style changes across ~40 call sites
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "SIM", "RUF", "PLW0127"]
+# B904/B905: raise-from and zip(strict=) are style changes across ~40 call sites.
+# UP042: StrEnum changes str() and f-string output of members.
+ignore = ["B904", "B905", "UP042"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["B011", "B017", "E402"]  # local helpers before imports are fine in tests
+# Local helpers before imports are fine in tests; a nested `pytest.raises` scopes the one call that raises.
+"tests/**" = ["B011", "B017", "E402", "SIM117"]
+"src/collector/*/prompts/**" = ["RUF001", "RUF002"]  # LLM prompt text uses typographic characters on purpose
 
 [tool.mypy]
 python_version = "3.12"
@@ -17,6 +22,24 @@ explicit_package_bases = true
 ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
 files = ["src/collector"]
+check_untyped_defs = true
+
+# The modules every ingest and DQ result passes through are checked strictly
+# (mypy's `strict` is global-only, so the flags are listed per module).
+[[tool.mypy.overrides]]
+module = [
+  "collector.canonicalize",
+  "collector.contracts",
+  "collector.data_quality",
+  "collector.data_api",
+  "collector.data_api_retry",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+disallow_any_generics = true
+warn_return_any = true
+strict_equality = true
 
 [tool.coverage.run]
 source = ["src/collector"]

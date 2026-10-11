@@ -28,5 +28,6 @@ def test_no_ai_text_anywhere():
 def test_defaults_point_to_no_ai():
     from collector.artist_enrichment import prompts as ap
     from collector.label_enrichment import prompts as lp
+
     assert lp._DEFAULT_PROMPT_SLUG == "label_v4_no_ai"
     assert ap._DEFAULT_PROMPT_SLUG == "artist_v2_no_ai"

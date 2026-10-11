@@ -2,13 +2,21 @@ from collector.normalize import normalize_tracks
 
 
 def _item(**over):
-    base = {"id": 1, "name": "Lot Like You", "mix_name": "Original Mix", "bpm": 87, "length_ms": 244114}
+    base = {
+        "id": 1,
+        "name": "Lot Like You",
+        "mix_name": "Original Mix",
+        "bpm": 87,
+        "length_ms": 244114,
+    }
     base.update(over)
     return base
 
 
 def test_normalize_parses_full_key():
-    bundle = normalize_tracks([_item(key={"name": "F Major", "camelot_number": 7, "camelot_letter": "B"})])
+    bundle = normalize_tracks(
+        [_item(key={"name": "F Major", "camelot_number": 7, "camelot_letter": "B"})]
+    )
     track = bundle.tracks[0]
     assert track.key_name == "F Major"
     assert track.key_camelot == "7B"

@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import csv
 from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 from ..providers.base import VendorTrackRef
 from ..providers.ytmusic.normalize import result_to_ref
@@ -55,8 +56,11 @@ def top_score(item: GoldItem) -> tuple[float, bool] | None:
     best: tuple[float, bool] | None = None
     for ref, is_match in item.candidates:
         total = score_candidate(
-            candidate=ref, artist=item.artist, title=item.title,
-            duration_ms=item.duration_ms, album=item.album,
+            candidate=ref,
+            artist=item.artist,
+            title=item.title,
+            duration_ms=item.duration_ms,
+            album=item.album,
         ).total
         if best is None or total > best[0]:
             best = (total, is_match)

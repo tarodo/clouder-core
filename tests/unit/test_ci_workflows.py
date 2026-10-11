@@ -53,7 +53,9 @@ def test_frontend_dependencies_install_before_any_aws_credentials() -> None:
     steps = DEPLOY["jobs"]["deploy"]["steps"]
     build = _first(steps, lambda s: s.get("run", "").strip() == "scripts/deploy_frontend.sh build")
     creds = _first(steps, lambda s: "configure-aws-credentials" in s.get("uses", ""))
-    publish = _first(steps, lambda s: s.get("run", "").strip() == "scripts/deploy_frontend.sh publish")
+    publish = _first(
+        steps, lambda s: s.get("run", "").strip() == "scripts/deploy_frontend.sh publish"
+    )
     apply = _first(steps, lambda s: s.get("name") == "Terraform apply")
     assert build < creds < apply < publish
 
@@ -86,11 +88,16 @@ def test_deploys_never_run_concurrently() -> None:
     # Job-level: a manual dispatch from another branch skips the job, so it never
     # takes the slot of a main deploy waiting in the queue.
     assert "concurrency" not in DEPLOY
-    assert DEPLOY["jobs"]["deploy"]["concurrency"] == {"group": "deploy-production", "cancel-in-progress": False}
+    assert DEPLOY["jobs"]["deploy"]["concurrency"] == {
+        "group": "deploy-production",
+        "cancel-in-progress": False,
+    }
 
 
 def test_plan_and_apply_get_the_same_inputs() -> None:
-    assert {k: v for k, v in DEPLOY["jobs"]["deploy"]["env"].items() if k.startswith("TF_VAR_")} == TF_INPUTS
+    assert {
+        k: v for k, v in DEPLOY["jobs"]["deploy"]["env"].items() if k.startswith("TF_VAR_")
+    } == TF_INPUTS
     plan = _plan_step()
     assert plan["env"] == TF_INPUTS
     assert "-var-file=prod.tfvars" in plan["run"] and "-var=" not in plan["run"]
@@ -103,7 +110,11 @@ BOT = "github.actor == 'dependabot[bot]'"
 
 
 def test_pull_requests_plan_with_the_read_only_role() -> None:
-    creds = next(s for s in PR["jobs"]["terraform"]["steps"] if "configure-aws-credentials" in s.get("uses", ""))
+    creds = next(
+        s
+        for s in PR["jobs"]["terraform"]["steps"]
+        if "configure-aws-credentials" in s.get("uses", "")
+    )
     assert creds["with"]["role-to-assume"] == "${{ secrets.AWS_PLAN_ROLE_ARN }}"
     assert "AWS_GITHUB_ROLE_ARN" not in (WF / "pr.yml").read_text()
 
@@ -127,7 +138,11 @@ def test_dependabot_prs_validate_without_aws() -> None:
 def test_only_the_terraform_job_can_mint_oidc_tokens() -> None:
     # Every PR job installs third-party code (pip, pnpm); only the plan needs AWS.
     assert "id-token" not in PR.get("permissions", {})
-    holders = {name for name, job in PR["jobs"].items() if job.get("permissions", {}).get("id-token") == "write"}
+    holders = {
+        name
+        for name, job in PR["jobs"].items()
+        if job.get("permissions", {}).get("id-token") == "write"
+    }
     assert holders == {"terraform"}
     assert PR["jobs"]["terraform"]["permissions"] == {"contents": "read", "id-token": "write"}
 
@@ -135,16 +150,30 @@ def test_only_the_terraform_job_can_mint_oidc_tokens() -> None:
 def test_deploy_snapshots_aliases_smokes_and_rolls_back() -> None:
     steps = DEPLOY["jobs"]["deploy"]["steps"]
     names = [s.get("name", "") for s in steps]
-    snapshot, apply, smoke, rollback = (names.index(n) for n in (
-        "Snapshot API aliases", "Terraform apply", "Smoke test", "Roll back API aliases"))
+    snapshot, apply, smoke, rollback = (
+        names.index(n)
+        for n in ("Snapshot API aliases", "Terraform apply", "Smoke test", "Roll back API aliases")
+    )
     assert snapshot < apply < smoke < rollback
     assert steps[snapshot]["id"] == "snapshot"
     assert steps[rollback]["if"] == "failure() && steps.snapshot.outcome == 'success'"
-    assert "scripts/smoke.py" in steps[smoke]["run"] and "api_aliases.py restore" in steps[rollback]["run"]
+    assert (
+        "scripts/smoke.py" in steps[smoke]["run"]
+        and "api_aliases.py restore" in steps[rollback]["run"]
+    )
 
 
 def test_deploy_prints_the_alias_snapshot() -> None:
     # The snapshot is the manual-rollback input if the automatic restore fails half-way.
-    snapshot = next(s for s in DEPLOY["jobs"]["deploy"]["steps"] if s.get("name") == "Snapshot API aliases")
+    snapshot = next(
+        s for s in DEPLOY["jobs"]["deploy"]["steps"] if s.get("name") == "Snapshot API aliases"
+    )
     assert 'cat "$RUNNER_TEMP/aliases.json"' in snapshot["run"]
-    assert "| tee" not in snapshot["run"]  # no pipefail in the default shell: tee would hide a failure
+    assert (
+        "| tee" not in snapshot["run"]
+    )  # no pipefail in the default shell: tee would hide a failure
+
+
+def test_lint_job_checks_formatting() -> None:
+    runs = [step.get("run", "") for step in PR["jobs"]["lint"]["steps"]]
+    assert "ruff format --check src tests scripts" in runs

@@ -25,13 +25,19 @@ def test_handle_publish_ytmusic_returns_payload():
             assert kwargs["confirm_overwrite"] is True
             return result
 
-    with patch("collector.curation.deps._build_ytmusic_user_client", return_value=object()), \
-         patch("collector.curation.deps._build_s3_storage", return_value=object()), \
-         patch("collector.curation.ytmusic_publish_service.YtmusicPublishService",
-               return_value=FakeSvc()):
+    with (
+        patch("collector.curation.deps._build_ytmusic_user_client", return_value=object()),
+        patch("collector.curation.deps._build_s3_storage", return_value=object()),
+        patch(
+            "collector.curation.ytmusic_publish_service.YtmusicPublishService",
+            return_value=FakeSvc(),
+        ),
+    ):
         resp = curation_handler._handle_publish_ytmusic(
-            _event(body={"confirm_overwrite": True}), repo=object(),
-            user_id="u1", correlation_id="corr",
+            _event(body={"confirm_overwrite": True}),
+            repo=object(),
+            user_id="u1",
+            correlation_id="corr",
         )
     assert resp["statusCode"] == 200
     assert json.loads(resp["body"])["cover_failed"] is False

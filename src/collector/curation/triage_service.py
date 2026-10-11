@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date
-from typing import Any, Mapping
+from typing import Any
 
 from collector.curation import (
     InactiveBucketError,
@@ -58,14 +59,10 @@ def validate_track_ids(ids: list[str]) -> None:
     if not ids:
         raise ValidationError("track_ids must not be empty")
     if len(ids) > TRACK_IDS_MAX:
-        raise ValidationError(
-            f"track_ids length must be <= {TRACK_IDS_MAX}"
-        )
+        raise ValidationError(f"track_ids length must be <= {TRACK_IDS_MAX}")
     for t in ids:
         if not isinstance(t, str) or len(t) != 36:
-            raise ValidationError(
-                f"track_id must be a 36-char UUID string: {t!r}"
-            )
+            raise ValidationError(f"track_id must be a 36-char UUID string: {t!r}")
 
 
 def validate_target_for_transfer(
@@ -75,17 +72,11 @@ def validate_target_for_transfer(
     target_block: Mapping[str, Any],
 ) -> None:
     if target_block.get("status") != "IN_PROGRESS":
-        raise InvalidStateError(
-            "target triage block is not IN_PROGRESS"
-        )
+        raise InvalidStateError("target triage block is not IN_PROGRESS")
     if target_bucket.get("inactive") is True:
-        raise InactiveBucketError(
-            "target bucket is inactive (its category was soft-deleted)"
-        )
+        raise InactiveBucketError("target bucket is inactive (its category was soft-deleted)")
     if src_block.get("style_id") != target_block.get("style_id"):
-        raise StyleMismatchError(
-            "source and target triage blocks belong to different styles"
-        )
+        raise StyleMismatchError("source and target triage blocks belong to different styles")
 
 
 def classify_bucket_type(

@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import re
 import uuid
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, Mapping
+from typing import TYPE_CHECKING, Any
 
 from ..data_api import DataAPIClient
 
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 _NORM_RE = re.compile(r"\s+")
@@ -36,11 +38,18 @@ _STYLE_SLUG_EXPR = (
 )
 
 # Admin-only fields stripped from user-facing responses.
-_USER_FACING_FORBIDDEN = frozenset({
-    "run_id", "prompt_slug", "prompt_version",
-    "vendors_used", "merged_at_run_id",
-    "token_cost", "cost_usd", "provenance",
-})
+_USER_FACING_FORBIDDEN = frozenset(
+    {
+        "run_id",
+        "prompt_slug",
+        "prompt_version",
+        "vendors_used",
+        "merged_at_run_id",
+        "token_cost",
+        "cost_usd",
+        "provenance",
+    }
+)
 
 
 def _normalize_name(name: str) -> str:
@@ -234,10 +243,8 @@ class ArtistEnrichmentRepository:
         if isinstance(cost_usd, Decimal):
             row["cost_usd"] = float(cost_usd)
         elif isinstance(cost_usd, str):
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 row["cost_usd"] = float(cost_usd)
-            except (TypeError, ValueError):
-                pass
         return row
 
     def mark_run_running(self, run_id: str) -> None:
@@ -277,7 +284,7 @@ class ArtistEnrichmentRepository:
 
     # ── cells ───────────────────────────────────────────────────────
     def insert_cell(
-        self, *, run_id: str, artist_id: str, vendor: str, response: "VendorResponse"
+        self, *, run_id: str, artist_id: str, vendor: str, response: VendorResponse
     ) -> None:
         from ..label_enrichment.vendors.base import VendorResponse
 
@@ -315,8 +322,14 @@ class ArtistEnrichmentRepository:
 
     # ── artist_info ─────────────────────────────────────────────────
     def upsert_artist_info(
-        self, *, artist_id: str, last_run_id: str, prompt_slug: str,
-        prompt_version: str, merged: "ArtistInfo", provenance: Mapping[str, Any],
+        self,
+        *,
+        artist_id: str,
+        last_run_id: str,
+        prompt_slug: str,
+        prompt_version: str,
+        merged: ArtistInfo,
+        provenance: Mapping[str, Any],
     ) -> None:
         ts = self._now()
         payload = merged.model_dump(mode="json")  # coerces enums to wire str
@@ -368,7 +381,7 @@ class ArtistEnrichmentRepository:
             },
         )
 
-    def project_ai_suspected(self, artist_id: str, merged: "ArtistInfo", threshold: float) -> None:
+    def project_ai_suspected(self, artist_id: str, merged: ArtistInfo, threshold: float) -> None:
         """Mirror merged.ai_content into clouder_artists.is_ai_suspected when confidence >= threshold."""
         from .schemas import AIContentStatus
 
@@ -420,10 +433,8 @@ class ArtistEnrichmentRepository:
         if isinstance(ai_conf, Decimal):
             row["ai_confidence"] = float(ai_conf)
         elif isinstance(ai_conf, str):
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 row["ai_confidence"] = float(ai_conf)
-            except (TypeError, ValueError):
-                pass
         return row
 
     def get_artist_info_for_user(
@@ -514,7 +525,7 @@ class ArtistEnrichmentRepository:
                    merge_vendor, merge_model, requested_artists, cells_total,
                    cells_ok, cells_error, cost_usd, created_at, started_at, finished_at, source
             FROM clouder_artist_enrichment_runs
-            WHERE {' AND '.join(where) if where else 'TRUE'}
+            WHERE {" AND ".join(where) if where else "TRUE"}
             ORDER BY created_at DESC, id DESC
             LIMIT :lim
             """,
@@ -611,10 +622,8 @@ class ArtistEnrichmentRepository:
             for json_col in ("parsed", "citations"):
                 v = row.get(json_col)
                 if isinstance(v, str):
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError):
                         row[json_col] = json.loads(v)
-                    except json.JSONDecodeError:
-                        pass
             items.append(row)
         return items
 
@@ -672,10 +681,7 @@ class ArtistEnrichmentRepository:
             """,
             {"user_id": user_id, "status": status, "lim": limit, "off": offset},
         )
-        items = [
-            {"id": r["id"], "name": r["name"], "my_preference": r["status"]}
-            for r in rows
-        ]
+        items = [{"id": r["id"], "name": r["name"], "my_preference": r["status"]} for r in rows]
         total_rows = self._data_api.execute(
             """
             SELECT COUNT(*) AS c
@@ -784,15 +790,17 @@ class ArtistEnrichmentRepository:
                     "ai_content": r.get("ai_content"),
                     "updated_at": r.get("updated_at"),
                 }
-            items.append({
-                "id": r["id"],
-                "name": r["name"],
-                "style": r.get("dominant_style") or "",
-                "status": r.get("status") or "none",
-                "track_count": int(r.get("track_count") or 0),
-                "info": info,
-                "my_preference": r.get("my_preference"),
-            })
+            items.append(
+                {
+                    "id": r["id"],
+                    "name": r["name"],
+                    "style": r.get("dominant_style") or "",
+                    "status": r.get("status") or "none",
+                    "track_count": int(r.get("track_count") or 0),
+                    "info": info,
+                    "my_preference": r.get("my_preference"),
+                }
+            )
 
         count_params = {k: v for k, v in params.items() if k not in ("lim", "off")}
         total_rows = self._data_api.execute(
@@ -826,9 +834,7 @@ class ArtistEnrichmentRepository:
         Per-artist stats (track_count, dominant style) are pre-aggregated in
         CTEs over `clouder_track_artists` (many-to-many).
         """
-        stale_clause = (
-            "ai.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'"
-        )
+        stale_clause = "ai.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'"
         where: list[str] = []
         params: dict[str, Any] = {"lim": limit + 1}
         if style:
@@ -890,7 +896,7 @@ class ArtistEnrichmentRepository:
             LEFT JOIN clouder_artist_info ai ON ai.artist_id = art.id
             LEFT JOIN artist_track_counts atc ON atc.artist_id = art.id
             LEFT JOIN artist_dominant_style ads ON ads.artist_id = art.id
-            WHERE {' AND '.join(where) if where else 'TRUE'}
+            WHERE {" AND ".join(where) if where else "TRUE"}
             ORDER BY COALESCE(atc.cnt, 0) DESC, art.id DESC
             LIMIT :lim
             """,
@@ -927,7 +933,7 @@ class ArtistEnrichmentRepository:
             SELECT COUNT(*) AS c FROM clouder_artists art
             LEFT JOIN clouder_artist_info ai ON ai.artist_id = art.id
             LEFT JOIN artist_track_counts atc ON atc.artist_id = art.id
-            WHERE {' AND '.join(total_where) if total_where else 'TRUE'}
+            WHERE {" AND ".join(total_where) if total_where else "TRUE"}
             """,
             total_params,
         )

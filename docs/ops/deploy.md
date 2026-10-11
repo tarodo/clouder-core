@@ -11,7 +11,7 @@ CLOUDER uses two GitHub Actions workflows: `pr.yml` for pre-merge validation and
 | `alembic-check` | `src/**`, `alembic/**`, `requirements*.txt` | Spin ephemeral Postgres 16, run `alembic upgrade head` twice (idempotency check), then the real-Postgres tests (`tests/db`, `TEST_DATABASE_URL`) |
 | `dbt` | `dbt/**` | `dbt seed` / `run --empty` / `build` on DuckDB with fixtures (unit + data tests), then `dbt parse --target prod` |
 | `terraform` | `infra/**` | `scripts/package_lambda.sh`, `terraform fmt -check`, then under the read-only role `clouder-prod-gha-plan`: `terraform init` (remote S3 backend), `terraform validate`, `terraform plan -var-file=prod.tfvars` with the deploy's `TF_VAR_*` inputs — the plan is what the deploy would apply ([ADR-0028](../adr/0028-ci-roles.md)). Dependabot PRs (no secrets) run `init -backend=false` + `validate` only |
-| `lint` | backend paths | `ruff check src tests scripts` and `mypy` (config in `pyproject.toml`) |
+| `lint` | backend paths | `ruff check` and `ruff format --check` on `src tests scripts`, and `mypy` (untyped bodies checked; the core ingest/DQ modules strictly) — config in `pyproject.toml` |
 | `tests` | `src/**`, `tests/**` | `pytest -q --cov` with `PYTHONPATH=src`; fails under 80 % line coverage; TOTAL goes to the job summary |
 | `deps` | always | `uv pip compile` re-run must not change `requirements-*.txt`; `pip-audit` on both locks; `pnpm audit --prod --audit-level high` |
 | `frontend` | `frontend/**`, `docs/api/openapi.yaml` | `pnpm api:types` + diff-check `src/api/schema.d.ts` against `docs/api/openapi.yaml` (fails if out of sync), `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` |

@@ -17,7 +17,7 @@ import csv
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> tuple[Path, Path]:
     population = auto_population(client)
     duplicates = duplicate_artists(client)
 
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M")
     gold = args.out_dir / f"match_gold_{stamp}.jsonl"
     with gold.open("w", encoding="utf-8") as f:
         for record in [*reviews, *sample, population, duplicates]:
@@ -81,13 +81,15 @@ def main(argv: list[str] | None = None) -> tuple[Path, Path]:
             names = ", ".join(
                 a.get("name", "") for a in cand.get("artists") or [] if isinstance(a, dict)
             )
-            writer.writerow([
-                record["track_id"],
-                f"{record['artist']} — {record['title']}",
-                f"{names} — {cand.get('title', '')}",
-                f"https://music.youtube.com/watch?v={cand.get('videoId', '')}",
-                "",
-            ])
+            writer.writerow(
+                [
+                    record["track_id"],
+                    f"{record['artist']} — {record['title']}",
+                    f"{names} — {cand.get('title', '')}",
+                    f"https://music.youtube.com/watch?v={cand.get('videoId', '')}",
+                    "",
+                ]
+            )
 
     print(
         f"{len(reviews)} review accepts, {len(sample)} auto-accepted matches -> {gold}\n"

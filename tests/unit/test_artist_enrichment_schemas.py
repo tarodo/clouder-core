@@ -11,7 +11,9 @@ from collector.artist_enrichment.schemas import (
 
 
 def test_minimal_valid():
-    info = ArtistInfo(artist_name="ANNA", ai_reasoning="none", summary="Brazilian techno DJ.", confidence=0.9)
+    info = ArtistInfo(
+        artist_name="ANNA", ai_reasoning="none", summary="Brazilian techno DJ.", confidence=0.9
+    )
     assert info.artist_name == "ANNA"
     assert info.artist_type == ArtistType.UNKNOWN
     assert info.ai_content == AIContentStatus.UNKNOWN

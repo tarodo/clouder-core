@@ -1,4 +1,5 @@
 """Handler parses ?fresh=1/0 and threads it into repo.list_tracks."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock

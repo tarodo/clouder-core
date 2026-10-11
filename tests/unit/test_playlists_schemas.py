@@ -22,9 +22,13 @@ def test_create_playlist_minimum() -> None:
 
 
 def test_create_playlist_full() -> None:
-    body = CreatePlaylistIn.model_validate({
-        "name": "S", "description": "d", "is_public": True,
-    })
+    body = CreatePlaylistIn.model_validate(
+        {
+            "name": "S",
+            "description": "d",
+            "is_public": True,
+        }
+    )
     assert body.is_public is True
 
 
@@ -61,9 +65,7 @@ def test_add_tracks_in_caps_size() -> None:
 
 
 def test_reorder_accepts_list() -> None:
-    body = ReorderPlaylistTracksIn.model_validate(
-        {"track_ids": ["a", "b"]}
-    )
+    body = ReorderPlaylistTracksIn.model_validate({"track_ids": ["a", "b"]})
     assert body.track_ids == ["a", "b"]
 
 

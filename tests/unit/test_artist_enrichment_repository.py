@@ -30,9 +30,14 @@ def test_create_run_sets_cells_total():
     api = FakeDataAPI()
     repo = ArtistEnrichmentRepository(api)
     spec = RunSpec(
-        prompt_slug="artist_v1", prompt_version="v1",
-        vendors=["openai", "gemini"], models={"openai": "m", "gemini": "m"},
-        merge_vendor="deepseek", merge_model="d", requested_artists=3, source="auto",
+        prompt_slug="artist_v1",
+        prompt_version="v1",
+        vendors=["openai", "gemini"],
+        models={"openai": "m", "gemini": "m"},
+        merge_vendor="deepseek",
+        merge_model="d",
+        requested_artists=3,
+        source="auto",
     )
     run_id = repo.create_run(spec)
     assert run_id
@@ -46,8 +51,15 @@ def test_create_run_sets_cells_total():
 def test_insert_cell_marks_error_when_no_parse():
     api = FakeDataAPI()
     repo = ArtistEnrichmentRepository(api)
-    resp = VendorResponse(parsed=None, raw={}, citations=[], usage={"cost_usd": 0.0},
-                          latency_ms=5, model="m", error="boom")
+    resp = VendorResponse(
+        parsed=None,
+        raw={},
+        citations=[],
+        usage={"cost_usd": 0.0},
+        latency_ms=5,
+        model="m",
+        error="boom",
+    )
     repo.insert_cell(run_id="r", artist_id="a", vendor="openai", response=resp)
     sql, params = api.last()
     assert "clouder_artist_enrichment_cells" in sql
@@ -58,11 +70,24 @@ def test_insert_cell_marks_error_when_no_parse():
 def test_upsert_artist_info_denormalizes_artist_columns():
     api = FakeDataAPI()
     repo = ArtistEnrichmentRepository(api)
-    info = _info(artist_type="solo", country="Brazil", active_since=2008,
-                 tagline="Brazilian techno", primary_styles=["techno", "house"],
-                 ai_content=AIContentStatus.NONE_DETECTED, status="active", confidence=0.91)
-    repo.upsert_artist_info(artist_id="a", last_run_id="r", prompt_slug="artist_v1",
-                            prompt_version="v1", merged=info, provenance={"country": "x"})
+    info = _info(
+        artist_type="solo",
+        country="Brazil",
+        active_since=2008,
+        tagline="Brazilian techno",
+        primary_styles=["techno", "house"],
+        ai_content=AIContentStatus.NONE_DETECTED,
+        status="active",
+        confidence=0.91,
+    )
+    repo.upsert_artist_info(
+        artist_id="a",
+        last_run_id="r",
+        prompt_slug="artist_v1",
+        prompt_version="v1",
+        merged=info,
+        provenance={"country": "x"},
+    )
     sql, params = api.last()
     assert "clouder_artist_info" in sql
     assert params["artist_type"] == "solo"
@@ -96,11 +121,13 @@ def test_project_ai_suspected_noop_below_threshold():
 
 
 def test_derive_artist_context_reads_style_tracks_labels():
-    api = FakeDataAPI(responses=[
-        [{"style_name": "techno", "cnt": 9}],                       # style query
-        [{"title": "Hidden Beauties"}, {"title": "Forsaken"}],       # tracks query
-        [{"label_name": "Drumcode"}, {"label_name": "Kompakt"}],     # labels query
-    ])
+    api = FakeDataAPI(
+        responses=[
+            [{"style_name": "techno", "cnt": 9}],  # style query
+            [{"title": "Hidden Beauties"}, {"title": "Forsaken"}],  # tracks query
+            [{"label_name": "Drumcode"}, {"label_name": "Kompakt"}],  # labels query
+        ]
+    )
     repo = ArtistEnrichmentRepository(api)
     ctx = repo.derive_artist_context("a")
     assert ctx.style == "techno"

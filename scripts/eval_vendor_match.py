@@ -33,8 +33,14 @@ def main(argv: list[str] | None = None) -> str:
     parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
 
-    records = [json.loads(line) for line in args.gold.read_text(encoding="utf-8").splitlines() if line.strip()]
-    labels = read_labels(args.labels.read_text(encoding="utf-8").splitlines()) if args.labels else {}
+    records = [
+        json.loads(line)
+        for line in args.gold.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    labels = (
+        read_labels(args.labels.read_text(encoding="utf-8").splitlines()) if args.labels else {}
+    )
     if args.labels and not labels:
         print(f"warning: --labels {args.labels}: no y/n label was read", file=sys.stderr)
     loaded = load_gold(records, labels)
@@ -43,9 +49,12 @@ def main(argv: list[str] | None = None) -> str:
     results = sweep(items, fp_cost=args.fp_cost, review_cost=args.review_cost)
     duplicates = next((r for r in records if r.get("kind") == "duplicate_artists"), None)
     report = render_report(
-        items, results,
+        items,
+        results,
         current=get_vendor_match_settings().fuzzy_match_threshold,
-        fp_cost=args.fp_cost, review_cost=args.review_cost, duplicates=duplicates,
+        fp_cost=args.fp_cost,
+        review_cost=args.review_cost,
+        duplicates=duplicates,
         drifted_items=len(loaded) - len(items),
     )
     if args.out:

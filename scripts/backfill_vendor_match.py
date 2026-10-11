@@ -32,9 +32,7 @@ def main() -> int:
 
     track_ids = [
         r["track_id"]
-        for r in repo.data_api.execute(
-            "SELECT DISTINCT track_id FROM playlist_tracks", {}
-        )
+        for r in repo.data_api.execute("SELECT DISTINCT track_id FROM playlist_tracks", {})
     ]
     if not track_ids:
         print("No playlist tracks found.")
@@ -47,8 +45,11 @@ def main() -> int:
         chunk = track_ids[start : start + batch]
         inputs = repo.fetch_unmatched_match_inputs(track_ids=chunk, vendor=YTMUSIC_VENDOR)
         total += enqueue_vendor_matches(
-            track_inputs=inputs, vendor=YTMUSIC_VENDOR,
-            queue_url=queue_url, sqs=sqs, correlation_id="backfill",
+            track_inputs=inputs,
+            vendor=YTMUSIC_VENDOR,
+            queue_url=queue_url,
+            sqs=sqs,
+            correlation_id="backfill",
         )
     print(f"Enqueued {total} ytmusic match jobs from {len(track_ids)} playlist tracks.")
     return 0

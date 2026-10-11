@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from ..data_api import create_default_data_api_client
 from ..errors import ValidationError
@@ -68,14 +69,10 @@ def handle_get_styles(
         return _no_db()
 
     if scope == "all":
-        items = repo.list_catalog(
-            user_id=user_id, limit=limit, offset=offset, search=search
-        )
+        items = repo.list_catalog(user_id=user_id, limit=limit, offset=offset, search=search)
         total = repo.count_all(search)
     elif repo.count_selection(user_id) > 0:
-        items = repo.list_for_user(
-            user_id=user_id, limit=limit, offset=offset, search=search
-        )
+        items = repo.list_for_user(user_id=user_id, limit=limit, offset=offset, search=search)
         total = repo.count_for_user(user_id=user_id, search=search)
     else:
         items = repo.list_all(limit=limit, offset=offset, search=search)
@@ -100,16 +97,12 @@ def handle_put_my_styles(event: Mapping[str, Any]) -> tuple[int, dict[str, Any]]
         raise ValidationError(f"invalid JSON body: {exc}")
 
     style_ids = body.get("style_ids") if isinstance(body, Mapping) else None
-    if not isinstance(style_ids, list) or not all(
-        isinstance(sid, str) for sid in style_ids
-    ):
+    if not isinstance(style_ids, list) or not all(isinstance(sid, str) for sid in style_ids):
         raise ValidationError("style_ids must be an array of style ids")
     if len(set(style_ids)) != len(style_ids):
         raise ValidationError("style_ids must be unique")
     if len(style_ids) > MAX_SELECTION:
-        raise ValidationError(
-            f"style_ids exceeds {MAX_SELECTION} entries"
-        )
+        raise ValidationError(f"style_ids exceeds {MAX_SELECTION} entries")
 
     repo = _build_repository()
     if repo is None:

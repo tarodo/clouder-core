@@ -4,7 +4,7 @@ mapped several Beatport ids to one canonical track): replays must converge."""
 from __future__ import annotations
 
 import copy
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from pg_data_api import seed_run
 from synthetic import synthetic_week
@@ -13,7 +13,7 @@ from collector.canonicalize import Canonicalizer
 from collector.normalize import normalize_tracks
 from collector.repositories import ClouderRepository
 
-T1 = datetime(2026, 3, 1, 16, 0, tzinfo=timezone.utc)
+T1 = datetime(2026, 3, 1, 16, 0, tzinfo=UTC)
 T2 = T1 + timedelta(hours=1)
 
 
@@ -57,7 +57,11 @@ def _two_releases():
     original["release"] = {"id": 7_000_001, "name": "Original EP", "label": {"id": 1, "name": "L"}}
     compilation = copy.deepcopy(original)
     compilation["id"] = 9001
-    compilation["release"] = {"id": 7_000_002, "name": "Compilation", "label": {"id": 1, "name": "L"}}
+    compilation["release"] = {
+        "id": 7_000_002,
+        "name": "Compilation",
+        "label": {"id": 1, "name": "L"},
+    }
     return week1, [compilation]
 
 

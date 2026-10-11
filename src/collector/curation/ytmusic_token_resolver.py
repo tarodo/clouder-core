@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from collector.auth.kms_envelope import EnvelopePayload, KmsEnvelope
@@ -36,7 +36,7 @@ def _b64d(value: Any) -> bytes:
 
 def _parse_expires_at(value: Any) -> datetime:
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     s = str(value).replace(" ", "T")
     if "+" not in s and "Z" not in s:
         s = s + "+00:00"
@@ -80,12 +80,10 @@ class YtmusicTokenResolver:
             {"user_id": user_id},
         )
         if not rows:
-            raise YtmusicNotAuthorizedError(
-                f"No YouTube Music token on file for user {user_id}"
-            )
+            raise YtmusicNotAuthorizedError(f"No YouTube Music token on file for user {user_id}")
         row = rows[0]
         expires_at = _parse_expires_at(row["expires_at"])
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         refresh_plain = self._envelope.decrypt(
             EnvelopePayload.deserialize(_b64d(row["refresh_token_enc"]))
@@ -107,13 +105,9 @@ class YtmusicTokenResolver:
         except Exception as exc:
             raise YtmusicNotAuthorizedError("YouTube Music refresh failed") from exc
 
-        new_expires = now + timedelta(seconds=int(round(new_tokens.expires_in)))
-        access_payload_new = self._envelope.encrypt(
-            new_tokens.access_token.encode("utf-8")
-        )
-        refresh_payload_new = self._envelope.encrypt(
-            new_tokens.refresh_token.encode("utf-8")
-        )
+        new_expires = now + timedelta(seconds=round(new_tokens.expires_in))
+        access_payload_new = self._envelope.encrypt(new_tokens.access_token.encode("utf-8"))
+        refresh_payload_new = self._envelope.encrypt(new_tokens.refresh_token.encode("utf-8"))
         self._data_api.execute(
             """
             UPDATE user_vendor_tokens SET
@@ -141,9 +135,7 @@ class YtmusicTokenResolver:
         )
 
     @staticmethod
-    def _token_dict(
-        access_token: str, refresh_token: str, expires_at: datetime
-    ) -> dict:
+    def _token_dict(access_token: str, refresh_token: str, expires_at: datetime) -> dict:
         # ytmusicapi recognises an OAuth token only when the dict carries ALL of
         # Token.members() — scope, token_type, access_token, refresh_token,
         # expires_at AND expires_in (ytmusicapi.auth.oauth.token.OAuthToken.is_oauth).
@@ -151,7 +143,7 @@ class YtmusicTokenResolver:
         # dict keys are sent as raw HTTP headers, the request reaches YT Music
         # with no valid Authorization, and writes fail with HTTP 400
         # "Request contains an invalid argument".
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expires_in = max(0, int((expires_at - now).total_seconds()))
         return {
             "access_token": access_token,

@@ -21,8 +21,13 @@ def _cell(vendor: str, model: str, parsed: dict | None = None, error: str | None
         "run_id": "test-run",
         "prompt": {"slug": "artist_v1", "version": "v1"},
         "vendor": {"name": vendor, "model": model},
-        "fixture": {"id": "anna", "artist_name": "ANNA", "style": "techno",
-                    "sample_tracks": [], "known_labels": []},
+        "fixture": {
+            "id": "anna",
+            "artist_name": "ANNA",
+            "style": "techno",
+            "sample_tracks": [],
+            "known_labels": [],
+        },
         "rendered_user_prompt": "...",
         "response": {
             "parsed": parsed,
@@ -130,9 +135,25 @@ def test_merge_deterministic_country_short_wins_tie():
 
 def test_merge_deterministic_releases_union_top5():
     cells = [
-        _cell("a", "ma", parsed=_parsed(notable_releases=["Hidden Beauties", "Forsaken", "Remixes"], confidence=1.0)),
-        _cell("b", "mb", parsed=_parsed(notable_releases=["Hidden Beauties", "Spline", "Mira", "Forsaken"], confidence=0.8)),
-        _cell("c", "mc", parsed=_parsed(notable_releases=["Hidden Beauties", "Odd Concept"], confidence=0.6)),
+        _cell(
+            "a",
+            "ma",
+            parsed=_parsed(
+                notable_releases=["Hidden Beauties", "Forsaken", "Remixes"], confidence=1.0
+            ),
+        ),
+        _cell(
+            "b",
+            "mb",
+            parsed=_parsed(
+                notable_releases=["Hidden Beauties", "Spline", "Mira", "Forsaken"], confidence=0.8
+            ),
+        ),
+        _cell(
+            "c",
+            "mc",
+            parsed=_parsed(notable_releases=["Hidden Beauties", "Odd Concept"], confidence=0.6),
+        ),
     ]
     merged, prov = _merge_deterministic(cells)
     releases = merged["notable_releases"]
@@ -144,8 +165,16 @@ def test_merge_deterministic_releases_union_top5():
 def test_merge_deterministic_url_max_confidence_wins():
     cells = [
         _cell("a", "ma", parsed=_parsed(spotify_url=None, confidence=0.95)),
-        _cell("b", "mb", parsed=_parsed(spotify_url="https://open.spotify.com/artist/x", confidence=0.7)),
-        _cell("c", "mc", parsed=_parsed(spotify_url="https://open.spotify.com/artist/y", confidence=0.8)),
+        _cell(
+            "b",
+            "mb",
+            parsed=_parsed(spotify_url="https://open.spotify.com/artist/x", confidence=0.7),
+        ),
+        _cell(
+            "c",
+            "mc",
+            parsed=_parsed(spotify_url="https://open.spotify.com/artist/y", confidence=0.8),
+        ),
     ]
     merged, prov = _merge_deterministic(cells)
     assert merged["spotify_url"] == "https://open.spotify.com/artist/y"

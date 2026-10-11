@@ -63,10 +63,21 @@ _AUDIT_ROWS = {  # rows that outlive the user, with the audit column set to NULL
     "auto_enrich_config": ("updated_by_user_id", "kind"),
 }
 _OWNED = {  # table -> rows deleted per user
-    "users": 1, "categories": 1, "category_tracks": 1, "triage_blocks": 1,
-    "triage_buckets": 1, "triage_bucket_tracks": 1, "playlists": 1, "playlist_tracks": 1,
-    "user_tags": 1, "track_tags": 1, "user_imported_tracks": 1, "user_sessions": 1,
-    "user_vendor_tokens": 1, "clouder_user_artist_prefs": 1, "clouder_user_label_prefs": 1,
+    "users": 1,
+    "categories": 1,
+    "category_tracks": 1,
+    "triage_blocks": 1,
+    "triage_buckets": 1,
+    "triage_bucket_tracks": 1,
+    "playlists": 1,
+    "playlist_tracks": 1,
+    "user_tags": 1,
+    "track_tags": 1,
+    "user_imported_tracks": 1,
+    "user_sessions": 1,
+    "user_vendor_tokens": 1,
+    "clouder_user_artist_prefs": 1,
+    "clouder_user_label_prefs": 1,
     "clouder_user_style_prefs": 1,
 }
 
@@ -98,7 +109,8 @@ def _user_columns(pg) -> list[tuple[str, str]]:
 
 def _holding(pg, uid: str) -> list[str]:
     return [
-        f"{t}.{c}" for t, c in _user_columns(pg)
+        f"{t}.{c}"
+        for t, c in _user_columns(pg)
         if pg.execute(f'SELECT count(*) AS n FROM "{t}" WHERE "{c}" = :u', {"u": uid})[0]["n"]
     ]
 
@@ -131,14 +143,16 @@ def test_delete_user_leaves_nothing(pg) -> None:
         assert result == dry
         assert _holding(pg, alice) == []
         assert {k: v for k, v in result.items() if "." not in k} == _OWNED
-        assert {k for k in result if "." in k} == {f"{t}.{c}" for t, (c, _) in _AUDIT_ROWS.items()} | {
-            "auto_ingest_settings.updated_by_user_id"
-        }
+        assert {k for k in result if "." in k} == {
+            f"{t}.{c}" for t, (c, _) in _AUDIT_ROWS.items()
+        } | {"auto_ingest_settings.updated_by_user_id"}
         for table, n in _OWNED.items():
             assert _count(pg, table) == n, table  # bob's rows only
         for table, (col, suffix) in _AUDIT_ROWS.items():
             key = "kind" if table == "auto_enrich_config" else "id"
-            row = pg.execute(f'SELECT "{col}" AS u FROM "{table}" WHERE "{key}" = :k', {"k": "a-" + suffix})
+            row = pg.execute(
+                f'SELECT "{col}" AS u FROM "{table}" WHERE "{key}" = :k', {"k": "a-" + suffix}
+            )
             assert row == [{"u": None}], table  # the audited row stays, anonymised
         assert set(_holding(pg, bob)) == bob_columns
         assert delete_user(pg, alice) == {}

@@ -42,9 +42,7 @@ class YTMusicLookup:
             self._client = self._client_factory()
         return self._client
 
-    def lookup_batch_by_isrc(
-        self, tracks: list[dict[str, str]], correlation_id: str
-    ) -> list[Any]:
+    def lookup_batch_by_isrc(self, tracks: list[dict[str, str]], correlation_id: str) -> list[Any]:
         # Consumed only by the Spotify worker's batch path.
         raise VendorDisabledError(self.vendor_name, reason="not_implemented")
 

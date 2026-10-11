@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import itertools
 import json
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from collector.auto_ingest_schedule import (
     MIN_GAP,
@@ -11,20 +12,29 @@ from collector.auto_ingest_schedule import (
     window_end,
 )
 
-UTC = timezone.utc
-
 
 def _settings(**overrides):
-    base = {"enabled": True, "mode": "random", "fixed_times": ["09:00", "15:00", "21:00"],
-            "runs_per_day": 3, "timezone": "UTC"}
+    base = {
+        "enabled": True,
+        "mode": "random",
+        "fixed_times": ["09:00", "15:00", "21:00"],
+        "runs_per_day": 3,
+        "timezone": "UTC",
+    }
     base.update(overrides)
     return base
 
 
 def test_window_ends_at_the_next_planner_run() -> None:
-    assert window_end(datetime(2026, 10, 7, 0, 5, tzinfo=UTC)) == datetime(2026, 10, 8, 0, 5, tzinfo=UTC)
-    assert window_end(datetime(2026, 10, 7, 13, 0, tzinfo=UTC)) == datetime(2026, 10, 8, 0, 5, tzinfo=UTC)
-    assert window_end(datetime(2026, 10, 7, 0, 4, tzinfo=UTC)) == datetime(2026, 10, 7, 0, 5, tzinfo=UTC)
+    assert window_end(datetime(2026, 10, 7, 0, 5, tzinfo=UTC)) == datetime(
+        2026, 10, 8, 0, 5, tzinfo=UTC
+    )
+    assert window_end(datetime(2026, 10, 7, 13, 0, tzinfo=UTC)) == datetime(
+        2026, 10, 8, 0, 5, tzinfo=UTC
+    )
+    assert window_end(datetime(2026, 10, 7, 0, 4, tzinfo=UTC)) == datetime(
+        2026, 10, 7, 0, 5, tzinfo=UTC
+    )
 
 
 def test_fixed_times_follow_the_timezone_across_dst() -> None:
@@ -33,7 +43,7 @@ def test_fixed_times_follow_the_timezone_across_dst() -> None:
     before = plan_times(s, datetime(2026, 10, 24, 0, 5, tzinfo=UTC), rng=random.Random(1))
     after = plan_times(s, datetime(2026, 10, 26, 0, 5, tzinfo=UTC), rng=random.Random(1))
     assert before == [datetime(2026, 10, 24, 7, 0, tzinfo=UTC)]  # 09:00 CEST
-    assert after == [datetime(2026, 10, 26, 8, 0, tzinfo=UTC)]   # 09:00 CET
+    assert after == [datetime(2026, 10, 26, 8, 0, tzinfo=UTC)]  # 09:00 CET
 
 
 def test_fixed_times_outside_the_window_are_dropped() -> None:
@@ -49,7 +59,7 @@ def test_random_times_are_spaced() -> None:
         times = plan_times(_settings(runs_per_day=6), now, rng=random.Random(seed))
         assert len(times) == 6
         assert all(now < t < window_end(now) for t in times)
-        assert all(b - a >= MIN_GAP for a, b in zip(times, times[1:]))
+        assert all(b - a >= MIN_GAP for a, b in itertools.pairwise(times))
 
 
 def test_replan_mid_window_scales_the_count() -> None:
@@ -58,8 +68,12 @@ def test_replan_mid_window_scales_the_count() -> None:
 
 
 def test_disabled_plans_nothing() -> None:
-    assert plan_times(_settings(enabled=False), datetime(2026, 10, 7, 0, 5, tzinfo=UTC),
-                      rng=random.Random(1)) == []
+    assert (
+        plan_times(
+            _settings(enabled=False), datetime(2026, 10, 7, 0, 5, tzinfo=UTC), rng=random.Random(1)
+        )
+        == []
+    )
 
 
 class FakeScheduler:
@@ -81,8 +95,13 @@ class FakeScheduler:
 def test_apply_replaces_pending_run_schedules() -> None:
     client = FakeScheduler(["run-20261007T0900", "planner"])
 
-    names = apply_schedule(client, group="g", target_arn="arn:fn", role_arn="arn:role",
-                           times=[datetime(2026, 10, 7, 21, 0, tzinfo=UTC)])
+    names = apply_schedule(
+        client,
+        group="g",
+        target_arn="arn:fn",
+        role_arn="arn:role",
+        times=[datetime(2026, 10, 7, 21, 0, tzinfo=UTC)],
+    )
 
     assert client.deleted == ["run-20261007T0900"]
     (created,) = client.created

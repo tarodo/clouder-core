@@ -8,9 +8,10 @@ call the Data API, read the cluster secret and put metrics into CLOUDER/DataQual
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict
-from datetime import datetime, timezone
-from typing import Any, Mapping, Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from .data_api import create_default_data_api_client
 from .data_api_retry import wake_database
@@ -32,7 +33,9 @@ def publish(results: Sequence[CheckResult], cloudwatch: Any, *, now: datetime) -
         for r in results
         if r.value is not None
     ]
-    metric_data.append({"MetricName": "FailedChecks", "Value": failed, "Unit": "Count", "Timestamp": now})
+    metric_data.append(
+        {"MetricName": "FailedChecks", "Value": failed, "Unit": "Count", "Timestamp": now}
+    )
     cloudwatch.put_metric_data(Namespace=NAMESPACE, MetricData=metric_data)
     return failed
 
@@ -47,12 +50,16 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
         database=settings.aurora_database,
     )
     wake_database(client)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     results = run_checks(client, now.date())
     for r in results:
         log_event(
-            "INFO" if r.passed else "WARNING", "dq_check_result",
-            check=r.name, value=r.value, threshold=r.threshold, passed=r.passed,
+            "INFO" if r.passed else "WARNING",
+            "dq_check_result",
+            check=r.name,
+            value=r.value,
+            threshold=r.threshold,
+            passed=r.passed,
         )
     failed = publish(results, _cloudwatch(), now=now)
     log_event("INFO", "dq_run_completed", failed_checks=failed, count=len(results))

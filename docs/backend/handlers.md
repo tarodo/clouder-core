@@ -22,7 +22,7 @@ See also: [data-api.md](data-api.md), [providers.md](providers.md), [ADR-0001](.
 
 ## API Lambda (`collector.handler`)
 
-**Entry point:** `src/collector/handler.py:lambda_handler`
+**Entry point:** `src/collector/handler.py:lambda_handler` — admin gating and dispatch through `_ROUTE_TABLE`, which a test keeps equal to the API Gateway routes wired to this Lambda. The routes live in `src/collector/api/routes_*` (ingest, runs, admin, Spotify, catalog); label and artist enrichment routes are imported on first use. Routes reach the repository, S3, SQS and Beatport through `collector.api.deps`, so tests patch `collector.api.deps.<name>`.
 
 ### Routes served
 

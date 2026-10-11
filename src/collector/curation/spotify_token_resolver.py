@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from collector.auth.kms_envelope import EnvelopePayload, KmsEnvelope
@@ -46,7 +46,7 @@ class _OAuthClientLike(Protocol):
 
 def _parse_expires_at(value: Any) -> datetime:
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     s = str(value).replace(" ", "T")
     if "+" not in s and "Z" not in s:
         s = s + "+00:00"
@@ -79,17 +79,13 @@ class SpotifyTokenResolver:
             {"user_id": user_id},
         )
         if not rows:
-            raise SpotifyNotAuthorizedError(
-                f"No Spotify token on file for user {user_id}"
-            )
+            raise SpotifyNotAuthorizedError(f"No Spotify token on file for user {user_id}")
         row = rows[0]
         expires_at = _parse_expires_at(row["expires_at"])
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if (expires_at - now).total_seconds() > _REFRESH_LEEWAY_SECONDS:
-            access_payload = EnvelopePayload.deserialize(
-                _b64d(row["access_token_enc"])
-            )
+            access_payload = EnvelopePayload.deserialize(_b64d(row["access_token_enc"]))
             plain = self._envelope.decrypt(access_payload)
             return ResolvedSpotifyToken(
                 user_id=user_id,
@@ -99,23 +95,15 @@ class SpotifyTokenResolver:
 
         # Refresh path.
         try:
-            refresh_payload = EnvelopePayload.deserialize(
-                _b64d(row["refresh_token_enc"])
-            )
+            refresh_payload = EnvelopePayload.deserialize(_b64d(row["refresh_token_enc"]))
             refresh_plain = self._envelope.decrypt(refresh_payload).decode("utf-8")
             new_tokens = self._oauth.refresh(refresh_token=refresh_plain)
         except Exception as exc:
-            raise SpotifyNotAuthorizedError(
-                "Spotify refresh failed"
-            ) from exc
+            raise SpotifyNotAuthorizedError("Spotify refresh failed") from exc
 
-        access_payload_new = self._envelope.encrypt(
-            new_tokens.access_token.encode("utf-8")
-        )
-        refresh_payload_new = self._envelope.encrypt(
-            new_tokens.refresh_token.encode("utf-8")
-        )
-        new_expires = now + timedelta(seconds=int(round(new_tokens.expires_in)))
+        access_payload_new = self._envelope.encrypt(new_tokens.access_token.encode("utf-8"))
+        refresh_payload_new = self._envelope.encrypt(new_tokens.refresh_token.encode("utf-8"))
+        new_expires = now + timedelta(seconds=round(new_tokens.expires_in))
 
         self._data_api.execute(
             """

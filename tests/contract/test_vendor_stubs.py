@@ -1,5 +1,6 @@
 """Contract tests — every stub vendor satisfies LookupProvider/ExportProvider
 Protocol and raises VendorDisabledError on use."""
+
 from __future__ import annotations
 
 import pytest

@@ -8,7 +8,8 @@ Every route is JWT-gated by the API Gateway Lambda Authorizer (spec-A);
 
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -85,9 +86,7 @@ from .curation.routes_triage import (
 from .logging_utils import log_event
 
 
-def lambda_handler(
-    event: Mapping[str, Any], context: Any
-) -> dict[str, Any]:
+def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     correlation_id = _extract_correlation_id(event)
 
     user_id = _user_id_or_none(event)
@@ -121,7 +120,7 @@ def lambda_handler(
         )
     except CurationError as exc:
         return _curation_error_response(exc, correlation_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # `error` is not in ALLOWED_LOG_FIELDS — structlog drops unknown
         # fields silently. Use whitelisted error_message + error_type.
         log_event(
@@ -171,42 +170,55 @@ _ROUTE_TABLE: dict[str, tuple[Callable[..., dict[str, Any]], Callable[[], Any]]]
     "GET /playlists/{id}/tracks": (_handle_list_playlist_tracks, _playlists_factory),
     "POST /playlists/{id}/tracks": (_handle_add_playlist_tracks, _playlists_factory),
     "DELETE /playlists/{id}/tracks/{track_id}": (
-        _handle_remove_playlist_track, _playlists_factory,
+        _handle_remove_playlist_track,
+        _playlists_factory,
     ),
     "POST /playlists/{id}/tracks/order": (
-        _handle_reorder_playlist_tracks, _playlists_factory,
+        _handle_reorder_playlist_tracks,
+        _playlists_factory,
     ),
     "POST /playlists/{id}/cover/upload-url": (
-        _handle_cover_upload_url, _playlists_factory,
+        _handle_cover_upload_url,
+        _playlists_factory,
     ),
     "POST /playlists/{id}/cover/confirm": (
-        _handle_cover_confirm, _playlists_factory,
+        _handle_cover_confirm,
+        _playlists_factory,
     ),
     "DELETE /playlists/{id}/cover": (
-        _handle_cover_delete, _playlists_factory,
+        _handle_cover_delete,
+        _playlists_factory,
     ),
     "POST /playlists/import-spotify-playlist": (
-        _handle_import_spotify_playlist, _playlists_factory,
+        _handle_import_spotify_playlist,
+        _playlists_factory,
     ),
     "POST /playlists/{id}/tracks/import-spotify": (
-        _handle_import_spotify, _playlists_factory,
+        _handle_import_spotify,
+        _playlists_factory,
     ),
     "POST /playlists/{id}/publish": (
-        _handle_publish, _playlists_factory,
+        _handle_publish,
+        _playlists_factory,
     ),
     "POST /playlists/{id}/publish-ytmusic": (
-        _handle_publish_ytmusic, _playlists_factory,
+        _handle_publish_ytmusic,
+        _playlists_factory,
     ),
     "GET /playlists/{id}/tracks/{track_id}/match-candidates": (
-        _handle_match_candidates, _playlists_factory,
+        _handle_match_candidates,
+        _playlists_factory,
     ),
     "POST /playlists/{id}/tracks/{track_id}/match-resolve": (
-        _handle_resolve_match, _playlists_factory,
+        _handle_resolve_match,
+        _playlists_factory,
     ),
     "GET /playlists/{id}/comments": (
-        _handle_list_playlist_comments, _playlists_factory,
+        _handle_list_playlist_comments,
+        _playlists_factory,
     ),
     "GET /playlists/{id}/export": (
-        _handle_export_playlist, _playlists_factory,
+        _handle_export_playlist,
+        _playlists_factory,
     ),
 }

@@ -28,7 +28,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -56,7 +56,7 @@ def to_float(value: Any) -> float:
 
 def _bucket_month(bucket: dict) -> str:
     ts = bucket.get("start_time")
-    return datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m")
+    return datetime.fromtimestamp(int(ts), tz=UTC).strftime("%Y-%m")
 
 
 def aggregate_costs(buckets: list[dict]) -> list[dict]:
@@ -97,9 +97,7 @@ def aggregate_usage(buckets: list[dict]) -> list[dict]:
             entry["input_tokens"] += int(result.get("input_tokens") or 0)
             entry["cached_tokens"] += int(result.get("input_cached_tokens") or 0)
             entry["output_tokens"] += int(result.get("output_tokens") or 0)
-    return [
-        {"month": month, "model": model, **v} for (month, model), v in sorted(totals.items())
-    ]
+    return [{"month": month, "model": model, **v} for (month, model), v in sorted(totals.items())]
 
 
 def _require_api_key() -> str:
@@ -179,7 +177,7 @@ def default_since() -> str:
 
 
 def parse_since(value: str) -> int:
-    dt = datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    dt = datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=UTC)
     return int(dt.timestamp())
 
 
@@ -187,8 +185,7 @@ def _print_costs_table(costs: list[dict]) -> None:
     print(f"{'month':<8} {'line_item':<38} {'usd':>10} {'quantity':>14}")
     for row in costs:
         print(
-            f"{row['month']:<8} {row['line_item']:<38} {row['usd']:>10.4f} "
-            f"{row['quantity']:>14.1f}"
+            f"{row['month']:<8} {row['line_item']:<38} {row['usd']:>10.4f} {row['quantity']:>14.1f}"
         )
 
 

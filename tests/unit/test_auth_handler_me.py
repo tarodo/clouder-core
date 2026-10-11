@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -26,8 +26,9 @@ def _env(monkeypatch):
     auth_settings.reset_auth_settings_cache()
 
 
-def _event(*, route: str, user_id: str, session_id: str, is_admin: bool,
-           path_params: dict | None = None) -> dict:
+def _event(
+    *, route: str, user_id: str, session_id: str, is_admin: bool, path_params: dict | None = None
+) -> dict:
     return {
         "version": "2.0",
         "requestContext": {
@@ -48,25 +49,39 @@ def _event(*, route: str, user_id: str, session_id: str, is_admin: bool,
 
 
 def test_get_me_returns_user_and_sessions(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     repo.get_user_by_id.return_value = UserRow(
-        id="u-1", spotify_id="sp-1", display_name="Roman",
-        email="r@x", is_admin=False,
-        created_at=now.isoformat(), updated_at=now.isoformat(),
+        id="u-1",
+        spotify_id="sp-1",
+        display_name="Roman",
+        email="r@x",
+        is_admin=False,
+        created_at=now.isoformat(),
+        updated_at=now.isoformat(),
     )
     repo.list_active_sessions.return_value = [
         SessionRow(
-            id="s-1", user_id="u-1", refresh_token_hash="h",
-            user_agent="ua", ip_address="1.2.3.4",
-            created_at=now.isoformat(), last_used_at=now.isoformat(),
-            expires_at=now.isoformat(), revoked_at=None,
+            id="s-1",
+            user_id="u-1",
+            refresh_token_hash="h",
+            user_agent="ua",
+            ip_address="1.2.3.4",
+            created_at=now.isoformat(),
+            last_used_at=now.isoformat(),
+            expires_at=now.isoformat(),
+            revoked_at=None,
         ),
         SessionRow(
-            id="s-2", user_id="u-1", refresh_token_hash="h",
-            user_agent=None, ip_address=None,
-            created_at=now.isoformat(), last_used_at=now.isoformat(),
-            expires_at=now.isoformat(), revoked_at=None,
+            id="s-2",
+            user_id="u-1",
+            refresh_token_hash="h",
+            user_agent=None,
+            ip_address=None,
+            created_at=now.isoformat(),
+            last_used_at=now.isoformat(),
+            expires_at=now.isoformat(),
+            revoked_at=None,
         ),
     ]
     monkeypatch.setattr(auth_handler, "_build_auth_repository", lambda: repo)
@@ -91,13 +106,18 @@ def test_get_me_returns_user_and_sessions(monkeypatch) -> None:
 
 
 def test_delete_session_revokes_non_current(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     repo.get_active_session.return_value = SessionRow(
-        id="s-2", user_id="u-1", refresh_token_hash="h",
-        user_agent=None, ip_address=None,
-        created_at=now.isoformat(), last_used_at=now.isoformat(),
-        expires_at=now.isoformat(), revoked_at=None,
+        id="s-2",
+        user_id="u-1",
+        refresh_token_hash="h",
+        user_agent=None,
+        ip_address=None,
+        created_at=now.isoformat(),
+        last_used_at=now.isoformat(),
+        expires_at=now.isoformat(),
+        revoked_at=None,
     )
     monkeypatch.setattr(auth_handler, "_build_auth_repository", lambda: repo)
     monkeypatch.setattr(auth_handler, "_now", lambda: now)
@@ -118,7 +138,7 @@ def test_delete_session_revokes_non_current(monkeypatch) -> None:
 
 
 def test_delete_session_current_returns_400(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     monkeypatch.setattr(auth_handler, "_build_auth_repository", lambda: repo)
     monkeypatch.setattr(auth_handler, "_now", lambda: now)
@@ -141,13 +161,18 @@ def test_delete_session_current_returns_400(monkeypatch) -> None:
 
 
 def test_delete_session_belonging_to_other_user_returns_404(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     repo.get_active_session.return_value = SessionRow(
-        id="s-2", user_id="u-OTHER", refresh_token_hash="h",
-        user_agent=None, ip_address=None,
-        created_at=now.isoformat(), last_used_at=now.isoformat(),
-        expires_at=now.isoformat(), revoked_at=None,
+        id="s-2",
+        user_id="u-OTHER",
+        refresh_token_hash="h",
+        user_agent=None,
+        ip_address=None,
+        created_at=now.isoformat(),
+        last_used_at=now.isoformat(),
+        expires_at=now.isoformat(),
+        revoked_at=None,
     )
     monkeypatch.setattr(auth_handler, "_build_auth_repository", lambda: repo)
     monkeypatch.setattr(auth_handler, "_now", lambda: now)

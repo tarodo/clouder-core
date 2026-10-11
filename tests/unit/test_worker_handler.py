@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import gzip
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Any
 
@@ -31,7 +31,11 @@ class FakeRepo:
         self.completed_runs.append(run_id)
 
     def set_run_failed(
-        self, run_id: str, error_code: str, error_message: str, finished_at,
+        self,
+        run_id: str,
+        error_code: str,
+        error_message: str,
+        finished_at,
         phase: str | None = None,
     ) -> None:
         del error_message, finished_at, phase
@@ -149,9 +153,7 @@ def _setup_worker(monkeypatch, repo=None, s3_data=None, s3_fail=False, s3_put_fa
     repo = repo or FakeRepo()
     s3 = FakeS3Client(data=s3_data, fail=s3_fail, fail_put=s3_put_fail)
     repo.s3 = s3
-    monkeypatch.setattr(
-        "collector.worker_handler.create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr("collector.worker_handler.create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr("collector.worker_handler.create_default_s3_client", lambda: s3)
     return repo
 
@@ -289,12 +291,8 @@ def test_missing_aurora_config_raises(monkeypatch) -> None:
     reset_settings_cache()
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     monkeypatch.setenv("RAW_PREFIX", "raw/bp/releases")
-    monkeypatch.setattr(
-        "collector.worker_handler.create_clouder_repository_from_env", lambda: None
-    )
-    monkeypatch.setattr(
-        "collector.worker_handler.create_default_s3_client", lambda: object()
-    )
+    monkeypatch.setattr("collector.worker_handler.create_clouder_repository_from_env", lambda: None)
+    monkeypatch.setattr("collector.worker_handler.create_default_s3_client", lambda: object())
 
     with pytest.raises(RuntimeError, match="AURORA Data API"):
         lambda_handler({"Records": [{"body": "{}"}]}, context=None)
@@ -308,7 +306,7 @@ def test_worker_stamps_sources_with_the_run_start(monkeypatch) -> None:
     lambda_handler(_happy_event(), None)
 
     stamps = {cmd.observed_at for cmd in repo.source_commands}
-    assert stamps == {datetime(2026, 10, 1, 10, 0, 0, 250000, tzinfo=timezone.utc)}
+    assert stamps == {datetime(2026, 10, 1, 10, 0, 0, 250000, tzinfo=UTC)}
     reset_settings_cache()
 
 
@@ -322,7 +320,7 @@ def test_worker_falls_back_to_now_without_a_run_row(monkeypatch) -> None:
 
 
 def test_worker_quarantines_records_it_cannot_canonicalize(monkeypatch) -> None:
-    repo = _setup_worker(monkeypatch, s3_data=_happy_s3_data() + [{"id": 2, "name": ""}])
+    repo = _setup_worker(monkeypatch, s3_data=[*_happy_s3_data(), {"id": 2, "name": ""}])
 
     assert lambda_handler(_happy_event(), None) == {"processed": 1}
 
@@ -351,7 +349,7 @@ def test_worker_logs_contract_drift(monkeypatch) -> None:
 
 def test_quarantine_write_failure_fails_the_run(monkeypatch) -> None:
     repo = _setup_worker(
-        monkeypatch, s3_data=_happy_s3_data() + [{"id": 2, "name": ""}], s3_put_fail=True
+        monkeypatch, s3_data=[*_happy_s3_data(), {"id": 2, "name": ""}], s3_put_fail=True
     )
 
     with pytest.raises(RuntimeError):

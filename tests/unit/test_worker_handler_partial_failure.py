@@ -1,4 +1,5 @@
 """Verify phase-level failure handling in canonicalization worker."""
+
 from __future__ import annotations
 
 import json
@@ -21,8 +22,9 @@ def sqs_event() -> dict:
     }
 
 
-def _patch_worker_deps(monkeypatch, *, normalize_side_effect=None, canonicalizer=None,
-                       read_releases_return=None):
+def _patch_worker_deps(
+    monkeypatch, *, normalize_side_effect=None, canonicalizer=None, read_releases_return=None
+):
     from collector.settings import reset_settings_cache
 
     reset_settings_cache()
@@ -37,12 +39,8 @@ def _patch_worker_deps(monkeypatch, *, normalize_side_effect=None, canonicalizer
         "collector.worker_handler.create_clouder_repository_from_env",
         lambda: repo,
     )
-    monkeypatch.setattr(
-        "collector.worker_handler.S3Storage", lambda **kw: storage
-    )
-    monkeypatch.setattr(
-        "collector.worker_handler.create_default_s3_client", lambda: object()
-    )
+    monkeypatch.setattr("collector.worker_handler.S3Storage", lambda **kw: storage)
+    monkeypatch.setattr("collector.worker_handler.create_default_s3_client", lambda: object())
 
     if normalize_side_effect is not None:
         monkeypatch.setattr(
@@ -50,17 +48,18 @@ def _patch_worker_deps(monkeypatch, *, normalize_side_effect=None, canonicalizer
             normalize_side_effect,
         )
     if canonicalizer is not None:
-        monkeypatch.setattr(
-            "collector.worker_handler.Canonicalizer", lambda _repo: canonicalizer
-        )
+        monkeypatch.setattr("collector.worker_handler.Canonicalizer", lambda _repo: canonicalizer)
     return repo
 
 
 def test_normalize_phase_failure_records_phase(sqs_event, monkeypatch):
-    def boom(_): raise ValueError("bad data")
+    def boom(_):
+        raise ValueError("bad data")
+
     repo = _patch_worker_deps(monkeypatch, normalize_side_effect=boom)
 
     from collector import worker_handler
+
     result = worker_handler.lambda_handler(sqs_event, None)
     assert result == {"processed": 0}
 
@@ -73,9 +72,8 @@ def test_normalize_phase_failure_records_phase(sqs_event, monkeypatch):
 
 def test_canonicalize_phase_failure_records_phase(sqs_event, monkeypatch):
     def ok_normalize(_):
-        return MagicMock(
-            tracks=[], artists=[], labels=[], albums=[], relations=[], styles=[]
-        )
+        return MagicMock(tracks=[], artists=[], labels=[], albums=[], relations=[], styles=[])
+
     canonicalizer = MagicMock()
     canonicalizer.process_run.side_effect = RuntimeError("db down")
     repo = _patch_worker_deps(
@@ -85,6 +83,7 @@ def test_canonicalize_phase_failure_records_phase(sqs_event, monkeypatch):
     )
 
     from collector import worker_handler
+
     with pytest.raises(RuntimeError):
         worker_handler.lambda_handler(sqs_event, None)
 
@@ -109,14 +108,11 @@ def test_read_s3_phase_failure_records_phase(sqs_event, monkeypatch):
         "collector.worker_handler.create_clouder_repository_from_env",
         lambda: repo,
     )
-    monkeypatch.setattr(
-        "collector.worker_handler.S3Storage", lambda **kw: storage
-    )
-    monkeypatch.setattr(
-        "collector.worker_handler.create_default_s3_client", lambda: object()
-    )
+    monkeypatch.setattr("collector.worker_handler.S3Storage", lambda **kw: storage)
+    monkeypatch.setattr("collector.worker_handler.create_default_s3_client", lambda: object())
 
     from collector import worker_handler
+
     worker_handler.lambda_handler(sqs_event, None)
 
     kwargs = repo.set_run_failed.call_args.kwargs
@@ -140,7 +136,7 @@ def test_message_truncated_but_phase_preserved(sqs_event, monkeypatch):
 
 
 def test_phase_prefix_stripped_from_api_response():
-    from collector.handler import _split_phase_prefix
+    from collector.api.routes_runs import _split_phase_prefix
 
     phase, msg = _split_phase_prefix("[phase=normalize] boom")
     assert phase == "normalize"
@@ -148,7 +144,7 @@ def test_phase_prefix_stripped_from_api_response():
 
 
 def test_no_phase_prefix_returns_none():
-    from collector.handler import _split_phase_prefix
+    from collector.api.routes_runs import _split_phase_prefix
 
     phase, msg = _split_phase_prefix("boom")
     assert phase is None
@@ -156,7 +152,7 @@ def test_no_phase_prefix_returns_none():
 
 
 def test_empty_message_returns_none():
-    from collector.handler import _split_phase_prefix
+    from collector.api.routes_runs import _split_phase_prefix
 
     phase, msg = _split_phase_prefix(None)
     assert phase is None

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -38,9 +38,13 @@ def _event(*, cookies: list[str]) -> dict:
 
 
 def test_logout_revokes_session_and_clears_cookie(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     token = issue_refresh_token(
-        secret=SECRET, user_id="u", session_id="s", ttl_seconds=600, now=now,
+        secret=SECRET,
+        user_id="u",
+        session_id="s",
+        ttl_seconds=600,
+        now=now,
     )
     repo = MagicMock()
     monkeypatch.setattr(auth_handler, "_build_auth_repository", lambda: repo)
@@ -58,7 +62,7 @@ def test_logout_revokes_session_and_clears_cookie(monkeypatch) -> None:
 
 
 def test_logout_without_cookie_still_returns_204(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     monkeypatch.setattr(auth_handler, "_build_auth_repository", lambda: repo)
     monkeypatch.setattr(auth_handler, "_now", lambda: now)
@@ -73,7 +77,7 @@ def test_logout_without_cookie_still_returns_204(monkeypatch) -> None:
 
 
 def test_logout_invalid_token_silently_succeeds(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     repo = MagicMock()
     monkeypatch.setattr(auth_handler, "_build_auth_repository", lambda: repo)
     monkeypatch.setattr(auth_handler, "_now", lambda: now)

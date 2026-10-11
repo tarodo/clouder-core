@@ -8,16 +8,15 @@ from unittest.mock import MagicMock
 import pytest
 
 
-def _user_event(route: str, *, body: dict | None = None,
-                path: dict | None = None, qs: dict | None = None) -> dict:
+def _user_event(
+    route: str, *, body: dict | None = None, path: dict | None = None, qs: dict | None = None
+) -> dict:
     return {
         "routeKey": route,
         "pathParameters": path or {},
         "queryStringParameters": qs or {},
         "body": json.dumps(body) if body is not None else None,
-        "requestContext": {
-            "authorizer": {"lambda": {"is_admin": False, "user_id": "u-1"}}
-        },
+        "requestContext": {"authorizer": {"lambda": {"is_admin": False, "user_id": "u-1"}}},
     }
 
 
@@ -40,7 +39,9 @@ def test_put_pref_liked_calls_upsert(monkeypatch):
     )
     assert resp["statusCode"] == 204
     fake_repo.upsert_user_label_pref.assert_called_once_with(
-        user_id="u-1", label_id="lbl-1", status="liked",
+        user_id="u-1",
+        label_id="lbl-1",
+        status="liked",
     )
     fake_repo.delete_user_label_pref.assert_not_called()
 
@@ -64,7 +65,8 @@ def test_put_pref_none_calls_delete(monkeypatch):
     )
     assert resp["statusCode"] == 204
     fake_repo.delete_user_label_pref.assert_called_once_with(
-        user_id="u-1", label_id="lbl-1",
+        user_id="u-1",
+        label_id="lbl-1",
     )
     fake_repo.upsert_user_label_pref.assert_not_called()
 
@@ -133,10 +135,15 @@ def test_get_my_label_preferences_passes_user_id(monkeypatch):
     assert resp["statusCode"] == 200
     assert body == {
         "items": [{"id": "lbl-1", "name": "Fokuz", "my_preference": "liked"}],
-        "total": 1, "page": 1, "limit": 50,
+        "total": 1,
+        "page": 1,
+        "limit": 50,
     }
     fake_repo.list_user_label_prefs.assert_called_once_with(
-        user_id="u-1", status="liked", page=1, limit=50,
+        user_id="u-1",
+        status="liked",
+        page=1,
+        limit=50,
     )
 
 
@@ -166,7 +173,8 @@ def test_label_detail_forwards_user_id(monkeypatch):
 
     fake_repo = MagicMock()
     fake_repo.get_label_info_for_user.return_value = {
-        "label_name": "Fokuz", "my_preference": "liked",
+        "label_name": "Fokuz",
+        "my_preference": "liked",
     }
     monkeypatch.setattr(
         "collector.label_enrichment.routes._build_repository",
@@ -180,5 +188,6 @@ def test_label_detail_forwards_user_id(monkeypatch):
         None,
     )
     fake_repo.get_label_info_for_user.assert_called_once_with(
-        "lbl-1", user_id="u-1",
+        "lbl-1",
+        user_id="u-1",
     )

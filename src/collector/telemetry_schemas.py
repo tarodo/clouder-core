@@ -11,7 +11,8 @@ handler serializes to a JSON string to match the bronze Glue column type.
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -49,17 +50,13 @@ PROP_ALLOWLIST: dict[str, frozenset[str]] = {
         {"track_id", "decision_ms", "category_key", "action", "surface"}
     ),
     "playback_play": frozenset({"track_id", "position_ms", "duration_ms", "source"}),
-    "playback_pause": frozenset(
-        {"track_id", "position_ms", "duration_ms", "seek_count"}
-    ),
+    "playback_pause": frozenset({"track_id", "position_ms", "duration_ms", "seek_count"}),
     "playback_resume": frozenset({"track_id", "position_ms", "duration_ms"}),
     "playback_seek": frozenset({"track_id", "from_position_ms", "to_position_ms"}),
     "playback_ended": frozenset({"track_id", "duration_ms", "listen_through_ratio"}),
     "playback_skip": frozenset({"track_id", "position_ms", "duration_ms"}),
     "hotkey_used": frozenset({"hotkey_code", "action", "source"}),
-    "playlist_add": frozenset(
-        {"track_ids", "playlist_id", "track_count", "source_category_id"}
-    ),
+    "playlist_add": frozenset({"track_ids", "playlist_id", "track_count", "source_category_id"}),
     "playlist_reorder": frozenset({"playlist_id", "track_count", "reorder_count"}),
     "playlist_publish": frozenset(
         {
@@ -121,9 +118,7 @@ def _strip_secrets(d: Mapping[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in d.items() if k.lower() not in _SECRET_KEYS}
 
 
-def validate_event(
-    raw: Any, *, user_id: str | None, ts_server: str
-) -> dict[str, Any]:
+def validate_event(raw: Any, *, user_id: str | None, ts_server: str) -> dict[str, Any]:
     """Validate one raw event; return the cleaned, server-stamped flat envelope.
 
     Hot props (``HOT_PROPS``) are promoted to typed top-level keys; remaining
@@ -136,9 +131,7 @@ def validate_event(
     if env.event_name not in EVENT_NAMES:
         raise ValueError(f"unknown event_name: {env.event_name}")
     allowed = PROP_ALLOWLIST[env.event_name]
-    clean = {
-        k: v for k, v in _strip_secrets(env.props).items() if k in allowed
-    }
+    clean = {k: v for k, v in _strip_secrets(env.props).items() if k in allowed}
     out: dict[str, Any] = {
         "event_name": env.event_name,
         "event_id": env.event_id,

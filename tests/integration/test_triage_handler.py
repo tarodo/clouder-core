@@ -30,9 +30,10 @@ end-to-end verification.
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
-from typing import Any, Mapping
+from typing import Any
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -104,10 +105,7 @@ class FakeTriageRepo:
                     category_id=bk.get("category_id"),
                     category_name=bk.get("category_name"),
                     inactive=bk.get("inactive", False),
-                    track_count=sum(
-                        1 for (b_id, _t) in self.bucket_tracks
-                        if b_id == bk_id
-                    ),
+                    track_count=sum(1 for (b_id, _t) in self.bucket_tracks if b_id == bk_id),
                 )
             )
         return TriageBlockRow(
@@ -132,8 +130,7 @@ class FakeTriageRepo:
 
     def _block_to_summary(self, b: dict) -> TriageBlockSummaryRow:
         track_count = sum(
-            1 for (bid, _t) in self.bucket_tracks
-            if self.buckets[bid]["block_id"] == b["id"]
+            1 for (bid, _t) in self.bucket_tracks if self.buckets[bid]["block_id"] == b["id"]
         )
         return TriageBlockSummaryRow(
             id=b["id"],
@@ -153,8 +150,13 @@ class FakeTriageRepo:
     # ---- writes ------------------------------------------------------
 
     def create_block(
-        self, *, user_id: str, style_id: str, name: str,
-        date_from: date, date_to: date,
+        self,
+        *,
+        user_id: str,
+        style_id: str,
+        name: str,
+        date_from: date,
+        date_to: date,
         old_offset_weeks: int = 0,
         include_disliked_labels: bool = True,
         include_disliked_artists: bool = True,
@@ -166,7 +168,7 @@ class FakeTriageRepo:
                 "style_not_found",
                 f"clouder_styles row not found: {style_id}",
             )
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         block_id = str(uuid4())
         self.blocks[block_id] = {
             "id": block_id,
@@ -200,16 +202,18 @@ class FakeTriageRepo:
 
     def get_block(self, *, user_id, block_id):
         b = self.blocks.get(block_id)
-        if (
-            b is None
-            or b["user_id"] != user_id
-            or b.get("deleted_at") is not None
-        ):
+        if b is None or b["user_id"] != user_id or b.get("deleted_at") is not None:
             return None
         return self._block_to_row(b)
 
     def list_blocks_by_style(
-        self, *, user_id, style_id, limit, offset, status=None,
+        self,
+        *,
+        user_id,
+        style_id,
+        limit,
+        offset,
+        status=None,
     ):
         if style_id not in self.styles:
             raise NotFoundError(
@@ -226,10 +230,15 @@ class FakeTriageRepo:
         ]
         items.sort(key=lambda r: r.created_at, reverse=True)
         total = len(items)
-        return items[offset:offset + limit], total
+        return items[offset : offset + limit], total
 
     def list_blocks_all(
-        self, *, user_id, limit, offset, status=None,
+        self,
+        *,
+        user_id,
+        limit,
+        offset,
+        status=None,
     ):
         items = [
             self._block_to_summary(b)
@@ -240,17 +249,20 @@ class FakeTriageRepo:
         ]
         items.sort(key=lambda r: r.created_at, reverse=True)
         total = len(items)
-        return items[offset:offset + limit], total
+        return items[offset : offset + limit], total
 
     def list_bucket_tracks(
-        self, *, user_id, block_id, bucket_id, limit, offset, search=None,
+        self,
+        *,
+        user_id,
+        block_id,
+        bucket_id,
+        limit,
+        offset,
+        search=None,
     ):
         b = self.blocks.get(block_id)
-        if (
-            b is None
-            or b["user_id"] != user_id
-            or b.get("deleted_at") is not None
-        ):
+        if b is None or b["user_id"] != user_id or b.get("deleted_at") is not None:
             raise NotFoundError(
                 "bucket_not_in_block",
                 f"bucket {bucket_id} not found in triage block {block_id}",
@@ -266,36 +278,47 @@ class FakeTriageRepo:
         return [], 0
 
     def move_tracks(
-        self, *, user_id, block_id, from_bucket_id, to_bucket_id, track_ids,
+        self,
+        *,
+        user_id,
+        block_id,
+        from_bucket_id,
+        to_bucket_id,
+        track_ids,
     ):
         if self.move_error is not None:
             raise self.move_error
         return MoveResult(moved=len(track_ids))
 
     def transfer_tracks(
-        self, *, user_id, src_block_id, target_bucket_id, track_ids,
+        self,
+        *,
+        user_id,
+        src_block_id,
+        target_bucket_id,
+        track_ids,
     ):
         if self.transfer_error is not None:
             raise self.transfer_error
         return TransferResult(transferred=len(track_ids))
 
     def finalize_block(
-        self, *, user_id, block_id, categories_repository,
+        self,
+        *,
+        user_id,
+        block_id,
+        categories_repository,
     ):
         if self.finalize_error is not None:
             raise self.finalize_error
         b = self.blocks.get(block_id)
-        if (
-            b is None
-            or b["user_id"] != user_id
-            or b.get("deleted_at") is not None
-        ):
+        if b is None or b["user_id"] != user_id or b.get("deleted_at") is not None:
             raise NotFoundError(
                 "triage_block_not_found",
                 f"triage block not found: {block_id}",
             )
         b["status"] = "FINALIZED"
-        b["finalized_at"] = datetime.now(timezone.utc).isoformat()
+        b["finalized_at"] = datetime.now(UTC).isoformat()
         return FinalizeResult(
             block=self._block_to_row(b),
             promoted={"cat-1": 3},
@@ -303,36 +326,45 @@ class FakeTriageRepo:
 
     def soft_delete_block(self, *, user_id, block_id):
         b = self.blocks.get(block_id)
-        if (
-            b is None
-            or b["user_id"] != user_id
-            or b.get("deleted_at") is not None
-        ):
+        if b is None or b["user_id"] != user_id or b.get("deleted_at") is not None:
             return False
-        b["deleted_at"] = datetime.now(timezone.utc).isoformat()
+        b["deleted_at"] = datetime.now(UTC).isoformat()
         return True
 
     # ---- spec-D D7/D8 cross-spec hooks (instance methods) -----------
 
     def snapshot_category_into_active_blocks(
-        self, *, user_id, style_id, category_id, transaction_id=None,
+        self,
+        *,
+        user_id,
+        style_id,
+        category_id,
+        transaction_id=None,
     ):
-        self.snapshot_calls.append({
-            "user_id": user_id,
-            "style_id": style_id,
-            "category_id": category_id,
-            "transaction_id": transaction_id,
-        })
+        self.snapshot_calls.append(
+            {
+                "user_id": user_id,
+                "style_id": style_id,
+                "category_id": category_id,
+                "transaction_id": transaction_id,
+            }
+        )
         return 0
 
     def mark_staging_inactive_for_category(
-        self, *, user_id, category_id, transaction_id=None,
+        self,
+        *,
+        user_id,
+        category_id,
+        transaction_id=None,
     ):
-        self.inactive_calls.append({
-            "user_id": user_id,
-            "category_id": category_id,
-            "transaction_id": transaction_id,
-        })
+        self.inactive_calls.append(
+            {
+                "user_id": user_id,
+                "category_id": category_id,
+                "transaction_id": transaction_id,
+            }
+        )
         return 0
 
 
@@ -415,8 +447,7 @@ def _create_block(
 
 
 def test_unauthorized_401(fake_triage_repo, context):
-    event = _event(method="GET", route="/triage/blocks/{id}",
-                   path_params={"id": "x"})
+    event = _event(method="GET", route="/triage/blocks/{id}", path_params={"id": "x"})
     event["requestContext"].pop("authorizer", None)
     resp = lambda_handler(event, context)
     status, body = _read(resp)
@@ -450,14 +481,16 @@ def test_create_triage_block_201(fake_triage_repo, context):
     # All technical bucket types must be present.
     bucket_types = {b["bucket_type"] for b in body["buckets"]}
     assert bucket_types == {
-        BUCKET_TYPE_NEW, BUCKET_TYPE_OLD, BUCKET_TYPE_NOT,
-        BUCKET_TYPE_DISCARD, BUCKET_TYPE_UNCLASSIFIED, BUCKET_TYPE_FAV,
+        BUCKET_TYPE_NEW,
+        BUCKET_TYPE_OLD,
+        BUCKET_TYPE_NOT,
+        BUCKET_TYPE_DISCARD,
+        BUCKET_TYPE_UNCLASSIFIED,
+        BUCKET_TYPE_FAV,
     }
 
 
-def test_create_block_forwards_and_echoes_populate_options(
-    fake_triage_repo, context
-):
+def test_create_block_forwards_and_echoes_populate_options(fake_triage_repo, context):
     """Handler must forward all five populate options (old_offset_weeks +
     the four classification flags) to create_block, and the serializer
     must echo them in the response body."""
@@ -589,7 +622,9 @@ def test_list_triage_blocks_status_filter(fake_triage_repo, context):
     bid_b = _create_block(fake_triage_repo, name="B")
     # Finalize one so we can filter.
     fake_triage_repo.finalize_block(
-        user_id="u1", block_id=bid_b, categories_repository=None,
+        user_id="u1",
+        block_id=bid_b,
+        categories_repository=None,
     )
     resp = lambda_handler(
         _event(
@@ -611,10 +646,7 @@ def test_list_triage_blocks_status_filter(fake_triage_repo, context):
 
 def test_move_tracks_happy(fake_triage_repo, context):
     bid = _create_block(fake_triage_repo)
-    bucket_ids = [
-        bk_id for bk_id, bk in fake_triage_repo.buckets.items()
-        if bk["block_id"] == bid
-    ]
+    bucket_ids = [bk_id for bk_id, bk in fake_triage_repo.buckets.items() if bk["block_id"] == bid]
     from_id, to_id = bucket_ids[0], bucket_ids[1]
     resp = lambda_handler(
         _event(
@@ -640,13 +672,11 @@ def test_move_tracks_happy(fake_triage_repo, context):
 
 def test_move_tracks_not_in_source_422(fake_triage_repo, context):
     bid = _create_block(fake_triage_repo)
-    bucket_ids = [
-        bk_id for bk_id, bk in fake_triage_repo.buckets.items()
-        if bk["block_id"] == bid
-    ]
+    bucket_ids = [bk_id for bk_id, bk in fake_triage_repo.buckets.items() if bk["block_id"] == bid]
     missing = ["cccccccc-cccc-cccc-cccc-cccccccccccc"]
     fake_triage_repo.move_error = TracksNotInSourceError(
-        "1 track(s) not present in source bucket", missing,
+        "1 track(s) not present in source bucket",
+        missing,
     )
     resp = lambda_handler(
         _event(
@@ -674,8 +704,7 @@ def test_transfer_tracks_happy(fake_triage_repo, context):
     src_id = _create_block(fake_triage_repo, name="src")
     tgt_id = _create_block(fake_triage_repo, name="tgt")
     target_bucket_id = next(
-        bk_id for bk_id, bk in fake_triage_repo.buckets.items()
-        if bk["block_id"] == tgt_id
+        bk_id for bk_id, bk in fake_triage_repo.buckets.items() if bk["block_id"] == tgt_id
     )
     resp = lambda_handler(
         _event(
@@ -700,8 +729,7 @@ def test_transfer_tracks_style_mismatch_422(fake_triage_repo, context):
     src_id = _create_block(fake_triage_repo)
     tgt_id = _create_block(fake_triage_repo, style_id=STYLE_TECHNO)
     target_bucket_id = next(
-        bk_id for bk_id, bk in fake_triage_repo.buckets.items()
-        if bk["block_id"] == tgt_id
+        bk_id for bk_id, bk in fake_triage_repo.buckets.items() if bk["block_id"] == tgt_id
     )
     fake_triage_repo.transfer_error = StyleMismatchError(
         "source and target triage blocks belong to different styles"
@@ -752,7 +780,9 @@ def test_finalize_block_happy(fake_triage_repo, context, monkeypatch):
 
 
 def test_finalize_block_inactive_staging_409(
-    fake_triage_repo, context, monkeypatch,
+    fake_triage_repo,
+    context,
+    monkeypatch,
 ):
     bid = _create_block(fake_triage_repo)
     monkeypatch.setattr(
@@ -763,7 +793,8 @@ def test_finalize_block_inactive_staging_409(
         {"id": "bk-1", "category_id": "cat-1", "track_count": 5},
     ]
     fake_triage_repo.finalize_error = InactiveStagingFinalizeError(
-        "1 inactive staging bucket(s) hold tracks", inactive_payload,
+        "1 inactive staging bucket(s) hold tracks",
+        inactive_payload,
     )
     resp = lambda_handler(
         _event(
@@ -848,6 +879,7 @@ def test_create_category_triggers_snapshot(monkeypatch, context):
         return 1
 
     from collector.curation.triage_repository import TriageRepository
+
     monkeypatch.setattr(
         TriageRepository,
         "snapshot_category_into_active_blocks",
@@ -929,6 +961,7 @@ def test_soft_delete_category_triggers_inactive_mark(monkeypatch, context):
         return 2
 
     from collector.curation.triage_repository import TriageRepository
+
     monkeypatch.setattr(
         TriageRepository,
         "mark_staging_inactive_for_category",

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import structlog
 
@@ -151,7 +152,7 @@ LOGGER = structlog.get_logger("collector")
 
 def redact_sensitive_data(value: Any) -> Any:
     if isinstance(value, Mapping):
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         for key, item in value.items():
             if key.lower() in SENSITIVE_KEYS:
                 result[key] = "[REDACTED]"
@@ -165,16 +166,16 @@ def redact_sensitive_data(value: Any) -> Any:
     return value
 
 
-def _sanitize_fields(fields: Mapping[str, Any]) -> Dict[str, Any]:
-    out: Dict[str, Any] = {}
+def _sanitize_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
     for key, value in fields.items():
         if key in ALLOWED_LOG_FIELDS:
             out[key] = redact_sensitive_data(value)
     return out
 
 
-def _sanitize_event(event_dict: Mapping[str, Any]) -> Dict[str, Any]:
-    payload: Dict[str, Any] = {}
+def _sanitize_event(event_dict: Mapping[str, Any]) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
 
     timestamp = event_dict.get("timestamp")
     if isinstance(timestamp, str):

@@ -8,7 +8,8 @@ import random
 import time
 import urllib.parse
 import urllib.request
-from typing import Any, Callable, Dict, List, Tuple
+from collections.abc import Callable
+from typing import Any
 from urllib.error import HTTPError, URLError
 
 from .errors import UpstreamAuthError, UpstreamUnavailableError
@@ -48,12 +49,12 @@ class BeatportClient:
         week_start: str,
         week_end: str,
         correlation_id: str,
-    ) -> Tuple[List[Dict[str, Any]], int]:
+    ) -> tuple[list[dict[str, Any]], int]:
         max_pages = 300
-        all_items: List[Dict[str, Any]] = []
+        all_items: list[dict[str, Any]] = []
         pages_fetched = 0
         url = f"{self.base_url}/tracks/"
-        params: Dict[str, str] = {
+        params: dict[str, str] = {
             "genre_id": str(style_id),
             "publish_date": f"{week_start}:{week_end}",
             "page": "1",
@@ -86,10 +87,10 @@ class BeatportClient:
     def _request_page(
         self,
         url: str,
-        params: Dict[str, str],
+        params: dict[str, str],
         bp_token: str,
         correlation_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         request_url = f"{url}?{urllib.parse.urlencode(params)}"
         headers = {
             "Accept": "application/json",
@@ -106,13 +107,9 @@ class BeatportClient:
                 beatport_page=params.get("page"),
                 beatport_attempt=attempt + 1,
             )
-            request = urllib.request.Request(
-                url=request_url, method="GET", headers=headers
-            )
+            request = urllib.request.Request(url=request_url, method="GET", headers=headers)
             try:
-                with urllib.request.urlopen(
-                    request, timeout=self.timeout_seconds
-                ) as response:
+                with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
                     log_event(
                         "INFO",
                         "beatport_response",
@@ -125,9 +122,7 @@ class BeatportClient:
                     raw = response.read().decode("utf-8")
                     parsed = json.loads(raw)
                     if not isinstance(parsed, dict):
-                        raise UpstreamUnavailableError(
-                            "Unexpected Beatport payload type"
-                        )
+                        raise UpstreamUnavailableError("Unexpected Beatport payload type")
                     return parsed
             except HTTPError as exc:
                 if exc.code in (401, 403):
@@ -137,16 +132,12 @@ class BeatportClient:
                     self._sleep_backoff(attempt)
                     continue
 
-                raise UpstreamUnavailableError(
-                    f"Beatport API returned HTTP {exc.code}"
-                ) from exc
+                raise UpstreamUnavailableError(f"Beatport API returned HTTP {exc.code}") from exc
             except (URLError, TimeoutError, ValueError) as exc:
                 if attempt < self.max_retries:
                     self._sleep_backoff(attempt)
                     continue
-                raise UpstreamUnavailableError(
-                    "Beatport API request failed after retries"
-                ) from exc
+                raise UpstreamUnavailableError("Beatport API request failed after retries") from exc
 
         raise UpstreamUnavailableError("Beatport API request failed")
 
@@ -156,7 +147,7 @@ class BeatportClient:
         self.sleep_fn(delay)
 
     @staticmethod
-    def _extract_items(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _extract_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
         candidate_keys = ("results", "items", "releases", "data")
         for key in candidate_keys:
             value = payload.get(key)
@@ -165,7 +156,7 @@ class BeatportClient:
         return []
 
     @staticmethod
-    def _extract_params_for_requests(url: str) -> Dict[str, str]:
+    def _extract_params_for_requests(url: str) -> dict[str, str]:
         parsed = urllib.parse.urlparse(url)
         params = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
         return {key: values[0] for key, values in params.items() if values}

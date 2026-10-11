@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date as date_type
 from datetime import timedelta
-from typing import Any, Sequence
+from typing import Any
 from uuid import uuid4
 
 from collector.curation import (
@@ -198,9 +199,7 @@ class TriageRepository:
                 "now": now,
             }
             for i, bucket_type in enumerate(TECHNICAL_BUCKET_TYPES):
-                tech_value_rows.append(
-                    f"(:tid_{i}, :block_id, :btype_{i}, NULL, FALSE, :now)"
-                )
+                tech_value_rows.append(f"(:tid_{i}, :block_id, :btype_{i}, NULL, FALSE, :now)")
                 tech_params[f"tid_{i}"] = str(uuid4())
                 tech_params[f"btype_{i}"] = bucket_type
             tech_rows = self._data_api.execute(
@@ -214,9 +213,7 @@ class TriageRepository:
                 tech_params,
                 transaction_id=tx_id,
             )
-            tech_bucket_id_by_type: dict[str, str] = {
-                r["bucket_type"]: r["id"] for r in tech_rows
-            }
+            tech_bucket_id_by_type: dict[str, str] = {r["bucket_type"]: r["id"] for r in tech_rows}
 
             # 4. Snapshot one staging bucket per alive category.
             categories = self._data_api.execute(
@@ -269,9 +266,7 @@ class TriageRepository:
                 "now": now,
                 "new_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_NEW],
                 "old_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_OLD],
-                "unclassified_bucket_id": tech_bucket_id_by_type[
-                    BUCKET_TYPE_UNCLASSIFIED
-                ],
+                "unclassified_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_UNCLASSIFIED],
             }
 
             if include_favorites:
@@ -294,9 +289,7 @@ class TriageRepository:
                               AND uap.status = 'liked'
                         ) THEN :fav_bucket_id
                 """
-                classify_params["fav_bucket_id"] = tech_bucket_id_by_type[
-                    BUCKET_TYPE_FAV
-                ]
+                classify_params["fav_bucket_id"] = tech_bucket_id_by_type[BUCKET_TYPE_FAV]
 
             disliked_terms: list[str] = []
             if include_disliked_labels:
@@ -325,20 +318,11 @@ class TriageRepository:
                 )
             disliked_when = ""
             if disliked_terms:
-                disliked_when = (
-                    "WHEN "
-                    + " OR ".join(disliked_terms)
-                    + " THEN :not_bucket_id"
-                )
+                disliked_when = "WHEN " + " OR ".join(disliked_terms) + " THEN :not_bucket_id"
             if compilations_to_not:
-                compilation_when = (
-                    "WHEN t.release_type = 'compilation' "
-                    "THEN :not_bucket_id"
-                )
+                compilation_when = "WHEN t.release_type = 'compilation' THEN :not_bucket_id"
             if disliked_when or compilation_when:
-                classify_params["not_bucket_id"] = tech_bucket_id_by_type[
-                    BUCKET_TYPE_NOT
-                ]
+                classify_params["not_bucket_id"] = tech_bucket_id_by_type[BUCKET_TYPE_NOT]
 
             self._data_api.execute(
                 f"""
@@ -416,18 +400,12 @@ class TriageRepository:
             },
         )
         if not guard:
-            raise NotFoundError(
-                "bucket_not_in_block", "block or bucket not found"
-            )
+            raise NotFoundError("bucket_not_in_block", "block or bucket not found")
         row = guard[0]
         if row["block_status"] != "IN_PROGRESS":
-            raise InvalidStateError(
-                "triage block is not editable (status != IN_PROGRESS)"
-            )
+            raise InvalidStateError("triage block is not editable (status != IN_PROGRESS)")
         if bool(row["to_inactive"]):
-            raise InactiveBucketError(
-                "target bucket is inactive (its category was soft-deleted)"
-            )
+            raise InactiveBucketError("target bucket is inactive (its category was soft-deleted)")
 
         if from_bucket_id == to_bucket_id:
             return MoveResult(moved=0)
@@ -539,17 +517,11 @@ class TriageRepository:
         tgt = tgt_rows[0]
 
         if tgt["block_status"] != "IN_PROGRESS":
-            raise InvalidStateError(
-                "target triage block is not IN_PROGRESS"
-            )
+            raise InvalidStateError("target triage block is not IN_PROGRESS")
         if bool(tgt["bucket_inactive"]):
-            raise InactiveBucketError(
-                "target bucket is inactive (its category was soft-deleted)"
-            )
+            raise InactiveBucketError("target bucket is inactive (its category was soft-deleted)")
         if src["style_id"] != tgt["block_style_id"]:
-            raise StyleMismatchError(
-                "source and target triage blocks belong to different styles"
-            )
+            raise StyleMismatchError("source and target triage blocks belong to different styles")
 
         # Aurora Data API forbids array params — see move_tracks for rationale.
         track_id_list = list(track_ids)
@@ -576,9 +548,7 @@ class TriageRepository:
                 missing,
             )
 
-        insert_value_rows = ", ".join(
-            f"(:tgt_id, :t{i}, :now)" for i in range(len(track_id_list))
-        )
+        insert_value_rows = ", ".join(f"(:tgt_id, :t{i}, :now)" for i in range(len(track_id_list)))
         insert_params: dict[str, Any] = {
             "tgt_id": target_bucket_id,
             "now": utc_now(),
@@ -625,9 +595,7 @@ class TriageRepository:
                     f"triage block not found: {block_id}",
                 )
             if block_rows[0]["status"] != "IN_PROGRESS":
-                raise InvalidStateError(
-                    "triage block is not editable (status != IN_PROGRESS)"
-                )
+                raise InvalidStateError("triage block is not editable (status != IN_PROGRESS)")
 
             # 2. Reject if any inactive staging bucket has tracks.
             inactive_with_tracks = self._data_api.execute(
@@ -691,12 +659,8 @@ class TriageRepository:
                 )
                 track_ids = [r["track_id"] for r in track_rows]
                 promoted[category_id] = len(track_ids)
-                for start in range(
-                    0, len(track_ids), self._FINALIZE_CHUNK_SIZE
-                ):
-                    chunk = track_ids[
-                        start : start + self._FINALIZE_CHUNK_SIZE
-                    ]
+                for start in range(0, len(track_ids), self._FINALIZE_CHUNK_SIZE):
+                    chunk = track_ids[start : start + self._FINALIZE_CHUNK_SIZE]
                     items = [(t, block_id) for t in chunk]
                     categories_repository.add_tracks_bulk(
                         user_id=user_id,
@@ -725,14 +689,10 @@ class TriageRepository:
             )
 
         if block is None:  # pragma: no cover
-            raise RuntimeError(
-                "finalize_block: post-update fetch returned None"
-            )
+            raise RuntimeError("finalize_block: post-update fetch returned None")
         return FinalizeResult(block=block, promoted=promoted)
 
-    def soft_delete_block(
-        self, *, user_id: str, block_id: str
-    ) -> bool:
+    def soft_delete_block(self, *, user_id: str, block_id: str) -> bool:
         rows = self._data_api.execute(
             """
             UPDATE triage_blocks
@@ -827,12 +787,8 @@ class TriageRepository:
 
     # --- reads --------------------------------------------------------
 
-    def get_block(
-        self, *, user_id: str, block_id: str
-    ) -> TriageBlockRow | None:
-        return self._fetch_block_detail(
-            user_id=user_id, block_id=block_id, transaction_id=None
-        )
+    def get_block(self, *, user_id: str, block_id: str) -> TriageBlockRow | None:
+        return self._fetch_block_detail(user_id=user_id, block_id=block_id, transaction_id=None)
 
     def list_blocks_by_style(
         self,
@@ -918,11 +874,7 @@ class TriageRepository:
                 status=r["status"],
                 created_at=str(r["created_at"]),
                 updated_at=str(r["updated_at"]),
-                finalized_at=(
-                    str(r["finalized_at"])
-                    if r["finalized_at"] is not None
-                    else None
-                ),
+                finalized_at=(str(r["finalized_at"]) if r["finalized_at"] is not None else None),
                 track_count=int(r["track_count"]),
             )
             for r in rows
@@ -997,11 +949,7 @@ class TriageRepository:
                 status=r["status"],
                 created_at=str(r["created_at"]),
                 updated_at=str(r["updated_at"]),
-                finalized_at=(
-                    str(r["finalized_at"])
-                    if r["finalized_at"] is not None
-                    else None
-                ),
+                finalized_at=(str(r["finalized_at"]) if r["finalized_at"] is not None else None),
                 track_count=int(r["track_count"]),
             )
             for r in rows
@@ -1112,17 +1060,11 @@ class TriageRepository:
                     mix_name=r.get("mix_name"),
                     isrc=r.get("isrc"),
                     bpm=int(r["bpm"]) if r.get("bpm") is not None else None,
-                    length_ms=(
-                        int(r["length_ms"])
-                        if r.get("length_ms") is not None
-                        else None
-                    ),
+                    length_ms=(int(r["length_ms"]) if r.get("length_ms") is not None else None),
                     key_name=r.get("key_name"),
                     key_camelot=r.get("key_camelot"),
                     publish_date=(
-                        str(r["publish_date"])
-                        if r.get("publish_date") is not None
-                        else None
+                        str(r["publish_date"]) if r.get("publish_date") is not None else None
                     ),
                     spotify_release_date=(
                         str(r["spotify_release_date"])
@@ -1241,14 +1183,12 @@ class TriageRepository:
             include_favorites=bool(b["include_favorites"]),
             created_at=str(b["created_at"]),
             updated_at=str(b["updated_at"]),
-            finalized_at=(
-                str(b["finalized_at"]) if b["finalized_at"] is not None else None
-            ),
+            finalized_at=(str(b["finalized_at"]) if b["finalized_at"] is not None else None),
             buckets=buckets,
         )
 
 
-def create_default_triage_repository() -> "TriageRepository | None":
+def create_default_triage_repository() -> TriageRepository | None:
     from collector.settings import get_data_api_settings
 
     settings = get_data_api_settings()

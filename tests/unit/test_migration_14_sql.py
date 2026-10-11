@@ -37,7 +37,7 @@ def test_upgrade_creates_category_tracks_table() -> None:
     src = Path("alembic/versions/20260427_14_categories.py").read_text()
     assert 'create_table(\n        "category_tracks"' in src
     assert '"source_triage_block_id"' in src
-    assert "PrimaryKeyConstraint(\"category_id\", \"track_id\")" in src
+    assert 'PrimaryKeyConstraint("category_id", "track_id")' in src
     assert "idx_category_tracks_category_added" in src
 
 

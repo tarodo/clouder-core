@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock
 
@@ -35,7 +35,7 @@ def test_get_vendor_match_miss_returns_none() -> None:
 
 def test_get_vendor_match_hit_builds_dataclass() -> None:
     repo, data_api = _make_repo()
-    now = datetime(2026, 4, 21, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 21, 12, 0, tzinfo=UTC)
     data_api.execute.return_value = [
         {
             "vendor_track_id": "sp123",
@@ -58,7 +58,7 @@ def test_get_vendor_match_hit_builds_dataclass() -> None:
 
 def test_upsert_vendor_match_writes_expected_sql_and_params() -> None:
     repo, data_api = _make_repo()
-    now = datetime(2026, 4, 21, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 21, 12, 0, tzinfo=UTC)
     cmd = UpsertVendorMatchCmd(
         clouder_track_id="track-1",
         vendor="spotify",
@@ -87,7 +87,7 @@ def test_upsert_vendor_match_writes_expected_sql_and_params() -> None:
 
 def test_insert_review_candidate_writes_pending_row() -> None:
     repo, data_api = _make_repo()
-    now = datetime(2026, 4, 21, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 21, 12, 0, tzinfo=UTC)
 
     repo.insert_review_candidate(
         review_id="rev-1",
@@ -113,7 +113,7 @@ def test_insert_review_candidate_writes_pending_row() -> None:
 
 def test_upsert_vendor_match_forwards_transaction_id() -> None:
     repo, data_api = _make_repo()
-    now = datetime(2026, 4, 21, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 21, 12, 0, tzinfo=UTC)
     cmd = UpsertVendorMatchCmd(
         clouder_track_id="track-1",
         vendor="spotify",

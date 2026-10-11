@@ -6,8 +6,8 @@ descending together week by week down to the backfill floor.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Set
 from datetime import date, timedelta
-from typing import AbstractSet, Iterable
 
 from .saturday_week import saturday_week_range, week_of_date
 
@@ -39,8 +39,8 @@ def weeks_back(due: tuple[int, int], floor: date) -> list[tuple[int, int]]:
 
 def choose_periods(
     styles: Iterable[int],
-    loaded: AbstractSet[Pair],
-    stuck: AbstractSet[Pair],
+    loaded: Set[Pair],
+    stuck: Set[Pair],
     *,
     due: tuple[int, int],
     floor: date,

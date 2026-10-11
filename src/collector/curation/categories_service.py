@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 from . import OrderMismatchError, ValidationError
 
@@ -30,17 +30,13 @@ def validate_category_name(name: str) -> None:
     if not trimmed:
         raise ValidationError("Name must be non-empty")
     if len(trimmed) > _MAX_NAME_LENGTH:
-        raise ValidationError(
-            f"Name must be at most {_MAX_NAME_LENGTH} characters"
-        )
+        raise ValidationError(f"Name must be at most {_MAX_NAME_LENGTH} characters")
     for ch in trimmed:
         if ord(ch) < 0x20 or ord(ch) == 0x7F:
             raise ValidationError("Name must not contain control characters")
 
 
-def validate_reorder_set(
-    *, actual: Iterable[str], requested: Sequence[str]
-) -> None:
+def validate_reorder_set(*, actual: Iterable[str], requested: Sequence[str]) -> None:
     """Ensure the requested id list equals the actual alive set, no dups.
 
     Used by PUT /styles/{style_id}/categories/order. Either:
@@ -52,10 +48,6 @@ def validate_reorder_set(
     actual_set = set(actual)
     requested_set = set(requested)
     if len(requested) != len(requested_set):
-        raise OrderMismatchError(
-            "category_ids contains duplicates"
-        )
+        raise OrderMismatchError("category_ids contains duplicates")
     if actual_set != requested_set:
-        raise OrderMismatchError(
-            "category_ids must equal the current set of categories"
-        )
+        raise OrderMismatchError("category_ids must equal the current set of categories")

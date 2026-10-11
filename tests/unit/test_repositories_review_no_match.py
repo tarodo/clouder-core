@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from collector.repositories import ClouderRepository
 
@@ -18,7 +18,7 @@ def test_mark_no_match_inserts_no_match_row():
     repo.mark_no_match(
         clouder_track_id="t1",
         vendor="ytmusic",
-        created_at=datetime(2026, 5, 30, tzinfo=timezone.utc),
+        created_at=datetime(2026, 5, 30, tzinfo=UTC),
     )
     sql, params = api.calls[-1]
     assert "INSERT INTO match_review_queue" in sql

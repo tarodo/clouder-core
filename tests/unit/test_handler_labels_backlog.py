@@ -19,11 +19,22 @@ def test_backlog_returns_items_and_total_estimate(monkeypatch):
     fake_repo = MagicMock()
     fake_repo.list_backlog.return_value = (
         [
-            {"id": "lbl-1", "name": "VIM", "style": "drum-and-bass",
-             "status": "failed", "track_count": 12,
-             "last_attempted_at": "2026-05-12T10:00:00Z"},
-            {"id": "lbl-2", "name": "Fokuz", "style": "drum-and-bass",
-             "status": "none", "track_count": 142, "last_attempted_at": None},
+            {
+                "id": "lbl-1",
+                "name": "VIM",
+                "style": "drum-and-bass",
+                "status": "failed",
+                "track_count": 12,
+                "last_attempted_at": "2026-05-12T10:00:00Z",
+            },
+            {
+                "id": "lbl-2",
+                "name": "Fokuz",
+                "style": "drum-and-bass",
+                "status": "none",
+                "track_count": 142,
+                "last_attempted_at": None,
+            },
         ],
         None,
         142,

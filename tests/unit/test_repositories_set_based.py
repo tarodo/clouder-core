@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from collector.repositories import (
@@ -14,7 +14,7 @@ from collector.repositories import (
     UpsertIdentityCmd,
 )
 
-AT = datetime(2026, 10, 7, tzinfo=timezone.utc)
+AT = datetime(2026, 10, 7, tzinfo=UTC)
 
 
 class RecordingDataAPI:
@@ -34,17 +34,32 @@ class RecordingDataAPI:
 
 def _identity(ext: str) -> UpsertIdentityCmd:
     return UpsertIdentityCmd(
-        source="beatport", entity_type="artist", external_id=ext,
-        clouder_entity_type="artist", clouder_id=f"new-{ext}",
-        match_type="auto_create", confidence=Decimal("0.600"), observed_at=AT,
+        source="beatport",
+        entity_type="artist",
+        external_id=ext,
+        clouder_entity_type="artist",
+        clouder_id=f"new-{ext}",
+        match_type="auto_create",
+        confidence=Decimal("0.600"),
+        observed_at=AT,
     )
 
 
 def _track(track_id: str) -> CreateTrackCmd:
     return CreateTrackCmd(
-        track_id=track_id, title="T", normalized_title="t", mix_name=None, isrc=None,
-        bpm=None, length_ms=None, key_name=None, key_camelot=None, publish_date=None,
-        album_id=None, style_id=None, at=AT,
+        track_id=track_id,
+        title="T",
+        normalized_title="t",
+        mix_name=None,
+        isrc=None,
+        bpm=None,
+        length_ms=None,
+        key_name=None,
+        key_camelot=None,
+        publish_date=None,
+        album_id=None,
+        style_id=None,
+        at=AT,
     )
 
 
@@ -88,21 +103,44 @@ def test_claim_identities_never_overwrites_existing_rows() -> None:
 def test_batch_writes_are_one_round_trip_each() -> None:
     api = RecordingDataAPI()
     repo = ClouderRepository(api)
-    named = [CreateNamedEntityCmd(entity_id=f"e{i}", name="N", normalized_name="n", at=AT) for i in range(3)]
+    named = [
+        CreateNamedEntityCmd(entity_id=f"e{i}", name="N", normalized_name="n", at=AT)
+        for i in range(3)
+    ]
 
     repo.batch_create_labels(named, transaction_id="tx")
     repo.batch_create_styles(named, transaction_id="tx")
     repo.batch_create_artists(named, transaction_id="tx")
     repo.batch_create_albums(
-        [CreateAlbumCmd(album_id="a1", title="A", normalized_title="a",
-                        release_date=date(2026, 9, 26), label_id=None, at=AT)],
+        [
+            CreateAlbumCmd(
+                album_id="a1",
+                title="A",
+                normalized_title="a",
+                release_date=date(2026, 9, 26),
+                label_id=None,
+                at=AT,
+            )
+        ],
         transaction_id="tx",
     )
     repo.batch_create_tracks([_track("t1"), _track("t2")], transaction_id="tx")
     repo.batch_conservative_update_tracks(
-        [ConservativeUpdateTrackCmd(track_id="t1", mix_name=None, isrc=None, bpm=None,
-                                    length_ms=None, key_name=None, key_camelot=None,
-                                    publish_date=None, album_id=None, style_id=None, at=AT)],
+        [
+            ConservativeUpdateTrackCmd(
+                track_id="t1",
+                mix_name=None,
+                isrc=None,
+                bpm=None,
+                length_ms=None,
+                key_name=None,
+                key_camelot=None,
+                publish_date=None,
+                album_id=None,
+                style_id=None,
+                at=AT,
+            )
+        ],
         transaction_id="tx",
     )
 
@@ -115,8 +153,11 @@ def test_batch_writes_skip_empty_lists() -> None:
     repo = ClouderRepository(api)
 
     for method in (
-        repo.batch_create_labels, repo.batch_create_styles, repo.batch_create_artists,
-        repo.batch_create_albums, repo.batch_create_tracks,
+        repo.batch_create_labels,
+        repo.batch_create_styles,
+        repo.batch_create_artists,
+        repo.batch_create_albums,
+        repo.batch_create_tracks,
         repo.batch_conservative_update_tracks,
     ):
         method([])

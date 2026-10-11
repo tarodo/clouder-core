@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from ..logging_utils import log_event
 from . import (
@@ -20,9 +21,13 @@ def _extract_correlation_id(event: Mapping[str, Any]) -> str:
     headers = event.get("headers")
     if isinstance(headers, Mapping):
         for key, value in headers.items():
-            if isinstance(key, str) and key.lower() == "x-correlation-id":
-                if isinstance(value, str) and value.strip():
-                    return value.strip()
+            if (
+                isinstance(key, str)
+                and key.lower() == "x-correlation-id"
+                and isinstance(value, str)
+                and value.strip()
+            ):
+                return value.strip()
     return str(uuid.uuid4())
 
 
@@ -41,9 +46,7 @@ def _json_response(
     }
 
 
-def _error(
-    status: int, error_code: str, message: str, correlation_id: str
-) -> dict[str, Any]:
+def _error(status: int, error_code: str, message: str, correlation_id: str) -> dict[str, Any]:
     return _json_response(
         status,
         {
@@ -55,9 +58,7 @@ def _error(
     )
 
 
-def _curation_error_response(
-    exc: CurationError, correlation_id: str
-) -> dict[str, Any]:
+def _curation_error_response(exc: CurationError, correlation_id: str) -> dict[str, Any]:
     """Map a CurationError to an HTTP envelope, attaching structured payloads
     for error subclasses that carry them (InactiveStagingFinalizeError,
     TracksNotInSourceError)."""
@@ -139,9 +140,7 @@ def _parse_pagination(event: Mapping[str, Any]) -> tuple[int, int]:
     return limit, offset
 
 
-def _paginated_response(
-    result, mapper, correlation_id: str
-) -> dict[str, Any]:
+def _paginated_response(result, mapper, correlation_id: str) -> dict[str, Any]:
     return _json_response(
         200,
         {

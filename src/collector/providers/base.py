@@ -76,7 +76,7 @@ class LookupProvider(Protocol):
         """Batch ISRC search. Returns provider-specific result objects."""
         ...
 
-    def lookup_by_isrc(self, isrc: str) -> "VendorTrackRef | None":
+    def lookup_by_isrc(self, isrc: str) -> VendorTrackRef | None:
         """Single-ISRC lookup. Returns None on miss."""
         ...
 
@@ -86,7 +86,7 @@ class LookupProvider(Protocol):
         title: str,
         duration_ms: int | None,
         album: str | None,
-    ) -> list["VendorTrackRef"]:
+    ) -> list[VendorTrackRef]:
         """Fuzzy metadata search. Returns up to ~10 candidates."""
         ...
 

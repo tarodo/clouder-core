@@ -28,8 +28,13 @@ class FakeClient:
 
 
 def _check(name: str, comparison: str = "max", threshold: float | None = 0) -> Check:
-    return Check(name=name, description=name, sql=f"/* {name} */ SELECT 1 AS value",
-                 comparison=comparison, threshold=threshold)
+    return Check(
+        name=name,
+        description=name,
+        sql=f"/* {name} */ SELECT 1 AS value",
+        comparison=comparison,
+        threshold=threshold,
+    )
 
 
 def test_failing_check_is_recorded_and_others_run() -> None:
@@ -58,8 +63,14 @@ def test_recorded_only_checks_never_fail() -> None:
 
 def test_only_declared_params_are_sent() -> None:
     client = FakeClient({"p": 0})
-    check = Check(name="p", description="p", sql="/* p */ SELECT 1 AS value",
-                  comparison="max", threshold=0, params=("expected_end",))
+    check = Check(
+        name="p",
+        description="p",
+        sql="/* p */ SELECT 1 AS value",
+        comparison="max",
+        threshold=0,
+        params=("expected_end",),
+    )
 
     run_checks(client, date(2026, 10, 7), checks=[check])
 

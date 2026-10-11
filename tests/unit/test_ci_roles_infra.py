@@ -9,12 +9,23 @@ ROOT = Path(__file__).resolve().parents[2]
 CI_ROLES = ROOT / "infra" / "ci_roles.tf"
 
 # SSM paths the deploy syncs from GitHub secrets; Terraform only passes their names.
-VENDOR_SECRETS = ("gemini", "openai", "tavily", "deepseek", "spotify", "ytmusic", "youtube", "beatport")
+VENDOR_SECRETS = (
+    "gemini",
+    "openai",
+    "tavily",
+    "deepseek",
+    "spotify",
+    "ytmusic",
+    "youtube",
+    "beatport",
+)
 
 
 def test_plan_role_only_reads() -> None:
     tf = CI_ROLES.read_text()
-    assert re.findall(r'policy_arn\s*=\s*"([^"]+)"', tf) == ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
+    assert re.findall(r'policy_arn\s*=\s*"([^"]+)"', tf) == [
+        "arn:aws:iam::aws:policy/ReadOnlyAccess"
+    ]
     effects = re.findall(r'effect\s*=\s*"(\w+)"', tf)
     assert effects and set(effects) == {"Deny"}  # the inline policy only takes away
 

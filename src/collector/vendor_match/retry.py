@@ -5,7 +5,8 @@ from __future__ import annotations
 import functools
 import random
 import time
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from ..errors import VendorQuotaError, VendorUnavailableError
 
@@ -36,9 +37,7 @@ def retry_vendor(
                     last_exc = exc
                     if attempt == max_retries - 1:
                         break
-                    delay = random.uniform(
-                        0.0, min(max_delay, base_delay * (2**attempt))
-                    )
+                    delay = random.uniform(0.0, min(max_delay, base_delay * (2**attempt)))
                     if isinstance(exc, VendorQuotaError) and exc.retry_after:
                         delay = max(delay, float(exc.retry_after))
                     time.sleep(delay)

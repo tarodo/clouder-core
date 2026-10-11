@@ -135,9 +135,7 @@ def test_user_id_stamped_from_authorizer_not_client():
     fh = _ok_firehose()
     ev = _track_view("a")
     ev["context"]["user_id"] = "CLIENT_SPOOF"
-    telemetry_handler.lambda_handler(
-        _event([ev], user_id="u-real"), _ctx(), firehose_client=fh
-    )
+    telemetry_handler.lambda_handler(_event([ev], user_id="u-real"), _ctx(), firehose_client=fh)
     line = fh.put_record_batch.call_args.kwargs["Records"][0]["Data"].decode("utf-8")
     record = json.loads(line)
     assert record["user_id"] == "u-real"
@@ -172,9 +170,7 @@ def test_batch_over_256_events_returns_400():
 def test_body_over_256kb_returns_413():
     fh = _ok_firehose()
     big = "x" * (256 * 1024 + 1)
-    resp = telemetry_handler.lambda_handler(
-        _event([], body=big), _ctx(), firehose_client=fh
-    )
+    resp = telemetry_handler.lambda_handler(_event([], body=big), _ctx(), firehose_client=fh)
     assert resp["statusCode"] == 413
     assert fh.put_record_batch.call_count == 0
 

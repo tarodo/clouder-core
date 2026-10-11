@@ -17,9 +17,15 @@ class StubAdapter:
         parsed = schema.model_validate(
             {"artist_name": "ANNA", "ai_reasoning": "x", "summary": "x", "confidence": 0.8}
         )
-        return VendorResponse(parsed=parsed, raw={}, citations=["u"],
-                              usage={"cost_usd": 0.001}, latency_ms=3,
-                              model=model or self.default_model, error=None)
+        return VendorResponse(
+            parsed=parsed,
+            raw={},
+            citations=["u"],
+            usage={"cost_usd": 0.001},
+            latency_ms=3,
+            model=model or self.default_model,
+            error=None,
+        )
 
 
 class FakeRepo:
@@ -31,7 +37,9 @@ class FakeRepo:
         self.running = None
 
     def derive_artist_context(self, artist_id):
-        return ArtistContext(style="techno", sample_tracks=["Hidden Beauties"], known_labels=["Drumcode"])
+        return ArtistContext(
+            style="techno", sample_tracks=["Hidden Beauties"], known_labels=["Drumcode"]
+        )
 
     def mark_run_running(self, run_id):
         self.running = run_id
@@ -39,7 +47,9 @@ class FakeRepo:
     def insert_cell(self, *, run_id, artist_id, vendor, response):
         self.cells.append((vendor, response.error))
 
-    def upsert_artist_info(self, *, artist_id, last_run_id, prompt_slug, prompt_version, merged, provenance):
+    def upsert_artist_info(
+        self, *, artist_id, last_run_id, prompt_slug, prompt_version, merged, provenance
+    ):
         self.upserted = (artist_id, merged)
 
     def project_ai_suspected(self, artist_id, merged, threshold):
@@ -61,9 +71,15 @@ def test_enrich_artist_for_run_persists_and_projects():
     outcomes = []
 
     enrich_artist_for_run(
-        run_id="r", artist_id="a", artist_name="ANNA",
-        adapters=adapters, merge_client=FakeMergeClient(), merge_model="d",
-        prompt=prompt, repository=repo, ai_flag_threshold=0.7,
+        run_id="r",
+        artist_id="a",
+        artist_name="ANNA",
+        adapters=adapters,
+        merge_client=FakeMergeClient(),
+        merge_model="d",
+        prompt=prompt,
+        repository=repo,
+        ai_flag_threshold=0.7,
         on_outcome=lambda aid, ok: outcomes.append((aid, ok)),
     )
 

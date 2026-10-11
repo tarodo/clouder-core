@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -37,9 +38,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
     settings = get_worker_settings()
     repository = create_clouder_repository_from_env()
     if repository is None:
-        raise RuntimeError(
-            "AURORA Data API configuration is required for canonicalization worker"
-        )
+        raise RuntimeError("AURORA Data API configuration is required for canonicalization worker")
 
     storage = S3Storage(
         s3_client=create_default_s3_client(),
@@ -158,7 +157,9 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 correlation_id=correlation_id,
             )
         except Exception as exc:
-            is_permanent = isinstance(exc, _PERMANENT_ERRORS) and not isinstance(exc, TransientStorageError)
+            is_permanent = isinstance(exc, _PERMANENT_ERRORS) and not isinstance(
+                exc, TransientStorageError
+            )
             error_code = (
                 "canonicalization_permanent_failure"
                 if is_permanent

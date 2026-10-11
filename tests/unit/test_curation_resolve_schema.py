@@ -44,9 +44,7 @@ def test_accept_rejects_12_char_id():
 
 def test_extra_field_forbidden():
     with pytest.raises(ValidationError):
-        ResolveMatchIn.model_validate(
-            {"vendor": "ytmusic", "action": "reject", "bogus": 1}
-        )
+        ResolveMatchIn.model_validate({"vendor": "ytmusic", "action": "reject", "bogus": 1})
 
 
 def test_reject_ignores_supplied_video_id():

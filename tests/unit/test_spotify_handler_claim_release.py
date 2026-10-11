@@ -79,9 +79,7 @@ def _setup(monkeypatch) -> tuple[ClaimingRepo, FakeS3Client]:
     monkeypatch.setattr(
         "collector.spotify_handler.create_clouder_repository_from_env", lambda: repo
     )
-    monkeypatch.setattr(
-        "collector.spotify_handler.create_default_s3_client", lambda: s3
-    )
+    monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: s3)
     return repo, s3
 
 
@@ -135,9 +133,7 @@ def test_successful_batch_does_not_release(monkeypatch) -> None:
             for t in tracks
         ]
 
-    monkeypatch.setattr(
-        "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc", ok
-    )
+    monkeypatch.setattr("collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc", ok)
 
     lambda_handler(_event(), context=None)
 
@@ -175,8 +171,14 @@ def test_a_batch_cut_short_by_the_deadline_hands_back_the_rest(monkeypatch) -> N
 
     def cut_short(self, tracks, correlation_id, **_kwargs):
         first = tracks[0]
-        return [SpotifySearchResult(isrc=first["isrc"], clouder_track_id=first["clouder_track_id"],
-                                    spotify_track={"id": "sp1", "name": "n"}, spotify_id="sp1")]
+        return [
+            SpotifySearchResult(
+                isrc=first["isrc"],
+                clouder_track_id=first["clouder_track_id"],
+                spotify_track={"id": "sp1", "name": "n"},
+                spotify_id="sp1",
+            )
+        ]
 
     monkeypatch.setattr(
         "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc", cut_short

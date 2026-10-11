@@ -47,9 +47,11 @@ def test_dbt_can_read_the_deleted_user_tombstones() -> None:
 def test_freshness_failures_fail_the_nightly_job() -> None:
     tf = (INFRA / "lakehouse.tf").read_text()
     start = tf.index("buildspec = <<-YAML")
-    spec = tf[start:tf.index("    YAML", start)]
+    spec = tf[start : tf.index("    YAML", start)]
     assert "dbt source freshness" in spec and "|| true" not in spec
-    assert spec.index("dbt build") < spec.index("dbt source freshness")  # data still flows when stale
+    assert spec.index("dbt build") < spec.index(
+        "dbt source freshness"
+    )  # data still flows when stale
 
 
 def test_catalog_export_freshness_errors_and_telemetry_only_warns() -> None:
@@ -76,5 +78,5 @@ def test_catalog_freshness_waits_for_the_last_exported_table() -> None:
 def test_catalog_export_has_room_to_finish() -> None:
     # 300 s ran out on 2026-10-09 with ~310k rows; 900 s is the Lambda maximum.
     tf = (INFRA / "analytics_export.tf").read_text()
-    fn = tf[tf.index('resource "aws_lambda_function" "catalog_export"'):]
+    fn = tf[tf.index('resource "aws_lambda_function" "catalog_export"') :]
     assert re.search(r"timeout\s*=\s*900\b", fn[: fn.index("environment")])

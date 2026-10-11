@@ -36,8 +36,12 @@ class FakeSession:
                 parsed = None
         self.calls.append(
             {
-                "method": method, "url": url, "params": params,
-                "data": data, "json": parsed, "headers": headers,
+                "method": method,
+                "url": url,
+                "params": params,
+                "data": data,
+                "json": parsed,
+                "headers": headers,
             }
         )
         if self._responses:
@@ -86,7 +90,8 @@ def test_add_items_one_insert_per_video():
         assert call["url"].endswith("/youtube/v3/playlistItems")
         assert call["json"]["snippet"]["playlistId"] == "PL"
         assert call["json"]["snippet"]["resourceId"] == {
-            "kind": "youtube#video", "videoId": vid,
+            "kind": "youtube#video",
+            "videoId": vid,
         }
 
 
@@ -95,10 +100,12 @@ def _pi(item_id, video_id):
 
 
 def test_get_existing_items_paginates_returning_video_and_item_ids():
-    s = FakeSession([
-        FakeResp(200, {"items": [_pi("i1", "v1"), _pi("i2", "v2")], "nextPageToken": "p2"}),
-        FakeResp(200, {"items": [_pi("i3", "v3")]}),
-    ])
+    s = FakeSession(
+        [
+            FakeResp(200, {"items": [_pi("i1", "v1"), _pi("i2", "v2")], "nextPageToken": "p2"}),
+            FakeResp(200, {"items": [_pi("i3", "v3")]}),
+        ]
+    )
     items = _client(s).get_existing_items("PL")
     assert items == [
         {"videoId": "v1", "itemId": "i1"},
@@ -158,10 +165,12 @@ def test_set_cover_insert_succeeds_no_update():
 
 
 def test_set_cover_insert_conflict_falls_back_to_update():
-    s = FakeSession([
-        FakeResp(400, {"error": {"message": "image already exists"}}),
-        FakeResp(200, {"id": "img1"}),
-    ])
+    s = FakeSession(
+        [
+            FakeResp(400, {"error": {"message": "image already exists"}}),
+            FakeResp(200, {"id": "img1"}),
+        ]
+    )
     _client(s).set_cover("PL", b"\xff\xd8\xffJPEG")
     assert [c["method"] for c in s.calls] == ["POST", "PUT"]
     # Both hit the same media-upload endpoint with the same multipart body.
@@ -170,10 +179,12 @@ def test_set_cover_insert_conflict_falls_back_to_update():
 
 
 def test_set_cover_both_fail_raises():
-    s = FakeSession([
-        FakeResp(400, {"error": {"message": "bad type"}}),
-        FakeResp(400, {"error": {"message": "still bad"}}),
-    ])
+    s = FakeSession(
+        [
+            FakeResp(400, {"error": {"message": "bad type"}}),
+            FakeResp(400, {"error": {"message": "still bad"}}),
+        ]
+    )
     with pytest.raises(YtmusicApiError):
         _client(s).set_cover("PL", b"\xff\xd8\xffX")
     assert [c["method"] for c in s.calls] == ["POST", "PUT"]
@@ -285,11 +296,15 @@ def test_request_error_message_omits_reason_bracket_when_absent():
 
 
 def test_set_cover_both_fail_carries_status_reason_and_message():
-    s = FakeSession([
-        FakeResp(400, {"error": {"message": "bad type"}}),
-        FakeResp(409, {"error": {"message": "conflict",
-                                 "errors": [{"reason": "SERVICE_UNAVAILABLE"}]}}),
-    ])
+    s = FakeSession(
+        [
+            FakeResp(400, {"error": {"message": "bad type"}}),
+            FakeResp(
+                409,
+                {"error": {"message": "conflict", "errors": [{"reason": "SERVICE_UNAVAILABLE"}]}},
+            ),
+        ]
+    )
     with pytest.raises(YtmusicApiError) as ei:
         _client(s).set_cover("PL", b"\xff\xd8\xffX")
     assert ei.value.status_code == 409
@@ -298,10 +313,12 @@ def test_set_cover_both_fail_carries_status_reason_and_message():
 
 
 def test_set_cover_both_fail_omits_reason_bracket_when_absent():
-    s = FakeSession([
-        FakeResp(400, {"error": {"message": "bad type"}}),
-        FakeResp(400, {"error": {"message": "still bad"}}),
-    ])
+    s = FakeSession(
+        [
+            FakeResp(400, {"error": {"message": "bad type"}}),
+            FakeResp(400, {"error": {"message": "still bad"}}),
+        ]
+    )
     with pytest.raises(YtmusicApiError) as ei:
         _client(s).set_cover("PL", b"\xff\xd8\xffX")
     assert "[None]" not in str(ei.value)
@@ -310,8 +327,12 @@ def test_set_cover_both_fail_omits_reason_bracket_when_absent():
 
 # ---------- retry on transient failures -------------------------------------
 
-_ABORTED = {"error": {"message": "The operation was aborted.",
-                      "errors": [{"reason": "SERVICE_UNAVAILABLE"}]}}
+_ABORTED = {
+    "error": {
+        "message": "The operation was aborted.",
+        "errors": [{"reason": "SERVICE_UNAVAILABLE"}],
+    }
+}
 
 
 def test_request_retries_transient_409_then_succeeds():

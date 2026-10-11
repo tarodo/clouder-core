@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 from urllib.parse import quote_plus
 
 from alembic import command
@@ -42,7 +43,7 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
     config = Config(str(alembic_ini_path))
     config.set_main_option("script_location", str(script_location))
 
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
     log_event(
         "INFO",
         "migration_started",
@@ -52,7 +53,7 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
 
     command.upgrade(config, command_payload.revision)
 
-    finished_at = datetime.now(timezone.utc)
+    finished_at = datetime.now(UTC)
     duration_ms = int((finished_at - started_at).total_seconds() * 1000)
     log_event(
         "INFO",
@@ -84,9 +85,7 @@ def _build_alembic_database_url() -> str:
     if mode == "iam":
         username = settings.aurora_db_user.strip()
         if not username:
-            raise RuntimeError(
-                "AURORA_DB_USER is required when AURORA_AUTH_MODE=iam"
-            )
+            raise RuntimeError("AURORA_DB_USER is required when AURORA_AUTH_MODE=iam")
         token = _rds_client().generate_db_auth_token(
             DBHostname=settings.aurora_writer_endpoint,
             Port=settings.aurora_port,
@@ -99,9 +98,7 @@ def _build_alembic_database_url() -> str:
         )
 
     if not settings.aurora_secret_arn.strip():
-        raise RuntimeError(
-            "AURORA_SECRET_ARN is required when AURORA_AUTH_MODE=password"
-        )
+        raise RuntimeError("AURORA_SECRET_ARN is required when AURORA_AUTH_MODE=password")
 
     secret = _read_secret(settings.aurora_secret_arn)
     username = str(secret.get("username", "")).strip()

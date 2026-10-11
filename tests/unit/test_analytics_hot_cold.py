@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import duckdb
 import pytest
@@ -15,10 +15,46 @@ COLS = (
     "track_id VARCHAR, duration_ms BIGINT, source VARCHAR"
 )
 ROWS = [
-    ("e1", "u1", "2026-10-03", "2026-10-03T10:00:00.000Z", "playback_play", "t1", 60000, "triage_player"),
-    ("e2", "u1", "2026-10-03", "2026-10-03T10:00:30.000Z", "playback_pause", "t1", None, "triage_player"),
-    ("e3", "u1", "2026-10-04", "2026-10-04T10:00:00.000Z", "playback_play", "t2", 60000, "triage_player"),
-    ("e4", "u1", "2026-10-04", "2026-10-04T10:00:20.000Z", "playback_pause", "t2", None, "triage_player"),
+    (
+        "e1",
+        "u1",
+        "2026-10-03",
+        "2026-10-03T10:00:00.000Z",
+        "playback_play",
+        "t1",
+        60000,
+        "triage_player",
+    ),
+    (
+        "e2",
+        "u1",
+        "2026-10-03",
+        "2026-10-03T10:00:30.000Z",
+        "playback_pause",
+        "t1",
+        None,
+        "triage_player",
+    ),
+    (
+        "e3",
+        "u1",
+        "2026-10-04",
+        "2026-10-04T10:00:00.000Z",
+        "playback_play",
+        "t2",
+        60000,
+        "triage_player",
+    ),
+    (
+        "e4",
+        "u1",
+        "2026-10-04",
+        "2026-10-04T10:00:20.000Z",
+        "playback_pause",
+        "t2",
+        None,
+        "triage_player",
+    ),
 ]
 
 
@@ -36,7 +72,7 @@ def con():
 
 
 def _listening(con, table: str) -> dict:
-    w = ah.listening_windows(datetime(2026, 10, 4, 12, tzinfo=timezone.utc), 0)
+    w = ah.listening_windows(datetime(2026, 10, 4, 12, tzinfo=UTC), 0)
     sql = ah.listening_sql(
         DUCKDB,
         scan_from=w["scan_from"].isoformat(),
@@ -77,4 +113,6 @@ def test_events_table_reads_a_three_day_bronze_tail(monkeypatch) -> None:
     # The nightly build may miss nights; the tail covers its lookback plus two
     # missed builds instead of silently dropping days from the cards.
     monkeypatch.setenv("SILVER_EVENTS_TABLE", "clouder_silver.events")
-    assert ah.events_table(date(2026, 10, 4)) == ah.events_source("clouder_silver.events", "2026-10-01")
+    assert ah.events_table(date(2026, 10, 4)) == ah.events_source(
+        "clouder_silver.events", "2026-10-01"
+    )

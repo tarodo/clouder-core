@@ -15,23 +15,23 @@ APP_FIELDS_BLOCK = (
     "label's website / Bandcamp / RA. Leave null when uncertain.\n"
     "- `tagline`: one short sentence, max 100 characters, capturing the "
     "label's identity. Examples:\n"
-    "    * \"Swedish techno powerhouse since 1996.\"\n"
-    "    * \"London home of melodic deep house.\"\n"
-    "    * \"AI-generated lofi YouTube channel.\"\n"
-    "  Avoid generic copy (\"a record label\"). Leave null only if the "
+    '    * "Swedish techno powerhouse since 1996."\n'
+    '    * "London home of melodic deep house."\n'
+    '    * "AI-generated lofi YouTube channel."\n'
+    '  Avoid generic copy ("a record label"). Leave null only if the '
     "label is truly unknown.\n"
-    "- `status`: \"active\" if `releases_last_12_months >= 1` OR the label "
+    '- `status`: "active" if `releases_last_12_months >= 1` OR the label '
     "has visible recent activity (events, social posts within ~18 months); "
-    "\"inactive\" if zero releases for >2 years AND no recent public "
-    "activity; \"unknown\" only if you cannot determine either way.\n"
+    '"inactive" if zero releases for >2 years AND no recent public '
+    'activity; "unknown" only if you cannot determine either way.\n'
     "- `primary_styles`: 2-5 short genre tags describing what the label "
     "releases, lowercase, comma-separated values in the list. Use tags as "
     "the label itself describes them when possible (Bandcamp / RA / Discogs "
     "genre fields). Examples:\n"
-    "    * [\"techno\", \"peak-time techno\"]\n"
-    "    * [\"deep house\", \"progressive house\", \"melodic techno\"]\n"
-    "    * [\"drum and bass\", \"neurofunk\", \"bass music\"]\n"
-    "  Avoid umbrella terms (\"electronic music\") unless that's truly all "
+    '    * ["techno", "peak-time techno"]\n'
+    '    * ["deep house", "progressive house", "melodic techno"]\n'
+    '    * ["drum and bass", "neurofunk", "bass music"]\n'
+    '  Avoid umbrella terms ("electronic music") unless that\'s truly all '
     "you can determine."
 )
 

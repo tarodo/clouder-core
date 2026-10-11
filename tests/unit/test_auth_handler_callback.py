@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -50,19 +50,26 @@ def _wire(monkeypatch, *, oauth, repo, envelope, now):
 
 
 def test_callback_premium_user_creates_session_and_returns_jwt(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     oauth = MagicMock()
     oauth.exchange_code.return_value = SpotifyTokenSet(
-        access_token="AT", refresh_token="RT", expires_in=3600,
+        access_token="AT",
+        refresh_token="RT",
+        expires_in=3600,
         scope="user-read-email",
     )
     oauth.get_me.return_value = SpotifyProfile(
-        spotify_id="sp-user", display_name="Roman", email="r@x", product="premium",
+        spotify_id="sp-user",
+        display_name="Roman",
+        email="r@x",
+        product="premium",
     )
     repo = MagicMock()
     envelope = MagicMock()
     envelope.encrypt.return_value = EnvelopePayload(
-        data_key_enc=b"K", nonce=b"n" * 12, ciphertext=b"C",
+        data_key_enc=b"K",
+        nonce=b"n" * 12,
+        ciphertext=b"C",
     )
     _wire(monkeypatch, oauth=oauth, repo=repo, envelope=envelope, now=now)
 
@@ -92,18 +99,26 @@ def test_callback_premium_user_creates_session_and_returns_jwt(monkeypatch) -> N
 
 
 def test_callback_admin_user_gets_is_admin_true(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     oauth = MagicMock()
     oauth.exchange_code.return_value = SpotifyTokenSet(
-        access_token="AT", refresh_token="RT", expires_in=3600, scope=None,
+        access_token="AT",
+        refresh_token="RT",
+        expires_in=3600,
+        scope=None,
     )
     oauth.get_me.return_value = SpotifyProfile(
-        spotify_id="sp-admin", display_name=None, email=None, product="premium",
+        spotify_id="sp-admin",
+        display_name=None,
+        email=None,
+        product="premium",
     )
     repo = MagicMock()
     envelope = MagicMock()
     envelope.encrypt.return_value = EnvelopePayload(
-        data_key_enc=b"K", nonce=b"n" * 12, ciphertext=b"C",
+        data_key_enc=b"K",
+        nonce=b"n" * 12,
+        ciphertext=b"C",
     )
     _wire(monkeypatch, oauth=oauth, repo=repo, envelope=envelope, now=now)
 
@@ -119,13 +134,19 @@ def test_callback_admin_user_gets_is_admin_true(monkeypatch) -> None:
 
 
 def test_callback_non_premium_returns_403_without_db_writes(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     oauth = MagicMock()
     oauth.exchange_code.return_value = SpotifyTokenSet(
-        access_token="AT", refresh_token="RT", expires_in=3600, scope=None,
+        access_token="AT",
+        refresh_token="RT",
+        expires_in=3600,
+        scope=None,
     )
     oauth.get_me.return_value = SpotifyProfile(
-        spotify_id="sp-free", display_name="Free", email="f@x", product="free",
+        spotify_id="sp-free",
+        display_name="Free",
+        email="f@x",
+        product="free",
     )
     repo = MagicMock()
     envelope = MagicMock()
@@ -146,7 +167,7 @@ def test_callback_non_premium_returns_403_without_db_writes(monkeypatch) -> None
 
 
 def test_callback_state_mismatch_returns_400(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     oauth = MagicMock()
     repo = MagicMock()
     envelope = MagicMock()
@@ -164,7 +185,7 @@ def test_callback_state_mismatch_returns_400(monkeypatch) -> None:
 
 
 def test_callback_oauth_exchange_failure_returns_502(monkeypatch) -> None:
-    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
     oauth = MagicMock()
     oauth.exchange_code.side_effect = SpotifyOAuthError("boom")
     repo = MagicMock()

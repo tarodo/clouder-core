@@ -8,10 +8,16 @@ from datetime import date, timedelta
 import pytest
 
 from collector import handler
+from collector.api import deps
 
 VALID = {
-    "enabled": True, "mode": "random", "fixed_times": ["09:00", "21:00"], "runs_per_day": 3,
-    "timezone": "Asia/Dubai", "periods_per_run": 3, "backfill_floor": "2026-01-03",
+    "enabled": True,
+    "mode": "random",
+    "fixed_times": ["09:00", "21:00"],
+    "runs_per_day": 3,
+    "timezone": "Asia/Dubai",
+    "periods_per_run": 3,
+    "backfill_floor": "2026-01-03",
 }
 
 
@@ -19,8 +25,11 @@ def _event(route: str, body=None, *, admin: bool = True) -> dict:
     _, path = route.split(" ", 1)
     return {
         "version": "2.0",
-        "requestContext": {"requestId": "r", "routeKey": route,
-                           "authorizer": {"lambda": {"is_admin": admin, "user_id": "u1"}}},
+        "requestContext": {
+            "requestId": "r",
+            "routeKey": route,
+            "authorizer": {"lambda": {"is_admin": admin, "user_id": "u1"}},
+        },
         "rawPath": path,
         "body": json.dumps(body) if body is not None else None,
         "isBase64Encoded": False,
@@ -31,30 +40,43 @@ def _event(route: str, body=None, *, admin: bool = True) -> dict:
 class FakeRepo:
     def __init__(self) -> None:
         self.saved = None
-        self.settings = {**VALID, "enabled": False, "planned_runs": ["2026-10-07T21:00:00+00:00"],
-                         "last_run": {"ok": True, "pairs": []}, "updated_at": "2026-10-07T00:00:00+00:00",
-                         "running": True}
+        self.settings = {
+            **VALID,
+            "enabled": False,
+            "planned_runs": ["2026-10-07T21:00:00+00:00"],
+            "last_run": {"ok": True, "pairs": []},
+            "updated_at": "2026-10-07T00:00:00+00:00",
+            "running": True,
+        }
 
     def get_settings(self):
         return dict(self.settings)
 
     def save_settings(self, values, *, user_id, now):
         self.saved = (dict(values), user_id)
-        self.settings.update({k: (v.isoformat() if hasattr(v, "isoformat") else v)
-                              for k, v in values.items()})
+        self.settings.update(
+            {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in values.items()}
+        )
         return self.get_settings()
 
     def stuck_pairs(self, now):
-        return [{"style_id": 81, "week_year": 2026, "week_number": 30,
-                 "last_attempt_at": "2026-10-06T10:00:00+00:00", "last_error": "UpstreamUnavailableError"}]
+        return [
+            {
+                "style_id": 81,
+                "week_year": 2026,
+                "week_number": 30,
+                "last_attempt_at": "2026-10-06T10:00:00+00:00",
+                "last_error": "UpstreamUnavailableError",
+            }
+        ]
 
 
 @pytest.fixture()
 def wiring(monkeypatch):
     repo = FakeRepo()
     invoked: list = []
-    monkeypatch.setattr(handler, "_auto_ingest_repository", lambda: repo)
-    monkeypatch.setattr(handler, "_invoke_auto_ingest", lambda payload: invoked.append(payload))
+    monkeypatch.setattr(deps, "_auto_ingest_repository", lambda: repo)
+    monkeypatch.setattr(deps, "_invoke_auto_ingest", lambda payload: invoked.append(payload))
     return repo, invoked
 
 

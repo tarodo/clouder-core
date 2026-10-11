@@ -123,7 +123,7 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
         vals = [p.get(field) for p in parseds if p.get(field) is not None]
         if vals:
             m = median(vals)
-            merged[field] = int(round(m))
+            merged[field] = round(m)
             prov[field] = f"median:{merged[field]}"
         else:
             merged[field] = None
@@ -240,10 +240,7 @@ def _merge_deterministic(cells: list[dict]) -> tuple[dict, dict]:
 
     for field in LIST_FIELDS:
         if field == "notable_artists":
-            per_cell = [
-                (c["response"]["parsed"].get(field, []) or [])
-                for c in cells_by_conf
-            ]
+            per_cell = [(c["response"]["parsed"].get(field, []) or []) for c in cells_by_conf]
             ranked_items, unique_count, shared_count = _rank_list_round_robin(per_cell, cap=5)
             merged[field] = ranked_items
             prov[field] = f"union top-5 round-robin({unique_count} unique, {shared_count} shared)"
@@ -362,7 +359,9 @@ def _merge_narrative(
             "narrative_cost_usd": cost,
             "narrative_latency_ms": latency_ms,
         }
-        return {k: parsed_narrative[k] for k in ("tagline", "summary", "ai_reasoning", "notes")}, meta
+        return {
+            k: parsed_narrative[k] for k in ("tagline", "summary", "ai_reasoning", "notes")
+        }, meta
     except Exception:
         latency_ms = (time.monotonic() - t0) * 1000
         best = _highest_confidence_cell(cells)
@@ -427,7 +426,9 @@ def merge_cells(
         label_name = parseable[0]["response"]["parsed"].get("label_name", "unknown")
 
     det_payload, det_prov = _merge_deterministic(parseable)
-    narr_fields, narr_meta = _merge_narrative(parseable, deepseek_client, deepseek_model, label_name)
+    narr_fields, narr_meta = _merge_narrative(
+        parseable, deepseek_client, deepseek_model, label_name
+    )
 
     # Combine: start with deterministic result, overlay narrative fields
     final: dict[str, Any] = {**det_payload}
@@ -435,7 +436,9 @@ def merge_cells(
         final[key] = narr_fields.get(key)
 
     # Build provenance for narrative fields
-    narr_prov_label = "max_confidence fallback" if "narrative_fallback" in narr_meta else "deepseek narrative"
+    narr_prov_label = (
+        "max_confidence fallback" if "narrative_fallback" in narr_meta else "deepseek narrative"
+    )
     narr_prov = {k: narr_prov_label for k in ("tagline", "summary", "ai_reasoning", "notes")}
 
     combined_prov = {**det_prov, **narr_prov}

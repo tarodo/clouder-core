@@ -71,8 +71,10 @@ def test_exchange_code_http_error_raises_oauth_exchange_failed() -> None:
         return FakeResponse(400, {"error": "invalid_request"})
 
     client = SpotifyOAuthClient(
-        client_id="cid", client_secret="csec",
-        redirect_uri="https://x/cb", urlopen=opener,
+        client_id="cid",
+        client_secret="csec",
+        redirect_uri="https://x/cb",
+        urlopen=opener,
     )
 
     with pytest.raises(SpotifyOAuthError):
@@ -94,8 +96,10 @@ def test_get_me_parses_profile() -> None:
         )
 
     client = SpotifyOAuthClient(
-        client_id="cid", client_secret="csec",
-        redirect_uri="https://x/cb", urlopen=opener,
+        client_id="cid",
+        client_secret="csec",
+        redirect_uri="https://x/cb",
+        urlopen=opener,
     )
 
     profile = client.get_me(access_token="AT")
@@ -112,8 +116,10 @@ def test_refresh_invalid_grant_raises_revoked() -> None:
         return FakeResponse(400, {"error": "invalid_grant"})
 
     client = SpotifyOAuthClient(
-        client_id="cid", client_secret="csec",
-        redirect_uri="https://x/cb", urlopen=opener,
+        client_id="cid",
+        client_secret="csec",
+        redirect_uri="https://x/cb",
+        urlopen=opener,
     )
 
     with pytest.raises(SpotifyTokenRevokedError):
@@ -133,8 +139,10 @@ def test_refresh_returns_new_tokens() -> None:
         )
 
     client = SpotifyOAuthClient(
-        client_id="cid", client_secret="csec",
-        redirect_uri="https://x/cb", urlopen=opener,
+        client_id="cid",
+        client_secret="csec",
+        redirect_uri="https://x/cb",
+        urlopen=opener,
     )
 
     tokens = client.refresh(refresh_token="OLD")

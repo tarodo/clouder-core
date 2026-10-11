@@ -41,9 +41,7 @@ def _ctx():
 
 
 def test_coverage_requires_admin():
-    response = handler.lambda_handler(
-        _event({"week_year": "2026"}, is_admin=False), _ctx()
-    )
+    response = handler.lambda_handler(_event({"week_year": "2026"}, is_admin=False), _ctx())
     assert response["statusCode"] == 403
     body = json.loads(response["body"])
     assert body["error_code"] == "admin_required"
@@ -57,9 +55,7 @@ def test_coverage_missing_week_year_400():
 
 
 def test_coverage_db_not_configured_503(monkeypatch):
-    monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: None
-    )
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: None)
     response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
     assert response["statusCode"] == 503
     body = json.loads(response["body"])
@@ -121,7 +117,7 @@ def test_coverage_returns_grouped_styles(monkeypatch):
             return []
 
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env",
+        "collector.api.deps.create_clouder_repository_from_env",
         lambda: FakeRepo(),
     )
     response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
@@ -169,9 +165,7 @@ def test_coverage_keeps_hidden_styles_flagged(monkeypatch):
         def spotify_stats_for_year(self, week_year):
             return []
 
-    monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: FakeRepo()
-    )
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: FakeRepo())
     response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
     assert response["statusCode"] == 200
     styles = {s["style_id"]: s for s in json.loads(response["body"])["styles"]}
@@ -242,17 +236,13 @@ def test_coverage_merges_spotify_weeks(monkeypatch):
             assert week_year == 2026
             return stats_rows
 
-    monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: FakeRepo()
-    )
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: FakeRepo())
     response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     by_id = {s["style_id"]: s for s in body["styles"]}
     assert by_id[90]["spotify_weeks"] == [
-        {"week_number": 1, "total": 50, "found": 45, "not_found": 3,
-         "pending": 1, "no_isrc": 1},
-        {"week_number": 2, "total": 10, "found": 10, "not_found": 0,
-         "pending": 0, "no_isrc": 0},
+        {"week_number": 1, "total": 50, "found": 45, "not_found": 3, "pending": 1, "no_isrc": 1},
+        {"week_number": 2, "total": 10, "found": 10, "not_found": 0, "pending": 0, "no_isrc": 0},
     ]
     assert by_id[131]["spotify_weeks"] == []

@@ -57,9 +57,11 @@ def _label_adapter(instagram_url: str | None) -> MagicMock:
             confidence=0.9,
             instagram_url=instagram_url,
         ),
-        raw={}, citations=[],
+        raw={},
+        citations=[],
         usage={"input_tokens": 100, "output_tokens": 50, "cost_usd": 0.002},
-        latency_ms=200, model="g",
+        latency_ms=200,
+        model="g",
     )
     return adapter
 
@@ -88,9 +90,7 @@ def _run_label_enrich(*, adapter, repo, socials_resolver, style="techno"):
 def test_label_resolver_not_called_when_instagram_present():
     adapter = _label_adapter(instagram_url="https://www.instagram.com/drumcode")
     repo = MagicMock()
-    resolver = FakeSocialsResolver(
-        SocialsResult(updates={}, instagram_tier=None, tavily_credits=0)
-    )
+    resolver = FakeSocialsResolver(SocialsResult(updates={}, instagram_tier=None, tavily_credits=0))
 
     _run_label_enrich(adapter=adapter, repo=repo, socials_resolver=resolver)
 
@@ -166,9 +166,7 @@ def test_label_resolver_provenance_regex_label_when_instagram_tier_none():
 def test_label_resolver_empty_updates_leaves_merged_and_provenance_untouched():
     adapter = _label_adapter(instagram_url=None)
     repo = MagicMock()
-    resolver = FakeSocialsResolver(
-        SocialsResult(updates={}, instagram_tier=None, tavily_credits=2)
-    )
+    resolver = FakeSocialsResolver(SocialsResult(updates={}, instagram_tier=None, tavily_credits=2))
 
     _run_label_enrich(adapter=adapter, repo=repo, socials_resolver=resolver)
 
@@ -246,9 +244,13 @@ class _ArtistStubAdapter:
             }
         )
         return VendorResponse(
-            parsed=parsed, raw={}, citations=["u"],
-            usage={"cost_usd": 0.001}, latency_ms=3,
-            model=model or self.default_model, error=None,
+            parsed=parsed,
+            raw={},
+            citations=["u"],
+            usage={"cost_usd": 0.001},
+            latency_ms=3,
+            model=model or self.default_model,
+            error=None,
         )
 
 

@@ -92,8 +92,11 @@ def test_post_enrich_rejects_invalid_body(patched_deps):
 def test_get_enrich_run_returns_row(patched_deps):
     repo, _ = patched_deps
     repo.get_run.return_value = {
-        "id": "run-1", "status": "running", "cells_total": 6,
-        "cells_ok": 3, "cells_error": 0,
+        "id": "run-1",
+        "status": "running",
+        "cells_total": 6,
+        "cells_ok": 3,
+        "cells_error": 0,
     }
     repo.list_cells_for_run.return_value = []
     resp = lambda_handler(
@@ -124,9 +127,11 @@ def test_get_enrich_run_404(patched_deps):
 def test_get_label_info_returns_row(patched_deps):
     repo, _ = patched_deps
     repo.get_label_info.return_value = {
-        "label_id": "lbl-1", "label_name": "Drumcode",
+        "label_id": "lbl-1",
+        "label_name": "Drumcode",
         "merged": {"label_name": "Drumcode"},
-        "status": "active", "ai_content": "none_detected",
+        "status": "active",
+        "ai_content": "none_detected",
     }
     resp = lambda_handler(
         _admin_event(
@@ -193,7 +198,11 @@ def test_post_enrich_rejects_unknown_prompt_slug(patched_deps):
     resp = lambda_handler(_admin_event("POST /admin/labels/enrich", bad), None)
     assert resp["statusCode"] == 400
     body = json.loads(resp["body"])
-    assert "prompt_slug" in body.get("message", "") or "prompt_slug" in body.get("error_message", "") or "nonsense" in json.dumps(body)
+    assert (
+        "prompt_slug" in body.get("message", "")
+        or "prompt_slug" in body.get("error_message", "")
+        or "nonsense" in json.dumps(body)
+    )
 
 
 def test_routes_build_repository_passes_kwargs_from_settings(monkeypatch):

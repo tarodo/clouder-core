@@ -15,7 +15,8 @@ payload is large enough without repeating a merged blob per track.
 from __future__ import annotations
 
 import json
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 # Imported rather than re-declared on purpose: this is the list of admin-only
 # fields that must never reach a user-facing response. Duplicating it here would
@@ -51,8 +52,8 @@ def _fetch_info(
     placeholders = ", ".join(f":{prefix}{i}" for i in range(len(ids)))
     params: dict[str, Any] = {f"{prefix}{i}": v for i, v in enumerate(ids)}
     rows = data_api.execute(
-        f"SELECT {id_column}, merged FROM {table} "  # noqa: S608 - table/column are literals
-        f"WHERE {id_column} IN ({placeholders})",
+        # table/column are literals from callers; only the values are bound.
+        f"SELECT {id_column}, merged FROM {table} WHERE {id_column} IN ({placeholders})",
         params,
     )
     out: dict[str, dict[str, Any]] = {}
@@ -75,12 +76,20 @@ def fetch_entity_info(
     are simply absent from the returned maps.
     """
     artists = _fetch_info(
-        data_api, table="clouder_artist_info", id_column="artist_id",
-        ids=artist_ids, forbidden=_ARTIST_FORBIDDEN, prefix="a",
+        data_api,
+        table="clouder_artist_info",
+        id_column="artist_id",
+        ids=artist_ids,
+        forbidden=_ARTIST_FORBIDDEN,
+        prefix="a",
     )
     labels = _fetch_info(
-        data_api, table="clouder_label_info", id_column="label_id",
-        ids=label_ids, forbidden=_LABEL_FORBIDDEN, prefix="l",
+        data_api,
+        table="clouder_label_info",
+        id_column="label_id",
+        ids=label_ids,
+        forbidden=_LABEL_FORBIDDEN,
+        prefix="l",
     )
     return artists, labels
 
@@ -134,24 +143,26 @@ def build_playlist_export(
 
         ytmusic = getattr(row, "ytmusic", None) or {}
         spotify_id = getattr(row, "spotify_id", None)
-        tracks.append({
-            "title": row.title,
-            "mix_name": getattr(row, "mix_name", None),
-            "artists": [a.get("name") for a in row_artists if a.get("name")],
-            "label": label.get("name"),
-            "isrc": getattr(row, "isrc", None),
-            "beatport_url": beatport_track_url(
-                getattr(row, "beatport_track_id", None),
-                getattr(row, "beatport_slug", None),
-            ),
-            "spotify_url": (
-                f"https://open.spotify.com/track/{spotify_id}" if spotify_id else None
-            ),
-            "youtube_music_url": (
-                ytmusic.get("url") if ytmusic.get("status") == "matched" else None
-            ),
-            "comments": list(comments_by_track.get(row.track_id, ())),
-        })
+        tracks.append(
+            {
+                "title": row.title,
+                "mix_name": getattr(row, "mix_name", None),
+                "artists": [a.get("name") for a in row_artists if a.get("name")],
+                "label": label.get("name"),
+                "isrc": getattr(row, "isrc", None),
+                "beatport_url": beatport_track_url(
+                    getattr(row, "beatport_track_id", None),
+                    getattr(row, "beatport_slug", None),
+                ),
+                "spotify_url": (
+                    f"https://open.spotify.com/track/{spotify_id}" if spotify_id else None
+                ),
+                "youtube_music_url": (
+                    ytmusic.get("url") if ytmusic.get("status") == "matched" else None
+                ),
+                "comments": list(comments_by_track.get(row.track_id, ())),
+            }
+        )
 
     return {
         "playlist": playlist_name,

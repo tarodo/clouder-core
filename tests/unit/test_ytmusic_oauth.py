@@ -30,6 +30,7 @@ class FakeResp:
 
 def _raising_client(status, body):
     """Return a client whose urlopen always raises HTTPError with a JSON body."""
+
     def fake_urlopen(req, timeout):
         raise HTTPError(
             url="https://oauth2.googleapis.com/token",
@@ -38,6 +39,7 @@ def _raising_client(status, body):
             hdrs=None,
             fp=io.BytesIO(json.dumps(body).encode("utf-8")),
         )
+
     return YtmusicOAuthClient(client_id="cid", client_secret="csec", urlopen=fake_urlopen)
 
 
@@ -49,19 +51,24 @@ def make_client(responses):
         status, body = seq.pop(0)
         return FakeResp(status, body)
 
-    return YtmusicOAuthClient(
-        client_id="cid", client_secret="csec", urlopen=fake_urlopen
-    )
+    return YtmusicOAuthClient(client_id="cid", client_secret="csec", urlopen=fake_urlopen)
 
 
 def test_request_device_code():
-    client = make_client([
-        (200, {
-            "device_code": "dc", "user_code": "ABCD-EFGH",
-            "verification_url": "https://www.google.com/device",
-            "expires_in": 1800, "interval": 5,
-        }),
-    ])
+    client = make_client(
+        [
+            (
+                200,
+                {
+                    "device_code": "dc",
+                    "user_code": "ABCD-EFGH",
+                    "verification_url": "https://www.google.com/device",
+                    "expires_in": 1800,
+                    "interval": 5,
+                },
+            ),
+        ]
+    )
     code = client.request_device_code()
     assert code.device_code == "dc"
     assert code.user_code == "ABCD-EFGH"
@@ -83,13 +90,20 @@ def test_exchange_expired_raises_expired():
 
 
 def test_exchange_success_returns_tokens():
-    client = make_client([
-        (200, {
-            "access_token": "at", "refresh_token": "rt",
-            "expires_in": 3599, "scope": "https://www.googleapis.com/auth/youtube",
-            "token_type": "Bearer",
-        }),
-    ])
+    client = make_client(
+        [
+            (
+                200,
+                {
+                    "access_token": "at",
+                    "refresh_token": "rt",
+                    "expires_in": 3599,
+                    "scope": "https://www.googleapis.com/auth/youtube",
+                    "token_type": "Bearer",
+                },
+            ),
+        ]
+    )
     tokens = client.exchange_device_code(device_code="dc")
     assert tokens.access_token == "at"
     assert tokens.refresh_token == "rt"
@@ -97,10 +111,14 @@ def test_exchange_success_returns_tokens():
 
 
 def test_refresh_keeps_old_refresh_token_when_absent():
-    client = make_client([
-        (200, {"access_token": "at2", "expires_in": 3599,
-                "scope": "s", "token_type": "Bearer"}),
-    ])
+    client = make_client(
+        [
+            (
+                200,
+                {"access_token": "at2", "expires_in": 3599, "scope": "s", "token_type": "Bearer"},
+            ),
+        ]
+    )
     tokens = client.refresh(refresh_token="rt-old")
     assert tokens.access_token == "at2"
     assert tokens.refresh_token == "rt-old"

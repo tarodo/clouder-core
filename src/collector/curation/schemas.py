@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import List, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -23,7 +23,7 @@ class RenameCategoryIn(BaseModel):
 
 class ReorderCategoriesIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    category_ids: List[str]
+    category_ids: list[str]
 
 
 class AddTrackIn(BaseModel):
@@ -54,7 +54,7 @@ class CreateTriageBlockIn(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def _check_date_range(self) -> "CreateTriageBlockIn":
+    def _check_date_range(self) -> CreateTriageBlockIn:
         if self.date_to < self.date_from:
             raise ValueError("date_to must be >= date_from")
         return self
@@ -107,16 +107,14 @@ class PatchPlaylistIn(BaseModel):
     status: Literal["active", "completed"] | None = None
 
     @model_validator(mode="after")
-    def _at_least_one_field(self) -> "PatchPlaylistIn":
+    def _at_least_one_field(self) -> PatchPlaylistIn:
         if (
             self.name is None
             and self.description is None
             and self.is_public is None
             and self.status is None
         ):
-            raise ValueError(
-                "At least one of name/description/is_public/status must be set"
-            )
+            raise ValueError("At least one of name/description/is_public/status must be set")
         return self
 
 
@@ -162,8 +160,9 @@ class ResolveMatchIn(BaseModel):
     vendor_track_id: str | None = None
 
     @model_validator(mode="after")
-    def _check_accept_has_valid_id(self) -> "ResolveMatchIn":
-        if self.action == "accept":
-            if not self.vendor_track_id or not YT_VIDEO_ID_RE.match(self.vendor_track_id):
-                raise ValueError("accept requires a valid 11-char vendor_track_id")
+    def _check_accept_has_valid_id(self) -> ResolveMatchIn:
+        if self.action == "accept" and (
+            not self.vendor_track_id or not YT_VIDEO_ID_RE.match(self.vendor_track_id)
+        ):
+            raise ValueError("accept requires a valid 11-char vendor_track_id")
         return self

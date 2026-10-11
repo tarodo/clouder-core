@@ -17,7 +17,9 @@ def test_route_name_accepts_listening():
     assert ah._route_name(_event("/v1/analytics/listening")) == "listening"
 
 
-@pytest.mark.parametrize("route", ["/v1/analytics/user-daily", "/v1/analytics/sessions", "/v1/analytics/evil"])
+@pytest.mark.parametrize(
+    "route", ["/v1/analytics/user-daily", "/v1/analytics/sessions", "/v1/analytics/evil"]
+)
 def test_route_name_rejects_removed_and_unknown(route):
     with pytest.raises(ah.AnalyticsError) as exc:
         ah._route_name(_event(route))
@@ -37,10 +39,14 @@ class FakeAthena:
         return {"QueryExecution": {"Status": {"State": self.state}}}
 
     def get_query_results(self, QueryExecutionId):
-        return {"ResultSet": {"Rows": [
-            {"Data": [{"VarCharValue": "period"}, {"VarCharValue": "tracks"}]},
-            {"Data": [{"VarCharValue": "week"}, {"VarCharValue": "3"}]},
-        ]}}
+        return {
+            "ResultSet": {
+                "Rows": [
+                    {"Data": [{"VarCharValue": "period"}, {"VarCharValue": "tracks"}]},
+                    {"Data": [{"VarCharValue": "week"}, {"VarCharValue": "3"}]},
+                ]
+            }
+        }
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +59,12 @@ def test_run_athena_binds_params_and_maps_rows():
     client = FakeAthena()
     rows = ah._run_athena(client, "SELECT ?", ["u1"])
     assert client.started["ExecutionParameters"] == ["u1"]
-    assert client.started["ResultReuseConfiguration"]["ResultReuseByAgeConfiguration"]["MaxAgeInMinutes"] == 5
+    assert (
+        client.started["ResultReuseConfiguration"]["ResultReuseByAgeConfiguration"][
+            "MaxAgeInMinutes"
+        ]
+        == 5
+    )
     assert rows == [{"period": "week", "tracks": "3"}]
 
 

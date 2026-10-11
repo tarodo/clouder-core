@@ -68,9 +68,7 @@ def test_malformed_date_returns_none() -> None:
 
 
 def test_non_string_release_date_returns_none() -> None:
-    payload = {
-        "album": {"release_date": 2024, "release_date_precision": "year"}
-    }
+    payload = {"album": {"release_date": 2024, "release_date_precision": "year"}}
     assert _extract_release_date(payload) is None
 
 

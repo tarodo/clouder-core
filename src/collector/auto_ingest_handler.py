@@ -16,8 +16,9 @@ import os
 import random
 import time
 import uuid
+from collections.abc import Callable, Mapping
 from datetime import date, datetime
-from typing import Any, Callable, Mapping
+from typing import Any
 
 from .auto_ingest_plan import choose_periods, due_week
 from .auto_ingest_repository import AutoIngestRepository
@@ -36,7 +37,10 @@ def auth_check() -> dict[str, Any]:
         username, password = _read_credentials()
     except Exception as exc:  # missing env/parameter, IAM, KMS: name the cause, never a value
         log_event(
-            "WARNING", "auto_ingest_auth_check", passed=False, phase="credentials",
+            "WARNING",
+            "auto_ingest_auth_check",
+            passed=False,
+            phase="credentials",
             error_type=type(exc).__name__,
             error_code=getattr(exc, "response", {}).get("Error", {}).get("Code"),
         )
@@ -45,7 +49,10 @@ def auth_check() -> dict[str, Any]:
         fetch_access_token(username, password)
     except BeatportAuthError as exc:
         log_event(
-            "WARNING", "auto_ingest_auth_check", passed=False, phase=exc.step,
+            "WARNING",
+            "auto_ingest_auth_check",
+            passed=False,
+            phase=exc.step,
             status_code=exc.status,
         )
         return {"ok": False, "step": exc.step, "status": exc.status}
@@ -98,13 +105,19 @@ def run(
         log_event("INFO", "auto_ingest_run_skipped", reason="busy")
         return {"skipped": "busy"}
     if collect is None:
-        from .handler import collect_period
+        from .api.routes_ingest import collect_period
 
         collect = collect_period
     correlation_id = f"auto-ingest-{uuid.uuid4()}"
     # Progress for the admin panel, overwritten by the final summary below.
-    progress = {"at": now.isoformat(), "manual": manual, "in_progress": True,
-                "current": None, "pairs": [], "total": None}
+    progress = {
+        "at": now.isoformat(),
+        "manual": manual,
+        "in_progress": True,
+        "current": None,
+        "pairs": [],
+        "total": None,
+    }
     try:
         repo.set_last_run(progress)
         try:
@@ -113,19 +126,34 @@ def run(
         except Exception as exc:
             step = exc.step if isinstance(exc, BeatportAuthError) else "credentials"
             status = exc.status if isinstance(exc, BeatportAuthError) else None
-            summary = {"at": now.isoformat(), "manual": manual, "ok": False,
-                       "failed_step": step, "status": status, "pairs": []}
+            summary = {
+                "at": now.isoformat(),
+                "manual": manual,
+                "ok": False,
+                "failed_step": step,
+                "status": status,
+                "pairs": [],
+            }
             repo.set_last_run(summary)
-            log_event("ERROR", "auto_ingest_run_failed", correlation_id=correlation_id,
-                      phase=step, status_code=status, error_type=type(exc).__name__)
+            log_event(
+                "ERROR",
+                "auto_ingest_run_failed",
+                correlation_id=correlation_id,
+                phase=step,
+                status_code=status,
+                error_type=type(exc).__name__,
+            )
             return summary
 
-        from .handler import IngestParams
+        from .api.routes_ingest import IngestParams
 
         state = repo.planning_state(now)
         due = due_week(now.date())
         pairs = choose_periods(
-            state.styles, state.loaded, state.stuck, due=due,
+            state.styles,
+            state.loaded,
+            state.stuck,
+            due=due,
             floor=date.fromisoformat(settings["backfill_floor"]),
             budget=int(settings["periods_per_run"]),
         )
@@ -134,23 +162,44 @@ def run(
         for style_id, week_year, week_number in pairs:
             start, end = saturday_week_range(week_year, week_number)
             params = IngestParams(
-                style_id=style_id, bp_token=token,
-                period_start=start.isoformat(), period_end=end.isoformat(),
-                iso_year=None, iso_week=None,
-                week_year=week_year, week_number=week_number, is_custom_range=False,
+                style_id=style_id,
+                bp_token=token,
+                period_start=start.isoformat(),
+                period_end=end.isoformat(),
+                iso_year=None,
+                iso_week=None,
+                week_year=week_year,
+                week_number=week_number,
+                is_custom_range=False,
             )
-            outcome: dict[str, Any] = {"style_id": style_id, "week_year": week_year, "week_number": week_number}
-            repo.set_last_run({**progress, "current": dict(outcome), "pairs": outcomes,
-                               "total": len(pairs)})
+            outcome: dict[str, Any] = {
+                "style_id": style_id,
+                "week_year": week_year,
+                "week_number": week_number,
+            }
+            repo.set_last_run(
+                {**progress, "current": dict(outcome), "pairs": outcomes, "total": len(pairs)}
+            )
             try:
                 result = collect(
-                    params, correlation_id, api_request_id="auto-ingest",
+                    params,
+                    correlation_id,
+                    api_request_id="auto-ingest",
                     lambda_request_id=getattr(context, "aws_request_id", "unknown"),
                     trigger="auto",
                 )
-                outcome.update(ok=True, run_id=result["run_id"], item_count=result.get("item_count"))
-                repo.record_attempt(style_id, week_year, week_number, ok=True,
-                                    run_id=result["run_id"], error=None, at=utc_now())
+                outcome.update(
+                    ok=True, run_id=result["run_id"], item_count=result.get("item_count")
+                )
+                repo.record_attempt(
+                    style_id,
+                    week_year,
+                    week_number,
+                    ok=True,
+                    run_id=result["run_id"],
+                    error=None,
+                    at=utc_now(),
+                )
             except UpstreamAuthError:
                 # The catalog rejected the token: every remaining pair would fail the same
                 # way, and none of them is to blame — stop without recording an attempt.
@@ -158,24 +207,51 @@ def run(
                 break
             except Exception as exc:  # one period failing must not stop the others
                 outcome.update(ok=False, error=_error_text(exc))
-                repo.record_attempt(style_id, week_year, week_number, ok=False,
-                                    run_id=None, error=outcome["error"], at=utc_now())
+                repo.record_attempt(
+                    style_id,
+                    week_year,
+                    week_number,
+                    ok=False,
+                    run_id=None,
+                    error=outcome["error"],
+                    at=utc_now(),
+                )
             outcomes.append(outcome)
         del token
 
         failed = sum(not o["ok"] for o in outcomes)
-        summary = {"at": now.isoformat(), "manual": manual, "ok": failed == 0 and not token_rejected,
-                   "due_week": list(due), "pairs": outcomes}
+        summary = {
+            "at": now.isoformat(),
+            "manual": manual,
+            "ok": failed == 0 and not token_rejected,
+            "due_week": list(due),
+            "pairs": outcomes,
+        }
         if token_rejected:
             summary.update(failed_step="catalog_auth", status=403)
-            log_event("ERROR", "auto_ingest_run_failed", correlation_id=correlation_id,
-                      phase="catalog_auth", status_code=403)
+            log_event(
+                "ERROR",
+                "auto_ingest_run_failed",
+                correlation_id=correlation_id,
+                phase="catalog_auth",
+                status_code=403,
+            )
         repo.set_last_run(summary)
-        log_event("INFO", "auto_ingest_run_completed", correlation_id=correlation_id,
-                  count=len(outcomes), runs_failed=failed)
+        log_event(
+            "INFO",
+            "auto_ingest_run_completed",
+            correlation_id=correlation_id,
+            count=len(outcomes),
+            runs_failed=failed,
+        )
         if outcomes and failed == len(outcomes):
-            log_event("ERROR", "auto_ingest_run_failed", correlation_id=correlation_id,
-                      count=len(outcomes), runs_failed=failed)
+            log_event(
+                "ERROR",
+                "auto_ingest_run_failed",
+                correlation_id=correlation_id,
+                count=len(outcomes),
+                runs_failed=failed,
+            )
         return summary
     finally:
         repo.release_lease()
@@ -211,9 +287,15 @@ def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, A
     if action == "plan":
         import boto3
 
-        return plan(context, repo=_repository(), scheduler=boto3.client("scheduler"),
-                    now=utc_now(), rng=random.SystemRandom())
+        return plan(
+            context,
+            repo=_repository(),
+            scheduler=boto3.client("scheduler"),
+            now=utc_now(),
+            rng=random.SystemRandom(),
+        )
     if action == "run":
-        return run(context, repo=_repository(), now=utc_now(),
-                   manual=bool((event or {}).get("manual")))
+        return run(
+            context, repo=_repository(), now=utc_now(), manual=bool((event or {}).get("manual"))
+        )
     raise ValueError(f"unknown auto-ingest action: {action!r}")

@@ -13,8 +13,9 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 TOMBSTONE_PREFIX = "governance/deleted_users/"
 # Iceberg tables derived from telemetry; the dbt models anti-join the tombstones
@@ -64,7 +65,9 @@ def delete_user(data_api: Any, user_id: str, *, dry_run: bool = False) -> dict[s
     def purge(table: str, where: str) -> None:
         for child, col, ref in children.get(table, []):
             purge(child, f'"{col}" IN (SELECT "{ref}" FROM "{table}" WHERE {where})')
-        n = run(f'WITH d AS (DELETE FROM "{table}" WHERE {where} RETURNING 1) SELECT count(*) AS n FROM d')
+        n = run(
+            f'WITH d AS (DELETE FROM "{table}" WHERE {where} RETURNING 1) SELECT count(*) AS n FROM d'
+        )
         if n:
             counts[table] = counts.get(table, 0) + n
 
@@ -104,7 +107,9 @@ def delete_covers(s3: Any, bucket: str, user_id: str) -> int:
     ]
     failed = []
     for i in range(0, len(objects), 1000):  # DeleteObjects takes at most 1000 keys
-        resp = s3.delete_objects(Bucket=bucket, Delete={"Objects": objects[i:i + 1000], "Quiet": True})
+        resp = s3.delete_objects(
+            Bucket=bucket, Delete={"Objects": objects[i : i + 1000], "Quiet": True}
+        )
         failed += [f"{e['Key']} ({e.get('Code')})" for e in resp.get("Errors", [])]
     if failed:  # per-key failures come back with HTTP 200
         raise RuntimeError(f"S3 kept {len(failed)} cover object versions: {', '.join(failed[:10])}")
@@ -137,7 +142,9 @@ def purge_lake(
             WorkGroup=workgroup,
         )["QueryExecutionId"]
         while True:
-            state = athena.get_query_execution(QueryExecutionId=qid)["QueryExecution"]["Status"]["State"]
+            state = athena.get_query_execution(QueryExecutionId=qid)["QueryExecution"]["Status"][
+                "State"
+            ]
             if state not in ("QUEUED", "RUNNING"):
                 break
             sleep(2)

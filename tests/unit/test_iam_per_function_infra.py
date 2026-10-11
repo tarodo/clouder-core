@@ -26,26 +26,86 @@ SSM = "local.st_ssm_kms"
 TOKENS = "local.st_user_tokens"
 
 REQUIRED: dict[str, list[str]] = {
-    "collector": [*DB, RAW, q("canonicalization"), q("spotify_search"), q("label_enrichment"),
-                  q("artist_enrichment"), "aws_lambda_function.auto_ingest.arn",
-                  '"sqs:GetQueueAttributes"'],
-    "curation": [*DB, COVERS, TOKENS, SSM, q("label_enrichment"), q("artist_enrichment"),
-                 q("vendor_match"), q("auto_enrich_dispatch"), q("comments_collect"),
-                 "var.spotify_client_id_ssm_parameter", "var.ytmusic_client_id_ssm_parameter"],
-    "auth_handler": [*DB, TOKENS, SSM, "var.jwt_signing_key_ssm_parameter",
-                     "var.spotify_client_id_ssm_parameter", "var.ytmusic_client_id_ssm_parameter"],
-    "canonicalization_worker": [*DB, RAW, "local.sqs_consume", q("canonicalization"), q("spotify_search")],
-    "spotify_search_worker": [*DB, SPOTIFY_RAW, SSM, q("spotify_search"), "var.spotify_client_id_ssm_parameter",
-                              "var.spotify_credentials_secret_arn"],
-    "vendor_match_worker": [*DB, SSM, q("vendor_match"), q("comments_collect"),
-                            "var.spotify_client_id_ssm_parameter"],
-    "label_enricher_worker": [*DB, SSM, q("label_enrichment"), "var.gemini_api_key_ssm_parameter",
-                              "var.deepseek_api_key_ssm_parameter"],
-    "artist_enricher_worker": [*DB, SSM, q("artist_enrichment"), "var.openai_api_key_ssm_parameter",
-                               "var.tavily_api_key_ssm_parameter"],
-    "auto_enrich_dispatch_worker": [*DB, q("auto_enrich_dispatch"), q("label_enrichment"),
-                                    q("artist_enrichment"), q("comments_collect")],
-    "comments_collect_worker": [*DB, SSM, q("comments_collect"), "var.youtube_api_key_ssm_parameter"],
+    "collector": [
+        *DB,
+        RAW,
+        q("canonicalization"),
+        q("spotify_search"),
+        q("label_enrichment"),
+        q("artist_enrichment"),
+        "aws_lambda_function.auto_ingest.arn",
+        '"sqs:GetQueueAttributes"',
+    ],
+    "curation": [
+        *DB,
+        COVERS,
+        TOKENS,
+        SSM,
+        q("label_enrichment"),
+        q("artist_enrichment"),
+        q("vendor_match"),
+        q("auto_enrich_dispatch"),
+        q("comments_collect"),
+        "var.spotify_client_id_ssm_parameter",
+        "var.ytmusic_client_id_ssm_parameter",
+    ],
+    "auth_handler": [
+        *DB,
+        TOKENS,
+        SSM,
+        "var.jwt_signing_key_ssm_parameter",
+        "var.spotify_client_id_ssm_parameter",
+        "var.ytmusic_client_id_ssm_parameter",
+    ],
+    "canonicalization_worker": [
+        *DB,
+        RAW,
+        "local.sqs_consume",
+        q("canonicalization"),
+        q("spotify_search"),
+    ],
+    "spotify_search_worker": [
+        *DB,
+        SPOTIFY_RAW,
+        SSM,
+        q("spotify_search"),
+        "var.spotify_client_id_ssm_parameter",
+        "var.spotify_credentials_secret_arn",
+    ],
+    "vendor_match_worker": [
+        *DB,
+        SSM,
+        q("vendor_match"),
+        q("comments_collect"),
+        "var.spotify_client_id_ssm_parameter",
+    ],
+    "label_enricher_worker": [
+        *DB,
+        SSM,
+        q("label_enrichment"),
+        "var.gemini_api_key_ssm_parameter",
+        "var.deepseek_api_key_ssm_parameter",
+    ],
+    "artist_enricher_worker": [
+        *DB,
+        SSM,
+        q("artist_enrichment"),
+        "var.openai_api_key_ssm_parameter",
+        "var.tavily_api_key_ssm_parameter",
+    ],
+    "auto_enrich_dispatch_worker": [
+        *DB,
+        q("auto_enrich_dispatch"),
+        q("label_enrichment"),
+        q("artist_enrichment"),
+        q("comments_collect"),
+    ],
+    "comments_collect_worker": [
+        *DB,
+        SSM,
+        q("comments_collect"),
+        "var.youtube_api_key_ssm_parameter",
+    ],
     "db_migration": ["local.st_db_secret", '"rds-db:connect"', '"ec2:CreateNetworkInterface"'],
 }
 
@@ -109,5 +169,5 @@ def test_role_arn_waits_for_its_policy() -> None:
     # edge the targeted apply skips the inline policy and hands the function a role that
     # only has a trust policy (and a VPC function update fails without ec2:CreateNetworkInterface).
     module = (INFRA / "modules" / "lambda_role" / "main.tf").read_text()
-    output = module[module.index('output "arn"'):]
+    output = module[module.index('output "arn"') :]
     assert re.search(r"depends_on\s*=\s*\[aws_iam_role_policy\.this\]", output)

@@ -23,8 +23,15 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-_URL_FIELDS = ("website", "bandcamp_url", "soundcloud_url", "twitter_url",
-               "beatport_url", "discogs_url", "residentadvisor_url")
+_URL_FIELDS = (
+    "website",
+    "bandcamp_url",
+    "soundcloud_url",
+    "twitter_url",
+    "beatport_url",
+    "discogs_url",
+    "residentadvisor_url",
+)
 
 _SELECT = {
     "label": """
@@ -102,11 +109,18 @@ def load_tavily_key(env_file: str | None) -> str:
 
 def require_arn(cli_value: str | None, name: str) -> str:
     """--{name}-arn, else AURORA_{NAME}_ARN (the Lambdas' name) or CLOUDER_{NAME}_ARN; no default."""
-    value = (cli_value or os.environ.get(f"AURORA_{name}_ARN")
-             or os.environ.get(f"CLOUDER_{name}_ARN") or "").strip()
+    value = (
+        cli_value
+        or os.environ.get(f"AURORA_{name}_ARN")
+        or os.environ.get(f"CLOUDER_{name}_ARN")
+        or ""
+    ).strip()
     if not value:
-        print(f"AURORA_{name}_ARN is not set (or pass --{name.lower()}-arn); "
-              "refusing to guess a cluster", file=sys.stderr)
+        print(
+            f"AURORA_{name}_ARN is not set (or pass --{name.lower()}-arn); "
+            "refusing to guess a cluster",
+            file=sys.stderr,
+        )
         raise SystemExit(2)
     return value
 
@@ -134,8 +148,11 @@ def main() -> None:
 
     def execute(sql: str, params: dict | None = None) -> list[dict]:
         kwargs = dict(
-            resourceArn=args.cluster_arn, secretArn=args.secret_arn,
-            database=args.database, sql=sql, formatRecordsAs="JSON",
+            resourceArn=args.cluster_arn,
+            secretArn=args.secret_arn,
+            database=args.database,
+            sql=sql,
+            formatRecordsAs="JSON",
         )
         if params:
             kwargs["parameters"] = [
@@ -166,7 +183,9 @@ def main() -> None:
             merged = {f: row.get(f) for f in _URL_FIELDS}
             merged["instagram_url"] = None
             result = resolver.resolve(
-                kind=kind, name=row["name"], style=row.get("style") or "electronic music",
+                kind=kind,
+                name=row["name"],
+                style=row.get("style") or "electronic music",
                 merged=merged,
             )
             return row, result
@@ -185,8 +204,10 @@ def main() -> None:
                     print(f"[{done}/{len(rows)}] {kind}:{row['name']} ERR {result.error[:80]}")
                     continue
                 if not url:
-                    print(f"[{done}/{len(rows)}] {kind}:{row['name']} not found "
-                          f"({result.tavily_credits}cr)")
+                    print(
+                        f"[{done}/{len(rows)}] {kind}:{row['name']} not found "
+                        f"({result.tavily_credits}cr)"
+                    )
                     continue
                 totals["found"] += 1
                 prov = provenance_label(result.instagram_tier)
@@ -199,9 +220,11 @@ def main() -> None:
                 print(f"[{done}/{len(rows)}] {kind}:{row['name']} -> {url} ({prov})")
 
     cost = totals["credits"] * 0.008
-    print(f"\nTOTAL: scanned={totals['scanned']} found={totals['found']} "
-          f"written={totals['written']} errors={totals['errors']} "
-          f"credits={totals['credits']} (~${cost:.2f}) tiers={tiers}")
+    print(
+        f"\nTOTAL: scanned={totals['scanned']} found={totals['found']} "
+        f"written={totals['written']} errors={totals['errors']} "
+        f"credits={totals['credits']} (~${cost:.2f}) tiers={tiers}"
+    )
 
 
 if __name__ == "__main__":

@@ -7,9 +7,10 @@ Cross-user access yields zero rows (mapped to 404 by the handler).
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 from collector.data_api import DataAPIClient
 from collector.logging_utils import log_event
@@ -45,13 +46,13 @@ class TrackInCategoryRow:
     track: Mapping[str, Any]
     added_at: str
     source_triage_block_id: str | None
-    tags: tuple["TrackTagRow", ...] = ()
+    tags: tuple[TrackTagRow, ...] = ()
 
 
 _SORT_COLUMNS = {
-    "title":                "t.title",
+    "title": "t.title",
     "spotify_release_date": "t.spotify_release_date",
-    "added_at":             "ct.added_at",
+    "added_at": "ct.added_at",
 }
 _ORDER_DIRS = {"asc": "ASC", "desc": "DESC"}
 
@@ -126,9 +127,7 @@ class CategoriesRepository:
             except Exception as exc:
                 msg = str(exc)
                 if "uq_categories_user_style_normname" in msg:
-                    raise NameConflictError(
-                        "Category name already exists in this style"
-                    ) from exc
+                    raise NameConflictError("Category name already exists in this style") from exc
                 raise
 
             row = rows[0]
@@ -139,13 +138,11 @@ class CategoriesRepository:
             from .triage_repository import TriageRepository
 
             triage_repo = TriageRepository(self._data_api)
-            inserted_into_blocks = (
-                triage_repo.snapshot_category_into_active_blocks(
-                    user_id=user_id,
-                    style_id=style_id,
-                    category_id=row["id"],
-                    transaction_id=tx_id,
-                )
+            inserted_into_blocks = triage_repo.snapshot_category_into_active_blocks(
+                user_id=user_id,
+                style_id=style_id,
+                category_id=row["id"],
+                transaction_id=tx_id,
             )
             log_event(
                 "INFO",
@@ -198,14 +195,11 @@ class CategoriesRepository:
             updated_at=str(raw["updated_at"]),
         )
 
-    def get(
-        self, *, user_id: str, category_id: str
-    ) -> CategoryRow | None:
+    def get(self, *, user_id: str, category_id: str) -> CategoryRow | None:
         sql = (
-            self._CATEGORY_SELECT
-            + " WHERE c.id = :category_id"
-              " AND c.user_id = :user_id"
-              " AND c.deleted_at IS NULL"
+            self._CATEGORY_SELECT + " WHERE c.id = :category_id"
+            " AND c.user_id = :user_id"
+            " AND c.deleted_at IS NULL"
         )
         rows = self._data_api.execute(
             sql,
@@ -222,12 +216,11 @@ class CategoriesRepository:
         offset: int,
     ) -> PaginatedResult[CategoryRow]:
         sql = (
-            self._CATEGORY_SELECT
-            + " WHERE c.user_id = :user_id"
-              " AND c.style_id = :style_id"
-              " AND c.deleted_at IS NULL"
-              " ORDER BY c.position ASC, c.created_at DESC, c.id ASC"
-              " LIMIT :limit OFFSET :offset"
+            self._CATEGORY_SELECT + " WHERE c.user_id = :user_id"
+            " AND c.style_id = :style_id"
+            " AND c.deleted_at IS NULL"
+            " ORDER BY c.position ASC, c.created_at DESC, c.id ASC"
+            " LIMIT :limit OFFSET :offset"
         )
         rows = self._data_api.execute(
             sql,
@@ -256,15 +249,12 @@ class CategoriesRepository:
             offset=offset,
         )
 
-    def list_all(
-        self, *, user_id: str, limit: int, offset: int
-    ) -> PaginatedResult[CategoryRow]:
+    def list_all(self, *, user_id: str, limit: int, offset: int) -> PaginatedResult[CategoryRow]:
         sql = (
-            self._CATEGORY_SELECT
-            + " WHERE c.user_id = :user_id"
-              " AND c.deleted_at IS NULL"
-              " ORDER BY c.created_at DESC, c.id ASC"
-              " LIMIT :limit OFFSET :offset"
+            self._CATEGORY_SELECT + " WHERE c.user_id = :user_id"
+            " AND c.deleted_at IS NULL"
+            " ORDER BY c.created_at DESC, c.id ASC"
+            " LIMIT :limit OFFSET :offset"
         )
         rows = self._data_api.execute(
             sql,
@@ -318,22 +308,16 @@ class CategoriesRepository:
             )
         except Exception as exc:
             if "uq_categories_user_style_normname" in str(exc):
-                raise NameConflictError(
-                    "Category name already exists in this style"
-                ) from exc
+                raise NameConflictError("Category name already exists in this style") from exc
             raise
 
         if not updated:
-            raise NotFoundError(
-                "category_not_found", "Category not found"
-            )
+            raise NotFoundError("category_not_found", "Category not found")
 
         row = self.get(user_id=user_id, category_id=category_id)
         if row is None:
             # Race: another caller deleted it between UPDATE and SELECT.
-            raise NotFoundError(
-                "category_not_found", "Category not found"
-            )
+            raise NotFoundError("category_not_found", "Category not found")
         return row
 
     def soft_delete(
@@ -343,7 +327,7 @@ class CategoriesRepository:
         category_id: str,
         now: datetime,
         correlation_id: str | None = None,
-        tags_repo: "TagsRepository | None" = None,
+        tags_repo: TagsRepository | None = None,
     ) -> bool:
         with self._data_api.transaction() as tx_id:
             # When cleanup is requested, snapshot the member track ids
@@ -464,11 +448,10 @@ class CategoriesRepository:
 
             # Re-select with full shape, ordered.
             sql = (
-                self._CATEGORY_SELECT
-                + " WHERE c.user_id = :user_id"
-                  " AND c.style_id = :style_id"
-                  " AND c.deleted_at IS NULL"
-                  " ORDER BY c.position ASC, c.created_at DESC, c.id ASC"
+                self._CATEGORY_SELECT + " WHERE c.user_id = :user_id"
+                " AND c.style_id = :style_id"
+                " AND c.deleted_at IS NULL"
+                " ORDER BY c.position ASC, c.created_at DESC, c.id ASC"
             )
             rows = self._data_api.execute(
                 sql,
@@ -523,9 +506,7 @@ class CategoriesRepository:
         existing_ids = {r["id"] for r in existing}
         missing = [tid for tid in track_ids if tid not in existing_ids]
         if missing:
-            raise NotFoundError(
-                "track_not_found", f"Track(s) not found: {missing[0]}"
-            )
+            raise NotFoundError("track_not_found", f"Track(s) not found: {missing[0]}")
 
         # Dedup items by track_id (first-src-wins). Postgres aborts an
         # ON CONFLICT DO NOTHING statement if the same target row appears
@@ -546,9 +527,7 @@ class CategoriesRepository:
             "now": now,
         }
         for i, (tid, src) in enumerate(unique_items):
-            value_rows.append(
-                f"(:category_id, :tid_{i}, :now, :src_{i})"
-            )
+            value_rows.append(f"(:category_id, :tid_{i}, :now, :src_{i})")
             insert_params[f"tid_{i}"] = tid
             insert_params[f"src_{i}"] = src
         sql = f"""
@@ -558,9 +537,7 @@ class CategoriesRepository:
             ON CONFLICT (category_id, track_id) DO NOTHING
             RETURNING track_id
         """
-        rows = self._data_api.execute(
-            sql, insert_params, transaction_id=transaction_id
-        )
+        rows = self._data_api.execute(sql, insert_params, transaction_id=transaction_id)
         return len(rows)
 
     def add_track(
@@ -619,7 +596,7 @@ class CategoriesRepository:
         user_id: str,
         category_id: str,
         track_id: str,
-        tags_repo: "TagsRepository | None" = None,
+        tags_repo: TagsRepository | None = None,
     ) -> bool:
         with self._data_api.transaction() as tx_id:
             cat_rows = self._data_api.execute(
@@ -648,7 +625,9 @@ class CategoriesRepository:
             deleted = bool(rows)
             if deleted and tags_repo is not None:
                 tags_repo.cleanup_orphaned_track_tags(
-                    user_id=user_id, track_ids=[track_id], transaction_id=tx_id,
+                    user_id=user_id,
+                    track_ids=[track_id],
+                    transaction_id=tx_id,
                 )
             return deleted
 
@@ -664,7 +643,7 @@ class CategoriesRepository:
         order: str = "desc",
         tag_ids: list[str] | None = None,
         tag_match: str = "all",
-        tags_repo: "TagsRepository | None" = None,
+        tags_repo: TagsRepository | None = None,
         fresh: bool = False,
     ) -> PaginatedResult[TrackInCategoryRow]:
         cat_rows = self._data_api.execute(
@@ -836,15 +815,10 @@ class CategoriesRepository:
         items: list[TrackInCategoryRow] = []
         for r in rows:
             artists_raw = r.pop("artists_json", "[]")
-            if isinstance(artists_raw, str):
-                artists = json.loads(artists_raw)
-            else:
-                artists = artists_raw or []
+            artists = json.loads(artists_raw) if isinstance(artists_raw, str) else artists_raw or []
             label_id = r.pop("label_id", None)
             label_name = r.pop("label_name", None)
-            label = (
-                {"id": label_id, "name": label_name} if label_id else None
-            )
+            label = {"id": label_id, "name": label_name} if label_id else None
             spot = r.pop("spotify_release_date", None)
             spot_str = str(spot) if spot is not None else None
 

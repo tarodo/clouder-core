@@ -23,9 +23,10 @@ import os
 import sys
 import time
 from collections import Counter
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests" / "db"))
@@ -105,7 +106,10 @@ def main() -> None:
     )
     parser.add_argument("--database-url", default=os.environ.get("TEST_DATABASE_URL"))
     parser.add_argument(
-        "--tracks", type=int, nargs="+", default=[671, 3656],
+        "--tracks",
+        type=int,
+        nargs="+",
+        default=[671, 3656],
         help="synthetic week sizes (default: prod mean and max run)",
     )
     parser.add_argument("--raw-file", type=Path, help="real releases.json.gz instead of synthetic")

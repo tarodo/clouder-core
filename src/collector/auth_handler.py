@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from .auth.auth_repository import (
     AuthRepository,
@@ -96,7 +97,7 @@ def _build_kms_envelope() -> KmsEnvelope:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
@@ -123,15 +124,16 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         )
         return _json_response(
             500,
-            {"error_code": "internal_error", "message": "Internal server error",
-             "correlation_id": correlation_id},
+            {
+                "error_code": "internal_error",
+                "message": "Internal server error",
+                "correlation_id": correlation_id,
+            },
             correlation_id,
         )
 
 
-def _route(
-    event: Mapping[str, Any], context: Any, correlation_id: str
-) -> dict[str, Any]:
+def _route(event: Mapping[str, Any], context: Any, correlation_id: str) -> dict[str, Any]:
     route = _route_key(event)
     if route == "GET /auth/login":
         return _handle_login(event, correlation_id)
@@ -153,15 +155,12 @@ def _route(
         return _handle_ytmusic_disconnect(event, correlation_id)
     return _json_response(
         404,
-        {"error_code": "not_found", "message": "Route not found",
-         "correlation_id": correlation_id},
+        {"error_code": "not_found", "message": "Route not found", "correlation_id": correlation_id},
         correlation_id,
     )
 
 
-def _handle_login(
-    event: Mapping[str, Any], correlation_id: str
-) -> dict[str, Any]:
+def _handle_login(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
     settings = get_auth_settings()
     query = event.get("queryStringParameters") or {}
     redirect = query.get("redirect_uri") if isinstance(query, Mapping) else None
@@ -178,9 +177,7 @@ def _handle_login(
         client_secret=csec,
         redirect_uri=settings.spotify_oauth_redirect_uri,
     )
-    location = oauth.authorize_url(
-        state=state, code_challenge=challenge, scopes=SPOTIFY_SCOPES
-    )
+    location = oauth.authorize_url(state=state, code_challenge=challenge, scopes=SPOTIFY_SCOPES)
 
     log_event(
         "INFO",
@@ -207,10 +204,7 @@ def _handle_login(
 
 
 def _short_cookie(name: str, value: str, *, max_age: int) -> str:
-    return (
-        f"{name}={value}; Path=/; HttpOnly; Secure; SameSite=Lax; "
-        f"Max-Age={max_age}"
-    )
+    return f"{name}={value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={max_age}"
 
 
 def _correlation_id(event: Mapping[str, Any]) -> str:
@@ -266,9 +260,7 @@ def _parse_cookies(event: Mapping[str, Any]) -> dict[str, str]:
     return out
 
 
-def _handle_callback(
-    event: Mapping[str, Any], correlation_id: str
-) -> dict[str, Any]:
+def _handle_callback(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
     settings = get_auth_settings()
     query = event.get("queryStringParameters") or {}
     code = query.get("code") if isinstance(query, Mapping) else None
@@ -390,9 +382,7 @@ def _handle_callback(
     }
 
 
-def _handle_refresh(
-    event: Mapping[str, Any], correlation_id: str
-) -> dict[str, Any]:
+def _handle_refresh(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
     cookies = _parse_cookies(event)
     refresh_token = cookies.get("refresh_token")
     if not refresh_token:
@@ -503,16 +493,12 @@ def _handle_refresh(
     }
 
 
-def _handle_logout(
-    event: Mapping[str, Any], correlation_id: str
-) -> dict[str, Any]:
+def _handle_logout(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
     cookies = _parse_cookies(event)
     token = cookies.get("refresh_token")
     if token:
         try:
-            claims = verify_refresh_token(
-                token=token, secret=resolve_jwt_signing_key(), now=_now()
-            )
+            claims = verify_refresh_token(token=token, secret=resolve_jwt_signing_key(), now=_now())
         except InvalidTokenError:
             claims = None
         if claims is not None:
@@ -544,9 +530,7 @@ def _authorizer_context(event: Mapping[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def _handle_me(
-    event: Mapping[str, Any], correlation_id: str
-) -> dict[str, Any]:
+def _handle_me(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
     ctx = _authorizer_context(event)
     user_id = ctx.get("user_id")
     current_session_id = ctx.get("session_id")
@@ -558,9 +542,7 @@ def _handle_me(
     if user is None:
         raise RefreshInvalidError("user not found")
 
-    ytmusic_connected = (
-        repo.get_vendor_token(user_id=str(user_id), vendor="ytmusic") is not None
-    )
+    ytmusic_connected = repo.get_vendor_token(user_id=str(user_id), vendor="ytmusic") is not None
     sessions = repo.list_active_sessions(user_id=str(user_id), now=_now())
     return _json_response(
         200,
@@ -587,9 +569,7 @@ def _handle_me(
     )
 
 
-def _handle_revoke_session(
-    event: Mapping[str, Any], correlation_id: str
-) -> dict[str, Any]:
+def _handle_revoke_session(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
     ctx = _authorizer_context(event)
     user_id = ctx.get("user_id")
     current_session_id = ctx.get("session_id")
@@ -609,8 +589,11 @@ def _handle_revoke_session(
     if target is None or target.user_id != str(user_id):
         return _json_response(
             404,
-            {"error_code": "not_found", "message": "Session not found",
-             "correlation_id": correlation_id},
+            {
+                "error_code": "not_found",
+                "message": "Session not found",
+                "correlation_id": correlation_id,
+            },
             correlation_id,
         )
 
@@ -629,9 +612,7 @@ def _handle_revoke_session(
     }
 
 
-def _handle_ytmusic_device_code(
-    event: Mapping[str, Any], correlation_id: str
-) -> dict[str, Any]:
+def _handle_ytmusic_device_code(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
     ctx = _authorizer_context(event)
     user_id = ctx.get("user_id")
     if not user_id:
@@ -654,9 +635,7 @@ def _handle_ytmusic_device_code(
     )
 
 
-def _handle_ytmusic_poll(
-    event: Mapping[str, Any], correlation_id: str
-) -> dict[str, Any]:
+def _handle_ytmusic_poll(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
     ctx = _authorizer_context(event)
     user_id = ctx.get("user_id")
     if not user_id:
@@ -676,7 +655,8 @@ def _handle_ytmusic_poll(
             202,
             {
                 "status": "authorization_pending"
-                if isinstance(exc, YtmusicAuthPending) else "slow_down",
+                if isinstance(exc, YtmusicAuthPending)
+                else "slow_down",
                 "correlation_id": correlation_id,
             },
             correlation_id,
@@ -704,17 +684,17 @@ def _handle_ytmusic_poll(
         )
     )
     log_event(
-        "INFO", "ytmusic_connect_success",
-        correlation_id=correlation_id, user_id=str(user_id),
+        "INFO",
+        "ytmusic_connect_success",
+        correlation_id=correlation_id,
+        user_id=str(user_id),
     )
     return _json_response(
         200, {"connected": True, "correlation_id": correlation_id}, correlation_id
     )
 
 
-def _handle_ytmusic_disconnect(
-    event: Mapping[str, Any], correlation_id: str
-) -> dict[str, Any]:
+def _handle_ytmusic_disconnect(event: Mapping[str, Any], correlation_id: str) -> dict[str, Any]:
     ctx = _authorizer_context(event)
     user_id = ctx.get("user_id")
     if not user_id:
@@ -722,8 +702,10 @@ def _handle_ytmusic_disconnect(
     repo = _build_auth_repository()
     repo.delete_vendor_token(user_id=str(user_id), vendor="ytmusic")
     log_event(
-        "INFO", "ytmusic_disconnect",
-        correlation_id=correlation_id, user_id=str(user_id),
+        "INFO",
+        "ytmusic_disconnect",
+        correlation_id=correlation_id,
+        user_id=str(user_id),
     )
     return _json_response(
         200, {"connected": False, "correlation_id": correlation_id}, correlation_id

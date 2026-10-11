@@ -15,6 +15,7 @@ class FakeRepo:
 
     def derive_artist_context(self, aid):
         from collector.artist_enrichment.repository import ArtistContext
+
         return ArtistContext(style="techno", sample_tracks=[], known_labels=[])
 
     def create_run(self, spec):
@@ -47,12 +48,19 @@ def _setup(monkeypatch, repo=None, sqs=None):
 
 def test_post_enrich_creates_run_and_enqueues(monkeypatch):
     repo, sqs = _setup(monkeypatch)
-    event = {"body": json.dumps({
-        "artists": [{"artist_id": "a1"}],
-        "vendors": ["openai"], "models": {"openai": "m"},
-        "prompt_slug": "artist_v1", "prompt_version": "v1",
-        "merge_vendor": "deepseek", "merge_model": "d",
-    })}
+    event = {
+        "body": json.dumps(
+            {
+                "artists": [{"artist_id": "a1"}],
+                "vendors": ["openai"],
+                "models": {"openai": "m"},
+                "prompt_slug": "artist_v1",
+                "prompt_version": "v1",
+                "merge_vendor": "deepseek",
+                "merge_model": "d",
+            }
+        )
+    }
     status, body = routes.handle_post_enrich(event)
     assert status == 202
     assert body["run_id"] == "run-1" and body["queued_artists"] == 1
@@ -67,13 +75,21 @@ def test_post_enrich_rejects_unknown_prompt(monkeypatch):
     import pytest
 
     from collector.errors import ValidationError
+
     _setup(monkeypatch)
-    event = {"body": json.dumps({
-        "artists": [{"artist_id": "a1"}],
-        "vendors": ["openai"], "models": {"openai": "m"},
-        "prompt_slug": "nope", "prompt_version": "v1",
-        "merge_vendor": "deepseek", "merge_model": "d",
-    })}
+    event = {
+        "body": json.dumps(
+            {
+                "artists": [{"artist_id": "a1"}],
+                "vendors": ["openai"],
+                "models": {"openai": "m"},
+                "prompt_slug": "nope",
+                "prompt_version": "v1",
+                "merge_vendor": "deepseek",
+                "merge_model": "d",
+            }
+        )
+    }
     with pytest.raises(ValidationError):
         routes.handle_post_enrich(event)
 
@@ -84,5 +100,5 @@ def test_get_artist_user_404_when_missing(monkeypatch):
             return None
 
     _setup(monkeypatch, repo=R())
-    status, body = routes.handle_get_artist_user({"pathParameters": {"artist_id": "x"}})
+    status, _body = routes.handle_get_artist_user({"pathParameters": {"artist_id": "x"}})
     assert status == 404

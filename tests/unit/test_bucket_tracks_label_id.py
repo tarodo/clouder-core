@@ -97,7 +97,10 @@ def test_bucket_tracks_response_includes_artist_objects(monkeypatch) -> None:
         spotify_id=None,
         release_type="single",
         is_ai_suspected=False,
-        artists=[{"id": "a-1", "name": "Raabe", "role": "artist"}, {"id": "a-2", "name": "Zander", "role": "remixer"}],
+        artists=[
+            {"id": "a-1", "name": "Raabe", "role": "artist"},
+            {"id": "a-2", "name": "Zander", "role": "remixer"},
+        ],
         label_name="Deep Label",
         label_id="lbl-2",
         added_at="2026-05-01T08:00:00Z",

@@ -14,8 +14,8 @@ import argparse
 import gzip
 import json
 import os
-from datetime import datetime, timezone
-from typing import Iterator
+from collections.abc import Iterator
+from datetime import UTC, datetime
 
 from collector import contracts
 
@@ -26,10 +26,12 @@ def _local(root: str) -> Iterator[tuple[datetime, str, list]]:
             if f.endswith("releases.json.gz"):
                 path = os.path.join(dp, f)
                 # `aws s3 sync` keeps the object's LastModified as mtime.
+                with gzip.open(path) as fh:
+                    payload = json.load(fh)
                 yield (
-                    datetime.fromtimestamp(os.path.getmtime(path), timezone.utc),
+                    datetime.fromtimestamp(os.path.getmtime(path), UTC),
                     os.path.relpath(path, root),
-                    json.load(gzip.open(path)),
+                    payload,
                 )
 
 
@@ -51,7 +53,9 @@ def main() -> None:
     source.add_argument("--dir", help="local mirror of the raw prefix")
     source.add_argument("--bucket", help="raw bucket (read-only)")
     parser.add_argument("--prefix", default="raw/bp/releases/")
-    parser.add_argument("--without", action="append", default=[], help="drop a field from the contract")
+    parser.add_argument(
+        "--without", action="append", default=[], help="drop a field from the contract"
+    )
     args = parser.parse_args()
 
     for name in args.without:
@@ -76,10 +80,14 @@ def main() -> None:
                 "empty": report.null_share_over,
             }
             drift = {k: v for k, v in kinds.items() if v}
-            print(f"{modified:%Y-%m-%d %H:%M} {key}: quarantined={len(report.quarantined)}"
-                  f" {reasons or ''} drift={drift or ''}")
-    print(f"\nobjects={len(objects)} records={records} quarantined={quarantined} "
-          f"objects_with_drift={drifting}")
+            print(
+                f"{modified:%Y-%m-%d %H:%M} {key}: quarantined={len(report.quarantined)}"
+                f" {reasons or ''} drift={drift or ''}"
+            )
+    print(
+        f"\nobjects={len(objects)} records={records} quarantined={quarantined} "
+        f"objects_with_drift={drifting}"
+    )
     for name, (modified, key) in sorted(first_seen.items(), key=lambda kv: kv[1]):
         print(f"unknown field {name!r} first seen {modified:%Y-%m-%d %H:%M} in {key}")
 

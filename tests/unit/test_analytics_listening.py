@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import duckdb
 import pytest
@@ -20,11 +20,29 @@ _ROWS = [
     # t1 again: next play is days later -> capped at 300s
     ("e4", "u1", "2026-10-04", _B, "2026-10-04T10:10:00.000Z", "playback_play", "t1", 300000),
     # unknown duration, last play -> 10-min fallback; 23:30Z = next local day at +180
-    ("e5", "u1", "2026-10-05", "2026-10-05T23:30:05+00:00", "2026-10-05T23:30:00.000Z", "playback_play", "t3", 0),
+    (
+        "e5",
+        "u1",
+        "2026-10-05",
+        "2026-10-05T23:30:05+00:00",
+        "2026-10-05T23:30:00.000Z",
+        "playback_play",
+        "t3",
+        0,
+    ),
     # other user: excluded
     ("e6", "u2", "2026-10-04", _B, "2026-10-04T10:00:00.000Z", "playback_play", "t9", 300000),
     # before the month window: excluded from totals
-    ("e7", "u1", "2026-08-01", "2026-08-01T10:00:00+00:00", "2026-08-01T10:00:00.000Z", "playback_play", "t8", 300000),
+    (
+        "e7",
+        "u1",
+        "2026-08-01",
+        "2026-08-01T10:00:00+00:00",
+        "2026-08-01T10:00:00.000Z",
+        "playback_play",
+        "t8",
+        300000,
+    ),
 ]
 
 
@@ -36,14 +54,17 @@ def con():
         "ts_server VARCHAR, ts_client VARCHAR, event_name VARCHAR, track_id VARCHAR, "
         "duration_ms BIGINT, source VARCHAR)"
     )
-    c.executemany("INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
-        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)", _ROWS)
+    c.executemany(
+        "INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
+        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)",
+        _ROWS,
+    )
     yield c
     c.close()
 
 
 def _run(con, today: date, off: int) -> dict:
-    w = ah.listening_windows(datetime(today.year, today.month, today.day, 12, tzinfo=timezone.utc), 0)
+    w = ah.listening_windows(datetime(today.year, today.month, today.day, 12, tzinfo=UTC), 0)
     sql = ah.listening_sql(
         DUCKDB,
         scan_from=w["scan_from"].isoformat(),
@@ -78,7 +99,7 @@ def test_utc_offset_zero_keeps_late_play_on_utc_day(con):
 
 
 def test_listening_windows_use_local_today():
-    w = ah.listening_windows(datetime(2026, 10, 5, 22, 30, tzinfo=timezone.utc), 180)
+    w = ah.listening_windows(datetime(2026, 10, 5, 22, 30, tzinfo=UTC), 180)
     assert w["today"] == date(2026, 10, 6)
     assert w["week_from"] == date(2026, 9, 30)
     assert w["month_from"] == date(2026, 9, 7)
@@ -170,7 +191,10 @@ def test_pause_resume_and_end_cut_listen_time():
         "ts_server VARCHAR, ts_client VARCHAR, event_name VARCHAR, track_id VARCHAR, "
         "duration_ms BIGINT, source VARCHAR)"
     )
-    c.executemany("INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
-        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)", _PAUSE_ROWS)
+    c.executemany(
+        "INSERT INTO bronze_events (event_id, user_id, dt, ts_server, ts_client, "
+        "event_name, track_id, duration_ms) VALUES (?,?,?,?,?,?,?,?)",
+        _PAUSE_ROWS,
+    )
     out = _run(c, date(2026, 10, 4), 0)
     assert out["totals"]["day"] == {"listened_ms": 390000, "tracks": 3}

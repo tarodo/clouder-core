@@ -98,12 +98,14 @@ def test_merge_cells_multiple_sources_runs_narrative():
         _cell("gemini", _base_parsed()),
         _cell("openai", _base_parsed(summary="alt")),
     ]
-    client = _fake_deepseek_client({
-        "tagline": "Tag.",
-        "summary": "Merged summary.",
-        "ai_reasoning": "merged reasoning",
-        "notes": None,
-    })
+    client = _fake_deepseek_client(
+        {
+            "tagline": "Tag.",
+            "summary": "Merged summary.",
+            "ai_reasoning": "merged reasoning",
+            "notes": None,
+        }
+    )
     info, meta = merge_cells(cells, client)
     assert info.summary == "Merged summary."
     assert meta["source_count"] == 2

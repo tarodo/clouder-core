@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Any, Mapping, Tuple
+from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
 
@@ -144,7 +145,7 @@ def validate_collect_request(payload: Mapping[str, Any]) -> CollectRequest:
     )
 
 
-def compute_iso_week_date_range(iso_year: int, iso_week: int) -> Tuple[str, str]:
+def compute_iso_week_date_range(iso_year: int, iso_week: int) -> tuple[str, str]:
     """Return ISO week boundaries as date strings (YYYY-MM-DD)."""
 
     week_start = date.fromisocalendar(iso_year, iso_week, 1)

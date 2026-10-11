@@ -1,7 +1,8 @@
 """Unit tests for the comment-provider Protocol surface and shared type."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -15,7 +16,7 @@ def test_collected_comment_is_frozen() -> None:
         author_avatar_url=None,
         text="hi",
         like_count=3,
-        published_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        published_at=datetime(2025, 1, 1, tzinfo=UTC),
         rank=0,
     )
     assert c.external_id == "c1"

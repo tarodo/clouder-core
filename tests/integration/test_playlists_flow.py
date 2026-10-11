@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from types import SimpleNamespace
-from typing import Any, Mapping
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -79,8 +80,10 @@ class FakePlaylistsRepo:
 
     def _row(self, p: dict) -> PlaylistRow:
         return PlaylistRow(
-            id=p["id"], user_id=p["user_id"],
-            name=p["name"], normalized_name=p["normalized_name"],
+            id=p["id"],
+            user_id=p["user_id"],
+            name=p["name"],
+            normalized_name=p["normalized_name"],
             description=p.get("description"),
             is_public=bool(p["is_public"]),
             cover_s3_key=p.get("cover_s3_key"),
@@ -89,33 +92,42 @@ class FakePlaylistsRepo:
             last_published_at=p.get("last_published_at"),
             needs_republish=bool(p["needs_republish"]),
             track_count=sum(1 for (pid, _) in self.tracks if pid == p["id"]),
-            created_at=p["created_at"], updated_at=p["updated_at"],
+            created_at=p["created_at"],
+            updated_at=p["updated_at"],
             status=p.get("status", "active"),
         )
 
     def _alive_playlists_for(self, user_id: str) -> list[dict]:
         return [
-            p for p in self.playlists.values()
+            p
+            for p in self.playlists.values()
             if p["user_id"] == user_id and p.get("deleted_at") is None
         ]
 
     # ---------- CRUD -------------------------------------------------------
 
-    def create(self, *, user_id, playlist_id, name, normalized_name,
-               description, is_public, now) -> PlaylistRow:
+    def create(
+        self, *, user_id, playlist_id, name, normalized_name, description, is_public, now
+    ) -> PlaylistRow:
         if len(self._alive_playlists_for(user_id)) >= 200:
             raise PlaylistLimitReachedError("limit")
         for p in self._alive_playlists_for(user_id):
             if p["normalized_name"] == normalized_name:
                 raise PlaylistNameConflictError("dup name")
         p = {
-            "id": playlist_id, "user_id": user_id,
-            "name": name, "normalized_name": normalized_name,
-            "description": description, "is_public": is_public,
-            "cover_s3_key": None, "cover_uploaded_at": None,
-            "spotify_playlist_id": None, "last_published_at": None,
+            "id": playlist_id,
+            "user_id": user_id,
+            "name": name,
+            "normalized_name": normalized_name,
+            "description": description,
+            "is_public": is_public,
+            "cover_s3_key": None,
+            "cover_uploaded_at": None,
+            "spotify_playlist_id": None,
+            "last_published_at": None,
             "needs_republish": False,
-            "created_at": now.isoformat(), "updated_at": now.isoformat(),
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
             "deleted_at": None,
         }
         self.playlists[playlist_id] = p
@@ -132,10 +144,11 @@ class FakePlaylistsRepo:
         if status is not None:
             items = [p for p in items if p.get("status", "active") == status]
         items.sort(key=lambda p: p["created_at"], reverse=True)
-        return [self._row(p) for p in items[offset:offset+limit]], len(items)
+        return [self._row(p) for p in items[offset : offset + limit]], len(items)
 
-    def patch(self, *, user_id, playlist_id, name, normalized_name,
-              description, is_public, status, now) -> PlaylistRow:
+    def patch(
+        self, *, user_id, playlist_id, name, normalized_name, description, is_public, status, now
+    ) -> PlaylistRow:
         p = self.playlists.get(playlist_id)
         if p is None or p["user_id"] != user_id or p.get("deleted_at"):
             raise PlaylistNotFoundError()
@@ -185,7 +198,8 @@ class FakePlaylistsRepo:
         start = max_pos + 1
         for i, t in enumerate(to_add):
             self.tracks[(playlist_id, t)] = {
-                "position": start + i, "added_at": now.isoformat(),
+                "position": start + i,
+                "added_at": now.isoformat(),
             }
         if p["spotify_playlist_id"] and to_add:
             p["needs_republish"] = True
@@ -234,21 +248,24 @@ class FakePlaylistsRepo:
             if pid != playlist_id:
                 continue
             meta = self.canonical_tracks.get(tid, {})
-            rows.append(PlaylistTrackRow(
-                track_id=tid, position=v["position"],
-                added_at=v["added_at"],
-                title=meta.get("title", tid),
-                spotify_id=meta.get("spotify_id"),
-                isrc=meta.get("isrc"),
-                length_ms=meta.get("length_ms"),
-                origin=meta.get("origin", "beatport"),
-                # Mirrors the real repo, which projects artists/label onto the row.
-                artists=tuple(meta.get("artist_refs", ())),
-                label=meta.get("label"),
-            ))
+            rows.append(
+                PlaylistTrackRow(
+                    track_id=tid,
+                    position=v["position"],
+                    added_at=v["added_at"],
+                    title=meta.get("title", tid),
+                    spotify_id=meta.get("spotify_id"),
+                    isrc=meta.get("isrc"),
+                    length_ms=meta.get("length_ms"),
+                    origin=meta.get("origin", "beatport"),
+                    # Mirrors the real repo, which projects artists/label onto the row.
+                    artists=tuple(meta.get("artist_refs", ())),
+                    label=meta.get("label"),
+                )
+            )
         rows.sort(key=lambda r: r.position)
         total = len(rows)
-        return rows[offset:offset+limit], total
+        return rows[offset : offset + limit], total
 
     # ---------- Cover + publish-state -------------------------------------
 
@@ -274,9 +291,9 @@ class FakePlaylistsRepo:
         p["updated_at"] = now.isoformat()
         return True
 
-    def set_publish_state(self, *, user_id, playlist_id,
-                          spotify_playlist_id, now,
-                          mark_dirty: bool = False) -> bool:
+    def set_publish_state(
+        self, *, user_id, playlist_id, spotify_playlist_id, now, mark_dirty: bool = False
+    ) -> bool:
         p = self.playlists.get(playlist_id)
         if p is None or p["user_id"] != user_id or p.get("deleted_at"):
             return False
@@ -291,12 +308,12 @@ class FakePlaylistsRepo:
     def validate_tracks_in_scope(self, *, user_id, track_ids) -> set[str]:
         visible = self.category_tracks.get(user_id, set()).copy()
         # Tracks already in user's own playlists are also in scope.
-        for (pid, tid) in self.tracks:
+        for pid, tid in self.tracks:
             owner = self.playlists.get(pid)
             if owner and owner["user_id"] == user_id and not owner.get("deleted_at"):
                 visible.add(tid)
         # User-imported tracks.
-        for (u, t) in self.imports:
+        for u, t in self.imports:
             if u == user_id:
                 visible.add(t)
         return {t for t in track_ids if t in visible}
@@ -305,8 +322,11 @@ class FakePlaylistsRepo:
         ids: list[str] = []
         for t in tracks:
             existing = next(
-                (tid for tid, meta in self.canonical_tracks.items()
-                 if meta.get("spotify_id") == t.spotify_id),
+                (
+                    tid
+                    for tid, meta in self.canonical_tracks.items()
+                    if meta.get("spotify_id") == t.spotify_id
+                ),
                 None,
             )
             if existing is not None:
@@ -314,7 +334,8 @@ class FakePlaylistsRepo:
             else:
                 tid = f"t-{len(self.canonical_tracks) + 1}"
                 self.canonical_tracks[tid] = {
-                    "spotify_id": t.spotify_id, "title": t.title,
+                    "spotify_id": t.spotify_id,
+                    "title": t.title,
                     "artists": list(t.artists),
                 }
             self.imports.add((user_id, tid))
@@ -338,8 +359,7 @@ def fake_repo(monkeypatch) -> FakePlaylistsRepo:
 @pytest.fixture
 def fake_s3(monkeypatch):
     s3 = MagicMock()
-    s3.cover_key.side_effect = (
-        lambda *, user_id, playlist_id, epoch_ms:
+    s3.cover_key.side_effect = lambda *, user_id, playlist_id, epoch_ms: (
         f"covers/{user_id}/{playlist_id}/{epoch_ms}.jpg"
     )
     s3.presigned_cover_put_url.return_value = "https://signed-put"
@@ -357,14 +377,12 @@ def fake_s3(monkeypatch):
 def fake_spotify_client(monkeypatch):
     client = MagicMock()
     # Default: import returns a fresh track
-    client.get_track.side_effect = (
-        lambda spotify_id: SimpleNamespace(
-            id=spotify_id,
-            name=f"Imported {spotify_id}",
-            duration_ms=200_000,
-            isrc=None,
-            artists=(),
-        )
+    client.get_track.side_effect = lambda spotify_id: SimpleNamespace(
+        id=spotify_id,
+        name=f"Imported {spotify_id}",
+        duration_ms=200_000,
+        isrc=None,
+        artists=(),
     )
     # Default: create returns spt-new
     client.create_playlist.return_value = SimpleNamespace(
@@ -374,10 +392,20 @@ def fake_spotify_client(monkeypatch):
     # Default: whole-playlist import reads a name and two tracks
     client.get_playlist_name.return_value = "Spotify Mix"
     client.get_playlist_tracks.return_value = [
-        SimpleNamespace(id="spt-1", name="One", duration_ms=100, isrc=None,
-                        artists=(SimpleNamespace(name="Guri"),)),
-        SimpleNamespace(id="spt-2", name="Two", duration_ms=200, isrc=None,
-                        artists=(SimpleNamespace(name="Nu Zau"),)),
+        SimpleNamespace(
+            id="spt-1",
+            name="One",
+            duration_ms=100,
+            isrc=None,
+            artists=(SimpleNamespace(name="Guri"),),
+        ),
+        SimpleNamespace(
+            id="spt-2",
+            name="Two",
+            duration_ms=200,
+            isrc=None,
+            artists=(SimpleNamespace(name="Nu Zau"),),
+        ),
     ]
     monkeypatch.setattr(
         "collector.curation.deps._build_spotify_user_client",
@@ -386,10 +414,15 @@ def fake_spotify_client(monkeypatch):
     return client
 
 
-def _event(*, method: str, route: str, user_id: str = "u1",
-           path_params: Mapping[str, str] | None = None,
-           body: Any | None = None,
-           correlation_id: str = "cid-int") -> dict:
+def _event(
+    *,
+    method: str,
+    route: str,
+    user_id: str = "u1",
+    path_params: Mapping[str, str] | None = None,
+    body: Any | None = None,
+    correlation_id: str = "cid-int",
+) -> dict:
     return {
         "requestContext": {
             "routeKey": f"{method} {route}",
@@ -418,7 +451,8 @@ def test_full_lifecycle(fake_repo):
 
     # 2. List
     resp = lambda_handler(
-        _event(method="GET", route="/playlists"), None,
+        _event(method="GET", route="/playlists"),
+        None,
     )
     assert resp["statusCode"] == 200
     listed = json.loads(resp["body"])
@@ -427,15 +461,19 @@ def test_full_lifecycle(fake_repo):
 
     # 3. Seed a canonical track in user's category scope
     fake_repo.canonical_tracks["t-1"] = {
-        "title": "Track A", "spotify_id": "spt-a", "isrc": "ISRC1",
-        "length_ms": 200000, "origin": "beatport",
+        "title": "Track A",
+        "spotify_id": "spt-a",
+        "isrc": "ISRC1",
+        "length_ms": 200000,
+        "origin": "beatport",
     }
     fake_repo.category_tracks["u1"] = {"t-1"}
 
     # 4. Add a track from user's category
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/{id}/tracks",
+            method="POST",
+            route="/playlists/{id}/tracks",
             body={"track_ids": ["t-1"]},
             path_params={"id": pid},
         ),
@@ -446,7 +484,8 @@ def test_full_lifecycle(fake_repo):
     # 5. Try to add a foreign track → 404
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/{id}/tracks",
+            method="POST",
+            route="/playlists/{id}/tracks",
             body={"track_ids": ["t-foreign"]},
             path_params={"id": pid},
         ),
@@ -457,15 +496,15 @@ def test_full_lifecycle(fake_repo):
 
     # 6. Soft-delete
     resp = lambda_handler(
-        _event(method="DELETE", route="/playlists/{id}",
-               path_params={"id": pid}),
+        _event(method="DELETE", route="/playlists/{id}", path_params={"id": pid}),
         None,
     )
     assert resp["statusCode"] == 204
 
     # 7. List is empty
     resp = lambda_handler(
-        _event(method="GET", route="/playlists"), None,
+        _event(method="GET", route="/playlists"),
+        None,
     )
     assert json.loads(resp["body"])["total"] == 0
 
@@ -478,20 +517,30 @@ def test_publish_first_time_full_flow(fake_repo, fake_s3, fake_spotify_client):
     )
     pid = json.loads(resp["body"])["id"]
     fake_repo.canonical_tracks["t-1"] = {
-        "title": "Track A", "spotify_id": "spt-a", "isrc": None,
-        "length_ms": 200000, "origin": "beatport",
+        "title": "Track A",
+        "spotify_id": "spt-a",
+        "isrc": None,
+        "length_ms": 200000,
+        "origin": "beatport",
     }
     fake_repo.category_tracks["u1"] = {"t-1"}
     lambda_handler(
-        _event(method="POST", route="/playlists/{id}/tracks",
-               body={"track_ids": ["t-1"]}, path_params={"id": pid}),
+        _event(
+            method="POST",
+            route="/playlists/{id}/tracks",
+            body={"track_ids": ["t-1"]},
+            path_params={"id": pid},
+        ),
         None,
     )
 
     resp = lambda_handler(
-        _event(method="POST", route="/playlists/{id}/publish",
-               body={"confirm_overwrite": False},
-               path_params={"id": pid}),
+        _event(
+            method="POST",
+            route="/playlists/{id}/publish",
+            body={"confirm_overwrite": False},
+            path_params={"id": pid},
+        ),
         None,
     )
     assert resp["statusCode"] == 200
@@ -499,7 +548,8 @@ def test_publish_first_time_full_flow(fake_repo, fake_s3, fake_spotify_client):
     assert body["spotify_playlist_id"] == "spt-new"
     fake_spotify_client.create_playlist.assert_called_once()
     fake_spotify_client.replace_tracks.assert_called_once_with(
-        "spt-new", ["spotify:track:spt-a"],
+        "spt-new",
+        ["spotify:track:spt-a"],
     )
 
     # State persisted in repo
@@ -511,26 +561,39 @@ def test_publish_first_time_full_flow(fake_repo, fake_s3, fake_spotify_client):
 def test_repub_without_confirm_returns_409(fake_repo, fake_s3, fake_spotify_client):
     # Seed playlist with spotify_playlist_id set
     pid = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     fake_repo.playlists[pid] = {
-        "id": pid, "user_id": "u1",
-        "name": "n", "normalized_name": "n",
-        "description": None, "is_public": False,
-        "cover_s3_key": None, "cover_uploaded_at": None,
+        "id": pid,
+        "user_id": "u1",
+        "name": "n",
+        "normalized_name": "n",
+        "description": None,
+        "is_public": False,
+        "cover_s3_key": None,
+        "cover_uploaded_at": None,
         "spotify_playlist_id": "spt-existing",
-        "last_published_at": now, "needs_republish": True,
-        "created_at": now, "updated_at": now, "deleted_at": None,
+        "last_published_at": now,
+        "needs_republish": True,
+        "created_at": now,
+        "updated_at": now,
+        "deleted_at": None,
     }
     fake_repo.canonical_tracks["t-1"] = {
-        "title": "T", "spotify_id": "spt-a", "isrc": None,
-        "length_ms": 200000, "origin": "beatport",
+        "title": "T",
+        "spotify_id": "spt-a",
+        "isrc": None,
+        "length_ms": 200000,
+        "origin": "beatport",
     }
     fake_repo.tracks[(pid, "t-1")] = {"position": 0, "added_at": now}
 
     resp = lambda_handler(
-        _event(method="POST", route="/playlists/{id}/publish",
-               body={"confirm_overwrite": False},
-               path_params={"id": pid}),
+        _event(
+            method="POST",
+            route="/playlists/{id}/publish",
+            body={"confirm_overwrite": False},
+            path_params={"id": pid},
+        ),
         None,
     )
     assert resp["statusCode"] == 409
@@ -546,7 +609,8 @@ def test_import_spotify_then_publish(fake_repo, fake_s3, fake_spotify_client):
 
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/{id}/tracks/import-spotify",
+            method="POST",
+            route="/playlists/{id}/tracks/import-spotify",
             body={"spotify_refs": ["spotify:track:5xkAVrKKnHeBHb1Mqt6wEt"]},
             path_params={"id": pid},
         ),
@@ -567,21 +631,28 @@ def test_import_spotify_then_publish(fake_repo, fake_s3, fake_spotify_client):
 
     # Publish now succeeds and includes the imported track URI.
     resp = lambda_handler(
-        _event(method="POST", route="/playlists/{id}/publish",
-               body={"confirm_overwrite": False},
-               path_params={"id": pid}),
+        _event(
+            method="POST",
+            route="/playlists/{id}/publish",
+            body={"confirm_overwrite": False},
+            path_params={"id": pid},
+        ),
         None,
     )
     assert resp["statusCode"] == 200
     fake_spotify_client.replace_tracks.assert_called_with(
-        "spt-new", ["spotify:track:5xkAVrKKnHeBHb1Mqt6wEt"],
+        "spt-new",
+        ["spotify:track:5xkAVrKKnHeBHb1Mqt6wEt"],
     )
 
 
 def test_import_spotify_persists_artists(fake_repo, fake_s3, fake_spotify_client):
     fake_spotify_client.get_track.side_effect = lambda spotify_id: SimpleNamespace(
-        id=spotify_id, name=f"Imported {spotify_id}", duration_ms=200_000,
-        isrc=None, artists=(SimpleNamespace(name="Guri"),),
+        id=spotify_id,
+        name=f"Imported {spotify_id}",
+        duration_ms=200_000,
+        isrc=None,
+        artists=(SimpleNamespace(name="Guri"),),
     )
     resp = lambda_handler(
         _event(method="POST", route="/playlists", body={"name": "Set"}),
@@ -590,7 +661,8 @@ def test_import_spotify_persists_artists(fake_repo, fake_s3, fake_spotify_client
     pid = json.loads(resp["body"])["id"]
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/{id}/tracks/import-spotify",
+            method="POST",
+            route="/playlists/{id}/tracks/import-spotify",
             body={"spotify_refs": ["spotify:track:5xkAVrKKnHeBHb1Mqt6wEt"]},
             path_params={"id": pid},
         ),
@@ -604,7 +676,8 @@ def test_import_spotify_persists_artists(fake_repo, fake_s3, fake_spotify_client
 def test_import_spotify_playlist_creates_mirror(fake_repo, fake_s3, fake_spotify_client):
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/import-spotify-playlist",
+            method="POST",
+            route="/playlists/import-spotify-playlist",
             body={"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
         ),
         None,
@@ -626,7 +699,8 @@ def test_import_spotify_playlist_creates_mirror(fake_repo, fake_s3, fake_spotify
 def test_import_spotify_playlist_name_override(fake_repo, fake_s3, fake_spotify_client):
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/import-spotify-playlist",
+            method="POST",
+            route="/playlists/import-spotify-playlist",
             body={"spotify_ref": "37i9dQZF1DXcBWIGoYBM5M", "name": "My Name"},
         ),
         None,
@@ -637,7 +711,8 @@ def test_import_spotify_playlist_name_override(fake_repo, fake_s3, fake_spotify_
 def test_import_spotify_playlist_rejects_bad_ref(fake_repo, fake_s3, fake_spotify_client):
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/import-spotify-playlist",
+            method="POST",
+            route="/playlists/import-spotify-playlist",
             body={"spotify_ref": "not-a-playlist"},
         ),
         None,
@@ -649,12 +724,11 @@ def test_import_spotify_playlist_missing_returns_404(fake_repo, fake_s3, fake_sp
     """Regression for I1: a bad/inaccessible Spotify playlist must surface
     the route's documented 404 (playlist_not_found), not SpotifyNotFoundError's
     inherited 502 upstream-error status."""
-    fake_spotify_client.get_playlist_name.side_effect = SpotifyNotFoundError(
-        "no such playlist"
-    )
+    fake_spotify_client.get_playlist_name.side_effect = SpotifyNotFoundError("no such playlist")
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/import-spotify-playlist",
+            method="POST",
+            route="/playlists/import-spotify-playlist",
             body={"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
         ),
         None,
@@ -667,7 +741,10 @@ def test_import_spotify_playlist_missing_returns_404(fake_repo, fake_s3, fake_sp
 
 
 def test_import_spotify_playlist_soft_deletes_orphan_on_post_create_failure(
-    fake_repo, fake_s3, fake_spotify_client, monkeypatch,
+    fake_repo,
+    fake_s3,
+    fake_spotify_client,
+    monkeypatch,
 ):
     """Regression for I2: if anything after repo.create() fails, the
     just-created playlist must be soft-deleted rather than left as an
@@ -680,12 +757,15 @@ def test_import_spotify_playlist_soft_deletes_orphan_on_post_create_failure(
         raise RuntimeError("boom during import")
 
     monkeypatch.setattr(
-        fake_repo, "import_tracks_batch", _raising_import_tracks_batch,
+        fake_repo,
+        "import_tracks_batch",
+        _raising_import_tracks_batch,
     )
 
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/import-spotify-playlist",
+            method="POST",
+            route="/playlists/import-spotify-playlist",
             body={"spotify_ref": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"},
         ),
         None,
@@ -709,7 +789,8 @@ def test_cover_upload_lifecycle(fake_repo, fake_s3):
     # Request upload URL
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/{id}/cover/upload-url",
+            method="POST",
+            route="/playlists/{id}/cover/upload-url",
             body={"content_type": "image/jpeg"},
             path_params={"id": pid},
         ),
@@ -723,7 +804,8 @@ def test_cover_upload_lifecycle(fake_repo, fake_s3):
     # Confirm upload
     resp = lambda_handler(
         _event(
-            method="POST", route="/playlists/{id}/cover/confirm",
+            method="POST",
+            route="/playlists/{id}/cover/confirm",
             body={"s3_key": s3_key},
             path_params={"id": pid},
         ),
@@ -737,8 +819,7 @@ def test_cover_upload_lifecycle(fake_repo, fake_s3):
 
     # GET /playlists/{id} also surfaces cover_url.
     resp = lambda_handler(
-        _event(method="GET", route="/playlists/{id}",
-               path_params={"id": pid}),
+        _event(method="GET", route="/playlists/{id}", path_params={"id": pid}),
         None,
     )
     assert resp["statusCode"] == 200
@@ -746,8 +827,7 @@ def test_cover_upload_lifecycle(fake_repo, fake_s3):
 
     # Delete cover
     resp = lambda_handler(
-        _event(method="DELETE", route="/playlists/{id}/cover",
-               path_params={"id": pid}),
+        _event(method="DELETE", route="/playlists/{id}/cover", path_params={"id": pid}),
         None,
     )
     assert resp["statusCode"] == 200
@@ -757,7 +837,9 @@ def test_cover_upload_lifecycle(fake_repo, fake_s3):
 
 
 def test_publish_cover_failure_keeps_dirty(
-    fake_repo, fake_s3, fake_spotify_client,
+    fake_repo,
+    fake_s3,
+    fake_spotify_client,
 ):
     """When cover upload fails during publish, the playlist stays
     needs_republish=True and the response carries cover_failed=True."""
@@ -771,13 +853,20 @@ def test_publish_cover_failure_keeps_dirty(
     pid = json.loads(resp["body"])["id"]
     fake_repo.playlists[pid]["cover_s3_key"] = f"covers/u1/{pid}/1.jpg"
     fake_repo.canonical_tracks["t-1"] = {
-        "title": "T", "spotify_id": "spt-a", "isrc": None,
-        "length_ms": 200000, "origin": "beatport",
+        "title": "T",
+        "spotify_id": "spt-a",
+        "isrc": None,
+        "length_ms": 200000,
+        "origin": "beatport",
     }
     fake_repo.category_tracks["u1"] = {"t-1"}
     lambda_handler(
-        _event(method="POST", route="/playlists/{id}/tracks",
-               body={"track_ids": ["t-1"]}, path_params={"id": pid}),
+        _event(
+            method="POST",
+            route="/playlists/{id}/tracks",
+            body={"track_ids": ["t-1"]},
+            path_params={"id": pid},
+        ),
         None,
     )
 
@@ -785,9 +874,12 @@ def test_publish_cover_failure_keeps_dirty(
     fake_spotify_client.set_cover.side_effect = SpotifyApiError("503")
 
     resp = lambda_handler(
-        _event(method="POST", route="/playlists/{id}/publish",
-               body={"confirm_overwrite": False},
-               path_params={"id": pid}),
+        _event(
+            method="POST",
+            route="/playlists/{id}/publish",
+            body={"confirm_overwrite": False},
+            path_params={"id": pid},
+        ),
         None,
     )
     assert resp["statusCode"] == 200
@@ -803,11 +895,14 @@ def test_publish_cover_failure_keeps_dirty(
 
 
 def test_export_playlist_includes_tracks_comments_and_enrichment(
-    fake_repo, fake_s3, monkeypatch,
+    fake_repo,
+    fake_s3,
+    monkeypatch,
 ):
     """GET /playlists/{id}/export returns the full copy payload in one call."""
     resp = lambda_handler(
-        _event(method="POST", route="/playlists", body={"name": "Export Set"}), None,
+        _event(method="POST", route="/playlists", body={"name": "Export Set"}),
+        None,
     )
     pid = json.loads(resp["body"])["id"]
 
@@ -822,8 +917,12 @@ def test_export_playlist_includes_tracks_comments_and_enrichment(
     fake_repo.artist_info["a1"] = {"country": "RO", "cost_usd": 0.5}
     fake_repo.label_info["l1"] = {"country": "DE"}
     lambda_handler(
-        _event(method="POST", route="/playlists/{id}/tracks",
-               body={"track_ids": ["t-1"]}, path_params={"id": pid}),
+        _event(
+            method="POST",
+            route="/playlists/{id}/tracks",
+            body={"track_ids": ["t-1"]},
+            path_params={"id": pid},
+        ),
         None,
     )
 
@@ -831,12 +930,20 @@ def test_export_playlist_includes_tracks_comments_and_enrichment(
     comments_repo.list_comments_for_tracks.return_value = {
         "t-1": (
             SimpleNamespace(status="ok", comment_count=1, external_video_id="v1"),
-            [SimpleNamespace(author_name="bob", author_avatar_url="http://a",
-                             text="fire", like_count=3, published_at="2026-01-01")],
+            [
+                SimpleNamespace(
+                    author_name="bob",
+                    author_avatar_url="http://a",
+                    text="fire",
+                    like_count=3,
+                    published_at="2026-01-01",
+                )
+            ],
         )
     }
     monkeypatch.setattr(
-        "collector.curation.deps._comments_factory", lambda: comments_repo,
+        "collector.curation.deps._comments_factory",
+        lambda: comments_repo,
     )
 
     resp = lambda_handler(
@@ -870,12 +977,17 @@ def test_export_playlist_includes_tracks_comments_and_enrichment(
 
 def test_export_playlist_404_for_other_users_playlist(fake_repo, fake_s3):
     resp = lambda_handler(
-        _event(method="POST", route="/playlists", body={"name": "Mine"}), None,
+        _event(method="POST", route="/playlists", body={"name": "Mine"}),
+        None,
     )
     pid = json.loads(resp["body"])["id"]
     resp = lambda_handler(
-        _event(method="GET", route="/playlists/{id}/export",
-               path_params={"id": pid}, user_id="someone-else"),
+        _event(
+            method="GET",
+            route="/playlists/{id}/export",
+            path_params={"id": pid},
+            user_id="someone-else",
+        ),
         None,
     )
     assert resp["statusCode"] == 404

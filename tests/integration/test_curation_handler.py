@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from types import SimpleNamespace
-from typing import Any, Mapping
+from typing import Any
 
 import pytest
 
@@ -21,6 +22,7 @@ from collector.curation_handler import lambda_handler
 
 # ---------- Fake repository --------------------------------------------------
 
+
 class FakeRepo:
     """In-memory CategoriesRepository for integration tests."""
 
@@ -35,19 +37,29 @@ class FakeRepo:
         self.track_meta: dict[str, dict] = {}
 
     def _row(self, c: dict) -> CategoryRow:
-        track_count = sum(
-            1 for (cid, _) in self.tracks if cid == c["id"]
-        )
+        track_count = sum(1 for (cid, _) in self.tracks if cid == c["id"])
         return CategoryRow(
-            id=c["id"], user_id=c["user_id"], style_id=c["style_id"],
+            id=c["id"],
+            user_id=c["user_id"],
+            style_id=c["style_id"],
             style_name=self.styles[c["style_id"]],
-            name=c["name"], normalized_name=c["normalized_name"],
-            position=c["position"], track_count=track_count,
-            created_at=c["created_at"], updated_at=c["updated_at"],
+            name=c["name"],
+            normalized_name=c["normalized_name"],
+            position=c["position"],
+            track_count=track_count,
+            created_at=c["created_at"],
+            updated_at=c["updated_at"],
         )
 
     def create(
-        self, *, user_id, style_id, category_id, name, normalized_name, now,
+        self,
+        *,
+        user_id,
+        style_id,
+        category_id,
+        name,
+        normalized_name,
+        now,
         correlation_id=None,
     ):
         if style_id not in self.styles:
@@ -61,17 +73,20 @@ class FakeRepo:
             ):
                 raise NameConflictError("Name exists")
         positions = [
-            c["position"] for c in self.categories.values()
-            if c["user_id"] == user_id
-            and c["style_id"] == style_id
-            and c.get("deleted_at") is None
+            c["position"]
+            for c in self.categories.values()
+            if c["user_id"] == user_id and c["style_id"] == style_id and c.get("deleted_at") is None
         ]
         new_pos = (max(positions) + 1) if positions else 0
         c = {
-            "id": category_id, "user_id": user_id, "style_id": style_id,
-            "name": name, "normalized_name": normalized_name,
+            "id": category_id,
+            "user_id": user_id,
+            "style_id": style_id,
+            "name": name,
+            "normalized_name": normalized_name,
             "position": new_pos,
-            "created_at": now.isoformat(), "updated_at": now.isoformat(),
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
             "deleted_at": None,
         }
         self.categories[category_id] = c
@@ -79,11 +94,7 @@ class FakeRepo:
 
     def get(self, *, user_id, category_id):
         c = self.categories.get(category_id)
-        if (
-            c is None
-            or c["user_id"] != user_id
-            or c.get("deleted_at") is not None
-        ):
+        if c is None or c["user_id"] != user_id or c.get("deleted_at") is not None:
             return None
         return self._row(c)
 
@@ -91,37 +102,37 @@ class FakeRepo:
         if style_id not in self.styles:
             raise NotFoundError("style_not_found", "Style not found")
         items = [
-            self._row(c) for c in self.categories.values()
-            if c["user_id"] == user_id
-            and c["style_id"] == style_id
-            and c.get("deleted_at") is None
+            self._row(c)
+            for c in self.categories.values()
+            if c["user_id"] == user_id and c["style_id"] == style_id and c.get("deleted_at") is None
         ]
         items.sort(key=lambda r: (r.position, r.created_at))
         total = len(items)
         return PaginatedResult(
-            items=items[offset:offset+limit], total=total,
-            limit=limit, offset=offset,
+            items=items[offset : offset + limit],
+            total=total,
+            limit=limit,
+            offset=offset,
         )
 
     def list_all(self, *, user_id, limit, offset):
         items = [
-            self._row(c) for c in self.categories.values()
+            self._row(c)
+            for c in self.categories.values()
             if c["user_id"] == user_id and c.get("deleted_at") is None
         ]
         items.sort(key=lambda r: r.created_at, reverse=True)
         total = len(items)
         return PaginatedResult(
-            items=items[offset:offset+limit], total=total,
-            limit=limit, offset=offset,
+            items=items[offset : offset + limit],
+            total=total,
+            limit=limit,
+            offset=offset,
         )
 
     def rename(self, *, user_id, category_id, name, normalized_name, now):
         c = self.categories.get(category_id)
-        if (
-            c is None
-            or c["user_id"] != user_id
-            or c.get("deleted_at") is not None
-        ):
+        if c is None or c["user_id"] != user_id or c.get("deleted_at") is not None:
             raise NotFoundError("category_not_found", "Category not found")
         for other in self.categories.values():
             if (
@@ -138,15 +149,16 @@ class FakeRepo:
         return self._row(c)
 
     def soft_delete(
-        self, *, user_id, category_id, now, correlation_id=None,
+        self,
+        *,
+        user_id,
+        category_id,
+        now,
+        correlation_id=None,
         tags_repo=None,
     ):
         c = self.categories.get(category_id)
-        if (
-            c is None
-            or c["user_id"] != user_id
-            or c.get("deleted_at") is not None
-        ):
+        if c is None or c["user_id"] != user_id or c.get("deleted_at") is not None:
             return False
         c["deleted_at"] = now.isoformat()
         c["updated_at"] = now.isoformat()
@@ -156,29 +168,20 @@ class FakeRepo:
         if style_id not in self.styles:
             raise NotFoundError("style_not_found", "Style not found")
         actual = {
-            c["id"] for c in self.categories.values()
-            if c["user_id"] == user_id
-            and c["style_id"] == style_id
-            and c.get("deleted_at") is None
+            c["id"]
+            for c in self.categories.values()
+            if c["user_id"] == user_id and c["style_id"] == style_id and c.get("deleted_at") is None
         }
         if set(ordered_ids) != actual or len(set(ordered_ids)) != len(ordered_ids):
             raise OrderMismatchError("mismatch")
         for idx, cid in enumerate(ordered_ids):
             self.categories[cid]["position"] = idx
             self.categories[cid]["updated_at"] = now.isoformat()
-        return [
-            self._row(self.categories[cid]) for cid in ordered_ids
-        ]
+        return [self._row(self.categories[cid]) for cid in ordered_ids]
 
-    def add_tracks_bulk(
-        self, *, user_id, category_id, items, now, transaction_id=None
-    ):
+    def add_tracks_bulk(self, *, user_id, category_id, items, now, transaction_id=None):
         c = self.categories.get(category_id)
-        if (
-            c is None
-            or c["user_id"] != user_id
-            or c.get("deleted_at") is not None
-        ):
+        if c is None or c["user_id"] != user_id or c.get("deleted_at") is not None:
             raise NotFoundError("category_not_found", "Category not found")
         for tid, _ in items:
             if tid not in self.track_meta:
@@ -195,12 +198,12 @@ class FakeRepo:
             added += 1
         return added
 
-    def add_track(
-        self, *, user_id, category_id, track_id, source_triage_block_id, now
-    ):
+    def add_track(self, *, user_id, category_id, track_id, source_triage_block_id, now):
         added = self.add_tracks_bulk(
-            user_id=user_id, category_id=category_id,
-            items=[(track_id, source_triage_block_id)], now=now,
+            user_id=user_id,
+            category_id=category_id,
+            items=[(track_id, source_triage_block_id)],
+            now=now,
         )
         existing = self.tracks[(category_id, track_id)]
         return (
@@ -212,38 +215,42 @@ class FakeRepo:
         )
 
     def remove_track(
-        self, *, user_id, category_id, track_id, tags_repo=None,
+        self,
+        *,
+        user_id,
+        category_id,
+        track_id,
+        tags_repo=None,
     ):
         c = self.categories.get(category_id)
-        if (
-            c is None
-            or c["user_id"] != user_id
-            or c.get("deleted_at") is not None
-        ):
+        if c is None or c["user_id"] != user_id or c.get("deleted_at") is not None:
             raise NotFoundError("category_not_found", "Category not found")
         return self.tracks.pop((category_id, track_id), None) is not None
 
     def list_tracks(
-        self, *, user_id, category_id, limit, offset, search,
-        sort: str = "added_at", order: str = "desc",
-        tag_ids=None, tag_match: str = "all", tags_repo=None,
+        self,
+        *,
+        user_id,
+        category_id,
+        limit,
+        offset,
+        search,
+        sort: str = "added_at",
+        order: str = "desc",
+        tag_ids=None,
+        tag_match: str = "all",
+        tags_repo=None,
         fresh: bool = False,
     ):
         c = self.categories.get(category_id)
-        if (
-            c is None
-            or c["user_id"] != user_id
-            or c.get("deleted_at") is not None
-        ):
+        if c is None or c["user_id"] != user_id or c.get("deleted_at") is not None:
             raise NotFoundError("category_not_found", "Category not found")
         rows = []
         for (cid, tid), meta in self.tracks.items():
             if cid != category_id:
                 continue
             track = self.track_meta[tid]
-            if search and search.strip().lower() not in track.get(
-                "normalized_title", ""
-            ):
+            if search and search.strip().lower() not in track.get("normalized_title", ""):
                 continue
             rows.append(
                 TrackInCategoryRow(
@@ -264,12 +271,15 @@ class FakeRepo:
         rows.sort(key=_key, reverse=(order == "desc"))
         total = len(rows)
         return PaginatedResult(
-            items=rows[offset:offset+limit],
-            total=total, limit=limit, offset=offset,
+            items=rows[offset : offset + limit],
+            total=total,
+            limit=limit,
+            offset=offset,
         )
 
 
 # ---------- Test helpers -----------------------------------------------------
+
 
 @pytest.fixture
 def context() -> SimpleNamespace:
@@ -317,7 +327,8 @@ def _event(
             "routeKey": f"{method} {route}",
             "authorizer": {
                 "lambda": {
-                    "user_id": user_id, "session_id": "s",
+                    "user_id": user_id,
+                    "session_id": "s",
                     "is_admin": is_admin,
                 }
             },
@@ -335,10 +346,9 @@ def _read(resp: dict) -> tuple[int, dict]:
 
 # ---------- Skeleton smoke tests --------------------------------------------
 
+
 def test_unknown_route_returns_404(fake_repo, context):
-    resp = lambda_handler(
-        _event(method="GET", route="/nonexistent"), context
-    )
+    resp = lambda_handler(_event(method="GET", route="/nonexistent"), context)
     status, body = _read(resp)
     assert status == 404
     assert body["error_code"] == "not_found"
@@ -373,9 +383,12 @@ def test_create_category_201(fake_repo, context):
 
 def test_create_category_409_on_duplicate(fake_repo, context):
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(
@@ -422,11 +435,15 @@ def test_create_category_422_empty_name(fake_repo, context):
 
 
 def test_list_by_style_returns_paginated(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     for i, name in enumerate(["A", "B", "C"]):
         fake_repo.create(
-            user_id="u1", style_id="s1", category_id=f"c{i}",
-            name=name, normalized_name=name.lower(), now=now,
+            user_id="u1",
+            style_id="s1",
+            category_id=f"c{i}",
+            name=name,
+            normalized_name=name.lower(),
+            now=now,
         )
     resp = lambda_handler(
         _event(
@@ -447,11 +464,15 @@ def test_list_by_style_returns_paginated(fake_repo, context):
 
 
 def test_list_by_style_paginates_with_limit_offset(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     for i, name in enumerate(["A", "B", "C", "D"]):
         fake_repo.create(
-            user_id="u1", style_id="s1", category_id=f"c{i}",
-            name=name, normalized_name=name.lower(), now=now,
+            user_id="u1",
+            style_id="s1",
+            category_id=f"c{i}",
+            name=name,
+            normalized_name=name.lower(),
+            now=now,
         )
     resp = lambda_handler(
         _event(
@@ -510,14 +531,22 @@ def test_list_by_style_404_style_missing(fake_repo, context):
 
 
 def test_list_all_returns_cross_style(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="A", normalized_name="a", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="A",
+        normalized_name="a",
+        now=now,
     )
     fake_repo.create(
-        user_id="u1", style_id="s2", category_id="c2",
-        name="B", normalized_name="b", now=now,
+        user_id="u1",
+        style_id="s2",
+        category_id="c2",
+        name="B",
+        normalized_name="b",
+        now=now,
     )
     resp = lambda_handler(
         _event(method="GET", route="/categories"),
@@ -530,9 +559,12 @@ def test_list_all_returns_cross_style(fake_repo, context):
 
 def test_get_detail_200(fake_repo, context):
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(method="GET", route="/categories/{id}", path_params={"id": "c1"}),
@@ -555,9 +587,12 @@ def test_get_detail_404(fake_repo, context):
 
 def test_rename_200(fake_repo, context):
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(
@@ -574,14 +609,22 @@ def test_rename_200(fake_repo, context):
 
 
 def test_rename_409_on_conflict(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c2",
-        name="Deep", normalized_name="deep", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c2",
+        name="Deep",
+        normalized_name="deep",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -592,7 +635,7 @@ def test_rename_409_on_conflict(fake_repo, context):
         ),
         context,
     )
-    status, body = _read(resp)
+    status, _body = _read(resp)
     assert status == 409
 
 
@@ -613,9 +656,12 @@ def test_rename_404_missing_category(fake_repo, context):
 
 def test_rename_422_whitespace_name(fake_repo, context):
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(
@@ -633,9 +679,12 @@ def test_rename_422_whitespace_name(fake_repo, context):
 
 def test_delete_204(fake_repo, context):
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech",
-        now=datetime(2026, 4, 27, tzinfo=timezone.utc),
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=datetime(2026, 4, 27, tzinfo=UTC),
     )
     resp = lambda_handler(
         _event(method="DELETE", route="/categories/{id}", path_params={"id": "c1"}),
@@ -656,11 +705,15 @@ def test_delete_404_already_gone(fake_repo, context):
 
 
 def test_reorder_200(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     for i, name in enumerate(["A", "B", "C"]):
         fake_repo.create(
-            user_id="u1", style_id="s1", category_id=f"c{i}",
-            name=name, normalized_name=name.lower(), now=now,
+            user_id="u1",
+            style_id="s1",
+            category_id=f"c{i}",
+            name=name,
+            normalized_name=name.lower(),
+            now=now,
         )
     resp = lambda_handler(
         _event(
@@ -678,10 +731,14 @@ def test_reorder_200(fake_repo, context):
 
 
 def test_reorder_422_on_extra_id(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="A", normalized_name="a", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="A",
+        normalized_name="a",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -707,23 +764,32 @@ def test_reorder_404_style_missing(fake_repo, context):
         ),
         context,
     )
-    status, body = _read(resp)
+    status, _body = _read(resp)
     assert status == 404
 
 
 def test_list_tracks_200(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     fake_repo.track_meta["t1"] = {
-        "id": "t1", "title": "Song", "normalized_title": "song",
+        "id": "t1",
+        "title": "Song",
+        "normalized_title": "song",
         "artists": ["A"],
     }
     fake_repo.add_track(
-        user_id="u1", category_id="c1", track_id="t1",
-        source_triage_block_id=None, now=now,
+        user_id="u1",
+        category_id="c1",
+        track_id="t1",
+        source_triage_block_id=None,
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -742,10 +808,14 @@ def test_list_tracks_200(fake_repo, context):
 
 
 def test_list_tracks_400_invalid_sort(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -762,10 +832,14 @@ def test_list_tracks_400_invalid_sort(fake_repo, context):
 
 
 def test_list_tracks_400_invalid_order(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -782,10 +856,14 @@ def test_list_tracks_400_invalid_order(fake_repo, context):
 
 
 def test_list_tracks_accepts_mixed_case_sort(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -801,10 +879,14 @@ def test_list_tracks_accepts_mixed_case_sort(fake_repo, context):
 
 
 def test_add_track_201(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     fake_repo.track_meta["t1"] = {"id": "t1", "title": "X"}
     resp = lambda_handler(
@@ -823,15 +905,22 @@ def test_add_track_201(fake_repo, context):
 
 
 def test_add_track_200_already_present(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     fake_repo.track_meta["t1"] = {"id": "t1"}
     fake_repo.add_track(
-        user_id="u1", category_id="c1", track_id="t1",
-        source_triage_block_id=None, now=now,
+        user_id="u1",
+        category_id="c1",
+        track_id="t1",
+        source_triage_block_id=None,
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -848,10 +937,14 @@ def test_add_track_200_already_present(fake_repo, context):
 
 
 def test_add_track_404_track_missing(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -868,15 +961,22 @@ def test_add_track_404_track_missing(fake_repo, context):
 
 
 def test_remove_track_204(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     fake_repo.track_meta["t1"] = {"id": "t1"}
     fake_repo.add_track(
-        user_id="u1", category_id="c1", track_id="t1",
-        source_triage_block_id=None, now=now,
+        user_id="u1",
+        category_id="c1",
+        track_id="t1",
+        source_triage_block_id=None,
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -890,10 +990,14 @@ def test_remove_track_204(fake_repo, context):
 
 
 def test_remove_track_404_when_not_in_category(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -910,11 +1014,16 @@ def test_remove_track_404_when_not_in_category(fake_repo, context):
 
 # ---------- Tenancy isolation tests ------------------------------------------
 
+
 def test_user_b_cannot_see_user_a_category(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="user-a", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="user-a",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     # User B requests detail
     resp = lambda_handler(
@@ -926,15 +1035,19 @@ def test_user_b_cannot_see_user_a_category(fake_repo, context):
         ),
         context,
     )
-    status, body = _read(resp)
+    status, _body = _read(resp)
     assert status == 404
 
 
 def test_user_b_cannot_rename_user_a_category(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="user-a", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="user-a",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -946,15 +1059,19 @@ def test_user_b_cannot_rename_user_a_category(fake_repo, context):
         ),
         context,
     )
-    status, body = _read(resp)
+    status, _body = _read(resp)
     assert status == 404
 
 
 def test_user_b_cannot_delete_user_a_category(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="user-a", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="user-a",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -969,14 +1086,22 @@ def test_user_b_cannot_delete_user_a_category(fake_repo, context):
 
 
 def test_list_by_style_filters_by_user(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="user-a", style_id="s1", category_id="c1",
-        name="A", normalized_name="a", now=now,
+        user_id="user-a",
+        style_id="s1",
+        category_id="c1",
+        name="A",
+        normalized_name="a",
+        now=now,
     )
     fake_repo.create(
-        user_id="user-b", style_id="s1", category_id="c2",
-        name="B", normalized_name="b", now=now,
+        user_id="user-b",
+        style_id="s1",
+        category_id="c2",
+        name="B",
+        normalized_name="b",
+        now=now,
     )
     resp = lambda_handler(
         _event(
@@ -996,10 +1121,14 @@ def test_list_by_style_filters_by_user(fake_repo, context):
 
 
 def test_recreate_after_soft_delete(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     # soft-delete
     fake_repo.soft_delete(user_id="u1", category_id="c1", now=now)
@@ -1047,13 +1176,19 @@ def test_cross_style_namesakes_coexist(fake_repo, context):
 
 def test_spec_d_contract_add_tracks_bulk_round_trip(fake_repo, context):
     """spec-D will reuse add_tracks_bulk inside its triage finalize TX."""
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     fake_repo.track_meta["t1"] = {
-        "id": "t1", "title": "X", "normalized_title": "x",
+        "id": "t1",
+        "title": "X",
+        "normalized_title": "x",
     }
     inserted = fake_repo.add_tracks_bulk(
         user_id="u1",
@@ -1080,19 +1215,28 @@ def test_spec_d_contract_add_tracks_bulk_round_trip(fake_repo, context):
 
 
 def test_tracks_pagination_limits(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     for i in range(120):
         tid = f"t{i:03}"
         fake_repo.track_meta[tid] = {
-            "id": tid, "title": f"S{i}", "normalized_title": f"s{i}",
+            "id": tid,
+            "title": f"S{i}",
+            "normalized_title": f"s{i}",
         }
         fake_repo.add_track(
-            user_id="u1", category_id="c1", track_id=tid,
-            source_triage_block_id=None, now=now,
+            user_id="u1",
+            category_id="c1",
+            track_id=tid,
+            source_triage_block_id=None,
+            now=now,
         )
     resp = lambda_handler(
         _event(
@@ -1109,19 +1253,27 @@ def test_tracks_pagination_limits(fake_repo, context):
 
 
 def test_tracks_search(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     for tid, title in [("t1", "Acid Rain"), ("t2", "Deep Ocean"), ("t3", "Acid Wave")]:
         fake_repo.track_meta[tid] = {
-            "id": tid, "title": title,
+            "id": tid,
+            "title": title,
             "normalized_title": title.lower(),
         }
         fake_repo.add_track(
-            user_id="u1", category_id="c1", track_id=tid,
-            source_triage_block_id=None, now=now,
+            user_id="u1",
+            category_id="c1",
+            track_id=tid,
+            source_triage_block_id=None,
+            now=now,
         )
     resp = lambda_handler(
         _event(
@@ -1137,16 +1289,23 @@ def test_tracks_search(fake_repo, context):
 
 
 def test_track_count_rollup_on_list_and_detail(fake_repo, context):
-    now = datetime(2026, 4, 27, tzinfo=timezone.utc)
+    now = datetime(2026, 4, 27, tzinfo=UTC)
     fake_repo.create(
-        user_id="u1", style_id="s1", category_id="c1",
-        name="Tech", normalized_name="tech", now=now,
+        user_id="u1",
+        style_id="s1",
+        category_id="c1",
+        name="Tech",
+        normalized_name="tech",
+        now=now,
     )
     for tid in ["t1", "t2", "t3"]:
         fake_repo.track_meta[tid] = {"id": tid}
         fake_repo.add_track(
-            user_id="u1", category_id="c1", track_id=tid,
-            source_triage_block_id=None, now=now,
+            user_id="u1",
+            category_id="c1",
+            track_id=tid,
+            source_triage_block_id=None,
+            now=now,
         )
 
     detail = lambda_handler(

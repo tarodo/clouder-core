@@ -46,7 +46,9 @@ def test_tavily_deepseek_happy_path():
         http_client=http,
         llm_client=llm,
     )
-    resp = adapter.run(system="sys", user='Research label "Drumcode" in style "techno".', schema=LabelInfo)
+    resp = adapter.run(
+        system="sys", user='Research label "Drumcode" in style "techno".', schema=LabelInfo
+    )
 
     assert resp.error is None
     assert resp.parsed.label_name == "Drumcode"

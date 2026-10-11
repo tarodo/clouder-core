@@ -20,7 +20,7 @@ import argparse
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from collector.user_deletion import delete_covers, delete_user, purge_lake
@@ -64,15 +64,21 @@ def _print_counts(title: str, counts: dict[str, int]) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Delete one user from every store")
     parser.add_argument("--user-id", required=True)
-    parser.add_argument("--dry-run", action="store_true", help="report what would go, change nothing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="report what would go, change nothing"
+    )
     parser.add_argument("--yes", action="store_true", help="skip the typed confirmation")
     parser.add_argument("--cluster-arn")
     parser.add_argument("--secret-arn")
     parser.add_argument("--database", default="clouder")
     parser.add_argument("--raw-bucket")
-    parser.add_argument("--lake-bucket",
-                        default=os.environ.get("ANALYTICS_LAKE_BUCKET", "clouder-prod-analytics-lake"))
-    parser.add_argument("--workgroup", default=os.environ.get("ATHENA_WORKGROUP", "beatport-prod-analytics"))
+    parser.add_argument(
+        "--lake-bucket",
+        default=os.environ.get("ANALYTICS_LAKE_BUCKET", "clouder-prod-analytics-lake"),
+    )
+    parser.add_argument(
+        "--workgroup", default=os.environ.get("ATHENA_WORKGROUP", "beatport-prod-analytics")
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -86,9 +92,11 @@ def main(argv: list[str] | None = None) -> int:
 
     db = _data_api(cluster_arn, secret_arn, args.database)
     _print_counts("Aurora (dry run, rolled back):", delete_user(db, user_id, dry_run=True))
-    print(f"Then: every version under s3://{raw_bucket}/covers/{user_id}/, a tombstone in "
-          f"s3://{args.lake_bucket}/governance/deleted_users/, and Athena DELETE from "
-          "clouder_silver.events and clouder_gold.fct_play.")
+    print(
+        f"Then: every version under s3://{raw_bucket}/covers/{user_id}/, a tombstone in "
+        f"s3://{args.lake_bucket}/governance/deleted_users/, and Athena DELETE from "
+        "clouder_silver.events and clouder_gold.fct_play."
+    )
     if args.dry_run:
         return 0
     if not args.yes and input("Type the user id to delete it everywhere: ").strip() != user_id:
@@ -98,8 +106,14 @@ def main(argv: list[str] | None = None) -> int:
     _print_counts("Aurora (committed):", delete_user(db, user_id))
     s3, athena = _clients()
     print(f"Cover object versions deleted: {delete_covers(s3, raw_bucket, user_id)}")
-    purge_lake(s3, athena, user_id=user_id, lake_bucket=args.lake_bucket,
-               workgroup=args.workgroup, now=datetime.now(timezone.utc))
+    purge_lake(
+        s3,
+        athena,
+        user_id=user_id,
+        lake_bucket=args.lake_bucket,
+        workgroup=args.workgroup,
+        now=datetime.now(UTC),
+    )
     print("Lake: tombstone written, silver/gold rows deleted.")
     return 0
 

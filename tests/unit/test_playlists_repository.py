@@ -3,9 +3,10 @@
 DataAPIClient is stubbed with a MagicMock that returns canned rows per
 SQL fragment match — same pattern as test_categories_repository.py.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,7 +24,7 @@ from collector.curation.playlists_repository import (
 
 
 def _utc() -> datetime:
-    return datetime(2026, 5, 12, 10, 0, 0, tzinfo=timezone.utc)
+    return datetime(2026, 5, 12, 10, 0, 0, tzinfo=UTC)
 
 
 def _make_repo(data_api: MagicMock) -> PlaylistsRepository:
@@ -46,29 +47,38 @@ def _make_data_api(rows_by_sql_substring: dict[str, list[dict]]) -> MagicMock:
 
 
 def test_create_inserts_row_and_returns_playlist() -> None:
-    api = _make_data_api({
-        "SELECT COUNT(*) AS cnt FROM playlists": [{"cnt": 5}],
-        "INSERT INTO playlists": [{
-            "id": "p-1",
-            "user_id": "u-1",
-            "name": "My Set",
-            "normalized_name": "my set",
-            "description": None,
-            "is_public": False,
-            "cover_s3_key": None,
-            "cover_uploaded_at": None,
-            "spotify_playlist_id": None,
-            "last_published_at": None,
-            "needs_republish": False,
-            "track_count": 0,
-            "created_at": _utc().isoformat(),
-            "updated_at": _utc().isoformat(),
-        }],
-    })
+    api = _make_data_api(
+        {
+            "SELECT COUNT(*) AS cnt FROM playlists": [{"cnt": 5}],
+            "INSERT INTO playlists": [
+                {
+                    "id": "p-1",
+                    "user_id": "u-1",
+                    "name": "My Set",
+                    "normalized_name": "my set",
+                    "description": None,
+                    "is_public": False,
+                    "cover_s3_key": None,
+                    "cover_uploaded_at": None,
+                    "spotify_playlist_id": None,
+                    "last_published_at": None,
+                    "needs_republish": False,
+                    "track_count": 0,
+                    "created_at": _utc().isoformat(),
+                    "updated_at": _utc().isoformat(),
+                }
+            ],
+        }
+    )
     repo = _make_repo(api)
     row = repo.create(
-        user_id="u-1", playlist_id="p-1", name="My Set",
-        normalized_name="my set", description=None, is_public=False, now=_utc(),
+        user_id="u-1",
+        playlist_id="p-1",
+        name="My Set",
+        normalized_name="my set",
+        description=None,
+        is_public=False,
+        now=_utc(),
     )
     assert isinstance(row, PlaylistRow)
     assert row.id == "p-1"
@@ -76,14 +86,21 @@ def test_create_inserts_row_and_returns_playlist() -> None:
 
 
 def test_create_raises_limit_reached_at_200() -> None:
-    api = _make_data_api({
-        "SELECT COUNT(*) AS cnt FROM playlists": [{"cnt": 200}],
-    })
+    api = _make_data_api(
+        {
+            "SELECT COUNT(*) AS cnt FROM playlists": [{"cnt": 200}],
+        }
+    )
     repo = _make_repo(api)
     with pytest.raises(PlaylistLimitReachedError):
         repo.create(
-            user_id="u-1", playlist_id="p-x", name="N",
-            normalized_name="n", description=None, is_public=False, now=_utc(),
+            user_id="u-1",
+            playlist_id="p-x",
+            name="N",
+            normalized_name="n",
+            description=None,
+            is_public=False,
+            now=_utc(),
         )
 
 
@@ -97,8 +114,7 @@ def test_create_translates_unique_violation_to_name_conflict() -> None:
             return [{"cnt": 0}]
         if "INSERT INTO playlists" in sql:
             raise RuntimeError(
-                "duplicate key value violates unique constraint "
-                "\"uq_playlists_user_normname\""
+                'duplicate key value violates unique constraint "uq_playlists_user_normname"'
             )
         return []
 
@@ -106,8 +122,13 @@ def test_create_translates_unique_violation_to_name_conflict() -> None:
     repo = _make_repo(api)
     with pytest.raises(PlaylistNameConflictError):
         repo.create(
-            user_id="u-1", playlist_id="p-x", name="dup",
-            normalized_name="dup", description=None, is_public=False, now=_utc(),
+            user_id="u-1",
+            playlist_id="p-x",
+            name="dup",
+            normalized_name="dup",
+            description=None,
+            is_public=False,
+            now=_utc(),
         )
 
 
@@ -141,9 +162,11 @@ def test_soft_delete_returns_false_when_no_row_affected() -> None:
 
 
 def test_soft_delete_returns_true_when_row_affected() -> None:
-    api = _make_data_api({
-        "UPDATE playlists SET deleted_at": [{"id": "p-1"}],
-    })
+    api = _make_data_api(
+        {
+            "UPDATE playlists SET deleted_at": [{"id": "p-1"}],
+        }
+    )
     repo = _make_repo(api)
     assert repo.soft_delete(user_id="u-1", playlist_id="p-1", now=_utc()) is True
 
@@ -153,9 +176,14 @@ def test_patch_raises_not_found_when_missing() -> None:
     repo = _make_repo(api)
     with pytest.raises(PlaylistNotFoundError):
         repo.patch(
-            user_id="u-1", playlist_id="missing",
-            name="new", normalized_name="new",
-            description=None, is_public=None, status=None, now=_utc(),
+            user_id="u-1",
+            playlist_id="missing",
+            name="new",
+            normalized_name="new",
+            description=None,
+            is_public=None,
+            status=None,
+            now=_utc(),
         )
 
 
@@ -268,8 +296,10 @@ def test_append_tracks_dedups_against_existing() -> None:
 
     repo = PlaylistsRepository(api)
     result = repo.append_tracks(
-        user_id="u-1", playlist_id="p-1",
-        track_ids=["t-a", "t-b"], now=_utc(),
+        user_id="u-1",
+        playlist_id="p-1",
+        track_ids=["t-a", "t-b"],
+        now=_utc(),
     )
     assert result.added_track_ids == ["t-b"]
     assert result.skipped_duplicates == ["t-a"]
@@ -296,8 +326,10 @@ def test_append_tracks_rejects_when_over_limit() -> None:
     repo = PlaylistsRepository(api)
     with pytest.raises(PlaylistTrackLimitError):
         repo.append_tracks(
-            user_id="u-1", playlist_id="p-1",
-            track_ids=["a", "b"], now=_utc(),
+            user_id="u-1",
+            playlist_id="p-1",
+            track_ids=["a", "b"],
+            now=_utc(),
         )
 
 
@@ -319,9 +351,7 @@ def test_remove_track_redenses_positions() -> None:
 
     api.execute.side_effect = _execute
     repo = PlaylistsRepository(api)
-    removed = repo.remove_track(
-        user_id="u-1", playlist_id="p-1", track_id="t-1", now=_utc()
-    )
+    removed = repo.remove_track(user_id="u-1", playlist_id="p-1", track_id="t-1", now=_utc())
     assert removed is True
     assert any("UPDATE" in op for op, _ in captured)
 
@@ -340,12 +370,7 @@ def test_remove_track_returns_false_when_missing() -> None:
 
     api.execute.side_effect = _execute
     repo = PlaylistsRepository(api)
-    assert (
-        repo.remove_track(
-            user_id="u-1", playlist_id="p-1", track_id="x", now=_utc()
-        )
-        is False
-    )
+    assert repo.remove_track(user_id="u-1", playlist_id="p-1", track_id="x", now=_utc()) is False
 
 
 def test_reorder_rejects_mismatched_set() -> None:
@@ -364,8 +389,10 @@ def test_reorder_rejects_mismatched_set() -> None:
     repo = PlaylistsRepository(api)
     with pytest.raises(OrderMismatchError):
         repo.reorder_tracks(
-            user_id="u-1", playlist_id="p-1",
-            ordered_track_ids=["t-1", "t-2", "t-3"], now=_utc(),
+            user_id="u-1",
+            playlist_id="p-1",
+            ordered_track_ids=["t-1", "t-2", "t-3"],
+            now=_utc(),
         )
 
 
@@ -383,37 +410,50 @@ def test_reorder_accepts_permutation_and_emits_updates() -> None:
 
     batched = []
     api.execute.side_effect = _execute
-    api.batch_execute.side_effect = (
-        lambda sql, parameter_sets, transaction_id=None: batched.extend(parameter_sets)
+    api.batch_execute.side_effect = lambda sql, parameter_sets, transaction_id=None: batched.extend(
+        parameter_sets
     )
     repo = PlaylistsRepository(api)
     repo.reorder_tracks(
-        user_id="u-1", playlist_id="p-1",
-        ordered_track_ids=["t-2", "t-1"], now=_utc(),
+        user_id="u-1",
+        playlist_id="p-1",
+        ordered_track_ids=["t-2", "t-1"],
+        now=_utc(),
     )
     assert {(p["track_id"], p["position"]) for p in batched} == {
-        ("t-2", 0), ("t-1", 1),
+        ("t-2", 0),
+        ("t-1", 1),
     }
 
 
 def test_list_tracks_returns_rows_with_position() -> None:
-    api = _make_data_api({
-        "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
-        # Check the COUNT needle before the JOIN needle: the JOIN needle
-        # "FROM playlist_tracks pt" is also a substring of the COUNT SQL
-        # (which uses alias "pt2"), so insertion order matters here.
-        "SELECT COUNT(*) AS total FROM playlist_tracks pt2": [{"total": 1}],
-        "FROM playlist_tracks pt": [
-            {
-                "track_id": "t-1", "position": 0, "added_at": _utc().isoformat(),
-                "title": "Title A", "spotify_id": "s-a", "isrc": None,
-                "length_ms": 200000, "origin": "beatport",
-            },
-        ],
-    })
+    api = _make_data_api(
+        {
+            "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
+            # Check the COUNT needle before the JOIN needle: the JOIN needle
+            # "FROM playlist_tracks pt" is also a substring of the COUNT SQL
+            # (which uses alias "pt2"), so insertion order matters here.
+            "SELECT COUNT(*) AS total FROM playlist_tracks pt2": [{"total": 1}],
+            "FROM playlist_tracks pt": [
+                {
+                    "track_id": "t-1",
+                    "position": 0,
+                    "added_at": _utc().isoformat(),
+                    "title": "Title A",
+                    "spotify_id": "s-a",
+                    "isrc": None,
+                    "length_ms": 200000,
+                    "origin": "beatport",
+                },
+            ],
+        }
+    )
     repo = PlaylistsRepository(api)
     rows, total = repo.list_tracks(
-        user_id="u-1", playlist_id="p-1", limit=50, offset=0,
+        user_id="u-1",
+        playlist_id="p-1",
+        limit=50,
+        offset=0,
     )
     assert total == 1
     assert isinstance(rows[0], PlaylistTrackRow)
@@ -435,8 +475,10 @@ def test_set_cover_updates_row_and_marks_dirty() -> None:
     api.execute.side_effect = _execute
     repo = PlaylistsRepository(api)
     ok = repo.set_cover(
-        user_id="u-1", playlist_id="p-1",
-        s3_key="covers/u-1/p-1/123.jpg", now=_utc(),
+        user_id="u-1",
+        playlist_id="p-1",
+        s3_key="covers/u-1/p-1/123.jpg",
+        now=_utc(),
     )
     assert ok is True
     sqls = " | ".join(s for s, _ in captured["calls"])
@@ -450,10 +492,15 @@ def test_set_cover_returns_false_when_playlist_missing() -> None:
     api.transaction.return_value.__exit__.return_value = False
     api.execute.side_effect = lambda *a, **k: []
     repo = PlaylistsRepository(api)
-    assert repo.set_cover(
-        user_id="u-1", playlist_id="p-1",
-        s3_key="x", now=_utc(),
-    ) is False
+    assert (
+        repo.set_cover(
+            user_id="u-1",
+            playlist_id="p-1",
+            s3_key="x",
+            now=_utc(),
+        )
+        is False
+    )
 
 
 def test_clear_cover_returns_true_when_affected() -> None:
@@ -477,8 +524,10 @@ def test_set_publish_state_persists_and_clears_dirty() -> None:
     api.execute.side_effect = _execute
     repo = PlaylistsRepository(api)
     repo.set_publish_state(
-        user_id="u-1", playlist_id="p-1",
-        spotify_playlist_id="spt-abc", now=_utc(),
+        user_id="u-1",
+        playlist_id="p-1",
+        spotify_playlist_id="spt-abc",
+        now=_utc(),
     )
     assert captured["params"]["spotify_playlist_id"] == "spt-abc"
     # Default mark_dirty=False → needs_republish bound to False.
@@ -496,19 +545,25 @@ def test_set_publish_state_mark_dirty_keeps_republish_true() -> None:
     api.execute.side_effect = _execute
     repo = PlaylistsRepository(api)
     repo.set_publish_state(
-        user_id="u-1", playlist_id="p-1",
-        spotify_playlist_id="spt", now=_utc(), mark_dirty=True,
+        user_id="u-1",
+        playlist_id="p-1",
+        spotify_playlist_id="spt",
+        now=_utc(),
+        mark_dirty=True,
     )
     assert captured["params"]["needs_republish"] is True
 
 
 def test_validate_tracks_in_scope_returns_subset() -> None:
-    api = _make_data_api({
-        "SELECT t.id": [{"id": "t-1"}, {"id": "t-3"}],
-    })
+    api = _make_data_api(
+        {
+            "SELECT t.id": [{"id": "t-1"}, {"id": "t-3"}],
+        }
+    )
     repo = PlaylistsRepository(api)
     visible = repo.validate_tracks_in_scope(
-        user_id="u-1", track_ids=["t-1", "t-2", "t-3"],
+        user_id="u-1",
+        track_ids=["t-1", "t-2", "t-3"],
     )
     assert visible == {"t-1", "t-3"}
 
@@ -569,12 +624,12 @@ def test_append_tracks_uses_parametric_in_list_for_dedup_check() -> None:
     api.batch_execute = MagicMock()
     repo = PlaylistsRepository(api)
     repo.append_tracks(
-        user_id="u-1", playlist_id="p-1",
-        track_ids=["t-a", "t-b"], now=_utc(),
+        user_id="u-1",
+        playlist_id="p-1",
+        track_ids=["t-a", "t-b"],
+        now=_utc(),
     )
-    dedup_sql = next(
-        s for s in seen_sqls if "SELECT track_id FROM playlist_tracks" in s
-    )
+    dedup_sql = next(s for s in seen_sqls if "SELECT track_id FROM playlist_tracks" in s)
     assert "ANY(" not in dedup_sql, f"ANY() must not be used: {dedup_sql!r}"
     assert ":t0" in dedup_sql and ":t1" in dedup_sql
 
@@ -633,39 +688,57 @@ def test_patch_status_does_not_set_needs_republish() -> None:
     def _execute(sql, params=None, transaction_id=None):
         captured["sqls"].append(sql)
         if "UPDATE playlists SET" in sql:
-            return [{
-                "id": "p-1", "user_id": "u-1", "name": "n",
-                "normalized_name": "n", "description": None, "is_public": False,
-                "cover_s3_key": None, "cover_uploaded_at": None,
-                "spotify_playlist_id": "sp-1",
-                "last_published_at": "2026-05-12T00:00:00",
-                "needs_republish": False,
-                "status": "completed",
-                "created_at": "2026-05-12T00:00:00",
-                "updated_at": "2026-05-12T00:00:00",
-            }]
+            return [
+                {
+                    "id": "p-1",
+                    "user_id": "u-1",
+                    "name": "n",
+                    "normalized_name": "n",
+                    "description": None,
+                    "is_public": False,
+                    "cover_s3_key": None,
+                    "cover_uploaded_at": None,
+                    "spotify_playlist_id": "sp-1",
+                    "last_published_at": "2026-05-12T00:00:00",
+                    "needs_republish": False,
+                    "status": "completed",
+                    "created_at": "2026-05-12T00:00:00",
+                    "updated_at": "2026-05-12T00:00:00",
+                }
+            ]
         if "SELECT" in sql and "FROM playlists p" in sql:
-            return [{
-                "id": "p-1", "user_id": "u-1", "name": "n",
-                "normalized_name": "n", "description": None, "is_public": False,
-                "cover_s3_key": None, "cover_uploaded_at": None,
-                "spotify_playlist_id": "sp-1",
-                "last_published_at": "2026-05-12T00:00:00",
-                "needs_republish": False,
-                "status": "completed",
-                "track_count": 0,
-                "created_at": "2026-05-12T00:00:00",
-                "updated_at": "2026-05-12T00:00:00",
-            }]
+            return [
+                {
+                    "id": "p-1",
+                    "user_id": "u-1",
+                    "name": "n",
+                    "normalized_name": "n",
+                    "description": None,
+                    "is_public": False,
+                    "cover_s3_key": None,
+                    "cover_uploaded_at": None,
+                    "spotify_playlist_id": "sp-1",
+                    "last_published_at": "2026-05-12T00:00:00",
+                    "needs_republish": False,
+                    "status": "completed",
+                    "track_count": 0,
+                    "created_at": "2026-05-12T00:00:00",
+                    "updated_at": "2026-05-12T00:00:00",
+                }
+            ]
         return []
 
     api = MagicMock()
     api.execute.side_effect = _execute
     repo = PlaylistsRepository(api)
     out = repo.patch(
-        user_id="u-1", playlist_id="p-1",
-        name=None, normalized_name=None,
-        description=None, is_public=None, status="completed",
+        user_id="u-1",
+        playlist_id="p-1",
+        name=None,
+        normalized_name=None,
+        description=None,
+        is_public=None,
+        status="completed",
         now=_utc(),
     )
     assert out.status == "completed"
@@ -690,26 +763,44 @@ def test_patch_sql_has_explicit_param_casts() -> None:
     def _execute(sql, params=None, transaction_id=None):
         captured["sqls"].append(sql)
         if "UPDATE playlists SET" in sql:
-            return [{
-                "id": "p-1", "user_id": "u-1", "name": "n",
-                "normalized_name": "n", "description": None, "is_public": False,
-                "cover_s3_key": None, "cover_uploaded_at": None,
-                "spotify_playlist_id": None, "last_published_at": None,
-                "needs_republish": False, "status": "completed",
-                "created_at": "2026-05-12T00:00:00",
-                "updated_at": "2026-05-12T00:00:00",
-            }]
+            return [
+                {
+                    "id": "p-1",
+                    "user_id": "u-1",
+                    "name": "n",
+                    "normalized_name": "n",
+                    "description": None,
+                    "is_public": False,
+                    "cover_s3_key": None,
+                    "cover_uploaded_at": None,
+                    "spotify_playlist_id": None,
+                    "last_published_at": None,
+                    "needs_republish": False,
+                    "status": "completed",
+                    "created_at": "2026-05-12T00:00:00",
+                    "updated_at": "2026-05-12T00:00:00",
+                }
+            ]
         if "SELECT" in sql and "FROM playlists p" in sql:
-            return [{
-                "id": "p-1", "user_id": "u-1", "name": "n",
-                "normalized_name": "n", "description": None, "is_public": False,
-                "cover_s3_key": None, "cover_uploaded_at": None,
-                "spotify_playlist_id": None, "last_published_at": None,
-                "needs_republish": False, "status": "completed",
-                "track_count": 0,
-                "created_at": "2026-05-12T00:00:00",
-                "updated_at": "2026-05-12T00:00:00",
-            }]
+            return [
+                {
+                    "id": "p-1",
+                    "user_id": "u-1",
+                    "name": "n",
+                    "normalized_name": "n",
+                    "description": None,
+                    "is_public": False,
+                    "cover_s3_key": None,
+                    "cover_uploaded_at": None,
+                    "spotify_playlist_id": None,
+                    "last_published_at": None,
+                    "needs_republish": False,
+                    "status": "completed",
+                    "track_count": 0,
+                    "created_at": "2026-05-12T00:00:00",
+                    "updated_at": "2026-05-12T00:00:00",
+                }
+            ]
         return []
 
     api = MagicMock()
@@ -717,15 +808,24 @@ def test_patch_sql_has_explicit_param_casts() -> None:
     repo = PlaylistsRepository(api)
     # Status-only patch — all other inputs None.
     repo.patch(
-        user_id="u-1", playlist_id="p-1",
-        name=None, normalized_name=None,
-        description=None, is_public=None, status="completed",
+        user_id="u-1",
+        playlist_id="p-1",
+        name=None,
+        normalized_name=None,
+        description=None,
+        is_public=None,
+        status="completed",
         now=_utc(),
     )
     update_sql = next(s for s in captured["sqls"] if "UPDATE playlists SET" in s)
-    for cast in (":name::text", ":normalized_name::text",
-                 ":description::text", ":description_set::boolean",
-                 ":is_public::boolean", ":status::text"):
+    for cast in (
+        ":name::text",
+        ":normalized_name::text",
+        ":description::text",
+        ":description_set::boolean",
+        ":is_public::boolean",
+        ":status::text",
+    ):
         assert cast in update_sql, f"missing explicit cast {cast}"
 
 
@@ -735,29 +835,31 @@ def test_patch_sql_has_explicit_param_casts() -> None:
 def test_list_tracks_enrich_returns_artists_label_bpm_and_tags() -> None:
     """list_tracks with tags_repo attaches artists, label, bpm, mix_name,
     spotify_release_date, is_ai_suspected, and tags from the fan-in repo."""
-    api = _make_data_api({
-        "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
-        "SELECT COUNT(*) AS total FROM playlist_tracks pt2": [{"total": 1}],
-        "FROM playlist_tracks pt": [
-            {
-                "track_id": "tr1",
-                "position": 0,
-                "added_at": _utc().isoformat(),
-                "title": "Acid Trip",
-                "spotify_id": "sp1",
-                "isrc": "USABC123456",
-                "length_ms": 360000,
-                "origin": "beatport",
-                "mix_name": "Original Mix",
-                "bpm": 140,
-                "spotify_release_date": "2026-01-15",
-                "is_ai_suspected": False,
-                "artists_json": '[{"id": "a1", "name": "Artist"}]',
-                "label_id": "l1",
-                "label_name": "Label",
-            },
-        ],
-    })
+    api = _make_data_api(
+        {
+            "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
+            "SELECT COUNT(*) AS total FROM playlist_tracks pt2": [{"total": 1}],
+            "FROM playlist_tracks pt": [
+                {
+                    "track_id": "tr1",
+                    "position": 0,
+                    "added_at": _utc().isoformat(),
+                    "title": "Acid Trip",
+                    "spotify_id": "sp1",
+                    "isrc": "USABC123456",
+                    "length_ms": 360000,
+                    "origin": "beatport",
+                    "mix_name": "Original Mix",
+                    "bpm": 140,
+                    "spotify_release_date": "2026-01-15",
+                    "is_ai_suspected": False,
+                    "artists_json": '[{"id": "a1", "name": "Artist"}]',
+                    "label_id": "l1",
+                    "label_name": "Label",
+                },
+            ],
+        }
+    )
 
     tags_repo = MagicMock()
     tags_repo.list_tags_for_tracks.return_value = {
@@ -766,7 +868,11 @@ def test_list_tracks_enrich_returns_artists_label_bpm_and_tags() -> None:
 
     repo = PlaylistsRepository(api)
     rows, total = repo.list_tracks(
-        user_id="u-1", playlist_id="p-1", limit=50, offset=0, tags_repo=tags_repo,
+        user_id="u-1",
+        playlist_id="p-1",
+        limit=50,
+        offset=0,
+        tags_repo=tags_repo,
     )
 
     assert total == 1
@@ -784,39 +890,45 @@ def test_list_tracks_enrich_returns_artists_label_bpm_and_tags() -> None:
     assert row.tags[0].color == "#ff0000"
 
     tags_repo.list_tags_for_tracks.assert_called_once_with(
-        user_id="u-1", track_ids=["tr1"],
+        user_id="u-1",
+        track_ids=["tr1"],
     )
 
 
 def test_list_tracks_enrich_no_tags_repo_returns_empty_tags_tuple() -> None:
     """When tags_repo is omitted, tags field defaults to empty tuple."""
-    api = _make_data_api({
-        "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
-        "SELECT COUNT(*) AS total FROM playlist_tracks pt2": [{"total": 1}],
-        "FROM playlist_tracks pt": [
-            {
-                "track_id": "tr1",
-                "position": 0,
-                "added_at": _utc().isoformat(),
-                "title": "Acid Trip",
-                "spotify_id": None,
-                "isrc": None,
-                "length_ms": None,
-                "origin": "beatport",
-                "mix_name": None,
-                "bpm": None,
-                "spotify_release_date": None,
-                "is_ai_suspected": False,
-                "artists_json": "[]",
-                "label_id": None,
-                "label_name": None,
-            },
-        ],
-    })
+    api = _make_data_api(
+        {
+            "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
+            "SELECT COUNT(*) AS total FROM playlist_tracks pt2": [{"total": 1}],
+            "FROM playlist_tracks pt": [
+                {
+                    "track_id": "tr1",
+                    "position": 0,
+                    "added_at": _utc().isoformat(),
+                    "title": "Acid Trip",
+                    "spotify_id": None,
+                    "isrc": None,
+                    "length_ms": None,
+                    "origin": "beatport",
+                    "mix_name": None,
+                    "bpm": None,
+                    "spotify_release_date": None,
+                    "is_ai_suspected": False,
+                    "artists_json": "[]",
+                    "label_id": None,
+                    "label_name": None,
+                },
+            ],
+        }
+    )
 
     repo = PlaylistsRepository(api)
     rows, total = repo.list_tracks(
-        user_id="u-1", playlist_id="p-1", limit=50, offset=0,
+        user_id="u-1",
+        playlist_id="p-1",
+        limit=50,
+        offset=0,
     )
     assert total == 1
     assert rows[0].tags == ()
@@ -861,7 +973,10 @@ def test_list_tracks_exposes_beatport_id_and_slug() -> None:
     repo = _make_repo(api)
 
     rows, total = repo.list_tracks(
-        user_id="u1", playlist_id="p1", limit=200, offset=0,
+        user_id="u1",
+        playlist_id="p1",
+        limit=200,
+        offset=0,
     )
 
     assert total == 1
@@ -886,7 +1001,10 @@ def test_list_tracks_null_beatport_for_non_beatport_track() -> None:
     repo = _make_repo(api)
 
     rows, _total = repo.list_tracks(
-        user_id="u1", playlist_id="p1", limit=200, offset=0,
+        user_id="u1",
+        playlist_id="p1",
+        limit=200,
+        offset=0,
     )
 
     assert rows[0].beatport_track_id is None
@@ -911,8 +1029,10 @@ def test_reorder_marks_ytmusic_needs_republish() -> None:
     api.batch_execute.side_effect = lambda *a, **k: None
     repo = PlaylistsRepository(api)
     repo.reorder_tracks(
-        user_id="u-1", playlist_id="p-1",
-        ordered_track_ids=["t-2", "t-1"], now=_utc(),
+        user_id="u-1",
+        playlist_id="p-1",
+        ordered_track_ids=["t-2", "t-1"],
+        now=_utc(),
     )
     joined = " | ".join(sqls)
     # Spotify dirty-mark preserved...
@@ -951,8 +1071,11 @@ def test_import_tracks_batch_inserts_new_track_and_artists() -> None:
         user_id="u-1",
         tracks=[
             ImportTrackInput(
-                spotify_id="spt-a", title="Track A", isrc="ISRC1",
-                length_ms=200_000, artists=["Guri", "Nu Zau"],
+                spotify_id="spt-a",
+                title="Track A",
+                isrc="ISRC1",
+                length_ms=200_000,
+                artists=["Guri", "Nu Zau"],
             )
         ],
         now=_utc(),
@@ -973,7 +1096,9 @@ def test_import_tracks_batch_inserts_new_track_and_artists() -> None:
     # Import marker written.
     imp_ins = [b for b in api.batched if "INSERT INTO user_imported_tracks" in b[0]]
     assert imp_ins and imp_ins[0][1][0] == {
-        "user_id": "u-1", "track_id": ids[0], "now": _utc(),
+        "user_id": "u-1",
+        "track_id": ids[0],
+        "now": _utc(),
     }
 
 
@@ -996,10 +1121,15 @@ def test_import_tracks_batch_reuses_existing_and_skips_artist_write() -> None:
     repo = PlaylistsRepository(api)
     ids = repo.import_tracks_batch(
         user_id="u-1",
-        tracks=[ImportTrackInput(
-            spotify_id="spt-a", title="Track A", isrc=None,
-            length_ms=None, artists=["Guri"],
-        )],
+        tracks=[
+            ImportTrackInput(
+                spotify_id="spt-a",
+                title="Track A",
+                isrc=None,
+                length_ms=None,
+                artists=["Guri"],
+            )
+        ],
         now=_utc(),
     )
     assert ids == ["existing-1"]

@@ -54,7 +54,9 @@ def test_prod_tfvars_keeps_the_deployed_values() -> None:
 
 
 def test_both_applies_read_prod_tfvars_and_nothing_else() -> None:
-    steps = {s.get("name"): s for s in yaml.safe_load(DEPLOY.read_text())["jobs"]["deploy"]["steps"]}
+    steps = {
+        s.get("name"): s for s in yaml.safe_load(DEPLOY.read_text())["jobs"]["deploy"]["steps"]
+    }
     for name in ("Terraform apply (migration Lambda only)", "Terraform apply"):
         run = steps[name]["run"]
         assert "-var-file=prod.tfvars" in run

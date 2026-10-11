@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import re
 import uuid
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, Mapping
+from typing import TYPE_CHECKING, Any
 
 from ..data_api import DataAPIClient
 
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 _NORM_RE = re.compile(r"\s+")
@@ -56,11 +58,18 @@ def _pg_text_array(items: list[str]) -> str:
 _IN_CHUNK = 500
 
 # Admin-only fields stripped from user-facing responses.
-_USER_FACING_FORBIDDEN = frozenset({
-    "run_id", "prompt_slug", "prompt_version",
-    "vendors_used", "merged_at_run_id",
-    "token_cost", "cost_usd", "provenance",
-})
+_USER_FACING_FORBIDDEN = frozenset(
+    {
+        "run_id",
+        "prompt_slug",
+        "prompt_version",
+        "vendors_used",
+        "merged_at_run_id",
+        "token_cost",
+        "cost_usd",
+        "provenance",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -257,15 +266,17 @@ class LabelEnrichmentRepository:
                     "ai_content": r.get("ai_content"),
                     "updated_at": r.get("updated_at"),
                 }
-            items.append({
-                "id": r["id"],
-                "name": r["name"],
-                "style": r.get("dominant_style") or "",
-                "status": r.get("status") or "none",
-                "track_count": int(r.get("track_count") or 0),
-                "info": info,
-                "my_preference": r.get("my_preference"),
-            })
+            items.append(
+                {
+                    "id": r["id"],
+                    "name": r["name"],
+                    "style": r.get("dominant_style") or "",
+                    "status": r.get("status") or "none",
+                    "track_count": int(r.get("track_count") or 0),
+                    "info": info,
+                    "my_preference": r.get("my_preference"),
+                }
+            )
 
         count_params = {k: v for k, v in params.items() if k not in ("lim", "off")}
         total_rows = self._data_api.execute(
@@ -301,9 +312,7 @@ class LabelEnrichmentRepository:
         pre-aggregated in CTEs so we don't fire correlated subqueries for
         each of the ~2.6k labels on every request.
         """
-        stale_clause = (
-            "li.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'"
-        )
+        stale_clause = "li.updated_at < NOW() - INTERVAL '" + str(int(staleness_days)) + " days'"
         where: list[str] = []
         params: dict[str, Any] = {"lim": limit + 1}
         if style:
@@ -372,7 +381,7 @@ class LabelEnrichmentRepository:
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
             LEFT JOIN label_dominant_style lds ON lds.label_id = lbl.id
-            WHERE {' AND '.join(where) if where else 'TRUE'}
+            WHERE {" AND ".join(where) if where else "TRUE"}
             ORDER BY COALESCE(ltc.cnt, 0) DESC, lbl.id DESC
             LIMIT :lim
             """,
@@ -409,7 +418,7 @@ class LabelEnrichmentRepository:
             SELECT COUNT(*) AS c FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_track_counts ltc ON ltc.label_id = lbl.id
-            WHERE {' AND '.join(total_where) if total_where else 'TRUE'}
+            WHERE {" AND ".join(total_where) if total_where else "TRUE"}
             """,
             total_params,
         )
@@ -450,7 +459,7 @@ class LabelEnrichmentRepository:
                    merge_vendor, merge_model, requested_labels, cells_total,
                    cells_ok, cells_error, cost_usd, created_at, started_at, finished_at, source
             FROM clouder_label_enrichment_runs
-            WHERE {' AND '.join(where) if where else 'TRUE'}
+            WHERE {" AND ".join(where) if where else "TRUE"}
             ORDER BY created_at DESC, id DESC
             LIMIT :lim
             """,
@@ -561,10 +570,8 @@ class LabelEnrichmentRepository:
             for json_col in ("parsed", "citations"):
                 v = row.get(json_col)
                 if isinstance(v, str):
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError):
                         row[json_col] = json.loads(v)
-                    except json.JSONDecodeError:
-                        pass
             items.append(row)
         return items
 
@@ -677,10 +684,8 @@ class LabelEnrichmentRepository:
         if isinstance(cost_usd, Decimal):
             row["cost_usd"] = float(cost_usd)
         elif isinstance(cost_usd, str):
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 row["cost_usd"] = float(cost_usd)
-            except (TypeError, ValueError):
-                pass
         return row
 
     # ── cells ───────────────────────────────────────────────────────
@@ -690,7 +695,7 @@ class LabelEnrichmentRepository:
         run_id: str,
         label_id: str,
         vendor: str,
-        response: "VendorResponse",
+        response: VendorResponse,
     ) -> None:
         from .vendors.base import VendorResponse  # local — avoid cycle
 
@@ -698,9 +703,7 @@ class LabelEnrichmentRepository:
         cell_id = str(uuid.uuid4())
         ts = self._now()
         status = "ok" if response.error is None and response.parsed is not None else "error"
-        parsed_payload = (
-            response.parsed.model_dump() if response.parsed is not None else None
-        )
+        parsed_payload = response.parsed.model_dump() if response.parsed is not None else None
         self._data_api.execute(
             """
             INSERT INTO clouder_label_enrichment_cells (
@@ -747,7 +750,7 @@ class LabelEnrichmentRepository:
         last_run_id: str,
         prompt_slug: str,
         prompt_version: str,
-        merged: "LabelInfo",
+        merged: LabelInfo,
         provenance: Mapping[str, Any],
     ) -> None:
         ts = self._now()
@@ -811,7 +814,7 @@ class LabelEnrichmentRepository:
     def project_ai_suspected(
         self,
         label_id: str,
-        merged: "LabelInfo",
+        merged: LabelInfo,
         threshold: float,
     ) -> None:
         """Mirror merged.ai_content into clouder_labels.is_ai_suspected when confidence >= threshold."""
@@ -866,10 +869,8 @@ class LabelEnrichmentRepository:
         if isinstance(ai_conf, Decimal):
             row["ai_confidence"] = float(ai_conf)
         elif isinstance(ai_conf, str):
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 row["ai_confidence"] = float(ai_conf)
-            except (TypeError, ValueError):
-                pass
         return row
 
     # ── user label preferences ──────────────────────────────────────
@@ -926,10 +927,7 @@ class LabelEnrichmentRepository:
             """,
             {"user_id": user_id, "status": status, "lim": limit, "off": offset},
         )
-        items = [
-            {"id": r["id"], "name": r["name"], "my_preference": r["status"]}
-            for r in rows
-        ]
+        items = [{"id": r["id"], "name": r["name"], "my_preference": r["status"]} for r in rows]
         total_rows = self._data_api.execute(
             """
             SELECT COUNT(*) AS c

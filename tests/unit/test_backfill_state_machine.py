@@ -58,7 +58,9 @@ def test_map_results_replace_the_run_list() -> None:
 def test_read_only_steps_retry_through_an_aurora_resume() -> None:
     states = _definition()["States"]
     for name in ("Plan", "Summarize"):
-        task_failed = [r for r in states[name]["Retry"] if r["ErrorEquals"] == ["States.TaskFailed"]]
+        task_failed = [
+            r for r in states[name]["Retry"] if r["ErrorEquals"] == ["States.TaskFailed"]
+        ]
         assert task_failed and task_failed[0]["MaxAttempts"] >= 3, name
 
 
@@ -82,7 +84,9 @@ def test_replay_failures_are_caught_and_counted() -> None:
 def test_quality_gate_runs_only_after_an_apply() -> None:
     states = _definition()["States"]
     assert states["IsDryRun"]["Choices"][0] == {
-        "Variable": "$.plan.dry_run", "BooleanEquals": True, "Next": "Done",
+        "Variable": "$.plan.dry_run",
+        "BooleanEquals": True,
+        "Next": "Done",
     }
     assert states["IsDryRun"]["Default"] == "QualityGate"
     assert "${data_quality_function_arn}" in ASL.read_text()

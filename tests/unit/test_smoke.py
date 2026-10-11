@@ -6,7 +6,7 @@ import importlib
 import importlib.util
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -29,7 +29,9 @@ def _smoke():
 
 
 @pytest.mark.parametrize("suffix", sorted(HANDLERS))
-def test_each_smoke_event_is_answered_before_any_io(suffix: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_each_smoke_event_is_answered_before_any_io(
+    suffix: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import boto3
 
     def no_aws(*_a: Any, **_k: Any) -> Any:
@@ -39,7 +41,9 @@ def test_each_smoke_event_is_answered_before_any_io(suffix: str, monkeypatch: py
     monkeypatch.setattr(boto3, "resource", no_aws)
     smoke = _smoke()
     event, expected = smoke.LAMBDA_CHECKS[suffix]
-    payload = importlib.import_module(HANDLERS[suffix]).lambda_handler(json.loads(json.dumps(event)), None)
+    payload = importlib.import_module(HANDLERS[suffix]).lambda_handler(
+        json.loads(json.dumps(event)), None
+    )
     assert smoke.check_lambda(payload, expected) is None
 
 
@@ -57,11 +61,24 @@ def test_check_lambda_flags_wrong_status_and_function_errors() -> None:
 
 def test_check_http_flags_status_redirect_and_body() -> None:
     smoke = _smoke()
-    assert smoke.check_http(302, {"Location": "https://accounts.spotify.com/authorize?x"}, "",
-                            {"status": 302, "location_host": "accounts.spotify.com"}) is None
-    assert smoke.check_http(302, {"Location": "https://evil.example/"}, "",
-                            {"status": 302, "location_host": "accounts.spotify.com"})
-    assert smoke.check_http(200, {}, "<html></html>", {"status": 200, "contains": '<div id="root">'})
+    assert (
+        smoke.check_http(
+            302,
+            {"Location": "https://accounts.spotify.com/authorize?x"},
+            "",
+            {"status": 302, "location_host": "accounts.spotify.com"},
+        )
+        is None
+    )
+    assert smoke.check_http(
+        302,
+        {"Location": "https://evil.example/"},
+        "",
+        {"status": 302, "location_host": "accounts.spotify.com"},
+    )
+    assert smoke.check_http(
+        200, {}, "<html></html>", {"status": 200, "contains": '<div id="root">'}
+    )
     assert smoke.check_http(503, {}, "", {"status": 401})
 
 
@@ -86,7 +103,9 @@ def test_main_returns_one_and_names_each_failure(capsys: pytest.CaptureFixture[s
     out = capsys.readouterr().out
     assert code == 1
     assert [line for line in out.splitlines() if line.startswith("FAIL")] == [
-        line for line in out.splitlines() if "clouder-prod-curation" in line and line.startswith("FAIL")
+        line
+        for line in out.splitlines()
+        if "clouder-prod-curation" in line and line.startswith("FAIL")
     ]
 
 
@@ -102,7 +121,10 @@ def test_main_returns_zero_when_everything_answers() -> None:
             return 302, {"Location": "https://accounts.spotify.com/authorize"}, ""
         return (401, {}, "") if url.endswith("/styles") else (200, {}, '<div id="root"></div>')
 
-    assert smoke.main("https://api.example", "https://site.example", "clouder-prod", invoke, fetch) == 0
+    assert (
+        smoke.main("https://api.example", "https://site.example", "clouder-prod", invoke, fetch)
+        == 0
+    )
 
 
 def test_fetch_retries_a_network_error_once(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -114,12 +136,12 @@ def test_fetch_retries_a_network_error_once(monkeypatch: pytest.MonkeyPatch) -> 
 
     class Resp:
         status = 200
-        headers = {}
+        headers: ClassVar[dict[str, str]] = {}
 
         def read(self) -> bytes:
             return b"ok"
 
-        def __enter__(self) -> "Resp":
+        def __enter__(self) -> Resp:
             return self
 
         def __exit__(self, *exc: object) -> None:

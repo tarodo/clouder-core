@@ -39,6 +39,7 @@ def load_builtin_prompts() -> None:
             artist_v1,  # noqa: F401
             artist_v2_no_ai,  # noqa: F401
         )
+
         _BUILTIN_CONFIGS = [cfg for slug, cfg in PROMPTS.items() if slug not in before]
 
     for cfg in _BUILTIN_CONFIGS:

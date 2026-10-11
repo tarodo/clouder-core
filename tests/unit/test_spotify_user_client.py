@@ -2,6 +2,7 @@
 
 `requests` is stubbed via a simple fake session that records calls and
 returns canned responses. No network."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -22,8 +23,9 @@ from collector.curation.spotify_user_client import (
 
 
 class _Resp:
-    def __init__(self, status_code: int, body: dict | None = None,
-                 headers: dict | None = None) -> None:
+    def __init__(
+        self, status_code: int, body: dict | None = None, headers: dict | None = None
+    ) -> None:
         self.status_code = status_code
         self._body = body or {}
         self.headers = headers or {}
@@ -34,17 +36,24 @@ class _Resp:
 
 def _client(session: MagicMock, sleep=lambda _s: None) -> SpotifyUserClient:
     return SpotifyUserClient(
-        access_token="tok", session=session, sleep=sleep,
+        access_token="tok",
+        session=session,
+        sleep=sleep,
     )
 
 
 def test_get_track_returns_payload() -> None:
     session = MagicMock()
-    session.request.return_value = _Resp(200, {
-        "id": "spt-abc", "name": "Track A",
-        "duration_ms": 180000, "external_ids": {"isrc": "ISRC1"},
-        "artists": [{"id": "art-1", "name": "Art One"}],
-    })
+    session.request.return_value = _Resp(
+        200,
+        {
+            "id": "spt-abc",
+            "name": "Track A",
+            "duration_ms": 180000,
+            "external_ids": {"isrc": "ISRC1"},
+            "artists": [{"id": "art-1", "name": "Art One"}],
+        },
+    )
     client = _client(session)
     track = client.get_track("spt-abc")
     assert isinstance(track, SpotifyTrackPayload)
@@ -55,14 +64,19 @@ def test_get_track_returns_payload() -> None:
 
 def test_create_playlist_posts_and_returns_ref() -> None:
     session = MagicMock()
-    session.request.return_value = _Resp(201, {
-        "id": "pl-1",
-        "external_urls": {"spotify": "https://open.spotify.com/playlist/pl-1"},
-    })
+    session.request.return_value = _Resp(
+        201,
+        {
+            "id": "pl-1",
+            "external_urls": {"spotify": "https://open.spotify.com/playlist/pl-1"},
+        },
+    )
     client = _client(session)
     ref = client.create_playlist(
-        user_spotify_id="user-1", name="My Set",
-        description="desc", public=False,
+        user_spotify_id="user-1",
+        name="My Set",
+        description="desc",
+        public=False,
     )
     assert isinstance(ref, SpotifyPlaylistRef)
     assert ref.id == "pl-1"
@@ -73,8 +87,7 @@ def test_429_with_retry_after_retries_then_succeeds() -> None:
     session = MagicMock()
     session.request.side_effect = [
         _Resp(429, headers={"Retry-After": "0"}),
-        _Resp(200, {"id": "x", "name": "n", "duration_ms": 0,
-                    "external_ids": {}, "artists": []}),
+        _Resp(200, {"id": "x", "name": "n", "duration_ms": 0, "external_ids": {}, "artists": []}),
     ]
     slept: list[float] = []
     client = _client(session, sleep=lambda s: slept.append(s))
@@ -111,6 +124,7 @@ def test_401_propagates_as_not_authorized() -> None:
 
 def test_404_propagates_as_not_found() -> None:
     from collector.curation import SpotifyNotFoundError
+
     session = MagicMock()
     session.request.return_value = _Resp(404, {"error": "not found"})
     client = _client(session)
@@ -121,7 +135,8 @@ def test_404_propagates_as_not_found() -> None:
 def test_403_insufficient_scope_propagates() -> None:
     session = MagicMock()
     session.request.return_value = _Resp(
-        403, {"error": {"message": "Insufficient client scope"}},
+        403,
+        {"error": {"message": "Insufficient client scope"}},
     )
     client = _client(session)
     with pytest.raises(SpotifyScopeInsufficientError):
@@ -172,24 +187,43 @@ def test_get_playlist_name() -> None:
 
 
 def test_get_playlist_tracks_paginates_and_filters() -> None:
-    page1 = _Resp(200, {
-        "items": [
-            {"track": {"id": "a", "name": "A", "duration_ms": 1000,
-                       "external_ids": {"isrc": "I1"},
-                       "artists": [{"id": "x", "name": "Art"}]}},
-            {"track": None},                              # removed → skip
-            {"track": {"id": None, "is_local": True, "name": "Local"}},  # skip
-            {"track": {"id": "e", "type": "episode", "name": "Ep"}},     # skip
-        ],
-        "next": "http://next",
-    })
-    page2 = _Resp(200, {
-        "items": [
-            {"track": {"id": "b", "name": "B", "duration_ms": 2000,
-                       "external_ids": {}, "artists": []}},
-        ],
-        "next": None,
-    })
+    page1 = _Resp(
+        200,
+        {
+            "items": [
+                {
+                    "track": {
+                        "id": "a",
+                        "name": "A",
+                        "duration_ms": 1000,
+                        "external_ids": {"isrc": "I1"},
+                        "artists": [{"id": "x", "name": "Art"}],
+                    }
+                },
+                {"track": None},  # removed → skip
+                {"track": {"id": None, "is_local": True, "name": "Local"}},  # skip
+                {"track": {"id": "e", "type": "episode", "name": "Ep"}},  # skip
+            ],
+            "next": "http://next",
+        },
+    )
+    page2 = _Resp(
+        200,
+        {
+            "items": [
+                {
+                    "track": {
+                        "id": "b",
+                        "name": "B",
+                        "duration_ms": 2000,
+                        "external_ids": {},
+                        "artists": [],
+                    }
+                },
+            ],
+            "next": None,
+        },
+    )
     session = MagicMock()
     session.request.side_effect = [page1, page2]
     client = _client(session)
@@ -200,14 +234,41 @@ def test_get_playlist_tracks_paginates_and_filters() -> None:
 
 
 def test_get_playlist_tracks_respects_limit() -> None:
-    page = _Resp(200, {
-        "items": [
-            {"track": {"id": "a", "name": "A", "duration_ms": 1, "external_ids": {}, "artists": []}},
-            {"track": {"id": "b", "name": "B", "duration_ms": 1, "external_ids": {}, "artists": []}},
-            {"track": {"id": "c", "name": "C", "duration_ms": 1, "external_ids": {}, "artists": []}},
-        ],
-        "next": "http://next",
-    })
+    page = _Resp(
+        200,
+        {
+            "items": [
+                {
+                    "track": {
+                        "id": "a",
+                        "name": "A",
+                        "duration_ms": 1,
+                        "external_ids": {},
+                        "artists": [],
+                    }
+                },
+                {
+                    "track": {
+                        "id": "b",
+                        "name": "B",
+                        "duration_ms": 1,
+                        "external_ids": {},
+                        "artists": [],
+                    }
+                },
+                {
+                    "track": {
+                        "id": "c",
+                        "name": "C",
+                        "duration_ms": 1,
+                        "external_ids": {},
+                        "artists": [],
+                    }
+                },
+            ],
+            "next": "http://next",
+        },
+    )
     session = MagicMock()
     session.request.return_value = page
     client = _client(session)

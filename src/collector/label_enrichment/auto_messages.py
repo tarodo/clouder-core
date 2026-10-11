@@ -26,7 +26,7 @@ class AutoEnrichConfigIn(BaseModel):
     merge_model: str | None = None
 
     @model_validator(mode="after")
-    def _validate_when_enabled(self) -> "AutoEnrichConfigIn":
+    def _validate_when_enabled(self) -> AutoEnrichConfigIn:
         if not self.enabled:
             return self
         if not self.vendors:

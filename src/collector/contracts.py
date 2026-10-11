@@ -11,8 +11,9 @@ adding it here.
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Sequence
+from typing import Any
 
 from .logging_utils import log_event
 
@@ -89,10 +90,14 @@ class ContractReport:
 
     @property
     def drift_fields(self) -> tuple[str, ...]:
-        return tuple(sorted(
-            set(self.unknown_fields) | set(self.missing_fields)
-            | set(self.type_drift) | set(self.null_share_over)
-        ))
+        return tuple(
+            sorted(
+                set(self.unknown_fields)
+                | set(self.missing_fields)
+                | set(self.type_drift)
+                | set(self.null_share_over)
+            )
+        )
 
 
 def json_type(value: Any) -> str:

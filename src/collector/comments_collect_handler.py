@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 import requests
 from pydantic import ValidationError as PydanticValidationError
@@ -22,7 +23,7 @@ from .settings import get_comment_collection_worker_settings
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _build_repository() -> CommentsRepository:
@@ -50,8 +51,10 @@ def _resolve_and_collect(
         if meta is None:
             return ("disabled", [], "")
         resolved = provider.resolve_alternate_videos(
-            artist=meta.artist, title=meta.title,
-            duration_ms=meta.duration_ms, exclude_video_id="",
+            artist=meta.artist,
+            title=meta.title,
+            duration_ms=meta.duration_ms,
+            exclude_video_id="",
         )
         if not resolved:
             return ("disabled", [], "")
@@ -68,8 +71,10 @@ def _resolve_and_collect(
         return ("disabled", [], primary_video_id)
 
     alts = provider.resolve_alternate_videos(
-        artist=meta.artist, title=meta.title,
-        duration_ms=meta.duration_ms, exclude_video_id=primary_video_id,
+        artist=meta.artist,
+        title=meta.title,
+        duration_ms=meta.duration_ms,
+        exclude_video_id=primary_video_id,
     )
     first_empty_alt: str | None = None
     # belt-and-suspenders: the resolver already caps at 3 best-scored ids.
@@ -111,8 +116,10 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
             msg = CommentCollectMessage.model_validate_json(body)
         except PydanticValidationError as exc:
             log_event(
-                "ERROR", "comments_collect_message_invalid",
-                sqs_record_index=index, error_message=str(exc)[:500],
+                "ERROR",
+                "comments_collect_message_invalid",
+                sqs_record_index=index,
+                error_message=str(exc)[:500],
             )
             continue
 
@@ -126,25 +133,39 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 provider, primary_video_id=msg.video_id, meta=meta
             )
             repo.store_comments(
-                collection_id=msg.collection_id, platform=msg.platform,
-                comments=comments, status=status, now=now, external_video_id=video_id,
+                collection_id=msg.collection_id,
+                platform=msg.platform,
+                comments=comments,
+                status=status,
+                now=now,
+                external_video_id=video_id,
             )
         # Platform not enabled is an ops/config gate (not per-video state); store
         # as "failed" so it is visible in the DB and not silently dropped.
         except CommentPlatformDisabledError as exc:
             repo.store_comments(
-                collection_id=msg.collection_id, platform=msg.platform,
-                comments=[], status="failed", now=now, error=str(exc)[:500],
+                collection_id=msg.collection_id,
+                platform=msg.platform,
+                comments=[],
+                status="failed",
+                now=now,
+                error=str(exc)[:500],
             )
-        except Exception as exc:  # noqa: BLE001 — never retry: 1-request budget
+        except Exception as exc:  # never retry: 1-request budget
             repo.store_comments(
-                collection_id=msg.collection_id, platform=msg.platform,
-                comments=[], status="failed", now=now, error=str(exc)[:500],
+                collection_id=msg.collection_id,
+                platform=msg.platform,
+                comments=[],
+                status="failed",
+                now=now,
+                error=str(exc)[:500],
             )
         processed += 1
         log_event(
-            "INFO", "comments_collect_completed",
-            collection_id=msg.collection_id, platform=msg.platform,
+            "INFO",
+            "comments_collect_completed",
+            collection_id=msg.collection_id,
+            platform=msg.platform,
         )
 
     return {"processed": processed}

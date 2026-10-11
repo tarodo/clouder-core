@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from .auth.auth_settings import resolve_jwt_signing_key
 from .auth.jwt_utils import InvalidTokenError, verify_access_token
@@ -15,7 +16,7 @@ _KEY_TTL_SECONDS = 300
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _reset_signing_key_cache() -> None:

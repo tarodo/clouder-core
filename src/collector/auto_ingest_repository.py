@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Mapping
+from typing import Any
 
 # A RAW_SAVED run younger than this is still being canonicalized: do not re-ingest it.
 STUCK_WINDOW = timedelta(days=7)  # stuck pairs are retried once their attempts age out
@@ -116,8 +117,15 @@ class AutoIngestRepository:
         self._data_api.execute("UPDATE auto_ingest_settings SET running_until = NULL WHERE id = 1")
 
     def record_attempt(
-        self, style_id: int, week_year: int, week_number: int, *,
-        ok: bool, run_id: str | None, error: str | None, at: datetime,
+        self,
+        style_id: int,
+        week_year: int,
+        week_number: int,
+        *,
+        ok: bool,
+        run_id: str | None,
+        error: str | None,
+        at: datetime,
     ) -> None:
         self._data_api.execute(
             """
@@ -125,8 +133,15 @@ class AutoIngestRepository:
                 (style_id, week_year, week_number, attempted_at, ok, run_id, error)
             VALUES (:style_id, :week_year, :week_number, :at, :ok, :run_id, :error)
             """,
-            {"style_id": style_id, "week_year": week_year, "week_number": week_number,
-             "at": at, "ok": ok, "run_id": run_id, "error": error},
+            {
+                "style_id": style_id,
+                "week_year": week_year,
+                "week_number": week_number,
+                "at": at,
+                "ok": ok,
+                "run_id": run_id,
+                "error": error,
+            },
         )
 
     def stuck_pairs(self, now: datetime) -> list[dict[str, Any]]:
@@ -168,9 +183,13 @@ class AutoIngestRepository:
             {"since": now - STUCK_WINDOW, "pending_since": now - PENDING_WINDOW},
         )
         return [
-            {"style_id": int(r["style_id"]), "week_year": int(r["week_year"]),
-             "week_number": int(r["week_number"]), "last_attempt_at": _iso(r["last_attempt_at"]),
-             "last_error": r["last_error"]}
+            {
+                "style_id": int(r["style_id"]),
+                "week_year": int(r["week_year"]),
+                "week_number": int(r["week_number"]),
+                "last_attempt_at": _iso(r["last_attempt_at"]),
+                "last_error": r["last_error"],
+            }
             for r in rows
         ]
 

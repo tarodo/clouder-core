@@ -9,9 +9,10 @@ a broken check cannot hide behind a green run.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any, Sequence
+from typing import Any
 
 from .logging_utils import log_event
 
@@ -52,7 +53,8 @@ CHECKS: tuple[Check, ...] = (
           AND started_at < now() - INTERVAL '2 hours'
           AND started_at > now() - INTERVAL '14 days'
         """,
-        "max", 0,
+        "max",
+        0,
     ),
     Check(
         "styles_behind",
@@ -75,7 +77,9 @@ CHECKS: tuple[Check, ...] = (
         )
         SELECT count(*) AS value FROM active WHERE last_end < :expected_end
         """,
-        "max", 0, ("since", "expected_end"),
+        "max",
+        0,
+        ("since", "expected_end"),
     ),
     Check(
         "weekly_volume_anomalies",
@@ -118,7 +122,9 @@ CHECKS: tuple[Check, ...] = (
           AND b.weeks >= 4
           AND (l.items < 0.5 * b.median_items OR l.items > 2 * b.median_items)
         """,
-        "max", 0, ("since", "expected_end"),
+        "max",
+        0,
+        ("since", "expected_end"),
     ),
     Check(
         "isrc_coverage_pct",
@@ -129,7 +135,8 @@ CHECKS: tuple[Check, ...] = (
         WHERE origin = 'beatport'
           AND created_at >= now() - INTERVAL '30 days'
         """,
-        "min", 99,
+        "min",
+        99,
     ),
     Check(
         "spotify_match_pct",
@@ -141,7 +148,8 @@ CHECKS: tuple[Check, ...] = (
           AND created_at >= now() - INTERVAL '30 days'
           AND spotify_searched_at IS NOT NULL
         """,
-        "min", 95,
+        "min",
+        95,
     ),
     Check(
         "spotify_unsearched_stale",
@@ -154,7 +162,8 @@ CHECKS: tuple[Check, ...] = (
           AND isrc IS NOT NULL
           AND created_at < now() - INTERVAL '1 day'
         """,
-        "max", 0,
+        "max",
+        0,
     ),
     Check(
         "orphan_identities",
@@ -174,7 +183,8 @@ CHECKS: tuple[Check, ...] = (
             SELECT 1 FROM clouder_styles s WHERE im.clouder_entity_type = 'style' AND s.id = im.clouder_id
         )
         """,
-        "max", 0,
+        "max",
+        0,
     ),
     Check(
         "artists_without_identity",
@@ -187,7 +197,8 @@ CHECKS: tuple[Check, ...] = (
             WHERE im.clouder_entity_type = 'artist' AND im.clouder_id = a.id
         )
         """,
-        "max", None,
+        "max",
+        None,
     ),
     Check(
         "bpm_out_of_range",
@@ -197,7 +208,8 @@ CHECKS: tuple[Check, ...] = (
         FROM clouder_tracks
         WHERE bpm IS NOT NULL AND (bpm < 40 OR bpm > 250)
         """,
-        "max", 0,
+        "max",
+        0,
     ),
     Check(
         "length_out_of_range",
@@ -207,7 +219,8 @@ CHECKS: tuple[Check, ...] = (
         FROM clouder_tracks
         WHERE length_ms IS NOT NULL AND (length_ms <= 0 OR length_ms > 10800000)
         """,
-        "max", 0,
+        "max",
+        0,
     ),
     Check(
         "review_backlog_days",
@@ -217,7 +230,8 @@ CHECKS: tuple[Check, ...] = (
         FROM match_review_queue
         WHERE status = 'pending'
         """,
-        "max", None,
+        "max",
+        None,
     ),
 )
 
@@ -238,9 +252,7 @@ def _passes(check: Check, value: float | None) -> bool:
     return value <= check.threshold if check.comparison == "max" else value >= check.threshold
 
 
-def run_checks(
-    client: Any, today: date, checks: Sequence[Check] = CHECKS
-) -> list[CheckResult]:
+def run_checks(client: Any, today: date, checks: Sequence[Check] = CHECKS) -> list[CheckResult]:
     expected_end = expected_week_end(today)
     context = {
         "expected_end": expected_end,
@@ -253,8 +265,10 @@ def run_checks(
             rows = client.execute(check.sql, params)
         except Exception as exc:  # a broken check must surface as a failure
             log_event(
-                "ERROR", "dq_check_failed_to_run",
-                check=check.name, error_type=exc.__class__.__name__,
+                "ERROR",
+                "dq_check_failed_to_run",
+                check=check.name,
+                error_type=exc.__class__.__name__,
                 error_message=str(exc)[:500],
             )
             results.append(CheckResult(check.name, None, check.threshold, check.comparison, False))

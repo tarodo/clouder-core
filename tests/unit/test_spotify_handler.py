@@ -31,9 +31,7 @@ class FakeRepo:
     def get_vendor_blocked_until(self, vendor):
         return None
 
-    def claim_tracks_for_spotify_search(
-        self, limit: int, claimed_at: Any
-    ) -> list[dict[str, Any]]:
+    def claim_tracks_for_spotify_search(self, limit: int, claimed_at: Any) -> list[dict[str, Any]]:
         self._search_call_count += 1
         self.claimed_at = claimed_at
         return self._tracks[:limit]
@@ -54,11 +52,13 @@ class FakeRepo:
 
     def batch_update_spotify_results(self, commands, transaction_id=None):
         for cmd in commands:
-            self.updated_spotify.append({
-                "track_id": cmd.track_id,
-                "spotify_id": cmd.spotify_id,
-                "release_type": cmd.release_type,
-            })
+            self.updated_spotify.append(
+                {
+                    "track_id": cmd.track_id,
+                    "spotify_id": cmd.spotify_id,
+                    "release_type": cmd.release_type,
+                }
+            )
 
     def propagate_release_type_to_albums(self, track_ids, transaction_id=None):
         self.album_propagation_calls.append(list(track_ids))
@@ -80,9 +80,7 @@ class FakeRepoWithRemaining:
     def get_vendor_blocked_until(self, vendor):
         return None
 
-    def claim_tracks_for_spotify_search(
-        self, limit: int, claimed_at: Any
-    ) -> list[dict[str, Any]]:
+    def claim_tracks_for_spotify_search(self, limit: int, claimed_at: Any) -> list[dict[str, Any]]:
         self._search_call_count += 1
         self.claimed_at = claimed_at
         return self._tracks[:limit]
@@ -103,11 +101,13 @@ class FakeRepoWithRemaining:
 
     def batch_update_spotify_results(self, commands, transaction_id=None):
         for cmd in commands:
-            self.updated_spotify.append({
-                "track_id": cmd.track_id,
-                "spotify_id": cmd.spotify_id,
-                "release_type": cmd.release_type,
-            })
+            self.updated_spotify.append(
+                {
+                    "track_id": cmd.track_id,
+                    "spotify_id": cmd.spotify_id,
+                    "release_type": cmd.release_type,
+                }
+            )
 
     def propagate_release_type_to_albums(self, track_ids, transaction_id=None):
         self.album_propagation_calls.append(list(track_ids))
@@ -154,7 +154,9 @@ def _setup(monkeypatch, repo=None, tracks=None):
     monkeypatch.setenv("SPOTIFY_RAW_PREFIX", "raw/sp/tracks")
     monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "")
     repo = repo or FakeRepo(tracks=tracks or [])
-    monkeypatch.setattr("collector.spotify_handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(
+        "collector.spotify_handler.create_clouder_repository_from_env", lambda: repo
+    )
     s3 = FakeS3Client()
     monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: s3)
     return repo, s3
@@ -162,6 +164,7 @@ def _setup(monkeypatch, repo=None, tracks=None):
 
 def _fake_search_results(*pairs):
     """Build fake search function returning given (isrc, track_id, spotify_id) tuples."""
+
     def fake_search(self, tracks, correlation_id, **_kwargs):
         return [
             SpotifySearchResult(
@@ -172,6 +175,7 @@ def _fake_search_results(*pairs):
             )
             for isrc, tid, sid in pairs
         ]
+
     return fake_search
 
 
@@ -182,9 +186,7 @@ def test_no_records_returns_zero() -> None:
 
 def test_invalid_message_is_skipped(monkeypatch) -> None:
     _setup(monkeypatch)
-    event = {
-        "Records": [{"body": "{bad}", "messageAttributes": {}}]
-    }
+    event = {"Records": [{"body": "{bad}", "messageAttributes": {}}]}
     response = lambda_handler(event, context=None)
     assert response == {"processed": 0}
     reset_settings_cache()
@@ -313,8 +315,12 @@ def test_follow_up_enqueued_when_more_tracks_remain(monkeypatch) -> None:
     monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "test_secret")
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     monkeypatch.setenv("SPOTIFY_RAW_PREFIX", "raw/sp/tracks")
-    monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123/spotify-q")
-    monkeypatch.setattr("collector.spotify_handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setenv(
+        "SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123/spotify-q"
+    )
+    monkeypatch.setattr(
+        "collector.spotify_handler.create_clouder_repository_from_env", lambda: repo
+    )
     s3 = FakeS3Client()
     monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: s3)
 
@@ -347,8 +353,10 @@ def test_no_follow_up_when_all_tracks_processed(monkeypatch) -> None:
     tracks = [
         {"id": "ct1", "isrc": "ISRC001", "title": "Track 1", "normalized_title": "track 1"},
     ]
-    repo, s3 = _setup(monkeypatch, tracks=tracks)
-    monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123/spotify-q")
+    _repo, _s3 = _setup(monkeypatch, tracks=tracks)
+    monkeypatch.setenv(
+        "SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123/spotify-q"
+    )
 
     monkeypatch.setattr(
         "collector.providers.spotify.lookup.SpotifyLookup.lookup_batch_by_isrc",
@@ -371,7 +379,9 @@ def test_missing_aurora_config_raises(monkeypatch) -> None:
     monkeypatch.setenv("SPOTIFY_CLIENT_ID", "test_id")
     monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "test_secret")
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
-    monkeypatch.setattr("collector.spotify_handler.create_clouder_repository_from_env", lambda: None)
+    monkeypatch.setattr(
+        "collector.spotify_handler.create_clouder_repository_from_env", lambda: None
+    )
     monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: object())
 
     with pytest.raises(RuntimeError, match="AURORA Data API"):
@@ -392,8 +402,12 @@ def test_no_follow_up_when_auto_continue_false(monkeypatch) -> None:
     monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "test_secret")
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
     monkeypatch.setenv("SPOTIFY_RAW_PREFIX", "raw/sp/tracks")
-    monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123/spotify-q")
-    monkeypatch.setattr("collector.spotify_handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setenv(
+        "SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.us-east-1.amazonaws.com/123/spotify-q"
+    )
+    monkeypatch.setattr(
+        "collector.spotify_handler.create_clouder_repository_from_env", lambda: repo
+    )
     s3 = FakeS3Client()
     monkeypatch.setattr("collector.spotify_handler.create_default_s3_client", lambda: s3)
 
@@ -415,7 +429,7 @@ def test_no_follow_up_when_auto_continue_false(monkeypatch) -> None:
 
 
 def test_default_batch_size_used_when_not_specified(monkeypatch) -> None:
-    repo, _ = _setup(monkeypatch, tracks=[])
+    _repo, _ = _setup(monkeypatch, tracks=[])
     event = _sqs_event({})
     response = lambda_handler(event, context=None)
     assert response == {"processed": 1}
@@ -445,8 +459,10 @@ def test_update_cmds_carry_spotify_release_date() -> None:
 def test_follow_up_caps_batch_size_at_200(monkeypatch) -> None:
     """Even if incoming batch_size is 2000, follow-up SQS msg uses 200 cap to fit
     Lambda timeout AND stay under Spotify's sustained rate limit."""
-    tracks = [{"id": f"ct{i}", "isrc": f"ISRC{i:03}", "title": f"T{i}",
-               "normalized_title": f"t{i}"} for i in range(2)]
+    tracks = [
+        {"id": f"ct{i}", "isrc": f"ISRC{i:03}", "title": f"T{i}", "normalized_title": f"t{i}"}
+        for i in range(2)
+    ]
     repo = FakeRepoWithRemaining(tracks=tracks)
     repo, _ = _setup(monkeypatch, repo=repo)
     monkeypatch.setenv("SPOTIFY_SEARCH_QUEUE_URL", "https://sqs.test/q")
@@ -464,6 +480,7 @@ def test_follow_up_caps_batch_size_at_200(monkeypatch) -> None:
             captured["body"] = json.loads(kwargs["MessageBody"])
 
     import boto3 as _boto3
+
     monkeypatch.setattr(_boto3, "client", lambda name: FakeSqs())
 
     event = _sqs_event({"batch_size": 2000})
@@ -485,7 +502,7 @@ def test_handler_forwards_metadata_kwargs_when_enabled(monkeypatch) -> None:
             "artists": "Guri & Eider",
         }
     ]
-    repo, _ = _setup(monkeypatch, tracks=tracks)
+    _repo, _ = _setup(monkeypatch, tracks=tracks)
     monkeypatch.setenv("SPOTIFY_METADATA_FALLBACK_ENABLED", "true")
     monkeypatch.setenv("SPOTIFY_FUZZY_TITLE_MIN", "0.91")
     monkeypatch.setenv("SPOTIFY_FUZZY_ARTIST_MIN", "0.86")

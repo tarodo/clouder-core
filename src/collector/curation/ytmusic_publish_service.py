@@ -11,9 +11,9 @@ publish.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 from collector.logging_utils import log_event
 
@@ -44,7 +44,7 @@ class YtmusicPublishService:
         repo,
         ytmusic_client,
         storage=None,
-        now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._repo = repo
         self._yt = ytmusic_client
@@ -90,8 +90,10 @@ class YtmusicPublishService:
         privacy = "PUBLIC"  # playlists are always published public
 
         log_event(
-            "INFO", "ytmusic_publish_started",
-            user_id=user_id, playlist_id=playlist_id,
+            "INFO",
+            "ytmusic_publish_started",
+            user_id=user_id,
+            playlist_id=playlist_id,
             first_time=not bool(playlist.ytmusic_playlist_id),
             track_count=len(video_ids),
         )
@@ -101,16 +103,20 @@ class YtmusicPublishService:
         if target_id:
             try:
                 self._yt.edit_meta(
-                    playlist_id=target_id, name=playlist.name,
-                    description=playlist.description, privacy=privacy,
+                    playlist_id=target_id,
+                    name=playlist.name,
+                    description=playlist.description,
+                    privacy=privacy,
                 )
                 existing = self._yt.get_existing_items(target_id)
             except YtmusicNotFoundError as exc:
                 if not treat_404_as_orphan:
                     raise YtmusicApiError(str(exc)) from exc
                 log_event(
-                    "WARNING", "ytmusic_publish_orphan_recreated",
-                    user_id=user_id, playlist_id=playlist_id,
+                    "WARNING",
+                    "ytmusic_publish_orphan_recreated",
+                    user_id=user_id,
+                    playlist_id=playlist_id,
                     old_ytmusic_playlist_id=target_id,
                 )
                 target_id = None
@@ -137,9 +143,7 @@ class YtmusicPublishService:
             # Reorder pass. New items get YouTube-assigned itemIds, so re-fetch
             # once when membership changed; otherwise reuse what we already have.
             items_for_order = (
-                self._yt.get_existing_items(target_id)
-                if (to_add or to_remove)
-                else existing_items
+                self._yt.get_existing_items(target_id) if (to_add or to_remove) else existing_items
             )
             self._reorder_items(target_id, video_ids, items_for_order)
 
@@ -149,24 +153,32 @@ class YtmusicPublishService:
             try:
                 image_bytes = self._storage.read_cover_bytes(cover_key)
                 self._yt.set_cover(target_id, image_bytes)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 cover_failed = True
                 log_event(
-                    "WARNING", "ytmusic_publish_partial_fail",
-                    user_id=user_id, playlist_id=playlist_id,
-                    stage="cover", error_message=str(exc),
+                    "WARNING",
+                    "ytmusic_publish_partial_fail",
+                    user_id=user_id,
+                    playlist_id=playlist_id,
+                    stage="cover",
+                    error_message=str(exc),
                     error_type=type(exc).__name__,
                 )
 
         now = self._now()
         self._repo.set_ytmusic_publish_state(
-            user_id=user_id, playlist_id=playlist_id,
-            ytmusic_playlist_id=target_id, now=now,
+            user_id=user_id,
+            playlist_id=playlist_id,
+            ytmusic_playlist_id=target_id,
+            now=now,
         )
         log_event(
-            "INFO", "ytmusic_publish_succeeded",
-            user_id=user_id, playlist_id=playlist_id,
-            ytmusic_playlist_id=target_id, skipped=len(skipped),
+            "INFO",
+            "ytmusic_publish_succeeded",
+            user_id=user_id,
+            playlist_id=playlist_id,
+            ytmusic_playlist_id=target_id,
+            skipped=len(skipped),
             cover_failed=cover_failed,
         )
         return YtmusicPublishResult(

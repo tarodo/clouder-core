@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -134,19 +134,19 @@ def _spotify_ref(**overrides) -> VendorTrackRef:
 
 def test_cache_hit_skips_lookup(monkeypatch) -> None:
     cached = VendorTrackMatch(
-        clouder_track_id="track-1", vendor="spotify", vendor_track_id="sp123",
-        match_type="isrc", confidence=Decimal("1.000"),
-        matched_at=datetime.now(timezone.utc), payload={},
+        clouder_track_id="track-1",
+        vendor="spotify",
+        vendor_track_id="sp123",
+        match_type="isrc",
+        confidence=Decimal("1.000"),
+        matched_at=datetime.now(UTC),
+        payload={},
     )
     repo = FakeRepo(cache={("track-1", "spotify"): cached})
     lookup = FakeLookup()
 
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
-    monkeypatch.setattr(
-        vendor_match_handler.registry, "get_lookup", lambda name: lookup
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(vendor_match_handler.registry, "get_lookup", lambda name: lookup)
 
     result = vendor_match_handler.lambda_handler(_event(_base_message()), None)
 
@@ -160,12 +160,8 @@ def test_isrc_match_writes_cache(monkeypatch) -> None:
     repo = FakeRepo()
     lookup = FakeLookup(by_isrc=_spotify_ref())
 
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
-    monkeypatch.setattr(
-        vendor_match_handler.registry, "get_lookup", lambda name: lookup
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(vendor_match_handler.registry, "get_lookup", lambda name: lookup)
 
     vendor_match_handler.lambda_handler(_event(_base_message()), None)
 
@@ -182,12 +178,8 @@ def test_fuzzy_high_match_writes_cache(monkeypatch) -> None:
     repo = FakeRepo()
     lookup = FakeLookup(by_isrc=None, by_metadata=[_spotify_ref()])
 
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
-    monkeypatch.setattr(
-        vendor_match_handler.registry, "get_lookup", lambda name: lookup
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(vendor_match_handler.registry, "get_lookup", lambda name: lookup)
 
     payload = _base_message()
     payload["isrc"] = None
@@ -211,12 +203,8 @@ def test_low_confidence_routes_to_review(monkeypatch) -> None:
     )
     lookup = FakeLookup(by_isrc=None, by_metadata=[weak])
 
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
-    monkeypatch.setattr(
-        vendor_match_handler.registry, "get_lookup", lambda name: lookup
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(vendor_match_handler.registry, "get_lookup", lambda name: lookup)
 
     payload = _base_message()
     payload["isrc"] = None
@@ -233,9 +221,7 @@ def test_vendor_disabled_skips(monkeypatch) -> None:
     def _raise(name: str):
         raise VendorDisabledError(name, reason="disabled")
 
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr(vendor_match_handler.registry, "get_lookup", _raise)
 
     result = vendor_match_handler.lambda_handler(_event(_base_message()), None)
@@ -249,12 +235,8 @@ def test_no_candidates_does_not_write_review(monkeypatch) -> None:
     repo = FakeRepo()
     lookup = FakeLookup(by_isrc=None, by_metadata=[])
 
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
-    monkeypatch.setattr(
-        vendor_match_handler.registry, "get_lookup", lambda name: lookup
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(vendor_match_handler.registry, "get_lookup", lambda name: lookup)
 
     payload = _base_message()
     payload["isrc"] = None
@@ -266,9 +248,7 @@ def test_no_candidates_does_not_write_review(monkeypatch) -> None:
 
 def test_invalid_body_skipped(monkeypatch) -> None:
     repo = FakeRepo()
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: repo
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr(
         vendor_match_handler.registry,
         "get_lookup",
@@ -282,9 +262,7 @@ def test_invalid_body_skipped(monkeypatch) -> None:
 
 
 def test_repo_missing_raises(monkeypatch) -> None:
-    monkeypatch.setattr(
-        vendor_match_handler, "create_clouder_repository_from_env", lambda: None
-    )
+    monkeypatch.setattr(vendor_match_handler, "create_clouder_repository_from_env", lambda: None)
     with pytest.raises(RuntimeError):
         vendor_match_handler.lambda_handler(_event(_base_message()), None)
 
@@ -320,8 +298,10 @@ def test_process_one_records_no_match_when_no_candidates(monkeypatch):
 
     repo = Repo()
     msg = VendorMatchMessage(
-        clouder_track_id="t1", vendor="ytmusic",
-        artist="Guri", title="Lost Track",
+        clouder_track_id="t1",
+        vendor="ytmusic",
+        artist="Guri",
+        title="Lost Track",
     )
     assert h._process_one(msg, repo) is True
     assert repo.no_match == [("t1", "ytmusic")]

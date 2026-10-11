@@ -8,9 +8,7 @@ def _user_event(label_id: str) -> dict:
     return {
         "routeKey": "GET /labels/{label_id}",
         "pathParameters": {"label_id": label_id},
-        "requestContext": {
-            "authorizer": {"lambda": {"is_admin": False, "user_id": "u-1"}}
-        },
+        "requestContext": {"authorizer": {"lambda": {"is_admin": False, "user_id": "u-1"}}},
     }
 
 

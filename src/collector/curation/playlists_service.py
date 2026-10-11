@@ -8,7 +8,7 @@ shape and conventions of `categories_service.py`.
 from __future__ import annotations
 
 import re
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 from . import InvalidSpotifyRefError, OrderMismatchError, ValidationError
 
@@ -26,15 +26,11 @@ _BASE62_RE = re.compile(r"^[0-9A-Za-z]{22}$")
 
 # Match the three accepted forms.
 _URI_RE = re.compile(r"^spotify:track:([0-9A-Za-z]{22})$")
-_URL_RE = re.compile(
-    r"^https?://open\.spotify\.com/track/([0-9A-Za-z]{22})(?:\?.*)?$"
-)
+_URL_RE = re.compile(r"^https?://open\.spotify\.com/track/([0-9A-Za-z]{22})(?:\?.*)?$")
 
 # Match the three accepted playlist ref forms.
 _PLAYLIST_URI_RE = re.compile(r"^spotify:playlist:([0-9A-Za-z]{22})$")
-_PLAYLIST_URL_RE = re.compile(
-    r"^https?://open\.spotify\.com/playlist/([0-9A-Za-z]{22})(?:\?.*)?$"
-)
+_PLAYLIST_URL_RE = re.compile(r"^https?://open\.spotify\.com/playlist/([0-9A-Za-z]{22})(?:\?.*)?$")
 
 
 def normalize_playlist_name(name: str) -> str:
@@ -57,9 +53,7 @@ def validate_description(description: str | None) -> None:
     if description is None or description == "":
         return
     if len(description) > MAX_DESCRIPTION_LENGTH:
-        raise ValidationError(
-            f"Description must be at most {MAX_DESCRIPTION_LENGTH} characters"
-        )
+        raise ValidationError(f"Description must be at most {MAX_DESCRIPTION_LENGTH} characters")
     for ch in description:
         if ord(ch) < 0x20 and ch not in ("\n", "\t"):
             raise ValidationError("Description contains control characters")
@@ -111,15 +105,11 @@ def parse_spotify_playlist_ref(ref: str) -> str:
     raise InvalidSpotifyRefError(f"Unrecognized Spotify playlist ref: {cleaned!r}")
 
 
-def validate_reorder_set(
-    *, actual: Iterable[str], requested: Sequence[str]
-) -> None:
+def validate_reorder_set(*, actual: Iterable[str], requested: Sequence[str]) -> None:
     """Same contract as categories_service.validate_reorder_set."""
     actual_set = set(actual)
     requested_set = set(requested)
     if len(requested) != len(requested_set):
         raise OrderMismatchError("track_ids contains duplicates")
     if actual_set != requested_set:
-        raise OrderMismatchError(
-            "track_ids must equal the current set of playlist tracks"
-        )
+        raise OrderMismatchError("track_ids must equal the current set of playlist tracks")

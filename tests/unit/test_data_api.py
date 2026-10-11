@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -47,7 +47,7 @@ def test_to_field_string() -> None:
 
 
 def test_datetime_is_serialized_for_rds_data_api_timestamp() -> None:
-    value = datetime(2026, 3, 1, 16, 31, 43, 123456, tzinfo=timezone.utc)
+    value = datetime(2026, 3, 1, 16, 31, 43, 123456, tzinfo=UTC)
     assert _to_field(value) == {"stringValue": "2026-03-01 16:31:43.123456"}
 
 
@@ -69,7 +69,7 @@ def test_to_field_list() -> None:
 
 
 def test_to_parameter_datetime_has_timestamp_hint() -> None:
-    param = _to_parameter("ts", datetime(2026, 1, 1, tzinfo=timezone.utc))
+    param = _to_parameter("ts", datetime(2026, 1, 1, tzinfo=UTC))
     assert param["typeHint"] == "TIMESTAMP"
     assert param["name"] == "ts"
 
@@ -268,9 +268,8 @@ def test_transaction_rolls_back_on_exception() -> None:
     fake = FakeRdsDataClient()
     client = DataAPIClient(fake, "arn:r", "arn:s", "db")
 
-    with pytest.raises(ValueError):
-        with client.transaction():
-            raise ValueError("boom")
+    with pytest.raises(ValueError), client.transaction():
+        raise ValueError("boom")
 
     call_types = [c[0] for c in fake.calls]
     assert "begin_transaction" in call_types

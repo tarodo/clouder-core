@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from ..errors import ValidationError
 
@@ -37,7 +38,9 @@ class UserStylesRepository:
         search: str | None = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
-            "user_id": user_id, "limit": limit, "offset": offset,
+            "user_id": user_id,
+            "limit": limit,
+            "offset": offset,
         }
         where = ""
         if search:
@@ -55,9 +58,7 @@ class UserStylesRepository:
             params,
         )
 
-    def count_for_user(
-        self, *, user_id: str, search: str | None = None
-    ) -> int:
+    def count_for_user(self, *, user_id: str, search: str | None = None) -> int:
         params: dict[str, Any] = {"user_id": user_id}
         where = ""
         if search:
@@ -115,7 +116,9 @@ class UserStylesRepository:
     ) -> list[dict[str, Any]]:
         """Whole catalog annotated with the caller's selection."""
         params: dict[str, Any] = {
-            "user_id": user_id, "limit": limit, "offset": offset,
+            "user_id": user_id,
+            "limit": limit,
+            "offset": offset,
         }
         where = "WHERE NOT s.is_hidden"
         if search:
@@ -145,15 +148,11 @@ class UserStylesRepository:
         now: datetime | None = None,
     ) -> None:
         """Replace the whole selection; array order becomes `position`."""
-        at = now or datetime.now(timezone.utc)
+        at = now or datetime.now(UTC)
         with self._data_api.transaction() as tx_id:
             if style_ids:
-                placeholders = ", ".join(
-                    f":id_{i}" for i in range(len(style_ids))
-                )
-                params = {
-                    f"id_{i}": sid for i, sid in enumerate(style_ids)
-                }
+                placeholders = ", ".join(f":id_{i}" for i in range(len(style_ids)))
+                params = {f"id_{i}": sid for i, sid in enumerate(style_ids)}
                 rows = self._data_api.execute(
                     f"SELECT id FROM clouder_styles WHERE id IN ({placeholders})",
                     params,

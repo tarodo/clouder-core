@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -52,12 +52,21 @@ class FakeRepo:
 
 
 class FakeClient:
-    def __init__(self, *, create_ret="PLnew", edit_raises=None, cover_raises=None,
-                 existing=None, existing_seq=None):
+    def __init__(
+        self,
+        *,
+        create_ret="PLnew",
+        edit_raises=None,
+        cover_raises=None,
+        existing=None,
+        existing_seq=None,
+    ):
         self.create_ret = create_ret
         self.edit_raises = edit_raises
         self.cover_raises = cover_raises
-        self._existing = existing if existing is not None else [{"videoId": "old", "itemId": "i_old"}]
+        self._existing = (
+            existing if existing is not None else [{"videoId": "old", "itemId": "i_old"}]
+        )
         self._existing_seq = list(existing_seq) if existing_seq is not None else None
         self.created = None
         self.edited = None
@@ -106,7 +115,7 @@ class FakeStorage:
 
 
 def _now():
-    return datetime(2026, 5, 31, tzinfo=timezone.utc)
+    return datetime(2026, 5, 31, tzinfo=UTC)
 
 
 def _matched(vid):
@@ -152,22 +161,30 @@ def test_nothing_to_publish():
     pl = FakePlaylist(id="p", name="N", description=None, is_public=True)
     rows = [FakeTrackRow("t1", "T1")]
     statuses = {"t1": YtmusicStatus(status="pending")}
-    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=FakeClient(), now=_now)
+    svc = YtmusicPublishService(
+        repo=FakeRepo(pl, rows, statuses), ytmusic_client=FakeClient(), now=_now
+    )
     with pytest.raises(NothingToPublishError):
         svc.publish(user_id="u", playlist_id="p", confirm_overwrite=False)
 
 
 def test_republish_requires_confirm():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold"
+    )
     rows = [FakeTrackRow("t1", "T1")]
     statuses = {"t1": _matched("v1")}
-    svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=FakeClient(), now=_now)
+    svc = YtmusicPublishService(
+        repo=FakeRepo(pl, rows, statuses), ytmusic_client=FakeClient(), now=_now
+    )
     with pytest.raises(ConfirmOverwriteRequiredError):
         svc.publish(user_id="u", playlist_id="p", confirm_overwrite=False)
 
 
 def test_republish_edits_in_place():
-    pl = FakePlaylist(id="p", name="N2", description="D2", is_public=True, ytmusic_playlist_id="PLold")
+    pl = FakePlaylist(
+        id="p", name="N2", description="D2", is_public=True, ytmusic_playlist_id="PLold"
+    )
     rows = [FakeTrackRow("t1", "T1")]
     statuses = {"t1": _matched("v1")}
     client = FakeClient()
@@ -183,10 +200,14 @@ def test_republish_edits_in_place():
 
 
 def test_republish_unchanged_skips_track_ops():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold"
+    )
     rows = [FakeTrackRow("t1", "T1"), FakeTrackRow("t2", "T2")]
     statuses = {"t1": _matched("v1"), "t2": _matched("v2")}
-    client = FakeClient(existing=[{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}])
+    client = FakeClient(
+        existing=[{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}]
+    )
     svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
     svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
     # Existing == desired -> no quota-costly inserts/deletes.
@@ -196,11 +217,15 @@ def test_republish_unchanged_skips_track_ops():
 
 
 def test_republish_incremental_diff_touches_only_delta():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold"
+    )
     rows = [FakeTrackRow("t1", "T1"), FakeTrackRow("t3", "T3")]
     statuses = {"t1": _matched("v1"), "t3": _matched("v3")}
     # existing has v1 + v2; desired is v1 + v3 -> remove v2's item, add v3.
-    client = FakeClient(existing=[{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}])
+    client = FakeClient(
+        existing=[{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}]
+    )
     svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
     svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
     assert client.removed == [("PLold", ["i2"])]
@@ -209,7 +234,9 @@ def test_republish_incremental_diff_touches_only_delta():
 
 
 def test_orphan_recreates_when_edit_404s():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLgone")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLgone"
+    )
     rows = [FakeTrackRow("t1", "T1")]
     statuses = {"t1": _matched("v1")}
     client = FakeClient(create_ret="PLnew", edit_raises=YtmusicNotFoundError("gone"))
@@ -224,7 +251,9 @@ def test_orphan_recreates_when_edit_404s():
 def test_non_404_edit_error_propagates():
     # A generic upstream error during republish must propagate, NOT trigger a
     # silent orphan recreate.
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold"
+    )
     rows = [FakeTrackRow("t1", "T1")]
     statuses = {"t1": _matched("v1")}
     client = FakeClient(edit_raises=YtmusicApiError("network timeout"))
@@ -235,7 +264,9 @@ def test_non_404_edit_error_propagates():
 
 
 def test_orphan_404_wraps_when_not_treating_as_orphan():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLgone")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLgone"
+    )
     rows = [FakeTrackRow("t1", "T1")]
     statuses = {"t1": _matched("v1")}
     client = FakeClient(edit_raises=YtmusicNotFoundError("gone"))
@@ -246,7 +277,9 @@ def test_orphan_404_wraps_when_not_treating_as_orphan():
 
 
 def test_cover_uploaded_when_present():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, cover_s3_key="covers/p.jpg")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, cover_s3_key="covers/p.jpg"
+    )
     rows = [FakeTrackRow("t1", "T1")]
     statuses = {"t1": _matched("v1")}
     client = FakeClient()
@@ -261,7 +294,9 @@ def test_cover_uploaded_when_present():
 
 
 def test_cover_failure_does_not_break_publish():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, cover_s3_key="covers/p.jpg")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, cover_s3_key="covers/p.jpg"
+    )
     rows = [FakeTrackRow("t1", "T1")]
     statuses = {"t1": _matched("v1")}
     client = FakeClient(cover_raises=RuntimeError("YouTube 400: invalid type"))
@@ -274,7 +309,9 @@ def test_cover_failure_does_not_break_publish():
 
 
 def test_no_cover_when_storage_absent():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, cover_s3_key="covers/p.jpg")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, cover_s3_key="covers/p.jpg"
+    )
     rows = [FakeTrackRow("t1", "T1")]
     statuses = {"t1": _matched("v1")}
     client = FakeClient()
@@ -285,11 +322,15 @@ def test_no_cover_when_storage_absent():
 
 
 def test_pure_reorder_emits_moves():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold"
+    )
     rows = [FakeTrackRow("t1", "T1"), FakeTrackRow("t2", "T2")]
     statuses = {"t1": _matched("v1"), "t2": _matched("v2")}
     # YouTube currently has v2 then v1; desired is v1 then v2.
-    client = FakeClient(existing=[{"videoId": "v2", "itemId": "i2"}, {"videoId": "v1", "itemId": "i1"}])
+    client = FakeClient(
+        existing=[{"videoId": "v2", "itemId": "i2"}, {"videoId": "v1", "itemId": "i1"}]
+    )
     svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
     svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
     # Same membership -> no add/remove; one move puts v1 at index 0.
@@ -299,17 +340,23 @@ def test_pure_reorder_emits_moves():
 
 
 def test_correct_order_emits_no_moves():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold"
+    )
     rows = [FakeTrackRow("t1", "T1"), FakeTrackRow("t2", "T2")]
     statuses = {"t1": _matched("v1"), "t2": _matched("v2")}
-    client = FakeClient(existing=[{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}])
+    client = FakeClient(
+        existing=[{"videoId": "v1", "itemId": "i1"}, {"videoId": "v2", "itemId": "i2"}]
+    )
     svc = YtmusicPublishService(repo=FakeRepo(pl, rows, statuses), ytmusic_client=client, now=_now)
     svc.publish(user_id="u", playlist_id="p", confirm_overwrite=True)
     assert client.moves == []
 
 
 def test_membership_change_then_reorder_refetches_and_moves():
-    pl = FakePlaylist(id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold")
+    pl = FakePlaylist(
+        id="p", name="N", description=None, is_public=True, ytmusic_playlist_id="PLold"
+    )
     rows = [FakeTrackRow("t3", "T3"), FakeTrackRow("t1", "T1")]
     statuses = {"t3": _matched("v3"), "t1": _matched("v1")}
     # First read: v1 + v2. Desired: v3 then v1 -> remove v2, add v3.

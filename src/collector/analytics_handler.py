@@ -18,8 +18,9 @@ import json
 import os
 import re
 import time
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from .logging_utils import log_event
 
@@ -90,20 +91,23 @@ def _route_name(event: Mapping[str, Any]) -> str:
 
 # ── listening: minutes + distinct tracks per local day / 7d / 30d ───────────
 
+
 def parse_tz_offset(raw: Any) -> int:
     """Browser UTC offset in minutes (east-positive); default UTC."""
     if raw in (None, ""):
         return 0
     s = str(raw)
     if not _OFFSET_RE.match(s) or abs(int(s)) > 840:
-        raise AnalyticsError(400, "invalid_params", "tz_offset_min must be an integer in [-840, 840].")
+        raise AnalyticsError(
+            400, "invalid_params", "tz_offset_min must be an integer in [-840, 840]."
+        )
     return int(s)
 
 
 def listening_windows(now: datetime, tz_offset_min: int) -> dict[str, date]:
     """Local today + rolling 7/30-day window starts. scan_from pads one UTC day
     so the dt-partition prune never cuts a play that maps into the window."""
-    today = (now.astimezone(timezone.utc) + timedelta(minutes=tz_offset_min)).date()
+    today = (now.astimezone(UTC) + timedelta(minutes=tz_offset_min)).date()
     month_from = today - timedelta(days=29)
     return {
         "today": today,
@@ -297,7 +301,7 @@ def shape_time_per_track(rows: list[dict[str, Any]], *, days: int) -> dict[str, 
 
 def serve_time_per_track(qs: Mapping[str, Any], user_id: str) -> dict[str, Any]:
     days = parse_days(qs.get("days"))
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     sql = time_per_track_sql(
         TRINO,
         scan_from=(today - timedelta(days=days)).isoformat(),
@@ -332,14 +336,14 @@ def shape_listening(rows: list[dict[str, Any]], today: date) -> dict[str, Any]:
 
 def serve_listening(qs: Mapping[str, Any], user_id: str) -> dict[str, Any]:
     off = parse_tz_offset(qs.get("tz_offset_min"))
-    w = listening_windows(datetime.now(timezone.utc), off)
+    w = listening_windows(datetime.now(UTC), off)
     sql = listening_sql(
         TRINO,
         scan_from=w["scan_from"].isoformat(),
         week_from=w["week_from"].isoformat(),
         month_from=w["month_from"].isoformat(),
         tz_offset_min=off,
-        table=events_table(datetime.now(timezone.utc).date()),
+        table=events_table(datetime.now(UTC).date()),
     )
     # Short reuse, no warm-Lambda memo: "today" must move within minutes.
     rows = _run_athena(_client(), sql, [user_id], reuse_minutes=5)
@@ -443,23 +447,38 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
         payload: dict[str, Any] = {"correlation_id": correlation_id}
         serve = serve_listening if route == "listening" else serve_time_per_track
         payload.update(serve(qs, user_id))
-        log_event("INFO", "analytics_served", correlation_id=correlation_id,
-                  status_code=200)
+        log_event("INFO", "analytics_served", correlation_id=correlation_id, status_code=200)
         return _response(200, payload)
     except AnalyticsError as exc:
-        log_event("WARNING", "analytics_rejected", correlation_id=correlation_id,
-                  status_code=exc.status_code, error_code=exc.error_code)
-        return _response(exc.status_code, {
-            "error_code": exc.error_code,
-            "message": exc.message,
-            "correlation_id": correlation_id,
-        })
+        log_event(
+            "WARNING",
+            "analytics_rejected",
+            correlation_id=correlation_id,
+            status_code=exc.status_code,
+            error_code=exc.error_code,
+        )
+        return _response(
+            exc.status_code,
+            {
+                "error_code": exc.error_code,
+                "message": exc.message,
+                "correlation_id": correlation_id,
+            },
+        )
     except Exception as exc:  # safety net — response stays generic, log carries detail
-        log_event("ERROR", "analytics_error", correlation_id=correlation_id,
-                  status_code=500, error_type=type(exc).__name__,
-                  error_message=str(exc)[:500])
-        return _response(500, {
-            "error_code": "internal_error",
-            "message": "Internal error.",
-            "correlation_id": correlation_id,
-        })
+        log_event(
+            "ERROR",
+            "analytics_error",
+            correlation_id=correlation_id,
+            status_code=500,
+            error_type=type(exc).__name__,
+            error_message=str(exc)[:500],
+        )
+        return _response(
+            500,
+            {
+                "error_code": "internal_error",
+                "message": "Internal error.",
+                "correlation_id": correlation_id,
+            },
+        )

@@ -8,13 +8,14 @@ deletes itself after firing.
 
 from __future__ import annotations
 
+import itertools
 import json
 import math
-from datetime import datetime, time, timedelta, timezone
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime, time, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
 
-UTC = timezone.utc
 PLANNER_AT = time(0, 5)
 MIN_GAP = timedelta(minutes=60)
 _LEAD = timedelta(minutes=5)  # do not plan a run for the very next minutes
@@ -51,7 +52,7 @@ def _random(settings: Mapping[str, Any], now: datetime, end: datetime, rng: Any)
         for _ in range(200):  # rejection sampling: uniform times with the minimum gap
             times = sorted(start + timedelta(seconds=rng.uniform(0, span)) for _ in range(n))
             times = [t.replace(second=0, microsecond=0) for t in times]
-            if all(b - a >= MIN_GAP for a, b in zip(times, times[1:])) and times[0] > now:
+            if all(b - a >= MIN_GAP for a, b in itertools.pairwise(times)) and times[0] > now:
                 return times
     return []
 
