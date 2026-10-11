@@ -50,19 +50,12 @@ def _value(var: str) -> int:
     return int(re.search(r"default\s*=\s*(\d+)", _block("variable", var)).group(1))
 
 
-def test_account_quota_is_requested_in_code() -> None:
-    # 'type" "name' makes _block match: resource "type" "name" {
-    body = _block("resource", 'aws_servicequotas_service_quota" "lambda_concurrency')
-    assert re.search(r'service_code\s*=\s*"lambda"', body)
-    assert re.search(r'quota_code\s*=\s*"L-B99A9384"', body)
-    assert re.search(r"value\s*=\s*local\.lambda_concurrency_quota", body)
-
-
-def test_quota_is_requested_once() -> None:
-    # Without this, an approval above the value plans a decrease on every deploy and a
-    # denial files a new request each time (review of PR for phase 1).
-    body = _block("resource", 'aws_servicequotas_service_quota" "lambda_concurrency')
-    assert re.search(r"lifecycle\s*\{\s*ignore_changes\s*=\s*\[value\]", body)
+def test_quota_is_not_requested_through_terraform() -> None:
+    # The Service Quotas API refuses increases below the AWS default (1000), and a new
+    # account starts at 10: the 2026-10-11 deploy failed on exactly that. The increase
+    # goes through AWS Support; Terraform only reads the quota the account has.
+    assert 'resource "aws_servicequotas_service_quota"' not in TF
+    assert re.search(r"lambda_concurrency_quota\s*=\s*\d+\s*#.*AWS Support", TF)
 
 
 def test_worker_caps_leave_room_for_the_api() -> None:
