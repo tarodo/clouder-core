@@ -88,14 +88,6 @@ const COUNTRIES: [string, string][] = [
 ];
 
 const TAGLINES: Record<string, string[]> = {
-  'Drum & Bass': [
-    'Rolling basslines and crisp breakbeats',
-    'Liquid drum & bass with soul in the chords',
-    'Two-step drums for the peak of the night',
-    'Deep, minimal rollers for long mixes',
-    'Half-time breaks into full-speed drops',
-    'Jungle edits with a modern low end',
-  ],
   'Melodic House & Techno': [
     'Patient builds with analogue pads',
     'Melancholy melodies for the last hour',
@@ -138,14 +130,14 @@ export function buildArtistProfile(
   index: number,
 ): ArtistProfile {
   const [country, city] = pick(COUNTRIES);
-  const style = styles[0] ?? 'Drum & Bass';
+  const style = styles[0] ?? 'Melodic House & Techno';
   const duo = index % 7 === 3;
   const active_since = 2010 + ((index * 5) % 13);
   return {
     country,
     active_since,
     artist_type: duo ? 'duo' : 'solo',
-    tagline: pick(TAGLINES[style] ?? TAGLINES['Drum & Bass'] ?? ['Club music']),
+    tagline: pick(TAGLINES[style] ?? TAGLINES['Melodic House & Techno'] ?? ['Club music']),
     summary: `${name} is a ${duo ? 'duo' : 'producer'} from ${city} making ${style.toLowerCase()} since ${active_since}; ${duo ? 'the duo' : 'the project'} ${pick(SOUND)}.`,
     bio: `${pick(STORY)} ${name} plays out most weekends and releases a few EPs a year.`,
   };

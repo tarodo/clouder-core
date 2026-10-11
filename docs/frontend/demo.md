@@ -13,7 +13,7 @@ sample catalog.
 - `src/main.tsx` starts the worker (`src/demo/start.ts`) before React mounts, because
   `AuthProvider` calls `/auth/refresh` on mount. The production build drops this branch, so its
   bundle contains no demo code (the PR checks that the `pnpm build` output has no MSW worker code).
-- `src/demo/seed.ts` builds the catalog: three invented styles, each with a finalized and an open
+- `src/demo/seed.ts` builds the catalog: two invented styles (Melodic House & Techno, Afro House), each with a finalized and an open
   triage week, three categories, playlists and tags. Seeded, so every visitor sees the same week.
 - About 60 % of the tracks carry one of 20 covers (`src/demo/covers.ts`): abstract SVGs drawn
   in the browser, five motifs × four palettes, so the demo ships no image files. The first track
