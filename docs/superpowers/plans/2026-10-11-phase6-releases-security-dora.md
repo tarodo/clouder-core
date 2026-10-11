@@ -452,7 +452,7 @@ if __name__ == "__main__":
   - v0.1.0: Beatport weekly ingest into an S3 raw zone, canonicalization into Aurora through the RDS Data API, ISRC search on Spotify.
   - v1.0.0: The curation app — triage, categories, tags, in-page players, playlists published to Spotify and YouTube Music, label and artist enrichment.
   - v1.1.0: YouTube comments per track; telemetry through Firehose into an S3 lake, with Athena-backed listening and funnel cards.
-  - v2.0.0: Nightly data-quality SLOs, a raw data contract with quarantine, replayable backfills, an Iceberg silver/gold lakehouse built by dbt, scheduled auto-ingest, CI gates and least-privilege IAM.
+  - v2.0.0: Nightly data-quality SLOs, a raw data contract with quarantine, replayable backfills, an Iceberg silver/gold lakehouse built by dbt, scheduled auto-ingest, CI gates and a least-privilege role per Lambda.
   - v2.1.0: A read-only role for PR plans, versioned API Lambdas with smoke-gated rollback, a freshness gate on the nightly build, the API handler and repository split, stricter typing and lint.
 - [ ] Verify: `gh release list` shows 5 with `v2.1.0` Latest; the repo page shows the Releases block; `gh api …/private-vulnerability-reporting` → enabled.
 - [ ] §0 board: phase 6 done.
