@@ -88,6 +88,53 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration_p95" {
   ok_actions    = local.alarm_actions
 }
 
+# ── API throttles and 5xx ────────────────────────────────────────
+# The errors alarms see neither: a throttled invocation is not a function error, and
+# API Gateway's 5xx (throttles, timeouts) never reach the function. On 2026-10-11 the
+# API answered 16 × 5xx while workers held every slot, and nothing fired.
+resource "aws_cloudwatch_metric_alarm" "api_throttles" {
+  for_each = local.api_functions
+
+  alarm_name          = "${each.value.function_name}-throttles"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Throttles"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Lambda ${each.value.function_name} was throttled: the account concurrency pool is full (docs/ops/runbook.md#api-5xx-or-lambda-throttles)"
+
+  dimensions = {
+    FunctionName = each.value.function_name
+  }
+
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
+}
+
+resource "aws_cloudwatch_metric_alarm" "api_5xx" {
+  alarm_name          = "${local.name_prefix}-api-5xx"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "5xx"
+  namespace           = "AWS/ApiGateway"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 5
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "The API answered 5xx at least 5 times in 5 minutes; a single 503 after an Aurora resume is expected (docs/ops/runbook.md#api-5xx-or-lambda-throttles)"
+
+  dimensions = {
+    ApiId = aws_apigatewayv2_api.collector.id
+    Stage = aws_apigatewayv2_stage.default.name
+  }
+
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
+}
+
 # ── Lambda throttles (label_enricher) ────────────────────────────
 # Only meaningful when reserved concurrency caps the function — without
 # the cap, AWS won't throttle. Fires on the first throttled invocation

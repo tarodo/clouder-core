@@ -17,3 +17,9 @@ ytmusic_client_secret_ssm_parameter = "/clouder/ytmusic/client_secret"
 youtube_api_key_ssm_parameter       = "/clouder/youtube/api_key"
 migration_aurora_auth_mode          = "iam"
 enable_secretsmanager_vpc_endpoint  = false
+
+# Until AWS approves the Lambda quota increase (infra/concurrency.tf), the account has 10
+# concurrent executions: a block finalize's fan-out (dispatch, comments, label, artist)
+# must fit in 8 of them. Remove both lines once the quota is approved (defaults: 8).
+label_enrichment_worker_max_concurrency  = 2
+artist_enrichment_worker_max_concurrency = 2
