@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CLOUDER</title>
+    <meta
+      name="description"
+      content="A serverless data pipeline on AWS and the DJ curation app built on it. Try the app on sample data, or browse the dbt lineage."
+    />
+    <style>
+      :root {
+        --bg: #ffffff;
+        --fg: #111111;
+        --muted: #5c5f66;
+        --card: #f6f7f9;
+        --border: #e3e5e8;
+        --accent: #111111;
+        --accent-fg: #ffffff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101113;
+          --fg: #f1f3f5;
+          --muted: #a6a7ab;
+          --card: #1a1b1e;
+          --border: #2c2e33;
+          --accent: #f1f3f5;
+          --accent-fg: #101113;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      main { max-width: 960px; margin: 0 auto; padding: 56px 16px 40px; }
+      h1 { font-size: 40px; letter-spacing: 0.04em; margin: 0 0 8px; }
+      .lead { font-size: 20px; margin: 0 0 8px; }
+      .muted { color: var(--muted); }
+      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 32px 0; }
+      .card {
+        display: block;
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--card);
+        color: inherit;
+        text-decoration: none;
+      }
+      .card:hover, .card:focus-visible { border-color: var(--fg); }
+      .card h2 { font-size: 20px; margin: 0 0 6px; }
+      .card p { margin: 0; }
+      .primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+      .primary .muted { color: inherit; opacity: 0.8; }
+      figure { margin: 8px 0 0; }
+      img { width: 100%; height: auto; border: 1px solid var(--border); border-radius: 12px; }
+      figcaption { font-size: 14px; margin-top: 8px; }
+      footer { margin-top: 40px; font-size: 14px; }
+      footer a { color: inherit; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>CLOUDER</h1>
+      <p class="lead">A serverless data pipeline on AWS — and the DJ curation app built on it.</p>
+      <p class="muted">
+        Weekly Beatport releases become a clean, cross-vendor catalog: data contracts, nightly
+        data-quality SLOs, replayable backfills and an Iceberg lakehouse. A keyboard-first app turns
+        each week into DJ sets.
+      </p>
+
+      <div class="cards">
+        <a class="card primary" href="demo/">
+          <h2>Try the app →</h2>
+          <p class="muted">The real app on sample data, running in your browser. No login; changes stay in the tab.</p>
+        </a>
+        <a class="card" href="lineage/">
+          <h2>Data lineage →</h2>
+          <p class="muted">dbt models, columns, tests and the lineage graph of the Iceberg lakehouse.</p>
+        </a>
+      </div>
+
+      <figure>
+        <img src="curate.png" alt="Curating a track: its details and the destination buckets, one keystroke each" />
+        <figcaption class="muted">Curate: one keystroke per track decides where it goes.</figcaption>
+      </figure>
+
+      <footer class="muted">
+        <a href="https://github.com/tarodo/clouder-core">Source on GitHub</a> ·
+        <a href="https://github.com/tarodo/clouder-core#readme">README</a> ·
+        <a href="https://github.com/tarodo/clouder-core/releases">Releases</a>
+      </footer>
+    </main>
+  </body>
+</html>

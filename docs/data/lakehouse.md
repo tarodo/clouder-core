@@ -85,8 +85,8 @@ failing build does not drop days from the cards. It is switched on by the Terraf
 first green build (2026-10-07); removing that `-var` is the rollback.
 
 **Docs and lineage.** On every push to `main` under `dbt/`, CI builds the fixtures and publishes
-the dbt docs (models, columns, tests, lineage graph) to GitHub Pages:
-<https://tarodo.github.io/clouder-core/>. They contain no production data.
+the dbt docs (models, columns, tests, lineage graph) to GitHub Pages (`.github/workflows/pages.yml`):
+<https://tarodo.github.io/clouder-core/lineage/>. They contain no production data.
 
 ## How to run
 

@@ -177,3 +177,25 @@ def test_deploy_prints_the_alias_snapshot() -> None:
 def test_lint_job_checks_formatting() -> None:
     runs = [step.get("run", "") for step in PR["jobs"]["lint"]["steps"]]
     assert "ruff format --check src tests scripts" in runs
+
+
+def test_one_pages_workflow_publishes_landing_lineage_and_demo() -> None:
+    assert not (WF / "dbt-docs.yml").exists(), "two Pages workflows overwrite each other"
+    pages = (WF / "pages.yml").read_text()
+    for needle in (
+        "dbt docs generate",
+        "pnpm build:demo",
+        "site/lineage/index.html",
+        "site/demo",
+        "site/404.html",
+        "pages/index.html",
+    ):
+        assert needle in pages, needle
+
+
+def test_pr_builds_the_demo() -> None:
+    runs = [step.get("run", "") for step in PR["jobs"]["frontend"]["steps"]]
+    assert "pnpm build:demo" in runs
+    # The production bundle is checked before the demo build overwrites dist/.
+    guard = next(i for i, r in enumerate(runs) if "mockServiceWorker" in r)
+    assert runs.index("pnpm build") < guard < runs.index("pnpm build:demo")
