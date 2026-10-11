@@ -7,13 +7,13 @@ function first<T>(xs: readonly T[]): T {
   return x;
 }
 
-const firstOpenBlock = (db: DemoDb) => first(db.blocksByStyle('s-tech', 'IN_PROGRESS'));
+const firstOpenBlock = (db: DemoDb) => first(db.blocksByStyle('s-dnb', 'IN_PROGRESS'));
 
 describe('DemoDb', () => {
   it('serves three selected styles with an open week each', () => {
     const db = new DemoDb();
     expect(db.styles('mine').map((s) => s.name)).toEqual([
-      'Tech House',
+      'Drum & Bass',
       'Melodic House & Techno',
       'Afro House',
     ]);
@@ -51,7 +51,7 @@ describe('DemoDb', () => {
   it('adds category tracks to a playlist once and reorders them', () => {
     const db = new DemoDb();
     const playlist = first(db.playlists({}));
-    const cat = first(db.categoriesByStyle('s-tech'));
+    const cat = first(db.categoriesByStyle('s-dnb'));
     const ids = db
       .categoryTracks(cat.id, {})
       .slice(0, 2)
@@ -94,7 +94,7 @@ describe('DemoDb', () => {
 
   it('fresh hides tracks already in a playlist', () => {
     const db = new DemoDb();
-    const cat = first(db.categoriesByStyle('s-tech'));
+    const cat = first(db.categoriesByStyle('s-dnb'));
     const all = db.categoryTracks(cat.id, {});
     expect(all.some((t) => t.used_in_playlist)).toBe(true);
     const fresh = db.categoryTracks(cat.id, { fresh: true });
@@ -105,7 +105,7 @@ describe('DemoDb', () => {
   it('names weeks by Saturday-week number (ADR-0003: Oct 3 2026 starts week 40)', () => {
     const db = new DemoDb();
     expect(firstOpenBlock(db).name).toMatch(/^Week 40 · Oct 3/);
-    expect(first(db.blocksByStyle('s-tech', 'FINALIZED')).name).toMatch(/^Week 39 · Sep 26/);
+    expect(first(db.blocksByStyle('s-dnb', 'FINALIZED')).name).toMatch(/^Week 39 · Sep 26/);
   });
 
   it('gives some releases a cover, drawn from at most 20 designs', () => {
@@ -163,18 +163,22 @@ describe('DemoDb', () => {
 
   it('lists the labels of a style and keeps a like', () => {
     const db = new DemoDb();
-    const page = db.labels({ style: 's-tech' });
+    const page = db.labels({ style: 's-dnb' });
     expect(page.items.length).toBeGreaterThan(0);
-    expect(page.items.every((l) => l.style === 'Tech House' && l.track_count > 0)).toBe(true);
+    expect(page.items.every((l) => l.style === 'Drum & Bass' && l.track_count > 0)).toBe(true);
     const label = first(page.items);
     db.setLabelPreference(label.id, 'liked');
     expect(db.labelDetail(label.id).my_preference).toBe('liked');
-    expect(db.labels({ style: 's-tech', my: 'liked' }).items.map((l) => l.id)).toEqual([label.id]);
+    expect(db.labels({ style: 's-dnb', my: 'liked' }).items.map((l) => l.id)).toEqual([label.id]);
     expect(first(db.artists({ style: 's-afro' }).items).style).toBe('Afro House');
     // The Library route carries the style as a slug of its name.
-    expect(db.labels({ style: 'tech-house' }).items.map((l) => l.id)).toEqual(
+    expect(db.labels({ style: 'drum-and-bass' }).items.map((l) => l.id)).toEqual(
       page.items.map((l) => l.id),
     );
+  });
+
+  it("has the Library's default style, so /library opens on real rows", () => {
+    expect(new DemoDb().labels({ style: 'drum-and-bass' }).items.length).toBeGreaterThan(0);
   });
 
   it('returns no tracks for an unknown bucket and 404s an unknown block', () => {
