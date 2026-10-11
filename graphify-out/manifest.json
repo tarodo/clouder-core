@@ -5175,8 +5175,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1791722598.8111842,
-    "ast_hash": "0f863aa93a5adde0fa4a26b74be62f22",
+    "mtime": 1791724163.4869306,
+    "ast_hash": "321d4389f0ae2f70d7e977525d37314c",
     "semantic_hash": ""
   },
   "docs/CLOUDER Design System _standalone_.html": {
@@ -5995,8 +5995,8 @@
     "semantic_hash": ""
   },
   "infra/telemetry.tf": {
-    "mtime": 1791717722.1324317,
-    "ast_hash": "a94a50d2d1e0ff430f01870e581ec2c5",
+    "mtime": 1791723959.0724323,
+    "ast_hash": "c76fe7027e9fe6180dc4f3d4c143afe8",
     "semantic_hash": ""
   },
   "src/collector/analytics_handler.py": {
@@ -6925,8 +6925,8 @@
     "semantic_hash": ""
   },
   "dbt/models/silver/events.sql": {
-    "mtime": 1791717721.368309,
-    "ast_hash": "2f824ace36b49f3a11d8b0fbf45a016a",
+    "mtime": 1791723990.6853423,
+    "ast_hash": "976fb35c5378cd3941e4e2bcc708993d",
     "semantic_hash": ""
   },
   "dbt/models/staging/stg_events.sql": {
@@ -6970,8 +6970,8 @@
     "semantic_hash": ""
   },
   "dbt/dbt_project.yml": {
-    "mtime": 1791717721.3674264,
-    "ast_hash": "47dfaff40a91e4212f63c66c0e67dfa0",
+    "mtime": 1791723959.0733821,
+    "ast_hash": "ee515801977d71156d54336621909c9c",
     "semantic_hash": ""
   },
   "dbt/models/gold/_gold.yml": {
@@ -7530,8 +7530,8 @@
     "semantic_hash": ""
   },
   "docs/privacy.md": {
-    "mtime": 1791717721.485604,
-    "ast_hash": "8da3f4955e699a235f14d04783d9c8a0",
+    "mtime": 1791724163.486279,
+    "ast_hash": "9d876a16ded693f54fd0faa3474380b9",
     "semantic_hash": ""
   },
   "docs/security.md": {
@@ -8032,6 +8032,46 @@
   "tests/unit/test_rotate_jwt_key.py": {
     "mtime": 1791723088.00497,
     "ast_hash": "ca45030cccf6930983bf7542f5ccbc33",
+    "semantic_hash": ""
+  },
+  "dbt/macros/retention.sql": {
+    "mtime": 1791723959.073499,
+    "ast_hash": "7d1d36fc61db82575d4c7be7a1972e8f",
+    "semantic_hash": ""
+  },
+  "dbt/tests/assert_events_within_retention.sql": {
+    "mtime": 1791723959.0738199,
+    "ast_hash": "db3de0b6ffd23936a548ad65d2b35e4e",
+    "semantic_hash": ""
+  },
+  "tests/unit/test_retention_infra.py": {
+    "mtime": 1791723944.959303,
+    "ast_hash": "b464e6509d2b073acd93f7a89cd4e87d",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-10-11-data-retention-dsar.md": {
+    "mtime": 1791723929.0869575,
+    "ast_hash": "7375399d333aca3979f72f802d252c93",
+    "semantic_hash": ""
+  },
+  "scripts/export_user.py": {
+    "mtime": 1791724131.6884282,
+    "ast_hash": "8906434413f0dbb8db155c95db6a1573",
+    "semantic_hash": ""
+  },
+  "src/collector/user_export.py": {
+    "mtime": 1791724064.4013138,
+    "ast_hash": "f7da23dd0cc8c0b473ec1d5c5655c8ec",
+    "semantic_hash": ""
+  },
+  "tests/db/test_user_export_pg.py": {
+    "mtime": 1791724082.8431184,
+    "ast_hash": "7fa694ce687396888cac7d65b8e430e7",
+    "semantic_hash": ""
+  },
+  "tests/unit/test_user_export.py": {
+    "mtime": 1791724115.700221,
+    "ast_hash": "2eea1efe7de15877ef2f3f919b50df38",
     "semantic_hash": ""
   }
 }
