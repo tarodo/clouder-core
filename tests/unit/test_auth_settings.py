@@ -86,17 +86,39 @@ def test_resolve_jwt_signing_key_via_env(monkeypatch) -> None:
 def test_resolve_jwt_signing_key_via_ssm(monkeypatch) -> None:
     monkeypatch.delenv("JWT_SIGNING_KEY", raising=False)
     monkeypatch.setenv("JWT_SIGNING_KEY_SSM_PARAMETER", "/clouder/auth/jwt_signing_key")
-
-    fetched = {}
-
-    def fake_fetch(name: str) -> str:
-        fetched["name"] = name
-        return "from-ssm"
-
-    monkeypatch.setattr("collector.secrets._fetch_ssm_parameter", fake_fetch)
+    fetched = []
+    monkeypatch.setattr(
+        "collector.secrets.fetch_ssm_parameter", lambda name: fetched.append(name) or "from-ssm"
+    )
 
     assert mod.resolve_jwt_signing_key() == "from-ssm"
-    assert fetched["name"] == "/clouder/auth/jwt_signing_key"
+    assert mod.resolve_jwt_signing_key() == "from-ssm"
+    assert fetched == ["/clouder/auth/jwt_signing_key"]  # cached within the TTL
+
+
+def test_rotated_key_is_picked_up_after_the_ttl(monkeypatch) -> None:
+    monkeypatch.delenv("JWT_SIGNING_KEY", raising=False)
+    monkeypatch.setenv("JWT_SIGNING_KEY_SSM_PARAMETER", "/clouder/auth/jwt_signing_key")
+    values = iter(["old-key", "new-key"])
+    monkeypatch.setattr("collector.secrets.fetch_ssm_parameter", lambda name: next(values))
+    clock = [1000.0]
+    monkeypatch.setattr(mod.time, "monotonic", lambda: clock[0])
+
+    assert mod.resolve_jwt_signing_key() == "old-key"
+    clock[0] += mod.JWT_KEY_TTL_SECONDS - 1
+    assert mod.resolve_jwt_signing_key() == "old-key"
+    clock[0] += 2
+    assert mod.resolve_jwt_signing_key() == "new-key"
+
+
+def test_env_key_wins_over_a_cached_ssm_key(monkeypatch) -> None:
+    monkeypatch.delenv("JWT_SIGNING_KEY", raising=False)
+    monkeypatch.setenv("JWT_SIGNING_KEY_SSM_PARAMETER", "/clouder/auth/jwt_signing_key")
+    monkeypatch.setattr("collector.secrets.fetch_ssm_parameter", lambda name: "from-ssm")
+    assert mod.resolve_jwt_signing_key() == "from-ssm"
+
+    monkeypatch.setenv("JWT_SIGNING_KEY", "from-env")
+    assert mod.resolve_jwt_signing_key() == "from-env"
 
 
 def test_resolve_oauth_client_credentials_env(monkeypatch) -> None:

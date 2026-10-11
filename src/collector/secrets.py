@@ -2,9 +2,9 @@
 
 Service-level API keys and OAuth client creds live as SSM SecureString
 parameters. The Standard tier is free (up to 10 000 parameters, 4 KB each,
-KMS-encrypted via the AWS-managed key). Fetches are cached per container
-lifetime — rotating a parameter requires a Lambda recycle, same trade-off
-as the previous Secrets Manager-based implementation.
+KMS-encrypted via the AWS-managed key). `_fetch_ssm_parameter` caches for the
+container's life; the JWT signing key uses `fetch_ssm_parameter` with its own
+short TTL so a rotation needs no deploy (collector.auth.auth_settings).
 """
 
 from __future__ import annotations
@@ -18,8 +18,7 @@ def _ssm_client():
     return boto3.client("ssm")
 
 
-@functools.lru_cache(maxsize=64)
-def _fetch_ssm_parameter(name: str) -> str:
+def fetch_ssm_parameter(name: str) -> str:
     response = _ssm_client().get_parameter(Name=name, WithDecryption=True)
     parameter = response.get("Parameter")
     if not isinstance(parameter, dict):
@@ -28,6 +27,11 @@ def _fetch_ssm_parameter(name: str) -> str:
     if not isinstance(value, str) or not value:
         raise RuntimeError(f"ssm parameter is empty or not a string (name={name})")
     return value
+
+
+@functools.lru_cache(maxsize=64)
+def _fetch_ssm_parameter(name: str) -> str:
+    return fetch_ssm_parameter(name)
 
 
 def reset_cache() -> None:
