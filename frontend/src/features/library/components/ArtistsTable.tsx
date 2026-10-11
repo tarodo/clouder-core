@@ -1,7 +1,6 @@
 import {
   Table,
   Anchor,
-  Group,
   Text,
   Center,
   Pagination,
@@ -11,7 +10,6 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { ArtistSummary } from '../../../api/artists';
 import { EmptyState } from '../../../components/EmptyState';
-import { countryFlag } from '../lib/countryFlag';
 import { truncateTagline } from '../lib/formatLabel';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 
@@ -59,10 +57,7 @@ export function ArtistsTable(p: Props) {
                 </Table.Td>
                 <Table.Td>
                   {info?.country ? (
-                    <Group gap={4} wrap="nowrap">
-                      <Text>{countryFlag(info.country)}</Text>
-                      <Text size="sm">{info.country}</Text>
-                    </Group>
+                    <Text size="sm">{info.country}</Text>
                   ) : (
                     <Text size="sm" c="dimmed">
                       —

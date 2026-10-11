@@ -2,7 +2,6 @@ import { Anchor, ActionIcon, Group, Stack, Text } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useArtistInfo } from '../hooks/useArtistInfo';
-import { countryFlag } from '../lib/countryFlag';
 import { ARTIST_CHANNELS } from '../lib/artistChannelMeta';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 
@@ -75,7 +74,7 @@ export function ArtistTile({ artistId, artistName }: Props) {
         <Group gap="xs">
           {info?.country && (
             <Text size="sm">
-              {countryFlag(info.country)} {info.country}
+              {info.country}
             </Text>
           )}
           {info?.active_since != null && (

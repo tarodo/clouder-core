@@ -2,7 +2,6 @@ import { Group, Title, Text, Anchor, Button } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { useBackOrFallback } from '../hooks/useBackOrFallback';
 import type { LabelDetail } from '../../../api/labels';
-import { countryFlag } from '../lib/countryFlag';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 import { useAuth } from '../../../auth/useAuth';
 import { useEnrichLabelAuto } from '../hooks/useEnrichLabelAuto';
@@ -47,7 +46,7 @@ export function LabelDetailHeader({ info, labelId }: Props) {
       <Group gap="xs" mt="xs">
         {country && (
           <Text>
-            {countryFlag(country)} {country}
+            {country}
           </Text>
         )}
         {foundedYear !== null && (

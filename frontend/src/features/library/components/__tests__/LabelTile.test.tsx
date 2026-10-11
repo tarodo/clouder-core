@@ -62,6 +62,8 @@ describe('LabelTile', () => {
     renderTile('abc', 'fallback name');
     await waitFor(() => expect(screen.getByText('Fokuz')).toBeInTheDocument());
     expect(screen.getByText('soulful d&b')).toBeInTheDocument();
+    // Country as a plain ISO code: flag emoji render as letter pairs on Windows anyway.
+    expect(document.body.textContent).not.toMatch(/\p{Regional_Indicator}/u);
   });
 
   it('renders the label name as a link to the top-level label page', async () => {

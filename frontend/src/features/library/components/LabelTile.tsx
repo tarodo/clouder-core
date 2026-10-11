@@ -2,7 +2,6 @@ import { Anchor, ActionIcon, Group, Stack, Text } from '@mantine/core';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useLabelInfo } from '../hooks/useLabelInfo';
-import { countryFlag } from '../lib/countryFlag';
 import { CHANNELS } from '../lib/channelMeta';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 
@@ -73,7 +72,7 @@ export function LabelTile({ labelId, labelName }: Props) {
         <Group gap="xs">
           {info?.country && (
             <Text size="sm">
-              {countryFlag(info.country)} {info.country}
+              {info.country}
             </Text>
           )}
           {info?.founded_year != null && (
