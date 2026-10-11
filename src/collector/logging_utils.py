@@ -40,6 +40,7 @@ ALLOWED_LOG_FIELDS = {
     "completed_phases",
     "failed_after",
     "entity_type",
+    "table_name",
     "relations_total",
     "tracks_total",
     "tracks_processed",

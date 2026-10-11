@@ -210,3 +210,11 @@ jobs:
         if: failure() && steps.snapshot.outcome == 'success'
         working-directory: .
         run: python scripts/api_aliases.py restore "$RUNNER_TEMP/aliases.json"
+
+      # The nightly dbt build (CodeBuild) runs this commit, not whatever main is at 00:30.
+      # Last, after the rollback step: a failure here must not roll back a healthy API.
+      - name: Record the deployed commit for the nightly build
+        working-directory: .
+        run: |
+          aws ssm put-parameter --name /clouder/dbt/git_ref --value "$GITHUB_SHA" \
+            --type String --overwrite >/dev/null

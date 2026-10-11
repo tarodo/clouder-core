@@ -68,3 +68,14 @@ def test_both_applies_read_prod_tfvars_and_nothing_else() -> None:
         run = steps[name]["run"]
         assert "-var-file=prod.tfvars" in run
         assert "-var=" not in run
+
+
+def test_deploy_records_its_commit_after_the_smoke_test() -> None:
+    steps = yaml.safe_load(DEPLOY.read_text())["jobs"]["deploy"]["steps"]
+    names = [s.get("name", "") for s in steps]
+    record = names.index("Record the deployed commit for the nightly build")
+    # After the rollback step: a failure to record must not roll back a healthy API.
+    assert names.index("Smoke test") < names.index("Roll back API aliases") < record
+    run = steps[record]["run"]
+    assert "/clouder/dbt/git_ref" in run and "$GITHUB_SHA" in run
+    assert "if" not in steps[record]  # default success(): a failed smoke never advances it

@@ -63,9 +63,11 @@ Order of steps:
 
 7. **Smoke test** — `scripts/smoke.py` invokes each API Lambda's `live` alias with a request it answers before any I/O and fetches `/auth/login` (302 to Spotify), `/styles` without a token (401) and the site (200). Nothing is written and Aurora is not touched.
 
+8. **Record the deployed commit** — writes `$GITHUB_SHA` to the SSM parameter `/clouder/dbt/git_ref`, which the nightly dbt build checks out. It runs last, after the rollback step, so its own failure never rolls back a healthy API.
+
 ## How a change reaches production
 
-Pull request → 8 required checks (the Terraform plan runs under the read-only role with the deploy's inputs, so it shows what will be applied) → merge → this pipeline: package and build, snapshot of the API aliases, SSM sync, migration Lambda, migrations, full apply, frontend, smoke test. Deploys never overlap.
+Pull request → 8 required checks (the Terraform plan runs under the read-only role with the deploy's inputs, so it shows what will be applied) → merge → this pipeline: package and build, snapshot of the API aliases, SSM sync, migration Lambda, migrations, full apply, frontend, smoke test, record of the commit for the nightly dbt build. Deploys never overlap.
 
 ## Rollback
 

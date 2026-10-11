@@ -99,7 +99,7 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 - An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
 
 **Cloud & infrastructure**
-- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 242 Terraform resource definitions.
+- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 243 Terraform resource definitions.
 - GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
 - A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function plus throttle and 5xx alarms on the API, routed to email through SNS.
 
@@ -178,7 +178,7 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 | Canonical catalog | ~98k canonical tracks (2026-10-07), from 107,795 raw records |
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
-| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 242 Terraform resource definitions |
+| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 243 Terraform resource definitions |
 | API | 106 operations |
 | Delivery | 290+ merged pull requests; every merge to `main` deploys to production. Last 90 days to 2026-10-11, [DORA](https://dora.dev)-style ([`scripts/dora.py`](scripts/dora.py)): 6.1 deploys a week, median lead time 11 min from first commit to production, 1 of 79 deploy runs failed (recovered in 8 min); one green deploy caused a production incident — 2 min 40 s of errors on one route ([postmortem](docs/postmortems/2026-09-20-deploy-before-migration.md)) |
 

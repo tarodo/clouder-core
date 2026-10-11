@@ -160,12 +160,29 @@ data "aws_iam_policy_document" "dbt" {
       "${local.analytics_lake_arn}/athena-results/*",
     ]
   }
+  statement {
+    sid       = "ReadDeployedCommit"
+    actions   = ["ssm:GetParameters"]
+    resources = [aws_ssm_parameter.dbt_git_ref.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "dbt" {
   name   = "${local.name_prefix}-dbt-policy"
   role   = aws_iam_role.dbt.id
   policy = data.aws_iam_policy_document.dbt.json
+}
+
+# The commit the nightly build runs: the last one whose deploy passed the smoke test
+# (the deploy writes it), not whatever main is at 00:30.
+resource "aws_ssm_parameter" "dbt_git_ref" {
+  name  = "/clouder/dbt/git_ref"
+  type  = "String"
+  value = "main" # first night only; the deploy owns the value after that
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "aws_codebuild_project" "dbt" {
@@ -200,7 +217,8 @@ resource "aws_codebuild_project" "dbt" {
     }
     environment_variable {
       name  = "GIT_REF"
-      value = "main"
+      type  = "PARAMETER_STORE"
+      value = aws_ssm_parameter.dbt_git_ref.name
     }
   }
 
@@ -222,7 +240,10 @@ resource "aws_codebuild_project" "dbt" {
           runtime-versions:
             python: 3.12
           commands:
-            - git clone --depth 1 --branch "$GIT_REF" https://github.com/tarodo/clouder-core.git repo
+            - git init -q repo
+            - git -C repo fetch --depth 1 https://github.com/tarodo/clouder-core.git "$GIT_REF"
+            - git -C repo checkout -q FETCH_HEAD
+            - git -C repo log -1 --format='built %h %s' # the parameter value itself is masked in the log
             - pip install -q -r repo/dbt/requirements.txt
         build:
           # One shell for all commands: change directory once.

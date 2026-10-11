@@ -17,17 +17,25 @@ class FakeS3:
 
 
 class FakeDataAPI:
-    """Mimics DataAPIClient.execute with offset paging over canned rows."""
+    """Mimics DataAPIClient.execute for keyset pages: WHERE (keys) > (:k0, …) ORDER BY keys."""
 
     def __init__(self, rows_by_table: dict[str, list[dict]]) -> None:
         self.rows_by_table = rows_by_table
         self.calls: list[tuple[str, dict]] = []
+        self.after_call = None  # hook: (table, n_calls) -> None, to mutate rows mid-export
 
     def execute(self, sql, params=None, transaction_id=None):
         self.calls.append((sql, params))
         table = next(t for t in self.rows_by_table if f"FROM {t} " in sql)
-        off, lim = params["offset"], params["limit"]
-        return self.rows_by_table[table][off : off + lim]
+        keys = next(k for t, _, k in ceh._EXPORTS if t == table)
+        rows = sorted(self.rows_by_table[table], key=lambda r: tuple(r[k] for k in keys))
+        if "WHERE" in sql:
+            after = tuple(params[f"k{i}"] for i in range(len(keys)))
+            rows = [r for r in rows if tuple(r[k] for k in keys) > after]
+        page = rows[: params["limit"]]
+        if self.after_call:
+            self.after_call(table, len(self.calls))
+        return page
 
 
 def _empty_tables(except_for: dict[str, list[dict]]) -> dict[str, list[dict]]:
@@ -113,7 +121,8 @@ def test_ndjson_serializes_dates_via_default_str() -> None:
 
 def test_categories_query_selects_deleted_at() -> None:
     # deleted_at must be exported so dbt can filter soft-deletes (recon gotcha).
-    assert "deleted_at" in dict(ceh._EXPORTS)["categories"]
+    columns = next(c for t, c, _ in ceh._EXPORTS if t == "categories")
+    assert "deleted_at" in columns
 
 
 def test_no_psycopg_or_columnar_imports() -> None:
@@ -137,4 +146,63 @@ def test_exported_tables_match_glue_tbl_enum():
 
     tf = (pathlib.Path(__file__).resolve().parents[2] / "infra" / "analytics_export.tf").read_text()
     enum = re.search(r'"projection\.tbl\.values"\s*=\s*"([^"]+)"', tf).group(1)
-    assert set(enum.split(",")) == {t for t, _ in _EXPORTS}
+    assert set(enum.split(",")) == {t for t, _, _ in _EXPORTS}
+
+
+def test_pages_by_key_never_by_offset() -> None:
+    tracks = [{"id": f"t{i}", "title": f"T{i}"} for i in range(5)]
+    api = FakeDataAPI(_empty_tables({"clouder_tracks": tracks}))
+
+    export_catalog(api, FakeS3(), "lake", "2026-10-11", page=2)
+
+    track_calls = [(sql, p) for sql, p in api.calls if "FROM clouder_tracks " in sql]
+    assert all("OFFSET" not in sql for sql, _ in api.calls)
+    assert "WHERE" not in track_calls[0][0]
+    assert track_calls[1][1] == {"limit": 2, "k0": "t1"}  # last id of page one
+    assert track_calls[2][1] == {"limit": 2, "k0": "t3"}
+
+
+def test_composite_keys_compare_every_key_column() -> None:
+    rows = [
+        {"track_id": "a", "artist_id": "x", "role": "main"},
+        {"track_id": "a", "artist_id": "x", "role": "remixer"},
+        {"track_id": "a", "artist_id": "y", "role": "main"},
+        {"track_id": "b", "artist_id": "x", "role": "main"},
+    ]
+    api = FakeDataAPI(_empty_tables({"clouder_track_artists": rows}))
+
+    counts = export_catalog(api, FakeS3(), "lake", "2026-10-11", page=1)
+
+    assert counts["clouder_track_artists"] == 4
+    sql = next(s for s, p in api.calls if "FROM clouder_track_artists " in s and "WHERE" in s)
+    assert "(track_id, artist_id, role) > (:k0, :k1, :k2)" in sql
+    assert "ORDER BY track_id, artist_id, role" in sql
+
+
+def test_rows_deleted_mid_export_are_not_skipped() -> None:
+    # OFFSET paging skips a row when an earlier one is deleted between pages.
+    tracks = [{"id": f"t{i}"} for i in range(6)]
+    api = FakeDataAPI(_empty_tables({"clouder_tracks": tracks}))
+
+    def delete_first_after_page_one(table, n_calls):
+        if table == "clouder_tracks" and n_calls == 1:
+            api.rows_by_table["clouder_tracks"].pop(0)  # t0, already exported
+
+    api.after_call = delete_first_after_page_one
+    s3 = FakeS3()
+
+    export_catalog(api, s3, "lake", "2026-10-11", page=2)
+
+    exported = [
+        json.loads(line)["id"]
+        for key in sorted(k for k in s3.objects if "clouder_tracks" in k)
+        for line in s3.objects[key].decode().splitlines()
+    ]
+    assert exported == ["t0", "t1", "t2", "t3", "t4", "t5"]
+
+
+def test_table_timing_survives_the_log_allow_list() -> None:
+    import collector.logging_utils as lu
+
+    for field in ("table_name", "total_count", "api_pages_fetched", "duration_ms"):
+        assert field in lu.ALLOWED_LOG_FIELDS, field

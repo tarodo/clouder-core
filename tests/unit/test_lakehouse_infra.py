@@ -80,3 +80,26 @@ def test_catalog_export_has_room_to_finish() -> None:
     tf = (INFRA / "analytics_export.tf").read_text()
     fn = tf[tf.index('resource "aws_lambda_function" "catalog_export"') :]
     assert re.search(r"timeout\s*=\s*900\b", fn[: fn.index("environment")])
+
+
+def test_nightly_build_runs_the_deployed_commit() -> None:
+    tf = (INFRA / "lakehouse.tf").read_text()
+    param = tf[tf.index('resource "aws_ssm_parameter" "dbt_git_ref"') :]
+    param = param[: param.index("\n}\n")]
+    assert re.search(r'name\s*=\s*"/clouder/dbt/git_ref"', param)
+    assert "ignore_changes = [value]" in param  # the deploy owns the value
+    env = tf[tf.index('name  = "GIT_REF"') :]
+    env = env[: env.index("}")]
+    assert re.search(r'type\s*=\s*"PARAMETER_STORE"', env)
+    assert "aws_ssm_parameter.dbt_git_ref.name" in env
+    spec = tf[tf.index("buildspec = <<-YAML") :]
+    # A SHA cannot be cloned with --branch; fetch accepts a SHA or a branch.
+    assert (
+        'git -C repo fetch --depth 1 https://github.com/tarodo/clouder-core.git "$GIT_REF"' in spec
+    )
+    assert "--branch" not in spec
+    # CodeBuild masks parameter-store values in its log; the short SHA is not masked.
+    assert "git -C repo log -1" in spec
+    assert re.search(
+        r'"ssm:GetParameters"\]\s*\n\s*resources\s*=\s*\[aws_ssm_parameter\.dbt_git_ref\.arn\]', tf
+    )

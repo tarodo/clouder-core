@@ -206,8 +206,8 @@ resource "aws_iam_role_policy" "catalog_export" {
   policy = data.aws_iam_policy_document.catalog_export.json
 }
 
-# ponytail: 300 s ran out at ~310k rows (2026-10-09; time grows with rows, ~0.8 s per 500-row
-# clouder_tracks page). 900 s is the Lambda maximum; past it, export the tables in parallel.
+# 300 s ran out at ~310k rows with OFFSET paging (2026-10-09); the export now pages by key
+# (catalog_export_handler.py). 900 s is the Lambda maximum; past it, export the tables in parallel.
 resource "aws_lambda_function" "catalog_export" {
   function_name    = local.catalog_export_lambda_name
   role             = aws_iam_role.catalog_export.arn
