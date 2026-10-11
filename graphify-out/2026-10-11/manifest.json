@@ -5185,8 +5185,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1791656930.9151392,
-    "ast_hash": "b2601f53d26d4a594c69b7d13d907461",
+    "mtime": 1791688760.125665,
+    "ast_hash": "fbb52b94147e0016dd65239c2566efff",
     "semantic_hash": ""
   },
   "README.md": {
@@ -5640,8 +5640,8 @@
     "semantic_hash": ""
   },
   "docs/backend/gotchas.md": {
-    "mtime": 1791685350.1046443,
-    "ast_hash": "2172c63a8de125f72546f7fc6ed977a5",
+    "mtime": 1791688760.1266146,
+    "ast_hash": "f09dcdb2c90731074927775dce6ef293",
     "semantic_hash": ""
   },
   "docs/backend/handlers.md": {
@@ -5800,13 +5800,13 @@
     "semantic_hash": ""
   },
   "docs/ops/logs.md": {
-    "mtime": 1791685350.1139488,
-    "ast_hash": "7a4b03a45b3e6caa6dbb59162ef494f1",
+    "mtime": 1791688760.1290684,
+    "ast_hash": "7aca28f998a20fdff1903ce7fe9491f2",
     "semantic_hash": ""
   },
   "docs/ops/runbook.md": {
-    "mtime": 1791685350.1141455,
-    "ast_hash": "f7558d649820217c6b55b9c6ca4c169b",
+    "mtime": 1791688760.130123,
+    "ast_hash": "2c88735ce8089d5bc01a87f67e3a35be",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-06-08-triage-finalize-dispatch-phase1-inline-optimization.md": {
@@ -6850,8 +6850,8 @@
     "semantic_hash": ""
   },
   "docs/data/data-quality.md": {
-    "mtime": 1791685350.1072388,
-    "ast_hash": "cbb280beb06660ef63a3351d19cbc58b",
+    "mtime": 1791688760.1286945,
+    "ast_hash": "274d5dc914389426c4227b94fb2b15ba",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-data-quality-checks.md": {
@@ -7035,8 +7035,8 @@
     "semantic_hash": ""
   },
   "docs/data/lakehouse.md": {
-    "mtime": 1791685350.1077392,
-    "ast_hash": "2834699ad6b4768b494b594bd64e312f",
+    "mtime": 1791688760.1281693,
+    "ast_hash": "5f55c91cebf746ac653a976a76b40577",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-lakehouse-dbt.md": {
@@ -7515,8 +7515,8 @@
     "semantic_hash": ""
   },
   "docs/ops/failure-modes.md": {
-    "mtime": 1791687251.522019,
-    "ast_hash": "09cc84b6bbaf4bf41348979f0aed3b33",
+    "mtime": 1791688760.1296573,
+    "ast_hash": "e4ce2b09dc400f1e5f74f3929f35a683",
     "semantic_hash": ""
   },
   "docs/postmortems/2026-04-15-identity-lookup-outside-transaction.md": {

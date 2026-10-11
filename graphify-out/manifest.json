@@ -5185,8 +5185,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1791688760.125665,
-    "ast_hash": "fbb52b94147e0016dd65239c2566efff",
+    "mtime": 1791689522.6233833,
+    "ast_hash": "5e8ae92fbf3c5ce21fe8ec1ca6b4b2fe",
     "semantic_hash": ""
   },
   "README.md": {
@@ -5640,13 +5640,13 @@
     "semantic_hash": ""
   },
   "docs/backend/gotchas.md": {
-    "mtime": 1791688760.1266146,
-    "ast_hash": "f09dcdb2c90731074927775dce6ef293",
+    "mtime": 1791689522.624009,
+    "ast_hash": "660244cd2fa955ee0887a7b9c2e11e82",
     "semantic_hash": ""
   },
   "docs/backend/handlers.md": {
-    "mtime": 1791685350.104976,
-    "ast_hash": "4fc2d87da16fc379994a2c3ea37e317b",
+    "mtime": 1791689522.624808,
+    "ast_hash": "9b27ab2fcb4bb3384b767ef8acec4235",
     "semantic_hash": ""
   },
   "docs/backend/providers.md": {
@@ -5805,8 +5805,8 @@
     "semantic_hash": ""
   },
   "docs/ops/runbook.md": {
-    "mtime": 1791688760.130123,
-    "ast_hash": "2c88735ce8089d5bc01a87f67e3a35be",
+    "mtime": 1791689522.6221192,
+    "ast_hash": "fe9bafd77f45ad8ada133490bc69f065",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-06-08-triage-finalize-dispatch-phase1-inline-optimization.md": {
@@ -6000,8 +6000,8 @@
     "semantic_hash": ""
   },
   "infra/analytics_export.tf": {
-    "mtime": 1791656931.6207647,
-    "ast_hash": "65603f1b7c3c5e71e4fa39ec42291ba1",
+    "mtime": 1791689548.3522727,
+    "ast_hash": "dcf328c5f1896f63b3c2eec9ffb8e7bc",
     "semantic_hash": ""
   },
   "infra/analytics_routes.tf": {
@@ -6850,8 +6850,8 @@
     "semantic_hash": ""
   },
   "docs/data/data-quality.md": {
-    "mtime": 1791688760.1286945,
-    "ast_hash": "274d5dc914389426c4227b94fb2b15ba",
+    "mtime": 1791689522.6229708,
+    "ast_hash": "001eacc31efbb6407931d948afb65302",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-data-quality-checks.md": {
@@ -7005,8 +7005,8 @@
     "semantic_hash": ""
   },
   "dbt/models/sources.yml": {
-    "mtime": 1791688560.1057875,
-    "ast_hash": "cf98292fc913832ca734e72268d4ccf3",
+    "mtime": 1791689522.617902,
+    "ast_hash": "4969739dbe6bdd2b81510689f6823e30",
     "semantic_hash": ""
   },
   "dbt/models/staging/_staging.yml": {
@@ -7035,8 +7035,8 @@
     "semantic_hash": ""
   },
   "docs/data/lakehouse.md": {
-    "mtime": 1791688760.1281693,
-    "ast_hash": "5f55c91cebf746ac653a976a76b40577",
+    "mtime": 1791689522.6226928,
+    "ast_hash": "ed82eb1463a49251de59a786c4e2c5be",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-07-lakehouse-dbt.md": {
@@ -7050,8 +7050,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_lakehouse_infra.py": {
-    "mtime": 1791688545.359961,
-    "ast_hash": "3cdd238be5deeeea72d56a615c7f434a",
+    "mtime": 1791689483.811211,
+    "ast_hash": "6d79314d3a45b4ed416e2d37607943bf",
     "semantic_hash": ""
   },
   "infra/data_contracts.tf": {
@@ -7250,8 +7250,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_docs_freshness.py": {
-    "mtime": 1791685333.651392,
-    "ast_hash": "2894bbf17007008d8cb4b9fc75ab9a3c",
+    "mtime": 1791689483.8198545,
+    "ast_hash": "c615de04770feede2df6d145cf600cca",
     "semantic_hash": ""
   },
   "tests/unit/test_docs_links.py": {
@@ -7370,8 +7370,8 @@
     "semantic_hash": ""
   },
   "infra/dashboard.tf": {
-    "mtime": 1791688679.4107757,
-    "ast_hash": "af48879ae5e376d6713889ebe7bc1621",
+    "mtime": 1791689522.6193674,
+    "ast_hash": "ba86db2d07dde29c9b38d1afd56728d1",
     "semantic_hash": ""
   },
   "scripts/dashboard_snapshots.py": {
@@ -7455,8 +7455,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_dashboard_infra.py": {
-    "mtime": 1791688668.6576493,
-    "ast_hash": "62e8ce834304f7f38d2ccfdd355490aa",
+    "mtime": 1791689483.8158052,
+    "ast_hash": "5995dca68efa6371496491b1dbcd1456",
     "semantic_hash": ""
   },
   "tests/unit/test_dashboard_snapshots.py": {
@@ -7515,8 +7515,8 @@
     "semantic_hash": ""
   },
   "docs/ops/failure-modes.md": {
-    "mtime": 1791688760.1296573,
-    "ast_hash": "e4ce2b09dc400f1e5f74f3929f35a683",
+    "mtime": 1791689522.6222844,
+    "ast_hash": "e2825c3212f7f21e26fbae76169f6a45",
     "semantic_hash": ""
   },
   "docs/postmortems/2026-04-15-identity-lookup-outside-transaction.md": {
