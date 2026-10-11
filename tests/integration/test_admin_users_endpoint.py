@@ -49,7 +49,7 @@ def test_users_requires_admin():
 
 def test_users_db_not_configured_503(monkeypatch):
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: None
+        "collector.api.deps.create_clouder_repository_from_env", lambda: None
     )
     response = handler.lambda_handler(_event(), _ctx())
     assert response["statusCode"] == 503
@@ -68,7 +68,7 @@ def test_users_returns_list(monkeypatch):
             return rows
 
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env",
+        "collector.api.deps.create_clouder_repository_from_env",
         lambda: FakeRepo(),
     )
     response = handler.lambda_handler(_event(), _ctx())

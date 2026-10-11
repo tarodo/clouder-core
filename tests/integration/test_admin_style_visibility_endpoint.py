@@ -54,7 +54,7 @@ class FakeRepo:
 def repo(monkeypatch):
     fake = FakeRepo()
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: fake
+        "collector.api.deps.create_clouder_repository_from_env", lambda: fake
     )
     return fake
 
@@ -90,7 +90,7 @@ def test_rejects_invalid_body(repo, body):
 
 def test_unknown_style_404(monkeypatch):
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env",
+        "collector.api.deps.create_clouder_repository_from_env",
         lambda: FakeRepo(found=False),
     )
     response = handler.lambda_handler(_event({"is_hidden": True}), _ctx())
@@ -100,7 +100,7 @@ def test_unknown_style_404(monkeypatch):
 
 def test_db_not_configured_503(monkeypatch):
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: None
+        "collector.api.deps.create_clouder_repository_from_env", lambda: None
     )
     response = handler.lambda_handler(_event({"is_hidden": True}), _ctx())
     assert response["statusCode"] == 503

@@ -55,7 +55,7 @@ class FakeRepo:
 
 def test_funnel_non_admin_reads_own(monkeypatch):
     repo = FakeRepo([])
-    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: repo)
     response = handler.lambda_handler(_event(is_admin=False), _ctx())
     assert response["statusCode"] == 200
     assert repo.calls[0][0] == "me"
@@ -63,7 +63,7 @@ def test_funnel_non_admin_reads_own(monkeypatch):
 
 def test_funnel_non_admin_cannot_read_another_user(monkeypatch):
     repo = FakeRepo([])
-    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: repo)
     response = handler.lambda_handler(_event(is_admin=False, qs={"user_id": "other"}), _ctx())
     assert response["statusCode"] == 403
     assert repo.calls == []
@@ -71,7 +71,7 @@ def test_funnel_non_admin_cannot_read_another_user(monkeypatch):
 
 def test_funnel_admin_reads_any_user(monkeypatch):
     repo = FakeRepo([])
-    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: repo)
     response = handler.lambda_handler(_event(qs={"user_id": "other"}), _ctx())
     assert response["statusCode"] == 200
     assert repo.calls[0][0] == "other"
@@ -79,7 +79,7 @@ def test_funnel_admin_reads_any_user(monkeypatch):
 
 def test_funnel_rejects_bad_offset(monkeypatch):
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: FakeRepo([])
+        "collector.api.deps.create_clouder_repository_from_env", lambda: FakeRepo([])
     )
     response = handler.lambda_handler(_event(qs={"tz_offset_min": "abc"}), _ctx())
     assert response["statusCode"] == 400
@@ -90,9 +90,9 @@ def test_funnel_returns_ordered_zero_filled_stages(monkeypatch):
         {"stage": "playlisted", "day": 0, "week": 2, "month": 10},
         {"stage": "triaged", "day": 120, "week": 500, "month": 1000},
     ])
-    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr(
-        "collector.handler.utc_now",
+        "collector.api.deps.utc_now",
         lambda: datetime(2026, 10, 5, 22, 30, tzinfo=UTC),
     )
     response = handler.lambda_handler(_event(qs={"tz_offset_min": "180"}), _ctx())

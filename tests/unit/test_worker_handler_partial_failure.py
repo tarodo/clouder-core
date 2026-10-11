@@ -140,7 +140,7 @@ def test_message_truncated_but_phase_preserved(sqs_event, monkeypatch):
 
 
 def test_phase_prefix_stripped_from_api_response():
-    from collector.handler import _split_phase_prefix
+    from collector.api.routes_runs import _split_phase_prefix
 
     phase, msg = _split_phase_prefix("[phase=normalize] boom")
     assert phase == "normalize"
@@ -148,7 +148,7 @@ def test_phase_prefix_stripped_from_api_response():
 
 
 def test_no_phase_prefix_returns_none():
-    from collector.handler import _split_phase_prefix
+    from collector.api.routes_runs import _split_phase_prefix
 
     phase, msg = _split_phase_prefix("boom")
     assert phase is None
@@ -156,7 +156,7 @@ def test_no_phase_prefix_returns_none():
 
 
 def test_empty_message_returns_none():
-    from collector.handler import _split_phase_prefix
+    from collector.api.routes_runs import _split_phase_prefix
 
     phase, msg = _split_phase_prefix(None)
     assert phase is None

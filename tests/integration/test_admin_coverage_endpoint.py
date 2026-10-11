@@ -58,7 +58,7 @@ def test_coverage_missing_week_year_400():
 
 def test_coverage_db_not_configured_503(monkeypatch):
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: None
+        "collector.api.deps.create_clouder_repository_from_env", lambda: None
     )
     response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
     assert response["statusCode"] == 503
@@ -121,7 +121,7 @@ def test_coverage_returns_grouped_styles(monkeypatch):
             return []
 
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env",
+        "collector.api.deps.create_clouder_repository_from_env",
         lambda: FakeRepo(),
     )
     response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
@@ -170,7 +170,7 @@ def test_coverage_keeps_hidden_styles_flagged(monkeypatch):
             return []
 
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: FakeRepo()
+        "collector.api.deps.create_clouder_repository_from_env", lambda: FakeRepo()
     )
     response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
     assert response["statusCode"] == 200
@@ -243,7 +243,7 @@ def test_coverage_merges_spotify_weeks(monkeypatch):
             return stats_rows
 
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: FakeRepo()
+        "collector.api.deps.create_clouder_repository_from_env", lambda: FakeRepo()
     )
     response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
     assert response["statusCode"] == 200

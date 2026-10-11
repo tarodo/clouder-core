@@ -72,8 +72,8 @@ class FakeSqs:
 
 
 def _call(monkeypatch, repo, sqs, **kwargs):
-    monkeypatch.setattr("collector.handler.create_clouder_repository_from_env", lambda: repo)
-    monkeypatch.setattr("collector.handler.create_default_sqs_client", lambda: sqs)
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr("collector.api.deps.create_default_sqs_client", lambda: sqs)
     response = handler.lambda_handler(_event(**kwargs), _ctx())
     return response["statusCode"], json.loads(response["body"])
 

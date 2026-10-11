@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from collector import handler
+from collector.api import routes_ingest
 from collector.models import ProcessingOutcome, ProcessingStatus
 from collector.providers import registry
 from collector.settings import reset_settings_cache
@@ -77,7 +78,7 @@ def _stub_pipeline(monkeypatch):
     """Patch out the side-effecting parts of `_run_beatport_ingest`."""
     fake_repo = MagicMock()
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env",
+        "collector.api.deps.create_clouder_repository_from_env",
         lambda: fake_repo,
     )
 
@@ -88,31 +89,31 @@ def _stub_pipeline(monkeypatch):
         def write_run_artifacts(self, releases, meta):
             return ("s3-key", None)
 
-    monkeypatch.setattr("collector.handler.S3Storage", FakeS3Storage)
+    monkeypatch.setattr("collector.api.deps.S3Storage", FakeS3Storage)
     monkeypatch.setattr(
-        "collector.handler.create_default_s3_client", lambda: MagicMock()
+        "collector.api.deps.create_default_s3_client", lambda: MagicMock()
     )
 
     fake_client = MagicMock()
     fake_client.fetch_weekly_releases.return_value = ([], 1)
     monkeypatch.setattr(
-        "collector.handler.registry.get_ingest",
+        "collector.api.deps.registry.get_ingest",
         lambda name: fake_client,
     )
 
-    enqueue_stub = handler.EnqueueResult(
+    enqueue_stub = routes_ingest.EnqueueResult(
         processing_status=ProcessingStatus.QUEUED,
         processing_outcome=ProcessingOutcome.ENQUEUED,
         processing_reason=None,
     )
     monkeypatch.setattr(
-        "collector.handler._enqueue_canonicalization",
+        "collector.api.routes_ingest._enqueue_canonicalization",
         lambda **kw: enqueue_stub,
     )
 
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
-    monkeypatch.setattr("collector.handler.read_beatport_credentials", lambda: ("user", "pass"))
-    monkeypatch.setattr("collector.handler.fetch_access_token", lambda username, password: "srv-tok")
+    monkeypatch.setattr("collector.api.deps.read_beatport_credentials", lambda: ("user", "pass"))
+    monkeypatch.setattr("collector.api.deps.fetch_access_token", lambda username, password: "srv-tok")
 
     return fake_repo, fake_client
 
@@ -177,12 +178,12 @@ def test_admin_ingest_happy_path_with_override(monkeypatch):
 
 def test_collect_period_marks_auto_runs(monkeypatch):
     fake_repo, fake_client = _stub_pipeline(monkeypatch)
-    params = handler.IngestParams(
+    params = routes_ingest.IngestParams(
         style_id=7, bp_token="tok", period_start="2026-01-31", period_end="2026-02-06",
         iso_year=None, iso_week=None, week_year=2026, week_number=5, is_custom_range=False,
     )
 
-    result = handler.collect_period(
+    result = routes_ingest.collect_period(
         params, "corr-1", api_request_id="auto-ingest", lambda_request_id="lr-2", trigger="auto"
     )
 
@@ -206,7 +207,7 @@ def test_admin_ingest_logs_in_server_side(monkeypatch):
     # credentials auto-ingest uses, and the token goes only to the fetch.
     _, fake_client = _stub_pipeline(monkeypatch)
     logins = []
-    monkeypatch.setattr("collector.handler.fetch_access_token",
+    monkeypatch.setattr("collector.api.deps.fetch_access_token",
                         lambda username, password: logins.append((username, password)) or "srv-tok")
 
     response = handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
@@ -231,7 +232,7 @@ def test_admin_ingest_reports_missing_credentials(monkeypatch):
     def missing():
         raise KeyError("BEATPORT_USERNAME_SSM_PARAMETER")
 
-    monkeypatch.setattr("collector.handler.read_beatport_credentials", missing)
+    monkeypatch.setattr("collector.api.deps.read_beatport_credentials", missing)
 
     response = handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
 
@@ -248,7 +249,7 @@ def test_admin_ingest_reports_a_rejected_login(monkeypatch):
     def rejected(username, password):
         raise BeatportAuthError("login", 401)
 
-    monkeypatch.setattr("collector.handler.fetch_access_token", rejected)
+    monkeypatch.setattr("collector.api.deps.fetch_access_token", rejected)
 
     response = handler.lambda_handler(_event({"style_id": 7, "week_year": 2026, "week_number": 5}), _ctx())
 
@@ -260,7 +261,7 @@ def test_admin_ingest_reports_a_rejected_login(monkeypatch):
 
 def test_invalid_request_is_rejected_before_logging_in(monkeypatch):
     _stub_pipeline(monkeypatch)
-    monkeypatch.setattr("collector.handler.fetch_access_token",
+    monkeypatch.setattr("collector.api.deps.fetch_access_token",
                         lambda username, password: pytest.fail("logged in for an invalid request"))
     response = handler.lambda_handler(
         _event({"style_id": 7, "week_year": 2026, "week_number": 5, "period_start": "2026-01-31"}), _ctx()

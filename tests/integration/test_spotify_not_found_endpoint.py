@@ -70,7 +70,7 @@ class FakeRepo:
 def _install(monkeypatch):
     repo = FakeRepo()
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: repo
+        "collector.api.deps.create_clouder_repository_from_env", lambda: repo
     )
     return repo
 

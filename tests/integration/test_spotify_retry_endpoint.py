@@ -72,10 +72,10 @@ class FakeSqs:
 
 def _install(monkeypatch, repo, sqs):
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: repo
+        "collector.api.deps.create_clouder_repository_from_env", lambda: repo
     )
     monkeypatch.setattr(
-        "collector.handler.create_default_sqs_client", lambda: sqs
+        "collector.api.deps.create_default_sqs_client", lambda: sqs
     )
 
 
@@ -145,7 +145,7 @@ def test_retry_validation_400(monkeypatch, body):
 
 def test_retry_db_not_configured_503(monkeypatch):
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: None
+        "collector.api.deps.create_clouder_repository_from_env", lambda: None
     )
     response = handler.lambda_handler(_event(BODY), _ctx())
     assert response["statusCode"] == 503

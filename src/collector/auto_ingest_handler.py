@@ -99,7 +99,7 @@ def run(
         log_event("INFO", "auto_ingest_run_skipped", reason="busy")
         return {"skipped": "busy"}
     if collect is None:
-        from .handler import collect_period
+        from .api.routes_ingest import collect_period
 
         collect = collect_period
     correlation_id = f"auto-ingest-{uuid.uuid4()}"
@@ -121,7 +121,7 @@ def run(
                       phase=step, status_code=status, error_type=type(exc).__name__)
             return summary
 
-        from .handler import IngestParams
+        from .api.routes_ingest import IngestParams
 
         state = repo.planning_state(now)
         due = due_week(now.date())

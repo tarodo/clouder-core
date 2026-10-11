@@ -8,6 +8,7 @@ from datetime import date, timedelta
 import pytest
 
 from collector import handler
+from collector.api import deps
 
 VALID = {
     "enabled": True, "mode": "random", "fixed_times": ["09:00", "21:00"], "runs_per_day": 3,
@@ -53,8 +54,8 @@ class FakeRepo:
 def wiring(monkeypatch):
     repo = FakeRepo()
     invoked: list = []
-    monkeypatch.setattr(handler, "_auto_ingest_repository", lambda: repo)
-    monkeypatch.setattr(handler, "_invoke_auto_ingest", lambda payload: invoked.append(payload))
+    monkeypatch.setattr(deps, "_auto_ingest_repository", lambda: repo)
+    monkeypatch.setattr(deps, "_invoke_auto_ingest", lambda payload: invoked.append(payload))
     return repo, invoked
 
 

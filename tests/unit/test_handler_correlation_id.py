@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 from collector import handler
+from collector.api import deps
 from collector.errors import UpstreamAuthError
 from collector.providers import registry
 from collector.settings import reset_settings_cache
@@ -28,8 +29,8 @@ def reset_caches(monkeypatch):
     # Enough config to get past _load_api_settings and reach the upstream call,
     # so the test exercises the real 403 path seen in production.
     monkeypatch.setenv("RAW_BUCKET_NAME", "test-bucket")
-    monkeypatch.setattr(handler, "read_beatport_credentials", lambda: ("user", "pass"))
-    monkeypatch.setattr(handler, "fetch_access_token", lambda username, password: "tok")
+    monkeypatch.setattr(deps, "read_beatport_credentials", lambda: ("user", "pass"))
+    monkeypatch.setattr(deps, "fetch_access_token", lambda username, password: "tok")
     yield
     reset_settings_cache()
     registry.reset_cache()

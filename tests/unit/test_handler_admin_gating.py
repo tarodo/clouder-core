@@ -85,7 +85,7 @@ def test_list_tracks_does_not_require_admin(monkeypatch) -> None:
             return 0
 
     monkeypatch.setattr(
-        "collector.handler.create_clouder_repository_from_env", lambda: FakeRepo()
+        "collector.api.deps.create_clouder_repository_from_env", lambda: FakeRepo()
     )
 
     event = {
