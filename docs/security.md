@@ -64,7 +64,7 @@ GitHub Actions ──OIDC──▶ AWS (Terraform, Lambda code, SSM)
 
 ## Known gaps
 
-- **The deploy role has AdministratorAccess.** Only the `production` environment can assume it, so a compromised `main` controls the whole account. The fix is a scoped Terraform role; it is deferred because the Terraform surface changes often and branch protection guards the path.
+- **The deploy role has AdministratorAccess until the owner applies its scoped policy.** Only the `production` environment can assume it. The replacement — [`infra/bootstrap/deploy-role-policy.json`](../infra/bootstrap/deploy-role-policy.json): 23 services Terraform manages plus IAM writes only on `clouder-prod-*`, no managed policy but `ReadOnlyAccess` attachable, the role unable to change itself — is checked by a test against the Terraform code and by the IAM policy simulator; it still leaves inline policies on project roles unbounded (a permissions boundary is the next step).
 - **Minimum TLS is CloudFront's default for `*.cloudfront.net` (TLSv1).** Browsers negotiate TLS 1.2+ anyway; enforcing it needs a custom domain with an ACM certificate.
 - **CSP is report-only.** Enforcing needs an inventory of what the Spotify Web Playback SDK loads.
 - **No WAF.** Throttling and authorizer checks cover the current scale; a WAF is worth it once sign-up is open.
