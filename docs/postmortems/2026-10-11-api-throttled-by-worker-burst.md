@@ -23,7 +23,7 @@ One shared pool of 10 executions and no budget for it. The enricher caps (8 + 8)
 ## Fix
 
 - Every SQS event source mapping has a `maximum_concurrency` cap with validation; `tests/unit/test_concurrency_infra.py` fails on a mapping without one and on caps that, with 20 executions for the API and scheduled jobs, exceed the quota.
-- The quota increase to 100 is requested in Terraform (`infra/concurrency.tf`), so the budget and the quota live next to each other. Until AWS approves it the account still has 10, so the label and artist enricher caps are lowered from 8 to 2 in `infra/prod.tfvars`: a finalize's fan-out (dispatch, comments, label, artist) then needs 8 of the 10.
+- The quota increase to 100 is requested through AWS Support; `infra/concurrency.tf` holds the value the worker budget is planned for. Asking Terraform for it failed the first deploy of the fix: the Service Quotas API refuses values below the AWS default of 1000, and this account was lowered to 10. Until AWS approves it the account still has 10, so the label and artist enricher caps are lowered from 8 to 2 in `infra/prod.tfvars`: a finalize's fan-out (dispatch, comments, label, artist) then needs 8 of the 10.
 - Alarms on throttles of the six API functions, on API Gateway 5xx (5 in 5 minutes) and on account concurrency at 80 % of the quota the account has now (read from Service Quotas, not the requested value), all to the owner's email.
 
 ## Detection gap

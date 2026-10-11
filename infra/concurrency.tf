@@ -1,31 +1,21 @@
 # ── Lambda concurrency: the account quota and who may use it ──
 # A new account gets 10 concurrent executions, shared by every function. On 2026-10-11
 # a triage finalize fanned out into ~240 enrichment jobs that took all 10, and the API
-# answered 5xx (docs/postmortems/2026-10-11-api-throttled-by-worker-burst.md). The
-# quota is requested here; every SQS worker is capped (lambda.tf) and a test keeps the
-# caps plus room for the API under it (tests/unit/test_concurrency_infra.py).
+# answered 5xx (docs/postmortems/2026-10-11-api-throttled-by-worker-burst.md). Every SQS
+# worker is capped (lambda.tf), and a test keeps the caps plus room for the API under the
+# quota this account is planned for (tests/unit/test_concurrency_infra.py).
+#
+# The increase is not requested here: the Service Quotas API refuses values below the
+# AWS default (1000), and this account was lowered to 10 — a request for 100 failed the
+# 2026-10-11 deploy. It goes through an AWS Support case (docs/ops/runbook.md).
 locals {
-  lambda_concurrency_quota = 100
+  lambda_concurrency_quota = 100 # requested through AWS Support; the account has 10 until approved
 }
 
-# Creating it files one increase request when the account is below the value. After that
-# Terraform leaves it alone: an approval above the value would otherwise plan a decrease
-# on every deploy, and a denial would file a new request each time. To ask for more,
-# change the local and apply with -replace. Destroying it changes nothing in AWS.
-resource "aws_servicequotas_service_quota" "lambda_concurrency" {
-  service_code = "lambda"
-  quota_code   = "L-B99A9384" # Concurrent executions
-  value        = local.lambda_concurrency_quota
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}
-
-# The quota the account has now (10 until the request is approved), not the requested one.
+# The quota the account has now, which the alarm below scales with.
 data "aws_servicequotas_service_quota" "lambda_concurrency" {
   service_code = "lambda"
-  quota_code   = "L-B99A9384"
+  quota_code   = "L-B99A9384" # Concurrent executions
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_account_concurrency" {

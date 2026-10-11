@@ -168,7 +168,7 @@ Controlled by `var.enable_lambda_reserved_concurrency` in `infra/variables.tf` (
 
 **Fix**
 
-1. The quota is requested in Terraform (`infra/concurrency.tf`, `local.lambda_concurrency_quota`; 35 or more covers the 10 unreserved floor + 25 reserved). Check that the request was approved:
+1. Request the quota through an AWS Support case ([API 5xx or Lambda throttles](#api-5xx-or-lambda-throttles); 35 or more covers the 10 unreserved floor + 25 reserved). Check that it was approved:
    `aws service-quotas get-service-quota --service-code lambda --quota-code L-B99A9384 --query 'Quota.Value'`
 
 2. After the quota is approved, set the Terraform variable:
@@ -268,10 +268,8 @@ Alarm `clouder-prod-api-5xx` (5 or more 5xx in 5 minutes), `clouder-prod-<api fu
 Most likely background workers filled the account's concurrency pool, which every function shares. A triage block finalize fans out into enrichment and comment jobs, one per track; each SQS worker is capped (`*_max_concurrency` in `infra/variables.tf`), and the caps plus room for the API must fit the quota (`infra/concurrency.tf`, checked by `tests/unit/test_concurrency_infra.py`). See the [2026-10-11 postmortem](../postmortems/2026-10-11-api-throttled-by-worker-burst.md).
 
 ```bash
-# The quota now, and the state of the increase request
+# The quota the account has now (10 until the AWS Support case is approved)
 aws service-quotas get-service-quota --service-code lambda --quota-code L-B99A9384 --query 'Quota.Value'
-aws service-quotas list-requested-service-quota-change-history-by-quota \
-  --service-code lambda --quota-code L-B99A9384 --query 'RequestedQuotas[].[DesiredValue,Status,Created]'
 # Who was throttled, and when
 aws cloudwatch get-metric-statistics --namespace AWS/Lambda --metric-name Throttles \
   --dimensions Name=FunctionName,Value=clouder-prod-collector-api \
@@ -284,11 +282,11 @@ A single 503 right after a quiet period is the Aurora resume ([Cold-start 503](#
 
 Lower the busy worker's cap (`*_max_concurrency` in `infra/prod.tfvars`) and deploy; in an emergency, pause its trigger with `aws lambda update-event-source-mapping --uuid <uuid> --no-enabled` (the next deploy turns it back on). Queued jobs wait in SQS; nothing is lost.
 
-Terraform files the quota request once and then ignores the value (`lifecycle { ignore_changes = [value] }`), so a denial or a different approval never turns a deploy red. Keep `lambda_concurrency_quota` in `infra/concurrency.tf` equal to what the account really has:
+The account was lowered to 10 below the AWS default of 1000, and the Service Quotas API refuses any value below that default (the 2026-10-11 deploy failed asking it for 100), so the increase is a support case: AWS Support Center → Create case → Service limit increase → Lambda → Concurrent executions, us-east-1, new value 100, with the reason (an API sharing the pool with SQS workers; the postmortem). `lambda_concurrency_quota` in `infra/concurrency.tf` is the value the worker budget is planned for; the account-concurrency alarm follows the real quota on its own. When the case is answered:
 
 - **Approved:** remove the interim `label_enrichment_worker_max_concurrency` / `artist_enrichment_worker_max_concurrency` lines from `infra/prod.tfvars` (defaults: 8) and deploy. If AWS granted more than requested, set the local to the granted value.
 - **Approved lower, 34 or more:** set the local to the approved value and lower worker caps until `test_worker_caps_leave_room_for_the_api` passes.
-- **Denied, or below 34:** the seven workers need at least 14 executions (2 each) plus 20 for the API, so the budget cannot fit. Keep the interim caps, re-file with a justification (or a support case), and lower `API_HEADROOM` in the test only as a deliberate, documented decision. To ask again from Terraform, apply with `-replace=aws_servicequotas_service_quota.lambda_concurrency`.
+- **Denied, or below 34:** the seven workers need at least 14 executions (2 each) plus 20 for the API, so the budget cannot fit. Keep the interim caps, reply to the case with more detail, and lower `API_HEADROOM` in the test only as a deliberate, documented decision.
 
 ---
 
