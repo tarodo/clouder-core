@@ -7,7 +7,7 @@ import uuid
 from test_user_deletion_pg import _CATALOG, _OWNED, _cleanup, _seed_user
 
 from collector.user_deletion import delete_user
-from collector.user_export import export_aurora
+from collector.user_export import export_aurora, resolve_catalog
 
 
 def test_exports_every_owned_table_and_nothing_of_others(pg) -> None:
@@ -18,6 +18,7 @@ def test_exports_every_owned_table_and_nothing_of_others(pg) -> None:
     _seed_user(pg, other, "b_")
     try:
         out = export_aurora(pg, me)
+        catalog = resolve_catalog(pg, out)
     finally:
         delete_user(pg, me)
         delete_user(pg, other)
@@ -31,3 +32,6 @@ def test_exports_every_owned_table_and_nothing_of_others(pg) -> None:
     (session,) = out["user_sessions"]
     assert session["refresh_token_hash"] == "[redacted]"
     assert "clouder_label_enrichment_runs.created_by_user_id" in out
+    assert catalog["tracks"]["tr"]["title"] == "T"
+    assert catalog["styles"]["st"] == "Techno"
+    assert catalog["artists"] == {"ar": "A"} and catalog["labels"] == {"lb": "L"}

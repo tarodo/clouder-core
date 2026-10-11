@@ -114,3 +114,120 @@ def test_cli_writes_a_private_file_and_prints_no_personal_data(tmp_path, monkeyp
     assert data["covers"] == ["covers/a/1.jpg"] and data["events"] == [{"event_id": "e1"}]
     printed = capsys.readouterr().out
     assert "me@x.io" not in printed and str(out) in printed
+
+
+class CappedDataAPI:
+    """Serves the catalog queries and pages one user table; fails like the Data API's 1 MiB
+    cap on any read that would return more than 600 rows."""
+
+    def __init__(self, user_tags: int, fks=()):
+        self.rows = [{"id": f"t{i}", "user_id": UID} for i in range(user_tags)]
+        self.fks = list(fks)
+        self.statements: list[str] = []
+        self.rolled_back = False
+
+    def begin_transaction(self):
+        return "tx"
+
+    def rollback_transaction(self, tx):
+        self.rolled_back = True
+
+    def execute(self, sql, params=None, transaction_id=None):
+        self.statements.append(sql)
+        if "pg_constraint" in sql:
+            return self.fks
+        if "information_schema.columns" in sql:
+            return [{"tbl": "user_tags", "col": "user_id"}]
+        if sql.startswith("SET TRANSACTION"):
+            return []
+        if 'FROM "users"' in sql:
+            return [{"id": UID}]
+        if 'FROM "user_tags"' in sql:
+            if "LIMIT" not in sql:
+                rows = self.rows
+            else:
+                rows = self.rows[params["offset"] : params["offset"] + params["limit"]]
+            if len(rows) > 600:
+                raise RuntimeError("Database response exceeded size limit")
+            return rows
+        raise AssertionError(sql)
+
+
+def test_export_pages_under_the_data_api_cap() -> None:
+    db = CappedDataAPI(user_tags=1300)
+
+    out = user_export.export_aurora(db, UID)
+
+    assert len(out["user_tags"]) == 1300
+    assert db.statements[0].startswith("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+    assert db.rolled_back  # read-only: nothing to commit
+
+
+def test_a_multi_column_foreign_key_is_refused() -> None:
+    # delete_user refuses them too: a silently incomplete export is worse than none.
+    fk = {
+        "child": "c",
+        "child_col": "a",
+        "parent": "users",
+        "parent_col": "id",
+        "on_delete": "c",
+        "width": 2,
+    }
+    with pytest.raises(RuntimeError, match="multi-column"):
+        user_export.export_aurora(CappedDataAPI(user_tags=1, fks=[fk]), UID)
+
+
+class CatalogDB:
+    def __init__(self):
+        self.queries = []
+
+    def execute(self, sql, params=None, transaction_id=None):
+        self.queries.append((sql, params))
+        ids = sorted(v for k, v in (params or {}).items() if k.startswith("i"))
+        if "FROM clouder_tracks" in sql:
+            return [{"id": i, "title": f"T {i}", "isrc": None, "artists": "A"} for i in ids]
+        return [{"id": i, "name": f"N {i}"} for i in ids]
+
+
+def test_catalog_names_the_ids_in_the_export() -> None:
+    export = {
+        "playlist_tracks": [{"playlist_id": "p", "track_id": "tr1"}],
+        "track_tags": [{"track_id": "tr2", "tag_id": "g"}],
+        "clouder_user_artist_prefs": [{"artist_id": "ar1"}],
+        "clouder_user_label_prefs": [{"label_id": "lb1"}],
+        "categories": [{"style_id": "st1"}],
+    }
+
+    catalog = user_export.resolve_catalog(CatalogDB(), export)
+
+    assert set(catalog["tracks"]) == {"tr1", "tr2"} and catalog["tracks"]["tr1"]["title"] == "T tr1"
+    assert catalog["artists"] == {"ar1": "N ar1"}
+    assert catalog["labels"] == {"lb1": "N lb1"} and catalog["styles"] == {"st1": "N st1"}
+
+
+def test_cli_refuses_an_existing_file_before_reading_anything(tmp_path, monkeypatch) -> None:
+    mod = _script()
+    called = []
+    monkeypatch.setattr(mod, "export_aurora", lambda *a: called.append(1) or {})
+    out = tmp_path / "export.json"
+    out.write_text("old")
+
+    code = mod.main(
+        [
+            "--user-id",
+            UID,
+            "--out",
+            str(out),
+            "--cluster-arn",
+            "c",
+            "--secret-arn",
+            "s",
+            "--raw-bucket",
+            "raw",
+        ],
+        db=object(),
+        s3=object(),
+        athena=object(),
+    )
+
+    assert code == 2 and not called and out.read_text() == "old"

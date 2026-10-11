@@ -2,7 +2,8 @@
 """Export everything CLOUDER holds about one user (docs/privacy.md: access, portability).
 
 Aurora rows from every user-owned table and its children (found from the catalog, as
-in delete_user), audit references, playlist cover keys and the user's telemetry from
+in delete_user), names for the tracks, artists, labels and styles they point at, audit
+references, playlist cover keys and the user's telemetry from
 clouder_silver.events, as one JSON file created with mode 0600. Credential columns are
 redacted. Prints only the path and counts, never the data.
 
@@ -22,7 +23,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from collector.user_export import export_aurora, export_events, list_covers
+from collector.user_export import export_aurora, export_events, list_covers, resolve_catalog
 
 REGION = "us-east-1"
 
@@ -66,6 +67,9 @@ def main(
     except ValueError:
         print(f"--user-id must be a UUID, got {args.user_id!r}", file=sys.stderr)
         return 2
+    if os.path.exists(args.out):  # before any read: the file is created with O_EXCL anyway
+        print(f"{args.out} exists; refusing to overwrite", file=sys.stderr)
+        return 2
     cluster_arn = require(args.cluster_arn, "AURORA_CLUSTER_ARN", "--cluster-arn")
     secret_arn = require(args.secret_arn, "AURORA_SECRET_ARN", "--secret-arn")
     raw_bucket = require(args.raw_bucket, "RAW_BUCKET_NAME", "--raw-bucket")
@@ -77,10 +81,12 @@ def main(
         s3 = boto3.client("s3", region_name=REGION)
         athena = boto3.client("athena", region_name=REGION)
 
+    aurora = export_aurora(db, user_id)
     export = {
         "user_id": user_id,
         "exported_at": datetime.now(UTC).isoformat(),
-        "aurora": export_aurora(db, user_id),
+        "aurora": aurora,
+        "catalog": resolve_catalog(db, aurora),
         "covers": list_covers(s3, raw_bucket, user_id),
         "events": export_events(athena, user_id=user_id, workgroup=args.workgroup),
     }
