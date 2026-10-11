@@ -1,5 +1,5 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
+import { playwright } from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
@@ -15,15 +15,23 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },
   },
+  // vitest 4 checks screenshot paths against server.fs: allow the project and the
+  // README image folder, nothing else.
+  server: { fs: { allow: [__dirname, path.resolve(__dirname, '../docs/assets')] } },
+  // Pre-bundle what only the screenshots import: a dependency found mid-run reloads the
+  // page and the running shot sees a second React ("reading 'useCallback'").
+  optimizeDeps: { include: ['zustand'] },
   test: {
-    // @ts-expect-error — browser config is typed at the vitest level, not vite
     browser: {
       enabled: true,
-      provider: 'playwright',
-      headless: true,
-      name: 'chromium',
       // Same picture on any machine: fixed locale and timezone.
-      providerOptions: { context: { locale: 'en-US', timezoneId: 'UTC' } },
+      // Headless vitest 4 sizes the page from contextOptions only (Playwright's 1280x720
+      // otherwise), which shrank the 1800px frame to ~0.7x.
+      provider: playwright({
+        contextOptions: { locale: 'en-US', timezoneId: 'UTC', viewport: { width: 1800, height: 1000 } },
+      }),
+      headless: true,
+      instances: [{ browser: 'chromium' }],
     },
     globals: true,
     setupFiles: ['./src/test/browser-setup.ts'],

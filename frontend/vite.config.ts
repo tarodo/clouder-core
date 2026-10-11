@@ -1,4 +1,4 @@
-/// <reference types="vitest" />
+/// <reference types="vitest/config" />
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
@@ -65,6 +65,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: { __APP_VERSION__: JSON.stringify(appVersion()) },
+    // Vite 7 raised the default to baseline-widely-available (Safari 16, Chrome 107);
+    // keep Vite 5's browser support so no DJ loses the app to a toolchain bump.
+    build: { target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'] },
     resolve: {
       alias: { '@': path.resolve(__dirname, 'src') },
     },

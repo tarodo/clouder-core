@@ -53,7 +53,8 @@ export function createFakeSpotifyPlayer(overrides?: Partial<FakeSpotifyPlayer>):
 export function installSpotifySdkMock(): { getLatest: () => FakeSpotifyPlayer | null } {
   let latest: FakeSpotifyPlayer | null = null;
   (window as unknown as { Spotify: unknown }).Spotify = {
-    Player: vi.fn().mockImplementation((_opts: unknown) => {
+    // vitest 4 calls a mocked constructor with `new`: the implementation must be a `function`, not an arrow.
+    Player: vi.fn().mockImplementation(function (_opts: unknown) {
       latest = createFakeSpotifyPlayer();
       return latest;
     }),

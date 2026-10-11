@@ -2,7 +2,7 @@
  * Browser-mode layout check for ArtistsPanel: every artist renders as a full
  * ArtistTile up front (no chips, no expand step), stacked vertically. jsdom
  * can't verify layout — no stylesheets — so this lives in the browser harness
- * (Playwright via @vitest/browser).
+ * (vitest browser mode, Playwright).
  */
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

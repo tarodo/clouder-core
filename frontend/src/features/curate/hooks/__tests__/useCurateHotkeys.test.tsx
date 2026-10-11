@@ -1,6 +1,6 @@
 // frontend/src/features/curate/hooks/__tests__/useCurateHotkeys.test.tsx
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { testTheme } from '../../../../test/theme';
@@ -64,20 +64,20 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe('useCurateHotkeys', () => {
-  let onAssign: ReturnType<typeof vi.fn>;
-  let onUndo: ReturnType<typeof vi.fn>;
-  let onOpenOverlay: ReturnType<typeof vi.fn>;
-  let onCloseOverlay: ReturnType<typeof vi.fn>;
-  let onExit: ReturnType<typeof vi.fn>;
-  let onToggleForce: ReturnType<typeof vi.fn>;
+  let onAssign: Mock<(toBucketId: string) => void>;
+  let onUndo: Mock<() => void>;
+  let onOpenOverlay: Mock<() => void>;
+  let onCloseOverlay: Mock<() => void>;
+  let onExit: Mock<() => void>;
+  let onToggleForce: Mock<() => void>;
 
   beforeEach(() => {
-    onAssign = vi.fn();
-    onUndo = vi.fn();
-    onOpenOverlay = vi.fn();
-    onCloseOverlay = vi.fn();
-    onExit = vi.fn();
-    onToggleForce = vi.fn();
+    onAssign = vi.fn<(toBucketId: string) => void>();
+    onUndo = vi.fn<() => void>();
+    onOpenOverlay = vi.fn<() => void>();
+    onCloseOverlay = vi.fn<() => void>();
+    onExit = vi.fn<() => void>();
+    onToggleForce = vi.fn<() => void>();
   });
   afterEach(() => vi.restoreAllMocks());
 

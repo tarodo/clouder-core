@@ -1,5 +1,5 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
+import { playwright } from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
@@ -16,12 +16,11 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, 'src') },
   },
   test: {
-    // @ts-expect-error — browser config is typed at the vitest level, not vite
     browser: {
       enabled: true,
-      provider: 'playwright',
+      provider: playwright(),
       headless: true,
-      name: 'chromium',
+      instances: [{ browser: 'chromium' }],
     },
     globals: true,
     setupFiles: ['./src/test/browser-setup.ts'],

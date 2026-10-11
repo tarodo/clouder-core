@@ -214,9 +214,10 @@ describe('F6 integration · batch 4 · token refresh', () => {
     (window as unknown as {
       Spotify: unknown;
     }).Spotify = {
-      Player: vi.fn().mockImplementation((opts: {
+      // vitest 4 calls a mocked constructor with `new`: the implementation must be a `function`, not an arrow.
+      Player: vi.fn().mockImplementation(function (opts: {
         getOAuthToken: (cb: (t: string) => void) => void;
-      }) => {
+      }) {
         capturedGetOAuthToken = opts.getOAuthToken;
         const listeners: Record<string, (state: unknown) => void> = {};
         return {

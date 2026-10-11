@@ -98,7 +98,8 @@ function installFakeSdk(deviceId: string) {
     togglePlay: vi.fn(async () => {}),
     seek: vi.fn(async () => {}),
   };
-  (window as unknown as { Spotify: unknown }).Spotify = { Player: vi.fn(() => player) };
+  // vitest 4 calls a mocked constructor with `new`: the implementation must be a `function`, not an arrow.
+  (window as unknown as { Spotify: unknown }).Spotify = { Player: vi.fn(function () { return player; }) };
   return player;
 }
 
