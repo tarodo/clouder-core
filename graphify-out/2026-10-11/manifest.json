@@ -4100,8 +4100,8 @@
     "semantic_hash": ""
   },
   "src/collector/logging_utils.py": {
-    "mtime": 1791717722.1489818,
-    "ast_hash": "f7ca22d96f483dfa8103e3958dcb7a58",
+    "mtime": 1791720093.7798758,
+    "ast_hash": "12c6875e700660481999999754e0b045",
     "semantic_hash": ""
   },
   "src/collector/migration_handler.py": {
@@ -5160,8 +5160,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/deploy.yml": {
-    "mtime": 1791717721.359139,
-    "ast_hash": "340dba6c6248b6da579a3b52d6586b99",
+    "mtime": 1791720173.894668,
+    "ast_hash": "c19ee166a2e911bd452aeb88351163a7",
     "semantic_hash": ""
   },
   ".github/workflows/pr.yml": {
@@ -5175,7 +5175,7 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1791718307.6900964,
+    "mtime": 1791720173.9091177,
     "ast_hash": "7046669acf34764a752488132aeecb2a",
     "semantic_hash": ""
   },
@@ -5625,8 +5625,8 @@
     "semantic_hash": ""
   },
   "docs/backend/gotchas.md": {
-    "mtime": 1791718285.3628926,
-    "ast_hash": "97a910160fa5d643e9f4458024c83ba7",
+    "mtime": 1791719377.2625914,
+    "ast_hash": "009f8e98d892ceba7de8c315d25c4b53",
     "semantic_hash": ""
   },
   "docs/backend/handlers.md": {
@@ -5790,8 +5790,8 @@
     "semantic_hash": ""
   },
   "docs/ops/runbook.md": {
-    "mtime": 1791718274.5947585,
-    "ast_hash": "2ed4aeda97fac743832776f53d6a1475",
+    "mtime": 1791719377.2614083,
+    "ast_hash": "54ed5137d5a921ca78868bf009a38888",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-06-08-triage-finalize-dispatch-phase1-inline-optimization.md": {
@@ -6005,8 +6005,8 @@
     "semantic_hash": ""
   },
   "src/collector/catalog_export_handler.py": {
-    "mtime": 1791717722.1425493,
-    "ast_hash": "f71b9401b957b920567693f5818e22b3",
+    "mtime": 1791720093.7789848,
+    "ast_hash": "ebc8531901e53b9ee1232e532a7f03ff",
     "semantic_hash": ""
   },
   "src/collector/telemetry_handler.py": {
@@ -6025,8 +6025,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_catalog_export_handler.py": {
-    "mtime": 1791717722.165195,
-    "ast_hash": "8a868e051252fe15dc7dae909c589e10",
+    "mtime": 1791720076.8732877,
+    "ast_hash": "665081e2a64aa0730a73a3948defdbf1",
     "semantic_hash": ""
   },
   "tests/unit/test_telemetry_handler.py": {
@@ -6945,8 +6945,8 @@
     "semantic_hash": ""
   },
   "infra/lakehouse.tf": {
-    "mtime": 1791717722.1309733,
-    "ast_hash": "fa8cfcfcb524c5252363b02d9f8879d6",
+    "mtime": 1791720173.8937373,
+    "ast_hash": "08e7edc94d46ffec262b6dfffc5c8b16",
     "semantic_hash": ""
   },
   "infra/transform.asl.json": {
@@ -7030,8 +7030,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_lakehouse_infra.py": {
-    "mtime": 1791717722.173436,
-    "ast_hash": "7481140de886ffa38e1b438eac5c8359",
+    "mtime": 1791720159.1923451,
+    "ast_hash": "e15447780b2885859153ccad63d5e146",
     "semantic_hash": ""
   },
   "infra/data_contracts.tf": {
@@ -7325,8 +7325,8 @@
     "semantic_hash": ""
   },
   "docs/scalability.md": {
-    "mtime": 1791718285.3633094,
-    "ast_hash": "fabed223a859df64a84f86e6d1acc10b",
+    "mtime": 1791719377.2633753,
+    "ast_hash": "b2ee12cd373b18f9b41625823891152b",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-08-p1-engineering.md": {
@@ -7450,8 +7450,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_deploy_order.py": {
-    "mtime": 1791717722.1689522,
-    "ast_hash": "f52eb4853c46135eb1d7d1c147098212",
+    "mtime": 1791720159.1309178,
+    "ast_hash": "6e2cfb9e5e0cd0ab9dff2835470f0b28",
     "semantic_hash": ""
   },
   "tests/unit/test_eval_spotify_match_cli.py": {
@@ -7640,8 +7640,8 @@
     "semantic_hash": ""
   },
   "infra/prod.tfvars": {
-    "mtime": 1791717722.1318846,
-    "ast_hash": "bacb5e43ae8910cf53e961e70bdfa120",
+    "mtime": 1791718841.6839378,
+    "ast_hash": "d44fa7e189a63a393e1fe174391999a5",
     "semantic_hash": ""
   },
   "tests/unit/test_ci_workflows.py": {
@@ -7985,23 +7985,33 @@
     "semantic_hash": ""
   },
   "tests/unit/test_concurrency_infra.py": {
-    "mtime": 1791718229.5990868,
-    "ast_hash": "90cb3c52d3eb127cfce87cc272aa6ca9",
+    "mtime": 1791719339.758173,
+    "ast_hash": "258552f9c7bdd21d28dcd1a23cd24323",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-11-api-isolation.md": {
-    "mtime": 1791718055.5920796,
-    "ast_hash": "c29f0b20a9b91838a983a4e732b0dbf8",
+    "mtime": 1791718909.3443334,
+    "ast_hash": "d9e2ea388075318af680d0a4d982f438",
     "semantic_hash": ""
   },
   "infra/concurrency.tf": {
-    "mtime": 1791718177.0002503,
-    "ast_hash": "1c743892e7e1b08af7fd5404057b1c75",
+    "mtime": 1791719350.4561996,
+    "ast_hash": "3a43de43d9e926ed1bfde2728ccae46a",
     "semantic_hash": ""
   },
   "docs/postmortems/2026-10-11-api-throttled-by-worker-burst.md": {
-    "mtime": 1791718298.952756,
-    "ast_hash": "e20cec7136510a01fa05023014c64c6a",
+    "mtime": 1791719377.2637277,
+    "ast_hash": "89a356e3852303cd0c25c172d7605c21",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-10-11-export-keyset.md": {
+    "mtime": 1791720055.8191195,
+    "ast_hash": "c8edb27a2b64f9fee6a0c6461d83a19d",
+    "semantic_hash": ""
+  },
+  "tests/db/test_catalog_export_pg.py": {
+    "mtime": 1791720120.137492,
+    "ast_hash": "977b979e715209067d9679d40a500d75",
     "semantic_hash": ""
   }
 }
