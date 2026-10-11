@@ -7,8 +7,8 @@ repository (private vulnerability reporting). Please do not open a public issue 
 request for a security problem.
 
 Include what is affected (URL, API route, file), how to reproduce it, and the impact you
-expect. A proof of concept against your own account is welcome; do not access other
-users' data.
+expect. Sign-up is closed to a small group, so a proof of concept against a local run
+(`make demo`, see the README) is the best evidence; do not access other users' data.
 
 ## What to expect
 
@@ -19,7 +19,8 @@ CLOUDER is maintained by one person, so response is best effort:
 - a fix for a critical issue (auth bypass, data of another user, leaked credentials)
   deployed as soon as it is ready — every merge to `main` deploys to production.
 
-You will be credited in the release notes unless you prefer otherwise.
+You will be credited in the security advisory or the pull request that fixes the issue,
+unless you prefer otherwise.
 
 ## Scope
 

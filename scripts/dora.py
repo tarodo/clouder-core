@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""DORA delivery metrics from this repository's own history (DORA 2023 definitions).
+"""DORA delivery metrics from this repository's own history.
 
-- Deployment frequency: successful `Deploy` runs on main, per week.
+- Deployment frequency: successful `Deploy` runs on main started by a push, per week.
 - Lead time for changes: a pull request's first commit -> the end of the first successful
   deploy that started after its merge.
-- Change failure rate: failed deploy runs / finished deploy runs (cancelled runs excluded).
-- Failed deployment recovery time: the end of the first failed deploy of a streak -> the end
-  of the next successful deploy.
+- Failed deploy runs (the pipeline's proxy for DORA's change failure rate): push-started runs
+  that finished unsuccessfully / all that finished (cancelled runs excluded). A run that fails
+  usually stops before production; incidents a green deploy caused are in docs/postmortems/.
+- Recovery from a failed run (proxy for failed-deployment recovery time): the end of the first
+  failed run of a streak -> the end of the next successful run.
 
 Deploy runs come from `gh run list`; merges and first commits from the local first-parent
 history of main ("Merge pull request #N"), so run it in a full clone with `gh` logged in.
@@ -50,7 +52,8 @@ def parse_deploys(raw: list[dict[str, Any]], since: datetime) -> list[Deploy]:
             ok=r["conclusion"] == "success",
         )
         for r in raw
-        if r["conclusion"] in ("success", "failure")
+        # Manual re-runs (workflow_dispatch) ship no change; cancelled runs never finished.
+        if r.get("event", "push") == "push" and r["conclusion"] != "cancelled"
     ]
     return sorted((d for d in runs if d.started >= since), key=lambda d: d.started)
 
@@ -67,10 +70,6 @@ def lead_times(changes: list[Change], deploys: list[Deploy]) -> list[timedelta]:
         if deploy is not None:
             out.append(deploy.finished - change.first_commit)
     return out
-
-
-def change_failure_rate(deploys: list[Deploy]) -> float:
-    return sum(not d.ok for d in deploys) / len(deploys) if deploys else 0.0
 
 
 def recovery_times(deploys: list[Deploy]) -> list[timedelta]:
@@ -93,14 +92,20 @@ def _fmt(td: timedelta) -> str:
 
 
 def summary(
-    per_week: float, lead: list[timedelta], cfr: float, recovery: list[timedelta], days: int
+    per_week: float,
+    lead: list[timedelta],
+    failed: int,
+    runs: int,
+    recovery: list[timedelta],
+    days: int,
 ) -> str:
     parts = [f"last {days} days: {per_week:.1f} deploys a week"]
     if lead:
         parts.append(f"median lead time {_fmt(statistics.median(lead))}")
-    parts.append(f"change failure rate {round(cfr * 100)} %")
+    share = round(100 * failed / runs) if runs else 0
+    parts.append(f"{failed} of {runs} deploy runs failed ({share} %)")
     if recovery:
-        parts.append(f"median recovery from a failed deploy {_fmt(statistics.median(recovery))}")
+        parts.append(f"median recovery from a failed run {_fmt(statistics.median(recovery))}")
     return ", ".join(parts)
 
 
@@ -133,7 +138,7 @@ def fetch_deploys(since: datetime) -> list[Deploy]:
             "--limit",
             "1000",
             "--json",
-            "conclusion,createdAt,updatedAt",
+            "conclusion,createdAt,updatedAt,event",
         ],
         capture_output=True,
         text=True,
@@ -155,7 +160,8 @@ if __name__ == "__main__":
         summary(
             deploys_per_week(deploys, ns.days),
             lead,
-            change_failure_rate(deploys),
+            sum(not d.ok for d in deploys),
+            len(deploys),
             recovery_times(deploys),
             ns.days,
         )
