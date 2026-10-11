@@ -172,3 +172,8 @@ def test_deploy_prints_the_alias_snapshot() -> None:
     assert (
         "| tee" not in snapshot["run"]
     )  # no pipefail in the default shell: tee would hide a failure
+
+
+def test_lint_job_checks_formatting() -> None:
+    runs = [step.get("run", "") for step in PR["jobs"]["lint"]["steps"]]
+    assert "ruff format --check src tests scripts" in runs

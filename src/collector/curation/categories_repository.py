@@ -815,10 +815,7 @@ class CategoriesRepository:
         items: list[TrackInCategoryRow] = []
         for r in rows:
             artists_raw = r.pop("artists_json", "[]")
-            if isinstance(artists_raw, str):
-                artists = json.loads(artists_raw)
-            else:
-                artists = artists_raw or []
+            artists = json.loads(artists_raw) if isinstance(artists_raw, str) else artists_raw or []
             label_id = r.pop("label_id", None)
             label_name = r.pop("label_name", None)
             label = {"id": label_id, "name": label_name} if label_id else None

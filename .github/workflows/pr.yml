@@ -236,6 +236,9 @@ jobs:
       - name: Ruff
         run: ruff check src tests scripts
 
+      - name: Ruff format
+        run: ruff format --check src tests scripts
+
       - name: Mypy
         run: mypy
 
