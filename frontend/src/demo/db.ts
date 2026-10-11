@@ -33,6 +33,7 @@ import {
 import type { ArtistDetail, ArtistsListResponse, ArtistSummary } from '../api/artists';
 import type { LabelDetail, LabelsListResponse, LabelSummary } from '../api/labels';
 import { slugifyStyle } from '../features/library/lib/slugifyStyle';
+import { clipOf } from './clips';
 import { demoCover } from './covers';
 import { LABEL_PROFILES } from './profiles';
 
@@ -689,6 +690,14 @@ export class DemoDb {
     this.rawArtist(id);
     if (status === 'none') this.artistPrefs.delete(id);
     else this.artistPrefs.set(id, status);
+  }
+
+  // ── playback ─────────────────────────────────────────────────────────────
+
+  /** File name of the preview clip that plays for a track, or null. */
+  clipFor(spotifyId: string): string | null {
+    const track = this.s.tracks.find((t) => t.spotify_id === spotifyId);
+    return track ? (clipOf(track.style_id, track.id)?.file ?? null) : null;
   }
 
   // ── tags ──────────────────────────────────────────────────────────────────

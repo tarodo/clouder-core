@@ -7,6 +7,7 @@ import type { BucketType } from '../features/triage/lib/bucketLabels';
 import type { TriageStatus } from '../features/triage/hooks/useTriageBlocksByStyle';
 import type { PlaylistStatus } from '../features/playlists/lib/playlistTypes';
 import type { Tag } from '../features/tags/hooks/useTags';
+import { clipOf } from './clips';
 import { DEMO_COVER_COUNT } from './covers';
 import { buildArtistProfile, type ArtistProfile } from './profiles';
 
@@ -412,6 +413,8 @@ export function buildSeed(): DemoSeed {
     if (/^t-\d+-0$/.test(t.id) && t.cover === null)
       t.cover = Math.floor(coverRand() * DEMO_COVER_COUNT);
   }
+  // A track plays its style's clip, so it takes that clip's length (bar, seek keys, Length).
+  for (const t of tracks) t.length_ms = clipOf(t.style_id, t.id)?.ms ?? t.length_ms;
   const profileRand = rng(77);
   const pickProfile = <T>(xs: readonly T[]): T => item(xs, Math.floor(profileRand() * xs.length));
   const styleName = new Map(STYLES.map((s) => [s.id, s.name]));

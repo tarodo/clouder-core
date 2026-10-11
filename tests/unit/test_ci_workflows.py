@@ -14,6 +14,7 @@ WF = ROOT / ".github" / "workflows"
 FRONTEND_DEPLOY = ROOT / "scripts" / "deploy_frontend.sh"
 DEPLOY = yaml.safe_load((WF / "deploy.yml").read_text())
 PR = yaml.safe_load((WF / "pr.yml").read_text())
+PAGES = yaml.safe_load((WF / "pages.yml").read_text())
 
 TF_INPUTS = {
     "TF_VAR_spotify_oauth_redirect_uri": "${{ vars.SPOTIFY_OAUTH_REDIRECT_URI }}",
@@ -191,6 +192,14 @@ def test_one_pages_workflow_publishes_landing_lineage_and_demo() -> None:
         "pages/index.html",
     ):
         assert needle in pages, needle
+
+
+def test_pages_downloads_demo_audio_before_the_demo_build() -> None:
+    # The mp3s live in a release, not in git; Vite copies demo-public/ into the build.
+    runs = [step.get("run", "") for step in PAGES["jobs"]["build"]["steps"]]
+    audio = next(i for i, r in enumerate(runs) if "gh release download demo-audio-v1" in r)
+    assert "--dir frontend/demo-public/audio" in runs[audio]
+    assert audio < next(i for i, r in enumerate(runs) if "pnpm build:demo" in r)
 
 
 def test_pr_builds_the_demo() -> None:
