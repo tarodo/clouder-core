@@ -13,8 +13,9 @@ resource "aws_cloudwatch_log_group" "data_quality" {
 }
 
 resource "aws_iam_role" "data_quality" {
-  name               = "${local.name_prefix}-data-quality-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-data-quality-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
 }
 
 data "aws_iam_policy_document" "data_quality" {

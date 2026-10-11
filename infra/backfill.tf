@@ -13,8 +13,9 @@ resource "aws_cloudwatch_log_group" "backfill" {
 }
 
 resource "aws_iam_role" "backfill" {
-  name               = "${local.name_prefix}-backfill-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-backfill-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
 }
 
 data "aws_iam_policy_document" "backfill" {
@@ -105,8 +106,9 @@ data "aws_iam_policy_document" "states_assume" {
 }
 
 resource "aws_iam_role" "backfill_state_machine" {
-  name               = "${local.name_prefix}-backfill-sfn-role"
-  assume_role_policy = data.aws_iam_policy_document.states_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-backfill-sfn-role"
+  assume_role_policy   = data.aws_iam_policy_document.states_assume.json
 }
 
 data "aws_iam_policy_document" "backfill_state_machine" {

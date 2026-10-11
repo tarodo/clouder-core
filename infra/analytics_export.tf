@@ -166,8 +166,9 @@ resource "aws_cloudwatch_log_group" "catalog_export" {
 # blast radius (spec section 13).
 
 resource "aws_iam_role" "catalog_export" {
-  name               = "${local.name_prefix}-catalog-export-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-catalog-export-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
 }
 
 data "aws_iam_policy_document" "catalog_export" {

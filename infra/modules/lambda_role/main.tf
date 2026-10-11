@@ -14,6 +14,11 @@ variable "log_group_arn" {
   type = string
 }
 
+# The project's permissions boundary (infra/iam_boundary.tf): no role can reach IAM.
+variable "permissions_boundary" {
+  type = string
+}
+
 variable "statements" {
   type = list(object({
     sid       = string
@@ -25,8 +30,9 @@ variable "statements" {
 }
 
 resource "aws_iam_role" "this" {
-  name               = var.name
-  assume_role_policy = var.assume_role_policy
+  name                 = var.name
+  assume_role_policy   = var.assume_role_policy
+  permissions_boundary = var.permissions_boundary
 }
 
 data "aws_iam_policy_document" "this" {

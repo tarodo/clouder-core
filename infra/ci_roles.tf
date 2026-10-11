@@ -28,9 +28,10 @@ data "aws_iam_policy_document" "gha_plan_assume" {
 }
 
 resource "aws_iam_role" "gha_plan" {
-  name               = "${local.name_prefix}-gha-plan"
-  description        = "Read-only terraform plan for pull requests (ADR-0028)"
-  assume_role_policy = data.aws_iam_policy_document.gha_plan_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-gha-plan"
+  description          = "Read-only terraform plan for pull requests (ADR-0028)"
+  assume_role_policy   = data.aws_iam_policy_document.gha_plan_assume.json
 }
 
 # Planning reads every managed resource and the state; it never needs to write. The

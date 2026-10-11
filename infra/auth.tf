@@ -78,8 +78,9 @@ resource "aws_lambda_function" "auth_handler" {
 # ── auth_authorizer Lambda (narrower IAM, SSM-only) ─────────────────
 
 resource "aws_iam_role" "auth_authorizer" {
-  name               = "${local.name_prefix}-auth-authorizer-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-auth-authorizer-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
 }
 
 data "aws_iam_policy_document" "auth_authorizer" {

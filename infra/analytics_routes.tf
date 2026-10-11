@@ -59,8 +59,9 @@ resource "aws_cloudwatch_log_group" "analytics" {
 }
 
 resource "aws_iam_role" "analytics_api" {
-  name               = "${local.name_prefix}-analytics-api-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-analytics-api-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
 }
 
 data "aws_iam_policy_document" "analytics_api" {
