@@ -63,8 +63,9 @@ data "aws_iam_policy_document" "codebuild_assume" {
 }
 
 resource "aws_iam_role" "dbt" {
-  name               = "${local.name_prefix}-dbt-role"
-  assume_role_policy = data.aws_iam_policy_document.codebuild_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-dbt-role"
+  assume_role_policy   = data.aws_iam_policy_document.codebuild_assume.json
 }
 
 data "aws_iam_policy_document" "dbt" {
@@ -266,8 +267,9 @@ data "aws_iam_policy_document" "transform_states_assume" {
 }
 
 resource "aws_iam_role" "transform_state_machine" {
-  name               = "${local.name_prefix}-transform-sfn-role"
-  assume_role_policy = data.aws_iam_policy_document.transform_states_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-transform-sfn-role"
+  assume_role_policy   = data.aws_iam_policy_document.transform_states_assume.json
 }
 
 data "aws_iam_policy_document" "transform_state_machine" {
@@ -308,8 +310,9 @@ data "aws_iam_policy_document" "transform_events_assume" {
 }
 
 resource "aws_iam_role" "transform_events" {
-  name               = "${local.name_prefix}-transform-events-role"
-  assume_role_policy = data.aws_iam_policy_document.transform_events_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-transform-events-role"
+  assume_role_policy   = data.aws_iam_policy_document.transform_events_assume.json
 }
 
 resource "aws_iam_role_policy" "transform_events" {

@@ -234,8 +234,9 @@ data "aws_iam_policy_document" "firehose_telemetry_assume" {
 }
 
 resource "aws_iam_role" "firehose_telemetry" {
-  name               = "${local.name_prefix}-telemetry-firehose-role"
-  assume_role_policy = data.aws_iam_policy_document.firehose_telemetry_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-telemetry-firehose-role"
+  assume_role_policy   = data.aws_iam_policy_document.firehose_telemetry_assume.json
 }
 
 data "aws_iam_policy_document" "firehose_telemetry" {
@@ -350,8 +351,9 @@ resource "aws_kinesis_firehose_delivery_stream" "telemetry" {
 # ── Telemetry Lambda: own least-privilege role (Firehose PutRecordBatch only) ─
 
 resource "aws_iam_role" "telemetry_lambda" {
-  name               = "${local.name_prefix}-telemetry-lambda-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-telemetry-lambda-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
 }
 
 data "aws_iam_policy_document" "telemetry_lambda" {

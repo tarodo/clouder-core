@@ -43,10 +43,11 @@ locals {
 }
 
 module "role_collector" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-collector-api-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.collector.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-collector-api-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.collector.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -75,10 +76,11 @@ module "role_collector" {
 }
 
 module "role_curation" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-curation-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.curation.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-curation-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.curation.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -116,10 +118,11 @@ module "role_curation" {
 }
 
 module "role_auth_handler" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-auth-handler-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.auth_handler.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-auth-handler-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.auth_handler.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -138,10 +141,11 @@ module "role_auth_handler" {
 }
 
 module "role_canonicalization_worker" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-canonicalization-worker-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.canonicalization_worker.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-canonicalization-worker-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.canonicalization_worker.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -154,10 +158,11 @@ module "role_canonicalization_worker" {
 }
 
 module "role_spotify_search_worker" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-spotify-search-worker-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.spotify_search_worker.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-spotify-search-worker-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.spotify_search_worker.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -176,10 +181,11 @@ module "role_spotify_search_worker" {
 }
 
 module "role_vendor_match_worker" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-vendor-match-worker-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.vendor_match_worker.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-vendor-match-worker-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.vendor_match_worker.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -197,10 +203,11 @@ module "role_vendor_match_worker" {
 }
 
 module "role_label_enricher_worker" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-label-enricher-worker-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.label_enricher_worker.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-label-enricher-worker-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.label_enricher_worker.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -219,10 +226,11 @@ module "role_label_enricher_worker" {
 }
 
 module "role_artist_enricher_worker" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-artist-enricher-worker-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.artist_enricher_worker.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-artist-enricher-worker-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.artist_enricher_worker.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -241,10 +249,11 @@ module "role_artist_enricher_worker" {
 }
 
 module "role_auto_enrich_dispatch_worker" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-auto-enrich-dispatch-worker-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.auto_enrich_dispatch_worker.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-auto-enrich-dispatch-worker-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.auto_enrich_dispatch_worker.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -262,10 +271,11 @@ module "role_auto_enrich_dispatch_worker" {
 }
 
 module "role_comments_collect_worker" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-comments-collect-worker-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.comments_collect_worker.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-comments-collect-worker-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.comments_collect_worker.arn
   statements = [
     local.st_data_api,
     local.st_db_secret,
@@ -280,10 +290,11 @@ module "role_comments_collect_worker" {
 }
 
 module "role_db_migration" {
-  source             = "./modules/lambda_role"
-  name               = "${local.name_prefix}-db-migration-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  log_group_arn      = aws_cloudwatch_log_group.migration_lambda.arn
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-db-migration-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.migration_lambda.arn
   statements = [
     local.st_db_secret,
     {

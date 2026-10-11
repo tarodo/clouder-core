@@ -18,8 +18,9 @@ resource "aws_cloudwatch_log_group" "auto_ingest" {
 }
 
 resource "aws_iam_role" "auto_ingest" {
-  name               = "${local.name_prefix}-auto-ingest-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-auto-ingest-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
 }
 
 data "aws_iam_policy_document" "auto_ingest" {
@@ -161,8 +162,9 @@ data "aws_iam_policy_document" "auto_ingest_scheduler_assume" {
 }
 
 resource "aws_iam_role" "auto_ingest_scheduler" {
-  name               = "${local.name_prefix}-auto-ingest-scheduler-role"
-  assume_role_policy = data.aws_iam_policy_document.auto_ingest_scheduler_assume.json
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-auto-ingest-scheduler-role"
+  assume_role_policy   = data.aws_iam_policy_document.auto_ingest_scheduler_assume.json
 }
 
 data "aws_iam_policy_document" "auto_ingest_scheduler" {

@@ -1,0 +1,128 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ServicesTerraformManages",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:*",
+        "athena:*",
+        "budgets:*",
+        "cloudfront:*",
+        "cloudwatch:*",
+        "codebuild:*",
+        "dynamodb:*",
+        "ec2:*",
+        "events:*",
+        "firehose:*",
+        "glue:*",
+        "kms:*",
+        "lambda:*",
+        "logs:*",
+        "rds:*",
+        "s3:*",
+        "scheduler:*",
+        "secretsmanager:*",
+        "servicequotas:*",
+        "sns:*",
+        "sqs:*",
+        "ssm:*",
+        "states:*",
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamOnProjectRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:*"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/clouder-prod-*"
+      ]
+    },
+    {
+      "Sid": "IamReadAndServiceLinkedRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:Get*",
+        "iam:List*",
+        "iam:CreateServiceLinkedRole"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "OnlyReadOnlyAccessAttached",
+      "Effect": "Deny",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+        }
+      }
+    },
+    {
+      "Sid": "NotItself",
+      "Effect": "Deny",
+      "Action": [
+        "iam:*"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/github-actions-terraform",
+        "arn:aws:iam::*:policy/github-actions-terraform-deploy"
+      ]
+    },
+    {
+      "Sid": "ProjectRolesKeepTheBoundary",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateRole",
+        "iam:PutRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:PutRolePermissionsBoundary"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "iam:PermissionsBoundary": "arn:aws:iam::*:policy/clouder-role-boundary"
+        }
+      }
+    },
+    {
+      "Sid": "BoundaryStays",
+      "Effect": "Deny",
+      "Action": [
+        "iam:DeleteRolePermissionsBoundary"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "BoundaryIsNotTheDeploysToChange",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+        "iam:TagPolicy",
+        "iam:UntagPolicy"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:policy/clouder-role-boundary"
+      ]
+    },
+    {
+      "Sid": "NoAssumingRoles",
+      "Effect": "Deny",
+      "Action": [
+        "sts:AssumeRole"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

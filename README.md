@@ -99,7 +99,7 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 - An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
 
 **Cloud & infrastructure**
-- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 241 Terraform resource definitions.
+- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 242 Terraform resource definitions.
 - GitHub Actions with OIDC and two roles: pull requests plan Terraform under a read-only role, and only the `production` environment can assume the deploy role ([ADR-0028](docs/adr/0028-ci-roles.md)). Deploys land DB migrations before API code, smoke-test the result and roll the API back to the previous Lambda versions in seconds if it fails ([ADR-0029](docs/adr/0029-api-aliases-smoke-rollback.md)).
 - A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function plus throttle and 5xx alarms on the API, routed to email through SNS.
 
@@ -180,7 +180,7 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 | Canonical catalog | ~143k canonical tracks (catalog export, 2026-10-11) |
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
 | Lambda invocations | 159k in 30 days (2026-09-11 → 10-11), 0.041 % errors |
-| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 241 Terraform resource definitions |
+| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 242 Terraform resource definitions |
 | API | 106 operations |
 | Delivery | 300+ merged pull requests; every merge to `main` deploys to production. Last 90 days to 2026-10-11, [DORA](https://dora.dev)-style ([`scripts/dora.py`](scripts/dora.py)): 7.2 deploys a week, median lead time 11 min from first commit to production, 2 of 94 deploy runs failed (recovered in 8 min); one green deploy caused a production incident — 2 min 40 s of errors on one route ([postmortem](docs/postmortems/2026-09-20-deploy-before-migration.md)) |
 
@@ -248,7 +248,7 @@ Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/dep
 - Throughput limits are measured, not guessed: canonicalization fits a 10× week easily and reaches the Lambda timeout around 100× the largest week — see [scalability notes](docs/scalability.md).
 - Matching precision is measured for YouTube Music only. Next: a labelled sample for Spotify.
 - Built for a closed group of DJs: about 143k tracks, growing by 3–5k a week.
-- The deploy role is still AdministratorAccess, assumable only from the `production` environment ([security](docs/security.md#known-gaps)).
+- The deploy role is still AdministratorAccess, assumable only from the `production` environment; every project role carries a permissions boundary (`infra/iam_boundary.tf`), and the deploy role's scoped policy in [`infra/bootstrap/`](infra/bootstrap/README.md) waits to be applied ([security](docs/security.md#known-gaps)).
 
 ## How this was built
 
