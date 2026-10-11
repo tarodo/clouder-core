@@ -103,6 +103,8 @@ aws sqs start-message-move-task \
   --destination-arn <MAIN_QUEUE_ARN>
 ```
 
+Without `--destination-arn` the messages go back to the queue they came from. Check that the `<queue>-dlq-has-messages` alarm returns to OK once the DLQ is empty: an alarm left in ALARM means messages nobody looked at (from 2026-10-08 to 10-11, 11 Spotify messages waited two and a half days after their cause was fixed).
+
 Retrieve ARNs:
 
 ```bash
@@ -166,20 +168,18 @@ Controlled by `var.enable_lambda_reserved_concurrency` in `infra/variables.tf` (
 
 **Fix**
 
-1. Request a quota increase via AWS Service Quotas:
-   - Service: Lambda
-   - Quota: `Concurrent executions` (quota code `L-B99A9384`)
-   - Target: 35 or higher (10 unreserved floor + 25 reserved)
+1. The quota is requested in Terraform (`infra/concurrency.tf`, `local.lambda_concurrency_quota`; 35 or more covers the 10 unreserved floor + 25 reserved). Check that the request was approved:
+   `aws service-quotas get-service-quota --service-code lambda --quota-code L-B99A9384 --query 'Quota.Value'`
 
 2. After the quota is approved, set the Terraform variable:
    ```hcl
-   # infra/terraform.tfvars
+   # infra/prod.tfvars
    enable_lambda_reserved_concurrency = true
    ```
 
-3. Run `terraform apply`.
+3. Deploy.
 
-Until the quota is raised, leave `enable_lambda_reserved_concurrency = false`. Workers run unreserved and vendor 429s flow to DLQ for retry.
+Until the quota is raised, leave `enable_lambda_reserved_concurrency = false`. Workers run under their SQS `maximum_concurrency` caps, and vendor 429s flow to DLQ for retry.
 
 ## Nightly dbt build failed
 
@@ -254,6 +254,37 @@ The `$default` stage limits every route to 100 requests/s with a burst of 200 (`
 **Fix**
 
 A client loop or a script is the usual cause — fix it. If real traffic outgrew the limit, raise `throttling_rate_limit` / `throttling_burst_limit` and deploy.
+
+---
+
+## API 5xx or Lambda throttles
+
+**Symptom**
+
+Alarm `clouder-prod-api-5xx` (5 or more 5xx in 5 minutes), `clouder-prod-<api function>-throttles` (any throttle of the collector, curation, auth handler, authorizer, analytics or telemetry function), or `clouder-prod-lambda-account-concurrency` (account concurrency at 80 % of the quota for 3 minutes).
+
+**Diagnosis**
+
+Most likely background workers filled the account's concurrency pool, which every function shares. A triage block finalize fans out into enrichment and comment jobs, one per track; each SQS worker is capped (`*_max_concurrency` in `infra/variables.tf`), and the caps plus room for the API must fit the quota (`infra/concurrency.tf`, checked by `tests/unit/test_concurrency_infra.py`). See the [2026-10-11 postmortem](../postmortems/2026-10-11-api-throttled-by-worker-burst.md).
+
+```bash
+# The quota now, and the state of the increase request
+aws service-quotas get-service-quota --service-code lambda --quota-code L-B99A9384 --query 'Quota.Value'
+aws service-quotas list-requested-service-quota-change-history-by-quota \
+  --service-code lambda --quota-code L-B99A9384 --query 'RequestedQuotas[].[DesiredValue,Status,Created]'
+# Who was throttled, and when
+aws cloudwatch get-metric-statistics --namespace AWS/Lambda --metric-name Throttles \
+  --dimensions Name=FunctionName,Value=clouder-prod-collector-api \
+  --start-time <utc-start> --end-time <utc-end> --period 300 --statistics Sum
+```
+
+A single 503 right after a quiet period is the Aurora resume ([Cold-start 503](#cold-start-503)), not this.
+
+**Fix**
+
+Lower the busy worker's cap (`*_max_concurrency` in `infra/prod.tfvars`) and deploy; in an emergency, pause its trigger with `aws lambda update-event-source-mapping --uuid <uuid> --no-enabled` (the next deploy turns it back on). Queued jobs wait in SQS; nothing is lost.
+
+If the quota request was denied or approved lower, set `lambda_concurrency_quota` in `infra/concurrency.tf` to the approved value, so plans stop requesting it again, and lower the worker caps until `test_worker_caps_leave_room_for_the_api` passes.
 
 ---
 

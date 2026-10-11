@@ -12,7 +12,7 @@ exist. It deliberately describes levers, not prices.
 | Canonicalization worker | ≤ 1 min per run | largest week ≈ 6–9 min | largest week > 1 h | 900 s Lambda timeout | Split a run into chunks (see below) |
 | Data API payloads | chunked | chunked | chunked | 1 MB result / 4 MB request | Already paged and size-bounded |
 | Admin ingest (API path) | ≤ 16 s fetch | ≈ minutes | — | 29 s API Gateway limit | Use auto-ingest (900 s Lambda) or make the admin path asynchronous |
-| SQS workers | unreserved | throttled by quota | throttled by quota | 10 concurrent executions (account) | Raise the quota, then turn on reserved concurrency (the Terraform switch exists) |
+| SQS workers | capped per queue (26 executions in total) | back up in their queues | back up in their queues | Account concurrency quota (10 until the increase to 100 requested in Terraform is approved; the API hit it at 1× on 2026-10-11) | Reserved concurrency per worker once the quota allows (the Terraform switch exists) |
 | Spotify / YouTube Music matching | per track | 10× calls | 100× calls | Vendor rate limits (429 → SQS retry) | SQS delay and per-worker concurrency caps |
 | Duplicate-artist detection | 34.7k artists | 347k | 3.5M | Pairwise comparison | Blocking keys before comparing |
 | Lakehouse (Athena) | small | linear | linear | Bytes scanned per query | Already incremental MERGE + compaction; keep date pruning |
@@ -60,11 +60,15 @@ in its own Lambda with a 900 s timeout and is unaffected; the admin path would r
 
 ## Workers and concurrency
 
-The AWS account allows 10 concurrent Lambda executions, and AWS keeps all 10 unreserved, so no
-function can reserve capacity. Under 10× load the SQS workers (Spotify search, vendor match,
-enrichment) compete for those 10 slots and back up in their queues — slower, not lossy, since
-every queue has a DLQ and redrive. The next step is a quota increase to at least 35 and
-`enable_lambda_reserved_concurrency = true` (per-worker values already in Terraform).
+All functions share one account pool of concurrent executions. It was 10, the value for new
+accounts, and on 2026-10-11 it ran out at today's volume: a block finalize fanned out into ~240
+enrichment and comment jobs, the workers took every slot and the API answered 5xx
+([postmortem](postmortems/2026-10-11-api-throttled-by-worker-burst.md)). Now every SQS worker has
+a `maximum_concurrency` cap (26 executions together), a test keeps the caps plus 20 executions for
+the API and scheduled jobs under the quota, and an increase to 100 is requested in Terraform
+(`infra/concurrency.tf`). Under 10× load the workers back up in their queues — slower, not lossy,
+since every queue has a DLQ and redrive. Past that, `enable_lambda_reserved_concurrency = true`
+reserves per-worker capacity (values already in Terraform).
 
 ## Matching
 

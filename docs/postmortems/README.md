@@ -9,3 +9,4 @@ Blameless write-ups of what went wrong, why the tests did not catch it, and what
 | 2026-10-07 | [Data API rejected a 4 MiB batch during the first backfill (HTTP 413)](2026-10-07-data-api-413.md) | Production-sized inputs find limits that fixtures never reach |
 | 2026-10-07 | [Backfill never converged on tracks merged by ISRC](2026-10-07-backfill-merged-tracks.md) | A replay must be idempotent across every source of a row, not per source |
 | 2026-10-08 | [Artist enricher logs dropped for months under the shared role](2026-10-08-artist-enricher-logs-dropped.md) | Hand-kept allow-lists drift; tie permissions to the resource that needs them |
+| 2026-10-11 | [Background workers took the API's Lambda capacity: 16 API requests failed, no alarm fired](2026-10-11-api-throttled-by-worker-burst.md) | A shared limit needs a budget and an alarm on running out, not only on errors |

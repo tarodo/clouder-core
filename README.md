@@ -99,9 +99,9 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 - An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
 
 **Cloud & infrastructure**
-- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 239 Terraform resource definitions.
+- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 243 Terraform resource definitions.
 - GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
-- A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function, routed to email through SNS.
+- A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function plus throttle and 5xx alarms on the API, routed to email through SNS.
 
 **Software engineering**
 - About 3,300 automated tests: ~2,090 backend (including a suite against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
@@ -122,7 +122,7 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 | **Kinesis Data Firehose** | Telemetry ingest with JSON → Parquet conversion and dynamic partitioning |
 | **Glue Data Catalog + Athena** | Bronze tables with partition projection; Iceberg silver/gold; per-user analytics |
 | **CodeBuild** | Runs `dbt build` for the nightly transform |
-| **CloudWatch + SNS** | Structured JSON logs, API access logs, log metric filters, alarms on every function's errors and on data/pipeline health, email notifications |
+| **CloudWatch + SNS** | Structured JSON logs, API access logs, log metric filters, alarms on every function's errors, API throttles and 5xx, account concurrency and data/pipeline health, email notifications |
 | **KMS / SSM / Secrets Manager** | Envelope encryption of users' OAuth tokens; vendor credentials; Aurora credentials |
 | **CloudFront** | SPA delivery with Origin Access Control |
 | **IAM** | A least-privilege execution role per Lambda (its own log group and only what its code uses); GitHub OIDC deploy role |
@@ -178,15 +178,15 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 | Canonical catalog | ~98k canonical tracks (2026-10-07), from 107,795 raw records |
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
-| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 239 Terraform resource definitions |
+| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 243 Terraform resource definitions |
 | API | 106 operations |
 | Delivery | 290+ merged pull requests; every merge to `main` deploys to production. Last 90 days to 2026-10-11, [DORA](https://dora.dev)-style ([`scripts/dora.py`](scripts/dora.py)): 6.1 deploys a week, median lead time 11 min from first commit to production, 1 of 79 deploy runs failed (recovered in 8 min); one green deploy caused a production incident — 2 min 40 s of errors on one route ([postmortem](docs/postmortems/2026-09-20-deploy-before-migration.md)) |
 
 ## Production readiness
 
 - **Delivery.** `main` accepts changes only through pull requests with 8 required checks (tests with an 80 % coverage gate, ruff and mypy, dependency audit, real-PostgreSQL tests, Terraform, dbt, frontend). Pull requests plan Terraform under a read-only AWS role and see the same inputs the deploy applies; every merge deploys through GitHub Actions with OIDC — no long-lived AWS keys — and migrations land before the code that needs them ([ADR-0028](docs/adr/0028-ci-roles.md)). A smoke test gates each deploy and, if it fails, points the API Lambdas back to their previous versions ([ADR-0029](docs/adr/0029-api-aliases-smoke-rollback.md)).
-- **Reliability.** A dead-letter queue on every work queue; permanent and transient errors handled differently; replay-safe writes; Aurora deletion protection with 7-day point-in-time recovery; [failure modes](docs/ops/failure-modes.md) with RPO/RTO; five blameless [postmortems](docs/postmortems/README.md).
-- **Observability.** Error alarms on every Lambda function plus pipeline and data-health alarms, all routed to email through SNS; a CloudWatch dashboard defined in Terraform; structured JSON logs with correlation ids; API access logs.
+- **Reliability.** A dead-letter queue on every work queue; permanent and transient errors handled differently; replay-safe writes; Aurora deletion protection with 7-day point-in-time recovery; [failure modes](docs/ops/failure-modes.md) with RPO/RTO; six blameless [postmortems](docs/postmortems/README.md).
+- **Observability.** Error alarms on every Lambda function, throttle and 5xx alarms on the API, an account-concurrency alarm, plus pipeline and data-health alarms, all routed to email through SNS; a CloudWatch dashboard defined in Terraform; structured JSON logs with correlation ids; API access logs.
 - **Data governance.** A data contract on every raw record; nightly data-quality SLOs; documented retention; one command erases a user from Aurora, S3 and the Iceberg tables ([privacy](docs/privacy.md)).
 - **Security.** A least-privilege role per Lambda; KMS envelope encryption of users' OAuth tokens; PKCE and refresh-token rotation with replay detection; a log-field allow-list; CloudFront security headers; a written [threat model](docs/security.md) with known gaps; vulnerabilities are reported privately ([SECURITY.md](SECURITY.md)).
 - **Cost guardrails.** Aurora scales to zero when idle, Athena queries have a scan limit, and cold data moves to cheaper storage on a lifecycle; a monthly budget alert is defined in Terraform and switches on with one secret.

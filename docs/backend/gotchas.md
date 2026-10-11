@@ -141,7 +141,7 @@ See also: [ADR-0005](../adr/0005-iam-auth-migration.md).
 
 **Why:** AWS new accounts have a `ConcurrentExecutions` quota of 10, and `UnreservedConcurrentExecution` has a hard floor of 10. Assigning any reserved concurrency would consume the entire budget, tripping `InvalidParameterValueException` on `terraform apply`. The auto-ingest Lambda keeps runs apart with a lease instead (ADR-0027).
 
-**Mitigation:** Raise the account quota (`L-B99A9384`) to at least 35 via AWS Service Quotas, then set `enable_lambda_reserved_concurrency = true` in `infra/terraform.tfvars`. Until then, workers run unreserved and vendor 429s flow through SQS retry → DLQ.
+**Mitigation:** The account quota (`L-B99A9384`) is requested in Terraform (`infra/concurrency.tf`). Once it is approved at 35 or more, set `enable_lambda_reserved_concurrency = true` in `infra/prod.tfvars`. Until then, every SQS worker runs under its own `maximum_concurrency` cap, and vendor 429s flow through SQS retry → DLQ.
 
 ---
 
