@@ -178,7 +178,7 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
 | Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 239 Terraform resource definitions |
 | API | 106 operations |
-| Delivery | 265+ merged pull requests; every merge to `main` deploys to production |
+| Delivery | 290+ merged pull requests; every merge to `main` deploys to production. Last 90 days to 2026-10-11, [DORA](https://dora.dev)-style ([`scripts/dora.py`](scripts/dora.py)): 6.1 deploys a week, median lead time 11 min from first commit to production, 1 of 79 deploy runs failed (recovered in 8 min); one green deploy caused a production incident — 2 min 40 s of errors on one route ([postmortem](docs/postmortems/2026-09-20-deploy-before-migration.md)) |
 
 ## Production readiness
 
@@ -186,7 +186,7 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 - **Reliability.** A dead-letter queue on every work queue; permanent and transient errors handled differently; replay-safe writes; Aurora deletion protection with 7-day point-in-time recovery; [failure modes](docs/ops/failure-modes.md) with RPO/RTO; five blameless [postmortems](docs/postmortems/README.md).
 - **Observability.** Error alarms on every Lambda function plus pipeline and data-health alarms, all routed to email through SNS; a CloudWatch dashboard defined in Terraform; structured JSON logs with correlation ids; API access logs.
 - **Data governance.** A data contract on every raw record; nightly data-quality SLOs; documented retention; one command erases a user from Aurora, S3 and the Iceberg tables ([privacy](docs/privacy.md)).
-- **Security.** A least-privilege role per Lambda; KMS envelope encryption of users' OAuth tokens; PKCE and refresh-token rotation with replay detection; a log-field allow-list; CloudFront security headers; a written [threat model](docs/security.md) with known gaps.
+- **Security.** A least-privilege role per Lambda; KMS envelope encryption of users' OAuth tokens; PKCE and refresh-token rotation with replay detection; a log-field allow-list; CloudFront security headers; a written [threat model](docs/security.md) with known gaps; vulnerabilities are reported privately ([SECURITY.md](SECURITY.md)).
 - **Cost guardrails.** Aurora scales to zero when idle, Athena queries have a scan limit, and cold data moves to cheaper storage on a lifecycle; a monthly budget alert is defined in Terraform and switches on with one secret.
 
 ## Running it locally
@@ -235,6 +235,7 @@ Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/dep
 | `tests/` | Unit, integration and real-PostgreSQL tests |
 | `docs/` | Architecture, ADRs, data, backend, frontend and ops guides |
 | `experiments/` | Isolated sandboxes whose results fed production decisions |
+| `CHANGELOG.md`, `SECURITY.md` | One line per merged pull request by release; how to report a vulnerability |
 | `CLAUDE.md`, `graphify-out/`, `docs/superpowers/` | AI-agent context: working instructions, a generated code graph, and the specs and plans behind each change (see *How this was built*) |
 
 ## Known limitations & next steps

@@ -3,7 +3,7 @@ VENV   ?= .venv/bin
 PY     := PYTHONPATH=src $(VENV)/python
 TEST_DATABASE_URL ?= postgresql://postgres:postgres@localhost:55433/postgres
 
-.PHONY: help bootstrap local-db demo test test-db lint typecheck cov lock upgrade openapi package frontend-test screenshots dbt-ci
+.PHONY: help bootstrap local-db demo test test-db lint typecheck cov lock upgrade openapi package frontend-test screenshots dbt-ci changelog dora
 
 help:            ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
@@ -59,3 +59,9 @@ screenshots:     ## regenerate the README screenshots (docs/assets)
 dbt-ci:          ## dbt build on DuckDB with fixtures, as in CI
 	cd dbt && export DBT_PROFILES_DIR=. && dbt seed --target ci && dbt run --target ci --empty \
 	  && dbt build --target ci --full-refresh --exclude resource_type:seed
+
+changelog:       ## CHANGELOG.md from PR merge commits (git-cliff via uvx)
+	uvx git-cliff@2.14.2 -o CHANGELOG.md
+
+dora:            ## DORA delivery metrics from deploy runs and PR merges (needs gh)
+	python3 scripts/dora.py
