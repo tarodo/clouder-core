@@ -96,7 +96,7 @@ export interface DemoSeed {
 }
 
 const STYLES: (DemoStyle & { bpm: number; categories: string[] })[] = [
-  { id: 's-tech', name: 'Tech House', bpm: 125, categories: ['Warm-up', 'Peak time', 'Closing'] },
+  { id: 's-dnb', name: 'Drum & Bass', bpm: 174, categories: ['Liquid', 'Rollers', 'Peak time'] },
   {
     id: 's-melodic',
     name: 'Melodic House & Techno',
