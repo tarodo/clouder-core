@@ -21,9 +21,7 @@ find "$BUILD_DIR" -type d -name "__pycache__" -prune -exec rm -rf {} +
 find "$BUILD_DIR" -type f -name "*.pyc" -delete
 
 rm -f "$OUTPUT_ZIP"
-(
-  cd "$BUILD_DIR"
-  zip -qr "$OUTPUT_ZIP" .
-)
+# Byte-reproducible: same files, same zip, so Terraform publishes a version only on change.
+python "$ROOT_DIR/scripts/deterministic_zip.py" "$BUILD_DIR" "$OUTPUT_ZIP"
 
 echo "Packaged Lambda artifact: $OUTPUT_ZIP"
