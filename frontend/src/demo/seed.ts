@@ -183,8 +183,9 @@ const KEYS: [string, string][] = [
 ];
 const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const TRACKS_PER_STYLE = 48;
-const OPEN_WEEK = { name: 'Week 41 · Oct 3 – 9', from: '2026-10-03', to: '2026-10-09' };
-const PAST_WEEK = { name: 'Week 40 · Sep 26 – Oct 2', from: '2026-09-26', to: '2026-10-02' };
+// Saturday-weeks (ADR-0003): week 1 starts on the first Saturday of the year (Jan 3, 2026).
+const OPEN_WEEK = { name: 'Week 40 · Oct 3 – 9', from: '2026-10-03', to: '2026-10-09' };
+const PAST_WEEK = { name: 'Week 39 · Sep 26 – Oct 2', from: '2026-09-26', to: '2026-10-02' };
 
 // mulberry32: small, fast and seedable.
 function rng(seed: number): () => number {
@@ -258,8 +259,8 @@ export function buildSeed(): DemoSeed {
     }));
     categories.push(...cats);
 
-    const past = `b-${si}-40`;
-    const open = `b-${si}-41`;
+    const past = `b-${si}-w39`;
+    const open = `b-${si}-w40`;
     const entry = (track_id: string, date: string, h: number) => ({
       track_id,
       added_at: at(date, h),

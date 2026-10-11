@@ -47,6 +47,8 @@ export interface CategoryTrackQuery {
   order?: 'asc' | 'desc';
   tags?: string[];
   match?: 'any' | 'all';
+  /** Only tracks not yet in any playlist (the category page's "Fresh only"). */
+  fresh?: boolean;
 }
 
 const NOW = () => new Date().toISOString();
@@ -70,7 +72,7 @@ export class DemoDb {
   private readonly tracks: Map<string, DemoTrack>;
 
   constructor(seed: DemoSeed = buildSeed()) {
-    this.s = structuredClone(seed);
+    this.s = seed; // buildSeed() returns a fresh object per store
     this.tracks = new Map(this.s.tracks.map((t) => [t.id, t]));
   }
 
@@ -258,7 +260,9 @@ export class DemoDb {
     };
     const rows = this.rawCategory(id)
       .tracks.map((e) => ({ e, t: found(this.tracks.get(e.track_id), 'track') }))
-      .filter(({ t }) => matches(t, q.search) && tagged(t.id))
+      .filter(
+        ({ t }) => matches(t, q.search) && tagged(t.id) && !(q.fresh && this.inPlaylist(t.id)),
+      )
       .map(({ e, t }) => ({
         id: t.id,
         title: t.title,

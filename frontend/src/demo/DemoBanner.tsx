@@ -10,12 +10,12 @@ export function DemoBanner() {
       px="md"
       py={6}
       pos="fixed"
-      bottom={12}
+      bottom={{ base: 76, md: 12 }}
       left={12}
       style={{ zIndex: 1000 }}
     >
       <Text size="xs">
-        <b>Demo</b> · sample data, changes stay in this tab · playback needs Spotify ·{' '}
+        <b>Demo</b> · sample data, a reload starts over · playback needs Spotify ·{' '}
         <Anchor
           href="https://github.com/tarodo/clouder-core"
           target="_blank"

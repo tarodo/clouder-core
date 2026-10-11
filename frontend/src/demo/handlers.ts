@@ -150,6 +150,7 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
             order: (query.get('order') as never) ?? undefined,
             tags: query.get('tags')?.split(',').filter(Boolean),
             match: (query.get('match') as never) ?? undefined,
+            fresh: query.get('fresh') === '1' || query.get('fresh') === 'true',
           }),
           query,
         ),

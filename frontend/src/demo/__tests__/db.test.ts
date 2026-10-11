@@ -92,6 +92,22 @@ describe('DemoDb', () => {
     expect(a.block(firstOpenBlock(a).id)).toEqual(b.block(firstOpenBlock(b).id));
   });
 
+  it('fresh hides tracks already in a playlist', () => {
+    const db = new DemoDb();
+    const cat = first(db.categoriesByStyle('s-tech'));
+    const all = db.categoryTracks(cat.id, {});
+    expect(all.some((t) => t.used_in_playlist)).toBe(true);
+    const fresh = db.categoryTracks(cat.id, { fresh: true });
+    expect(fresh.length).toBeGreaterThan(0);
+    expect(fresh.every((t) => !t.used_in_playlist)).toBe(true);
+  });
+
+  it('names weeks by Saturday-week number (ADR-0003: Oct 3 2026 starts week 40)', () => {
+    const db = new DemoDb();
+    expect(firstOpenBlock(db).name).toMatch(/^Week 40 · Oct 3/);
+    expect(first(db.blocksByStyle('s-tech', 'FINALIZED')).name).toMatch(/^Week 39 · Sep 26/);
+  });
+
   it('returns no tracks for an unknown bucket and 404s an unknown block', () => {
     const db = new DemoDb();
     expect(db.bucketTracks(firstOpenBlock(db).id, 'missing')).toEqual([]);

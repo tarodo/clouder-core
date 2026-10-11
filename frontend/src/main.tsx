@@ -48,4 +48,8 @@ async function boot(): Promise<void> {
   );
 }
 
-void boot();
+boot().catch(() => {
+  // The demo needs a service worker (MSW); in-app browsers and hardened modes may block it.
+  root.textContent =
+    'This demo needs a browser with service workers — open it in Chrome, Safari or Firefox.';
+});
