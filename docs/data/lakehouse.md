@@ -33,6 +33,13 @@ bronze_catalog_export ──▶ silver.dim_track_history ───────�
                           (SCD2, dated by snapshot, incremental)
 ```
 
+| Model | One row per | Key | Built |
+|---|---|---|---|
+| `stg_events` (view) | bronze event as delivered, Firehose redeliveries included; deleted users dropped | — | on read |
+| `silver.events` | event, earliest copy kept | `event_id` | incremental MERGE, 2-day lookback |
+| `silver.dim_track_history` | version of a track's catalog attributes | `track_id`, `valid_from` | incremental SCD2 from the daily snapshots |
+| `gold.fct_play` | play: a `playback_play` and the pauses, resumes and end that follow it | `play_event_id` | rebuilt nightly |
+
 **dbt project (`dbt/`).** Two targets: `prod` — dbt-athena writing Iceberg tables into the Glue
 databases `clouder_silver` and `clouder_gold` (data under `s3://…-analytics-lake/lakehouse/`);
 `ci` — dbt-duckdb, where seed fixtures stand in for the bronze tables. Dialect differences live in
@@ -70,10 +77,14 @@ CI runs them on DuckDB for every change under `dbt/` and parses the Athena targe
 
 **Nightly build.** `clouder-prod-transform` (Step Functions) starts the `clouder-prod-dbt`
 CodeBuild project at 00:30 UTC — after the catalog export (00:00) and the data-quality checks
-(00:10). CodeBuild clones `main`, installs the pinned dbt versions and runs `dbt build` (unit
-tests stay in CI), then `dbt source freshness`. A missed catalog export fails that second step:
+(00:10). CodeBuild checks out the commit the last green deploy recorded in SSM (`/clouder/dbt/git_ref`),
+installs the pinned dbt versions and runs `dbt build` (unit tests stay in CI), then
+`dbt source freshness`. A missed catalog export fails that second step:
 silver/gold still advance (the build ran first), but the night goes red instead of passing on a
-stale style dictionary. One retry; a failure ends the execution failed and
+stale style dictionary. The check runs after the build on purpose:
+`silver.events` does not depend on the export, and `dim_track_history` cannot be damaged by a
+short snapshot — a track missing from one night's snapshot keeps its open version (absence never
+closes a version), and the next complete snapshot catches up. One retry; a failure ends the execution failed and
 puts `clouder-prod-transform-failed` into ALARM (it emails the owner through the alarm topic,
 like every alarm here).
 
@@ -81,12 +92,19 @@ like every alarm here).
 three days from `clouder_silver.events`, the last three days from `bronze_events` — each `dt`
 from exactly one side. Three days cover the build's lookback and two missed nightly builds, so a
 failing build does not drop days from the cards. It is switched on by the Terraform variable
-`silver_events_table` (empty = bronze only), set in `.github/workflows/deploy.yml` after the
-first green build (2026-10-07); removing that `-var` is the rollback.
+`silver_events_table` (empty = bronze only), set in `infra/prod.tfvars` after the
+first green build (2026-10-07); clearing it there is the rollback.
 
 **Docs and lineage.** On every push to `main` under `dbt/`, CI builds the fixtures and publishes
 the dbt docs (models, columns, tests, lineage graph) to GitHub Pages (`.github/workflows/pages.yml`):
 <https://tarodo.github.io/clouder-core/lineage/>. They contain no production data.
+
+**Catalog export.** `clouder-prod-catalog-export` (00:00 UTC) writes one snapshot a day under
+`bronze/catalog_export/snapshot_dt=<date>/<table>/`, `clouder_styles` last. It pages by primary key
+(`WHERE (keys) > (last row) ORDER BY keys LIMIT 500`) through the Data API and logs rows, pages and
+milliseconds per table (`catalog_export_table_written`). It paged with `OFFSET` until 2026-10-11:
+each page re-scanned every earlier row, the run grew from 211 s to over 300 s in four nights as
+auto-ingest filled the catalog, and it timed out two nights running.
 
 ## How to run
 

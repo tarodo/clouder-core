@@ -13,4 +13,26 @@ Canonical schema, raw ingestion, transforms, search and enrichment.
 - [Entity resolution](entity-resolution.md) — identity map, ISRC and fuzzy matching, review queue, measured matcher quality.
 - [Search and enrichment](search-and-enrichment.md) — Spotify ISRC + metadata fallback, YouTube Music matching, vendor-match cache, LLM label/artist research.
 
+## Lineage, Aurora side
+
+```text
+Beatport API
+  │ auto-ingest / admin ingest            ingest_runs(run_id, style_id, iso_year, iso_week, raw_s3_key)
+  ▼
+s3 raw/bp/releases/style_id=/year=/week=/releases.json.gz   (raw_s3_key)
+  │ contract screen (contracts.py) ──▶ raw/bp/releases/_quarantine/run_id=<run_id>/
+  ▼
+source_entities(source, entity_type, external_id, last_run_id)  ·  source_relations(from_*, to_*, last_run_id)
+  │ canonicalize.py, set-based
+  ▼
+identity_map(source, entity_type, external_id → clouder_entity_type, clouder_id, match_type, confidence)
+  ▼
+clouder_tracks / clouder_artists / clouder_albums / clouder_labels / clouder_track_artists / clouder_styles   (id = clouder_id)
+  ├─▶ vendor_track_map(clouder_track_id, vendor → vendor_track_id, match_type, confidence) · match_review_queue
+  ├─▶ per-user overlay: categories → category_tracks(category_id, track_id), triage_*, playlists
+  └─▶ catalog export (nightly) → bronze/catalog_export/snapshot_dt=/<table>/ → silver.dim_track_history(track_id, valid_from) → gold.fct_play
+```
+
+Every canonical row traces back to the raw object it came from: `identity_map` → `source_entities.last_run_id` → `ingest_runs.raw_s3_key`. The lake side is in the [dbt lineage](https://tarodo.github.io/clouder-core/lineage/).
+
 See also [`docs/architecture.md`](../architecture.md), [`docs/adr/`](../adr/).
