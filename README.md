@@ -248,7 +248,7 @@ Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/dep
 - Throughput limits are measured, not guessed: canonicalization fits a 10× week easily and reaches the Lambda timeout around 100× the largest week — see [scalability notes](docs/scalability.md).
 - Matching precision is measured for YouTube Music only. Next: a labelled sample for Spotify.
 - Built for a closed group of DJs: about 143k tracks, growing by 3–5k a week.
-- The deploy role is still AdministratorAccess, assumable only from the `production` environment; its scoped policy and the permissions boundary on every project role are in [`infra/bootstrap/`](infra/bootstrap/README.md), waiting to be applied ([security](docs/security.md#known-gaps)).
+- The deploy role is still AdministratorAccess, assumable only from the `production` environment; every project role carries a permissions boundary (`infra/iam_boundary.tf`), and the deploy role's scoped policy in [`infra/bootstrap/`](infra/bootstrap/README.md) waits to be applied ([security](docs/security.md#known-gaps)).
 
 ## How this was built
 

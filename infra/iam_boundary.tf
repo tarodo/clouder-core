@@ -1,6 +1,7 @@
 # ── Permissions boundary for every role Terraform creates ──
 # A ceiling, not a grant: whatever a role's own policy says, it cannot touch IAM (except
-# reading it and passing project roles to services), Organizations or the account. The
+# reading it and passing project roles to services), Organizations, the account, or assume
+# another role (none of the code does; the account is shared). The
 # deploy role may create roles and write their policies only with this boundary on them,
 # and cannot change it (infra/bootstrap/deploy-role-policy.json), so it cannot hand itself
 # or a Lambda more than this through a project role.
@@ -14,7 +15,7 @@ data "aws_iam_policy_document" "role_boundary" {
   statement {
     sid         = "EverythingButIdentityAndAccount"
     effect      = "Allow"
-    not_actions = ["iam:*", "organizations:*", "account:*"]
+    not_actions = ["iam:*", "organizations:*", "account:*", "sts:AssumeRole"]
     resources   = ["*"]
   }
   statement {

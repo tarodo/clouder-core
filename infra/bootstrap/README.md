@@ -13,12 +13,12 @@ The policy of `github-actions-terraform`, the role every deploy assumes (only th
 
 **What it refuses**
 
-- Creating a project role, writing its inline policy, attaching a policy or setting a boundary **unless the role carries the permissions boundary `clouder-role-boundary`** ([`infra/iam_boundary.tf`](../iam_boundary.tf)), removing that boundary, or changing the boundary policy. The boundary lets a role do anything except IAM writes (reads and passing project roles stay), Organizations and account settings — so a project role, whatever its own policy says, cannot grant anyone more IAM.
+- Creating a project role, writing its inline policy, attaching a policy or setting a boundary **unless the role carries the permissions boundary `clouder-role-boundary`** ([`infra/iam_boundary.tf`](../iam_boundary.tf)), removing that boundary, or changing the boundary policy. The boundary lets a role do anything except IAM writes (reads and passing project roles stay), Organizations, account settings and `sts:AssumeRole` — so a project role, whatever its own policy says, cannot grant anyone more IAM or step into another role.
 - Attaching any managed policy other than `ReadOnlyAccess` (the plan role's).
 - `sts:AssumeRole`, so a trust policy that names the deploy role does not let it become another role.
 - Any change to its own role or to this policy (`github-actions-terraform-deploy`).
 
-**What it does not do.** Inside the 23 services the role is still all-powerful: a compromised `main` can read and delete the project's data, and — the account is shared — other projects' resources in those services too. What the policy removes is the step from "deploy" to "IAM administrator": the role cannot create a principal, a policy or a role that outranks the boundary.
+**What it does not do.** A compromised `main` can still run code under a project role with anything the boundary leaves — every AWS service except IAM writes, Organizations, account and `sts:AssumeRole` — so it can read and delete the project's data and, the account being shared, other projects' resources too. And nothing limits what a project role's **trust policy** says: it could make a role assumable from another account, which would outlive the OIDC session. IAM Access Analyzer's external-access analyzer (free) flags exactly that and is worth turning on. What the policy removes is the step from "deploy" to "IAM administrator": no principal, policy or role can outrank the boundary.
 
 **Checked with the IAM policy simulator** (2026-10-11). Of the 160 actions the role performed in 90 days, 149 are allowed with the boundary on the roles; the 11 refused are ECR actions, unused since July. Refused as intended: a role without the boundary, removing or changing the boundary, attaching AdministratorAccess, changing its own role or policy, `sts:AssumeRole`. A project role given `*:*` inline stays inside the boundary: `iam:AttachRolePolicy` and `iam:CreateUser` are denied, S3 and Scheduler work.
 
@@ -50,4 +50,6 @@ aws iam create-policy-version --policy-arn arn:aws:iam::$ACCT:policy/github-acti
   --policy-document file://infra/bootstrap/deploy-role-policy.json --set-as-default
 ```
 
-A policy keeps at most five versions; delete the oldest non-default one before a sixth. Changing the boundary later (`infra/iam_boundary.tf`) is also an owner step: the deploy role may not change it, so the apply fails until the owner runs it.
+A policy keeps at most five versions; delete the oldest non-default one before a sixth.
+
+**Owner-only after the switch** (the deploy fails until the owner applies them): changing the boundary (`infra/iam_boundary.tf`); changing the provider's `default_tags`, which re-tags the boundary policy; reverting the boundary, which needs `iam:DeleteRolePermissionsBoundary` — re-attach AdministratorAccess first.

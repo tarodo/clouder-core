@@ -65,11 +65,11 @@ def _allowed() -> set[str]:
 
 
 def _role_blocks() -> list[str]:
-    return re.findall(r'resource "aws_iam_role" "[a-z_]+" \{(.*?)\n\}', TF, re.S)
+    return re.findall(r'resource "aws_iam_role" "\w+" \{(.*?)\n\}', TF, re.S)
 
 
 def _role_module_calls() -> list[str]:
-    calls = re.findall(r'module "[a-z_]+" \{(.*?)\n\}', TF, re.S)
+    calls = re.findall(r'module "\w+" \{(.*?)\n\}', TF, re.S)
     return [c for c in calls if "modules/lambda_role" in c]
 
 
@@ -108,8 +108,12 @@ def test_no_managed_policy_but_read_only_can_be_attached() -> None:
     assert deny["Condition"] == {
         "ArnNotEquals": {"iam:PolicyARN": "arn:aws:iam::aws:policy/ReadOnlyAccess"}
     }
-    attached = set(re.findall(r'policy_arn\s*=\s*"([^"]+)"', TF))
-    assert attached == {"arn:aws:iam::aws:policy/ReadOnlyAccess"}
+    attached = re.findall(r'policy_arn\s*=\s*"([^"]+)"', TF)
+    assert set(attached) == {"arn:aws:iam::aws:policy/ReadOnlyAccess"}
+    # A computed policy_arn (a reference, not a literal) would slip past the set above.
+    assert len(re.findall(r"policy_arn\s*=", TF)) == len(attached)
+    # The deploy role writes no IAM policy: the boundary is the only one Terraform creates.
+    assert re.findall(r'resource "aws_iam_policy" "(\w+)"', TF) == ["role_boundary"]
     assert "managed_policy_arns" not in TF and "aws_iam_policy_attachment" not in TF
 
 
@@ -140,7 +144,12 @@ def test_the_boundary_keeps_roles_out_of_iam() -> None:
     doc = re.search(r'data "aws_iam_policy_document" "role_boundary" \{(.*?)\n\}', TF, re.S).group(
         1
     )
-    assert re.search(r'not_actions\s*=\s*\["iam:\*", "organizations:\*", "account:\*"\]', doc)
+    sids = re.findall(r'sid\s*=\s*"(\w+)"', doc)
+    assert sids == ["EverythingButIdentityAndAccount", "ReadIam", "PassProjectRoles"]
+    # sts:AssumeRole too: a role in this shared account that trusts the root stays out of reach.
+    assert re.search(
+        r'not_actions\s*=\s*\["iam:\*", "organizations:\*", "account:\*", "sts:AssumeRole"\]', doc
+    )
     assert re.search(r'actions\s*=\s*\["iam:Get\*", "iam:List\*"\]', doc)
     assert re.search(r'actions\s*=\s*\["iam:PassRole"\]', doc)
     assert "role/${local.name_prefix}-*" in doc
