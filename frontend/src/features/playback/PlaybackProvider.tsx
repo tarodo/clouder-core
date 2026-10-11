@@ -29,6 +29,7 @@ import { useTelemetry } from '../../lib/telemetry/hooks';
 import { debounceTrack } from '../../lib/telemetry/sdk';
 import { resolvePlaybackSource, seekEventProps, statusTransitionEvent } from './lib/telemetryMap';
 import type { PlaybackSource } from './lib/types';
+import { isDemo } from '../../demo/mode';
 
 export interface DevicesSlice {
   list: readonly SpotifyDevice[];
@@ -180,9 +181,13 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   // transition that indicates the track ran to its end with nothing cued.
   const wasPlayingExpectedRef = useRef<boolean>(false);
   const [sdkReady, setSdkReady] = useState(false);
-  const [sdkError, setSdkError] = useState<SdkError | null>(null);
+  // The demo never loads the SDK: the player shows its existing "disconnected" state.
+  const [sdkError, setSdkError] = useState<SdkError | null>(
+    isDemo() ? { kind: 'init', message: 'demo' } : null,
+  );
 
   const ensureSdk = useCallback(async (): Promise<void> => {
+    if (isDemo()) return;
     if (sdkInitRef.current) return sdkInitRef.current;
     let resolveDeviceReady: () => void = () => {};
     const deviceReadyPromise = new Promise<void>((r) => {

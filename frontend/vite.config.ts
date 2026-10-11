@@ -63,6 +63,9 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
+    // The demo is served from GitHub Pages under /clouder-core/demo/ with its MSW worker.
+    base: mode === 'demo' ? '/clouder-core/demo/' : '/',
+    publicDir: mode === 'demo' ? 'demo-public' : 'public',
     plugins: [react()],
     define: { __APP_VERSION__: JSON.stringify(appVersion()) },
     // Vite 7 raised the default to baseline-widely-available (Safari 16, Chrome 107);
