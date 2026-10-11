@@ -2,7 +2,7 @@
 
 The raw ingestion pipeline fetches weekly Beatport releases, writes them to S3, records an `ingest_run` row, and enqueues a canonicalization message.
 
-All code lives in `src/collector/handler.py`. The shared entry point is `_run_beatport_ingest`.
+All code lives in `src/collector/api/routes_ingest.py`. The shared entry point is `_run_beatport_ingest`.
 
 ---
 

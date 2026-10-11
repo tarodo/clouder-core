@@ -6,7 +6,7 @@ This file is the AI-agent map. Detailed documentation lives in `docs/`.
 
 ## Where things are
 
-- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration, telemetry, analytics-api, catalog export, data-quality, backfill, auto-ingest) + providers + data-access layer.
+- `src/collector/` — Lambdas (API, worker, search, spotify, vendor_match, migration, telemetry, analytics-api, catalog export, data-quality, backfill, auto-ingest) + providers + data-access layer. The collector API's routes are in `api/routes_*` (dispatched by `handler.py`), the ingest repository in `repositories/` (one module per aggregate).
 - `frontend/` — Vite + React 19 + Mantine 9 SPA.
 - **Analytics** (in `src/collector/`, no separate `analytics/` dir) — telemetry → Firehose → S3 lake (`bronze_events`, typed hybrid). `analytics_handler.py` reads it live via Athena for `GET /v1/analytics/listening` (minutes + tracks, today / 7d / 30d); `GET /v1/analytics/funnel` is served by the collector from Aurora (`repositories.analytics_funnel`). Both are personal (own data; `?user_id` admin-only) and back the Home cards + `/admin/analytics`. Nightly `catalog-export` (00:00 UTC) snapshots dims (track → style) to `bronze/catalog_export/`. A nightly dbt build (`dbt/`, CodeBuild at 00:30 UTC) turns bronze into Iceberg silver/gold (`clouder_silver.events`, `dim_track_history`, `clouder_gold.fct_play`); the cards read silver history + the live bronze tail. See `docs/data/lakehouse.md`.
 - `alembic/` — schema migrations.
