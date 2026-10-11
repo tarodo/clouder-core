@@ -1,7 +1,6 @@
 # Auto-ingest
 
-Status: deployed disabled; enabled from the admin after the first login check. "After" is
-filled from the first scheduled runs.
+Status: deployed and enabled since 2026-10-08; runs are planned daily at 00:05 UTC.
 
 ## Why
 
@@ -105,7 +104,15 @@ End-to-end check: the nightly data-quality check `styles_behind` stays 0.
 
 ## After
 
-Pending the first scheduled runs: runs per day, periods ingested, `styles_behind`.
+Measured on production, 2026-10-08 → 2026-10-11 (CloudWatch metrics and the
+`auto_ingest_run_completed` log events):
+
+| | Before | After |
+|---|---|---|
+| `styles_behind` (nightly check) | 2 on 2026-10-07 and 10-08 | 0 from 2026-10-09 on |
+| Runs | manual only | 15 completed in the first three days (3 a day once the plan settled) |
+| Style-weeks ingested | — | 45, 0 failed |
+| Manual steps | a token pasted per style × week | none |
 
 ## What it buys
 

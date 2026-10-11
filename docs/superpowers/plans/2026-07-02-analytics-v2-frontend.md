@@ -149,7 +149,7 @@ EOF
 
 ### Task 3: Refresh graphify + verify
 
-- [ ] **Step 1:** `cd frontend && pnpm typecheck && pnpm lint && pnpm test` (full frontend suite) → PASS. Then backend `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q` → PASS (unchanged).
+- [ ] **Step 1:** `cd frontend && pnpm typecheck && pnpm lint && pnpm test` (full frontend suite) → PASS. Then backend `<repo>/.venv/bin/pytest -q` → PASS (unchanged).
 - [ ] **Step 2:** Confirm no dangling refs to the old dashboards: `grep -rnE "DASHBOARDS|DashboardName|'triage'|dashboards" frontend/src/features/admin | grep -viE '\.test\.'` → nothing referencing the deleted config.
 - [ ] **Step 3:** `graphify . --update` (doc-key error non-fatal), `git add -A graphify-out`, commit if changed:
 ```bash

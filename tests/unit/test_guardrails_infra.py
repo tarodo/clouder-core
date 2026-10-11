@@ -63,3 +63,22 @@ def test_every_cloudfront_behaviour_sends_the_security_headers() -> None:
     behaviours = dist.count("target_origin_id")
     attached = dist.count("response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id")
     assert behaviours == attached == 3  # default + the two API behaviour groups
+
+
+CYRILLIC = re.compile(r"[Ѐ-ӿ]")
+MONEY = re.compile(r"[$€£]\s?\d|\d\s?(USD|EUR)\b|/mo(nth)?\b|/мес", re.IGNORECASE)
+
+
+def test_infra_text_is_english_and_moneyless() -> None:
+    files = [*sorted(INFRA.glob("*.tf")), INFRA / "terraform.tfvars.example"]
+    hits = [f"{p.name}:{n}" for p in files for n, line in enumerate(p.read_text().splitlines(), 1)
+            if CYRILLIC.search(line) or MONEY.search(line)]
+    assert hits == []
+
+
+def test_default_cloudfront_certificate_keeps_tlsv1() -> None:
+    # With cloudfront_default_certificate CloudFront forces TLSv1; any other value is a
+    # perpetual plan diff and a security claim that is not true (docs/security.md).
+    cert = re.search(r"viewer_certificate \{(.*?)\}", (INFRA / "frontend.tf").read_text(), re.S).group(1)
+    assert re.search(r"cloudfront_default_certificate\s*=\s*true", cert)
+    assert re.search(r'minimum_protocol_version\s*=\s*"TLSv1"', cert)

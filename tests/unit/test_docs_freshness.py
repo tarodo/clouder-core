@@ -65,3 +65,30 @@ def test_env_vars_do_not_claim_registry_publishing() -> None:
     row = next(r for r in (ROOT / "docs" / "ops" / "env-vars.md").read_text().splitlines()
                if r.startswith("| `ytmusic`"))
     assert "playlist publish" not in row  # the registry exporter is a stub
+
+
+def _lambda_suffixes() -> set[str]:
+    tf = "\n".join(p.read_text() for p in (ROOT / "infra").glob("*.tf"))
+    # Names are set as `function_name = "${local.name_prefix}-x"` or through a `*lambda_name` local.
+    return set(re.findall(r'(?:function_name|lambda_name)\s*=\s*"\$\{local\.name_prefix\}-([a-z0-9-]+)"', tf))
+
+
+def test_docs_call_lambdas_by_their_current_names() -> None:
+    # The functions were renamed beatport-prod-* -> clouder-prod-*; buckets and the Athena
+    # workgroup kept the old prefix on purpose (CLAUDE.md gotcha 4), so only function names count.
+    tf = "\n".join(p.read_text() for p in (ROOT / "infra").glob("*.tf"))
+    suffixes = _lambda_suffixes()
+    assert len(suffixes) == len(re.findall(r'^resource "aws_lambda_function"', tf, re.M))
+    stale = re.compile(r"beatport-prod-(" + "|".join(sorted(suffixes, key=len, reverse=True)) + r")\b")
+    docs = [*live_docs(), *sorted((ROOT / "docs" / "adr").glob("*.md")), ROOT / "frontend" / "README.md"]
+    hits = [f"{d.relative_to(ROOT)}:{n}" for d in docs
+            for n, line in enumerate(d.read_text(encoding="utf-8").splitlines(), 1) if stale.search(line)]
+    assert hits == []
+
+
+def test_auto_ingest_doc_reports_production() -> None:
+    doc = (ROOT / "docs" / "data" / "auto-ingest.md").read_text()
+    status = next(line for line in doc.splitlines() if line.startswith("Status:"))
+    assert "disabled" not in status
+    after = doc.split("## After", 1)[1].split("\n## ", 1)[0]
+    assert "Pending" not in after and re.search(r"\d", after)

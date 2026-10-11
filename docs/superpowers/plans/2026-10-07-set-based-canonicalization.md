@@ -20,7 +20,7 @@
 - `log_event` keeps only fields in `ALLOWED_LOG_FIELDS` (`run_id`, `phase`, `item_count`, `duration_ms`, `chunk_*` are already allowed).
 - No schema migrations.
 - Branch `perf/set-based-canonicalization` from `origin/main`. Commits: Conventional Commits generated with `caveman:caveman-commit`, multi-line bodies via heredoc, author `tarodo`, no AI attribution.
-- In a git worktree `.venv` lives at the main repo root: use `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/...` (written as `$VENV/...` below).
+- In a git worktree `.venv` lives at the main repo root: use `<repo>/.venv/bin/...` (written as `$VENV/...` below).
 
 ## Spec
 
@@ -55,12 +55,12 @@ A second, latent issue: new identities are written at the end of each phase with
 - [ ] **Step 1: Create the branch in a worktree from `origin/main`**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git fetch origin
 git worktree add -b perf/set-based-canonicalization ../clouder-core-set-based origin/main
 cp docs/superpowers/plans/2026-10-07-set-based-canonicalization.md ../clouder-core-set-based/docs/superpowers/plans/
 cd ../clouder-core-set-based
-export VENV=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin
+export VENV=<repo>/.venv/bin
 ```
 
 - [ ] **Step 2: Start a throwaway Postgres with the full schema**
@@ -2347,7 +2347,7 @@ Fill the remaining production references in "What it buys", set `Status: shipped
 
 ```bash
 docker stop canon-pg
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git worktree remove ../clouder-core-set-based
 git fetch --prune && git merge --ff-only origin/main
 git branch -d perf/set-based-canonicalization

@@ -16,7 +16,7 @@
 - Measured state on 2026-10-08: ruff (E4/E7/E9/F) 95 findings; mypy (non-strict) 37 errors; coverage 84 % without DB tests, 85 % with them; pip-audit clean; `pnpm audit --prod`: 3 high, all `react-router` 7.14.2 (fixed in 7.18.2); 11 of 18 Lambdas on `aws_iam_role.collector_lambda`; error alarms on 10 of 18 functions.
 - Prod changes ship through the normal deploy; nothing is applied by hand. Aurora changes are in place (no replacement).
 - Tooling stays the project's: `docs/superpowers/` and `graphify-out/` stay where they are (the plan/graph tools write there); `ponytail:` comments stay (the owner's plugin convention).
-- Branch `chore/p1-engineering`, worktree `../clouder-core-p1`; `$VENV=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin`; Conventional Commits, no AI attribution; `git restore graphify-out` before commits.
+- Branch `chore/p1-engineering`, worktree `../clouder-core-p1`; `$VENV=<repo>/.venv/bin`; Conventional Commits, no AI attribution; `git restore graphify-out` before commits.
 
 ## Review Focus
 

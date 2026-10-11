@@ -256,7 +256,7 @@ Expected: `2 passed`.
 
 ```bash
 cp ../artists/.env .env
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add experiments/enrichment_split
 git commit -m "chore(experiments): scaffold enrichment_split sandbox"
 ```
@@ -409,7 +409,7 @@ Run: `.venv/bin/pytest tests/test_schemas.py -q` — Expected: `5 passed`.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add experiments/enrichment_split
 git commit -m "feat(experiments): narrative and facts request schemas"
 ```
@@ -583,7 +583,7 @@ Run: `.venv/bin/pytest tests/test_social_regex.py -q` — Expected: `5 passed`.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add experiments/enrichment_split
 git commit -m "feat(experiments): profile regex extraction + handle validation"
 ```
@@ -731,7 +731,7 @@ Run: `.venv/bin/pytest tests/test_tavily_client.py -q` — Expected: `3 passed`.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add experiments/enrichment_split
 git commit -m "feat(experiments): tavily client with credit counter"
 ```
@@ -1013,7 +1013,7 @@ Run: `.venv/bin/pytest tests/test_facts_pass.py -q` — Expected: `5 passed`.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add experiments/enrichment_split
 git commit -m "feat(experiments): three-tier facts pass with llm extraction"
 ```
@@ -1229,7 +1229,7 @@ Run: `.venv/bin/pytest tests/test_narrative_pass.py -q` — Expected: `4 passed`
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add experiments/enrichment_split
 git commit -m "feat(experiments): capped narrative pass via responses api"
 ```
@@ -1334,7 +1334,7 @@ Run: `.venv/bin/pytest tests/test_merge.py -q` — Expected: `2 passed`.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add experiments/enrichment_split
 git commit -m "feat(experiments): union merge with provenance"
 ```
@@ -1651,7 +1651,7 @@ Expected output: `labels=50 artists=50 -> .../sample/sample.yaml`. If Aurora ret
 - [ ] **Step 7: Commit (including the generated sample)**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add experiments/enrichment_split
 git commit -m "feat(experiments): prod sample puller + 50+50 stratified sample"
 ```
@@ -2123,7 +2123,7 @@ Run: `.venv/bin/pytest -q` — Expected: all pass (≈25 tests).
 - [ ] **Step 8: Commit**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add experiments/enrichment_split
 git commit -m "feat(experiments): runner, metrics, gate report, full cli"
 ```
@@ -2189,7 +2189,7 @@ Create `docs/superpowers/specs/<run-date>-enrichment-split-experiment-report.md`
 - [ ] **Step 7: Commit the report**
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core
+cd <repo>
 git add docs/superpowers/specs/*enrichment-split-experiment-report.md
 git commit -m "docs(specs): enrichment split experiment report with go/no-go"
 ```

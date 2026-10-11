@@ -8,6 +8,8 @@
 
 *Sample data, sped up: a week of new releases cleared one keystroke per track.*
 
+**At a glance:** ~98k canonical tracks, 3–5k new every week · 18 Lambda functions, 2 Step Functions workflows · 11 nightly data-quality SLOs · ~3,300 automated tests · every merge to `main` deploys to production.
+
 Every week brings a new wave of electronic-music releases on Beatport. For a DJ, turning "what came out this week" into "what goes into my set" means pulling the releases, matching each track across Spotify and YouTube Music, checking labels and artists, auditioning, and sorting into playlists. CLOUDER automates the data side of that workflow and gives a small group of DJs a fast, keyboard-first app for the human side.
 
 Under the hood it is a real data system: scheduled batch ingestion into an S3 raw zone, a canonical catalog in Aurora PostgreSQL built by entity resolution, data contracts and nightly data-quality checks, asynchronous enrichment workers, and an Iceberg lakehouse built by dbt on Athena. Everything is defined in Terraform and deployed by GitHub Actions on every merge to `main`.
@@ -26,7 +28,7 @@ The engineering decisions behind the system and what each one bought, measured o
 | A data contract on every raw record, with quarantine and drift alarms | Bad records never reach the catalog; on replayed history the drift alarm would have fired on 2026-09-13 | [contracts](docs/data/contracts.md), [ADR-0026](docs/adr/0026-raw-data-contract.md) |
 | 11 nightly SQL data-quality checks with SLOs | The first run caught two styles lagging a week behind | [data quality](docs/data/data-quality.md), [ADR-0023](docs/adr/0023-sql-data-quality-checks.md) |
 | The YouTube Music matcher measured on human decisions and a labelled sample | 100 of 100 automatic matches correct (error < ~3 % at 95 % confidence); the 0.92 threshold stays, since 0.90 would publish 27 wrong videos | [entity resolution](docs/data/entity-resolution.md) |
-| Scheduled ingest (EventBridge Scheduler) with a Beatport login per run | The due week of every style first, then an even backfill, with no manual step | [auto-ingest](docs/data/auto-ingest.md), [ADR-0027](docs/adr/0027-auto-ingest.md) |
+| Scheduled ingest (EventBridge Scheduler) with a Beatport login per run | Two styles a week behind caught up the next day (`styles_behind` 2 → 0); 45 style-weeks in the first three days, 0 failed, no manual step | [auto-ingest](docs/data/auto-ingest.md), [ADR-0027](docs/adr/0027-auto-ingest.md) |
 
 ## Architecture
 
@@ -64,6 +66,27 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 | Iceberg + dbt only where live queries fell short | Deduplication, history and small files were real problems | [0025](docs/adr/0025-iceberg-dbt-lakehouse.md) |
 | Login per run for scheduled ingest | No long-lived Beatport token stored anywhere | [0027](docs/adr/0027-auto-ingest.md) |
 
+### Where the data lives
+
+```text
+s3://<raw-bucket>/                      versioned; old versions move to Glacier IR and never expire
+  raw/bp/releases/
+    style_id=<id>/year=<yyyy>/week=<ww>/
+      releases.json.gz                  the untouched Beatport response; every step replays from here
+      meta.json                         run metadata
+    _quarantine/run_id=<run>/           records that failed the data contract, with reasons
+  covers/<user_id>/                     playlist covers (presigned uploads)
+
+s3://<analytics-lake>/
+  bronze/events/dt=<date>/event_name=<name>/         Firehose → Parquet, Glue partition projection
+  bronze/catalog_export/snapshot_dt=<date>/<table>/  nightly catalog snapshot (14 days)
+  lakehouse/                                         Iceberg silver/gold, built by dbt on Athena
+  governance/deleted_users/                          erasure tombstones (see docs/privacy.md)
+```
+
+Aurora PostgreSQL holds the operational model: source entities → identity map
+(`source × entity_type × external_id → canonical id`) → canonical catalog → per-user overlay.
+
 ## What this project demonstrates
 
 **Data engineering**
@@ -74,12 +97,12 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 - An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
 
 **Cloud & infrastructure**
-- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 233 Terraform resource definitions.
+- 18 AWS Lambda functions, 7 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 237 Terraform resource definitions.
 - GitHub Actions with OIDC (no long-lived AWS keys), path-filtered PR checks, and a two-phase deploy that lands DB migrations before API code.
 - A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function, routed to email through SNS.
 
 **Software engineering**
-- About 3,300 automated tests: ~2,090 backend (including 51 against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
+- About 3,300 automated tests: ~2,090 backend (including a suite against a real PostgreSQL 16), ~1,230 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
 - CI gates on every PR: ruff and mypy, an 80 % coverage floor, locked Python dependencies with pip-audit, a runtime `pnpm audit`, a route-consistency check (Terraform ↔ OpenAPI ↔ handler code); Dependabot for pip, npm, Actions and Terraform.
 - 28 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
 
@@ -102,6 +125,8 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 | **CloudFront** | SPA delivery with Origin Access Control |
 | **IAM** | A least-privilege execution role per Lambda (its own log group and only what its code uses); GitHub OIDC deploy role |
 
+**Deliberately not used:** Redshift, EMR/Spark, Kinesis Data Streams/MSK, ECS/EKS, Glue ETL jobs. At ~100k tracks and a few hundred events a day they would add cost and moving parts without solving a problem this system has; where an alternative was weighed, the trade-off is recorded — Redshift Serverless and Kafka in [`docs/design/data-platform.md`](docs/design/data-platform.md#alternatives-considered), Glue ETL and Spark in [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md) — and [`docs/scalability.md`](docs/scalability.md) says what changes at 10× and 100×.
+
 ## Data pipeline
 
 1. **Ingest.** The auto-ingest Lambda runs at times set in the admin (fixed, or N random per day). It logs in to Beatport, picks the due Saturday-week of every visible style first and then backfills missing weeks evenly, and for each one writes `releases.json.gz` + `meta.json` to the S3 raw zone, records an `ingest_runs` row and enqueues canonicalization. An admin can run the same path on demand.
@@ -111,6 +136,8 @@ The full diagram and the list of all 18 Lambda functions are in [`docs/architect
 5. **Check.** Every night eleven SQL checks measure freshness, volume, completeness, integrity and plausibility and publish CloudWatch metrics with an alarm.
 6. **Analyze.** Telemetry flows through Firehose into the bronze lake; a nightly export snapshots catalog dimensions; a nightly dbt build turns both into Iceberg silver/gold, which the analytics API reads together with the live bronze tail.
 7. **Reprocess.** When canonicalization changes, the backfill state machine replays stored raw runs — first as a dry run that reports what would change, then for real.
+
+**When something fails.** Each worker has its own queue and dead-letter queue, so a vendor outage delays one kind of enrichment and nothing else. Bad upstream records go to quarantine instead of failing the run. A failed nightly dbt build leaves the analytics cards correct for two more nights, because they read the last three days straight from bronze. Every failure mode, its alarm and its recovery are listed in [`docs/ops/failure-modes.md`](docs/ops/failure-modes.md).
 
 ## Screenshots
 
@@ -145,9 +172,18 @@ Rendered from the app's React components with sample data (`cd frontend && pnpm 
 | Canonical catalog | ~98k canonical tracks (2026-10-07), from 107,795 raw records |
 | Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
 | Lambda invocations | 156k in 30 days (2026-09-08 → 10-08), 0.016 % errors |
-| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 233 Terraform resource definitions |
+| Infrastructure | 18 Lambda functions · 7 SQS queues + DLQs · 2 state machines · 237 Terraform resource definitions |
 | API | 106 operations |
 | Delivery | 265+ merged pull requests; every merge to `main` deploys to production |
+
+## Production readiness
+
+- **Delivery.** `main` accepts changes only through pull requests with 8 required checks (tests with an 80 % coverage gate, ruff and mypy, dependency audit, real-PostgreSQL tests, Terraform, dbt, frontend). Pull requests plan Terraform under a read-only AWS role and see the same inputs the deploy applies; every merge deploys through GitHub Actions with OIDC — no long-lived AWS keys — and migrations land before the code that needs them ([ADR-0028](docs/adr/0028-ci-roles.md)).
+- **Reliability.** A dead-letter queue on every work queue; permanent and transient errors handled differently; replay-safe writes; Aurora deletion protection with 7-day point-in-time recovery; [failure modes](docs/ops/failure-modes.md) with RPO/RTO; five blameless [postmortems](docs/postmortems/README.md).
+- **Observability.** Error alarms on every Lambda function plus pipeline and data-health alarms, all routed to email through SNS; a CloudWatch dashboard defined in Terraform; structured JSON logs with correlation ids; API access logs.
+- **Data governance.** A data contract on every raw record; nightly data-quality SLOs; documented retention; one command erases a user from Aurora, S3 and the Iceberg tables ([privacy](docs/privacy.md)).
+- **Security.** A least-privilege role per Lambda; KMS envelope encryption of users' OAuth tokens; PKCE and refresh-token rotation with replay detection; a log-field allow-list; CloudFront security headers; a written [threat model](docs/security.md) with known gaps.
+- **Cost guardrails.** Aurora scales to zero when idle, Athena queries have a scan limit, and cold data moves to cheaper storage on a lifecycle; a monthly budget alert is defined in Terraform and switches on with one secret.
 
 ## Running it locally
 
@@ -195,6 +231,7 @@ Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/dep
 | `tests/` | Unit, integration and real-PostgreSQL tests |
 | `docs/` | Architecture, ADRs, data, backend, frontend and ops guides |
 | `experiments/` | Isolated sandboxes whose results fed production decisions |
+| `CLAUDE.md`, `graphify-out/`, `docs/superpowers/` | AI-agent context: working instructions, a generated code graph, and the specs and plans behind each change (see *How this was built*) |
 
 ## Known limitations & next steps
 

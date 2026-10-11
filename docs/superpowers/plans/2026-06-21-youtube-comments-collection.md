@@ -13,8 +13,8 @@
 ## Conventions for every task
 
 - **Worktree venv:** `.venv` lives at the MAIN repo root. Run pytest by absolute path:
-  `WT=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/add_comments_collect`
-  `PYTEST=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest`
+  `WT=<repo>/.claude/worktrees/add_comments_collect`
+  `PYTEST=<repo>/.venv/bin/pytest`
   Run from `$WT`. `pytest.ini` sets `PYTHONPATH=src` for the runner.
 - **Commit messages** go through the `caveman:caveman-commit` skill, then `git commit -m "..."`. Conventional Commits. No `Co-Authored-By`. Multi-line bodies use heredoc form.
 - Branch is already `feat/youtube-comments-collection`.
@@ -601,9 +601,9 @@ def downgrade() -> None:
 cd $WT
 export PYTHONPATH=src
 export ALEMBIC_DATABASE_URL='postgresql+psycopg://postgres:postgres@localhost:5432/postgres'
-/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/alembic upgrade head
-/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/alembic downgrade -1
-/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/alembic upgrade head
+<repo>/.venv/bin/alembic upgrade head
+<repo>/.venv/bin/alembic downgrade -1
+<repo>/.venv/bin/alembic upgrade head
 ```
 Expected: no errors; head ends at `20260621_31`. (If no local Postgres is running, start it per `docs/`; do not skip this verification.)
 
@@ -1963,7 +1963,7 @@ In the `ROUTES` list (the per-track tags block, ~line 2509), add an entry mirror
 
 ```bash
 cd $WT
-PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python scripts/generate_openapi.py
+PYTHONPATH=src <repo>/.venv/bin/python scripts/generate_openapi.py
 git diff --stat docs/api/openapi.yaml
 grep -n "/tracks/{track_id}/comments" docs/api/openapi.yaml
 ```
@@ -2474,7 +2474,7 @@ git commit -m "feat(frontend): show comments under artists in player panel"
 
 - [ ] **Step 1: Backend suite**
 ```bash
-cd $WT && /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q
+cd $WT && <repo>/.venv/bin/pytest -q
 ```
 Expected: all pass.
 
@@ -2487,7 +2487,7 @@ Expected: all pass.
 - [ ] **Step 3: OpenAPI/schema drift check** (frontend CI diff-checks `schema.d.ts` against generated `openapi.yaml`)
 ```bash
 cd $WT
-PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python scripts/generate_openapi.py
+PYTHONPATH=src <repo>/.venv/bin/python scripts/generate_openapi.py
 cd frontend && pnpm run api:types
 cd $WT && git status --porcelain docs/api/openapi.yaml frontend/src/api/schema.d.ts
 ```

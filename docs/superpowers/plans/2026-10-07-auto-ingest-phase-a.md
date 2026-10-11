@@ -16,7 +16,7 @@
 - Stdlib only for the login (no `requests` in the Lambda bundle).
 - The deploy must not fail while the GitHub secrets are unset.
 - The new role reads exactly the two SSM parameters; no other grants beyond its own logs.
-- Branch `feat/auto-ingest`, worktree `../clouder-core-autoingest`; `$VENV=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin`; commits via caveman-commit rules; `terraform fmt -check`.
+- Branch `feat/auto-ingest`, worktree `../clouder-core-autoingest`; `$VENV=<repo>/.venv/bin`; commits via caveman-commit rules; `terraform fmt -check`.
 
 ## Review Focus
 

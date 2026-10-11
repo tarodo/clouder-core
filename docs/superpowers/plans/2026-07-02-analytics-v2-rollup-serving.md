@@ -12,7 +12,7 @@
 
 **Plan series:** Plans 1 (envelope) & 2 (marts) DONE. This is Plan 3. Plan 4 = frontend dashboard (deletes the 5 old dashboard pages, builds the per-user daily view). Plan F = beatport→clouder rename. Spec: `docs/superpowers/specs/2026-06-30-analytics-v2-user-daily-design.md`.
 
-**Worktree:** branch `feat/analytics-v2`. pytest = `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest`. `PYTHONPATH=src` set by pytest.ini.
+**Worktree:** branch `feat/analytics-v2`. pytest = `<repo>/.venv/bin/pytest`. `PYTHONPATH=src` set by pytest.ini.
 
 ---
 
@@ -60,7 +60,7 @@ In `tests/unit/test_analytics_rollup.py`, update `_sessions` cols to include `ts
 Update the `_sessions` helper's `cols` list to the new projection order: `["user_id","activity_type","session_seq","dt","ts_start","ts_end","duration_ms","tracks_listened","tracks_promoted","tracks_deleted"]`.
 
 - [ ] **Step 2: Run → fails** (`ts_start` KeyError).
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_analytics_rollup.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_analytics_rollup.py -q`
 
 - [ ] **Step 3: Add ts_start/ts_end to `sessions_sql`**
 
@@ -286,7 +286,7 @@ EOF
 - [ ] **Step 1: OpenAPI** — in `scripts/generate_openapi.py`, replace the five `_analytics_route("triage"...)`…`("ops"...)` calls with two: `_analytics_route("user-daily", "Per-user daily analytics.", "...")` and `_analytics_route("sessions", "Per-user session drill-down.", "...")`. If `_analytics_route` hardcodes only `from`/`to` query params, extend it (or add params) so both new routes document a required `user_id` query param plus `from`/`to`.
 
 - [ ] **Step 2: Regenerate + verify OpenAPI**
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python scripts/generate_openapi.py`
+Run: `PYTHONPATH=src <repo>/.venv/bin/python scripts/generate_openapi.py`
 Then confirm the generated `docs/api/openapi.yaml` contains `/v1/analytics/user-daily` and `/v1/analytics/sessions` and no longer the 5 old paths: `grep -E "analytics/(triage|taste|funnel|playback|ops|user-daily|sessions)" docs/api/openapi.yaml`.
 
 - [ ] **Step 3: infra routes** — in `infra/analytics_routes.tf`, replace `local.analytics_routes` with:
@@ -302,7 +302,7 @@ Leave the serving Lambda/role/workgroup as-is (it already has Glue read + S3 rea
 
 - [ ] **Step 5: Validate**
 Run: `cd infra && terraform fmt && terraform validate` → `Success!` (init `-backend=false` if needed; if terraform unavailable, brace-check + note).
-Run the full suite once more: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q`.
+Run the full suite once more: `<repo>/.venv/bin/pytest -q`.
 
 - [ ] **Step 6: Commit**
 ```bash
@@ -321,7 +321,7 @@ EOF
 
 ### Task 5: Refresh graphify + verify
 
-- [ ] **Step 1: Full suite** — `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q` → PASS.
+- [ ] **Step 1: Full suite** — `<repo>/.venv/bin/pytest -q` → PASS.
 - [ ] **Step 2: Confirm no dead dbt-gold table names remain in serving** — `grep -nE "fact_track_decision|dim_date|fact_playback|fact_funnel_step|dim_category|dim_track|dim_label|fact_seek|fact_triage_session" src/collector/analytics_handler.py` → empty.
 - [ ] **Step 3: graphify** — `graphify . --update` (doc-key error expected/non-fatal; code topology rebuilds via the watcher), then `git add -A graphify-out` and commit if changed:
 ```bash

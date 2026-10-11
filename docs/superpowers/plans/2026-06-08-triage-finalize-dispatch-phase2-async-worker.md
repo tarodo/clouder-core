@@ -12,7 +12,7 @@
 
 **AWS naming:** resources are prefixed `${var.project}-${var.environment}` → `beatport-prod-*` in prod.
 
-**Run tests with:** `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest`
+**Run tests with:** `<repo>/.venv/bin/pytest`
 
 ---
 
@@ -72,7 +72,7 @@ def test_enqueue_never_raises(monkeypatch):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_curation_auto_enrich_dispatch_enqueue.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_curation_auto_enrich_dispatch_enqueue.py -q`
 Expected: FAIL — module does not exist.
 
 - [ ] **Step 3: Implement the helper**
@@ -124,7 +124,7 @@ def enqueue_block_auto_enrich(*, block_id: str, user_id: str | None) -> None:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_curation_auto_enrich_dispatch_enqueue.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_curation_auto_enrich_dispatch_enqueue.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -188,7 +188,7 @@ def test_worker_raises_on_unparseable_record(monkeypatch):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_auto_enrich_dispatch_handler.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_auto_enrich_dispatch_handler.py -q`
 Expected: FAIL — module does not exist.
 
 - [ ] **Step 3: Implement the worker**
@@ -228,7 +228,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_auto_enrich_dispatch_handler.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_auto_enrich_dispatch_handler.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -279,7 +279,7 @@ In `tests/unit/test_curation_auto_enrich_trigger.py`, find the finalize test (th
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_curation_artist_auto_trigger.py tests/unit/test_curation_auto_enrich_trigger.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_curation_artist_auto_trigger.py tests/unit/test_curation_auto_enrich_trigger.py -q`
 Expected: FAIL — `curation_handler` has no `enqueue_block_auto_enrich`, and still calls the inline dispatchers.
 
 - [ ] **Step 3: Wire the enqueue into finalize**
@@ -300,7 +300,7 @@ Keep the inline `try_dispatch_*_for_track` imports/usages for the single-track p
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_curation_artist_auto_trigger.py tests/unit/test_curation_auto_enrich_trigger.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_curation_artist_auto_trigger.py tests/unit/test_curation_auto_enrich_trigger.py -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -548,7 +548,7 @@ git commit -m "feat(infra): grant + wire auto-enrich-dispatch queue to curation"
 
 - [ ] **Step 1: Run the entire unit suite**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q`
+Run: `<repo>/.venv/bin/pytest -q`
 Expected: PASS.
 
 - [ ] **Step 2: Confirm the worker is in the package**

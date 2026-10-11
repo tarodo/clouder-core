@@ -10,7 +10,7 @@
 
 **Plan series:** Plan 1 (envelope redesign) is DONE. This is Plan 2. Plan 3 = scheduled rollup runner + rewrite `analytics_handler._ROUTE_QUERIES` to serve these marts + new GET routes (the old 5 dashboards — triage/taste/funnel/playback/ops — and their SQL are deleted there, since they query the now-deleted dbt gold tables). Plan 4 = frontend dashboard. Plan F = beatport→clouder rename. Spec: `docs/superpowers/specs/2026-06-30-analytics-v2-user-daily-design.md`.
 
-**Worktree:** branch `feat/analytics-v2` at `.claude/worktrees/correct_reports`. Run pytest as `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest` (`.venv` at MAIN repo root). `PYTHONPATH=src` is set by pytest.ini.
+**Worktree:** branch `feat/analytics-v2` at `.claude/worktrees/correct_reports`. Run pytest as `<repo>/.venv/bin/pytest` (`.venv` at MAIN repo root). `PYTHONPATH=src` is set by pytest.ini.
 
 ---
 
@@ -74,8 +74,8 @@ END
 - [ ] **Step 1: Add the dev-dep**
 
 Append `duckdb>=1.0` to `requirements-dev.txt` (one line, after the existing entries). Then install it into the project venv:
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pip install 'duckdb>=1.0'`
-Expected: installs cleanly. Confirm: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -c "import duckdb; print(duckdb.__version__)"` prints a version.
+Run: `<repo>/.venv/bin/pip install 'duckdb>=1.0'`
+Expected: installs cleanly. Confirm: `<repo>/.venv/bin/python -c "import duckdb; print(duckdb.__version__)"` prints a version.
 
 - [ ] **Step 2: Write the dialect shim + builder skeleton**
 
@@ -255,7 +255,7 @@ def test_fixture_loads_and_sql_runs(con):
 
 - [ ] **Step 4: Run the harness test**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_analytics_rollup.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_analytics_rollup.py -q`
 Expected: PASS (4 sessions). If `sessions_sql(DUCKDB)` errors in DuckDB, fix the dialect rendering until the query runs and returns 4 rows.
 
 - [ ] **Step 5: Commit** (conventional subject; hook blocks non-conventional + strips AI trailer)
@@ -319,7 +319,7 @@ def test_fact_session_metrics(con):
 
 - [ ] **Step 2: Run it**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_analytics_rollup.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_analytics_rollup.py -q`
 Expected: PASS. If any assertion fails, the SQL metric logic is wrong — fix `sessions_sql` (the promote/delete CASEs, the playlist NULLing, or the duration cast) until all pass. Do NOT change the expected values (they are hand-derived from the fixture per the activity model).
 
 - [ ] **Step 3: Commit**
@@ -396,7 +396,7 @@ def test_mart_user_daily(con):
 
 - [ ] **Step 2: Run it (expect failure — `mart_sql` undefined)**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_analytics_rollup.py::test_mart_user_daily -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_analytics_rollup.py::test_mart_user_daily -q`
 Expected: FAIL — `ImportError: cannot import name 'mart_sql'`.
 
 - [ ] **Step 3: Implement `mart_sql(d)`**
@@ -449,12 +449,12 @@ GROUP BY fs.user_id, fs.dt, fs.activity_type
 
 - [ ] **Step 4: Run the full rollup test file**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_analytics_rollup.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_analytics_rollup.py -q`
 Expected: PASS (all three tests).
 
 - [ ] **Step 5: Confirm the Trino render is well-formed**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -c "import sys; sys.path.insert(0,'src'); from collector.analytics_rollup import TRINO, sessions_sql, mart_sql; print(sessions_sql(TRINO)[:80]); print(mart_sql(TRINO)[:80])"`
+Run: `<repo>/.venv/bin/python -c "import sys; sys.path.insert(0,'src'); from collector.analytics_rollup import TRINO, sessions_sql, mart_sql; print(sessions_sql(TRINO)[:80]); print(mart_sql(TRINO)[:80])"`
 Expected: prints two SQL prefixes with `from_iso8601_timestamp` / `approx_percentile` (no `KeyError`/format error). This is a render smoke-check only — the Trino SQL runs on Athena in Plan 3.
 
 - [ ] **Step 6: Commit**
@@ -510,7 +510,7 @@ EOF
 
 - [ ] **Step 1: Full suite**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q`
+Run: `<repo>/.venv/bin/pytest -q`
 Expected: PASS (the new rollup tests + all prior).
 
 - [ ] **Step 2: Refresh the graph**

@@ -14,9 +14,9 @@
 
 ## Conventions for every task
 
-- **Run from the worktree root:** `/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/fix_ytmusic`
+- **Run from the worktree root:** `<repo>/.claude/worktrees/fix_ytmusic`
 - **pytest binary** lives at the MAIN repo `.venv` (worktrees share it):
-  `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest`
+  `<repo>/.venv/bin/pytest`
   `pytest.ini` already sets `pythonpath = src`, so no `PYTHONPATH` export is needed for the runner.
 - **Commits:** Conventional Commits, single-line `-m` subject, NO `Co-Authored-By` trailer (a hook strips/blocks it). Generate the subject with the `caveman:caveman-commit` skill, then `git commit -m "<subject>"`. Already on feature branch `worktree-fix_ytmusic` — commit there.
 - No new API routes are added, so **no** OpenAPI regeneration or `infra/*.tf` changes are required.
@@ -84,7 +84,7 @@ def test_set_cover_401_does_not_retry():
 
 - [ ] **Step 2: Run the new tests to verify they fail**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py -q`
 Expected: the 4 new tests FAIL (`set_cover` makes no PUT call / does not raise `YtmusicNotAuthorizedError`).
 
 - [ ] **Step 3: Implement insert→update fallback**
@@ -143,7 +143,7 @@ In `src/collector/curation/youtube_data_api_client.py`, replace the whole `set_c
 
 - [ ] **Step 4: Run the full client test file to verify pass + no regression**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py -q`
 Expected: PASS, including the updated `test_set_cover_multipart_upload` / `test_set_cover_detects_png` (single-POST happy path unchanged).
 
 - [ ] **Step 5: Commit**
@@ -181,7 +181,7 @@ def test_move_item_puts_with_position():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py::test_move_item_puts_with_position -v`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py::test_move_item_puts_with_position -v`
 Expected: FAIL with `AttributeError: 'YoutubeDataApiClient' object has no attribute 'move_item'`.
 
 - [ ] **Step 3: Implement `move_item`**
@@ -208,7 +208,7 @@ Add directly after `add_items` (after line 102) in `src/collector/curation/youtu
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py::test_move_item_puts_with_position -v`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py::test_move_item_puts_with_position -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -323,7 +323,7 @@ def test_membership_change_then_reorder_refetches_and_moves():
 
 - [ ] **Step 3: Run the reorder tests to verify they fail**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_ytmusic_publish_service.py -q -k "reorder or correct_order"`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_ytmusic_publish_service.py -q -k "reorder or correct_order"`
 Expected: FAIL (`client.moves` is empty — no reorder logic yet).
 
 - [ ] **Step 4: Implement the reorder pass + helper**
@@ -377,7 +377,7 @@ Then add the helper method to the `YtmusicPublishService` class (e.g. directly a
 
 - [ ] **Step 5: Run the service tests to verify pass + no regression**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_ytmusic_publish_service.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_ytmusic_publish_service.py -q`
 Expected: PASS — new reorder tests green AND the existing `test_republish_*`, `test_cover_*`, orphan/error tests still green (they don't assert `moves` and their membership diffs are unchanged).
 
 - [ ] **Step 6: Commit**
@@ -432,7 +432,7 @@ def test_reorder_marks_ytmusic_needs_republish() -> None:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_playlists_repository.py::test_reorder_marks_ytmusic_needs_republish -v`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_playlists_repository.py::test_reorder_marks_ytmusic_needs_republish -v`
 Expected: FAIL — `ytmusic_needs_republish` UPDATE is not emitted.
 
 - [ ] **Step 3: Implement the ytmusic dirty-mark**
@@ -459,7 +459,7 @@ In `src/collector/curation/playlists_repository.py`, extend `_mark_dirty_if_publ
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_playlists_repository.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_playlists_repository.py -q`
 Expected: PASS — new test green and existing reorder/dirty tests (`test_reorder_accepts_permutation_and_emits_updates`, `test_set_cover_updates_row_and_marks_dirty`) still green.
 
 - [ ] **Step 5: Commit**
@@ -477,12 +477,12 @@ git commit -m "fix(ytmusic): flag ytmusic republish after track reorder"
 
 - [ ] **Step 1: Run the full unit suite**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit -q`
+Run: `<repo>/.venv/bin/pytest tests/unit -q`
 Expected: PASS, no regressions.
 
 - [ ] **Step 2: Run the curation/ytmusic-touching tests explicitly as a focused check**
 
-Run: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py tests/unit/test_ytmusic_publish_service.py tests/unit/test_playlists_repository.py -q`
+Run: `<repo>/.venv/bin/pytest tests/unit/test_youtube_data_api_client.py tests/unit/test_ytmusic_publish_service.py tests/unit/test_playlists_repository.py -q`
 Expected: PASS.
 
 - [ ] **Step 3: No commit** (verification task — nothing changed). If the suite revealed a regression, fix it in the owning task and re-run.

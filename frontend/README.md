@@ -32,7 +32,7 @@ pnpm dev
 - Spotify Developer Dashboard application with `http://127.0.0.1:5173/auth/return`
   in the Redirect URIs whitelist
 - Lambda env var `SPOTIFY_OAUTH_REDIRECT_URI` set to the same URL on the
-  `beatport-prod-auth-handler` function (see [Backend coordination](#backend-coordination))
+  `clouder-prod-auth-handler` function (see [Backend coordination](#backend-coordination))
 
 ---
 
@@ -234,7 +234,7 @@ must be aligned:
 | Item | Required value (dev) | Where it lives |
 |---|---|---|
 | Spotify Developer Dashboard → Redirect URIs | `http://127.0.0.1:5173/auth/return` | Spotify console |
-| Lambda env `SPOTIFY_OAUTH_REDIRECT_URI` on `beatport-prod-auth-handler` | `http://127.0.0.1:5173/auth/return` | AWS Lambda (set via `terraform apply` or CLI) |
+| Lambda env `SPOTIFY_OAUTH_REDIRECT_URI` on `clouder-prod-auth-handler` | `http://127.0.0.1:5173/auth/return` | AWS Lambda (set via `terraform apply` or CLI) |
 | Terraform var `spotify_oauth_redirect_uri` in `infra/terraform.tfvars` | `http://127.0.0.1:5173/auth/return` | local file (not committed) |
 | CORS on API Gateway (`cors_allowed_origins`) | empty `[]` | `infra/terraform.tfvars` |
 
@@ -259,7 +259,7 @@ terraform apply
 
 # Option 2 — AWS CLI direct (used during smoke-testing this scaffold):
 aws lambda get-function-configuration \
-  --function-name beatport-prod-auth-handler \
+  --function-name clouder-prod-auth-handler \
   --query 'Environment' --output json | python3 -c "
 import json, sys
 env = json.load(sys.stdin)
@@ -267,9 +267,9 @@ env['Variables']['SPOTIFY_OAUTH_REDIRECT_URI'] = 'http://127.0.0.1:5173/auth/ret
 print(json.dumps(env, indent=2))
 " > /tmp/auth-handler-env.json
 aws lambda update-function-configuration \
-  --function-name beatport-prod-auth-handler \
+  --function-name clouder-prod-auth-handler \
   --environment file:///tmp/auth-handler-env.json
-aws lambda wait function-updated --function-name beatport-prod-auth-handler
+aws lambda wait function-updated --function-name clouder-prod-auth-handler
 ```
 
 ---

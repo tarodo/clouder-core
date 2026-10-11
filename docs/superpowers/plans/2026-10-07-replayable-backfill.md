@@ -20,7 +20,7 @@
 - Map `MaxConcurrency` = 2.
 - The backfill Lambda gets its own role: own log group, Data API (incl. transactions) on the cluster, the cluster secret, `s3:GetObject` on `${raw_prefix}/*`, `sqs:SendMessage` on the Spotify search queue. The state machine role may only invoke the backfill and data-quality Lambdas.
 - No money figures in docs.
-- Branch `feat/replayable-backfill` from `origin/main`, worktree `../clouder-core-backfill`; commits and PR text via `caveman:caveman-commit`; `$VENV=/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin`; `$SCRATCH` = the session scratchpad directory; real-Postgres tests use `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres` (container `er-pg`, migrated to head); `terraform fmt -check` must pass.
+- Branch `feat/replayable-backfill` from `origin/main`, worktree `../clouder-core-backfill`; commits and PR text via `caveman:caveman-commit`; `$VENV=<repo>/.venv/bin`; `$SCRATCH` = the session scratchpad directory; real-Postgres tests use `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres` (container `er-pg`, migrated to head); `terraform fmt -check` must pass.
 
 ## Spec
 
@@ -79,7 +79,7 @@
 Run (from the worktree; old code, nothing implemented yet):
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core-backfill && TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres PYTHONPATH=src:tests/db $VENV/python - <<'EOF'
+cd <repo> && TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres PYTHONPATH=src:tests/db $VENV/python - <<'EOF'
 import copy, os
 from collector.canonicalize import Canonicalizer
 from collector.normalize import normalize_tracks
@@ -185,7 +185,7 @@ In `FakeRepo.__init__` add `self.track_states: dict[str, dict] = {}` and `self.s
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core-backfill && $VENV/pytest tests/unit/test_canonicalize.py -q`
+Run: `cd <repo> && $VENV/pytest tests/unit/test_canonicalize.py -q`
 Expected: collection error `ImportError: cannot import name 'track_update'`.
 
 - [ ] **Step 3: Write the failing real-Postgres replay tests**
@@ -315,7 +315,7 @@ def test_out_of_order_replays_converge(pg) -> None:
 
 - [ ] **Step 4: Run them to verify they fail**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core-backfill && TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres $VENV/pytest tests/db/test_canonicalize_replay_pg.py -q`
+Run: `cd <repo> && TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres $VENV/pytest tests/db/test_canonicalize_replay_pg.py -q`
 Expected: 4 failed with `TypeError: Canonicalizer.process_run() got an unexpected keyword argument 'observed_at'`.
 
 - [ ] **Step 5: Extend `CanonicalizationResult`**
@@ -574,7 +574,7 @@ def _comparable(value: Any) -> str | None:
 
 - [ ] **Step 9: Run the unit and PG tests**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core-backfill && TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres $VENV/pytest tests/unit/test_canonicalize.py tests/unit/test_canonicalize_transactions.py tests/unit/test_worker_handler.py tests/unit/test_worker_handler_partial_failure.py tests/db -q`
+Run: `cd <repo> && TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres $VENV/pytest tests/unit/test_canonicalize.py tests/unit/test_canonicalize_transactions.py tests/unit/test_worker_handler.py tests/unit/test_worker_handler_partial_failure.py tests/db -q`
 Expected: all pass (the existing `tests/db` suites — cold run, warm rerun, concurrency, set-based — included).
 
 - [ ] **Step 10: Full suite and commit**
@@ -1641,7 +1641,7 @@ Expected: 4 passed.
 Run:
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core-backfill && sed -e 's#${backfill_function_arn}#arn:aws:lambda:eu-central-1:000000000000:function:x#' -e 's#${data_quality_function_arn}#arn:aws:lambda:eu-central-1:000000000000:function:y#' infra/backfill.asl.json > "$SCRATCH/asl.json" && aws stepfunctions validate-state-machine-definition --definition "file://$SCRATCH/asl.json" --type STANDARD --query result --output text
+cd <repo> && sed -e 's#${backfill_function_arn}#arn:aws:lambda:eu-central-1:000000000000:function:x#' -e 's#${data_quality_function_arn}#arn:aws:lambda:eu-central-1:000000000000:function:y#' infra/backfill.asl.json > "$SCRATCH/asl.json" && aws stepfunctions validate-state-machine-definition --definition "file://$SCRATCH/asl.json" --type STANDARD --query result --output text
 ```
 
 Expected: `OK`. If the call is not permitted, record `Task 5: Ruling: ASL validated by the contract test only` and rely on `terraform apply` in deploy.
@@ -1819,7 +1819,7 @@ git commit -m "<caveman-commit output: feat(infra): backfill state machine and L
 Run:
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core-backfill && for f in docs/ops/backfill.md docs/adr/0024-replayable-canonicalization-backfill.md; do test -f $f || echo "missing $f"; done; grep -c "0024" docs/adr/README.md; grep -c "observation time\|observed_at" docs/data/canonicalization.md; grep -c "backfill" docs/ops/runbook.md
+cd <repo> && for f in docs/ops/backfill.md docs/adr/0024-replayable-canonicalization-backfill.md; do test -f $f || echo "missing $f"; done; grep -c "0024" docs/adr/README.md; grep -c "observation time\|observed_at" docs/data/canonicalization.md; grep -c "backfill" docs/ops/runbook.md
 ```
 
 Expected (before): two `missing` lines and three `0`.

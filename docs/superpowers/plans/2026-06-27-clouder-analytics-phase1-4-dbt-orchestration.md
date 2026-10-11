@@ -6,7 +6,7 @@
 
 **Architecture:** dbt-athena (Hive tables, no Iceberg in P1). Silver = `incremental`/`insert_overwrite` partitioned by `dt`, in-model `row_number() over (partition by event_id order by ts_server)=1` dedup. Gold dims = `table`; gold facts = `incremental`/`insert_overwrite` by `dt`. `context`/`props` are **JSON strings** (`json_extract_scalar`/`json_extract` only — never struct/dot access). Catalog dims read the single `bronze_catalog_export` table filtered by partition `tbl`. The `dbt-runner` is the **only** container-image Lambda in the repo (dbt + adapter exceed the 250 MB zip ceiling — the sanctioned new pattern per recon; existing zip Lambdas are untouched). Orchestration is Step Functions Standard (inside the 4 000 free transitions/mo) + EventBridge Scheduler (~30 invocations/mo ≈ $0). Offline TDD gates = four pytest suites (Saturday-week mirror, fact_playback terminal mirror, `dbt_runner` multi-token command, state-machine ASL shape) + `dbt parse`; SQL data-correctness is proven **live** by `dbt test` inside the DAG.
 
-**Tech Stack:** `dbt-athena-community==1.9.5` (recon: PyPI has `1.9.2…1.9.5`; `1.9.0`/`1.9.1` do **not** exist; `1.9.5` is the latest stable `1.9.x` — pinned over the spec's stale `1.9.2`), dbt-core (transitive), Python 3.12 (`/Users/roman/Projects/clouder-projects/clouder-core/.venv` is 3.12.0; a dedicated `.dbt-venv` from `/opt/homebrew/bin/python3.12` runs `dbt parse`), Docker (`public.ecr.aws/lambda/python:3.12` base), Terraform (`aws_ecr_repository`, `aws_lambda_function` `package_type="Image"`, `aws_sfn_state_machine`, `aws_scheduler_schedule`, IAM), pytest with hand-rolled fakes (`PYTHONPATH=src:analytics`, `.venv` at the MAIN repo root).
+**Tech Stack:** `dbt-athena-community==1.9.5` (recon: PyPI has `1.9.2…1.9.5`; `1.9.0`/`1.9.1` do **not** exist; `1.9.5` is the latest stable `1.9.x` — pinned over the spec's stale `1.9.2`), dbt-core (transitive), Python 3.12 (`<repo>/.venv` is 3.12.0; a dedicated `.dbt-venv` from `/opt/homebrew/bin/python3.12` runs `dbt parse`), Docker (`public.ecr.aws/lambda/python:3.12` base), Terraform (`aws_ecr_repository`, `aws_lambda_function` `package_type="Image"`, `aws_sfn_state_machine`, `aws_scheduler_schedule`, IAM), pytest with hand-rolled fakes (`PYTHONPATH=src:analytics`, `.venv` at the MAIN repo root).
 
 **Spec:** docs/superpowers/specs/2026-06-27-clouder-analytics-pipeline-design.md — §7 (star schema), §8 (dbt models / materializations / fact_playback terminal / funnel unnest / Saturday-week macro / dbt tests), §9 (orchestration DAG), §11 (dashboards → which fact/dim), §17 step 4 (rollout/DoD). Grounded against `src/collector/saturday_week.py` (week-1 algorithm), `frontend/src/features/playback/PlaybackProvider.tsx` (resume-path recon), the real Inc-2 plan (`bronze_events` Glue columns), the real Inc-3 plan (`bronze_catalog_export` `tbl`-partitioned JsonSerDe table; `bronze_ops`), `infra/variables.tf` (`var.aws_region` default `us-east-1`, `name_prefix=beatport-prod`).
 
@@ -79,8 +79,8 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] Local `main` may lag `origin/main` (worktree-stale-main gotcha). Fetch and branch:
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve fetch origin
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve checkout -b feat/analytics-dbt-orchestration origin/main
+  git -C <repo>/.claude/worktrees/service_improve fetch origin
+  git -C <repo>/.claude/worktrees/service_improve checkout -b feat/analytics-dbt-orchestration origin/main
   ```
   Expected: `Switched to a new branch 'feat/analytics-dbt-orchestration'`. (Branch carries no user/agent prefix — CLAUDE.md.)
 
@@ -92,10 +92,10 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Create the dbt venv and install the adapter** (the only network/pip step; the four pytest suites need none of this):
   ```bash
-  /opt/homebrew/bin/python3.12 -m venv /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv
-  /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv/bin/python -m pip install --quiet --upgrade pip
-  /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv/bin/python -m pip install 'dbt-athena-community==1.9.5'
-  /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv/bin/dbt --version
+  /opt/homebrew/bin/python3.12 -m venv <repo>/.dbt-venv
+  <repo>/.dbt-venv/bin/python -m pip install --quiet --upgrade pip
+  <repo>/.dbt-venv/bin/python -m pip install 'dbt-athena-community==1.9.5'
+  <repo>/.dbt-venv/bin/dbt --version
   ```
   Expected: `installed: ... athena: 1.9.5` printed (confirms the pin resolves — `1.9.0`/`1.9.1` would 404). If offline, the structural `dbt parse` gate must run in a network-capable env; the pytest gates below are unaffected.
 
@@ -200,16 +200,16 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 - [ ] **Run `dbt parse`, expect PASS** (sources resolve, no models yet):
   ```bash
   DBT_LAKE_BUCKET=placeholder \
-  /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv/bin/dbt parse \
-    --project-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt \
-    --profiles-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt
+  <repo>/.dbt-venv/bin/dbt parse \
+    --project-dir <repo>/.claude/worktrees/service_improve/analytics/dbt \
+    --profiles-dir <repo>/.claude/worktrees/service_improve/analytics/dbt
   ```
   Expected: last line contains `Wrote manifest to` and exit code 0.
 
 - [ ] **Commit.** Generate the subject with `caveman:caveman-commit` (CLAUDE.md forbids hand-written subjects), then commit with a non-indented heredoc body (EOF at column 0, no `Co-Authored-By`):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add analytics/dbt/dbt_project.yml analytics/dbt/profiles.yml analytics/requirements.txt analytics/dbt/models/silver/_sources.yml
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add analytics/dbt/dbt_project.yml analytics/dbt/profiles.yml analytics/requirements.txt analytics/dbt/models/silver/_sources.yml
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(analytics): scaffold dbt-athena project + bronze sources
 
   dbt-athena-community 1.9.5; sources bronze_events/bronze_catalog_export/
@@ -265,9 +265,9 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run it, expect FAIL** (mirror module missing):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_saturday_week_dbt_macro.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_saturday_week_dbt_macro.py -q
   ```
   Expected: collection error, `ModuleNotFoundError: No module named 'sat_week_mirror'`, summary `1 error` (exit 2).
 
@@ -307,9 +307,9 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run it, expect PASS**:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_saturday_week_dbt_macro.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_saturday_week_dbt_macro.py -q
   ```
   Expected: last line `2928 passed` (2922 daily params + 6 boundary cases; exit 0). If the count differs, it is the day-range arithmetic — the assertion content is what matters.
 
@@ -393,16 +393,16 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 - [ ] **Run `dbt parse`, expect PASS** (macros + dim_date + singular test compile):
   ```bash
   DBT_LAKE_BUCKET=placeholder \
-  /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv/bin/dbt parse \
-    --project-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt \
-    --profiles-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt
+  <repo>/.dbt-venv/bin/dbt parse \
+    --project-dir <repo>/.claude/worktrees/service_improve/analytics/dbt \
+    --profiles-dir <repo>/.claude/worktrees/service_improve/analytics/dbt
   ```
   Expected: `Wrote manifest to`, exit 0.
 
 - [ ] **Commit** (caveman-commit subject, heredoc body):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add tests/unit/test_saturday_week_dbt_macro.py analytics/sat_week_mirror.py analytics/dbt/macros/saturday_week.sql analytics/dbt/macros/surrogate_key.sql analytics/dbt/models/gold/dims/dim_date.sql analytics/dbt/tests/assert_dim_date_known_weeks.sql
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add tests/unit/test_saturday_week_dbt_macro.py analytics/sat_week_mirror.py analytics/dbt/macros/saturday_week.sql analytics/dbt/macros/surrogate_key.sql analytics/dbt/models/gold/dims/dim_date.sql analytics/dbt/tests/assert_dim_date_known_weeks.sql
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(analytics): add dim_date with Saturday-week macro
 
   Mirror src/collector/saturday_week.py (week 1 = first Saturday on/after
@@ -648,16 +648,16 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 - [ ] **Run `dbt parse`, expect PASS** (all six silver models + tests compile):
   ```bash
   DBT_LAKE_BUCKET=placeholder \
-  /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv/bin/dbt parse \
-    --project-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt \
-    --profiles-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt
+  <repo>/.dbt-venv/bin/dbt parse \
+    --project-dir <repo>/.claude/worktrees/service_improve/analytics/dbt \
+    --profiles-dir <repo>/.claude/worktrees/service_improve/analytics/dbt
   ```
   Expected: `Wrote manifest to`, exit 0.
 
 - [ ] **Commit** (caveman-commit subject, heredoc body):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add analytics/dbt/models/silver/
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add analytics/dbt/models/silver/
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(analytics): add silver staging models per event family
 
   Parse JSON-string context/props with json_extract_scalar/json_extract,
@@ -816,16 +816,16 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 - [ ] **Run `dbt parse`, expect PASS** (dims + bridge compile; refs to silver resolve):
   ```bash
   DBT_LAKE_BUCKET=placeholder \
-  /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv/bin/dbt parse \
-    --project-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt \
-    --profiles-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt
+  <repo>/.dbt-venv/bin/dbt parse \
+    --project-dir <repo>/.claude/worktrees/service_improve/analytics/dbt \
+    --profiles-dir <repo>/.claude/worktrees/service_improve/analytics/dbt
   ```
   Expected: `Wrote manifest to`, exit 0.
 
 - [ ] **Commit** (caveman-commit subject, heredoc body):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add analytics/dbt/models/gold/dims/
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add analytics/dbt/models/gold/dims/
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(analytics): add gold dimensions from bronze_catalog_export
 
   dim_track/artist/label/user/category + track-artist bridge, read from the
@@ -916,9 +916,9 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run it, expect FAIL** (mirror module missing):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_fact_playback_terminal.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_fact_playback_terminal.py -q
   ```
   Expected: collection error, `ModuleNotFoundError: No module named 'playback_terminal_mirror'`, summary `1 error` (exit 2).
 
@@ -980,9 +980,9 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run it, expect PASS**:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_fact_playback_terminal.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_fact_playback_terminal.py -q
   ```
   Expected: last line `5 passed` (exit 0).
 
@@ -1121,16 +1121,16 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 - [ ] **Run `dbt parse`, expect PASS**:
   ```bash
   DBT_LAKE_BUCKET=placeholder \
-  /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv/bin/dbt parse \
-    --project-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt \
-    --profiles-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt
+  <repo>/.dbt-venv/bin/dbt parse \
+    --project-dir <repo>/.claude/worktrees/service_improve/analytics/dbt \
+    --profiles-dir <repo>/.claude/worktrees/service_improve/analytics/dbt
   ```
   Expected: `Wrote manifest to`, exit 0.
 
 - [ ] **Commit** (caveman-commit subject, heredoc body):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add tests/unit/test_fact_playback_terminal.py analytics/playback_terminal_mirror.py analytics/dbt/models/gold/facts/fact_playback.sql analytics/dbt/models/gold/facts/fact_seek.sql analytics/dbt/models/gold/facts/fact_triage_session.sql analytics/dbt/models/gold/facts/fact_track_decision.sql
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add tests/unit/test_fact_playback_terminal.py analytics/playback_terminal_mirror.py analytics/dbt/models/gold/facts/fact_playback.sql analytics/dbt/models/gold/facts/fact_seek.sql analytics/dbt/models/gold/facts/fact_triage_session.sql analytics/dbt/models/gold/facts/fact_track_decision.sql
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(analytics): add playback/seek/triage/decision facts
 
   fact_playback groups per-play via running playback_play count and selects
@@ -1321,16 +1321,16 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 - [ ] **Run `dbt parse`, expect PASS** (whole project compiles — every `ref`/`source`/macro/test resolves):
   ```bash
   DBT_LAKE_BUCKET=placeholder \
-  /Users/roman/Projects/clouder-projects/clouder-core/.dbt-venv/bin/dbt parse \
-    --project-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt \
-    --profiles-dir /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics/dbt
+  <repo>/.dbt-venv/bin/dbt parse \
+    --project-dir <repo>/.claude/worktrees/service_improve/analytics/dbt \
+    --profiles-dir <repo>/.claude/worktrees/service_improve/analytics/dbt
   ```
   Expected: `Wrote manifest to`, exit 0.
 
 - [ ] **Commit** (caveman-commit subject, heredoc body):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add analytics/dbt/models/gold/facts/fact_funnel_step.sql analytics/dbt/models/gold/_gold.yml
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add analytics/dbt/models/gold/facts/fact_funnel_step.sql analytics/dbt/models/gold/_gold.yml
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(analytics): add fact_funnel_step + gold dbt tests
 
   playlisted/published UNNEST per-track track_ids (in Inc-2 PROP_ALLOWLIST);
@@ -1392,9 +1392,9 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run it, expect FAIL** (module missing):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_dbt_runner.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_dbt_runner.py -q
   ```
   Expected: collection error, `ModuleNotFoundError: No module named 'dbt_runner'`, summary `1 error` (exit 2).
 
@@ -1442,9 +1442,9 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run it, expect PASS**:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_dbt_runner.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_dbt_runner.py -q
   ```
   Expected: last line `3 passed` (exit 0).
 
@@ -1489,17 +1489,17 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Make the script executable and sanity-check the test suite again** (no docker build here — that needs AWS creds; the script is exercised at deploy time, documented in the README):
   ```bash
-  chmod +x /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/scripts/package_dbt_runner.sh
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_dbt_runner.py -q
+  chmod +x <repo>/.claude/worktrees/service_improve/scripts/package_dbt_runner.sh
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_dbt_runner.py -q
   ```
   Expected: `3 passed`.
 
 - [ ] **Commit** (caveman-commit subject, heredoc body):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add tests/unit/test_dbt_runner.py analytics/dbt_runner.py analytics/Dockerfile scripts/package_dbt_runner.sh
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add tests/unit/test_dbt_runner.py analytics/dbt_runner.py analytics/Dockerfile scripts/package_dbt_runner.sh
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(analytics): add dbt-runner container Lambda
 
   Handler splits the command so 'source freshness' runs as a distinct dbt
@@ -1568,9 +1568,9 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run it, expect FAIL** (ASL file missing → `FileNotFoundError` inside the test body, not at collection):
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_analytics_state_machine.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_analytics_state_machine.py -q
   ```
   Expected: `4 failed` (each test raises `FileNotFoundError`; exit 1).
 
@@ -1651,9 +1651,9 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run it, expect PASS**:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_analytics_state_machine.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_analytics_state_machine.py -q
   ```
   Expected: last line `4 passed` (exit 0).
 
@@ -1933,15 +1933,15 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run `terraform validate`, expect PASS** (needs the AWS provider; `init` downloads it from registry.terraform.io — requires network. `infra/.terraform/` is absent in this worktree, so `init` must run first and there is no offline shortcut):
   ```bash
-  terraform -chdir=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra init -backend=false -input=false
-  terraform -chdir=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/infra validate
+  terraform -chdir=<repo>/.claude/worktrees/service_improve/infra init -backend=false -input=false
+  terraform -chdir=<repo>/.claude/worktrees/service_improve/infra validate
   ```
   Expected: `Success! The configuration is valid.` (If the sandbox has no registry network, run this gate where it can reach registry.terraform.io — do not claim `validate` ran offline.)
 
 - [ ] **Commit** (caveman-commit subject, heredoc body):
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add tests/unit/test_analytics_state_machine.py analytics/state_machine.asl.json infra/analytics_dbt.tf infra/analytics_export.tf
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add tests/unit/test_analytics_state_machine.py analytics/state_machine.asl.json infra/analytics_dbt.tf infra/analytics_export.tf
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   feat(infra): orchestrate dbt via Step Functions + Scheduler
 
   Daily [catalog_export || ops_log_export] -> dbt run -> source freshness ->
@@ -2014,32 +2014,32 @@ These are **inputs**, not built here. Two require a reconciliation note because 
 
 - [ ] **Run the full offline gate (all four pytest suites together), expect all green**:
   ```bash
-  PYTHONPATH=/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/src:/Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/analytics \
-  /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/python -m pytest \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_saturday_week_dbt_macro.py \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_fact_playback_terminal.py \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_dbt_runner.py \
-  /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve/tests/unit/test_analytics_state_machine.py -q
+  PYTHONPATH=<repo>/.claude/worktrees/service_improve/src:<repo>/.claude/worktrees/service_improve/analytics \
+  <repo>/.venv/bin/python -m pytest \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_saturday_week_dbt_macro.py \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_fact_playback_terminal.py \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_dbt_runner.py \
+  <repo>/.claude/worktrees/service_improve/tests/unit/test_analytics_state_machine.py -q
   ```
   Expected: last line `2940 passed` (2928 + 5 + 3 + 4; exit 0). Re-confirm `dbt parse` is green one final time with the Task-6 command.
 
 - [ ] **Commit the README** (caveman-commit subject, heredoc body), then push:
   ```bash
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve add analytics/dbt/README.md
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
+  git -C <repo>/.claude/worktrees/service_improve add analytics/dbt/README.md
+  git -C <repo>/.claude/worktrees/service_improve commit -m "$(cat <<'EOF'
   docs(analytics): document dbt project + orchestration
 
   Layout, dbt-athena 1.9.5 pin, deploy order (build image before apply),
   lineage on-demand, and the cross-increment reconciliation notes.
   EOF
   )"
-  git -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve push -u origin feat/analytics-dbt-orchestration
+  git -C <repo>/.claude/worktrees/service_improve push -u origin feat/analytics-dbt-orchestration
   ```
   Expected: `1 file changed`; push prints the branch upstream.
 
 - [ ] **Open the PR** — generate the **title and body** with `caveman:caveman-commit`. **Transcribe the heredoc EXACTLY: body lines and the closing `EOF` sit at column 0, no leading whitespace** (an indented `EOF` never closes `cat <<'EOF'` and `gh pr create` hangs). No AI/`Co-Authored-By` trailer:
   ```bash
-  gh -C /Users/roman/Projects/clouder-projects/clouder-core/.claude/worktrees/service_improve pr create --base main --head feat/analytics-dbt-orchestration --title "<caveman title>" --body "$(cat <<'EOF'
+  gh -C <repo>/.claude/worktrees/service_improve pr create --base main --head feat/analytics-dbt-orchestration --title "<caveman title>" --body "$(cat <<'EOF'
   <caveman PR body: dbt-athena project (6 silver, 6 gold dims + bridge + dim_date, 5 gold facts), dbt-runner container Lambda, Step Functions Standard + EventBridge Scheduler daily DAG. Offline gates: Saturday-week mirror, fact_playback terminal mirror, dbt_runner multi-token command, state-machine ASL shape, dbt parse. Live gates: dbt source freshness + dbt test in the DAG. Notes the Inc-2 bronze_events name/shape reconciliation and that track_ids is already in the Inc-2 PROP_ALLOWLIST.>
   EOF
   )"

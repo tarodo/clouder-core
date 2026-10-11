@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Worktree `/Users/roman/Projects/clouder-projects/clouder-core-p1`, branch `chore/frontend-toolchain` from `origin/main` (`e5cfb9fb`). Run frontend commands from `frontend/`.
+- Worktree `<repo>`, branch `chore/frontend-toolchain` from `origin/main` (`e5cfb9fb`). Run frontend commands from `frontend/`.
 - Gates that must pass after every commit: `pnpm typecheck`, `pnpm lint` (0 errors), `pnpm test`, `pnpm build`, and locally `pnpm test:browser` (excluded from CI).
 - Production behavior must not change: same supported browsers, same routes, same telemetry flag handling (`VITE_TELEMETRY_ENABLED`), same proxy config for `pnpm dev`.
 - No Vite 8 (rolldown bundler) and no `@vitejs/plugin-react` 6 (requires Vite 8): a different bundler for production is out of scope for a dev-security phase.
@@ -127,7 +127,7 @@ def test_build_target_is_pinned() -> None:
     assert re.findall(r"'([^']+)'", match.group(1)) == VITE5_TARGETS
 ```
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_frontend_build.py -q` → FAIL (`build.target must be pinned`).
+Run: `PYTHONPATH=src <repo>/.venv/bin/pytest tests/unit/test_frontend_build.py -q` → FAIL (`build.target must be pinned`).
 
 - [ ] **Step 2: Pin it** — in `vite.config.ts`, in the returned object after `define`:
 
