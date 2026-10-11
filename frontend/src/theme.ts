@@ -275,7 +275,6 @@ export type ClouderTheme = typeof clouderTheme & {
 
 declare module "@mantine/core" {
   // Augment Mantine's MantineTheme so theme.other is strongly typed.
-  // eslint-disable-next-line @typescript-eslint/no-empty-interface
   export interface MantineThemeOther {
     space: Record<number, string>;
     motion: {

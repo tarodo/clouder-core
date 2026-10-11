@@ -224,9 +224,10 @@ export function useCurateSession({
   );
   const currentTrack = queue[state.currentIndex] ?? null;
 
+  const currentTrackId = currentTrack?.track_id;
   useEffect(() => {
-    if (currentTrack) telemetry.markShown(currentTrack.track_id);
-  }, [currentTrack?.track_id, telemetry]);
+    if (currentTrackId) telemetry.markShown(currentTrackId);
+  }, [currentTrackId, telemetry]);
 
   const destinations = useMemo<TriageBucket[]>(() => {
     if (!blockQuery.data) return [];
@@ -255,20 +256,12 @@ export function useCurateSession({
   // index 0. With PAGE_SIZE=50 and buffer=40, we kick off the next fetch
   // after ~10 assigns and the queue refills before it can drain. Result:
   // queue size stays in the 40–100 range and page boundaries are invisible.
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = tracksQuery;
   useEffect(() => {
-    if (
-      tracksQuery.hasNextPage &&
-      !tracksQuery.isFetchingNextPage &&
-      queue.length < QUEUE_REFILL_THRESHOLD
-    ) {
-      tracksQuery.fetchNextPage();
+    if (hasNextPage && !isFetchingNextPage && queue.length < QUEUE_REFILL_THRESHOLD) {
+      fetchNextPage();
     }
-  }, [
-    queue.length,
-    tracksQuery.hasNextPage,
-    tracksQuery.isFetchingNextPage,
-    tracksQuery.fetchNextPage,
-  ]);
+  }, [queue.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Queue-shrink reset (e.g. cache invalidation external to a session move).
   // Also covers the page-boundary refill: when queue went from 0 to N because
