@@ -131,4 +131,4 @@ aws logs filter-log-events --log-group-name /aws/apigateway/clouder-prod-collect
 
 ## Overview dashboard
 
-`clouder-prod-overview` (defined in `infra/dashboard.tf`) puts every alarmed signal on one page: Lambda errors for all functions, API 4xx/5xx and p95 latency, oldest message age per queue, DLQ depth, Aurora ACU, failed data-quality checks and auto-ingest runs, telemetry delivery freshness. `scripts/dashboard_snapshots.py` renders chosen widgets of the live dashboard into `docs/assets/` for the README.
+`clouder-prod-overview` (defined in `infra/dashboard.tf`) puts every alarmed signal on one page: Lambda errors for all functions, API 4xx/5xx and p95 latency, oldest message age per queue, DLQ depth, Aurora ACU, failed data-quality checks and auto-ingest runs, telemetry delivery freshness, and every data-quality check with an SLO (freshness and volume, completeness against the 99 % / 95 % lines, integrity; one point per nightly run). `scripts/dashboard_snapshots.py` renders chosen widgets of the live dashboard into `docs/assets/` for the README.

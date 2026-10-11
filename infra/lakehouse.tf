@@ -210,8 +210,9 @@ resource "aws_codebuild_project" "dbt" {
     }
   }
 
-  # Unit tests run in CI on DuckDB; production builds models, data tests and
-  # freshness only.
+  # Unit tests run in CI on DuckDB; production builds models and data tests, then
+  # checks source freshness: a stale catalog export fails the job (the build ran
+  # first, so silver/gold still advance) and raises transform-failed.
   source {
     type      = "NO_SOURCE"
     buildspec = <<-YAML
@@ -228,7 +229,7 @@ resource "aws_codebuild_project" "dbt" {
           commands:
             - cd repo/dbt
             - DBT_PROFILES_DIR=. dbt build --target prod --exclude-resource-type unit_test
-            - DBT_PROFILES_DIR=. dbt source freshness --target prod || true
+            - DBT_PROFILES_DIR=. dbt source freshness --target prod
     YAML
   }
 }
