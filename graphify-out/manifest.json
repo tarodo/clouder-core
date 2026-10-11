@@ -3715,8 +3715,8 @@
     "semantic_hash": ""
   },
   "src/collector/artist_enrichment/auto_dispatch.py": {
-    "mtime": 1791691919.363896,
-    "ast_hash": "3dece814a8f42d63880aacc0edef1036",
+    "mtime": 1791692760.4326599,
+    "ast_hash": "33f14cdb2a1e2d8d2550fead54dff0f2",
     "semantic_hash": ""
   },
   "src/collector/artist_enrichment/auto_messages.py": {
@@ -3740,8 +3740,8 @@
     "semantic_hash": ""
   },
   "src/collector/artist_enrichment/orchestrator.py": {
-    "mtime": 1791691919.3661218,
-    "ast_hash": "fabe52367f98742992d501afa616b2d5",
+    "mtime": 1791692760.4331198,
+    "ast_hash": "cbecd212c8c4340cad1263a9efe9f034",
     "semantic_hash": ""
   },
   "src/collector/artist_enrichment/prompts/__init__.py": {
@@ -3855,13 +3855,13 @@
     "semantic_hash": "8b358661ea65cd14b8cc9775aaf74c4d"
   },
   "src/collector/comments/auto_dispatch.py": {
-    "mtime": 1791691919.369232,
-    "ast_hash": "d0dabd685455686f9a9a9a16ff853b56",
+    "mtime": 1791692760.4336843,
+    "ast_hash": "0200bb3a9cc0ba5933b20b37365532df",
     "semantic_hash": ""
   },
   "src/collector/comments/dispatch.py": {
-    "mtime": 1791691919.369667,
-    "ast_hash": "def4f86f47cc2be1340b7f87172fb22c",
+    "mtime": 1791692760.4339595,
+    "ast_hash": "bd962b3edff2d1087ae242b18f91ede5",
     "semantic_hash": ""
   },
   "src/collector/comments/messages.py": {
@@ -3880,8 +3880,8 @@
     "semantic_hash": ""
   },
   "src/collector/comments_collect_handler.py": {
-    "mtime": 1791691919.3719249,
-    "ast_hash": "9ec3050ffc1e98750c51a9df93bf23af",
+    "mtime": 1791692760.434395,
+    "ast_hash": "9ed2ea2a6a1fb16ed20d5a46b62af1a3",
     "semantic_hash": ""
   },
   "src/collector/curation/__init__.py": {
@@ -3890,8 +3890,8 @@
     "semantic_hash": ""
   },
   "src/collector/curation/auto_enrich_dispatch.py": {
-    "mtime": 1791691919.3751993,
-    "ast_hash": "f593bba55923a8f3d6984148c9e65f98",
+    "mtime": 1791692760.4347618,
+    "ast_hash": "7a9d22ab5a59f7d78c8747334a5cae29",
     "semantic_hash": ""
   },
   "src/collector/curation/categories_repository.py": {
@@ -4005,8 +4005,8 @@
     "semantic_hash": ""
   },
   "src/collector/label_enrichment/auto_dispatch.py": {
-    "mtime": 1791691919.385919,
-    "ast_hash": "5392fc746e802f95eac83155c4941d0e",
+    "mtime": 1791692760.4359229,
+    "ast_hash": "6372225fe9c335fafa3c3160dfe0c8d1",
     "semantic_hash": ""
   },
   "src/collector/label_enrichment/auto_messages.py": {
@@ -4030,8 +4030,8 @@
     "semantic_hash": ""
   },
   "src/collector/label_enrichment/orchestrator.py": {
-    "mtime": 1791691919.3886707,
-    "ast_hash": "4bf83bb9d35bd35a285d5dc39ffaee19",
+    "mtime": 1791692760.43643,
+    "ast_hash": "411669589ef6144190da50c128f0d3f9",
     "semantic_hash": ""
   },
   "src/collector/label_enrichment/prompts/__init__.py": {
@@ -4090,8 +4090,8 @@
     "semantic_hash": ""
   },
   "src/collector/label_enrichment/vendors/openai_gpt.py": {
-    "mtime": 1791691919.3692303,
-    "ast_hash": "d325c5cba5165d1d4aa07c13174fcd64",
+    "mtime": 1791692760.436823,
+    "ast_hash": "16ee747f807404ed1fe13f2574a2dbb6",
     "semantic_hash": ""
   },
   "src/collector/label_enrichment/vendors/pricing.py": {
@@ -4100,8 +4100,8 @@
     "semantic_hash": ""
   },
   "src/collector/label_enrichment/vendors/tavily_deepseek.py": {
-    "mtime": 1791691919.3707714,
-    "ast_hash": "65bc1795d8d4fb67919107cd371aad05",
+    "mtime": 1791692760.4372032,
+    "ast_hash": "fa0c9fb980695b7d41015e407a4637a3",
     "semantic_hash": ""
   },
   "src/collector/label_enrichment_handler.py": {
@@ -4220,8 +4220,8 @@
     "semantic_hash": "524d8d7c079bac6eda4278060d63f997"
   },
   "src/collector/providers/youtube/comments.py": {
-    "mtime": 1791691919.3636672,
-    "ast_hash": "b8c605c413e5161a769db9c06c6a5aeb",
+    "mtime": 1791692760.4375548,
+    "ast_hash": "ffd1504f7b9485fc1b4bca8b41da7484",
     "semantic_hash": ""
   },
   "src/collector/providers/youtube/video_match.py": {
@@ -4975,8 +4975,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_providers_ytmusic_lookup.py": {
-    "mtime": 1791691919.391044,
-    "ast_hash": "2341b5a93ee2827a3962d48b0fab5d77",
+    "mtime": 1791692760.4393122,
+    "ast_hash": "2cf05acef4916d8c08aed5f08726a6d9",
     "semantic_hash": ""
   },
   "tests/unit/test_providers_ytmusic_normalize.py": {
@@ -6370,8 +6370,8 @@
     "semantic_hash": ""
   },
   "src/collector/social_links.py": {
-    "mtime": 1791691919.3730485,
-    "ast_hash": "afecaf72e42e69ea57d7887f3fd9c312",
+    "mtime": 1791692760.4381528,
+    "ast_hash": "69d7dc96629fb007bdd294377f4c248b",
     "semantic_hash": ""
   },
   "tests/unit/test_auth_scopes.py": {
@@ -6460,8 +6460,8 @@
     "semantic_hash": ""
   },
   "src/collector/curation/playlist_export.py": {
-    "mtime": 1791691919.3751748,
-    "ast_hash": "64e2111a8ff8f94f7a06251904bac651",
+    "mtime": 1791692779.229033,
+    "ast_hash": "977705d3bb5bdf0c44ea25b7c1d5129b",
     "semantic_hash": ""
   },
   "tests/unit/test_playlist_export.py": {
@@ -6895,8 +6895,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_repositories_timestamps.py": {
-    "mtime": 1791691354.9506538,
-    "ast_hash": "97892b6e958689b0693c91846d82aea7",
+    "mtime": 1791692790.3418694,
+    "ast_hash": "583b576b232b31168ea3569cad86a19b",
     "semantic_hash": ""
   },
   "docs/adr/0024-replayable-canonicalization-backfill.md": {
@@ -7155,8 +7155,8 @@
     "semantic_hash": ""
   },
   "src/collector/auto_ingest_schedule.py": {
-    "mtime": 1791691424.6347823,
-    "ast_hash": "01d028bdeaf4835aa68fce5c293b2b53",
+    "mtime": 1791692790.2792578,
+    "ast_hash": "dfdbae4898f9d85221e2437bfd2eb200",
     "semantic_hash": ""
   },
   "src/collector/beatport_auth.py": {
@@ -7185,8 +7185,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_auto_ingest_schedule.py": {
-    "mtime": 1791691919.3805091,
-    "ast_hash": "9759347091ab7d0d19cb9f39c7d18322",
+    "mtime": 1791692790.342725,
+    "ast_hash": "8ed69ef2c44a4fc8541b0aafa12f0504",
     "semantic_hash": ""
   },
   "tests/unit/test_beatport_auth.py": {
@@ -7300,8 +7300,8 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1791691919.3031886,
-    "ast_hash": "391ecaf6f3898c2f80369b9bf4ff87fe",
+    "mtime": 1791692783.6018107,
+    "ast_hash": "ba31c302cbe40d7cd4fc88330024a45b",
     "semantic_hash": ""
   },
   "tests/contract/test_route_consistency.py": {
@@ -7390,8 +7390,8 @@
     "semantic_hash": ""
   },
   "scripts/export_spotify_gold.py": {
-    "mtime": 1791691919.3631394,
-    "ast_hash": "2bb271b8dce03b3cf4f4427dc5ec9ac0",
+    "mtime": 1791692760.4319625,
+    "ast_hash": "84303e979434ba7d1f634a34da4ea5c6",
     "semantic_hash": ""
   },
   "src/collector/curation/deps.py": {
@@ -7750,8 +7750,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_api_aliases.py": {
-    "mtime": 1791691919.3663688,
-    "ast_hash": "a9fa312db29ac4fd5c63d9d346b97709",
+    "mtime": 1791692760.4385316,
+    "ast_hash": "1899d2a0fc04ae6a54818c006cdce955",
     "semantic_hash": ""
   },
   "docs/adr/0029-api-aliases-smoke-rollback.md": {
@@ -7795,12 +7795,12 @@
     "semantic_hash": ""
   },
   "src/collector/api/routes_catalog.py": {
-    "mtime": 1791691919.374159,
+    "mtime": 1791692814.1246068,
     "ast_hash": "7c972bf91e633dbaa011a8c51a0649be",
     "semantic_hash": ""
   },
   "src/collector/api/routes_ingest.py": {
-    "mtime": 1791691919.3753386,
+    "mtime": 1791692814.1232462,
     "ast_hash": "2ac8b25ebdd69174a3e69469155fe724",
     "semantic_hash": ""
   },
@@ -7815,8 +7815,8 @@
     "semantic_hash": ""
   },
   "tests/unit/test_collector_api_routes.py": {
-    "mtime": 1791691545.9302413,
-    "ast_hash": "7491be0cf808bc956fff6510a28d54ea",
+    "mtime": 1791692813.4033053,
+    "ast_hash": "a33a5f1d0184fa73a6d49a3b9204a03d",
     "semantic_hash": ""
   },
   "src/collector/repositories/__init__.py": {
