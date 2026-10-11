@@ -47,7 +47,7 @@ resource "aws_iam_role_policy_attachment" "gha_plan_read_only" {
 # Terraform manages and the state already holds.
 data "aws_iam_policy_document" "gha_plan_no_data" {
   statement {
-    sid     = "NoVendorSecrets"
+    sid     = "NoSecrets"
     effect  = "Deny"
     actions = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParameterHistory"]
     resources = [
@@ -59,6 +59,7 @@ data "aws_iam_policy_document" "gha_plan_no_data" {
       "${local.ssm_parameter_arn}/clouder/ytmusic/*",
       "${local.ssm_parameter_arn}/clouder/youtube/*",
       "${local.ssm_parameter_arn}/clouder/beatport/*",
+      "${local.ssm_parameter_arn}/clouder/auth/*",
     ]
   }
 

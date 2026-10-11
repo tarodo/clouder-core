@@ -36,7 +36,8 @@ def test_plan_role_cannot_read_secrets_or_data() -> None:
     tf = CI_ROLES.read_text()
     for vendor in VENDOR_SECRETS:
         assert f'/clouder/{vendor}/*"' in tf, vendor
-    assert "/clouder/auth/" not in tf  # Terraform manages the JWT key and must read it
+    # The JWT signing key is not Terraform's (infra/auth.tf): nothing in a plan reads it.
+    assert '/clouder/auth/*"' in tf
     for action in (
         "ssm:GetParameter",
         "ssm:GetParametersByPath",
