@@ -1,12 +1,11 @@
 # ── Analytics lake bucket (medallion: bronze / silver / gold) ────────────────
 
 resource "aws_s3_bucket" "analytics_lake" {
-  # Phase B: renamed to clouder. Data is disposable (old bronze unreadable, marts
-  # empty); force_destroy (committed in phase A) empties the old bucket on replace.
-  # Consumers (Firehose dest, Glue locations, IAM, rollup/serving env) re-point via
-  # this resource / var.analytics_lake_bucket. Keep this == that var default.
+  # Holds the only copy of telemetry history (silver/gold are rebuilt from it within the
+  # retention window): a destroy must fail instead of emptying it. Consumers (Firehose,
+  # Glue locations, IAM) point here through this resource / var.analytics_lake_bucket.
   bucket        = "clouder-prod-analytics-lake"
-  force_destroy = true
+  force_destroy = false
 }
 
 resource "aws_s3_bucket_public_access_block" "analytics_lake" {
@@ -42,6 +41,23 @@ resource "aws_s3_bucket_lifecycle_configuration" "analytics_lake" {
     status = "Enabled"
     filter { prefix = "bronze/catalog_export/" }
     expiration { days = 14 }
+  }
+
+  rule {
+    # Pseudonymous telemetry: 400 days, the same window silver.events keeps
+    # (dbt var events_retention_days; docs/privacy.md).
+    id     = "expire-bronze-events"
+    status = "Enabled"
+    filter { prefix = "bronze/events/" }
+    expiration { days = 400 }
+  }
+
+  rule {
+    # Records Firehose could not convert; only useful while debugging a delivery.
+    id     = "expire-firehose-errors"
+    status = "Enabled"
+    filter { prefix = "bronze/_errors/" }
+    expiration { days = 30 }
   }
 
   rule {
