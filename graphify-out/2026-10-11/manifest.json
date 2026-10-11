@@ -585,8 +585,8 @@
     "semantic_hash": ""
   },
   "frontend/package.json": {
-    "mtime": 1791717721.5316045,
-    "ast_hash": "07524a58e979715d5cad56895ce2933d",
+    "mtime": 1791726208.9284146,
+    "ast_hash": "842f65550f116fba2c08d512a32c519e",
     "semantic_hash": ""
   },
   "frontend/src/__tests__/curate-flow.test.tsx": {
@@ -3565,7 +3565,7 @@
     "semantic_hash": ""
   },
   "infra/auth.tf": {
-    "mtime": 1791722598.7940106,
+    "mtime": 1791726007.5866933,
     "ast_hash": "b8cbde4acfdfdab5ef8e69f9e325b8fa",
     "semantic_hash": ""
   },
@@ -5160,13 +5160,13 @@
     "semantic_hash": ""
   },
   ".github/workflows/deploy.yml": {
-    "mtime": 1791720628.3397954,
-    "ast_hash": "862529ba893fb30afddfba4c7876190e",
+    "mtime": 1791726200.2439377,
+    "ast_hash": "920935b8d4a435cc1a29bf4f9196d069",
     "semantic_hash": ""
   },
   ".github/workflows/pr.yml": {
-    "mtime": 1791717721.359367,
-    "ast_hash": "310f05d6931f1c4260a4d52875e1059f",
+    "mtime": 1791726200.249253,
+    "ast_hash": "787555dd8d97ac982d2f68b7e7fbbc4d",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -5175,8 +5175,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1791722598.8111842,
-    "ast_hash": "0f863aa93a5adde0fa4a26b74be62f22",
+    "mtime": 1791726208.9293153,
+    "ast_hash": "26ddc7b1271b1ce040028913c3059ed0",
     "semantic_hash": ""
   },
   "docs/CLOUDER Design System _standalone_.html": {
@@ -5985,17 +5985,17 @@
     "semantic_hash": ""
   },
   "infra/analytics_export.tf": {
-    "mtime": 1791721790.0834544,
+    "mtime": 1791726007.5871422,
     "ast_hash": "3cd5f01f211523935c644e6257db22f8",
     "semantic_hash": ""
   },
   "infra/analytics_routes.tf": {
-    "mtime": 1791717722.1291668,
+    "mtime": 1791726007.5869145,
     "ast_hash": "15094158e104afbb95da0d03fedb6936",
     "semantic_hash": ""
   },
   "infra/telemetry.tf": {
-    "mtime": 1791723959.0724323,
+    "mtime": 1791726007.5840654,
     "ast_hash": "c76fe7027e9fe6180dc4f3d4c143afe8",
     "semantic_hash": ""
   },
@@ -6800,7 +6800,7 @@
     "semantic_hash": ""
   },
   "infra/data_quality.tf": {
-    "mtime": 1791717722.1305332,
+    "mtime": 1791726007.5848942,
     "ast_hash": "2661b5197d6d8a6fef4d674e1d15710a",
     "semantic_hash": ""
   },
@@ -6850,7 +6850,7 @@
     "semantic_hash": ""
   },
   "infra/backfill.tf": {
-    "mtime": 1791717722.1297774,
+    "mtime": 1791726007.585974,
     "ast_hash": "8a71de2d75a6fcfb0716ee6f068c1833",
     "semantic_hash": ""
   },
@@ -6945,7 +6945,7 @@
     "semantic_hash": ""
   },
   "infra/lakehouse.tf": {
-    "mtime": 1791720628.3402908,
+    "mtime": 1791726007.5848184,
     "ast_hash": "7194f0410a45e5ad1d99474d0f6ea841",
     "semantic_hash": ""
   },
@@ -7120,7 +7120,7 @@
     "semantic_hash": ""
   },
   "infra/auto_ingest.tf": {
-    "mtime": 1791717722.1295428,
+    "mtime": 1791726007.5862956,
     "ast_hash": "391c4362f5d601292e06f9b8e4a1f22a",
     "semantic_hash": ""
   },
@@ -7275,12 +7275,12 @@
     "semantic_hash": ""
   },
   "infra/lambda_roles.tf": {
-    "mtime": 1791717722.131463,
+    "mtime": 1791726007.584686,
     "ast_hash": "a916b963f4d245ed9abc81033906b0a6",
     "semantic_hash": ""
   },
   "infra/modules/lambda_role/main.tf": {
-    "mtime": 1791717722.131697,
+    "mtime": 1791726007.5843477,
     "ast_hash": "3ee0afbb10e7e6e6d2f7e14cd7ec9977",
     "semantic_hash": ""
   },
@@ -7325,8 +7325,8 @@
     "semantic_hash": ""
   },
   "docs/scalability.md": {
-    "mtime": 1791719377.2633753,
-    "ast_hash": "b2ee12cd373b18f9b41625823891152b",
+    "mtime": 1791726151.9011297,
+    "ast_hash": "a47dadbbcc27ca7f7d7f95cb1463716b",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-10-08-p1-engineering.md": {
@@ -7480,8 +7480,8 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1791717721.3696277,
-    "ast_hash": "c610dffd22636c3e7457af421e039e47",
+    "mtime": 1791726208.9275453,
+    "ast_hash": "b7e98057feceaf27384453669c0bb70f",
     "semantic_hash": ""
   },
   "docs/design/data-platform.md": {
@@ -7530,12 +7530,12 @@
     "semantic_hash": ""
   },
   "docs/privacy.md": {
-    "mtime": 1791717721.485604,
-    "ast_hash": "8da3f4955e699a235f14d04783d9c8a0",
+    "mtime": 1791724747.7887344,
+    "ast_hash": "49f165f30cd6a68dc001182c38c741ad",
     "semantic_hash": ""
   },
   "docs/security.md": {
-    "mtime": 1791722638.4852502,
+    "mtime": 1791726032.1507516,
     "ast_hash": "9f5f636de7e74dc2b57cc7f5c72fb477",
     "semantic_hash": ""
   },
@@ -7620,7 +7620,7 @@
     "semantic_hash": ""
   },
   "infra/ci_roles.tf": {
-    "mtime": 1791723130.1232164,
+    "mtime": 1791726007.5849545,
     "ast_hash": "047e34478f2b61a570307a0e2f8880ed",
     "semantic_hash": ""
   },
@@ -7650,7 +7650,7 @@
     "semantic_hash": ""
   },
   "docs/adr/0028-ci-roles.md": {
-    "mtime": 1791722655.7656686,
+    "mtime": 1791726032.150265,
     "ast_hash": "eb91f9aa16c25f2830bd88d18f75a127",
     "semantic_hash": ""
   },
@@ -7930,8 +7930,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/pages.yml": {
-    "mtime": 1791717721.3592432,
-    "ast_hash": "e464fecef4854d0100c0c2b046411d90",
+    "mtime": 1791726200.2475657,
+    "ast_hash": "6cb10367252139dc183b20eb1afa47e9",
     "semantic_hash": ""
   },
   "docs/frontend/demo.md": {
@@ -8055,23 +8055,33 @@
     "semantic_hash": ""
   },
   "scripts/export_user.py": {
-    "mtime": 1791724131.6884282,
-    "ast_hash": "8906434413f0dbb8db155c95db6a1573",
+    "mtime": 1791724704.8658707,
+    "ast_hash": "ba002954a5f7ffa4974978a57a20ec26",
     "semantic_hash": ""
   },
   "src/collector/user_export.py": {
-    "mtime": 1791724064.4013138,
-    "ast_hash": "f7da23dd0cc8c0b473ec1d5c5655c8ec",
+    "mtime": 1791724704.950154,
+    "ast_hash": "fed27e91159ba550580e30dbcc97e16a",
     "semantic_hash": ""
   },
   "tests/db/test_user_export_pg.py": {
-    "mtime": 1791724082.8431184,
-    "ast_hash": "7fa694ce687396888cac7d65b8e430e7",
+    "mtime": 1791724717.7618048,
+    "ast_hash": "5050a76261510e9b8a8a69621dcb7919",
     "semantic_hash": ""
   },
   "tests/unit/test_user_export.py": {
-    "mtime": 1791724115.700221,
-    "ast_hash": "2eea1efe7de15877ef2f3f919b50df38",
+    "mtime": 1791724668.5383537,
+    "ast_hash": "82871ab1908bda8e5d063f0397725c0a",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-10-11-readme-release.md": {
+    "mtime": 1791726127.328741,
+    "ast_hash": "0924e70d74aade0395e8df259b6c6bbd",
+    "semantic_hash": ""
+  },
+  "tests/unit/test_workflow_pins.py": {
+    "mtime": 1791726176.114498,
+    "ast_hash": "a9fd15cb662fdc0102748e5ce97f4941",
     "semantic_hash": ""
   }
 }

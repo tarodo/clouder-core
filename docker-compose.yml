@@ -3,7 +3,7 @@
 services:
   db:
     image: postgres:16
-    ports: ["55433:5432"]
+    ports: ["${PG_PORT:-55433}:5432"]  # export PG_PORT=… before make when 55433 is taken
     environment:
       POSTGRES_PASSWORD: postgres
     healthcheck:

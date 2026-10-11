@@ -95,7 +95,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--database-url",
         default=os.environ.get(
-            "TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:55433/postgres"
+            "TEST_DATABASE_URL",
+            f"postgresql://postgres:postgres@localhost:{os.environ.get('PG_PORT', '55433')}/postgres",
         ),
     )
     parser.add_argument("--tracks", type=int, default=300)

@@ -83,6 +83,19 @@ Pull request → 8 required checks (the Terraform plan runs under the read-only 
 
 `python3 scripts/dora.py [--days 90]` (or `make dora`; needs a full clone and `gh` logged in) computes DORA-style metrics from this repository's own history: deployment frequency (successful push-started `Deploy` runs on `main` per week), lead time for changes (a pull request's first commit → the end of the first successful deploy that started after its merge), failed deploy runs (unsuccessful / finished runs, cancelled ones excluded) and recovery from a failed run (the first failed run of a streak → the next successful one). The last two are pipeline proxies for DORA's change failure rate and recovery time: a failed run usually stops before production, and incidents a green deploy caused are counted in [postmortems](../postmortems/README.md). Run `git fetch` first — merges are read from the local `origin/main`. The README quotes the output.
 
+## Releases
+
+A release is an annotated tag on the `main` merge commit that closes it, dated at that commit, plus a GitHub Release with its section of the changelog:
+
+```bash
+GIT_COMMITTER_DATE="$(git log -1 --format=%cI <merge sha>)" git tag -a vX.Y.Z <merge sha> -m "vX.Y.Z — <title>"
+git push origin vX.Y.Z
+make changelog          # git-cliff: the tag's PRs leave "Unreleased"
+gh release create vX.Y.Z --title "vX.Y.Z — <title>" --notes-file <its section>
+```
+
+Then bump `version` in `frontend/package.json` to match (nothing reads it at runtime; it keeps the repo consistent with Releases).
+
 ## Frontend deploy
 
 `scripts/deploy_frontend.sh` (no argument: both modes; the deploy runs `build` before AWS credentials exist and `publish` after the apply):

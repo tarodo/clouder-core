@@ -1,6 +1,6 @@
 # Scalability notes
 
-CLOUDER serves a closed group of DJs: about 98k canonical tracks, 3–5k new tracks a week, a
+CLOUDER serves a closed group of DJs: about 143k canonical tracks (2026-10-11), 3–5k new tracks a week, a
 mean ingest run of 671 tracks and a largest one of 3,656. This page says what each part does at
 10× and 100× that volume, where it stops, and the next step — with measured numbers where they
 exist. It deliberately describes levers, not prices.
@@ -93,6 +93,6 @@ The six API functions publish a version per code change ([ADR-0029](adr/0029-api
 ## Aurora
 
 Aurora Serverless v2 runs between 0 (auto-pause) and 2 ACU. At 10× the ceiling is the first
-knob (`aurora_serverless_max_acu`); at 100× (about 10M tracks) the query plans of the catalog
+knob (`aurora_serverless_max_acu`); at 100× (about 14M tracks) the query plans of the catalog
 endpoints and the triage claims (`FOR UPDATE SKIP LOCKED`) deserve a review before raising it
 further.

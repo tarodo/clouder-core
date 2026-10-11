@@ -1,7 +1,11 @@
 # Entry points for local work; CI runs the same commands (.github/workflows/pr.yml).
 VENV   ?= .venv/bin
 PY     := PYTHONPATH=src $(VENV)/python
-TEST_DATABASE_URL ?= postgresql://postgres:postgres@localhost:55433/postgres
+# Set PG_PORT, not TEST_DATABASE_URL, to move the local database: an exported
+# TEST_DATABASE_URL wins over the one derived here.
+PG_PORT ?= 55433
+export PG_PORT
+TEST_DATABASE_URL ?= postgresql://postgres:postgres@localhost:$(PG_PORT)/postgres
 
 .PHONY: help bootstrap local-db demo test test-db lint typecheck cov lock upgrade openapi package frontend-test screenshots dbt-ci changelog dora
 
