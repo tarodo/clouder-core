@@ -22,8 +22,8 @@ from .settings import get_data_api_settings
 
 # (table, columns, primary key). Pages continue after the last row's key, so each
 # page is an index range scan and a row inserted or deleted mid-export cannot shift
-# the pages. OFFSET paging cost grew with every page: at ~430k rows the export hit
-# its 300 s timeout two nights running (2026-10-10, 10-11).
+# the pages. The run time is CPU spent on Data API responses, not paging: keyset
+# saved 6 % at 433k rows; memory (CPU) is what moved it (infra/analytics_export.tf).
 _EXPORTS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     (
         "clouder_tracks",

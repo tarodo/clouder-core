@@ -102,9 +102,19 @@ the dbt docs (models, columns, tests, lineage graph) to GitHub Pages (`.github/w
 **Catalog export.** `clouder-prod-catalog-export` (00:00 UTC) writes one snapshot a day under
 `bronze/catalog_export/snapshot_dt=<date>/<table>/`, `clouder_styles` last. It pages by primary key
 (`WHERE (keys) > (last row) ORDER BY keys LIMIT 500`) through the Data API and logs rows, pages and
-milliseconds per table (`catalog_export_table_written`). It paged with `OFFSET` until 2026-10-11:
-each page re-scanned every earlier row, the run grew from 211 s to over 300 s in four nights as
-auto-ingest filled the catalog, and it timed out two nights running.
+milliseconds per table (`catalog_export_table_written`). The run grew from 211 s to over 300 s in
+four nights as auto-ingest filled the catalog and timed out two nights running (2026-10-10, 10-11).
+Measured on production on 2026-10-11 (433,235 rows in 870 pages):
+
+| Change | Run | `clouder_tracks` per page |
+|---|---:|---:|
+| `OFFSET` paging, 256 MB | 314.6 s | — |
+| Keyset paging, 256 MB | 295.7 s | 584 ms |
+| Keyset paging, 1024 MB | 124.3 s | 224 ms |
+
+Keyset paging bought 6 %: the time is CPU spent parsing Data API JSON, and Lambda CPU scales
+with memory. Peak memory stayed at 124 MB. Keyset stays for correctness — rows written during the
+export no longer shift the pages.
 
 ## How to run
 

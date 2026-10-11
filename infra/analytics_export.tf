@@ -206,8 +206,9 @@ resource "aws_iam_role_policy" "catalog_export" {
   policy = data.aws_iam_policy_document.catalog_export.json
 }
 
-# 300 s ran out at ~310k rows with OFFSET paging (2026-10-09); the export now pages by key
-# (catalog_export_handler.py). 900 s is the Lambda maximum; past it, export the tables in parallel.
+# CPU-bound: most of a run is parsing Data API JSON. For 433k rows (2026-10-11) it took 296 s
+# at 256 MB and 124 s at 1024 MB (Lambda CPU scales with memory); peak memory 124 MB either way.
+# 900 s is the Lambda maximum; past it, export the tables in parallel.
 resource "aws_lambda_function" "catalog_export" {
   function_name    = local.catalog_export_lambda_name
   role             = aws_iam_role.catalog_export.arn
@@ -215,7 +216,7 @@ resource "aws_lambda_function" "catalog_export" {
   handler          = "collector.catalog_export_handler.lambda_handler"
   filename         = local.lambda_zip_file
   timeout          = 900
-  memory_size      = 256
+  memory_size      = 1024
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 
   environment {

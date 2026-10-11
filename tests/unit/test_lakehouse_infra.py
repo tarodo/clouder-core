@@ -80,6 +80,9 @@ def test_catalog_export_has_room_to_finish() -> None:
     tf = (INFRA / "analytics_export.tf").read_text()
     fn = tf[tf.index('resource "aws_lambda_function" "catalog_export"') :]
     assert re.search(r"timeout\s*=\s*900\b", fn[: fn.index("environment")])
+    # The run is CPU-bound (parsing Data API JSON): 296 s at 256 MB, 124 s at 1024 MB
+    # for 433k rows (2026-10-11).
+    assert re.search(r"memory_size\s*=\s*1024\b", fn[: fn.index("environment")])
 
 
 def test_nightly_build_runs_the_deployed_commit() -> None:
