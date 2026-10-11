@@ -54,6 +54,29 @@ locals {
       stat    = "Maximum"
       metrics = [["AWS/Firehose", "DeliveryToS3.DataFreshness", "DeliveryStreamName", aws_kinesis_firehose_delivery_stream.telemetry.name]]
     },
+    # Data-quality checks run once a day: a daily period shows one point per run.
+    {
+      title   = "Data quality: freshness and volume"
+      stat    = "Maximum"
+      period  = 86400
+      metrics = [for m in ["styles_behind", "stuck_ingest_runs", "weekly_volume_anomalies", "spotify_unsearched_stale"] : [local.data_quality_namespace, m]]
+    },
+    {
+      title   = "Data quality: completeness (%)"
+      stat    = "Minimum"
+      period  = 86400
+      metrics = [[local.data_quality_namespace, "isrc_coverage_pct"], [local.data_quality_namespace, "spotify_match_pct"]]
+      annotations = { horizontal = [
+        { label = "ISRC SLO", value = 99 },
+        { label = "Spotify match SLO", value = 95 },
+      ] }
+    },
+    {
+      title   = "Data quality: integrity"
+      stat    = "Maximum"
+      period  = 86400
+      metrics = [for m in ["orphan_identities", "bpm_out_of_range", "length_out_of_range"] : [local.data_quality_namespace, m]]
+    },
   ]
 }
 
@@ -67,15 +90,15 @@ resource "aws_cloudwatch_dashboard" "overview" {
         y      = floor(i / 2) * 6
         width  = 12
         height = 6
-        properties = {
+        properties = merge({
           title   = w.title
           region  = var.aws_region
           stat    = w.stat
-          period  = 300
+          period  = try(w.period, 300)
           view    = "timeSeries"
           stacked = false
           metrics = w.metrics
-        }
+        }, try({ annotations = w.annotations }, {}))
       }
     ]
   })

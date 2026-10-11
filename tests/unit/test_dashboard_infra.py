@@ -34,3 +34,15 @@ def test_dashboard_covers_every_alarmed_signal() -> None:
         '"AWS/Firehose", "DeliveryToS3.DataFreshness"',
     ):
         assert needle in body, needle
+
+
+def test_dashboard_charts_every_data_quality_slo() -> None:
+    from collector.data_quality import CHECKS
+
+    body = _dashboard()
+    for check in CHECKS:
+        if check.threshold is None:
+            continue  # recorded only, no SLO
+        assert f'"{check.name}"' in body, check.name
+        if check.comparison == "min":
+            assert re.search(rf"value\s*=\s*{check.threshold:g}\b", body), check.name  # SLO line
