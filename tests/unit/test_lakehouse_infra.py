@@ -98,6 +98,8 @@ def test_nightly_build_runs_the_deployed_commit() -> None:
         'git -C repo fetch --depth 1 https://github.com/tarodo/clouder-core.git "$GIT_REF"' in spec
     )
     assert "--branch" not in spec
+    # CodeBuild masks parameter-store values in its log; the short SHA is not masked.
+    assert "git -C repo log -1" in spec
     assert re.search(
         r'"ssm:GetParameters"\]\s*\n\s*resources\s*=\s*\[aws_ssm_parameter\.dbt_git_ref\.arn\]', tf
     )

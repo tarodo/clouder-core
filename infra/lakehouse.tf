@@ -173,8 +173,8 @@ resource "aws_iam_role_policy" "dbt" {
   policy = data.aws_iam_policy_document.dbt.json
 }
 
-# The commit the nightly build runs: the deploy writes it after a green smoke test,
-# so dbt models never run ahead of (or behind) what is in production.
+# The commit the nightly build runs: the last one whose deploy passed the smoke test
+# (the deploy writes it), not whatever main is at 00:30.
 resource "aws_ssm_parameter" "dbt_git_ref" {
   name  = "/clouder/dbt/git_ref"
   type  = "String"
@@ -243,6 +243,7 @@ resource "aws_codebuild_project" "dbt" {
             - git init -q repo
             - git -C repo fetch --depth 1 https://github.com/tarodo/clouder-core.git "$GIT_REF"
             - git -C repo checkout -q FETCH_HEAD
+            - git -C repo log -1 --format='built %h %s' # the parameter value itself is masked in the log
             - pip install -q -r repo/dbt/requirements.txt
         build:
           # One shell for all commands: change directory once.

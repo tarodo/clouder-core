@@ -74,7 +74,8 @@ def test_deploy_records_its_commit_after_the_smoke_test() -> None:
     steps = yaml.safe_load(DEPLOY.read_text())["jobs"]["deploy"]["steps"]
     names = [s.get("name", "") for s in steps]
     record = names.index("Record the deployed commit for the nightly build")
-    assert names.index("Smoke test") < record < names.index("Roll back API aliases")
+    # After the rollback step: a failure to record must not roll back a healthy API.
+    assert names.index("Smoke test") < names.index("Roll back API aliases") < record
     run = steps[record]["run"]
     assert "/clouder/dbt/git_ref" in run and "$GITHUB_SHA" in run
     assert "if" not in steps[record]  # default success(): a failed smoke never advances it

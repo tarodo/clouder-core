@@ -42,8 +42,9 @@ observed as (
 ),
 
 one_per_day as (
-    -- A snapshot paged with OFFSET during writes can list a track twice; keep
-    -- one row per (track, day) so versions stay unique on the MERGE key.
+    -- A retried export can leave a track twice in one day's snapshot (parts of an
+    -- earlier attempt, or OFFSET-paged snapshots before 2026-10-11); keep one row
+    -- per (track, day) so versions stay unique on the MERGE key.
     select * from (
         select
             *,
