@@ -151,7 +151,7 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 now=now,
                 error=str(exc)[:500],
             )
-        except Exception as exc:
+        except Exception as exc:  # never retry: 1-request budget
             repo.store_comments(
                 collection_id=msg.collection_id,
                 platform=msg.platform,

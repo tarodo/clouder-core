@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import subprocess
@@ -33,27 +34,28 @@ def test_handler_module_is_a_thin_router() -> None:
 
 def test_routes_call_collaborators_through_deps() -> None:
     # A route that imports a collaborator by name ignores a patch on `deps`.
-    names = (
-        "create_clouder_repository_from_env",
-        "create_default_s3_client",
-        "create_default_sqs_client",
-        "fetch_access_token",
-        "read_beatport_credentials",
-        "S3Storage",
-    )
+    from collector.api import deps
+
     routes = list((ROOT / "src/collector/api").glob("routes_*.py"))
     assert routes, "collector/api/routes_*.py missing"
     for module in routes:
-        text = module.read_text()
-        for name in names:
-            assert not re.search(rf"import[^\n]*\b{name}\b", text), f"{module.name} binds {name}"
+        tree = ast.parse(module.read_text())
+        bound = {
+            alias.asname or alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        assert not bound & set(deps.__all__), (
+            f"{module.name} binds {sorted(bound & set(deps.__all__))}"
+        )
 
 
-def test_enrichment_routes_load_on_first_use() -> None:
+def test_enrichment_loads_on_first_use() -> None:
     code = (
         "import json, sys, collector.handler; "
         "print(json.dumps(sorted(m for m in sys.modules "
-        "if m.endswith(('enrichment.routes', 'enrichment.auto_routes')))))"
+        "if m.startswith(('collector.label_enrichment', 'collector.artist_enrichment')))))"
     )
     out = subprocess.run(
         [sys.executable, "-c", code],

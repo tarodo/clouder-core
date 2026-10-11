@@ -16,7 +16,6 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-UTC = UTC
 PLANNER_AT = time(0, 5)
 MIN_GAP = timedelta(minutes=60)
 _LEAD = timedelta(minutes=5)  # do not plan a run for the very next minutes

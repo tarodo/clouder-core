@@ -5,7 +5,7 @@ src = ["src", "tests", "scripts"]
 extend-exclude = ["graphify-out", "experiments", "frontend", "dbt", "alembic/versions"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "B", "UP", "SIM", "RUF"]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "SIM", "RUF", "PLW0127"]
 # B904/B905: raise-from and zip(strict=) are style changes across ~40 call sites.
 # UP042: StrEnum changes str() and f-string output of members.
 ignore = ["B904", "B905", "UP042"]

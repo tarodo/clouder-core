@@ -97,7 +97,7 @@ class OpenAIAdapter:
                     [k for k in ("max_tool_calls", "reasoning") if k in kwargs],
                 )
                 response = self._client.responses.parse(**bare_kwargs)
-        except Exception as exc:
+        except Exception as exc:  # never raise
             return VendorResponse(
                 parsed=None,
                 raw={},

@@ -146,7 +146,7 @@ class TavilyDeepSeekAdapter:
             )
             social_resp.raise_for_status()
             social_results = social_resp.json().get("results") or []
-        except Exception:
+        except Exception:  # second call is best-effort; failure leaves general results intact
             social_results = []
 
         # Merge + dedup by URL

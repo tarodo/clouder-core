@@ -4,8 +4,6 @@ import pytest
 
 from collector.repositories import as_utc_datetime
 
-UTC = UTC
-
 
 @pytest.mark.parametrize(
     "value, expected",

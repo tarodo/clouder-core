@@ -63,7 +63,7 @@ def run_vendors_parallel(
             adapter = future_to_adapter[fut]
             try:
                 resp = fut.result()
-            except Exception as exc:
+            except Exception as exc:  # vendors must not raise, but be defensive
                 resp = VendorResponse(
                     parsed=None,
                     raw={},

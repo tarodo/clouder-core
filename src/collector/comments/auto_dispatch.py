@@ -24,7 +24,7 @@ def _build_repository() -> CommentsRepository:
 def _safe(fn) -> None:
     try:
         fn()
-    except Exception as exc:
+    except Exception as exc:  # best-effort, never break the worker
         log_event("ERROR", "comments_auto_dispatch_error", error_message=str(exc)[:500])
 
 

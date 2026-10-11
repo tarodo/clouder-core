@@ -12,8 +12,6 @@ from collector.auto_ingest_schedule import (
     window_end,
 )
 
-UTC = UTC
-
 
 def _settings(**overrides):
     base = {

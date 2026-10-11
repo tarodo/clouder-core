@@ -22,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from collector.spotify_gold import export_gold
-from export_match_gold import _client
+from export_match_gold import _client  # same prod / local client
 
 
 def main(argv: list[str] | None = None) -> tuple[Path, Path]:

@@ -115,7 +115,7 @@ class YouTubeCommentProvider:
 def _safe_json(resp: Any) -> dict:
     try:
         return resp.json() or {}
-    except Exception:
+    except Exception:  # defensive on error bodies
         return {}
 
 

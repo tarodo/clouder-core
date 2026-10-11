@@ -147,7 +147,7 @@ def _dispatch_artists(*, artist_ids: list[str], source_hint: str, user_id: str |
 def _safe(fn) -> None:
     try:
         fn()
-    except Exception as exc:
+    except Exception as exc:  # best-effort, never break curation
         log_event("ERROR", "auto_enrich_artists_dispatch_error", error_message=str(exc)[:500])
 
 

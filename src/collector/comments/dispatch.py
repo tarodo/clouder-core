@@ -41,7 +41,7 @@ def _queue_url() -> str:
 def _safe(fn) -> None:
     try:
         fn()
-    except Exception as exc:
+    except Exception as exc:  # best-effort, never break caller
         log_event("ERROR", "comment_dispatch_error", error_message=str(exc)[:500])
 
 

@@ -316,7 +316,7 @@ class SocialsResolver:
             return SocialsResult(
                 updates=updates, instagram_tier=instagram_tier, tavily_credits=tavily.credits_used
             )
-        except Exception as exc:
+        except Exception as exc:  # resolver must never raise
             return SocialsResult(
                 updates={},
                 instagram_tier=None,

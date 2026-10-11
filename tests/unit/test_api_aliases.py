@@ -20,14 +20,14 @@ class _NotFound(Exception):
 
 
 class FakeLambda:
-    class exceptions:
+    class exceptions:  # mirrors boto3's client.exceptions
         ResourceNotFoundException = _NotFound
 
     def __init__(self, aliases: dict[str, str]) -> None:
         self.aliases = dict(aliases)
         self.updates: list[tuple[str, str]] = []
 
-    def get_alias(self, FunctionName: str, Name: str) -> dict:
+    def get_alias(self, FunctionName: str, Name: str) -> dict:  # boto3 casing
         assert Name == "live"
         if FunctionName not in self.aliases:
             raise _NotFound(FunctionName)

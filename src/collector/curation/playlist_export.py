@@ -52,6 +52,7 @@ def _fetch_info(
     placeholders = ", ".join(f":{prefix}{i}" for i in range(len(ids)))
     params: dict[str, Any] = {f"{prefix}{i}": v for i, v in enumerate(ids)}
     rows = data_api.execute(
+        # table/column are literals from callers; only the values are bound.
         f"SELECT {id_column}, merged FROM {table} WHERE {id_column} IN ({placeholders})",
         params,
     )
