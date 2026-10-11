@@ -13,9 +13,10 @@ CLOUDER stores only what a signed-in DJ needs to curate and publish tracks. Ever
 | Aurora audit columns `*_by_user_id` (enrichment runs, auto-enrich and auto-ingest settings) | Which admin started a run or changed a setting | Operations | Set to NULL on deletion; the run or setting stays |
 | Aurora automated backups | All of the above | Point-in-time recovery | 7 days |
 | S3 raw bucket `covers/<user_id>/` | Playlist cover images the user uploaded | Playlist covers | Until the user is deleted (every version is removed) |
-| S3 lake `bronze/events/` (Firehose, Parquet) | Pseudonymous telemetry: user id, session id, event, track, timestamps — no name, email or IP | Listening analytics on the Home cards | Kept (moves to infrequent access after 90 days) |
+| S3 lake `bronze/events/` (Firehose, Parquet) | Pseudonymous telemetry: user id, session id, event, track, timestamps — no name, email or IP | Listening analytics on the Home cards | 400 days (lifecycle rule; infrequent access after 90) |
+| S3 lake `bronze/_errors/` | Records Firehose could not convert (may include the same pseudonymous fields) | Debugging a delivery | 30 days |
 | S3 lake `bronze/catalog_export/` | Nightly snapshot that includes `categories` and `category_tracks` | Lakehouse dimensions | 14 days (lifecycle rule) |
-| Iceberg `clouder_silver.events`, `clouder_gold.fct_play` | Same pseudonymous telemetry, deduplicated / turned into plays | Analytics history | Until the user is deleted |
+| Iceberg `clouder_silver.events`, `clouder_gold.fct_play` | Same pseudonymous telemetry, deduplicated / turned into plays | Analytics history | 400 days back from the newest partition (dbt post-hook), and until the user is deleted |
 | CloudWatch Logs | `user_id` in structured Lambda logs; client IP in API Gateway access logs | Debugging and incident response | 30 days (14 for the analytics API) |
 | SSM Parameter Store | App secrets only (OAuth client credentials, signing keys) | Configuration | — no per-user data |
 | Browser `localStorage` | Last selected style and playback device id | UI convenience | Until the user clears it; no tokens are ever stored (see [frontend/auth.md](frontend/auth.md)) |
@@ -43,9 +44,39 @@ Each step can be run again: after a partial failure, run the script again.
 ### What is left after deletion, and for how long
 
 - **Aurora backups** keep the user for up to 7 days, until they age out.
-- **Bronze telemetry** keeps the raw, pseudonymous events. Once the `users` row is gone, nothing links the user id to a person, and every table built from bronze excludes it. Removing it from bronze would mean rewriting the affected Parquet partitions.
+- **Bronze telemetry** keeps the raw, pseudonymous events for up to 400 days. Once the `users` row is gone, nothing links the user id to a person, and every table built from bronze excludes it (the tombstone).
 - **Catalog snapshots** keep the user's categories for up to 14 days.
 - **CloudWatch Logs** expire after 30 days.
 - **Signed-in sessions.** An access token already issued stays valid for up to 30 minutes. The refresh token stops working at once, because its session row is gone.
 
 A user who signs in with Spotify again gets a new, empty account.
+
+## Exporting a user's data (access and portability)
+
+`scripts/export_user.py` writes one JSON file with everything CLOUDER holds about a user: their rows in every Aurora table the deletion walks (the same catalog-derived graph, children included), audit references to them, their playlist cover keys and their telemetry from `clouder_silver.events`. Credential columns (encrypted OAuth tokens, refresh-token hashes) are redacted. The file is created with mode 0600; send it to the user over a private channel and delete it afterwards.
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/export_user.py --user-id <uuid> --out export-<uuid>.json
+```
+
+Telemetry from the last day may still be only in bronze: silver is built nightly.
+
+## Legal basis and data-subject rights
+
+CLOUDER is run by one person for a closed group of DJs who asked to use it.
+
+| Purpose | Data | Basis (GDPR Art. 6(1)) |
+|---|---|---|
+| Account and sign-in | `users`, `user_sessions` | (b) needed to provide the service the user asked for |
+| Curation and publishing | the overlay tables, `user_vendor_tokens`, covers | (b) |
+| Account security: refresh-token rotation, replay detection, logs | sessions (IP, user agent), CloudWatch | (f) legitimate interest in keeping accounts safe |
+| Listening analytics shown back to the user | pseudonymous telemetry, 400 days | (f) the cards are part of the product; no third party sees the data |
+
+| Right | How |
+|---|---|
+| Access, portability (Art. 15, 20) | `scripts/export_user.py` — one JSON file |
+| Erasure (Art. 17) | `scripts/delete_user.py` — Aurora, covers, lake (tombstone and Iceberg deletes) |
+| Rectification (Art. 16) | Display name and email come from Spotify at sign-in; the owner corrects them on request |
+| Objection to analytics (Art. 21) | No in-app switch yet; on request the owner tombstones the user (`collector.user_deletion.purge_lake`), which keeps their events out of silver and gold |
+
+**Known gaps.** There is no privacy notice inside the app yet: users learn the above from the owner and from this page. All data is in AWS us-east-1; for users in the EU that is a transfer outside the EEA, which a public launch would need to address (an EU region or a documented transfer mechanism). There is no consent banner because the app sets no third-party cookies and runs no third-party tracking.
