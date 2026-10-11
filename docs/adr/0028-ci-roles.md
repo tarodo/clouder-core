@@ -45,7 +45,9 @@ destroyed and every Lambda changing, so nobody could read it as a preview.
   decrypts it, so the role would still have needed to read it.
 - The PR plan is a faithful preview: a change it does not show is not applied.
 - The deploy role is AdministratorAccess until the scoped policy in `infra/bootstrap/` is
-  applied (owner step, [known gap](../security.md#known-gaps)); only the
+  applied (owner step): the services Terraform manages, IAM writes only on project roles that
+  carry the permissions boundary `clouder-role-boundary` (2026-10-11), no assuming roles, no
+  change to itself ([known gap](../security.md#known-gaps)); only the
   `production` environment, which accepts protected branches only, can assume it. Any step of the
   deploy job can mint an OIDC token, so step order limits exposure to installed code but is not a
   boundary; the trust policy is.

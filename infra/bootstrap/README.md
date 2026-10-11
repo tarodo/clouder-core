@@ -4,22 +4,39 @@ Things Terraform cannot own, because it needs them to run: the GitHub OIDC provi
 
 ## `deploy-role-policy.json`
 
-The policy of `github-actions-terraform`, the role every deploy assumes (only the `production` environment can). It replaces AdministratorAccess:
+The policy of `github-actions-terraform`, the role every deploy assumes (only the `production` environment can). It replaces AdministratorAccess.
 
-- **Services:** 23 AWS services Terraform manages (all actions), IAM (scoped below) and `sts:GetCallerIdentity`. The list comes from 90 days of IAM "service last accessed" data for the role (2026-10-11; there is no CloudTrail trail, so IAM Access Analyzer cannot generate a policy) and is kept in step with the code by `tests/unit/test_deploy_role_policy.py`, which maps every Terraform resource type to its IAM namespace — a new service fails the pull request, not the deploy.
-- **IAM:** writes only on `clouder-prod-*` roles and policies (every role Terraform creates is named that way; the test checks it). Attaching any managed policy other than `ReadOnlyAccess` (the plan role's) is denied, so no project role can be given AdministratorAccess. The role cannot change itself.
-- **Checked with the IAM policy simulator** (2026-10-11) over the 160 actions the role performed in 90 days: 148 allowed. The rest are 11 ECR actions (unused since July) and `iam:AttachRolePolicy` without a policy ARN, which is allowed for `ReadOnlyAccess` and denied for `AdministratorAccess`.
+**What it allows**
 
-**Remaining gap:** inline policies (`iam:PutRolePolicy`) on `clouder-prod-*` roles are not bounded, so the role could still write a broad inline policy on a project role. A permissions boundary on those roles is the next step.
+- **Services:** 23 AWS services Terraform manages (all actions) and `sts:GetCallerIdentity`. The list comes from 90 days of IAM "service last accessed" data for the role (2026-10-11; there is no CloudTrail trail, so IAM Access Analyzer cannot generate a policy). `tests/unit/test_deploy_role_policy.py` maps every Terraform resource type to its IAM namespace, so a new service fails the pull request, not the deploy.
+- **IAM:** writes only on `clouder-prod-*` **roles** (every role Terraform creates is named that way; the test checks it), plus IAM reads and service-linked roles. No IAM policy is writable.
+
+**What it refuses**
+
+- Creating a project role, writing its inline policy, attaching a policy or setting a boundary **unless the role carries the permissions boundary `clouder-role-boundary`** ([`infra/iam_boundary.tf`](../iam_boundary.tf)), removing that boundary, or changing the boundary policy. The boundary lets a role do anything except IAM writes (reads and passing project roles stay), Organizations and account settings — so a project role, whatever its own policy says, cannot grant anyone more IAM.
+- Attaching any managed policy other than `ReadOnlyAccess` (the plan role's).
+- `sts:AssumeRole`, so a trust policy that names the deploy role does not let it become another role.
+- Any change to its own role or to this policy (`github-actions-terraform-deploy`).
+
+**What it does not do.** Inside the 23 services the role is still all-powerful: a compromised `main` can read and delete the project's data, and — the account is shared — other projects' resources in those services too. What the policy removes is the step from "deploy" to "IAM administrator": the role cannot create a principal, a policy or a role that outranks the boundary.
+
+**Checked with the IAM policy simulator** (2026-10-11). Of the 160 actions the role performed in 90 days, 149 are allowed with the boundary on the roles; the 11 refused are ECR actions, unused since July. Refused as intended: a role without the boundary, removing or changing the boundary, attaching AdministratorAccess, changing its own role or policy, `sts:AssumeRole`. A project role given `*:*` inline stays inside the boundary: `iam:AttachRolePolicy` and `iam:CreateUser` are denied, S3 and Scheduler work.
+
+**Known trap:** `enable_secretsmanager_vpc_endpoint = true` (off in production) creates an interface endpoint with private DNS, which likely also needs `route53:AssociateVPCWithHostedZone`; add it before turning the flag on.
 
 ### Apply, verify, roll back (owner)
 
+Order matters: the boundary must be on every role before the policy that requires it.
+
+1. Merge the pull request that adds the boundary. Its deploy still runs as AdministratorAccess; it creates `clouder-role-boundary` and sets it on all 25 project roles. Check: `aws iam get-role --role-name clouder-prod-collector-api-role --query Role.PermissionsBoundary`.
+2. Then switch the deploy role:
+
 ```bash
 ACCT=$(aws sts get-caller-identity --query Account --output text)
-aws iam create-policy --policy-name clouder-prod-deploy \
+aws iam create-policy --policy-name github-actions-terraform-deploy \
   --policy-document file://infra/bootstrap/deploy-role-policy.json
 aws iam attach-role-policy --role-name github-actions-terraform \
-  --policy-arn arn:aws:iam::$ACCT:policy/clouder-prod-deploy
+  --policy-arn arn:aws:iam::$ACCT:policy/github-actions-terraform-deploy
 aws iam detach-role-policy --role-name github-actions-terraform \
   --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
 gh workflow run deploy.yml --ref main && gh run watch   # must end green
@@ -29,8 +46,8 @@ aws iam attach-role-policy --role-name github-actions-terraform \
   --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
 
 # Change the policy later (after the test passes):
-aws iam create-policy-version --policy-arn arn:aws:iam::$ACCT:policy/clouder-prod-deploy \
+aws iam create-policy-version --policy-arn arn:aws:iam::$ACCT:policy/github-actions-terraform-deploy \
   --policy-document file://infra/bootstrap/deploy-role-policy.json --set-as-default
 ```
 
-A policy keeps at most five versions; delete the oldest non-default one before a sixth.
+A policy keeps at most five versions; delete the oldest non-default one before a sixth. Changing the boundary later (`infra/iam_boundary.tf`) is also an owner step: the deploy role may not change it, so the apply fails until the owner runs it.

@@ -39,8 +39,7 @@
         "iam:*"
       ],
       "Resource": [
-        "arn:aws:iam::*:role/clouder-prod-*",
-        "arn:aws:iam::*:policy/clouder-prod-*"
+        "arn:aws:iam::*:role/clouder-prod-*"
       ]
     },
     {
@@ -74,8 +73,56 @@
         "iam:*"
       ],
       "Resource": [
-        "arn:aws:iam::*:role/github-actions-terraform"
+        "arn:aws:iam::*:role/github-actions-terraform",
+        "arn:aws:iam::*:policy/github-actions-terraform-deploy"
       ]
+    },
+    {
+      "Sid": "ProjectRolesKeepTheBoundary",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateRole",
+        "iam:PutRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:PutRolePermissionsBoundary"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "iam:PermissionsBoundary": "arn:aws:iam::*:policy/clouder-role-boundary"
+        }
+      }
+    },
+    {
+      "Sid": "BoundaryStays",
+      "Effect": "Deny",
+      "Action": [
+        "iam:DeleteRolePermissionsBoundary"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "BoundaryIsNotTheDeploysToChange",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+        "iam:TagPolicy",
+        "iam:UntagPolicy"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:policy/clouder-role-boundary"
+      ]
+    },
+    {
+      "Sid": "NoAssumingRoles",
+      "Effect": "Deny",
+      "Action": [
+        "sts:AssumeRole"
+      ],
+      "Resource": "*"
     }
   ]
 }
