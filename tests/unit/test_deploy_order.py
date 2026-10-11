@@ -42,6 +42,13 @@ DEPLOYED = {
     "enable_secretsmanager_vpc_endpoint": "false",
 }
 
+# Added since, each with its reason next to it in prod.tfvars.
+ADDED = {
+    # Interim worker caps until the Lambda quota increase is approved (postmortem 2026-10-11).
+    "label_enrichment_worker_max_concurrency": "2",
+    "artist_enrichment_worker_max_concurrency": "2",
+}
+
 
 def test_prod_tfvars_keeps_the_deployed_values() -> None:
     pairs = {}
@@ -50,7 +57,7 @@ def test_prod_tfvars_keeps_the_deployed_values() -> None:
         if line:
             key, value = (part.strip() for part in line.split("=", 1))
             pairs[key] = value
-    assert pairs == DEPLOYED
+    assert pairs == DEPLOYED | ADDED
 
 
 def test_both_applies_read_prod_tfvars_and_nothing_else() -> None:

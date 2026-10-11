@@ -8,12 +8,24 @@ locals {
   lambda_concurrency_quota = 100
 }
 
-# Submits an increase request while the account is below the value; while it is pending,
-# reads return the requested value, so plans stay clean. Destroying it changes nothing.
+# Creating it files one increase request when the account is below the value. After that
+# Terraform leaves it alone: an approval above the value would otherwise plan a decrease
+# on every deploy, and a denial would file a new request each time. To ask for more,
+# change the local and apply with -replace. Destroying it changes nothing in AWS.
 resource "aws_servicequotas_service_quota" "lambda_concurrency" {
   service_code = "lambda"
   quota_code   = "L-B99A9384" # Concurrent executions
   value        = local.lambda_concurrency_quota
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+# The quota the account has now (10 until the request is approved), not the requested one.
+data "aws_servicequotas_service_quota" "lambda_concurrency" {
+  service_code = "lambda"
+  quota_code   = "L-B99A9384"
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_account_concurrency" {
@@ -24,7 +36,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_account_concurrency" {
   statistic           = "Maximum"
   period              = 60
   evaluation_periods  = 3
-  threshold           = local.lambda_concurrency_quota * 0.8
+  threshold           = data.aws_servicequotas_service_quota.lambda_concurrency.value * 0.8
   comparison_operator = "GreaterThanOrEqualToThreshold"
   treat_missing_data  = "notBreaching"
 

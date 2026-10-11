@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Worktree: `/Users/roman/Projects/clouder-projects/clouder-core-loop`, branch `feat/api-isolation` from `origin/main`. `.venv` lives in the main repo: run tools as `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/<tool>`.
+- Worktree: `../clouder-core-loop` next to the main checkout, branch `feat/api-isolation` from `origin/main`. `.venv` lives in the main repo: run tools as `.venv/bin/<tool>`.
 - Commit messages come from the `caveman:caveman-commit` skill; Conventional Commits; no AI attribution; author stays `tarodo <rsvolozhanin@gmail.com>`.
 - Repo text is English. No money figures anywhere in the repo.
 - SQS event-source `maximum_concurrency` must be between 2 and 1000 (AWS limit).
@@ -83,7 +83,7 @@ def test_every_sqs_worker_has_a_concurrency_cap() -> None:
 
 - [ ] **Step 2: Run it to make sure it fails**
 
-Run: `cd /Users/roman/Projects/clouder-projects/clouder-core-loop && PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_concurrency_infra.py -q`
+Run: `PYTHONPATH=src .venv/bin/pytest tests/unit/test_concurrency_infra.py -q`
 Expected: FAIL — `canonicalization_queue: scaling_config.maximum_concurrency is missing`.
 
 - [ ] **Step 3: Add the caps**
@@ -193,7 +193,7 @@ variable "spotify_search_max_concurrency" {
 
 - [ ] **Step 4: Run the test and fmt**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_concurrency_infra.py -q && (cd infra && terraform fmt -check)`
+Run: `PYTHONPATH=src .venv/bin/pytest tests/unit/test_concurrency_infra.py -q && (cd infra && terraform fmt -check)`
 Expected: 1 passed; fmt prints nothing.
 
 - [ ] **Step 5: Commit** (message from `caveman:caveman-commit`, e.g. `feat(infra): cap every SQS worker's concurrency`)
@@ -254,7 +254,7 @@ def test_account_concurrency_alarm_warns_before_the_quota() -> None:
 
 - [ ] **Step 2: Run them to make sure they fail**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_concurrency_infra.py -q`
+Run: `PYTHONPATH=src .venv/bin/pytest tests/unit/test_concurrency_infra.py -q`
 Expected: 3 failed (`local.lambda_concurrency_quota`, missing resources).
 
 - [ ] **Step 3: Create `infra/concurrency.tf`**
@@ -297,7 +297,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_account_concurrency" {
 
 - [ ] **Step 4: Run the tests, fmt and validate**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_concurrency_infra.py tests/unit/test_alarm_routing_infra.py -q && (cd infra && terraform fmt -check && terraform init -backend=false -input=false >/dev/null && terraform validate)`
+Run: `PYTHONPATH=src .venv/bin/pytest tests/unit/test_concurrency_infra.py tests/unit/test_alarm_routing_infra.py -q && (cd infra && terraform fmt -check && terraform init -backend=false -input=false >/dev/null && terraform validate)`
 Expected: all passed; `Success! The configuration is valid.` (Worker caps today: 2+2+2+8+8+2+2 = 26; 26 + 20 ≤ 100.)
 
 - [ ] **Step 5: Commit** (e.g. `feat(infra): request Lambda quota in Terraform`)
@@ -338,7 +338,7 @@ def test_api_5xx_alarm() -> None:
 
 - [ ] **Step 2: Run them to make sure they fail**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_concurrency_infra.py -q`
+Run: `PYTHONPATH=src .venv/bin/pytest tests/unit/test_concurrency_infra.py -q`
 Expected: 2 failed.
 
 - [ ] **Step 3: Add the alarms** (in `infra/alarms.tf`, after the `lambda_duration_p95` resource)
@@ -394,7 +394,7 @@ resource "aws_cloudwatch_metric_alarm" "api_5xx" {
 
 - [ ] **Step 4: Run the tests, fmt, validate**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_concurrency_infra.py tests/unit/test_alarm_routing_infra.py -q && (cd infra && terraform fmt -check && terraform validate)`
+Run: `PYTHONPATH=src .venv/bin/pytest tests/unit/test_concurrency_infra.py tests/unit/test_alarm_routing_infra.py -q && (cd infra && terraform fmt -check && terraform validate)`
 Expected: all passed; valid.
 
 - [ ] **Step 5: Commit** (e.g. `feat(infra): alarm on API throttles and 5xx`)
@@ -538,7 +538,7 @@ Add the index row in `docs/postmortems/README.md` (after the 2026-10-08 row):
 
 - [ ] **Step 7: Run the doc and README guards, then everything**
 
-Run: `PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest tests/unit/test_readme.py tests/unit/test_docs_freshness.py tests/unit/test_docs_links.py -q && PYTHONPATH=src /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest -q && /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/ruff check src tests scripts && /Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/ruff format --check src tests scripts`
+Run: `PYTHONPATH=src .venv/bin/pytest tests/unit/test_readme.py tests/unit/test_docs_freshness.py tests/unit/test_docs_links.py -q && PYTHONPATH=src .venv/bin/pytest -q && .venv/bin/ruff check src tests scripts && .venv/bin/ruff format --check src tests scripts`
 Expected: all pass.
 
 - [ ] **Step 8: Commit** (e.g. `docs: postmortem and runbook for API throttling`)
@@ -550,7 +550,7 @@ Expected: all pass.
 - [ ] **Step 1: Push and open the PR** — title and body from `caveman:caveman-commit` (what changed, why, how verified; no template headings for their own sake, no AI attribution).
 
 ```bash
-cd /Users/roman/Projects/clouder-projects/clouder-core-loop
+cd <worktree>
 git push -u origin feat/api-isolation
 gh pr create --base main --head feat/api-isolation --title "<from caveman-commit>" --body "<from caveman-commit>"
 ```

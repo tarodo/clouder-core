@@ -103,7 +103,7 @@ aws sqs start-message-move-task \
   --destination-arn <MAIN_QUEUE_ARN>
 ```
 
-Without `--destination-arn` the messages go back to the queue they came from. Check that the `<queue>-dlq-has-messages` alarm returns to OK once the DLQ is empty: an alarm left in ALARM means messages nobody looked at (from 2026-10-08 to 10-11, 11 Spotify messages waited two and a half days after their cause was fixed).
+Without `--destination-arn` the messages go back to the queue they came from. Check that the `<queue>-dlq-has-messages` alarm returns to OK once the DLQ is empty: an alarm left in ALARM means messages nobody looked at (from 2026-10-08 20:29 to 10-11 UTC, 11 Spotify messages waited two and a half days, the last 19 hours of them after the fix was deployed).
 
 Retrieve ARNs:
 
@@ -284,7 +284,11 @@ A single 503 right after a quiet period is the Aurora resume ([Cold-start 503](#
 
 Lower the busy worker's cap (`*_max_concurrency` in `infra/prod.tfvars`) and deploy; in an emergency, pause its trigger with `aws lambda update-event-source-mapping --uuid <uuid> --no-enabled` (the next deploy turns it back on). Queued jobs wait in SQS; nothing is lost.
 
-If the quota request was denied or approved lower, set `lambda_concurrency_quota` in `infra/concurrency.tf` to the approved value, so plans stop requesting it again, and lower the worker caps until `test_worker_caps_leave_room_for_the_api` passes.
+Terraform files the quota request once and then ignores the value (`lifecycle { ignore_changes = [value] }`), so a denial or a different approval never turns a deploy red. Keep `lambda_concurrency_quota` in `infra/concurrency.tf` equal to what the account really has:
+
+- **Approved:** remove the interim `label_enrichment_worker_max_concurrency` / `artist_enrichment_worker_max_concurrency` lines from `infra/prod.tfvars` (defaults: 8) and deploy. If AWS granted more than requested, set the local to the granted value.
+- **Approved lower, 34 or more:** set the local to the approved value and lower worker caps until `test_worker_caps_leave_room_for_the_api` passes.
+- **Denied, or below 34:** the seven workers need at least 14 executions (2 each) plus 20 for the API, so the budget cannot fit. Keep the interim caps, re-file with a justification (or a support case), and lower `API_HEADROOM` in the test only as a deliberate, documented decision. To ask again from Terraform, apply with `-replace=aws_servicequotas_service_quota.lambda_concurrency`.
 
 ---
 

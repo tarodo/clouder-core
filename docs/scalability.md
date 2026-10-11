@@ -12,7 +12,7 @@ exist. It deliberately describes levers, not prices.
 | Canonicalization worker | ≤ 1 min per run | largest week ≈ 6–9 min | largest week > 1 h | 900 s Lambda timeout | Split a run into chunks (see below) |
 | Data API payloads | chunked | chunked | chunked | 1 MB result / 4 MB request | Already paged and size-bounded |
 | Admin ingest (API path) | ≤ 16 s fetch | ≈ minutes | — | 29 s API Gateway limit | Use auto-ingest (900 s Lambda) or make the admin path asynchronous |
-| SQS workers | capped per queue (26 executions in total) | back up in their queues | back up in their queues | Account concurrency quota (10 until the increase to 100 requested in Terraform is approved; the API hit it at 1× on 2026-10-11) | Reserved concurrency per worker once the quota allows (the Terraform switch exists) |
+| SQS workers | capped per queue (26 executions in total; 14 until the quota increase is approved) | back up in their queues | back up in their queues | Account concurrency quota (10 until the increase to 100 requested in Terraform is approved; the API hit it at 1× on 2026-10-11) | Reserved concurrency per worker once the quota allows (the Terraform switch exists) |
 | Spotify / YouTube Music matching | per track | 10× calls | 100× calls | Vendor rate limits (429 → SQS retry) | SQS delay and per-worker concurrency caps |
 | Duplicate-artist detection | 34.7k artists | 347k | 3.5M | Pairwise comparison | Blocking keys before comparing |
 | Lakehouse (Athena) | small | linear | linear | Bytes scanned per query | Already incremental MERGE + compaction; keep date pruning |
@@ -66,7 +66,7 @@ enrichment and comment jobs, the workers took every slot and the API answered 5x
 ([postmortem](postmortems/2026-10-11-api-throttled-by-worker-burst.md)). Now every SQS worker has
 a `maximum_concurrency` cap (26 executions together), a test keeps the caps plus 20 executions for
 the API and scheduled jobs under the quota, and an increase to 100 is requested in Terraform
-(`infra/concurrency.tf`). Under 10× load the workers back up in their queues — slower, not lossy,
+(`infra/concurrency.tf`); until it is approved, the two enrichers run at 2 instead of 8. Under 10× load the workers back up in their queues — slower, not lossy,
 since every queue has a DLQ and redrive. Past that, `enable_lambda_reserved_concurrency = true`
 reserves per-worker capacity (values already in Terraform).
 

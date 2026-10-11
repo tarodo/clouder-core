@@ -58,6 +58,13 @@ def test_account_quota_is_requested_in_code() -> None:
     assert re.search(r"value\s*=\s*local\.lambda_concurrency_quota", body)
 
 
+def test_quota_is_requested_once() -> None:
+    # Without this, an approval above the value plans a decrease on every deploy and a
+    # denial files a new request each time (review of PR for phase 1).
+    body = _block("resource", 'aws_servicequotas_service_quota" "lambda_concurrency')
+    assert re.search(r"lifecycle\s*\{\s*ignore_changes\s*=\s*\[value\]", body)
+
+
 def test_worker_caps_leave_room_for_the_api() -> None:
     total = sum(_value(var) for var in _caps().values())
     assert total + API_HEADROOM <= _quota(), (total, _quota())
@@ -66,7 +73,14 @@ def test_worker_caps_leave_room_for_the_api() -> None:
 def test_account_concurrency_alarm_warns_before_the_quota() -> None:
     body = _block("resource", 'aws_cloudwatch_metric_alarm" "lambda_account_concurrency')
     assert re.search(r'metric_name\s*=\s*"ConcurrentExecutions"', body)
-    assert re.search(r"threshold\s*=\s*local\.lambda_concurrency_quota \* 0\.8", body)
+    # The quota the account has now, not the one requested: 80 % of a pending 100 would
+    # never fire while the account still runs on 10.
+    assert re.search(
+        r"threshold\s*=\s*data\.aws_servicequotas_service_quota\.lambda_concurrency\.value \* 0\.8",
+        body,
+    )
+    data = _block("data", 'aws_servicequotas_service_quota" "lambda_concurrency')
+    assert re.search(r'quota_code\s*=\s*"L-B99A9384"', data)
     assert "dimensions" not in body  # account-wide, not one function
     assert "local.alarm_actions" in body
 
