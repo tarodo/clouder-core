@@ -93,6 +93,6 @@ The six API functions publish a version per code change ([ADR-0029](adr/0029-api
 ## Aurora
 
 Aurora Serverless v2 runs between 0 (auto-pause) and 2 ACU. At 10× the ceiling is the first
-knob (`aurora_serverless_max_acu`); at 100× (about 10M tracks) the query plans of the catalog
+knob (`aurora_serverless_max_acu`); at 100× (about 14M tracks) the query plans of the catalog
 endpoints and the triage claims (`FOR UPDATE SKIP LOCKED`) deserve a review before raising it
 further.

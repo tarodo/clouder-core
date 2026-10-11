@@ -17,4 +17,6 @@ def test_actions_are_pinned_by_commit_sha() -> None:
     ]
     assert uses
     for name, line in uses:
-        assert re.search(r"uses: [\w.-]+/[\w./-]+@[0-9a-f]{40} # v\d", line), f"{name}: {line}"
+        assert re.search(r"uses: [\w.-]+/[\w./-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+$", line), (
+            f"{name}: {line}"
+        )

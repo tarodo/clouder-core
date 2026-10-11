@@ -10,7 +10,7 @@
 
 *Sample data, sped up: a week of new releases cleared one keystroke per track.*
 
-**At a glance:** ~143k canonical tracks, 3–5k new every week · 18 Lambda functions, 2 Step Functions workflows · 11 nightly data-quality SLOs · ~3,500 automated tests · every merge to `main` deploys to production behind a smoke test with automatic rollback.
+**At a glance:** ~143k canonical tracks, 3–5k new every week · 18 Lambda functions, 2 Step Functions workflows · 11 nightly data-quality SLOs · ~3,500 automated tests · every merge to `main` deploys to production behind a smoke test; a failure rolls the API back automatically.
 
 Every week brings a new wave of electronic-music releases on Beatport. For a DJ, turning "what came out this week" into "what goes into my set" means pulling the releases, matching each track across Spotify and YouTube Music, checking labels and artists, auditioning, and sorting into playlists. CLOUDER automates the data side of that workflow and gives a small group of DJs a fast, keyboard-first app for the human side.
 
@@ -127,7 +127,7 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 | **CloudFront** | SPA delivery with Origin Access Control |
 | **IAM** | A least-privilege execution role per Lambda (its own log group and only what its code uses); a read-only role for pull-request plans and an environment-gated deploy role, both through GitHub OIDC |
 
-**Deliberately not used:** Redshift, EMR/Spark, Kinesis Data Streams/MSK, ECS/EKS, Glue ETL jobs. At ~100k tracks and a few hundred events a day they would add cost and moving parts without solving a problem this system has; where an alternative was weighed, the trade-off is recorded — Redshift Serverless and Kafka in [`docs/design/data-platform.md`](docs/design/data-platform.md#alternatives-considered), Glue ETL and Spark in [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md) — and [`docs/scalability.md`](docs/scalability.md) says what changes at 10× and 100×.
+**Deliberately not used:** Redshift, EMR/Spark, Kinesis Data Streams/MSK, ECS/EKS, Glue ETL jobs. At this scale (~143k tracks, a few hundred events a day) they would add cost and moving parts without solving a problem this system has; where an alternative was weighed, the trade-off is recorded — Redshift Serverless and Kafka in [`docs/design/data-platform.md`](docs/design/data-platform.md#alternatives-considered), Glue ETL and Spark in [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md) — and [`docs/scalability.md`](docs/scalability.md) says what changes at 10× and 100×.
 
 ## Data pipeline
 
@@ -195,7 +195,7 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 
 ## Running it locally
 
-**Try the pipeline without AWS.** `make local-db && make demo` starts PostgreSQL in Docker, migrates it and pushes one synthetic Beatport week (300 tracks plus two malformed records) through the production code — contract screening, set-based canonicalization, the nightly data-quality checks — then replays the week to show it changes nothing. The Data API is replaced by a psycopg stand-in with the same transaction visibility. Output, trimmed:
+**Try the pipeline without AWS.** `make local-db && make demo` (`export PG_PORT=55499` first if port 55433 is taken) starts PostgreSQL in Docker, migrates it and pushes one synthetic Beatport week (300 tracks plus two malformed records) through the production code — contract screening, set-based canonicalization, the nightly data-quality checks — then replays the week to show it changes nothing. The Data API is replaced by a psycopg stand-in with the same transaction visibility. Output, trimmed:
 
 ```json
 {"screen": {"valid": 300, "quarantined": 2},
@@ -212,10 +212,10 @@ python -m pip install -r requirements-dev.txt
 pytest -q
 
 # Tests against a real PostgreSQL (migrate the schema first)
-docker compose up -d --wait db   # Postgres 16 on localhost:55433 (PG_PORT=… to move it)
-PYTHONPATH=src ALEMBIC_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:55433/postgres \
+docker compose up -d --wait db   # Postgres 16 on localhost:${PG_PORT:-55433}
+PYTHONPATH=src ALEMBIC_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:${PG_PORT:-55433}/postgres \
   alembic upgrade head
-TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres pytest tests/db -q
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:${PG_PORT:-55433}/postgres pytest tests/db -q
 
 # Frontend (pnpm test:browser for the real-browser layout tests)
 (cd frontend && pnpm install && pnpm test)
@@ -248,7 +248,7 @@ Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/dep
 - Throughput limits are measured, not guessed: canonicalization fits a 10× week easily and reaches the Lambda timeout around 100× the largest week — see [scalability notes](docs/scalability.md).
 - Matching precision is measured for YouTube Music only. Next: a labelled sample for Spotify.
 - Built for a closed group of DJs: about 143k tracks, growing by 3–5k a week.
-- The deploy role is still AdministratorAccess, assumable only from the `production` environment; scoping it to the services Terraform manages is the next security step ([security](docs/security.md#known-gaps)).
+- The deploy role is still AdministratorAccess, assumable only from the `production` environment ([security](docs/security.md#known-gaps)).
 
 ## How this was built
 
