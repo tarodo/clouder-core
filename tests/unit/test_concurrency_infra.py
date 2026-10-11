@@ -7,6 +7,8 @@ from pathlib import Path
 
 INFRA = Path(__file__).resolve().parents[2] / "infra"
 TF = "\n".join(p.read_text() for p in sorted(INFRA.glob("*.tf")))
+PROD = (INFRA / "prod.tfvars").read_text()
+API_HEADROOM = 20  # executions kept free for the API functions and the scheduled jobs
 
 
 def _block(kind: str, name: str) -> str:
@@ -32,3 +34,38 @@ def test_every_sqs_worker_has_a_concurrency_cap() -> None:
     for esm, var in caps.items():
         assert var, f"{esm}: scaling_config.maximum_concurrency is missing"
         assert re.search(rf"var\.{var} >= 2 && var\.{var} <= 1000", _block("variable", var)), var
+
+
+def _quota() -> int:
+    m = re.search(r"lambda_concurrency_quota\s*=\s*(\d+)", TF)
+    assert m, "local.lambda_concurrency_quota"
+    return int(m.group(1))
+
+
+def _value(var: str) -> int:
+    """prod.tfvars wins over the default, as in every plan and apply."""
+    m = re.search(rf"^{var}\s*=\s*(\d+)", PROD, re.M)
+    if m:
+        return int(m.group(1))
+    return int(re.search(r"default\s*=\s*(\d+)", _block("variable", var)).group(1))
+
+
+def test_account_quota_is_requested_in_code() -> None:
+    # 'type" "name' makes _block match: resource "type" "name" {
+    body = _block("resource", 'aws_servicequotas_service_quota" "lambda_concurrency')
+    assert re.search(r'service_code\s*=\s*"lambda"', body)
+    assert re.search(r'quota_code\s*=\s*"L-B99A9384"', body)
+    assert re.search(r"value\s*=\s*local\.lambda_concurrency_quota", body)
+
+
+def test_worker_caps_leave_room_for_the_api() -> None:
+    total = sum(_value(var) for var in _caps().values())
+    assert total + API_HEADROOM <= _quota(), (total, _quota())
+
+
+def test_account_concurrency_alarm_warns_before_the_quota() -> None:
+    body = _block("resource", 'aws_cloudwatch_metric_alarm" "lambda_account_concurrency')
+    assert re.search(r'metric_name\s*=\s*"ConcurrentExecutions"', body)
+    assert re.search(r"threshold\s*=\s*local\.lambda_concurrency_quota \* 0\.8", body)
+    assert "dimensions" not in body  # account-wide, not one function
+    assert "local.alarm_actions" in body
