@@ -40,6 +40,8 @@ def test_readme_counts_match_the_sources() -> None:
     tf = "\n".join(p.read_text() for p in (ROOT / "infra").glob("*.tf"))
     lambdas = len(re.findall(r'^resource "aws_lambda_function"', tf, re.M))
     assert set(re.findall(r"(\d+) (?:AWS )?Lambda functions", README)) == {str(lambdas)}
+    resources = len(re.findall(r'^resource "', tf, re.M))
+    assert set(re.findall(r"(\d+) Terraform resource definitions", README)) == {str(resources)}
 
 
 def test_readme_lists_every_route_without_the_authorizer() -> None:
