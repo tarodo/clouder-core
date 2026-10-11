@@ -45,7 +45,7 @@ function toPlaybackTrack(t: PlaylistTrack): PlaybackTrack {
     artists: t.artists.map((a) => a.name).join(', '),
     duration_ms: t.length_ms ?? 0,
     spotify_id: t.spotify_id,
-    cover_url: null,
+    cover_url: t.cover_url ?? null,
   };
 }
 

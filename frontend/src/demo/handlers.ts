@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { DemoDb, DemoError } from './db';
+import { DemoDb, DemoError, type LibraryQuery } from './db';
 import {
   sampleAutoIngest,
   sampleCoverage,
@@ -41,6 +41,17 @@ const API_PREFIXES = [
   '/v1/',
 ];
 const NOT_IN_DEMO = 'Not available in the demo — it runs on sample data in your browser.';
+
+function libraryQuery(q: URLSearchParams): LibraryQuery {
+  return {
+    style: q.get('style') ?? undefined,
+    q: q.get('q') ?? undefined,
+    sort: q.get('sort') === 'recent' ? 'recent' : 'name',
+    my: (q.get('my') as LibraryQuery['my']) ?? undefined,
+    page: Number(q.get('page') ?? 1),
+    limit: Number(q.get('limit') ?? 50),
+  };
+}
 
 function page<T>(items: T[], q: URLSearchParams) {
   const limit = Number(q.get('limit') ?? 50);
@@ -280,25 +291,29 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
       path: '/admin/users',
       resolve: () => ({ users: [{ id: me.id, display_name: me.display_name }] }),
     },
+    { method: 'get', path: '/labels', resolve: ({ query }) => db.labels(libraryQuery(query)) },
     {
       method: 'get',
-      path: '/labels',
-      resolve: ({ query }) => ({
-        items: [],
-        total: 0,
-        page: 1,
-        limit: Number(query.get('limit') ?? 50),
-      }),
+      path: '/labels/:labelId',
+      resolve: ({ param }) => db.labelDetail(param('labelId')),
     },
     {
+      method: 'put',
+      path: '/labels/:labelId/preference',
+      status: 204,
+      resolve: ({ param, body }) => db.setLabelPreference(param('labelId'), body.status),
+    },
+    { method: 'get', path: '/artists', resolve: ({ query }) => db.artists(libraryQuery(query)) },
+    {
       method: 'get',
-      path: '/artists',
-      resolve: ({ query }) => ({
-        items: [],
-        total: 0,
-        page: 1,
-        limit: Number(query.get('limit') ?? 50),
-      }),
+      path: '/artists/:artistId',
+      resolve: ({ param }) => db.artistDetail(param('artistId')),
+    },
+    {
+      method: 'put',
+      path: '/artists/:artistId/preference',
+      status: 204,
+      resolve: ({ param, body }) => db.setArtistPreference(param('artistId'), body.status),
     },
   ];
 }

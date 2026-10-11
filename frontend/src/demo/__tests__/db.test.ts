@@ -108,6 +108,75 @@ describe('DemoDb', () => {
     expect(first(db.blocksByStyle('s-tech', 'FINALIZED')).name).toMatch(/^Week 39 · Sep 26/);
   });
 
+  it('gives some releases a cover, drawn from at most 20 designs', () => {
+    const db = new DemoDb();
+    const block = db.block(firstOpenBlock(db).id);
+    const tracks = block.buckets.flatMap((b) => db.bucketTracks(block.id, b.id));
+    const covers = tracks.map((t) => t.cover_url ?? null);
+    expect(covers.some((c) => c === null)).toBe(true);
+    const drawn = covers.filter((c): c is string => c !== null);
+    expect(drawn.length).toBeGreaterThan(tracks.length / 3);
+    expect(drawn.every((c) => c.startsWith('data:image/svg+xml'))).toBe(true);
+    const all = new Set(
+      db
+        .styles('mine')
+        .flatMap((st) =>
+          db
+            .blocksByStyle(st.id)
+            .flatMap((b) =>
+              db
+                .block(b.id)
+                .buckets.flatMap((bk) => db.bucketTracks(b.id, bk.id).map((t) => t.cover_url)),
+            ),
+        ),
+    );
+    all.delete(null);
+    all.delete(undefined);
+    expect(all.size).toBeGreaterThan(10);
+    expect(all.size).toBeLessThanOrEqual(20);
+  });
+
+  it('shows artwork on the first track a visitor curates in each style', () => {
+    const db = new DemoDb();
+    for (const st of db.styles('mine')) {
+      const block = db.block(first(db.blocksByStyle(st.id, 'IN_PROGRESS')).id);
+      const fresh = block.buckets.find((b) => b.bucket_type === 'NEW')!;
+      expect(first(db.bucketTracks(block.id, fresh.id)).cover_url, st.name).toBeTruthy();
+    }
+  });
+
+  it('describes the label and artists of every track', () => {
+    const db = new DemoDb();
+    const block = db.block(firstOpenBlock(db).id);
+    for (const t of block.buckets.flatMap((b) => db.bucketTracks(block.id, b.id))) {
+      const label = db.labelDetail(t.label_id!);
+      expect(label.label_name).toBe(t.label_name);
+      expect(String(label.tagline)).not.toBe('');
+      expect(String(label.country)).toMatch(/^[A-Z]{2}$/);
+      for (const a of t.artists) {
+        const artist = db.artistDetail(a.id);
+        expect(artist.artist_name).toBe(a.name);
+        expect(String(artist.summary)).not.toBe('');
+      }
+    }
+  });
+
+  it('lists the labels of a style and keeps a like', () => {
+    const db = new DemoDb();
+    const page = db.labels({ style: 's-tech' });
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((l) => l.style === 'Tech House' && l.track_count > 0)).toBe(true);
+    const label = first(page.items);
+    db.setLabelPreference(label.id, 'liked');
+    expect(db.labelDetail(label.id).my_preference).toBe('liked');
+    expect(db.labels({ style: 's-tech', my: 'liked' }).items.map((l) => l.id)).toEqual([label.id]);
+    expect(first(db.artists({ style: 's-afro' }).items).style).toBe('Afro House');
+    // The Library route carries the style as a slug of its name.
+    expect(db.labels({ style: 'tech-house' }).items.map((l) => l.id)).toEqual(
+      page.items.map((l) => l.id),
+    );
+  });
+
   it('returns no tracks for an unknown bucket and 404s an unknown block', () => {
     const db = new DemoDb();
     expect(db.bucketTracks(firstOpenBlock(db).id, 'missing')).toEqual([]);

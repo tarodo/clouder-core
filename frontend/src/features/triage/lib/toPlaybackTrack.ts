@@ -6,7 +6,7 @@ export function toPlaybackTrack(t: BucketTrack): PlaybackTrack {
     id: t.track_id,
     title: t.title,
     artists: t.artists.map(a => a.name).join(', '),
-    cover_url: null,
+    cover_url: t.cover_url ?? null,
     duration_ms: t.length_ms ?? 0,
     spotify_id: t.spotify_id,
   };

@@ -59,6 +59,8 @@ export interface PlaylistTrack {
   key_camelot?: string | null;
   beatport_track_id?: string | null;
   beatport_slug?: string | null;
+  /** Release artwork when the API has it (the demo does; production rows carry none yet). */
+  cover_url?: string | null;
 }
 
 export interface PaginatedPlaylists {

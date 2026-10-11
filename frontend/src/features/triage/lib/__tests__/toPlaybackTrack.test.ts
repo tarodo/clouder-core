@@ -32,6 +32,10 @@ describe('toPlaybackTrack', () => {
     });
   });
 
+  it('passes a cover through when the row has one', () => {
+    expect(toPlaybackTrack({ ...base, cover_url: 'data:image/svg+xml,x' }).cover_url).toBe('data:image/svg+xml,x');
+  });
+
   it('defaults duration to 0 when length_ms is null', () => {
     expect(toPlaybackTrack({ ...base, length_ms: null }).duration_ms).toBe(0);
   });

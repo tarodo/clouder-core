@@ -44,6 +44,8 @@ export interface CategoryTrack {
   tags: CategoryTagRef[];
   key_name?: string | null;
   key_camelot?: string | null;
+  /** Release artwork when the API has it (the demo does; production rows carry none yet). */
+  cover_url?: string | null;
 }
 
 export interface PaginatedTracks {
