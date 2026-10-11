@@ -212,7 +212,7 @@ python -m pip install -r requirements-dev.txt
 pytest -q
 
 # Tests against a real PostgreSQL (migrate the schema first)
-docker compose up -d --wait db   # Postgres 16 on localhost:55433
+docker compose up -d --wait db   # Postgres 16 on localhost:55433 (PG_PORT=… to move it)
 PYTHONPATH=src ALEMBIC_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:55433/postgres \
   alembic upgrade head
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55433/postgres pytest tests/db -q
