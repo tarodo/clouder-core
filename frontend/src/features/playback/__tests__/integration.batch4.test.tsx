@@ -395,7 +395,7 @@ describe('F6 integration · batch 4 · token refresh', () => {
 
     // Stub auth whose `refresh` performs the real rotation (via fetch +
     // store mutations + auth:refreshed event), exactly mirroring how
-    // tryRefreshOnce in api/client.ts behaves. Mounting the real
+    // refreshSession in api/client.ts behaves. Mounting the real
     // AuthProvider would also work but layered on top of curate routes is
     // brittle (bootstrap hits /me + /auth/refresh on mount and races route
     // data-loading); a custom refresh keeps the flow deterministic.

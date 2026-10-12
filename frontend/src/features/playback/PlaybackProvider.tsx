@@ -22,6 +22,7 @@ import { findNextPlayable } from './lib/skipNullSpotifyId';
 import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
 import { spotifyApi } from './api/spotifyWebApi';
 import { useAuth } from '../../auth/useAuth';
+import { setSessionKeepAlive } from '../../auth/sessionKeepAlive';
 import type { SpotifyDevice } from './lib/deviceTypes';
 import { lastDeviceStore } from './lib/lastDeviceStore';
 import { usePolling } from './lib/usePolling';
@@ -616,6 +617,18 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
 
   const activeDeviceIdRef = useRef<string | null>(null);
   const cloderTabIdRef = useRef<string | null>(null);
+
+  // Music playing in THIS tab needs fresh Spotify tokens even when hidden;
+  // AuthProvider and the device poll stay quiet in hidden tabs otherwise.
+  // A remote device playing doesn't count (its controls refresh on 401).
+  const playingHere =
+    (queue.status === 'playing' || queue.status === 'buffering') &&
+    activeDeviceId !== null &&
+    activeDeviceId === cloderTabId;
+  useEffect(() => {
+    setSessionKeepAlive(playingHere);
+    return () => setSessionKeepAlive(false);
+  }, [playingHere]);
 
   const setActive = useCallback((deviceId: string | null) => {
     activeDeviceIdRef.current = deviceId;
