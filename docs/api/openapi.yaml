@@ -3234,7 +3234,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
-          description: track_not_in_any_category.
+          description: track_not_in_any_category (none of the user's categories or
+            open triage blocks).
           content:
             application/json:
               schema:
@@ -3297,7 +3298,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
-          description: track_not_in_any_category.
+          description: track_not_in_any_category (none of the user's categories or
+            open triage blocks).
           content:
             application/json:
               schema:

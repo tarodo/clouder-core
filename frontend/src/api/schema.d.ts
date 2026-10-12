@@ -4866,7 +4866,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description track_not_in_any_category. */
+                /** @description track_not_in_any_category (none of the user's categories or open triage blocks). */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -4955,7 +4955,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description track_not_in_any_category. */
+                /** @description track_not_in_any_category (none of the user's categories or open triage blocks). */
                 422: {
                     headers: {
                         [name: string]: unknown;

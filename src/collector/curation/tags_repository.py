@@ -198,9 +198,11 @@ class TagsRepository:
 
     # --- track-tag ops ----------------------------------------------------
 
-    def _assert_track_in_any_active_category(
+    def _assert_track_taggable(
         self, *, user_id: str, track_id: str, transaction_id: str | None
     ) -> None:
+        """A user may tag tracks in their categories or in their open triage
+        blocks (Curate marks tracks before finalize moves them to categories)."""
         rows = self._data_api.execute(
             """
             SELECT 1
@@ -209,6 +211,15 @@ class TagsRepository:
             WHERE c.user_id = :user_id
               AND ct.track_id = :track_id
               AND c.deleted_at IS NULL
+            UNION ALL
+            SELECT 1
+            FROM triage_blocks tb
+            JOIN triage_buckets b ON b.triage_block_id = tb.id
+            JOIN triage_bucket_tracks tbt ON tbt.triage_bucket_id = b.id
+            WHERE tb.user_id = :user_id
+              AND tb.status = 'IN_PROGRESS'
+              AND tb.deleted_at IS NULL
+              AND tbt.track_id = :track_id
             LIMIT 1
             """,
             {"user_id": user_id, "track_id": track_id},
@@ -216,7 +227,7 @@ class TagsRepository:
         )
         if not rows:
             raise TrackNotInAnyCategoryError(
-                "Track is not in any of the user's categories",
+                "Track is not in any of the user's categories or open triage blocks",
             )
 
     def _assert_tag_ids_owned(
@@ -279,7 +290,7 @@ class TagsRepository:
                 seen.add(t)
 
         def _do(tx_id: str) -> list[TagRow]:
-            self._assert_track_in_any_active_category(
+            self._assert_track_taggable(
                 user_id=user_id,
                 track_id=track_id,
                 transaction_id=tx_id,
@@ -333,7 +344,7 @@ class TagsRepository:
         transaction_id: str | None = None,
     ) -> list[TagRow]:
         def _do(tx_id: str) -> list[TagRow]:
-            self._assert_track_in_any_active_category(
+            self._assert_track_taggable(
                 user_id=user_id,
                 track_id=track_id,
                 transaction_id=tx_id,
