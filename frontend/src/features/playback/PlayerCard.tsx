@@ -69,6 +69,8 @@ export interface PlayerCardProps {
    * below the scrubber. Opt-in so curate's denser layout stays unchanged.
    */
   showTimes?: boolean;
+  /** Extra controls in the top-right row, left of the Spotify link (full variant). */
+  topActions?: ReactNode;
   /** Spotify external open href; when set, renders an icon button at top-right. */
   spotifyHref?: string;
   /** Tooltip / aria text for the Spotify external icon. */
@@ -110,6 +112,7 @@ export function PlayerCard(props: PlayerCardProps) {
     mobileSeekChips = false,
     spotifyHref,
     spotifyAriaLabel,
+    topActions,
     onPlayPause,
     onPrev,
     onNext,
@@ -182,20 +185,28 @@ export function PlayerCard(props: PlayerCardProps) {
       withBorder={isMini}
       style={{ position: 'relative' }}
     >
-      {!isMini && spotifyHref ? (
-        <ActionIcon
-          component="a"
-          href={spotifyHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          variant="subtle"
-          radius="xl"
-          size="md"
-          aria-label={spotifyAriaLabel ?? 'Open in Spotify'}
+      {!isMini && (spotifyHref || topActions) ? (
+        <Group
+          gap={6}
+          wrap="nowrap"
           style={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}
         >
-          <IconExternalLink size={16} />
-        </ActionIcon>
+          {topActions}
+          {spotifyHref ? (
+            <ActionIcon
+              component="a"
+              href={spotifyHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="subtle"
+              radius="xl"
+              size="md"
+              aria-label={spotifyAriaLabel ?? 'Open in Spotify'}
+            >
+              <IconExternalLink size={16} />
+            </ActionIcon>
+          ) : null}
+        </Group>
       ) : null}
       <Group align="center" gap="lg" wrap="nowrap">
         <div className={classes.cover} data-mini={isMini || undefined}>

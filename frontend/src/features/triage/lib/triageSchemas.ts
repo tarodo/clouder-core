@@ -28,7 +28,7 @@ export const triageDateRangeSchema = z
 export const createTriageBlockSchema = z.object({
   name: triageNameSchema,
   dateRange: triageDateRangeSchema,
-  oldOffsetWeeks: z.number().int().min(0).max(520).default(0),
+  oldOffsetWeeks: z.number().int().min(0).max(520).default(2),
   includeDislikedLabels: z.boolean().default(true),
   includeDislikedArtists: z.boolean().default(true),
   compilationsToNot: z.boolean().default(true),

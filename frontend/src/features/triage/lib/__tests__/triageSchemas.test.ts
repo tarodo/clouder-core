@@ -62,14 +62,14 @@ describe('createTriageBlockSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('defaults oldOffsetWeeks to 0 and all classification flags to true', () => {
+  it('defaults oldOffsetWeeks to 2 and all classification flags to true', () => {
     const result = createTriageBlockSchema.safeParse({
       name: 'Tech House W17',
       dateRange: [new Date('2026-04-20'), new Date('2026-04-26')],
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.oldOffsetWeeks).toBe(0);
+      expect(result.data.oldOffsetWeeks).toBe(2);
       expect(result.data.includeDislikedLabels).toBe(true);
       expect(result.data.includeDislikedArtists).toBe(true);
       expect(result.data.compilationsToNot).toBe(true);

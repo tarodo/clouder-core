@@ -86,7 +86,7 @@ export function CreateTriageBlockDialog({
       // Use null placeholders; Zod coercion handles the string conversion on submit.
       name: '',
       dateRange: [null as unknown as Date, null as unknown as Date],
-      oldOffsetWeeks: 0,
+      oldOffsetWeeks: 2,
       includeDislikedLabels: true,
       includeDislikedArtists: true,
       compilationsToNot: true,

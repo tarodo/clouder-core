@@ -335,14 +335,14 @@ describe('CreateTriageBlockDialog', () => {
     await user.click(screen.getByText(/advanced options/i));
     const weeks = screen.getByLabelText(/OLD depth \(weeks\)/i);
     await user.clear(weeks);
-    await user.type(weeks, '2');
+    await user.type(weeks, '5');
     await user.click(screen.getByRole('button', { name: /create/i }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(bodies[0]).toMatchObject({ old_offset_weeks: 2, include_disliked_labels: true });
+    expect(bodies[0]).toMatchObject({ old_offset_weeks: 5, include_disliked_labels: true });
   });
 
-  it('submits all classification flags on by default without opening advanced', async () => {
+  it('submits OLD depth 2 and all classification flags by default without opening advanced', async () => {
     const onClose = vi.fn();
     const bodies = capturePost();
     renderDialog({ onClose });
@@ -350,6 +350,7 @@ describe('CreateTriageBlockDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: /create/i }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(bodies[0]).toMatchObject({
+      old_offset_weeks: 2,
       include_disliked_labels: true,
       include_disliked_artists: true,
       compilations_to_not: true,
