@@ -35,6 +35,10 @@ On mount, `AuthProvider` fires `POST /auth/refresh` once. This is intentional an
 
 `AuthProvider` schedules a proactive refresh `REFRESH_LEEWAY_MS` (5 min) before `expires_in` using `setTimeout`. The timer is stored in `refreshTimer` ref. `signOut` is the only path that cancels it — StrictMode's cleanup-and-remount cycle intentionally does NOT cancel the timer to avoid killing the refresh schedule for the still-mounted instance.
 
+**Hidden idle tabs skip the timed refresh.** `/auth/refresh` touches Aurora, and with `min_acu=0` each call keeps the cluster awake ~10 min — a forgotten tab refreshing every 25 min held it up ~40 % of the day (~$17/month). When the timer fires while `document.visibilityState === 'hidden'` and no music plays, `AuthProvider` only marks the refresh due and runs it on the next `visibilitychange` to visible; API calls made meanwhile refresh on 401. `PlaybackProvider` sets `sessionKeepAlive` (`frontend/src/auth/sessionKeepAlive.ts`) while the queue is playing or buffering, so a hidden tab playing music keeps refreshing its Spotify token.
+
+**One refresh at a time.** `refreshSession()` in `api/client.ts` is the only caller of `/auth/refresh` — a page-wide single-flight shared by `AuthProvider.refresh` (bootstrap, timer, tab shown, Spotify 401) and the 401 retry. Two concurrent calls with one cookie would trip replay detection (below).
+
 On silent-refresh success the client dispatches a synthetic `auth:refreshed` custom event. `AuthProvider` listens and re-schedules. On failure it dispatches `auth:expired`; `AuthProvider` transitions to `unauthenticated`.
 
 ## Refresh-cookie replay detection

@@ -22,6 +22,7 @@ import { findNextPlayable } from './lib/skipNullSpotifyId';
 import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
 import { spotifyApi } from './api/spotifyWebApi';
 import { useAuth } from '../../auth/useAuth';
+import { setSessionKeepAlive } from '../../auth/sessionKeepAlive';
 import type { SpotifyDevice } from './lib/deviceTypes';
 import { lastDeviceStore } from './lib/lastDeviceStore';
 import { usePolling } from './lib/usePolling';
@@ -126,6 +127,13 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     cursor: 0,
     status: 'idle' as QueueStatus,
   });
+
+  // Music in a hidden tab still needs fresh Spotify tokens; AuthProvider
+  // skips its timed refresh in hidden tabs only while this is false.
+  useEffect(() => {
+    setSessionKeepAlive(queue.status === 'playing' || queue.status === 'buffering');
+    return () => setSessionKeepAlive(false);
+  }, [queue.status]);
 
   const [track, setTrack] = useState<{
     current: PlaybackTrack | null;

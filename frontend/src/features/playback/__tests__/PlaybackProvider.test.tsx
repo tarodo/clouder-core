@@ -12,6 +12,7 @@ import { spotifyTokenStore } from '../../../auth/spotifyTokenStore';
 import { AuthContext, type AuthContextValue } from '../../../auth/AuthProvider';
 import { __resetSdkLoaderForTests } from '../lib/sdkLoader';
 import { telemetry } from '../../../lib/telemetry/sdk';
+import { sessionKeepAlive } from '../../../auth/sessionKeepAlive';
 import {
   installSpotifySdkMock,
   uninstallSpotifySdkMock,
@@ -291,6 +292,42 @@ describe('PlaybackProvider SDK lifecycle', () => {
       expect.objectContaining({ track_id: 'B', position_ms: 400, duration_ms: 1000 }),
     );
     trackSpy.mockRestore();
+  });
+
+  it('keeps the auth session warm only while music plays (hidden-tab refresh)', async () => {
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', () => HttpResponse.json({}, { status: 204 })),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'category', categoryId: 'c', styleId: 's' },
+        tracks: [
+          { id: 'A', title: 'A', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spA' },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    expect(sessionKeepAlive()).toBe(false);
+    await playAndEmitReady(() => result.current.controls.play(0), handle);
+    const sdkState = (paused: boolean) =>
+      act(() => {
+        handle.getLatest()?.__emit('player_state_changed', {
+          paused,
+          position: 400,
+          duration: 1000,
+          track_window: { current_track: { id: 'spA', uri: 'spotify:track:spA' } },
+        });
+      });
+    sdkState(false);
+    await waitFor(() => expect(result.current.queue.status).toBe('playing'));
+    expect(sessionKeepAlive()).toBe(true);
+    sdkState(true);
+    await waitFor(() => expect(result.current.queue.status).toBe('paused'));
+    expect(sessionKeepAlive()).toBe(false);
   });
 
   it('controls.play() with no idx uses cursor track', async () => {

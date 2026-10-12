@@ -8,10 +8,11 @@ import {
   type ReactNode,
 } from 'react';
 import { ApiError } from '../api/error';
-import { api } from '../api/client';
+import { api, refreshSession } from '../api/client';
 import { tokenStore } from './tokenStore';
 import { spotifyTokenStore } from './spotifyTokenStore';
 import { completeBootstrap } from './bootstrap';
+import { sessionKeepAlive } from './sessionKeepAlive';
 
 export interface Me {
   id: string;
@@ -26,15 +27,6 @@ interface CallbackResponse {
   spotify_access_token: string;
   expires_in: number;
   user: Me;
-}
-
-// /auth/refresh returns just the tokens — user identity is implicit (the
-// refresh cookie identifies the session). To rebuild AuthProvider state on
-// page reload we call /me separately after refresh succeeds.
-interface RefreshResponse {
-  access_token: string;
-  spotify_access_token: string;
-  expires_in: number;
 }
 
 export type AuthState =
@@ -102,6 +94,8 @@ const REFRESH_LEEWAY_MS = 5 * 60 * 1000;
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { status: 'idle' });
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The timer came due while the tab was hidden and idle; refresh on show.
+  const refreshDue = useRef(false);
   // Forward-ref so scheduleRefresh's setTimeout closure always calls the
   // latest refresh function (refresh depends on signIn which depends on
   // scheduleRefresh — break the cycle with a ref).
@@ -120,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   const clearRefreshTimer = useCallback(() => {
+    refreshDue.current = false;
     if (refreshTimer.current !== null) {
       clearTimeout(refreshTimer.current);
       refreshTimer.current = null;
@@ -131,6 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearRefreshTimer();
       const delay = Math.max(0, expiresInMs - REFRESH_LEEWAY_MS);
       refreshTimer.current = setTimeout(() => {
+        // /auth/refresh wakes the scaled-to-zero Aurora for ~10 min. A hidden
+        // tab with no music skips it: API calls refresh on 401 anyway, and
+        // the tab catches up when shown.
+        if (document.visibilityState === 'hidden' && !sessionKeepAlive()) {
+          refreshDue.current = true;
+          return;
+        }
         void refreshRef.current();
       }, delay);
     },
@@ -155,11 +157,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async (): Promise<boolean> => {
     try {
-      const body = await api<RefreshResponse>('/auth/refresh', { method: 'POST' });
-      // Set the new token before fetching /me so the apiClient picks it up
-      // for the Authorization header.
-      tokenStore.set(body.access_token);
-      spotifyTokenStore.set(body.spotify_access_token);
+      // Shared single-flight with the apiClient's 401 retry (replay-safe).
+      // /auth/refresh returns just the tokens — the user comes from /me.
+      const body = await refreshSession();
+      if (!body) throw new Error('refresh_failed');
       const user = await api<Me>('/me');
       signIn(user, body.access_token, body.spotify_access_token, body.expires_in);
       return true;
@@ -209,6 +210,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // would kill the just-scheduled timer for the still-mounted instance. The
     // timer stays valid for the lifetime of the page; signOut is the only
     // thing that should clear it.
+  }, []);
+
+  // Catch up a refresh skipped while the tab was hidden.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible' || !refreshDue.current) return;
+      refreshDue.current = false;
+      void refreshRef.current();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
 
   // Listen for auth:expired (raised by apiClient on refresh failure).
