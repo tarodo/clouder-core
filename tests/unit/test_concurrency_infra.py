@@ -53,9 +53,11 @@ def _value(var: str) -> int:
 def test_quota_is_not_requested_through_terraform() -> None:
     # The Service Quotas API refuses increases below the AWS default (1000), and a new
     # account starts at 10: the 2026-10-11 deploy failed on exactly that. The increase
-    # goes through AWS Support; Terraform only reads the quota the account has.
+    # goes through Service Quotas or AWS Support by hand; Terraform only reads the quota.
     assert 'resource "aws_servicequotas_service_quota"' not in TF
-    assert re.search(r"lambda_concurrency_quota\s*=\s*\d+\s*#.*AWS Support", TF)
+    assert re.search(
+        r"lambda_concurrency_quota\s*=\s*\d+\s*#.*keep equal to what the account has", TF
+    )
 
 
 def test_worker_caps_leave_room_for_the_api() -> None:

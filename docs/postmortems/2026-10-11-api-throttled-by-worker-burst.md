@@ -23,7 +23,7 @@ One shared pool of 10 executions and no budget for it. The enricher caps (8 + 8)
 ## Fix
 
 - Every SQS event source mapping has a `maximum_concurrency` cap with validation; `tests/unit/test_concurrency_infra.py` fails on a mapping without one and on caps that, with 20 executions for the API and scheduled jobs, exceed the quota.
-- The quota increase to 100 is requested through AWS Support; `infra/concurrency.tf` holds the value the worker budget is planned for. Asking Terraform for it failed the first deploy of the fix: the Service Quotas API refuses values below the AWS default of 1000, and this account was lowered to 10. Until AWS approves it the account still has 10, so the label and artist enricher caps are lowered from 8 to 2 in `infra/prod.tfvars`: a finalize's fan-out (dispatch, comments, label, artist) then needs 8 of the 10.
+- The quota went from 10 to 1000, approved on the evening of 2026-10-11; `infra/concurrency.tf` holds it for the worker budget. Asking Terraform for it had failed the first deploy of the fix: the Service Quotas API refuses values below the AWS default of 1000, and this account had been lowered to 10. Until the approval, the label and artist enricher caps ran at 2 instead of 8 (`infra/prod.tfvars`) so a finalize's fan-out needed 8 of the 10; they went back to 8 on 2026-10-12.
 - Alarms on throttles of the six API functions, on API Gateway 5xx (5 in 5 minutes) and on account concurrency at 80 % of the quota the account has now (read from Service Quotas, not the requested value), all to the owner's email.
 
 ## Detection gap
@@ -34,5 +34,5 @@ One shared pool of 10 executions and no budget for it. The enricher caps (8 + 8)
 
 ## Follow-ups
 
-- When the quota increase is approved, remove the interim enricher caps from `infra/prod.tfvars` and decide on `enable_lambda_reserved_concurrency` (it also protects vendor rate limits).
+- Done 2026-10-12: quota 1000, interim enricher caps removed. Open: decide on `enable_lambda_reserved_concurrency` (it also protects vendor rate limits).
 - Earlier in the same 30 days the curation, collector and auth functions were throttled 24 more times; the same mechanism is the likely cause, and the new alarms would have reported each one.

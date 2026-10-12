@@ -5,11 +5,11 @@
 # worker is capped (lambda.tf), and a test keeps the caps plus room for the API under the
 # quota this account is planned for (tests/unit/test_concurrency_infra.py).
 #
-# The increase is not requested here: the Service Quotas API refuses values below the
-# AWS default (1000), and this account was lowered to 10 — a request for 100 failed the
-# 2026-10-11 deploy. It goes through an AWS Support case (docs/ops/runbook.md).
+# The quota is not requested here: the Service Quotas API refused a value below the AWS
+# default (1000) for this account, which had been lowered to 10 — a request for 100 failed
+# the 2026-10-11 deploy. A request for 1000 was approved the same day (docs/ops/runbook.md).
 locals {
-  lambda_concurrency_quota = 100 # requested through AWS Support; the account has 10 until approved
+  lambda_concurrency_quota = 1000 # approved 2026-10-11; keep equal to what the account has
 }
 
 # The quota the account has now, which the alarm below scales with.
