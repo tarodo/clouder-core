@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
@@ -10,6 +10,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
 import { TrackRowActions } from '../TrackRowActions';
+import { PlaybackContext, type PlaybackContextValue } from '../../../playback/PlaybackProvider';
 import type { CategoryTrack } from '../../hooks/useCategoryTracks';
 import { testTheme } from '../../../../test/theme';
 import '../../../../i18n';
@@ -34,7 +35,13 @@ const TRACK: CategoryTrack = {
   tags: [],
 };
 
-function Wrapper({ children }: { children: React.ReactNode }) {
+function Wrapper({
+  children,
+  playback = null,
+}: {
+  children: React.ReactNode;
+  playback?: PlaybackContextValue | null;
+}) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
@@ -42,10 +49,27 @@ function Wrapper({ children }: { children: React.ReactNode }) {
     <MantineProvider theme={testTheme}>
       <Notifications />
       <QueryClientProvider client={qc}>
-        <MemoryRouter>{children}</MemoryRouter>
+        <PlaybackContext.Provider value={playback}>
+          <MemoryRouter>{children}</MemoryRouter>
+        </PlaybackContext.Provider>
       </QueryClientProvider>
     </MantineProvider>
   );
+}
+
+// Only the fields TrackRowActions reads: what plays, from which category, next().
+function playingIn(categoryId: string, trackId: string, next: () => Promise<void>) {
+  return {
+    track: { current: { id: trackId } },
+    queue: { source: { type: 'category', categoryId, styleId: 's1' } },
+    controls: { next },
+  } as unknown as PlaybackContextValue;
+}
+
+async function removeViaMenu() {
+  await userEvent.click(screen.getByRole('button', { name: /Track actions/i }));
+  const menu = await screen.findByRole('menu');
+  await userEvent.click(within(menu).getByRole('menuitem', { name: /Remove from category/ }));
 }
 
 function categoriesPayload(items: Array<{ id: string; name: string }>) {
@@ -178,5 +202,69 @@ describe('TrackRowActions', () => {
     await waitFor(() => expect(deleteHit).toBe(true));
     expect(await screen.findByText(/Removed from category/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Undo/ })).toBeInTheDocument();
+  });
+
+  it('undo puts the track back with its original added_at and triage block', async () => {
+    let restoreBody: unknown = null;
+    server.use(
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json(categoriesPayload([{ id: 'c1', name: 'Energetic' }])),
+      ),
+      http.delete('http://localhost/categories/c1/tracks/t1', () => new HttpResponse(null, { status: 204 })),
+      http.post('http://localhost/categories/c1/tracks', async ({ request }) => {
+        restoreBody = await request.json();
+        return HttpResponse.json({ result: 'added' }, { status: 201 });
+      }),
+    );
+    const track = { ...TRACK, added_at: '2026-10-02 10:15:00.5', source_triage_block_id: 'blk-1' };
+    render(
+      <Wrapper>
+        <TrackRowActions track={track} currentCategoryId="c1" styleId="s1" />
+      </Wrapper>,
+    );
+    await removeViaMenu();
+    await userEvent.click(await screen.findByRole('button', { name: /Undo/ }));
+    await waitFor(() =>
+      expect(restoreBody).toEqual({
+        track_id: 't1',
+        added_at: '2026-10-02 10:15:00.5',
+        source_triage_block_id: 'blk-1',
+      }),
+    );
+  });
+
+  it('removing the playing track plays the next one', async () => {
+    const next = vi.fn(() => Promise.resolve());
+    server.use(
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json(categoriesPayload([{ id: 'c1', name: 'Energetic' }])),
+      ),
+      http.delete('http://localhost/categories/c1/tracks/t1', () => new HttpResponse(null, { status: 204 })),
+    );
+    render(
+      <Wrapper playback={playingIn('c1', 't1', next)}>
+        <TrackRowActions track={TRACK} currentCategoryId="c1" styleId="s1" />
+      </Wrapper>,
+    );
+    await removeViaMenu();
+    await waitFor(() => expect(next).toHaveBeenCalledOnce());
+  });
+
+  it('removing a track that is not playing leaves playback alone', async () => {
+    const next = vi.fn(() => Promise.resolve());
+    server.use(
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json(categoriesPayload([{ id: 'c1', name: 'Energetic' }])),
+      ),
+      http.delete('http://localhost/categories/c1/tracks/t1', () => new HttpResponse(null, { status: 204 })),
+    );
+    render(
+      <Wrapper playback={playingIn('c1', 'other', next)}>
+        <TrackRowActions track={TRACK} currentCategoryId="c1" styleId="s1" />
+      </Wrapper>,
+    );
+    await removeViaMenu();
+    expect(await screen.findByText(/Removed from category/)).toBeInTheDocument();
+    expect(next).not.toHaveBeenCalled();
   });
 });

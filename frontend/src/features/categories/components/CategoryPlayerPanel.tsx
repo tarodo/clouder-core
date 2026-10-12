@@ -166,6 +166,13 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
   const onRemoveFromCategory = useCallback(async () => {
     if (!trackId || removing.current) return;
     removing.current = true;
+    // The row's own values let U put it back in its old place.
+    const restore = effectiveRich
+      ? {
+          added_at: effectiveRich.added_at,
+          source_triage_block_id: effectiveRich.source_triage_block_id,
+        }
+      : undefined;
     try {
       await removeFromCategory.mutateAsync({ categoryId, trackId });
       telemetry.track('track_categorized', {
@@ -174,7 +181,7 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
         action: 'removed_from_category',
       });
       pushUndo(t('categories.toast.track_removed'), async () => {
-        await addToCategory.mutateAsync({ categoryId, trackId });
+        await addToCategory.mutateAsync({ categoryId, trackId, restore });
       });
       void playback.controls.next();
     } catch {
@@ -182,7 +189,17 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
     } finally {
       removing.current = false;
     }
-  }, [categoryId, trackId, removeFromCategory, addToCategory, telemetry, pushUndo, t, playback]);
+  }, [
+    categoryId,
+    trackId,
+    effectiveRich,
+    removeFromCategory,
+    addToCategory,
+    telemetry,
+    pushUndo,
+    t,
+    playback,
+  ]);
 
   const onTogglePlaylistByIndex = useCallback(
     (index: number) => {

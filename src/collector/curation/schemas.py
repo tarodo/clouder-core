@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -29,6 +29,9 @@ class ReorderCategoriesIn(BaseModel):
 class AddTrackIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     track_id: str = Field(min_length=1)
+    # Undo of a removal: put the row back as it was (order by added_at, block link).
+    added_at: datetime | None = None
+    source_triage_block_id: str | None = Field(default=None, min_length=1)
 
 
 # ----------------------- spec-D triage schemas -----------------------

@@ -2265,7 +2265,7 @@ paths:
             application/json:
               schema: *id011
         '404':
-          description: category_not_found or track_not_found.
+          description: category_not_found, track_not_found or triage_block_not_found.
           content:
             application/json:
               schema:
@@ -2280,7 +2280,9 @@ paths:
         '403': *id002
       description: 201 with result='added' if newly inserted; 200 with result='already_present'
         if the (category, track) pair already exists. First-write-wins on added_at
-        + source.
+        + source. Undo of a removal passes the removed row's added_at (clamped to
+        now) and source_triage_block_id (must be the caller's block) to put it back
+        in place.
       parameters:
       - name: id
         in: path
@@ -2300,6 +2302,13 @@ paths:
                 track_id:
                   type: string
                   format: uuid
+                added_at:
+                  type: string
+                  description: 'Restore only: the removed row''s added_at.'
+                source_triage_block_id:
+                  type: string
+                  format: uuid
+                  description: 'Restore only: the removed row''s triage block.'
               additionalProperties: false
             example:
               track_id: aaaaaaaa-1111-1111-1111-111111111111

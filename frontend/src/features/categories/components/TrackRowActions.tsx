@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { ActionIcon, Anchor, Group, Menu, Skeleton, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -19,6 +19,7 @@ import { api } from '../../../api/client';
 import { ApiError } from '../../../api/error';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
 import { AddToPlaylistSubmenu } from './AddToPlaylistSubmenu';
+import { PlaybackContext } from '../../playback/PlaybackProvider';
 
 export interface TrackRowActionsProps {
   track: CategoryTrack;
@@ -37,6 +38,8 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
   const moveMut = useMoveTrackBetweenCategories();
   const removeMut = useRemoveTrackOptimistic();
   const addMut = useAddTrackToCategory();
+  // Nullable on purpose: rows also render outside a playback provider.
+  const playback = useContext(PlaybackContext);
 
   const allCategories = categoriesQ.data?.items ?? [];
   const others = allCategories.filter((c) => c.id !== currentCategoryId);
@@ -155,12 +158,25 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
         category_key: currentCategoryId,
         action: 'removed_from_category',
       });
+      // Removing the track that plays from this category moves on, as Z does.
+      const source = playback?.queue.source;
+      if (
+        playback?.track.current?.id === track.id &&
+        source?.type === 'category' &&
+        source.categoryId === currentCategoryId
+      ) {
+        void playback.controls.next();
+      }
       fireUndoToast(
         t('categories.toast.track_removed'),
         () =>
           addMut.mutateAsync({
             categoryId: currentCategoryId,
             trackId: track.id,
+            restore: {
+              added_at: track.added_at,
+              source_triage_block_id: track.source_triage_block_id,
+            },
           }) as unknown as Promise<void>,
       );
     } catch {

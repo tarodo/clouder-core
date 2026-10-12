@@ -310,14 +310,23 @@ export class DemoDb {
     const sign = (q.order ?? (key === 'title' ? 'asc' : 'desc')) === 'asc' ? 1 : -1;
     const value = (r: CategoryTrack) =>
       key === 'title' ? r.title : key === 'added_at' ? r.added_at : (r.spotify_release_date ?? '');
-    return rows.sort((a, b) => sign * value(a).localeCompare(value(b)));
+    // Ties break on track id like the API, so an undone removal returns to its place.
+    return rows.sort((a, b) => sign * value(a).localeCompare(value(b)) || a.id.localeCompare(b.id));
   }
 
-  addToCategory(id: string, trackId: string): Category {
+  addToCategory(
+    id: string,
+    trackId: string,
+    restore: { added_at?: string; source_triage_block_id?: string } = {},
+  ): Category {
     const category = this.rawCategory(id);
     found(this.tracks.get(trackId), 'track');
     if (!category.tracks.some((t) => t.track_id === trackId)) {
-      category.tracks.push({ track_id: trackId, added_at: NOW(), source_triage_block_id: null });
+      category.tracks.push({
+        track_id: trackId,
+        added_at: restore.added_at ?? NOW(),
+        source_triage_block_id: restore.source_triage_block_id ?? null,
+      });
     }
     return this.categoryOut(category);
   }
