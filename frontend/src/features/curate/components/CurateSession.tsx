@@ -285,7 +285,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
             size="compact-sm"
             color="orange"
             variant={fire.active ? 'filled' : 'default'}
-            leftSection="🔥"
+            leftSection={<span aria-hidden>🔥</span>}
             aria-pressed={fire.active}
             disabled={!fire.ready}
             title={t('curate.card.fire_title')}

@@ -1,10 +1,12 @@
 import React from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { notifications } from '@mantine/notifications';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
+import { tagsKey } from '../../../tags/hooks/useTags';
 import { FIRE_TAG_NAME, useFireTag } from '../useFireTag';
 
 interface T {
@@ -40,11 +42,12 @@ interface Calls {
 function mockApi(
   vocabulary: T[],
   onTrack: T[],
-  opts: { failAdd?: boolean; hold?: Promise<void> } = {},
+  opts: { failAdd?: boolean; hold?: Promise<void>; holdRefetch?: Promise<void> } = {},
 ) {
   const calls: Calls = { createdTags: [], added: [], removed: [] };
   const vocab = [...vocabulary];
   let own = [...onTrack];
+  let gets = 0;
   server.use(
     http.get('http://localhost/tags', () =>
       HttpResponse.json({
@@ -61,7 +64,11 @@ function mockApi(
       vocab.push(tag);
       return HttpResponse.json({ ...tag, ...stamp }, { status: 201 });
     }),
-    http.get('http://localhost/tracks/t1/tags', () => HttpResponse.json({ tags: own })),
+    http.get('http://localhost/tracks/t1/tags', async () => {
+      gets += 1;
+      if (gets > 1) await opts.holdRefetch;
+      return HttpResponse.json({ tags: own });
+    }),
     http.post('http://localhost/tracks/t1/tags', async ({ request }) => {
       const body = (await request.json()) as { tag_id: string };
       calls.added.push(body);
@@ -82,6 +89,7 @@ function mockApi(
 
 describe('useFireTag', () => {
   beforeEach(() => tokenStore.set('TOK'));
+  afterEach(() => vi.restoreAllMocks());
 
   it('is active when the track already carries the fire tag', async () => {
     mockApi([FIRE, VOCAL], [VOCAL, FIRE]);
@@ -152,5 +160,48 @@ describe('useFireTag', () => {
     await waitFor(() => expect(result.current.active).toBe(true));
     await waitFor(() => expect(calls.added).toHaveLength(1));
     expect(calls.createdTags).toHaveLength(1);
+  });
+
+  it('a quick second press removes the real tag, not the optimistic placeholder', async () => {
+    let release!: () => void;
+    const holdRefetch = new Promise<void>((r) => (release = r));
+    const calls = mockApi([VOCAL], [], { holdRefetch });
+    const { result } = renderHook(() => useFireTag('t1'), { wrapper: wrap(makeClient()) });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+
+    act(() => result.current.toggle());
+    await waitFor(() => expect(calls.added).toHaveLength(1));
+    await waitFor(() => expect(result.current.active).toBe(true));
+    // The post-toggle refetch is still in flight; press again.
+    await new Promise((r) => setTimeout(r, 20));
+    act(() => result.current.toggle());
+
+    await waitFor(() => expect(calls.removed).toEqual(['fire-new']));
+    release();
+    await waitFor(() => expect(result.current.active).toBe(false));
+  });
+
+  it('finds an existing fire tag even when the cached vocabulary is stale', async () => {
+    const calls = mockApi([FIRE], []);
+    const qc = makeClient();
+    qc.setQueryData(tagsKey(), []); // fresh-looking cache, missing the tag
+    const { result } = renderHook(() => useFireTag('t1'), { wrapper: wrap(qc) });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+
+    act(() => result.current.toggle());
+
+    await waitFor(() => expect(calls.added).toEqual([{ tag_id: 'fire' }]));
+    expect(calls.createdTags).toEqual([]);
+  });
+
+  it('tells the user when the mark could not be saved', async () => {
+    const show = vi.spyOn(notifications, 'show');
+    mockApi([FIRE], [], { failAdd: true });
+    const { result } = renderHook(() => useFireTag('t1'), { wrapper: wrap(makeClient()) });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+
+    act(() => result.current.toggle());
+
+    await waitFor(() => expect(show).toHaveBeenCalledWith(expect.objectContaining({ color: 'red' })));
   });
 });

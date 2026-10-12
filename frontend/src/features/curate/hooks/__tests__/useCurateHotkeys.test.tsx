@@ -44,6 +44,7 @@ function dispatchKey(opts: {
   metaKey?: boolean;
   altKey?: boolean;
   shiftKey?: boolean;
+  repeat?: boolean;
 }): KeyboardEvent {
   const ev = new KeyboardEvent('keydown', {
     code: opts.code ?? '',
@@ -52,6 +53,7 @@ function dispatchKey(opts: {
     metaKey: opts.metaKey ?? false,
     altKey: opts.altKey ?? false,
     shiftKey: opts.shiftKey ?? false,
+    repeat: opts.repeat ?? false,
     bubbles: true,
     cancelable: true,
   });
@@ -210,6 +212,12 @@ describe('useCurateHotkeys', () => {
     act(() => dispatchKey({ code: 'KeyH' }));
     expect(onToggleFire).toHaveBeenCalledTimes(1);
     expect(onAssign).not.toHaveBeenCalled();
+  });
+
+  it('holding H (auto-repeat) does not flip the mark back and forth', () => {
+    mount(false);
+    act(() => dispatchKey({ code: 'KeyH', repeat: true }));
+    expect(onToggleFire).not.toHaveBeenCalled();
   });
 
   it('KeyF stays with playback seek, not the fire toggle', () => {

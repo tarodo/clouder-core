@@ -82,8 +82,9 @@ export function useCurateHotkeys(args: UseCurateHotkeysArgs): void {
           onToggleForce();
           return;
         case 'KeyH':
-          // H = "hot" (KeyF is playback seek 60%). Same overlay guard as KeyL.
-          if (overlayOpen) return;
+          // H = "hot" (KeyF is playback seek 60%). Same overlay guard as KeyL;
+          // auto-repeat of a held key would flip the mark back and forth.
+          if (overlayOpen || event.repeat) return;
           event.preventDefault();
           telemetry.track('hotkey_used', { hotkey_code: 'KeyH', action: 'toggle_fire', source: 'curate' });
           onToggleFire();
