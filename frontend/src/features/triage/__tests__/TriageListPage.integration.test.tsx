@@ -177,7 +177,7 @@ describe('TriageListPage integration', () => {
       screen.getByRole('button', { name: /New triage block/i }),
     );
     const dateInput = await screen.findByLabelText('Window');
-    await userEvent.type(dateInput, '2026-05-01 – 2026-05-07');
+    await userEvent.type(dateInput, '2026-05-02 – 2026-05-08');
     await waitFor(() => {
       const name = screen.getByLabelText('Name') as HTMLInputElement;
       expect(name.value).toContain('W18');
@@ -240,7 +240,7 @@ describe('TriageListPage integration', () => {
       await screen.findByRole('button', { name: /New triage block/i }),
     );
     const dateInput = await screen.findByLabelText('Window');
-    await userEvent.type(dateInput, '2026-05-01 – 2026-05-07');
+    await userEvent.type(dateInput, '2026-05-02 – 2026-05-08');
     await waitFor(() => {
       const name = screen.getByLabelText('Name') as HTMLInputElement;
       expect(name.value).toContain('W18');
@@ -275,8 +275,8 @@ describe('TriageListPage integration', () => {
           sampleBlock({
             id: 'eventually',
             name: 'House W18',
-            date_from: '2026-05-01',
-            date_to: '2026-05-07',
+            date_from: '2026-05-02',
+            date_to: '2026-05-08',
             track_count: 0,
           }),
         ];
@@ -293,7 +293,7 @@ describe('TriageListPage integration', () => {
     );
     const dateInput = await screen.findByLabelText('Window');
     fireEvent.change(dateInput, {
-      target: { value: '2026-05-01 – 2026-05-07' },
+      target: { value: '2026-05-02 – 2026-05-08' },
     });
     await waitFor(() => {
       const name = screen.getByLabelText('Name') as HTMLInputElement;

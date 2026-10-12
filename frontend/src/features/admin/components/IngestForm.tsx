@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { saturdayWeekRange } from '../lib/saturdayWeek';
+import { saturdayWeekRange } from '../../../lib/saturdayWeek';
 import { useStartIngest } from '../hooks/useStartIngest';
 
 interface Props {

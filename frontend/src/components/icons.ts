@@ -11,6 +11,8 @@ export {
   IconPlayerSkipBack,
   IconChevronUp,
   IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
   IconDots,
   IconCopy,
   IconLogout,

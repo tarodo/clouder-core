@@ -44,3 +44,16 @@ export function weekOfDate(d: Date): [number, number] {
   const week = Math.floor((saturday.getTime() - fs.getTime()) / (7 * 86_400_000)) + 1;
   return [year, week];
 }
+
+/** `[year, week]` in the Saturday-week calendar (ADR-0003). */
+export type SaturdayWeek = [number, number];
+
+export function shiftWeek([year, week]: SaturdayWeek, delta: number): SaturdayWeek {
+  const [start] = saturdayWeekRange(year, week);
+  return weekOfDate(new Date(start.getTime() + delta * 7 * 86_400_000));
+}
+
+/** UTC calendar day as `YYYY-MM-DD` (the week helpers work in UTC midnights). */
+export function isoDay(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
