@@ -169,4 +169,26 @@ describe('PlayerCard', () => {
     fireEvent.click(chip40);
     expect(onSeekMs).not.toHaveBeenCalled();
   });
+
+  it('renders topActions in the Spotify link row, not in a row of their own', () => {
+    render(
+      wrap(
+        <PlayerCard
+          {...baseProps}
+          state="idle"
+          spotifyHref="https://open.spotify.com/track/sp1"
+          spotifyAriaLabel="Open in Spotify"
+          topActions={<button type="button">Fire</button>}
+        />,
+      ),
+    );
+    const link = screen.getByRole('link', { name: 'Open in Spotify' });
+    const fire = screen.getByRole('button', { name: 'Fire' });
+    expect(link.parentElement).toBe(fire.parentElement);
+  });
+
+  it('renders topActions even without a Spotify link', () => {
+    render(wrap(<PlayerCard {...baseProps} state="idle" topActions={<button type="button">Fire</button>} />));
+    expect(screen.getByRole('button', { name: 'Fire' })).toBeInTheDocument();
+  });
 });

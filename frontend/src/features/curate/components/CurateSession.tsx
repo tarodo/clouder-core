@@ -280,9 +280,9 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         }
         onOpenDevicePicker={() => playback.devices.open(null)}
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
-        belowMainRow={
+        topActions={
           <Button
-            size="compact-sm"
+            size="compact-xs"
             color="orange"
             variant={fire.active ? 'filled' : 'default'}
             leftSection={<span aria-hidden>🔥</span>}
