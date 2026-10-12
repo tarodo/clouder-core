@@ -254,12 +254,12 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
     {
       method: 'get',
       path: '/tracks/:trackId/tags',
-      resolve: ({ param }) => ({ items: db.trackTags(param('trackId')) }),
+      resolve: ({ param }) => ({ tags: db.trackTags(param('trackId')) }),
     },
     {
       method: 'post',
       path: '/tracks/:trackId/tags',
-      resolve: ({ param, body }) => ({ items: db.tagTrack(param('trackId'), body.tag_id) }),
+      resolve: ({ param, body }) => ({ tags: db.tagTrack(param('trackId'), body.tag_id) }),
     },
     {
       method: 'delete',
