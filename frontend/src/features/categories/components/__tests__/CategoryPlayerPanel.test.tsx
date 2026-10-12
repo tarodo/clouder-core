@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
@@ -8,6 +8,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CategoryPlayerPanel } from '../CategoryPlayerPanel';
 import { undoStack } from '../../hooks/useUndoStack';
 import type { CategoryTrack } from '../../hooks/useCategoryTracks';
+
+const categoryMut = vi.hoisted(() => ({
+  remove: vi.fn((_: { categoryId: string; trackId: string }) => Promise.resolve()),
+  add: vi.fn((_: { categoryId: string; trackId: string }) => Promise.resolve()),
+}));
 
 const playback = {
   controls: {
@@ -90,7 +95,10 @@ vi.mock('../../../playlists/hooks/useRemoveTrackFromPlaylist', () => ({
   useRemoveTrackFromPlaylist: () => ({ mutateAsync: vi.fn(() => Promise.resolve()) }),
 }));
 vi.mock('../../hooks/useRemoveTrackOptimistic', () => ({
-  useRemoveTrackOptimistic: () => ({ mutateAsync: vi.fn(() => Promise.resolve()) }),
+  useRemoveTrackOptimistic: () => ({ mutateAsync: categoryMut.remove }),
+}));
+vi.mock('../../hooks/useAddTrackToCategory', () => ({
+  useAddTrackToCategory: () => ({ mutateAsync: categoryMut.add }),
 }));
 vi.mock('../../../library/components/LabelTile', () => ({
   LabelTile: () => <div data-testid="label-tile" />,
@@ -118,6 +126,8 @@ function ui(items: CategoryTrack[] = []) {
 
 beforeEach(() => {
   undoStack.clear();
+  categoryMut.remove.mockClear();
+  categoryMut.add.mockClear();
   Object.values(playback.controls).forEach((m) => {
     if ('mockReset' in m) (m as { mockReset: () => void }).mockReset();
   });
@@ -148,6 +158,21 @@ describe('CategoryPlayerPanel', () => {
     render(ui());
     await userEvent.keyboard('u');
     expect(undo).toHaveBeenCalledOnce();
+  });
+
+  it('Z removes the current track from the category and moves on; U puts it back', async () => {
+    render(ui());
+    await userEvent.keyboard('z');
+    await waitFor(() =>
+      expect(categoryMut.remove).toHaveBeenCalledWith({ categoryId: 'c1', trackId: 't1' }),
+    );
+    await waitFor(() => expect(playback.controls.next).toHaveBeenCalledOnce());
+    expect(categoryMut.add).not.toHaveBeenCalled();
+
+    await userEvent.keyboard('u');
+    await waitFor(() =>
+      expect(categoryMut.add).toHaveBeenCalledWith({ categoryId: 'c1', trackId: 't1' }),
+    );
   });
 
   const labeledTrack: CategoryTrack = {
