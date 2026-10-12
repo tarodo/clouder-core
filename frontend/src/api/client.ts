@@ -23,10 +23,15 @@ export function refreshSession(): Promise<RefreshResponse | null> {
   if (inflightRefresh) return inflightRefresh;
   inflightRefresh = (async () => {
     try {
-      const res = await fetch(`${baseUrl}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      // Other tabs share the cookie jar: a browser-wide Web Lock keeps two
+      // windows shown at once from sending the same cookie. The waiter then
+      // sends the already-rotated one. No lock API (old browsers, jsdom) →
+      // page-level single-flight only.
+      const post = () =>
+        fetch(`${baseUrl}/auth/refresh`, { method: 'POST', credentials: 'include' });
+      const res = navigator.locks
+        ? await navigator.locks.request('clouder-auth-refresh', post)
+        : await post();
       if (!res.ok) return null;
       const body = (await res.json()) as RefreshResponse;
       tokenStore.set(body.access_token);
@@ -66,7 +71,10 @@ export async function api<T = unknown>(path: string, init: ApiInit = {}): Promis
   const res = await fetch(url, { ...rest, headers, credentials: 'include' });
 
   if (res.status === 401 && token) {
-    const refreshed = await refreshSession();
+    // A refresh landed while this request was in flight: retry with the new
+    // token instead of rotating the cookie again (each refresh wakes Aurora).
+    const current = tokenStore.get();
+    const refreshed = (current !== null && current !== token) || (await refreshSession());
     if (refreshed) {
       const retryHeaders = new Headers(rest.headers);
       retryHeaders.set('Accept', 'application/json');

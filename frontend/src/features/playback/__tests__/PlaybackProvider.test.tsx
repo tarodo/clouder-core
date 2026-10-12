@@ -330,6 +330,32 @@ describe('PlaybackProvider SDK lifecycle', () => {
     expect(sessionKeepAlive()).toBe(false);
   });
 
+  it('does not keep the session warm while another device plays', async () => {
+    sdkServer.use(
+      http.put('https://api.spotify.com/v1/me/player/play', () => HttpResponse.json({}, { status: 204 })),
+      http.put('https://api.spotify.com/v1/me/player', () => HttpResponse.json({}, { status: 204 })),
+    );
+    const handle = installSpotifySdkMock();
+    const { result } = renderHook(() => usePlayback(), { wrapper: makeAuthWrapper() });
+    act(() => {
+      result.current.controls.bindQueue({
+        source: { type: 'category', categoryId: 'c', styleId: 's' },
+        tracks: [
+          { id: 'A', title: 'A', artists: '', cover_url: null, duration_ms: 1000, spotify_id: 'spA' },
+        ],
+        cursor: 0,
+        onCursorChange: vi.fn(),
+      });
+    });
+    await playAndEmitReady(() => result.current.controls.play(0), handle);
+    // The phone takes over: status reads 'playing', but this tab plays nothing.
+    await act(async () => {
+      await result.current.devices.pick('phone');
+    });
+    await waitFor(() => expect(result.current.queue.status).toBe('playing'));
+    expect(sessionKeepAlive()).toBe(false);
+  });
+
   it('controls.play() with no idx uses cursor track', async () => {
     const captured: { body: { uris?: string[] } | null } = { body: null };
     sdkServer.use(

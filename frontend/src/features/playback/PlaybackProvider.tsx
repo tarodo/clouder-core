@@ -128,13 +128,6 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     status: 'idle' as QueueStatus,
   });
 
-  // Music in a hidden tab still needs fresh Spotify tokens; AuthProvider
-  // skips its timed refresh in hidden tabs only while this is false.
-  useEffect(() => {
-    setSessionKeepAlive(queue.status === 'playing' || queue.status === 'buffering');
-    return () => setSessionKeepAlive(false);
-  }, [queue.status]);
-
   const [track, setTrack] = useState<{
     current: PlaybackTrack | null;
     positionMs: number;
@@ -624,6 +617,18 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
 
   const activeDeviceIdRef = useRef<string | null>(null);
   const cloderTabIdRef = useRef<string | null>(null);
+
+  // Music playing in THIS tab needs fresh Spotify tokens even when hidden;
+  // AuthProvider and the device poll stay quiet in hidden tabs otherwise.
+  // A remote device playing doesn't count (its controls refresh on 401).
+  const playingHere =
+    (queue.status === 'playing' || queue.status === 'buffering') &&
+    activeDeviceId !== null &&
+    activeDeviceId === cloderTabId;
+  useEffect(() => {
+    setSessionKeepAlive(playingHere);
+    return () => setSessionKeepAlive(false);
+  }, [playingHere]);
 
   const setActive = useCallback((deviceId: string | null) => {
     activeDeviceIdRef.current = deviceId;

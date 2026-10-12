@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/setup';
-import { api } from '../client';
+import { api, refreshSession } from '../client';
 import { ApiError } from '../error';
 import { tokenStore } from '../../auth/tokenStore';
 import { spotifyTokenStore } from '../../auth/spotifyTokenStore';
@@ -76,6 +76,53 @@ describe('api()', () => {
     expect(tokenStore.get()).toBe('FRESH');
     expect(spotifyTokenStore.get()).toBe('SP_FRESH');
     expect(attempt).toBe(2);
+  });
+
+  it('a 401 for a token already replaced retries with the new one, no extra refresh', async () => {
+    tokenStore.set('OLD');
+    let refreshes = 0;
+    const seen: (string | null)[] = [];
+    server.use(
+      http.get('http://localhost/thing', ({ request }) => {
+        const auth = request.headers.get('Authorization');
+        seen.push(auth);
+        if (auth === 'Bearer OLD') {
+          tokenStore.set('NEW'); // a refresh landed while this request was in flight
+          return HttpResponse.json({ message: 'expired' }, { status: 401 });
+        }
+        return HttpResponse.json({ ok: true });
+      }),
+      http.post('http://localhost/auth/refresh', () => {
+        refreshes += 1;
+        return HttpResponse.json({ access_token: 'X', spotify_access_token: 'S', expires_in: 1800 });
+      }),
+    );
+
+    expect(await api('/thing')).toEqual({ ok: true });
+    expect(seen).toEqual(['Bearer OLD', 'Bearer NEW']);
+    expect(refreshes).toBe(0);
+  });
+
+  it('refreshSession serialises across tabs with a Web Lock', async () => {
+    const names: string[] = [];
+    const locks = {
+      request: (name: string, cb: () => Promise<unknown>) => {
+        names.push(name);
+        return cb();
+      },
+    };
+    vi.stubGlobal('navigator', { ...navigator, locks });
+    server.use(
+      http.post('http://localhost/auth/refresh', () =>
+        HttpResponse.json({ access_token: 'T', spotify_access_token: 'S', expires_in: 1800 }),
+      ),
+    );
+    try {
+      expect((await refreshSession())?.access_token).toBe('T');
+      expect(names).toEqual(['clouder-auth-refresh']);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('fires auth:expired event when refresh fails', async () => {
