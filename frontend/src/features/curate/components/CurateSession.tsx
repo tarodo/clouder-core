@@ -1,7 +1,7 @@
 // frontend/src/features/curate/components/CurateSession.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ActionIcon, Group, Stack, Text } from '@mantine/core';
+import { ActionIcon, Button, Group, Stack, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { CurateCard } from './CurateCard';
@@ -11,6 +11,7 @@ import { EndOfQueue } from './EndOfQueue';
 import { CurateSkeleton } from './CurateSkeleton';
 import { useCurateSession } from '../hooks/useCurateSession';
 import { useCurateHotkeys } from '../hooks/useCurateHotkeys';
+import { useFireTag } from '../hooks/useFireTag';
 import { stagingOverflow } from '../lib/destinationMap';
 import { IconArrowLeft, IconKeyboard } from '../../../components/icons';
 import { bucketLabel, type TriageBucket } from '../../triage/lib/bucketLabels';
@@ -35,6 +36,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
   const session = useCurateSession({ styleId, blockId, bucketId });
   const playback = usePlayback();
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const fire = useFireTag(session.currentTrack?.track_id ?? null);
 
   useCurateHotkeys({
     buckets: session.destinations,
@@ -45,6 +47,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
     onCloseOverlay: () => setOverlayOpen(false),
     onExit: () => navigate(`/triage/${styleId}/${blockId}`),
     onToggleForce: session.toggleForce,
+    onToggleFire: fire.toggle,
   });
 
   usePlaybackHotkeys({
@@ -277,6 +280,20 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         }
         onOpenDevicePicker={() => playback.devices.open(null)}
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
+        belowMainRow={
+          <Button
+            size="compact-sm"
+            color="orange"
+            variant={fire.active ? 'filled' : 'default'}
+            leftSection="🔥"
+            aria-pressed={fire.active}
+            disabled={!fire.ready}
+            title={t('curate.card.fire_title')}
+            onClick={fire.toggle}
+          >
+            {t('curate.card.fire')}
+          </Button>
+        }
       />
       {isMobile && (
         <CurateCard

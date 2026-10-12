@@ -66,6 +66,7 @@ Registered on curate routes only. Disabled on mobile (`max-width: 64em`).
 | `Digit1`–`Digit9` | assign to playlist by position index (0-based: index 0 = `Digit1`, index 8 = `Digit9`) |
 | `KeyU` | undo last assignment |
 | `KeyL` | toggle force-mode |
+| `KeyH` | toggle the 🔥 tag on the current track (`useFireTag`; an ordinary user tag, created on first use; `KeyF` stays playback seek 60%) |
 | `?` | open hotkey overlay |
 | `Escape` | close overlay / exit curate |
 

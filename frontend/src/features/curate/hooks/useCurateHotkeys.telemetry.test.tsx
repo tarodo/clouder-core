@@ -23,6 +23,7 @@ function setup(over: Partial<Parameters<typeof useCurateHotkeys>[0]> = {}) {
       onCloseOverlay: vi.fn(),
       onExit: vi.fn(),
       onToggleForce,
+      onToggleFire: vi.fn(),
       ...over,
     }),
   );

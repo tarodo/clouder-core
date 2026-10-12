@@ -70,6 +70,7 @@ describe('useCurateHotkeys', () => {
   let onCloseOverlay: Mock<() => void>;
   let onExit: Mock<() => void>;
   let onToggleForce: Mock<() => void>;
+  let onToggleFire: Mock<() => void>;
 
   beforeEach(() => {
     onAssign = vi.fn<(toBucketId: string) => void>();
@@ -78,6 +79,7 @@ describe('useCurateHotkeys', () => {
     onCloseOverlay = vi.fn<() => void>();
     onExit = vi.fn<() => void>();
     onToggleForce = vi.fn<() => void>();
+    onToggleFire = vi.fn<() => void>();
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -93,6 +95,7 @@ describe('useCurateHotkeys', () => {
           onCloseOverlay,
           onExit,
           onToggleForce,
+          onToggleFire,
         }),
       { wrapper },
     );
@@ -200,6 +203,25 @@ describe('useCurateHotkeys', () => {
     mount(false);
     act(() => dispatchKey({ code: 'KeyL' }));
     expect(onToggleForce).toHaveBeenCalledTimes(1);
+  });
+
+  it('KeyH calls onToggleFire', () => {
+    mount(false);
+    act(() => dispatchKey({ code: 'KeyH' }));
+    expect(onToggleFire).toHaveBeenCalledTimes(1);
+    expect(onAssign).not.toHaveBeenCalled();
+  });
+
+  it('KeyF stays with playback seek, not the fire toggle', () => {
+    mount(false);
+    act(() => dispatchKey({ code: 'KeyF' }));
+    expect(onToggleFire).not.toHaveBeenCalled();
+  });
+
+  it('KeyH while overlayOpen=true does NOT call onToggleFire', () => {
+    mount(true);
+    act(() => dispatchKey({ code: 'KeyH' }));
+    expect(onToggleFire).not.toHaveBeenCalled();
   });
 
   it('KeyL while overlayOpen=true does NOT call onToggleForce', () => {
