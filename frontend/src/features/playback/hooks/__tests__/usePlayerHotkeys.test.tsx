@@ -136,4 +136,19 @@ describe('usePlayerHotkeys', () => {
     expect(callbacks.onPrev).toHaveBeenCalledOnce();
     document.body.removeChild(checkbox);
   });
+
+  it('Z calls onRemove when the player supports it', () => {
+    const onRemove = vi.fn();
+    renderHook(() => usePlayerHotkeys({ ...callbacks, active: true, playlistCount: 10, onRemove }));
+    press('KeyZ');
+    press('KeyZ', { metaKey: true }); // left to the browser
+    expect(onRemove).toHaveBeenCalledOnce();
+  });
+
+  it('Z is a no-op for players without removal (playlists)', () => {
+    renderHook(() => usePlayerHotkeys({ ...callbacks, active: true, playlistCount: 10 }));
+    const ev = new KeyboardEvent('keydown', { code: 'KeyZ', cancelable: true });
+    window.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+  });
 });

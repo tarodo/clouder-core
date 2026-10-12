@@ -11,6 +11,9 @@ import { useAddTracksToPlaylist } from '../../playlists/hooks/useAddTracksToPlay
 import { useRemoveTrackFromPlaylist } from '../../playlists/hooks/useRemoveTrackFromPlaylist';
 import { usePlayerHotkeys } from '../../playback/hooks/usePlayerHotkeys';
 import { undoStack, useUndoStack } from '../hooks/useUndoStack';
+import { useRemoveTrackOptimistic } from '../hooks/useRemoveTrackOptimistic';
+import { useAddTrackToCategory } from '../hooks/useAddTrackToCategory';
+import { useTelemetry } from '../../../lib/telemetry/hooks';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
@@ -42,7 +45,12 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
   const removeTag = useRemoveTrackTag();
   const addToPlaylist = useAddTracksToPlaylist();
   const removeFromPlaylist = useRemoveTrackFromPlaylist();
+  const removeFromCategory = useRemoveTrackOptimistic();
+  const addToCategory = useAddTrackToCategory();
+  const telemetry = useTelemetry();
   const { entry } = useUndoStack();
+  // One removal at a time: a double Z before the first lands would skip twice.
+  const removing = useRef(false);
 
   const current = playback.track.current;
   const trackId = current?.id ?? null;
@@ -154,6 +162,28 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
     [trackId, addToPlaylist, removeFromPlaylist, pushUndo, t],
   );
 
+  // Z: drop the current track from this category and move on; U puts it back.
+  const onRemoveFromCategory = useCallback(async () => {
+    if (!trackId || removing.current) return;
+    removing.current = true;
+    try {
+      await removeFromCategory.mutateAsync({ categoryId, trackId });
+      telemetry.track('track_categorized', {
+        track_id: trackId,
+        category_key: categoryId,
+        action: 'removed_from_category',
+      });
+      pushUndo(t('categories.toast.track_removed'), async () => {
+        await addToCategory.mutateAsync({ categoryId, trackId });
+      });
+      void playback.controls.next();
+    } catch {
+      notifications.show({ message: t('categories.toast.track_remove_failed'), color: 'red' });
+    } finally {
+      removing.current = false;
+    }
+  }, [categoryId, trackId, removeFromCategory, addToCategory, telemetry, pushUndo, t, playback]);
+
   const onTogglePlaylistByIndex = useCallback(
     (index: number) => {
       const pl = playlistsQuery.data?.items?.[index];
@@ -177,6 +207,7 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
     onSeekPct: (p) => void playback.controls.seekPct(p),
     onTogglePlaylist: onTogglePlaylistByIndex,
     onUndo: () => void undoStack.popAndRun(),
+    onRemove: () => void onRemoveFromCategory(),
   });
 
   // Map the queue status to a PlayerCardState (the card has a richer state

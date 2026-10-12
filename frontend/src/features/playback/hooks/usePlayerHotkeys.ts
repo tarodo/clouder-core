@@ -13,6 +13,8 @@ export interface UsePlayerHotkeysArgs {
   onSeekPct: (p: number) => void;
   onTogglePlaylist: (index: number) => void;
   onUndo: () => void;
+  /** Z = remove the current track from the player's list (category player only). */
+  onRemove?: () => void;
 }
 
 const SEEK_PCT: Record<string, number> = {
@@ -32,7 +34,7 @@ function digitIndex(code: string): number | null {
 /**
  * Player keyboard shortcuts shared by the category and playlist players:
  *   Space = play/pause, j/k = prev/next, Shift+J/K = seek -10s/+10s,
- *   a/s/d/f/g = seek 0/20/40/60/80%, u = undo,
+ *   a/s/d/f/g = seek 0/20/40/60/80%, u = undo, z = remove (when onRemove),
  *   digits 1-9/0 = toggle playlist by index (when playlistCount > 0).
  * Only active when `active` is true (i.e. this player owns the current queue).
  */
@@ -47,6 +49,7 @@ export function usePlayerHotkeys(args: UsePlayerHotkeysArgs): void {
     onSeekPct,
     onTogglePlaylist,
     onUndo,
+    onRemove,
   } = args;
 
   useEffect(() => {
@@ -77,6 +80,11 @@ export function usePlayerHotkeys(args: UsePlayerHotkeysArgs): void {
         onUndo();
         return;
       }
+      if (event.code === 'KeyZ' && onRemove) {
+        event.preventDefault();
+        onRemove();
+        return;
+      }
       const pct = SEEK_PCT[event.code];
       if (pct != null) {
         event.preventDefault();
@@ -103,5 +111,6 @@ export function usePlayerHotkeys(args: UsePlayerHotkeysArgs): void {
     onSeekPct,
     onTogglePlaylist,
     onUndo,
+    onRemove,
   ]);
 }

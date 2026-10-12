@@ -74,6 +74,19 @@ All letter/digit keys use `event.code` (physical key position) — layout-safe f
 
 `KeyJ` and `KeyK` are **not** bound in `useCurateHotkeys` — they are handled exclusively by `usePlaybackHotkeys` to avoid double-fire and SDK-state interference.
 
+### `usePlayerHotkeys` (`frontend/src/features/playback/hooks/usePlayerHotkeys.ts`)
+
+Shared by the category and playlist players; active only while that player owns the queue.
+
+| Key | Action |
+|-----|--------|
+| `Space` | play / pause |
+| `KeyJ` / `KeyK` | previous / next track (`Shift` = seek −10 s / +10 s) |
+| `KeyA` `KeyS` `KeyD` `KeyF` `KeyG` | seek 0 / 20 / 40 / 60 / 80 % |
+| `Digit1`–`Digit9`, `Digit0` | toggle playlist 1–10 for the current track |
+| `KeyU` | undo the last action (`undoStack`: tag, playlist, removal) |
+| `KeyZ` | category player only: remove the current track from the category and play the next one; `KeyU` puts it back |
+
 ## Auto-advance
 
 `frontend/src/features/playback/PlaybackProvider.tsx` — `player_state_changed` listener.
