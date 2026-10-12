@@ -19,7 +19,6 @@ import { zodResolver } from 'mantine-form-zod-resolver';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
-import dayjs from 'dayjs';
 import {
   createTriageBlockSchema,
   type CreateTriageBlockInput as ZodInput,
@@ -39,9 +38,15 @@ import {
   PendingCreateError,
 } from '../hooks/useCreateTriageBlock';
 
-/** Form date slot → `YYYY-MM-DD`. Mantine emits strings; a Date is read as a local day. */
+/** Form date slot → `YYYY-MM-DD` (Mantine 9 emits strings). */
 function dayOf(v: string | Date): string {
-  return typeof v === 'string' ? v.slice(0, 10) : dayjs(v).format('YYYY-MM-DD');
+  return typeof v === 'string' ? v.slice(0, 10) : isoDay(v);
+}
+
+/** The user's local calendar day as a UTC midnight — what "this week" means to them. */
+function localToday(): Date {
+  const n = new Date();
+  return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()));
 }
 
 const utcDay = (day: string) => new Date(`${day}T00:00:00Z`);
@@ -93,27 +98,36 @@ export function CreateTriageBlockDialog({
   const setWeek = ([year, week]: SaturdayWeek) => {
     const [start, end] = saturdayWeekRange(year, week);
     form.setFieldValue('dateRange', [isoDay(start), isoDay(end)]);
+    // Tuple errors live at `dateRange.0/1`; setFieldValue clears only the top key.
+    form.clearFieldError('dateRange.0');
+    form.clearFieldError('dateRange.1');
   };
 
   // Propose a week once per opening, after the style's blocks have loaded
-  // (or failed — then it is the last finished week).
+  // (or failed — then it is the last finished week). Blocks created from
+  // this dialog count even before the list refetch (or a 503 recovery) lands.
   // ponytail: first page = the 50 most recently created blocks; an older
   // block with a later date_to is ignored.
   const blocks = useTriageBlocksByStyle(styleId, undefined);
+  const createdDateTos = useRef<Record<string, string[]>>({});
   const weekProposed = useRef(false);
   useEffect(() => {
-    if (!opened || weekProposed.current || blocks.isPending) return;
+    if (!opened || weekProposed.current || blocks.isPending || blocks.isFetching) return;
     weekProposed.current = true;
-    const dateTos = blocks.data?.pages[0]?.items.map((b) => b.date_to) ?? [];
-    setWeek(defaultTriageWeek(dateTos, new Date()));
+    if (form.values.dateRange?.[0]) return; // user picked a range meanwhile
+    const dateTos = [
+      ...(blocks.data?.pages[0]?.items.map((b) => b.date_to) ?? []),
+      ...(createdDateTos.current[styleId] ?? []),
+    ];
+    setWeek(defaultTriageWeek(dateTos, localToday()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, blocks.isPending, blocks.data]);
+  }, [opened, blocks.isPending, blocks.isFetching, blocks.data, styleId]);
 
   const [rawFrom, rawTo] = form.values.dateRange ?? [];
   const fromDay = rawFrom ? dayOf(rawFrom) : null;
   const toDay = rawTo ? dayOf(rawTo) : null;
   const week = fromDay ? weekOfDate(utcDay(fromDay)) : null;
-  const currentWeek = weekOfDate(new Date());
+  const currentWeek = weekOfDate(localToday());
   const atCurrentWeek = !week || weekStartMs(week) >= weekStartMs(currentWeek);
 
   useEffect(() => {
@@ -155,6 +169,8 @@ export function CreateTriageBlockDialog({
 
   const handleSubmit = form.onSubmit(async (values) => {
     const [from, to] = values.dateRange;
+    const remember = () =>
+      (createdDateTos.current[styleId] ??= []).push(dayOf(to));
     try {
       await create.mutateAsync({
         style_id: styleId,
@@ -167,6 +183,7 @@ export function CreateTriageBlockDialog({
         compilations_to_not: values.compilationsToNot,
         include_favorites: values.includeFavorites,
       });
+      remember();
       notifications.show({
         message: t('triage.toast.created'),
         color: 'green',
@@ -174,6 +191,7 @@ export function CreateTriageBlockDialog({
       handleClose();
     } catch (err) {
       if (err instanceof PendingCreateError) {
+        remember();
         notifications.show({
           message: t('triage.toast.create_pending'),
           color: 'yellow',
@@ -239,7 +257,7 @@ export function CreateTriageBlockDialog({
               <IconChevronRight size={16} />
             </ActionIcon>
           </Group>
-          {dateError ? (
+          {dateError && !advancedOpen ? (
             <Text size="xs" c="red">
               {dateError}
             </Text>
@@ -269,7 +287,7 @@ export function CreateTriageBlockDialog({
               placeholder={t('triage.form.date_range_placeholder')}
               valueFormat="YYYY-MM-DD"
               {...form.getInputProps('dateRange')}
-              error={dateError}
+              error={advancedOpen ? dateError : undefined}
             />
             <NumberInput
               label={t('triage.form.old_offset_weeks_label')}

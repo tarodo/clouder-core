@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
-import { Notifications } from '@mantine/notifications';
+import { Notifications, notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -10,13 +11,13 @@ import { setupServer } from 'msw/node';
 // Mantine's DatePickerInput renders as a button-like trigger that opens a
 // popover calendar — userEvent.type cannot drive it under jsdom. Replace it
 // with a plain text input that parses the "YYYY-MM-DD – YYYY-MM-DD" string
-// and forwards a [Date, Date] tuple to the form, matching the production
+// and forwards a ['YYYY-MM-DD', 'YYYY-MM-DD'] tuple, matching Mantine 9's
 // onChange contract.
 vi.mock('@mantine/dates', async () => {
   const React = await import('react');
   type Props = {
     label?: string;
-    onChange?: (value: [Date | null, Date | null]) => void;
+    onChange?: (value: [string | null, string | null]) => void;
     error?: React.ReactNode;
     description?: React.ReactNode;
     placeholder?: string;
@@ -50,7 +51,7 @@ vi.mock('@mantine/dates', async () => {
                   !Number.isNaN(a.getTime()) &&
                   !Number.isNaN(b.getTime())
                 ) {
-                  onChange?.([a, b]);
+                  onChange?.([parts[0].trim(), parts[1].trim()]);
                   return;
                 }
               }
@@ -103,27 +104,36 @@ const created = {
 
 const server = setupServer();
 let existingDateTos: string[];
+let blocksHold: Promise<void> | undefined;
+let blocksFail: boolean;
 beforeEach(() => {
+  blocksHold = undefined;
+  blocksFail = false;
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(TODAY);
   // Latest block ends Fri Oct 2 (end of W39) → default week is W40 (Oct 3–9).
   existingDateTos = ['2026-09-25', '2026-10-02'];
   server.listen({ onUnhandledRequest: 'error' });
   server.use(
-    http.get('http://localhost/styles/s1/triage/blocks', () =>
-      HttpResponse.json({
+    http.get('http://localhost/styles/s1/triage/blocks', async () => {
+      await blocksHold;
+      if (blocksFail) return HttpResponse.json({ message: 'boom' }, { status: 500 });
+      return HttpResponse.json({
         items: existingDateTos.map(blockSummary),
         total: existingDateTos.length,
         limit: 50,
         offset: 0,
-      }),
-    ),
+      });
+    }),
   );
 });
 afterEach(() => {
   server.resetHandlers();
   server.close();
   vi.useRealTimers();
+  // The notifications store is global with a visible limit of 5: toasts
+  // left by earlier tests would queue later ones out of sight.
+  notifications.clean();
 });
 
 function renderDialog(props: Partial<React.ComponentProps<typeof CreateTriageBlockDialog>> = {}) {
@@ -243,9 +253,76 @@ describe('CreateTriageBlockDialog', () => {
     await userEvent.click(screen.getByText(/advanced options/i));
     await userEvent.type(screen.getByLabelText('Window'), '2026-10-20 – 2026-10-05');
     await userEvent.click(screen.getByRole('button', { name: 'Create' }));
-    expect(
-      (await screen.findAllByText(/End date must be on or after start date/i)).length,
-    ).toBeGreaterThan(0);
+    expect(await screen.findByText(/End date must be on or after start date/i)).toBeInTheDocument();
+  });
+
+  it('falls back to the last finished week when the blocks request fails', async () => {
+    blocksFail = true;
+    renderDialog();
+    expect(await screen.findByText('W41 · Oct 10 – Oct 16, 2026')).toBeInTheDocument();
+  });
+
+  it('keeps a range the user picked while blocks were still loading', async () => {
+    let release!: () => void;
+    blocksHold = new Promise<void>((r) => (release = r));
+    renderDialog();
+    await userEvent.click(screen.getByText(/advanced options/i));
+    await userEvent.type(screen.getByLabelText('Window'), '2026-10-05 – 2026-10-20');
+    expect(await screen.findByText('Custom range · Oct 5 – Oct 20, 2026')).toBeInTheDocument();
+
+    release();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText('Custom range · Oct 5 – Oct 20, 2026')).toBeInTheDocument();
+  });
+
+  it('clears the missing-range error once the week arrives', async () => {
+    let release!: () => void;
+    blocksHold = new Promise<void>((r) => (release = r));
+    renderDialog();
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
+    expect(await screen.findByText('Pick a date range.')).toBeInTheDocument();
+
+    release();
+    await screen.findByText('W40 · Oct 3 – Oct 9, 2026');
+    await waitFor(() => expect(screen.queryByText('Pick a date range.')).not.toBeInTheDocument());
+  });
+
+  it('on reopen after a create, proposes the week after the one just created', async () => {
+    capturePost();
+    function Host() {
+      const [opened, setOpened] = useState(true);
+      return (
+        <>
+          <button type="button" onClick={() => setOpened(true)}>
+            reopen
+          </button>
+          <CreateTriageBlockDialog
+            opened={opened}
+            onClose={() => setOpened(false)}
+            styleId="s1"
+            styleName="House"
+          />
+        </>
+      );
+    }
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
+    });
+    render(
+      <MantineProvider>
+        <QueryClientProvider client={qc}>
+          <Notifications />
+          <Host />
+        </QueryClientProvider>
+      </MantineProvider>,
+    );
+    await screen.findByText('W40 · Oct 3 – Oct 9, 2026');
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await waitFor(() => expect(screen.queryByText(/W40 ·/)).not.toBeInTheDocument());
+
+    // The block list on the server has not caught up yet (stale / 503 path).
+    await userEvent.click(screen.getByRole('button', { name: 'reopen' }));
+    expect(await screen.findByText('W41 · Oct 10 – Oct 16, 2026')).toBeInTheDocument();
   });
 
   it('submits populate options from the advanced section', async () => {

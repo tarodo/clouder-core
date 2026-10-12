@@ -56,6 +56,7 @@ describe('saturdayWeek', () => {
     expect(shiftWeek([2026, 52], 1)).toEqual([2027, 1]);
     expect(shiftWeek([2027, 1], -1)).toEqual([2026, 52]);
     expect(shiftWeek([2028, 53], 1)).toEqual([2029, 1]);
+    expect(shiftWeek([2029, 1], -1)).toEqual([2028, 53]);
   });
 
   it('isoDay formats a UTC date as YYYY-MM-DD', () => {

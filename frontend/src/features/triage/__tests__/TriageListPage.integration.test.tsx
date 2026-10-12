@@ -12,13 +12,13 @@ import { MemoryRouter, Routes, Route } from 'react-router';
 // Mantine's DatePickerInput renders as a button-like trigger that opens a
 // popover calendar — userEvent.type cannot drive it under jsdom. Replace with
 // a plain text input that parses "YYYY-MM-DD – YYYY-MM-DD" and forwards a
-// [Date, Date] tuple to the form, matching the production onChange contract.
+// ['YYYY-MM-DD', 'YYYY-MM-DD'] tuple to the form, matching Mantine 9's onChange contract.
 // (Same shape as components/__tests__/CreateTriageBlockDialog.test.tsx.)
 vi.mock('@mantine/dates', async () => {
   const React = await import('react');
   type Props = {
     label?: string;
-    onChange?: (value: [Date | null, Date | null]) => void;
+    onChange?: (value: [string | null, string | null]) => void;
     error?: React.ReactNode;
     description?: React.ReactNode;
     placeholder?: string;
@@ -50,7 +50,7 @@ vi.mock('@mantine/dates', async () => {
                   !Number.isNaN(a.getTime()) &&
                   !Number.isNaN(b.getTime())
                 ) {
-                  onChange?.([a, b]);
+                  onChange?.([parts[0].trim(), parts[1].trim()]);
                   return;
                 }
               }

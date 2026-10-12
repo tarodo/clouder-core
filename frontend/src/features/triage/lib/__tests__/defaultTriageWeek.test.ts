@@ -31,4 +31,11 @@ describe('defaultTriageWeek', () => {
       2027, 1,
     ]);
   });
+
+  it('reaches week 53 in a 53-week year', () => {
+    // 2028 has 53 Saturday-weeks; W52 ends Fri 2028-12-29.
+    expect(defaultTriageWeek(['2028-12-29'], new Date('2029-01-20T00:00:00Z'))).toEqual([
+      2028, 53,
+    ]);
+  });
 });
