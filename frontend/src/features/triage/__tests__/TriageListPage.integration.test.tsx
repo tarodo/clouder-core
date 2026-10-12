@@ -12,13 +12,13 @@ import { MemoryRouter, Routes, Route } from 'react-router';
 // Mantine's DatePickerInput renders as a button-like trigger that opens a
 // popover calendar — userEvent.type cannot drive it under jsdom. Replace with
 // a plain text input that parses "YYYY-MM-DD – YYYY-MM-DD" and forwards a
-// [Date, Date] tuple to the form, matching the production onChange contract.
+// ['YYYY-MM-DD', 'YYYY-MM-DD'] tuple to the form, matching Mantine 9's onChange contract.
 // (Same shape as components/__tests__/CreateTriageBlockDialog.test.tsx.)
 vi.mock('@mantine/dates', async () => {
   const React = await import('react');
   type Props = {
     label?: string;
-    onChange?: (value: [Date | null, Date | null]) => void;
+    onChange?: (value: [string | null, string | null]) => void;
     error?: React.ReactNode;
     description?: React.ReactNode;
     placeholder?: string;
@@ -50,7 +50,7 @@ vi.mock('@mantine/dates', async () => {
                   !Number.isNaN(a.getTime()) &&
                   !Number.isNaN(b.getTime())
                 ) {
-                  onChange?.([a, b]);
+                  onChange?.([parts[0].trim(), parts[1].trim()]);
                   return;
                 }
               }
@@ -177,7 +177,7 @@ describe('TriageListPage integration', () => {
       screen.getByRole('button', { name: /New triage block/i }),
     );
     const dateInput = await screen.findByLabelText('Window');
-    await userEvent.type(dateInput, '2026-05-01 – 2026-05-07');
+    await userEvent.type(dateInput, '2026-05-02 – 2026-05-08');
     await waitFor(() => {
       const name = screen.getByLabelText('Name') as HTMLInputElement;
       expect(name.value).toContain('W18');
@@ -240,7 +240,7 @@ describe('TriageListPage integration', () => {
       await screen.findByRole('button', { name: /New triage block/i }),
     );
     const dateInput = await screen.findByLabelText('Window');
-    await userEvent.type(dateInput, '2026-05-01 – 2026-05-07');
+    await userEvent.type(dateInput, '2026-05-02 – 2026-05-08');
     await waitFor(() => {
       const name = screen.getByLabelText('Name') as HTMLInputElement;
       expect(name.value).toContain('W18');
@@ -275,8 +275,8 @@ describe('TriageListPage integration', () => {
           sampleBlock({
             id: 'eventually',
             name: 'House W18',
-            date_from: '2026-05-01',
-            date_to: '2026-05-07',
+            date_from: '2026-05-02',
+            date_to: '2026-05-08',
             track_count: 0,
           }),
         ];
@@ -293,7 +293,7 @@ describe('TriageListPage integration', () => {
     );
     const dateInput = await screen.findByLabelText('Window');
     fireEvent.change(dateInput, {
-      target: { value: '2026-05-01 – 2026-05-07' },
+      target: { value: '2026-05-02 – 2026-05-08' },
     });
     await waitFor(() => {
       const name = screen.getByLabelText('Name') as HTMLInputElement;

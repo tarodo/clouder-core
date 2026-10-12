@@ -2,7 +2,7 @@ import { Alert, Group, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCoverage } from '../hooks/useCoverage';
-import { weekOfDate } from '../lib/saturdayWeek';
+import { weekOfDate } from '../../../lib/saturdayWeek';
 import { CoverageMatrix } from '../components/CoverageMatrix';
 import { CellDetailDrawer } from '../components/CellDetailDrawer';
 import { YearNavigator } from '../components/YearNavigator';

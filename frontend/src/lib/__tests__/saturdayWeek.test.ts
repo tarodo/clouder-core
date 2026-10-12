@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   firstSaturday,
+  isoDay,
   saturdayWeekRange,
+  shiftWeek,
   weekOfDate,
   weeksInYear,
-} from './saturdayWeek';
+} from '../saturdayWeek';
 
 describe('saturdayWeek', () => {
   it('firstSaturday(2026) = 2026-01-03', () => {
@@ -43,5 +45,21 @@ describe('saturdayWeek', () => {
   it('saturdayWeekRange throws on out-of-range', () => {
     expect(() => saturdayWeekRange(2026, 0)).toThrow();
     expect(() => saturdayWeekRange(2026, weeksInYear(2026) + 1)).toThrow();
+  });
+
+  it('shiftWeek moves within a year', () => {
+    expect(shiftWeek([2026, 41], 1)).toEqual([2026, 42]);
+    expect(shiftWeek([2026, 41], -1)).toEqual([2026, 40]);
+  });
+
+  it('shiftWeek crosses year boundaries both ways', () => {
+    expect(shiftWeek([2026, 52], 1)).toEqual([2027, 1]);
+    expect(shiftWeek([2027, 1], -1)).toEqual([2026, 52]);
+    expect(shiftWeek([2028, 53], 1)).toEqual([2029, 1]);
+    expect(shiftWeek([2029, 1], -1)).toEqual([2028, 53]);
+  });
+
+  it('isoDay formats a UTC date as YYYY-MM-DD', () => {
+    expect(isoDay(saturdayWeekRange(2026, 41)[0])).toBe('2026-10-10');
   });
 });

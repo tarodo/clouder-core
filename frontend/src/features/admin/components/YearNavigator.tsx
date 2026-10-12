@@ -1,5 +1,5 @@
 import { ActionIcon, Group, Select, Text } from '@mantine/core';
-import { weeksInYear } from '../lib/saturdayWeek';
+import { weeksInYear } from '../../../lib/saturdayWeek';
 
 interface Props {
   year: number;
