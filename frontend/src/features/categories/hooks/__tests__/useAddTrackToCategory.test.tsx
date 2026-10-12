@@ -34,6 +34,30 @@ describe('useAddTrackToCategory', () => {
     expect(receivedBody).toEqual({ track_id: 't1' });
   });
 
+  it('restore sends the removed row\'s added_at and triage block back', async () => {
+    let receivedBody: unknown = null;
+    server.use(
+      http.post('http://localhost/categories/c1/tracks', async ({ request }) => {
+        receivedBody = await request.json();
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const { result } = renderHook(() => useAddTrackToCategory(), { wrapper: wrap(qc) });
+    await act(async () => {
+      await result.current.mutateAsync({
+        categoryId: 'c1',
+        trackId: 't1',
+        restore: { added_at: '2026-10-02 10:15:00.5', source_triage_block_id: 'blk-1' },
+      });
+    });
+    expect(receivedBody).toEqual({
+      track_id: 't1',
+      added_at: '2026-10-02 10:15:00.5',
+      source_triage_block_id: 'blk-1',
+    });
+  });
+
   it('invalidates ["categories", "tracks", categoryId] after success', async () => {
     server.use(
       http.post('http://localhost/categories/c1/tracks', () => HttpResponse.json({ ok: true })),

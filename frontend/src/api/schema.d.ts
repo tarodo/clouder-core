@@ -3381,7 +3381,7 @@ export interface paths {
         put?: never;
         /**
          * Add a track to a category. Idempotent on (category_id, track_id).
-         * @description 201 with result='added' if newly inserted; 200 with result='already_present' if the (category, track) pair already exists. First-write-wins on added_at + source.
+         * @description 201 with result='added' if newly inserted; 200 with result='already_present' if the (category, track) pair already exists. First-write-wins on added_at + source. Undo of a removal passes the removed row's added_at (clamped to now) and source_triage_block_id (must be the caller's block) to put it back in place.
          */
         post: {
             parameters: {
@@ -3402,6 +3402,13 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         track_id: string;
+                        /** @description Restore only: the removed row's added_at. */
+                        added_at?: string;
+                        /**
+                         * Format: uuid
+                         * @description Restore only: the removed row's triage block.
+                         */
+                        source_triage_block_id?: string;
                     };
                 };
             };
@@ -3454,7 +3461,7 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description category_not_found or track_not_found. */
+                /** @description category_not_found, track_not_found or triage_block_not_found. */
                 404: {
                     headers: {
                         [name: string]: unknown;

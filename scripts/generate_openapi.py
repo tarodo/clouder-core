@@ -2853,7 +2853,9 @@ ROUTES: list[dict[str, Any]] = [
         "summary": "Add a track to a category. Idempotent on (category_id, track_id).",
         "description": (
             "201 with result='added' if newly inserted; 200 with result='already_present' "
-            "if the (category, track) pair already exists. First-write-wins on added_at + source."
+            "if the (category, track) pair already exists. First-write-wins on added_at + source. "
+            "Undo of a removal passes the removed row's added_at (clamped to now) and "
+            "source_triage_block_id (must be the caller's block) to put it back in place."
         ),
         "parameters": [
             {
@@ -2870,7 +2872,18 @@ ROUTES: list[dict[str, Any]] = [
                     "schema": {
                         "type": "object",
                         "required": ["track_id"],
-                        "properties": {"track_id": {"type": "string", "format": "uuid"}},
+                        "properties": {
+                            "track_id": {"type": "string", "format": "uuid"},
+                            "added_at": {
+                                "type": "string",
+                                "description": "Restore only: the removed row's added_at.",
+                            },
+                            "source_triage_block_id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "description": "Restore only: the removed row's triage block.",
+                            },
+                        },
                         "additionalProperties": False,
                     }
                 }
@@ -2882,7 +2895,7 @@ ROUTES: list[dict[str, Any]] = [
             "200": _make_response(
                 200, "Track already in category (no change).", ADD_TRACK_RESPONSE
             ),
-            "404": _error(404, "category_not_found or track_not_found."),
+            "404": _error(404, "category_not_found, track_not_found or triage_block_not_found."),
             "422": _error(422, "validation_error."),
             **COMMON_AUTH_ERRORS,
         },

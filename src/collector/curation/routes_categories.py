@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC
 from typing import Any
 
 from ..artist_enrichment.auto_dispatch import (
@@ -280,12 +281,23 @@ def _handle_add_track(event, repo, user_id, correlation_id):
     if not cid:
         raise ValidationError("id is required in path")
     body = AddTrackIn.model_validate(_parse_body(event))
+    now = utc_now()
+    added_at = now
+    if body.added_at is not None:
+        # Undo restores the old position; the list hands added_at back in UTC
+        # without a zone. Never in the future.
+        restored = body.added_at if body.added_at.tzinfo else body.added_at.replace(tzinfo=UTC)
+        added_at = min(restored, now)
+    if body.source_triage_block_id and not repo.owns_triage_block(
+        user_id=user_id, block_id=body.source_triage_block_id
+    ):
+        raise NotFoundError("triage_block_not_found", "Triage block not found")
     result, was_new = repo.add_track(
         user_id=user_id,
         category_id=cid,
         track_id=body.track_id,
-        source_triage_block_id=None,
-        now=utc_now(),
+        source_triage_block_id=body.source_triage_block_id,
+        now=added_at,
     )
     log_event(
         "INFO",

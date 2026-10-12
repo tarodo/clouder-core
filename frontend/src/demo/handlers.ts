@@ -170,7 +170,11 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
       method: 'post',
       path: '/categories/:id/tracks',
       status: 201,
-      resolve: ({ param, body }) => db.addToCategory(param('id'), body.track_id),
+      resolve: ({ param, body }) =>
+        db.addToCategory(param('id'), body.track_id, {
+          added_at: body.added_at,
+          source_triage_block_id: body.source_triage_block_id,
+        }),
     },
     {
       method: 'delete',

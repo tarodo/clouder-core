@@ -540,6 +540,13 @@ class CategoriesRepository:
         rows = self._data_api.execute(sql, insert_params, transaction_id=transaction_id)
         return len(rows)
 
+    def owns_triage_block(self, *, user_id: str, block_id: str) -> bool:
+        rows = self._data_api.execute(
+            "SELECT 1 FROM triage_blocks WHERE id = :block_id AND user_id = :user_id",
+            {"block_id": block_id, "user_id": user_id},
+        )
+        return bool(rows)
+
     def add_track(
         self,
         *,

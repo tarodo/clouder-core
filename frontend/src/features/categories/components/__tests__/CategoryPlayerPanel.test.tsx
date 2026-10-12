@@ -124,6 +124,15 @@ function ui(items: CategoryTrack[] = []) {
   );
 }
 
+const placedTrack: CategoryTrack = {
+  id: 't1', title: 'X', mix_name: null, artists: [{ id: 'a1', name: 'A' }],
+  label: null, bpm: null, length_ms: 200000,
+  publish_date: null, spotify_release_date: null, isrc: null,
+  spotify_id: 'sp1', release_type: null, is_ai_suspected: false,
+  used_in_playlist: false, added_at: '2026-10-02 10:15:00.5',
+  source_triage_block_id: 'blk-1', tags: [],
+};
+
 beforeEach(() => {
   undoStack.clear();
   categoryMut.remove.mockClear();
@@ -161,7 +170,7 @@ describe('CategoryPlayerPanel', () => {
   });
 
   it('Z removes the current track from the category and moves on; U puts it back', async () => {
-    render(ui());
+    render(ui([{ ...placedTrack }]));
     await userEvent.keyboard('z');
     await waitFor(() =>
       expect(categoryMut.remove).toHaveBeenCalledWith({ categoryId: 'c1', trackId: 't1' }),
@@ -171,7 +180,11 @@ describe('CategoryPlayerPanel', () => {
 
     await userEvent.keyboard('u');
     await waitFor(() =>
-      expect(categoryMut.add).toHaveBeenCalledWith({ categoryId: 'c1', trackId: 't1' }),
+      expect(categoryMut.add).toHaveBeenCalledWith({
+        categoryId: 'c1',
+        trackId: 't1',
+        restore: { added_at: '2026-10-02 10:15:00.5', source_triage_block_id: 'blk-1' },
+      }),
     );
   });
 
