@@ -24,6 +24,7 @@ export function useDeleteTag(): UseMutationResult<void, Error, DeleteTagInput> {
       qc.invalidateQueries({ queryKey: tagsKey() });
       // Server cascades the FK; drop pills from any cached track list.
       qc.invalidateQueries({ queryKey: ['categories', 'tracks'] });
+      qc.invalidateQueries({ queryKey: ['tracks', 'tags'] }); // Curate's per-track sets
     },
   });
 }

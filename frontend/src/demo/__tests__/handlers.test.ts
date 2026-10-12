@@ -62,6 +62,24 @@ describe('demo handlers', () => {
     expect(artist.artist_name).toBe(artists.items[0].name);
   });
 
+  it('serves track tags in the production shape', async () => {
+    const styles = await (await get('/styles?limit=200&offset=0')).json();
+    const blocks = await (
+      await get(`/styles/${styles.items[0].id}/triage/blocks?limit=50&offset=0`)
+    ).json();
+    const block = await (await get(`/triage/blocks/${blocks.items[0].id}`)).json();
+    const fresh = block.buckets.find((b: { bucket_type: string }) => b.bucket_type === 'NEW');
+    const tracks = await (
+      await get(`/triage/blocks/${block.id}/buckets/${fresh.id}/tracks?limit=50&offset=0`)
+    ).json();
+    const trackId = tracks.items[0].track_id;
+    const tag = await (await send('POST', '/tags', { name: 'demo-shape', color: null })).json();
+    const added = await (await send('POST', `/tracks/${trackId}/tags`, { tag_id: tag.id })).json();
+    expect(added.tags.map((t: { id: string }) => t.id)).toContain(tag.id);
+    const listed = await (await get(`/tracks/${trackId}/tags`)).json();
+    expect(listed.tags.map((t: { id: string }) => t.id)).toContain(tag.id);
+  });
+
   it('answers unknown reads with 404 and unknown writes with 403', async () => {
     const read = await get('/admin/labels/backlog?limit=100');
     expect(read.status).toBe(404);

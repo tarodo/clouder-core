@@ -102,4 +102,13 @@ describe('HotkeyOverlay', () => {
     expect(within(dialog).getByText('Toggle Force mode')).toBeInTheDocument();
     expect(within(dialog).getByText('L')).toBeInTheDocument();
   });
+
+  it('renders the H hotkey row for the fire mark', async () => {
+    render(
+      wrap(<HotkeyOverlay opened={true} onClose={() => {}} hasOverflow={false} />),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Mark track as 🔥 (toggle)')).toBeInTheDocument();
+    expect(within(dialog).getByText('H')).toBeInTheDocument();
+  });
 });

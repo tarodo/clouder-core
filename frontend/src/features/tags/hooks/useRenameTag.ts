@@ -18,6 +18,8 @@ export function useRenameTag(): UseMutationResult<Tag, Error, RenameTagArgs> {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: tagsKey() });
+      // Curate finds the fire mark by name; cached per-track sets carry the old one.
+      qc.invalidateQueries({ queryKey: ['tracks', 'tags'] });
     },
   });
 }

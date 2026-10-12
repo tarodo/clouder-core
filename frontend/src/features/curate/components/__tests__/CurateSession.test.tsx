@@ -1,6 +1,6 @@
 // frontend/src/features/curate/components/__tests__/CurateSession.test.tsx
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -162,6 +162,37 @@ describe('CurateSession with PlayerCard', () => {
     expect(document.querySelector('[data-state="idle"]')).toBeInTheDocument();
     // Sanity: the curate-session container is mounted.
     expect(screen.getByTestId('curate-session')).toBeInTheDocument();
+  });
+
+  it('fire toggle tags the current track and reflects it', async () => {
+    const added: unknown[] = [];
+    let own: { id: string; name: string; color: string }[] = [];
+    const fire = { id: 'fire', name: '🔥', color: '#f97316' };
+    server.use(
+      http.get('http://localhost/tags', () =>
+        HttpResponse.json({
+          items: [{ ...fire, created_at: 'x', updated_at: 'y' }],
+          total: 1,
+          limit: 200,
+          offset: 0,
+        }),
+      ),
+      http.get('http://localhost/tracks/t1/tags', () => HttpResponse.json({ tags: own })),
+      http.post('http://localhost/tracks/t1/tags', async ({ request }) => {
+        added.push(await request.json());
+        own = [fire];
+        return HttpResponse.json({ tags: own }, { status: 201 });
+      }),
+    );
+    renderSession();
+    const btn = await screen.findByRole('button', { name: /fire/i });
+    expect(btn).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => expect(btn).toBeEnabled());
+
+    await userEvent.click(btn);
+
+    await waitFor(() => expect(added).toEqual([{ tag_id: 'fire' }]));
+    await waitFor(() => expect(btn).toHaveAttribute('aria-pressed', 'true'));
   });
 
   it('PlayerCard center button calls playback.controls.togglePlayPause', async () => {

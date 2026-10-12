@@ -725,7 +725,9 @@
       "label_label": "Label",
       "bpm_label": "BPM",
       "length_label": "Length",
-      "no_spotify_id": "No Spotify match"
+      "no_spotify_id": "No Spotify match",
+      "fire": "Fire",
+      "fire_title": "Mark as 🔥 — shows as a tag in categories (H)"
     },
     "destination": {
       "group_staging": "Staging",
@@ -760,6 +762,7 @@
       "key_k_label": "Skip without assigning",
       "key_u_label": "Undo last assignment",
       "key_l_label": "Toggle Force mode",
+      "key_h_label": "Mark track as 🔥 (toggle)",
       "key_help_label": "Show / hide this overlay",
       "key_esc_label": "Close overlay or exit Curate",
       "key_enter_label": "Accept suggested next bucket",
