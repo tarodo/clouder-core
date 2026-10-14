@@ -70,6 +70,20 @@ def test_no_songs_falls_back_to_videos_and_reviews() -> None:
     assert res.outcome == "review" and res.review[0][0].vendor_track_id == "v9"
 
 
+def test_first_pass_candidates_survive_empty_retries() -> None:
+    client = FakeClient(
+        {None: [song("x", title="Lost Track (Club Mix)")], "songs": [], "videos": []}
+    )
+    res, _ = run(client)
+    assert res.outcome == "review" and res.review[0][0].vendor_track_id == "x"
+
+
+def test_empty_title_and_artist_do_not_crash() -> None:
+    q = TrackQuery(artists="", title="", duration_ms=None, album=None, need_song=True)
+    res, _ = run(FakeClient({None: [video("v1")]}), q)
+    assert res.outcome == "no_match" and res.video is None
+
+
 def test_nothing_anywhere_is_no_match() -> None:
     res, _ = run(FakeClient({}))
     assert res.outcome == "no_match" and res.video is None and res.best_score is None

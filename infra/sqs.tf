@@ -50,9 +50,11 @@ resource "aws_sqs_queue" "youtube_search" {
   visibility_timeout_seconds = 960
   message_retention_seconds  = var.spotify_search_queue_retention_seconds
 
+  # Reserved concurrency 1 under an SQS trigger throttles extra polls, and each
+  # throttle counts as a receive (AWS advises >= 5) — keep resumes out of the DLQ.
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.youtube_search_dlq.arn
-    maxReceiveCount     = 3
+    maxReceiveCount     = 10
   })
 }
 

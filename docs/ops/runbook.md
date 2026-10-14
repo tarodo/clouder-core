@@ -318,6 +318,15 @@ aws sqs send-message \
 
 **Ban.** On HTTP 429/403 or a "not a bot" gate the worker logs `youtube_search_paused reason=banned`, writes `vendor_rate_limits` (`vendor = 'ytmusic'`) for `youtube_search_ban_seconds` and resumes by itself. If bans repeat, raise `youtube_search_min_interval_ms` (Terraform variable; 2000 = 0.5 req/s).
 
+**Stop it** (claimed tracks stay safe: a stopped worker hands nothing out; queued messages wait):
+
+```bash
+aws lambda put-function-concurrency --function-name clouder-prod-youtube-search-worker \
+  --reserved-concurrent-executions 0   # the next terraform apply restores 1
+```
+
+**Errors in a row.** Five failed searches in a row (an HTML block page, timeouts) pause the sweep like a ban: `youtube_search_paused reason=error_streak`. Isolated failures are logged as `outcome=error` and marked searched.
+
 **Watch it** (Logs Insights on `/aws/lambda/clouder-prod-youtube-search-worker`):
 
 ```

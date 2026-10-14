@@ -9,6 +9,7 @@ at a time (reserved concurrency 1): the pace is the whole request rate.
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 import time
@@ -36,12 +37,30 @@ VENDOR_SONG = "ytmusic"
 VENDOR_VIDEO = "youtube"
 _MAX_SQS_DELAY_SECONDS = 900
 _DEADLINE_MARGIN_MS = 60_000
+# Per request; worst case per track 3 x (2 s pace + 10 s) stays inside the margin.
+_REQUEST_TIMEOUT_S = 10
+# Search errors in a row before the sweep treats them as a block it cannot
+# recognise (ytmusicapi parses JSON before the status: an HTML 429 page is a
+# JSONDecodeError, a throttled socket a ReadTimeout).
+_ERROR_STREAK = 5
+
+
+class _ErrorStreak(Exception):
+    """Too many failed searches in a row: pause like a ban."""
+
+
+def _session() -> Any:
+    import requests
+
+    session = requests.Session()
+    session.request = functools.partial(session.request, timeout=_REQUEST_TIMEOUT_S)  # type: ignore[method-assign]
+    return session
 
 
 def _default_client() -> Any:
     from ytmusicapi import YTMusic  # lazy: cold start pays only when a batch runs
 
-    return YTMusic()
+    return YTMusic(requests_session=_session())
 
 
 def _default_sqs() -> Any:
@@ -177,18 +196,34 @@ def _sweep(
         batch_id=batch_id,
         track_count=len(tracks),
     )
-    client = client_factory()
     pace = Pacer(settings.min_interval_ms / 1000, sleep=sleep)
     tally: Counter[str] = Counter()
+    # Failed searches stay claimed until a later success shows YouTube still
+    # answers (then they are marked searched); a streak releases them instead.
+    unconfirmed: list[str] = []
     try:
+        client = client_factory()
+        cut_by_deadline = False
         for track in tracks:
             if remaining_ms is not None and remaining_ms() < _DEADLINE_MARGIN_MS:
-                repository.release_youtube_search_claim(claimed_at=claimed_at)
+                cut_by_deadline = True
                 break
-            _search_one(repository, client, pace, track, settings, correlation_id, tally)
+            if _search_one(repository, client, pace, track, settings, correlation_id, tally):
+                for track_id in unconfirmed:
+                    repository.mark_youtube_searched(track_id=track_id, at=utc_now())
+                unconfirmed.clear()
+                continue
+            unconfirmed.append(str(track["id"]))
+            if len(unconfirmed) >= _ERROR_STREAK:
+                raise _ErrorStreak(f"{len(unconfirmed)} searches failed in a row")
+        if cut_by_deadline:
+            repository.release_youtube_search_claim(claimed_at=claimed_at)
+        else:
+            for track_id in unconfirmed:  # isolated failures at the batch end
+                repository.mark_youtube_searched(track_id=track_id, at=utc_now())
     except Exception as exc:
         repository.release_youtube_search_claim(claimed_at=claimed_at)
-        if not is_ban(exc):
+        if not (is_ban(exc) or isinstance(exc, _ErrorStreak)):
             raise
         until = utc_now() + timedelta(seconds=settings.ban_seconds)
         repository.set_vendor_blocked_until(VENDOR_SONG, until, utc_now())
@@ -198,7 +233,7 @@ def _sweep(
             correlation_id=correlation_id,
             batch_id=batch_id,
             retry_after=settings.ban_seconds,
-            reason="banned",
+            reason="error_streak" if isinstance(exc, _ErrorStreak) else "banned",
             error_message=str(exc)[:300],
         )
         _send(
@@ -224,7 +259,9 @@ def _search_one(
     settings: YoutubeSearchWorkerSettings,
     correlation_id: str,
     tally: Counter[str],
-) -> None:
+) -> bool:
+    """Search and store one track. False = the search itself failed (the caller
+    decides whether that was an isolated failure or a block); bans raise."""
     track_id = str(track["id"])
     length = track.get("length_ms")
     query = TrackQuery(
@@ -249,9 +286,25 @@ def _search_one(
             error_type=exc.__class__.__name__,
             error_message=str(exc)[:300],
         )
+        return False
+    try:
+        _persist(repository, track_id, result, utc_now())
+    except Exception as exc:
+        # Bad result data (e.g. a NUL byte jsonb rejects) must not stall the
+        # sweep on this track; a real outage fails the mark below and propagates.
+        tally["errors"] += 1
+        log_event(
+            "WARNING",
+            "youtube_search_result",
+            correlation_id=correlation_id,
+            track_id=track_id,
+            outcome="error",
+            phase="persist",
+            error_type=exc.__class__.__name__,
+            error_message=str(exc)[:300],
+        )
         repository.mark_youtube_searched(track_id=track_id, at=utc_now())
-        return
-    _persist(repository, track_id, result, utc_now())
+        return True
     repository.mark_youtube_searched(track_id=track_id, at=utc_now())
     tally[result.outcome] += 1
     tally["total_tracks"] += 1
@@ -267,6 +320,7 @@ def _search_one(
         request_count=result.request_count,
         video_found=result.video is not None,
     )
+    return True
 
 
 def _persist(

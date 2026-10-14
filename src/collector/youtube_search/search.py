@@ -115,13 +115,17 @@ def search_track(
     if not q.need_song:
         return res
 
-    scored = _scored(_refs(first, "song"), q)
+    first_songs = _scored(_refs(first, "song"), q)
+    scored = first_songs
     if not (scored and scored[0][1].total >= threshold):
         query = build_query(q.artists, q.title)
         refs = _refs(call(query, "songs"), None)
         if not refs:  # today's vendor-match fallback
             refs = _refs(call(query, "videos"), None)
-        scored = _scored(refs, q)
+        # Keep the first answer's songs as candidates too, so empty retries
+        # never turn a reviewable track into a permanent no_match.
+        seen = {r.vendor_track_id for r in refs}
+        scored = _scored(refs + [r for r, _ in first_songs if r.vendor_track_id not in seen], q)
 
     if scored and scored[0][1].total >= threshold:
         res.match = scored[0]

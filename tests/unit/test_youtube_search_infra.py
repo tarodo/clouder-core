@@ -40,3 +40,10 @@ def test_canonicalization_can_start_the_sweep() -> None:
 
 def test_dlq_is_alarmed() -> None:
     assert "youtube_search_dlq.name" in TF
+
+
+def test_throttled_messages_are_not_dead_lettered_early() -> None:
+    # Reserved concurrency 1 under an SQS trigger throttles extra polls; each
+    # throttle counts as a receive (AWS advises maxReceiveCount >= 5).
+    body = _block("aws_sqs_queue", "youtube_search")
+    assert int(re.search(r"maxReceiveCount\s*=\s*(\d+)", body).group(1)) >= 10

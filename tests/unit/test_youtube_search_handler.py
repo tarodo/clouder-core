@@ -158,7 +158,8 @@ def test_paused_trigger_is_dropped_and_resume_rearms(monkeypatch) -> None:
 def test_generic_error_marks_done_and_continues(monkeypatch) -> None:
     repo = Repo([track("t1"), track("t2")])
     _, _ = run(monkeypatch, repo, Client([ValueError("weird unicode"), [song("s2")]]))
-    assert repo.done == ["t1", "t2"]
+    # t1 is confirmed as an isolated failure once t2 succeeds.
+    assert sorted(repo.done) == ["t1", "t2"]
     assert ("t2", "ytmusic", "s2", "fuzzy") in repo.matches
 
 
@@ -176,16 +177,72 @@ def test_deadline_hands_tracks_back_and_follows_up(monkeypatch) -> None:
     assert json.loads(sqs.sent[0]["MessageBody"]) == {"batch_size": 100}
 
 
-def test_db_failure_releases_and_reraises(monkeypatch) -> None:
+def test_db_outage_releases_and_reraises(monkeypatch) -> None:
     repo = Repo([track("t1")])
 
-    def boom(cmd):
+    def boom(*a, **k):
         raise RuntimeError("data api down")
 
     repo.upsert_vendor_match = boom
+    repo.mark_youtube_searched = boom
     with pytest.raises(RuntimeError):
         run(monkeypatch, repo, Client([[song("s1")]]))
     assert repo.released == [repo.claimed_at]
+
+
+def test_bad_result_data_is_skipped_per_track(monkeypatch) -> None:
+    repo = Repo([track("t1"), track("t2")])
+    real = repo.upsert_vendor_match
+
+    def picky(cmd):
+        if cmd.clouder_track_id == "t1":
+            raise ValueError("unsupported Unicode escape sequence")
+        real(cmd)
+
+    repo.upsert_vendor_match = picky
+    run(monkeypatch, repo, Client([[song("s1")], [song("s2")]]))
+    assert repo.done == ["t1", "t2"]
+    assert ("t2", "ytmusic", "s2", "fuzzy") in repo.matches
+
+
+def test_an_unrecognised_block_pauses_like_a_ban(monkeypatch) -> None:
+    # ytmusicapi parses JSON before checking the status: an HTML 429 page
+    # surfaces as JSONDecodeError, not as a YTMusicServerError.
+    import json as _json
+
+    blocked = _json.JSONDecodeError("Expecting value", "<html>", 0)
+    repo = Repo([track(f"t{i}") for i in range(8)], more=True)
+    _, sqs = run(monkeypatch, repo, Client([blocked] * 8))
+    assert repo.done == []
+    assert repo.released == [repo.claimed_at]
+    assert repo.blocks and repo.blocks[0][0] == "ytmusic"
+    assert json.loads(sqs.sent[0]["MessageBody"]) == {"batch_size": 100, "resume": True}
+
+
+def test_trailing_errors_at_batch_end_are_accepted(monkeypatch) -> None:
+    repo = Repo([track("t1"), track("t2")])
+    run(monkeypatch, repo, Client([[song("s1")], ValueError("odd")]))
+    assert repo.done == ["t1", "t2"] and repo.released == []
+
+
+def test_client_failure_after_claim_hands_the_batch_back(monkeypatch) -> None:
+    repo = Repo([track("t1")])
+    sqs = Sqs()
+    monkeypatch.setattr(h, "create_clouder_repository_from_env", lambda: repo)
+    monkeypatch.setattr(h, "get_youtube_search_worker_settings", lambda: SETTINGS)
+
+    def no_client():
+        raise RuntimeError("cannot build client")
+
+    event = {"Records": [{"body": json.dumps({"batch_size": 100})}]}
+    with pytest.raises(RuntimeError):
+        h.lambda_handler(event, None, client_factory=no_client, sqs_factory=lambda: sqs)
+    assert repo.released == [repo.claimed_at]
+
+
+def test_requests_time_out_well_inside_the_deadline_margin() -> None:
+    session = h._session()
+    assert session.request.keywords["timeout"] <= 15
 
 
 def test_invalid_message_is_skipped(monkeypatch) -> None:
