@@ -117,6 +117,14 @@ class SpotifySearchMessage(BaseModel):
     resume: bool = Field(default=False)
 
 
+class YoutubeSearchMessage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    batch_size: StrictInt = Field(default=100, ge=1, le=500)
+    # The one delayed message that carries the sweep over a YouTube ban.
+    resume: bool = Field(default=False)
+
+
 class AdminIngestRequestIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

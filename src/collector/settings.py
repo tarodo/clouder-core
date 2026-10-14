@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import json
 import os
+from datetime import UTC, datetime
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -188,6 +189,19 @@ class VendorMatchSettings(_SettingsBase):
     )
 
 
+class YoutubeSearchWorkerSettings(_SettingsBase):
+    youtube_search_queue_url: str = Field(default="", alias="YOUTUBE_SEARCH_QUEUE_URL")
+    # Tracks created before this are searched only if a user works with them.
+    since: datetime = Field(
+        default=datetime(2026, 10, 15, tzinfo=UTC), alias="YOUTUBE_SEARCH_SINCE"
+    )
+    min_interval_ms: int = Field(default=2000, alias="YOUTUBE_SEARCH_MIN_INTERVAL_MS", ge=0)
+    ban_seconds: int = Field(default=3600, alias="YOUTUBE_SEARCH_BAN_SECONDS", ge=60)
+    fuzzy_match_threshold: float = Field(
+        default=0.92, alias="FUZZY_MATCH_THRESHOLD", ge=0.0, le=1.0
+    )
+
+
 class LabelEnrichmentWorkerSettings(_SettingsBase):
     gemini_api_key: str = Field(default="")
     openai_api_key: str = Field(default="")
@@ -305,6 +319,11 @@ def get_vendor_match_settings() -> VendorMatchSettings:
 
 
 @functools.lru_cache
+def get_youtube_search_worker_settings() -> YoutubeSearchWorkerSettings:
+    return YoutubeSearchWorkerSettings()
+
+
+@functools.lru_cache
 def get_spotify_worker_settings() -> SpotifyWorkerSettings:
     client_id, client_secret = _resolve_spotify_credentials()
     return SpotifyWorkerSettings(
@@ -320,6 +339,7 @@ def reset_settings_cache() -> None:
     get_data_api_settings.cache_clear()
     get_logging_settings.cache_clear()
     get_spotify_worker_settings.cache_clear()
+    get_youtube_search_worker_settings.cache_clear()
     get_vendor_match_settings.cache_clear()
     get_label_enrichment_worker_settings.cache_clear()
     get_artist_enrichment_worker_settings.cache_clear()
