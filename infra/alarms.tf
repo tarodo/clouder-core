@@ -14,6 +14,7 @@ locals {
   worker_lambdas = {
     canonicalization = aws_lambda_function.canonicalization_worker.function_name
     spotify_search   = aws_lambda_function.spotify_search_worker.function_name
+    youtube_search   = aws_lambda_function.youtube_search_worker.function_name
     vendor_match     = aws_lambda_function.vendor_match_worker.function_name
     label_enricher   = aws_lambda_function.label_enricher_worker.function_name
     data_quality     = aws_lambda_function.data_quality.function_name

@@ -261,6 +261,35 @@ variable "spotify_search_queue_retention_seconds" {
   default     = 1209600
 }
 
+variable "youtube_search_max_concurrency" {
+  description = "SQS trigger cap for the YouTube search worker (AWS minimum 2); reserved concurrency 1 keeps it to one worker."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.youtube_search_max_concurrency >= 2 && var.youtube_search_max_concurrency <= 1000
+    error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
+  }
+}
+
+variable "youtube_search_min_interval_ms" {
+  description = "Pause between ytmusicapi requests of the one YouTube search worker (2000 = 0.5 req/s)."
+  type        = number
+  default     = 2000
+}
+
+variable "youtube_search_ban_seconds" {
+  description = "How long the YouTube search waits after a 429/403/bot gate."
+  type        = number
+  default     = 3600
+}
+
+variable "youtube_search_since" {
+  description = "Tracks created before this are searched on YouTube only when a user works with them."
+  type        = string
+  default     = "2026-10-15T00:00:00Z"
+}
+
 variable "alarm_sns_topic_arn" {
   description = "Existing SNS topic ARN for every alarm. Empty = the topic created for alarm_email, if set."
   type        = string

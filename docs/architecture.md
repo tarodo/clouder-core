@@ -25,6 +25,7 @@ flowchart LR
 
     subgraph Enrich["Enrichment (SQS + DLQ per worker)"]
         SPW["spotify-search-worker"]
+        YTW["youtube-search-worker"]
         VMW["vendor-match-worker"]
         LEN["label / artist enricher workers"]
         DSP["auto-enrich-dispatch-worker"]
@@ -94,6 +95,7 @@ All functions share one Python package (`src/collector/`); each has its own entr
 | `auto-ingest` | `collector.auto_ingest_handler` | EventBridge Scheduler | Plans daily runs; logs in to Beatport and ingests due and backfill weeks |
 | `canonicalization-worker` | `collector.worker_handler` | SQS | Contract screening, normalization, canonical upserts |
 | `spotify-search-worker` | `collector.spotify_handler` | SQS | ISRC lookup + metadata fallback against Spotify |
+| `youtube-search-worker` | `collector.youtube_search_handler` | SQS | One paced YouTube search per new track after ingest: YT Music match/review and the comments video |
 | `vendor-match-worker` | `collector.vendor_match_handler` | SQS | YouTube Music matching with fuzzy scoring and a review queue |
 | `label-enricher-worker` | `collector.label_enrichment_handler` | SQS | Multi-vendor LLM research on labels |
 | `artist-enricher-worker` | `collector.artist_enrichment_handler` | SQS | Multi-vendor LLM research on artists |

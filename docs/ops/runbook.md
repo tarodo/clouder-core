@@ -302,6 +302,39 @@ Nothing: the resume message starts the search when the ban ends. If bans repeat,
 
 ---
 
+## YouTube search (start, pause, pace)
+
+**What runs**
+
+`clouder-prod-youtube-search-worker` (one worker, reserved concurrency 1) searches tracks on YouTube Music after every canonicalization: new tracks since `youtube_search_since` plus tracks in categories or open triage blocks. Per track it logs `youtube_search_result` (`outcome`: `auto` / `review` / `no_match` / `video_only` / `error`, `request_count`, `video_found`), per batch `youtube_search_completed`.
+
+**Start it by hand** (e.g. after a deploy, for the backlog of needed old tracks):
+
+```bash
+aws sqs send-message \
+  --queue-url "$(aws sqs get-queue-url --queue-name clouder-prod-youtube-search --query QueueUrl --output text)" \
+  --message-body '{"batch_size":100}'
+```
+
+**Ban.** On HTTP 429/403 or a "not a bot" gate the worker logs `youtube_search_paused reason=banned`, writes `vendor_rate_limits` (`vendor = 'ytmusic'`) for `youtube_search_ban_seconds` and resumes by itself. If bans repeat, raise `youtube_search_min_interval_ms` (Terraform variable; 2000 = 0.5 req/s).
+
+**Stop it** (claimed tracks stay safe: a stopped worker hands nothing out; queued messages wait):
+
+```bash
+aws lambda put-function-concurrency --function-name clouder-prod-youtube-search-worker \
+  --reserved-concurrent-executions 0   # the next terraform apply restores 1
+```
+
+**Errors in a row.** Five failed searches in a row (an HTML block page, timeouts) pause the sweep like a ban: `youtube_search_paused reason=error_streak`. Isolated failures are logged as `outcome=error` and marked searched.
+
+**Watch it** (Logs Insights on `/aws/lambda/clouder-prod-youtube-search-worker`):
+
+```
+filter message = "youtube_search_result" | stats count(*) by outcome
+```
+
+---
+
 ## Telemetry delivery stalled
 
 **Symptom**

@@ -45,7 +45,7 @@ def test_accept_ytmusic_dispatches(monkeypatch):
     )
     monkeypatch.setattr("collector.curation.routes_playlists._scope_check", lambda *a, **k: None)
     ch._handle_resolve_match(_event("accept"), FakeRepo(), "u1", "corr")
-    assert calls == [{"track_id": "t1", "video_id": "dQw4w9WgXcQ", "platform": "youtube"}]
+    assert calls == [{"track_id": "t1", "platform": "youtube"}]
 
 
 def test_reject_does_not_dispatch(monkeypatch):

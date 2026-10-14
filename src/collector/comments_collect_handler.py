@@ -42,11 +42,14 @@ def _resolve_and_collect(
     real alternate even when it had no comments).
 
     When primary_video_id is empty (decoupled dispatch from triage finalize), the
-    primary is resolved first from track metadata via the same YT-Music search used
-    for the disabled-comments fallback. If nothing is resolvable, status is
+    video found at ingest by the YouTube search worker is used; without one, the
+    primary is resolved from track metadata via the same YT-Music search used for
+    the disabled-comments fallback. If nothing is resolvable, status is
     "disabled" (no commentable video reached).
 
     Raises are left to the caller (generic/platform errors -> 'failed')."""
+    if not primary_video_id and meta is not None and meta.youtube_video_id:
+        primary_video_id = meta.youtube_video_id  # found at ingest: no second search
     if not primary_video_id:
         if meta is None:
             return ("disabled", [], "")

@@ -55,6 +55,7 @@ resource "aws_lambda_function" "canonicalization_worker" {
       RAW_BUCKET_NAME          = aws_s3_bucket.raw.bucket
       RAW_PREFIX               = var.raw_prefix
       SPOTIFY_SEARCH_QUEUE_URL = aws_sqs_queue.spotify_search.url
+      YOUTUBE_SEARCH_QUEUE_URL = aws_sqs_queue.youtube_search.url
       AURORA_CLUSTER_ARN       = aws_rds_cluster.aurora.arn
       AURORA_SECRET_ARN        = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
       AURORA_DATABASE          = var.aurora_database_name
@@ -159,6 +160,50 @@ resource "aws_lambda_event_source_mapping" "spotify_search_queue" {
   # the queue instead of multiplying the request rate (Spotify ban, 2026-10-10).
   scaling_config {
     maximum_concurrency = var.spotify_search_max_concurrency
+  }
+}
+
+# ── YouTube Search worker ────────────────────────────────────────
+
+resource "aws_lambda_function" "youtube_search_worker" {
+  function_name = local.youtube_search_worker_lambda_name
+  role          = module.role_youtube_search_worker.arn
+  runtime       = "python3.12"
+  handler       = "collector.youtube_search_handler.lambda_handler"
+  filename      = local.lambda_zip_file
+  timeout       = 900
+  memory_size   = 512
+
+  # One worker at a time: the pace below is then the whole request rate to
+  # YouTube's unofficial API (no published limits; datacenter IPs get gated).
+  reserved_concurrent_executions = 1
+
+  source_code_hash = filebase64sha256(local.lambda_zip_file)
+
+  environment {
+    variables = {
+      AURORA_CLUSTER_ARN             = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN              = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE                = var.aurora_database_name
+      LOG_LEVEL                      = "INFO"
+      YOUTUBE_SEARCH_QUEUE_URL       = aws_sqs_queue.youtube_search.url
+      YOUTUBE_SEARCH_SINCE           = var.youtube_search_since
+      YOUTUBE_SEARCH_MIN_INTERVAL_MS = var.youtube_search_min_interval_ms
+      YOUTUBE_SEARCH_BAN_SECONDS     = var.youtube_search_ban_seconds
+      FUZZY_MATCH_THRESHOLD          = "0.92"
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.youtube_search_worker]
+}
+
+resource "aws_lambda_event_source_mapping" "youtube_search_queue" {
+  event_source_arn = aws_sqs_queue.youtube_search.arn
+  function_name    = aws_lambda_function.youtube_search_worker.arn
+  batch_size       = 1
+
+  scaling_config {
+    maximum_concurrency = var.youtube_search_max_concurrency
   }
 }
 
