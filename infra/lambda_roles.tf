@@ -154,6 +154,7 @@ module "role_canonicalization_worker" {
     { sid = "ListRawReleases", actions = ["s3:ListBucket"], resources = [aws_s3_bucket.raw.arn], s3_prefixes = ["${var.raw_prefix}/*"] },
     { sid = "ConsumeCanonicalization", actions = local.sqs_consume, resources = [aws_sqs_queue.canonicalization.arn] },
     { sid = "EnqueueSpotifySearch", actions = ["sqs:SendMessage"], resources = [aws_sqs_queue.spotify_search.arn] },
+    { sid = "EnqueueYoutubeSearch", actions = ["sqs:SendMessage"], resources = [aws_sqs_queue.youtube_search.arn] },
   ]
 }
 
@@ -177,6 +178,21 @@ module "role_spotify_search_worker" {
       "${local.ssm_parameter_arn}${p}"]
     },
     { sid = "SpotifyCredentialsSecret", actions = ["secretsmanager:GetSecretValue"], resources = compact([var.spotify_credentials_secret_arn]) },
+  ]
+}
+
+module "role_youtube_search_worker" {
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-youtube-search-worker-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.youtube_search_worker.arn
+  statements = [
+    local.st_data_api,
+    local.st_db_secret,
+    local.st_ssm_kms,
+    { sid = "ConsumeYoutubeSearch", actions = local.sqs_consume, resources = [aws_sqs_queue.youtube_search.arn] },
+    { sid = "RequeueYoutubeSearch", actions = ["sqs:SendMessage"], resources = [aws_sqs_queue.youtube_search.arn] },
   ]
 }
 

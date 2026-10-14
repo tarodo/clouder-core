@@ -38,6 +38,24 @@ resource "aws_sqs_queue" "spotify_search" {
   })
 }
 
+# ── YouTube Search queue ─────────────────────────────────────────
+
+resource "aws_sqs_queue" "youtube_search_dlq" {
+  name                      = local.youtube_search_dlq_name
+  message_retention_seconds = var.spotify_search_queue_retention_seconds
+}
+
+resource "aws_sqs_queue" "youtube_search" {
+  name                       = local.youtube_search_queue_name
+  visibility_timeout_seconds = 960
+  message_retention_seconds  = var.spotify_search_queue_retention_seconds
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.youtube_search_dlq.arn
+    maxReceiveCount     = 3
+  })
+}
+
 # ── Vendor Match queue ───────────────────────────────────────────
 
 resource "aws_sqs_queue" "vendor_match_dlq" {
