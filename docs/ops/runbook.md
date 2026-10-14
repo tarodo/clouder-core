@@ -325,6 +325,8 @@ aws lambda put-function-concurrency --function-name clouder-prod-youtube-search-
   --reserved-concurrent-executions 0   # the next terraform apply removes the limit again
 ```
 
+**Recursive-loop guard.** The worker chains its own follow-ups; `aws_lambda_function_recursion_config` sets `Allow` for it. Without it Lambda drops the 17th hop (`RecursiveInvocationsDropped`) and the sweep stalls with one message stuck in flight.
+
 **Errors in a row.** Five failed searches in a row (an HTML block page, timeouts) pause the sweep like a ban: `youtube_search_paused reason=error_streak`. Isolated failures are logged as `outcome=error` and marked searched.
 
 **Watch it** (Logs Insights on `/aws/lambda/clouder-prod-youtube-search-worker`):

@@ -50,3 +50,11 @@ def test_throttled_messages_are_not_dead_lettered_early() -> None:
     # throttle counts as a receive (AWS advises maxReceiveCount >= 5).
     body = _block("aws_sqs_queue", "youtube_search")
     assert int(re.search(r"maxReceiveCount\s*=\s*(\d+)", body).group(1)) >= 10
+
+
+def test_the_self_chaining_sweep_is_not_cut_as_a_recursive_loop() -> None:
+    # The worker re-queues itself for the next batch; Lambda's recursion guard
+    # drops the 17th hop by default (2026-10-14 probe stopped at 1,600 tracks).
+    body = _block("aws_lambda_function_recursion_config", "youtube_search_worker")
+    assert "aws_lambda_function.youtube_search_worker.function_name" in body
+    assert 'recursive_loop = "Allow"' in body
