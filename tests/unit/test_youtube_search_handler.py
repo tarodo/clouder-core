@@ -260,3 +260,40 @@ def test_pacer_keeps_requests_apart() -> None:
     now[0] = 0.5
     pacer()
     assert slept == [1.5]
+
+
+class _Resuming(Exception):
+    """Shape of botocore's ClientError for a paused Aurora."""
+
+    def __init__(self) -> None:
+        super().__init__("resuming")
+        self.response = {"Error": {"Code": "DatabaseResumingException"}}
+
+
+def test_waits_for_a_paused_database_before_sweeping(monkeypatch) -> None:
+    # A resume after a 1 h ban (or an SQS redelivery after 16 min) always finds
+    # Aurora auto-paused; the Data API retry budget alone gives up too early.
+    repo = Repo([track("t1")])
+    calls = {"n": 0}
+    real = repo.get_vendor_blocked_until
+
+    def waking(vendor):
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise _Resuming()
+        return real(vendor)
+
+    repo.get_vendor_blocked_until = waking
+    out, _ = run(monkeypatch, repo, Client([[song("s1")]]))
+    assert out == {"processed": 1} and repo.done == ["t1"]
+
+
+def test_other_database_errors_are_not_waited_out(monkeypatch) -> None:
+    repo = Repo([track("t1")])
+
+    def broken(vendor):
+        raise RuntimeError("access denied")
+
+    repo.get_vendor_blocked_until = broken
+    with pytest.raises(RuntimeError):
+        run(monkeypatch, repo, Client([]))

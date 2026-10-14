@@ -43,6 +43,11 @@ _REQUEST_TIMEOUT_S = 10
 # recognise (ytmusicapi parses JSON before the status: an HTML 429 page is a
 # JSONDecodeError, a throttled socket a ReadTimeout).
 _ERROR_STREAK = 5
+# Aurora (min_acu=0) auto-pauses after 5 min idle. A resume after a ban or an
+# SQS redelivery always meets a paused cluster, and waking takes longer than the
+# Data API retry budget: wait up to ~2 min more before giving the message back.
+_DB_WAKE_ATTEMPTS = 12
+_DB_WAKE_SLEEP_S = 10
 
 
 class _ErrorStreak(Exception):
@@ -153,8 +158,8 @@ def _sweep(
     sqs_factory: Callable[[], Any],
     sleep: Callable[[float], None],
 ) -> None:
+    blocked_until = _blocked_until_waking_db(repository, correlation_id, sleep)
     now = utc_now()
-    blocked_until = repository.get_vendor_blocked_until(VENDOR_SONG)
     if blocked_until is not None and blocked_until > now:
         # YouTube refused us: leave it alone. Plain triggers end here; the one
         # resume message re-arms itself until the ban is over.
@@ -249,6 +254,27 @@ def _sweep(
     _log_summary(correlation_id, batch_id, tally)
     if repository.has_tracks_needing_youtube_search(since=settings.since):
         _send(settings, sqs_factory, correlation_id, {"batch_size": message.batch_size})
+
+
+def _blocked_until_waking_db(
+    repository: ClouderRepository, correlation_id: str, sleep: Callable[[float], None]
+) -> Any:
+    """First DB call of a run, waiting out an Aurora resume."""
+    for attempt in range(1, _DB_WAKE_ATTEMPTS + 1):
+        try:
+            return repository.get_vendor_blocked_until(VENDOR_SONG)
+        except Exception as exc:
+            code = (getattr(exc, "response", None) or {}).get("Error", {}).get("Code")
+            if code != "DatabaseResumingException" or attempt == _DB_WAKE_ATTEMPTS:
+                raise
+            log_event(
+                "INFO",
+                "youtube_search_waiting_for_db",
+                correlation_id=correlation_id,
+                attempt=attempt,
+            )
+            sleep(_DB_WAKE_SLEEP_S)
+    return None  # pragma: no cover - the loop returns or raises
 
 
 def _search_one(
