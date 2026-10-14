@@ -34,7 +34,7 @@ regular video for comments. Later stages reuse them instead of searching again.
 | Threshold | Stays 0.92 (measured: 0.90 → 94.7 % precision, 27 wrong of 565; `docs/data/entity-resolution.md`). |
 | API | ytmusicapi only. YouTube Data API `search.list` is capped at 100 calls/day by default — unusable at ingest volume (~12k tracks/week, backfill days up to ~50k). |
 | Architecture | Approach A: search state on `clouder_tracks` + a dedicated sweep worker, mirroring the Spotify search (`spotify_searched_at`, claim, release, follow-up, ban resume). |
-| Concurrency | Exactly one worker (reserved concurrency 1) with a configurable minimum interval between requests. |
+| Concurrency | SQS trigger cap 2 (AWS minimum; reserved concurrency 1 is rejected under a cap of 2 — deploy 2026-10-14), each worker paced by a configurable minimum interval. Usually one chain runs; worst case twice the per-worker rate. |
 
 ## Data
 
@@ -151,11 +151,10 @@ Requests per track: 1, or 2–3 when the song is ambiguous.
 ## Infrastructure
 
 Mirrors the Spotify worker: `aws_lambda_function.youtube_search_worker`
-(timeout 900 s, memory 512 MB, `reserved_concurrent_executions = 1`
-unconditionally), log group, queue + DLQ (`maxReceiveCount = 3`, visibility ≥
-timeout), DLQ depth alarm, event source mapping with `batch_size = 1` and
-`maximum_concurrency = var.youtube_search_max_concurrency` (validated 2–1000,
-default 2; reserved concurrency keeps it to one), role under
+(timeout 900 s, memory 512 MB, no reserved concurrency), log group, queue +
+DLQ (`maxReceiveCount = 10`, visibility ≥ timeout), DLQ depth alarm, event
+source mapping with `batch_size = 1` and `maximum_concurrency =
+var.youtube_search_max_concurrency` (validated 2–1000, default 2), role under
 `clouder-role-boundary` (data API, DB secret, consume + requeue own queue).
 Canonicalization role: `sqs:SendMessage` to the new queue, env
 `YOUTUBE_SEARCH_QUEUE_URL`. Worker env: Aurora, `YOUTUBE_SEARCH_QUEUE_URL`,

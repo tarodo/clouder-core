@@ -262,7 +262,7 @@ variable "spotify_search_queue_retention_seconds" {
 }
 
 variable "youtube_search_max_concurrency" {
-  description = "SQS trigger cap for the YouTube search worker (AWS minimum 2); reserved concurrency 1 keeps it to one worker."
+  description = "Most YouTube search workers at once (AWS minimum 2). Each keeps youtube_search_min_interval_ms between its requests, so the worst case is twice that rate."
   type        = number
   default     = 2
 

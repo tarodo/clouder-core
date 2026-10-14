@@ -3,8 +3,8 @@
 A sweep shaped like the Spotify search: claim a batch on clouder_tracks
 (youtube_searched_at), search each track at a fixed pace, store the YT Music
 match / review / no_match and the comments video, hand back what a ban or the
-deadline cut off, and chain a follow-up while candidates remain. One worker
-at a time (reserved concurrency 1): the pace is the whole request rate.
+deadline cut off, and chain a follow-up while candidates remain. The SQS
+trigger allows at most 2 workers (usually one chain runs); the pace is per worker.
 """
 
 from __future__ import annotations
