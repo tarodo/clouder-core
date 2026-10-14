@@ -174,9 +174,8 @@ resource "aws_lambda_function" "youtube_search_worker" {
   timeout       = 900
   memory_size   = 512
 
-  # One worker at a time: the pace below is then the whole request rate to
-  # YouTube's unofficial API (no published limits; datacenter IPs get gated).
-  reserved_concurrent_executions = 1
+  # No reserved concurrency: AWS rejects an SQS trigger cap (minimum 2) above
+  # it. The trigger cap (2) bounds the workers; the pace below is per worker.
 
   source_code_hash = filebase64sha256(local.lambda_zip_file)
 

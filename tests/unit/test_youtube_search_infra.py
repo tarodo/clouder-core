@@ -12,10 +12,13 @@ def _block(kind: str, name: str) -> str:
     return m.group(1)
 
 
-def test_one_worker_at_a_time() -> None:
-    assert "reserved_concurrent_executions = 1" in _block(
-        "aws_lambda_function", "youtube_search_worker"
-    )
+def test_concurrency_is_bounded_by_the_trigger_alone() -> None:
+    # AWS rejects an SQS trigger whose maximum_concurrency (>= 2) exceeds the
+    # function's reserved concurrency, so the trigger cap is the only bound.
+    worker = _block("aws_lambda_function", "youtube_search_worker")
+    assert "reserved_concurrent_executions" not in worker
+    esm = _block("aws_lambda_event_source_mapping", "youtube_search_queue")
+    assert "maximum_concurrency = var.youtube_search_max_concurrency" in esm
 
 
 def test_worker_gets_its_pace_and_queue() -> None:
