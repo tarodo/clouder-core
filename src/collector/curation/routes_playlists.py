@@ -205,9 +205,9 @@ def _handle_resolve_match(event, repo, user_id, correlation_id):
             now=utc_now(),
         )
         if body.vendor == "ytmusic":
-            try_dispatch_comment_collection(
-                track_id=track_id, video_id=video_id, platform="youtube"
-            )
+            # No seed: the accepted song often has comments disabled, and a track
+            # already collected (from its ingest-time video) is skipped.
+            try_dispatch_comment_collection(track_id=track_id, platform="youtube")
     else:
         repo.resolve_review_reject(
             clouder_track_id=track_id,

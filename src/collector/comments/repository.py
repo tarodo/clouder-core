@@ -39,6 +39,8 @@ class TrackMeta:
     artist: str
     title: str
     duration_ms: int | None
+    # Regular video found at ingest by the YouTube search worker, if any.
+    youtube_video_id: str | None = None
 
 
 class CommentsRepository:
@@ -250,12 +252,15 @@ class CommentsRepository:
                 t.id AS track_id,
                 t.title,
                 t.length_ms,
+                yv.vendor_track_id AS youtube_video_id,
                 COALESCE(STRING_AGG(DISTINCT a.name, ', ' ORDER BY a.name), '') AS artist_names
             FROM clouder_tracks t
             LEFT JOIN clouder_track_artists cta ON cta.track_id = t.id
             LEFT JOIN clouder_artists       a   ON a.id = cta.artist_id
+            LEFT JOIN vendor_track_map      yv
+                ON yv.clouder_track_id = t.id AND yv.vendor = 'youtube'
             WHERE t.id IN ({placeholders})
-            GROUP BY t.id, t.title, t.length_ms
+            GROUP BY t.id, t.title, t.length_ms, yv.vendor_track_id
             """,
             params,
         )
@@ -267,6 +272,7 @@ class CommentsRepository:
                 artist=r.get("artist_names") or "",
                 title=r.get("title") or "",
                 duration_ms=int(length) if length is not None else None,
+                youtube_video_id=r.get("youtube_video_id") or None,
             )
         return out
 

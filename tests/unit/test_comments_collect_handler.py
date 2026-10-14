@@ -367,3 +367,16 @@ def test_no_seed_no_meta_marks_disabled(monkeypatch):
     _patch(monkeypatch, repo, provider)
     worker.lambda_handler(_event(_msg(video_id="")), None)
     assert repo.stored[0]["status"] == "disabled"
+
+
+def test_no_seed_uses_the_stored_video_before_searching(monkeypatch):
+    repo = _MetaRepo(TrackMeta("t1", "Artist", "Title", 1000, youtube_video_id="vidY"))
+    provider = _ResolverProvider(
+        alts=["vidX"],
+        collect_by_id={"vidY": [CollectedComment("c1", "A", None, "hi", 1, None, 0)]},
+    )
+    _patch(monkeypatch, repo, provider)
+    worker.lambda_handler(_event(_msg(video_id="")), None)
+    assert repo.stored[0]["status"] == "collected"
+    assert repo.stored[0]["external_video_id"] == "vidY"
+    assert provider.resolve_calls == []

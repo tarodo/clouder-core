@@ -117,3 +117,17 @@ def test_has_tracks_and_ytmusic_flag(pg) -> None:
     assert rows["new-2"]["has_ytmusic"] is False
     assert rows["new-1"]["artists"] == ""
     assert not repo.has_tracks_needing_youtube_search(since=SINCE)
+
+
+def test_comment_meta_carries_the_stored_video(pg) -> None:
+    from collector.comments.repository import CommentsRepository
+
+    _world(pg)
+    pg.execute(
+        "INSERT INTO vendor_track_map (clouder_track_id, vendor, vendor_track_id, match_type,"
+        " confidence, matched_at, payload) VALUES ('new-1', 'youtube', 'vidY', 'token', 1.0,"
+        " now(), '{}'::jsonb)"
+    )
+    meta = CommentsRepository(pg).fetch_track_meta(["new-1", "new-2"])
+    assert meta["new-1"].youtube_video_id == "vidY"
+    assert meta["new-2"].youtube_video_id is None
