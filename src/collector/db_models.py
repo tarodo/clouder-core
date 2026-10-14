@@ -166,6 +166,11 @@ class ClouderTrack(Base):
             "spotify_release_date",
             postgresql_where=text("spotify_release_date IS NOT NULL"),
         ),
+        Index(
+            "ix_clouder_tracks_youtube_unsearched",
+            text("created_at DESC"),
+            postgresql_where=text("youtube_searched_at IS NULL"),
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -180,6 +185,7 @@ class ClouderTrack(Base):
     style_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("clouder_styles.id"))
     spotify_id: Mapped[str | None] = mapped_column(String(64))
     spotify_searched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    youtube_searched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     release_type: Mapped[str | None] = mapped_column(String(16))
     key_name: Mapped[str | None] = mapped_column(Text)
     key_camelot: Mapped[str | None] = mapped_column(String(8))

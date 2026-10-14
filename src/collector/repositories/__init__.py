@@ -33,6 +33,7 @@ from .lineage import LineageMixin, _identity_params
 from .runs import IngestRunsMixin
 from .spotify import SpotifySearchMixin
 from .vendor_match import VendorMatchMixin
+from .youtube_search import YoutubeSearchMixin
 
 
 class ClouderRepository(
@@ -40,6 +41,7 @@ class ClouderRepository(
     LineageMixin,
     CatalogWritesMixin,
     SpotifySearchMixin,
+    YoutubeSearchMixin,
     VendorMatchMixin,
     ApiViewsMixin,
 ):
