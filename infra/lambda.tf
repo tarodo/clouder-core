@@ -206,6 +206,14 @@ resource "aws_lambda_event_source_mapping" "youtube_search_queue" {
   }
 }
 
+# The sweep re-queues itself batch after batch. Lambda's recursive-loop guard
+# drops the 17th hop of such a chain by default (it cut the 2026-10-14 probe
+# at 1,600 tracks); this loop is intended and ends when no track is left.
+resource "aws_lambda_function_recursion_config" "youtube_search_worker" {
+  function_name  = aws_lambda_function.youtube_search_worker.function_name
+  recursive_loop = "Allow"
+}
+
 # ── Vendor Match worker ──────────────────────────────────────────
 
 resource "aws_lambda_function" "vendor_match_worker" {
