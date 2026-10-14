@@ -20,7 +20,7 @@
 - Message `YoutubeSearchMessage {batch_size: 1..500 = 100, resume: bool = false}`.
 - Exactly one worker: `reserved_concurrent_executions = 1`; ESM `maximum_concurrency` via a validated variable (2–1000).
 - New log field names must be added to `ALLOWED_LOG_FIELDS`.
-- Commits: Conventional Commits via caveman style, no AI attribution. Tests: `/Users/roman/Projects/clouder-projects/clouder-core/.venv/bin/pytest` (worktree has no venv); DB tests need `TEST_DATABASE_URL` on a throwaway `postgres:16` (port 55513) after `alembic upgrade head`.
+- Commits: Conventional Commits via caveman style, no AI attribution. Tests: the main checkout's `.venv/bin/pytest` (a worktree has no venv); DB tests need `TEST_DATABASE_URL` on a throwaway `postgres:16` (port 55513) after `alembic upgrade head`.
 
 ## Review Focus
 
