@@ -138,6 +138,7 @@ class WorkerSettings(_SettingsBase):
     raw_bucket_name: str = Field(alias="RAW_BUCKET_NAME")
     raw_prefix: str = Field(default="raw/bp/releases", alias="RAW_PREFIX")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
+    youtube_search_queue_url: str = Field(default="", alias="YOUTUBE_SEARCH_QUEUE_URL")
 
 
 class SpotifyWorkerSettings(_SettingsBase):
