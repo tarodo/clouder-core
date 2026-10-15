@@ -12,6 +12,7 @@ from typing import Any
 
 from .api import (
     routes_admin,
+    routes_analysis,
     routes_catalog,
     routes_ingest,
     routes_runs,
@@ -41,6 +42,8 @@ _ADMIN_ROUTES = frozenset(
         "POST /admin/spotify/retry-not-found",
         "GET /admin/spotify/search-status",
         "GET /admin/youtube/search-status",
+        "GET /admin/analysis/status",
+        "POST /admin/analysis/requeue",
         "POST /admin/labels/enrich",
         "POST /admin/labels/{label_id}/enrich-auto",
         "GET /admin/labels/enrich/options",
@@ -98,6 +101,10 @@ _ROUTE_TABLE: dict[str, Route] = {
     "POST /admin/spotify/retry-not-found": routes_spotify._handle_spotify_retry_not_found,
     "GET /admin/spotify/search-status": routes_spotify._handle_spotify_search_status,
     "GET /admin/youtube/search-status": routes_youtube._handle_youtube_search_status,
+    "GET /admin/analysis/status": routes_analysis._handle_analysis_status,
+    "POST /admin/analysis/requeue": routes_analysis._handle_analysis_requeue,
+    "POST /v1/analysis/claim": routes_analysis._handle_analysis_claim,
+    "POST /v1/analysis/results": routes_analysis._handle_analysis_results,
     "GET /tracks": routes_catalog._handle_list,
     "GET /albums": routes_catalog._handle_list,
     "GET /v1/analytics/funnel": routes_catalog._handle_analytics_funnel,

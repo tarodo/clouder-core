@@ -15,6 +15,7 @@ import { TagPill } from '../../tags';
 import { YtMusicBadge } from './YtMusicBadge';
 import { TrackKey } from '../../playback/TrackKey';
 import { PlayPauseButton } from '../../playback/PlayPauseButton';
+import { AiBadge } from '../../playback/AiBadge';
 
 export interface PlaylistTrackRowProps {
   track: PlaylistTrack;
@@ -112,6 +113,7 @@ export function PlaylistTrackRowView({
           <Text fw={500} truncate>
             {track.title}
           </Text>
+          {track.ai_detected && <AiBadge />}
           {track.mix_name && (
             <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
               {track.mix_name}

@@ -253,6 +253,13 @@ PK `(category_id, track_id)`. `source_triage_block_id` is set when the track was
 
 `match_review_queue` — low-confidence candidates awaiting manual approval. Partial unique index `uq_review_pending (clouder_track_id, vendor) WHERE status='pending'` prevents duplicate pending entries.
 
+### Audio analysis tables
+
+| Table | Key | Notes |
+|---|---|---|
+| `track_analyses` | `(track_id, analyzer)` | One row per track and analyzer. Status is `leased` (with `lease_id` / `leased_until`, 30 min), `ok`, `failed` (final) or `unusable_source`. Also holds `version`, `result jsonb`, `audio_sha256`, `video_id` and `analyzed_at`. The partial index `ix_track_analyses_ai_detected` serves the `ai_detected` flag in the track lists. Cascades on track delete. |
+| `analysis_service_state` | `service` | The analyzer's heartbeat for the admin card: `last_claim_at`, `last_result_at`, and `claim_analyzers` (the names it asked for). |
+
 ### User tag tables
 
 `user_tags`: per-user custom tags (name, optional color).

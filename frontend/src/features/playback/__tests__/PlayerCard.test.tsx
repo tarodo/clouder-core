@@ -192,3 +192,16 @@ describe('PlayerCard', () => {
     expect(screen.getByRole('button', { name: 'Fire' })).toBeInTheDocument();
   });
 });
+
+describe('PlayerCard AI badge', () => {
+  it('shows AI next to the title of a flagged track', () => {
+    const track: PlaybackTrack = { ...sampleTrack, ai_detected: true };
+    render(wrap(<PlayerCard {...baseProps} track={track} state="playing" />));
+    expect(screen.getByText('AI')).toBeInTheDocument();
+  });
+
+  it('shows nothing for an unflagged track', () => {
+    render(wrap(<PlayerCard {...baseProps} state="playing" />));
+    expect(screen.queryByText('AI')).not.toBeInTheDocument();
+  });
+});

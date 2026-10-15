@@ -10,6 +10,7 @@ CLOUDER is a small multi-tenant SaaS: a few DJs sign in with Spotify, and one ad
 | CLOUDER sessions | Refresh JWT in an HttpOnly cookie, its hash in `user_sessions` | Whoever holds one is the user for up to 7 days |
 | JWT signing key | SSM SecureString | Mints any session, including admin |
 | Beatport credentials and tokens | GitHub secrets → SSM SecureString; tokens in memory only | Ingest source; the account belongs to the owner |
+| Analyzer service token | On the owner's PC (`.env`); only its SHA-256 in SSM | Leases tracks and writes analysis results, so a stolen token can fake AI badges. It opens only `/v1/analysis/*`; revoking it takes up to 10 min ([runbook](ops/runbook.md#analysis-service-token)) |
 | Vendor API keys (Gemini, OpenAI, Tavily, DeepSeek, YouTube) | GitHub secrets → SSM SecureString | Paid usage |
 | Users' curation data and personal data | Aurora, lake (see [privacy.md](privacy.md)) | Their work, their email |
 | The AWS account | GitHub OIDC deploy role | Everything above |

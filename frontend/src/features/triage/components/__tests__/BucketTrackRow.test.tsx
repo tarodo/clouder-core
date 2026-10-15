@@ -201,3 +201,46 @@ describe('BucketTrackRow mobile', () => {
     expect(screen.getByText(/Beatport: 2026-04-21/)).toBeInTheDocument();
   });
 });
+
+describe('BucketTrackRow AI badge', () => {
+  it.each(['desktop', 'mobile'] as const)('shows AI when flagged (%s)', (variant) => {
+    const row = (
+      <BucketTrackRow
+        track={{ ...track, ai_detected: true }}
+        variant={variant}
+        buckets={buckets}
+        currentBucketId="src"
+        onMove={vi.fn()}
+        showMoveMenu
+      />
+    );
+    r(
+      variant === 'desktop' ? (
+        <Table>
+          <Table.Tbody>{row}</Table.Tbody>
+        </Table>
+      ) : (
+        row
+      ),
+    );
+    expect(screen.getByText('AI')).toBeInTheDocument();
+  });
+
+  it('shows nothing when not flagged', () => {
+    r(
+      <Table>
+        <Table.Tbody>
+          <BucketTrackRow
+            track={track}
+            variant="desktop"
+            buckets={buckets}
+            currentBucketId="src"
+            onMove={vi.fn()}
+            showMoveMenu
+          />
+        </Table.Tbody>
+      </Table>,
+    );
+    expect(screen.queryByText('AI')).not.toBeInTheDocument();
+  });
+});

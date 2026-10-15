@@ -108,6 +108,9 @@ export const handlers = [
       results: { matched: 0, needs_review: 0, not_found: 0, videos: 0 },
     }),
   ),
+  http.get('http://localhost/admin/analysis/status', () =>
+    HttpResponse.json({ last_claim_at: null, last_result_at: null, analyzers: [] }),
+  ),
   http.get('http://localhost/admin/coverage', ({ request }) => {
     const url = new URL(request.url);
     const year = Number(url.searchParams.get('week_year') ?? '0');

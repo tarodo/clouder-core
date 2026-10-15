@@ -491,6 +491,12 @@ variable "auth_authorizer_lambda_memory_mb" {
   default     = 256
 }
 
+variable "analysis_token_sha256_ssm_parameter" {
+  description = "SSM parameter holding the hex SHA-256 of the analyzer's service token; written by the owner, not Terraform."
+  type        = string
+  default     = "/clouder/auth/analysis_service_token_sha256"
+}
+
 variable "auth_authorizer_cache_ttl_seconds" {
   description = "API Gateway authorizer result-cache TTL (seconds)"
   type        = number

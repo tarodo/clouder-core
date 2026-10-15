@@ -29,6 +29,9 @@ from collector.curation.schemas import (
 )
 from collector.schemas import (
     AdminIngestRequestIn,
+    AnalysisClaimRequest,
+    AnalysisRequeueRequest,
+    AnalysisResultsRequest,
     AutoIngestSettingsIn,
     CollectRequestIn,
 )
@@ -135,6 +138,10 @@ CATEGORY_TRACK_RESPONSE = {
         "publish_date": {"type": ["string", "null"]},
         "spotify_id": {"type": ["string", "null"]},
         "release_type": {"type": ["string", "null"]},
+        "ai_detected": {
+            "type": "boolean",
+            "description": "The audio analyzer flagged AI (ai_detect ok, ai_detected true).",
+        },
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
         "source_triage_block_id": {"type": ["string", "null"]},
@@ -483,6 +490,7 @@ BUCKET_TRACK_ROW = {
         "track_id",
         "title",
         "artists",
+        "ai_detected",
         "added_at",
     ],
     "properties": {
@@ -498,6 +506,10 @@ BUCKET_TRACK_ROW = {
         "spotify_release_date": {"type": ["string", "null"]},
         "spotify_id": {"type": ["string", "null"]},
         "release_type": {"type": ["string", "null"]},
+        "ai_detected": {
+            "type": "boolean",
+            "description": "The audio analyzer flagged AI (ai_detect ok, ai_detected true).",
+        },
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
     },
@@ -521,6 +533,7 @@ PLAYLIST_TRACK_RESPONSE = {
         "track_id",
         "title",
         "artists",
+        "ai_detected",
         "added_at",
     ],
     "properties": {
@@ -536,6 +549,10 @@ PLAYLIST_TRACK_RESPONSE = {
         "spotify_release_date": {"type": ["string", "null"]},
         "spotify_id": {"type": ["string", "null"]},
         "origin": {"type": "string"},
+        "ai_detected": {
+            "type": "boolean",
+            "description": "The audio analyzer flagged AI (ai_detect ok, ai_detected true).",
+        },
         "artists": {"type": "array", "items": {"type": "object"}},
         "added_at": {"type": "string"},
         "label": {
@@ -761,6 +778,99 @@ YOUTUBE_SEARCH_STATUS = {
             },
         },
     },
+}
+
+_ANALYZER_NAMES = {"type": "array", "items": {"type": "string"}}
+
+ANALYSIS_CLAIM_RESPONSE = {
+    "type": "object",
+    "required": ["lease_id", "lease_expires_at", "tracks"],
+    "properties": {
+        "lease_id": {"type": "string", "format": "uuid"},
+        "lease_expires_at": {"type": "string", "format": "date-time"},
+        "tracks": {
+            "type": "array",
+            "description": "Empty = no work left. Newest tracks first.",
+            "items": {
+                "type": "object",
+                "required": ["track_id", "video_id", "length_ms", "analyzers"],
+                "properties": {
+                    "track_id": {"type": "string"},
+                    "video_id": {
+                        "type": "string",
+                        "description": "YouTube video id of the track's YT Music match.",
+                    },
+                    "length_ms": {"type": ["integer", "null"]},
+                    "analyzers": {
+                        **_ANALYZER_NAMES,
+                        "description": "The requested analyzers this track still lacks.",
+                    },
+                },
+            },
+        },
+    },
+}
+
+ANALYSIS_RESULTS_RESPONSE = {
+    "type": "object",
+    "required": ["accepted", "rejected"],
+    "properties": {
+        "accepted": {"type": "integer"},
+        "rejected": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["track_id", "analyzer", "reason"],
+                "properties": {
+                    "track_id": {"type": "string"},
+                    "analyzer": {"type": "string"},
+                    "reason": {"type": "string", "enum": ["lease_lost"]},
+                },
+            },
+        },
+    },
+}
+
+ANALYSIS_STATUS = {
+    "type": "object",
+    "required": ["last_claim_at", "last_result_at", "analyzers"],
+    "properties": {
+        "last_claim_at": {"type": ["string", "null"], "format": "date-time"},
+        "last_result_at": {"type": ["string", "null"], "format": "date-time"},
+        "analyzers": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "name",
+                    "due",
+                    "leased",
+                    "ok",
+                    "ai_detected",
+                    "failed",
+                    "unusable_source",
+                ],
+                "properties": {
+                    "name": {"type": "string"},
+                    "due": {
+                        "type": "integer",
+                        "description": "Tracks with a YT Music match still lacking this analyzer.",
+                    },
+                    "leased": {"type": "integer"},
+                    "ok": {"type": "integer"},
+                    "ai_detected": {"type": "integer", "description": "ai_detect only."},
+                    "failed": {"type": "integer"},
+                    "unusable_source": {"type": "integer"},
+                },
+            },
+        },
+    },
+}
+
+ANALYSIS_REQUEUE_RESPONSE = {
+    "type": "object",
+    "required": ["requeued"],
+    "properties": {"requeued": {"type": "integer"}},
 }
 
 AUTO_INGEST_STATE = {
@@ -1607,6 +1717,7 @@ TELEMETRY_ENVELOPE = {
 PUBLIC = "public"
 AUTH = "user"
 ADMIN = "admin"
+SERVICE = "service"
 
 
 def _make_response(status: int, description: str, schema: dict | None = None) -> dict:
@@ -2517,6 +2628,83 @@ ROUTES: list[dict[str, Any]] = [
             ),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/analysis/status",
+        "auth": ADMIN,
+        "summary": "Admin: audio analysis state — worker heartbeat and per-analyzer counts.",
+        "responses": {
+            "200": _make_response(
+                200, "Analysis status.", {"$ref": "#/components/schemas/AnalysisStatus"}
+            ),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/admin/analysis/requeue",
+        "auth": ADMIN,
+        "summary": "Admin: hand finished tracks to the analyzer again (live leases kept).",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/AnalysisRequeueRequest"}
+                }
+            },
+        },
+        "request_example": {"analyzer": "ai_detect", "scope": "recent", "days": 7},
+        "responses": {
+            "200": _make_response(
+                200, "Rows deleted.", {"$ref": "#/components/schemas/AnalysisRequeueResponse"}
+            ),
+            "400": _error(400, "validation_error."),
+            **COMMON_AUTH_ERRORS,
+        },
+    },
+    {
+        "method": "post",
+        "path": "/v1/analysis/claim",
+        "auth": SERVICE,
+        "summary": "Analyzer: lease tracks that miss any of the given analyzers (30 min).",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/AnalysisClaimRequest"}
+                }
+            },
+        },
+        "request_example": {"limit": 20, "analyzers": ["ai_detect"]},
+        "responses": {
+            "200": _make_response(
+                200, "Leased tracks.", {"$ref": "#/components/schemas/AnalysisClaimResponse"}
+            ),
+            "400": _error(400, "validation_error."),
+            "401": _error(401, "Missing or invalid service token."),
+        },
+    },
+    {
+        "method": "post",
+        "path": "/v1/analysis/results",
+        "auth": SERVICE,
+        "summary": "Analyzer: post results under a lease; lost leases come back rejected.",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/AnalysisResultsRequest"}
+                }
+            },
+        },
+        "responses": {
+            "200": _make_response(
+                200, "Stored results.", {"$ref": "#/components/schemas/AnalysisResultsResponse"}
+            ),
+            "400": _error(400, "validation_error (field limits, ai_detect result shape)."),
+            "401": _error(401, "Missing or invalid service token."),
         },
     },
     {
@@ -4925,6 +5113,8 @@ ROUTES: list[dict[str, Any]] = [
 def _security_for(auth: str) -> list[dict[str, Any]]:
     if auth == PUBLIC:
         return []
+    if auth == SERVICE:
+        return [{"ServiceToken": []}]
     return [{"BearerAuth": []}]
 
 
@@ -4946,6 +5136,7 @@ def _operation(route: dict) -> dict:
         PUBLIC: ["auth"],
         AUTH: ["user"],
         ADMIN: ["admin"],
+        SERVICE: ["service"],
     }[route["auth"]]
     return op
 
@@ -4955,6 +5146,9 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
     schemas: dict[str, Any] = {}
     for name, model in (
         ("AdminIngestRequestIn", AdminIngestRequestIn),
+        ("AnalysisClaimRequest", AnalysisClaimRequest),
+        ("AnalysisRequeueRequest", AnalysisRequeueRequest),
+        ("AnalysisResultsRequest", AnalysisResultsRequest),
         ("AutoIngestSettingsIn", AutoIngestSettingsIn),
         ("CollectRequestIn", CollectRequestIn),
         ("CreateTriageBlockIn", CreateTriageBlockIn),
@@ -5037,6 +5231,10 @@ def build_openapi() -> dict[str, Any]:
             {"name": "auth", "description": "Public OAuth + session-cookie endpoints."},
             {"name": "user", "description": "Routes for any authenticated user."},
             {"name": "admin", "description": "Admin-gated ingest endpoints."},
+            {
+                "name": "service",
+                "description": "Machine routes for the external audio analyzer (service token).",
+            },
         ],
         "paths": paths,
         "components": {
@@ -5046,7 +5244,13 @@ def build_openapi() -> dict[str, Any]:
                     "scheme": "bearer",
                     "bearerFormat": "JWT",
                     "description": "HS256 JWT issued by /auth/callback or /auth/refresh.",
-                }
+                },
+                "ServiceToken": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "svc_<token>",
+                    "description": "The analyzer's service token; only /v1/analysis/* accept it.",
+                },
             },
             "schemas": {
                 **pyd_schemas,
@@ -5060,6 +5264,10 @@ def build_openapi() -> dict[str, Any]:
                 "AutoIngestState": AUTO_INGEST_STATE,
                 "SpotifySearchStatus": SPOTIFY_SEARCH_STATUS,
                 "YoutubeSearchStatus": YOUTUBE_SEARCH_STATUS,
+                "AnalysisClaimResponse": ANALYSIS_CLAIM_RESPONSE,
+                "AnalysisResultsResponse": ANALYSIS_RESULTS_RESPONSE,
+                "AnalysisStatus": ANALYSIS_STATUS,
+                "AnalysisRequeueResponse": ANALYSIS_REQUEUE_RESPONSE,
                 "CollectResponse": COLLECT_RESPONSE,
                 "LabelEnrichRunResponse": LABEL_ENRICH_RUN_RESPONSE,
                 "LabelSummary": LABEL_SUMMARY,

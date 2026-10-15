@@ -7,6 +7,7 @@ import { TrackTagsCell } from '../../tags';
 import { UsedInPlaylistBadge } from './UsedInPlaylistBadge';
 import { TrackKey } from '../../playback/TrackKey';
 import { PlayPauseButton } from '../../playback/PlayPauseButton';
+import { AiBadge } from '../../playback/AiBadge';
 
 function joinArtists(artists: CategoryTrack['artists']): string {
   return artists.map((a) => a.name).join(', ');
@@ -50,7 +51,10 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying
           <Group gap="xs" wrap="nowrap">
             {playButton}
             <Stack gap={0}>
-              <Text fw={500}>{track.title}</Text>
+              <Group gap={6} wrap="nowrap">
+                <Text fw={500}>{track.title}</Text>
+                {track.ai_detected && <AiBadge />}
+              </Group>
               {track.mix_name && (
                 <Text size="xs" c="dimmed">{track.mix_name}</Text>
               )}
@@ -92,6 +96,7 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying
         <Group gap="xs">
           {playButton}
           <Text fw={500}>{track.title}</Text>
+          {track.ai_detected && <AiBadge />}
           {track.used_in_playlist && <UsedInPlaylistBadge />}
         </Group>
         {track.mix_name && (

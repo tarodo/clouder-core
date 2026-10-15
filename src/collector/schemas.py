@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import math
 import re
 from datetime import UTC, date, datetime
-from typing import Literal
+from typing import Annotated, Any, Literal
+from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import (
@@ -13,12 +16,14 @@ from pydantic import (
     Field,
     StrictBool,
     StrictInt,
+    StringConstraints,
     field_validator,
     model_validator,
 )
 from pydantic import (
     ValidationError as PydanticValidationError,
 )
+from pydantic.config import JsonDict
 
 
 class CollectRequestIn(BaseModel):
@@ -123,6 +128,122 @@ class YoutubeSearchMessage(BaseModel):
     batch_size: StrictInt = Field(default=100, ge=1, le=500)
     # The one delayed message that carries the sweep over a YouTube ban.
     resume: bool = Field(default=False)
+
+
+AnalyzerName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{1,31}$")]
+_RESULT_MAX_BYTES = 32_768
+
+
+class AnalysisClaimRequest(BaseModel):
+    """POST /v1/analysis/claim: lease tracks missing any of *analyzers*."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    limit: StrictInt = Field(default=20, ge=1, le=50)
+    analyzers: list[AnalyzerName] = Field(min_length=1, max_length=8)
+
+    @field_validator("analyzers")
+    @classmethod
+    def _unique(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("analyzers must be distinct")
+        return value
+
+
+# The status rule of _shape below, also published in the schema so the
+# analyzer's contract test sees it.
+_RESULT_STATUS_RULE: JsonDict = {
+    "allOf": [
+        {
+            "if": {"properties": {"status": {"const": "ok"}}},
+            "then": {"required": ["result"], "properties": {"result": {"type": "object"}}},
+            "else": {
+                "required": ["error"],
+                "properties": {
+                    "error": {"type": "string", "minLength": 1},
+                    "result": {"type": "null"},
+                },
+            },
+        }
+    ]
+}
+
+
+class AnalysisResultItem(BaseModel):
+    model_config = ConfigDict(extra="forbid", json_schema_extra=_RESULT_STATUS_RULE)
+
+    track_id: str = Field(min_length=1, max_length=36)
+    analyzer: AnalyzerName
+    version: str = Field(min_length=1, max_length=64, pattern=r"^[\x20-\x7e]+$")
+    status: Literal["ok", "failed", "unusable_source"]
+    result: dict[str, Any] | None = None
+    error: str | None = Field(default=None, max_length=500)
+    audio_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    video_id: str | None = Field(default=None, max_length=32)
+
+    @model_validator(mode="after")
+    def _shape(self) -> AnalysisResultItem:
+        if self.status == "ok":
+            if self.result is None:
+                raise ValueError("result is required when status is ok")
+        else:
+            if not self.error:
+                raise ValueError("error is required unless status is ok")
+            if self.result is not None:
+                raise ValueError("result must be null unless status is ok")
+        if self.result is not None:
+            try:
+                size = len(json.dumps(self.result, allow_nan=False).encode())
+            except ValueError as exc:
+                raise ValueError("result must be valid JSON (no NaN)") from exc
+            if size > _RESULT_MAX_BYTES:
+                raise ValueError(f"result must be at most {_RESULT_MAX_BYTES} bytes")
+        if self.analyzer == "ai_detect" and self.status == "ok" and self.result is not None:
+            flag, score = self.result.get("ai_detected"), self.result.get("score")
+            if not isinstance(flag, bool):
+                raise ValueError("ai_detect result.ai_detected must be a boolean")
+            if (
+                isinstance(score, bool)
+                or not isinstance(score, int | float)
+                or not math.isfinite(score)
+                or not 0 <= score <= 1
+            ):
+                raise ValueError("ai_detect result.score must be a number in [0, 1]")
+        return self
+
+
+class AnalysisResultsRequest(BaseModel):
+    """POST /v1/analysis/results: results under one lease."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    lease_id: UUID
+    results: list[AnalysisResultItem] = Field(min_length=1, max_length=100)
+
+    @field_validator("results")
+    @classmethod
+    def _unique_pairs(cls, value: list[AnalysisResultItem]) -> list[AnalysisResultItem]:
+        pairs = {(r.track_id, r.analyzer) for r in value}
+        if len(pairs) != len(value):
+            raise ValueError("each (track_id, analyzer) may appear once")
+        return value
+
+
+class AnalysisRequeueRequest(BaseModel):
+    """POST /admin/analysis/requeue: hand finished tracks out again."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    analyzer: AnalyzerName
+    scope: Literal["all", "categories", "recent"]
+    days: StrictInt | None = Field(default=None, ge=1, le=365)
+    include_failed: StrictBool = False
+
+    @model_validator(mode="after")
+    def _days_for_recent(self) -> AnalysisRequeueRequest:
+        if (self.scope == "recent") != (self.days is not None):
+            raise ValueError("days is required for scope recent and only for it")
+        return self
 
 
 class AdminIngestRequestIn(BaseModel):

@@ -13,6 +13,9 @@ from collector.logging_utils import log_event
 # containers without a deploy.
 JWT_KEY_TTL_SECONDS = 300.0
 _jwt_key: tuple[str, float] | None = None  # (value, fetched at, time.monotonic)
+# SHA-256 of the analysis service token (None = unset), cached like the JWT key so a
+# missing parameter costs one SSM call per TTL, not one per request.
+_analysis_hash: tuple[str | None, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -48,9 +51,33 @@ def get_auth_settings() -> AuthSettings:
 
 
 def reset_auth_settings_cache() -> None:
-    global _jwt_key
+    global _jwt_key, _analysis_hash
     get_auth_settings.cache_clear()
     _jwt_key = None
+    _analysis_hash = None
+
+
+def resolve_analysis_token_sha256() -> str | None:
+    """Hex SHA-256 of the analyzer's service token, or None when not configured.
+
+    The owner writes it straight to SSM (docs/ops/runbook.md); the token itself
+    never reaches AWS. Never log the value.
+    """
+    global _analysis_hash
+    from collector import secrets
+
+    ssm_name = os.environ.get("ANALYSIS_TOKEN_SHA256_SSM_PARAMETER", "").strip()
+    if not ssm_name:
+        return None
+    now = time.monotonic()
+    if _analysis_hash is None or now - _analysis_hash[1] >= JWT_KEY_TTL_SECONDS:
+        try:
+            value: str | None = secrets.fetch_ssm_parameter(ssm_name).strip().lower()
+        except Exception as exc:
+            log_event("WARNING", "analysis_token_unavailable", error_type=type(exc).__name__)
+            value = None
+        _analysis_hash = (value, now)
+    return _analysis_hash[0]
 
 
 def resolve_jwt_signing_key() -> str:

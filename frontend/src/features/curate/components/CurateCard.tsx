@@ -3,6 +3,7 @@ import { Group, Stack, Text, Title } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { useMediaQuery } from '@mantine/hooks';
 import type { BucketTrack } from '../../triage/hooks/useBucketTracks';
+import { AiBadge } from '../../playback/AiBadge';
 
 export interface CurateCardProps {
   track: BucketTrack;
@@ -53,9 +54,12 @@ export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateC
         <>
           <Group justify="space-between" align="flex-start" wrap="nowrap">
             <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-              <Title order={titleOrder} size={titleSize}>
-                {track.title}
-              </Title>
+              <Group gap={8} wrap="nowrap">
+                <Title order={titleOrder} size={titleSize}>
+                  {track.title}
+                </Title>
+                {track.ai_detected && <AiBadge />}
+              </Group>
               {track.mix_name && (
                 <Text c="var(--color-fg-muted)" size={isMobile ? 'sm' : 'md'}>
                   {track.mix_name}

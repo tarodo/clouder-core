@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
 
-from ..errors import AdminRequiredError, AppError, ValidationError
+from ..errors import AdminRequiredError, AppError, ServiceRequiredError, ValidationError
 from ..schemas import validation_error_message
 from ..settings import ApiSettings, get_api_settings
 
@@ -25,6 +25,18 @@ def _require_admin(event: Mapping[str, Any]) -> None:
             if isinstance(ctx, Mapping) and bool(ctx.get("is_admin")):
                 return
     raise AdminRequiredError()
+
+
+def _require_service(event: Mapping[str, Any]) -> None:
+    """The analysis authorizer sets service=analyzer; a user JWT never does."""
+    rc = event.get("requestContext")
+    if isinstance(rc, Mapping):
+        authorizer = rc.get("authorizer")
+        if isinstance(authorizer, Mapping):
+            ctx = authorizer.get("lambda")
+            if isinstance(ctx, Mapping) and ctx.get("service") == "analyzer":
+                return
+    raise ServiceRequiredError()
 
 
 def _parse_iso_date_field(payload: Mapping[str, Any], name: str) -> date:

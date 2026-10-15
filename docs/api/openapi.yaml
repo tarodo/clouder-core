@@ -63,6 +63,8 @@ tags:
   description: Routes for any authenticated user.
 - name: admin
   description: Admin-gated ingest endpoints.
+- name: service
+  description: Machine routes for the external audio analyzer (service token).
 paths:
   /auth/login:
     get:
@@ -1502,6 +1504,122 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/analysis/status:
+    get:
+      summary: 'Admin: audio analysis state — worker heartbeat and per-analyzer counts.'
+      responses:
+        '200':
+          description: Analysis status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisStatus'
+        '401': *id001
+        '403': *id002
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/analysis/requeue:
+    post:
+      summary: 'Admin: hand finished tracks to the analyzer again (live leases kept).'
+      responses:
+        '200':
+          description: Rows deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisRequeueResponse'
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequeueRequest'
+            example:
+              analyzer: ai_detect
+              scope: recent
+              days: 7
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /v1/analysis/claim:
+    post:
+      summary: 'Analyzer: lease tracks that miss any of the given analyzers (30 min).'
+      responses:
+        '200':
+          description: Leased tracks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisClaimResponse'
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid service token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisClaimRequest'
+            example:
+              limit: 20
+              analyzers:
+              - ai_detect
+      security:
+      - ServiceToken: []
+      tags:
+      - service
+  /v1/analysis/results:
+    post:
+      summary: 'Analyzer: post results under a lease; lost leases come back rejected.'
+      responses:
+        '200':
+          description: Stored results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResultsResponse'
+        '400':
+          description: validation_error (field limits, ai_detect result shape).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid service token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisResultsRequest'
+      security:
+      - ServiceToken: []
+      tags:
+      - service
   /admin/auto-ingest/run:
     post:
       summary: 'Admin: start an auto-ingest run now (asynchronous, also when disabled).'
@@ -2145,6 +2263,10 @@ paths:
                           type:
                           - string
                           - 'null'
+                        ai_detected:
+                          type: boolean
+                          description: The audio analyzer flagged AI (ai_detect ok,
+                            ai_detected true).
                         artists:
                           type: array
                           items:
@@ -2713,6 +2835,7 @@ paths:
                       - track_id
                       - title
                       - artists
+                      - ai_detected
                       - added_at
                       properties:
                         track_id:
@@ -2760,6 +2883,10 @@ paths:
                           type:
                           - string
                           - 'null'
+                        ai_detected:
+                          type: boolean
+                          description: The audio analyzer flagged AI (ai_detect ok,
+                            ai_detected true).
                         artists:
                           type: array
                           items:
@@ -3694,6 +3821,7 @@ paths:
                       - track_id
                       - title
                       - artists
+                      - ai_detected
                       - added_at
                       properties:
                         track_id:
@@ -3737,6 +3865,10 @@ paths:
                           - 'null'
                         origin:
                           type: string
+                        ai_detected:
+                          type: boolean
+                          description: The audio analyzer flagged AI (ai_detect ok,
+                            ai_detected true).
                         artists:
                           type: array
                           items:
@@ -5813,6 +5945,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: HS256 JWT issued by /auth/callback or /auth/refresh.
+    ServiceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: svc_<token>
+      description: The analyzer's service token; only /v1/analysis/* accept it.
   schemas:
     AdminIngestRequestIn:
       additionalProperties: false
@@ -5850,6 +5987,160 @@ components:
       - week_year
       - week_number
       title: AdminIngestRequestIn
+      type: object
+    AnalysisClaimRequest:
+      additionalProperties: false
+      description: 'POST /v1/analysis/claim: lease tracks missing any of *analyzers*.'
+      properties:
+        limit:
+          default: 20
+          maximum: 50
+          minimum: 1
+          title: Limit
+          type: integer
+        analyzers:
+          items:
+            pattern: ^[a-z][a-z0-9_]{1,31}$
+            type: string
+          maxItems: 8
+          minItems: 1
+          title: Analyzers
+          type: array
+      required:
+      - analyzers
+      title: AnalysisClaimRequest
+      type: object
+    AnalysisRequeueRequest:
+      additionalProperties: false
+      description: 'POST /admin/analysis/requeue: hand finished tracks out again.'
+      properties:
+        analyzer:
+          pattern: ^[a-z][a-z0-9_]{1,31}$
+          title: Analyzer
+          type: string
+        scope:
+          enum:
+          - all
+          - categories
+          - recent
+          title: Scope
+          type: string
+        days:
+          anyOf:
+          - maximum: 365
+            minimum: 1
+            type: integer
+          - type: 'null'
+          default: null
+          title: Days
+        include_failed:
+          default: false
+          title: Include Failed
+          type: boolean
+      required:
+      - analyzer
+      - scope
+      title: AnalysisRequeueRequest
+      type: object
+    AnalysisResultItem:
+      additionalProperties: false
+      allOf:
+      - else:
+          properties:
+            error:
+              minLength: 1
+              type: string
+            result:
+              type: 'null'
+          required:
+          - error
+        if:
+          properties:
+            status:
+              const: ok
+        then:
+          properties:
+            result:
+              type: object
+          required:
+          - result
+      properties:
+        track_id:
+          maxLength: 36
+          minLength: 1
+          title: Track Id
+          type: string
+        analyzer:
+          pattern: ^[a-z][a-z0-9_]{1,31}$
+          title: Analyzer
+          type: string
+        version:
+          maxLength: 64
+          minLength: 1
+          pattern: ^[\x20-\x7e]+$
+          title: Version
+          type: string
+        status:
+          enum:
+          - ok
+          - failed
+          - unusable_source
+          title: Status
+          type: string
+        result:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          default: null
+          title: Result
+        error:
+          anyOf:
+          - maxLength: 500
+            type: string
+          - type: 'null'
+          default: null
+          title: Error
+        audio_sha256:
+          anyOf:
+          - pattern: ^[0-9a-f]{64}$
+            type: string
+          - type: 'null'
+          default: null
+          title: Audio Sha256
+        video_id:
+          anyOf:
+          - maxLength: 32
+            type: string
+          - type: 'null'
+          default: null
+          title: Video Id
+      required:
+      - track_id
+      - analyzer
+      - version
+      - status
+      title: AnalysisResultItem
+      type: object
+    AnalysisResultsRequest:
+      additionalProperties: false
+      description: 'POST /v1/analysis/results: results under one lease.'
+      properties:
+        lease_id:
+          format: uuid
+          title: Lease Id
+          type: string
+        results:
+          items:
+            $ref: '#/components/schemas/AnalysisResultItem'
+          maxItems: 100
+          minItems: 1
+          title: Results
+          type: array
+      required:
+      - lease_id
+      - results
+      title: AnalysisResultsRequest
       type: object
     AutoIngestSettingsIn:
       additionalProperties: false
@@ -6449,6 +6740,122 @@ components:
             videos:
               type: integer
               description: Tracks with a video for comments.
+    AnalysisClaimResponse:
+      type: object
+      required:
+      - lease_id
+      - lease_expires_at
+      - tracks
+      properties:
+        lease_id:
+          type: string
+          format: uuid
+        lease_expires_at:
+          type: string
+          format: date-time
+        tracks:
+          type: array
+          description: Empty = no work left. Newest tracks first.
+          items:
+            type: object
+            required:
+            - track_id
+            - video_id
+            - length_ms
+            - analyzers
+            properties:
+              track_id:
+                type: string
+              video_id:
+                type: string
+                description: YouTube video id of the track's YT Music match.
+              length_ms:
+                type:
+                - integer
+                - 'null'
+              analyzers:
+                type: array
+                items:
+                  type: string
+                description: The requested analyzers this track still lacks.
+    AnalysisResultsResponse:
+      type: object
+      required:
+      - accepted
+      - rejected
+      properties:
+        accepted:
+          type: integer
+        rejected:
+          type: array
+          items:
+            type: object
+            required:
+            - track_id
+            - analyzer
+            - reason
+            properties:
+              track_id:
+                type: string
+              analyzer:
+                type: string
+              reason:
+                type: string
+                enum:
+                - lease_lost
+    AnalysisStatus:
+      type: object
+      required:
+      - last_claim_at
+      - last_result_at
+      - analyzers
+      properties:
+        last_claim_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_result_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        analyzers:
+          type: array
+          items:
+            type: object
+            required:
+            - name
+            - due
+            - leased
+            - ok
+            - ai_detected
+            - failed
+            - unusable_source
+            properties:
+              name:
+                type: string
+              due:
+                type: integer
+                description: Tracks with a YT Music match still lacking this analyzer.
+              leased:
+                type: integer
+              ok:
+                type: integer
+              ai_detected:
+                type: integer
+                description: ai_detect only.
+              failed:
+                type: integer
+              unusable_source:
+                type: integer
+    AnalysisRequeueResponse:
+      type: object
+      required:
+      - requeued
+      properties:
+        requeued:
+          type: integer
     CollectResponse:
       type: object
       properties:

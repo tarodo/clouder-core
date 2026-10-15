@@ -171,6 +171,11 @@ class RefreshReplayDetectedError(AppError):
         )
 
 
+class ServiceRequiredError(AppError):
+    def __init__(self, message: str = "Service token required") -> None:
+        super().__init__(status_code=401, error_code="service_required", message=message)
+
+
 class AdminRequiredError(AppError):
     def __init__(self, message: str = "Admin privileges required") -> None:
         super().__init__(status_code=403, error_code="admin_required", message=message)

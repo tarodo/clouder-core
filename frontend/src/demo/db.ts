@@ -37,6 +37,10 @@ import { clipOf } from './clips';
 import { demoCover } from './covers';
 import { LABEL_PROFILES } from './profiles';
 
+// A few demo tracks carry the audio analyzer's AI flag so the badge shows up.
+const aiDetected = (id: string): boolean =>
+  [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 9 === 0;
+
 export interface LibraryQuery {
   /** Style id; the list shows who has tracks in it. */
   style?: string;
@@ -191,6 +195,7 @@ export class DemoDb {
         length_ms: t.length_ms,
         publish_date: t.publish_date,
         spotify_release_date: t.publish_date,
+        ai_detected: aiDetected(t.id),
         spotify_id: t.spotify_id,
         release_type: 'single',
         artists: t.artists.map((a) => ({ ...a, role: 'main' })),
@@ -293,6 +298,7 @@ export class DemoDb {
         length_ms: t.length_ms,
         publish_date: t.publish_date,
         spotify_release_date: t.publish_date,
+        ai_detected: aiDetected(t.id),
         isrc: t.isrc,
         spotify_id: t.spotify_id,
         release_type: 'single',
@@ -479,6 +485,7 @@ export class DemoDb {
         label: t.label,
         bpm: t.bpm,
         spotify_release_date: t.publish_date,
+        ai_detected: aiDetected(t.id),
         tags: this.trackTags(t.id),
         ytmusic: null,
         key_name: t.key_name,

@@ -47,6 +47,7 @@ def test_bucket_tracks_response_includes_label_id(monkeypatch) -> None:
         spotify_release_date="2026-04-01",
         spotify_id=None,
         release_type="single",
+        ai_detected=False,
         artists=[{"id": "a-10", "name": "Artist A", "role": "artist"}],
         label_name="Cool Label",
         label_id="lbl-1",
@@ -95,6 +96,7 @@ def test_bucket_tracks_response_includes_artist_objects(monkeypatch) -> None:
         spotify_release_date="2026-05-01",
         spotify_id=None,
         release_type="single",
+        ai_detected=False,
         artists=[
             {"id": "a-1", "name": "Raabe", "role": "artist"},
             {"id": "a-2", "name": "Zander", "role": "remixer"},

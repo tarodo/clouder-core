@@ -9,6 +9,7 @@ import { YearNavigator } from '../components/YearNavigator';
 import { StyleVisibilityPopover } from '../components/StyleVisibilityPopover';
 import { AutoIngestPanel } from '../components/AutoIngestPanel';
 import { YoutubeSearchStatus } from '../components/YoutubeSearchStatus';
+import { AnalysisStatus } from '../components/AnalysisStatus';
 import { cellState, type CoverageCell } from '../lib/cellState';
 import { runsTrackerStore } from '../lib/runsTracker';
 import { PageHeader } from '../../../components/PageHeader';
@@ -55,6 +56,7 @@ export function AdminCoveragePage() {
         styleNames={new Map((q.data?.styles ?? []).map((s) => [s.style_id, s.style_name]))}
       />
       <YoutubeSearchStatus />
+      <AnalysisStatus />
       <CellDetailDrawer
         open={active !== null}
         onClose={() => setActive(null)}
