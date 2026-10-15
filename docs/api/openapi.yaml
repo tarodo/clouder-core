@@ -6044,6 +6044,26 @@ components:
       type: object
     AnalysisResultItem:
       additionalProperties: false
+      allOf:
+      - else:
+          properties:
+            error:
+              minLength: 1
+              type: string
+            result:
+              type: 'null'
+          required:
+          - error
+        if:
+          properties:
+            status:
+              const: ok
+        then:
+          properties:
+            result:
+              type: object
+          required:
+          - result
       properties:
         track_id:
           maxLength: 36

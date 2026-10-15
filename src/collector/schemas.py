@@ -149,8 +149,27 @@ class AnalysisClaimRequest(BaseModel):
         return value
 
 
+# The status rule of _shape below, also published in the schema so the
+# analyzer's contract test sees it.
+_RESULT_STATUS_RULE = {
+    "allOf": [
+        {
+            "if": {"properties": {"status": {"const": "ok"}}},
+            "then": {"required": ["result"], "properties": {"result": {"type": "object"}}},
+            "else": {
+                "required": ["error"],
+                "properties": {
+                    "error": {"type": "string", "minLength": 1},
+                    "result": {"type": "null"},
+                },
+            },
+        }
+    ]
+}
+
+
 class AnalysisResultItem(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_extra=_RESULT_STATUS_RULE)
 
     track_id: str = Field(min_length=1, max_length=36)
     analyzer: AnalyzerName

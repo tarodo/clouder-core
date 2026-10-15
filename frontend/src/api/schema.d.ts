@@ -8706,7 +8706,7 @@ export interface components {
              * @default null
              */
             video_id: string | null;
-        };
+        } & unknown;
         /**
          * AnalysisResultsRequest
          * @description POST /v1/analysis/results: results under one lease.
