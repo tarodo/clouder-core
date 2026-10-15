@@ -18,6 +18,14 @@ from .settings_provider import ArtistEnrichmentSecrets
 
 def _cell_payload(vendor: VendorAdapter, response: VendorResponse, artist_name: str) -> dict:
     """Shape mirrors the aggregator input so merge_cells works unchanged."""
+    if response.error:
+        # Feeds the out-of-credit alarm (infra/enrichment_alarms.tf).
+        log_event(
+            "WARNING",
+            "enrichment_vendor_error",
+            vendor=vendor.name,
+            error_message=response.error[:500],
+        )
     return {
         "vendor": {"name": vendor.name, "model": response.model},
         "fixture": {"artist_name": artist_name},

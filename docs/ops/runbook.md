@@ -374,6 +374,22 @@ Alarm `clouder-prod-auto-ingest-failed`, or the admin's Auto-ingest panel shows 
 
 ---
 
+## Enrichment vendor out of credit
+
+**Symptom**
+
+Alarm `clouder-prod-enrichment-out-of-credit`.
+
+**Diagnosis**
+
+`aws logs filter-log-events --log-group-name /aws/lambda/clouder-prod-label-enricher-worker --filter-pattern '?"402 Payment Required" ?insufficient_quota'` (same for `clouder-prod-artist-enricher-worker`). The `error_message` names the vendor: `api.tavily.com` / DeepSeek answer 402 Payment Required, OpenAI answers 429 with `insufficient_quota`. `socials_resolver_error` is the social-links step (Tavily); `enrichment_vendor_error` is a vendor call of the run, with `vendor`.
+
+**Fix**
+
+Top up the vendor account. Runs keep going without that vendor meanwhile; re-run the affected labels or artists from the admin if their result matters.
+
+---
+
 ## Auto-ingest stuck pairs
 
 **Symptom**
