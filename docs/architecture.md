@@ -89,7 +89,7 @@ All functions share one Python package (`src/collector/`); each has its own entr
 | `collector-api` | `collector.handler` | API Gateway | Admin ingest, catalog reads, the curation funnel (from Aurora), admin endpoints (coverage, enrichment, auto-ingest settings) |
 | `curation` | `collector.curation_handler` | API Gateway | Triage, categories, playlists, tags, publishing to Spotify / YouTube Music |
 | `auth-handler` | `collector.auth_handler` | API Gateway | Spotify OAuth (PKCE) login, callback, refresh-token rotation |
-| `auth-authorizer` | `collector.auth_authorizer` | API Gateway authorizer | Validates the CLOUDER JWT on every protected route |
+| `auth-authorizer` | `collector.auth_authorizer` | API Gateway authorizer | Validates the CLOUDER JWT on every protected route; on `/v1/analysis/*` (its own authorizer resource) only the analyzer's service token |
 | `analytics-api` | `collector.analytics_handler` | API Gateway | Listening and time-per-track analytics from Athena |
 | `telemetry` | `collector.telemetry_handler` | API Gateway | Validates SPA telemetry batches and forwards them to Firehose |
 | `auto-ingest` | `collector.auto_ingest_handler` | EventBridge Scheduler | Plans daily runs; logs in to Beatport and ingests due and backfill weeks |

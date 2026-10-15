@@ -446,8 +446,8 @@ The audio analyzer (clouder-analyzer, on the owner's PC) calls `/v1/analysis/*` 
 ```powershell
 $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
 $tok = 'svc_' + [Convert]::ToBase64String($b).TrimEnd('=').Replace('+','-').Replace('/','_')
-$envFile = Get-Content .env | Where-Object { $_ -notmatch '^CLOUDER_SERVICE_TOKEN=' }
-Set-Content .env -Encoding ascii -Value ($envFile + "CLOUDER_SERVICE_TOKEN=$tok")
+$lines = @(Get-Content .env | Where-Object { $_ -notmatch '^CLOUDER_SERVICE_TOKEN=' }) + "CLOUDER_SERVICE_TOKEN=$tok"
+[IO.File]::WriteAllLines("$PWD\.env", [string[]]$lines)   # UTF-8 without BOM
 [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::ASCII.GetBytes($tok))).Replace('-','').ToLower()
 ```
 
@@ -462,7 +462,7 @@ Restart the analyzer (`docker compose up -d`). It takes up to 10 minutes for a n
 
 **Revoke.** `aws ssm delete-parameter --name /clouder/auth/analysis_service_token_sha256`.
 
-**Requeue.** `POST /admin/analysis/requeue` with an admin JWT, for example `{"analyzer": "ai_detect", "scope": "recent", "days": 7}`. The scope is `all`, `categories` or `recent`; add `"include_failed": true` to also retry final failures. The next claim hands those tracks out again; live leases are never touched.
+**Requeue.** `POST /admin/analysis/requeue` with an admin JWT, for example `{"analyzer": "ai_detect", "scope": "recent", "days": 7}`. The scope is `all`, `categories` or `recent`; add `"include_failed": true` to also retry final failures. The next claim hands those tracks out again; live leases are never touched. The requeue deletes the old results, so their AI badges disappear until the analyzer's next daily run re-analyzes them.
 
 ---
 

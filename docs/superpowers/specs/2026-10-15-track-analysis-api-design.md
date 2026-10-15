@@ -39,7 +39,7 @@ clouder-core knows the worker only through the contract below: which tracks to h
 Every call sends `Authorization: Bearer svc_<43 base64url chars>`.
 
 - **401:** the token is missing, wrong or not a service token. A user JWT gets 401 here, and a service token gets 401 on every other route.
-- **400:** a validation error. The body is `{"error": "validation_error", "message": "...", "correlation_id": "..."}`, the API's usual error shape.
+- **400:** a validation error. The body is `{"error_code": "validation_error", "message": "...", "correlation_id": "..."}`, the API's usual error envelope.
 - **503 or timeout:** Aurora is resuming (ADR-0014). The worker retries with backoff for up to about 2 minutes. This is part of the contract.
 
 ### `POST /v1/analysis/claim`
@@ -58,7 +58,7 @@ Response `200`:
 ```json
 {
   "lease_id": "6f1c…-uuid",
-  "lease_expires_at": "2026-10-16T03:31:00Z",
+  "lease_expires_at": "2026-10-16T03:31:00.000000+00:00",
   "tracks": [
     { "track_id": "uuid", "video_id": "dQw4w9WgXcQ", "length_ms": 312000, "analyzers": ["ai_detect"] }
   ]
@@ -210,8 +210,8 @@ The card polls every 30 seconds, but only while the tab is visible. It must not 
 
 ## Service auth
 
-- **Token.** `svc_` plus 32 random bytes in base64url. Only its SHA-256 is stored, in the SSM SecureString `/clouder/analysis/service_token_sha256`.
-  - Terraform creates the parameter with a placeholder and `ignore_changes = [value]`.
+- **Token.** `svc_` plus 32 random bytes in base64url. Only its SHA-256 is stored, in the SSM SecureString `/clouder/auth/analysis_service_token_sha256`.
+  - Terraform does not create the parameter: like the JWT key (ADR-0028), it stays out of Terraform state, and the pull-request role is already denied `/clouder/auth/*`. A missing parameter means every service call gets 401.
   - The owner sets the real hash. Creating and rotating the token are owner steps: the token never passes through the agent or CI.
 - **Authorizer resource.** A second authorizer, `analysis_service` (REQUEST, simple responses, identity source `Authorization`, cached), sits on the two `/v1/analysis/*` routes only.
   - It reuses the `auth_authorizer` Lambda.
