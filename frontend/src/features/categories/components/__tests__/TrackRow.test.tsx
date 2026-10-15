@@ -264,3 +264,40 @@ describe('TrackRow — active track Play/Pause', () => {
     expect(onPlay).not.toHaveBeenCalled();
   });
 });
+
+describe('TrackRow — AI badge', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+    server.use(
+      http.get('http://localhost/tags', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
+    );
+  });
+
+  it('shows AI next to the title when the audio was flagged (desktop and mobile)', () => {
+    const track: CategoryTrack = { ...baseTrack, ai_detected: true };
+    const { unmount } = render(
+      <W>
+        <TrackRow track={track} variant="desktop" />
+      </W>,
+    );
+    expect(screen.getByText('AI')).toBeInTheDocument();
+    unmount();
+    render(
+      <WMobile>
+        <TrackRow track={track} variant="mobile" />
+      </WMobile>,
+    );
+    expect(screen.getByText('AI')).toBeInTheDocument();
+  });
+
+  it('shows nothing when not flagged', () => {
+    render(
+      <W>
+        <TrackRow track={{ ...baseTrack, ai_detected: false }} variant="desktop" />
+      </W>,
+    );
+    expect(screen.queryByText('AI')).not.toBeInTheDocument();
+  });
+});

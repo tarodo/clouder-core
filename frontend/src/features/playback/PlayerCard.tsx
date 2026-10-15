@@ -15,6 +15,7 @@ import type { PlaybackTrack } from './lib/types';
 import { useScrubDebounce } from './useScrubDebounce';
 import { pctToMs } from './lib/seekHotkeys';
 import { formatLength } from '../../lib/formatters';
+import { AiBadge } from './AiBadge';
 
 export type PlayerCardState =
   | 'idle'
@@ -217,16 +218,20 @@ export function PlayerCard(props: PlayerCardProps) {
 
         {showText ? (
           <Stack gap={4} flex={1} miw={0}>
-            <Title
-              order={isMini ? 5 : 3}
-              style={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {track?.title ?? '—'}
-            </Title>
+            <Group gap={8} wrap="nowrap" miw={0}>
+              <Title
+                order={isMini ? 5 : 3}
+                miw={0}
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {track?.title ?? '—'}
+              </Title>
+              {track?.ai_detected && <AiBadge />}
+            </Group>
             {mixName ? (
               <Text size="sm" c="var(--color-fg-muted)" truncate>
                 {mixName}

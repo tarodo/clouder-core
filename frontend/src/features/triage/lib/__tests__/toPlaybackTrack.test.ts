@@ -39,3 +39,9 @@ describe('toPlaybackTrack', () => {
     expect(toPlaybackTrack({ ...base, length_ms: null }).duration_ms).toBe(0);
   });
 });
+
+describe('toPlaybackTrack AI flag', () => {
+  it('carries ai_detected so the player can badge the track', () => {
+    expect(toPlaybackTrack({ ...base, ai_detected: true }).ai_detected).toBe(true);
+  });
+});

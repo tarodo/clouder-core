@@ -7,6 +7,7 @@ import { PlayPauseButton } from '../../playback/PlayPauseButton';
 import { MoveToMenu } from './MoveToMenu';
 import { TrackKey } from '../../playback/TrackKey';
 import { useTrackView } from '../../../lib/telemetry/hooks';
+import { AiBadge } from '../../playback/AiBadge';
 
 export interface BucketTrackRowProps {
   track: BucketTrack;
@@ -70,7 +71,10 @@ export function BucketTrackRow({
           <Group gap="xs" wrap="nowrap">
             {playButton}
             <Stack gap={0}>
-              <Text fw={500}>{track.title}</Text>
+              <Group gap={6} wrap="nowrap">
+                <Text fw={500}>{track.title}</Text>
+                {track.ai_detected && <AiBadge />}
+              </Group>
               {track.mix_name && (
                 <Text size="xs" c="dimmed">
                   {track.mix_name}
@@ -97,6 +101,7 @@ export function BucketTrackRow({
           <Group gap="xs">
             {playButton}
             <Text fw={500}>{track.title}</Text>
+            {track.ai_detected && <AiBadge />}
           </Group>
           {moveMenu}
         </Group>

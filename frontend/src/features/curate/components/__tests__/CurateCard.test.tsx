@@ -80,3 +80,15 @@ describe('CurateCard', () => {
     });
   });
 });
+
+describe('CurateCard AI badge', () => {
+  it('shows AI next to the title when flagged', () => {
+    render(wrap(<CurateCard track={mkTrack({ ai_detected: true })} />));
+    expect(screen.getByText('AI')).toBeInTheDocument();
+  });
+
+  it('shows nothing when not flagged', () => {
+    render(wrap(<CurateCard track={mkTrack()} />));
+    expect(screen.queryByText('AI')).not.toBeInTheDocument();
+  });
+});

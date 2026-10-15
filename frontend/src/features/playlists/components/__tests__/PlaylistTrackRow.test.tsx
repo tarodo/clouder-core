@@ -198,3 +198,23 @@ describe('PlaylistTrackRow', () => {
     expect(screen.queryByRole('link', { name: /open on beatport/i })).toBeNull();
   });
 });
+
+describe('PlaylistTrackRow AI badge', () => {
+  it.each([
+    [true, 1],
+    [false, 0],
+  ])('ai_detected=%s shows %i AI badge', (flag, count) => {
+    render(
+      <W>
+        <PlaylistTrackRow
+          track={{ ...richTrack, ai_detected: flag }}
+          position={1}
+          onRemove={vi.fn()}
+          onPlay={vi.fn()}
+          playlistId="pl1"
+        />
+      </W>,
+    );
+    expect(screen.queryAllByText('AI')).toHaveLength(count);
+  });
+});

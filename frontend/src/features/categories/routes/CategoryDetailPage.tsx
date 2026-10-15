@@ -43,6 +43,7 @@ function toPlaybackTrack(t: CategoryTrack): PlaybackTrack {
     duration_ms: t.length_ms ?? 0,
     spotify_id: t.spotify_id,
     cover_url: t.cover_url ?? null,
+    ai_detected: t.ai_detected,
   };
 }
 
