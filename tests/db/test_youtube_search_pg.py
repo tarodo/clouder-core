@@ -72,6 +72,26 @@ def test_claim_takes_new_and_needed_old_newest_first(pg) -> None:
     assert {r["id"] for r in rows} == {"new-1", "new-2", "in-cat", "in-open"}
 
 
+def test_claim_takes_at_most_the_limit(pg) -> None:
+    # `IN (... LIMIT n FOR UPDATE SKIP LOCKED)` may be re-run per row and lock a
+    # new row each time; the claim must stamp exactly `limit` rows.
+    repo = _world(pg)
+    # Steer the planner to the per-row SubPlan that re-runs the locking subquery
+    # (what a tiny or freshly analysed table may get anyway).
+    pg.execute("SET enable_hashagg = off")
+    pg.execute("SET enable_hashjoin = off")
+    pg.execute("SET enable_mergejoin = off")
+    try:
+        rows = repo.claim_tracks_for_youtube_search(limit=1, claimed_at=T0, since=SINCE)
+    finally:
+        pg.execute("RESET ALL")
+    stamped = pg.execute(
+        "SELECT count(*) AS n FROM clouder_tracks WHERE youtube_searched_at IS NOT NULL"
+    )
+    assert [r["id"] for r in rows] == ["new-2"]
+    assert stamped[0]["n"] == 1
+
+
 def test_claim_skips_the_archive(pg) -> None:
     repo = _world(pg)
     ids = {
@@ -131,3 +151,30 @@ def test_comment_meta_carries_the_stored_video(pg) -> None:
     meta = CommentsRepository(pg).fetch_track_meta(["new-1", "new-2"])
     assert meta["new-1"].youtube_video_id == "vidY"
     assert meta["new-2"].youtube_video_id is None
+
+
+def test_status_counts(pg) -> None:
+    repo = _world(pg)
+    rows = repo.claim_tracks_for_youtube_search(limit=1, claimed_at=T0, since=SINCE)
+    repo.mark_youtube_searched(track_id=rows[0]["id"], at=T0 + timedelta(seconds=5))
+    pg.execute(
+        "INSERT INTO vendor_track_map (clouder_track_id, vendor, vendor_track_id, match_type,"
+        " confidence, matched_at, payload) VALUES"
+        " ('new-2', 'ytmusic', 's1', 'fuzzy', 0.95, now(), '{}'::jsonb),"
+        " ('new-2', 'youtube', 'v1', 'token', 1.0, now(), '{}'::jsonb)"
+    )
+    pg.execute(
+        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status, created_at)"
+        " VALUES ('r1', 'in-cat', 'ytmusic', '[]'::jsonb, 'pending', now()),"
+        " ('r2', 'in-open', 'ytmusic', '[]'::jsonb, 'no_match', now())"
+    )
+    counts = repo.youtube_search_counts(since=SINCE, recent_since=T0)
+    assert counts == {
+        "waiting": 3,
+        "searched_recently": 1,
+        "searched_total": 1,
+        "matched": 1,
+        "needs_review": 1,
+        "not_found": 1,
+        "videos": 1,
+    }

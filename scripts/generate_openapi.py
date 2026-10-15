@@ -723,6 +723,51 @@ SPOTIFY_SEARCH_STATUS = {
     },
 }
 
+YOUTUBE_SEARCH_STATUS = {
+    "type": "object",
+    "required": ["status", "paused_until", "queue", "tracks", "results"],
+    "properties": {
+        "status": {
+            "type": "string",
+            "enum": ["running", "queued", "paused", "idle"],
+            "description": "running: a worker holds a message; queued: a message waits; "
+            "paused: YouTube refused us (ban / error streak) until paused_until; idle: done.",
+        },
+        "paused_until": {"type": ["string", "null"], "format": "date-time"},
+        "queue": {
+            "type": "object",
+            "required": ["waiting_messages", "in_flight", "delayed"],
+            "properties": {
+                "waiting_messages": {"type": "integer"},
+                "in_flight": {"type": "integer"},
+                "delayed": {"type": "integer"},
+            },
+        },
+        "tracks": {
+            "type": "object",
+            "required": ["waiting", "searched_last_10_min", "searched_total"],
+            "properties": {
+                "waiting": {
+                    "type": "integer",
+                    "description": "New tracks and tracks in categories / open blocks not searched yet.",
+                },
+                "searched_last_10_min": {"type": "integer"},
+                "searched_total": {"type": "integer"},
+            },
+        },
+        "results": {
+            "type": "object",
+            "required": ["matched", "needs_review", "not_found", "videos"],
+            "properties": {
+                "matched": {"type": "integer", "description": "Tracks with a YT Music match."},
+                "needs_review": {"type": "integer", "description": "Pending match reviews."},
+                "not_found": {"type": "integer", "description": "YT Music returned no candidate."},
+                "videos": {"type": "integer", "description": "Tracks with a video for comments."},
+            },
+        },
+    },
+}
+
 AUTO_INGEST_STATE = {
     "type": "object",
     "required": ["settings", "planned_runs", "last_run", "running", "due_week", "stuck"],
@@ -2461,6 +2506,19 @@ ROUTES: list[dict[str, Any]] = [
         "responses": {
             "200": _make_response(
                 200, "Search status.", {"$ref": "#/components/schemas/SpotifySearchStatus"}
+            ),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/youtube/search-status",
+        "auth": ADMIN,
+        "summary": "Admin: YouTube search state — queue, pause, backlog and outcomes.",
+        "responses": {
+            "200": _make_response(
+                200, "Search status.", {"$ref": "#/components/schemas/YoutubeSearchStatus"}
             ),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
@@ -5006,6 +5064,7 @@ def build_openapi() -> dict[str, Any]:
                 "RunResponse": RUN_RESPONSE,
                 "AutoIngestState": AUTO_INGEST_STATE,
                 "SpotifySearchStatus": SPOTIFY_SEARCH_STATUS,
+                "YoutubeSearchStatus": YOUTUBE_SEARCH_STATUS,
                 "CollectResponse": COLLECT_RESPONSE,
                 "LabelEnrichRunResponse": LABEL_ENRICH_RUN_RESPONSE,
                 "LabelSummary": LABEL_SUMMARY,

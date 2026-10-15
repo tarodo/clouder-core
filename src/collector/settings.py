@@ -132,6 +132,10 @@ class ApiSettings(_SettingsBase):
     spotify_search_enabled: bool = Field(default=False, alias="SPOTIFY_SEARCH_ENABLED")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
     vendor_match_queue_url: str = Field(default="", alias="VENDOR_MATCH_QUEUE_URL")
+    youtube_search_queue_url: str = Field(default="", alias="YOUTUBE_SEARCH_QUEUE_URL")
+    youtube_search_since: datetime = Field(
+        default=datetime(2026, 10, 15, tzinfo=UTC), alias="YOUTUBE_SEARCH_SINCE"
+    )
 
 
 class WorkerSettings(_SettingsBase):

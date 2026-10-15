@@ -99,6 +99,15 @@ export const handlers = [
     HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
   ),
   http.get('http://localhost/tracks/:track_id/tags', () => HttpResponse.json({ tags: [] })),
+  http.get('http://localhost/admin/youtube/search-status', () =>
+    HttpResponse.json({
+      status: 'idle',
+      paused_until: null,
+      queue: { waiting_messages: 0, in_flight: 0, delayed: 0 },
+      tracks: { waiting: 0, searched_last_10_min: 0, searched_total: 0 },
+      results: { matched: 0, needs_review: 0, not_found: 0, videos: 0 },
+    }),
+  ),
   http.get('http://localhost/admin/coverage', ({ request }) => {
     const url = new URL(request.url);
     const year = Number(url.searchParams.get('week_year') ?? '0');

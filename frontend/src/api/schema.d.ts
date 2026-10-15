@@ -2207,6 +2207,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/youtube/search-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: YouTube search state — queue, pause, backlog and outcomes. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Search status. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["YoutubeSearchStatus"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/auto-ingest/run": {
         parameters: {
             query?: never;
@@ -8558,6 +8612,36 @@ export interface components {
                 /** @description Searched without a Spotify match. */
                 not_found: number;
                 searched_last_10_min: number;
+            };
+        };
+        YoutubeSearchStatus: {
+            /**
+             * @description running: a worker holds a message; queued: a message waits; paused: YouTube refused us (ban / error streak) until paused_until; idle: done.
+             * @enum {string}
+             */
+            status: "running" | "queued" | "paused" | "idle";
+            /** Format: date-time */
+            paused_until: string | null;
+            queue: {
+                waiting_messages: number;
+                in_flight: number;
+                delayed: number;
+            };
+            tracks: {
+                /** @description New tracks and tracks in categories / open blocks not searched yet. */
+                waiting: number;
+                searched_last_10_min: number;
+                searched_total: number;
+            };
+            results: {
+                /** @description Tracks with a YT Music match. */
+                matched: number;
+                /** @description Pending match reviews. */
+                needs_review: number;
+                /** @description YT Music returned no candidate. */
+                not_found: number;
+                /** @description Tracks with a video for comments. */
+                videos: number;
             };
         };
         CollectResponse: {

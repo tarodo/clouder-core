@@ -8,6 +8,7 @@ import { CellDetailDrawer } from '../components/CellDetailDrawer';
 import { YearNavigator } from '../components/YearNavigator';
 import { StyleVisibilityPopover } from '../components/StyleVisibilityPopover';
 import { AutoIngestPanel } from '../components/AutoIngestPanel';
+import { YoutubeSearchStatus } from '../components/YoutubeSearchStatus';
 import { cellState, type CoverageCell } from '../lib/cellState';
 import { runsTrackerStore } from '../lib/runsTracker';
 import { PageHeader } from '../../../components/PageHeader';
@@ -53,6 +54,7 @@ export function AdminCoveragePage() {
       <AutoIngestPanel
         styleNames={new Map((q.data?.styles ?? []).map((s) => [s.style_id, s.style_name]))}
       />
+      <YoutubeSearchStatus />
       <CellDetailDrawer
         open={active !== null}
         onClose={() => setActive(null)}
