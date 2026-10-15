@@ -40,6 +40,7 @@ describe('AnalysisStatus', () => {
     renderWith(status());
     expect(await screen.findByText('AI analysis')).toBeInTheDocument();
     expect(screen.getByText(/^Last run/)).toBeInTheDocument();
+    expect(screen.getByText(/^Last result .*ago$/)).toBeInTheDocument();
     expect(screen.getByText('120')).toBeInTheDocument();
     expect(screen.getByText('3,400')).toBeInTheDocument();
     expect(screen.getByText('41')).toBeInTheDocument();
@@ -54,5 +55,10 @@ describe('AnalysisStatus', () => {
   it('says so when the analyzer never ran', async () => {
     renderWith(status({ last_claim_at: null, last_result_at: null, analyzers: [] }));
     expect(await screen.findByText('Never ran')).toBeInTheDocument();
+  });
+
+  it('says when the analyzer claims but has not posted a result yet', async () => {
+    renderWith(status({ last_result_at: null }));
+    expect(await screen.findByText('No results yet')).toBeInTheDocument();
   });
 });

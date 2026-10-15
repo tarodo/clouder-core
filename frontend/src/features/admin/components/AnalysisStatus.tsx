@@ -57,6 +57,13 @@ export function AnalysisStatus() {
             {label}
           </Badge>
         </Group>
+        {last && (
+          <Text size="xs" c="dimmed">
+            {data.last_result_at
+              ? t('admin.analysis_status.last_result', { ago: dayjs(data.last_result_at).fromNow() })
+              : t('admin.analysis_status.no_results')}
+          </Text>
+        )}
         {data.analyzers.map((a) => (
           <Stack key={a.name} gap={4}>
             {data.analyzers.length > 1 && (

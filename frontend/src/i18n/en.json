@@ -843,6 +843,8 @@
       "never": "Never ran",
       "last_run": "Last run {{ago}}",
       "stale": "No run for {{days}} days",
+      "last_result": "Last result {{ago}}",
+      "no_results": "No results yet",
       "due": "Waiting",
       "ok": "Analyzed",
       "ai_detected": "AI detected",
