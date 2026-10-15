@@ -6,7 +6,7 @@ Date: 2026-10-15. Status: draft for owner review.
 
 An external worker, [clouder-analyzer](https://github.com/tarodo/clouder-analyzer) (private repo, runs on the owner's Windows PC), pulls batches of tracks that have a YouTube Music video, analyzes the audio and posts the results back. clouder-core stores the results and shows an **AI** badge on tracks whose audio the detector flags.
 
-The first analyzer is `ai_detect`. Embeddings come later, for "similar tracks" and for training an in-house classifier. This design must not block them, but it builds nothing for them now.
+The first analyzer was `ai_detect` (ArtifactNet). Update 2026-10-16: the badge now comes from `ai_lofcz` ([lofcz/ai-music-detector](https://github.com/lofcz/ai-music-detector), MIT); `ai_detect` rows stay as a second opinion. The claim hands out every track missing `ai_lofcz`, so the switch re-analyzes the catalog with no data deletion. Embeddings come later, for "similar tracks" and for training an in-house classifier. This design must not block them, but it builds nothing for them now.
 
 clouder-core knows the worker only through the contract below: which tracks to hand out, and what a result looks like. It knows nothing about the model, yt-dlp, the cache or the host.
 
@@ -106,7 +106,7 @@ Request: 1–100 items.
 - `audio_sha256`: 64 lowercase hex characters, or null.
 - `video_id`: ≤ 32 characters, or null.
 
-**Result shape for `ai_detect` with `ok`:** `ai_detected` (bool) and `score` (a number from 0 to 1) are required. Any other keys, such as segment scores, threshold or model, are stored as they are and never read by clouder-core. Other analyzers' result shapes are opaque to clouder-core until a feature reads them.
+**Result shape for an AI analyzer (`ai_detect`, `ai_lofcz`) with `ok`:** `ai_detected` (bool) and `score` (a number from 0 to 1) are required. Any other keys, such as segment scores, threshold or model, are stored as they are and never read by clouder-core. Other analyzers' result shapes are opaque to clouder-core until a feature reads them.
 
 **Lease check:** an item is accepted only while its row is still `leased` under this `lease_id`. A late result is accepted if nobody re-leased the track. A track that was re-leased is rejected with `lease_lost`.
 
@@ -138,9 +138,9 @@ CREATE TABLE track_analyses (
     PRIMARY KEY (track_id, analyzer),
     CHECK (status IN ('leased', 'ok', 'failed', 'unusable_source'))
 );
--- The badge lookup: ok AI-flagged tracks.
-CREATE INDEX ix_track_analyses_ai_detected ON track_analyses (track_id)
-    WHERE analyzer = 'ai_detect' AND status = 'ok' AND (result->>'ai_detected')::boolean;
+-- The badge lookup: ok AI-flagged tracks (migration 39 moved it from ai_detect to ai_lofcz).
+CREATE INDEX ix_track_analyses_ai_lofcz_detected ON track_analyses (track_id)
+    WHERE analyzer = 'ai_lofcz' AND status = 'ok' AND (result->>'ai_detected')::boolean;
 
 CREATE TABLE analysis_service_state (
     service           varchar(32) PRIMARY KEY,   -- 'analyzer'
@@ -177,7 +177,7 @@ A later `ytmusic` re-match to another video does not invalidate a result. `video
 
 - The `analyzers` list covers `claim_analyzers` plus every name present in the table.
 - `due`: tracks with a `ytmusic` row and no row for that analyzer, plus expired leases.
-- `ai_detected`: counted only for `ai_detect`.
+- `ai_detected`: counted only for the AI analyzers (`ai_detect`, `ai_lofcz`).
 
 ### `POST /admin/analysis/requeue` (admin JWT)
 

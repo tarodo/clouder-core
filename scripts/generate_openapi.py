@@ -140,7 +140,7 @@ CATEGORY_TRACK_RESPONSE = {
         "release_type": {"type": ["string", "null"]},
         "ai_detected": {
             "type": "boolean",
-            "description": "The audio analyzer flagged AI (ai_detect ok, ai_detected true).",
+            "description": "The audio analyzer flagged AI (ai_lofcz ok, ai_detected true).",
         },
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
@@ -508,7 +508,7 @@ BUCKET_TRACK_ROW = {
         "release_type": {"type": ["string", "null"]},
         "ai_detected": {
             "type": "boolean",
-            "description": "The audio analyzer flagged AI (ai_detect ok, ai_detected true).",
+            "description": "The audio analyzer flagged AI (ai_lofcz ok, ai_detected true).",
         },
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
@@ -551,7 +551,7 @@ PLAYLIST_TRACK_RESPONSE = {
         "origin": {"type": "string"},
         "ai_detected": {
             "type": "boolean",
-            "description": "The audio analyzer flagged AI (ai_detect ok, ai_detected true).",
+            "description": "The audio analyzer flagged AI (ai_lofcz ok, ai_detected true).",
         },
         "artists": {"type": "array", "items": {"type": "object"}},
         "added_at": {"type": "string"},
@@ -858,7 +858,7 @@ ANALYSIS_STATUS = {
                     },
                     "leased": {"type": "integer"},
                     "ok": {"type": "integer"},
-                    "ai_detected": {"type": "integer", "description": "ai_detect only."},
+                    "ai_detected": {"type": "integer", "description": "AI analyzers only."},
                     "failed": {"type": "integer"},
                     "unusable_source": {"type": "integer"},
                 },
@@ -2655,7 +2655,7 @@ ROUTES: list[dict[str, Any]] = [
                 }
             },
         },
-        "request_example": {"analyzer": "ai_detect", "scope": "recent", "days": 7},
+        "request_example": {"analyzer": "ai_lofcz", "scope": "recent", "days": 7},
         "responses": {
             "200": _make_response(
                 200, "Rows deleted.", {"$ref": "#/components/schemas/AnalysisRequeueResponse"}
@@ -2677,7 +2677,7 @@ ROUTES: list[dict[str, Any]] = [
                 }
             },
         },
-        "request_example": {"limit": 20, "analyzers": ["ai_detect"]},
+        "request_example": {"limit": 20, "analyzers": ["ai_lofcz"]},
         "responses": {
             "200": _make_response(
                 200, "Leased tracks.", {"$ref": "#/components/schemas/AnalysisClaimResponse"}
@@ -2703,7 +2703,7 @@ ROUTES: list[dict[str, Any]] = [
             "200": _make_response(
                 200, "Stored results.", {"$ref": "#/components/schemas/AnalysisResultsResponse"}
             ),
-            "400": _error(400, "validation_error (field limits, ai_detect result shape)."),
+            "400": _error(400, "validation_error (field limits, AI result shape)."),
             "401": _error(401, "Missing or invalid service token."),
         },
     },
