@@ -145,7 +145,6 @@ class PlaylistTrackRow:
     key_name: str | None = None
     key_camelot: str | None = None
     spotify_release_date: str | None = None
-    is_ai_suspected: bool = False
     artists: tuple[dict, ...] = ()
     label: dict | None = None
     beatport_track_id: str | None = None
@@ -612,7 +611,7 @@ class PlaylistsRepository:
                 pt.track_id, pt.position, pt.added_at,
                 t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.key_name, t.key_camelot,
-                t.spotify_id, t.is_ai_suspected, t.spotify_release_date, t.origin,
+                t.spotify_id, t.spotify_release_date, t.origin,
                 COALESCE(
                     JSON_AGG(
                         JSON_BUILD_OBJECT('id', a.id, 'name', a.name)
@@ -675,7 +674,6 @@ class PlaylistsRepository:
                     key_name=r.get("key_name"),
                     key_camelot=r.get("key_camelot"),
                     spotify_release_date=(str(spot) if spot is not None else None),
-                    is_ai_suspected=bool(r.get("is_ai_suspected", False)),
                     artists=tuple(artists),
                     label=label,
                     beatport_track_id=r.get("beatport_track_id"),

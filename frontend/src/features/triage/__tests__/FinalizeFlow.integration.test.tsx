@@ -121,7 +121,6 @@ function track(id: string) {
     spotify_release_date: null,
     spotify_id: null,
     release_type: null,
-    is_ai_suspected: false,
     artists: [],
     label_id: null,
     label_name: null,

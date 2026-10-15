@@ -103,7 +103,7 @@ A track's `release_type` is NULL until its ISRC lookup succeeds. A track that is
 
 ## is_ai_suspected propagation
 
-`is_ai_suspected` is a soft flag on `clouder_labels`, `clouder_artists` and `clouder_tracks`. It is not authoritative: the source of truth is the merged enrichment result (`clouder_label_info` / `clouder_artist_info`). See ADR-0008, ADR-0016 and ADR-0017.
+`is_ai_suspected` is a soft flag on `clouder_labels` and `clouder_artists`. The `clouder_tracks` column has no writer and no API returns it. It is not authoritative: the source of truth is the merged enrichment result (`clouder_label_info` / `clouder_artist_info`). See ADR-0008, ADR-0016 and ADR-0017.
 
 **Write path**: `project_ai_suspected` in `src/collector/label_enrichment/repository.py` and `src/collector/artist_enrichment/repository.py`, called after a run merges its vendor results.
 

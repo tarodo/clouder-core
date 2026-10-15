@@ -106,7 +106,6 @@ const seedTrack: PlaylistTrack = {
   label: { id: 'lbl1', name: 'Techno Label' },
   bpm: 140,
   spotify_release_date: null,
-  is_ai_suspected: false,
   tags: [{ id: 'tag-1', name: 'Acid', color: 'red' }],
 };
 

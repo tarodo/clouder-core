@@ -38,7 +38,7 @@ const BLOCK = {
 const TRACK = {
   track_id: 'tr-1', title: 'S', mix_name: null, isrc: null, bpm: 1, length_ms: 1000,
   publish_date: null, spotify_release_date: null, spotify_id: 'sp', release_type: null,
-  is_ai_suspected: false, artists: [], label_id: null, label_name: null, added_at: '2026-01-01',
+  artists: [], label_id: null, label_name: null, added_at: '2026-01-01',
 };
 
 function wrapper({ children }: { children: ReactNode }) {

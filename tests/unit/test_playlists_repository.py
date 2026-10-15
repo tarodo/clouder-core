@@ -834,7 +834,7 @@ def test_patch_sql_has_explicit_param_casts() -> None:
 
 def test_list_tracks_enrich_returns_artists_label_bpm_and_tags() -> None:
     """list_tracks with tags_repo attaches artists, label, bpm, mix_name,
-    spotify_release_date, is_ai_suspected, and tags from the fan-in repo."""
+    spotify_release_date and tags from the fan-in repo."""
     api = _make_data_api(
         {
             "SELECT 1 AS ok FROM playlists": [{"ok": 1}],
@@ -852,7 +852,6 @@ def test_list_tracks_enrich_returns_artists_label_bpm_and_tags() -> None:
                     "mix_name": "Original Mix",
                     "bpm": 140,
                     "spotify_release_date": "2026-01-15",
-                    "is_ai_suspected": False,
                     "artists_json": '[{"id": "a1", "name": "Artist"}]',
                     "label_id": "l1",
                     "label_name": "Label",
@@ -881,7 +880,6 @@ def test_list_tracks_enrich_returns_artists_label_bpm_and_tags() -> None:
     assert row.mix_name == "Original Mix"
     assert row.bpm == 140
     assert row.spotify_release_date == "2026-01-15"
-    assert row.is_ai_suspected is False
     assert row.artists == ({"id": "a1", "name": "Artist"},)
     assert row.label == {"id": "l1", "name": "Label"}
     assert len(row.tags) == 1
@@ -914,7 +912,6 @@ def test_list_tracks_enrich_no_tags_repo_returns_empty_tags_tuple() -> None:
                     "mix_name": None,
                     "bpm": None,
                     "spotify_release_date": None,
-                    "is_ai_suspected": False,
                     "artists_json": "[]",
                     "label_id": None,
                     "label_name": None,
@@ -949,7 +946,6 @@ def _beatport_track_row(**overrides) -> dict:
         "key_name": None,
         "key_camelot": None,
         "spotify_id": "sp1",
-        "is_ai_suspected": False,
         "spotify_release_date": None,
         "origin": "beatport",
         "artists_json": "[]",

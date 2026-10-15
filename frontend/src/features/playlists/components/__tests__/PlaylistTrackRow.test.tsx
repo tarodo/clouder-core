@@ -50,7 +50,6 @@ const richTrack: PlaylistTrack = {
   label: { id: 'l1', name: 'Ostgut Ton' },
   bpm: 140,
   spotify_release_date: '2024-03-15',
-  is_ai_suspected: false,
   tags: [
     { id: 'tg1', name: 'Dark', color: '#333' },
     { id: 'tg2', name: 'Vocal', color: null },

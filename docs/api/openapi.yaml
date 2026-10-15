@@ -2145,8 +2145,6 @@ paths:
                           type:
                           - string
                           - 'null'
-                        is_ai_suspected:
-                          type: boolean
                         artists:
                           type: array
                           items:
@@ -2714,7 +2712,6 @@ paths:
                       required:
                       - track_id
                       - title
-                      - is_ai_suspected
                       - artists
                       - added_at
                       properties:
@@ -2763,8 +2760,6 @@ paths:
                           type:
                           - string
                           - 'null'
-                        is_ai_suspected:
-                          type: boolean
                         artists:
                           type: array
                           items:
@@ -3698,7 +3693,6 @@ paths:
                       required:
                       - track_id
                       - title
-                      - is_ai_suspected
                       - artists
                       - added_at
                       properties:
@@ -3743,8 +3737,6 @@ paths:
                           - 'null'
                         origin:
                           type: string
-                        is_ai_suspected:
-                          type: boolean
                         artists:
                           type: array
                           items:

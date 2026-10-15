@@ -85,7 +85,6 @@ const TRACK = {
   spotify_release_date: '2026-04-15',
   spotify_id: null,
   release_type: null,
-  is_ai_suspected: false,
   artists: ['Artist'],
   added_at: '2026-04-21T00:00:00Z',
 };

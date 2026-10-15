@@ -56,7 +56,6 @@ function mkTrack(i: number): CategoryTrack {
     isrc: null,
     spotify_id: null,
     release_type: null,
-    is_ai_suspected: false,
     used_in_playlist: false,
     added_at: '2026-01-01T00:00:00Z',
     source_triage_block_id: null,

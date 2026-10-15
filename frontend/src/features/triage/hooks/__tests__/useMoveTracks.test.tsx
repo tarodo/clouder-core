@@ -60,7 +60,6 @@ function tracksPage(ids: string[], total: number) {
           spotify_release_date: null,
           spotify_id: null,
           release_type: null,
-          is_ai_suspected: false,
           artists: [],
           added_at: '2026-04-21T00:00:00Z',
         })),

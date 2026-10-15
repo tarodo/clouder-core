@@ -16,7 +16,6 @@ const track: BucketTrack = {
   spotify_release_date: null,
   spotify_id: 'sp-7',
   release_type: null,
-  is_ai_suspected: false,
   artists: [{ id: 'a', name: 'Artist', role: 'main' }],
   label_id: null,
   label_name: null,
