@@ -70,3 +70,11 @@ def test_hash_parameter_is_not_a_terraform_resource() -> None:
             r'resource "aws_ssm_parameter" "[^"]+" \{(.*?)\n\}', tf.read_text(), re.S
         ):
             assert "analysis" not in body
+
+
+def test_analysis_routes_are_declared_only_with_their_authorizer() -> None:
+    # A /v1/analysis/* route on the JWT authorizer would make it take the service
+    # branch and cache a service-token allow for every user route.
+    for tf in INFRA.glob("*.tf"):
+        if tf.name != "analysis.tf":
+            assert "/v1/analysis/" not in tf.read_text(), tf.name
