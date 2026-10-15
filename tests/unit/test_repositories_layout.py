@@ -7,6 +7,7 @@ from pathlib import Path
 PKG = Path(__file__).resolve().parents[2] / "src" / "collector" / "repositories"
 
 API = [
+    "analysis_status",
     "analytics_funnel",
     "batch_conservative_update_tracks",
     "batch_create_albums",
@@ -19,6 +20,7 @@ API = [
     "batch_upsert_source_entities",
     "batch_upsert_source_relations",
     "batch_upsert_track_artists",
+    "claim_analysis",
     "claim_identities",
     "claim_tracks_for_spotify_search",
     "claim_tracks_for_youtube_search",
@@ -47,8 +49,10 @@ API = [
     "mark_youtube_searched",
     "propagate_release_type_to_albums",
     "read_track_state",
+    "record_analysis_results",
     "release_spotify_search_claim",
     "release_youtube_search_claim",
+    "requeue_analysis",
     "reset_spotify_not_found",
     "set_run_completed",
     "set_run_failed",
@@ -66,6 +70,7 @@ API = [
 ]
 
 AGGREGATES = {
+    "collector.repositories.analysis",
     "collector.repositories.runs",
     "collector.repositories.lineage",
     "collector.repositories.catalog_writes",

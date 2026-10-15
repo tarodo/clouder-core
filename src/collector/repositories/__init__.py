@@ -11,6 +11,7 @@ from contextlib import AbstractContextManager
 from ..data_api import DataAPIClient, create_default_data_api_client
 from ..settings import get_data_api_settings
 from ._base import as_utc_datetime, parse_iso_date, utc_now
+from .analysis import AnalysisMixin
 from .api_views import ApiViewsMixin
 from .catalog_writes import TRACK_MERGE_FIELDS, CatalogWritesMixin, _named_entity_params
 from .commands import (
@@ -38,6 +39,7 @@ from .youtube_search import YoutubeSearchMixin
 
 class ClouderRepository(
     IngestRunsMixin,
+    AnalysisMixin,
     LineageMixin,
     CatalogWritesMixin,
     SpotifySearchMixin,
