@@ -2336,7 +2336,7 @@ export interface paths {
                 content: {
                     /**
                      * @example {
-                     *       "analyzer": "ai_detect",
+                     *       "analyzer": "ai_lofcz",
                      *       "scope": "recent",
                      *       "days": 7
                      *     }
@@ -2412,7 +2412,7 @@ export interface paths {
                      * @example {
                      *       "limit": 20,
                      *       "analyzers": [
-                     *         "ai_detect"
+                     *         "ai_lofcz"
                      *       ]
                      *     }
                      */
@@ -2487,7 +2487,7 @@ export interface paths {
                         "application/json": components["schemas"]["AnalysisResultsResponse"];
                     };
                 };
-                /** @description validation_error (field limits, ai_detect result shape). */
+                /** @description validation_error (field limits, AI result shape). */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -3616,7 +3616,7 @@ export interface paths {
                                 publish_date?: string | null;
                                 spotify_id?: string | null;
                                 release_type?: string | null;
-                                /** @description The audio analyzer flagged AI (ai_detect ok, ai_detected true). */
+                                /** @description The audio analyzer flagged AI (ai_lofcz ok, ai_detected true). */
                                 ai_detected?: boolean;
                                 artists?: string[];
                                 added_at?: string;
@@ -4352,7 +4352,7 @@ export interface paths {
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
                                 release_type?: string | null;
-                                /** @description The audio analyzer flagged AI (ai_detect ok, ai_detected true). */
+                                /** @description The audio analyzer flagged AI (ai_lofcz ok, ai_detected true). */
                                 ai_detected: boolean;
                                 artists: string[];
                                 added_at: string;
@@ -5807,7 +5807,7 @@ export interface paths {
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
                                 origin?: string;
-                                /** @description The audio analyzer flagged AI (ai_detect ok, ai_detected true). */
+                                /** @description The audio analyzer flagged AI (ai_lofcz ok, ai_detected true). */
                                 ai_detected: boolean;
                                 artists: Record<string, never>[];
                                 added_at: string;
@@ -9019,7 +9019,7 @@ export interface components {
                 due: number;
                 leased: number;
                 ok: number;
-                /** @description ai_detect only. */
+                /** @description AI analyzers only. */
                 ai_detected: number;
                 failed: number;
                 unusable_source: number;
@@ -9331,7 +9331,7 @@ export interface components {
             spotify_release_date?: string | null;
             spotify_id?: string | null;
             origin?: string;
-            /** @description The audio analyzer flagged AI (ai_detect ok, ai_detected true). */
+            /** @description The audio analyzer flagged AI (ai_lofcz ok, ai_detected true). */
             ai_detected: boolean;
             artists: Record<string, never>[];
             added_at: string;

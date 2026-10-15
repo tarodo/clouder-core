@@ -462,7 +462,7 @@ Restart the analyzer (`docker compose up -d`). It takes up to 10 minutes for a n
 
 **Revoke.** `aws ssm delete-parameter --name /clouder/auth/analysis_service_token_sha256`.
 
-**Requeue.** `POST /admin/analysis/requeue` with an admin JWT, for example `{"analyzer": "ai_detect", "scope": "recent", "days": 7}`. The scope is `all`, `categories` or `recent`; add `"include_failed": true` to also retry final failures. The next claim hands those tracks out again; live leases are never touched. The requeue deletes the old results, so their AI badges disappear until the analyzer's next daily run re-analyzes them.
+**Requeue.** `POST /admin/analysis/requeue` with an admin JWT, for example `{"analyzer": "ai_lofcz", "scope": "recent", "days": 7}`. The scope is `all`, `categories` or `recent`; add `"include_failed": true` to also retry final failures. The next claim hands those tracks out again; live leases are never touched. The requeue deletes the old results, so their AI badges disappear until the analyzer's next daily run re-analyzes them.
 
 ---
 

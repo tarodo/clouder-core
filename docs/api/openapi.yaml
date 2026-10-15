@@ -1545,7 +1545,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AnalysisRequeueRequest'
             example:
-              analyzer: ai_detect
+              analyzer: ai_lofcz
               scope: recent
               days: 7
       security:
@@ -1583,7 +1583,7 @@ paths:
             example:
               limit: 20
               analyzers:
-              - ai_detect
+              - ai_lofcz
       security:
       - ServiceToken: []
       tags:
@@ -1599,7 +1599,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AnalysisResultsResponse'
         '400':
-          description: validation_error (field limits, ai_detect result shape).
+          description: validation_error (field limits, AI result shape).
           content:
             application/json:
               schema:
@@ -2265,7 +2265,7 @@ paths:
                           - 'null'
                         ai_detected:
                           type: boolean
-                          description: The audio analyzer flagged AI (ai_detect ok,
+                          description: The audio analyzer flagged AI (ai_lofcz ok,
                             ai_detected true).
                         artists:
                           type: array
@@ -2885,7 +2885,7 @@ paths:
                           - 'null'
                         ai_detected:
                           type: boolean
-                          description: The audio analyzer flagged AI (ai_detect ok,
+                          description: The audio analyzer flagged AI (ai_lofcz ok,
                             ai_detected true).
                         artists:
                           type: array
@@ -3867,7 +3867,7 @@ paths:
                           type: string
                         ai_detected:
                           type: boolean
-                          description: The audio analyzer flagged AI (ai_detect ok,
+                          description: The audio analyzer flagged AI (ai_lofcz ok,
                             ai_detected true).
                         artists:
                           type: array
@@ -6844,7 +6844,7 @@ components:
                 type: integer
               ai_detected:
                 type: integer
-                description: ai_detect only.
+                description: AI analyzers only.
               failed:
                 type: integer
               unusable_source:

@@ -1,4 +1,4 @@
-"""Request schemas of the analysis API: field limits and the ai_detect result shape."""
+"""Request schemas of the analysis API: field limits and the AI analyzers' result shape."""
 
 from __future__ import annotations
 
@@ -86,9 +86,10 @@ def test_results_reject_bad_items(over) -> None:
         {"ai_detected": True, "score": True},
     ],
 )
-def test_ai_detect_ok_result_needs_flag_and_score(result) -> None:
+@pytest.mark.parametrize("analyzer", ["ai_detect", "ai_lofcz"])
+def test_ai_ok_result_needs_flag_and_score(analyzer, result) -> None:
     with pytest.raises(ValidationError):
-        _results(_item(result=result))
+        _results(_item(analyzer=analyzer, result=result))
 
 
 def test_other_analyzers_results_are_opaque() -> None:

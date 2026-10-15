@@ -156,6 +156,17 @@ def test_status_counts_and_heartbeat(repo) -> None:
     ]
 
 
+def test_status_counts_ai_detected_for_ai_lofcz(repo) -> None:
+    repo.claim_analysis(limit=2, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
+    repo.record_analysis_results(
+        lease_id=L1,
+        items=[_ok("new", ai=True, analyzer="ai_lofcz"), _ok("mid", analyzer="ai_lofcz")],
+        now=T0,
+    )
+    (ai,) = repo.analysis_status(now=T0)["analyzers"]
+    assert (ai["name"], ai["ok"], ai["ai_detected"]) == ("ai_lofcz", 2, 1)
+
+
 def test_status_counts_due_and_expired_leases(repo) -> None:
     repo.claim_analysis(limit=1, analyzers=["ai_detect"], lease_id=L1, now=T0)
     (ai,) = repo.analysis_status(now=T0)["analyzers"]
