@@ -2261,6 +2261,258 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/analysis/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: audio analysis state — worker heartbeat and per-analyzer counts. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Analysis status. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnalysisStatus"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/analysis/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin: hand finished tracks to the analyzer again (live leases kept). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    /**
+                     * @example {
+                     *       "analyzer": "ai_detect",
+                     *       "scope": "recent",
+                     *       "days": 7
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AnalysisRequeueRequest"];
+                };
+            };
+            responses: {
+                /** @description Rows deleted. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnalysisRequeueResponse"];
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analysis/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Analyzer: lease tracks that miss any of the given analyzers (30 min). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    /**
+                     * @example {
+                     *       "limit": 20,
+                     *       "analyzers": [
+                     *         "ai_detect"
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AnalysisClaimRequest"];
+                };
+            };
+            responses: {
+                /** @description Leased tracks. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnalysisClaimResponse"];
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid service token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analysis/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Analyzer: post results under a lease; lost leases come back rejected. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AnalysisResultsRequest"];
+                };
+            };
+            responses: {
+                /** @description Stored results. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnalysisResultsResponse"];
+                    };
+                };
+                /** @description validation_error (field limits, ai_detect result shape). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid service token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/auto-ingest/run": {
         parameters: {
             query?: never;
@@ -8378,6 +8630,91 @@ export interface components {
             period_end: string | null;
         };
         /**
+         * AnalysisClaimRequest
+         * @description POST /v1/analysis/claim: lease tracks missing any of *analyzers*.
+         */
+        AnalysisClaimRequest: {
+            /**
+             * Limit
+             * @default 20
+             */
+            limit: number;
+            /** Analyzers */
+            analyzers: string[];
+        };
+        /**
+         * AnalysisRequeueRequest
+         * @description POST /admin/analysis/requeue: hand finished tracks out again.
+         */
+        AnalysisRequeueRequest: {
+            /** Analyzer */
+            analyzer: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "all" | "categories" | "recent";
+            /**
+             * Days
+             * @default null
+             */
+            days: number | null;
+            /**
+             * Include Failed
+             * @default false
+             */
+            include_failed: boolean;
+        };
+        /** AnalysisResultItem */
+        AnalysisResultItem: {
+            /** Track Id */
+            track_id: string;
+            /** Analyzer */
+            analyzer: string;
+            /** Version */
+            version: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "failed" | "unusable_source";
+            /**
+             * Result
+             * @default null
+             */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Error
+             * @default null
+             */
+            error: string | null;
+            /**
+             * Audio Sha256
+             * @default null
+             */
+            audio_sha256: string | null;
+            /**
+             * Video Id
+             * @default null
+             */
+            video_id: string | null;
+        };
+        /**
+         * AnalysisResultsRequest
+         * @description POST /v1/analysis/results: results under one lease.
+         */
+        AnalysisResultsRequest: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /** Results */
+            results: components["schemas"]["AnalysisResultItem"][];
+        };
+        /**
          * AutoIngestSettingsIn
          * @description PUT /admin/auto-ingest (docs/data/auto-ingest.md).
          */
@@ -8640,6 +8977,50 @@ export interface components {
                 /** @description Tracks with a video for comments. */
                 videos: number;
             };
+        };
+        AnalysisClaimResponse: {
+            /** Format: uuid */
+            lease_id: string;
+            /** Format: date-time */
+            lease_expires_at: string;
+            /** @description Empty = no work left. Newest tracks first. */
+            tracks: {
+                track_id: string;
+                /** @description YouTube video id of the track's YT Music match. */
+                video_id: string;
+                length_ms: number | null;
+                /** @description The requested analyzers this track still lacks. */
+                analyzers: string[];
+            }[];
+        };
+        AnalysisResultsResponse: {
+            accepted: number;
+            rejected: {
+                track_id: string;
+                analyzer: string;
+                /** @enum {string} */
+                reason: "lease_lost";
+            }[];
+        };
+        AnalysisStatus: {
+            /** Format: date-time */
+            last_claim_at: string | null;
+            /** Format: date-time */
+            last_result_at: string | null;
+            analyzers: {
+                name: string;
+                /** @description Tracks with a YT Music match still lacking this analyzer. */
+                due: number;
+                leased: number;
+                ok: number;
+                /** @description ai_detect only. */
+                ai_detected: number;
+                failed: number;
+                unusable_source: number;
+            }[];
+        };
+        AnalysisRequeueResponse: {
+            requeued: number;
         };
         CollectResponse: {
             /** Format: uuid */
