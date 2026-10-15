@@ -257,7 +257,7 @@ PK `(category_id, track_id)`. `source_triage_block_id` is set when the track was
 
 | Table | Key | Notes |
 |---|---|---|
-| `track_analyses` | `(track_id, analyzer)` | One row per track and analyzer. Status is `leased` (with `lease_id` / `leased_until`, 30 min), `ok`, `failed` (final) or `unusable_source`. Also holds `version`, `result jsonb`, `audio_sha256`, `video_id` and `analyzed_at`. The partial index `ix_track_analyses_ai_lofcz_detected` serves the `ai_detected` flag in the track lists (analyzer `ai_lofcz`; migration 39 moved it off `ai_detect`). Cascades on track delete. |
+| `track_analyses` | `(track_id, analyzer)` | One row per track and analyzer. Status is `leased` (with `lease_id` / `leased_until`, 30 min), `ok`, `failed` (final) or `unusable_source`. Also holds `version`, `result jsonb`, `audio_sha256`, `video_id` and `analyzed_at`. The partial index `ix_track_analyses_ai_flag` on `(track_id, analyzer)` over ok AI-flagged rows serves the pair `ai_verdict` in the track lists (`ai_lofcz` + `ai_deezer`: both → `ai`, one → `review`) and the admin pair counts (migration 40; it replaced the lofcz-only index). Cascades on track delete. |
 | `analysis_service_state` | `service` | The analyzer's heartbeat for the admin card: `last_claim_at`, `last_result_at`, and `claim_analyzers` (the names it asked for). |
 
 ### User tag tables
