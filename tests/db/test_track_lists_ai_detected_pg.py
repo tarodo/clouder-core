@@ -19,34 +19,40 @@ def world(pg):
         " VALUES ('u1', 'sp', 'N', 'u1@example.com', now(), now())",
         "INSERT INTO clouder_tracks (id, title, normalized_title, style_id, created_at, updated_at)"
         " VALUES ('ai', 'AI', 'ai', 'st', now(), now()), ('human', 'H', 'h', 'st', now(), now()),"
-        " ('clean', 'C', 'c', 'st', now(), now())",
-        # flagged, analyzed-not-flagged, and a non-ok row that must not count
+        " ('clean', 'C', 'c', 'st', now(), now()), ('old', 'O', 'o', 'st', now(), now())",
+        # flagged, analyzed-not-flagged, a non-badge analyzer, and a flag from the
+        # retired ai_detect (ArtifactNet) model: only ai_lofcz drives the badge
         "INSERT INTO track_analyses (track_id, analyzer, status, version, result)"
-        " VALUES ('ai', 'ai_detect', 'ok', 'v1', '{\"ai_detected\": true, \"score\": 0.9}'),"
-        " ('human', 'ai_detect', 'ok', 'v1', '{\"ai_detected\": false, \"score\": 0.0}'),"
-        " ('clean', 'embed', 'ok', 'v1', '{\"ai_detected\": true}')",
+        " VALUES ('ai', 'ai_lofcz', 'ok', 'v1', '{\"ai_detected\": true, \"score\": 0.9}'),"
+        " ('human', 'ai_lofcz', 'ok', 'v1', '{\"ai_detected\": false, \"score\": 0.0}'),"
+        " ('human', 'ai_detect', 'ok', 'v1', '{\"ai_detected\": true, \"score\": 0.9}'),"
+        " ('clean', 'embed', 'ok', 'v1', '{\"ai_detected\": true}'),"
+        " ('old', 'ai_detect', 'ok', 'v1', '{\"ai_detected\": true, \"score\": 0.9}')",
         "INSERT INTO categories (id, user_id, style_id, name, normalized_name, created_at,"
         " updated_at) VALUES ('cat', 'u1', 'st', 'C', 'c', now(), now())",
         "INSERT INTO category_tracks (category_id, track_id, added_at)"
-        " VALUES ('cat', 'ai', now()), ('cat', 'human', now()), ('cat', 'clean', now())",
+        " VALUES ('cat', 'ai', now()), ('cat', 'human', now()), ('cat', 'clean', now()),"
+        " ('cat', 'old', now())",
         "INSERT INTO triage_blocks (id, user_id, style_id, name, date_from, date_to, status,"
         " created_at, updated_at) VALUES ('blk', 'u1', 'st', 'B', '2026-10-03', '2026-10-09',"
         " 'IN_PROGRESS', now(), now())",
         "INSERT INTO triage_buckets (id, triage_block_id, bucket_type, created_at)"
         " VALUES ('bkt', 'blk', 'NEW', now())",
         "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at)"
-        " VALUES ('bkt', 'ai', now()), ('bkt', 'human', now()), ('bkt', 'clean', now())",
+        " VALUES ('bkt', 'ai', now()), ('bkt', 'human', now()), ('bkt', 'clean', now()),"
+        " ('bkt', 'old', now())",
         "INSERT INTO playlists (id, user_id, name, normalized_name, created_at, updated_at)"
         " VALUES ('pl', 'u1', 'P', 'p', now(), now())",
         "INSERT INTO playlist_tracks (playlist_id, track_id, position, added_at)"
-        " VALUES ('pl', 'ai', 0, now()), ('pl', 'human', 1, now()), ('pl', 'clean', 2, now())",
+        " VALUES ('pl', 'ai', 0, now()), ('pl', 'human', 1, now()), ('pl', 'clean', 2, now()),"
+        " ('pl', 'old', 3, now())",
     ]:
         pg.execute(sql)
     yield pg
     delete_user(pg, "u1")
 
 
-EXPECTED = {"ai": True, "human": False, "clean": False}
+EXPECTED = {"ai": True, "human": False, "clean": False, "old": False}
 
 
 def test_category_tracks(world) -> None:

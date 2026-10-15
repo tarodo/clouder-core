@@ -5,14 +5,20 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
+from ..schemas import AI_ANALYZERS
 from ._base import RepositoryBase, as_utc_datetime
 
 SERVICE = "analyzer"
 
-# The badge in the track lists (`t` = clouder_tracks); served by ix_track_analyses_ai_detected.
-AI_DETECTED_SQL = """EXISTS (
+# ai_detect (ArtifactNet) rows stay as a second opinion; the badge reads ai_lofcz
+# (lofcz/ai-music-detector).
+BADGE_ANALYZER = "ai_lofcz"
+
+# The badge in the track lists (`t` = clouder_tracks); served by
+# ix_track_analyses_ai_lofcz_detected.
+AI_DETECTED_SQL = f"""EXISTS (
     SELECT 1 FROM track_analyses ta
-    WHERE ta.track_id = t.id AND ta.analyzer = 'ai_detect' AND ta.status = 'ok'
+    WHERE ta.track_id = t.id AND ta.analyzer = '{BADGE_ANALYZER}' AND ta.status = 'ok'
       AND (ta.result->>'ai_detected')::boolean) AS ai_detected"""
 LEASE_SECONDS = 1800
 
@@ -154,11 +160,12 @@ class AnalysisMixin(RepositoryBase):
                    CASE WHEN status = 'leased' AND leased_until < :now THEN 'expired'
                         ELSE status END AS status,
                    count(*) AS n,
-                   count(*) FILTER (WHERE status = 'ok' AND analyzer = 'ai_detect'
+                   count(*) FILTER (WHERE status = 'ok'
+                                    AND analyzer = ANY (string_to_array(:ai, ','))
                                     AND (result->>'ai_detected')::boolean) AS ai_detected
             FROM track_analyses GROUP BY 1, 2
             """,
-            {"now": now},
+            {"now": now, "ai": ",".join(AI_ANALYZERS)},
         )
         names = {r["analyzer"] for r in counts}
         if state and state[0]["claim_analyzers"]:

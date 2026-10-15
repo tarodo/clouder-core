@@ -132,6 +132,8 @@ class YoutubeSearchMessage(BaseModel):
 
 AnalyzerName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{1,31}$")]
 _RESULT_MAX_BYTES = 32_768
+# AI detectors: an ok result is {ai_detected: bool, score: number in [0, 1], ...}.
+AI_ANALYZERS = ("ai_detect", "ai_lofcz")
 
 
 class AnalysisClaimRequest(BaseModel):
@@ -198,17 +200,17 @@ class AnalysisResultItem(BaseModel):
                 raise ValueError("result must be valid JSON (no NaN)") from exc
             if size > _RESULT_MAX_BYTES:
                 raise ValueError(f"result must be at most {_RESULT_MAX_BYTES} bytes")
-        if self.analyzer == "ai_detect" and self.status == "ok" and self.result is not None:
+        if self.analyzer in AI_ANALYZERS and self.status == "ok" and self.result is not None:
             flag, score = self.result.get("ai_detected"), self.result.get("score")
             if not isinstance(flag, bool):
-                raise ValueError("ai_detect result.ai_detected must be a boolean")
+                raise ValueError(f"{self.analyzer} result.ai_detected must be a boolean")
             if (
                 isinstance(score, bool)
                 or not isinstance(score, int | float)
                 or not math.isfinite(score)
                 or not 0 <= score <= 1
             ):
-                raise ValueError("ai_detect result.score must be a number in [0, 1]")
+                raise ValueError(f"{self.analyzer} result.score must be a number in [0, 1]")
         return self
 
 
