@@ -98,6 +98,14 @@ data "aws_iam_policy_document" "auth_authorizer" {
     resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.jwt_signing_key_ssm_parameter}"]
   }
 
+  # Owner-written, never in Terraform state (docs/ops/runbook.md#analysis-service-token).
+  statement {
+    sid       = "ReadAnalysisTokenHash"
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.analysis_token_sha256_ssm_parameter}"]
+  }
+
   statement {
     sid       = "DecryptSsmParameters"
     effect    = "Allow"
@@ -126,8 +134,9 @@ resource "aws_lambda_function" "auth_authorizer" {
 
   environment {
     variables = {
-      JWT_SIGNING_KEY_SSM_PARAMETER = var.jwt_signing_key_ssm_parameter
-      LOG_LEVEL                     = "INFO"
+      JWT_SIGNING_KEY_SSM_PARAMETER       = var.jwt_signing_key_ssm_parameter
+      ANALYSIS_TOKEN_SHA256_SSM_PARAMETER = var.analysis_token_sha256_ssm_parameter
+      LOG_LEVEL                           = "INFO"
     }
   }
 
