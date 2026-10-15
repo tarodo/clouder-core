@@ -23,6 +23,7 @@ from pydantic import (
 from pydantic import (
     ValidationError as PydanticValidationError,
 )
+from pydantic.config import JsonDict
 
 
 class CollectRequestIn(BaseModel):
@@ -151,7 +152,7 @@ class AnalysisClaimRequest(BaseModel):
 
 # The status rule of _shape below, also published in the schema so the
 # analyzer's contract test sees it.
-_RESULT_STATUS_RULE = {
+_RESULT_STATUS_RULE: JsonDict = {
     "allOf": [
         {
             "if": {"properties": {"status": {"const": "ok"}}},
@@ -197,7 +198,7 @@ class AnalysisResultItem(BaseModel):
                 raise ValueError("result must be valid JSON (no NaN)") from exc
             if size > _RESULT_MAX_BYTES:
                 raise ValueError(f"result must be at most {_RESULT_MAX_BYTES} bytes")
-        if self.analyzer == "ai_detect" and self.status == "ok":
+        if self.analyzer == "ai_detect" and self.status == "ok" and self.result is not None:
             flag, score = self.result.get("ai_detected"), self.result.get("score")
             if not isinstance(flag, bool):
                 raise ValueError("ai_detect result.ai_detected must be a boolean")
