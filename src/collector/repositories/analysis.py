@@ -214,20 +214,26 @@ class AnalysisMixin(RepositoryBase):
                 SELECT ct.track_id FROM category_tracks ct
                 JOIN categories c ON c.id = ct.category_id WHERE c.deleted_at IS NULL)""",
             "recent": """AND track_id IN (
-                SELECT id FROM clouder_tracks
-                WHERE created_at >= :now - make_interval(days => :days))""",
+                SELECT id FROM clouder_tracks WHERE created_at >= :cutoff)""",
         }[scope]
         params: dict[str, Any] = {"analyzer": analyzer, "statuses": ",".join(statuses)}
         if scope == "recent":
-            params |= {"now": now, "days": days}
+            # Python-side cutoff: the Data API binds ints as bigint and Postgres has
+            # no make_interval(days => bigint).
+            params["cutoff"] = now - timedelta(days=days or 0)
         rows = self._data_api.execute(
             f"""
-            DELETE FROM track_analyses
-            WHERE analyzer = :analyzer
-              AND status = ANY (string_to_array(:statuses, ','))
-              {where}
-            RETURNING 1 AS deleted
+            WITH deleted AS (
+                DELETE FROM track_analyses
+                WHERE analyzer = :analyzer
+                  AND status = ANY (string_to_array(:statuses, ','))
+                  {where}
+                RETURNING 1
+            )
+            SELECT count(*) AS n FROM deleted
             """,
             params,
         )
-        return len(rows)
+        # One count row, not one row per deletion: a requeue of tens of thousands
+        # of rows would overrun the Data API's 1 MiB response cap.
+        return int(rows[0]["n"])

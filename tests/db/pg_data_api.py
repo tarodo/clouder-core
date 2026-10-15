@@ -22,6 +22,7 @@ from typing import Any
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
+from psycopg.types.numeric import Int8BinaryDumper, Int8Dumper
 from psycopg.types.string import StrBinaryDumperVarchar, StrDumperVarchar
 
 CANONICAL_TABLES = (
@@ -54,6 +55,10 @@ def _connect(dsn: str, *, autocommit: bool) -> psycopg.Connection:
     conn = psycopg.connect(dsn, autocommit=autocommit, row_factory=dict_row)
     conn.adapters.register_dumper(str, StrDumperVarchar)
     conn.adapters.register_dumper(str, StrBinaryDumperVarchar)
+    # The Data API sends every int as longValue (bigint); psycopg would pick the
+    # smallest type and hide calls like make_interval(days => bigint) that fail live.
+    conn.adapters.register_dumper(int, Int8Dumper)
+    conn.adapters.register_dumper(int, Int8BinaryDumper)
     return conn
 
 
