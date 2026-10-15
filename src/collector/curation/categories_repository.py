@@ -728,7 +728,7 @@ class CategoriesRepository:
             SELECT
                 t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.key_name, t.key_camelot,
-                t.publish_date, t.spotify_id, t.release_type, t.is_ai_suspected,
+                t.publish_date, t.spotify_id, t.release_type,
                 t.spotify_release_date,
                 COALESCE(
                     JSON_AGG(

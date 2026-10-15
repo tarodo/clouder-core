@@ -160,7 +160,7 @@ Index: `idx_album_match (normalized_title, release_date, label_id)`. Canonicaliz
 | spotify_searched_at | TIMESTAMPTZ nullable | NULL = not yet searched; NOT NULL + spotify_id NULL = searched, not found |
 | spotify_release_date | Date nullable | From `album.release_date` adjusted by `release_date_precision`. Partial index. Used by triage block classification: NULL→UNCLASSIFIED, before date_from→OLD, compilation→NOT, else→NEW |
 | release_type | String(16) nullable | Mirror of parent album's `release_type` (ADR-0007) |
-| is_ai_suspected | Boolean default FALSE | Soft flag (ADR-0008); no current writer sets it on tracks |
+| is_ai_suspected | Boolean default FALSE | Dead: no writer, always FALSE; no API returns it. Kept only for the catalog export / `dim_track_history` |
 | origin | Text default `'beatport'` | `beatport` \| `spotify_user_import` |
 | created_at / updated_at | TIMESTAMPTZ | |
 

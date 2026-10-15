@@ -189,7 +189,7 @@ describe('Track-tags end-to-end', () => {
             id: 't1', title: 't1', mix_name: null, artists: [],
             label: null, bpm: null, length_ms: null, publish_date: null,
             spotify_release_date: null, isrc: null, spotify_id: null,
-            release_type: null, is_ai_suspected: false,
+            release_type: null,
             added_at: '2026-05-11T00:00:00Z', source_triage_block_id: null,
             tags: trackTagObjects,
           }] : [],

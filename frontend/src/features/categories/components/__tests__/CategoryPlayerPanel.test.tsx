@@ -128,7 +128,7 @@ const placedTrack: CategoryTrack = {
   id: 't1', title: 'X', mix_name: null, artists: [{ id: 'a1', name: 'A' }],
   label: null, bpm: null, length_ms: 200000,
   publish_date: null, spotify_release_date: null, isrc: null,
-  spotify_id: 'sp1', release_type: null, is_ai_suspected: false,
+  spotify_id: 'sp1', release_type: null,
   used_in_playlist: false, added_at: '2026-10-02 10:15:00.5',
   source_triage_block_id: 'blk-1', tags: [],
 };
@@ -192,7 +192,7 @@ describe('CategoryPlayerPanel', () => {
     id: 't1', title: 'X', mix_name: null, artists: [{ id: 'a1', name: 'A' }],
     label: { id: 'lbl1', name: 'L' }, bpm: 120, length_ms: 200000,
     publish_date: null, spotify_release_date: null, isrc: null,
-    spotify_id: 'sp1', release_type: null, is_ai_suspected: false,
+    spotify_id: 'sp1', release_type: null,
     used_in_playlist: false, added_at: '2026-01-01T00:00:00Z',
     source_triage_block_id: null, tags: [],
   };

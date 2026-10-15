@@ -32,7 +32,6 @@ const track: CategoryTrack = {
   isrc: null,
   spotify_id: 'sp1',
   release_type: null,
-  is_ai_suspected: false,
   used_in_playlist: false,
   added_at: '2026-05-12T00:00:00Z',
   source_triage_block_id: null,

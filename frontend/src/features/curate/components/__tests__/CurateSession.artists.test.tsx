@@ -94,7 +94,6 @@ function tracksPageWithArtists() {
         spotify_release_date: '2026-04-15',
         spotify_id: 'sp-t1',
         release_type: 'single',
-        is_ai_suspected: false,
         artists: [{ id: 'a1', name: 'Joja', role: 'main' }],
         label_id: null,
         label_name: null,

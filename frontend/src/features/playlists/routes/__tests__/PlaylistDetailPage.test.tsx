@@ -111,7 +111,6 @@ const seedTracks = {
       label: null,
       bpm: null,
       spotify_release_date: null,
-      is_ai_suspected: false,
       tags: [],
     },
   ],

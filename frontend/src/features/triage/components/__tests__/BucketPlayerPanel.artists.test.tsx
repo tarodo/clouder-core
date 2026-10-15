@@ -29,7 +29,6 @@ import { BucketPlayerPanel } from '../BucketPlayerPanel';
 const track: BucketTrack = {
   track_id: 't1', title: 'Song', mix_name: null, isrc: null, bpm: 128, length_ms: 1000,
   publish_date: null, spotify_release_date: null, spotify_id: null, release_type: null,
-  is_ai_suspected: false,
   artists: [
     { id: 'a1', name: 'Main Artist', role: 'main' },
     { id: 'a2', name: 'Second', role: 'main' },

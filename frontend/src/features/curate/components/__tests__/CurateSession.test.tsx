@@ -101,7 +101,6 @@ function tracksPage(ids: string[]) {
       spotify_release_date: '2026-04-15',
       spotify_id: `sp-${id}`,
       release_type: 'single',
-      is_ai_suspected: false,
       artists: ['Artist A'],
       label_id: null,
       label_name: 'Label X',

@@ -823,7 +823,6 @@ def test_list_tracks_handles_empty_artists() -> None:
                 "publish_date": None,
                 "spotify_id": None,
                 "release_type": None,
-                "is_ai_suspected": False,
                 "spotify_release_date": None,
                 "artists_json": "[]",
                 "label_id": None,
@@ -861,7 +860,6 @@ def test_list_tracks_returns_rows_and_total() -> None:
                 "publish_date": None,
                 "spotify_id": None,
                 "release_type": "single",
-                "is_ai_suspected": False,
                 "spotify_release_date": "2026-01-15",
                 "artists_json": ('[{"id":"a1","name":"Artist A"},{"id":"a2","name":"Artist B"}]'),
                 "label_id": "l1",
@@ -928,7 +926,6 @@ def test_list_tracks_label_null_when_no_album() -> None:
                 "publish_date": None,
                 "spotify_id": None,
                 "release_type": None,
-                "is_ai_suspected": False,
                 "spotify_release_date": None,
                 "artists_json": "[]",
                 "label_id": None,
@@ -1064,7 +1061,6 @@ def _stock_track_row() -> dict[str, object]:
         "publish_date": None,
         "spotify_id": None,
         "release_type": None,
-        "is_ai_suspected": False,
         "spotify_release_date": None,
         "artists_json": "[]",
         "label_id": None,
@@ -1100,6 +1096,7 @@ def test_list_tracks_filters_with_match_all() -> None:
     main_sql = data_api.execute.call_args_list[1].args[0]
     assert "GROUP BY track_id" in main_sql
     assert "COUNT(DISTINCT tag_id)" in main_sql
+    assert "is_ai_suspected" not in main_sql
     main_params = data_api.execute.call_args_list[1].args[1]
     assert main_params["user_id"] == "u1"
     assert main_params["tag_count"] == 2

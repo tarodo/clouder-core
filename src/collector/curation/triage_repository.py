@@ -93,7 +93,6 @@ class BucketTrackRowOut:
     spotify_release_date: str | None
     spotify_id: str | None
     release_type: str | None
-    is_ai_suspected: bool
     artists: list[dict]
     label_name: str | None
     label_id: str | None
@@ -1006,7 +1005,7 @@ class TriageRepository:
                 t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.key_name, t.key_camelot,
                 t.publish_date, t.spotify_release_date,
-                t.spotify_id, t.release_type, t.is_ai_suspected,
+                t.spotify_id, t.release_type,
                 tbt.added_at,
                 cl.id AS label_id,
                 cl.name AS label_name,
@@ -1028,7 +1027,7 @@ class TriageRepository:
                 t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.key_name, t.key_camelot,
                 t.publish_date, t.spotify_release_date,
-                t.spotify_id, t.release_type, t.is_ai_suspected,
+                t.spotify_id, t.release_type,
                 tbt.added_at, cl.id, cl.name
             ORDER BY tbt.added_at DESC, t.id ASC
             LIMIT :limit OFFSET :offset
@@ -1073,7 +1072,6 @@ class TriageRepository:
                     ),
                     spotify_id=r.get("spotify_id"),
                     release_type=r.get("release_type"),
-                    is_ai_suspected=bool(r.get("is_ai_suspected", False)),
                     artists=artists,
                     label_name=r.get("label_name"),
                     label_id=r.get("label_id"),

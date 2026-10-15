@@ -13,7 +13,6 @@ const base: BucketTrack = {
   spotify_release_date: null,
   spotify_id: 'sp1',
   release_type: null,
-  is_ai_suspected: false,
   artists: [{ id: 'a-1', name: 'A', role: 'artist' }, { id: 'a-2', name: 'B', role: 'artist' }],
   label_id: null,
   label_name: null,

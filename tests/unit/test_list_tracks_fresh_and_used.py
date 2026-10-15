@@ -32,7 +32,6 @@ def _row(track_id: str, used: bool) -> dict:
         "publish_date": None,
         "spotify_id": "sp1",
         "release_type": None,
-        "is_ai_suspected": False,
         "spotify_release_date": "2024-01-01",
         "artists_json": "[]",
         "label_id": None,

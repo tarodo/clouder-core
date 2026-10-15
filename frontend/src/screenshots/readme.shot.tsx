@@ -76,7 +76,7 @@ const BUCKETS: TriageBucket[] = [
 const TRACK: BucketTrack = {
   track_id: 't1', title: 'Night Drive', mix_name: 'Extended Mix', isrc: 'GBXXX2600001',
   bpm: 124, length_ms: 372_000, publish_date: '2026-09-29', spotify_release_date: '2026-09-29',
-  spotify_id: 'sp1', release_type: 'single', is_ai_suspected: false,
+  spotify_id: 'sp1', release_type: 'single',
   artists: [{ id: 'a1', name: 'Mara Quill', role: 'main' }, { id: 'a2', name: 'Odessa Lane', role: 'main' }],
   label_id: 'l1', label_name: 'Lowtide Records', added_at: '2026-10-03T09:00:00Z',
   key_name: 'A minor', key_camelot: '8A',

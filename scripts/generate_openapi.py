@@ -135,7 +135,6 @@ CATEGORY_TRACK_RESPONSE = {
         "publish_date": {"type": ["string", "null"]},
         "spotify_id": {"type": ["string", "null"]},
         "release_type": {"type": ["string", "null"]},
-        "is_ai_suspected": {"type": "boolean"},
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
         "source_triage_block_id": {"type": ["string", "null"]},
@@ -483,7 +482,6 @@ BUCKET_TRACK_ROW = {
     "required": [
         "track_id",
         "title",
-        "is_ai_suspected",
         "artists",
         "added_at",
     ],
@@ -500,7 +498,6 @@ BUCKET_TRACK_ROW = {
         "spotify_release_date": {"type": ["string", "null"]},
         "spotify_id": {"type": ["string", "null"]},
         "release_type": {"type": ["string", "null"]},
-        "is_ai_suspected": {"type": "boolean"},
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
     },
@@ -523,7 +520,6 @@ PLAYLIST_TRACK_RESPONSE = {
     "required": [
         "track_id",
         "title",
-        "is_ai_suspected",
         "artists",
         "added_at",
     ],
@@ -540,7 +536,6 @@ PLAYLIST_TRACK_RESPONSE = {
         "spotify_release_date": {"type": ["string", "null"]},
         "spotify_id": {"type": ["string", "null"]},
         "origin": {"type": "string"},
-        "is_ai_suspected": {"type": "boolean"},
         "artists": {"type": "array", "items": {"type": "object"}},
         "added_at": {"type": "string"},
         "label": {

@@ -56,7 +56,7 @@ const BLOCK = {
 const TRACK = {
   track_id: 'tr-1', title: 'Song', mix_name: null, isrc: null, bpm: 120, length_ms: 200000,
   publish_date: null, spotify_release_date: null, spotify_id: 'sp-1', release_type: null,
-  is_ai_suspected: false, artists: [{ id: 'a', name: 'Art', role: 'main' }],
+  artists: [{ id: 'a', name: 'Art', role: 'main' }],
   label_id: null, label_name: null, added_at: '2026-01-01',
 };
 

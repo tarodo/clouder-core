@@ -117,7 +117,6 @@ function buildTracks() {
         spotify_release_date: '2026-04-15',
         spotify_id: 'spA',
         release_type: 'single',
-        is_ai_suspected: false,
         artists: ['Artist A'],
         label_name: 'Label X',
         added_at: '2026-04-21T00:00:00Z',

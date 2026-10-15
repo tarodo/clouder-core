@@ -3364,7 +3364,6 @@ export interface paths {
                                 publish_date?: string | null;
                                 spotify_id?: string | null;
                                 release_type?: string | null;
-                                is_ai_suspected?: boolean;
                                 artists?: string[];
                                 added_at?: string;
                                 source_triage_block_id?: string | null;
@@ -4099,7 +4098,6 @@ export interface paths {
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
                                 release_type?: string | null;
-                                is_ai_suspected: boolean;
                                 artists: string[];
                                 added_at: string;
                             }[];
@@ -5553,7 +5551,6 @@ export interface paths {
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
                                 origin?: string;
-                                is_ai_suspected: boolean;
                                 artists: Record<string, never>[];
                                 added_at: string;
                                 label?: Record<string, never> | null;
@@ -8947,7 +8944,6 @@ export interface components {
             spotify_release_date?: string | null;
             spotify_id?: string | null;
             origin?: string;
-            is_ai_suspected: boolean;
             artists: Record<string, never>[];
             added_at: string;
             label?: Record<string, never> | null;

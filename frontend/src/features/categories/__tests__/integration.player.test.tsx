@@ -154,7 +154,6 @@ describe('Category player — integration', () => {
               isrc: null,
               spotify_id: 'sp1',
               release_type: null,
-              is_ai_suspected: false,
               used_in_playlist: false,
               added_at: '2024-01-02',
               source_triage_block_id: null,
