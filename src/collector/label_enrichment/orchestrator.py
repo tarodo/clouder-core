@@ -22,6 +22,14 @@ def _cell_payload(
     label_name: str,
 ) -> dict:
     """Shape mirrors experiments/labels output so aggregator.merge_cells works unchanged."""
+    if response.error:
+        # Feeds the out-of-credit alarm (infra/enrichment_alarms.tf).
+        log_event(
+            "WARNING",
+            "enrichment_vendor_error",
+            vendor=vendor.name,
+            error_message=response.error[:500],
+        )
     return {
         "vendor": {"name": vendor.name, "model": response.model},
         "fixture": {"label_name": label_name},

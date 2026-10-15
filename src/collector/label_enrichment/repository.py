@@ -41,6 +41,22 @@ _STYLE_SLUG_EXPR = (
 )
 
 
+def _pg_date(value: str | None) -> str | None:
+    """Vendor date ('2025-12-14', '2025-12', '2025') -> ISO date for CAST(... AS date).
+
+    Month/year-only dates take the first day; anything else is dropped (the
+    raw string stays in `merged`).
+    """
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%d", "%Y-%m", "%Y"):
+        try:
+            return datetime.strptime(value.strip(), fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+
 def _pg_text_array(items: list[str]) -> str:
     """Format a Python list as a PostgreSQL text[] array literal.
 
@@ -806,7 +822,7 @@ class LabelEnrichmentRepository:
                 "country": payload.get("country"),
                 "founded_year": payload.get("founded_year"),
                 "activity": payload.get("activity"),
-                "last_release_date": payload.get("last_release_date"),
+                "last_release_date": _pg_date(payload.get("last_release_date")),
                 "updated_at": ts,
             },
         )

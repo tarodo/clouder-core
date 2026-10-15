@@ -1,6 +1,8 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
+import pytest
+
 from collector.label_enrichment.repository import (
     LabelEnrichmentRepository,
     RunSpec,
@@ -233,6 +235,36 @@ def test_upsert_label_info_writes_denormalized_columns():
     assert isinstance(params["provenance"], dict)
     assert "CAST(:primary_styles AS text[])" in sql
     assert "CAST(:last_release_date AS date)" in sql
+
+
+@pytest.mark.parametrize(
+    ("raw", "stored"),
+    [
+        ("2026-04-01", "2026-04-01"),
+        ("2025-12", "2025-12-01"),
+        ("2025", "2025-01-01"),
+        ("late 2025", None),
+        ("2025-13", None),
+        (None, None),
+    ],
+)
+def test_upsert_label_info_coerces_partial_release_date(raw, stored):
+    # Vendors return month- or year-only dates; CAST(... AS date) rejects them
+    # and the whole label info write fails.
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = []
+    merged = LabelInfo(label_name="L", summary="s", confidence=0.5, last_release_date=raw)
+    repo.upsert_label_info(
+        label_id="lbl-1",
+        last_run_id="run-1",
+        prompt_slug="label_v4_no_ai",
+        prompt_version="v1",
+        merged=merged,
+        provenance={},
+    )
+    _, params = data_api.execute.call_args[0]
+    assert params["last_release_date"] == stored
+    assert params["merged"]["last_release_date"] == raw
 
 
 def test_upsert_label_info_serialises_enum_values_as_wire_strings():
