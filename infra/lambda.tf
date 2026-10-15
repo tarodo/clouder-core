@@ -19,6 +19,8 @@ resource "aws_lambda_function" "collector" {
       CANONICALIZATION_QUEUE_URL  = aws_sqs_queue.canonicalization.url
       SPOTIFY_SEARCH_ENABLED      = var.spotify_search_enabled ? "true" : "false"
       SPOTIFY_SEARCH_QUEUE_URL    = aws_sqs_queue.spotify_search.url
+      YOUTUBE_SEARCH_QUEUE_URL    = aws_sqs_queue.youtube_search.url
+      YOUTUBE_SEARCH_SINCE        = var.youtube_search_since
       LABEL_ENRICHMENT_QUEUE_URL  = aws_sqs_queue.label_enrichment.url
       ARTIST_ENRICHMENT_QUEUE_URL = aws_sqs_queue.artist_enrichment.url
       AURORA_CLUSTER_ARN          = aws_rds_cluster.aurora.arn

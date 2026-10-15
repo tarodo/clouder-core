@@ -31,24 +31,29 @@ class YoutubeSearchMixin(RepositoryBase):
         self, limit: int, claimed_at: datetime, since: datetime
     ) -> list[dict[str, Any]]:
         """Stamp the next *limit* candidates with *claimed_at* and return their
-        search inputs, in one statement (SKIP LOCKED + repeated IS NULL, as the
-        Spotify claim). `has_ytmusic` marks tracks that already have a YT Music
+        search inputs, in one statement (SKIP LOCKED in a materialized pick,
+        repeated IS NULL on the update). `has_ytmusic` marks tracks that already have a YT Music
         match, review or no_match row: only their video is still looked for."""
         return self._data_api.execute(
             f"""
-            WITH claimed AS (
-                UPDATE clouder_tracks
-                SET youtube_searched_at = :claimed_at
-                WHERE id IN (
-                    SELECT id FROM clouder_tracks
-                    WHERE id IN ({_CANDIDATE_IDS})
-                      AND youtube_searched_at IS NULL
-                    ORDER BY created_at DESC
-                    LIMIT :limit
-                    FOR UPDATE SKIP LOCKED
-                )
+            WITH picked AS MATERIALIZED (
+                -- Materialized: run once. `IN (... LIMIT n FOR UPDATE SKIP
+                -- LOCKED)` may be re-executed per row, each run locking the
+                -- next row, and claim far more than n (seen once in tests).
+                SELECT id FROM clouder_tracks
+                WHERE id IN ({_CANDIDATE_IDS})
                   AND youtube_searched_at IS NULL
-                RETURNING id, title, length_ms, album_id, created_at
+                ORDER BY created_at DESC
+                LIMIT :limit
+                FOR UPDATE SKIP LOCKED
+            ),
+            claimed AS (
+                UPDATE clouder_tracks t
+                SET youtube_searched_at = :claimed_at
+                FROM picked
+                WHERE t.id = picked.id
+                  AND t.youtube_searched_at IS NULL
+                RETURNING t.id, t.title, t.length_ms, t.album_id, t.created_at
             )
             SELECT c.id, c.title, c.length_ms, alb.title AS album_title,
                    COALESCE(string_agg(DISTINCT a.name, ', '), '') AS artists,
@@ -96,3 +101,25 @@ class YoutubeSearchMixin(RepositoryBase):
             {"since": since},
         )
         return bool(rows)
+
+    def youtube_search_counts(self, since: datetime, recent_since: datetime) -> dict[str, int]:
+        """Backlog and outcomes behind the admin YouTube search status."""
+        rows = self._data_api.execute(
+            f"""
+            SELECT
+                (SELECT count(*) FROM clouder_tracks
+                 WHERE id IN ({_CANDIDATE_IDS}) AND youtube_searched_at IS NULL) AS waiting,
+                (SELECT count(*) FROM clouder_tracks
+                 WHERE youtube_searched_at >= :recent_since) AS searched_recently,
+                (SELECT count(*) FROM clouder_tracks
+                 WHERE youtube_searched_at IS NOT NULL) AS searched_total,
+                (SELECT count(*) FROM vendor_track_map WHERE vendor = 'ytmusic') AS matched,
+                (SELECT count(*) FROM match_review_queue
+                 WHERE vendor = 'ytmusic' AND status = 'pending') AS needs_review,
+                (SELECT count(*) FROM match_review_queue
+                 WHERE vendor = 'ytmusic' AND status = 'no_match') AS not_found,
+                (SELECT count(*) FROM vendor_track_map WHERE vendor = 'youtube') AS videos
+            """,
+            {"since": since, "recent_since": recent_since},
+        )
+        return {k: int(v or 0) for k, v in rows[0].items()}

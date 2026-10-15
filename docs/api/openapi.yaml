@@ -1481,6 +1481,27 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/youtube/search-status:
+    get:
+      summary: 'Admin: YouTube search state — queue, pause, backlog and outcomes.'
+      responses:
+        '200':
+          description: Search status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YoutubeSearchStatus'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /admin/auto-ingest/run:
     post:
       summary: 'Admin: start an auto-ingest run now (asynchronous, also when disabled).'
@@ -6364,6 +6385,78 @@ components:
               description: Searched without a Spotify match.
             searched_last_10_min:
               type: integer
+    YoutubeSearchStatus:
+      type: object
+      required:
+      - status
+      - paused_until
+      - queue
+      - tracks
+      - results
+      properties:
+        status:
+          type: string
+          enum:
+          - running
+          - queued
+          - paused
+          - idle
+          description: 'running: a worker holds a message; queued: a message waits;
+            paused: YouTube refused us (ban / error streak) until paused_until; idle:
+            done.'
+        paused_until:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        queue:
+          type: object
+          required:
+          - waiting_messages
+          - in_flight
+          - delayed
+          properties:
+            waiting_messages:
+              type: integer
+            in_flight:
+              type: integer
+            delayed:
+              type: integer
+        tracks:
+          type: object
+          required:
+          - waiting
+          - searched_last_10_min
+          - searched_total
+          properties:
+            waiting:
+              type: integer
+              description: New tracks and tracks in categories / open blocks not searched
+                yet.
+            searched_last_10_min:
+              type: integer
+            searched_total:
+              type: integer
+        results:
+          type: object
+          required:
+          - matched
+          - needs_review
+          - not_found
+          - videos
+          properties:
+            matched:
+              type: integer
+              description: Tracks with a YT Music match.
+            needs_review:
+              type: integer
+              description: Pending match reviews.
+            not_found:
+              type: integer
+              description: YT Music returned no candidate.
+            videos:
+              type: integer
+              description: Tracks with a video for comments.
     CollectResponse:
       type: object
       properties:

@@ -62,6 +62,7 @@ API = [
     "upsert_source_relation",
     "upsert_track_artist",
     "upsert_vendor_match",
+    "youtube_search_counts",
 ]
 
 AGGREGATES = {

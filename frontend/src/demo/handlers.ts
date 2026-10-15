@@ -292,6 +292,17 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
     { method: 'get', path: '/admin/auto-ingest', resolve: () => sampleAutoIngest() },
     {
       method: 'get',
+      path: '/admin/youtube/search-status',
+      resolve: () => ({
+        status: 'idle',
+        paused_until: null,
+        queue: { waiting_messages: 0, in_flight: 0, delayed: 0 },
+        tracks: { waiting: 0, searched_last_10_min: 0, searched_total: 4600 },
+        results: { matched: 3400, needs_review: 940, not_found: 3, videos: 1200 },
+      }),
+    },
+    {
+      method: 'get',
       path: '/admin/users',
       resolve: () => ({ users: [{ id: me.id, display_name: me.display_name }] }),
     },

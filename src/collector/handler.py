@@ -16,6 +16,7 @@ from .api import (
     routes_ingest,
     routes_runs,
     routes_spotify,
+    routes_youtube,
 )
 from .api.http import (
     _extract_api_request_id,
@@ -39,6 +40,7 @@ _ADMIN_ROUTES = frozenset(
         "GET /tracks/spotify-not-found",
         "POST /admin/spotify/retry-not-found",
         "GET /admin/spotify/search-status",
+        "GET /admin/youtube/search-status",
         "POST /admin/labels/enrich",
         "POST /admin/labels/{label_id}/enrich-auto",
         "GET /admin/labels/enrich/options",
@@ -95,6 +97,7 @@ _ROUTE_TABLE: dict[str, Route] = {
     "GET /tracks/spotify-not-found": routes_spotify._handle_spotify_not_found,
     "POST /admin/spotify/retry-not-found": routes_spotify._handle_spotify_retry_not_found,
     "GET /admin/spotify/search-status": routes_spotify._handle_spotify_search_status,
+    "GET /admin/youtube/search-status": routes_youtube._handle_youtube_search_status,
     "GET /tracks": routes_catalog._handle_list,
     "GET /albums": routes_catalog._handle_list,
     "GET /v1/analytics/funnel": routes_catalog._handle_analytics_funnel,
