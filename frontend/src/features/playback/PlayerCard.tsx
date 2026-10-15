@@ -230,7 +230,7 @@ export function PlayerCard(props: PlayerCardProps) {
               >
                 {track?.title ?? '—'}
               </Title>
-              {track?.ai_detected && <AiBadge />}
+              <AiBadge verdict={track?.ai_verdict} />
             </Group>
             {mixName ? (
               <Text size="sm" c="var(--color-fg-muted)" truncate>

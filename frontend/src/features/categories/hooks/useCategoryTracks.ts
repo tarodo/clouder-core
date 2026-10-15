@@ -37,7 +37,7 @@ export interface CategoryTrack {
   isrc: string | null;
   spotify_id: string | null;
   release_type: string | null;
-  ai_detected?: boolean;
+  ai_verdict?: 'ai' | 'review' | null;
   used_in_playlist: boolean;
   added_at: string;
   source_triage_block_id: string | null;

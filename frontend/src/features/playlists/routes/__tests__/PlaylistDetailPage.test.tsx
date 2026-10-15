@@ -51,7 +51,7 @@ vi.mock('../../../playback/usePlayback', () => ({
   }),
 }));
 
-import { PlaylistDetailPage } from '../PlaylistDetailPage';
+import { PlaylistDetailPage, toPlaybackTrack } from '../PlaylistDetailPage';
 import { testTheme } from '../../../../test/theme';
 
 function Wrapper({ children }: { children: React.ReactNode }) {
@@ -188,5 +188,28 @@ describe('PlaylistDetailPage', () => {
     );
     expect(screen.getByText('YT Music · needs republish')).toBeInTheDocument();
     expect(screen.queryByText('Needs republish')).not.toBeInTheDocument();
+  });
+});
+
+describe('toPlaybackTrack', () => {
+  it.each(['ai', 'review', null] as const)('carries ai_verdict=%s to the player', (verdict) => {
+    const track = toPlaybackTrack({
+      track_id: 't1',
+      position: 0,
+      added_at: '2026-01-01T00:00:00Z',
+      title: 'T',
+      spotify_id: null,
+      isrc: null,
+      length_ms: 1000,
+      origin: 'beatport',
+      mix_name: null,
+      artists: [{ id: 'a1', name: 'A' }],
+      label: null,
+      bpm: null,
+      spotify_release_date: null,
+      ai_verdict: verdict,
+      tags: [],
+    });
+    expect(track.ai_verdict).toBe(verdict);
   });
 });

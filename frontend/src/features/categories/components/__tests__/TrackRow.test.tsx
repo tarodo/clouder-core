@@ -275,29 +275,32 @@ describe('TrackRow — AI badge', () => {
     );
   });
 
-  it('shows AI next to the title when the audio was flagged (desktop and mobile)', () => {
-    const track: CategoryTrack = { ...baseTrack, ai_detected: true };
+  it.each([
+    ['ai', 'AI'],
+    ['review', 'AI?'],
+  ] as const)('ai_verdict=%s shows %s next to the title (desktop and mobile)', (verdict, label) => {
+    const track: CategoryTrack = { ...baseTrack, ai_verdict: verdict };
     const { unmount } = render(
       <W>
         <TrackRow track={track} variant="desktop" />
       </W>,
     );
-    expect(screen.getByText('AI')).toBeInTheDocument();
+    expect(screen.getByText(label)).toBeInTheDocument();
     unmount();
     render(
       <WMobile>
         <TrackRow track={track} variant="mobile" />
       </WMobile>,
     );
-    expect(screen.getByText('AI')).toBeInTheDocument();
+    expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it('shows nothing when not flagged', () => {
+  it('shows nothing without a verdict', () => {
     render(
       <W>
-        <TrackRow track={{ ...baseTrack, ai_detected: false }} variant="desktop" />
+        <TrackRow track={{ ...baseTrack, ai_verdict: null }} variant="desktop" />
       </W>,
     );
-    expect(screen.queryByText('AI')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^AI\??$/)).not.toBeInTheDocument();
   });
 });

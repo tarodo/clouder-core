@@ -9,6 +9,6 @@ export function toPlaybackTrack(t: BucketTrack): PlaybackTrack {
     cover_url: t.cover_url ?? null,
     duration_ms: t.length_ms ?? 0,
     spotify_id: t.spotify_id,
-    ai_detected: t.ai_detected,
+    ai_verdict: t.ai_verdict,
   };
 }

@@ -73,7 +73,7 @@ export function BucketTrackRow({
             <Stack gap={0}>
               <Group gap={6} wrap="nowrap">
                 <Text fw={500}>{track.title}</Text>
-                {track.ai_detected && <AiBadge />}
+                <AiBadge verdict={track.ai_verdict} />
               </Group>
               {track.mix_name && (
                 <Text size="xs" c="dimmed">
@@ -101,7 +101,7 @@ export function BucketTrackRow({
           <Group gap="xs">
             {playButton}
             <Text fw={500}>{track.title}</Text>
-            {track.ai_detected && <AiBadge />}
+            <AiBadge verdict={track.ai_verdict} />
           </Group>
           {moveMenu}
         </Group>

@@ -297,8 +297,10 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
         last_claim_at: new Date(Date.now() - 6 * 3_600_000).toISOString(),
         last_result_at: new Date(Date.now() - 6 * 3_600_000).toISOString(),
         analyzers: [
-          { name: 'ai_detect', due: 37, leased: 0, ok: 3412, ai_detected: 41, failed: 12, unusable_source: 3 },
+          { name: 'ai_deezer', due: 37, leased: 0, ok: 3412, ai_detected: 96, failed: 12, unusable_source: 3 },
+          { name: 'ai_lofcz', due: 37, leased: 0, ok: 3412, ai_detected: 58, failed: 12, unusable_source: 3 },
         ],
+        pair: { ai: 41, review: 72 },
       }),
     },
     {

@@ -82,13 +82,16 @@ describe('CurateCard', () => {
 });
 
 describe('CurateCard AI badge', () => {
-  it('shows AI next to the title when flagged', () => {
-    render(wrap(<CurateCard track={mkTrack({ ai_detected: true })} />));
-    expect(screen.getByText('AI')).toBeInTheDocument();
+  it.each([
+    ['ai', 'AI'],
+    ['review', 'AI?'],
+  ] as const)('ai_verdict=%s shows %s next to the title', (verdict, label) => {
+    render(wrap(<CurateCard track={mkTrack({ ai_verdict: verdict })} />));
+    expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it('shows nothing when not flagged', () => {
+  it('shows nothing without a verdict', () => {
     render(wrap(<CurateCard track={mkTrack()} />));
-    expect(screen.queryByText('AI')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^AI\??$/)).not.toBeInTheDocument();
   });
 });

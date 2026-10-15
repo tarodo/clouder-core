@@ -35,7 +35,7 @@ import type { PlaybackTrack } from '../../playback/lib/types';
 import { readTagsUrlState } from '../../tags';
 import { readFresh } from '../lib/freshUrlState';
 
-function toPlaybackTrack(t: CategoryTrack): PlaybackTrack {
+export function toPlaybackTrack(t: CategoryTrack): PlaybackTrack {
   return {
     id: t.id,
     title: t.title,
@@ -43,7 +43,7 @@ function toPlaybackTrack(t: CategoryTrack): PlaybackTrack {
     duration_ms: t.length_ms ?? 0,
     spotify_id: t.spotify_id,
     cover_url: t.cover_url ?? null,
-    ai_detected: t.ai_detected,
+    ai_verdict: t.ai_verdict,
   };
 }
 

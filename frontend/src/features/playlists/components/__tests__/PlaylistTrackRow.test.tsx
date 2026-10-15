@@ -201,13 +201,14 @@ describe('PlaylistTrackRow', () => {
 
 describe('PlaylistTrackRow AI badge', () => {
   it.each([
-    [true, 1],
-    [false, 0],
-  ])('ai_detected=%s shows %i AI badge', (flag, count) => {
+    ['ai', ['AI']],
+    ['review', ['AI?']],
+    [null, []],
+  ] as const)('ai_verdict=%s shows %j', (verdict, labels) => {
     render(
       <W>
         <PlaylistTrackRow
-          track={{ ...richTrack, ai_detected: flag }}
+          track={{ ...richTrack, ai_verdict: verdict }}
           position={1}
           onRemove={vi.fn()}
           onPlay={vi.fn()}
@@ -215,6 +216,6 @@ describe('PlaylistTrackRow AI badge', () => {
         />
       </W>,
     );
-    expect(screen.queryAllByText('AI')).toHaveLength(count);
+    expect(screen.queryAllByText(/^AI\??$/).map((el) => el.textContent)).toEqual(labels);
   });
 });

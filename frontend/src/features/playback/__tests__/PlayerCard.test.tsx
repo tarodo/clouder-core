@@ -194,14 +194,17 @@ describe('PlayerCard', () => {
 });
 
 describe('PlayerCard AI badge', () => {
-  it('shows AI next to the title of a flagged track', () => {
-    const track: PlaybackTrack = { ...sampleTrack, ai_detected: true };
+  it.each([
+    ['ai', 'AI'],
+    ['review', 'AI?'],
+  ] as const)('ai_verdict=%s shows %s next to the title', (verdict, label) => {
+    const track: PlaybackTrack = { ...sampleTrack, ai_verdict: verdict };
     render(wrap(<PlayerCard {...baseProps} track={track} state="playing" />));
-    expect(screen.getByText('AI')).toBeInTheDocument();
+    expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it('shows nothing for an unflagged track', () => {
+  it('shows nothing for a track without a verdict', () => {
     render(wrap(<PlayerCard {...baseProps} state="playing" />));
-    expect(screen.queryByText('AI')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^AI\??$/)).not.toBeInTheDocument();
   });
 });
