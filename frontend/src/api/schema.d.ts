@@ -3616,6 +3616,8 @@ export interface paths {
                                 publish_date?: string | null;
                                 spotify_id?: string | null;
                                 release_type?: string | null;
+                                /** @description The audio analyzer flagged AI (ai_detect ok, ai_detected true). */
+                                ai_detected?: boolean;
                                 artists?: string[];
                                 added_at?: string;
                                 source_triage_block_id?: string | null;
@@ -4350,6 +4352,8 @@ export interface paths {
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
                                 release_type?: string | null;
+                                /** @description The audio analyzer flagged AI (ai_detect ok, ai_detected true). */
+                                ai_detected: boolean;
                                 artists: string[];
                                 added_at: string;
                             }[];
@@ -5803,6 +5807,8 @@ export interface paths {
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
                                 origin?: string;
+                                /** @description The audio analyzer flagged AI (ai_detect ok, ai_detected true). */
+                                ai_detected: boolean;
                                 artists: Record<string, never>[];
                                 added_at: string;
                                 label?: Record<string, never> | null;
@@ -9325,6 +9331,8 @@ export interface components {
             spotify_release_date?: string | null;
             spotify_id?: string | null;
             origin?: string;
+            /** @description The audio analyzer flagged AI (ai_detect ok, ai_detected true). */
+            ai_detected: boolean;
             artists: Record<string, never>[];
             added_at: string;
             label?: Record<string, never> | null;

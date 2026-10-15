@@ -2263,6 +2263,10 @@ paths:
                           type:
                           - string
                           - 'null'
+                        ai_detected:
+                          type: boolean
+                          description: The audio analyzer flagged AI (ai_detect ok,
+                            ai_detected true).
                         artists:
                           type: array
                           items:
@@ -2831,6 +2835,7 @@ paths:
                       - track_id
                       - title
                       - artists
+                      - ai_detected
                       - added_at
                       properties:
                         track_id:
@@ -2878,6 +2883,10 @@ paths:
                           type:
                           - string
                           - 'null'
+                        ai_detected:
+                          type: boolean
+                          description: The audio analyzer flagged AI (ai_detect ok,
+                            ai_detected true).
                         artists:
                           type: array
                           items:
@@ -3812,6 +3821,7 @@ paths:
                       - track_id
                       - title
                       - artists
+                      - ai_detected
                       - added_at
                       properties:
                         track_id:
@@ -3855,6 +3865,10 @@ paths:
                           - 'null'
                         origin:
                           type: string
+                        ai_detected:
+                          type: boolean
+                          description: The audio analyzer flagged AI (ai_detect ok,
+                            ai_detected true).
                         artists:
                           type: array
                           items:

@@ -8,6 +8,12 @@ from typing import Any
 from ._base import RepositoryBase, as_utc_datetime
 
 SERVICE = "analyzer"
+
+# The badge in the track lists (`t` = clouder_tracks); served by ix_track_analyses_ai_detected.
+AI_DETECTED_SQL = """EXISTS (
+    SELECT 1 FROM track_analyses ta
+    WHERE ta.track_id = t.id AND ta.analyzer = 'ai_detect' AND ta.status = 'ok'
+      AND (ta.result->>'ai_detected')::boolean) AS ai_detected"""
 LEASE_SECONDS = 1800
 
 # A row blocks a (track, analyzer) pair unless it is a lease that ran out.
