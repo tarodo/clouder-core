@@ -58,7 +58,7 @@ export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateC
                 <Title order={titleOrder} size={titleSize}>
                   {track.title}
                 </Title>
-                {track.ai_detected && <AiBadge />}
+                <AiBadge verdict={track.ai_verdict} />
               </Group>
               {track.mix_name && (
                 <Text c="var(--color-fg-muted)" size={isMobile ? 'sm' : 'md'}>

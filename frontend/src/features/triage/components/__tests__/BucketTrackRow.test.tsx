@@ -203,10 +203,15 @@ describe('BucketTrackRow mobile', () => {
 });
 
 describe('BucketTrackRow AI badge', () => {
-  it.each(['desktop', 'mobile'] as const)('shows AI when flagged (%s)', (variant) => {
+  it.each([
+    ['desktop', 'ai', 'AI'],
+    ['mobile', 'ai', 'AI'],
+    ['desktop', 'review', 'AI?'],
+    ['mobile', 'review', 'AI?'],
+  ] as const)('%s: ai_verdict=%s shows %s', (variant, verdict, label) => {
     const row = (
       <BucketTrackRow
-        track={{ ...track, ai_detected: true }}
+        track={{ ...track, ai_verdict: verdict }}
         variant={variant}
         buckets={buckets}
         currentBucketId="src"
@@ -223,10 +228,10 @@ describe('BucketTrackRow AI badge', () => {
         row
       ),
     );
-    expect(screen.getByText('AI')).toBeInTheDocument();
+    expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it('shows nothing when not flagged', () => {
+  it('shows nothing without a verdict', () => {
     r(
       <Table>
         <Table.Tbody>
@@ -241,6 +246,6 @@ describe('BucketTrackRow AI badge', () => {
         </Table.Tbody>
       </Table>,
     );
-    expect(screen.queryByText('AI')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^AI\??$/)).not.toBeInTheDocument();
   });
 });

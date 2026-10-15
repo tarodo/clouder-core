@@ -154,17 +154,34 @@ def test_status_counts_and_heartbeat(repo) -> None:
             "unusable_source": 0,
         }
     ]
+    # an ai_detect flag is no part of the pair verdict
+    assert status["pair"] == {"ai": 0, "review": 0}
 
 
-def test_status_counts_ai_detected_for_ai_lofcz(repo) -> None:
-    repo.claim_analysis(limit=2, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
+@pytest.mark.parametrize("analyzer", ["ai_lofcz", "ai_deezer"])
+def test_status_counts_ai_detected_for_pair_analyzers(repo, analyzer) -> None:
+    repo.claim_analysis(limit=2, analyzers=[analyzer], lease_id=L1, now=T0)
     repo.record_analysis_results(
         lease_id=L1,
-        items=[_ok("new", ai=True, analyzer="ai_lofcz"), _ok("mid", analyzer="ai_lofcz")],
+        items=[_ok("new", ai=True, analyzer=analyzer), _ok("mid", analyzer=analyzer)],
         now=T0,
     )
     (ai,) = repo.analysis_status(now=T0)["analyzers"]
-    assert (ai["name"], ai["ok"], ai["ai_detected"]) == ("ai_lofcz", 2, 1)
+    assert (ai["name"], ai["ok"], ai["ai_detected"]) == (analyzer, 2, 1)
+
+
+def test_status_counts_tracks_per_pair_verdict(repo) -> None:
+    repo.claim_analysis(limit=3, analyzers=["ai_deezer", "ai_lofcz"], lease_id=L1, now=T0)
+    items = [
+        _ok("new", ai=True, analyzer="ai_lofcz"),
+        _ok("new", ai=True, analyzer="ai_deezer"),
+        _ok("mid", analyzer="ai_lofcz"),
+        _ok("mid", ai=True, analyzer="ai_deezer"),
+        _ok("old", analyzer="ai_lofcz"),
+        _ok("old", analyzer="ai_deezer"),
+    ]
+    repo.record_analysis_results(lease_id=L1, items=items, now=T0)
+    assert repo.analysis_status(now=T0)["pair"] == {"ai": 1, "review": 1}
 
 
 def test_status_counts_due_and_expired_leases(repo) -> None:
@@ -177,7 +194,12 @@ def test_status_counts_due_and_expired_leases(repo) -> None:
 
 def test_status_before_any_claim(repo) -> None:
     status = repo.analysis_status(now=T0)
-    assert status == {"last_claim_at": None, "last_result_at": None, "analyzers": []}
+    assert status == {
+        "last_claim_at": None,
+        "last_result_at": None,
+        "analyzers": [],
+        "pair": {"ai": 0, "review": 0},
+    }
 
 
 def _finish_all(repo) -> None:

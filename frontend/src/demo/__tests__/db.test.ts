@@ -131,6 +131,24 @@ describe('DemoDb', () => {
     for (const p of db.playlists({})) expect(p.cover_url, p.name).toBeTruthy();
   });
 
+  it('gives some tracks each AI verdict', () => {
+    const db = new DemoDb();
+    const verdicts = db
+      .styles('mine')
+      .flatMap((st) =>
+        db
+          .blocksByStyle(st.id)
+          .flatMap((b) =>
+            db
+              .block(b.id)
+              .buckets.flatMap((bk) => db.bucketTracks(b.id, bk.id).map((t) => t.ai_verdict)),
+          ),
+      );
+    expect(verdicts).toContain('ai');
+    expect(verdicts).toContain('review');
+    expect(verdicts).toContain(null);
+  });
+
   it('describes the label and artists of every track', () => {
     const db = new DemoDb();
     const block = db.block(firstOpenBlock(db).id);

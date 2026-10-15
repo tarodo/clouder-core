@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from collector.data_api import DataAPIClient
 from collector.models import normalize_text
-from collector.repositories.analysis import AI_DETECTED_SQL
+from collector.repositories.analysis import AI_VERDICT_SQL
 from collector.settings import get_data_api_settings
 
 if TYPE_CHECKING:
@@ -146,7 +146,7 @@ class PlaylistTrackRow:
     key_name: str | None = None
     key_camelot: str | None = None
     spotify_release_date: str | None = None
-    ai_detected: bool = False
+    ai_verdict: str | None = None
     artists: tuple[dict, ...] = ()
     label: dict | None = None
     beatport_track_id: str | None = None
@@ -614,7 +614,7 @@ class PlaylistsRepository:
                 t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.key_name, t.key_camelot,
                 t.spotify_id, t.spotify_release_date, t.origin,
-                {AI_DETECTED_SQL},
+                {AI_VERDICT_SQL},
                 COALESCE(
                     JSON_AGG(
                         JSON_BUILD_OBJECT('id', a.id, 'name', a.name)
@@ -677,7 +677,7 @@ class PlaylistsRepository:
                     key_name=r.get("key_name"),
                     key_camelot=r.get("key_camelot"),
                     spotify_release_date=(str(spot) if spot is not None else None),
-                    ai_detected=bool(r.get("ai_detected", False)),
+                    ai_verdict=r.get("ai_verdict"),
                     artists=tuple(artists),
                     label=label,
                     beatport_track_id=r.get("beatport_track_id"),

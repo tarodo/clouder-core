@@ -40,8 +40,8 @@ describe('toPlaybackTrack', () => {
   });
 });
 
-describe('toPlaybackTrack AI flag', () => {
-  it('carries ai_detected so the player can badge the track', () => {
-    expect(toPlaybackTrack({ ...base, ai_detected: true }).ai_detected).toBe(true);
+describe('toPlaybackTrack AI verdict', () => {
+  it.each(['ai', 'review', null] as const)('carries ai_verdict=%s to the player', (verdict) => {
+    expect(toPlaybackTrack({ ...base, ai_verdict: verdict }).ai_verdict).toBe(verdict);
   });
 });

@@ -99,7 +99,7 @@ def _playlist_track_response(row) -> dict[str, Any]:
         "key_name": getattr(row, "key_name", None),
         "key_camelot": getattr(row, "key_camelot", None),
         "spotify_release_date": getattr(row, "spotify_release_date", None),
-        "ai_detected": bool(getattr(row, "ai_detected", False)),
+        "ai_verdict": getattr(row, "ai_verdict", None),
         "artists": list(getattr(row, "artists", ())),
         "label": getattr(row, "label", None),
         "beatport_track_id": getattr(row, "beatport_track_id", None),

@@ -64,6 +64,12 @@ export function AnalysisStatus() {
               : t('admin.analysis_status.no_results')}
           </Text>
         )}
+        {data.analyzers.length > 0 && (
+          <SimpleGrid cols={{ base: 2, sm: 5 }}>
+            <Stat label={t('admin.analysis_status.pair_ai')} value={data.pair.ai} />
+            <Stat label={t('admin.analysis_status.pair_review')} value={data.pair.review} />
+          </SimpleGrid>
+        )}
         {data.analyzers.map((a) => (
           <Stack key={a.name} gap={4}>
             {data.analyzers.length > 1 && (

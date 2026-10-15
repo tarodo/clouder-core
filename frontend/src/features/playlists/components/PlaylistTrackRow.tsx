@@ -113,7 +113,7 @@ export function PlaylistTrackRowView({
           <Text fw={500} truncate>
             {track.title}
           </Text>
-          {track.ai_detected && <AiBadge />}
+          <AiBadge verdict={track.ai_verdict} />
           {track.mix_name && (
             <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
               {track.mix_name}

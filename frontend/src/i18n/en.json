@@ -848,6 +848,8 @@
       "due": "Waiting",
       "ok": "Analyzed",
       "ai_detected": "AI detected",
+      "pair_ai": "AI (both)",
+      "pair_review": "Needs review",
       "failed": "Failed",
       "unusable": "Unusable source"
     },

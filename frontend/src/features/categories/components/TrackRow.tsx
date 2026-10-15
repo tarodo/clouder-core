@@ -53,7 +53,7 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying
             <Stack gap={0}>
               <Group gap={6} wrap="nowrap">
                 <Text fw={500}>{track.title}</Text>
-                {track.ai_detected && <AiBadge />}
+                <AiBadge verdict={track.ai_verdict} />
               </Group>
               {track.mix_name && (
                 <Text size="xs" c="dimmed">{track.mix_name}</Text>
@@ -96,7 +96,7 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying
         <Group gap="xs">
           {playButton}
           <Text fw={500}>{track.title}</Text>
-          {track.ai_detected && <AiBadge />}
+          <AiBadge verdict={track.ai_verdict} />
           {track.used_in_playlist && <UsedInPlaylistBadge />}
         </Group>
         {track.mix_name && (

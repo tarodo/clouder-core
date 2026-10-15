@@ -38,7 +38,7 @@ import { ImportSpotifyModal } from '../components/ImportSpotifyModal';
 import { playlistTracksKey } from '../lib/queryKeys';
 import type { PaginatedPlaylistTracks, PlaylistTrack } from '../lib/playlistTypes';
 
-function toPlaybackTrack(t: PlaylistTrack): PlaybackTrack {
+export function toPlaybackTrack(t: PlaylistTrack): PlaybackTrack {
   return {
     id: t.track_id,
     title: t.title,
@@ -46,7 +46,7 @@ function toPlaybackTrack(t: PlaylistTrack): PlaybackTrack {
     duration_ms: t.length_ms ?? 0,
     spotify_id: t.spotify_id,
     cover_url: t.cover_url ?? null,
-    ai_detected: t.ai_detected,
+    ai_verdict: t.ai_verdict,
   };
 }
 

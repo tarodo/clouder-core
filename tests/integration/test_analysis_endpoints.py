@@ -47,7 +47,12 @@ class FakeRepo:
 
     def analysis_status(self, **kw):
         self.calls.append(("status", kw))
-        return {"last_claim_at": NOW, "last_result_at": None, "analyzers": []}
+        return {
+            "last_claim_at": NOW,
+            "last_result_at": None,
+            "analyzers": [],
+            "pair": {"ai": 2, "review": 5},
+        }
 
     def requeue_analysis(self, **kw):
         self.calls.append(("requeue", kw))
@@ -151,7 +156,12 @@ def test_results_reject_a_bad_ai_detect_result(monkeypatch):
 def test_admin_status(monkeypatch):
     status, body = _call(monkeypatch, FakeRepo(), "GET /admin/analysis/status", ADMIN)
     assert status == 200
-    assert body == {"last_claim_at": NOW.isoformat(), "last_result_at": None, "analyzers": []}
+    assert body == {
+        "last_claim_at": NOW.isoformat(),
+        "last_result_at": None,
+        "analyzers": [],
+        "pair": {"ai": 2, "review": 5},
+    }
 
 
 def test_admin_requeue(monkeypatch):

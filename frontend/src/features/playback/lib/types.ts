@@ -27,8 +27,8 @@ export interface PlaybackTrack {
   cover_url: string | null;
   duration_ms: number;
   spotify_id: string | null;
-  /** The audio analyzer flagged the track as AI; badges it in the player. */
-  ai_detected?: boolean;
+  /** The AI pair verdict (ai_lofcz + ai_deezer); badges the track in the player. */
+  ai_verdict?: 'ai' | 'review' | null;
 }
 
 export type QueueSource =

@@ -3616,8 +3616,11 @@ export interface paths {
                                 publish_date?: string | null;
                                 spotify_id?: string | null;
                                 release_type?: string | null;
-                                /** @description The audio analyzer flagged AI (ai_lofcz ok, ai_detected true). */
-                                ai_detected?: boolean;
+                                /**
+                                 * @description AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected true), review = exactly one did, null = neither or not analyzed yet.
+                                 * @enum {string|null}
+                                 */
+                                ai_verdict?: "ai" | "review" | null;
                                 artists?: string[];
                                 added_at?: string;
                                 source_triage_block_id?: string | null;
@@ -4352,8 +4355,11 @@ export interface paths {
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
                                 release_type?: string | null;
-                                /** @description The audio analyzer flagged AI (ai_lofcz ok, ai_detected true). */
-                                ai_detected: boolean;
+                                /**
+                                 * @description AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected true), review = exactly one did, null = neither or not analyzed yet.
+                                 * @enum {string|null}
+                                 */
+                                ai_verdict: "ai" | "review" | null;
                                 artists: string[];
                                 added_at: string;
                             }[];
@@ -5807,8 +5813,11 @@ export interface paths {
                                 spotify_release_date?: string | null;
                                 spotify_id?: string | null;
                                 origin?: string;
-                                /** @description The audio analyzer flagged AI (ai_lofcz ok, ai_detected true). */
-                                ai_detected: boolean;
+                                /**
+                                 * @description AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected true), review = exactly one did, null = neither or not analyzed yet.
+                                 * @enum {string|null}
+                                 */
+                                ai_verdict: "ai" | "review" | null;
                                 artists: Record<string, never>[];
                                 added_at: string;
                                 label?: Record<string, never> | null;
@@ -9013,6 +9022,13 @@ export interface components {
             last_claim_at: string | null;
             /** Format: date-time */
             last_result_at: string | null;
+            /** @description Tracks per AI pair verdict (ai_lofcz + ai_deezer). */
+            pair: {
+                /** @description Both flagged. */
+                ai: number;
+                /** @description Exactly one flagged. */
+                review: number;
+            };
             analyzers: {
                 name: string;
                 /** @description Tracks with a YT Music match still lacking this analyzer. */
@@ -9331,8 +9347,11 @@ export interface components {
             spotify_release_date?: string | null;
             spotify_id?: string | null;
             origin?: string;
-            /** @description The audio analyzer flagged AI (ai_lofcz ok, ai_detected true). */
-            ai_detected: boolean;
+            /**
+             * @description AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected true), review = exactly one did, null = neither or not analyzed yet.
+             * @enum {string|null}
+             */
+            ai_verdict: "ai" | "review" | null;
             artists: Record<string, never>[];
             added_at: string;
             label?: Record<string, never> | null;

@@ -109,7 +109,12 @@ export const handlers = [
     }),
   ),
   http.get('http://localhost/admin/analysis/status', () =>
-    HttpResponse.json({ last_claim_at: null, last_result_at: null, analyzers: [] }),
+    HttpResponse.json({
+      last_claim_at: null,
+      last_result_at: null,
+      analyzers: [],
+      pair: { ai: 0, review: 0 },
+    }),
   ),
   http.get('http://localhost/admin/coverage', ({ request }) => {
     const url = new URL(request.url);

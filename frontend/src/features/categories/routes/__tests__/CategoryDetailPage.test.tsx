@@ -52,7 +52,7 @@ vi.mock('../../../playback/usePlayback', () => ({
   }),
 }));
 
-import { CategoryDetailPage } from '../CategoryDetailPage';
+import { CategoryDetailPage, toPlaybackTrack } from '../CategoryDetailPage';
 import { testTheme } from '../../../../test/theme';
 
 function Wrapper({ children }: { children: React.ReactNode }) {
@@ -306,5 +306,30 @@ describe('CategoryDetailPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /Retry/ }));
     expect(await screen.findByText(/Removed from category/)).toBeInTheDocument();
     expect(deleteAttempts).toBe(2);
+  });
+});
+
+describe('toPlaybackTrack', () => {
+  it.each(['ai', 'review', null] as const)('carries ai_verdict=%s to the player', (verdict) => {
+    const track = toPlaybackTrack({
+      id: 't1',
+      title: 'T',
+      mix_name: null,
+      artists: [{ id: 'a1', name: 'A' }],
+      label: null,
+      bpm: null,
+      length_ms: 1000,
+      publish_date: null,
+      spotify_release_date: null,
+      isrc: null,
+      spotify_id: null,
+      release_type: null,
+      ai_verdict: verdict,
+      used_in_playlist: false,
+      added_at: '2026-01-01T00:00:00Z',
+      source_triage_block_id: null,
+      tags: [],
+    });
+    expect(track.ai_verdict).toBe(verdict);
   });
 });
