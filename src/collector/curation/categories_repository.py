@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from collector.data_api import DataAPIClient
 from collector.logging_utils import log_event
-from collector.repositories.analysis import AI_DETECTED_SQL
+from collector.repositories.analysis import AI_VERDICT_SQL
 from collector.settings import get_data_api_settings
 
 from . import (
@@ -730,7 +730,7 @@ class CategoriesRepository:
                 t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.key_name, t.key_camelot,
                 t.publish_date, t.spotify_id, t.release_type,
-                t.spotify_release_date, {AI_DETECTED_SQL},
+                t.spotify_release_date, {AI_VERDICT_SQL},
                 COALESCE(
                     JSON_AGG(
                         JSON_BUILD_OBJECT('id', a.id, 'name', a.name)
@@ -835,7 +835,6 @@ class CategoriesRepository:
             track["label"] = label
             track["spotify_release_date"] = spot_str
             track["used_in_playlist"] = bool(track.get("used_in_playlist", False))
-            track["ai_detected"] = bool(track.get("ai_detected", False))
 
             added_at = track.pop("added_at")
             source_id = track.pop("source_triage_block_id")

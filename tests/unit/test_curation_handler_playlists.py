@@ -286,7 +286,7 @@ def _track_row(**overrides) -> MagicMock:
         beatport_slug=None,
         tags=(tag,),
         ytmusic=None,
-        ai_detected=False,
+        ai_verdict="ai",
     )
     base.update(overrides)
     m = MagicMock()
@@ -317,7 +317,7 @@ def test_list_playlist_tracks_returns_enriched_fields(monkeypatch) -> None:
     assert item["bpm"] == 128
     assert item["spotify_release_date"] == "2026-04-01"
     assert "is_ai_suspected" not in item
-    assert item["ai_detected"] is False
+    assert item["ai_verdict"] == "ai"
     assert item["artists"] == [{"id": "a-1", "name": "DJ Test"}]
     assert item["label"] == {"id": "l-1", "name": "Test Label"}
     assert item["tags"] == [{"id": "tag-1", "name": "House", "color": "#FF0000"}]

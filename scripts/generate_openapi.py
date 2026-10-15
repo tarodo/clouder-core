@@ -138,9 +138,13 @@ CATEGORY_TRACK_RESPONSE = {
         "publish_date": {"type": ["string", "null"]},
         "spotify_id": {"type": ["string", "null"]},
         "release_type": {"type": ["string", "null"]},
-        "ai_detected": {
-            "type": "boolean",
-            "description": "The audio analyzer flagged AI (ai_lofcz ok, ai_detected true).",
+        "ai_verdict": {
+            "type": ["string", "null"],
+            "enum": ["ai", "review", None],
+            "description": (
+                "AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected"
+                " true), review = exactly one did, null = neither or not analyzed yet."
+            ),
         },
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
@@ -490,7 +494,7 @@ BUCKET_TRACK_ROW = {
         "track_id",
         "title",
         "artists",
-        "ai_detected",
+        "ai_verdict",
         "added_at",
     ],
     "properties": {
@@ -506,9 +510,13 @@ BUCKET_TRACK_ROW = {
         "spotify_release_date": {"type": ["string", "null"]},
         "spotify_id": {"type": ["string", "null"]},
         "release_type": {"type": ["string", "null"]},
-        "ai_detected": {
-            "type": "boolean",
-            "description": "The audio analyzer flagged AI (ai_lofcz ok, ai_detected true).",
+        "ai_verdict": {
+            "type": ["string", "null"],
+            "enum": ["ai", "review", None],
+            "description": (
+                "AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected"
+                " true), review = exactly one did, null = neither or not analyzed yet."
+            ),
         },
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
@@ -533,7 +541,7 @@ PLAYLIST_TRACK_RESPONSE = {
         "track_id",
         "title",
         "artists",
-        "ai_detected",
+        "ai_verdict",
         "added_at",
     ],
     "properties": {
@@ -549,9 +557,13 @@ PLAYLIST_TRACK_RESPONSE = {
         "spotify_release_date": {"type": ["string", "null"]},
         "spotify_id": {"type": ["string", "null"]},
         "origin": {"type": "string"},
-        "ai_detected": {
-            "type": "boolean",
-            "description": "The audio analyzer flagged AI (ai_lofcz ok, ai_detected true).",
+        "ai_verdict": {
+            "type": ["string", "null"],
+            "enum": ["ai", "review", None],
+            "description": (
+                "AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected"
+                " true), review = exactly one did, null = neither or not analyzed yet."
+            ),
         },
         "artists": {"type": "array", "items": {"type": "object"}},
         "added_at": {"type": "string"},
@@ -833,10 +845,19 @@ ANALYSIS_RESULTS_RESPONSE = {
 
 ANALYSIS_STATUS = {
     "type": "object",
-    "required": ["last_claim_at", "last_result_at", "analyzers"],
+    "required": ["last_claim_at", "last_result_at", "analyzers", "pair"],
     "properties": {
         "last_claim_at": {"type": ["string", "null"], "format": "date-time"},
         "last_result_at": {"type": ["string", "null"], "format": "date-time"},
+        "pair": {
+            "type": "object",
+            "description": "Tracks per AI pair verdict (ai_lofcz + ai_deezer).",
+            "required": ["ai", "review"],
+            "properties": {
+                "ai": {"type": "integer", "description": "Both flagged."},
+                "review": {"type": "integer", "description": "Exactly one flagged."},
+            },
+        },
         "analyzers": {
             "type": "array",
             "items": {

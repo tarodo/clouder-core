@@ -2263,10 +2263,17 @@ paths:
                           type:
                           - string
                           - 'null'
-                        ai_detected:
-                          type: boolean
-                          description: The audio analyzer flagged AI (ai_lofcz ok,
-                            ai_detected true).
+                        ai_verdict:
+                          type:
+                          - string
+                          - 'null'
+                          enum:
+                          - ai
+                          - review
+                          - null
+                          description: 'AI pair verdict: ai = ai_lofcz and ai_deezer
+                            both flagged (ok, ai_detected true), review = exactly
+                            one did, null = neither or not analyzed yet.'
                         artists:
                           type: array
                           items:
@@ -2835,7 +2842,7 @@ paths:
                       - track_id
                       - title
                       - artists
-                      - ai_detected
+                      - ai_verdict
                       - added_at
                       properties:
                         track_id:
@@ -2883,10 +2890,17 @@ paths:
                           type:
                           - string
                           - 'null'
-                        ai_detected:
-                          type: boolean
-                          description: The audio analyzer flagged AI (ai_lofcz ok,
-                            ai_detected true).
+                        ai_verdict:
+                          type:
+                          - string
+                          - 'null'
+                          enum:
+                          - ai
+                          - review
+                          - null
+                          description: 'AI pair verdict: ai = ai_lofcz and ai_deezer
+                            both flagged (ok, ai_detected true), review = exactly
+                            one did, null = neither or not analyzed yet.'
                         artists:
                           type: array
                           items:
@@ -3821,7 +3835,7 @@ paths:
                       - track_id
                       - title
                       - artists
-                      - ai_detected
+                      - ai_verdict
                       - added_at
                       properties:
                         track_id:
@@ -3865,10 +3879,17 @@ paths:
                           - 'null'
                         origin:
                           type: string
-                        ai_detected:
-                          type: boolean
-                          description: The audio analyzer flagged AI (ai_lofcz ok,
-                            ai_detected true).
+                        ai_verdict:
+                          type:
+                          - string
+                          - 'null'
+                          enum:
+                          - ai
+                          - review
+                          - null
+                          description: 'AI pair verdict: ai = ai_lofcz and ai_deezer
+                            both flagged (ok, ai_detected true), review = exactly
+                            one did, null = neither or not analyzed yet.'
                         artists:
                           type: array
                           items:
@@ -6809,6 +6830,7 @@ components:
       - last_claim_at
       - last_result_at
       - analyzers
+      - pair
       properties:
         last_claim_at:
           type:
@@ -6820,6 +6842,19 @@ components:
           - string
           - 'null'
           format: date-time
+        pair:
+          type: object
+          description: Tracks per AI pair verdict (ai_lofcz + ai_deezer).
+          required:
+          - ai
+          - review
+          properties:
+            ai:
+              type: integer
+              description: Both flagged.
+            review:
+              type: integer
+              description: Exactly one flagged.
         analyzers:
           type: array
           items:

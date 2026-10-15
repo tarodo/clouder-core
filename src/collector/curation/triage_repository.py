@@ -28,7 +28,7 @@ from collector.curation.triage_service import (
     TECHNICAL_BUCKET_TYPES,
 )
 from collector.data_api import DataAPIClient
-from collector.repositories.analysis import AI_DETECTED_SQL
+from collector.repositories.analysis import AI_VERDICT_SQL
 
 
 @dataclass(frozen=True)
@@ -94,7 +94,7 @@ class BucketTrackRowOut:
     spotify_release_date: str | None
     spotify_id: str | None
     release_type: str | None
-    ai_detected: bool
+    ai_verdict: str | None
     artists: list[dict]
     label_name: str | None
     label_id: str | None
@@ -1007,7 +1007,7 @@ class TriageRepository:
                 t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.key_name, t.key_camelot,
                 t.publish_date, t.spotify_release_date,
-                t.spotify_id, t.release_type, {AI_DETECTED_SQL},
+                t.spotify_id, t.release_type, {AI_VERDICT_SQL},
                 tbt.added_at,
                 cl.id AS label_id,
                 cl.name AS label_name,
@@ -1074,7 +1074,7 @@ class TriageRepository:
                     ),
                     spotify_id=r.get("spotify_id"),
                     release_type=r.get("release_type"),
-                    ai_detected=bool(r.get("ai_detected", False)),
+                    ai_verdict=r.get("ai_verdict"),
                     artists=artists,
                     label_name=r.get("label_name"),
                     label_id=r.get("label_id"),

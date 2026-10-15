@@ -10,16 +10,19 @@ from ._base import RepositoryBase, as_utc_datetime
 
 SERVICE = "analyzer"
 
-# ai_detect (ArtifactNet) rows stay as a second opinion; the badge reads ai_lofcz
-# (lofcz/ai-music-detector).
-BADGE_ANALYZER = "ai_lofcz"
+# The badge is a pair rule over lofcz/ai-music-detector and Deezer's detector:
+# both flag -> "ai", one flags -> "review", else null. ai_detect (ArtifactNet)
+# rows stay as a second opinion and drive nothing.
+PAIR_ANALYZERS = ("ai_lofcz", "ai_deezer")
 
-# The badge in the track lists (`t` = clouder_tracks); served by
-# ix_track_analyses_ai_lofcz_detected.
-AI_DETECTED_SQL = f"""EXISTS (
+# The verdict in the track lists (`t` = clouder_tracks); served by
+# ix_track_analyses_ai_flag.
+_FLAGGED = """EXISTS (
     SELECT 1 FROM track_analyses ta
-    WHERE ta.track_id = t.id AND ta.analyzer = '{BADGE_ANALYZER}' AND ta.status = 'ok'
-      AND (ta.result->>'ai_detected')::boolean) AS ai_detected"""
+    WHERE ta.track_id = t.id AND ta.analyzer = '{}' AND ta.status = 'ok'
+      AND (ta.result->>'ai_detected')::boolean)::int"""
+AI_VERDICT_SQL = f"""CASE {" + ".join(_FLAGGED.format(a) for a in PAIR_ANALYZERS)}
+    WHEN 2 THEN 'ai' WHEN 1 THEN 'review' END AS ai_verdict"""
 LEASE_SECONDS = 1800
 
 # A row blocks a (track, analyzer) pair unless it is a lease that ran out.
@@ -197,10 +200,24 @@ class AnalysisMixin(RepositoryBase):
                     "ai_detected": int(by["ok"]["ai_detected"]) if "ok" in by else 0,
                 }
             )
+        # (track_id, analyzer) is unique, so n is how many of the pair flag the track.
+        (pair,) = self._data_api.execute(
+            """
+            SELECT count(*) FILTER (WHERE n = 2) AS ai, count(*) FILTER (WHERE n = 1) AS review
+            FROM (
+                SELECT count(*) AS n FROM track_analyses
+                WHERE analyzer = ANY (string_to_array(:pair, ',')) AND status = 'ok'
+                  AND (result->>'ai_detected')::boolean
+                GROUP BY track_id
+            ) flagged
+            """,
+            {"pair": ",".join(PAIR_ANALYZERS)},
+        )
         return {
             "last_claim_at": as_utc_datetime(state[0]["last_claim_at"]) if state else None,
             "last_result_at": as_utc_datetime(state[0]["last_result_at"]) if state else None,
             "analyzers": analyzers,
+            "pair": {"ai": int(pair["ai"]), "review": int(pair["review"])},
         }
 
     def requeue_analysis(

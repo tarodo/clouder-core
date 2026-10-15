@@ -86,7 +86,7 @@ def test_results_reject_bad_items(over) -> None:
         {"ai_detected": True, "score": True},
     ],
 )
-@pytest.mark.parametrize("analyzer", ["ai_detect", "ai_lofcz"])
+@pytest.mark.parametrize("analyzer", ["ai_detect", "ai_lofcz", "ai_deezer"])
 def test_ai_ok_result_needs_flag_and_score(analyzer, result) -> None:
     with pytest.raises(ValidationError):
         _results(_item(analyzer=analyzer, result=result))

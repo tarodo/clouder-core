@@ -133,7 +133,7 @@ class YoutubeSearchMessage(BaseModel):
 AnalyzerName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{1,31}$")]
 _RESULT_MAX_BYTES = 32_768
 # AI detectors: an ok result is {ai_detected: bool, score: number in [0, 1], ...}.
-AI_ANALYZERS = ("ai_detect", "ai_lofcz")
+AI_ANALYZERS = ("ai_detect", "ai_lofcz", "ai_deezer")
 
 
 class AnalysisClaimRequest(BaseModel):
