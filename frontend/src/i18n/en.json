@@ -838,6 +838,17 @@
       "not_found": "Not on YT Music",
       "videos": "Comments video found"
     },
+    "analysis_status": {
+      "title": "AI analysis",
+      "never": "Never ran",
+      "last_run": "Last run {{ago}}",
+      "stale": "No run for {{days}} days",
+      "due": "Waiting",
+      "ok": "Analyzed",
+      "ai_detected": "AI detected",
+      "failed": "Failed",
+      "unusable": "Unusable source"
+    },
     "spotify_status": {
       "title": "Spotify search",
       "running": "Searching",

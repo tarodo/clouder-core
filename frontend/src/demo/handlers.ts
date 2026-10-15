@@ -292,6 +292,17 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
     { method: 'get', path: '/admin/auto-ingest', resolve: () => sampleAutoIngest() },
     {
       method: 'get',
+      path: '/admin/analysis/status',
+      resolve: () => ({
+        last_claim_at: new Date(Date.now() - 6 * 3_600_000).toISOString(),
+        last_result_at: new Date(Date.now() - 6 * 3_600_000).toISOString(),
+        analyzers: [
+          { name: 'ai_detect', due: 37, leased: 0, ok: 3412, ai_detected: 41, failed: 12, unusable_source: 3 },
+        ],
+      }),
+    },
+    {
+      method: 'get',
       path: '/admin/youtube/search-status',
       resolve: () => ({
         status: 'idle',
