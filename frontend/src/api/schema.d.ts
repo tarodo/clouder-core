@@ -3617,10 +3617,10 @@ export interface paths {
                                 spotify_id?: string | null;
                                 release_type?: string | null;
                                 /**
-                                 * @description AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected true), review = exactly one did, null = neither or not analyzed yet.
+                                 * @description AI level (flag = row ok and ai_detected true): high = ai_lofcz and ai_deezer both flagged, medium = only ai_lofcz, low = only ai_deezer, null = neither or not analyzed yet.
                                  * @enum {string|null}
                                  */
-                                ai_verdict?: "ai" | "review" | null;
+                                ai_verdict?: "high" | "medium" | "low" | null;
                                 artists?: string[];
                                 added_at?: string;
                                 source_triage_block_id?: string | null;
@@ -4356,10 +4356,10 @@ export interface paths {
                                 spotify_id?: string | null;
                                 release_type?: string | null;
                                 /**
-                                 * @description AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected true), review = exactly one did, null = neither or not analyzed yet.
+                                 * @description AI level (flag = row ok and ai_detected true): high = ai_lofcz and ai_deezer both flagged, medium = only ai_lofcz, low = only ai_deezer, null = neither or not analyzed yet.
                                  * @enum {string|null}
                                  */
-                                ai_verdict: "ai" | "review" | null;
+                                ai_verdict: "high" | "medium" | "low" | null;
                                 artists: string[];
                                 added_at: string;
                             }[];
@@ -5814,10 +5814,10 @@ export interface paths {
                                 spotify_id?: string | null;
                                 origin?: string;
                                 /**
-                                 * @description AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected true), review = exactly one did, null = neither or not analyzed yet.
+                                 * @description AI level (flag = row ok and ai_detected true): high = ai_lofcz and ai_deezer both flagged, medium = only ai_lofcz, low = only ai_deezer, null = neither or not analyzed yet.
                                  * @enum {string|null}
                                  */
-                                ai_verdict: "ai" | "review" | null;
+                                ai_verdict: "high" | "medium" | "low" | null;
                                 artists: Record<string, never>[];
                                 added_at: string;
                                 label?: Record<string, never> | null;
@@ -9022,12 +9022,14 @@ export interface components {
             last_claim_at: string | null;
             /** Format: date-time */
             last_result_at: string | null;
-            /** @description Tracks per AI pair verdict (ai_lofcz + ai_deezer). */
+            /** @description Tracks per AI level (ai_lofcz + ai_deezer). */
             pair: {
                 /** @description Both flagged. */
-                ai: number;
-                /** @description Exactly one flagged. */
-                review: number;
+                high: number;
+                /** @description Only ai_lofcz flagged. */
+                medium: number;
+                /** @description Only ai_deezer flagged. */
+                low: number;
             };
             analyzers: {
                 name: string;
@@ -9348,10 +9350,10 @@ export interface components {
             spotify_id?: string | null;
             origin?: string;
             /**
-             * @description AI pair verdict: ai = ai_lofcz and ai_deezer both flagged (ok, ai_detected true), review = exactly one did, null = neither or not analyzed yet.
+             * @description AI level (flag = row ok and ai_detected true): high = ai_lofcz and ai_deezer both flagged, medium = only ai_lofcz, low = only ai_deezer, null = neither or not analyzed yet.
              * @enum {string|null}
              */
-            ai_verdict: "ai" | "review" | null;
+            ai_verdict: "high" | "medium" | "low" | null;
             artists: Record<string, never>[];
             added_at: string;
             label?: Record<string, never> | null;
