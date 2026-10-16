@@ -154,8 +154,8 @@ def test_status_counts_and_heartbeat(repo) -> None:
             "unusable_source": 0,
         }
     ]
-    # an ai_detect flag is no part of the pair verdict
-    assert status["pair"] == {"ai": 0, "review": 0}
+    # an ai_detect flag is no part of the AI level
+    assert status["pair"] == {"high": 0, "medium": 0, "low": 0}
 
 
 @pytest.mark.parametrize("analyzer", ["ai_lofcz", "ai_deezer"])
@@ -170,18 +170,21 @@ def test_status_counts_ai_detected_for_pair_analyzers(repo, analyzer) -> None:
     assert (ai["name"], ai["ok"], ai["ai_detected"]) == (analyzer, 2, 1)
 
 
-def test_status_counts_tracks_per_pair_verdict(repo) -> None:
-    repo.claim_analysis(limit=3, analyzers=["ai_deezer", "ai_lofcz"], lease_id=L1, now=T0)
+def test_status_counts_tracks_per_ai_level(repo, pg) -> None:
+    _track(pg, "none", T0 - timedelta(days=4), ytmusic="vid_none")
+    repo.claim_analysis(limit=4, analyzers=["ai_deezer", "ai_lofcz"], lease_id=L1, now=T0)
     items = [
         _ok("new", ai=True, analyzer="ai_lofcz"),
         _ok("new", ai=True, analyzer="ai_deezer"),
         _ok("mid", analyzer="ai_lofcz"),
         _ok("mid", ai=True, analyzer="ai_deezer"),
-        _ok("old", analyzer="ai_lofcz"),
+        _ok("old", ai=True, analyzer="ai_lofcz"),
         _ok("old", analyzer="ai_deezer"),
+        _ok("none", analyzer="ai_lofcz"),
+        _ok("none", analyzer="ai_deezer"),
     ]
     repo.record_analysis_results(lease_id=L1, items=items, now=T0)
-    assert repo.analysis_status(now=T0)["pair"] == {"ai": 1, "review": 1}
+    assert repo.analysis_status(now=T0)["pair"] == {"high": 1, "medium": 1, "low": 1}
 
 
 def test_status_counts_due_and_expired_leases(repo) -> None:
@@ -198,7 +201,7 @@ def test_status_before_any_claim(repo) -> None:
         "last_claim_at": None,
         "last_result_at": None,
         "analyzers": [],
-        "pair": {"ai": 0, "review": 0},
+        "pair": {"high": 0, "medium": 0, "low": 0},
     }
 
 

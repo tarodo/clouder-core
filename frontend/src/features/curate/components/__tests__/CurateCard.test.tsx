@@ -82,16 +82,13 @@ describe('CurateCard', () => {
 });
 
 describe('CurateCard AI badge', () => {
-  it.each([
-    ['ai', 'AI'],
-    ['review', 'AI?'],
-  ] as const)('ai_verdict=%s shows %s next to the title', (verdict, label) => {
-    render(wrap(<CurateCard track={mkTrack({ ai_verdict: verdict })} />));
-    expect(screen.getByText(label)).toBeInTheDocument();
+  it.each(['high', 'medium', 'low'] as const)('ai_verdict=%s shows an AI badge of that level', (level) => {
+    render(wrap(<CurateCard track={mkTrack({ ai_verdict: level })} />));
+    expect(screen.getByText('AI').closest('[data-level]')).toHaveAttribute('data-level', level);
   });
 
   it('shows nothing without a verdict', () => {
     render(wrap(<CurateCard track={mkTrack()} />));
-    expect(screen.queryByText(/^AI\??$/)).not.toBeInTheDocument();
+    expect(screen.queryByText('AI')).not.toBeInTheDocument();
   });
 });

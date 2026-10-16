@@ -41,7 +41,7 @@ describe('toPlaybackTrack', () => {
 });
 
 describe('toPlaybackTrack AI verdict', () => {
-  it.each(['ai', 'review', null] as const)('carries ai_verdict=%s to the player', (verdict) => {
+  it.each(['high', 'medium', 'low', null] as const)('carries ai_verdict=%s to the player', (verdict) => {
     expect(toPlaybackTrack({ ...base, ai_verdict: verdict }).ai_verdict).toBe(verdict);
   });
 });

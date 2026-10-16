@@ -131,7 +131,7 @@ describe('DemoDb', () => {
     for (const p of db.playlists({})) expect(p.cover_url, p.name).toBeTruthy();
   });
 
-  it('gives some tracks each AI verdict', () => {
+  it('gives some tracks each AI level', () => {
     const db = new DemoDb();
     const verdicts = db
       .styles('mine')
@@ -144,9 +144,7 @@ describe('DemoDb', () => {
               .buckets.flatMap((bk) => db.bucketTracks(b.id, bk.id).map((t) => t.ai_verdict)),
           ),
       );
-    expect(verdicts).toContain('ai');
-    expect(verdicts).toContain('review');
-    expect(verdicts).toContain(null);
+    for (const level of ['high', 'medium', 'low', null]) expect(verdicts).toContain(level);
   });
 
   it('describes the label and artists of every track', () => {

@@ -853,7 +853,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id020
+              schema: &id021
                 type: object
                 required:
                 - id
@@ -2263,17 +2263,19 @@ paths:
                           type:
                           - string
                           - 'null'
-                        ai_verdict:
+                        ai_verdict: &id014
                           type:
                           - string
                           - 'null'
                           enum:
-                          - ai
-                          - review
+                          - high
+                          - medium
+                          - low
                           - null
-                          description: 'AI pair verdict: ai = ai_lofcz and ai_deezer
-                            both flagged (ok, ai_detected true), review = exactly
-                            one did, null = neither or not analyzed yet.'
+                          description: 'AI level (flag = row ok and ai_detected true):
+                            high = ai_lofcz and ai_deezer both flagged, medium = only
+                            ai_lofcz, low = only ai_deezer, null = neither or not
+                            analyzed yet.'
                         artists:
                           type: array
                           items:
@@ -2890,17 +2892,7 @@ paths:
                           type:
                           - string
                           - 'null'
-                        ai_verdict:
-                          type:
-                          - string
-                          - 'null'
-                          enum:
-                          - ai
-                          - review
-                          - null
-                          description: 'AI pair verdict: ai = ai_lofcz and ai_deezer
-                            both flagged (ok, ai_detected true), review = exactly
-                            one did, null = neither or not analyzed yet.'
+                        ai_verdict: *id014
                         artists:
                           type: array
                           items:
@@ -3140,7 +3132,7 @@ paths:
           description: Tag created.
           content:
             application/json:
-              schema: &id014
+              schema: &id015
                 type: object
                 required:
                 - id
@@ -3222,7 +3214,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: *id014
+                    items: *id015
                   total:
                     type: integer
                   limit:
@@ -3252,7 +3244,7 @@ paths:
           description: Tag updated.
           content:
             application/json:
-              schema: *id014
+              schema: *id015
         '400':
           description: invalid_name, invalid_color, or invalid_payload.
           content:
@@ -3379,14 +3371,14 @@ paths:
           description: Updated tag set.
           content:
             application/json:
-              schema: &id015
+              schema: &id016
                 type: object
                 required:
                 - tags
                 properties:
                   tags:
                     type: array
-                    items: *id014
+                    items: *id015
         '400':
           description: invalid_tag_ids or too_many_tags.
           content:
@@ -3450,7 +3442,7 @@ paths:
           description: Updated tag set (idempotent on conflict).
           content:
             application/json:
-              schema: *id015
+              schema: *id016
         '400':
           description: invalid_tag_ids.
           content:
@@ -3529,7 +3521,7 @@ paths:
                     nullable: true
                   comments:
                     type: array
-                    items: &id016
+                    items: &id017
                       type: object
                       required:
                       - author_name
@@ -3829,7 +3821,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: &id022
+                    items: &id023
                       type: object
                       required:
                       - track_id
@@ -3879,17 +3871,7 @@ paths:
                           - 'null'
                         origin:
                           type: string
-                        ai_verdict:
-                          type:
-                          - string
-                          - 'null'
-                          enum:
-                          - ai
-                          - review
-                          - null
-                          description: 'AI pair verdict: ai = ai_lofcz and ai_deezer
-                            both flagged (ok, ai_detected true), review = exactly
-                            one did, null = neither or not analyzed yet.'
+                        ai_verdict: *id014
                         artists:
                           type: array
                           items:
@@ -4039,14 +4021,14 @@ paths:
           description: Per-track comments for the playlist.
           content:
             application/json:
-              schema: &id024
+              schema: &id025
                 type: object
                 required:
                 - tracks
                 properties:
                   tracks:
                     type: array
-                    items: &id023
+                    items: &id024
                       type: object
                       required:
                       - track_id
@@ -4072,7 +4054,7 @@ paths:
                           nullable: true
                         comments:
                           type: array
-                          items: *id016
+                          items: *id017
                   correlation_id:
                     type: string
         '404':
@@ -4177,7 +4159,7 @@ paths:
                                 nullable: true
                   artists:
                     type: array
-                    items: &id017
+                    items: &id018
                       type: object
                       required:
                       - id
@@ -4197,7 +4179,7 @@ paths:
                             Null when the entity has no enrichment row.
                   labels:
                     type: array
-                    items: *id017
+                    items: *id018
                   correlation_id:
                     type: string
         '404':
@@ -4987,7 +4969,7 @@ paths:
           description: Enrichment run accepted and queued.
           content:
             application/json:
-              schema: &id018
+              schema: &id019
                 type: object
                 required:
                 - run_id
@@ -5089,7 +5071,7 @@ paths:
           description: Enrichment run accepted and queued.
           content:
             application/json:
-              schema: *id018
+              schema: *id019
         '404':
           description: artist_not_found.
           content:
@@ -5131,7 +5113,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id021
+              schema: &id022
                 type: object
                 required:
                 - id
@@ -5849,7 +5831,7 @@ paths:
       description: Read live from bronze_events. Per-play time = gap to the next play,
         capped at track duration. Returns `totals.{day,week,month}` and a zero-filled
         30-day `daily` series.
-      parameters: &id019
+      parameters: &id020
       - name: tz_offset_min
         in: query
         required: false
@@ -5954,7 +5936,7 @@ paths:
       description: 'Distinct tracks per stage, dated by when the work happened: `triaged`
         (moved out of NEW in triage), `categorized` (staged to a category, open or
         finalized block, or added outside triage), `playlisted` (added to a playlist).'
-      parameters: *id019
+      parameters: *id020
       security:
       - BearerAuth: []
       tags:
@@ -6844,17 +6826,21 @@ components:
           format: date-time
         pair:
           type: object
-          description: Tracks per AI pair verdict (ai_lofcz + ai_deezer).
+          description: Tracks per AI level (ai_lofcz + ai_deezer).
           required:
-          - ai
-          - review
+          - high
+          - medium
+          - low
           properties:
-            ai:
+            high:
               type: integer
               description: Both flagged.
-            review:
+            medium:
               type: integer
-              description: Exactly one flagged.
+              description: Only ai_lofcz flagged.
+            low:
+              type: integer
+              description: Only ai_deezer flagged.
         analyzers:
           type: array
           items:
@@ -6919,7 +6905,7 @@ components:
         processing_reason:
           type: string
           nullable: true
-    LabelEnrichRunResponse: *id020
+    LabelEnrichRunResponse: *id021
     LabelSummary:
       type: object
       required:
@@ -7216,7 +7202,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
-    ArtistEnrichRunResponse: *id021
+    ArtistEnrichRunResponse: *id022
     ArtistSummary:
       type: object
       required:
@@ -7478,9 +7464,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ArtistHistoryCell'
-    PlaylistTrackResponse: *id022
-    PlaylistTrackComments: *id023
-    PlaylistCommentsResponse: *id024
+    PlaylistTrackResponse: *id023
+    PlaylistTrackComments: *id024
+    PlaylistCommentsResponse: *id025
     TelemetryEnvelope:
       type: object
       required:

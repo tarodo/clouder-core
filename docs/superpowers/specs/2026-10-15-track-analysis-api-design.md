@@ -10,6 +10,8 @@ The first analyzer was `ai_detect` (ArtifactNet). Update 2026-10-16: the badge n
 
 **Pair verdict (2026-10-15).** The analyzer now posts a second detector, `ai_deezer` (Deezer's speed-robust detector, suno_v5/attack), next to `ai_lofcz`. The badge follows the pair rule from the detectors report: both `ok` with `ai_detected: true` → verdict `ai` (the orange "AI" badge); exactly one → `review` (a pale gray "AI?" badge, shown to every user, no tooltip or filter); otherwise `null` (no badge). `ai_detect` still drives nothing. Migration 40 replaces the lofcz-only index with `ix_track_analyses_ai_flag`.
 
+**AI levels (2026-10-16).** The owner replaced `ai`/`review` with three levels on one "AI" badge, told apart by color only (no tooltip): both flagged → `high` (red), only `ai_lofcz` → `medium` (orange), only `ai_deezer` → `low` (yellow), neither → `null`. The flag rule and the index are unchanged; no migration.
+
 Embeddings come later, for "similar tracks" and for training an in-house classifier. This design must not block them, but it builds nothing for them now.
 
 clouder-core knows the worker only through the contract below: which tracks to hand out, and what a result looks like. It knows nothing about the model, yt-dlp, the cache or the host.
@@ -177,14 +179,14 @@ A later `ytmusic` re-match to another video does not invalidate a result. `video
     { "name": "ai_detect", "due": 120, "leased": 0, "ok": 3400, "ai_detected": 41,
       "failed": 12, "unusable_source": 3 }
   ],
-  "pair": { "ai": 17, "review": 230 }
+  "pair": { "high": 17, "medium": 64, "low": 230 }
 }
 ```
 
 - The `analyzers` list covers `claim_analyzers` plus every name present in the table.
 - `due`: tracks with a `ytmusic` row and no row for that analyzer, plus expired leases.
 - `ai_detected`: counted only for the AI analyzers (`ai_detect`, `ai_lofcz`, `ai_deezer`).
-- `pair`: tracks per pair verdict, `ai` (both `ai_lofcz` and `ai_deezer` flagged) and `review` (exactly one).
+- `pair`: tracks per AI level, `high` (both `ai_lofcz` and `ai_deezer` flagged), `medium` (only `ai_lofcz`) and `low` (only `ai_deezer`).
 
 ### `POST /admin/analysis/requeue` (admin JWT)
 
@@ -200,21 +202,21 @@ A later `ytmusic` re-match to another video does not invalidate a result. `video
 
 "AI analysis" sits on Admin → Coverage, below "YouTube search", in the same style. It shows:
 - last claim and last result as relative times; it turns into a warning after 3 days without a claim, meaning the PC has not run;
-- the pair verdict counts, "AI (both)" and "Needs review";
+- the AI level counts, "AI · both detectors", "AI · lofcz only" and "AI · Deezer only";
 - `due`, `ok`, `ai_detected`, `failed`, `unusable_source` per analyzer.
 
 The card polls every 30 seconds, but only while the tab is visible. It must not keep Aurora awake (#322's lesson).
 
 ## Tracks in the product
 
-- **API.** `GET /categories/{id}/tracks`, `GET /triage/blocks/{id}/buckets/{bucket_id}/tracks` (which Curate uses) and `GET /playlists/{id}/tracks` return `"ai_verdict": "ai" | "review" | null` (replaced `ai_detected: boolean`). It is a `CASE` over one `EXISTS` per pair analyzer (`ai_lofcz`, `ai_deezer`), served by the partial index. A track that has not been analyzed, or failed, is `null`.
-- **Frontend.** One `AiBadge` component renders a small Mantine badge next to the title, "AI" (orange) for `ai` and a paler "AI?" (gray) for `review`:
+- **API.** `GET /categories/{id}/tracks`, `GET /triage/blocks/{id}/buckets/{bucket_id}/tracks` (which Curate uses) and `GET /playlists/{id}/tracks` return `"ai_verdict": "high" | "medium" | "low" | null` (replaced `ai_detected: boolean`). It is a `CASE` over one `EXISTS` per pair analyzer (`ai_lofcz`, `ai_deezer`), served by the partial index. A track that has not been analyzed, or failed, is `null`.
+- **Frontend.** One `AiBadge` component renders a small Mantine "AI" badge next to the title, red for `high`, orange for `medium`, yellow for `low`:
   - in the category, bucket and playlist track rows;
   - on the Curate card;
   - in the category, bucket and playlist player panels.
 
   `ai_verdict` is carried into the playback track model so players get it.
-- **Demo.** A few demo tracks carry each verdict.
+- **Demo.** A few demo tracks carry each level.
 
 ## Service auth
 

@@ -203,12 +203,11 @@ describe('BucketTrackRow mobile', () => {
 });
 
 describe('BucketTrackRow AI badge', () => {
-  it.each([
-    ['desktop', 'ai', 'AI'],
-    ['mobile', 'ai', 'AI'],
-    ['desktop', 'review', 'AI?'],
-    ['mobile', 'review', 'AI?'],
-  ] as const)('%s: ai_verdict=%s shows %s', (variant, verdict, label) => {
+  it.each(
+    (['desktop', 'mobile'] as const).flatMap((variant) =>
+      (['high', 'medium', 'low'] as const).map((level) => [variant, level] as const),
+    ),
+  )('%s: ai_verdict=%s shows an AI badge of that level', (variant, verdict) => {
     const row = (
       <BucketTrackRow
         track={{ ...track, ai_verdict: verdict }}
@@ -228,7 +227,7 @@ describe('BucketTrackRow AI badge', () => {
         row
       ),
     );
-    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByText('AI').closest('[data-level]')).toHaveAttribute('data-level', verdict);
   });
 
   it('shows nothing without a verdict', () => {
@@ -246,6 +245,6 @@ describe('BucketTrackRow AI badge', () => {
         </Table.Tbody>
       </Table>,
     );
-    expect(screen.queryByText(/^AI\??$/)).not.toBeInTheDocument();
+    expect(screen.queryByText('AI')).not.toBeInTheDocument();
   });
 });

@@ -66,8 +66,9 @@ export function AnalysisStatus() {
         )}
         {data.analyzers.length > 0 && (
           <SimpleGrid cols={{ base: 2, sm: 5 }}>
-            <Stat label={t('admin.analysis_status.pair_ai')} value={data.pair.ai} />
-            <Stat label={t('admin.analysis_status.pair_review')} value={data.pair.review} />
+            <Stat label={t('admin.analysis_status.level_high')} value={data.pair.high} />
+            <Stat label={t('admin.analysis_status.level_medium')} value={data.pair.medium} />
+            <Stat label={t('admin.analysis_status.level_low')} value={data.pair.low} />
           </SimpleGrid>
         )}
         {data.analyzers.map((a) => (

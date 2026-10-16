@@ -37,10 +37,10 @@ import { clipOf } from './clips';
 import { demoCover } from './covers';
 import { LABEL_PROFILES } from './profiles';
 
-// A few demo tracks carry each AI pair verdict so both badges show up.
-const aiVerdict = (id: string): 'ai' | 'review' | null => {
-  const h = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 9;
-  return h === 0 ? 'ai' : h === 1 ? 'review' : null;
+// A few demo tracks carry each AI level so every badge color shows up.
+const aiVerdict = (id: string): 'high' | 'medium' | 'low' | null => {
+  const h = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 12;
+  return h === 0 ? 'high' : h === 1 ? 'medium' : h === 2 ? 'low' : null;
 };
 
 export interface LibraryQuery {

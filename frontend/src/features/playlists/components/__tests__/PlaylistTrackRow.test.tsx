@@ -201,10 +201,11 @@ describe('PlaylistTrackRow', () => {
 
 describe('PlaylistTrackRow AI badge', () => {
   it.each([
-    ['ai', ['AI']],
-    ['review', ['AI?']],
+    ['high', ['high']],
+    ['medium', ['medium']],
+    ['low', ['low']],
     [null, []],
-  ] as const)('ai_verdict=%s shows %j', (verdict, labels) => {
+  ] as const)('ai_verdict=%s shows AI badges of levels %j', (verdict, levels) => {
     render(
       <W>
         <PlaylistTrackRow
@@ -216,6 +217,8 @@ describe('PlaylistTrackRow AI badge', () => {
         />
       </W>,
     );
-    expect(screen.queryAllByText(/^AI\??$/).map((el) => el.textContent)).toEqual(labels);
+    expect(
+      screen.queryAllByText('AI').map((el) => el.closest('[data-level]')?.getAttribute('data-level')),
+    ).toEqual(levels);
   });
 });
