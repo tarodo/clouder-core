@@ -49,14 +49,21 @@ class AnalysisMixin(RepositoryBase):
         lease_seconds: int = LEASE_SECONDS,
     ) -> list[dict[str, Any]]:
         """Lease up to *limit* tracks with a YT Music match that miss any of
-        *analyzers*, newest first. One statement: the ON CONFLICT guard lets only
+        *analyzers*: open triage first, then newest releases. One statement: the ON CONFLICT guard lets only
         an expired lease be taken over, so two claimers never share a pair."""
         names = ",".join(analyzers)
         rows = self._data_api.execute(
             f"""
             WITH wanted AS ({_WANTED}),
             picked AS MATERIALIZED (
-                SELECT t.id, t.length_ms, t.created_at, v.vendor_track_id AS video_id
+                SELECT t.id, t.length_ms, t.created_at, t.publish_date,
+                       v.vendor_track_id AS video_id,
+                       EXISTS (
+                           SELECT 1 FROM triage_bucket_tracks tbt
+                           JOIN triage_buckets b ON b.id = tbt.triage_bucket_id
+                           JOIN triage_blocks tb ON tb.id = b.triage_block_id
+                           WHERE tbt.track_id = t.id AND tb.status = 'IN_PROGRESS'
+                             AND tb.deleted_at IS NULL) AS in_triage
                 FROM vendor_track_map v
                 JOIN clouder_tracks t ON t.id = v.clouder_track_id
                 WHERE v.vendor = 'ytmusic'
@@ -64,7 +71,9 @@ class AnalysisMixin(RepositoryBase):
                       SELECT 1 FROM wanted w WHERE NOT EXISTS (
                           SELECT 1 FROM track_analyses a
                           WHERE a.track_id = t.id AND a.analyzer = w.analyzer AND {_HELD}))
-                ORDER BY t.created_at DESC, t.id
+                -- What a user triages now first, then fresh releases before
+                -- backfilled old weeks (ingest order would put those first).
+                ORDER BY in_triage DESC, t.publish_date DESC NULLS LAST, t.created_at DESC, t.id
                 LIMIT :limit
             ),
             leased AS (
@@ -86,8 +95,8 @@ class AnalysisMixin(RepositoryBase):
             SELECT p.id AS track_id, p.video_id, p.length_ms,
                    string_agg(l.analyzer, ',' ORDER BY l.analyzer) AS analyzers
             FROM leased l JOIN picked p ON p.id = l.track_id
-            GROUP BY p.id, p.video_id, p.length_ms, p.created_at
-            ORDER BY p.created_at DESC, p.id
+            GROUP BY p.id, p.video_id, p.length_ms, p.created_at, p.publish_date, p.in_triage
+            ORDER BY p.in_triage DESC, p.publish_date DESC NULLS LAST, p.created_at DESC, p.id
             """,
             {
                 "analyzers": names,

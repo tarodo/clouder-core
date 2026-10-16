@@ -261,3 +261,35 @@ def test_requeue_categories_scope(repo, pg) -> None:
     )
     assert n == 1
     assert _status(pg, "mid") is None and _status(pg, "new") == "ok"
+
+
+def test_claim_puts_open_triage_first_then_newest_releases(repo, pg) -> None:
+    # The owner's triage block is analyzed first; then fresh releases before
+    # backfilled old weeks, whatever their ingest date.
+    _track(pg, "old-release-new-ingest", T0, ytmusic="v1")
+    _track(pg, "w40", T0 - timedelta(days=9), ytmusic="v2")
+    _track(pg, "in-triage", T0 - timedelta(days=20), ytmusic="v3")
+    pg.execute(
+        "UPDATE clouder_tracks SET publish_date = '2026-03-14' WHERE id = 'old-release-new-ingest'"
+    )
+    pg.execute("UPDATE clouder_tracks SET publish_date = '2026-10-05' WHERE id = 'w40'")
+    pg.execute("UPDATE clouder_tracks SET publish_date = '2026-01-10' WHERE id = 'in-triage'")
+    pg.execute(
+        "INSERT INTO users (id, spotify_id, display_name, email, created_at, updated_at)"
+        " VALUES ('u1', 'sp', 'N', 'u1@example.com', now(), now())"
+    )
+    pg.execute(
+        "INSERT INTO triage_blocks (id, user_id, style_id, name, date_from, date_to, status,"
+        " created_at, updated_at) VALUES ('blk', 'u1', 'st', 'B', '2026-01-10', '2026-01-16',"
+        " 'IN_PROGRESS', now(), now())"
+    )
+    pg.execute(
+        "INSERT INTO triage_buckets (id, triage_block_id, bucket_type, created_at)"
+        " VALUES ('bkt', 'blk', 'NEW', now())"
+    )
+    pg.execute(
+        "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at)"
+        " VALUES ('bkt', 'in-triage', now())"
+    )
+    rows = repo.claim_analysis(limit=3, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
+    assert [r["track_id"] for r in rows] == ["in-triage", "w40", "old-release-new-ingest"]
