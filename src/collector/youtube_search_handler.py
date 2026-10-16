@@ -182,7 +182,10 @@ def _sweep(
 
     claimed_at = utc_now()
     tracks = repository.claim_tracks_for_youtube_search(
-        limit=message.batch_size, claimed_at=claimed_at, since=settings.since
+        limit=message.batch_size,
+        claimed_at=claimed_at,
+        since=settings.since,
+        published_since=settings.published_since,
     )
     if not tracks:
         log_event(
@@ -252,7 +255,9 @@ def _sweep(
         return
 
     _log_summary(correlation_id, batch_id, tally)
-    if repository.has_tracks_needing_youtube_search(since=settings.since):
+    if repository.has_tracks_needing_youtube_search(
+        since=settings.since, published_since=settings.published_since
+    ):
         _send(settings, sqs_factory, correlation_id, {"batch_size": message.batch_size})
 
 

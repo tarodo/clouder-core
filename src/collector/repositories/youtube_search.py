@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from ._base import RepositoryBase
@@ -11,7 +11,7 @@ from ._base import RepositoryBase
 # working with (a category, or a triage block still in progress). The archive
 # is left alone. A UNION of three small id sets keeps the lookup off a scan of
 # every unsearched archive row.
-_CANDIDATE_IDS = """
+_BASE_CANDIDATE_IDS = """
     SELECT id FROM clouder_tracks
     WHERE youtube_searched_at IS NULL AND created_at >= :since
     UNION
@@ -24,16 +24,33 @@ _CANDIDATE_IDS = """
     JOIN triage_blocks tb ON tb.id = b.triage_block_id
     WHERE tb.status = 'IN_PROGRESS' AND tb.deleted_at IS NULL
 """
+# Plus recent releases ingested before the launch (e.g. week 40, ingested early).
+_PUBLISHED_IDS = """
+    UNION
+    SELECT id FROM clouder_tracks
+    WHERE youtube_searched_at IS NULL AND publish_date >= :published_since
+"""
+
+
+def _candidates(published_since: date | None) -> tuple[str, dict[str, Any]]:
+    if published_since is None:
+        return _BASE_CANDIDATE_IDS, {}
+    return _BASE_CANDIDATE_IDS + _PUBLISHED_IDS, {"published_since": published_since}
 
 
 class YoutubeSearchMixin(RepositoryBase):
     def claim_tracks_for_youtube_search(
-        self, limit: int, claimed_at: datetime, since: datetime
+        self,
+        limit: int,
+        claimed_at: datetime,
+        since: datetime,
+        published_since: date | None = None,
     ) -> list[dict[str, Any]]:
         """Stamp the next *limit* candidates with *claimed_at* and return their
         search inputs, in one statement (SKIP LOCKED in a materialized pick,
         repeated IS NULL on the update). `has_ytmusic` marks tracks that already have a YT Music
         match, review or no_match row: only their video is still looked for."""
+        candidate_ids, extra = _candidates(published_since)
         return self._data_api.execute(
             f"""
             WITH picked AS MATERIALIZED (
@@ -41,7 +58,7 @@ class YoutubeSearchMixin(RepositoryBase):
                 -- LOCKED)` may be re-executed per row, each run locking the
                 -- next row, and claim far more than n (seen once in tests).
                 SELECT id FROM clouder_tracks
-                WHERE id IN ({_CANDIDATE_IDS})
+                WHERE id IN ({candidate_ids})
                   AND youtube_searched_at IS NULL
                 ORDER BY created_at DESC
                 LIMIT :limit
@@ -69,7 +86,7 @@ class YoutubeSearchMixin(RepositoryBase):
             GROUP BY c.id, c.title, c.length_ms, alb.title, c.created_at
             ORDER BY c.created_at DESC
             """,
-            {"limit": limit, "claimed_at": claimed_at, "since": since},
+            {"limit": limit, "claimed_at": claimed_at, "since": since, **extra},
         )
 
     def mark_youtube_searched(self, track_id: str, at: datetime) -> None:
@@ -91,24 +108,30 @@ class YoutubeSearchMixin(RepositoryBase):
         )
         return len(rows)
 
-    def has_tracks_needing_youtube_search(self, since: datetime) -> bool:
+    def has_tracks_needing_youtube_search(
+        self, since: datetime, published_since: date | None = None
+    ) -> bool:
+        candidate_ids, extra = _candidates(published_since)
         rows = self._data_api.execute(
             f"""
             SELECT 1 FROM clouder_tracks
-            WHERE id IN ({_CANDIDATE_IDS}) AND youtube_searched_at IS NULL
+            WHERE id IN ({candidate_ids}) AND youtube_searched_at IS NULL
             LIMIT 1
             """,
-            {"since": since},
+            {"since": since, **extra},
         )
         return bool(rows)
 
-    def youtube_search_counts(self, since: datetime, recent_since: datetime) -> dict[str, int]:
+    def youtube_search_counts(
+        self, since: datetime, recent_since: datetime, published_since: date | None = None
+    ) -> dict[str, int]:
         """Backlog and outcomes behind the admin YouTube search status."""
+        candidate_ids, extra = _candidates(published_since)
         rows = self._data_api.execute(
             f"""
             SELECT
                 (SELECT count(*) FROM clouder_tracks
-                 WHERE id IN ({_CANDIDATE_IDS}) AND youtube_searched_at IS NULL) AS waiting,
+                 WHERE id IN ({candidate_ids}) AND youtube_searched_at IS NULL) AS waiting,
                 (SELECT count(*) FROM clouder_tracks
                  WHERE youtube_searched_at >= :recent_since) AS searched_recently,
                 (SELECT count(*) FROM clouder_tracks
@@ -120,6 +143,6 @@ class YoutubeSearchMixin(RepositoryBase):
                  WHERE vendor = 'ytmusic' AND status = 'no_match') AS not_found,
                 (SELECT count(*) FROM vendor_track_map WHERE vendor = 'youtube') AS videos
             """,
-            {"since": since, "recent_since": recent_since},
+            {"since": since, "recent_since": recent_since, **extra},
         )
         return {k: int(v or 0) for k, v in rows[0].items()}

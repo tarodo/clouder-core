@@ -306,7 +306,7 @@ Nothing: the resume message starts the search when the ban ends. If bans repeat,
 
 **What runs**
 
-`clouder-prod-youtube-search-worker` (at most 2 workers, each paced; usually one) searches tracks on YouTube Music after every canonicalization: new tracks since `youtube_search_since` plus tracks in categories or open triage blocks. Per track it logs `youtube_search_result` (`outcome`: `auto` / `review` / `no_match` / `video_only` / `error`, `request_count`, `video_found`), per batch `youtube_search_completed`.
+`clouder-prod-youtube-search-worker` (at most 2 workers, each paced; usually one) searches tracks on YouTube Music after every canonicalization: new tracks since `youtube_search_since`, releases published on or after `youtube_search_published_since` (2026-10-03, week 40: they were ingested before the launch), plus tracks in categories or open triage blocks. To widen the window, change that Terraform variable and deploy; an empty value switches it off. Per track it logs `youtube_search_result` (`outcome`: `auto` / `review` / `no_match` / `video_only` / `error`, `request_count`, `video_found`), per batch `youtube_search_completed`.
 
 **Start it by hand** (e.g. after a deploy, for the backlog of needed old tracks):
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -178,3 +178,33 @@ def test_status_counts(pg) -> None:
         "not_found": 1,
         "videos": 1,
     }
+
+
+PUBLISHED_SINCE = date(2026, 10, 3)  # Saturday-week W40
+
+
+def test_recent_releases_are_searched_whatever_their_ingest_date(pg) -> None:
+    # W40 tracks ingested before the launch would otherwise never be searched.
+    repo = _world(pg)
+    old = SINCE - timedelta(days=30)
+    _track(pg, "w40", old)
+    _track(pg, "w39", old)
+    pg.execute("UPDATE clouder_tracks SET publish_date = '2026-10-05' WHERE id = 'w40'")
+    pg.execute("UPDATE clouder_tracks SET publish_date = '2026-09-28' WHERE id = 'w39'")
+    without = {
+        r["id"] for r in repo.claim_tracks_for_youtube_search(limit=20, claimed_at=T0, since=SINCE)
+    }
+    assert "w40" not in without
+    repo.release_youtube_search_claim(claimed_at=T0)
+    assert (
+        repo.youtube_search_counts(since=SINCE, recent_since=T0, published_since=PUBLISHED_SINCE)[
+            "waiting"
+        ]
+        == len(without) + 1
+    )
+    assert repo.has_tracks_needing_youtube_search(since=SINCE, published_since=PUBLISHED_SINCE)
+    rows = repo.claim_tracks_for_youtube_search(
+        limit=20, claimed_at=T0, since=SINCE, published_since=PUBLISHED_SINCE
+    )
+    ids = {r["id"] for r in rows}
+    assert "w40" in ids and "w39" not in ids and "archive" not in ids

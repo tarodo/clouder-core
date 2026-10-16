@@ -12,23 +12,24 @@ resource "aws_lambda_function" "collector" {
 
   environment {
     variables = {
-      RAW_BUCKET_NAME             = aws_s3_bucket.raw.bucket
-      RAW_PREFIX                  = var.raw_prefix
-      BEATPORT_API_BASE_URL       = var.beatport_api_base_url
-      CANONICALIZATION_ENABLED    = var.canonicalization_enabled ? "true" : "false"
-      CANONICALIZATION_QUEUE_URL  = aws_sqs_queue.canonicalization.url
-      SPOTIFY_SEARCH_ENABLED      = var.spotify_search_enabled ? "true" : "false"
-      SPOTIFY_SEARCH_QUEUE_URL    = aws_sqs_queue.spotify_search.url
-      YOUTUBE_SEARCH_QUEUE_URL    = aws_sqs_queue.youtube_search.url
-      YOUTUBE_SEARCH_SINCE        = var.youtube_search_since
-      LABEL_ENRICHMENT_QUEUE_URL  = aws_sqs_queue.label_enrichment.url
-      ARTIST_ENRICHMENT_QUEUE_URL = aws_sqs_queue.artist_enrichment.url
-      AURORA_CLUSTER_ARN          = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN           = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE             = var.aurora_database_name
-      LOG_LEVEL                   = "INFO"
-      VENDORS_ENABLED             = "beatport"
-      AUTO_INGEST_FUNCTION_NAME   = local.auto_ingest_lambda_name
+      RAW_BUCKET_NAME                = aws_s3_bucket.raw.bucket
+      RAW_PREFIX                     = var.raw_prefix
+      BEATPORT_API_BASE_URL          = var.beatport_api_base_url
+      CANONICALIZATION_ENABLED       = var.canonicalization_enabled ? "true" : "false"
+      CANONICALIZATION_QUEUE_URL     = aws_sqs_queue.canonicalization.url
+      SPOTIFY_SEARCH_ENABLED         = var.spotify_search_enabled ? "true" : "false"
+      SPOTIFY_SEARCH_QUEUE_URL       = aws_sqs_queue.spotify_search.url
+      YOUTUBE_SEARCH_QUEUE_URL       = aws_sqs_queue.youtube_search.url
+      YOUTUBE_SEARCH_SINCE           = var.youtube_search_since
+      YOUTUBE_SEARCH_PUBLISHED_SINCE = var.youtube_search_published_since
+      LABEL_ENRICHMENT_QUEUE_URL     = aws_sqs_queue.label_enrichment.url
+      ARTIST_ENRICHMENT_QUEUE_URL    = aws_sqs_queue.artist_enrichment.url
+      AURORA_CLUSTER_ARN             = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN              = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE                = var.aurora_database_name
+      LOG_LEVEL                      = "INFO"
+      VENDORS_ENABLED                = "beatport"
+      AUTO_INGEST_FUNCTION_NAME      = local.auto_ingest_lambda_name
       # Coverage-cell ingest logs in to Beatport itself, like auto-ingest.
       BEATPORT_USERNAME_SSM_PARAMETER = local.beatport_username_ssm
       BEATPORT_PASSWORD_SSM_PARAMETER = local.beatport_password_ssm
@@ -189,6 +190,7 @@ resource "aws_lambda_function" "youtube_search_worker" {
       LOG_LEVEL                      = "INFO"
       YOUTUBE_SEARCH_QUEUE_URL       = aws_sqs_queue.youtube_search.url
       YOUTUBE_SEARCH_SINCE           = var.youtube_search_since
+      YOUTUBE_SEARCH_PUBLISHED_SINCE = var.youtube_search_published_since
       YOUTUBE_SEARCH_MIN_INTERVAL_MS = var.youtube_search_min_interval_ms
       YOUTUBE_SEARCH_BAN_SECONDS     = var.youtube_search_ban_seconds
       FUZZY_MATCH_THRESHOLD          = "0.92"

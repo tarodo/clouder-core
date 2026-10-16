@@ -23,7 +23,9 @@ def _handle_youtube_search_status(
     settings = _load_api_settings()
     now = deps.utc_now()
     counts = repository.youtube_search_counts(
-        since=settings.youtube_search_since, recent_since=now - timedelta(minutes=10)
+        since=settings.youtube_search_since,
+        recent_since=now - timedelta(minutes=10),
+        published_since=settings.youtube_search_published_since,
     )
     blocked_until = repository.get_vendor_blocked_until("ytmusic")
     paused_until = blocked_until if blocked_until is not None and blocked_until > now else None
