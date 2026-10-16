@@ -51,7 +51,7 @@ class FakeRepo:
             "last_claim_at": NOW,
             "last_result_at": None,
             "analyzers": [],
-            "pair": {"ai": 2, "review": 5},
+            "pair": {"high": 2, "medium": 5, "low": 3},
         }
 
     def requeue_analysis(self, **kw):
@@ -160,7 +160,7 @@ def test_admin_status(monkeypatch):
         "last_claim_at": NOW.isoformat(),
         "last_result_at": None,
         "analyzers": [],
-        "pair": {"ai": 2, "review": 5},
+        "pair": {"high": 2, "medium": 5, "low": 3},
     }
 
 

@@ -1,6 +1,7 @@
-"""The category, bucket and playlist track lists carry the pair ai_verdict.
+"""The category, bucket and playlist track lists carry the AI level as ai_verdict.
 
-Both ai_lofcz and ai_deezer flagged -> "ai"; exactly one -> "review"; else null.
+Both ai_lofcz and ai_deezer flagged -> "high"; only lofcz -> "medium";
+only deezer -> "low"; else null.
 """
 
 from __future__ import annotations
@@ -68,9 +69,9 @@ def world(pg):
 
 
 EXPECTED = {
-    "both": "ai",
-    "lofcz": "review",
-    "deezer": "review",
+    "both": "high",
+    "lofcz": "medium",
+    "deezer": "low",
     "human": None,
     "clean": None,
     "old": None,

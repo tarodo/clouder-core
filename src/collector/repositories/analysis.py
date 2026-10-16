@@ -10,19 +10,22 @@ from ._base import RepositoryBase, as_utc_datetime
 
 SERVICE = "analyzer"
 
-# The badge is a pair rule over lofcz/ai-music-detector and Deezer's detector:
-# both flag -> "ai", one flags -> "review", else null. ai_detect (ArtifactNet)
-# rows stay as a second opinion and drive nothing.
+# The badge level comes from lofcz/ai-music-detector and Deezer's detector:
+# both flag -> "high", only lofcz -> "medium", only Deezer -> "low", else null.
+# ai_detect (ArtifactNet) rows stay as a second opinion and drive nothing.
 PAIR_ANALYZERS = ("ai_lofcz", "ai_deezer")
 
-# The verdict in the track lists (`t` = clouder_tracks); served by
-# ix_track_analyses_ai_flag.
-_FLAGGED = """EXISTS (
+# The level in the track lists (`t` = clouder_tracks); served by
+# ix_track_analyses_ai_flag. Each EXISTS runs once per row.
+_LOFCZ, _DEEZER = (
+    f"""EXISTS (
     SELECT 1 FROM track_analyses ta
-    WHERE ta.track_id = t.id AND ta.analyzer = '{}' AND ta.status = 'ok'
-      AND (ta.result->>'ai_detected')::boolean)::int"""
-AI_VERDICT_SQL = f"""CASE {" + ".join(_FLAGGED.format(a) for a in PAIR_ANALYZERS)}
-    WHEN 2 THEN 'ai' WHEN 1 THEN 'review' END AS ai_verdict"""
+    WHERE ta.track_id = t.id AND ta.analyzer = '{a}' AND ta.status = 'ok'
+      AND (ta.result->>'ai_detected')::boolean)"""
+    for a in PAIR_ANALYZERS
+)
+AI_VERDICT_SQL = f"""CASE WHEN {_LOFCZ} THEN CASE WHEN {_DEEZER} THEN 'high' ELSE 'medium' END
+    WHEN {_DEEZER} THEN 'low' END AS ai_verdict"""
 LEASE_SECONDS = 1800
 
 # A row blocks a (track, analyzer) pair unless it is a lease that ran out.
@@ -200,24 +203,27 @@ class AnalysisMixin(RepositoryBase):
                     "ai_detected": int(by["ok"]["ai_detected"]) if "ok" in by else 0,
                 }
             )
-        # (track_id, analyzer) is unique, so n is how many of the pair flag the track.
+        lofcz, deezer = PAIR_ANALYZERS
         (pair,) = self._data_api.execute(
             """
-            SELECT count(*) FILTER (WHERE n = 2) AS ai, count(*) FILTER (WHERE n = 1) AS review
+            SELECT count(*) FILTER (WHERE lofcz AND deezer) AS high,
+                   count(*) FILTER (WHERE lofcz AND NOT deezer) AS medium,
+                   count(*) FILTER (WHERE deezer AND NOT lofcz) AS low
             FROM (
-                SELECT count(*) AS n FROM track_analyses
-                WHERE analyzer = ANY (string_to_array(:pair, ',')) AND status = 'ok'
+                SELECT bool_or(analyzer = :lofcz) AS lofcz, bool_or(analyzer = :deezer) AS deezer
+                FROM track_analyses
+                WHERE analyzer IN (:lofcz, :deezer) AND status = 'ok'
                   AND (result->>'ai_detected')::boolean
                 GROUP BY track_id
             ) flagged
             """,
-            {"pair": ",".join(PAIR_ANALYZERS)},
+            {"lofcz": lofcz, "deezer": deezer},
         )
         return {
             "last_claim_at": as_utc_datetime(state[0]["last_claim_at"]) if state else None,
             "last_result_at": as_utc_datetime(state[0]["last_result_at"]) if state else None,
             "analyzers": analyzers,
-            "pair": {"ai": int(pair["ai"]), "review": int(pair["review"])},
+            "pair": {level: int(pair[level]) for level in ("high", "medium", "low")},
         }
 
     def requeue_analysis(
