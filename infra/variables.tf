@@ -284,6 +284,12 @@ variable "youtube_search_ban_seconds" {
   default     = 3600
 }
 
+variable "youtube_search_published_since" {
+  description = "Releases published on/after this date are searched on YouTube even if ingested before youtube_search_since (W40 = 2026-10-03). Empty = off."
+  type        = string
+  default     = "2026-10-03"
+}
+
 variable "youtube_search_since" {
   description = "Tracks created before this are searched on YouTube only when a user works with them."
   type        = string

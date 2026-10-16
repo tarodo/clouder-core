@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from ytmusicapi.exceptions import YTMusicServerError
@@ -12,6 +12,7 @@ from collector.settings import YoutubeSearchWorkerSettings
 SETTINGS = YoutubeSearchWorkerSettings(
     YOUTUBE_SEARCH_QUEUE_URL="https://sqs/q",
     YOUTUBE_SEARCH_SINCE="2026-10-15T00:00:00Z",
+    YOUTUBE_SEARCH_PUBLISHED_SINCE="2026-10-03",
     YOUTUBE_SEARCH_MIN_INTERVAL_MS=0,
 )
 
@@ -45,8 +46,9 @@ class Repo:
     def set_vendor_blocked_until(self, vendor, until, now):
         self.blocks.append((vendor, until))
 
-    def claim_tracks_for_youtube_search(self, limit, claimed_at, since):
+    def claim_tracks_for_youtube_search(self, limit, claimed_at, since, published_since=None):
         self.claimed_at = claimed_at
+        self.published_since = published_since
         return self.tracks[:limit]
 
     def mark_youtube_searched(self, track_id, at):
@@ -57,7 +59,8 @@ class Repo:
         self.released.append(claimed_at)
         return len(self.tracks) - len(self.done)
 
-    def has_tracks_needing_youtube_search(self, since):
+    def has_tracks_needing_youtube_search(self, since, published_since=None):
+        self.more_published_since = published_since
         return self.more
 
     def upsert_vendor_match(self, cmd):
@@ -125,6 +128,14 @@ def test_happy_batch_stores_outcomes_and_follows_up(monkeypatch) -> None:
     assert repo.done == ["t1", "t2"]
     assert json.loads(sqs.sent[0]["MessageBody"]) == {"batch_size": 100}
     assert "DelaySeconds" not in sqs.sent[0]
+
+
+def test_recent_releases_window_reaches_the_repository(monkeypatch) -> None:
+    # Week 40 was ingested before the launch: publish date, not ingest date, picks it.
+    repo = Repo([track("t1")], more=True)
+    run(monkeypatch, repo, Client([[song("s1")]]))
+    assert repo.published_since == date(2026, 10, 3)
+    assert repo.more_published_since == date(2026, 10, 3)
 
 
 def test_no_follow_up_when_nothing_left(monkeypatch) -> None:
