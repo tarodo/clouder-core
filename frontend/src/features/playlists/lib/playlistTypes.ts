@@ -52,7 +52,7 @@ export interface PlaylistTrack {
   label: PlaylistTrackLabel | null;
   bpm: number | null;
   spotify_release_date: string | null;
-  ai_verdict?: 'ai' | 'review' | null;
+  ai_verdict?: 'high' | 'medium' | 'low' | null;
   tags: PlaylistTrackTag[];
   ytmusic?: YtMusicMatch | null;
   key_name?: string | null;

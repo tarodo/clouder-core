@@ -275,25 +275,25 @@ describe('TrackRow — AI badge', () => {
     );
   });
 
-  it.each([
-    ['ai', 'AI'],
-    ['review', 'AI?'],
-  ] as const)('ai_verdict=%s shows %s next to the title (desktop and mobile)', (verdict, label) => {
-    const track: CategoryTrack = { ...baseTrack, ai_verdict: verdict };
-    const { unmount } = render(
-      <W>
-        <TrackRow track={track} variant="desktop" />
-      </W>,
-    );
-    expect(screen.getByText(label)).toBeInTheDocument();
-    unmount();
-    render(
-      <WMobile>
-        <TrackRow track={track} variant="mobile" />
-      </WMobile>,
-    );
-    expect(screen.getByText(label)).toBeInTheDocument();
-  });
+  it.each(['high', 'medium', 'low'] as const)(
+    'ai_verdict=%s shows an AI badge of that level (desktop and mobile)',
+    (level) => {
+      const track: CategoryTrack = { ...baseTrack, ai_verdict: level };
+      const { unmount } = render(
+        <W>
+          <TrackRow track={track} variant="desktop" />
+        </W>,
+      );
+      expect(screen.getByText('AI').closest('[data-level]')).toHaveAttribute('data-level', level);
+      unmount();
+      render(
+        <WMobile>
+          <TrackRow track={track} variant="mobile" />
+        </WMobile>,
+      );
+      expect(screen.getByText('AI').closest('[data-level]')).toHaveAttribute('data-level', level);
+    },
+  );
 
   it('shows nothing without a verdict', () => {
     render(
@@ -301,6 +301,6 @@ describe('TrackRow — AI badge', () => {
         <TrackRow track={{ ...baseTrack, ai_verdict: null }} variant="desktop" />
       </W>,
     );
-    expect(screen.queryByText(/^AI\??$/)).not.toBeInTheDocument();
+    expect(screen.queryByText('AI')).not.toBeInTheDocument();
   });
 });

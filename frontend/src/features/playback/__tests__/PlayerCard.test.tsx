@@ -194,17 +194,14 @@ describe('PlayerCard', () => {
 });
 
 describe('PlayerCard AI badge', () => {
-  it.each([
-    ['ai', 'AI'],
-    ['review', 'AI?'],
-  ] as const)('ai_verdict=%s shows %s next to the title', (verdict, label) => {
-    const track: PlaybackTrack = { ...sampleTrack, ai_verdict: verdict };
+  it.each(['high', 'medium', 'low'] as const)('ai_verdict=%s shows an AI badge of that level', (level) => {
+    const track: PlaybackTrack = { ...sampleTrack, ai_verdict: level };
     render(wrap(<PlayerCard {...baseProps} track={track} state="playing" />));
-    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByText('AI').closest('[data-level]')).toHaveAttribute('data-level', level);
   });
 
   it('shows nothing for a track without a verdict', () => {
     render(wrap(<PlayerCard {...baseProps} state="playing" />));
-    expect(screen.queryByText(/^AI\??$/)).not.toBeInTheDocument();
+    expect(screen.queryByText('AI')).not.toBeInTheDocument();
   });
 });

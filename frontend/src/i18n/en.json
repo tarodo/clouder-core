@@ -848,8 +848,9 @@
       "due": "Waiting",
       "ok": "Analyzed",
       "ai_detected": "AI detected",
-      "pair_ai": "AI (both)",
-      "pair_review": "Needs review",
+      "level_high": "AI · both detectors",
+      "level_medium": "AI · lofcz only",
+      "level_low": "AI · Deezer only",
       "failed": "Failed",
       "unusable": "Unusable source"
     },

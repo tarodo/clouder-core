@@ -192,7 +192,7 @@ describe('PlaylistDetailPage', () => {
 });
 
 describe('toPlaybackTrack', () => {
-  it.each(['ai', 'review', null] as const)('carries ai_verdict=%s to the player', (verdict) => {
+  it.each(['high', 'medium', 'low', null] as const)('carries ai_verdict=%s to the player', (verdict) => {
     const track = toPlaybackTrack({
       track_id: 't1',
       position: 0,

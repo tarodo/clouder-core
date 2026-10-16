@@ -28,7 +28,7 @@ export interface PlaybackTrack {
   duration_ms: number;
   spotify_id: string | null;
   /** The AI pair verdict (ai_lofcz + ai_deezer); badges the track in the player. */
-  ai_verdict?: 'ai' | 'review' | null;
+  ai_verdict?: 'high' | 'medium' | 'low' | null;
 }
 
 export type QueueSource =

@@ -19,7 +19,7 @@ function status(over: Partial<Status> = {}): Status {
     analyzers: [
       { name: 'ai_detect', due: 120, leased: 0, ok: 3400, ai_detected: 41, failed: 12, unusable_source: 3 },
     ],
-    pair: { ai: 17, review: 230 },
+    pair: { high: 17, medium: 230, low: 64 },
     ...over,
   };
 }
@@ -48,12 +48,14 @@ describe('AnalysisStatus', () => {
     expect(screen.getByText('12')).toBeInTheDocument();
   });
 
-  it('shows the pair verdict counts', async () => {
+  it('shows the track counts per AI level', async () => {
     renderWith(status());
-    expect(await screen.findByText('AI (both)')).toBeInTheDocument();
+    expect(await screen.findByText('AI · both detectors')).toBeInTheDocument();
     expect(screen.getByText('17')).toBeInTheDocument();
-    expect(screen.getByText('Needs review')).toBeInTheDocument();
+    expect(screen.getByText('AI · lofcz only')).toBeInTheDocument();
     expect(screen.getByText('230')).toBeInTheDocument();
+    expect(screen.getByText('AI · Deezer only')).toBeInTheDocument();
+    expect(screen.getByText('64')).toBeInTheDocument();
   });
 
   it('warns when the analyzer has not called in for days', async () => {
