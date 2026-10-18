@@ -6,7 +6,12 @@ import pytest
 
 from collector.providers.base import VendorTrackRef
 from collector.settings import reset_settings_cache
-from collector.vendor_match.scorer import FuzzyScore, score_candidate
+from collector.vendor_match.scorer import (
+    FuzzyScore,
+    score_candidate,
+    version_rule_accepts,
+    version_title_sim,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -156,3 +161,85 @@ def test_tolerance_override_via_env(monkeypatch) -> None:
         album="Baz",
     )
     assert s.duration_ok
+
+
+# ── version rule (labelled review sample, 2026-10-18) ──────────────────────
+# Owner's rule: Original = Radio = Extended are one recording; a remix is not.
+
+
+def _s(
+    title_sim: float, artist_sim: float = 1.0, duration_ok: bool = False, album: bool = False
+) -> FuzzyScore:
+    album_bonus = 0.05 if album else 0.0
+    return FuzzyScore(
+        title_sim=title_sim,
+        artist_sim=artist_sim,
+        duration_ok=duration_ok,
+        album_bonus=album_bonus,
+        total=round(0.5 * title_sim + 0.4 * artist_sim + 0.05 * duration_ok + album_bonus, 3),
+    )
+
+
+@pytest.mark.parametrize(
+    ("title", "mix", "candidate", "score"),
+    [
+        ("Letting Go", "Extended Mix", "Letting Go", _s(1.0)),  # shorter edit of the same track
+        (
+            "Over You",
+            "Extended Mix",
+            "Over You (Extended Mix)",
+            _s(0.52, duration_ok=True, album=True),
+        ),
+        ("Rubedo", "Original Mix", "Rubedo (feat. alba)", _s(0.48, duration_ok=True, album=True)),
+        (
+            "Everybody Movin, Pt. 2",
+            "Guy Schreiner Remix",
+            "Everybody Movin, Pt. 2 (Guy Schreiner Remix)",
+            _s(0.67, duration_ok=True),
+        ),
+        ("The Key Keepers", "Radio Mix", "The Key Keepers (Radio Mix)", _s(0.65, duration_ok=True)),
+    ],
+)
+def test_version_rule_accepts_the_same_recording(title, mix, candidate, score) -> None:
+    assert version_rule_accepts(candidate_title=candidate, title=title, mix_name=mix, score=score)
+
+
+@pytest.mark.parametrize(
+    ("title", "mix", "candidate", "score"),
+    [
+        ("The Realm", "Tawa Girl Remix", "The Realm", _s(1.0)),  # the original, not the remix
+        (
+            "Light in the Dark",
+            "Extended Mix",
+            "Light in the Dark (Dub Mix)",
+            _s(0.77, duration_ok=True),
+        ),
+        (
+            "How Many More",
+            "Original Mix",
+            "Show Me",
+            _s(0.60, duration_ok=True),
+        ),  # same length, other track
+        ("FIREE", "EXTENDED VIP VIP", "FIREEE", _s(0.91, duration_ok=True)),
+        ("Night Drive", "Original Mix", "Night Drive", _s(1.0, artist_sim=0.8)),  # another artist
+    ],
+)
+def test_version_rule_rejects_another_recording(title, mix, candidate, score) -> None:
+    assert not version_rule_accepts(
+        candidate_title=candidate, title=title, mix_name=mix, score=score
+    )
+
+
+def test_version_title_sim_ignores_unicode_form_and_case() -> None:
+    assert version_title_sim("Lunère", "LUNÈRE", None) == 1.0
+
+
+def test_version_rule_stays_inside_the_labelled_score_range() -> None:
+    # Same title and length by another artist (a cover, a namesake "Intro"):
+    # below 0.70 nothing was labelled, so the rule does not reach there.
+    stranger = FuzzyScore(
+        title_sim=1.0, artist_sim=0.1, duration_ok=True, album_bonus=0.0, total=0.59
+    )
+    assert not version_rule_accepts(
+        candidate_title="Intro", title="Intro", mix_name="Original Mix", score=stranger
+    )

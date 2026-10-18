@@ -22,7 +22,8 @@ people already made, so the threshold can be argued from data.
 YouTube Music score: `0.5 · title similarity + 0.4 · best artist similarity + 0.05 if the
 duration is within 3 s + 0.05 if the album name matches` (similarities are
 `difflib.SequenceMatcher` ratios on lower-cased, whitespace-normalized strings). The best
-candidate is accepted automatically at ≥ 0.92; otherwise the top five are stored in
+candidate is accepted automatically at ≥ 0.92, or below it by the version rule (end of this
+page, `match_type = 'fuzzy_version'`); otherwise the top five are stored in
 `match_review_queue` and a person accepts one of them, pastes a URL, or rejects the track.
 
 ## Before (2026-10-06)
@@ -152,3 +153,10 @@ PYTHONPATH=src .venv/bin/python scripts/eval_vendor_match.py match_gold_<ts>.jso
 The exports contain catalog rows and are git-ignored (`match_gold_*`).
 
 **Before moving the threshold.** The export also samples the open review queue per band of the top candidate's score (`--band-sample`, 50 per band: 0.90–0.92, 0.85–0.90, 0.70–0.85). Each row shows our title with its mix name and length next to the candidate's. A row's `band` column is set, and `y` means auto-accepting that candidate would be right. Look at the lengths: a candidate that shares the title can be the radio edit of an extended mix, or the original instead of a remix. Since ingest-time search started, about 29 % of the review queue sits at exactly 0.900: title and artist identical, length off by more than 3 s.
+
+**Version rule (2026-10-18).** The owner labelled 150 band rows with one rule: Original Mix, Extended Mix, Radio Mix/Edit are the same track; a remix, dub or VIP is a different one. Lowering the threshold to 0.85 would be right only 73 % of the time. Instead, below 0.92 the top candidate is accepted (`version_rule_accepts` in `scorer.py`) when either:
+
+- its title equals ours, the artist is identical, and our mix is generic (Original/Extended/Radio): a shorter edit of the same recording; or
+- its length is within 3 s and its title is ≥ 0.95 similar.
+
+Titles are compared with and without the mix name, after Unicode NFKC folding, dropping feat. credits and generic version brackets. The candidate is refused when it names another version our mix does not (remix, dub, VIP, rework, bootleg, instrumental, acapella, live, slowed, sped up), or when ours is a remix whose remixer the candidate does not name. It only applies from a score of 0.70 up, the lowest labelled band. On the labelled rows the rule is right 82 times in 85 (96.5 %, 95 % lower bound ≈ 90 %); the automatic share of searched tracks goes from about 80 % to about 87 %.

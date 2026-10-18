@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
@@ -78,3 +80,84 @@ def score_candidate(
         album_bonus=album_bonus,
         total=round(total, 3),
     )
+
+
+# ── Version rule (docs/data/entity-resolution.md, labelled 2026-10-18) ─────
+# The catalog title carries no version (mix_name is separate) and YouTube Music
+# titles often do, so a correct candidate can score below the threshold while a
+# remix's original scores 0.900. The owner treats Original, Radio and Extended
+# as one recording; a remix, dub, VIP and the like are other recordings.
+GENERIC_VERSIONS = frozenset(
+    {
+        "original mix",
+        "extended mix",
+        "radio mix",
+        "radio edit",
+        "original",
+        "extended",
+        "original version",
+        "extended version",
+        "radio version",
+    }
+)
+_OTHER_VERSION = re.compile(
+    r"\b(remix|dub|vip|rework|bootleg|instrumental|acapella|a cappella|live|slowed|sped up)\b"
+)
+_FEAT = re.compile(
+    r"[(\[]\s*(?:feat\.?|ft\.?|featuring)\s[^)\]]*[)\]]|\s(?:feat\.?|ft\.?|featuring)\s.*$",
+    re.IGNORECASE,
+)
+_GENERIC_PAREN = re.compile(
+    r"[(\[]\s*(?:" + "|".join(sorted(GENERIC_VERSIONS, key=len, reverse=True)) + r")\s*[)\]]",
+    re.IGNORECASE,
+)
+VERSION_RULE_MIN_TITLE_SIM = 0.95
+VERSION_RULE_MIN_SCORE = 0.70  # the lowest labelled band; below it precision is unmeasured
+
+
+def _fold(s: str | None) -> str:
+    return " ".join(unicodedata.normalize("NFKC", s or "").casefold().split())
+
+
+def _core(s: str) -> str:
+    return _fold(_GENERIC_PAREN.sub(" ", _FEAT.sub(" ", s)))
+
+
+def version_title_sim(candidate_title: str, title: str, mix_name: str | None) -> float:
+    """Title similarity that knows about versions: compares the candidate with
+    our title alone and with "title (mix)", with and without feat. credits and
+    generic version tags."""
+    ours = [title, f"{title} ({mix_name})"] if mix_name else [title]
+    best = 0.0
+    for t in ours:
+        best = max(
+            best,
+            SequenceMatcher(None, _fold(candidate_title), _fold(t)).ratio(),
+            SequenceMatcher(None, _core(candidate_title), _core(t)).ratio(),
+        )
+    return best
+
+
+def version_rule_accepts(
+    *, candidate_title: str, title: str, mix_name: str | None, score: FuzzyScore
+) -> bool:
+    """Auto-accept below the threshold when the candidate is the same recording:
+    exact title and artist with a generic version (lengths differ between
+    edits), or a matching length with a near-exact version-aware title. Never
+    when the candidate names another version, or lacks our remix's name."""
+    if score.total < VERSION_RULE_MIN_SCORE:
+        return False
+    mix = _fold(mix_name)
+    cand = _fold(candidate_title)
+    if set(_OTHER_VERSION.findall(cand)) - set(_OTHER_VERSION.findall(_fold(f"{title} {mix}"))):
+        return False
+    if "remix" in mix:
+        remixer = mix.replace("remix", "").strip()
+        if not remixer or remixer not in cand:
+            return False
+    title_sim = version_title_sim(candidate_title, title, mix_name)
+    same_edit_family = (
+        (not mix or mix in GENERIC_VERSIONS) and title_sim >= 0.999 and score.artist_sim >= 0.999
+    )
+    same_length = score.duration_ok and title_sim >= VERSION_RULE_MIN_TITLE_SIM
+    return same_edit_family or same_length

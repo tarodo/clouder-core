@@ -246,3 +246,14 @@ def test_claim_takes_labeled_tracks_of_closed_blocks(pg) -> None:
     }
     assert {"discarded", "in-cat", "in-open"} <= ids
     assert not {"faved", "in-cat-gone", "in-deleted", "in-done", "archive"} & ids
+
+
+def test_claim_carries_the_mix_name(pg) -> None:
+    repo = _world(pg)
+    pg.execute("UPDATE clouder_tracks SET mix_name = 'Extended Mix' WHERE id = 'new-1'")
+    rows = {
+        r["id"]: r
+        for r in repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0, since=SINCE)
+    }
+    assert rows["new-1"]["mix_name"] == "Extended Mix"
+    assert rows["new-2"]["mix_name"] is None

@@ -308,3 +308,16 @@ def test_other_database_errors_are_not_waited_out(monkeypatch) -> None:
     repo.get_vendor_blocked_until = broken
     with pytest.raises(RuntimeError):
         run(monkeypatch, repo, Client([]))
+
+
+def test_version_rule_match_is_stored_as_fuzzy_version(monkeypatch) -> None:
+    # Our Extended Mix is 2:10 longer than the single edit YT Music carries.
+    repo = Repo([{**track("t1"), "mix_name": "Extended Mix", "length_ms": 330000}])
+    run(monkeypatch, repo, Client([[song("s1")], [], []]))
+    assert repo.matches == [("t1", "ytmusic", "s1", "fuzzy_version")]
+
+
+def test_remix_does_not_take_the_original(monkeypatch) -> None:
+    repo = Repo([{**track("t1"), "mix_name": "Guri Remix", "length_ms": 330000}])
+    run(monkeypatch, repo, Client([[song("s1")], [], []]))
+    assert repo.matches == [] and repo.reviews == [("t1", 1)]
