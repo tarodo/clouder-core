@@ -193,17 +193,23 @@ def review_band_sample(
         top = _json(row["top"]) or {}
         ref = top.get("ref") or {}
         seconds = ref.get("duration_seconds")
-        out.append({
-            "kind": "band_sample",
-            "band": row["label"],
-            "track_id": row["track_id"],
-            **_query_fields(row),
-            "mix_name": row.get("mix_name"),
-            "candidate": ref,
-            "candidate_duration_ms": round(seconds * 1000) if isinstance(seconds, (int, float)) else None,
-            "score": float(top["score"]) if isinstance(top.get("score"), (int, float)) else None,
-            "title_sim": top.get("title_sim"),
-            "artist_sim": top.get("artist_sim"),
-            "duration_ok": top.get("duration_ok"),
-        })
+        out.append(
+            {
+                "kind": "band_sample",
+                "band": row["label"],
+                "track_id": row["track_id"],
+                **_query_fields(row),
+                "mix_name": row.get("mix_name"),
+                "candidate": ref,
+                "candidate_duration_ms": round(seconds * 1000)
+                if isinstance(seconds, (int, float))
+                else None,
+                "score": float(top["score"])
+                if isinstance(top.get("score"), (int, float))
+                else None,
+                "title_sim": top.get("title_sim"),
+                "artist_sim": top.get("artist_sim"),
+                "duration_ok": top.get("duration_ok"),
+            }
+        )
     return out

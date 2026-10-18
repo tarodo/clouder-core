@@ -70,8 +70,12 @@ def main(argv: list[str] | None = None) -> tuple[Path, Path]:
     )
     parser.add_argument("--database-url", help="any Postgres instead of production")
     parser.add_argument("--sample", type=int, default=100, help="auto-accepted matches to sample")
-    parser.add_argument("--band-sample", type=int, default=50,
-                        help="open review items to sample per score band (0 = none)")
+    parser.add_argument(
+        "--band-sample",
+        type=int,
+        default=50,
+        help="open review items to sample per score band (0 = none)",
+    )
     parser.add_argument("--out-dir", type=Path, default=Path("."))
     args = parser.parse_args(argv)
 
