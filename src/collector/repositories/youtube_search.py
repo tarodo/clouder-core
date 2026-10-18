@@ -5,19 +5,17 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from ._base import RepositoryBase
+from ._base import LABELED_TRACK_IDS, RepositoryBase
 
 # Tracks worth a YouTube search: new since the launch, or older ones a user is
-# working with (a category, or a triage block still in progress). The archive
-# is left alone. A UNION of three small id sets keeps the lookup off a scan of
-# every unsearched archive row.
-_BASE_CANDIDATE_IDS = """
+# working with (labeled: a category, or DISCARD in any block; or in a triage
+# block still in progress). The rest of the archive is left alone. A UNION of
+# small id sets keeps the lookup off a scan of every unsearched archive row.
+_BASE_CANDIDATE_IDS = f"""
     SELECT id FROM clouder_tracks
     WHERE youtube_searched_at IS NULL AND created_at >= :since
     UNION
-    SELECT ct.track_id FROM category_tracks ct
-    JOIN categories c ON c.id = ct.category_id
-    WHERE c.deleted_at IS NULL
+    {LABELED_TRACK_IDS}
     UNION
     SELECT tbt.track_id FROM triage_bucket_tracks tbt
     JOIN triage_buckets b ON b.id = tbt.triage_bucket_id

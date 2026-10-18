@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from ..schemas import AI_ANALYZERS
-from ._base import RepositoryBase, as_utc_datetime
+from ._base import LABELED_TRACK_IDS, RepositoryBase, as_utc_datetime
 
 SERVICE = "analyzer"
 
@@ -49,7 +49,7 @@ class AnalysisMixin(RepositoryBase):
         lease_seconds: int = LEASE_SECONDS,
     ) -> list[dict[str, Any]]:
         """Lease up to *limit* tracks with a YT Music match that miss any of
-        *analyzers*: open triage first, then newest releases. One statement: the ON CONFLICT guard lets only
+        *analyzers*: open triage first, then labeled tracks (a category or DISCARD), then newest releases. One statement: the ON CONFLICT guard lets only
         an expired lease be taken over, so two claimers never share a pair."""
         names = ",".join(analyzers)
         rows = self._data_api.execute(
@@ -63,17 +63,22 @@ class AnalysisMixin(RepositoryBase):
                            JOIN triage_buckets b ON b.id = tbt.triage_bucket_id
                            JOIN triage_blocks tb ON tb.id = b.triage_block_id
                            WHERE tbt.track_id = t.id AND tb.status = 'IN_PROGRESS'
-                             AND tb.deleted_at IS NULL) AS in_triage
+                             AND tb.deleted_at IS NULL) AS in_triage,
+                       l.track_id IS NOT NULL AS labeled
                 FROM vendor_track_map v
                 JOIN clouder_tracks t ON t.id = v.clouder_track_id
+                -- ponytail: a join, not IN: an IN-subplan flips to per-row past work_mem (~50k ids)
+                LEFT JOIN ({LABELED_TRACK_IDS}) l ON l.track_id = t.id
                 WHERE v.vendor = 'ytmusic'
                   AND EXISTS (
                       SELECT 1 FROM wanted w WHERE NOT EXISTS (
                           SELECT 1 FROM track_analyses a
                           WHERE a.track_id = t.id AND a.analyzer = w.analyzer AND {_HELD}))
-                -- What a user triages now first, then fresh releases before
+                -- What a user triages now first, then what users labeled (the
+                -- feature lab trains on it), then fresh releases before
                 -- backfilled old weeks (ingest order would put those first).
-                ORDER BY in_triage DESC, t.publish_date DESC NULLS LAST, t.created_at DESC, t.id
+                ORDER BY in_triage DESC, labeled DESC, t.publish_date DESC NULLS LAST,
+                         t.created_at DESC, t.id
                 LIMIT :limit
             ),
             leased AS (
@@ -95,8 +100,10 @@ class AnalysisMixin(RepositoryBase):
             SELECT p.id AS track_id, p.video_id, p.length_ms,
                    string_agg(l.analyzer, ',' ORDER BY l.analyzer) AS analyzers
             FROM leased l JOIN picked p ON p.id = l.track_id
-            GROUP BY p.id, p.video_id, p.length_ms, p.created_at, p.publish_date, p.in_triage
-            ORDER BY p.in_triage DESC, p.publish_date DESC NULLS LAST, p.created_at DESC, p.id
+            GROUP BY p.id, p.video_id, p.length_ms, p.created_at, p.publish_date, p.in_triage,
+                     p.labeled
+            ORDER BY p.in_triage DESC, p.labeled DESC, p.publish_date DESC NULLS LAST,
+                     p.created_at DESC, p.id
             """,
             {
                 "analyzers": names,
