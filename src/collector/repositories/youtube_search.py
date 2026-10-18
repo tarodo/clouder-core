@@ -8,7 +8,7 @@ from typing import Any
 from ._base import LABELED_TRACK_IDS, RepositoryBase
 
 # Tracks worth a YouTube search: new since the launch, or older ones a user is
-# working with (labeled: a category, DISCARD or FAV in any block; or in a triage
+# working with (labeled: a category, or DISCARD in any block; or in a triage
 # block still in progress). The rest of the archive is left alone. A UNION of
 # small id sets keeps the lookup off a scan of every unsearched archive row.
 _BASE_CANDIDATE_IDS = f"""

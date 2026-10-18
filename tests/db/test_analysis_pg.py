@@ -296,7 +296,7 @@ def test_claim_puts_open_triage_first_then_newest_releases(repo, pg) -> None:
 
 
 def test_claim_puts_labeled_tracks_after_open_triage_before_fresh_releases(repo, pg) -> None:
-    # The feature lab trains on what users labeled (a category, DISCARD, FAV), so
+    # The feature lab trains on what users labeled (a category, DISCARD), so
     # those come right after the open triage block, ahead of fresh unlabeled releases.
     _track(pg, "fresh", T0, ytmusic="v1")
     _track(pg, "in-cat", T0 - timedelta(days=40), ytmusic="v2")

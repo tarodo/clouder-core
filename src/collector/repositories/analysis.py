@@ -49,8 +49,7 @@ class AnalysisMixin(RepositoryBase):
         lease_seconds: int = LEASE_SECONDS,
     ) -> list[dict[str, Any]]:
         """Lease up to *limit* tracks with a YT Music match that miss any of
-        *analyzers*: open triage first, then labeled tracks (a category, DISCARD
-        or FAV), then newest releases. One statement: the ON CONFLICT guard lets only
+        *analyzers*: open triage first, then labeled tracks (a category or DISCARD), then newest releases. One statement: the ON CONFLICT guard lets only
         an expired lease be taken over, so two claimers never share a pair."""
         names = ",".join(analyzers)
         rows = self._data_api.execute(
@@ -65,9 +64,11 @@ class AnalysisMixin(RepositoryBase):
                            JOIN triage_blocks tb ON tb.id = b.triage_block_id
                            WHERE tbt.track_id = t.id AND tb.status = 'IN_PROGRESS'
                              AND tb.deleted_at IS NULL) AS in_triage,
-                       t.id IN ({LABELED_TRACK_IDS}) AS labeled
+                       l.track_id IS NOT NULL AS labeled
                 FROM vendor_track_map v
                 JOIN clouder_tracks t ON t.id = v.clouder_track_id
+                -- ponytail: a join, not IN: an IN-subplan flips to per-row past work_mem (~50k ids)
+                LEFT JOIN ({LABELED_TRACK_IDS}) l ON l.track_id = t.id
                 WHERE v.vendor = 'ytmusic'
                   AND EXISTS (
                       SELECT 1 FROM wanted w WHERE NOT EXISTS (
