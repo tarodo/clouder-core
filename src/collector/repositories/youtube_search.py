@@ -68,9 +68,9 @@ class YoutubeSearchMixin(RepositoryBase):
                 FROM picked
                 WHERE t.id = picked.id
                   AND t.youtube_searched_at IS NULL
-                RETURNING t.id, t.title, t.length_ms, t.album_id, t.created_at
+                RETURNING t.id, t.title, t.mix_name, t.length_ms, t.album_id, t.created_at
             )
-            SELECT c.id, c.title, c.length_ms, alb.title AS album_title,
+            SELECT c.id, c.title, c.mix_name, c.length_ms, alb.title AS album_title,
                    COALESCE(string_agg(DISTINCT a.name, ', '), '') AS artists,
                    (EXISTS (SELECT 1 FROM vendor_track_map v
                             WHERE v.clouder_track_id = c.id AND v.vendor = 'ytmusic')
@@ -81,7 +81,7 @@ class YoutubeSearchMixin(RepositoryBase):
             LEFT JOIN clouder_track_artists ta ON ta.track_id = c.id
             LEFT JOIN clouder_artists a ON a.id = ta.artist_id
             LEFT JOIN clouder_albums alb ON alb.id = c.album_id
-            GROUP BY c.id, c.title, c.length_ms, alb.title, c.created_at
+            GROUP BY c.id, c.title, c.mix_name, c.length_ms, alb.title, c.created_at
             ORDER BY c.created_at DESC
             """,
             {"limit": limit, "claimed_at": claimed_at, "since": since, **extra},

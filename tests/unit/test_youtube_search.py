@@ -116,3 +116,47 @@ def test_remix_video_is_not_the_original() -> None:
 )
 def test_is_ban(exc, ban) -> None:
     assert is_ban(exc) is ban
+
+
+# ── version rule ───────────────────────────────────────────────────────────
+
+
+def _versioned(mix, seconds=200):
+    return TrackQuery(
+        artists="Guri",
+        title="Lost Track",
+        duration_ms=seconds * 1000,
+        album=None,
+        need_song=True,
+        mix_name=mix,
+    )
+
+
+def test_extended_mix_takes_the_shorter_edit_by_the_version_rule() -> None:
+    client = FakeClient(
+        {
+            None: [song("s1", seconds=200, album="Other")],
+            "songs": [song("s1", seconds=200, album="Other")],
+        }
+    )
+    res, _ = run(client, _versioned("Extended Mix", seconds=330))  # 2:10 longer: no length bonus
+
+    assert res.outcome == "auto" and res.match[0].vendor_track_id == "s1"
+    assert res.match[1].total < 0.92 and res.match_reason == "version_rule"
+
+
+def test_a_remix_never_takes_the_original() -> None:
+    client = FakeClient(
+        {
+            None: [song("s1", seconds=200, album="Other")],
+            "songs": [song("s1", seconds=200, album="Other")],
+        }
+    )
+    res, _ = run(client, _versioned("Tawa Girl Remix", seconds=330))
+
+    assert res.outcome == "review" and res.match_reason is None
+
+
+def test_a_threshold_match_keeps_no_rule_reason() -> None:
+    res, _ = run(FakeClient({None: [song("s1")]}))
+    assert res.outcome == "auto" and res.match_reason is None

@@ -88,7 +88,7 @@ def auto_sample(client: Any, n: int) -> list[dict[str, Any]]:
         FROM vendor_track_map m
         JOIN clouder_tracks t ON t.id = m.clouder_track_id
         LEFT JOIN clouder_albums alb ON alb.id = t.album_id
-        WHERE m.vendor = 'ytmusic' AND m.match_type = 'fuzzy'
+        WHERE m.vendor = 'ytmusic' AND m.match_type IN ('fuzzy', 'fuzzy_version')
         ORDER BY md5(m.clouder_track_id)
         LIMIT :n
         """,
@@ -112,7 +112,7 @@ def auto_population(client: Any) -> dict[str, Any]:
         """
         SELECT count(*) AS fuzzy
         FROM vendor_track_map
-        WHERE vendor = 'ytmusic' AND match_type = 'fuzzy'
+        WHERE vendor = 'ytmusic' AND match_type IN ('fuzzy', 'fuzzy_version')
         """
     )
     return {"kind": "auto_population", "fuzzy": int(row["fuzzy"])}

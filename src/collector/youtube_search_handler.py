@@ -301,6 +301,7 @@ def _search_one(
         duration_ms=int(length) if length is not None else None,
         album=track.get("album_title"),
         need_song=not bool(track.get("has_ytmusic")),
+        mix_name=track.get("mix_name"),
     )
     try:
         result = search_track(client, query, threshold=settings.fuzzy_match_threshold, pace=pace)
@@ -348,10 +349,15 @@ def _search_one(
         track_id=track_id,
         outcome=result.outcome,
         confidence=result.best_score,
+        match_type=_song_match_type(result) if result.match else None,
         request_count=result.request_count,
         video_found=result.video is not None,
     )
     return True
+
+
+def _song_match_type(result: TrackSearchResult) -> str:
+    return "fuzzy_version" if result.match_reason == "version_rule" else "fuzzy"
 
 
 def _persist(
@@ -378,7 +384,7 @@ def _persist(
                 clouder_track_id=track_id,
                 vendor=VENDOR_SONG,
                 vendor_track_id=ref.vendor_track_id,
-                match_type="fuzzy",
+                match_type=_song_match_type(result),
                 confidence=Decimal(str(score.total)),
                 matched_at=now,
                 payload=ref.raw_payload,

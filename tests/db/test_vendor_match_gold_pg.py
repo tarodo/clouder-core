@@ -140,3 +140,18 @@ def test_gold_query_fields_match_vendor_match_inputs(pg) -> None:
         expected.duration_ms,
         expected.album,
     )
+
+
+def test_version_rule_matches_join_the_auto_audit(pg) -> None:
+    _seed(pg)
+    pg.execute(
+        "INSERT INTO clouder_tracks (id, title, normalized_title, created_at, updated_at) "
+        "VALUES ('t3', 'Letting Go', 'letting go', now(), now())"
+    )
+    pg.execute(
+        "INSERT INTO vendor_track_map (clouder_track_id, vendor, vendor_track_id, match_type, confidence, matched_at, payload) "
+        "VALUES ('t3', 'ytmusic', 'y3', 'fuzzy_version', 0.9, now(), '{\"videoId\": \"y3\"}'::jsonb)"
+    )
+
+    assert auto_population(pg) == {"kind": "auto_population", "fuzzy": 2}
+    assert {r["track_id"] for r in auto_sample(pg, 10)} == {"t2", "t3"}

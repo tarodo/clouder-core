@@ -15,7 +15,7 @@ from ytmusicapi.exceptions import YTMusicGatedError, YTMusicServerError
 from ..providers.base import VendorTrackRef
 from ..providers.youtube.video_match import video_matches
 from ..providers.ytmusic.normalize import build_query, result_to_ref
-from ..vendor_match.scorer import FuzzyScore, score_candidate
+from ..vendor_match.scorer import FuzzyScore, score_candidate, version_rule_accepts
 
 SEARCH_LIMIT = 10
 REVIEW_TOP_N = 5
@@ -30,6 +30,7 @@ class TrackQuery:
     duration_ms: int | None
     album: str | None
     need_song: bool
+    mix_name: str | None = None
 
 
 @dataclass
@@ -39,6 +40,7 @@ class TrackSearchResult:
     match: Scored | None = None
     review: list[Scored] = field(default_factory=list)
     request_count: int = 0
+    match_reason: str | None = None  # "version_rule" when accepted below threshold
 
     @property
     def outcome(self) -> str:
@@ -129,6 +131,10 @@ def search_track(
 
     if scored and scored[0][1].total >= threshold:
         res.match = scored[0]
+    elif scored and version_rule_accepts(
+        candidate_title=scored[0][0].title, title=q.title, mix_name=q.mix_name, score=scored[0][1]
+    ):
+        res.match, res.match_reason = scored[0], "version_rule"
     else:
         res.review = scored[:REVIEW_TOP_N]
     return res
