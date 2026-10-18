@@ -7,10 +7,12 @@ CI, so a syntax error ships silently and surfaces as a runtime failure in a
 Lambda.
 
 `pglast` wraps libpg_query, the actual PostgreSQL parser, so this is the same
-grammar the server uses rather than an approximation of it. It is pinned to the
-series whose grammar matches the Aurora major version (16) — a parser running
+grammar the server uses rather than an approximation of it. A parser running
 ahead of the server would happily accept syntax Aurora rejects, so
-`test_parser_matches_the_deployed_engine` fails if the two drift apart.
+`test_parser_matches_the_deployed_engine` fails if the two drift apart. The
+pglast 6 series (PostgreSQL 16) was removed from PyPI in October 2026, so the
+pin is pglast 7 (PostgreSQL 17), one major ahead of Aurora: PG17-only syntax
+would slip through, everything PG16 accepts still parses.
 
 Scope — what this does NOT cover, deliberately:
 
@@ -52,6 +54,8 @@ MINIMUM_EXPECTED_STATEMENTS = 150
 
 # Aurora PostgreSQL major version this SQL actually runs against.
 AURORA_POSTGRES_MAJOR = 16
+# The parser may run at most one major ahead (pglast 6 for PG16 is gone from PyPI).
+MAX_PARSER_LEAD = 1
 
 
 def _collect_statements() -> list[tuple[pathlib.Path, int, str]]:
@@ -86,7 +90,7 @@ STATEMENTS = _collect_statements()
 def test_parser_matches_the_deployed_engine() -> None:
     """A parser ahead of the server accepts syntax Aurora would reject."""
     major = pglast.get_postgresql_version()[0]
-    assert major == AURORA_POSTGRES_MAJOR, (
+    assert AURORA_POSTGRES_MAJOR <= major <= AURORA_POSTGRES_MAJOR + MAX_PARSER_LEAD, (
         f"pglast {pglast.__version__} parses PostgreSQL {major}, but Aurora runs "
         f"{AURORA_POSTGRES_MAJOR}. Re-pin pglast in requirements-dev.txt, or "
         "update AURORA_POSTGRES_MAJOR if the cluster was upgraded."
