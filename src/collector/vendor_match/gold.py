@@ -146,3 +146,64 @@ def duplicate_artists(client: Any) -> dict[str, Any]:
         "artists_in_groups": int(row["artists_in_groups"]),
         "groups_with_non_beatport_artist": int(row["groups_with_non_beatport_artist"]),
     }
+
+
+def review_band_sample(
+    client: Any, bands: list[tuple[float, float]], per_band: int
+) -> list[dict[str, Any]]:
+    """A deterministic sample (md5 order) of open review items per band of the top
+    candidate's score, with the track's mix name and length next to the candidate's,
+    to label by hand before moving the auto-accept threshold or the scoring."""
+    params: dict[str, Any] = {"n": per_band}
+    values = []
+    for i, (lo, hi) in enumerate(bands):
+        params |= {f"label{i}": f"{lo:.2f}-{hi:.2f}", f"lo{i}": lo, f"hi{i}": hi}
+        values.append(f"(:label{i}, CAST(:lo{i} AS numeric), CAST(:hi{i} AS numeric))")
+    rows = client.execute(
+        f"""
+        WITH pending AS (
+            SELECT q.clouder_track_id AS track_id,
+                   (SELECT c FROM jsonb_array_elements(q.candidates) c
+                     ORDER BY (c->>'score')::numeric DESC NULLS LAST LIMIT 1) AS top
+            FROM match_review_queue q
+            WHERE q.vendor = 'ytmusic' AND q.status = 'pending'
+        ), bands(label, lo, hi) AS (VALUES {", ".join(values)}),
+        banded AS (
+            SELECT p.track_id, p.top, b.label,
+                   row_number() OVER (PARTITION BY b.label ORDER BY md5(p.track_id)) AS rn
+            FROM pending p
+            JOIN bands b ON (p.top->>'score')::numeric >= b.lo AND (p.top->>'score')::numeric < b.hi
+        )
+        SELECT bd.track_id, bd.top, bd.label, t.title, t.mix_name, t.length_ms,
+               alb.title AS album_title,
+               (SELECT COALESCE(STRING_AGG(DISTINCT a.name, ', ' ORDER BY a.name), '')
+                  FROM clouder_track_artists cta
+                  JOIN clouder_artists a ON a.id = cta.artist_id
+                 WHERE cta.track_id = t.id) AS artist_names
+        FROM banded bd
+        JOIN clouder_tracks t ON t.id = bd.track_id
+        LEFT JOIN clouder_albums alb ON alb.id = t.album_id
+        WHERE bd.rn <= :n
+        ORDER BY bd.label DESC, bd.rn
+        """,
+        params,
+    )
+    out = []
+    for row in rows:
+        top = _json(row["top"]) or {}
+        ref = top.get("ref") or {}
+        seconds = ref.get("duration_seconds")
+        out.append({
+            "kind": "band_sample",
+            "band": row["label"],
+            "track_id": row["track_id"],
+            **_query_fields(row),
+            "mix_name": row.get("mix_name"),
+            "candidate": ref,
+            "candidate_duration_ms": round(seconds * 1000) if isinstance(seconds, (int, float)) else None,
+            "score": float(top["score"]) if isinstance(top.get("score"), (int, float)) else None,
+            "title_sim": top.get("title_sim"),
+            "artist_sim": top.get("artist_sim"),
+            "duration_ok": top.get("duration_ok"),
+        })
+    return out

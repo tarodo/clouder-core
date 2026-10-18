@@ -150,3 +150,5 @@ PYTHONPATH=src .venv/bin/python scripts/eval_vendor_match.py match_gold_<ts>.jso
 ```
 
 The exports contain catalog rows and are git-ignored (`match_gold_*`).
+
+**Before moving the threshold.** The export also samples the open review queue per band of the top candidate's score (`--band-sample`, 50 per band: 0.90–0.92, 0.85–0.90, 0.70–0.85). Each row shows our title with its mix name and length next to the candidate's. A row's `band` column is set, and `y` means auto-accepting that candidate would be right. Look at the lengths: a candidate that shares the title can be the radio edit of an extended mix, or the original instead of a remix. Since ingest-time search started, about 29 % of the review queue sits at exactly 0.900: title and artist identical, length off by more than 3 s.
