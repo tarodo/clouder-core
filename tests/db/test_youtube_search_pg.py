@@ -208,3 +208,32 @@ def test_recent_releases_are_searched_whatever_their_ingest_date(pg) -> None:
     )
     ids = {r["id"] for r in rows}
     assert "w40" in ids and "w39" not in ids and "archive" not in ids
+
+
+def test_claim_takes_labeled_tracks_of_closed_blocks(pg) -> None:
+    # DISCARD and FAV are a user's labels wherever the block is; a closed block's
+    # auto buckets and a deleted block's labels stay in the archive.
+    repo = _world(pg)
+    old = SINCE - timedelta(days=30)
+    for tid in ("discarded", "faved", "in-deleted"):
+        _track(pg, tid, old)
+    pg.execute(
+        "INSERT INTO triage_blocks (id, user_id, style_id, name, date_from, date_to, status,"
+        " created_at, updated_at, deleted_at) VALUES ('gone', 'u1', 'st', 'B3', '2026-09-19',"
+        " '2026-09-25', 'FINALIZED', now(), now(), now())"
+    )
+    pg.execute(
+        "INSERT INTO triage_buckets (id, triage_block_id, bucket_type, created_at) VALUES"
+        " ('b-discard', 'done', 'DISCARD', now()), ('b-fav', 'done', 'FAV', now()),"
+        " ('b-gone', 'gone', 'DISCARD', now())"
+    )
+    pg.execute(
+        "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at) VALUES"
+        " ('b-discard', 'discarded', now()), ('b-fav', 'faved', now()),"
+        " ('b-gone', 'in-deleted', now())"
+    )
+    ids = {
+        r["id"] for r in repo.claim_tracks_for_youtube_search(limit=20, claimed_at=T0, since=SINCE)
+    }
+    assert {"discarded", "faved", "in-cat", "in-open"} <= ids
+    assert not {"in-deleted", "in-done", "archive"} & ids
