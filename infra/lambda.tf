@@ -12,24 +12,22 @@ resource "aws_lambda_function" "collector" {
 
   environment {
     variables = {
-      RAW_BUCKET_NAME                = aws_s3_bucket.raw.bucket
-      RAW_PREFIX                     = var.raw_prefix
-      BEATPORT_API_BASE_URL          = var.beatport_api_base_url
-      CANONICALIZATION_ENABLED       = var.canonicalization_enabled ? "true" : "false"
-      CANONICALIZATION_QUEUE_URL     = aws_sqs_queue.canonicalization.url
-      SPOTIFY_SEARCH_ENABLED         = var.spotify_search_enabled ? "true" : "false"
-      SPOTIFY_SEARCH_QUEUE_URL       = aws_sqs_queue.spotify_search.url
-      YOUTUBE_SEARCH_QUEUE_URL       = aws_sqs_queue.youtube_search.url
-      YOUTUBE_SEARCH_SINCE           = var.youtube_search_since
-      YOUTUBE_SEARCH_PUBLISHED_SINCE = var.youtube_search_published_since
-      LABEL_ENRICHMENT_QUEUE_URL     = aws_sqs_queue.label_enrichment.url
-      ARTIST_ENRICHMENT_QUEUE_URL    = aws_sqs_queue.artist_enrichment.url
-      AURORA_CLUSTER_ARN             = aws_rds_cluster.aurora.arn
-      AURORA_SECRET_ARN              = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
-      AURORA_DATABASE                = var.aurora_database_name
-      LOG_LEVEL                      = "INFO"
-      VENDORS_ENABLED                = "beatport"
-      AUTO_INGEST_FUNCTION_NAME      = local.auto_ingest_lambda_name
+      RAW_BUCKET_NAME             = aws_s3_bucket.raw.bucket
+      RAW_PREFIX                  = var.raw_prefix
+      BEATPORT_API_BASE_URL       = var.beatport_api_base_url
+      CANONICALIZATION_ENABLED    = var.canonicalization_enabled ? "true" : "false"
+      CANONICALIZATION_QUEUE_URL  = aws_sqs_queue.canonicalization.url
+      SPOTIFY_SEARCH_ENABLED      = var.spotify_search_enabled ? "true" : "false"
+      SPOTIFY_SEARCH_QUEUE_URL    = aws_sqs_queue.spotify_search.url
+      YOUTUBE_SEARCH_QUEUE_URL    = aws_sqs_queue.youtube_search.url
+      LABEL_ENRICHMENT_QUEUE_URL  = aws_sqs_queue.label_enrichment.url
+      ARTIST_ENRICHMENT_QUEUE_URL = aws_sqs_queue.artist_enrichment.url
+      AURORA_CLUSTER_ARN          = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN           = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE             = var.aurora_database_name
+      LOG_LEVEL                   = "INFO"
+      VENDORS_ENABLED             = "beatport"
+      AUTO_INGEST_FUNCTION_NAME   = local.auto_ingest_lambda_name
       # Coverage-cell ingest logs in to Beatport itself, like auto-ingest.
       BEATPORT_USERNAME_SSM_PARAMETER = local.beatport_username_ssm
       BEATPORT_PASSWORD_SSM_PARAMETER = local.beatport_password_ssm
@@ -58,7 +56,6 @@ resource "aws_lambda_function" "canonicalization_worker" {
       RAW_BUCKET_NAME          = aws_s3_bucket.raw.bucket
       RAW_PREFIX               = var.raw_prefix
       SPOTIFY_SEARCH_QUEUE_URL = aws_sqs_queue.spotify_search.url
-      YOUTUBE_SEARCH_QUEUE_URL = aws_sqs_queue.youtube_search.url
       AURORA_CLUSTER_ARN       = aws_rds_cluster.aurora.arn
       AURORA_SECRET_ARN        = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
       AURORA_DATABASE          = var.aurora_database_name
@@ -188,9 +185,6 @@ resource "aws_lambda_function" "youtube_search_worker" {
       AURORA_SECRET_ARN              = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
       AURORA_DATABASE                = var.aurora_database_name
       LOG_LEVEL                      = "INFO"
-      YOUTUBE_SEARCH_QUEUE_URL       = aws_sqs_queue.youtube_search.url
-      YOUTUBE_SEARCH_SINCE           = var.youtube_search_since
-      YOUTUBE_SEARCH_PUBLISHED_SINCE = var.youtube_search_published_since
       YOUTUBE_SEARCH_MIN_INTERVAL_MS = var.youtube_search_min_interval_ms
       YOUTUBE_SEARCH_BAN_SECONDS     = var.youtube_search_ban_seconds
       FUZZY_MATCH_THRESHOLD          = "0.92"
@@ -210,12 +204,32 @@ resource "aws_lambda_event_source_mapping" "youtube_search_queue" {
   }
 }
 
-# The sweep re-queues itself batch after batch. Lambda's recursive-loop guard
-# drops the 17th hop of such a chain by default (it cut the 2026-10-14 probe
-# at 1,600 tracks); this loop is intended and ends when no track is left.
-resource "aws_lambda_function_recursion_config" "youtube_search_worker" {
-  function_name  = aws_lambda_function.youtube_search_worker.function_name
-  recursive_loop = "Allow"
+# One batch an hour, newest releases first; the rule is the queue's only
+# producer (no post-ingest start, no self-chaining).
+resource "aws_cloudwatch_event_rule" "youtube_search_hourly" {
+  name                = "${local.name_prefix}-youtube-search-hourly"
+  schedule_expression = "rate(1 hour)"
+}
+
+resource "aws_cloudwatch_event_target" "youtube_search_hourly" {
+  rule      = aws_cloudwatch_event_rule.youtube_search_hourly.name
+  target_id = "youtube-search"
+  arn       = aws_sqs_queue.youtube_search.arn
+  input     = jsonencode({ batch_size = var.youtube_search_batch_size })
+}
+
+resource "aws_sqs_queue_policy" "youtube_search" {
+  queue_url = aws_sqs_queue.youtube_search.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "events.amazonaws.com" }
+      Action    = "sqs:SendMessage"
+      Resource  = aws_sqs_queue.youtube_search.arn
+      Condition = { ArnEquals = { "aws:SourceArn" = aws_cloudwatch_event_rule.youtube_search_hourly.arn } }
+    }]
+  })
 }
 
 # ── Vendor Match worker ──────────────────────────────────────────

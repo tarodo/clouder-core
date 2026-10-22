@@ -2,38 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime, timedelta
 from typing import Any
 
-from ._base import LABELED_TRACK_IDS, RepositoryBase
-
-# Tracks worth a YouTube search: new since the launch, or older ones a user is
-# working with (labeled: a category, or DISCARD in any block; or in a triage
-# block still in progress). The rest of the archive is left alone. A UNION of
-# small id sets keeps the lookup off a scan of every unsearched archive row.
-_BASE_CANDIDATE_IDS = f"""
-    SELECT id FROM clouder_tracks
-    WHERE youtube_searched_at IS NULL AND created_at >= :since
-    UNION
-    {LABELED_TRACK_IDS}
-    UNION
-    SELECT tbt.track_id FROM triage_bucket_tracks tbt
-    JOIN triage_buckets b ON b.id = tbt.triage_bucket_id
-    JOIN triage_blocks tb ON tb.id = b.triage_block_id
-    WHERE tb.status = 'IN_PROGRESS' AND tb.deleted_at IS NULL
-"""
-# Plus recent releases ingested before the launch (e.g. week 40, ingested early).
-_PUBLISHED_IDS = """
-    UNION
-    SELECT id FROM clouder_tracks
-    WHERE youtube_searched_at IS NULL AND publish_date >= :published_since
-"""
-
-
-def _candidates(published_since: date | None) -> tuple[str, dict[str, Any]]:
-    if published_since is None:
-        return _BASE_CANDIDATE_IDS, {}
-    return _BASE_CANDIDATE_IDS + _PUBLISHED_IDS, {"published_since": published_since}
+from ..saturday_week import first_saturday, weeks_in_year
+from ._base import RepositoryBase
 
 
 class YoutubeSearchMixin(RepositoryBase):
@@ -41,24 +14,22 @@ class YoutubeSearchMixin(RepositoryBase):
         self,
         limit: int,
         claimed_at: datetime,
-        since: datetime,
-        published_since: date | None = None,
     ) -> list[dict[str, Any]]:
-        """Stamp the next *limit* candidates with *claimed_at* and return their
-        search inputs, in one statement (SKIP LOCKED in a materialized pick,
-        repeated IS NULL on the update). `has_ytmusic` marks tracks that already have a YT Music
-        match, review or no_match row: only their video is still looked for."""
-        candidate_ids, extra = _candidates(published_since)
+        """Stamp the next *limit* unsearched tracks, newest release first over
+        the whole catalog, with *claimed_at* and return their search inputs, in
+        one statement (SKIP LOCKED in a materialized pick, repeated IS NULL on
+        the update). Fresh ingests land on top by themselves. `has_ytmusic`
+        marks tracks that already have a YT Music match, review or no_match
+        row: only their video is still looked for."""
         return self._data_api.execute(
-            f"""
+            """
             WITH picked AS MATERIALIZED (
                 -- Materialized: run once. `IN (... LIMIT n FOR UPDATE SKIP
                 -- LOCKED)` may be re-executed per row, each run locking the
                 -- next row, and claim far more than n (seen once in tests).
                 SELECT id FROM clouder_tracks
-                WHERE id IN ({candidate_ids})
-                  AND youtube_searched_at IS NULL
-                ORDER BY created_at DESC
+                WHERE youtube_searched_at IS NULL
+                ORDER BY publish_date DESC NULLS LAST, created_at DESC, id
                 LIMIT :limit
                 FOR UPDATE SKIP LOCKED
             ),
@@ -68,7 +39,8 @@ class YoutubeSearchMixin(RepositoryBase):
                 FROM picked
                 WHERE t.id = picked.id
                   AND t.youtube_searched_at IS NULL
-                RETURNING t.id, t.title, t.mix_name, t.length_ms, t.album_id, t.created_at
+                RETURNING t.id, t.title, t.mix_name, t.length_ms, t.album_id, t.publish_date,
+                          t.created_at
             )
             SELECT c.id, c.title, c.mix_name, c.length_ms, alb.title AS album_title,
                    COALESCE(string_agg(DISTINCT a.name, ', '), '') AS artists,
@@ -81,10 +53,11 @@ class YoutubeSearchMixin(RepositoryBase):
             LEFT JOIN clouder_track_artists ta ON ta.track_id = c.id
             LEFT JOIN clouder_artists a ON a.id = ta.artist_id
             LEFT JOIN clouder_albums alb ON alb.id = c.album_id
-            GROUP BY c.id, c.title, c.mix_name, c.length_ms, alb.title, c.created_at
-            ORDER BY c.created_at DESC
+            GROUP BY c.id, c.title, c.mix_name, c.length_ms, alb.title, c.publish_date,
+                     c.created_at
+            ORDER BY c.publish_date DESC NULLS LAST, c.created_at DESC, c.id
             """,
-            {"limit": limit, "claimed_at": claimed_at, "since": since, **extra},
+            {"limit": limit, "claimed_at": claimed_at},
         )
 
     def mark_youtube_searched(self, track_id: str, at: datetime) -> None:
@@ -106,30 +79,13 @@ class YoutubeSearchMixin(RepositoryBase):
         )
         return len(rows)
 
-    def has_tracks_needing_youtube_search(
-        self, since: datetime, published_since: date | None = None
-    ) -> bool:
-        candidate_ids, extra = _candidates(published_since)
-        rows = self._data_api.execute(
-            f"""
-            SELECT 1 FROM clouder_tracks
-            WHERE id IN ({candidate_ids}) AND youtube_searched_at IS NULL
-            LIMIT 1
-            """,
-            {"since": since, **extra},
-        )
-        return bool(rows)
-
-    def youtube_search_counts(
-        self, since: datetime, recent_since: datetime, published_since: date | None = None
-    ) -> dict[str, int]:
+    def youtube_search_counts(self, recent_since: datetime) -> dict[str, int]:
         """Backlog and outcomes behind the admin YouTube search status."""
-        candidate_ids, extra = _candidates(published_since)
         rows = self._data_api.execute(
-            f"""
+            """
             SELECT
                 (SELECT count(*) FROM clouder_tracks
-                 WHERE id IN ({candidate_ids}) AND youtube_searched_at IS NULL) AS waiting,
+                 WHERE youtube_searched_at IS NULL) AS waiting,
                 (SELECT count(*) FROM clouder_tracks
                  WHERE youtube_searched_at >= :recent_since) AS searched_recently,
                 (SELECT count(*) FROM clouder_tracks
@@ -141,6 +97,46 @@ class YoutubeSearchMixin(RepositoryBase):
                  WHERE vendor = 'ytmusic' AND status = 'no_match') AS not_found,
                 (SELECT count(*) FROM vendor_track_map WHERE vendor = 'youtube') AS videos
             """,
-            {"since": since, "recent_since": recent_since, **extra},
+            {"recent_since": recent_since},
         )
         return {k: int(v or 0) for k, v in rows[0].items()}
+
+    def youtube_stats_for_year(self, week_year: int) -> list[dict[str, Any]]:
+        """Per (beatport style, Saturday week of publish_date) YT Music outcome
+        counts for one Saturday-year, as `spotify_stats_for_year` does for
+        Spotify. The four buckets are mutually exclusive and sum to total."""
+        year_start = first_saturday(week_year)
+        year_end = year_start + timedelta(days=weeks_in_year(week_year) * 7 - 1)
+        return self._data_api.execute(
+            """
+            WITH t AS (
+                SELECT t.style_id, t.publish_date, t.youtube_searched_at,
+                       EXISTS (SELECT 1 FROM vendor_track_map v
+                               WHERE v.clouder_track_id = t.id AND v.vendor = 'ytmusic')
+                           AS found,
+                       EXISTS (SELECT 1 FROM match_review_queue q
+                               WHERE q.clouder_track_id = t.id AND q.vendor = 'ytmusic'
+                                 AND q.status = 'pending') AS review
+                FROM clouder_tracks t
+                WHERE t.publish_date BETWEEN :year_start AND :year_end
+            )
+            SELECT
+                im.external_id                       AS beatport_style_id,
+                (t.publish_date - :year_start) / 7 + 1 AS week_number,
+                COUNT(*)                             AS total,
+                COUNT(*) FILTER (WHERE t.found)      AS found,
+                COUNT(*) FILTER (WHERE NOT t.found AND t.review) AS review,
+                COUNT(*) FILTER (WHERE NOT t.found AND NOT t.review
+                                   AND t.youtube_searched_at IS NOT NULL) AS not_found,
+                COUNT(*) FILTER (WHERE NOT t.found AND NOT t.review
+                                   AND t.youtube_searched_at IS NULL) AS pending
+            FROM t
+            JOIN identity_map im
+              ON im.source = 'beatport'
+              AND im.entity_type = 'style'
+              AND im.clouder_entity_type = 'style'
+              AND im.clouder_id = t.style_id
+            GROUP BY 1, 2
+            """,
+            {"year_start": year_start, "year_end": year_end},
+        )

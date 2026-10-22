@@ -64,9 +64,8 @@ class FakeRepo:
         assert vendor == "ytmusic"
         return self.blocked_until
 
-    def youtube_search_counts(self, since, recent_since, published_since=None):
-        self.args = (since, recent_since)
-        self.published_since = published_since
+    def youtube_search_counts(self, recent_since):
+        self.recent_since = recent_since
         return dict(COUNTS)
 
 
@@ -101,9 +100,7 @@ def test_running_with_counts_and_outcomes(monkeypatch):
     assert body["tracks"] == {"waiting": 120, "searched_last_10_min": 210, "searched_total": 4600}
     assert body["results"] == {"matched": 3400, "needs_review": 940, "not_found": 3, "videos": 1200}
     assert sqs.asked == QUEUE
-    since, recent = repo.args
-    assert since == datetime(2026, 10, 15, tzinfo=UTC)
-    assert datetime.now(UTC) - recent == pytest.approx(
+    assert datetime.now(UTC) - repo.recent_since == pytest.approx(
         timedelta(minutes=10), abs=timedelta(seconds=5)
     )
 
@@ -124,18 +121,3 @@ def test_paused_during_a_youtube_ban(monkeypatch):
 def test_admin_only(monkeypatch):
     status, body = _call(monkeypatch, FakeRepo(), FakeSqs(), is_admin=False)
     assert (status, body["error_code"]) == (403, "admin_required")
-
-
-def test_waiting_counts_recent_releases_when_configured(monkeypatch):
-    monkeypatch.setenv("YOUTUBE_SEARCH_PUBLISHED_SINCE", "2026-10-03")
-    reset_settings_cache()
-    repo = FakeRepo()
-    _call(monkeypatch, repo, FakeSqs())
-    assert str(repo.published_since) == "2026-10-03"
-
-
-def test_empty_published_since_switches_it_off(monkeypatch):
-    from collector.settings import YoutubeSearchWorkerSettings
-
-    monkeypatch.setenv("YOUTUBE_SEARCH_PUBLISHED_SINCE", "")
-    assert YoutubeSearchWorkerSettings().published_since is None

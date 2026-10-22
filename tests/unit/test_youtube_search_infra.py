@@ -24,8 +24,6 @@ def test_concurrency_is_bounded_by_the_trigger_alone() -> None:
 def test_worker_gets_its_pace_and_queue() -> None:
     body = _block("aws_lambda_function", "youtube_search_worker")
     for env in (
-        "YOUTUBE_SEARCH_QUEUE_URL",
-        "YOUTUBE_SEARCH_SINCE",
         "YOUTUBE_SEARCH_MIN_INTERVAL_MS",
         "YOUTUBE_SEARCH_BAN_SECONDS",
         "FUZZY_MATCH_THRESHOLD",
@@ -33,12 +31,29 @@ def test_worker_gets_its_pace_and_queue() -> None:
         assert env in body
 
 
-def test_canonicalization_can_start_the_sweep() -> None:
-    assert "YOUTUBE_SEARCH_QUEUE_URL" in _block("aws_lambda_function", "canonicalization_worker")
-    assert (
-        "aws_sqs_queue.youtube_search.arn"
-        in TF.split('module "role_canonicalization_worker"')[1].split("module ")[0]
+def test_an_hourly_rule_queues_one_batch() -> None:
+    rule = _block("aws_cloudwatch_event_rule", "youtube_search_hourly")
+    assert 'schedule_expression = "rate(1 hour)"' in rule
+    target = _block("aws_cloudwatch_event_target", "youtube_search_hourly")
+    assert "arn       = aws_sqs_queue.youtube_search.arn" in target
+    assert "batch_size = var.youtube_search_batch_size" in target
+    policy = _block("aws_sqs_queue_policy", "youtube_search")
+    assert "events.amazonaws.com" in policy
+    assert "aws_cloudwatch_event_rule.youtube_search_hourly.arn" in policy
+
+
+def test_neither_ingest_nor_the_worker_queues_searches() -> None:
+    # The hourly rule is the only producer: no post-ingest start, no chaining.
+    assert "YOUTUBE_SEARCH_QUEUE_URL" not in _block(
+        "aws_lambda_function", "canonicalization_worker"
     )
+    assert "YOUTUBE_SEARCH_QUEUE_URL" not in _block("aws_lambda_function", "youtube_search_worker")
+    senders = [
+        line
+        for line in TF.splitlines()
+        if '"sqs:SendMessage"' in line and "aws_sqs_queue.youtube_search.arn" in line
+    ]
+    assert senders == []
 
 
 def test_dlq_is_alarmed() -> None:
@@ -50,11 +65,3 @@ def test_throttled_messages_are_not_dead_lettered_early() -> None:
     # throttle counts as a receive (AWS advises maxReceiveCount >= 5).
     body = _block("aws_sqs_queue", "youtube_search")
     assert int(re.search(r"maxReceiveCount\s*=\s*(\d+)", body).group(1)) >= 10
-
-
-def test_the_self_chaining_sweep_is_not_cut_as_a_recursive_loop() -> None:
-    # The worker re-queues itself for the next batch; Lambda's recursion guard
-    # drops the 17th hop by default (2026-10-14 probe stopped at 1,600 tracks).
-    body = _block("aws_lambda_function_recursion_config", "youtube_search_worker")
-    assert "aws_lambda_function.youtube_search_worker.function_name" in body
-    assert 'recursive_loop = "Allow"' in body

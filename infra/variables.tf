@@ -284,16 +284,10 @@ variable "youtube_search_ban_seconds" {
   default     = 3600
 }
 
-variable "youtube_search_published_since" {
-  description = "Releases published on/after this date are searched on YouTube even if ingested before youtube_search_since (W40 = 2026-10-03). Empty = off."
-  type        = string
-  default     = "2026-10-03"
-}
-
-variable "youtube_search_since" {
-  description = "Tracks created before this are searched on YouTube only when a user works with them."
-  type        = string
-  default     = "2026-10-15T00:00:00Z"
+variable "youtube_search_batch_size" {
+  description = "Tracks the hourly YouTube search takes per run, newest releases first (~12 min at the 2 s pace)."
+  type        = number
+  default     = 250
 }
 
 variable "alarm_sns_topic_arn" {

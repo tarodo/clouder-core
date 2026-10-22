@@ -156,10 +156,6 @@ def lambda_handler(event: Mapping[str, Any], context: Any) -> dict[str, Any]:
                 settings=settings,
                 correlation_id=correlation_id,
             )
-            _enqueue_youtube_search_after_canonicalization(
-                settings=settings,
-                correlation_id=correlation_id,
-            )
         except Exception as exc:
             is_permanent = isinstance(exc, _PERMANENT_ERRORS) and not isinstance(
                 exc, TransientStorageError
@@ -241,38 +237,6 @@ def _enqueue_spotify_search_after_canonicalization(
         log_event(
             "ERROR",
             "spotify_search_enqueue_failed",
-            correlation_id=correlation_id,
-            error_type=exc.__class__.__name__,
-            error_message=str(exc)[:500],
-        )
-
-
-def _enqueue_youtube_search_after_canonicalization(
-    settings: Any, correlation_id: str, sqs: Any = None
-) -> None:
-    """Start the YouTube sweep after canonicalization (best-effort)."""
-    queue_url = (getattr(settings, "youtube_search_queue_url", "") or "").strip()
-    if not queue_url:
-        return
-    try:
-        if sqs is None:
-            import boto3
-
-            sqs = boto3.client("sqs")
-        sqs.send_message(
-            QueueUrl=queue_url,
-            MessageBody=json.dumps({"batch_size": 100}, separators=(",", ":")),
-            MessageAttributes={
-                "correlation_id": {"DataType": "String", "StringValue": correlation_id}
-            },
-        )
-        log_event(
-            "INFO", "youtube_search_enqueued_after_canonicalization", correlation_id=correlation_id
-        )
-    except Exception as exc:
-        log_event(
-            "ERROR",
-            "youtube_search_enqueue_failed",
             correlation_id=correlation_id,
             error_type=exc.__class__.__name__,
             error_message=str(exc)[:500],

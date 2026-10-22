@@ -17,7 +17,7 @@ people already made, so the threshold can be argued from data.
 |---|---|---|---|
 | Canonicalization | Beatport → canonical catalog | `identity_map` (source, entity type, external id) → canonical id; set-based, race-safe claims (ADR-0022) | no |
 | Spotify | canonical → Spotify | ISRC lookup, then a strict/relaxed metadata fallback (ADR-0006) | no |
-| YouTube Music | canonical → YouTube Music | search by "artist title" (YouTube Music has no ISRC search), every result scored by `src/collector/vendor_match/scorer.py`; runs right after ingest in `youtube-search-worker` (new tracks, labeled tracks — a category or DISCARD in any triage block — and open triage blocks), playlist add searches only what the sweep has not reached | below the threshold |
+| YouTube Music | canonical → YouTube Music | search by "artist title" (YouTube Music has no ISRC search), every result scored by `src/collector/vendor_match/scorer.py`; runs in `youtube-search-worker`, 250 tracks an hour, newest release first over the whole catalog (fresh ingests land on top by themselves); playlist add searches only what the sweep has not reached | below the threshold |
 
 YouTube Music score: `0.5 · title similarity + 0.4 · best artist similarity + 0.05 if the
 duration is within 3 s + 0.05 if the album name matches` (similarities are

@@ -442,8 +442,8 @@ paths:
       summary: 'Admin: ingest coverage matrix for one Saturday-year.'
       responses:
         '200':
-          description: Coverage payload (per-style cells + spotify_weeks per-week
-            match stats). Hidden styles are included with is_hidden=true.
+          description: Coverage payload (per-style cells + spotify_weeks and youtube_weeks
+            per-week match stats). Hidden styles are included with is_hidden=true.
           content:
             application/json:
               schema:

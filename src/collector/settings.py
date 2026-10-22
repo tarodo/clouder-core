@@ -5,9 +5,8 @@ from __future__ import annotations
 import functools
 import json
 import os
-from datetime import UTC, date, datetime
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -133,24 +132,12 @@ class ApiSettings(_SettingsBase):
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
     vendor_match_queue_url: str = Field(default="", alias="VENDOR_MATCH_QUEUE_URL")
     youtube_search_queue_url: str = Field(default="", alias="YOUTUBE_SEARCH_QUEUE_URL")
-    youtube_search_since: datetime = Field(
-        default=datetime(2026, 10, 15, tzinfo=UTC), alias="YOUTUBE_SEARCH_SINCE"
-    )
-    youtube_search_published_since: date | None = Field(
-        default=None, alias="YOUTUBE_SEARCH_PUBLISHED_SINCE"
-    )
-
-    @field_validator("youtube_search_published_since", mode="before")
-    @classmethod
-    def _empty_published_since_is_off(cls, value: object) -> object:
-        return value or None
 
 
 class WorkerSettings(_SettingsBase):
     raw_bucket_name: str = Field(alias="RAW_BUCKET_NAME")
     raw_prefix: str = Field(default="raw/bp/releases", alias="RAW_PREFIX")
     spotify_search_queue_url: str = Field(default="", alias="SPOTIFY_SEARCH_QUEUE_URL")
-    youtube_search_queue_url: str = Field(default="", alias="YOUTUBE_SEARCH_QUEUE_URL")
 
 
 class SpotifyWorkerSettings(_SettingsBase):
@@ -203,19 +190,6 @@ class VendorMatchSettings(_SettingsBase):
 
 
 class YoutubeSearchWorkerSettings(_SettingsBase):
-    youtube_search_queue_url: str = Field(default="", alias="YOUTUBE_SEARCH_QUEUE_URL")
-    # Tracks created before this are searched only if a user works with them.
-    since: datetime = Field(
-        default=datetime(2026, 10, 15, tzinfo=UTC), alias="YOUTUBE_SEARCH_SINCE"
-    )
-    # ...and recent releases ingested earlier (publish date on/after this), if set.
-    published_since: date | None = Field(default=None, alias="YOUTUBE_SEARCH_PUBLISHED_SINCE")
-
-    @field_validator("published_since", mode="before")
-    @classmethod
-    def _empty_published_since_is_off(cls, value: object) -> object:
-        return value or None  # Terraform passes "" to switch it off
-
     min_interval_ms: int = Field(default=2000, alias="YOUTUBE_SEARCH_MIN_INTERVAL_MS", ge=0)
     ban_seconds: int = Field(default=3600, alias="YOUTUBE_SEARCH_BAN_SECONDS", ge=60)
     fuzzy_match_threshold: float = Field(

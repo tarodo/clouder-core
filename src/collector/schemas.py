@@ -125,9 +125,7 @@ class SpotifySearchMessage(BaseModel):
 class YoutubeSearchMessage(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    batch_size: StrictInt = Field(default=100, ge=1, le=500)
-    # The one delayed message that carries the sweep over a YouTube ban.
-    resume: bool = Field(default=False)
+    batch_size: StrictInt = Field(default=250, ge=1, le=500)
 
 
 AnalyzerName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{1,31}$")]

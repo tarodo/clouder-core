@@ -306,26 +306,19 @@ Nothing: the resume message starts the search when the ban ends. If bans repeat,
 
 **What runs**
 
-`clouder-prod-youtube-search-worker` (at most 2 workers, each paced; usually one) searches tracks on YouTube Music after every canonicalization: new tracks since `youtube_search_since`, releases published on or after `youtube_search_published_since` (2026-10-03, week 40: they were ingested before the launch), plus labeled tracks (a category, or a DISCARD bucket of any triage block) and tracks in open triage blocks. To widen the window, change that Terraform variable and deploy; an empty value switches it off. Per track it logs `youtube_search_result` (`outcome`: `auto` / `review` / `no_match` / `video_only` / `error`, `request_count`, `video_found`), per batch `youtube_search_completed`.
+`clouder-prod-youtube-search-worker` searches the catalog on YouTube Music, one batch an hour. The EventBridge rule `clouder-prod-youtube-search-hourly` queues `{"batch_size": 250}` (`youtube_search_batch_size`); nothing else queues searches, neither ingest nor the worker itself. A batch claims the newest releases not yet searched (`publish_date` descending), so a fresh ingest is searched within the hour and the rest of the catalog follows, newest to oldest. At the 2 s pace a batch takes about 12 minutes; what the deadline cuts off waits for the next hour. The audio analyzer follows the same order over tracks with a YT Music match. Per track it logs `youtube_search_result` (`outcome`: `auto` / `review` / `no_match` / `video_only` / `error`, `request_count`, `video_found`), per batch `youtube_search_completed`.
 
-**Start it by hand** (e.g. after a deploy, for the backlog of needed old tracks):
+**Run a batch now** (without waiting for the hour):
 
 ```bash
 aws sqs send-message \
   --queue-url "$(aws sqs get-queue-url --queue-name clouder-prod-youtube-search --query QueueUrl --output text)" \
-  --message-body '{"batch_size":100}'
+  --message-body '{"batch_size":250}'
 ```
 
-**Ban.** On HTTP 429/403 or a "not a bot" gate the worker logs `youtube_search_paused reason=banned`, writes `vendor_rate_limits` (`vendor = 'ytmusic'`) for `youtube_search_ban_seconds` and resumes by itself. If bans repeat, raise `youtube_search_min_interval_ms` (Terraform variable; 2000 = 0.5 req/s).
+**Ban.** On HTTP 429/403 or a "not a bot" gate the worker logs `youtube_search_paused reason=banned` and writes `vendor_rate_limits` (`vendor = 'ytmusic'`) for `youtube_search_ban_seconds`; hourly batches are dropped (`reason=trigger_dropped`) until it is over. If bans repeat, raise `youtube_search_min_interval_ms` (Terraform variable; 2000 = 0.5 req/s).
 
-**Stop it** (claimed tracks stay safe: a stopped worker hands nothing out; queued messages wait):
-
-```bash
-aws lambda put-function-concurrency --function-name clouder-prod-youtube-search-worker \
-  --reserved-concurrent-executions 0   # the next terraform apply removes the limit again
-```
-
-**Recursive-loop guard.** The worker chains its own follow-ups; `aws_lambda_function_recursion_config` sets `Allow` for it. Without it Lambda drops the 17th hop (`RecursiveInvocationsDropped`) and the sweep stalls with one message stuck in flight.
+**Stop it:** `aws events disable-rule --name clouder-prod-youtube-search-hourly` (`enable-rule` to resume; the next `terraform apply` enables it again). Claimed tracks stay safe.
 
 **Errors in a row.** Five failed searches in a row (an HTML block page, timeouts) pause the sweep like a ban: `youtube_search_paused reason=error_streak`. Isolated failures are logged as `outcome=error` and marked searched.
 

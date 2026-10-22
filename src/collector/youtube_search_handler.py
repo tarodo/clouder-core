@@ -1,17 +1,15 @@
-"""SQS worker: search tracks on YouTube once, right after ingest.
+"""SQS worker: search the catalog on YouTube, one batch an hour.
 
-A sweep shaped like the Spotify search: claim a batch on clouder_tracks
-(youtube_searched_at), search each track at a fixed pace, store the YT Music
-match / review / no_match and the comments video, hand back what a ban or the
-deadline cut off, and chain a follow-up while candidates remain. The SQS
-trigger allows at most 2 workers (usually one chain runs); the pace is per worker.
+An hourly EventBridge rule queues one batch (250 tracks). The worker claims the
+newest releases not yet searched (clouder_tracks.youtube_searched_at), searches
+each at a fixed pace, stores the YT Music match / review / no_match and the
+comments video, and hands back what a ban or the deadline cut off for the next
+hour. A ban pauses the sweep: hourly batches are dropped until it is over.
 """
 
 from __future__ import annotations
 
 import functools
-import json
-import math
 import time
 from collections import Counter
 from collections.abc import Callable, Mapping
@@ -35,7 +33,6 @@ from .youtube_search.search import TrackQuery, TrackSearchResult, is_ban, search
 
 VENDOR_SONG = "ytmusic"
 VENDOR_VIDEO = "youtube"
-_MAX_SQS_DELAY_SECONDS = 900
 _DEADLINE_MARGIN_MS = 60_000
 # Per request; worst case per track 3 x (2 s pace + 10 s) stays inside the margin.
 _REQUEST_TIMEOUT_S = 10
@@ -43,8 +40,8 @@ _REQUEST_TIMEOUT_S = 10
 # recognise (ytmusicapi parses JSON before the status: an HTML 429 page is a
 # JSONDecodeError, a throttled socket a ReadTimeout).
 _ERROR_STREAK = 5
-# Aurora (min_acu=0) auto-pauses after 5 min idle. A resume after a ban or an
-# SQS redelivery always meets a paused cluster, and waking takes longer than the
+# Aurora (min_acu=0) auto-pauses after 5 min idle, so an hourly batch (or an
+# SQS redelivery) often meets a paused cluster, and waking takes longer than the
 # Data API retry budget: wait up to ~2 min more before giving the message back.
 _DB_WAKE_ATTEMPTS = 12
 _DB_WAKE_SLEEP_S = 10
@@ -66,12 +63,6 @@ def _default_client() -> Any:
     from ytmusicapi import YTMusic  # lazy: cold start pays only when a batch runs
 
     return YTMusic(requests_session=_session())
-
-
-def _default_sqs() -> Any:
-    import boto3
-
-    return boto3.client("sqs")
 
 
 class Pacer:
@@ -101,7 +92,6 @@ def lambda_handler(
     context: Any,
     *,
     client_factory: Callable[[], Any] = _default_client,
-    sqs_factory: Callable[[], Any] = _default_sqs,
     sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
     remaining_ms = getattr(context, "get_remaining_time_in_millis", None)
@@ -140,7 +130,6 @@ def lambda_handler(
             correlation_id,
             remaining_ms=remaining_ms,
             client_factory=client_factory,
-            sqs_factory=sqs_factory,
             sleep=sleep,
         )
         processed += 1
@@ -155,37 +144,24 @@ def _sweep(
     *,
     remaining_ms: Callable[[], int] | None,
     client_factory: Callable[[], Any],
-    sqs_factory: Callable[[], Any],
     sleep: Callable[[float], None],
 ) -> None:
     blocked_until = _blocked_until_waking_db(repository, correlation_id, sleep)
     now = utc_now()
     if blocked_until is not None and blocked_until > now:
-        # YouTube refused us: leave it alone. Plain triggers end here; the one
-        # resume message re-arms itself until the ban is over.
+        # YouTube refused us: leave it alone; a later hourly batch goes on.
         log_event(
             "INFO",
             "youtube_search_paused",
             correlation_id=correlation_id,
             retry_after=round((blocked_until - now).total_seconds()),
-            reason="resume" if message.resume else "trigger_dropped",
+            reason="trigger_dropped",
         )
-        if message.resume:
-            _send(
-                settings,
-                sqs_factory,
-                correlation_id,
-                {"batch_size": message.batch_size, "resume": True},
-                delay=blocked_until - now,
-            )
         return
 
     claimed_at = utc_now()
     tracks = repository.claim_tracks_for_youtube_search(
-        limit=message.batch_size,
-        claimed_at=claimed_at,
-        since=settings.since,
-        published_since=settings.published_since,
+        limit=message.batch_size, claimed_at=claimed_at
     )
     if not tracks:
         log_event(
@@ -244,21 +220,10 @@ def _sweep(
             reason="error_streak" if isinstance(exc, _ErrorStreak) else "banned",
             error_message=str(exc)[:300],
         )
-        _send(
-            settings,
-            sqs_factory,
-            correlation_id,
-            {"batch_size": message.batch_size, "resume": True},
-            delay=timedelta(seconds=settings.ban_seconds),
-        )
         _log_summary(correlation_id, batch_id, tally)
         return
 
     _log_summary(correlation_id, batch_id, tally)
-    if repository.has_tracks_needing_youtube_search(
-        since=settings.since, published_since=settings.published_since
-    ):
-        _send(settings, sqs_factory, correlation_id, {"batch_size": message.batch_size})
 
 
 def _blocked_until_waking_db(
@@ -424,44 +389,6 @@ def _log_summary(correlation_id: str, batch_id: str, tally: Counter[str]) -> Non
         no_match=tally["no_match"],
         errors=tally["errors"],
         videos_found=tally["videos_found"],
-    )
-
-
-def _send(
-    settings: YoutubeSearchWorkerSettings,
-    sqs_factory: Callable[[], Any],
-    correlation_id: str,
-    body: dict[str, Any],
-    *,
-    delay: timedelta | None = None,
-) -> None:
-    url = settings.youtube_search_queue_url.strip()
-    if not url:
-        log_event(
-            "WARNING",
-            "youtube_search_follow_up_skipped",
-            correlation_id=correlation_id,
-            reason="no_queue_url",
-        )
-        return
-    kwargs: dict[str, Any] = {
-        "QueueUrl": url,
-        "MessageBody": json.dumps(body, separators=(",", ":")),
-        "MessageAttributes": {
-            "correlation_id": {"DataType": "String", "StringValue": correlation_id}
-        },
-    }
-    if delay is not None:
-        kwargs["DelaySeconds"] = min(
-            _MAX_SQS_DELAY_SECONDS, max(1, math.ceil(delay.total_seconds()))
-        )
-    sqs_factory().send_message(**kwargs)
-    log_event(
-        "INFO",
-        "youtube_search_follow_up_enqueued",
-        correlation_id=correlation_id,
-        batch_size=body["batch_size"],
-        retry_after=kwargs.get("DelaySeconds"),
     )
 
 
