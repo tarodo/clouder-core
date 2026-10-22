@@ -17,6 +17,7 @@ ALLOWED_LOG_FIELDS = {
     "outcome",
     "closed",
     "reopened",
+    "second_chance",
     "request_count",
     "video_found",
     "auto",

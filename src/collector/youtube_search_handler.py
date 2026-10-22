@@ -154,6 +154,7 @@ def _sweep(
         correlation_id=correlation_id,
         closed=repository.close_youtube_reviews_without_spotify(now=utc_now()),
         reopened=repository.reopen_youtube_for_spotify_found(),
+        second_chance=repository.reopen_youtube_second_chance(now=utc_now()),
     )
     now = utc_now()
     if blocked_until is not None and blocked_until > now:

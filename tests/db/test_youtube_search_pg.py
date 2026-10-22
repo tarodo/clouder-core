@@ -289,3 +289,38 @@ def test_tracks_found_on_spotify_later_are_searched_on_youtube_again(pg) -> None
     assert _yt_status(pg, "w01") == [("no_match", 1)]
     claimed = [r["id"] for r in repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0)]
     assert "w41" in claimed and "w40" not in claimed
+
+
+def test_an_early_search_gets_one_second_chance_four_days_later(pg) -> None:
+    # Searched days after the release, YouTube may not carry the track yet.
+    repo = _world(pg)  # w40 released 2026-10-05, w41 2026-10-12, w01 2026-01-03
+    pg.execute("UPDATE clouder_tracks SET youtube_searched_at = :t", {"t": T0})
+    for tid, searched in (
+        ("w40", datetime(2026, 10, 7, tzinfo=UTC)),  # 2 days after release
+        ("w41", datetime(2026, 10, 15, tzinfo=UTC)),  # 3 days after, only 1 day ago
+        ("w01", datetime(2026, 2, 1, tzinfo=UTC)),  # weeks after: not a timing miss
+    ):
+        pg.execute(
+            "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status,"
+            " created_at) VALUES (:id, :t, 'ytmusic', CAST(:c AS jsonb), 'pending', :at)",
+            {"id": f"q-{tid}", "t": tid, "c": json.dumps(CANDS), "at": searched},
+        )
+    now = datetime(2026, 10, 16, tzinfo=UTC)
+    assert repo.reopen_youtube_second_chance(now=now) == 1
+    assert _yt_status(pg, "w40") == []
+    assert _yt_status(pg, "w41") == [("pending", 1)]
+    assert _yt_status(pg, "w01") == [("pending", 1)]
+    assert [r["id"] for r in repo.claim_tracks_for_youtube_search(limit=10, claimed_at=now)] == [
+        "w40"
+    ]
+    # The second search lands after the window: no third chance for w40, while
+    # w41 gets its own once four days have passed.
+    repo.mark_youtube_searched(track_id="w40", at=now)
+    pg.execute(
+        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status,"
+        " created_at) VALUES ('q-w40-2', 'w40', 'ytmusic', CAST(:c AS jsonb), 'pending', :at)",
+        {"c": json.dumps(CANDS), "at": now},
+    )
+    assert repo.reopen_youtube_second_chance(now=now + timedelta(days=30)) == 1
+    assert _yt_status(pg, "w40") == [("pending", 1)]
+    assert _yt_status(pg, "w41") == []

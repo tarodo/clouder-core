@@ -53,6 +53,7 @@ API = [
     "release_spotify_search_claim",
     "release_youtube_search_claim",
     "reopen_youtube_for_spotify_found",
+    "reopen_youtube_second_chance",
     "requeue_analysis",
     "reset_spotify_not_found",
     "set_run_completed",
