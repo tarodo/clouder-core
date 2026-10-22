@@ -235,3 +235,57 @@ def test_review_tracks_of_one_style_week(pg) -> None:
         )
         == []
     )
+
+
+def _yt_row(pg, tid: str, status: str, candidates: list) -> None:
+    pg.execute(
+        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status,"
+        " created_at) VALUES (:id, :t, 'ytmusic', CAST(:c AS jsonb), :s, now())",
+        {"id": f"q-{tid}-{status}", "t": tid, "c": json.dumps(candidates), "s": status},
+    )
+
+
+def _yt_status(pg, tid: str) -> list:
+    return [
+        (r["status"], len(json.loads(r["c"]) if isinstance(r["c"], str) else r["c"]))
+        for r in pg.execute(
+            "SELECT status, candidates AS c FROM match_review_queue"
+            " WHERE clouder_track_id = :t AND vendor = 'ytmusic'",
+            {"t": tid},
+        )
+    ]
+
+
+CANDS = [{"ref": {"videoId": "v1", "title": "x"}, "score": 0.8}]
+
+
+def test_reviews_of_tracks_missing_on_spotify_become_not_on_youtube(pg) -> None:
+    repo = _world(pg)
+    pg.execute("UPDATE clouder_tracks SET spotify_searched_at = now() WHERE id IN ('w41', 'w40')")
+    pg.execute("UPDATE clouder_tracks SET spotify_id = 'sp40' WHERE id = 'w40'")
+    for tid in ("w41", "w40", "w01"):  # not on Spotify, on Spotify, not searched yet
+        _yt_row(pg, tid, "pending", CANDS)
+    assert repo.close_youtube_reviews_without_spotify(now=T0) == 1
+    assert _yt_status(pg, "w41") == [("no_match", 1)]  # candidates kept to reopen
+    assert _yt_status(pg, "w40") == [("pending", 1)]
+    assert _yt_status(pg, "w01") == [("pending", 1)]
+    assert repo.close_youtube_reviews_without_spotify(now=T0) == 0
+
+
+def test_tracks_found_on_spotify_later_are_searched_on_youtube_again(pg) -> None:
+    repo = _world(pg)
+    pg.execute(
+        "UPDATE clouder_tracks SET youtube_searched_at = :t, spotify_id = 'sp', "
+        "spotify_searched_at = :t WHERE id IN ('w41', 'w40', 'w01')",
+        {"t": T0},
+    )
+    _yt_row(pg, "w41", "no_match", CANDS)  # closed because Spotify had missed it
+    _yt_row(pg, "w40", "no_match", [])  # YouTube found nothing / a person said no
+    pg.execute("UPDATE clouder_tracks SET spotify_id = NULL WHERE id = 'w01'")
+    _yt_row(pg, "w01", "no_match", CANDS)  # still not on Spotify
+    assert repo.reopen_youtube_for_spotify_found() == 1
+    assert _yt_status(pg, "w41") == []
+    assert _yt_status(pg, "w40") == [("no_match", 0)]
+    assert _yt_status(pg, "w01") == [("no_match", 1)]
+    claimed = [r["id"] for r in repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0)]
+    assert "w41" in claimed and "w40" not in claimed

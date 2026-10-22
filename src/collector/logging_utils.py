@@ -15,6 +15,8 @@ SENSITIVE_KEYS = {"bp_token", "authorization", "token", "access_token"}
 ALLOWED_LOG_FIELDS = {
     # youtube_search_handler outcomes
     "outcome",
+    "closed",
+    "reopened",
     "request_count",
     "video_found",
     "auto",
