@@ -6,9 +6,7 @@ import contextlib
 import uuid
 from typing import Any
 
-from ..comments.dispatch import try_dispatch_comment_collection
 from ..logging_utils import log_event
-from ..providers.ytmusic.normalize import result_to_ref
 from . import (
     CoverMissingError,
     CoverTooLargeError,
@@ -22,6 +20,7 @@ from . import (
     utc_now,
 )
 from .http import _error, _json_response, _parse_body, _parse_pagination
+from .match_review import project_candidate, resolve_match
 from .playlists_repository import (
     ImportTrackInput,
     PlaylistsRepository,
@@ -111,23 +110,6 @@ def _playlist_track_response(row) -> dict[str, Any]:
     }
 
 
-def _project_candidate(c: dict) -> dict[str, Any] | None:
-    ref = c.get("ref") or {}
-    vt = result_to_ref(ref)
-    vid = vt.vendor_track_id if vt else str(ref.get("videoId") or "")
-    if not vid:
-        return None
-    return {
-        "vendor_track_id": vid,
-        "title": vt.title if vt else str(ref.get("title") or ""),
-        "artists": list(vt.artist_names) if vt else [],
-        "album": vt.album_name if vt else None,
-        "duration_ms": vt.duration_ms if vt else None,
-        "url": f"https://music.youtube.com/watch?v={vid}",
-        "score": c.get("score"),
-    }
-
-
 def _vendor_from_query(event) -> str:
     qp = event.get("queryStringParameters") or {}
     return (qp.get("vendor") or "ytmusic").strip() or "ytmusic"
@@ -155,9 +137,7 @@ def _handle_match_candidates(event, repo, user_id, correlation_id):
         200,
         {
             "vendor": vendor,
-            "candidates": [
-                p for c in review.candidates if (p := _project_candidate(c)) is not None
-            ],
+            "candidates": [p for c in review.candidates if (p := project_candidate(c)) is not None],
         },
         correlation_id,
     )
@@ -182,38 +162,13 @@ def _handle_resolve_match(event, repo, user_id, correlation_id):
     body = ResolveMatchIn.model_validate(_parse_body(event))
     _scope_check(repo, user_id, pid, track_id)
 
-    if body.action == "accept":
-        video_id = body.vendor_track_id
-        assert video_id is not None  # ResolveMatchIn requires it on accept
-        review = repo.get_open_review(track_id=track_id, vendor=body.vendor)
-        payload: dict[str, Any] = {
-            "videoId": video_id,
-            "url": f"https://music.youtube.com/watch?v={video_id}",
-            "source": "manual_url",
-        }
-        if review is not None:
-            for c in review.candidates:
-                ref = c.get("ref") or {}
-                if str(ref.get("videoId") or "") == video_id:
-                    payload = ref
-                    break
-        repo.resolve_review_accept(
-            clouder_track_id=track_id,
-            vendor=body.vendor,
-            vendor_track_id=body.vendor_track_id,
-            payload=payload,
-            now=utc_now(),
-        )
-        if body.vendor == "ytmusic":
-            # No seed: the accepted song often has comments disabled, and a track
-            # already collected (from its ingest-time video) is skipped.
-            try_dispatch_comment_collection(track_id=track_id, platform="youtube")
-    else:
-        repo.resolve_review_reject(
-            clouder_track_id=track_id,
-            vendor=body.vendor,
-            now=utc_now(),
-        )
+    resolve_match(
+        repo,
+        track_id=track_id,
+        vendor=body.vendor,
+        action=body.action,
+        vendor_track_id=body.vendor_track_id,
+    )
 
     log_event(
         "INFO",

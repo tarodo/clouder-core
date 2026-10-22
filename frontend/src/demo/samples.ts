@@ -109,8 +109,48 @@ export function sampleCoverage(weekYear = 2026): CoveragePayload {
       finished_at: '2026-10-07T03:03:00Z',
     })),
     spotify_weeks: [],
+    // The latest week of each style still has a few YT Music matches to review.
+    youtube_weeks: [
+      { week_number: 39, total: 40, found: 31, review: 3, not_found: 1, pending: 5 },
+    ],
   }));
   return { week_year: weekYear, weeks_in_year: 52, styles } as CoveragePayload;
+}
+
+const REVIEW_TRACKS = [
+  ['Night Drive', 'Extended Mix', 'Marlo Vance', 390000],
+  ['Glasshouse', 'Original Mix', 'Ines Kord', 412000],
+  ['Low Orbit', 'Dub Mix', 'Tavi Rhee', 365000],
+] as const;
+
+/** A demo cell's open YT Music reviews: the short edit and a remix, best first. */
+export function sampleYoutubeReview(styleId: number, weekYear: number, weekNumber: number) {
+  const i = styleId - 80;
+  const style_name = COVERAGE_STYLES[i] ?? null;
+  const tracks = REVIEW_TRACKS.map(([title, mix, artist, length], n) => ({
+    track_id: `yt-review-${styleId}-${weekNumber}-${n}`,
+    title,
+    mix_name: mix,
+    artists: artist,
+    length_ms: length,
+    spotify_url: null,
+    candidates: [
+      { suffix: '', seconds: 201, score: 0.9 },
+      { suffix: ' (Remix)', seconds: length / 1000 - 20, score: 0.72 },
+    ].map((c, k) => {
+      const id = `demo${n}${k}${String(styleId).padStart(4, '0')}`.slice(0, 11);
+      return {
+        vendor_track_id: id,
+        title: `${title}${c.suffix}`,
+        artists: [artist],
+        album: null,
+        duration_ms: c.seconds * 1000,
+        url: `https://music.youtube.com/watch?v=${id}`,
+        score: c.score,
+      };
+    }),
+  }));
+  return { style_name, week_year: weekYear, week_number: weekNumber, tracks };
 }
 
 export function sampleAutoIngest() {

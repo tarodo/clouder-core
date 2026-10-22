@@ -40,7 +40,7 @@ def _event(action, vendor="ytmusic", vendor_track_id="dQw4w9WgXcQ"):
 def test_accept_ytmusic_dispatches(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "collector.curation.routes_playlists.try_dispatch_comment_collection",
+        "collector.curation.match_review.try_dispatch_comment_collection",
         lambda **kw: calls.append(kw),
     )
     monkeypatch.setattr("collector.curation.routes_playlists._scope_check", lambda *a, **k: None)
@@ -51,7 +51,7 @@ def test_accept_ytmusic_dispatches(monkeypatch):
 def test_reject_does_not_dispatch(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "collector.curation.routes_playlists.try_dispatch_comment_collection",
+        "collector.curation.match_review.try_dispatch_comment_collection",
         lambda **kw: calls.append(kw),
     )
     monkeypatch.setattr("collector.curation.routes_playlists._scope_check", lambda *a, **k: None)

@@ -943,6 +943,20 @@
       "stuck": "Stuck (3 failed attempts)",
       "none_stuck": "None.",
       "style": "Style {{id}}"
+    },
+    "youtube_review": {
+      "title": "YouTube review",
+      "subtitle": "{{style}} · Wk {{week}} · {{count}} tracks",
+      "back": "Back to coverage",
+      "load_failed": "Failed to load the review.",
+      "empty": "Nothing left to review in this week.",
+      "open_spotify": "Open on Spotify",
+      "open_youtube": "Open on YouTube",
+      "pick": "Pick this one",
+      "not_on_youtube": "Not on YouTube",
+      "no_candidates": "No candidates stored.",
+      "drawer_count": "YouTube: {{count}} tracks to review",
+      "drawer_button": "Review these tracks"
     }
   },
   "playback": {
