@@ -84,6 +84,27 @@ This step is not managed by Terraform and must be re-run if the cluster is rebui
 
 ---
 
+## Read-only role for an agent
+
+`clouder_agent_ro` lets a coding agent read production through the Data API without being able to change it:
+- `SELECT` on every table, nothing else;
+- `user_vendor_tokens`, `user_sessions` and `users.email` closed;
+- read-only transactions by default and a 30 s statement timeout.
+
+The migrator owns the tables but cannot create roles; the master user can create roles but owns no tables. So it takes two steps:
+
+1. The master user runs `PYTHONPATH=src .venv/bin/python scripts/create_agent_reader.py`. It creates the role, makes it read-only and sets a random password. The password is sent as a SCRAM verifier, so the plaintext never reaches the database or its logs. The script stores `{username, password}` in Secrets Manager as `clouder/agent/aurora-readonly` and prints only the secret ARN. A rerun rotates the password.
+2. Migration `20261021_41` grants the reads. Run step 1 before the migration reaches production: if the role is missing there, the migration stops the deploy and names the script.
+
+Tables from later migrations become readable on their own. `tests/db/test_agent_reader_role_pg.py` fails on any readable column that looks like a token, password or email, so a new secrets table has to be closed in a migration. Queries pass the agent secret instead of the master one:
+
+```bash
+aws rds-data execute-statement --resource-arn <cluster ARN> --secret-arn <agent secret ARN> \
+  --database clouder --sql "SELECT count(*) FROM clouder_tracks"
+```
+
+---
+
 ## Master RDS secret retention
 
 The auto-generated secret `rds!cluster-...` (managed by Secrets Manager via `manage_master_user_password = true` in `infra/rds.tf`) is **required at runtime** by all non-migration Lambdas. They pass it to the RDS Data API (`rds-data:ExecuteStatement`) as the `secretArn` parameter in every call.
