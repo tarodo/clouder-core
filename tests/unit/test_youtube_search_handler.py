@@ -44,6 +44,10 @@ class Repo:
     def reopen_youtube_for_spotify_found(self):
         return 1
 
+    def reopen_youtube_second_chance(self, *, now):
+        self.second_chances = getattr(self, "second_chances", 0) + 1
+        return 3
+
     def set_vendor_blocked_until(self, vendor, until, now):
         self.blocks.append((vendor, until))
 
@@ -286,7 +290,7 @@ def test_each_run_reconciles_with_spotify_even_while_paused(monkeypatch) -> None
     # Database only, no YouTube call: a ban does not hold it back.
     repo = Repo([track("t1")], blocked_until=datetime.now(UTC) + timedelta(minutes=5))
     run(monkeypatch, repo, Client([]))
-    assert repo.reconciled == 1 and repo.claimed_at is None
+    assert repo.reconciled == 1 and repo.second_chances == 1 and repo.claimed_at is None
 
 
 def test_a_normal_run_reconciles_once(monkeypatch) -> None:

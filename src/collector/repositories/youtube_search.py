@@ -9,6 +9,9 @@ from typing import Any
 from ..saturday_week import first_saturday, weeks_in_year
 from ._base import RepositoryBase
 
+# Owner's call: a second YouTube search later than four days would come too late.
+SECOND_CHANCE_DAYS = 4
+
 
 class YoutubeSearchMixin(RepositoryBase):
     def claim_tracks_for_youtube_search(
@@ -235,5 +238,30 @@ class YoutubeSearchMixin(RepositoryBase):
             WHERE id IN (SELECT clouder_track_id FROM reopened)
             RETURNING id
             """
+        )
+        return len(rows)
+
+    def reopen_youtube_second_chance(self, *, now: datetime) -> int:
+        """A track searched within SECOND_CHANCE_DAYS of its release may not be
+        on YouTube yet (distributors upload late, search indexes later still),
+        so its open review is dropped and the track searched again
+        SECOND_CHANCE_DAYS after the first search. The new search falls after
+        that window, so it happens once."""
+        rows = self._data_api.execute(
+            """
+            WITH due AS (
+                DELETE FROM match_review_queue q
+                USING clouder_tracks t
+                WHERE t.id = q.clouder_track_id
+                  AND q.vendor = 'ytmusic' AND q.status = 'pending'
+                  AND q.created_at < t.publish_date + :days * interval '1 day'
+                  AND q.created_at <= :now - :days * interval '1 day'
+                RETURNING q.clouder_track_id
+            )
+            UPDATE clouder_tracks SET youtube_searched_at = NULL
+            WHERE id IN (SELECT clouder_track_id FROM due)
+            RETURNING id
+            """,
+            {"now": now, "days": SECOND_CHANCE_DAYS},
         )
         return len(rows)
