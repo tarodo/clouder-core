@@ -1,0 +1,36 @@
+/* Two review cards a row; one on narrow screens. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--mantine-spacing-sm);
+}
+
+/* Candidates in two columns of three, filled column by column: 1-3 left,
+   4-5 and "Not on YouTube" right. One column on a phone. */
+.slots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, auto);
+  grid-auto-flow: column;
+  column-gap: var(--mantine-spacing-sm);
+  row-gap: 6px;
+}
+
+.reject {
+  align-self: center;
+  justify-self: start;
+}
+
+@media (max-width: 62em) {
+  .cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 36em) {
+  .slots {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-flow: row;
+  }
+}

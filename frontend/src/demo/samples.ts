@@ -137,6 +137,9 @@ export function sampleYoutubeReview(styleId: number, weekYear: number, weekNumbe
     candidates: [
       { suffix: '', seconds: 201, score: 0.9 },
       { suffix: ' (Remix)', seconds: length / 1000 - 20, score: 0.72 },
+      { suffix: ' (Radio Edit)', seconds: 188, score: 0.68 },
+      { suffix: ' (Live)', seconds: length / 1000 + 41, score: 0.61 },
+      { suffix: ' (Acapella)', seconds: 96, score: 0.55 },
     ].map((c, k) => {
       const id = `demo${n}${k}${String(styleId).padStart(4, '0')}`.slice(0, 11);
       return {
