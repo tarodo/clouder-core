@@ -243,3 +243,36 @@ def test_version_rule_stays_inside_the_labelled_score_range() -> None:
     assert not version_rule_accepts(
         candidate_title="Intro", title="Intro", mix_name="Original Mix", score=stranger
     )
+
+
+def test_a_short_title_with_a_long_mix_name_still_passes() -> None:
+    # "Cigarro" vs "Cigarro (Promi5E Remix)" scores 0.68 on the plain title;
+    # with the mix in, it is an exact match one second off.
+    assert version_rule_accepts(
+        candidate_title="Cigarro (Promi5E Remix)",
+        title="Cigarro",
+        mix_name="PROMI5E Remix",
+        score=_s(0.47, duration_ok=True),
+    )
+
+
+def test_a_dub_never_takes_the_plain_radio_mix() -> None:
+    # "Rush (Dub Radio Mix)": the Radio Mix is as long but is another recording.
+    radio = _s(0.40, duration_ok=True)
+    dub = _s(0.33, duration_ok=True)
+    assert not version_rule_accepts(
+        candidate_title="Rush (Radio Mix)", title="Rush", mix_name="Dub Radio Mix", score=radio
+    )
+    assert version_rule_accepts(
+        candidate_title="Rush (Dub Radio Mix)", title="Rush", mix_name="Dub Radio Mix", score=dub
+    )
+
+
+def test_same_title_and_length_by_another_artist_is_refused() -> None:
+    # "DjEdyB — After the Drop (Radio Edit)" 4:48 vs "DJ Rusty — After The Drop" 4:48.
+    assert not version_rule_accepts(
+        candidate_title="After The Drop",
+        title="After the Drop (Radio Edit)",
+        mix_name="Radio Edit",
+        score=_s(0.68, artist_sim=0.43, duration_ok=True),
+    )

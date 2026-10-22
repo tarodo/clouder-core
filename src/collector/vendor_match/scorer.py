@@ -112,7 +112,10 @@ _GENERIC_PAREN = re.compile(
     re.IGNORECASE,
 )
 VERSION_RULE_MIN_TITLE_SIM = 0.95
-VERSION_RULE_MIN_SCORE = 0.70  # the lowest labelled band; below it precision is unmeasured
+VERSION_RULE_MIN_SCORE = 0.70  # the lowest labelled band, on the version-aware score
+# Same title and length by another artist happens ("After the Drop" 4:48 by DJ Rusty
+# for DjEdyB's); labelled same-recording matches go down to 0.62 (feat. lists, aliases).
+VERSION_RULE_MIN_ARTIST_SIM = 0.6
 
 
 def _fold(s: str | None) -> str:
@@ -144,20 +147,35 @@ def version_rule_accepts(
     """Auto-accept below the threshold when the candidate is the same recording:
     exact title and artist with a generic version (lengths differ between
     edits), or a matching length with a near-exact version-aware title. Never
-    when the candidate names another version, or lacks our remix's name."""
-    if score.total < VERSION_RULE_MIN_SCORE:
-        return False
+    when one side names a version (remix, dub, ...) the other lacks, or when
+    the candidate lacks our remix's name."""
     mix = _fold(mix_name)
     cand = _fold(candidate_title)
-    if set(_OTHER_VERSION.findall(cand)) - set(_OTHER_VERSION.findall(_fold(f"{title} {mix}"))):
+    # Both ways: a dub is not the radio mix, and the radio mix is not a dub.
+    if set(_OTHER_VERSION.findall(cand)) != set(_OTHER_VERSION.findall(_fold(f"{title} {mix}"))):
         return False
     if "remix" in mix:
         remixer = mix.replace("remix", "").strip()
         if not remixer or remixer not in cand:
             return False
     title_sim = version_title_sim(candidate_title, title, mix_name)
+    # The floor reads the score with the version-aware title: the plain-title
+    # score of a short title sinks under a long mix name ("Rush" vs
+    # "Rush (Dub Radio Mix)" is 0.33) though the match is exact.
+    version_total = (
+        0.5 * title_sim
+        + 0.4 * score.artist_sim
+        + (0.05 if score.duration_ok else 0.0)
+        + score.album_bonus
+    )
+    if version_total < VERSION_RULE_MIN_SCORE:
+        return False
     same_edit_family = (
         (not mix or mix in GENERIC_VERSIONS) and title_sim >= 0.999 and score.artist_sim >= 0.999
     )
-    same_length = score.duration_ok and title_sim >= VERSION_RULE_MIN_TITLE_SIM
+    same_length = (
+        score.duration_ok
+        and title_sim >= VERSION_RULE_MIN_TITLE_SIM
+        and score.artist_sim >= VERSION_RULE_MIN_ARTIST_SIM
+    )
     return same_edit_family or same_length
