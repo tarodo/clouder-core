@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router';
 import { MantineProvider } from '@mantine/core';
 import { testTheme } from '../../../../test/theme';
 import { server } from '../../../../test/setup';
@@ -76,5 +77,41 @@ describe('CellDetailDrawer', () => {
     expect(
       within(dialog).getByRole('button', { name: 'Re-ingest' }),
     ).toBeInTheDocument();
+  });
+
+  it('links to the YouTube review of the week when tracks wait for it', async () => {
+    server.use(http.get('http://localhost/admin/runs', () => HttpResponse.json({ items: [] })));
+    render(
+      <MemoryRouter>
+        {ui({
+          open: true,
+          onClose: vi.fn(),
+          styleId: 90,
+          styleName: 'Tech House',
+          weekYear: 2026,
+          weekNumber: 40,
+          state: 'empty',
+          cell: null,
+          youtubeReview: 55,
+        })}
+      </MemoryRouter>,
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('YouTube: 55 tracks to review')).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: 'Review these tracks' })).toHaveAttribute(
+      'href', '/admin/youtube-review?style=90&year=2026&week=40',
+    );
+  });
+
+  it('shows no YouTube review link when nothing waits', async () => {
+    server.use(http.get('http://localhost/admin/runs', () => HttpResponse.json({ items: [] })));
+    render(
+      ui({
+        open: true, onClose: vi.fn(), styleId: 90, styleName: 'Tech House', weekYear: 2026,
+        weekNumber: 40, state: 'empty', cell: null, youtubeReview: 0,
+      }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByRole('link', { name: 'Review these tracks' })).toBeNull();
   });
 });

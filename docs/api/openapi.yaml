@@ -1504,6 +1504,131 @@ paths:
       - BearerAuth: []
       tags:
       - admin
+  /admin/youtube/review:
+    get:
+      summary: 'Admin: open YT Music reviews of one Coverage cell (style, Saturday-week).'
+      responses:
+        '200':
+          description: Open reviews.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YoutubeReview'
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: db_not_configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: style_id
+        in: query
+        required: true
+        description: Beatport style id.
+        schema:
+          type: integer
+      - name: week_year
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 2000
+          maximum: 2100
+      - name: week_number
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 53
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
+  /admin/youtube/review/{track_id}:
+    post:
+      summary: 'Admin: accept a YT Music candidate for a track, or mark it not on
+        YT Music.'
+      responses:
+        '200':
+          description: Resolved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - track_id
+                - action
+                properties:
+                  track_id:
+                    type: string
+                  action:
+                    type: string
+                    enum:
+                    - accept
+                    - reject
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: db_not_configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403':
+          description: admin_required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: track_id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - action
+              properties:
+                action:
+                  type: string
+                  enum:
+                  - accept
+                  - reject
+                vendor_track_id:
+                  type: string
+                  description: The 11-char video id; required on accept.
+            example:
+              action: accept
+              vendor_track_id: dQw4w9WgXcQ
+      security:
+      - BearerAuth: []
+      tags:
+      - admin
   /admin/analysis/status:
     get:
       summary: 'Admin: audio analysis state — worker heartbeat and per-analyzer counts.'
@@ -6717,8 +6842,7 @@ components:
           properties:
             waiting:
               type: integer
-              description: New tracks and tracks in categories / open blocks not searched
-                yet.
+              description: Catalog tracks not searched yet (newest releases go first).
             searched_last_10_min:
               type: integer
             searched_total:
@@ -6743,6 +6867,91 @@ components:
             videos:
               type: integer
               description: Tracks with a video for comments.
+    YoutubeReview:
+      type: object
+      required:
+      - style_name
+      - week_year
+      - week_number
+      - tracks
+      properties:
+        style_name:
+          type:
+          - string
+          - 'null'
+          description: null when nothing is open.
+        week_year:
+          type: integer
+        week_number:
+          type: integer
+        tracks:
+          type: array
+          description: Open YT Music reviews, newest release first (at most 200).
+          items:
+            type: object
+            required:
+            - track_id
+            - title
+            - mix_name
+            - artists
+            - length_ms
+            - spotify_url
+            - candidates
+            properties:
+              track_id:
+                type: string
+              title:
+                type: string
+              mix_name:
+                type:
+                - string
+                - 'null'
+              artists:
+                type: string
+              length_ms:
+                type:
+                - integer
+                - 'null'
+              spotify_url:
+                type:
+                - string
+                - 'null'
+              candidates:
+                type: array
+                description: Best first.
+                items:
+                  type: object
+                  required:
+                  - vendor_track_id
+                  - title
+                  - artists
+                  - album
+                  - duration_ms
+                  - url
+                  - score
+                  properties:
+                    vendor_track_id:
+                      type: string
+                    title:
+                      type: string
+                    artists:
+                      type: array
+                      items:
+                        type: string
+                    album:
+                      type:
+                      - string
+                      - 'null'
+                    duration_ms:
+                      type:
+                      - integer
+                      - 'null'
+                    url:
+                      type: string
+                    score:
+                      type:
+                      - number
+                      - 'null'
     AnalysisClaimResponse:
       type: object
       required:

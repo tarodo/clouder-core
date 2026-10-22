@@ -3,6 +3,7 @@ import { DemoDb, DemoError, type LibraryQuery } from './db';
 import {
   sampleAutoIngest,
   sampleCoverage,
+  sampleYoutubeReview,
   sampleFunnel,
   sampleListening,
   sampleTimePerTrack,
@@ -289,6 +290,21 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
       resolve: ({ query }) => sampleCoverage(Number(query.get('week_year') ?? 2026)),
     },
     { method: 'get', path: '/admin/runs', resolve: () => ({ items: [] }) },
+    {
+      method: 'get',
+      path: '/admin/youtube/review',
+      resolve: ({ query }) =>
+        sampleYoutubeReview(
+          Number(query.get('style_id')),
+          Number(query.get('week_year')),
+          Number(query.get('week_number')),
+        ),
+    },
+    {
+      method: 'post',
+      path: '/admin/youtube/review/:track_id',
+      resolve: ({ param, body }) => ({ track_id: param('track_id'), action: body.action }),
+    },
     { method: 'get', path: '/admin/auto-ingest', resolve: () => sampleAutoIngest() },
     {
       method: 'get',

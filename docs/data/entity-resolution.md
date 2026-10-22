@@ -24,7 +24,7 @@ duration is within 3 s + 0.05 if the album name matches` (similarities are
 `difflib.SequenceMatcher` ratios on lower-cased, whitespace-normalized strings). The best
 candidate is accepted automatically at ≥ 0.92, or below it by the version rule (end of this
 page, `match_type = 'fuzzy_version'`); otherwise the top five are stored in
-`match_review_queue` and a person accepts one of them, pastes a URL, or rejects the track.
+`match_review_queue` and a person accepts one of them, pastes a URL, or rejects the track. That happens in a playlist (the track's YT Music popover) or week by week on Coverage. There, a cell's drawer counts the open reviews and links to `/admin/youtube-review`, which shows each track with its Spotify link and the candidates, each with a pick button and a YouTube link (`GET /admin/youtube/review`, `POST /admin/youtube/review/{track_id}`).
 
 ## Before (2026-10-06)
 

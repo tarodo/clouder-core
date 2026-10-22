@@ -762,7 +762,7 @@ YOUTUBE_SEARCH_STATUS = {
             "properties": {
                 "waiting": {
                     "type": "integer",
-                    "description": "New tracks and tracks in categories / open blocks not searched yet.",
+                    "description": "Catalog tracks not searched yet (newest releases go first).",
                 },
                 "searched_last_10_min": {"type": "integer"},
                 "searched_total": {"type": "integer"},
@@ -776,6 +776,65 @@ YOUTUBE_SEARCH_STATUS = {
                 "needs_review": {"type": "integer", "description": "Pending match reviews."},
                 "not_found": {"type": "integer", "description": "YT Music returned no candidate."},
                 "videos": {"type": "integer", "description": "Tracks with a video for comments."},
+            },
+        },
+    },
+}
+
+YOUTUBE_REVIEW = {
+    "type": "object",
+    "required": ["style_name", "week_year", "week_number", "tracks"],
+    "properties": {
+        "style_name": {"type": ["string", "null"], "description": "null when nothing is open."},
+        "week_year": {"type": "integer"},
+        "week_number": {"type": "integer"},
+        "tracks": {
+            "type": "array",
+            "description": "Open YT Music reviews, newest release first (at most 200).",
+            "items": {
+                "type": "object",
+                "required": [
+                    "track_id",
+                    "title",
+                    "mix_name",
+                    "artists",
+                    "length_ms",
+                    "spotify_url",
+                    "candidates",
+                ],
+                "properties": {
+                    "track_id": {"type": "string"},
+                    "title": {"type": "string"},
+                    "mix_name": {"type": ["string", "null"]},
+                    "artists": {"type": "string"},
+                    "length_ms": {"type": ["integer", "null"]},
+                    "spotify_url": {"type": ["string", "null"]},
+                    "candidates": {
+                        "type": "array",
+                        "description": "Best first.",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "vendor_track_id",
+                                "title",
+                                "artists",
+                                "album",
+                                "duration_ms",
+                                "url",
+                                "score",
+                            ],
+                            "properties": {
+                                "vendor_track_id": {"type": "string"},
+                                "title": {"type": "string"},
+                                "artists": {"type": "array", "items": {"type": "string"}},
+                                "album": {"type": ["string", "null"]},
+                                "duration_ms": {"type": ["integer", "null"]},
+                                "url": {"type": "string"},
+                                "score": {"type": ["number", "null"]},
+                            },
+                        },
+                    },
+                },
             },
         },
     },
@@ -2637,6 +2696,88 @@ ROUTES: list[dict[str, Any]] = [
             "200": _make_response(
                 200, "Search status.", {"$ref": "#/components/schemas/YoutubeSearchStatus"}
             ),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/admin/youtube/review",
+        "auth": ADMIN,
+        "summary": "Admin: open YT Music reviews of one Coverage cell (style, Saturday-week).",
+        "parameters": [
+            {
+                "name": "style_id",
+                "in": "query",
+                "required": True,
+                "description": "Beatport style id.",
+                "schema": {"type": "integer"},
+            },
+            {
+                "name": "week_year",
+                "in": "query",
+                "required": True,
+                "schema": {"type": "integer", "minimum": 2000, "maximum": 2100},
+            },
+            {
+                "name": "week_number",
+                "in": "query",
+                "required": True,
+                "schema": {"type": "integer", "minimum": 1, "maximum": 53},
+            },
+        ],
+        "responses": {
+            "200": _make_response(
+                200, "Open reviews.", {"$ref": "#/components/schemas/YoutubeReview"}
+            ),
+            "400": _error(400, "validation_error."),
+            "503": _error(503, "db_not_configured."),
+            **COMMON_AUTH_ERRORS,
+            "403": _error(403, "admin_required."),
+        },
+    },
+    {
+        "method": "post",
+        "path": "/admin/youtube/review/{track_id}",
+        "auth": ADMIN,
+        "summary": "Admin: accept a YT Music candidate for a track, or mark it not on YT Music.",
+        "parameters": [
+            {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string"}}
+        ],
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["action"],
+                        "properties": {
+                            "action": {"type": "string", "enum": ["accept", "reject"]},
+                            "vendor_track_id": {
+                                "type": "string",
+                                "description": "The 11-char video id; required on accept.",
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        "request_example": {"action": "accept", "vendor_track_id": "dQw4w9WgXcQ"},
+        "responses": {
+            "200": _make_response(
+                200,
+                "Resolved.",
+                {
+                    "type": "object",
+                    "required": ["track_id", "action"],
+                    "properties": {
+                        "track_id": {"type": "string"},
+                        "action": {"type": "string", "enum": ["accept", "reject"]},
+                    },
+                },
+            ),
+            "400": _error(400, "validation_error."),
+            "503": _error(503, "db_not_configured."),
             **COMMON_AUTH_ERRORS,
             "403": _error(403, "admin_required."),
         },
@@ -5275,6 +5416,7 @@ def build_openapi() -> dict[str, Any]:
                 "AutoIngestState": AUTO_INGEST_STATE,
                 "SpotifySearchStatus": SPOTIFY_SEARCH_STATUS,
                 "YoutubeSearchStatus": YOUTUBE_SEARCH_STATUS,
+                "YoutubeReview": YOUTUBE_REVIEW,
                 "AnalysisClaimResponse": ANALYSIS_CLAIM_RESPONSE,
                 "AnalysisResultsResponse": ANALYSIS_RESULTS_RESPONSE,
                 "AnalysisStatus": ANALYSIS_STATUS,

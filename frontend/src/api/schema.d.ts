@@ -2261,6 +2261,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/youtube/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin: open YT Music reviews of one Coverage cell (style, Saturday-week). */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Beatport style id. */
+                    style_id: number;
+                    week_year: number;
+                    week_number: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Open reviews. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["YoutubeReview"];
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description db_not_configured. */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/youtube/review/{track_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin: accept a YT Music candidate for a track, or mark it not on YT Music. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    /**
+                     * @example {
+                     *       "action": "accept",
+                     *       "vendor_track_id": "dQw4w9WgXcQ"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @enum {string} */
+                        action: "accept" | "reject";
+                        /** @description The 11-char video id; required on accept. */
+                        vendor_track_id?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Resolved. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            track_id: string;
+                            /** @enum {string} */
+                            action: "accept" | "reject";
+                        };
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description admin_required. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description db_not_configured. */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/analysis/status": {
         parameters: {
             query?: never;
@@ -8977,7 +9147,7 @@ export interface components {
                 delayed: number;
             };
             tracks: {
-                /** @description New tracks and tracks in categories / open blocks not searched yet. */
+                /** @description Catalog tracks not searched yet (newest releases go first). */
                 waiting: number;
                 searched_last_10_min: number;
                 searched_total: number;
@@ -8992,6 +9162,31 @@ export interface components {
                 /** @description Tracks with a video for comments. */
                 videos: number;
             };
+        };
+        YoutubeReview: {
+            /** @description null when nothing is open. */
+            style_name: string | null;
+            week_year: number;
+            week_number: number;
+            /** @description Open YT Music reviews, newest release first (at most 200). */
+            tracks: {
+                track_id: string;
+                title: string;
+                mix_name: string | null;
+                artists: string;
+                length_ms: number | null;
+                spotify_url: string | null;
+                /** @description Best first. */
+                candidates: {
+                    vendor_track_id: string;
+                    title: string;
+                    artists: string[];
+                    album: string | null;
+                    duration_ms: number | null;
+                    url: string;
+                    score: number | null;
+                }[];
+            }[];
         };
         AnalysisClaimResponse: {
             /** Format: uuid */

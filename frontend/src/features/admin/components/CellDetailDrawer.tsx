@@ -1,5 +1,7 @@
-import { Button, Drawer, Stack, Text } from '@mantine/core';
+import { Button, Drawer, Group, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { saturdayWeekRange } from '../../../lib/saturdayWeek';
 import { useRunPoller } from '../hooks/useRunPoller';
 import { IngestForm } from './IngestForm';
@@ -16,6 +18,8 @@ interface Props {
   weekNumber: number | null;
   state: CellState;
   cell: CoverageCell | null;
+  /** Open YT Music reviews of this style's releases in this week. */
+  youtubeReview?: number;
 }
 
 export function CellDetailDrawer({
@@ -27,7 +31,9 @@ export function CellDetailDrawer({
   weekNumber,
   state,
   cell,
+  youtubeReview = 0,
 }: Props) {
+  const { t } = useTranslation();
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const polling = useRunPoller(
     activeRunId,
@@ -47,6 +53,19 @@ export function CellDetailDrawer({
   return (
     <Drawer opened={open} onClose={onClose} position="right" size="md" title={title}>
       <Stack gap="md">
+        {youtubeReview > 0 && (
+          <Group justify="space-between" wrap="nowrap">
+            <Text size="sm">{t('admin.youtube_review.drawer_count', { count: youtubeReview })}</Text>
+            <Button
+              component={Link}
+              to={`/admin/youtube-review?style=${styleId}&year=${weekYear}&week=${weekNumber}`}
+              size="xs"
+              variant="light"
+            >
+              {t('admin.youtube_review.drawer_button')}
+            </Button>
+          </Group>
+        )}
         {state === 'empty' && (
           <IngestForm
             styleId={styleId}

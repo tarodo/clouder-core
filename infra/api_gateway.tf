@@ -161,6 +161,22 @@ resource "aws_apigatewayv2_route" "admin_youtube_search_status" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "admin_youtube_review" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /admin/youtube/review"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "admin_youtube_review_resolve" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /admin/youtube/review/{track_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_route" "labels_enrich_post" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "POST /admin/labels/enrich"

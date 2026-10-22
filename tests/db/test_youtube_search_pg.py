@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -175,3 +176,62 @@ def test_week_stats_split_each_style_week_into_outcomes(pg) -> None:
         for r in rows
     ] == [(1, 1, 0, 0, 0, 1), (40, 2, 0, 1, 1, 0), (41, 1, 1, 0, 0, 0)]
     assert {r["beatport_style_id"] for r in rows} == {"90"}
+
+
+def _review(pg, tid: str, *, status: str = "pending") -> None:
+    candidates = [
+        {"ref": {"videoId": "low", "title": "Other", "artists": [{"name": "X"}]}, "score": 0.5},
+        {
+            "ref": {
+                "videoId": f"v-{tid}",
+                "title": tid,
+                "artists": [{"name": "A"}],
+                "duration_seconds": 200,
+                "album": {"name": "Alb"},
+                "thumbnails": [{"url": "https://i.ytimg.com/" + "x" * 500}],
+            },
+            "score": 0.9,
+        },
+    ]
+    pg.execute(
+        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status,"
+        " created_at) VALUES (:id, :t, 'ytmusic', CAST(:c AS jsonb), :s, now())",
+        {"id": f"q-{tid}-{status}", "t": tid, "c": json.dumps(candidates), "s": status},
+    )
+
+
+def test_review_tracks_of_one_style_week(pg) -> None:
+    repo = _world(pg)
+    pg.execute(
+        "INSERT INTO identity_map (source, entity_type, external_id, clouder_entity_type,"
+        " clouder_id, match_type, confidence, first_seen_at, last_seen_at) VALUES"
+        " ('beatport', 'style', '90', 'style', 'st', 'auto_create', 1.0, now(), now())"
+    )
+    pg.execute(
+        "UPDATE clouder_tracks SET spotify_id = 'sp40', mix_name = 'Extended Mix' WHERE id = 'w40'"
+    )
+    _review(pg, "w40")
+    _review(pg, "w40-late", status="no_match")  # not open
+    _review(pg, "w41")  # another week
+    rows = repo.youtube_review_tracks(
+        beatport_style_id="90", date_from=date(2026, 10, 3), date_to=date(2026, 10, 9)
+    )
+    assert [r["track_id"] for r in rows] == ["w40"]
+    (row,) = rows
+    assert (row["title"], row["mix_name"], row["spotify_id"]) == ("w40", "Extended Mix", "sp40")
+    assert row["style_name"] == "S"
+    # Best first, trimmed to what the page shows (no thumbnails: pages stay small).
+    assert [c["ref"]["videoId"] for c in row["candidates"]] == ["v-w40", "low"]
+    assert row["candidates"][0]["ref"] == {
+        "videoId": "v-w40",
+        "title": "w40",
+        "artists": [{"name": "A"}],
+        "duration_seconds": 200,
+        "album": {"name": "Alb"},
+    }
+    assert (
+        repo.youtube_review_tracks(
+            beatport_style_id="131", date_from=date(2026, 10, 3), date_to=date(2026, 10, 9)
+        )
+        == []
+    )

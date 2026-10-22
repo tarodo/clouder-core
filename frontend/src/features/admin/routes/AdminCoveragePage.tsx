@@ -22,11 +22,15 @@ export function AdminCoveragePage() {
     null,
   );
 
-  const styleMap = new Map<number, { name: string; cells: Map<number, CoverageCell> }>();
+  const styleMap = new Map<
+    number,
+    { name: string; cells: Map<number, CoverageCell>; youtubeReview: Map<number, number> }
+  >();
   for (const s of q.data?.styles ?? []) {
     const cells = new Map<number, CoverageCell>();
     for (const c of s.cells) cells.set(c.week_number, c);
-    styleMap.set(s.style_id, { name: s.style_name, cells });
+    const youtubeReview = new Map((s.youtube_weeks ?? []).map((w) => [w.week_number, w.review]));
+    styleMap.set(s.style_id, { name: s.style_name, cells, youtubeReview });
   }
   const activeStyle = active ? styleMap.get(active.styleId) : null;
   const activeCell =
@@ -66,6 +70,9 @@ export function AdminCoveragePage() {
         weekNumber={active?.weekNumber ?? null}
         state={state}
         cell={activeCell}
+        youtubeReview={
+          active && activeStyle ? (activeStyle.youtubeReview.get(active.weekNumber) ?? 0) : 0
+        }
       />
     </Stack>
   );

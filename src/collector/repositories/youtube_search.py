@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import json
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from ..saturday_week import first_saturday, weeks_in_year
@@ -140,3 +141,55 @@ class YoutubeSearchMixin(RepositoryBase):
             """,
             {"year_start": year_start, "year_end": year_end},
         )
+
+    def youtube_review_tracks(
+        self, *, beatport_style_id: str, date_from: date, date_to: date, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        """Open YT Music reviews of one style's releases in [date_from, date_to],
+        each with its candidates best first, trimmed to what the review page
+        shows (no thumbnails: a page of reviews stays far under 1 MB)."""
+        rows = self._data_api.execute(
+            """
+            SELECT t.id AS track_id, t.title, t.mix_name, t.length_ms, t.spotify_id,
+                   cs.name AS style_name,
+                   (SELECT string_agg(a.name, ', ' ORDER BY a.name)
+                    FROM clouder_track_artists ta JOIN clouder_artists a ON a.id = ta.artist_id
+                    WHERE ta.track_id = t.id) AS artists,
+                   (SELECT jsonb_agg(jsonb_build_object(
+                               'ref', jsonb_strip_nulls(jsonb_build_object(
+                                   'videoId', e->'ref'->'videoId',
+                                   'title', e->'ref'->'title',
+                                   'artists', e->'ref'->'artists',
+                                   'duration_seconds', e->'ref'->'duration_seconds',
+                                   'album', e->'ref'->'album')),
+                               'score', e->'score')
+                           ORDER BY (e->>'score')::numeric DESC NULLS LAST)
+                    FROM jsonb_array_elements(q.candidates) e) AS candidates
+            FROM match_review_queue q
+            JOIN clouder_tracks t ON t.id = q.clouder_track_id
+            JOIN clouder_styles cs ON cs.id = t.style_id
+            JOIN identity_map im
+              ON im.source = 'beatport'
+              AND im.entity_type = 'style'
+              AND im.clouder_entity_type = 'style'
+              AND im.clouder_id = cs.id
+              AND im.external_id = :style
+            WHERE q.vendor = 'ytmusic' AND q.status = 'pending'
+              AND t.publish_date BETWEEN :date_from AND :date_to
+              AND NOT EXISTS (SELECT 1 FROM vendor_track_map v
+                              WHERE v.clouder_track_id = t.id AND v.vendor = 'ytmusic')
+            ORDER BY t.publish_date DESC, t.title, t.id
+            LIMIT :limit
+            """,
+            {
+                "style": beatport_style_id,
+                "date_from": date_from,
+                "date_to": date_to,
+                "limit": limit,
+            },
+        )
+        for row in rows:
+            if isinstance(row["candidates"], str):
+                row["candidates"] = json.loads(row["candidates"])
+            row["candidates"] = row["candidates"] or []
+        return rows
