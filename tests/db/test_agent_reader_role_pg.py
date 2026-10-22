@@ -99,7 +99,7 @@ def test_script_makes_the_login_read_only(pg) -> None:
             conn.execute("CREATE TEMP TABLE t (x int)")
 
 
-def test_script_works_without_superuser() -> None:
+def test_script_works_without_superuser(pg) -> None:
     # Production's master user has CREATEROLE, not superuser.
     with _connect() as conn:
         conn.execute(f"DROP OWNED BY {ROLE}; DROP ROLE {ROLE}")
@@ -115,7 +115,7 @@ def test_script_works_without_superuser() -> None:
         conn.rollback()
 
 
-def test_migration_asks_for_the_script_where_roles_cannot_be_created() -> None:
+def test_migration_asks_for_the_script_where_roles_cannot_be_created(pg) -> None:
     # Production's migrator owns the tables but has no CREATEROLE.
     with _connect() as conn:
         conn.execute(f"DROP OWNED BY {ROLE}; DROP ROLE {ROLE}")
