@@ -37,6 +37,13 @@ class Repo:
     def get_vendor_blocked_until(self, vendor):
         return self.blocked_until
 
+    def close_youtube_reviews_without_spotify(self, *, now):
+        self.reconciled = getattr(self, "reconciled", 0) + 1
+        return 2
+
+    def reopen_youtube_for_spotify_found(self):
+        return 1
+
     def set_vendor_blocked_until(self, vendor, until, now):
         self.blocks.append((vendor, until))
 
@@ -273,3 +280,16 @@ def test_remix_does_not_take_the_original(monkeypatch) -> None:
     repo = Repo([{**track("t1"), "mix_name": "Guri Remix", "length_ms": 330000}])
     run(monkeypatch, repo, Client([[song("s1")], [], []]))
     assert repo.matches == [] and repo.reviews == [("t1", 1)]
+
+
+def test_each_run_reconciles_with_spotify_even_while_paused(monkeypatch) -> None:
+    # Database only, no YouTube call: a ban does not hold it back.
+    repo = Repo([track("t1")], blocked_until=datetime.now(UTC) + timedelta(minutes=5))
+    run(monkeypatch, repo, Client([]))
+    assert repo.reconciled == 1 and repo.claimed_at is None
+
+
+def test_a_normal_run_reconciles_once(monkeypatch) -> None:
+    repo = Repo([track("t1")])
+    run(monkeypatch, repo, Client([[song("s1")]]))
+    assert repo.reconciled == 1 and repo.done == ["t1"]

@@ -193,3 +193,47 @@ class YoutubeSearchMixin(RepositoryBase):
                 row["candidates"] = json.loads(row["candidates"])
             row["candidates"] = row["candidates"] or []
         return rows
+
+    def close_youtube_reviews_without_spotify(self, *, now: datetime) -> int:
+        """A DJ hears tracks through Spotify, so an open YT Music review of a
+        track Spotify could not find is closed as not on YouTube. The
+        candidates stay on the row: `reopen_youtube_for_spotify_found` undoes
+        it if Spotify finds the track later."""
+        rows = self._data_api.execute(
+            """
+            UPDATE match_review_queue q
+            SET status = 'no_match', resolved_at = :now
+            FROM clouder_tracks t
+            WHERE t.id = q.clouder_track_id
+              AND q.vendor = 'ytmusic' AND q.status = 'pending'
+              AND t.spotify_id IS NULL AND t.spotify_searched_at IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM match_review_queue n
+                              WHERE n.clouder_track_id = q.clouder_track_id
+                                AND n.vendor = 'ytmusic' AND n.status = 'no_match')
+            RETURNING q.id
+            """,
+            {"now": now},
+        )
+        return len(rows)
+
+    def reopen_youtube_for_spotify_found(self) -> int:
+        """Tracks closed as not on YouTube only because Spotify had missed them
+        (a no_match row that kept its candidates) are searched on YouTube
+        again once Spotify finds them: the row goes, the search stamp clears."""
+        rows = self._data_api.execute(
+            """
+            WITH reopened AS (
+                DELETE FROM match_review_queue q
+                USING clouder_tracks t
+                WHERE t.id = q.clouder_track_id
+                  AND q.vendor = 'ytmusic' AND q.status = 'no_match'
+                  AND jsonb_array_length(q.candidates) > 0
+                  AND t.spotify_id IS NOT NULL
+                RETURNING q.clouder_track_id
+            )
+            UPDATE clouder_tracks SET youtube_searched_at = NULL
+            WHERE id IN (SELECT clouder_track_id FROM reopened)
+            RETURNING id
+            """
+        )
+        return len(rows)

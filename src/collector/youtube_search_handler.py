@@ -147,6 +147,14 @@ def _sweep(
     sleep: Callable[[float], None],
 ) -> None:
     blocked_until = _blocked_until_waking_db(repository, correlation_id, sleep)
+    # Database only, so even a paused sweep keeps YouTube in step with Spotify.
+    log_event(
+        "INFO",
+        "youtube_reviews_reconciled",
+        correlation_id=correlation_id,
+        closed=repository.close_youtube_reviews_without_spotify(now=utc_now()),
+        reopened=repository.reopen_youtube_for_spotify_found(),
+    )
     now = utc_now()
     if blocked_until is not None and blocked_until > now:
         # YouTube refused us: leave it alone; a later hourly batch goes on.
