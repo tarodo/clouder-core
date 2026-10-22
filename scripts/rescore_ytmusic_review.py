@@ -5,8 +5,9 @@ agent's read-only role, so it cannot change anything:
 
     PYTHONPATH=src .venv/bin/python scripts/rescore_ytmusic_review.py --csv /tmp/rescore.csv
 
-`--apply` connects as the master user and, per accepted review, links the track
-as `fuzzy_version` and resolves the review (docs/data/entity-resolution.md).
+`--apply` connects as the master user and, per review, links the first stored
+candidate the rule accepts (best first) as `fuzzy_version` and resolves the
+review (docs/data/entity-resolution.md).
 The CSV lists the accepted reviews for a look before applying; it holds catalog
 rows, so keep it out of the repository.
 """
@@ -25,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 from collector.vendor_match.rescore import accept, decide, open_reviews  # noqa: E402
 
-PAGE = 200
+PAGE = 50  # full candidate payloads: about 10 KB a review, under the 1 MB cap
 AGENT_SECRET = "clouder/agent/aurora-readonly"
 
 
@@ -89,7 +90,11 @@ def main(argv: list[str] | None = None) -> dict[str, int]:
         while rows := open_reviews(client, after=after, limit=PAGE):
             after = rows[-1]["review_id"]
             scanned += len(rows)
-            ok = [r for r in rows if decide(r)]
+            ok = []
+            for r in rows:
+                if (chosen := decide(r)) is not None:
+                    r["candidate"] = chosen
+                    ok.append(r)
             accepted += len(ok)
             if writer:
                 for r in ok:

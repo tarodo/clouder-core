@@ -160,3 +160,15 @@ def test_a_remix_never_takes_the_original() -> None:
 def test_a_threshold_match_keeps_no_rule_reason() -> None:
     res, _ = run(FakeClient({None: [song("s1")]}))
     assert res.outcome == "auto" and res.match_reason is None
+
+
+def test_the_rule_reaches_past_a_higher_scored_original() -> None:
+    # "Don't Shut Up (ISHNLV Remix)": the plain original scores 0.90 and is
+    # rightly refused; the exact remix scores lower and is the one to take.
+    original = song("orig", seconds=197, album="Other")
+    remix = song("remix", title="Lost Track (ISHNLV Remix)", seconds=202, album="Other")
+    client = FakeClient({None: [original, remix], "songs": [original, remix]})
+    res, _ = run(client, _versioned("ISHNLV Remix", seconds=201))
+
+    assert res.outcome == "auto" and res.match[0].vendor_track_id == "remix"
+    assert res.match_reason == "version_rule"

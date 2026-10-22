@@ -52,8 +52,9 @@ def test_open_reviews_bring_the_top_candidate_and_our_track(pg) -> None:
     _world(pg)
     rows = {r["track_id"]: r for r in open_reviews(pg, after="", limit=10)}
     assert set(rows) == {"extended", "remix", "other-artist"}
-    top = rows["extended"]["candidate"]
-    assert top["ref"]["videoId"] == "top-extended" and top["score"] == 0.9
+    cands = rows["extended"]["candidates"]
+    assert [c["ref"]["videoId"] for c in cands] == ["top-extended", "low-extended"]  # best first
+    assert cands[0]["score"] == 0.9
     assert (rows["extended"]["title"], rows["extended"]["mix_name"]) == (
         "Night Drive",
         "Extended Mix",
@@ -68,15 +69,58 @@ def test_open_reviews_page_by_review_id(pg) -> None:
     assert not {r["track_id"] for r in first} & {r["track_id"] for r in rest}
 
 
+def _picked(row) -> str | None:
+    chosen = decide(row)
+    return chosen["ref"]["videoId"] if chosen else None
+
+
 def test_decide_follows_the_version_rule(pg) -> None:
     _world(pg)
-    decided = {r["track_id"]: decide(r) for r in open_reviews(pg, after="", limit=10)}
-    assert decided == {"extended": True, "remix": False, "other-artist": False}
+    decided = {r["track_id"]: _picked(r) for r in open_reviews(pg, after="", limit=10)}
+    assert decided == {"extended": "top-extended", "remix": None, "other-artist": None}
+
+
+def test_decide_reaches_past_a_higher_scored_original(pg) -> None:
+    # Don't Shut Up (ISHNLV Remix): the plain original tops the list and is refused.
+    pg.execute(
+        "INSERT INTO clouder_tracks (id, title, normalized_title, mix_name, length_ms,"
+        " created_at, updated_at) VALUES ('dsu', 'Don''t Shut Up', 'dont shut up',"
+        " 'ISHNLV Remix', 201173, now(), now())"
+    )
+    candidates = [
+        {
+            "ref": {"videoId": "orig", "title": "Don't Shut Up", "duration_seconds": 197},
+            "score": 0.9,
+            "title_sim": 1.0,
+            "artist_sim": 1.0,
+            "duration_ok": False,
+        },
+        {
+            "ref": {
+                "videoId": "remix",
+                "title": "Don't Shut Up (ISHNLV Remix)",
+                "duration_seconds": 202,
+            },
+            "score": 0.817,
+            "title_sim": 0.63,
+            "artist_sim": 1.0,
+            "duration_ok": True,
+            "album_bonus": 0.05,
+        },
+    ]
+    pg.execute(
+        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status,"
+        " created_at) VALUES ('q-dsu', 'dsu', 'ytmusic', CAST(:c AS jsonb), 'pending', now())",
+        {"c": json.dumps(candidates)},
+    )
+    (row,) = open_reviews(pg, after="", limit=10)
+    assert _picked(row) == "remix"
 
 
 def test_accept_links_the_track_and_closes_its_review(pg) -> None:
     _world(pg)
     (row,) = [r for r in open_reviews(pg, after="", limit=10) if r["track_id"] == "extended"]
+    row["candidate"] = decide(row)
     accept(pg, [row], NOW)
     (link,) = pg.execute(
         "SELECT vendor_track_id, match_type, confidence FROM vendor_track_map"

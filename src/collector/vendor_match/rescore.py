@@ -1,9 +1,10 @@
 """Close open YT Music reviews the version rule accepts, from stored candidates.
 
-Reviews queued before the version rule (#349) hold candidates the search would
-now accept by itself. This replays the rule on each open review's top stored
-candidate (no YouTube request) and, for an accepted one, links the track as
-`fuzzy_version` and resolves the review, the way a manual accept does.
+Reviews queued before the version rule (#349), or while it only looked at the
+best candidate, hold candidates the search would now accept by itself. This
+replays the rule on each open review's stored candidates, best first (no
+YouTube request), and links the first it accepts as `fuzzy_version`, resolving
+the review the way a manual accept does.
 """
 
 from __future__ import annotations
@@ -21,20 +22,19 @@ from .scorer import FuzzyScore, version_rule_accepts
 
 def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[str, Any]]:
     """Open YT Music reviews after review id *after*, with our title and mix and
-    the top candidate by stored score (one, so a page stays far under 1 MB)."""
+    the stored candidates best first (full payloads: about 10 KB a review, so
+    keep *limit* near 50 to stay under the Data API's 1 MB)."""
     rows = client.execute(
         """
         SELECT q.id AS review_id, q.clouder_track_id AS track_id, t.title, t.mix_name,
-               t.length_ms, c.candidate,
+               t.length_ms,
+               (SELECT jsonb_agg(e ORDER BY (e->>'score')::numeric DESC NULLS LAST)
+                FROM jsonb_array_elements(q.candidates) e) AS candidates,
                (SELECT string_agg(a.name, ', ' ORDER BY a.name)
                 FROM clouder_track_artists ta JOIN clouder_artists a ON a.id = ta.artist_id
                 WHERE ta.track_id = t.id) AS artists
         FROM match_review_queue q
         JOIN clouder_tracks t ON t.id = q.clouder_track_id
-        CROSS JOIN LATERAL (
-            SELECT e AS candidate FROM jsonb_array_elements(q.candidates) e
-            ORDER BY (e->>'score')::numeric DESC NULLS LAST LIMIT 1
-        ) c
         WHERE q.vendor = 'ytmusic' AND q.status = 'pending' AND q.id > :after
           AND NOT EXISTS (SELECT 1 FROM vendor_track_map v
                           WHERE v.clouder_track_id = q.clouder_track_id AND v.vendor = 'ytmusic')
@@ -44,13 +44,13 @@ def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[
         {"after": after, "limit": limit},
     )
     for row in rows:
-        if isinstance(row["candidate"], str):
-            row["candidate"] = json.loads(row["candidate"])
+        if isinstance(row["candidates"], str):
+            row["candidates"] = json.loads(row["candidates"])
+        row["candidates"] = row["candidates"] or []
     return rows
 
 
-def decide(row: Mapping[str, Any]) -> bool:
-    cand = row["candidate"] or {}
+def _accepts(row: Mapping[str, Any], cand: Mapping[str, Any]) -> bool:
     ref = cand.get("ref") or {}
     if not ref.get("videoId") or cand.get("score") is None:
         return False
@@ -69,8 +69,14 @@ def decide(row: Mapping[str, Any]) -> bool:
     )
 
 
+def decide(row: Mapping[str, Any]) -> dict[str, Any] | None:
+    """The first stored candidate, best first, the version rule accepts."""
+    return next((c for c in row["candidates"] if _accepts(row, c)), None)
+
+
 def accept(client: DataAPIClient, rows: Iterable[Mapping[str, Any]], now: datetime) -> int:
-    """Link and resolve *rows* in one transaction; returns how many."""
+    """Link each row's chosen `candidate` and resolve its review, in one
+    transaction; returns how many."""
     rows = list(rows)
     if not rows:
         return 0

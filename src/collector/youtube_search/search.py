@@ -131,10 +131,21 @@ def search_track(
 
     if scored and scored[0][1].total >= threshold:
         res.match = scored[0]
-    elif scored and version_rule_accepts(
-        candidate_title=scored[0][0].title, title=q.title, mix_name=q.mix_name, score=scored[0][1]
-    ):
-        res.match, res.match_reason = scored[0], "version_rule"
+        return res
+    # Below the threshold the best candidate is often the other version (the
+    # original of a remix); the right one can sit lower, so try each in order.
+    versioned = next(
+        (
+            pair
+            for pair in scored
+            if version_rule_accepts(
+                candidate_title=pair[0].title, title=q.title, mix_name=q.mix_name, score=pair[1]
+            )
+        ),
+        None,
+    )
+    if versioned is not None:
+        res.match, res.match_reason = versioned, "version_rule"
     else:
         res.review = scored[:REVIEW_TOP_N]
     return res
