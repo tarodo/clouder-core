@@ -38,6 +38,14 @@ const sample: CoveragePayload = {
           pending: 0, no_isrc: 0,
         },
       ],
+      youtube_weeks: [
+        {
+          week_number: 1, total: 50, found: 40, review: 4, not_found: 2, pending: 4,
+        },
+        {
+          week_number: 7, total: 6, found: 0, review: 0, not_found: 0, pending: 6,
+        },
+      ],
     },
   ],
 };
@@ -86,6 +94,23 @@ describe('CoverageMatrix', () => {
     await userEvent.hover(screen.getByLabelText('Tech House week 5 empty'));
     expect(
       await screen.findByText(/Spotify: 8\/8 found · 0 not found/),
+    ).toBeInTheDocument();
+  });
+
+  it('shows youtube stats next to spotify in the tooltip', async () => {
+    render(ui({ data: sample, onCellClick: vi.fn() }));
+    await userEvent.hover(screen.getByLabelText('Tech House week 1 loaded'));
+    expect(
+      await screen.findByText(/YouTube: 40\/50 found · 4 review · 2 not found · 4 pending/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Spotify: 45\/50 found/)).toBeInTheDocument();
+  });
+
+  it('shows youtube stats on a week only youtube has numbers for', async () => {
+    render(ui({ data: sample, onCellClick: vi.fn() }));
+    await userEvent.hover(screen.getByLabelText('Tech House week 7 empty'));
+    expect(
+      await screen.findByText(/YouTube: 0\/6 found · 0 not found · 6 pending/),
     ).toBeInTheDocument();
   });
 });

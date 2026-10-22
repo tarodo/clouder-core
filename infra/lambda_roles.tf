@@ -155,7 +155,6 @@ module "role_canonicalization_worker" {
     { sid = "ListRawReleases", actions = ["s3:ListBucket"], resources = [aws_s3_bucket.raw.arn], s3_prefixes = ["${var.raw_prefix}/*"] },
     { sid = "ConsumeCanonicalization", actions = local.sqs_consume, resources = [aws_sqs_queue.canonicalization.arn] },
     { sid = "EnqueueSpotifySearch", actions = ["sqs:SendMessage"], resources = [aws_sqs_queue.spotify_search.arn] },
-    { sid = "EnqueueYoutubeSearch", actions = ["sqs:SendMessage"], resources = [aws_sqs_queue.youtube_search.arn] },
   ]
 }
 
@@ -193,7 +192,6 @@ module "role_youtube_search_worker" {
     local.st_db_secret,
     local.st_ssm_kms,
     { sid = "ConsumeYoutubeSearch", actions = local.sqs_consume, resources = [aws_sqs_queue.youtube_search.arn] },
-    { sid = "RequeueYoutubeSearch", actions = ["sqs:SendMessage"], resources = [aws_sqs_queue.youtube_search.arn] },
   ]
 }
 

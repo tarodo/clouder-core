@@ -2052,8 +2052,8 @@ ROUTES: list[dict[str, Any]] = [
         "responses": {
             "200": _make_response(
                 200,
-                "Coverage payload (per-style cells + spotify_weeks per-week match "
-                "stats). Hidden styles are included with is_hidden=true.",
+                "Coverage payload (per-style cells + spotify_weeks and youtube_weeks "
+                "per-week match stats). Hidden styles are included with is_hidden=true.",
                 {"type": "object"},
             ),
             "400": _error(400, "validation_error."),

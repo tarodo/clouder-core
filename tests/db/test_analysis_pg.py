@@ -263,41 +263,9 @@ def test_requeue_categories_scope(repo, pg) -> None:
     assert _status(pg, "mid") is None and _status(pg, "new") == "ok"
 
 
-def test_claim_puts_open_triage_first_then_newest_releases(repo, pg) -> None:
-    # The owner's triage block is analyzed first; then fresh releases before
-    # backfilled old weeks, whatever their ingest date.
-    _track(pg, "old-release-new-ingest", T0, ytmusic="v1")
-    _track(pg, "w40", T0 - timedelta(days=9), ytmusic="v2")
-    _track(pg, "in-triage", T0 - timedelta(days=20), ytmusic="v3")
-    pg.execute(
-        "UPDATE clouder_tracks SET publish_date = '2026-03-14' WHERE id = 'old-release-new-ingest'"
-    )
-    pg.execute("UPDATE clouder_tracks SET publish_date = '2026-10-05' WHERE id = 'w40'")
-    pg.execute("UPDATE clouder_tracks SET publish_date = '2026-01-10' WHERE id = 'in-triage'")
-    pg.execute(
-        "INSERT INTO users (id, spotify_id, display_name, email, created_at, updated_at)"
-        " VALUES ('u1', 'sp', 'N', 'u1@example.com', now(), now())"
-    )
-    pg.execute(
-        "INSERT INTO triage_blocks (id, user_id, style_id, name, date_from, date_to, status,"
-        " created_at, updated_at) VALUES ('blk', 'u1', 'st', 'B', '2026-01-10', '2026-01-16',"
-        " 'IN_PROGRESS', now(), now())"
-    )
-    pg.execute(
-        "INSERT INTO triage_buckets (id, triage_block_id, bucket_type, created_at)"
-        " VALUES ('bkt', 'blk', 'NEW', now())"
-    )
-    pg.execute(
-        "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at)"
-        " VALUES ('bkt', 'in-triage', now())"
-    )
-    rows = repo.claim_analysis(limit=3, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
-    assert [r["track_id"] for r in rows] == ["in-triage", "w40", "old-release-new-ingest"]
-
-
-def test_claim_puts_labeled_tracks_after_open_triage_before_fresh_releases(repo, pg) -> None:
-    # The feature lab trains on what users labeled (a category, DISCARD), so
-    # those come right after the open triage block, ahead of fresh unlabeled releases.
+def test_claim_goes_strictly_newest_release_first(repo, pg) -> None:
+    # Like the YouTube sweep: release date alone decides, so an open triage
+    # block or labeled tracks wait their turn behind fresher releases.
     _track(pg, "fresh", T0, ytmusic="v1")
     _track(pg, "in-cat", T0 - timedelta(days=40), ytmusic="v2")
     _track(pg, "discarded", T0 - timedelta(days=50), ytmusic="v3")
@@ -320,7 +288,7 @@ def test_claim_puts_labeled_tracks_after_open_triage_before_fresh_releases(repo,
         "INSERT INTO categories (id, user_id, style_id, name, normalized_name, created_at, updated_at)"
         " VALUES ('cat', 'u1', 'st', 'C', 'c', now(), now())"
     )
-    # in-triage is labeled too: it must still come first, and only once.
+    # in-triage is labeled too: it still appears once.
     pg.execute(
         "INSERT INTO category_tracks (category_id, track_id, added_at)"
         " VALUES ('cat', 'in-cat', now()), ('cat', 'in-triage', now())"
@@ -341,5 +309,5 @@ def test_claim_puts_labeled_tracks_after_open_triage_before_fresh_releases(repo,
     )
     rows = repo.claim_analysis(limit=10, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
     ids = [r["track_id"] for r in rows]
-    assert ids[:4] == ["in-triage", "in-cat", "discarded", "fresh"]
+    assert ids[:4] == ["fresh", "in-cat", "discarded", "in-triage"]
     assert len(ids) == len(set(ids))

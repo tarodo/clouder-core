@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from ytmusicapi.exceptions import YTMusicServerError
@@ -9,12 +9,7 @@ from ytmusicapi.exceptions import YTMusicServerError
 import collector.youtube_search_handler as h
 from collector.settings import YoutubeSearchWorkerSettings
 
-SETTINGS = YoutubeSearchWorkerSettings(
-    YOUTUBE_SEARCH_QUEUE_URL="https://sqs/q",
-    YOUTUBE_SEARCH_SINCE="2026-10-15T00:00:00Z",
-    YOUTUBE_SEARCH_PUBLISHED_SINCE="2026-10-03",
-    YOUTUBE_SEARCH_MIN_INTERVAL_MS=0,
-)
+SETTINGS = YoutubeSearchWorkerSettings(YOUTUBE_SEARCH_MIN_INTERVAL_MS=0)
 
 
 def song(vid, title="T"):
@@ -32,10 +27,9 @@ def video(vid, title="A - T"):
 
 
 class Repo:
-    def __init__(self, tracks, *, blocked_until=None, more=False):
+    def __init__(self, tracks, *, blocked_until=None):
         self.tracks = tracks
         self.blocked_until = blocked_until
-        self.more = more
         self.claimed_at = None
         self.done, self.released, self.matches, self.reviews, self.no_match = [], [], [], [], []
         self.blocks = []
@@ -46,9 +40,8 @@ class Repo:
     def set_vendor_blocked_until(self, vendor, until, now):
         self.blocks.append((vendor, until))
 
-    def claim_tracks_for_youtube_search(self, limit, claimed_at, since, published_since=None):
-        self.claimed_at = claimed_at
-        self.published_since = published_since
+    def claim_tracks_for_youtube_search(self, limit, claimed_at):
+        self.claimed_at, self.limit = claimed_at, limit
         return self.tracks[:limit]
 
     def mark_youtube_searched(self, track_id, at):
@@ -58,10 +51,6 @@ class Repo:
     def release_youtube_search_claim(self, claimed_at):
         self.released.append(claimed_at)
         return len(self.tracks) - len(self.done)
-
-    def has_tracks_needing_youtube_search(self, since, published_since=None):
-        self.more_published_since = published_since
-        return self.more
 
     def upsert_vendor_match(self, cmd):
         self.matches.append((cmd.clouder_track_id, cmd.vendor, cmd.vendor_track_id, cmd.match_type))
@@ -86,14 +75,6 @@ class Client:
         return item
 
 
-class Sqs:
-    def __init__(self):
-        self.sent = []
-
-    def send_message(self, **kw):
-        self.sent.append(kw)
-
-
 def track(tid, has_ytmusic=False):
     return {
         "id": tid,
@@ -106,69 +87,43 @@ def track(tid, has_ytmusic=False):
 
 
 def run(monkeypatch, repo, client, *, body=None, remaining_ms=900_000):
-    sqs = Sqs()
     monkeypatch.setattr(h, "create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr(h, "get_youtube_search_worker_settings", lambda: SETTINGS)
     ctx = type("Ctx", (), {"get_remaining_time_in_millis": lambda self: remaining_ms})()
-    event = {"Records": [{"body": json.dumps(body or {"batch_size": 100})}]}
-    out = h.lambda_handler(
-        event, ctx, client_factory=lambda: client, sqs_factory=lambda: sqs, sleep=lambda s: None
-    )
-    return out, sqs
+    event = {"Records": [{"body": json.dumps(body or {"batch_size": 250})}]}
+    return h.lambda_handler(event, ctx, client_factory=lambda: client, sleep=lambda s: None)
 
 
-def test_happy_batch_stores_outcomes_and_follows_up(monkeypatch) -> None:
-    repo = Repo([track("t1"), track("t2")], more=True)
+def test_hourly_batch_stores_outcomes(monkeypatch) -> None:
+    repo = Repo([track("t1"), track("t2")])
     client = Client([[song("s1"), video("v1")], [], [], []])
-    out, sqs = run(monkeypatch, repo, client)
-    assert out == {"processed": 1}
+    out = run(monkeypatch, repo, client)
+    assert out == {"processed": 1} and repo.limit == 250
     assert ("t1", "youtube", "v1", "token") in repo.matches
     assert ("t1", "ytmusic", "s1", "fuzzy") in repo.matches
     assert repo.no_match == ["t2"]
     assert repo.done == ["t1", "t2"]
-    assert json.loads(sqs.sent[0]["MessageBody"]) == {"batch_size": 100}
-    assert "DelaySeconds" not in sqs.sent[0]
 
 
-def test_recent_releases_window_reaches_the_repository(monkeypatch) -> None:
-    # Week 40 was ingested before the launch: publish date, not ingest date, picks it.
-    repo = Repo([track("t1")], more=True)
-    run(monkeypatch, repo, Client([[song("s1")]]))
-    assert repo.published_since == date(2026, 10, 3)
-    assert repo.more_published_since == date(2026, 10, 3)
-
-
-def test_no_follow_up_when_nothing_left(monkeypatch) -> None:
-    repo = Repo([track("t1")], more=False)
-    _, sqs = run(monkeypatch, repo, Client([[song("s1")]]))
-    assert sqs.sent == []
-
-
-def test_ban_mid_batch_releases_rest_and_schedules_resume(monkeypatch) -> None:
-    repo = Repo([track("t1"), track("t2"), track("t3")], more=True)
+def test_ban_mid_batch_releases_rest_and_pauses(monkeypatch) -> None:
+    repo = Repo([track("t1"), track("t2"), track("t3")])
     ban = YTMusicServerError("Server returned HTTP 429: Too Many Requests.\n")
-    _, sqs = run(monkeypatch, repo, Client([[song("s1")], ban]))
+    run(monkeypatch, repo, Client([[song("s1")], ban]))
     assert repo.done == ["t1"]
     assert repo.released == [repo.claimed_at]
     assert repo.blocks and repo.blocks[0][0] == "ytmusic"
-    assert len(sqs.sent) == 1
-    assert json.loads(sqs.sent[0]["MessageBody"]) == {"batch_size": 100, "resume": True}
-    assert sqs.sent[0]["DelaySeconds"] == 900
 
 
-def test_paused_trigger_is_dropped_and_resume_rearms(monkeypatch) -> None:
+def test_hourly_trigger_is_dropped_while_paused(monkeypatch) -> None:
     until = datetime.now(UTC) + timedelta(minutes=5)
     repo = Repo([track("t1")], blocked_until=until)
-    _, sqs = run(monkeypatch, repo, Client([]))
-    assert sqs.sent == [] and repo.claimed_at is None
-    _, sqs = run(monkeypatch, repo, Client([]), body={"batch_size": 50, "resume": True})
-    assert json.loads(sqs.sent[0]["MessageBody"]) == {"batch_size": 50, "resume": True}
-    assert 1 <= sqs.sent[0]["DelaySeconds"] <= 300
+    assert run(monkeypatch, repo, Client([])) == {"processed": 1}
+    assert repo.claimed_at is None
 
 
 def test_generic_error_marks_done_and_continues(monkeypatch) -> None:
     repo = Repo([track("t1"), track("t2")])
-    _, _ = run(monkeypatch, repo, Client([ValueError("weird unicode"), [song("s2")]]))
+    run(monkeypatch, repo, Client([ValueError("weird unicode"), [song("s2")]]))
     # t1 is confirmed as an isolated failure once t2 succeeds.
     assert sorted(repo.done) == ["t1", "t2"]
     assert ("t2", "ytmusic", "s2", "fuzzy") in repo.matches
@@ -181,11 +136,10 @@ def test_existing_ytmusic_row_stores_only_the_video(monkeypatch) -> None:
     assert repo.reviews == [] and repo.no_match == []
 
 
-def test_deadline_hands_tracks_back_and_follows_up(monkeypatch) -> None:
-    repo = Repo([track("t1"), track("t2")], more=True)
-    _, sqs = run(monkeypatch, repo, Client([]), remaining_ms=30_000)
+def test_deadline_hands_tracks_back_for_the_next_hour(monkeypatch) -> None:
+    repo = Repo([track("t1"), track("t2")])
+    run(monkeypatch, repo, Client([]), remaining_ms=30_000)
     assert repo.done == [] and repo.released == [repo.claimed_at]
-    assert json.loads(sqs.sent[0]["MessageBody"]) == {"batch_size": 100}
 
 
 def test_db_outage_releases_and_reraises(monkeypatch) -> None:
@@ -222,12 +176,11 @@ def test_an_unrecognised_block_pauses_like_a_ban(monkeypatch) -> None:
     import json as _json
 
     blocked = _json.JSONDecodeError("Expecting value", "<html>", 0)
-    repo = Repo([track(f"t{i}") for i in range(8)], more=True)
-    _, sqs = run(monkeypatch, repo, Client([blocked] * 8))
+    repo = Repo([track(f"t{i}") for i in range(8)])
+    run(monkeypatch, repo, Client([blocked] * 8))
     assert repo.done == []
     assert repo.released == [repo.claimed_at]
     assert repo.blocks and repo.blocks[0][0] == "ytmusic"
-    assert json.loads(sqs.sent[0]["MessageBody"]) == {"batch_size": 100, "resume": True}
 
 
 def test_trailing_errors_at_batch_end_are_accepted(monkeypatch) -> None:
@@ -238,7 +191,6 @@ def test_trailing_errors_at_batch_end_are_accepted(monkeypatch) -> None:
 
 def test_client_failure_after_claim_hands_the_batch_back(monkeypatch) -> None:
     repo = Repo([track("t1")])
-    sqs = Sqs()
     monkeypatch.setattr(h, "create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr(h, "get_youtube_search_worker_settings", lambda: SETTINGS)
 
@@ -247,7 +199,7 @@ def test_client_failure_after_claim_hands_the_batch_back(monkeypatch) -> None:
 
     event = {"Records": [{"body": json.dumps({"batch_size": 100})}]}
     with pytest.raises(RuntimeError):
-        h.lambda_handler(event, None, client_factory=no_client, sqs_factory=lambda: sqs)
+        h.lambda_handler(event, None, client_factory=no_client)
     assert repo.released == [repo.claimed_at]
 
 
@@ -257,7 +209,7 @@ def test_requests_time_out_well_inside_the_deadline_margin() -> None:
 
 
 def test_invalid_message_is_skipped(monkeypatch) -> None:
-    out, _ = run(monkeypatch, Repo([]), Client([]), body={"batch_size": 0})
+    out = run(monkeypatch, Repo([]), Client([]), body={"batch_size": 0})
     assert out == {"processed": 0}
 
 
@@ -295,7 +247,7 @@ def test_waits_for_a_paused_database_before_sweeping(monkeypatch) -> None:
         return real(vendor)
 
     repo.get_vendor_blocked_until = waking
-    out, _ = run(monkeypatch, repo, Client([[song("s1")]]))
+    out = run(monkeypatch, repo, Client([[song("s1")]]))
     assert out == {"processed": 1} and repo.done == ["t1"]
 
 

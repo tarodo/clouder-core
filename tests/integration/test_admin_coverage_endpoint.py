@@ -109,6 +109,9 @@ def test_coverage_returns_grouped_styles(monkeypatch):
     ]
 
     class FakeRepo:
+        def youtube_stats_for_year(self, week_year):
+            return []
+
         def coverage_for_year(self, week_year):
             assert week_year == 2026
             return rows
@@ -159,6 +162,9 @@ def test_coverage_keeps_hidden_styles_flagged(monkeypatch):
     ]
 
     class FakeRepo:
+        def youtube_stats_for_year(self, week_year):
+            return []
+
         def coverage_for_year(self, week_year):
             return rows
 
@@ -229,6 +235,9 @@ def test_coverage_merges_spotify_weeks(monkeypatch):
     ]
 
     class FakeRepo:
+        def youtube_stats_for_year(self, week_year):
+            return []
+
         def coverage_for_year(self, week_year):
             return coverage_rows
 
@@ -246,3 +255,50 @@ def test_coverage_merges_spotify_weeks(monkeypatch):
         {"week_number": 2, "total": 10, "found": 10, "not_found": 0, "pending": 0, "no_isrc": 0},
     ]
     assert by_id[131]["spotify_weeks"] == []
+
+
+def test_coverage_merges_youtube_weeks(monkeypatch):
+    coverage_rows = [
+        {
+            "clouder_style_id": "uuid-s1",
+            "style_name": "Tech House",
+            "beatport_style_id": "90",
+            "run_id": None,
+            "week_number": None,
+            "status": None,
+            "item_count": None,
+            "is_custom_range": None,
+            "period_start": None,
+            "period_end": None,
+            "started_at": None,
+            "finished_at": None,
+        },
+    ]
+
+    class FakeRepo:
+        def coverage_for_year(self, week_year):
+            return coverage_rows
+
+        def spotify_stats_for_year(self, week_year):
+            return []
+
+        def youtube_stats_for_year(self, week_year):
+            assert week_year == 2026
+            return [
+                {
+                    "beatport_style_id": "90",
+                    "week_number": 40,
+                    "total": 20,
+                    "found": 15,
+                    "review": 2,
+                    "not_found": 1,
+                    "pending": 2,
+                }
+            ]
+
+    monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: FakeRepo())
+    response = handler.lambda_handler(_event({"week_year": "2026"}), _ctx())
+    body = json.loads(response["body"])
+    assert body["styles"][0]["youtube_weeks"] == [
+        {"week_number": 40, "total": 20, "found": 15, "review": 2, "not_found": 1, "pending": 2}
+    ]

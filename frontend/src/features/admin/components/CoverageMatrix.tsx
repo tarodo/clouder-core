@@ -3,9 +3,10 @@ import './CoverageMatrix.module.css';
 import { useMemo } from 'react';
 import { useStore } from 'zustand';
 import { runsTrackerStore } from '../lib/runsTracker';
-import type { CoveragePayload, SpotifyWeekStats } from '../hooks/useCoverage';
+import type { CoveragePayload, SpotifyWeekStats, YoutubeWeekStats } from '../hooks/useCoverage';
 import { cellState, type CoverageCell } from '../lib/cellState';
 import { formatSpotifyStats } from '../lib/spotifyStats';
+import { formatYoutubeStats } from '../lib/youtubeStats';
 import { CoverageMatrixCell } from './CoverageMatrixCell';
 
 interface Props {
@@ -49,6 +50,8 @@ export function CoverageMatrix({ data, onCellClick }: Props) {
           for (const c of style.cells) byWeek.set(c.week_number, c);
           const statsByWeek = new Map<number, SpotifyWeekStats>();
           for (const s of style.spotify_weeks ?? []) statsByWeek.set(s.week_number, s);
+          const youtubeByWeek = new Map<number, YoutubeWeekStats>();
+          for (const s of style.youtube_weeks ?? []) youtubeByWeek.set(s.week_number, s);
           return (
             <Row
               key={style.style_id}
@@ -58,6 +61,7 @@ export function CoverageMatrix({ data, onCellClick }: Props) {
               weeks={weeks}
               byWeek={byWeek}
               statsByWeek={statsByWeek}
+              youtubeByWeek={youtubeByWeek}
               tracker={tracker}
               onCellClick={onCellClick}
             />
@@ -75,6 +79,7 @@ function Row({
   weeks,
   byWeek,
   statsByWeek,
+  youtubeByWeek,
   tracker,
   onCellClick,
 }: {
@@ -84,6 +89,7 @@ function Row({
   weeks: number[];
   byWeek: Map<number, CoverageCell>;
   statsByWeek: Map<number, SpotifyWeekStats>;
+  youtubeByWeek: Map<number, YoutubeWeekStats>;
   tracker: ReturnType<typeof runsTrackerStore.getState>;
   onCellClick: (styleId: number, weekNumber: number) => void;
 }) {
@@ -116,12 +122,21 @@ function Row({
               cell.is_custom_range ? ' · custom range' : ''
             }`
           : `Wk ${w} · empty`;
-        const stats = statsByWeek.get(w);
-        const tooltip = stats ? (
+        const spotify = statsByWeek.get(w);
+        const youtube = youtubeByWeek.get(w);
+        const statLines = [
+          ...(spotify ? [formatSpotifyStats(spotify)] : []),
+          ...(youtube ? [formatYoutubeStats(youtube)] : []),
+        ];
+        const tooltip = statLines.length ? (
           <>
             {baseLine}
-            <br />
-            {formatSpotifyStats(stats)}
+            {statLines.map((line) => (
+              <span key={line}>
+                <br />
+                {line}
+              </span>
+            ))}
           </>
         ) : (
           baseLine

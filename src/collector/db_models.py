@@ -168,7 +168,9 @@ class ClouderTrack(Base):
         ),
         Index(
             "ix_clouder_tracks_youtube_unsearched",
+            text("publish_date DESC NULLS LAST"),
             text("created_at DESC"),
+            "id",
             postgresql_where=text("youtube_searched_at IS NULL"),
         ),
     )

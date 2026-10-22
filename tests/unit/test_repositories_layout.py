@@ -37,7 +37,6 @@ API = [
     "get_run",
     "get_vendor_blocked_until",
     "get_vendor_match",
-    "has_tracks_needing_youtube_search",
     "insert_review_candidate",
     "list_albums",
     "list_artists",
@@ -67,6 +66,7 @@ API = [
     "upsert_track_artist",
     "upsert_vendor_match",
     "youtube_search_counts",
+    "youtube_stats_for_year",
 ]
 
 AGGREGATES = {

@@ -10,21 +10,6 @@ from ..data_api import DataAPIClient
 # stay far under the Data API 1 MB response cap; raise only with a measured reason.
 _LOOKUP_CHUNK = 500
 
-# Tracks a user has labeled: in a live category, or in a DISCARD bucket of any
-# live triage block (a finalized block keeps its buckets). Auto buckets (NEW,
-# OLD, NOT, UNCLASSIFIED, FAV: filled from liked labels/artists) are no label.
-# Used inside `IN (...)`, a UNION or a derived-table JOIN.
-LABELED_TRACK_IDS = """
-    SELECT ct.track_id FROM category_tracks ct
-    JOIN categories c ON c.id = ct.category_id
-    WHERE c.deleted_at IS NULL
-    UNION
-    SELECT tbt.track_id FROM triage_bucket_tracks tbt
-    JOIN triage_buckets b ON b.id = tbt.triage_bucket_id
-    JOIN triage_blocks tb ON tb.id = b.triage_block_id
-    WHERE b.bucket_type = 'DISCARD' AND tb.deleted_at IS NULL
-"""
-
 
 class RepositoryBase:
     """Every mixin talks to Aurora only through this client."""

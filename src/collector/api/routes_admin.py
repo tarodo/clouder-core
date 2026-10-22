@@ -84,9 +84,28 @@ def _handle_admin_coverage(
                 "no_isrc": int(row["no_isrc"]),
             }
         )
+    youtube_by_style: dict[int, list[dict[str, Any]]] = {}
+    for row in repository.youtube_stats_for_year(week_year):
+        try:
+            sid = int(row["beatport_style_id"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        youtube_by_style.setdefault(sid, []).append(
+            {
+                "week_number": int(row["week_number"]),
+                "total": int(row["total"]),
+                "found": int(row["found"]),
+                "review": int(row["review"]),
+                "not_found": int(row["not_found"]),
+                "pending": int(row["pending"]),
+            }
+        )
     for sid, style_entry in grouped.items():
         style_entry["spotify_weeks"] = sorted(
             spotify_by_style.get(sid, []), key=lambda w: w["week_number"]
+        )
+        style_entry["youtube_weeks"] = sorted(
+            youtube_by_style.get(sid, []), key=lambda w: w["week_number"]
         )
 
     return _json_response(

@@ -10,6 +10,15 @@ export interface SpotifyWeekStats {
   no_isrc: number;
 }
 
+export interface YoutubeWeekStats {
+  week_number: number;
+  total: number;
+  found: number;
+  review: number;
+  not_found: number;
+  pending: number;
+}
+
 export interface CoveragePayload {
   week_year: number;
   weeks_in_year: number;
@@ -30,6 +39,7 @@ export interface CoveragePayload {
       finished_at: string | null;
     }>;
     spotify_weeks: SpotifyWeekStats[];
+    youtube_weeks?: YoutubeWeekStats[];
   }>;
 }
 

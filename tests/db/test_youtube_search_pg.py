@@ -9,7 +9,6 @@ import pytest
 from collector.repositories import ClouderRepository
 from collector.user_deletion import delete_user
 
-SINCE = datetime(2026, 10, 15, tzinfo=UTC)
 T0 = datetime(2026, 10, 16, 12, tzinfo=UTC)
 
 
@@ -31,11 +30,11 @@ def _seed(pg) -> None:
         pg.execute(sql)
 
 
-def _track(pg, tid: str, created: datetime) -> None:
+def _track(pg, tid: str, published: date | None, created: datetime = T0) -> None:
     pg.execute(
         "INSERT INTO clouder_tracks (id, title, normalized_title, style_id, length_ms,"
-        " created_at, updated_at) VALUES (:id, :id, :id, 'st', 200000, :c, :c)",
-        {"id": tid, "c": created},
+        " publish_date, created_at, updated_at) VALUES (:id, :id, :id, 'st', 200000, :p, :c, :c)",
+        {"id": tid, "p": published, "c": created},
     )
 
 
@@ -47,29 +46,21 @@ def _cleanup_user(pg):
 
 
 def _world(pg) -> ClouderRepository:
+    # Ingest order differs from release order on purpose: the claim follows
+    # the release date, newest first, over the whole catalog.
     _seed(pg)
-    old = SINCE - timedelta(days=30)
-    _track(pg, "new-1", SINCE + timedelta(hours=1))
-    _track(pg, "new-2", SINCE + timedelta(hours=2))
-    _track(pg, "in-cat", old)
-    _track(pg, "in-open", old)
-    _track(pg, "in-done", old)
-    _track(pg, "archive", old)
-    pg.execute(
-        "INSERT INTO category_tracks (category_id, track_id, added_at) VALUES ('cat', 'in-cat', now())"
-    )
-    pg.execute(
-        "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at)"
-        " VALUES ('b-open', 'in-open', now()), ('b-done', 'in-done', now())"
-    )
+    _track(pg, "w41", date(2026, 10, 12), created=T0 - timedelta(days=60))
+    _track(pg, "w40", date(2026, 10, 5), created=T0)
+    _track(pg, "w40-late", date(2026, 10, 5), created=T0 + timedelta(hours=1))
+    _track(pg, "w01", date(2026, 1, 3), created=T0 + timedelta(hours=2))
+    _track(pg, "undated", None, created=T0 + timedelta(hours=3))
     return ClouderRepository(pg)
 
 
-def test_claim_takes_new_and_needed_old_newest_first(pg) -> None:
+def test_claim_goes_newest_release_first_over_the_whole_catalog(pg) -> None:
     repo = _world(pg)
-    rows = repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0, since=SINCE)
-    assert [r["id"] for r in rows][:2] == ["new-2", "new-1"]
-    assert {r["id"] for r in rows} == {"new-1", "new-2", "in-cat", "in-open"}
+    rows = repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0)
+    assert [r["id"] for r in rows] == ["w41", "w40-late", "w40", "w01", "undated"]
 
 
 def test_claim_takes_at_most_the_limit(pg) -> None:
@@ -82,61 +73,47 @@ def test_claim_takes_at_most_the_limit(pg) -> None:
     pg.execute("SET enable_hashjoin = off")
     pg.execute("SET enable_mergejoin = off")
     try:
-        rows = repo.claim_tracks_for_youtube_search(limit=1, claimed_at=T0, since=SINCE)
+        rows = repo.claim_tracks_for_youtube_search(limit=1, claimed_at=T0)
     finally:
         pg.execute("RESET ALL")
     stamped = pg.execute(
         "SELECT count(*) AS n FROM clouder_tracks WHERE youtube_searched_at IS NOT NULL"
     )
-    assert [r["id"] for r in rows] == ["new-2"]
+    assert [r["id"] for r in rows] == ["w41"]
     assert stamped[0]["n"] == 1
 
 
-def test_claim_skips_the_archive(pg) -> None:
+def test_second_claim_takes_the_next_releases(pg) -> None:
     repo = _world(pg)
-    ids = {
-        r["id"] for r in repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0, since=SINCE)
-    }
-    assert "archive" not in ids and "in-done" not in ids
-
-
-def test_second_claim_takes_nothing_already_claimed(pg) -> None:
-    repo = _world(pg)
-    first = repo.claim_tracks_for_youtube_search(limit=2, claimed_at=T0, since=SINCE)
-    second = repo.claim_tracks_for_youtube_search(
-        limit=10, claimed_at=T0 + timedelta(seconds=1), since=SINCE
-    )
-    assert not {r["id"] for r in first} & {r["id"] for r in second}
+    first = repo.claim_tracks_for_youtube_search(limit=2, claimed_at=T0)
+    second = repo.claim_tracks_for_youtube_search(limit=2, claimed_at=T0 + timedelta(seconds=1))
+    assert [r["id"] for r in first] == ["w41", "w40-late"]
+    assert [r["id"] for r in second] == ["w40", "w01"]
 
 
 def test_release_hands_back_only_unfinished_rows(pg) -> None:
     repo = _world(pg)
-    rows = repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0, since=SINCE)
+    rows = repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0)
     repo.mark_youtube_searched(track_id=rows[0]["id"], at=T0 + timedelta(seconds=5))
     released = repo.release_youtube_search_claim(claimed_at=T0)
     assert released == len(rows) - 1
-    again = repo.claim_tracks_for_youtube_search(
-        limit=10, claimed_at=T0 + timedelta(minutes=1), since=SINCE
-    )
+    again = repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0 + timedelta(minutes=1))
     assert rows[0]["id"] not in {r["id"] for r in again}
     assert len(again) == len(rows) - 1
 
 
-def test_has_tracks_and_ytmusic_flag(pg) -> None:
+def test_ytmusic_flag_and_inputs(pg) -> None:
     repo = _world(pg)
     pg.execute(
         "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status, created_at)"
-        " VALUES ('r1', 'new-1', 'ytmusic', '[]'::jsonb, 'no_match', now())"
+        " VALUES ('r1', 'w41', 'ytmusic', '[]'::jsonb, 'no_match', now())"
     )
-    assert repo.has_tracks_needing_youtube_search(since=SINCE)
-    rows = {
-        r["id"]: r
-        for r in repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0, since=SINCE)
-    }
-    assert rows["new-1"]["has_ytmusic"] is True
-    assert rows["new-2"]["has_ytmusic"] is False
-    assert rows["new-1"]["artists"] == ""
-    assert not repo.has_tracks_needing_youtube_search(since=SINCE)
+    pg.execute("UPDATE clouder_tracks SET mix_name = 'Extended Mix' WHERE id = 'w41'")
+    rows = {r["id"]: r for r in repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0)}
+    assert rows["w41"]["has_ytmusic"] is True
+    assert rows["w40"]["has_ytmusic"] is False
+    assert rows["w41"]["artists"] == ""
+    assert (rows["w41"]["mix_name"], rows["w40"]["mix_name"]) == ("Extended Mix", None)
 
 
 def test_comment_meta_carries_the_stored_video(pg) -> None:
@@ -145,34 +122,38 @@ def test_comment_meta_carries_the_stored_video(pg) -> None:
     _world(pg)
     pg.execute(
         "INSERT INTO vendor_track_map (clouder_track_id, vendor, vendor_track_id, match_type,"
-        " confidence, matched_at, payload) VALUES ('new-1', 'youtube', 'vidY', 'token', 1.0,"
+        " confidence, matched_at, payload) VALUES ('w41', 'youtube', 'vidY', 'token', 1.0,"
         " now(), '{}'::jsonb)"
     )
-    meta = CommentsRepository(pg).fetch_track_meta(["new-1", "new-2"])
-    assert meta["new-1"].youtube_video_id == "vidY"
-    assert meta["new-2"].youtube_video_id is None
+    meta = CommentsRepository(pg).fetch_track_meta(["w41", "w40"])
+    assert meta["w41"].youtube_video_id == "vidY"
+    assert meta["w40"].youtube_video_id is None
+
+
+def _outcomes(pg, repo) -> None:
+    # w41 found, w40 in review, w40-late not found; w01 and undated wait.
+    for tid in ("w41", "w40", "w40-late"):
+        repo.mark_youtube_searched(track_id=tid, at=T0 + timedelta(seconds=5))
+    pg.execute(
+        "INSERT INTO vendor_track_map (clouder_track_id, vendor, vendor_track_id, match_type,"
+        " confidence, matched_at, payload) VALUES"
+        " ('w41', 'ytmusic', 's1', 'fuzzy', 0.95, now(), '{}'::jsonb),"
+        " ('w41', 'youtube', 'v1', 'token', 1.0, now(), '{}'::jsonb)"
+    )
+    pg.execute(
+        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status, created_at)"
+        " VALUES ('r1', 'w40', 'ytmusic', '[]'::jsonb, 'pending', now()),"
+        " ('r2', 'w40-late', 'ytmusic', '[]'::jsonb, 'no_match', now())"
+    )
 
 
 def test_status_counts(pg) -> None:
     repo = _world(pg)
-    rows = repo.claim_tracks_for_youtube_search(limit=1, claimed_at=T0, since=SINCE)
-    repo.mark_youtube_searched(track_id=rows[0]["id"], at=T0 + timedelta(seconds=5))
-    pg.execute(
-        "INSERT INTO vendor_track_map (clouder_track_id, vendor, vendor_track_id, match_type,"
-        " confidence, matched_at, payload) VALUES"
-        " ('new-2', 'ytmusic', 's1', 'fuzzy', 0.95, now(), '{}'::jsonb),"
-        " ('new-2', 'youtube', 'v1', 'token', 1.0, now(), '{}'::jsonb)"
-    )
-    pg.execute(
-        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status, created_at)"
-        " VALUES ('r1', 'in-cat', 'ytmusic', '[]'::jsonb, 'pending', now()),"
-        " ('r2', 'in-open', 'ytmusic', '[]'::jsonb, 'no_match', now())"
-    )
-    counts = repo.youtube_search_counts(since=SINCE, recent_since=T0)
-    assert counts == {
-        "waiting": 3,
-        "searched_recently": 1,
-        "searched_total": 1,
+    _outcomes(pg, repo)
+    assert repo.youtube_search_counts(recent_since=T0) == {
+        "waiting": 2,
+        "searched_recently": 3,
+        "searched_total": 3,
         "matched": 1,
         "needs_review": 1,
         "not_found": 1,
@@ -180,80 +161,17 @@ def test_status_counts(pg) -> None:
     }
 
 
-PUBLISHED_SINCE = date(2026, 10, 3)  # Saturday-week W40
-
-
-def test_recent_releases_are_searched_whatever_their_ingest_date(pg) -> None:
-    # W40 tracks ingested before the launch would otherwise never be searched.
+def test_week_stats_split_each_style_week_into_outcomes(pg) -> None:
     repo = _world(pg)
-    old = SINCE - timedelta(days=30)
-    _track(pg, "w40", old)
-    _track(pg, "w39", old)
-    pg.execute("UPDATE clouder_tracks SET publish_date = '2026-10-05' WHERE id = 'w40'")
-    pg.execute("UPDATE clouder_tracks SET publish_date = '2026-09-28' WHERE id = 'w39'")
-    without = {
-        r["id"] for r in repo.claim_tracks_for_youtube_search(limit=20, claimed_at=T0, since=SINCE)
-    }
-    assert "w40" not in without
-    repo.release_youtube_search_claim(claimed_at=T0)
-    assert (
-        repo.youtube_search_counts(since=SINCE, recent_since=T0, published_since=PUBLISHED_SINCE)[
-            "waiting"
-        ]
-        == len(without) + 1
-    )
-    assert repo.has_tracks_needing_youtube_search(since=SINCE, published_since=PUBLISHED_SINCE)
-    rows = repo.claim_tracks_for_youtube_search(
-        limit=20, claimed_at=T0, since=SINCE, published_since=PUBLISHED_SINCE
-    )
-    ids = {r["id"] for r in rows}
-    assert "w40" in ids and "w39" not in ids and "archive" not in ids
-
-
-def test_claim_takes_labeled_tracks_of_closed_blocks(pg) -> None:
-    # DISCARD is a label wherever the block is; FAV (auto-filled) and a closed
-    # block's other auto buckets, a deleted block's labels and a deleted
-    # category's tracks stay in the archive.
-    repo = _world(pg)
-    old = SINCE - timedelta(days=30)
-    for tid in ("discarded", "faved", "in-deleted", "in-cat-gone"):
-        _track(pg, tid, old)
+    _outcomes(pg, repo)
     pg.execute(
-        "INSERT INTO categories (id, user_id, style_id, name, normalized_name, created_at,"
-        " updated_at, deleted_at) VALUES ('cat-gone', 'u1', 'st', 'Gone', 'gone', now(), now(), now())"
+        "INSERT INTO identity_map (source, entity_type, external_id, clouder_entity_type,"
+        " clouder_id, match_type, confidence, first_seen_at, last_seen_at) VALUES"
+        " ('beatport', 'style', '90', 'style', 'st', 'auto_create', 1.0, now(), now())"
     )
-    pg.execute(
-        "INSERT INTO category_tracks (category_id, track_id, added_at)"
-        " VALUES ('cat-gone', 'in-cat-gone', now())"
-    )
-    pg.execute(
-        "INSERT INTO triage_blocks (id, user_id, style_id, name, date_from, date_to, status,"
-        " created_at, updated_at, deleted_at) VALUES ('gone', 'u1', 'st', 'B3', '2026-09-19',"
-        " '2026-09-25', 'FINALIZED', now(), now(), now())"
-    )
-    pg.execute(
-        "INSERT INTO triage_buckets (id, triage_block_id, bucket_type, created_at) VALUES"
-        " ('b-discard', 'done', 'DISCARD', now()), ('b-fav', 'done', 'FAV', now()),"
-        " ('b-gone', 'gone', 'DISCARD', now())"
-    )
-    pg.execute(
-        "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at) VALUES"
-        " ('b-discard', 'discarded', now()), ('b-fav', 'faved', now()),"
-        " ('b-gone', 'in-deleted', now())"
-    )
-    ids = {
-        r["id"] for r in repo.claim_tracks_for_youtube_search(limit=20, claimed_at=T0, since=SINCE)
-    }
-    assert {"discarded", "in-cat", "in-open"} <= ids
-    assert not {"faved", "in-cat-gone", "in-deleted", "in-done", "archive"} & ids
-
-
-def test_claim_carries_the_mix_name(pg) -> None:
-    repo = _world(pg)
-    pg.execute("UPDATE clouder_tracks SET mix_name = 'Extended Mix' WHERE id = 'new-1'")
-    rows = {
-        r["id"]: r
-        for r in repo.claim_tracks_for_youtube_search(limit=10, claimed_at=T0, since=SINCE)
-    }
-    assert rows["new-1"]["mix_name"] == "Extended Mix"
-    assert rows["new-2"]["mix_name"] is None
+    rows = sorted(repo.youtube_stats_for_year(2026), key=lambda r: r["week_number"])
+    assert [
+        (int(r["week_number"]), r["total"], r["found"], r["review"], r["not_found"], r["pending"])
+        for r in rows
+    ] == [(1, 1, 0, 0, 0, 1), (40, 2, 0, 1, 1, 0), (41, 1, 1, 0, 0, 0)]
+    assert {r["beatport_style_id"] for r in rows} == {"90"}
