@@ -41,10 +41,12 @@ cov:             ## tests with the 80 % coverage gate
 
 lock:            ## re-lock Python deps after editing a requirements-*.in file
 	uv pip compile --universal --python-version 3.12 requirements-lambda.in -o requirements-lambda.txt
+	uv pip compile --universal --python-version 3.12 requirements-ml.in -o requirements-ml.txt
 	uv pip compile --universal --python-version 3.12 requirements-dev.in -o requirements-dev.txt
 
 upgrade:         ## re-lock Python deps at the newest versions the .in files allow
 	uv pip compile --universal --python-version 3.12 --upgrade requirements-lambda.in -o requirements-lambda.txt
+	uv pip compile --universal --python-version 3.12 --upgrade requirements-ml.in -o requirements-ml.txt
 	uv pip compile --universal --python-version 3.12 --upgrade requirements-dev.in -o requirements-dev.txt
 
 openapi:         ## regenerate docs/api/openapi.yaml and the frontend types

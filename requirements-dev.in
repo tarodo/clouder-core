@@ -1,5 +1,6 @@
-# Dev/test/CI tools on top of the Lambda runtime deps. Lock: `make lock`.
+# Dev/test/CI tools on top of the Lambda and ML worker runtime deps. Lock: `make lock`.
 -r requirements-lambda.in
+-r requirements-ml.in
 pytest
 pytest-cov
 boto3
