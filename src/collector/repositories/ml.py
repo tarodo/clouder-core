@@ -246,6 +246,21 @@ class MlMixin(RepositoryBase):
         )
         return bool(rows)
 
+    def ml_trigger_context(
+        self, *, user_id: str, block_id: str, bucket_id: str | None
+    ) -> dict[str, Any] | None:
+        """{style_id, bucket_type} of U's block and the bucket a move landed in (None: no bucket)."""
+        rows = self._data_api.execute(
+            """
+            SELECT tb.style_id,
+                   (SELECT b.bucket_type FROM triage_buckets b WHERE b.id = :bucket_id) AS bucket_type
+            FROM triage_blocks tb
+            WHERE tb.id = :block_id AND tb.user_id = :user_id
+            """,
+            {"user_id": user_id, "block_id": block_id, "bucket_id": bucket_id},
+        )
+        return rows[0] if rows else None
+
     def ml_upsert_predictions(
         self,
         *,

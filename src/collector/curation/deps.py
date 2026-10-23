@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..repositories import create_clouder_repository_from_env  # noqa: F401  (ml_triggers)
 from .categories_repository import (
     create_default_categories_repository,
 )

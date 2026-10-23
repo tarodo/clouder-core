@@ -53,8 +53,9 @@ openapi:         ## regenerate docs/api/openapi.yaml and the frontend types
 	$(PY) scripts/generate_openapi.py
 	cd frontend && pnpm api:types
 
-package:         ## build dist/collector.zip for Terraform
+package:         ## build dist/collector.zip and dist/ml_worker.zip for Terraform
 	PATH=$(abspath $(VENV)):$$PATH bash scripts/package_lambda.sh
+	PATH=$(abspath $(VENV)):$$PATH bash scripts/package_ml_lambda.sh
 
 frontend-test:   ## frontend typecheck, lint and unit tests
 	cd frontend && pnpm typecheck && pnpm lint && pnpm test

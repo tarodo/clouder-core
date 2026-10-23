@@ -10,6 +10,7 @@ locals {
     artist_enrichment    = aws_sqs_queue.artist_enrichment.name
     auto_enrich_dispatch = aws_sqs_queue.auto_enrich_dispatch.name
     comments_collect     = aws_sqs_queue.comments_collect.name
+    ml_jobs              = aws_sqs_queue.ml_jobs.name
   }
   api_dims = ["ApiId", aws_apigatewayv2_api.collector.id, "Stage", aws_apigatewayv2_stage.default.name]
 

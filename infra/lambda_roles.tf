@@ -108,6 +108,7 @@ module "role_curation" {
         aws_sqs_queue.vendor_match.arn,
         aws_sqs_queue.auto_enrich_dispatch.arn,
         aws_sqs_queue.comments_collect.arn,
+        aws_sqs_queue.ml_jobs.arn, # retrain triggers (curation/ml_triggers.py)
       ]
     },
     {
@@ -304,6 +305,25 @@ module "role_comments_collect_worker" {
       actions   = ["ssm:GetParameter"]
       resources = [for p in compact([var.youtube_api_key_ssm_parameter]) : "${local.ssm_parameter_arn}${p}"]
     },
+  ]
+}
+
+module "role_ml_worker" {
+  source               = "./modules/lambda_role"
+  permissions_boundary = local.role_boundary_arn
+  name                 = "${local.name_prefix}-ml-worker-role"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_assume.json
+  log_group_arn        = aws_cloudwatch_log_group.ml_worker.arn
+  statements = [
+    local.st_data_api,
+    local.st_db_secret,
+    { sid = "ReadProfiles", actions = ["s3:GetObject"], resources = ["${aws_s3_bucket.audio_features.arn}/features/*"] },
+    { sid = "Models", actions = ["s3:GetObject", "s3:PutObject"], resources = ["${aws_s3_bucket.audio_features.arn}/models/*"] },
+    # Unconditioned: S3 reports a missing profile as NoSuchKey only with ListBucket.
+    { sid = "ListFeatureStore", actions = ["s3:ListBucket"], resources = [aws_s3_bucket.audio_features.arn] },
+    { sid = "ConsumeMlJobs", actions = local.sqs_consume, resources = [aws_sqs_queue.ml_jobs.arn] },
+    # The scoring chain: each page enqueues the next.
+    { sid = "EnqueueMlJobs", actions = ["sqs:SendMessage"], resources = [aws_sqs_queue.ml_jobs.arn] },
   ]
 }
 

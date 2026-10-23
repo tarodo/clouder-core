@@ -363,3 +363,15 @@ def test_scoring_lookups(repo, pg) -> None:
         {"track_id": "s4", "video_id": "vid4", "style_id": "st2"},
     ]
     assert repo.ml_alive_categories(user_id=U, style_id=S) == ["ca", "cb"]
+
+
+def test_trigger_context(repo) -> None:
+    ctx = repo.ml_trigger_context
+    assert ctx(user_id=U, block_id="ob", bucket_id="ob-DISCARD") == {
+        "style_id": S,
+        "bucket_type": "DISCARD",
+    }
+    assert ctx(user_id=U, block_id="ob", bucket_id="ob-ca")["bucket_type"] == "STAGING"
+    assert ctx(user_id=U, block_id="ob", bucket_id="fb-NEW")["bucket_type"] == "NEW"  # a transfer
+    assert ctx(user_id=U, block_id="s2", bucket_id=None) == {"style_id": "st2", "bucket_type": None}
+    assert ctx(user_id="u2", block_id="ob", bucket_id=None) is None  # not hers

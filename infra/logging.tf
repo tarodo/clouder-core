@@ -63,6 +63,11 @@ resource "aws_cloudwatch_log_group" "comments_collect_worker" {
   retention_in_days = var.log_retention_days
 }
 
+resource "aws_cloudwatch_log_group" "ml_worker" {
+  name              = "/aws/lambda/${local.ml_worker_lambda_name}"
+  retention_in_days = var.log_retention_days
+}
+
 # ── DLQ depth alarms ─────────────────────────────────────────────
 
 locals {
@@ -75,6 +80,7 @@ locals {
     artist_enrichment    = aws_sqs_queue.artist_enrichment_dlq.name
     auto_enrich_dispatch = aws_sqs_queue.auto_enrich_dispatch_dlq.name
     comments_collect     = aws_sqs_queue.comments_collect_dlq.name
+    ml_jobs              = aws_sqs_queue.ml_jobs_dlq.name
   }
 }
 

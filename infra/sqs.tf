@@ -163,8 +163,8 @@ resource "aws_sqs_queue" "auto_enrich_dispatch" {
   })
 }
 
-# ── ML jobs queue: scoring requests from the feature upload ──────
-# The consumer Lambda comes later; until then messages wait (14 days).
+# ── ML jobs queue: retrains and scoring for the ML worker (lambda.tf) ──
+# Messages wait up to 14 days, so a queue filled while the worker is down drains later.
 
 resource "aws_sqs_queue" "ml_jobs_dlq" {
   name                      = local.ml_jobs_dlq_name

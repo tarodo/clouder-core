@@ -101,6 +101,7 @@ All functions share one Python package (`src/collector/`); each has its own entr
 | `artist-enricher-worker` | `collector.artist_enrichment_handler` | SQS | Multi-vendor LLM research on artists |
 | `auto-enrich-dispatch-worker` | `collector.auto_enrich_dispatch_handler` | SQS | Fans out label, artist and comment enrichment for a finalized triage block |
 | `comments-collect-worker` | `collector.comments_collect_handler` | SQS | Collects YouTube comments for one video per message |
+| `ml-worker` | `collector.ml_worker_handler` | SQS (`ml-jobs`) | Trains a user's triage-suggestion model of a style and scores its tracks; own zip via S3 (`scripts/package_ml_lambda.sh`) |
 | `backfill` | `collector.backfill_handler` | Step Functions | Plans and replays stored raw runs (dry run or apply) |
 | `data-quality` | `collector.data_quality_handler` | EventBridge (00:10 UTC) | Eleven read-only SQL checks → CloudWatch metrics |
 | `catalog-export` | `collector.catalog_export_handler` | EventBridge (00:00 UTC) | Nightly catalog snapshot into the lake (`bronze/catalog_export/`) |

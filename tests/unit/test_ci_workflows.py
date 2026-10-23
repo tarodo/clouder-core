@@ -44,9 +44,16 @@ def test_secrets_reach_shell_steps_only_through_env() -> None:
 
 def test_lambda_is_packaged_before_any_aws_credentials() -> None:
     for steps in (DEPLOY["jobs"]["deploy"]["steps"], PR["jobs"]["terraform"]["steps"]):
-        package = _first(steps, lambda s: "package_lambda.sh" in s.get("run", ""))
         creds = _first(steps, lambda s: "configure-aws-credentials" in s.get("uses", ""))
-        assert package < creds
+        for script in ("scripts/package_lambda.sh", "scripts/package_ml_lambda.sh"):
+            package = _first(steps, lambda s, script=script: s.get("run", "").strip() == script)
+            assert package < creds, script
+
+
+def test_ml_dependency_bumps_run_the_package_size_gate() -> None:
+    step = next(s for s in PR["jobs"]["changes"]["steps"] if "paths-filter" in s.get("uses", ""))
+    filters = yaml.safe_load(step["with"]["filters"])
+    assert {"requirements-ml.txt", "scripts/package_ml_lambda.sh"} <= set(filters["infra"])
 
 
 def test_frontend_dependencies_install_before_any_aws_credentials() -> None:

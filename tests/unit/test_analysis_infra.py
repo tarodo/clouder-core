@@ -124,3 +124,49 @@ def test_collector_gets_the_feature_store_env() -> None:
         "AUDIO_FEATURES_BUCKET" in collector and "aws_s3_bucket.audio_features.bucket" in collector
     )
     assert "ML_JOBS_QUEUE_URL" in collector and "aws_sqs_queue.ml_jobs.url" in collector
+
+
+def test_ml_worker_runs_its_own_zip_from_s3() -> None:
+    # Too big for a direct upload (> 50 MB zipped) and kept out of collector.zip.
+    obj = _resource("aws_s3_object", "ml_worker_zip")
+    assert "aws_s3_bucket.audio_features.id" in obj and '"lambda/ml_worker.zip"' in obj
+    assert "source_hash = filemd5(local.ml_worker_zip_file)" in obj
+    fn = re.sub(r"[ \t]+", " ", _resource("aws_lambda_function", "ml_worker"))
+    for line in (
+        'runtime = "python3.12"',
+        'handler = "collector.ml_worker_handler.lambda_handler"',
+        "s3_bucket = aws_s3_object.ml_worker_zip.bucket",
+        "s3_key = aws_s3_object.ml_worker_zip.key",
+        "s3_object_version = aws_s3_object.ml_worker_zip.version_id",
+        "memory_size = 10240",
+        "timeout = 900",  # the queue hides a message for 960 s, longer than a run
+        "source_code_hash = filebase64sha256(local.ml_worker_zip_file)",
+        "AUDIO_FEATURES_BUCKET = aws_s3_bucket.audio_features.bucket",
+        "ML_JOBS_QUEUE_URL = aws_sqs_queue.ml_jobs.url",
+    ):
+        assert line in fn, line
+    assert "local.lambda_zip_file" not in fn
+
+
+def test_ml_worker_takes_one_job_at_a_time_two_at_most() -> None:
+    esm = _resource("aws_lambda_event_source_mapping", "ml_jobs_queue")
+    assert "aws_sqs_queue.ml_jobs.arn" in esm and "aws_lambda_function.ml_worker.arn" in esm
+    assert re.search(r"batch_size\s*= 1\b", esm)
+    assert "maximum_concurrency = var.ml_worker_max_concurrency" in esm
+    variables = (INFRA / "variables.tf").read_text()
+    body = re.search(r'variable "ml_worker_max_concurrency" \{(.*?)\n\}', variables, re.S).group(1)
+    assert re.search(r"default\s*= 2\b", body)
+
+
+def test_curation_enqueues_retrains() -> None:
+    curation = _resource("aws_lambda_function", "curation")
+    assert "ML_JOBS_QUEUE_URL" in curation and "aws_sqs_queue.ml_jobs.url" in curation
+
+
+def test_ml_worker_is_watched() -> None:
+    tf = "\n".join(p.read_text() for p in INFRA.glob("*.tf"))
+    assert re.search(r"ml_worker\s*= aws_lambda_function\.ml_worker\.function_name", tf)  # errors
+    assert re.search(r"ml_jobs\s*= aws_sqs_queue\.ml_jobs_dlq\.name", tf)  # DLQ alarm
+    assert re.search(r"ml_jobs\s*= aws_sqs_queue\.ml_jobs\.name", tf)  # dashboard queue age
+    log_group = _resource("aws_cloudwatch_log_group", "ml_worker")
+    assert "/aws/lambda/${local.ml_worker_lambda_name}" in log_group
