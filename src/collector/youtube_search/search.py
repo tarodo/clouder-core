@@ -18,6 +18,7 @@ from ..providers.ytmusic.normalize import build_query, result_to_ref
 from ..vendor_match.scorer import (
     FuzzyScore,
     candidate_names_track,
+    same_version,
     score_candidate,
     version_rule_accepts,
 )
@@ -138,8 +139,9 @@ def search_track(
         seen = {r.vendor_track_id for r in refs}
         scored = _scored(refs + [r for r, _ in first_songs if r.vendor_track_id not in seen], q)
 
-    if scored and scored[0][1].total >= threshold:
-        res.match = scored[0]
+    top = scored[0] if scored else None
+    if top and top[1].total >= threshold and same_version(top[0].title, q.title, q.mix_name):
+        res.match = top
         return res
     # Below the threshold the best candidate is often the other version (the
     # original of a remix); the right one can sit lower, so try each in order.

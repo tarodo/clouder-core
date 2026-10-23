@@ -10,17 +10,47 @@ from collector.vendor_match.rescore import accept, artist_absent, close_absent, 
 NOW = datetime(2026, 10, 22, 12, tzinfo=UTC)
 
 
-def _review(pg, tid: str, *, mix: str | None, cand_title: str, score: float, **sims) -> None:
+def _artist(pg, track_id: str, name: str) -> None:
+    pg.execute(
+        "INSERT INTO clouder_artists (id, name, normalized_name, created_at, updated_at)"
+        " VALUES (:a, :n, lower(:n), now(), now()) ON CONFLICT DO NOTHING",
+        {"a": f"ar-{name}", "n": name},
+    )
+    pg.execute(
+        "INSERT INTO clouder_track_artists (track_id, artist_id) VALUES (:t, :a)",
+        {"t": track_id, "a": f"ar-{name}"},
+    )
+
+
+def _review(
+    pg,
+    tid: str,
+    *,
+    mix: str | None,
+    cand_title: str,
+    score: float,
+    cand_artist: str = "Zeta",
+    title: str = "Night Drive",
+    artist: str = "Zeta",
+    length_ms: int = 330000,
+    seconds: int = 201,
+    **sims,
+) -> None:
     pg.execute(
         "INSERT INTO clouder_tracks (id, title, normalized_title, mix_name, length_ms,"
-        " created_at, updated_at) VALUES (:id, 'Night Drive', 'night drive', :mix, 330000,"
-        " now(), now())",
-        {"id": tid, "mix": mix},
+        " created_at, updated_at) VALUES (:id, :title, lower(:title), :mix, :len, now(), now())",
+        {"id": tid, "title": title, "mix": mix, "len": length_ms},
     )
+    _artist(pg, tid, artist)
     candidates = [  # deliberately not sorted: the top one is picked by score
         {"ref": {"videoId": f"low-{tid}", "title": "Other"}, "score": 0.5},
         {
-            "ref": {"videoId": f"top-{tid}", "title": cand_title, "duration_seconds": 201},
+            "ref": {
+                "videoId": f"top-{tid}",
+                "title": cand_title,
+                "artists": [{"name": cand_artist}],
+                "duration_seconds": seconds,
+            },
             "score": score,
             "title_sim": sims.get("title_sim", 1.0),
             "artist_sim": sims.get("artist_sim", 1.0),
@@ -43,6 +73,7 @@ def _world(pg) -> None:
         "other-artist",
         mix="Original Mix",
         cand_title="Night Drive",
+        cand_artist="Somebody Else",
         score=0.82,
         artist_sim=0.55,
     )
@@ -87,9 +118,15 @@ def test_decide_reaches_past_a_higher_scored_original(pg) -> None:
         " created_at, updated_at) VALUES ('dsu', 'Don''t Shut Up', 'dont shut up',"
         " 'ISHNLV Remix', 201173, now(), now())"
     )
+    _artist(pg, "dsu", "DJ ORCUN")
     candidates = [
         {
-            "ref": {"videoId": "orig", "title": "Don't Shut Up", "duration_seconds": 197},
+            "ref": {
+                "videoId": "orig",
+                "title": "Don't Shut Up",
+                "artists": [{"name": "DJ ORCUN"}],
+                "duration_seconds": 197,
+            },
             "score": 0.9,
             "title_sim": 1.0,
             "artist_sim": 1.0,
@@ -99,6 +136,7 @@ def test_decide_reaches_past_a_higher_scored_original(pg) -> None:
             "ref": {
                 "videoId": "remix",
                 "title": "Don't Shut Up (ISHNLV Remix)",
+                "artists": [{"name": "DJ ORCUN"}],
                 "duration_seconds": 202,
             },
             "score": 0.817,
@@ -193,3 +231,25 @@ def test_reviews_no_candidate_of_which_names_our_artist_close(pg) -> None:
         json.loads(row["candidates"]) if isinstance(row["candidates"], str) else row["candidates"]
     )
     assert (row["status"], cands) == ("no_match", [])  # as a person's "Not on YouTube"
+
+
+def test_decide_rescores_with_the_current_scorer(pg) -> None:
+    # Stored when "XØRØ" and "Xoro" did not compare; folded, it is a plain match.
+    _review(
+        pg,
+        "xoro",
+        mix="Extended Mix",
+        cand_title="Syncopated",
+        score=0.65,
+        title="Syncopated",
+        artist="XØRØ",
+        cand_artist="Xoro",
+        length_ms=200000,
+        seconds=201,
+        artist_sim=0.25,
+        duration_ok=True,
+    )
+    (row,) = open_reviews(pg, after="", limit=10)
+    chosen = decide(row)
+    assert chosen["ref"]["videoId"] == "top-xoro"
+    assert chosen["match_type"] == "fuzzy" and chosen["score"] >= 0.92

@@ -21,7 +21,18 @@ people already made, so the threshold can be argued from data.
 
 YouTube Music score: `0.5 · title similarity + 0.4 · best artist similarity + 0.05 if the
 duration is within 3 s + 0.05 if the album name matches` (similarities are
-`difflib.SequenceMatcher` ratios on lower-cased, whitespace-normalized strings). The best
+`difflib.SequenceMatcher` ratios on folded strings, see below). An automatic match also needs
+the same version on both sides (`same_version`): no remix, dub, VIP and the like on one side only,
+and a remix of ours named after its remixer. This holds at the threshold too, since the original
+scores high for a remix of the same title.
+
+**Folding** (`vendor_match/textfold.py`). Names and titles are read as plain ASCII before they are compared. The tables come from the catalog's own artist names:
+- letters NFKD leaves whole: Ø→o, Æ→ae, ı→i, Đ→d, Ł→l, Ɇ→e;
+- Greek letters used as Latin lookalikes: Λ→a, Ξ→e, Δ→a, Θ→o (a Greek name is transliterated instead: "ΠΑΝΟΣ" is "panos");
+- symbols standing for letters: €→e, ∆▲△→a, ¥→y, $→s;
+- Cyrillic, transliterated: "ЛСП" is "lsp".
+
+Decorations and zero-width marks are dropped. Scripts without a Latin reading stay as they are. "XØRØ" scored 0.25 against "Xoro" before folding. The best
 candidate is accepted automatically at ≥ 0.92, or below it by the version rule (end of this
 page, `match_type = 'fuzzy_version'`); otherwise the top five are stored in
 `match_review_queue` and a person accepts one of them, pastes a URL, or rejects the track. That happens in a playlist (the track's YT Music popover) or week by week on Coverage. There, a cell's drawer counts the open reviews and links to `/admin/youtube-review`, which shows each track with its Spotify link and the candidates, each with a pick button and a YouTube link (`GET /admin/youtube/review`, `POST /admin/youtube/review/{track_id}`).
@@ -177,4 +188,4 @@ The rule only applies from 0.70 up, the lowest labelled band. That floor reads t
 - a distinctive word of the name is enough: "Dj SaeRo" is "Deejay SaeRo";
 - an alias inside our credit counts: "ORVEXA" in "Artem ORVEXA".
 
-A track whose names are all non-Latin, or whose candidates have no credits, is not judged. The artist alone is not enough either (`candidate_names_track`). The candidate's title must also be like ours: version-aware similarity ≥ 0.5, also against "Artist - Title" when the title names the artist, as video uploads do. Another song of the same artist on YouTube ("White Christmas" by Dax Hill for Khristian Dax's "This!") says nothing of this one. A single word of the name counts only in the credits: "punk" of "Punk Rock" in someone's title "Back To Punk" is not the artist. The owner accepted the cost: a 100-track sample of what this closes held 2 or 3 tracks an artist uploaded under another title (Cyrillic "СКУФ CLUB" for "Skuf", "Roar" for "Rugido"). As the owner put it, how an artist names an upload is their problem; the listeners come first. An early search (within the second-chance window) keeps its review for the second search. All 101 labelled same-recording matches pass the check. `scripts/rescore_ytmusic_review.py` closes existing reviews the same way: on 2026-10-23 the dry run closed 1,599 of 4,746. The stricter check closed 939 more the same day.
+A track whose names are all non-Latin, or whose candidates have no credits, is not judged. The artist alone is not enough either (`candidate_names_track`). The candidate's title must also be like ours: version-aware similarity ≥ 0.5, also against "Artist - Title" when the title names the artist, as video uploads do. Another song of the same artist on YouTube ("White Christmas" by Dax Hill for Khristian Dax's "This!") says nothing of this one. A single word of the name counts only in the credits: "punk" of "Punk Rock" in someone's title "Back To Punk" is not the artist. The owner accepted the cost: a 100-track sample of what this closes held 2 or 3 tracks an artist uploaded under another title (Cyrillic "СКУФ CLUB" for "Skuf", "Roar" for "Rugido"). As the owner put it, how an artist names an upload is their problem; the listeners come first. An early search (within the second-chance window) keeps its review for the second search. All 101 labelled same-recording matches pass the check. `scripts/rescore_ytmusic_review.py` closes existing reviews the same way: on 2026-10-23 the dry run closed 1,599 of 4,746. The stricter check closed 939 more the same day. The script scores stored candidates again with the current scorer, so a scorer change reaches the old queue. After folding, it accepted 20 more and closed 10.

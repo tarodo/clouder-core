@@ -197,3 +197,20 @@ def test_an_early_search_keeps_the_review_for_its_second_chance() -> None:
     )
     res, _ = run(_strangers(), q)
     assert res.outcome == "review" and res.no_match_reason is None
+
+
+def test_a_remix_is_not_taken_at_the_threshold_either() -> None:
+    # "Arevalo — I Want It (DJ Nick Jersey Remix)": the original scores 0.95
+    # (title, artist, album) and must still not stand in for the remix.
+    original = song("orig", title="Lost Track", seconds=210, album="Lost EP")
+    client = FakeClient({None: [original], "songs": [original]})
+    q = TrackQuery(
+        artists="Guri",
+        title="Lost Track",
+        duration_ms=200_000,
+        album="Lost EP",
+        need_song=True,
+        mix_name="DJ Nick Jersey Remix",
+    )
+    res, _ = run(client, q)
+    assert res.outcome == "review"
