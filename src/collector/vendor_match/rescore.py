@@ -17,7 +17,8 @@ from typing import Any
 
 from ..data_api import DataAPIClient
 from ..repositories import ClouderRepository, UpsertVendorMatchCmd
-from .scorer import FuzzyScore, version_rule_accepts
+from ..repositories.youtube_search import SECOND_CHANCE_DAYS
+from .scorer import FuzzyScore, artist_named, version_rule_accepts
 
 
 def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[str, Any]]:
@@ -30,6 +31,7 @@ def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[
                t.length_ms,
                (SELECT jsonb_agg(e ORDER BY (e->>'score')::numeric DESC NULLS LAST)
                 FROM jsonb_array_elements(q.candidates) e) AS candidates,
+               COALESCE(q.created_at < t.publish_date + :days * interval '1 day', FALSE) AS early,
                (SELECT string_agg(a.name, ', ' ORDER BY a.name)
                 FROM clouder_track_artists ta JOIN clouder_artists a ON a.id = ta.artist_id
                 WHERE ta.track_id = t.id) AS artists
@@ -41,7 +43,7 @@ def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[
         ORDER BY q.id
         LIMIT :limit
         """,
-        {"after": after, "limit": limit},
+        {"after": after, "limit": limit, "days": SECOND_CHANCE_DAYS},
     )
     for row in rows:
         if isinstance(row["candidates"], str):
@@ -72,6 +74,46 @@ def _accepts(row: Mapping[str, Any], cand: Mapping[str, Any]) -> bool:
 def decide(row: Mapping[str, Any]) -> dict[str, Any] | None:
     """The first stored candidate, best first, the version rule accepts."""
     return next((c for c in row["candidates"] if _accepts(row, c)), None)
+
+
+def artist_absent(row: Mapping[str, Any]) -> bool:
+    """No stored candidate names our artist, so YouTube does not have the
+    track; an early search waits for its second chance instead."""
+    if row.get("early"):
+        return False
+    ours = [a for a in (row.get("artists") or "").split(", ") if a]
+    verdicts = [
+        artist_named(
+            ours,
+            str((c.get("ref") or {}).get("title") or ""),
+            [str(a.get("name") or "") for a in (c.get("ref") or {}).get("artists") or []],
+        )
+        for c in row["candidates"]
+    ]
+    return bool(verdicts) and all(v is False for v in verdicts)
+
+
+def close_absent(client: DataAPIClient, rows: Iterable[Mapping[str, Any]], now: datetime) -> int:
+    """Close *rows* as not on YouTube, as a person's reject does (the open row
+    goes, an empty no_match row stays), in one transaction; returns how many."""
+    rows = list(rows)
+    if not rows:
+        return 0
+    repository = ClouderRepository(client)
+    with client.transaction() as tx:
+        for row in rows:
+            client.execute(
+                "DELETE FROM match_review_queue WHERE id = :id AND status = 'pending'",
+                {"id": row["review_id"]},
+                transaction_id=tx,
+            )
+            repository.mark_no_match(
+                clouder_track_id=row["track_id"],
+                vendor="ytmusic",
+                created_at=now,
+                transaction_id=tx,
+            )
+    return len(rows)
 
 
 def accept(client: DataAPIClient, rows: Iterable[Mapping[str, Any]], now: datetime) -> int:

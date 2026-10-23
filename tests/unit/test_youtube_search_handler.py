@@ -297,3 +297,11 @@ def test_a_normal_run_reconciles_once(monkeypatch) -> None:
     repo = Repo([track("t1")])
     run(monkeypatch, repo, Client([[song("s1")]]))
     assert repo.reconciled == 1 and repo.done == ["t1"]
+
+
+def test_strangers_only_close_as_not_on_youtube_unless_early(monkeypatch) -> None:
+    stranger = {**song("x"), "artists": [{"name": "Somebody Else"}]}
+    repo = Repo([track("t1"), {**track("t2"), "early": True}])
+    run(monkeypatch, repo, Client([[stranger], [], [], [stranger], [], []]))
+    assert repo.no_match == ["t1"]
+    assert repo.reviews == [("t2", 1)]

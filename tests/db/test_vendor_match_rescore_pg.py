@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from collector.vendor_match.rescore import accept, decide, open_reviews
+from collector.vendor_match.rescore import accept, artist_absent, close_absent, decide, open_reviews
 
 NOW = datetime(2026, 10, 22, 12, tzinfo=UTC)
 
@@ -137,3 +137,59 @@ def test_accept_links_the_track_and_closes_its_review(pg) -> None:
         "remix",
         "other-artist",
     }
+
+
+def _stranger_review(pg, tid: str, *, released: str, searched: datetime) -> None:
+    pg.execute(
+        "INSERT INTO clouder_artists (id, name, normalized_name, created_at, updated_at)"
+        " VALUES (:a, 'Tenzia', 'tenzia', now(), now()) ON CONFLICT DO NOTHING",
+        {"a": "ar-tenzia"},
+    )
+    pg.execute(
+        "INSERT INTO clouder_tracks (id, title, normalized_title, mix_name, publish_date,"
+        " created_at, updated_at) VALUES (:id, 'Splinter', 'splinter', 'Original Mix',"
+        " CAST(:p AS date), now(), now())",
+        {"id": tid, "p": released},
+    )
+    pg.execute(
+        "INSERT INTO clouder_track_artists (track_id, artist_id) VALUES (:t, 'ar-tenzia')",
+        {"t": tid},
+    )
+    candidates = [
+        {
+            "ref": {"videoId": f"c-{tid}", "title": "Splinter", "artists": [{"name": "Candiria"}]},
+            "score": 0.6,
+            "title_sim": 1.0,
+            "artist_sim": 0.2,
+            "duration_ok": False,
+        },
+        {
+            "ref": {"videoId": f"q-{tid}", "title": "Splinter", "artists": [{"name": "Quench"}]},
+            "score": 0.58,
+            "title_sim": 1.0,
+            "artist_sim": 0.1,
+            "duration_ok": False,
+        },
+    ]
+    pg.execute(
+        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status,"
+        " created_at) VALUES (:id, :t, 'ytmusic', CAST(:c AS jsonb), 'pending', :at)",
+        {"id": f"q-{tid}", "t": tid, "c": json.dumps(candidates), "at": searched},
+    )
+
+
+def test_reviews_no_candidate_of_which_names_our_artist_close(pg) -> None:
+    _stranger_review(pg, "late", released="2026-09-01", searched=NOW)
+    _stranger_review(pg, "early", released="2026-10-21", searched=NOW)  # second chance pending
+    rows = {r["track_id"]: r for r in open_reviews(pg, after="", limit=10)}
+    assert decide(rows["late"]) is None
+    assert artist_absent(rows["late"]) is True
+    assert artist_absent(rows["early"]) is False
+    assert close_absent(pg, [rows["late"]], NOW) == 1
+    (row,) = pg.execute(
+        "SELECT status, candidates FROM match_review_queue WHERE clouder_track_id = 'late'"
+    )
+    cands = (
+        json.loads(row["candidates"]) if isinstance(row["candidates"], str) else row["candidates"]
+    )
+    assert (row["status"], cands) == ("no_match", [])  # as a person's "Not on YouTube"

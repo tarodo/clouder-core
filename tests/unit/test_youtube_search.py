@@ -172,3 +172,28 @@ def test_the_rule_reaches_past_a_higher_scored_original() -> None:
 
     assert res.outcome == "auto" and res.match[0].vendor_track_id == "remix"
     assert res.match_reason == "version_rule"
+
+
+def _strangers():
+    # Same title, other artists: what YouTube returns for a track it lacks.
+    a = song("a", artist="Candiria", seconds=250)
+    b = song("b", artist="Quench", seconds=190)
+    return FakeClient({None: [a, b], "songs": [a, b]})
+
+
+def test_no_candidate_naming_our_artist_means_not_on_youtube() -> None:
+    res, _ = run(_strangers())
+    assert res.outcome == "no_match" and res.no_match_reason == "artist_absent"
+
+
+def test_an_early_search_keeps_the_review_for_its_second_chance() -> None:
+    q = TrackQuery(
+        artists="Guri",
+        title="Lost Track",
+        duration_ms=200_000,
+        album="Lost EP",
+        need_song=True,
+        early=True,
+    )
+    res, _ = run(_strangers(), q)
+    assert res.outcome == "review" and res.no_match_reason is None
