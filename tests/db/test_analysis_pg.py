@@ -311,3 +311,109 @@ def test_claim_goes_strictly_newest_release_first(repo, pg) -> None:
     ids = [r["track_id"] for r in rows]
     assert ids[:4] == ["fresh", "in-cat", "discarded", "in-triage"]
     assert len(ids) == len(set(ids))
+
+
+def _seed_triage(pg) -> None:
+    """u1 with category cat; an open block ob (NEW, DISCARD, STAGING of cat) and a finalized
+    block fb (NEW, DISCARD)."""
+    pg.execute(
+        "INSERT INTO users (id, spotify_id, display_name, email, created_at, updated_at)"
+        " VALUES ('u1', 'sp', 'N', 'u1@example.com', now(), now())"
+    )
+    pg.execute(
+        "INSERT INTO categories (id, user_id, style_id, name, normalized_name, created_at,"
+        " updated_at) VALUES ('cat', 'u1', 'st', 'C', 'c', now(), now())"
+    )
+    for block, status in (("ob", "IN_PROGRESS"), ("fb", "FINALIZED")):
+        pg.execute(
+            "INSERT INTO triage_blocks (id, user_id, style_id, name, date_from, date_to, status,"
+            " created_at, updated_at) VALUES (:b, 'u1', 'st', :b, '2026-10-01', '2026-10-07', :s,"
+            " now(), now())",
+            {"b": block, "s": status},
+        )
+    for bucket, block, kind, category in (
+        ("ob-new", "ob", "NEW", None),
+        ("ob-dis", "ob", "DISCARD", None),
+        ("ob-stg", "ob", "STAGING", "cat"),
+        ("fb-new", "fb", "NEW", None),
+        ("fb-dis", "fb", "DISCARD", None),
+    ):
+        pg.execute(
+            "INSERT INTO triage_buckets (id, triage_block_id, bucket_type, category_id, inactive,"
+            " created_at) VALUES (:id, :b, :k, :c, FALSE, now())",
+            {"id": bucket, "b": block, "k": kind, "c": category},
+        )
+
+
+def _buckets(pg, track_id: str) -> list[str]:
+    rows = pg.execute(
+        "SELECT triage_bucket_id AS b FROM triage_bucket_tracks WHERE track_id = :t ORDER BY 1",
+        {"t": track_id},
+    )
+    return [r["b"] for r in rows]
+
+
+def test_ai_flag_takes_the_track_out_of_play(repo, pg) -> None:
+    _seed_triage(pg)
+    # mid waits in the open block's staging (and sits in the finalized block's NEW), old in the
+    # open NEW; new was kept in cat from the finalized block and carries a tag.
+    pg.execute(
+        "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at) VALUES"
+        " ('ob-stg', 'mid', now()), ('fb-new', 'mid', now()), ('ob-new', 'old', now())"
+    )
+    pg.execute(
+        "INSERT INTO category_tracks (category_id, track_id, added_at, source_triage_block_id)"
+        " VALUES ('cat', 'new', now(), 'fb')"
+    )
+    pg.execute(
+        "INSERT INTO user_tags (id, user_id, name, normalized_name, color, created_at, updated_at)"
+        " VALUES ('tag', 'u1', 'T', 't', 'red', now(), now())"
+    )
+    pg.execute(
+        "INSERT INTO track_tags (user_id, track_id, tag_id, created_at)"
+        " VALUES ('u1', 'new', 'tag', now())"
+    )
+    repo.claim_analysis(limit=3, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
+    items = [
+        _ok("new", ai=True, analyzer="ai_lofcz"),
+        _ok("mid", ai=True, analyzer="ai_lofcz"),
+        _ok("old", analyzer="ai_lofcz"),
+    ]
+    repo.record_analysis_results(lease_id=L1, items=items, now=T0)
+    assert _buckets(pg, "mid") == ["fb-new", "ob-dis"]  # out of the open staging; fb untouched
+    assert _buckets(pg, "old") == ["ob-new"]
+    assert _buckets(pg, "new") == ["fb-dis"]  # left cat for the DISCARD of its source block
+    assert not pg.execute("SELECT 1 FROM category_tracks WHERE track_id = 'new'")
+    assert not pg.execute("SELECT 1 FROM track_tags WHERE track_id = 'new'")
+
+
+def test_new_block_puts_ai_flagged_tracks_in_discard(repo, pg) -> None:
+    from datetime import date
+
+    from collector.curation.triage_repository import TriageRepository
+
+    pg.execute(
+        "INSERT INTO users (id, spotify_id, display_name, email, created_at, updated_at)"
+        " VALUES ('u1', 'sp', 'N', 'u1@example.com', now(), now())"
+    )
+    pg.execute(
+        "UPDATE clouder_tracks SET publish_date = '2026-10-03', spotify_release_date = '2026-10-03'"
+    )
+    repo.claim_analysis(limit=3, analyzers=["ai_deezer"], lease_id=L1, now=T0)
+    repo.record_analysis_results(
+        lease_id=L1,
+        items=[_ok("new", ai=True, analyzer="ai_deezer"), _ok("mid", analyzer="ai_deezer")],
+        now=T0,
+    )
+    block = TriageRepository(pg).create_block(
+        user_id="u1",
+        style_id="st",
+        name="W",
+        date_from=date(2026, 10, 1),
+        date_to=date(2026, 10, 7),
+    )
+    discard = next(b.id for b in block.buckets if b.bucket_type == "DISCARD")
+    rows = pg.execute(
+        "SELECT track_id FROM triage_bucket_tracks WHERE triage_bucket_id = :b", {"b": discard}
+    )
+    assert [r["track_id"] for r in rows] == ["new"]  # a Deezer-only flag (badge "low") counts too

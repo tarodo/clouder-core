@@ -26,7 +26,59 @@ _LOFCZ, _DEEZER = (
 )
 AI_VERDICT_SQL = f"""CASE WHEN {_LOFCZ} THEN CASE WHEN {_DEEZER} THEN 'high' ELSE 'medium' END
     WHEN {_DEEZER} THEN 'low' END AS ai_verdict"""
+# Any badge level: the owner's rule sends such a track to DISCARD.
+AI_FLAGGED_SQL = f"({_LOFCZ} OR {_DEEZER})"
 LEASE_SECONDS = 1800
+
+# The owner's rule (2026-10-23): an AI-flagged track never stays in play. In every open block it moves to
+# DISCARD from whatever bucket holds it (STAGING too); kept in a category, it leaves the category for the
+# DISCARD bucket of the block it came from (nowhere when it was added by hand). Finalized blocks stay as
+# they were. One statement: the CTEs see one snapshot, so the moves cannot chase each other.
+_DISCARD_AI = f"""
+WITH flagged AS (
+    SELECT t.id FROM clouder_tracks t WHERE t.id IN ({{ids}}) AND {AI_FLAGGED_SQL}
+), open_rows AS (
+    SELECT x.triage_bucket_id, x.track_id, d.id AS discard_id
+    FROM triage_bucket_tracks x
+    JOIN flagged f ON f.id = x.track_id
+    JOIN triage_buckets b ON b.id = x.triage_bucket_id AND b.bucket_type <> 'DISCARD'
+    JOIN triage_blocks tb ON tb.id = b.triage_block_id
+     AND tb.status = 'IN_PROGRESS' AND tb.deleted_at IS NULL
+    JOIN triage_buckets d ON d.triage_block_id = tb.id AND d.bucket_type = 'DISCARD'
+), unbucketed AS (
+    DELETE FROM triage_bucket_tracks x USING open_rows o
+    WHERE x.triage_bucket_id = o.triage_bucket_id AND x.track_id = o.track_id
+    RETURNING o.discard_id, x.track_id
+), uncategorized AS (
+    DELETE FROM category_tracks ct USING flagged f WHERE ct.track_id = f.id
+    RETURNING ct.track_id, ct.source_triage_block_id
+), discarded AS (
+    INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at)
+    SELECT s.discard_id, s.track_id, :now FROM (
+        SELECT discard_id, track_id FROM unbucketed
+        UNION
+        SELECT d.id, u.track_id FROM uncategorized u
+        JOIN triage_buckets d
+          ON d.triage_block_id = u.source_triage_block_id AND d.bucket_type = 'DISCARD'
+    ) s
+    ON CONFLICT (triage_bucket_id, track_id) DO NOTHING
+    RETURNING 1
+)
+SELECT (SELECT count(*) FROM unbucketed) AS moved,
+       (SELECT count(*) FROM uncategorized) AS uncategorized,
+       (SELECT string_agg(DISTINCT track_id, ',') FROM uncategorized) AS uncategorized_ids
+"""
+
+# Tags live with category membership (see TagsRepository.cleanup_orphaned_track_tags): a track that left
+# every alive category of a user loses that user's tags.
+_UNTAG = """
+DELETE FROM track_tags tt
+WHERE tt.track_id IN ({ids})
+  AND NOT EXISTS (
+      SELECT 1 FROM category_tracks ct JOIN categories c ON c.id = ct.category_id
+      WHERE ct.track_id = tt.track_id AND c.user_id = tt.user_id AND c.deleted_at IS NULL)
+RETURNING 1
+"""
 
 # A row blocks a (track, analyzer) pair unless it is a lease that ran out.
 _HELD = "NOT (a.status = 'leased' AND a.leased_until < :now)"
@@ -147,11 +199,52 @@ class AnalysisMixin(RepositoryBase):
                 """,
                 {"service": SERVICE, "now": now},
             )
+        flagged = sorted(
+            {
+                i["track_id"]
+                for i in items
+                if (i["track_id"], i["analyzer"]) in accepted
+                and i["analyzer"] in PAIR_ANALYZERS
+                and i.get("status") == "ok"
+                and (i.get("result") or {}).get("ai_detected") is True
+            }
+        )
+        if flagged:
+            self.discard_ai_tracks(track_ids=flagged, now=now)
         return [
             {"track_id": i["track_id"], "analyzer": i["analyzer"], "reason": "lease_lost"}
             for i in items
             if (i["track_id"], i["analyzer"]) not in accepted
         ]
+
+    def discard_ai_tracks(self, *, track_ids: list[str], now: datetime) -> dict[str, int]:
+        """Apply the AI rule (_DISCARD_AI) to those of *track_ids* that a detector flags, then drop
+        the tags of tracks that left every category of their user. Returns the counts."""
+        if not track_ids:
+            return {"moved": 0, "uncategorized": 0, "untagged": 0}
+        # Data API lists bind as JSON, not text[]: one placeholder per id (see playlists_repository).
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        ids = {f"t{i}": t for i, t in enumerate(track_ids)}
+        with self._data_api.transaction() as tx_id:
+            (row,) = self._data_api.execute(
+                _DISCARD_AI.format(ids=placeholders), {**ids, "now": now}, transaction_id=tx_id
+            )
+            untagged = 0
+            if row["uncategorized_ids"]:
+                left = row["uncategorized_ids"].split(",")
+                marks = ", ".join(f":u{i}" for i in range(len(left)))
+                untagged = len(
+                    self._data_api.execute(
+                        _UNTAG.format(ids=marks),
+                        {f"u{i}": t for i, t in enumerate(left)},
+                        transaction_id=tx_id,
+                    )
+                )
+        return {
+            "moved": int(row["moved"]),
+            "uncategorized": int(row["uncategorized"]),
+            "untagged": untagged,
+        }
 
     def analysis_status(self, *, now: datetime) -> dict[str, Any]:
         state = self._data_api.execute(

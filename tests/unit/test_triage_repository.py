@@ -255,6 +255,10 @@ def test_create_block_classify_sql_includes_filters_and_case() -> None:
     assert "old_bucket_id" in params
     assert "not_bucket_id" in params
     assert "unclassified_bucket_id" in params
+    # The AI rule is the first branch: a flagged track goes to DISCARD before likes or dates.
+    first = sql.split("CASE", 1)[1].split("WHEN", 2)[1]
+    assert "track_analyses" in first and "THEN :discard_bucket_id" in first
+    assert params["discard_bucket_id"] == "t-3"
 
 
 def test_create_block_classify_sql_includes_disliked_branch_and_offset() -> None:
