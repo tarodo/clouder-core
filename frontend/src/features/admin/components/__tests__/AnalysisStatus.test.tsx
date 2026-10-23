@@ -18,8 +18,10 @@ function status(over: Partial<Status> = {}): Status {
     last_result_at: hoursAgo(5),
     analyzers: [
       { name: 'ai_detect', due: 120, leased: 0, ok: 3400, ai_detected: 41, failed: 12, unusable_source: 3 },
+      { name: 'ai_lofcz', due: 7, leased: 0, ok: 900, ai_detected: 8, failed: 6, unusable_source: 2 },
     ],
-    pair: { high: 17, medium: 230, low: 64 },
+    pair: { high: 3745, medium: 151, low: 224, clean: 14952 },
+    queue: { waiting: 41633, analyzed: 19072, failed: 82, unusable: 25 },
     ...over,
   };
 }
@@ -36,26 +38,45 @@ function renderWith(body: Status) {
   );
 }
 
+// The label and its number sit side by side in one item.
+const item = (label: string) => screen.getByText(label).parentElement;
+
 describe('AnalysisStatus', () => {
-  it('shows the last run and the counts per analyzer', async () => {
+  it('shows the last run and the last result', async () => {
     renderWith(status());
     expect(await screen.findByText('AI analysis')).toBeInTheDocument();
-    expect(screen.getByText(/^Last run/)).toBeInTheDocument();
+    expect(screen.getByText(/^Last run .*ago$/)).toBeInTheDocument();
     expect(screen.getByText(/^Last result .*ago$/)).toBeInTheDocument();
-    expect(screen.getByText('120')).toBeInTheDocument();
-    expect(screen.getByText('3,400')).toBeInTheDocument();
-    expect(screen.getByText('41')).toBeInTheDocument();
-    expect(screen.getByText('12')).toBeInTheDocument();
   });
 
-  it('shows the track counts per AI level', async () => {
+  it('shows the pair levels with the track badge colors, and the clean count', async () => {
     renderWith(status());
-    expect(await screen.findByText('AI · both detectors')).toBeInTheDocument();
-    expect(screen.getByText('17')).toBeInTheDocument();
-    expect(screen.getByText('AI · lofcz only')).toBeInTheDocument();
-    expect(screen.getByText('230')).toBeInTheDocument();
-    expect(screen.getByText('AI · Deezer only')).toBeInTheDocument();
-    expect(screen.getByText('64')).toBeInTheDocument();
+    await screen.findByText('AI analysis');
+    for (const [label, value, level] of [
+      ['Both detectors', '3,745', 'high'],
+      ['lofcz only', '151', 'medium'],
+      ['Deezer only', '224', 'low'],
+    ] as const) {
+      expect(item(label)).toHaveTextContent(`AI${label}${value}`);
+      expect(item(label)?.querySelector('[data-level]')).toHaveAttribute('data-level', level);
+    }
+    expect(item('Clean')).toHaveTextContent('Clean14,952');
+  });
+
+  it("shows the pair's queue", async () => {
+    renderWith(status());
+    expect(await screen.findByText('Queue:')).toBeInTheDocument();
+    expect(item('Waiting')).toHaveTextContent('Waiting41,633');
+    expect(item('Analyzed')).toHaveTextContent('Analyzed19,072');
+    expect(item('Unavailable')).toHaveTextContent('Unavailable82');
+    expect(item('No usable audio')).toHaveTextContent('No usable audio25');
+  });
+
+  it('shows no per-analyzer blocks', async () => {
+    const { container } = renderWith(status());
+    await screen.findByText('AI analysis');
+    expect(container).not.toHaveTextContent(/ai_detect|ai_lofcz|AI detected/);
+    for (const n of ['120', '3,400', '41', '12']) expect(screen.queryByText(n)).toBeNull();
   });
 
   it('warns when the analyzer has not called in for days', async () => {
@@ -66,6 +87,7 @@ describe('AnalysisStatus', () => {
   it('says so when the analyzer never ran', async () => {
     renderWith(status({ last_claim_at: null, last_result_at: null, analyzers: [] }));
     expect(await screen.findByText('Never ran')).toBeInTheDocument();
+    expect(screen.queryByText(/^Last result|No results yet/)).toBeNull();
   });
 
   it('says when the analyzer claims but has not posted a result yet', async () => {

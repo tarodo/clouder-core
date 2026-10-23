@@ -93,4 +93,11 @@ describe('demo handlers', () => {
     const res = await get('/triage/blocks/nope');
     expect(res.status).toBe(404);
   });
+
+  it('serves the AI analysis card: pair levels and queue', async () => {
+    const status = await (await get('/admin/analysis/status')).json();
+    expect(Object.keys(status.pair).sort()).toEqual(['clean', 'high', 'low', 'medium']);
+    expect(Object.keys(status.queue).sort()).toEqual(['analyzed', 'failed', 'unusable', 'waiting']);
+    expect(status.queue.waiting).toBeGreaterThan(0);
+  });
 });

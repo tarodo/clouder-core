@@ -316,7 +316,8 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
           { name: 'ai_deezer', due: 37, leased: 0, ok: 3412, ai_detected: 96, failed: 12, unusable_source: 3 },
           { name: 'ai_lofcz', due: 37, leased: 0, ok: 3412, ai_detected: 58, failed: 12, unusable_source: 3 },
         ],
-        pair: { high: 41, medium: 17, low: 55 },
+        pair: { high: 41, medium: 17, low: 55, clean: 3290 },
+        queue: { waiting: 37, analyzed: 3403, failed: 12, unusable: 3 },
       }),
     },
     {
