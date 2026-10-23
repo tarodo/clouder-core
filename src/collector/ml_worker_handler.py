@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import asdict
 from datetime import datetime
@@ -93,6 +94,7 @@ def _retrain(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, An
     user_id, style_id = msg["user_id"], msg["style_id"]
     previous = repo.ml_model(user_id=user_id, style_id=style_id)
     version = previous["version"] if previous else 0
+    now = utc_now()  # the labels' snapshot: later placements count toward the next retrain
     labels = _labels(repo, user_id, style_id)
     video_ids, keep, category = training_rows(labels)
     present, X = vectors(video_ids, s3_fetcher(s3, bucket))
@@ -100,16 +102,21 @@ def _retrain(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, An
     rows = [i for i, v in enumerate(video_ids) if v in profiled]  # in `present` order
     model = train(X, keep[rows], [category[i] for i in rows])
     if model is None:
-        repo.ml_clear_retrain_request(user_id=user_id, style_id=style_id)
+        # Never trained: restart the 150-label count at the snapshot. A model exists: leave the
+        # request pending (an hour), so later taps do not re-enqueue a retrain that cannot train.
+        if version == 0:
+            repo.ml_mark_too_few_labels(user_id=user_id, style_id=style_id, now=now)
         log_event(
             "INFO", "ml_retrain_too_few_labels", user_id=user_id, style_id=style_id, count=len(rows)
         )
         return
-    trained_at = previous["trained_at"] if previous else None
+    # Version 0 has no model, so no predictions to score (its trained_at only restarts the count).
+    trained_at = previous["trained_at"] if previous and version > 0 else None
     metrics = {**_metrics(repo, user_id, style_id, trained_at, labels), "cv": model.cv}
-    key = f"models/{user_id}/{style_id}/v{version + 1}.npz"
-    # ponytail: a duplicate retrain of the pair can overwrite this key before it loses the save below;
-    # both train on the same labels. Save first, then put, if that ever matters.
+    # A per-attempt key: a duplicate retrain of the pair racing this one writes its own file, so the
+    # row the save below keeps always names its own model.
+    # ponytail: the losing attempt's file stays in S3 as an orphan (~1 MB); a cleanup if races recur.
+    key = f"models/{user_id}/{style_id}/v{version + 1}-{uuid.uuid4().hex[:12]}.npz"
     s3.put_object(Bucket=bucket, Key=key, Body=to_npz(model))
     saved = repo.ml_save_model(
         user_id=user_id,
@@ -121,7 +128,7 @@ def _retrain(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, An
         classes=list(model.category.classes) if model.category else None,
         metrics=metrics,
         artifact_key=key,
-        now=utc_now(),
+        now=now,
     )
     log_event(
         "INFO",

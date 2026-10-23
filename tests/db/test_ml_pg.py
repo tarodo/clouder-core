@@ -251,6 +251,9 @@ def test_upsert_never_downgrades_version(repo, pg) -> None:
     _track(pg, "k1", "v1")
     assert _upsert(repo, 2, [_pred(0.75)], at(1)) == 1
     assert _upsert(repo, 1, [_pred(0.25)], at(2)) == 0  # an older model's late page
+    assert _upsert(repo, 2, [_pred(0.5)], at(2)) == 1  # a retried page of the same model
+    assert repo.ml_predictions(user_id=U, style_id=S, track_ids=["k1"])["k1"]["keep_score"] == 0.5
+    assert _upsert(repo, 2, [_pred(0.75)], at(2)) == 1
     stored = {
         "model_version": 2,
         "keep_score": 0.75,
@@ -285,10 +288,41 @@ def test_request_retrain_dedupes_within_hour(repo, pg) -> None:
     assert repo.ml_request_retrain(user_id=U, style_id=S, now=at(1.5))  # an hour old: lost
     assert _save(repo, 0, at(1.6))  # the save clears the request
     assert repo.ml_request_retrain(user_id=U, style_id=S, now=at(1.7))
-    repo.ml_clear_retrain_request(user_id=U, style_id=S)  # too few labels to train
-    assert repo.ml_request_retrain(user_id=U, style_id=S, now=at(1.8))
     pg.execute("UPDATE ml_models SET trained_at = :t", {"t": at(1.9)})  # trained since
     assert repo.ml_request_retrain(user_id=U, style_id=S, now=at(2))
+
+
+def test_too_few_labels_restarts_the_count_of_a_new_pair(repo, pg) -> None:
+    for t in ("a", "b"):
+        _track(pg, t, f"v_{t}")
+    _put(pg, "ob-DISCARD", "a", at(1))
+    assert repo.ml_request_retrain(user_id=U, style_id=S, now=at(2))
+    assert repo.ml_labels_since_training(user_id=U, style_id=S) == 1
+    repo.ml_mark_too_few_labels(user_id=U, style_id=S, now=at(2))  # labels read at 2
+    model = repo.ml_model(user_id=U, style_id=S)
+    assert (model["version"], model["trained_at"], model["retrain_requested_at"]) == (
+        0,
+        at(2),
+        None,
+    )
+    assert repo.ml_labels_since_training(user_id=U, style_id=S) == 0
+    _put(pg, "ob-DISCARD", "b", at(3))
+    assert repo.ml_labels_since_training(user_id=U, style_id=S) == 1
+    assert repo.ml_models_for_style(style_id=S) == []  # still no model
+    repo.ml_mark_too_few_labels(user_id="u2", style_id=S, now=at(2))  # a hand-sent retrain
+    assert repo.ml_model(user_id="u2", style_id=S)["trained_at"] == at(2)
+
+
+def test_too_few_labels_never_touches_a_trained_model(repo) -> None:
+    assert _save(repo, 0, at(1))
+    assert repo.ml_request_retrain(user_id=U, style_id=S, now=at(2))
+    repo.ml_mark_too_few_labels(user_id=U, style_id=S, now=at(3))
+    model = repo.ml_model(user_id=U, style_id=S)
+    assert (model["version"], model["trained_at"], model["retrain_requested_at"]) == (
+        1,
+        at(1),
+        at(2),
+    )
 
 
 def test_labels_since_training_counts_moves(repo, pg) -> None:

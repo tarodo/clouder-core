@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 from datetime import UTC, datetime, timedelta
 
 import numpy as np
@@ -46,10 +47,21 @@ class FakeS3:
 class FakeSQS:
     def __init__(self) -> None:
         self.messages: list[dict] = []
+        self.fail = False
 
     def send_message(self, *, QueueUrl, MessageBody):
         assert QueueUrl == "https://sqs/ml-jobs"
+        if self.fail:
+            raise RuntimeError("sqs down")
         self.messages.append(json.loads(MessageBody))
+
+
+CLOCK: list[datetime] = []  # every utc_now() reading of the worker
+
+
+def _now() -> datetime:
+    CLOCK.append(NOW)
+    return NOW
 
 
 class FakeRepo:
@@ -59,14 +71,18 @@ class FakeRepo:
         self.tracks = list(tracks)  # {track_id, video_id, style_id}
         self.models = models or {}  # style_id -> ml_models_for_style rows
         self.predictions = predictions or {}
+        self.save_ok = True
         self.saved: list[dict] = []
-        self.cleared: list[tuple[str, str]] = []
+        self.marked: list[tuple[str, str, datetime]] = []
+        self.clock_at_labels: int | None = None
         self.upserts: list[tuple[str, str, int, list[dict]]] = []
 
     def ml_model(self, *, user_id, style_id):
         return self.model
 
     def ml_labels(self, *, user_id, style_id, after_track_id=None, limit=2000):
+        if self.clock_at_labels is None:
+            self.clock_at_labels = len(CLOCK)
         return [r for r in self.labels if r["track_id"] > (after_track_id or "")][:limit]
 
     def ml_predictions(self, *, user_id, style_id, track_ids):
@@ -77,10 +93,10 @@ class FakeRepo:
 
     def ml_save_model(self, **kw):
         self.saved.append(kw)
-        return True
+        return self.save_ok
 
-    def ml_clear_retrain_request(self, *, user_id, style_id):
-        self.cleared.append((user_id, style_id))
+    def ml_mark_too_few_labels(self, *, user_id, style_id, now):
+        self.marked.append((user_id, style_id, now))
 
     def ml_style_tracks(self, *, style_id, after_track_id=None, limit=2000):
         rows = [t for t in self.tracks if t["style_id"] == style_id]
@@ -122,7 +138,8 @@ def run(monkeypatch):
     monkeypatch.setenv("AUDIO_FEATURES_BUCKET", BUCKET)
     monkeypatch.setenv("ML_JOBS_QUEUE_URL", "https://sqs/ml-jobs")
     monkeypatch.setattr(worker, "_MODELS", {})
-    monkeypatch.setattr(worker, "utc_now", lambda: NOW)
+    CLOCK.clear()
+    monkeypatch.setattr(worker, "utc_now", _now)
     sqs = FakeSQS()
     monkeypatch.setattr("collector.ml_jobs._build_sqs_client", lambda: sqs)
 
@@ -133,6 +150,7 @@ def run(monkeypatch):
         assert worker.lambda_handler({"Records": records}, None) == {"processed": len(records)}
         return sqs
 
+    _run.sqs = sqs  # type: ignore[attr-defined]
     return _run
 
 
@@ -174,12 +192,17 @@ NO_METRICS = {
 }
 
 
-def test_retrain_too_few_labels_writes_nothing(run) -> None:
+@pytest.mark.parametrize("version", [None, 0, 2])
+def test_retrain_too_few_labels_writes_nothing(run, version: int | None) -> None:
+    """Never trained: the label count restarts at the snapshot. A model exists: the request stays
+    pending (an hour), so taps do not re-enqueue a retrain that cannot train."""
     labels, features = _world(n_each=5)
-    repo, s3 = FakeRepo(labels=labels), FakeS3(features)
+    model = None if version is None else {"version": version, "trained_at": None}
+    repo, s3 = FakeRepo(model=model, labels=labels), FakeS3(features)
     sqs = run(repo, s3, RETRAIN)
     assert repo.saved == [] and sqs.messages == []
-    assert repo.cleared == [(U, S)]
+    assert repo.marked == ([] if version else [(U, S, NOW)])
+    assert repo.clock_at_labels == 1  # the snapshot time is read before the labels
     assert not any(k.startswith("models/") for k in s3.objects)
 
 
@@ -221,8 +244,10 @@ def test_retrain_saves_artifact_and_enqueues_scoring(run, previous: bool) -> Non
     s3 = FakeS3(features)
     sqs = run(repo, s3, RETRAIN)
     version = 3 if previous else 1
-    key = f"models/{U}/{S}/v{version}.npz"
     (saved,) = repo.saved
+    key = saved["artifact_key"]
+    assert re.fullmatch(rf"models/{U}/{S}/v{version}-[0-9a-f]{{12}}\.npz", key)
+    assert repo.clock_at_labels == 1  # trained_at is the labels' snapshot time
     stored = saved.pop("metrics")
     assert set(stored.pop("cv")) == {"keep_auc", "category_bacc"}
     assert stored == metrics
@@ -240,6 +265,7 @@ def test_retrain_saves_artifact_and_enqueues_scoring(run, previous: bool) -> Non
     }
     model = ml.from_npz(s3.objects[key])
     assert (model.keep_threshold, model.n_labels) == (threshold, 140)
+    assert [k for k in s3.objects if k.startswith("models/")] == [key]
     assert sqs.messages == [
         {
             "type": "score_style",
@@ -249,6 +275,24 @@ def test_retrain_saves_artifact_and_enqueues_scoring(run, previous: bool) -> Non
             "after_track_id": None,
         }
     ]
+
+
+def test_retrain_superseded_save_enqueues_nothing(run) -> None:
+    """Another retrain of the pair saved first: its scoring runs; this attempt's file is an orphan."""
+    labels, features = _world()
+    repo, s3 = FakeRepo(labels=labels), FakeS3(features)
+    repo.save_ok = False
+    sqs = run(repo, s3, RETRAIN)
+    assert len(repo.saved) == 1 and sqs.messages == []
+    assert repo.marked == [] and repo.upserts == []
+    assert [k for k in s3.objects if k.startswith("models/")] == [repo.saved[0]["artifact_key"]]
+
+
+def test_retrain_enqueue_failure_raises(run) -> None:
+    labels, features = _world()
+    run.sqs.fail = True
+    with pytest.raises(RuntimeError, match="sqs down"):  # SQS redrives the retrain
+        run(FakeRepo(labels=labels), FakeS3(features), RETRAIN)
 
 
 def _tiny_model() -> ml.Model:
@@ -266,12 +310,12 @@ def _track(track_id: str, style: str = S) -> dict:
     return {"track_id": track_id, "video_id": f"v_{track_id}", "style_id": style}
 
 
-def test_score_style_pages_and_stops_on_newer_version(run, monkeypatch) -> None:
-    monkeypatch.setattr(worker, "PAGE", 2)
+def _style_world() -> tuple[FakeRepo, FakeS3, dict]:
+    """Model v1 of (U, S); the style has t1, t2 and t3 (no profile); t4 is another style."""
     key = f"models/{U}/{S}/v1.npz"
     features = _features({"v_t1": _vector(x0=2, x1=-1), "v_t2": _vector(x0=-2, x1=1)})
     s3 = FakeS3({key: ml.to_npz(_tiny_model()), **features})
-    tracks = [_track("t1"), _track("t2"), _track("t3"), _track("t4", "st2")]  # t3: no profile
+    tracks = [_track("t1"), _track("t2"), _track("t3"), _track("t4", "st2")]
     repo = FakeRepo(model={"version": 1, "artifact_key": key}, tracks=tracks)
     first = {
         "type": "score_style",
@@ -280,6 +324,12 @@ def test_score_style_pages_and_stops_on_newer_version(run, monkeypatch) -> None:
         "model_version": 1,
         "after_track_id": None,
     }
+    return repo, s3, first
+
+
+def test_score_style_pages_and_stops_on_newer_version(run, monkeypatch) -> None:
+    monkeypatch.setattr(worker, "PAGE", 2)
+    repo, s3, first = _style_world()
     sqs = run(repo, s3, first)
     (page,) = repo.upserts
     assert page[:3] == (U, S, 1)
@@ -298,6 +348,27 @@ def test_score_style_pages_and_stops_on_newer_version(run, monkeypatch) -> None:
     run(repo, s3, first)
     assert [r["track_id"] for *_, rows in repo.upserts for r in rows] == scored
     assert sqs.messages == []
+
+
+def test_score_style_next_page_send_failure_raises(run, monkeypatch) -> None:
+    """The chain must not end silently: the record fails, SQS redrives it, the page is re-scored."""
+    monkeypatch.setattr(worker, "PAGE", 2)
+    repo, s3, first = _style_world()
+    run.sqs.fail = True
+    with pytest.raises(RuntimeError, match="sqs down"):
+        run(repo, s3, first)
+    run.sqs.fail = False
+    run(repo, s3, first)  # the redrive
+    assert len(repo.upserts) == 2 and repo.upserts[0] == repo.upserts[1]  # same version: rewrite
+    assert run.sqs.messages == [first | {"after_track_id": "t2"}]
+
+
+def test_score_style_without_queue_url_raises(run, monkeypatch) -> None:
+    monkeypatch.setattr(worker, "PAGE", 2)
+    monkeypatch.delenv("ML_JOBS_QUEUE_URL")
+    repo, s3, first = _style_world()
+    with pytest.raises(RuntimeError, match="ML_JOBS_QUEUE_URL"):
+        run(repo, s3, first)
 
 
 def test_score_new_videos_uses_style_models(run) -> None:

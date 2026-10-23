@@ -309,10 +309,16 @@ class MlMixin(RepositoryBase):
         )
         return bool(rows)
 
-    def ml_clear_retrain_request(self, *, user_id: str, style_id: str) -> None:
-        """A retrain that found too few labels: the next trigger may enqueue again."""
+    def ml_mark_too_few_labels(self, *, user_id: str, style_id: str, now: datetime) -> None:
+        """A never-trained pair (version 0) that found too few labels at *now*, the labels' snapshot:
+        trained_at = now restarts the 150-label count and the request clears; version stays 0 (no
+        model). A trained model is left alone: its request stays pending for the hour."""
         self._data_api.execute(
-            "UPDATE ml_models SET retrain_requested_at = NULL"
-            " WHERE user_id = :user_id AND style_id = :style_id",
-            {"user_id": user_id, "style_id": style_id},
+            """
+            INSERT INTO ml_models (user_id, style_id, trained_at) VALUES (:user_id, :style_id, :now)
+            ON CONFLICT (user_id, style_id) DO UPDATE
+                SET trained_at = EXCLUDED.trained_at, retrain_requested_at = NULL
+            WHERE ml_models.version = 0
+            """,
+            {"user_id": user_id, "style_id": style_id, "now": now},
         )
