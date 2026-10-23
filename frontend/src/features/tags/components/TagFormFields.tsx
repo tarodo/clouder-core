@@ -1,6 +1,6 @@
 import { Button, Group, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { zodResolver } from 'mantine-form-zod-resolver';
+import { zod4Resolver } from 'mantine-form-zod-resolver';
 import { useTranslation } from 'react-i18next';
 import { createTagSchema, type CreateTagInput } from '../lib/tagSchemas';
 import { ColorSwatchPicker } from './ColorSwatchPicker';
@@ -29,7 +29,7 @@ export function TagFormFields({
   const { t } = useTranslation();
   const form = useForm<CreateTagInput>({
     initialValues: { name: initialName, color: initialColor },
-    validate: zodResolver(createTagSchema),
+    validate: zod4Resolver(createTagSchema),
   });
 
   const errorMap: Record<string, string> = {

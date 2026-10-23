@@ -138,7 +138,7 @@ def test_ml_worker_runs_its_own_zip_from_s3() -> None:
         "s3_bucket = aws_s3_object.ml_worker_zip.bucket",
         "s3_key = aws_s3_object.ml_worker_zip.key",
         "s3_object_version = aws_s3_object.ml_worker_zip.version_id",
-        "memory_size = 10240",
+        "memory_size = 3008",
         "timeout = 900",  # the queue hides a message for 960 s, longer than a run
         "source_code_hash = filebase64sha256(local.ml_worker_zip_file)",
         "AUDIO_FEATURES_BUCKET = aws_s3_bucket.audio_features.bucket",
