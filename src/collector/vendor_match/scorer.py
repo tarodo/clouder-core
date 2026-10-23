@@ -211,17 +211,45 @@ def artist_named(
     names = [w for w in (_name_words(_TAG.sub(" ", a)) for a in our_artists) if w]
     if not names:
         return None
-    hay_words = _name_words(candidate_title + " " + " ".join(candidate_artists))
-    hay = f" {' '.join(hay_words)} "
+    # The full name counts in the title too ("feat." credits often live there).
+    hay = f" {' '.join(_name_words(candidate_title + ' ' + ' '.join(candidate_artists)))} "
     if any(f" {' '.join(w)} " in hay for w in names):
         return True
-    distinctive = {t for w in names for t in w if len(t) >= 4 and t not in _GENERIC_NAME_WORDS}
-    if distinctive & set(hay_words):
-        return True
-    if not any(_name_words(a) for a in candidate_artists):
+    credit_words = [_name_words(a) for a in candidate_artists]
+    if not any(credit_words):
         return None  # no credits: the title alone cannot rule our artist out
+    # A single word of the name only in the credits: "punk" of "Punk Rock" in
+    # someone's title "Back To Punk" is not the artist.
+    distinctive = {t for w in names for t in w if len(t) >= 4 and t not in _GENERIC_NAME_WORDS}
+    if distinctive & {t for w in credit_words for t in w}:
+        return True
     ours = f" {' '.join(t for w in names for t in w)} "
-    return any(
-        len("".join(w)) >= 3 and f" {' '.join(w)} " in ours
-        for w in (_name_words(a) for a in candidate_artists)
-    )
+    return any(len("".join(w)) >= 3 and f" {' '.join(w)} " in ours for w in credit_words)
+
+
+# Owner's labelled same-recording matches go down to 0.57; another song of the
+# same artist ("White Christmas" for "This!") sits at 0.34.
+ARTIST_CHECK_MIN_TITLE_SIM = 0.5
+
+
+def candidate_names_track(
+    our_artists: Sequence[str],
+    title: str,
+    mix_name: str | None,
+    candidate_title: str,
+    candidate_artists: Sequence[str],
+) -> bool | None:
+    """Is the candidate our track by its artist and title? The artist alone is
+    not enough: another song of theirs on YouTube says nothing of this one.
+    None when the artist cannot be judged (see artist_named)."""
+    named = artist_named(our_artists, candidate_title, candidate_artists)
+    if named is None:
+        return None
+    sims = [version_title_sim(candidate_title, title, mix_name)]
+    # Video uploads read "Artist - Title (Official Video)".
+    cand = f" {' '.join(_name_words(candidate_title))} "
+    for artist in our_artists:
+        words = _name_words(_TAG.sub(" ", artist))
+        if words and f" {' '.join(words)} " in cand:
+            sims.append(version_title_sim(candidate_title, f"{artist} - {title}", mix_name))
+    return named and max(sims) >= ARTIST_CHECK_MIN_TITLE_SIM

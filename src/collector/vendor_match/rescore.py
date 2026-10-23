@@ -18,7 +18,7 @@ from typing import Any
 from ..data_api import DataAPIClient
 from ..repositories import ClouderRepository, UpsertVendorMatchCmd
 from ..repositories.youtube_search import SECOND_CHANCE_DAYS
-from .scorer import FuzzyScore, artist_named, version_rule_accepts
+from .scorer import FuzzyScore, candidate_names_track, version_rule_accepts
 
 
 def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[str, Any]]:
@@ -77,14 +77,16 @@ def decide(row: Mapping[str, Any]) -> dict[str, Any] | None:
 
 
 def artist_absent(row: Mapping[str, Any]) -> bool:
-    """No stored candidate names our artist, so YouTube does not have the
-    track; an early search waits for its second chance instead."""
+    """No stored candidate is our artist with a like title, so YouTube does
+    not have the track; an early search waits for its second chance instead."""
     if row.get("early"):
         return False
     ours = [a for a in (row.get("artists") or "").split(", ") if a]
     verdicts = [
-        artist_named(
+        candidate_names_track(
             ours,
+            str(row["title"] or ""),
+            row.get("mix_name"),
             str((c.get("ref") or {}).get("title") or ""),
             [str(a.get("name") or "") for a in (c.get("ref") or {}).get("artists") or []],
         )

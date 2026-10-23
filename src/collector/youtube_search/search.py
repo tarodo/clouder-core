@@ -17,7 +17,7 @@ from ..providers.youtube.video_match import video_matches
 from ..providers.ytmusic.normalize import build_query, result_to_ref
 from ..vendor_match.scorer import (
     FuzzyScore,
-    artist_named,
+    candidate_names_track,
     score_candidate,
     version_rule_accepts,
 )
@@ -155,16 +155,19 @@ def search_track(
     )
     if versioned is not None:
         res.match, res.match_reason = versioned, "version_rule"
-    elif not q.early and _no_candidate_names_artist(scored, q.artists):
+    elif not q.early and _no_candidate_is_ours(scored, q):
         res.no_match_reason = "artist_absent"
     else:
         res.review = scored[:REVIEW_TOP_N]
     return res
 
 
-def _no_candidate_names_artist(scored: list[Scored], artists: str) -> bool:
-    """Candidates exist and none names one of our artists (owner: "the artist is
-    nowhere in the results, so the track is not there")."""
-    ours = [a for a in artists.split(", ") if a]
-    verdicts = [artist_named(ours, ref.title, ref.artist_names) for ref, _ in scored]
+def _no_candidate_is_ours(scored: list[Scored], q: TrackQuery) -> bool:
+    """Candidates exist and none is our artist with a like title (owner: "the
+    artist is nowhere in the results, so the track is not there")."""
+    ours = [a for a in q.artists.split(", ") if a]
+    verdicts = [
+        candidate_names_track(ours, q.title, q.mix_name, ref.title, ref.artist_names)
+        for ref, _ in scored
+    ]
     return bool(verdicts) and all(v is False for v in verdicts)

@@ -9,6 +9,7 @@ from collector.settings import reset_settings_cache
 from collector.vendor_match.scorer import (
     FuzzyScore,
     artist_named,
+    candidate_names_track,
     score_candidate,
     version_rule_accepts,
     version_title_sim,
@@ -313,3 +314,47 @@ def test_a_candidate_without_credits_cannot_be_judged() -> None:
     # "Lead Time (Edit)" with no artist at all may still be Vandek's edit.
     assert artist_named(["Vandek"], "Lead Time (Edit)", []) is None
     assert artist_named(["Vandek"], "Lead Time (Vandek Edit)", []) is True
+
+
+@pytest.mark.parametrize(
+    ("ours", "title", "mix", "cand_title", "cand_artists"),
+    [
+        # A word of the name in someone else's title is not the artist.
+        (["Punk Rock"], "Back To You", "Extended Mix", "Back To Punk", ["G Anon"]),
+        # The artist named, but on another song of theirs.
+        (["Khristian Dax"], "This!", "Original Mix", "White Christmas", ["Dax Hill"]),
+        (
+            ["Ryan Summer"],
+            "U Make Me Want It",
+            "Extended Mix",
+            "Everything Makes Me Think Of U",
+            ["Ryan Shaw"],
+        ),
+        (["LKNV", "Amancay"], "Bicoastal", "Original Mix", "Camouflage", ["LKNV", "Amancay"]),
+    ],
+)
+def test_a_candidate_names_the_track_only_with_our_artist_and_a_like_title(
+    ours, title, mix, cand_title, cand_artists
+) -> None:
+    assert candidate_names_track(ours, title, mix, cand_title, cand_artists) is False
+
+
+def test_the_full_name_counts_in_the_title_too() -> None:
+    # "feat." credits often live in the title only.
+    assert candidate_names_track(
+        ["Maddy V"], "Why", "Radio Mix", "Why (Radio Mix) (feat. Blaxx & Maddy V)", ["Glitch City"]
+    )
+
+
+def test_a_credit_less_candidate_stays_unjudged() -> None:
+    assert (
+        candidate_names_track(["Vandek"], "Lead Time", "Extended Mix", "Lead Time (Edit)", [])
+        is None
+    )
+
+
+def test_a_video_titled_artist_dash_title_is_ours() -> None:
+    # Video uploads: "Guri - Lost Track (Official Video)" by a label channel.
+    assert candidate_names_track(
+        ["Guri"], "Lost Track", None, "Guri - Lost Track (Official Video)", ["Some Label"]
+    )
