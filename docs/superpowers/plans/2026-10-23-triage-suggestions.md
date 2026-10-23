@@ -237,7 +237,7 @@ first retrain.
 
 ---
 
-## PR A — clouder-analyzer (branch `feat/light-profile`, repo `/Users/roman/Projects/clouder-projects/clouder-analyzer`)
+## PR A — clouder-analyzer (branch `feat/light-profile`, repo `clouder-analyzer` (sibling checkout))
 
 **How the analyzer is tested.** Every test run happens on the PC.
 - Ship the tree with `git archive HEAD | ssh vorom@192.168.0.60 "rm -rf ca-dev && mkdir ca-dev && tar -x -C ca-dev"`, as a
@@ -270,7 +270,7 @@ first retrain.
   - exits 1 if any block is under 0.999, or on any NaN or missing file.
 
 **Steps:**
-- [ ] **Step 1: Port the lab code exactly.** The reference is `/Users/roman/Projects/HP/ai_detect/ideas/lab/lab/`:
+- [ ] **Step 1: Port the lab code exactly.** The reference is the owner's local lab repo `ai_detect/ideas/lab/lab/`:
   `audio.py` `Track.mono/mono_24k/mono_16k`, `extractors/{mulan,muq,effnet,musicnn}.py`, `hot.py` pooling.
   - Views: `mono = samples.mean(axis=0, dtype=float32)`; `resample_poly` with gcd ratios (24 kHz 80/147, 16 kHz 80/441).
   - Per-array dtype as in the lab:

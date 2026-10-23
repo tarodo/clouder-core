@@ -5,7 +5,7 @@ Date: 2026-10-23. Status: draft for owner review.
 ## Intent
 
 The owner triages ~400 new releases a week per style and keeps about 27 % of them. A lab study on 3 235 of his labelled DnB tracks
-(`/Users/roman/Projects/HP/ai_detect/ideas/reports/recommendations.md`, `protocol.md`) showed that a small audio profile
+(the owner's local lab repo, `ai_detect/ideas/reports/recommendations.md` and `protocol.md`) showed that a small audio profile
 predicts his decisions on artists the model has never seen:
 
 | task (4 light blocks, artist-grouped CV) | result |
@@ -98,7 +98,7 @@ GET bucket tracks / block  ◄── prediction per track, model line ── tri
 ## 1. The light profile, version `light-1`
 
 **The lab code is the reference, and v1 must reproduce it.** The lab's numbers rest on exactly these features. The code lives in
-`/Users/roman/Projects/HP/ai_detect/ideas/lab/lab/`:
+the owner's local lab repo `ai_detect/ideas/lab/lab/`:
 - `audio.py`: decode and the `mono_16k` / 24 kHz views;
 - `extractors/{mulan,muq,effnet,musicnn}.py`;
 - `hot.py`: track means.
