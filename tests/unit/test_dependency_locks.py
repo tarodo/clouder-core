@@ -30,10 +30,11 @@ def pinned(path: Path) -> dict[str, str]:
 
 
 def test_every_declared_dependency_is_pinned() -> None:
-    for name in ("requirements-lambda", "requirements-dev"):
+    for name in ("requirements-lambda", "requirements-ml", "requirements-dev"):
         missing = declared(ROOT / f"{name}.in") - set(pinned(ROOT / f"{name}.txt"))
         assert missing == set(), (name, missing)
     assert "-r requirements-lambda.in" in (ROOT / "requirements-dev.in").read_text()
+    assert "-r requirements-ml.in" in (ROOT / "requirements-dev.in").read_text()
     assert not (ROOT / "src" / "collector" / "requirements.txt").exists()
 
 
@@ -53,13 +54,19 @@ def test_ci_checks_locks_and_audits() -> None:
     run = "\n".join(s.get("run", "") for s in jobs["deps"]["steps"])
     assert "uv pip compile" in run and "git diff --exit-code" in run
     assert "pip-audit" in run and "pnpm audit --prod --audit-level high" in run
+    for name in ("requirements-lambda", "requirements-ml", "requirements-dev"):
+        assert f"{name}.in -o {name}.txt" in run, name
+        assert f"-r {name}.txt" in run, name
+        assert re.search(rf"git diff --exit-code .*{name}\.txt", run), name
 
 
 def test_shared_pins_are_equal() -> None:
     # Dependabot may bump one lock and not the other; CI must test what ships.
-    lam, dev = pinned(ROOT / "requirements-lambda.txt"), pinned(ROOT / "requirements-dev.txt")
-    assert {n: (v, dev[n]) for n, v in lam.items() if n in dev and dev[n] != v} == {}
-    assert set(lam) <= set(dev)
+    dev = pinned(ROOT / "requirements-dev.txt")
+    for name in ("requirements-lambda", "requirements-ml"):
+        lock = pinned(ROOT / f"{name}.txt")
+        assert {n: (v, dev[n]) for n, v in lock.items() if n in dev and dev[n] != v} == {}, name
+        assert set(lock) <= set(dev), name
 
 
 def test_ci_uses_a_pinned_uv_and_fails_on_test_failures() -> None:

@@ -10,10 +10,10 @@ CLOUDER uses two GitHub Actions workflows: `pr.yml` for pre-merge validation and
 |-----|-------------|-------|
 | `alembic-check` | `src/**`, `alembic/**`, `requirements*.txt` | Spin ephemeral Postgres 16, run `alembic upgrade head` twice (idempotency check), then the real-Postgres tests (`tests/db`, `TEST_DATABASE_URL`) |
 | `dbt` | `dbt/**` | `dbt seed` / `run --empty` / `build` on DuckDB with fixtures (unit + data tests), then `dbt parse --target prod` |
-| `terraform` | `infra/**` | `scripts/package_lambda.sh`, `terraform fmt -check`, then under the read-only role `clouder-prod-gha-plan`: `terraform init` (remote S3 backend), `terraform validate`, `terraform plan -var-file=prod.tfvars` with the deploy's `TF_VAR_*` inputs — the plan is what the deploy would apply ([ADR-0028](../adr/0028-ci-roles.md)). Dependabot PRs (no secrets) run `init -backend=false` + `validate` only |
+| `terraform` | `infra/**`, `requirements-ml.txt`, `scripts/package_ml_lambda.sh` | `scripts/package_lambda.sh` and `scripts/package_ml_lambda.sh` (its size gate), `terraform fmt -check`, then under the read-only role `clouder-prod-gha-plan`: `terraform init` (remote S3 backend), `terraform validate`, `terraform plan -var-file=prod.tfvars` with the deploy's `TF_VAR_*` inputs — the plan is what the deploy would apply ([ADR-0028](../adr/0028-ci-roles.md)). Dependabot PRs (no secrets) run `init -backend=false` + `validate` only |
 | `lint` | backend paths | `ruff check` and `ruff format --check` on `src tests scripts`, and `mypy` (untyped bodies checked; the core ingest/DQ modules strictly) — config in `pyproject.toml` |
 | `tests` | `src/**`, `tests/**` | `pytest -q --cov` with `PYTHONPATH=src`; fails under 80 % line coverage; TOTAL goes to the job summary |
-| `deps` | always | `uv pip compile` re-run must not change `requirements-*.txt`; `pip-audit` on both locks; `pnpm audit --prod --audit-level high` |
+| `deps` | always | `uv pip compile` re-run must not change `requirements-*.txt`; `pip-audit` on the three locks; `pnpm audit --prod --audit-level high` |
 | `frontend` | `frontend/**`, `docs/api/openapi.yaml` | `pnpm api:types` + diff-check `src/api/schema.d.ts` against `docs/api/openapi.yaml` (fails if out of sync), `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` |
 
 OpenAPI types check: if `docs/api/openapi.yaml` is updated without regenerating `frontend/src/api/schema.d.ts`, the `frontend` job fails. Run `pnpm api:types` from `frontend/` and commit the result.
@@ -22,7 +22,7 @@ Terraform backend: state bucket and lock table names come from GitHub Actions re
 
 ## Dependencies
 
-Declared in `requirements-lambda.in` (Lambda runtime; boto3 comes with the runtime) and `requirements-dev.in` (adds test and CI tools), locked into the matching `.txt` files with `uv pip compile --universal --python-version 3.12 <file>.in -o <file>.txt`. uv keeps existing pins, so recompiling only changes what an edited `.in` asks for; `--upgrade-package <name>` bumps one dependency. Dependabot opens weekly PRs for npm, GitHub Actions, Terraform and the dbt requirements; root Python locks are upgraded with `make upgrade` (Dependabot's own compile would fail the lock-drift check), and its pip security PRs need `make lock` on their branch.
+Declared in `requirements-lambda.in` (Lambda runtime; boto3 comes with the runtime), `requirements-ml.in` (the ML worker: numpy, scikit-learn) and `requirements-dev.in` (both of them plus test and CI tools), locked into the matching `.txt` files with `uv pip compile --universal --python-version 3.12 <file>.in -o <file>.txt`. uv keeps existing pins, so recompiling only changes what an edited `.in` asks for; `--upgrade-package <name>` bumps one dependency. Dependabot opens weekly PRs for npm, GitHub Actions, Terraform and the dbt requirements; root Python locks are upgraded with `make upgrade` (Dependabot's own compile would fail the lock-drift check), and its pip security PRs need `make lock` on their branch.
 
 ## Deploy pipeline
 
@@ -38,6 +38,7 @@ Order of steps:
    - Copies `alembic/` → `dist/lambda_build/db_migrations/` (packaging rename; code references `db_migrations` at Lambda runtime)
    - Produces `dist/collector.zip`
    - Runs, with the frontend build (`scripts/deploy_frontend.sh build`), before AWS credentials are configured: pip and pnpm run third-party install code.
+   - Then `scripts/package_ml_lambda.sh` builds `dist/ml_worker.zip` for the ML worker alone: Linux wheels of `requirements-ml.txt` plus `src/collector/`, test directories dropped, and it fails at 240 MB unzipped (Lambda's limit is 250 MB). Terraform uploads it to the feature bucket (`lambda/ml_worker.zip`), since it is over the 50 MB direct-upload limit.
 
 2. **Sync secrets to SSM Parameter Store** — pushes GitHub Secrets as SSM SecureStrings before Terraform runs, so Lambda env vars reference stable SSM paths:
    - `/clouder/gemini/api_key`, `/clouder/openai/api_key`, `/clouder/tavily/api_key`, `/clouder/deepseek/api_key`

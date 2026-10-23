@@ -562,10 +562,12 @@ def test_move_tracks_happy_path() -> None:
             [
                 {
                     "block_status": "IN_PROGRESS",
+                    "style_id": "s-1",
                     "from_id": "bk-from",
                     "from_inactive": False,
                     "to_id": "bk-to",
                     "to_inactive": False,
+                    "to_type": "DISCARD",
                 }
             ],
             ids_present,
@@ -584,7 +586,8 @@ def test_move_tracks_happy_path() -> None:
             "00000000-0000-0000-0000-000000000002",
         ],
     )
-    assert out.moved == 2
+    assert (out.moved, out.style_id, out.bucket_type) == (2, "s-1", "DISCARD")  # the ML trigger
+    assert "bt.bucket_type AS to_type" in api.execute.call_args_list[0].args[0]
     select_call = api.execute.call_args_list[1]
     delete_call = api.execute.call_args_list[2]
     insert_call = api.execute.call_args_list[3]
@@ -700,6 +703,7 @@ def test_transfer_tracks_happy_path() -> None:
                     "block_user_id": "u-1",
                     "block_style_id": "s-1",
                     "block_status": "IN_PROGRESS",
+                    "bucket_type": "STAGING",
                 }
             ],
             [
@@ -722,7 +726,8 @@ def test_transfer_tracks_happy_path() -> None:
             "00000000-0000-0000-0000-000000000002",
         ],
     )
-    assert out.transferred == 2
+    assert (out.transferred, out.style_id, out.bucket_type) == (2, "s-1", "STAGING")
+    assert "tbk.bucket_type" in api.execute.call_args_list[1].args[0]
     select_call = api.execute.call_args_list[2]
     insert_call = api.execute.call_args_list[3]
     assert "INSERT INTO triage_bucket_tracks" in insert_call.args[0]

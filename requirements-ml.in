@@ -1,0 +1,7 @@
+# ML worker Lambda runtime deps (boto3 comes with the runtime). Lock: `make lock`.
+-c requirements-lambda.txt  # shared deps (pydantic, structlog) at the collector's versions
+numpy>=2.2,<2.4  # as in the lab image that sklearn 1.7.2 ran with
+scikit-learn==1.7.2
+pydantic>=2.7
+pydantic-settings>=2.3
+structlog

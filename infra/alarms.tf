@@ -29,6 +29,7 @@ locals {
     artist_enricher      = aws_lambda_function.artist_enricher_worker.function_name
     auto_enrich_dispatch = aws_lambda_function.auto_enrich_dispatch_worker.function_name
     comments_collect     = aws_lambda_function.comments_collect_worker.function_name
+    ml_worker            = aws_lambda_function.ml_worker.function_name
     backfill             = aws_lambda_function.backfill.function_name
     catalog_export       = aws_lambda_function.catalog_export.function_name
     db_migration         = aws_lambda_function.db_migration.function_name

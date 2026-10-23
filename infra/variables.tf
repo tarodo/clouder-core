@@ -711,7 +711,7 @@ variable "auto_enrich_dispatch_worker_max_concurrency" {
 }
 
 variable "ml_jobs_queue_visibility_timeout_seconds" {
-  description = "SQS visibility timeout for the ml-jobs queue (above the future ML worker's timeout)."
+  description = "SQS visibility timeout for the ml-jobs queue (above the ML worker's 900 s timeout)."
   type        = number
   default     = 960
 }
@@ -726,6 +726,17 @@ variable "ml_jobs_queue_max_receive_count" {
   description = "Receives before an ml-jobs message is redriven to the DLQ."
   type        = number
   default     = 3
+}
+
+variable "ml_worker_max_concurrency" {
+  description = "SQS event-source maximum_concurrency for the ML worker (range 2-1000). Each run takes 10 GB for up to 15 min; retrains are rare."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.ml_worker_max_concurrency >= 2 && var.ml_worker_max_concurrency <= 1000
+    error_message = "maximum_concurrency must be between 2 and 1000 (AWS SQS event-source limit)."
+  }
 }
 
 variable "comments_collect_queue_visibility_timeout_seconds" {

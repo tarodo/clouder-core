@@ -22,6 +22,7 @@ from . import (
 )
 from .auto_enrich_dispatch import enqueue_block_auto_enrich
 from .http import _error, _json_response, _parse_body, _parse_pagination
+from .ml_triggers import after_labels
 from .schemas import (
     CreateTriageBlockIn,
     MoveTracksIn,
@@ -267,6 +268,8 @@ def _move_tracks(event, repo: TriageRepository, user_id: str, correlation_id: st
         to_bucket_id=schema.to_bucket_id,
         moved=out.moved,
     )
+    if out.moved:
+        after_labels(repo, user_id=user_id, style_id=out.style_id, bucket_type=out.bucket_type)
     return _json_response(
         200,
         {"moved": out.moved, "correlation_id": correlation_id},
@@ -295,6 +298,8 @@ def _transfer_tracks(event, repo: TriageRepository, user_id: str, correlation_id
         target_bucket_id=schema.target_bucket_id,
         transferred=out.transferred,
     )
+    if out.transferred:
+        after_labels(repo, user_id=user_id, style_id=out.style_id, bucket_type=out.bucket_type)
     return _json_response(
         200,
         {"transferred": out.transferred, "correlation_id": correlation_id},
@@ -327,6 +332,7 @@ def _finalize_triage_block(event, repo: TriageRepository, user_id: str, correlat
         promoted_count=sum(out.promoted.values()),
     )
     enqueue_block_auto_enrich(block_id=block_id, user_id=user_id)
+    after_labels(repo, user_id=user_id, style_id=out.block.style_id, finalized=True)
     return _json_response(
         200,
         {

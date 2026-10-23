@@ -44,6 +44,9 @@ jobs:
             infra:
               - 'infra/**'
               - '.github/workflows/pr.yml'
+              # The ML zip's size gate runs in the terraform job's packaging.
+              - 'requirements-ml.txt'
+              - 'scripts/package_ml_lambda.sh'
             dbt:
               - 'dbt/**'
               - '.github/workflows/pr.yml'
@@ -119,6 +122,10 @@ jobs:
       - name: Package Lambda
         working-directory: .
         run: scripts/package_lambda.sh
+
+      - name: Package ML worker Lambda
+        working-directory: .
+        run: scripts/package_ml_lambda.sh
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
@@ -205,11 +212,12 @@ jobs:
       - name: Locks match their .in files
         run: |
           uv pip compile --universal --python-version 3.12 requirements-lambda.in -o requirements-lambda.txt -q
+          uv pip compile --universal --python-version 3.12 requirements-ml.in -o requirements-ml.txt -q
           uv pip compile --universal --python-version 3.12 requirements-dev.in -o requirements-dev.txt -q
-          git diff --exit-code requirements-lambda.txt requirements-dev.txt
+          git diff --exit-code requirements-lambda.txt requirements-ml.txt requirements-dev.txt
 
       - name: Python vulnerabilities
-        run: uvx pip-audit -r requirements-lambda.txt -r requirements-dev.txt --progress-spinner off
+        run: uvx pip-audit -r requirements-lambda.txt -r requirements-ml.txt -r requirements-dev.txt --progress-spinner off
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10

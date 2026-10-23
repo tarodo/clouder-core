@@ -421,6 +421,56 @@ resource "aws_lambda_event_source_mapping" "auto_enrich_dispatch_queue" {
   }
 }
 
+# ── ML worker ────────────────────────────────────────────────────
+# Its own zip (numpy, scikit-learn: scripts/package_ml_lambda.sh), so collector.zip stays
+# small. Over the 50 MB direct-upload limit, so it goes through the feature bucket.
+
+resource "aws_s3_object" "ml_worker_zip" {
+  bucket      = aws_s3_bucket.audio_features.id
+  key         = "lambda/ml_worker.zip"
+  source      = local.ml_worker_zip_file
+  source_hash = filemd5(local.ml_worker_zip_file)
+}
+
+resource "aws_lambda_function" "ml_worker" {
+  function_name     = local.ml_worker_lambda_name
+  role              = module.role_ml_worker.arn
+  runtime           = "python3.12"
+  handler           = "collector.ml_worker_handler.lambda_handler"
+  s3_bucket         = aws_s3_object.ml_worker_zip.bucket
+  s3_key            = aws_s3_object.ml_worker_zip.key
+  s3_object_version = aws_s3_object.ml_worker_zip.version_id
+  # A retrain trains and scores the whole style in one run (spec §5 budget); under the
+  # ml-jobs visibility timeout (960 s).
+  timeout     = 900
+  memory_size = 10240
+
+  source_code_hash = filebase64sha256(local.ml_worker_zip_file)
+
+  environment {
+    variables = {
+      AURORA_CLUSTER_ARN    = aws_rds_cluster.aurora.arn
+      AURORA_SECRET_ARN     = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
+      AURORA_DATABASE       = var.aurora_database_name
+      AUDIO_FEATURES_BUCKET = aws_s3_bucket.audio_features.bucket
+      ML_JOBS_QUEUE_URL     = aws_sqs_queue.ml_jobs.url
+      LOG_LEVEL             = "INFO"
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.ml_worker]
+}
+
+resource "aws_lambda_event_source_mapping" "ml_jobs_queue" {
+  event_source_arn = aws_sqs_queue.ml_jobs.arn
+  function_name    = aws_lambda_function.ml_worker.arn
+  batch_size       = 1 # a retrain takes the whole run
+
+  scaling_config {
+    maximum_concurrency = var.ml_worker_max_concurrency
+  }
+}
+
 # ── Comments collect worker ──────────────────────────────────────
 
 # Shared developer key for the YouTube Data API v3 comment provider.

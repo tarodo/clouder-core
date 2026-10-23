@@ -29,6 +29,8 @@ locals {
   comments_collect_dlq_name               = "${local.name_prefix}-comments-collect-dlq"
   ml_jobs_queue_name                      = "${local.name_prefix}-ml-jobs"
   ml_jobs_dlq_name                        = "${local.name_prefix}-ml-jobs-dlq"
+  ml_worker_lambda_name                   = "${local.name_prefix}-ml-worker"
+  ml_worker_zip_file                      = abspath("${path.module}/../dist/ml_worker.zip") # scripts/package_ml_lambda.sh
   db_cluster_identifier                   = "${local.name_prefix}-aurora"
   db_secret_name                          = "${local.name_prefix}-aurora-credentials"
   # Pinned to the legacy prefix: this bucket holds ingested Beatport-source raw

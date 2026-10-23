@@ -16,6 +16,7 @@ RAW = "${aws_s3_bucket.raw.arn}/${var.raw_prefix}/*"
 SPOTIFY_RAW = "${aws_s3_bucket.raw.arn}/${var.spotify_raw_prefix}/*"
 COVERS = "${aws_s3_bucket.raw.arn}/covers/*"
 FEATURES = "${aws_s3_bucket.audio_features.arn}/features/*"
+MODELS = "${aws_s3_bucket.audio_features.arn}/models/*"
 
 
 def q(name: str) -> str:
@@ -49,6 +50,7 @@ REQUIRED: dict[str, list[str]] = {
         q("vendor_match"),
         q("auto_enrich_dispatch"),
         q("comments_collect"),
+        q("ml_jobs"),
         "var.spotify_client_id_ssm_parameter",
         "var.ytmusic_client_id_ssm_parameter",
     ],
@@ -109,6 +111,7 @@ REQUIRED: dict[str, list[str]] = {
         q("comments_collect"),
         "var.youtube_api_key_ssm_parameter",
     ],
+    "ml_worker": [*DB, FEATURES, MODELS, "local.sqs_consume", q("ml_jobs")],
     "db_migration": ["local.st_db_secret", '"rds-db:connect"', '"ec2:CreateNetworkInterface"'],
 }
 
@@ -130,6 +133,7 @@ FORBIDDEN: dict[str, list[str]] = {
     "artist_enricher_worker": [TOKENS, '"s3:', '"ec2:'],
     "auto_enrich_dispatch_worker": [TOKENS, '"s3:', SSM, '"ec2:'],
     "comments_collect_worker": [TOKENS, '"s3:', '"ec2:'],
+    "ml_worker": [TOKENS, SSM, RAW, COVERS, '"ec2:', "s3:DeleteObject"],
     "db_migration": ["local.st_data_api", '"s3:', '"sqs:', TOKENS],
 }
 
@@ -181,3 +185,18 @@ def test_role_arn_waits_for_its_policy() -> None:
     module = (INFRA / "modules" / "lambda_role" / "main.tf").read_text()
     output = module[module.index('output "arn"') :]
     assert re.search(r"depends_on\s*=\s*\[aws_iam_role_policy\.this\]", output)
+
+
+def test_ml_worker_reads_profiles_and_owns_models() -> None:
+    # Profiles are the analyzer's (read-only here); models are the worker's own. ListBucket on the
+    # whole bucket, unconditioned: a missing profile must read as NoSuchKey, not AccessDenied.
+    block = role_block("ml_worker")
+    st = set(re.findall(r"actions = \[([^\]]*)\], resources = \[([^\]]*)\]", block))
+    assert st == {
+        ('"s3:GetObject"', f'"{FEATURES}"'),
+        ('"s3:GetObject", "s3:PutObject"', f'"{MODELS}"'),
+        ('"s3:ListBucket"', "aws_s3_bucket.audio_features.arn"),
+        ('"sqs:SendMessage"', q("ml_jobs")),
+    }
+    assert f"actions = local.sqs_consume, resources = [{q('ml_jobs')}]" in block
+    assert "s3_prefixes" not in block

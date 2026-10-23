@@ -105,14 +105,20 @@ class BucketTrackRowOut:
     added_at: str
 
 
+# style_id and the target's bucket_type ride along from the guard query, for the retrain trigger
+# (ml_triggers.after_labels) at no extra query.
 @dataclass(frozen=True)
 class MoveResult:
     moved: int
+    style_id: str | None = None
+    bucket_type: str | None = None
 
 
 @dataclass(frozen=True)
 class TransferResult:
     transferred: int
+    style_id: str | None = None
+    bucket_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -394,9 +400,9 @@ class TriageRepository:
         guard = self._data_api.execute(
             """
             SELECT
-                tb.status AS block_status,
+                tb.status AS block_status, tb.style_id,
                 bf.id AS from_id, bf.inactive AS from_inactive,
-                bt.id AS to_id, bt.inactive AS to_inactive
+                bt.id AS to_id, bt.inactive AS to_inactive, bt.bucket_type AS to_type
             FROM triage_blocks tb
             JOIN triage_buckets bf ON bf.triage_block_id = tb.id
             JOIN triage_buckets bt ON bt.triage_block_id = tb.id
@@ -480,7 +486,9 @@ class TriageRepository:
                 transaction_id=tx_id,
             )
 
-        return MoveResult(moved=len(track_id_list))
+        return MoveResult(
+            moved=len(track_id_list), style_id=row["style_id"], bucket_type=row["to_type"]
+        )
 
     def transfer_tracks(
         self,
@@ -512,6 +520,7 @@ class TriageRepository:
             SELECT
                 tbk.id AS bucket_id,
                 tbk.inactive AS bucket_inactive,
+                tbk.bucket_type,
                 tb.id AS block_id,
                 tb.user_id AS block_user_id,
                 tb.style_id AS block_style_id,
@@ -578,7 +587,9 @@ class TriageRepository:
             """,
             insert_params,
         )
-        return TransferResult(transferred=len(inserted_rows))
+        return TransferResult(
+            transferred=len(inserted_rows), style_id=src["style_id"], bucket_type=tgt["bucket_type"]
+        )
 
     _FINALIZE_CHUNK_SIZE = 500
 
