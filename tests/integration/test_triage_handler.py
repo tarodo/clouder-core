@@ -46,6 +46,7 @@ from collector.curation import (
     TracksNotInSourceError,
 )
 from collector.curation.triage_repository import (
+    BucketTrackRowOut,
     FinalizeResult,
     MoveResult,
     TransferResult,
@@ -90,6 +91,9 @@ class FakeTriageRepo:
         self.move_error: Exception | None = None
         self.transfer_error: Exception | None = None
         self.finalize_error: Exception | None = None
+        # canned rows for list_bucket_tracks; model dict surfaced on block detail
+        self.track_rows: list = []
+        self.model: dict | None = None
 
     # ---- helpers -----------------------------------------------------
 
@@ -126,6 +130,7 @@ class FakeTriageRepo:
             updated_at=b["updated_at"],
             finalized_at=b.get("finalized_at"),
             buckets=tuple(bucket_rows),
+            model=self.model,
         )
 
     def _block_to_summary(self, b: dict) -> TriageBlockSummaryRow:
@@ -275,9 +280,7 @@ class FakeTriageRepo:
                 "bucket_not_in_block",
                 f"bucket {bucket_id} not found in triage block {block_id}",
             )
-        # Empty payload is fine for these tests; concrete rows are not
-        # exercised here.
-        return [], 0
+        return self.track_rows, len(self.track_rows)
 
     def move_tracks(
         self,
@@ -600,6 +603,70 @@ def test_get_triage_block_404(fake_triage_repo, context):
     status, body = _read(resp)
     assert status == 404
     assert body["error_code"] == "triage_block_not_found"
+
+
+def test_bucket_tracks_serialize_prediction(fake_triage_repo, context):
+    block_id = _create_block(fake_triage_repo)
+    bucket_id = next(iter(fake_triage_repo.buckets))
+
+    def row(tid, prediction):
+        return BucketTrackRowOut(
+            track_id=tid,
+            title="T",
+            mix_name=None,
+            isrc=None,
+            bpm=None,
+            length_ms=None,
+            key_name=None,
+            key_camelot=None,
+            publish_date=None,
+            spotify_release_date=None,
+            spotify_id=None,
+            release_type=None,
+            ai_verdict=None,
+            artists=[],
+            label_name=None,
+            label_id=None,
+            added_at="2026-04-28T00:00:00+00:00",
+            prediction=prediction,
+        )
+
+    fake_triage_repo.track_rows = [
+        row("t1", {"keep": True, "category_ids": ["c2", "c1"]}),
+        row("t2", None),
+    ]
+    resp = lambda_handler(
+        _event(
+            method="GET",
+            route="/triage/blocks/{id}/buckets/{bucket_id}/tracks",
+            path_params={"id": block_id, "bucket_id": bucket_id},
+        ),
+        context,
+    )
+    status, body = _read(resp)
+    assert status == 200
+    assert body["items"][0]["prediction"] == {"keep": True, "category_ids": ["c2", "c1"]}
+    assert body["items"][1]["prediction"] is None
+
+
+def test_block_detail_model_serialized(fake_triage_repo, context):
+    block_id = _create_block(fake_triage_repo)
+
+    def get():
+        resp = lambda_handler(
+            _event(method="GET", route="/triage/blocks/{id}", path_params={"id": block_id}),
+            context,
+        )
+        return _read(resp)[1]
+
+    assert get()["model"] is None
+    fake_triage_repo.model = {
+        "trained_at": "2026-10-20T00:00:00+00:00",
+        "n_labels": 300,
+        "first_hit": None,
+        "first_n": 0,
+    }
+    assert get()["model"] == fake_triage_repo.model
 
 
 # ---------- GET /triage/blocks (list) ---------------------------------------

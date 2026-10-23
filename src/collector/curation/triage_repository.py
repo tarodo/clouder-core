@@ -64,6 +64,8 @@ class TriageBlockRow:
     ai_to_discard: bool = (
         True  # AI-flagged tracks go to DISCARD (the owner's rule; a block may opt out)
     )
+    # trained model for the block's (user, style); None when never trained
+    model: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,7 @@ class BucketTrackRowOut:
     label_name: str | None
     label_id: str | None
     added_at: str
+    prediction: dict | None = None  # {"keep": bool | None, "category_ids": [...]}; None = unscored
 
 
 # style_id and the target's bucket_type ride along from the guard query, for the retrain trigger
@@ -993,7 +996,7 @@ class TriageRepository:
     ) -> tuple[list[BucketTrackRowOut], int]:
         guard = self._data_api.execute(
             """
-            SELECT tb.id AS block_id, tbk.id AS bucket_id
+            SELECT tb.id AS block_id, tbk.id AS bucket_id, tb.style_id
             FROM triage_blocks tb
             JOIN triage_buckets tbk ON tbk.triage_block_id = tb.id
             WHERE tb.id = :block_id
@@ -1015,6 +1018,8 @@ class TriageRepository:
 
         params: dict[str, Any] = {
             "bucket_id": bucket_id,
+            "user_id": user_id,
+            "style_id": guard[0]["style_id"],
             "limit": limit,
             "offset": offset,
         }
@@ -1033,6 +1038,8 @@ class TriageRepository:
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type, {AI_VERDICT_SQL},
                 tbt.added_at,
+                p.keep AS p_keep, p.categories AS p_categories,
+                (p.track_id IS NOT NULL) AS p_scored,
                 cl.id AS label_id,
                 cl.name AS label_name,
                 COALESCE(
@@ -1047,6 +1054,8 @@ class TriageRepository:
             LEFT JOIN clouder_artists ca ON ca.id = cta.artist_id
             LEFT JOIN clouder_albums cab ON cab.id = t.album_id
             LEFT JOIN clouder_labels cl ON cl.id = cab.label_id
+            LEFT JOIN track_predictions p
+              ON p.user_id = :user_id AND p.style_id = :style_id AND p.track_id = t.id
             WHERE tbt.triage_bucket_id = :bucket_id
               {search_clause}
             GROUP BY
@@ -1054,7 +1063,8 @@ class TriageRepository:
                 t.key_name, t.key_camelot,
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type,
-                tbt.added_at, cl.id, cl.name
+                tbt.added_at, cl.id, cl.name,
+                p.track_id, p.keep, p.categories
             ORDER BY tbt.added_at DESC, t.id ASC
             LIMIT :limit OFFSET :offset
             """,
@@ -1077,6 +1087,13 @@ class TriageRepository:
             artists_raw = r.get("artists", "[]")
             artists = (
                 json.loads(artists_raw) if isinstance(artists_raw, str) else (artists_raw or [])
+            )
+            cats = r.get("p_categories")
+            cats = json.loads(cats) if isinstance(cats, str) else (cats or [])
+            prediction = (
+                {"keep": r.get("p_keep"), "category_ids": [c[0] for c in cats]}
+                if r.get("p_scored")
+                else None
             )
             items.append(
                 BucketTrackRowOut(
@@ -1103,6 +1120,7 @@ class TriageRepository:
                     label_name=r.get("label_name"),
                     label_id=r.get("label_id"),
                     added_at=str(r["added_at"]),
+                    prediction=prediction,
                 )
             )
         return items, total
@@ -1127,9 +1145,12 @@ class TriageRepository:
                 tb.old_offset_weeks, tb.include_disliked_labels,
                 tb.include_disliked_artists, tb.compilations_to_not,
                 tb.include_favorites, tb.ai_to_discard,
-                tb.created_at, tb.updated_at, tb.finalized_at
+                tb.created_at, tb.updated_at, tb.finalized_at,
+                m.version AS m_version, m.trained_at AS m_trained_at,
+                m.n_labels AS m_n_labels, m.metrics AS m_metrics
             FROM triage_blocks tb
             JOIN clouder_styles cs ON tb.style_id = cs.id
+            LEFT JOIN ml_models m ON m.user_id = tb.user_id AND m.style_id = tb.style_id
             WHERE tb.id = :block_id
               AND tb.user_id = :user_id
               AND tb.deleted_at IS NULL
@@ -1192,6 +1213,18 @@ class TriageRepository:
             for r in bucket_rows
         )
 
+        model = None
+        if int(b.get("m_version") or 0) > 0:
+            metrics = b.get("m_metrics")
+            metrics = json.loads(metrics) if isinstance(metrics, str) else (metrics or {})
+            first_hit = metrics.get("first_hit")
+            model = {
+                "trained_at": str(b["m_trained_at"]),
+                "n_labels": int(b["m_n_labels"] or 0),
+                "first_hit": float(first_hit) if first_hit is not None else None,
+                "first_n": int(metrics.get("first_n") or 0),
+            }
+
         return TriageBlockRow(
             id=b["id"],
             user_id=b["user_id"],
@@ -1211,6 +1244,7 @@ class TriageRepository:
             finalized_at=(str(b["finalized_at"]) if b["finalized_at"] is not None else None),
             buckets=buckets,
             ai_to_discard=bool(b.get("ai_to_discard", True)),  # the column default
+            model=model,
         )
 
 

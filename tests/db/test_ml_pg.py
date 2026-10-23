@@ -383,3 +383,42 @@ def test_moves_report_their_target_for_the_ml_trigger(repo, pg) -> None:
         user_id=U, src_block_id="ob", target_bucket_id="ob-ca", track_ids=["a"]
     )
     assert (out.transferred, out.style_id, out.bucket_type) == (1, S, "STAGING")
+
+
+def test_triage_exposes_only_own_prediction_and_model(repo, pg) -> None:
+    from collector.curation.triage_repository import TriageRepository
+
+    _track(pg, "a", "v_a")
+    _put(pg, "ob-NEW", "a", at(1))
+    for user, keep, cats in ((U, True, '[["cb", 0.6], ["ca", 0.3]]'), ("u2", False, '[["cx", 1]]')):
+        pg.execute(
+            "INSERT INTO track_predictions (user_id, style_id, track_id, model_version, keep_score,"
+            " keep, categories, scored_at) VALUES (:u, 'st', 'a', 1, 0.5, :k,"
+            " CAST(:c AS jsonb), now())",
+            {"u": user, "k": keep, "c": cats},
+        )
+    triage = TriageRepository(pg)
+
+    def first(user: str):
+        rows, _ = triage.list_bucket_tracks(
+            user_id=user, block_id="ob", bucket_id="ob-NEW", limit=10, offset=0
+        )
+        return rows[0].prediction
+
+    assert first(U) == {"keep": True, "category_ids": ["cb", "ca"]}
+    pg.execute("DELETE FROM track_predictions WHERE user_id = 'u1'")
+    assert first(U) is None  # u2's row for the same track/style never leaks
+
+    block = triage.get_block(user_id=U, block_id="ob")
+    assert block is not None and block.model is None
+    pg.execute(
+        "INSERT INTO ml_models (user_id, style_id, version, trained_at, n_labels, metrics)"
+        " VALUES ('u1', 'st', 0, now(), 0, CAST('{}' AS jsonb))"
+    )
+    assert triage.get_block(user_id=U, block_id="ob").model is None  # version 0
+    pg.execute(
+        "UPDATE ml_models SET version = 2, n_labels = 200,"
+        ' metrics = CAST(\'{"first_hit": 0.5, "first_n": 30}\' AS jsonb)'
+    )
+    model = triage.get_block(user_id=U, block_id="ob").model
+    assert (model["n_labels"], model["first_hit"], model["first_n"]) == (200, 0.5, 30)
