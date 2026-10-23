@@ -229,6 +229,31 @@ class AnalysisResultsRequest(BaseModel):
         return value
 
 
+class AnalysisFeatureItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    video_id: str = Field(pattern=r"^[A-Za-z0-9_-]{6,32}$")
+    version: Literal["light-1"]
+    audio_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    # 33 556 bytes of float16 are 44 744 base64 chars.
+    vector_b64: str = Field(max_length=44_800)
+
+
+class AnalysisFeaturesRequest(BaseModel):
+    """POST /v1/analysis/features: light-1 profiles, one per YouTube video."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[AnalysisFeatureItem] = Field(min_length=1, max_length=50)
+
+    @field_validator("items")
+    @classmethod
+    def _unique_videos(cls, value: list[AnalysisFeatureItem]) -> list[AnalysisFeatureItem]:
+        if len({i.video_id for i in value}) != len(value):
+            raise ValueError("each video_id may appear once")
+        return value
+
+
 class AnalysisRequeueRequest(BaseModel):
     """POST /admin/analysis/requeue: hand finished tracks out again."""
 

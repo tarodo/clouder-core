@@ -15,6 +15,7 @@ TF = "\n".join(p.read_text() for p in sorted(INFRA.glob("*.tf")))
 RAW = "${aws_s3_bucket.raw.arn}/${var.raw_prefix}/*"
 SPOTIFY_RAW = "${aws_s3_bucket.raw.arn}/${var.spotify_raw_prefix}/*"
 COVERS = "${aws_s3_bucket.raw.arn}/covers/*"
+FEATURES = "${aws_s3_bucket.audio_features.arn}/features/*"
 
 
 def q(name: str) -> str:
@@ -33,6 +34,8 @@ REQUIRED: dict[str, list[str]] = {
         q("spotify_search"),
         q("label_enrichment"),
         q("artist_enrichment"),
+        q("ml_jobs"),
+        FEATURES,
         "aws_lambda_function.auto_ingest.arn",
         '"sqs:GetQueueAttributes"',
     ],
@@ -111,7 +114,14 @@ REQUIRED: dict[str, list[str]] = {
 
 FORBIDDEN: dict[str, list[str]] = {
     "collector": [TOKENS, COVERS, "local.sqs_consume", '"ec2:', "rds-db:connect"],
-    "curation": [RAW, "local.sqs_consume", '"ec2:', "rds-db:connect", "lambda:InvokeFunction"],
+    "curation": [
+        RAW,
+        FEATURES,
+        "local.sqs_consume",
+        '"ec2:',
+        "rds-db:connect",
+        "lambda:InvokeFunction",
+    ],
     "auth_handler": ['"s3:', '"sqs:', "local.sqs_consume", '"ec2:'],
     "canonicalization_worker": [TOKENS, COVERS, SSM, '"ec2:'],
     "spotify_search_worker": [TOKENS, RAW, COVERS, '"ec2:'],

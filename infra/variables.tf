@@ -710,6 +710,24 @@ variable "auto_enrich_dispatch_worker_max_concurrency" {
   }
 }
 
+variable "ml_jobs_queue_visibility_timeout_seconds" {
+  description = "SQS visibility timeout for the ml-jobs queue (above the future ML worker's timeout)."
+  type        = number
+  default     = 960
+}
+
+variable "ml_jobs_queue_retention_seconds" {
+  description = "Message retention for the ml-jobs queue and its DLQ: 14 days, the SQS maximum, so scoring requests wait for the worker."
+  type        = number
+  default     = 1209600
+}
+
+variable "ml_jobs_queue_max_receive_count" {
+  description = "Receives before an ml-jobs message is redriven to the DLQ."
+  type        = number
+  default     = 3
+}
+
 variable "comments_collect_queue_visibility_timeout_seconds" {
   description = "SQS visibility timeout in seconds (worker timeout + buffer)."
   type        = number

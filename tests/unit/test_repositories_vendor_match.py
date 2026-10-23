@@ -127,3 +127,25 @@ def test_upsert_vendor_match_forwards_transaction_id() -> None:
     repo.upsert_vendor_match(cmd, transaction_id="tx-1")
 
     assert data_api.execute.call_args.kwargs == {"transaction_id": "tx-1"}
+
+
+def test_ytmusic_upsert_moves_the_light_profile_in_the_same_transaction() -> None:
+    repo, data_api = _make_repo()
+    cmd = UpsertVendorMatchCmd(
+        clouder_track_id="track-1",
+        vendor="ytmusic",
+        vendor_track_id="vid-new",
+        match_type="manual",
+        confidence=Decimal("1.000"),
+        matched_at=datetime(2026, 10, 23, tzinfo=UTC),
+        payload={},
+    )
+
+    repo.upsert_vendor_match(cmd, transaction_id="tx-1")
+
+    calls = data_api.execute.call_args_list
+    assert len(calls) == 3
+    assert all(c.kwargs == {"transaction_id": "tx-1"} for c in calls)
+    assert "DELETE FROM track_analyses" in calls[1].args[0]
+    assert "FROM audio_features" in calls[2].args[0]
+    assert calls[1].args[1]["video"] == calls[2].args[1]["video"] == "vid-new"

@@ -30,6 +30,7 @@ from collector.curation.schemas import (
 from collector.schemas import (
     AdminIngestRequestIn,
     AnalysisClaimRequest,
+    AnalysisFeaturesRequest,
     AnalysisRequeueRequest,
     AnalysisResultsRequest,
     AutoIngestSettingsIn,
@@ -886,6 +887,25 @@ ANALYSIS_RESULTS_RESPONSE = {
                     "track_id": {"type": "string"},
                     "analyzer": {"type": "string"},
                     "reason": {"type": "string", "enum": ["lease_lost"]},
+                },
+            },
+        },
+    },
+}
+
+ANALYSIS_FEATURES_RESPONSE = {
+    "type": "object",
+    "required": ["accepted", "rejected"],
+    "properties": {
+        "accepted": {"type": "integer"},
+        "rejected": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["video_id", "reason"],
+                "properties": {
+                    "video_id": {"type": "string"},
+                    "reason": {"type": "string", "enum": ["bad_vector"]},
                 },
             },
         },
@@ -2875,6 +2895,29 @@ ROUTES: list[dict[str, Any]] = [
                 200, "Stored results.", {"$ref": "#/components/schemas/AnalysisResultsResponse"}
             ),
             "400": _error(400, "validation_error (field limits, AI result shape)."),
+            "401": _error(401, "Missing or invalid service token."),
+        },
+    },
+    {
+        "method": "post",
+        "path": "/v1/analysis/features",
+        "auth": SERVICE,
+        "summary": "Analyzer: upload light-1 audio profiles (one per video); bad vectors come back rejected.",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/AnalysisFeaturesRequest"}
+                }
+            },
+        },
+        "responses": {
+            "200": _make_response(
+                200,
+                "Stored profiles; the same version and sha again is a no-op.",
+                {"$ref": "#/components/schemas/AnalysisFeaturesResponse"},
+            ),
+            "400": _error(400, "validation_error."),
             "401": _error(401, "Missing or invalid service token."),
         },
     },
@@ -5318,6 +5361,7 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
     for name, model in (
         ("AdminIngestRequestIn", AdminIngestRequestIn),
         ("AnalysisClaimRequest", AnalysisClaimRequest),
+        ("AnalysisFeaturesRequest", AnalysisFeaturesRequest),
         ("AnalysisRequeueRequest", AnalysisRequeueRequest),
         ("AnalysisResultsRequest", AnalysisResultsRequest),
         ("AutoIngestSettingsIn", AutoIngestSettingsIn),
@@ -5438,6 +5482,7 @@ def build_openapi() -> dict[str, Any]:
                 "YoutubeReview": YOUTUBE_REVIEW,
                 "AnalysisClaimResponse": ANALYSIS_CLAIM_RESPONSE,
                 "AnalysisResultsResponse": ANALYSIS_RESULTS_RESPONSE,
+                "AnalysisFeaturesResponse": ANALYSIS_FEATURES_RESPONSE,
                 "AnalysisStatus": ANALYSIS_STATUS,
                 "AnalysisRequeueResponse": ANALYSIS_REQUEUE_RESPONSE,
                 "CollectResponse": COLLECT_RESPONSE,

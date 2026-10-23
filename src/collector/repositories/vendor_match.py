@@ -8,6 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from ._base import RepositoryBase
+from .audio_features import LIGHT_PROFILE, OK_ON_CONFLICT
 from .commands import UpsertVendorMatchCmd, VendorTrackMatch
 
 
@@ -76,6 +77,37 @@ class VendorMatchMixin(RepositoryBase):
                 "matched_at": cmd.matched_at,
                 "payload": dict(cmd.payload),
             },
+            transaction_id=transaction_id,
+        )
+        if cmd.vendor != "ytmusic":
+            return
+        # A profile follows the track's current video: drop the claim gate of the old
+        # one, then reopen it as ok when the new video is profiled already.
+        params = {
+            "clouder_track_id": cmd.clouder_track_id,
+            "video": cmd.vendor_track_id,
+            "now": cmd.matched_at,
+        }
+        self._data_api.execute(
+            f"""
+            DELETE FROM track_analyses
+            WHERE track_id = :clouder_track_id AND analyzer = '{LIGHT_PROFILE}'
+              AND video_id IS DISTINCT FROM :video
+            """,
+            params,
+            transaction_id=transaction_id,
+        )
+        self._data_api.execute(
+            f"""
+            INSERT INTO track_analyses
+                (track_id, analyzer, status, version, video_id, audio_sha256,
+                 analyzed_at, created_at, updated_at)
+            SELECT :clouder_track_id, '{LIGHT_PROFILE}', 'ok', f.version, f.video_id,
+                   f.audio_sha256, f.created_at, :now, :now
+            FROM audio_features f WHERE f.video_id = :video
+            {OK_ON_CONFLICT}
+            """,
+            params,
             transaction_id=transaction_id,
         )
 
