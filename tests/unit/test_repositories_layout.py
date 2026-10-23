@@ -32,6 +32,7 @@ API = [
     "count_tracks_not_found_on_spotify",
     "coverage_for_year",
     "create_ingest_run",
+    "discard_ai_tracks",
     "find_identities",
     "find_tracks_needing_spotify_search",
     "find_tracks_not_found_on_spotify",
