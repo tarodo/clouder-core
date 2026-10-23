@@ -162,3 +162,22 @@ resource "aws_sqs_queue" "auto_enrich_dispatch" {
     maxReceiveCount     = var.auto_enrich_dispatch_queue_max_receive_count
   })
 }
+
+# ── ML jobs queue: scoring requests from the feature upload ──────
+# The consumer Lambda comes later; until then messages wait (14 days).
+
+resource "aws_sqs_queue" "ml_jobs_dlq" {
+  name                      = local.ml_jobs_dlq_name
+  message_retention_seconds = var.ml_jobs_queue_retention_seconds
+}
+
+resource "aws_sqs_queue" "ml_jobs" {
+  name                       = local.ml_jobs_queue_name
+  visibility_timeout_seconds = var.ml_jobs_queue_visibility_timeout_seconds
+  message_retention_seconds  = var.ml_jobs_queue_retention_seconds
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.ml_jobs_dlq.arn
+    maxReceiveCount     = var.ml_jobs_queue_max_receive_count
+  })
+}

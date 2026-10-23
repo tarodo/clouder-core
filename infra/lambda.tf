@@ -22,6 +22,8 @@ resource "aws_lambda_function" "collector" {
       YOUTUBE_SEARCH_QUEUE_URL    = aws_sqs_queue.youtube_search.url
       LABEL_ENRICHMENT_QUEUE_URL  = aws_sqs_queue.label_enrichment.url
       ARTIST_ENRICHMENT_QUEUE_URL = aws_sqs_queue.artist_enrichment.url
+      ML_JOBS_QUEUE_URL           = aws_sqs_queue.ml_jobs.url
+      AUDIO_FEATURES_BUCKET       = aws_s3_bucket.audio_features.bucket
       AURORA_CLUSTER_ARN          = aws_rds_cluster.aurora.arn
       AURORA_SECRET_ARN           = try(aws_rds_cluster.aurora.master_user_secret[0].secret_arn, "")
       AURORA_DATABASE             = var.aurora_database_name

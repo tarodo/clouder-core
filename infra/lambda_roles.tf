@@ -60,8 +60,11 @@ module "role_collector" {
         aws_sqs_queue.spotify_search.arn,
         aws_sqs_queue.label_enrichment.arn,
         aws_sqs_queue.artist_enrichment.arn,
+        aws_sqs_queue.ml_jobs.arn,
       ]
     },
+    # The analysis features route stores the analyzer's profiles.
+    { sid = "WriteAudioFeatures", actions = ["s3:PutObject"], resources = ["${aws_s3_bucket.audio_features.arn}/features/*"] },
     { sid = "InvokeAutoIngest", actions = ["lambda:InvokeFunction"], resources = [aws_lambda_function.auto_ingest.arn] },
     # Admin Spotify search status reads the queue depth.
     { sid = "ReadSpotifyQueueDepth", actions = ["sqs:GetQueueAttributes"], resources = [aws_sqs_queue.spotify_search.arn] },

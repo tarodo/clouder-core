@@ -13,6 +13,7 @@ from ..settings import get_data_api_settings
 from ._base import as_utc_datetime, parse_iso_date, utc_now
 from .analysis import AnalysisMixin
 from .api_views import ApiViewsMixin
+from .audio_features import AudioFeaturesMixin
 from .catalog_writes import TRACK_MERGE_FIELDS, CatalogWritesMixin, _named_entity_params
 from .commands import (
     ConservativeUpdateTrackCmd,
@@ -40,6 +41,7 @@ from .youtube_search import YoutubeSearchMixin
 class ClouderRepository(
     IngestRunsMixin,
     AnalysisMixin,
+    AudioFeaturesMixin,
     LineageMixin,
     CatalogWritesMixin,
     SpotifySearchMixin,

@@ -203,6 +203,8 @@ def test_status_before_any_claim(repo) -> None:
         "analyzers": [],
         "pair": {"high": 0, "medium": 0, "low": 0, "clean": 0},
         "queue": {"waiting": 3, "analyzed": 0, "failed": 0, "unusable": 0},
+        "profile": {"waiting": 3, "profiled": 0, "failed": 0, "unusable": 0},
+        "models": {"count": 0, "last_trained_at": None},
     }
 
 
@@ -528,3 +530,44 @@ def test_claim_takes_open_triage_tracks_first(repo, pg) -> None:
     assert [g["track_id"] for g in got] == ["old", "new"]
     rest = repo.claim_analysis(limit=2, analyzers=["ai_lofcz"], lease_id=L2, now=T0)
     assert [g["track_id"] for g in rest] == ["mid"]  # no-yt has no video
+
+
+def test_status_profile_counts(repo) -> None:
+    repo.claim_analysis(limit=3, analyzers=["light_profile"], lease_id=L1, now=T0)
+    failed = {
+        **_ok("mid", analyzer="light_profile"),
+        "status": "failed",
+        "result": None,
+        "error": "gone",
+    }
+    repo.record_analysis_results(
+        lease_id=L1, items=[_ok("new", analyzer="light_profile"), failed], now=T0
+    )
+    # "old" keeps a live lease, so it is held; no mapped track is left waiting
+    assert repo.analysis_status(now=T0)["profile"] == {
+        "waiting": 0,
+        "profiled": 1,
+        "failed": 1,
+        "unusable": 0,
+    }
+    # once the lease runs out, "old" is waiting again
+    later = T0 + timedelta(days=1)
+    assert repo.analysis_status(now=later)["profile"]["waiting"] == 1
+
+
+def test_status_models_block(repo, pg) -> None:
+    assert repo.analysis_status(now=T0)["models"] == {"count": 0, "last_trained_at": None}
+    pg.execute(
+        "INSERT INTO users (id, spotify_id, display_name, email, created_at, updated_at)"
+        " VALUES ('u1', 'sp', 'N', 'u1@example.com', now(), now())"
+    )
+    pg.execute(
+        "INSERT INTO clouder_styles (id, name, normalized_name, created_at, updated_at)"
+        " VALUES ('st2', 'S2', 's2', now(), now())"
+    )
+    pg.execute(
+        "INSERT INTO ml_models (user_id, style_id, version, trained_at)"
+        " VALUES ('u1', 'st', 2, :t), ('u1', 'st2', 0, :u)",
+        {"t": T0, "u": T0 + timedelta(days=1)},
+    )
+    assert repo.analysis_status(now=T0)["models"] == {"count": 1, "last_trained_at": T0}

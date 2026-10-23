@@ -40,6 +40,7 @@ API = [
     "get_vendor_blocked_until",
     "get_vendor_match",
     "insert_review_candidate",
+    "known_audio_features",
     "list_albums",
     "list_artists",
     "list_replayable_runs",
@@ -51,6 +52,7 @@ API = [
     "propagate_release_type_to_albums",
     "read_track_state",
     "record_analysis_results",
+    "record_audio_features",
     "release_spotify_search_claim",
     "release_youtube_search_claim",
     "reopen_youtube_for_spotify_found",
@@ -76,6 +78,7 @@ API = [
 
 AGGREGATES = {
     "collector.repositories.analysis",
+    "collector.repositories.audio_features",
     "collector.repositories.runs",
     "collector.repositories.lineage",
     "collector.repositories.catalog_writes",

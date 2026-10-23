@@ -30,6 +30,7 @@ from collector.curation.schemas import (
 from collector.schemas import (
     AdminIngestRequestIn,
     AnalysisClaimRequest,
+    AnalysisFeaturesRequest,
     AnalysisRequeueRequest,
     AnalysisResultsRequest,
     AutoIngestSettingsIn,
@@ -892,9 +893,36 @@ ANALYSIS_RESULTS_RESPONSE = {
     },
 }
 
+ANALYSIS_FEATURES_RESPONSE = {
+    "type": "object",
+    "required": ["accepted", "rejected"],
+    "properties": {
+        "accepted": {"type": "integer"},
+        "rejected": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["video_id", "reason"],
+                "properties": {
+                    "video_id": {"type": "string"},
+                    "reason": {"type": "string", "enum": ["bad_vector"]},
+                },
+            },
+        },
+    },
+}
+
 ANALYSIS_STATUS = {
     "type": "object",
-    "required": ["last_claim_at", "last_result_at", "analyzers", "pair", "queue"],
+    "required": [
+        "last_claim_at",
+        "last_result_at",
+        "analyzers",
+        "pair",
+        "queue",
+        "profile",
+        "models",
+    ],
     "properties": {
         "last_claim_at": {"type": ["string", "null"], "format": "date-time"},
         "last_result_at": {"type": ["string", "null"], "format": "date-time"},
@@ -924,6 +952,29 @@ ANALYSIS_STATUS = {
                     "type": "integer",
                     "description": "Either unusable_source, neither failed.",
                 },
+            },
+        },
+        "profile": {
+            "type": "object",
+            "description": "Tracks per light_profile (audio feature) state.",
+            "required": ["waiting", "profiled", "failed", "unusable"],
+            "properties": {
+                "waiting": {
+                    "type": "integer",
+                    "description": "YT Music matches with no held light_profile row.",
+                },
+                "profiled": {"type": "integer", "description": "light_profile ok."},
+                "failed": {"type": "integer", "description": "light_profile failed."},
+                "unusable": {"type": "integer", "description": "light_profile unusable_source."},
+            },
+        },
+        "models": {
+            "type": "object",
+            "description": "Trained triage models (version > 0).",
+            "required": ["count", "last_trained_at"],
+            "properties": {
+                "count": {"type": "integer"},
+                "last_trained_at": {"type": ["string", "null"], "format": "date-time"},
             },
         },
         "analyzers": {
@@ -2876,6 +2927,30 @@ ROUTES: list[dict[str, Any]] = [
             ),
             "400": _error(400, "validation_error (field limits, AI result shape)."),
             "401": _error(401, "Missing or invalid service token."),
+        },
+    },
+    {
+        "method": "post",
+        "path": "/v1/analysis/features",
+        "auth": SERVICE,
+        "summary": "Analyzer: upload light-1 audio profiles (one per video); bad vectors come back rejected.",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/AnalysisFeaturesRequest"}
+                }
+            },
+        },
+        "responses": {
+            "200": _make_response(
+                200,
+                "Stored profiles; the same version and sha again is a no-op.",
+                {"$ref": "#/components/schemas/AnalysisFeaturesResponse"},
+            ),
+            "400": _error(400, "validation_error."),
+            "401": _error(401, "Missing or invalid service token."),
+            "503": _error(503, "features_not_configured (no AUDIO_FEATURES_BUCKET)."),
         },
     },
     {
@@ -5318,6 +5393,7 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
     for name, model in (
         ("AdminIngestRequestIn", AdminIngestRequestIn),
         ("AnalysisClaimRequest", AnalysisClaimRequest),
+        ("AnalysisFeaturesRequest", AnalysisFeaturesRequest),
         ("AnalysisRequeueRequest", AnalysisRequeueRequest),
         ("AnalysisResultsRequest", AnalysisResultsRequest),
         ("AutoIngestSettingsIn", AutoIngestSettingsIn),
@@ -5438,6 +5514,7 @@ def build_openapi() -> dict[str, Any]:
                 "YoutubeReview": YOUTUBE_REVIEW,
                 "AnalysisClaimResponse": ANALYSIS_CLAIM_RESPONSE,
                 "AnalysisResultsResponse": ANALYSIS_RESULTS_RESPONSE,
+                "AnalysisFeaturesResponse": ANALYSIS_FEATURES_RESPONSE,
                 "AnalysisStatus": ANALYSIS_STATUS,
                 "AnalysisRequeueResponse": ANALYSIS_REQUEUE_RESPONSE,
                 "CollectResponse": COLLECT_RESPONSE,

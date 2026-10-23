@@ -2683,6 +2683,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/analysis/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Analyzer: upload light-1 audio profiles (one per video); bad vectors come back rejected. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AnalysisFeaturesRequest"];
+                };
+            };
+            responses: {
+                /** @description Stored profiles; the same version and sha again is a no-op. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnalysisFeaturesResponse"];
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid service token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description features_not_configured (no AUDIO_FEATURES_BUCKET). */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/auto-ingest/run": {
         parameters: {
             query?: never;
@@ -8830,6 +8897,28 @@ export interface components {
             /** Analyzers */
             analyzers: string[];
         };
+        /** AnalysisFeatureItem */
+        AnalysisFeatureItem: {
+            /** Video Id */
+            video_id: string;
+            /**
+             * Version
+             * @constant
+             */
+            version: "light-1";
+            /** Audio Sha256 */
+            audio_sha256: string;
+            /** Vector B64 */
+            vector_b64: string;
+        };
+        /**
+         * AnalysisFeaturesRequest
+         * @description POST /v1/analysis/features: light-1 profiles, one per YouTube video.
+         */
+        AnalysisFeaturesRequest: {
+            /** Items */
+            items: components["schemas"]["AnalysisFeatureItem"][];
+        };
         /**
          * AnalysisRequeueRequest
          * @description POST /admin/analysis/requeue: hand finished tracks out again.
@@ -9220,6 +9309,14 @@ export interface components {
                 reason: "lease_lost";
             }[];
         };
+        AnalysisFeaturesResponse: {
+            accepted: number;
+            rejected: {
+                video_id: string;
+                /** @enum {string} */
+                reason: "bad_vector";
+            }[];
+        };
         AnalysisStatus: {
             /** Format: date-time */
             last_claim_at: string | null;
@@ -9246,6 +9343,23 @@ export interface components {
                 failed: number;
                 /** @description Either unusable_source, neither failed. */
                 unusable: number;
+            };
+            /** @description Tracks per light_profile (audio feature) state. */
+            profile: {
+                /** @description YT Music matches with no held light_profile row. */
+                waiting: number;
+                /** @description light_profile ok. */
+                profiled: number;
+                /** @description light_profile failed. */
+                failed: number;
+                /** @description light_profile unusable_source. */
+                unusable: number;
+            };
+            /** @description Trained triage models (version > 0). */
+            models: {
+                count: number;
+                /** Format: date-time */
+                last_trained_at: string | null;
             };
             analyzers: {
                 name: string;

@@ -53,6 +53,8 @@ class FakeRepo:
             "analyzers": [],
             "pair": {"high": 2, "medium": 5, "low": 3, "clean": 40},
             "queue": {"waiting": 9, "analyzed": 50, "failed": 4, "unusable": 1},
+            "profile": {"waiting": 6, "profiled": 20, "failed": 2, "unusable": 1},
+            "models": {"count": 2, "last_trained_at": NOW},
         }
 
     def requeue_analysis(self, **kw):
@@ -163,6 +165,8 @@ def test_admin_status(monkeypatch):
         "analyzers": [],
         "pair": {"high": 2, "medium": 5, "low": 3, "clean": 40},
         "queue": {"waiting": 9, "analyzed": 50, "failed": 4, "unusable": 1},
+        "profile": {"waiting": 6, "profiled": 20, "failed": 2, "unusable": 1},
+        "models": {"count": 2, "last_trained_at": NOW.isoformat()},
     }
 
 

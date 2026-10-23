@@ -33,6 +33,14 @@ resource "aws_apigatewayv2_route" "analysis_results" {
   authorizer_id      = aws_apigatewayv2_authorizer.analysis_service.id
 }
 
+resource "aws_apigatewayv2_route" "analysis_features" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "POST /v1/analysis/features"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.analysis_service.id
+}
+
 resource "aws_apigatewayv2_route" "admin_analysis_status" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /admin/analysis/status"
