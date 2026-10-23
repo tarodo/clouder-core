@@ -11,6 +11,7 @@ from collector.ml.model import Head, Model, Prediction
 
 BLOCKS = (("a", 0, 8), ("b", 8, 4))
 D = 12
+T = datetime(2026, 10, 1, tzinfo=UTC)
 
 
 def _keep_data(n: int, n_keep: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
@@ -39,11 +40,20 @@ def _awkward(X: np.ndarray) -> np.ndarray:
 
 
 @pytest.mark.parametrize(
-    ("task", "k", "n"),
-    [("keep", 2, 200), ("keep", 2, 10), ("category", 2, 200), ("category", 3, 200)],
+    ("task", "k", "n", "offset"),
+    [
+        ("keep", 2, 200, 0.0),
+        ("keep", 2, 10, 0.0),
+        ("category", 2, 200, 0.0),
+        ("category", 3, 200, 0.0),
+        ("keep", 2, 200, 1000.0),
+        ("category", 3, 200, 1000.0),
+    ],
 )
-def test_collapsed_head_matches_pipeline(task: str, k: int, n: int) -> None:
-    """n=10 < D: the PCA is a projection onto the train rows, not a full rotation (the production shape)."""
+def test_collapsed_head_matches_pipeline(task: str, k: int, n: int, offset: float) -> None:
+    """n=10 < D: the PCA is a projection onto the train rows, not a full rotation (the production shape).
+    offset: column means far from their spread; at 12 columns it takes ~1000 sd to lose the digits that ~30 sd
+    loses at 16 778, when float32 sums raw X against a bias that cancels the means."""
     w = ml.block_weights(BLOCKS, D)
     if task == "keep":
         X, y = _keep_data(n, n * 2 // 5, seed=1)
@@ -53,7 +63,7 @@ def test_collapsed_head_matches_pipeline(task: str, k: int, n: int) -> None:
         X, labels = _category_data(sizes, seed=1)
         Xt, _ = _category_data(sizes, seed=2)
         y = np.array(labels)
-    X, Xt = _awkward(X), _awkward(Xt)
+    X, Xt = _awkward(X + np.float32(offset)), _awkward(Xt + np.float32(offset))
     Xt[::5, 7] = np.nan  # a column with no NaN at fit time
     pipe = ml.fit_pipeline(X, y, w, task)
     head = ml.collapse(pipe)
@@ -74,6 +84,47 @@ def test_train_none_below_thresholds() -> None:
     keep = np.arange(100) < 58
     category = ["a"] * 29 + ["b"] * 29 + [None] * 42
     assert ml.train(X, keep, category, blocks=BLOCKS) is None
+
+
+@pytest.mark.parametrize(
+    ("n", "n_keep", "trains"),
+    [(130, 35, True), (129, 35, False), (130, 34, False), (130, 95, True), (130, 96, False)],
+)
+def test_keep_head_thresholds(n: int, n_keep: int, trains: bool) -> None:
+    X, keep = _keep_data(n, n_keep, seed=4)
+    m = ml.train(X, keep, [None] * n, blocks=BLOCKS)
+    assert (m is not None and m.keep is not None) == trains
+
+
+def test_keep_head_int_labels_match_bool() -> None:
+    X, keep = _keep_data(140, 50, seed=3)
+    a = ml.train(X, keep, [None] * 140, blocks=BLOCKS)
+    b = ml.train(X, keep.astype(int), [None] * 140, blocks=BLOCKS)
+    assert a is not None and b is not None and b.keep is not None
+    assert b.keep.classes == ("keep",)
+    assert b.keep_threshold == a.keep_threshold
+    assert [p.keep_score for p in ml.predict(b, X)] == [p.keep_score for p in ml.predict(a, X)]
+
+
+def test_train_predict_both_heads() -> None:
+    X, keep = _keep_data(140, 70, seed=5)
+    category: list[str | None] = [None] * 140
+    for i, row in enumerate(np.flatnonzero(keep)):
+        category[row] = "a" if i < 35 else "b"
+        X[row, 3 if i < 35 else 4] += 2.0
+    m = ml.train(X, keep, category, blocks=BLOCKS)
+    assert m is not None and m.keep is not None and m.category is not None
+    assert m.category.classes == ("a", "b")
+    assert set(m.cv) == {"keep_auc", "category_bacc"}
+    assert (m.n_labels, m.n_keep) == (140, 70)
+    for p in ml.predict(m, X[:10]):
+        assert p.keep_score is not None and 0.0 <= p.keep_score <= 1.0
+        assert p.keep == (p.keep_score >= m.keep_threshold)
+        assert p.categories is not None
+        assert {c for c, _ in p.categories} == {"a", "b"}
+        probs = [q for _, q in p.categories]
+        assert probs == sorted(probs, reverse=True)
+        assert sum(probs) == pytest.approx(1.0, abs=1e-5)
 
 
 def test_category_head_only_classes_with_30() -> None:
@@ -166,13 +217,13 @@ def test_first_button_skips_dead_category() -> None:
 
 
 def test_evaluate_previous_counts() -> None:
-    t = datetime(2026, 10, 1, tzinfo=UTC)
+    t = T
     labels = [
         Label("t1", "v1", False, None, t),
         Label("t2", "v2", False, None, t),
         Label("t3", "v3", True, "c1", t),
         Label("t4", "v4", True, "c2", t),
-        Label("t5", "v5", True, "c9", t),  # a class the model never knew
+        Label("t5", "v5", True, "c9", t),  # alive, but a class the model never knew
     ]
     preds = [
         Prediction(0.2, False, CATS),  # DISCARD: hit
@@ -181,7 +232,7 @@ def test_evaluate_previous_counts() -> None:
         Prediction(0.6, True, CATS),  # c1 for c2: miss, top2 only
         Prediction(0.4, False, CATS),  # DISCARD for a keep: miss, not in top-k
     ]
-    got = ml.evaluate_previous(preds, labels, ALIVE)
+    got = ml.evaluate_previous(preds, labels, ALIVE | {"c9"})
     assert got == {
         "first_hit": pytest.approx(0.4),
         "first_n": 5,
@@ -195,3 +246,23 @@ def test_evaluate_previous_counts() -> None:
     assert ml.evaluate_previous([], [], ALIVE) == {**empty, "first_n": 0, "keep_n": 0, "cat_n": 0}
     one_class = ml.evaluate_previous(preds[:2], labels[:2], ALIVE)
     assert one_class["keep_auc"] is None and one_class["keep_n"] == 2
+
+
+def test_evaluate_previous_skips_unmatchable_keeps() -> None:
+    """A keep whose category is not alive (deleted, or None) has no button to match: out of first_*, in keep_*."""
+    labels = [
+        Label("t1", "v1", True, "gone", T),
+        Label("t2", "v2", True, None, T),
+        Label("t3", "v3", False, None, T),
+    ]
+    preds = [Prediction(0.9, True, CATS), Prediction(0.8, True, CATS), Prediction(0.3, False, CATS)]
+    got = ml.evaluate_previous(preds, labels, ALIVE)
+    assert (got["first_hit"], got["first_n"]) == (1.0, 1)
+    assert (got["keep_auc"], got["keep_n"]) == (1.0, 3)
+
+
+def test_evaluate_previous_topk_skips_dead_category() -> None:
+    labels = [Label("t1", "v1", True, "c2", T), Label("t2", "v2", True, "c3", T)]
+    preds = [Prediction(0.9, True, CATS)] * 2
+    got = ml.evaluate_previous(preds, labels, {"c2", "c3"})  # c1, the model's top pick, is dead
+    assert (got["top1"], got["top2"], got["cat_n"]) == (0.5, 1.0, 2)

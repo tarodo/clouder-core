@@ -39,15 +39,19 @@ DISCARD = "DISCARD"
 
 @dataclass(frozen=True, eq=False)
 class Head:
-    """logits = (X with NaN -> medians) @ weights + bias. K == 1: P(keep) by sigmoid; else softmax over classes."""
+    """logits = (X - medians, NaN -> 0) @ weights + bias. K == 1: P(keep) by sigmoid; else softmax over classes.
+
+    Centred on the medians: float32 summing raw X against a bias that cancels large column means loses digits."""
 
     medians: np.ndarray  # (d,)
     weights: np.ndarray  # (d, K)
-    bias: np.ndarray  # (K,)
+    bias: np.ndarray  # (K,) the logits at the medians
     classes: tuple[str, ...]
 
     def proba(self, X: np.ndarray) -> np.ndarray:
-        z = np.where(np.isnan(X), self.medians, X) @ self.weights + self.bias
+        Z = X - self.medians
+        Z[np.isnan(Z)] = 0
+        z = Z @ self.weights + self.bias
         return expit(z) if z.shape[1] == 1 else softmax(z, axis=1)
 
 
@@ -117,13 +121,9 @@ def collapse(pipe: Pipeline) -> Head:
         classes = tuple(str(c) for c in lr.classes_)
         if m.shape[1] == 1:  # binary: softmax([0, a]) == (1 - sigmoid(a), sigmoid(a))
             m, b = np.hstack([np.zeros_like(m), m]), np.r_[0.0, b]
-    f32 = np.float32
-    return Head(
-        imputer.statistics_.astype(f32),
-        (s[:, None] * m).astype(f32),
-        (b - (scaler.mean_ * s + pca.mean_) @ m).astype(f32),
-        classes,
-    )
+    medians = imputer.statistics_.astype(np.float32)
+    bias = b + ((medians - scaler.mean_) * s - pca.mean_) @ m  # float64: the logits at the medians
+    return Head(medians, (s[:, None] * m).astype(np.float32), bias.astype(np.float32), classes)
 
 
 def _best_score(lr: LogisticRegressionCV) -> float:
@@ -140,6 +140,8 @@ def train(
     seed: int = 0,
 ) -> Model | None:
     """Rows are videos (`labels.training_rows`). None when neither head reaches its threshold."""
+    # A bool target is what makes `collapse` build the keep head.
+    keep = np.asarray(keep, dtype=bool)
     w = block_weights(blocks, X.shape[1])
     n, n_keep = len(keep), int(keep.sum())
     cv: dict[str, float] = {}
@@ -249,13 +251,16 @@ def evaluate_previous(
 ) -> dict[str, Any]:
     """The previous model's stored predictions against the labels added since (parallel lists).
 
-    first_*: the first button equals the decision (DISCARD, or the keep's category; a keep in a soft-deleted category is
-    a miss). keep_*: AUC of keep_score. top1/top2: keeps in a class the model knew, ranked among the alive categories.
+    first_*: the first button equals the decision (DISCARD, or the keep's category). A keep whose category is not
+    alive (soft-deleted, or None) has no button to match and is left out. keep_*: AUC of keep_score.
+    top1/top2: keeps in a class the model knew, ranked among the alive categories.
     """
     first, scored, tops = [], [], []
     for pred, label in zip(preds, labels, strict=True):
-        decision = label.category_id if label.keep else DISCARD
-        first.append(decision is not None and first_button(pred, alive) == decision)
+        if not label.keep:
+            first.append(first_button(pred, alive) == DISCARD)
+        elif label.category_id in alive:
+            first.append(first_button(pred, alive) == label.category_id)
         if pred.keep_score is not None:
             scored.append((label.keep, pred.keep_score))
         if label.keep and label.category_id in {c for c, _ in pred.categories or ()}:
