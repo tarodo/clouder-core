@@ -48,10 +48,13 @@ class FakeRepo:
 
 
 class FakeS3:
-    def __init__(self):
+    def __init__(self, fail=False):
+        self.fail = fail
         self.puts: list[dict] = []
 
     def put_object(self, **kw):
+        if self.fail:
+            raise RuntimeError("s3 down")
         self.puts.append(kw)
 
 
@@ -81,8 +84,8 @@ def _item(video_id: str = VID, **over) -> dict:
     } | over
 
 
-def _call(monkeypatch, repo, body, *, ctx=SERVICE, sqs=None):
-    s3, sqs = FakeS3(), sqs or FakeSQS()
+def _call(monkeypatch, repo, body, *, ctx=SERVICE, sqs=None, s3=None):
+    s3, sqs = s3 or FakeS3(), sqs or FakeSQS()
     monkeypatch.setattr("collector.api.deps.create_clouder_repository_from_env", lambda: repo)
     monkeypatch.setattr("collector.api.routes_analysis._build_s3_client", lambda: s3)
     monkeypatch.setattr("collector.ml_jobs._build_sqs_client", lambda: sqs)
@@ -170,3 +173,32 @@ def test_features_requires_service(monkeypatch, ctx):
 def test_features_validates_the_body(monkeypatch, items):
     status, body, _, _ = _call(monkeypatch, FakeRepo(), {"items": items})
     assert (status, body["error_code"]) == (400, "validation_error")
+
+
+def test_features_mixed_batch_stores_only_the_good_item(monkeypatch):
+    repo = FakeRepo()
+    items = [_item(), _item("bad_video", vector_b64=_vector(float("inf")))]
+    status, body, s3, sqs = _call(monkeypatch, repo, {"items": items})
+    assert (status, body) == (
+        200,
+        {"accepted": 1, "rejected": [{"video_id": "bad_video", "reason": "bad_vector"}]},
+    )
+    assert [p["Key"] for p in s3.puts] == [f"features/light-1/{VID}.f16"]
+    assert [r["video_id"] for r in repo.recorded] == [VID]
+    (msg,) = sqs.messages
+    assert json.loads(msg["MessageBody"])["video_ids"] == [VID]
+
+
+def test_features_s3_failure_fails_the_request_before_any_row(monkeypatch):
+    repo = FakeRepo()
+    status, _, _, sqs = _call(monkeypatch, repo, {"items": [_item()]}, s3=FakeS3(fail=True))
+    assert status == 500
+    assert repo.recorded == [] and sqs.messages == []
+
+
+def test_features_without_a_bucket_is_503(monkeypatch):
+    monkeypatch.delenv("AUDIO_FEATURES_BUCKET")
+    repo = FakeRepo()
+    status, body, s3, sqs = _call(monkeypatch, repo, {"items": [_item()]})
+    assert (status, body["error_code"]) == (503, "features_not_configured")
+    assert s3.puts == [] and repo.recorded == [] and sqs.messages == []

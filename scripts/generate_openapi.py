@@ -2919,6 +2919,7 @@ ROUTES: list[dict[str, Any]] = [
             ),
             "400": _error(400, "validation_error."),
             "401": _error(401, "Missing or invalid service token."),
+            "503": _error(503, "features_not_configured (no AUDIO_FEATURES_BUCKET)."),
         },
     },
     {

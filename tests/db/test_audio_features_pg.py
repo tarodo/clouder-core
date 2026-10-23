@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -10,6 +10,7 @@ import pytest
 from collector.repositories import ClouderRepository, UpsertVendorMatchCmd
 
 T0 = datetime(2026, 10, 23, 3, tzinfo=UTC)
+T1 = T0 + timedelta(hours=1)
 L1 = "11111111-1111-1111-1111-111111111111"
 
 
@@ -54,7 +55,15 @@ def _row(pg, track_id: str) -> dict | None:
     return rows[0] if rows else None
 
 
-def _rematch(repo, track_id: str, video: str) -> None:
+def _created_at(pg, track_id: str) -> datetime:
+    rows = pg.execute(
+        "SELECT created_at FROM track_analyses WHERE track_id = :t AND analyzer = 'light_profile'",
+        {"t": track_id},
+    )
+    return rows[0]["created_at"]
+
+
+def _rematch(repo, track_id: str, video: str, at: datetime = T0) -> None:
     repo.upsert_vendor_match(
         UpsertVendorMatchCmd(
             clouder_track_id=track_id,
@@ -62,7 +71,7 @@ def _rematch(repo, track_id: str, video: str) -> None:
             vendor_track_id=video,
             match_type="manual",
             confidence=Decimal("1.000"),
-            matched_at=T0,
+            matched_at=at,
             payload={},
         )
     )
@@ -116,6 +125,15 @@ def test_rematch_to_profiled_video_sets_ok(pg, repo) -> None:
 
 def test_rematch_same_video_keeps_row(pg, repo) -> None:
     repo.record_audio_features(items=[_features("vid_a")], now=T0)
-    _rematch(repo, "a", "vid_a")
+    _rematch(repo, "a", "vid_a", at=T1)
+    # A delete + re-insert would stamp created_at with T1.
+    assert _created_at(pg, "a") == T0
     assert _row(pg, "a")["status"] == "ok"
     assert _row(pg, "a")["video_id"] == "vid_a"
+
+
+def test_rematch_keeps_a_live_lease(pg, repo) -> None:
+    repo.claim_analysis(limit=10, analyzers=["light_profile"], lease_id=L1, now=T0)
+    _rematch(repo, "c", "vid_new", at=T1)
+    row = _row(pg, "c")
+    assert (row["status"], str(row["lease_id"])) == ("leased", L1)

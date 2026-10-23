@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock
@@ -129,19 +130,23 @@ def test_upsert_vendor_match_forwards_transaction_id() -> None:
     assert data_api.execute.call_args.kwargs == {"transaction_id": "tx-1"}
 
 
+_YT_CMD = UpsertVendorMatchCmd(
+    clouder_track_id="track-1",
+    vendor="ytmusic",
+    vendor_track_id="vid-new",
+    match_type="manual",
+    confidence=Decimal("1.000"),
+    matched_at=datetime(2026, 10, 23, tzinfo=UTC),
+    payload={},
+)
+
+
 def test_ytmusic_upsert_moves_the_light_profile_in_the_same_transaction() -> None:
     repo, data_api = _make_repo()
-    cmd = UpsertVendorMatchCmd(
-        clouder_track_id="track-1",
-        vendor="ytmusic",
-        vendor_track_id="vid-new",
-        match_type="manual",
-        confidence=Decimal("1.000"),
-        matched_at=datetime(2026, 10, 23, tzinfo=UTC),
-        payload={},
-    )
 
-    repo.upsert_vendor_match(cmd, transaction_id="tx-1")
+    repo.upsert_vendor_match(_YT_CMD, transaction_id="tx-1")
+
+    data_api.transaction.assert_not_called()
 
     calls = data_api.execute.call_args_list
     assert len(calls) == 3
@@ -149,3 +154,24 @@ def test_ytmusic_upsert_moves_the_light_profile_in_the_same_transaction() -> Non
     assert "DELETE FROM track_analyses" in calls[1].args[0]
     assert "FROM audio_features" in calls[2].args[0]
     assert calls[1].args[1]["video"] == calls[2].args[1]["video"] == "vid-new"
+
+    assert "status <> 'leased'" in calls[1].args[0]
+
+
+def test_ytmusic_upsert_without_a_transaction_opens_one() -> None:
+    repo, data_api = _make_repo()
+    data_api.transaction.return_value.__enter__.return_value = "tx-own"
+
+    repo.upsert_vendor_match(_YT_CMD)
+
+    data_api.transaction.assert_called_once_with()
+    calls = data_api.execute.call_args_list
+    assert len(calls) == 3
+    assert all(c.kwargs == {"transaction_id": "tx-own"} for c in calls)
+
+
+def test_other_vendors_never_open_a_transaction() -> None:
+    repo, data_api = _make_repo()
+    repo.upsert_vendor_match(replace(_YT_CMD, vendor="spotify"))
+    data_api.transaction.assert_not_called()
+    assert data_api.execute.call_count == 1

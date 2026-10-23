@@ -56,6 +56,9 @@ _USER_ROWS = [
     " VALUES (:p || 'arun', 's', 'v', '[]', '{}', 'm', 'm', 0, 0, now(), :uid)",
     "INSERT INTO auto_enrich_config (kind, updated_at, updated_by_user_id)"
     " VALUES (:p || 'kind', now(), :uid)",
+    "INSERT INTO ml_models (user_id, style_id) VALUES (:uid, 'st')",
+    "INSERT INTO track_predictions (user_id, style_id, track_id, model_version, scored_at)"
+    " VALUES (:uid, 'st', 'tr', 1, now())",
 ]
 _AUDIT_ROWS = {  # rows that outlive the user, with the audit column set to NULL
     "clouder_label_enrichment_runs": ("created_by_user_id", "lrun"),
@@ -79,6 +82,8 @@ _OWNED = {  # table -> rows deleted per user
     "clouder_user_artist_prefs": 1,
     "clouder_user_label_prefs": 1,
     "clouder_user_style_prefs": 1,
+    "ml_models": 1,
+    "track_predictions": 1,
 }
 
 

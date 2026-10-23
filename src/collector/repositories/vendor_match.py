@@ -52,6 +52,12 @@ class VendorMatchMixin(RepositoryBase):
         cmd: UpsertVendorMatchCmd,
         transaction_id: str | None = None,
     ) -> None:
+        if cmd.vendor == "ytmusic" and transaction_id is None:
+            # The map row and its light_profile row move together: a timeout between the
+            # statements must not leave an `ok` row for a video the track no longer has.
+            with self._data_api.transaction() as tx:
+                self.upsert_vendor_match(cmd, transaction_id=tx)
+            return
         self._data_api.execute(
             """
             INSERT INTO vendor_track_map (
@@ -82,7 +88,10 @@ class VendorMatchMixin(RepositoryBase):
         if cmd.vendor != "ytmusic":
             return
         # A profile follows the track's current video: drop the claim gate of the old
-        # one, then reopen it as ok when the new video is profiled already.
+        # one, then reopen it as ok when the new video is profiled already. A live lease
+        # (video_id NULL) stays: deleting it would let a second claim download the track
+        # again; if the video changed, the lease just runs out and the next claim sends
+        # the new one.
         params = {
             "clouder_track_id": cmd.clouder_track_id,
             "video": cmd.vendor_track_id,
@@ -92,7 +101,7 @@ class VendorMatchMixin(RepositoryBase):
             f"""
             DELETE FROM track_analyses
             WHERE track_id = :clouder_track_id AND analyzer = '{LIGHT_PROFILE}'
-              AND video_id IS DISTINCT FROM :video
+              AND status <> 'leased' AND video_id IS DISTINCT FROM :video
             """,
             params,
             transaction_id=transaction_id,
