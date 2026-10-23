@@ -263,9 +263,10 @@ def test_requeue_categories_scope(repo, pg) -> None:
     assert _status(pg, "mid") is None and _status(pg, "new") == "ok"
 
 
-def test_claim_goes_strictly_newest_release_first(repo, pg) -> None:
-    # Like the YouTube sweep: release date alone decides, so an open triage
-    # block or labeled tracks wait their turn behind fresher releases.
+def test_claim_goes_open_triage_then_newest_release(repo, pg) -> None:
+    # The owner's target number one (2026-10-23): a track waiting in an open triage block
+    # comes first; then release date alone decides, so labeled or discarded tracks wait
+    # their turn behind fresher releases.
     _track(pg, "fresh", T0, ytmusic="v1")
     _track(pg, "in-cat", T0 - timedelta(days=40), ytmusic="v2")
     _track(pg, "discarded", T0 - timedelta(days=50), ytmusic="v3")
@@ -309,7 +310,7 @@ def test_claim_goes_strictly_newest_release_first(repo, pg) -> None:
     )
     rows = repo.claim_analysis(limit=10, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
     ids = [r["track_id"] for r in rows]
-    assert ids[:4] == ["fresh", "in-cat", "discarded", "in-triage"]
+    assert ids[:4] == ["in-triage", "fresh", "in-cat", "discarded"]
     assert len(ids) == len(set(ids))
 
 
