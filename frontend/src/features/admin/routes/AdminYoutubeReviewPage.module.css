@@ -16,9 +16,10 @@
   row-gap: 6px;
 }
 
+/* Right edge, under the candidates' pick and YouTube buttons. */
 .reject {
   align-self: center;
-  justify-self: start;
+  justify-self: end;
 }
 
 @media (max-width: 62em) {
