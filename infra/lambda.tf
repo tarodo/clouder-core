@@ -443,7 +443,7 @@ resource "aws_lambda_function" "ml_worker" {
   # A retrain trains and scores the whole style in one run (spec §5 budget); under the
   # ml-jobs visibility timeout (960 s).
   timeout     = 900
-  memory_size = 10240
+  memory_size = 3008 # the account caps Lambda memory at 3008 MB
 
   source_code_hash = filebase64sha256(local.ml_worker_zip_file)
 
