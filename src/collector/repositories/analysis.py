@@ -87,6 +87,11 @@ RETURNING 1
 
 # A row blocks a (track, analyzer) pair unless it is a lease that ran out.
 _HELD = "NOT (a.status = 'leased' AND a.leased_until < :now)"
+# A track (`t`) misses one of the wanted analyzers (`wanted` CTE).
+_MISSING = f"""EXISTS (
+    SELECT 1 FROM wanted w WHERE NOT EXISTS (
+        SELECT 1 FROM track_analyses a
+        WHERE a.track_id = t.id AND a.analyzer = w.analyzer AND {_HELD}))"""
 
 _COUNTED = ("leased", "ok", "failed", "unusable_source")
 
@@ -106,24 +111,45 @@ class AnalysisMixin(RepositoryBase):
         lease_seconds: int = LEASE_SECONDS,
     ) -> list[dict[str, Any]]:
         """Lease up to *limit* tracks with a YT Music match that miss any of
-        *analyzers*, newest release first (the order the YouTube sweep finds
-        them in). One statement: the ON CONFLICT guard lets only an expired
-        lease be taken over, so two claimers never share a pair."""
+        *analyzers*: first the tracks waiting in an open triage block (any bucket
+        but DISCARD, any user: the owner's target number one), then the rest of
+        the catalog; newest release first within each (the order the YouTube
+        sweep finds them in). One statement: the ON CONFLICT guard lets only an
+        expired lease be taken over, so two claimers never share a pair."""
         names = ",".join(analyzers)
         rows = self._data_api.execute(
             f"""
             WITH wanted AS ({_WANTED}),
+            open_tracks AS (
+                SELECT DISTINCT x.track_id
+                FROM triage_bucket_tracks x
+                JOIN triage_buckets b ON b.id = x.triage_bucket_id AND b.bucket_type <> 'DISCARD'
+                JOIN triage_blocks tb ON tb.id = b.triage_block_id
+                WHERE tb.status = 'IN_PROGRESS' AND tb.deleted_at IS NULL
+            ),
+            candidates AS (
+                (SELECT t.id, t.length_ms, t.created_at, t.publish_date,
+                        v.vendor_track_id AS video_id, 0 AS prio
+                 FROM open_tracks o
+                 JOIN clouder_tracks t ON t.id = o.track_id
+                 JOIN vendor_track_map v ON v.clouder_track_id = t.id AND v.vendor = 'ytmusic'
+                 WHERE {_MISSING}
+                 ORDER BY t.publish_date DESC NULLS LAST, t.created_at DESC, t.id
+                 LIMIT :limit)
+                UNION ALL
+                (SELECT t.id, t.length_ms, t.created_at, t.publish_date,
+                        v.vendor_track_id AS video_id, 1 AS prio
+                 FROM vendor_track_map v
+                 JOIN clouder_tracks t ON t.id = v.clouder_track_id
+                 WHERE v.vendor = 'ytmusic' AND {_MISSING}
+                 ORDER BY t.publish_date DESC NULLS LAST, t.created_at DESC, t.id
+                 LIMIT :limit)
+            ),
             picked AS MATERIALIZED (
-                SELECT t.id, t.length_ms, t.created_at, t.publish_date,
-                       v.vendor_track_id AS video_id
-                FROM vendor_track_map v
-                JOIN clouder_tracks t ON t.id = v.clouder_track_id
-                WHERE v.vendor = 'ytmusic'
-                  AND EXISTS (
-                      SELECT 1 FROM wanted w WHERE NOT EXISTS (
-                          SELECT 1 FROM track_analyses a
-                          WHERE a.track_id = t.id AND a.analyzer = w.analyzer AND {_HELD}))
-                ORDER BY t.publish_date DESC NULLS LAST, t.created_at DESC, t.id
+                SELECT id, length_ms, created_at, publish_date, video_id, min(prio) AS prio
+                FROM candidates
+                GROUP BY id, length_ms, created_at, publish_date, video_id
+                ORDER BY min(prio), publish_date DESC NULLS LAST, created_at DESC, id
                 LIMIT :limit
             ),
             leased AS (
@@ -145,8 +171,8 @@ class AnalysisMixin(RepositoryBase):
             SELECT p.id AS track_id, p.video_id, p.length_ms,
                    string_agg(l.analyzer, ',' ORDER BY l.analyzer) AS analyzers
             FROM leased l JOIN picked p ON p.id = l.track_id
-            GROUP BY p.id, p.video_id, p.length_ms, p.created_at, p.publish_date
-            ORDER BY p.publish_date DESC NULLS LAST, p.created_at DESC, p.id
+            GROUP BY p.id, p.video_id, p.length_ms, p.created_at, p.publish_date, p.prio
+            ORDER BY p.prio, p.publish_date DESC NULLS LAST, p.created_at DESC, p.id
             """,
             {
                 "analyzers": names,

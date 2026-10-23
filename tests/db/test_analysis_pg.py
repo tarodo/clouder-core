@@ -465,3 +465,17 @@ def test_a_new_block_can_untick_the_ai_rule(repo, pg) -> None:
     assert block.ai_to_discard is False
     by_type = {b.bucket_type: b.track_count for b in block.buckets}
     assert by_type["DISCARD"] == 0 and by_type["NEW"] == 4  # the flagged track is triaged as usual
+
+
+def test_claim_takes_open_triage_tracks_first(repo, pg) -> None:
+    _seed_triage(pg)
+    # old waits in the open block's NEW; mid sits only in the open DISCARD (decided) and the
+    # finalized block; new is in no block. The release order alone would give new, mid, old.
+    pg.execute(
+        "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at) VALUES"
+        " ('ob-new', 'old', now()), ('ob-dis', 'mid', now()), ('fb-new', 'mid', now())"
+    )
+    got = repo.claim_analysis(limit=2, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
+    assert [g["track_id"] for g in got] == ["old", "new"]
+    rest = repo.claim_analysis(limit=2, analyzers=["ai_lofcz"], lease_id=L2, now=T0)
+    assert [g["track_id"] for g in rest] == ["mid"]  # no-yt has no video
