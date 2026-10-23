@@ -60,7 +60,6 @@ API = [
     "ml_save_model",
     "ml_style_tracks",
     "ml_tracks_for_videos",
-    "ml_trigger_context",
     "ml_upsert_predictions",
     "propagate_release_type_to_albums",
     "read_track_state",
