@@ -269,6 +269,14 @@ PK `(category_id, track_id)`. `source_triage_block_id` is set when the track was
 
 **Claim order (2026-10-23).** `claim_analysis` hands out the tracks waiting in an open triage block first: any user, any bucket but `DISCARD`, because they are what the owner is about to triage. The rest of the catalog comes after them. Within each group the newest release goes first.
 
+### Triage suggestions tables (migration 45)
+
+| Table | Key | Notes |
+|---|---|---|
+| `audio_features` | `video_id` | Marks a YouTube video whose `light-1` profile (16 778 float16, `features/light-1/<video_id>.f16` in S3) exists. `version`, `audio_sha256`, `created_at`. |
+| `ml_models` | `(user_id, style_id)` | One model per user and style. `version = 0` means requested, never trained. Also `trained_at`, `retrain_requested_at`, `n_labels`, `n_keep`, `keep_threshold`, `classes jsonb`, `metrics jsonb`, `artifact_key`. Cascades on user delete. |
+| `track_predictions` | `(user_id, style_id, track_id)` | Scores of the current model: `model_version`, `keep_score`, `keep`, `categories jsonb`, `scored_at`. Cascades on user and track delete. |
+
 ### User tag tables
 
 `user_tags`: per-user custom tags (name, optional color).

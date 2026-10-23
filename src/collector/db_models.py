@@ -7,6 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    REAL,
     Boolean,
     CheckConstraint,
     Date,
@@ -604,3 +605,53 @@ class UserImportedTrack(Base):
         primary_key=True,
     )
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AudioFeature(Base):
+    __tablename__ = "audio_features"
+
+    video_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    version: Mapped[str] = mapped_column(String(16), nullable=False)
+    audio_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class MlModel(Base):
+    """Per-(user, style) model. version 0 = requested, never trained."""
+
+    __tablename__ = "ml_models"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    style_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("clouder_styles.id", ondelete="CASCADE"), primary_key=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    trained_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    retrain_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    n_labels: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    n_keep: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    keep_threshold: Mapped[float | None] = mapped_column(REAL, nullable=True)
+    classes: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    metrics: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    artifact_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class TrackPrediction(Base):
+    __tablename__ = "track_predictions"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    style_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    track_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("clouder_tracks.id", ondelete="CASCADE"), primary_key=True
+    )
+    model_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    keep_score: Mapped[float | None] = mapped_column(REAL, nullable=True)
+    keep: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    categories: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    scored_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
