@@ -145,6 +145,10 @@ def _handle_analysis_status(
             **status,
             "last_claim_at": _iso(status["last_claim_at"]),
             "last_result_at": _iso(status["last_result_at"]),
+            "models": {
+                **status["models"],
+                "last_trained_at": _iso(status["models"]["last_trained_at"]),
+            },
         },
         correlation_id,
     )

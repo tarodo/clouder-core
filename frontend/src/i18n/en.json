@@ -857,6 +857,16 @@
       "failed": "Unavailable",
       "unusable": "No usable audio"
     },
+    "profile_status": {
+      "title": "Audio profile",
+      "queue": "Queue:",
+      "waiting": "Waiting",
+      "profiled": "Profiled",
+      "failed": "Unavailable",
+      "unusable": "No usable audio",
+      "models": "Models: {{count}} · last retrain {{ago}}",
+      "models_none": "No models yet"
+    },
     "spotify_status": {
       "title": "Spotify search",
       "running": "Searching",

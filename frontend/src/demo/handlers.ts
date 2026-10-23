@@ -318,6 +318,8 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
         ],
         pair: { high: 41, medium: 17, low: 55, clean: 3290 },
         queue: { waiting: 37, analyzed: 3403, failed: 12, unusable: 3 },
+        profile: { waiting: 37, profiled: 3380, failed: 4, unusable: 1 },
+        models: { count: 3, last_trained_at: new Date(Date.now() - 2 * 86_400_000).toISOString() },
       }),
     },
     {

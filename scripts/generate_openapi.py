@@ -914,7 +914,15 @@ ANALYSIS_FEATURES_RESPONSE = {
 
 ANALYSIS_STATUS = {
     "type": "object",
-    "required": ["last_claim_at", "last_result_at", "analyzers", "pair", "queue"],
+    "required": [
+        "last_claim_at",
+        "last_result_at",
+        "analyzers",
+        "pair",
+        "queue",
+        "profile",
+        "models",
+    ],
     "properties": {
         "last_claim_at": {"type": ["string", "null"], "format": "date-time"},
         "last_result_at": {"type": ["string", "null"], "format": "date-time"},
@@ -944,6 +952,29 @@ ANALYSIS_STATUS = {
                     "type": "integer",
                     "description": "Either unusable_source, neither failed.",
                 },
+            },
+        },
+        "profile": {
+            "type": "object",
+            "description": "Tracks per light_profile (audio feature) state.",
+            "required": ["waiting", "profiled", "failed", "unusable"],
+            "properties": {
+                "waiting": {
+                    "type": "integer",
+                    "description": "YT Music matches with no held light_profile row.",
+                },
+                "profiled": {"type": "integer", "description": "light_profile ok."},
+                "failed": {"type": "integer", "description": "light_profile failed."},
+                "unusable": {"type": "integer", "description": "light_profile unusable_source."},
+            },
+        },
+        "models": {
+            "type": "object",
+            "description": "Trained triage models (version > 0).",
+            "required": ["count", "last_trained_at"],
+            "properties": {
+                "count": {"type": "integer"},
+                "last_trained_at": {"type": ["string", "null"], "format": "date-time"},
             },
         },
         "analyzers": {

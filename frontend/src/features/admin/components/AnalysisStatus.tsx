@@ -16,7 +16,7 @@ const POLL_MS = 30_000;
 // The analyzer runs about once a day on the owner's PC; longer silence means it is off.
 const STALE_DAYS = 3;
 
-function Stat({ label, value, marker }: { label: string; value: number; marker?: ReactNode }) {
+export function Stat({ label, value, marker }: { label: string; value: number; marker?: ReactNode }) {
   return (
     <Group gap={6} wrap="nowrap">
       {marker}
@@ -31,7 +31,7 @@ function Stat({ label, value, marker }: { label: string; value: number; marker?:
 }
 
 // Wraps on a phone; rows stay tight.
-const ROW = { gap: 'lg', style: { rowGap: 4 } } as const;
+export const ROW = { gap: 'lg', style: { rowGap: 4 } } as const;
 
 /** Admin view of the AI pair (ai_lofcz + ai_deezer): when it last called in, what it found, what is left. */
 export function AnalysisStatus() {

@@ -22,6 +22,8 @@ function status(over: Partial<Status> = {}): Status {
     ],
     pair: { high: 3745, medium: 151, low: 224, clean: 14952 },
     queue: { waiting: 41633, analyzed: 19072, failed: 82, unusable: 25 },
+    profile: { waiting: 120, profiled: 800, failed: 5, unusable: 2 },
+    models: { count: 0, last_trained_at: null },
     ...over,
   };
 }

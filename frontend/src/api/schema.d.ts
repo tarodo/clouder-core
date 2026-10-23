@@ -9344,6 +9344,23 @@ export interface components {
                 /** @description Either unusable_source, neither failed. */
                 unusable: number;
             };
+            /** @description Tracks per light_profile (audio feature) state. */
+            profile: {
+                /** @description YT Music matches with no held light_profile row. */
+                waiting: number;
+                /** @description light_profile ok. */
+                profiled: number;
+                /** @description light_profile failed. */
+                failed: number;
+                /** @description light_profile unusable_source. */
+                unusable: number;
+            };
+            /** @description Trained triage models (version > 0). */
+            models: {
+                count: number;
+                /** Format: date-time */
+                last_trained_at: string | null;
+            };
             analyzers: {
                 name: string;
                 /** @description Tracks with a YT Music match still lacking this analyzer. */

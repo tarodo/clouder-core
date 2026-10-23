@@ -364,12 +364,34 @@ class AnalysisMixin(RepositoryBase):
             """,
             {"lofcz": lofcz, "deezer": deezer, "now": now},
         )
+        (prof,) = self._data_api.execute(
+            f"""
+            SELECT count(*) FILTER (WHERE a.status = 'ok') AS profiled,
+                   count(*) FILTER (WHERE a.status = 'failed') AS failed,
+                   count(*) FILTER (WHERE a.status = 'unusable_source') AS unusable,
+                   (SELECT count(*) FROM vendor_track_map v
+                    WHERE v.vendor = 'ytmusic' AND NOT EXISTS (
+                        SELECT 1 FROM track_analyses a
+                        WHERE a.track_id = v.clouder_track_id
+                          AND a.analyzer = 'light_profile' AND {_HELD})) AS waiting
+            FROM track_analyses a WHERE a.analyzer = 'light_profile'
+            """,
+            {"now": now},
+        )
+        (models,) = self._data_api.execute(
+            "SELECT count(*) AS n, max(trained_at) AS last FROM ml_models WHERE version > 0"
+        )
         return {
             "last_claim_at": as_utc_datetime(state[0]["last_claim_at"]) if state else None,
             "last_result_at": as_utc_datetime(state[0]["last_result_at"]) if state else None,
             "analyzers": analyzers,
             "pair": {k: int(pair[k]) for k in ("high", "medium", "low", "clean")},
             "queue": {k: int(pair[k]) for k in ("waiting", "analyzed", "failed", "unusable")},
+            "profile": {k: int(prof[k]) for k in ("waiting", "profiled", "failed", "unusable")},
+            "models": {
+                "count": int(models["n"]),
+                "last_trained_at": as_utc_datetime(models["last"]) if models["last"] else None,
+            },
         }
 
     def requeue_analysis(
