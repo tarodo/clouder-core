@@ -233,10 +233,10 @@ Each block has five fixed-type buckets (`NEW`, `OLD`, `NOT`, `DISCARD`, `UNCLASS
 
 PK `(triage_bucket_id, track_id)`. `ON CONFLICT DO NOTHING` makes moves idempotent at the call site.
 
-**AI rule (2026-10-23).** A track that `ai_lofcz` or `ai_deezer` flags (any badge level) goes to `DISCARD`:
+**AI rule (2026-10-23).** A track that `ai_lofcz` or `ai_deezer` flags (any badge level) goes to `DISCARD`. It is the block option `triage_blocks.ai_to_discard`: on by default, a visible switch in the create dialog like the disliked labels / artists ones (migration 44; existing blocks kept it on).
 - `create_block` classifies it there first, before likes and dates.
-- A flagged result from the analyzer (`record_analysis_results` → `discard_ai_tracks`) moves it to `DISCARD` in every open block, from any bucket (`STAGING` too).
-- A flagged track kept in a category leaves the category for the `DISCARD` bucket of its `source_triage_block_id` block (nowhere when it was added by hand). That user's tags on it go with the membership.
+- A flagged result from the analyzer (`record_analysis_results` → `discard_ai_tracks`) moves it to `DISCARD` in every open block that keeps the option, from any bucket (`STAGING` too).
+- A flagged track kept in a category leaves the category for the `DISCARD` bucket of its `source_triage_block_id` block, unless that block opted out (nowhere when it was added by hand). That user's tags on it go with the membership.
 - Finalized blocks and playlists are not touched.
 - Migration 43 applied the rule once to the existing rows.
 

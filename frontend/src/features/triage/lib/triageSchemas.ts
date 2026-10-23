@@ -33,6 +33,7 @@ export const createTriageBlockSchema = z.object({
   includeDislikedArtists: z.boolean().default(true),
   compilationsToNot: z.boolean().default(true),
   includeFavorites: z.boolean().default(true),
+  aiToDiscard: z.boolean().default(true),
 });
 
 // Use `z.input` (not `z.infer`) so the form's value type matches what Mantine

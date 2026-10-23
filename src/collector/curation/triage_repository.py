@@ -61,6 +61,9 @@ class TriageBlockRow:
     updated_at: str
     finalized_at: str | None
     buckets: Sequence[TriageBucketRow] = field(default_factory=tuple)
+    ai_to_discard: bool = (
+        True  # AI-flagged tracks go to DISCARD (the owner's rule; a block may opt out)
+    )
 
 
 @dataclass(frozen=True)
@@ -137,6 +140,7 @@ class TriageRepository:
         include_disliked_artists: bool = True,
         compilations_to_not: bool = True,
         include_favorites: bool = True,
+        ai_to_discard: bool = True,
     ) -> TriageBlockRow:
         now = utc_now()
         old_cutoff = date_from - timedelta(weeks=old_offset_weeks)
@@ -165,14 +169,14 @@ class TriageRepository:
                     date_from, date_to, status,
                     old_offset_weeks, include_disliked_labels,
                     include_disliked_artists, compilations_to_not,
-                    include_favorites,
+                    include_favorites, ai_to_discard,
                     created_at, updated_at
                 ) VALUES (
                     :id, :user_id, :style_id, :name,
                     :date_from, :date_to, 'IN_PROGRESS',
                     :old_offset_weeks, :include_disliked_labels,
                     :include_disliked_artists, :compilations_to_not,
-                    :include_favorites,
+                    :include_favorites, :ai_to_discard,
                     :now, :now
                 )
                 """,
@@ -188,6 +192,7 @@ class TriageRepository:
                     "include_disliked_artists": include_disliked_artists,
                     "compilations_to_not": compilations_to_not,
                     "include_favorites": include_favorites,
+                    "ai_to_discard": ai_to_discard,
                     "now": now,
                 },
                 transaction_id=tx_id,
@@ -253,11 +258,12 @@ class TriageRepository:
                 )
 
             # 5. Classify and insert tracks (one INSERT FROM SELECT).
-            #    Branch order (first match wins): DISCARD (AI-flagged, the
-            #    owner's rule), FAV, NOT(disliked), date branches,
+            #    Branch order (first match wins): DISCARD (AI-flagged, when
+            #    ai_to_discard), FAV, NOT(disliked), date branches,
             #    NOT(compilation), else NEW. Likes beat dislikes. Optional
             #    branches are emitted as SQL fragments so disabled toggles
             #    bind no parameters.
+            ai_when = ""
             fav_when = ""
             compilation_when = ""
             classify_params: dict[str, Any] = {
@@ -270,8 +276,11 @@ class TriageRepository:
                 "new_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_NEW],
                 "old_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_OLD],
                 "unclassified_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_UNCLASSIFIED],
-                "discard_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_DISCARD],
             }
+
+            if ai_to_discard:
+                ai_when = f"WHEN {AI_FLAGGED_SQL} THEN :discard_bucket_id"
+                classify_params["discard_bucket_id"] = tech_bucket_id_by_type[BUCKET_TYPE_DISCARD]
 
             if include_favorites:
                 fav_when = """
@@ -334,7 +343,7 @@ class TriageRepository:
                     (triage_bucket_id, track_id, added_at)
                 SELECT
                     CASE
-                        WHEN {AI_FLAGGED_SQL} THEN :discard_bucket_id
+                        {ai_when}
                         {fav_when}
                         {disliked_when}
                         WHEN t.spotify_release_date IS NULL
@@ -1106,7 +1115,7 @@ class TriageRepository:
                 tb.status,
                 tb.old_offset_weeks, tb.include_disliked_labels,
                 tb.include_disliked_artists, tb.compilations_to_not,
-                tb.include_favorites,
+                tb.include_favorites, tb.ai_to_discard,
                 tb.created_at, tb.updated_at, tb.finalized_at
             FROM triage_blocks tb
             JOIN clouder_styles cs ON tb.style_id = cs.id
@@ -1190,6 +1199,7 @@ class TriageRepository:
             updated_at=str(b["updated_at"]),
             finalized_at=(str(b["finalized_at"]) if b["finalized_at"] is not None else None),
             buckets=buckets,
+            ai_to_discard=bool(b.get("ai_to_discard", True)),  # the column default
         )
 
 

@@ -74,6 +74,7 @@ describe('createTriageBlockSchema', () => {
       expect(result.data.includeDislikedArtists).toBe(true);
       expect(result.data.compilationsToNot).toBe(true);
       expect(result.data.includeFavorites).toBe(true);
+      expect(result.data.aiToDiscard).toBe(true);
     }
   });
 

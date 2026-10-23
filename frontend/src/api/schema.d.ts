@@ -4169,6 +4169,7 @@ export interface paths {
                             include_disliked_artists?: boolean;
                             compilations_to_not?: boolean;
                             include_favorites?: boolean;
+                            ai_to_discard?: boolean;
                             buckets: {
                                 /** Format: uuid */
                                 id: string;
@@ -4373,6 +4374,7 @@ export interface paths {
                             include_disliked_artists?: boolean;
                             compilations_to_not?: boolean;
                             include_favorites?: boolean;
+                            ai_to_discard?: boolean;
                             buckets: {
                                 /** Format: uuid */
                                 id: string;
@@ -4842,6 +4844,7 @@ export interface paths {
                                 include_disliked_artists?: boolean;
                                 compilations_to_not?: boolean;
                                 include_favorites?: boolean;
+                                ai_to_discard?: boolean;
                                 buckets: {
                                     /** Format: uuid */
                                     id: string;
@@ -8977,6 +8980,11 @@ export interface components {
              * @default true
              */
             include_favorites: boolean;
+            /**
+             * Ai To Discard
+             * @default true
+             */
+            ai_to_discard: boolean;
         };
         /** MoveTracksIn */
         MoveTracksIn: {

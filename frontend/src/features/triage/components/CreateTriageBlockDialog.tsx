@@ -91,6 +91,7 @@ export function CreateTriageBlockDialog({
       includeDislikedArtists: true,
       compilationsToNot: true,
       includeFavorites: true,
+      aiToDiscard: true,
     },
     validate: zodResolver(createTriageBlockSchema),
   });
@@ -182,6 +183,7 @@ export function CreateTriageBlockDialog({
         include_disliked_artists: values.includeDislikedArtists,
         compilations_to_not: values.compilationsToNot,
         include_favorites: values.includeFavorites,
+        ai_to_discard: values.aiToDiscard,
       });
       remember();
       notifications.show({
@@ -296,6 +298,11 @@ export function CreateTriageBlockDialog({
               max={520}
               allowDecimal={false}
               {...form.getInputProps('oldOffsetWeeks')}
+            />
+            <Switch
+              label={t('triage.form.ai_to_discard_label')}
+              description={t('triage.form.ai_to_discard_description')}
+              {...form.getInputProps('aiToDiscard', { type: 'checkbox' })}
             />
             <Switch
               label={t('triage.form.include_disliked_labels_label')}

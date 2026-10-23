@@ -123,6 +123,7 @@ class TestCreateTriageBlockInPopulateOptions:
         assert m.include_disliked_artists is True
         assert m.compilations_to_not is True
         assert m.include_favorites is True
+        assert m.ai_to_discard is True
 
     def test_accepts_classification_flags_off(self) -> None:
         m = CreateTriageBlockIn.model_validate(
@@ -135,12 +136,14 @@ class TestCreateTriageBlockInPopulateOptions:
                 "include_disliked_artists": False,
                 "compilations_to_not": False,
                 "include_favorites": False,
+                "ai_to_discard": False,
             }
         )
         assert m.include_disliked_labels is False
         assert m.include_disliked_artists is False
         assert m.compilations_to_not is False
         assert m.include_favorites is False
+        assert m.ai_to_discard is False
 
     def test_accepts_populate_options(self) -> None:
         m = CreateTriageBlockIn.model_validate(

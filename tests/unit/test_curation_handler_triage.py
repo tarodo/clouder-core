@@ -149,6 +149,7 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
             include_disliked_artists=True,
             compilations_to_not=True,
             include_favorites=True,
+            ai_to_discard=True,
         ):
             captured.update(
                 user_id=user_id,
@@ -161,6 +162,7 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
                 include_disliked_artists=include_disliked_artists,
                 compilations_to_not=compilations_to_not,
                 include_favorites=include_favorites,
+                ai_to_discard=ai_to_discard,
             )
             return fake_row
 
@@ -1141,6 +1143,7 @@ def test_create_triage_block_forwards_and_serializes_flags() -> None:
                 updated_at="2026-04-28T00:00:00+00:00",
                 finalized_at=None,
                 buckets=(),
+                ai_to_discard=kwargs["ai_to_discard"],
             )
 
     event = {
@@ -1148,7 +1151,7 @@ def test_create_triage_block_forwards_and_serializes_flags() -> None:
             '{"style_id":"00000000-0000-0000-0000-000000000001",'
             '"name":"X","date_from":"2026-04-20","date_to":"2026-04-26",'
             '"include_disliked_artists":false,"compilations_to_not":false,'
-            '"include_favorites":false}'
+            '"include_favorites":false,"ai_to_discard":false}'
         )
     }
     resp = _create_triage_block(event, _Repo(), "u-1", "corr-1")
@@ -1156,9 +1159,11 @@ def test_create_triage_block_forwards_and_serializes_flags() -> None:
     assert captured["include_disliked_artists"] is False
     assert captured["compilations_to_not"] is False
     assert captured["include_favorites"] is False
+    assert captured["ai_to_discard"] is False
 
     body = json.loads(resp["body"])
     assert body["include_disliked_labels"] is True  # default, not sent
     assert body["include_disliked_artists"] is False
     assert body["compilations_to_not"] is False
     assert body["include_favorites"] is False
+    assert body["ai_to_discard"] is False

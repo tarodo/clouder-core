@@ -48,6 +48,7 @@ class CreateTriageBlockIn(BaseModel):
     include_disliked_artists: bool = Field(default=True)
     compilations_to_not: bool = Field(default=True)
     include_favorites: bool = Field(default=True)
+    ai_to_discard: bool = Field(default=True)
 
     @field_validator("name")
     @classmethod

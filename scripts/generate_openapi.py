@@ -439,6 +439,7 @@ TRIAGE_BLOCK_DETAIL = {
         "include_disliked_artists": {"type": "boolean"},
         "compilations_to_not": {"type": "boolean"},
         "include_favorites": {"type": "boolean"},
+        "ai_to_discard": {"type": "boolean"},
         "buckets": {
             "type": "array",
             "items": TRIAGE_BUCKET_ROW,
