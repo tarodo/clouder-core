@@ -9233,6 +9233,19 @@ export interface components {
                 medium: number;
                 /** @description Only ai_deezer flagged. */
                 low: number;
+                /** @description Both ok, neither flagged. */
+                clean: number;
+            };
+            /** @description Tracks in the pair's queue (ai_lofcz + ai_deezer). */
+            queue: {
+                /** @description YT Music matches a claim for both would hand out. */
+                waiting: number;
+                /** @description Both ok. */
+                analyzed: number;
+                /** @description Either failed. */
+                failed: number;
+                /** @description Either unusable_source, neither failed. */
+                unusable: number;
             };
             analyzers: {
                 name: string;

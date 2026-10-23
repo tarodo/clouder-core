@@ -179,14 +179,16 @@ A later `ytmusic` re-match to another video does not invalidate a result. `video
     { "name": "ai_detect", "due": 120, "leased": 0, "ok": 3400, "ai_detected": 41,
       "failed": 12, "unusable_source": 3 }
   ],
-  "pair": { "high": 17, "medium": 64, "low": 230 }
+  "pair": { "high": 17, "medium": 64, "low": 230, "clean": 3100 },
+  "queue": { "waiting": 120, "analyzed": 3411, "failed": 12, "unusable": 3 }
 }
 ```
 
 - The `analyzers` list covers `claim_analyzers` plus every name present in the table.
 - `due`: tracks with a `ytmusic` row and no row for that analyzer, plus expired leases.
 - `ai_detected`: counted only for the AI analyzers (`ai_detect`, `ai_lofcz`, `ai_deezer`).
-- `pair`: tracks per AI level, `high` (both `ai_lofcz` and `ai_deezer` flagged), `medium` (only `ai_lofcz`) and `low` (only `ai_deezer`).
+- `pair`: tracks per AI level, `high` (both `ai_lofcz` and `ai_deezer` flagged), `medium` (only `ai_lofcz`) and `low` (only `ai_deezer`); `clean`: both `ok`, neither flagged.
+- `queue`, over the same pair: `waiting` (`ytmusic` tracks a claim for both would hand out: a pair analyzer has no row or only an expired lease), `analyzed` (both `ok`), `failed` (either failed), `unusable` (either `unusable_source`, neither failed). One query computes `pair` and `queue`.
 
 ### `POST /admin/analysis/requeue` (admin JWT)
 
@@ -202,8 +204,7 @@ A later `ytmusic` re-match to another video does not invalidate a result. `video
 
 "AI analysis" sits on Admin → Coverage, below "YouTube search", in the same style. It shows:
 - last claim and last result as relative times; it turns into a warning after 3 days without a claim, meaning the PC has not run;
-- the AI level counts, "AI · both detectors", "AI · lofcz only" and "AI · Deezer only";
-- `due`, `ok`, `ai_detected`, `failed`, `unusable_source` per analyzer.
+- one compact card over the pair only (2026-10-23; no per-analyzer blocks, no `ai_detect`): the levels "Both detectors", "lofcz only", "Deezer only" (each marked with the track's `AiBadge` color) plus "Clean", then "Queue: Waiting · Analyzed · Unavailable (failed) · No usable audio". `analyzers` stays in the API.
 
 The card polls every 30 seconds, but only while the tab is visible. It must not keep Aurora awake (#322's lesson).
 

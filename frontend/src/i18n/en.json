@@ -847,14 +847,15 @@
       "stale": "No run for {{days}} days",
       "last_result": "Last result {{ago}}",
       "no_results": "No results yet",
-      "due": "Waiting",
-      "ok": "Analyzed",
-      "ai_detected": "AI detected",
-      "level_high": "AI · both detectors",
-      "level_medium": "AI · lofcz only",
-      "level_low": "AI · Deezer only",
-      "failed": "Failed",
-      "unusable": "Unusable source"
+      "level_high": "Both detectors",
+      "level_medium": "lofcz only",
+      "level_low": "Deezer only",
+      "clean": "Clean",
+      "queue": "Queue:",
+      "waiting": "Waiting",
+      "analyzed": "Analyzed",
+      "failed": "Unavailable",
+      "unusable": "No usable audio"
     },
     "spotify_status": {
       "title": "Spotify search",

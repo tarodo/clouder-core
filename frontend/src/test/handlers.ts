@@ -113,7 +113,8 @@ export const handlers = [
       last_claim_at: null,
       last_result_at: null,
       analyzers: [],
-      pair: { high: 0, medium: 0, low: 0 },
+      pair: { high: 0, medium: 0, low: 0, clean: 0 },
+      queue: { waiting: 0, analyzed: 0, failed: 0, unusable: 0 },
     }),
   ),
   http.get('http://localhost/admin/coverage', ({ request }) => {

@@ -1,10 +1,12 @@
-import { Badge, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Badge, Group, Paper, Stack, Text } from '@mantine/core';
+import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { api } from '../../../api/client';
 import type { components } from '../../../api/schema';
+import { AiBadge } from '../../playback/AiBadge';
 
 dayjs.extend(relativeTime);
 
@@ -14,20 +16,24 @@ const POLL_MS = 30_000;
 // The analyzer runs about once a day on the owner's PC; longer silence means it is off.
 const STALE_DAYS = 3;
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, marker }: { label: string; value: number; marker?: ReactNode }) {
   return (
-    <Stack gap={2}>
-      <Text size="xs" c="dimmed" tt="uppercase">
+    <Group gap={6} wrap="nowrap">
+      {marker}
+      <Text size="sm" c="dimmed">
         {label}
       </Text>
-      <Text fw={600} size="lg">
+      <Text size="sm" fw={600}>
         {value.toLocaleString('en-US')}
       </Text>
-    </Stack>
+    </Group>
   );
 }
 
-/** Admin view of the external audio analyzer: when it last called in, what it found. */
+// Wraps on a phone; rows stay tight.
+const ROW = { gap: 'lg', style: { rowGap: 4 } } as const;
+
+/** Admin view of the AI pair (ai_lofcz + ai_deezer): when it last called in, what it found, what is left. */
 export function AnalysisStatus() {
   const { t } = useTranslation();
   // TanStack Query v5 skips interval refetches while the tab is hidden, so an idle
@@ -64,29 +70,25 @@ export function AnalysisStatus() {
               : t('admin.analysis_status.no_results')}
           </Text>
         )}
-        {data.analyzers.length > 0 && (
-          <SimpleGrid cols={{ base: 2, sm: 5 }}>
-            <Stat label={t('admin.analysis_status.level_high')} value={data.pair.high} />
-            <Stat label={t('admin.analysis_status.level_medium')} value={data.pair.medium} />
-            <Stat label={t('admin.analysis_status.level_low')} value={data.pair.low} />
-          </SimpleGrid>
-        )}
-        {data.analyzers.map((a) => (
-          <Stack key={a.name} gap={4}>
-            {data.analyzers.length > 1 && (
-              <Text size="sm" fw={500}>
-                {a.name}
-              </Text>
-            )}
-            <SimpleGrid cols={{ base: 2, sm: 5 }}>
-              <Stat label={t('admin.analysis_status.due')} value={a.due} />
-              <Stat label={t('admin.analysis_status.ok')} value={a.ok} />
-              <Stat label={t('admin.analysis_status.ai_detected')} value={a.ai_detected} />
-              <Stat label={t('admin.analysis_status.failed')} value={a.failed} />
-              <Stat label={t('admin.analysis_status.unusable')} value={a.unusable_source} />
-            </SimpleGrid>
-          </Stack>
-        ))}
+        <Group {...ROW}>
+          {(['high', 'medium', 'low'] as const).map((level) => (
+            <Stat
+              key={level}
+              marker={<AiBadge verdict={level} />}
+              label={t(`admin.analysis_status.level_${level}`)}
+              value={data.pair[level]}
+            />
+          ))}
+          <Stat label={t('admin.analysis_status.clean')} value={data.pair.clean} />
+        </Group>
+        <Group {...ROW}>
+          <Text size="sm" c="dimmed">
+            {t('admin.analysis_status.queue')}
+          </Text>
+          {(['waiting', 'analyzed', 'failed', 'unusable'] as const).map((key) => (
+            <Stat key={key} label={t(`admin.analysis_status.${key}`)} value={data.queue[key]} />
+          ))}
+        </Group>
       </Stack>
     </Paper>
   );

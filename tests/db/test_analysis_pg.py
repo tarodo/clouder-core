@@ -155,7 +155,7 @@ def test_status_counts_and_heartbeat(repo) -> None:
         }
     ]
     # an ai_detect flag is no part of the AI level
-    assert status["pair"] == {"high": 0, "medium": 0, "low": 0}
+    assert status["pair"] == {"high": 0, "medium": 0, "low": 0, "clean": 0}
 
 
 @pytest.mark.parametrize("analyzer", ["ai_lofcz", "ai_deezer"])
@@ -184,7 +184,7 @@ def test_status_counts_tracks_per_ai_level(repo, pg) -> None:
         _ok("none", analyzer="ai_deezer"),
     ]
     repo.record_analysis_results(lease_id=L1, items=items, now=T0)
-    assert repo.analysis_status(now=T0)["pair"] == {"high": 1, "medium": 1, "low": 1}
+    assert repo.analysis_status(now=T0)["pair"] == {"high": 1, "medium": 1, "low": 1, "clean": 1}
 
 
 def test_status_counts_due_and_expired_leases(repo) -> None:
@@ -201,8 +201,56 @@ def test_status_before_any_claim(repo) -> None:
         "last_claim_at": None,
         "last_result_at": None,
         "analyzers": [],
-        "pair": {"high": 0, "medium": 0, "low": 0},
+        "pair": {"high": 0, "medium": 0, "low": 0, "clean": 0},
+        "queue": {"waiting": 3, "analyzed": 0, "failed": 0, "unusable": 0},
     }
+
+
+def _row(pg, track_id: str, analyzer: str, status: str, *, ai: bool = False, until=None) -> None:
+    pg.execute(
+        "INSERT INTO track_analyses (track_id, analyzer, status, result, leased_until)"
+        " VALUES (:t, :a, :s, CAST(:r AS jsonb), :u)",
+        {
+            "t": track_id,
+            "a": analyzer,
+            "s": status,
+            "r": f'{{"ai_detected": {str(ai).lower()}}}' if status == "ok" else None,
+            "u": until,
+        },
+    )
+
+
+def test_status_pair_clean_and_queue(repo, pg) -> None:
+    for tid in ("one", "unus", "unfail", "exp", "live", "none", "detect"):
+        _track(pg, tid, T0 - timedelta(days=5), ytmusic=f"vid_{tid}")
+    rows = [
+        ("new", "ai_lofcz", "ok", False),  # clean, analyzed
+        ("new", "ai_deezer", "ok", False),
+        ("new", "ai_detect", "ok", True),  # ArtifactNet drives nothing
+        ("mid", "ai_lofcz", "ok", False),  # low, analyzed
+        ("mid", "ai_deezer", "ok", True),
+        ("old", "ai_lofcz", "ok", False),  # one ok + one failed
+        ("old", "ai_deezer", "failed", False),
+        ("one", "ai_lofcz", "ok", False),  # only one analyzer done: waiting
+        ("unus", "ai_lofcz", "unusable_source", False),
+        ("unus", "ai_deezer", "ok", False),
+        ("unfail", "ai_lofcz", "unusable_source", False),  # failed wins
+        ("unfail", "ai_deezer", "failed", False),
+        ("detect", "ai_detect", "ok", False),  # no pair row: waiting
+    ]
+    for tid, analyzer, st, ai in rows:
+        _row(pg, tid, analyzer, st, ai=ai)
+    _row(pg, "exp", "ai_lofcz", "leased", until=T0 - timedelta(minutes=1))  # expired: waiting
+    _row(pg, "exp", "ai_deezer", "ok")
+    _row(pg, "live", "ai_lofcz", "leased", until=T0 + timedelta(minutes=30))
+    _row(pg, "live", "ai_deezer", "leased", until=T0 + timedelta(minutes=30))
+
+    status = repo.analysis_status(now=T0)
+    assert status["pair"] == {"high": 0, "medium": 0, "low": 1, "clean": 1}
+    # one, exp, none, detect; no-yt has no YT Music match
+    assert status["queue"] == {"waiting": 4, "analyzed": 2, "failed": 2, "unusable": 1}
+    later = repo.analysis_status(now=T0 + timedelta(minutes=31))
+    assert later["queue"]["waiting"] == 5
 
 
 def _finish_all(repo) -> None:

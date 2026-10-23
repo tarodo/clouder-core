@@ -894,18 +894,36 @@ ANALYSIS_RESULTS_RESPONSE = {
 
 ANALYSIS_STATUS = {
     "type": "object",
-    "required": ["last_claim_at", "last_result_at", "analyzers", "pair"],
+    "required": ["last_claim_at", "last_result_at", "analyzers", "pair", "queue"],
     "properties": {
         "last_claim_at": {"type": ["string", "null"], "format": "date-time"},
         "last_result_at": {"type": ["string", "null"], "format": "date-time"},
         "pair": {
             "type": "object",
             "description": "Tracks per AI level (ai_lofcz + ai_deezer).",
-            "required": ["high", "medium", "low"],
+            "required": ["high", "medium", "low", "clean"],
             "properties": {
                 "high": {"type": "integer", "description": "Both flagged."},
                 "medium": {"type": "integer", "description": "Only ai_lofcz flagged."},
                 "low": {"type": "integer", "description": "Only ai_deezer flagged."},
+                "clean": {"type": "integer", "description": "Both ok, neither flagged."},
+            },
+        },
+        "queue": {
+            "type": "object",
+            "description": "Tracks in the pair's queue (ai_lofcz + ai_deezer).",
+            "required": ["waiting", "analyzed", "failed", "unusable"],
+            "properties": {
+                "waiting": {
+                    "type": "integer",
+                    "description": "YT Music matches a claim for both would hand out.",
+                },
+                "analyzed": {"type": "integer", "description": "Both ok."},
+                "failed": {"type": "integer", "description": "Either failed."},
+                "unusable": {
+                    "type": "integer",
+                    "description": "Either unusable_source, neither failed.",
+                },
             },
         },
         "analyzers": {

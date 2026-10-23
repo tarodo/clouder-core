@@ -264,7 +264,7 @@ PK `(category_id, track_id)`. `source_triage_block_id` is set when the track was
 
 | Table | Key | Notes |
 |---|---|---|
-| `track_analyses` | `(track_id, analyzer)` | One row per track and analyzer. Status is `leased` (with `lease_id` / `leased_until`, 30 min), `ok`, `failed` (final) or `unusable_source`. Also holds `version`, `result jsonb`, `audio_sha256`, `video_id` and `analyzed_at`. The partial index `ix_track_analyses_ai_flag` on `(track_id, analyzer)` over ok AI-flagged rows serves the `ai_verdict` level in the track lists (`ai_lofcz` + `ai_deezer`: both → `high`, lofcz only → `medium`, deezer only → `low`) and the admin per-level counts (migration 40; it replaced the lofcz-only index). Cascades on track delete. |
+| `track_analyses` | `(track_id, analyzer)` | One row per track and analyzer. Status is `leased` (with `lease_id` / `leased_until`, 30 min), `ok`, `failed` (final) or `unusable_source`. Also holds `version`, `result jsonb`, `audio_sha256`, `video_id` and `analyzed_at`. The partial index `ix_track_analyses_ai_flag` on `(track_id, analyzer)` over ok AI-flagged rows serves the `ai_verdict` level in the track lists (`ai_lofcz` + `ai_deezer`: both → `high`, lofcz only → `medium`, deezer only → `low`; migration 40; it replaced the lofcz-only index). Cascades on track delete. |
 | `analysis_service_state` | `service` | The analyzer's heartbeat for the admin card: `last_claim_at`, `last_result_at`, and `claim_analyzers` (the names it asked for). |
 
 **Claim order (2026-10-23).** `claim_analysis` hands out the tracks waiting in an open triage block first: any user, any bucket but `DISCARD`, because they are what the owner is about to triage. The rest of the catalog comes after them. Within each group the newest release goes first.

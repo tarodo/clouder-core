@@ -87,6 +87,8 @@ RETURNING 1
 
 # A row blocks a (track, analyzer) pair unless it is a lease that ran out.
 _HELD = "NOT (a.status = 'leased' AND a.leased_until < :now)"
+# An ok row of track_analyses `a` that flags AI.
+_FLAG = "a.status = 'ok' AND coalesce((a.result->>'ai_detected')::boolean, false)"
 # A track (`t`) misses one of the wanted analyzers (`wanted` CTE).
 _MISSING = f"""EXISTS (
     SELECT 1 FROM wanted w WHERE NOT EXISTS (
@@ -330,26 +332,44 @@ class AnalysisMixin(RepositoryBase):
                 }
             )
         lofcz, deezer = PAIR_ANALYZERS
+        # The pair in one pass: one row per analyzed track, then the YT Music
+        # matches that a claim for both analyzers would still hand out.
         (pair,) = self._data_api.execute(
-            """
+            f"""
+            WITH per_track AS (
+                SELECT a.track_id,
+                       bool_or(a.analyzer = :lofcz AND a.status = 'ok') AS lofcz_ok,
+                       bool_or(a.analyzer = :deezer AND a.status = 'ok') AS deezer_ok,
+                       bool_or(a.analyzer = :lofcz AND {_FLAG}) AS lofcz,
+                       bool_or(a.analyzer = :deezer AND {_FLAG}) AS deezer,
+                       bool_or(a.status = 'failed') AS failed,
+                       bool_or(a.status = 'unusable_source') AS unusable,
+                       count(*) FILTER (WHERE {_HELD}) AS held
+                FROM track_analyses a
+                WHERE a.analyzer IN (:lofcz, :deezer)
+                GROUP BY a.track_id
+            )
             SELECT count(*) FILTER (WHERE lofcz AND deezer) AS high,
                    count(*) FILTER (WHERE lofcz AND NOT deezer) AS medium,
-                   count(*) FILTER (WHERE deezer AND NOT lofcz) AS low
-            FROM (
-                SELECT bool_or(analyzer = :lofcz) AS lofcz, bool_or(analyzer = :deezer) AS deezer
-                FROM track_analyses
-                WHERE analyzer IN (:lofcz, :deezer) AND status = 'ok'
-                  AND (result->>'ai_detected')::boolean
-                GROUP BY track_id
-            ) flagged
+                   count(*) FILTER (WHERE deezer AND NOT lofcz) AS low,
+                   count(*) FILTER (WHERE lofcz_ok AND deezer_ok AND NOT (lofcz OR deezer))
+                       AS clean,
+                   count(*) FILTER (WHERE lofcz_ok AND deezer_ok) AS analyzed,
+                   count(*) FILTER (WHERE failed) AS failed,
+                   count(*) FILTER (WHERE unusable AND NOT failed) AS unusable,
+                   (SELECT count(*) FROM vendor_track_map v
+                    LEFT JOIN per_track p ON p.track_id = v.clouder_track_id
+                    WHERE v.vendor = 'ytmusic' AND coalesce(p.held, 0) < 2) AS waiting
+            FROM per_track
             """,
-            {"lofcz": lofcz, "deezer": deezer},
+            {"lofcz": lofcz, "deezer": deezer, "now": now},
         )
         return {
             "last_claim_at": as_utc_datetime(state[0]["last_claim_at"]) if state else None,
             "last_result_at": as_utc_datetime(state[0]["last_result_at"]) if state else None,
             "analyzers": analyzers,
-            "pair": {level: int(pair[level]) for level in ("high", "medium", "low")},
+            "pair": {k: int(pair[k]) for k in ("high", "medium", "low", "clean")},
+            "queue": {k: int(pair[k]) for k in ("waiting", "analyzed", "failed", "unusable")},
         }
 
     def requeue_analysis(
