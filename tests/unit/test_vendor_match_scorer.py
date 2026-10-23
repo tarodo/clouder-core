@@ -358,3 +358,11 @@ def test_a_video_titled_artist_dash_title_is_ours() -> None:
     assert candidate_names_track(
         ["Guri"], "Lost Track", None, "Guri - Lost Track (Official Video)", ["Some Label"]
     )
+
+
+def test_stylised_and_foreign_names_score_as_their_plain_spelling() -> None:
+    from collector.vendor_match.scorer import best_artist_sim, string_sim
+
+    assert best_artist_sim(("Xoro",), "XØRØ") == 1.0  # "XØRØ — Syncopated" went to review
+    assert string_sim("ЛСП", "LSP") == 1.0
+    assert string_sim("GΛLXɆɆ RΛIN", "Galxee Rain") == 1.0

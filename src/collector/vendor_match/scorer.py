@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
 from ..providers.base import VendorTrackRef
 from ..settings import get_vendor_match_settings
+from .textfold import fold
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,8 @@ class FuzzyScore:
 
 
 def _normalize(s: str) -> str:
-    return " ".join(s.lower().split())
+    # Folded: "XØRØ" is "xoro", "ЛСП" is "lsp" (textfold).
+    return " ".join(fold(s).split())
 
 
 def string_sim(a: str, b: str) -> float:
@@ -120,7 +121,7 @@ VERSION_RULE_MIN_ARTIST_SIM = 0.6
 
 
 def _fold(s: str | None) -> str:
-    return " ".join(unicodedata.normalize("NFKC", s or "").casefold().split())
+    return _normalize(s or "")
 
 
 def _core(s: str) -> str:
@@ -142,14 +143,10 @@ def version_title_sim(candidate_title: str, title: str, mix_name: str | None) ->
     return best
 
 
-def version_rule_accepts(
-    *, candidate_title: str, title: str, mix_name: str | None, score: FuzzyScore
-) -> bool:
-    """Auto-accept below the threshold when the candidate is the same recording:
-    exact title and artist with a generic version (lengths differ between
-    edits), or a matching length with a near-exact version-aware title. Never
-    when one side names a version (remix, dub, ...) the other lacks, or when
-    the candidate lacks our remix's name."""
+def same_version(candidate_title: str, title: str, mix_name: str | None) -> bool:
+    """No side names a version (remix, dub, ...) the other lacks, and a remix
+    of ours is named after its remixer. Every automatic match needs it, at the
+    threshold too: the original scores high for a remix of the same title."""
     mix = _fold(mix_name)
     cand = _fold(candidate_title)
     # Both ways: a dub is not the radio mix, and the radio mix is not a dub.
@@ -159,6 +156,20 @@ def version_rule_accepts(
         remixer = mix.replace("remix", "").strip()
         if not remixer or remixer not in cand:
             return False
+    return True
+
+
+def version_rule_accepts(
+    *, candidate_title: str, title: str, mix_name: str | None, score: FuzzyScore
+) -> bool:
+    """Auto-accept below the threshold when the candidate is the same recording:
+    exact title and artist with a generic version (lengths differ between
+    edits), or a matching length with a near-exact version-aware title. Never
+    when one side names a version (remix, dub, ...) the other lacks, or when
+    the candidate lacks our remix's name."""
+    if not same_version(candidate_title, title, mix_name):
+        return False
+    mix = _fold(mix_name)
     title_sim = version_title_sim(candidate_title, title, mix_name)
     # The floor reads the score with the version-aware title: the plain-title
     # score of a short title sinks under a long mix name ("Rush" vs
@@ -187,9 +198,6 @@ def version_rule_accepts(
 # have. Names are compared leniently, since a miss closes a track: diacritics
 # and country tags dropped, a distinctive word of the name enough, an alias
 # inside our credit accepted. Labelled same-recording matches all pass.
-_LATIN_FOLD = str.maketrans(
-    {"đ": "d", "ø": "o", "ł": "l", "ß": "ss", "æ": "ae", "œ": "oe", "þ": "th"}
-)
 _GENERIC_NAME_WORDS = frozenset(
     {"feat", "with", "remix", "music", "official", "records", "band", "project"}
 )
@@ -197,9 +205,7 @@ _TAG = re.compile(r"\s*[(\[][^)\]]*[)\]]")
 
 
 def _name_words(s: str) -> list[str]:
-    decomposed = unicodedata.normalize("NFKD", (s or "").casefold().translate(_LATIN_FOLD))
-    plain = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
-    return re.findall(r"[a-z0-9]+", plain)
+    return re.findall(r"[a-z0-9]+", fold(s))
 
 
 def artist_named(

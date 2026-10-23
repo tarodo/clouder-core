@@ -16,9 +16,11 @@ from decimal import Decimal
 from typing import Any
 
 from ..data_api import DataAPIClient
+from ..providers.ytmusic.normalize import result_to_ref
 from ..repositories import ClouderRepository, UpsertVendorMatchCmd
 from ..repositories.youtube_search import SECOND_CHANCE_DAYS
-from .scorer import FuzzyScore, candidate_names_track, version_rule_accepts
+from ..settings import get_vendor_match_settings
+from .scorer import candidate_names_track, same_version, score_candidate, version_rule_accepts
 
 
 def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[str, Any]]:
@@ -28,7 +30,7 @@ def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[
     rows = client.execute(
         """
         SELECT q.id AS review_id, q.clouder_track_id AS track_id, t.title, t.mix_name,
-               t.length_ms,
+               t.length_ms, alb.title AS album_title,
                (SELECT jsonb_agg(e ORDER BY (e->>'score')::numeric DESC NULLS LAST)
                 FROM jsonb_array_elements(q.candidates) e) AS candidates,
                COALESCE(q.created_at < t.publish_date + :days * interval '1 day', FALSE) AS early,
@@ -37,6 +39,7 @@ def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[
                 WHERE ta.track_id = t.id) AS artists
         FROM match_review_queue q
         JOIN clouder_tracks t ON t.id = q.clouder_track_id
+        LEFT JOIN clouder_albums alb ON alb.id = t.album_id
         WHERE q.vendor = 'ytmusic' AND q.status = 'pending' AND q.id > :after
           AND NOT EXISTS (SELECT 1 FROM vendor_track_map v
                           WHERE v.clouder_track_id = q.clouder_track_id AND v.vendor = 'ytmusic')
@@ -52,28 +55,39 @@ def open_reviews(client: DataAPIClient, *, after: str, limit: int) -> list[dict[
     return rows
 
 
-def _accepts(row: Mapping[str, Any], cand: Mapping[str, Any]) -> bool:
-    ref = cand.get("ref") or {}
-    if not ref.get("videoId") or cand.get("score") is None:
-        return False
-    score = FuzzyScore(
-        title_sim=float(cand.get("title_sim") or 0.0),
-        artist_sim=float(cand.get("artist_sim") or 0.0),
-        duration_ok=bool(cand.get("duration_ok")),
-        album_bonus=float(cand.get("album_bonus") or 0.0),
-        total=float(cand["score"]),
-    )
-    return version_rule_accepts(
-        candidate_title=str(ref.get("title") or ""),
-        title=str(row["title"] or ""),
-        mix_name=row.get("mix_name"),
-        score=score,
-    )
-
-
 def decide(row: Mapping[str, Any]) -> dict[str, Any] | None:
-    """The first stored candidate, best first, the version rule accepts."""
-    return next((c for c in row["candidates"] if _accepts(row, c)), None)
+    """Score each stored candidate again with the current scorer (folding,
+    version rule and all), best first: one at the threshold is a plain match,
+    else the first the version rule accepts. The chosen candidate comes back
+    with its new score and match type."""
+    scored = []
+    for cand in row["candidates"]:
+        ref = result_to_ref(cand.get("ref") or {})
+        if ref is None:
+            continue
+        score = score_candidate(
+            candidate=ref,
+            artist=str(row.get("artists") or ""),
+            title=str(row["title"] or ""),
+            duration_ms=row.get("length_ms"),
+            album=row.get("album_title"),
+        )
+        scored.append((cand, ref, score))
+    scored.sort(key=lambda t: t[2].total, reverse=True)
+    threshold = get_vendor_match_settings().fuzzy_match_threshold
+    if scored and scored[0][2].total >= threshold:
+        cand, ref, score = scored[0]
+        if same_version(ref.title, str(row["title"] or ""), row.get("mix_name")):
+            return {**cand, "score": score.total, "match_type": "fuzzy"}
+    for cand, ref, score in scored:
+        if version_rule_accepts(
+            candidate_title=ref.title,
+            title=str(row["title"] or ""),
+            mix_name=row.get("mix_name"),
+            score=score,
+        ):
+            return {**cand, "score": score.total, "match_type": "fuzzy_version"}
+    return None
 
 
 def artist_absent(row: Mapping[str, Any]) -> bool:
@@ -133,7 +147,7 @@ def accept(client: DataAPIClient, rows: Iterable[Mapping[str, Any]], now: dateti
                     clouder_track_id=row["track_id"],
                     vendor="ytmusic",
                     vendor_track_id=cand["ref"]["videoId"],
-                    match_type="fuzzy_version",
+                    match_type=cand.get("match_type", "fuzzy_version"),
                     confidence=Decimal(str(cand["score"])),
                     matched_at=now,
                     payload=cand["ref"],
