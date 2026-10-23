@@ -20,6 +20,7 @@ from collector.curation import (
     utc_now,
 )
 from collector.curation.triage_service import (
+    BUCKET_TYPE_DISCARD,
     BUCKET_TYPE_FAV,
     BUCKET_TYPE_NEW,
     BUCKET_TYPE_NOT,
@@ -28,7 +29,7 @@ from collector.curation.triage_service import (
     TECHNICAL_BUCKET_TYPES,
 )
 from collector.data_api import DataAPIClient
-from collector.repositories.analysis import AI_VERDICT_SQL
+from collector.repositories.analysis import AI_FLAGGED_SQL, AI_VERDICT_SQL
 
 
 @dataclass(frozen=True)
@@ -252,10 +253,11 @@ class TriageRepository:
                 )
 
             # 5. Classify and insert tracks (one INSERT FROM SELECT).
-            #    Branch order (first match wins): FAV, NOT(disliked),
-            #    date branches, NOT(compilation), else NEW. Likes beat
-            #    dislikes. Optional branches are emitted as SQL fragments so
-            #    disabled toggles bind no parameters.
+            #    Branch order (first match wins): DISCARD (AI-flagged, the
+            #    owner's rule), FAV, NOT(disliked), date branches,
+            #    NOT(compilation), else NEW. Likes beat dislikes. Optional
+            #    branches are emitted as SQL fragments so disabled toggles
+            #    bind no parameters.
             fav_when = ""
             compilation_when = ""
             classify_params: dict[str, Any] = {
@@ -268,6 +270,7 @@ class TriageRepository:
                 "new_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_NEW],
                 "old_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_OLD],
                 "unclassified_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_UNCLASSIFIED],
+                "discard_bucket_id": tech_bucket_id_by_type[BUCKET_TYPE_DISCARD],
             }
 
             if include_favorites:
@@ -331,6 +334,7 @@ class TriageRepository:
                     (triage_bucket_id, track_id, added_at)
                 SELECT
                     CASE
+                        WHEN {AI_FLAGGED_SQL} THEN :discard_bucket_id
                         {fav_when}
                         {disliked_when}
                         WHEN t.spotify_release_date IS NULL
