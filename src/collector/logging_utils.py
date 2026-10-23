@@ -143,6 +143,8 @@ ALLOWED_LOG_FIELDS = {
     "threshold",
     "passed",
     "failed_checks",
+    # ML worker (collector.ml_worker_handler).
+    "model_version",
 }
 
 

@@ -32,6 +32,7 @@ from .commands import (
     VendorTrackMatch,
 )
 from .lineage import LineageMixin, _identity_params
+from .ml import MlMixin
 from .runs import IngestRunsMixin
 from .spotify import SpotifySearchMixin
 from .vendor_match import VendorMatchMixin
@@ -42,6 +43,7 @@ class ClouderRepository(
     IngestRunsMixin,
     AnalysisMixin,
     AudioFeaturesMixin,
+    MlMixin,
     LineageMixin,
     CatalogWritesMixin,
     SpotifySearchMixin,

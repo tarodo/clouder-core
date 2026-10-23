@@ -1,9 +1,10 @@
-"""Enqueue scoring work for the ML worker (ml-jobs queue). Best-effort: never fails the caller."""
+"""Enqueue work for the ML worker (ml-jobs queue). Best-effort: never fails the caller."""
 
 from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 from .logging_utils import log_event
 
@@ -21,15 +22,34 @@ def _queue_url() -> str:
     return url
 
 
-def enqueue_score(*, video_ids: list[str]) -> None:
+def _send(message: dict[str, Any]) -> None:
     try:
-        _build_sqs_client().send_message(
-            QueueUrl=_queue_url(),
-            MessageBody=json.dumps({"type": "score", "video_ids": video_ids}),
-        )
-    except Exception as exc:  # best-effort: the profiles are stored already
+        _build_sqs_client().send_message(QueueUrl=_queue_url(), MessageBody=json.dumps(message))
+    except Exception as exc:  # best-effort: the next trigger, or the 1 h retrain dedupe, heals it
         log_event(
             "ERROR",
             "ml_jobs_enqueue_error",
             error_message=str(exc)[:500],
         )
+
+
+def enqueue_score(*, video_ids: list[str]) -> None:
+    _send({"type": "score", "video_ids": video_ids})
+
+
+def enqueue_retrain(*, user_id: str, style_id: str) -> None:
+    _send({"type": "retrain", "user_id": user_id, "style_id": style_id})
+
+
+def enqueue_score_style(
+    *, user_id: str, style_id: str, model_version: int, after_track_id: str | None
+) -> None:
+    _send(
+        {
+            "type": "score_style",
+            "user_id": user_id,
+            "style_id": style_id,
+            "model_version": model_version,
+            "after_track_id": after_track_id,
+        }
+    )
