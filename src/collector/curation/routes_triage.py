@@ -46,6 +46,7 @@ def _serialize_triage_block(row, correlation_id: str) -> dict[str, Any]:
         "include_disliked_artists": row.include_disliked_artists,
         "compilations_to_not": row.compilations_to_not,
         "include_favorites": row.include_favorites,
+        "ai_to_discard": row.ai_to_discard,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
         "finalized_at": row.finalized_at,
@@ -77,6 +78,7 @@ def _create_triage_block(event, triage_repo: TriageRepository, user_id: str, cor
         include_disliked_artists=schema.include_disliked_artists,
         compilations_to_not=schema.compilations_to_not,
         include_favorites=schema.include_favorites,
+        ai_to_discard=schema.ai_to_discard,
     )
     log_event(
         "INFO",

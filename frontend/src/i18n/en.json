@@ -511,6 +511,8 @@
       "advanced_toggle": "Advanced options",
       "old_offset_weeks_label": "OLD depth (weeks)",
       "old_offset_weeks_description": "Tracks released more than this many weeks before the block start date go to OLD. Set to 0 to send everything before the start date to OLD.",
+      "ai_to_discard_label": "Send AI-flagged tracks to DISCARD",
+      "ai_to_discard_description": "Tracks the AI detectors flag go straight to DISCARD, before likes and release dates, and move there if the flag arrives later. Turn off to triage them like any other track.",
       "include_disliked_labels_label": "Send disliked-label tracks to NOT",
       "include_disliked_labels_description": "Tracks on labels you disliked are placed in NOT, regardless of release date.",
       "include_disliked_artists_label": "Send disliked-artist tracks to NOT",

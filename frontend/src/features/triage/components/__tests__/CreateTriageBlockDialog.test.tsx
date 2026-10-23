@@ -355,6 +355,7 @@ describe('CreateTriageBlockDialog', () => {
       include_disliked_artists: true,
       compilations_to_not: true,
       include_favorites: true,
+      ai_to_discard: true,
     });
   });
 

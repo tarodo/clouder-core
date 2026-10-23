@@ -417,3 +417,51 @@ def test_new_block_puts_ai_flagged_tracks_in_discard(repo, pg) -> None:
         "SELECT track_id FROM triage_bucket_tracks WHERE triage_bucket_id = :b", {"b": discard}
     )
     assert [r["track_id"] for r in rows] == ["new"]  # a Deezer-only flag (badge "low") counts too
+
+
+def test_a_block_that_opted_out_keeps_its_ai_tracks(repo, pg) -> None:
+    _seed_triage(pg)
+    pg.execute("UPDATE triage_blocks SET ai_to_discard = FALSE")  # both blocks unticked the rule
+    pg.execute(
+        "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at)"
+        " VALUES ('ob-stg', 'mid', now())"
+    )
+    pg.execute(
+        "INSERT INTO category_tracks (category_id, track_id, added_at, source_triage_block_id)"
+        " VALUES ('cat', 'new', now(), 'fb'), ('cat', 'old', now(), NULL)"
+    )
+    repo.claim_analysis(limit=3, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
+    items = [_ok(t, ai=True, analyzer="ai_lofcz") for t in ("new", "mid", "old")]
+    repo.record_analysis_results(lease_id=L1, items=items, now=T0)
+    assert _buckets(pg, "mid") == ["ob-stg"] and _buckets(pg, "new") == []
+    kept = pg.execute("SELECT track_id FROM category_tracks ORDER BY 1")
+    assert [r["track_id"] for r in kept] == ["new"]  # opted-out source block; a hand-added one goes
+
+
+def test_a_new_block_can_untick_the_ai_rule(repo, pg) -> None:
+    from datetime import date
+
+    from collector.curation.triage_repository import TriageRepository
+
+    pg.execute(
+        "INSERT INTO users (id, spotify_id, display_name, email, created_at, updated_at)"
+        " VALUES ('u1', 'sp', 'N', 'u1@example.com', now(), now())"
+    )
+    pg.execute(
+        "UPDATE clouder_tracks SET publish_date = '2026-10-03', spotify_release_date = '2026-10-03'"
+    )
+    repo.claim_analysis(limit=3, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
+    repo.record_analysis_results(
+        lease_id=L1, items=[_ok("new", ai=True, analyzer="ai_lofcz")], now=T0
+    )
+    block = TriageRepository(pg).create_block(
+        user_id="u1",
+        style_id="st",
+        name="W",
+        date_from=date(2026, 10, 1),
+        date_to=date(2026, 10, 7),
+        ai_to_discard=False,
+    )
+    assert block.ai_to_discard is False
+    by_type = {b.bucket_type: b.track_count for b in block.buckets}
+    assert by_type["DISCARD"] == 0 and by_type["NEW"] == 4  # the flagged track is triaged as usual

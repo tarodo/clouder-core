@@ -34,6 +34,7 @@ export interface CreateTriageBlockInput {
   include_disliked_artists?: boolean;
   compilations_to_not?: boolean;
   include_favorites?: boolean;
+  ai_to_discard?: boolean;
 }
 
 export interface TriageBlockDetail {

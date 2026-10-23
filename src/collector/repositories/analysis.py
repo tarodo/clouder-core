@@ -30,10 +30,11 @@ AI_VERDICT_SQL = f"""CASE WHEN {_LOFCZ} THEN CASE WHEN {_DEEZER} THEN 'high' ELS
 AI_FLAGGED_SQL = f"({_LOFCZ} OR {_DEEZER})"
 LEASE_SECONDS = 1800
 
-# The owner's rule (2026-10-23): an AI-flagged track never stays in play. In every open block it moves to
-# DISCARD from whatever bucket holds it (STAGING too); kept in a category, it leaves the category for the
-# DISCARD bucket of the block it came from (nowhere when it was added by hand). Finalized blocks stay as
-# they were. One statement: the CTEs see one snapshot, so the moves cannot chase each other.
+# The owner's rule (2026-10-23): an AI-flagged track never stays in play. In every open block that keeps
+# ai_to_discard (the default; the user may untick it at creation) it moves to DISCARD from whatever bucket
+# holds it (STAGING too); kept in a category, it leaves the category for the DISCARD bucket of the block it
+# came from, unless that block opted out (nowhere when it was added by hand). Finalized blocks stay as they
+# were. One statement: the CTEs see one snapshot, so the moves cannot chase each other.
 _DISCARD_AI = f"""
 WITH flagged AS (
     SELECT t.id FROM clouder_tracks t WHERE t.id IN ({{ids}}) AND {AI_FLAGGED_SQL}
@@ -43,14 +44,18 @@ WITH flagged AS (
     JOIN flagged f ON f.id = x.track_id
     JOIN triage_buckets b ON b.id = x.triage_bucket_id AND b.bucket_type <> 'DISCARD'
     JOIN triage_blocks tb ON tb.id = b.triage_block_id
-     AND tb.status = 'IN_PROGRESS' AND tb.deleted_at IS NULL
+     AND tb.status = 'IN_PROGRESS' AND tb.deleted_at IS NULL AND tb.ai_to_discard
     JOIN triage_buckets d ON d.triage_block_id = tb.id AND d.bucket_type = 'DISCARD'
 ), unbucketed AS (
     DELETE FROM triage_bucket_tracks x USING open_rows o
     WHERE x.triage_bucket_id = o.triage_bucket_id AND x.track_id = o.track_id
     RETURNING o.discard_id, x.track_id
 ), uncategorized AS (
-    DELETE FROM category_tracks ct USING flagged f WHERE ct.track_id = f.id
+    DELETE FROM category_tracks ct USING flagged f
+    WHERE ct.track_id = f.id
+      AND NOT EXISTS (
+          SELECT 1 FROM triage_blocks sb
+          WHERE sb.id = ct.source_triage_block_id AND NOT sb.ai_to_discard)
     RETURNING ct.track_id, ct.source_triage_block_id
 ), discarded AS (
     INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at)

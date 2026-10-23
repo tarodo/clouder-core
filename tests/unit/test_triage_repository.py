@@ -1021,12 +1021,15 @@ def test_create_block_compilation_toggle_off_omits_branch() -> None:
         include_disliked_artists=False,
         include_favorites=False,
         compilations_to_not=False,
+        ai_to_discard=False,
     )
     sql = api.execute.call_args_list[4].args[0]
     params = api.execute.call_args_list[4].args[1]
     assert "release_type = 'compilation'" not in sql
     assert "fav_bucket_id" not in params
     assert "not_bucket_id" not in params
+    assert "track_analyses" not in sql  # the AI branch is off with its toggle
+    assert "discard_bucket_id" not in params
 
 
 def test_create_block_persists_all_flags() -> None:
@@ -1042,6 +1045,7 @@ def test_create_block_persists_all_flags() -> None:
         include_disliked_artists=False,
         compilations_to_not=True,
         include_favorites=False,
+        ai_to_discard=False,
     )
     (block_insert_call,) = [
         c for c in api.execute.call_args_list if "INSERT INTO triage_blocks" in c.args[0]
@@ -1051,3 +1055,4 @@ def test_create_block_persists_all_flags() -> None:
     assert p["include_disliked_artists"] is False
     assert p["compilations_to_not"] is True
     assert p["include_favorites"] is False
+    assert p["ai_to_discard"] is False

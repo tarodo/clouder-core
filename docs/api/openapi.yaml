@@ -2683,6 +2683,8 @@ paths:
                     type: boolean
                   include_favorites:
                     type: boolean
+                  ai_to_discard:
+                    type: boolean
                   buckets:
                     type: array
                     items:
@@ -6388,6 +6390,10 @@ components:
         include_favorites:
           default: true
           title: Include Favorites
+          type: boolean
+        ai_to_discard:
+          default: true
+          title: Ai To Discard
           type: boolean
       required:
       - style_id

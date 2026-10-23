@@ -162,6 +162,7 @@ class FakeTriageRepo:
         include_disliked_artists: bool = True,
         compilations_to_not: bool = True,
         include_favorites: bool = True,
+        ai_to_discard: bool = True,
     ) -> TriageBlockRow:
         if style_id not in self.styles:
             raise NotFoundError(
@@ -183,6 +184,7 @@ class FakeTriageRepo:
             "include_disliked_artists": include_disliked_artists,
             "compilations_to_not": compilations_to_not,
             "include_favorites": include_favorites,
+            "ai_to_discard": ai_to_discard,
             "created_at": now,
             "updated_at": now,
             "finalized_at": None,
@@ -524,6 +526,7 @@ def test_create_block_forwards_and_echoes_populate_options(fake_triage_repo, con
             updated_at=row.updated_at,
             finalized_at=row.finalized_at,
             buckets=row.buckets,
+            ai_to_discard=kwargs["ai_to_discard"],
         )
 
     fake_triage_repo.create_block = spy_create_block
