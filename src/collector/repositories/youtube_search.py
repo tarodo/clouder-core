@@ -47,6 +47,8 @@ class YoutubeSearchMixin(RepositoryBase):
                           t.created_at
             )
             SELECT c.id, c.title, c.mix_name, c.length_ms, alb.title AS album_title,
+                   COALESCE(:claimed_at < c.publish_date + :days * interval '1 day', FALSE)
+                       AS early,
                    COALESCE(string_agg(DISTINCT a.name, ', '), '') AS artists,
                    (EXISTS (SELECT 1 FROM vendor_track_map v
                             WHERE v.clouder_track_id = c.id AND v.vendor = 'ytmusic')
@@ -61,7 +63,7 @@ class YoutubeSearchMixin(RepositoryBase):
                      c.created_at
             ORDER BY c.publish_date DESC NULLS LAST, c.created_at DESC, c.id
             """,
-            {"limit": limit, "claimed_at": claimed_at},
+            {"limit": limit, "claimed_at": claimed_at, "days": SECOND_CHANCE_DAYS},
         )
 
     def mark_youtube_searched(self, track_id: str, at: datetime) -> None:

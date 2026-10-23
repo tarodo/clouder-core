@@ -8,6 +8,7 @@ from collector.providers.base import VendorTrackRef
 from collector.settings import reset_settings_cache
 from collector.vendor_match.scorer import (
     FuzzyScore,
+    artist_named,
     score_candidate,
     version_rule_accepts,
     version_title_sim,
@@ -276,3 +277,39 @@ def test_same_title_and_length_by_another_artist_is_refused() -> None:
         mix_name="Radio Edit",
         score=_s(0.68, artist_sim=0.43, duration_ok=True),
     )
+
+
+# ── artist check (no candidate names our artist → not on YouTube) ──────────
+
+
+@pytest.mark.parametrize(
+    ("ours", "cand_title", "cand_artists"),
+    [
+        (["Dabu"], "Let The Verse Play", ["dabü"]),  # diacritics
+        (["Jhana"], "Anatta", ["Jhãna"]),
+        (["Air Media", "Nguyễn Đình Vũ"], "Vạn Vật (Remix)", ["Nguyễn Đình Vũ", "VM"]),
+        (["Dj SaeRo"], "BAT", ["Deejay SaeRo"]),  # a distinctive word of the name
+        (["DJ Icon (US)"], "These Days (Extended Mix)", ["DJ Icon"]),  # country tag
+        (["Artem ORVEXA"], "No Look", ["ORVEXA"]),  # alias inside our credit
+        (["KVL UA"], "Soltero", ["KvL"]),
+        (["Glitch City", "Blaxx"], "Why (feat. Blaxx & Maddy V)", ["Glitch City"]),
+        (["Maddy V"], "Why (Radio Mix) (feat. Blaxx & Maddy V)", ["Glitch City"]),  # in title
+    ],
+)
+def test_artist_is_named_despite_spelling(ours, cand_title, cand_artists) -> None:
+    assert artist_named(ours, cand_title, cand_artists) is True
+
+
+def test_strangers_with_the_same_title_do_not_name_the_artist() -> None:
+    assert artist_named(["Tenzia"], "Splinter", ["Candiria"]) is False
+    assert artist_named(["Baher"], "Time Machine", ["Bergal"]) is False
+
+
+def test_no_latin_name_cannot_be_judged() -> None:
+    assert artist_named(["宝石"], "daylight", ["gem 宝石"]) is None
+
+
+def test_a_candidate_without_credits_cannot_be_judged() -> None:
+    # "Lead Time (Edit)" with no artist at all may still be Vandek's edit.
+    assert artist_named(["Vandek"], "Lead Time (Edit)", []) is None
+    assert artist_named(["Vandek"], "Lead Time (Vandek Edit)", []) is True

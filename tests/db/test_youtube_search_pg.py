@@ -324,3 +324,16 @@ def test_an_early_search_gets_one_second_chance_four_days_later(pg) -> None:
     assert repo.reopen_youtube_second_chance(now=now + timedelta(days=30)) == 1
     assert _yt_status(pg, "w40") == [("pending", 1)]
     assert _yt_status(pg, "w41") == []
+
+
+def test_claim_flags_tracks_searched_within_the_second_chance_window(pg) -> None:
+    repo = _world(pg)  # w41 released 2026-10-12, w40 2026-10-05, undated has none
+    rows = {
+        r["id"]: r
+        for r in repo.claim_tracks_for_youtube_search(
+            limit=10, claimed_at=datetime(2026, 10, 14, tzinfo=UTC)
+        )
+    }
+    assert rows["w41"]["early"] is True
+    assert rows["w40"]["early"] is False
+    assert rows["undated"]["early"] is False

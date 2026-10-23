@@ -276,6 +276,7 @@ def _search_one(
         album=track.get("album_title"),
         need_song=not bool(track.get("has_ytmusic")),
         mix_name=track.get("mix_name"),
+        early=bool(track.get("early")),
     )
     try:
         result = search_track(client, query, threshold=settings.fuzzy_match_threshold, pace=pace)
@@ -324,6 +325,7 @@ def _search_one(
         outcome=result.outcome,
         confidence=result.best_score,
         match_type=_song_match_type(result) if result.match else None,
+        reason=result.no_match_reason,
         request_count=result.request_count,
         video_found=result.video is not None,
     )

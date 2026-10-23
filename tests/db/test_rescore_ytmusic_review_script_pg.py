@@ -63,7 +63,7 @@ def test_dry_run_lists_and_changes_nothing(pg, tmp_path) -> None:
     _seed(pg)
     out = tmp_path / "rescore.csv"
     summary = _main()(["--database-url", os.environ["TEST_DATABASE_URL"], "--csv", str(out)])
-    assert summary == {"open_reviews": 2, "accepted": 1, "applied": 0}
+    assert summary == {"open_reviews": 2, "accepted": 1, "closed": 0, "applied": 0}
     assert _links(pg) == 0
     (row,) = list(csv.DictReader(out.open(encoding="utf-8")))
     assert row["ours"] == "Zeta — Night Drive (Extended Mix) · 6:30"
@@ -74,7 +74,7 @@ def test_dry_run_lists_and_changes_nothing(pg, tmp_path) -> None:
 def test_apply_closes_what_the_rule_accepts(pg) -> None:
     _seed(pg)
     summary = _main()(["--database-url", os.environ["TEST_DATABASE_URL"], "--apply"])
-    assert summary == {"open_reviews": 2, "accepted": 1, "applied": 1}
+    assert summary == {"open_reviews": 2, "accepted": 1, "closed": 0, "applied": 1}
     assert _links(pg) == 1
     statuses = {
         r["id"]: r["status"] for r in pg.execute("SELECT id, status FROM match_review_queue")

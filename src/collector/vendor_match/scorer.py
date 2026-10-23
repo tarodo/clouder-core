@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
@@ -179,3 +180,48 @@ def version_rule_accepts(
         and score.artist_sim >= VERSION_RULE_MIN_ARTIST_SIM
     )
     return same_edit_family or same_length
+
+
+# ── Artist check (owner's idea, 2026-10-23) ────────────────────────────────
+# A review whose candidates never name our artist is a track YouTube does not
+# have. Names are compared leniently, since a miss closes a track: diacritics
+# and country tags dropped, a distinctive word of the name enough, an alias
+# inside our credit accepted. Labelled same-recording matches all pass.
+_LATIN_FOLD = str.maketrans(
+    {"đ": "d", "ø": "o", "ł": "l", "ß": "ss", "æ": "ae", "œ": "oe", "þ": "th"}
+)
+_GENERIC_NAME_WORDS = frozenset(
+    {"feat", "with", "remix", "music", "official", "records", "band", "project"}
+)
+_TAG = re.compile(r"\s*[(\[][^)\]]*[)\]]")
+
+
+def _name_words(s: str) -> list[str]:
+    decomposed = unicodedata.normalize("NFKD", (s or "").casefold().translate(_LATIN_FOLD))
+    plain = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return re.findall(r"[a-z0-9]+", plain)
+
+
+def artist_named(
+    our_artists: Sequence[str], candidate_title: str, candidate_artists: Sequence[str]
+) -> bool | None:
+    """Does the candidate name one of our artists, in its title or credits?
+    None when there is nothing to judge by: no name of ours in Latin letters,
+    or a candidate without credits that does not name us in its title."""
+    names = [w for w in (_name_words(_TAG.sub(" ", a)) for a in our_artists) if w]
+    if not names:
+        return None
+    hay_words = _name_words(candidate_title + " " + " ".join(candidate_artists))
+    hay = f" {' '.join(hay_words)} "
+    if any(f" {' '.join(w)} " in hay for w in names):
+        return True
+    distinctive = {t for w in names for t in w if len(t) >= 4 and t not in _GENERIC_NAME_WORDS}
+    if distinctive & set(hay_words):
+        return True
+    if not any(_name_words(a) for a in candidate_artists):
+        return None  # no credits: the title alone cannot rule our artist out
+    ours = f" {' '.join(t for w in names for t in w)} "
+    return any(
+        len("".join(w)) >= 3 and f" {' '.join(w)} " in ours
+        for w in (_name_words(a) for a in candidate_artists)
+    )

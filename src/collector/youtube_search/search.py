@@ -15,7 +15,12 @@ from ytmusicapi.exceptions import YTMusicGatedError, YTMusicServerError
 from ..providers.base import VendorTrackRef
 from ..providers.youtube.video_match import video_matches
 from ..providers.ytmusic.normalize import build_query, result_to_ref
-from ..vendor_match.scorer import FuzzyScore, score_candidate, version_rule_accepts
+from ..vendor_match.scorer import (
+    FuzzyScore,
+    artist_named,
+    score_candidate,
+    version_rule_accepts,
+)
 
 SEARCH_LIMIT = 10
 REVIEW_TOP_N = 5
@@ -31,6 +36,9 @@ class TrackQuery:
     album: str | None
     need_song: bool
     mix_name: str | None = None
+    # Searched within the second-chance window after release: YouTube may not
+    # carry the track yet, so its review waits for the second search.
+    early: bool = False
 
 
 @dataclass
@@ -41,6 +49,7 @@ class TrackSearchResult:
     review: list[Scored] = field(default_factory=list)
     request_count: int = 0
     match_reason: str | None = None  # "version_rule" when accepted below threshold
+    no_match_reason: str | None = None  # "artist_absent": no candidate names our artist
 
     @property
     def outcome(self) -> str:
@@ -146,6 +155,16 @@ def search_track(
     )
     if versioned is not None:
         res.match, res.match_reason = versioned, "version_rule"
+    elif not q.early and _no_candidate_names_artist(scored, q.artists):
+        res.no_match_reason = "artist_absent"
     else:
         res.review = scored[:REVIEW_TOP_N]
     return res
+
+
+def _no_candidate_names_artist(scored: list[Scored], artists: str) -> bool:
+    """Candidates exist and none names one of our artists (owner: "the artist is
+    nowhere in the results, so the track is not there")."""
+    ours = [a for a in artists.split(", ") if a]
+    verdicts = [artist_named(ours, ref.title, ref.artist_names) for ref, _ in scored]
+    return bool(verdicts) and all(v is False for v in verdicts)

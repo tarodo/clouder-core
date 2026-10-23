@@ -7,7 +7,8 @@ agent's read-only role, so it cannot change anything:
 
 `--apply` connects as the master user and, per review, links the first stored
 candidate the rule accepts (best first) as `fuzzy_version` and resolves the
-review (docs/data/entity-resolution.md).
+review; a review no candidate of which names our artist is closed as not on
+YouTube, unless it waits for its second chance (docs/data/entity-resolution.md).
 The CSV lists the accepted reviews for a look before applying; it holds catalog
 rows, so keep it out of the repository.
 """
@@ -24,7 +25,13 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from collector.vendor_match.rescore import accept, decide, open_reviews  # noqa: E402
+from collector.vendor_match.rescore import (  # noqa: E402
+    accept,
+    artist_absent,
+    close_absent,
+    decide,
+    open_reviews,
+)
 
 PAGE = 50  # full candidate payloads: about 10 KB a review, under the 1 MB cap
 AGENT_SECRET = "clouder/agent/aurora-readonly"
@@ -84,29 +91,44 @@ def main(argv: list[str] | None = None) -> dict[str, int]:
     out = args.csv.open("w", newline="", encoding="utf-8") if args.csv else None
     writer = csv.writer(out) if out else None
     if writer:
-        writer.writerow(["track_id", "score", "ours", "candidate", "url"])
-    after, scanned, accepted = "", 0, 0
+        writer.writerow(["action", "track_id", "score", "ours", "candidate", "url"])
+    after, scanned, accepted, closed = "", 0, 0, 0
     try:
         while rows := open_reviews(client, after=after, limit=PAGE):
             after = rows[-1]["review_id"]
             scanned += len(rows)
-            ok = []
+            ok, absent = [], []
             for r in rows:
                 if (chosen := decide(r)) is not None:
                     r["candidate"] = chosen
                     ok.append(r)
+                elif artist_absent(r):
+                    absent.append(r)
             accepted += len(ok)
+            closed += len(absent)
             if writer:
-                for r in ok:
-                    ours, theirs = _line(r)
-                    url = f"https://music.youtube.com/watch?v={r['candidate']['ref']['videoId']}"
-                    writer.writerow([r["track_id"], r["candidate"]["score"], ours, theirs, url])
+                for action, group in (("accept", ok), ("not_on_youtube", absent)):
+                    for r in group:
+                        r.setdefault("candidate", r["candidates"][0])
+                        ours, theirs = _line(r)
+                        url = (
+                            f"https://music.youtube.com/watch?v={r['candidate']['ref']['videoId']}"
+                        )
+                        writer.writerow(
+                            [action, r["track_id"], r["candidate"]["score"], ours, theirs, url]
+                        )
             if args.apply:
                 accept(client, ok, now)
+                close_absent(client, absent, now)
     finally:
         if out:
             out.close()
-    summary = {"open_reviews": scanned, "accepted": accepted, "applied": int(args.apply)}
+    summary = {
+        "open_reviews": scanned,
+        "accepted": accepted,
+        "closed": closed,
+        "applied": int(args.apply),
+    }
     print(summary)
     return summary
 
