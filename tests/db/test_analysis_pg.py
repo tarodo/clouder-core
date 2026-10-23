@@ -263,9 +263,10 @@ def test_requeue_categories_scope(repo, pg) -> None:
     assert _status(pg, "mid") is None and _status(pg, "new") == "ok"
 
 
-def test_claim_goes_strictly_newest_release_first(repo, pg) -> None:
-    # Like the YouTube sweep: release date alone decides, so an open triage
-    # block or labeled tracks wait their turn behind fresher releases.
+def test_claim_goes_open_triage_then_newest_release(repo, pg) -> None:
+    # The owner's target number one (2026-10-23): a track waiting in an open triage block
+    # comes first; then release date alone decides, so labeled or discarded tracks wait
+    # their turn behind fresher releases.
     _track(pg, "fresh", T0, ytmusic="v1")
     _track(pg, "in-cat", T0 - timedelta(days=40), ytmusic="v2")
     _track(pg, "discarded", T0 - timedelta(days=50), ytmusic="v3")
@@ -309,7 +310,7 @@ def test_claim_goes_strictly_newest_release_first(repo, pg) -> None:
     )
     rows = repo.claim_analysis(limit=10, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
     ids = [r["track_id"] for r in rows]
-    assert ids[:4] == ["fresh", "in-cat", "discarded", "in-triage"]
+    assert ids[:4] == ["in-triage", "fresh", "in-cat", "discarded"]
     assert len(ids) == len(set(ids))
 
 
@@ -465,3 +466,17 @@ def test_a_new_block_can_untick_the_ai_rule(repo, pg) -> None:
     assert block.ai_to_discard is False
     by_type = {b.bucket_type: b.track_count for b in block.buckets}
     assert by_type["DISCARD"] == 0 and by_type["NEW"] == 4  # the flagged track is triaged as usual
+
+
+def test_claim_takes_open_triage_tracks_first(repo, pg) -> None:
+    _seed_triage(pg)
+    # old waits in the open block's NEW; mid sits only in the open DISCARD (decided) and the
+    # finalized block; new is in no block. The release order alone would give new, mid, old.
+    pg.execute(
+        "INSERT INTO triage_bucket_tracks (triage_bucket_id, track_id, added_at) VALUES"
+        " ('ob-new', 'old', now()), ('ob-dis', 'mid', now()), ('fb-new', 'mid', now())"
+    )
+    got = repo.claim_analysis(limit=2, analyzers=["ai_lofcz"], lease_id=L1, now=T0)
+    assert [g["track_id"] for g in got] == ["old", "new"]
+    rest = repo.claim_analysis(limit=2, analyzers=["ai_lofcz"], lease_id=L2, now=T0)
+    assert [g["track_id"] for g in rest] == ["mid"]  # no-yt has no video
