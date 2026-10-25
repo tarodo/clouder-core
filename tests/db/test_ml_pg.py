@@ -496,3 +496,37 @@ def test_models_overview(repo, pg) -> None:
             "predictions": 1,
         },
     ]
+
+
+def test_models_overview_counts_labels_in_one_query(repo, pg, monkeypatch) -> None:
+    """The grouped count of the model-less pairs equals the trigger's per-pair count, filters and
+    all, and the whole overview is a single query (it is polled every 30 s)."""
+    for t in ("a", "b", "c", "d", "e", "ai", "f"):
+        _track(pg, t, f"v_{t}")
+    repo.ml_mark_too_few_labels(user_id="u2", style_id=S, now=at(1))  # u2/st counts from at(1)
+    _put(pg, "ub-DISCARD", "a", at(0.5))  # before the restart
+    _put(pg, "ub-DISCARD", "b", at(2))
+    _put(pg, "ub-cx", "c", at(2))
+    _put(pg, "ub-NEW", "d", at(2))  # auto bucket
+    _put(pg, "ub-DISCARD", "ai", at(2))
+    pg.execute(
+        "INSERT INTO track_analyses (track_id, analyzer, status, version, result)"
+        " VALUES ('ai', 'ai_lofcz', 'ok', 'v1', CAST('{\"ai_detected\": true}' AS jsonb))"
+    )
+    _put(pg, "ob-ca", "a", at(1))  # u1/st: no ml_models row
+    _put(pg, "fb-DISCARD", "b", at(1))
+    _put(pg, "ob-cd", "e", at(1))  # an inactive staging bucket counts here too
+    _put(pg, "xb-DISCARD", "f", at(1))  # deleted block
+    _put(pg, "s2-DISCARD", "f", at(1))
+    calls: list[str] = []
+    execute = pg.execute
+    monkeypatch.setattr(
+        pg, "execute", lambda sql, *a, **kw: calls.append(sql) or execute(sql, *a, **kw)
+    )
+    rows = repo.ml_models_overview(now=at(3))
+    assert len(calls) == 1
+    monkeypatch.undo()
+    got = {(r["user_id"], r["style_id"]): r["labels_since_training"] for r in rows}
+    assert got == {(U, S): 3, (U, "st2"): 1, ("u2", S): 2}
+    for (user, style), n in got.items():
+        assert n == repo.ml_labels_since_training(user_id=user, style_id=style)

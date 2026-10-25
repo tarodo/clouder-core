@@ -48,21 +48,22 @@ export function SuggestionModels() {
       : k('labels_value', opts);
   };
 
-  const first = (m: Item) =>
-    m.first_n === null
-      ? DASH
-      : m.first_n >= FIRST_MIN
-        ? k('first_hit', { pct: Math.round((m.first_hit ?? 0) * 100), n: fmt(m.first_n) })
-        : k('first_few', { n: m.first_n });
+  const first = (m: Item) => {
+    const n = m.first_n ?? 0; // no taps scored yet reads as 0 of 20
+    return n >= FIRST_MIN
+      ? k('first_hit', { pct: Math.round((m.first_hit ?? 0) * 100), n: fmt(n) })
+      : k('first_few', { n });
+  };
 
-  const memory = (mb: number | null) =>
-    mb === null ? (
-      DASH
-    ) : (
-      <Text span inherit c={mb >= MEMORY_CAP_MB * MEMORY_WARN ? 'orange' : undefined}>
+  const memory = (mb: number | null) => {
+    if (mb === null) return DASH;
+    const warn = mb >= MEMORY_CAP_MB * MEMORY_WARN;
+    return (
+      <Text span inherit c={warn ? 'orange' : undefined} data-warn={warn || undefined}>
         {k('memory_value', { gb: (mb / 1024).toFixed(1) })}
       </Text>
     );
+  };
 
   return (
     <Stack gap="sm">

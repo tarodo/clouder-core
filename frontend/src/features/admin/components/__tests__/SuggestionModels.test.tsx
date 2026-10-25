@@ -96,10 +96,7 @@ describe('SuggestionModels', () => {
     expect(techno).toHaveTextContent('0.679 · 4 cat.');
     expect(techno).toHaveTextContent('46 % of 48');
     expect(techno).toHaveTextContent('12,345');
-    expect(screen.getByText('2.6 / 3.0 GB')).toHaveAttribute(
-      'style',
-      expect.stringContaining('orange'),
-    );
+    expect(screen.getByText('2.6 / 3.0 GB')).toHaveAttribute('data-warn', 'true');
   });
 
   it('shows the first button under 20 taps, no category head and normal memory', async () => {
@@ -108,10 +105,7 @@ describe('SuggestionModels', () => {
     expect(minimal).toHaveTextContent('150 (60 keep)');
     expect(minimal).toHaveTextContent('— (12 of 20)');
     expect(minimal).toHaveTextContent('0.700—');
-    expect(screen.getByText('1.2 / 3.0 GB')).not.toHaveAttribute(
-      'style',
-      expect.stringContaining('orange'),
-    );
+    expect(screen.getByText('1.2 / 3.0 GB')).not.toHaveAttribute('data-warn');
   });
 
   it('shows a queued retrain and a pair waiting for labels', async () => {
@@ -119,7 +113,8 @@ describe('SuggestionModels', () => {
     expect(await row('House')).toHaveTextContent('queued');
     const trance = await row('Trance');
     expect(trance).toHaveTextContent('waiting for labels: 37 / 150');
-    expect(trance).toHaveTextContent('RomanTrancewaiting for labels: 37 / 150————0—');
+    // no first-button taps yet reads as 0 of 20, like a fresh model
+    expect(trance).toHaveTextContent('RomanTrancewaiting for labels: 37 / 150———— (0 of 20)0—');
   });
 
   it('says so when there are no models', async () => {
