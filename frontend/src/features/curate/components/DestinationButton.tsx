@@ -13,6 +13,8 @@ export interface DestinationButtonProps {
   disabled: boolean;
   /** When true, renders a tighter layout for mobile (smaller height + padding + font). */
   compact?: boolean;
+  /** Lit by the recommender: primary brightly, secondary paler. */
+  suggested?: 'primary' | 'secondary' | null;
   onClick: () => void;
 }
 
@@ -22,10 +24,12 @@ export function DestinationButton({
   justTapped,
   disabled,
   compact = false,
+  suggested = null,
   onClick,
 }: DestinationButtonProps) {
   const { t } = useTranslation();
   const label = bucketLabel(bucket, t);
+  const ariaLabel = t('curate.destination.assign_aria', { label });
 
   let title: string | undefined;
   if (disabled) {
@@ -43,7 +47,11 @@ export function DestinationButton({
       data-just-tapped={justTapped ? 'true' : 'false'}
       data-disabled={disabled ? 'true' : 'false'}
       data-compact={compact ? 'true' : 'false'}
-      aria-label={t('curate.destination.assign_aria', { label })}
+      data-suggested={suggested ?? undefined}
+      data-bucket-type={bucket.bucket_type}
+      aria-label={
+        suggested ? `${ariaLabel}, ${t(`triage.suggested.${suggested}_aria`)}` : ariaLabel
+      }
       title={title}
     >
       <Group

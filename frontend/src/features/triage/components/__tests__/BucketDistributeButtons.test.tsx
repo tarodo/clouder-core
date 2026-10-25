@@ -20,6 +20,8 @@ const discard: TriageBucket = {
   inactive: false, track_count: 0,
 };
 
+const staging2: TriageBucket = { ...staging, id: 'bk3', category_id: 'c3', category_name: 'House' };
+
 describe('BucketDistributeButtons', () => {
   it('renders a button per destination with bucket labels', () => {
     r(<BucketDistributeButtons destinations={[staging, discard]} onDistribute={vi.fn()} />);
@@ -41,5 +43,34 @@ describe('BucketDistributeButtons', () => {
     // instead verify no buttons or heading are rendered.
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.queryByTestId('bucket-distribute')).toBeNull();
+  });
+  it('lights the suggested buttons: primary filled, secondary light in the primary colour', () => {
+    r(
+      <BucketDistributeButtons
+        destinations={[staging, staging2, discard]}
+        suggested={{ primary: 'bk3', secondary: 'bk2' }}
+        onDistribute={vi.fn()}
+      />,
+    );
+    const primary = screen.getByRole('button', { name: 'House, suggested' });
+    expect(primary).toHaveAttribute('data-variant', 'filled');
+    const secondary = screen.getByRole('button', { name: 'Techno, second suggestion' });
+    expect(secondary).toHaveAttribute('data-variant', 'light');
+    expect(secondary.style.getPropertyValue('--button-bg')).not.toContain('red');
+    // DISCARD keeps its unlit look.
+    expect(screen.getByRole('button', { name: 'DISCARD' })).toHaveAttribute('data-variant', 'light');
+  });
+
+  it('lights DISCARD as a filled red primary', () => {
+    r(
+      <BucketDistributeButtons
+        destinations={[staging, discard]}
+        suggested={{ primary: 'disc', secondary: 'bk2' }}
+        onDistribute={vi.fn()}
+      />,
+    );
+    const btn = screen.getByRole('button', { name: 'DISCARD, suggested' });
+    expect(btn).toHaveAttribute('data-variant', 'filled');
+    expect(btn.style.getPropertyValue('--button-bg')).toContain('red');
   });
 });

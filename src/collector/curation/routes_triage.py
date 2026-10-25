@@ -51,6 +51,7 @@ def _serialize_triage_block(row, correlation_id: str) -> dict[str, Any]:
         "created_at": row.created_at,
         "updated_at": row.updated_at,
         "finalized_at": row.finalized_at,
+        "model": row.model,
         "buckets": [
             {
                 "id": b.id,
@@ -129,6 +130,7 @@ def _serialize_bucket_track(row) -> dict[str, Any]:
         "label_name": row.label_name,
         "label_id": row.label_id,
         "added_at": row.added_at,
+        "prediction": row.prediction,
     }
 
 

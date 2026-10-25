@@ -454,7 +454,7 @@ def test_list_bucket_tracks_validates_block_and_bucket() -> None:
 def test_list_bucket_tracks_search_lowers_term() -> None:
     api = _api_with_responses(
         [
-            [{"block_id": "b-1", "bucket_id": "bk-1"}],
+            [{"block_id": "b-1", "bucket_id": "bk-1", "style_id": "s-1"}],
             [],
             [{"total": 0}],
         ]
@@ -1061,3 +1061,105 @@ def test_create_block_persists_all_flags() -> None:
     assert p["compilations_to_not"] is True
     assert p["include_favorites"] is False
     assert p["ai_to_discard"] is False
+
+
+_TRACK_ROW = {
+    "track_id": "t-1",
+    "title": "T",
+    "added_at": "2026-04-28T00:00:00+00:00",
+    "artists": "[]",
+}
+
+
+def _tracks_repo(row: dict) -> tuple[TriageRepository, MagicMock]:
+    api = _api_with_responses(
+        [[{"block_id": "b-1", "bucket_id": "bk-1", "style_id": "s-1"}], [row], [{"total": 1}]]
+    )
+    return TriageRepository(api), api
+
+
+def _list(repo: TriageRepository, user_id: str = "u-1"):
+    return repo.list_bucket_tracks(
+        user_id=user_id, block_id="b-1", bucket_id="bk-1", limit=50, offset=0
+    )[0][0]
+
+
+def test_bucket_tracks_include_own_prediction() -> None:
+    repo, api = _tracks_repo(
+        {
+            **_TRACK_ROW,
+            "p_scored": True,
+            "p_keep": True,
+            "p_categories": '[["c-2", 0.6], ["c-1", 0.3]]',
+        }
+    )
+    assert _list(repo).prediction == {"keep": True, "category_ids": ["c-2", "c-1"]}
+    call = api.execute.call_args_list[1]
+    assert "p.user_id = :user_id" in call.args[0]
+    assert call.args[1]["user_id"] == "u-1"
+    assert call.args[1]["style_id"] == "s-1"
+
+
+def test_bucket_tracks_never_show_other_users_prediction() -> None:
+    # the join is keyed on the caller; no row joined -> no prediction
+    repo, api = _tracks_repo({**_TRACK_ROW, "p_scored": False, "p_keep": None})
+    assert _list(repo, user_id="u-2").prediction is None
+    assert api.execute.call_args_list[1].args[1]["user_id"] == "u-2"
+
+
+def test_bucket_tracks_prediction_without_categories() -> None:
+    repo, _ = _tracks_repo({**_TRACK_ROW, "p_scored": True, "p_keep": None, "p_categories": None})
+    assert _list(repo).prediction == {"keep": None, "category_ids": []}
+
+
+_BLOCK_ROW = {
+    "id": "b-1",
+    "user_id": "u-1",
+    "style_id": "s-1",
+    "style_name": "House",
+    "name": "X",
+    "date_from": "2026-04-20",
+    "date_to": "2026-04-26",
+    "status": "IN_PROGRESS",
+    "old_offset_weeks": 0,
+    "include_disliked_labels": False,
+    "include_disliked_artists": False,
+    "compilations_to_not": True,
+    "include_favorites": False,
+    "created_at": "2026-04-28T00:00:00+00:00",
+    "updated_at": "2026-04-28T00:00:00+00:00",
+    "finalized_at": None,
+}
+
+
+def _block(extra: dict):
+    repo = TriageRepository(_api_with_responses([[{**_BLOCK_ROW, **extra}], []]))
+    out = repo.get_block(user_id="u-1", block_id="b-1")
+    assert out is not None
+    return out
+
+
+def test_block_detail_model_null_without_model() -> None:
+    assert _block({}).model is None
+    assert _block({"m_version": 0, "m_metrics": "{}"}).model is None
+
+
+def test_block_detail_model_fields() -> None:
+    m = _block(
+        {
+            "m_version": 2,
+            "m_trained_at": "2026-10-20T00:00:00+00:00",
+            "m_n_labels": 321,
+            "m_metrics": '{"first_hit": 0.4, "first_n": 25, "keep_auc": 0.8}',
+        }
+    ).model
+    assert m == {
+        "trained_at": "2026-10-20T00:00:00+00:00",
+        "n_labels": 321,
+        "first_hit": 0.4,
+        "first_n": 25,
+    }
+    m = _block(
+        {"m_version": 1, "m_trained_at": "t", "m_n_labels": 5, "m_metrics": '{"first_hit": null}'}
+    ).model
+    assert m is not None and m["first_hit"] is None and m["first_n"] == 0

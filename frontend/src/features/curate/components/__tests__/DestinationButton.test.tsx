@@ -195,4 +195,35 @@ describe('DestinationButton', () => {
       'false',
     );
   });
+  it('marks a suggested button and says so in its accessible name', () => {
+    render(
+      wrap(
+        <>
+          <DestinationButton bucket={stage} hotkeyHint="1" justTapped={false} disabled={false}
+            suggested="primary" onClick={() => {}} />
+          <DestinationButton bucket={newBucket} hotkeyHint="Q" justTapped={false} disabled={false}
+            suggested="secondary" onClick={() => {}} />
+        </>,
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Assign to Big Room, suggested' })).toHaveAttribute(
+      'data-suggested',
+      'primary',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Assign to NEW, second suggestion' }),
+    ).toHaveAttribute('data-suggested', 'secondary');
+  });
+
+  it('carries no data-suggested when not suggested', () => {
+    render(
+      wrap(
+        <DestinationButton bucket={stage} hotkeyHint="1" justTapped={false} disabled={false}
+          onClick={() => {}} />,
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Assign to Big Room' })).not.toHaveAttribute(
+      'data-suggested',
+    );
+  });
 });

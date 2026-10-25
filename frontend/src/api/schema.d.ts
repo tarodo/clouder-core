@@ -4237,6 +4237,12 @@ export interface paths {
                             compilations_to_not?: boolean;
                             include_favorites?: boolean;
                             ai_to_discard?: boolean;
+                            model?: {
+                                trained_at: string;
+                                n_labels: number;
+                                first_hit: number | null;
+                                first_n: number;
+                            } | null;
                             buckets: {
                                 /** Format: uuid */
                                 id: string;
@@ -4442,6 +4448,12 @@ export interface paths {
                             compilations_to_not?: boolean;
                             include_favorites?: boolean;
                             ai_to_discard?: boolean;
+                            model?: {
+                                trained_at: string;
+                                n_labels: number;
+                                first_hit: number | null;
+                                first_n: number;
+                            } | null;
                             buckets: {
                                 /** Format: uuid */
                                 id: string;
@@ -4601,6 +4613,10 @@ export interface paths {
                                 ai_verdict: "high" | "medium" | "low" | null;
                                 artists: string[];
                                 added_at: string;
+                                prediction?: {
+                                    keep: boolean | null;
+                                    category_ids: string[];
+                                } | null;
                             }[];
                             total: number;
                             limit: number;
@@ -4912,6 +4928,12 @@ export interface paths {
                                 compilations_to_not?: boolean;
                                 include_favorites?: boolean;
                                 ai_to_discard?: boolean;
+                                model?: {
+                                    trained_at: string;
+                                    n_labels: number;
+                                    first_hit: number | null;
+                                    first_n: number;
+                                } | null;
                                 buckets: {
                                     /** Format: uuid */
                                     id: string;

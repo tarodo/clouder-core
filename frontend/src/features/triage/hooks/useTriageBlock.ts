@@ -15,6 +15,8 @@ export interface TriageBlock {
   updated_at: string;
   finalized_at: string | null;
   buckets: TriageBucket[];
+  /** The user's recommender for this style; first_hit is the share of first-button-right over first_n tracks. */
+  model?: { trained_at: string; n_labels: number; first_hit: number | null; first_n: number } | null;
   correlation_id?: string;
 }
 

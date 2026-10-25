@@ -9,8 +9,25 @@
     transform var(--motion-pulse) var(--ease-out),
     background var(--motion-base) var(--ease-out);
 }
-.button:hover:not([data-disabled='true']) {
+.button:hover:not([data-disabled='true']):not([data-suggested]) {
   background: var(--color-hover);
+}
+/* Recommender suggestion: primary lit in the accent, secondary paler. */
+.button[data-suggested='primary'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+.button[data-suggested='primary'][data-bucket-type='DISCARD'] {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+}
+.button[data-suggested='secondary'] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+.button[data-suggested]:hover:not([data-disabled='true']) {
+  opacity: 0.88;
 }
 .button[data-disabled='true'] {
   opacity: 0.4;

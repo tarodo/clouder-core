@@ -9,6 +9,10 @@ import {
   type TriageBucket,
 } from '../../triage/lib/bucketLabels';
 import {
+  suggestionLevel,
+  type Suggested,
+} from '../../triage/lib/suggestedDestinations';
+import {
   byDiscard,
   byTechType,
   resolveStagingHotkeys,
@@ -20,6 +24,8 @@ export interface DestinationGridProps {
   currentBucketId: string;
   lastTappedBucketId: string | null;
   forceMode: boolean;
+  /** Lit buttons for the current track; overflow-menu items stay unlit. */
+  suggested?: Suggested;
   onAssign: (toBucketId: string) => void;
   onToggleForce: () => void;
 }
@@ -36,6 +42,7 @@ export function DestinationGrid({
   currentBucketId,
   lastTappedBucketId,
   forceMode,
+  suggested,
   onAssign,
   onToggleForce,
 }: DestinationGridProps) {
@@ -81,6 +88,7 @@ export function DestinationGrid({
         justTapped={lastTappedBucketId === bucket.id}
         disabled={isSelf}
         compact={isMobile}
+        suggested={isSelf ? null : suggestionLevel(suggested, bucket.id)}
         onClick={() => onAssign(bucket.id)}
       />
     );

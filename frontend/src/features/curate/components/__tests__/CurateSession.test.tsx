@@ -213,3 +213,40 @@ describe('CurateSession with PlayerCard', () => {
     expect(togglePlayPauseMock).toHaveBeenCalled();
   });
 });
+
+describe('CurateSession suggestions', () => {
+  beforeEach(() => {
+    tokenStore.set('TOK');
+  });
+  afterEach(() => {
+    tokenStore.set(null);
+  });
+
+  it("lights the current track's suggestions from the block's buckets", async () => {
+    const page = tracksPage(['t1']);
+    const items = page.items.map((it) => ({
+      ...it,
+      prediction: { keep: false, category_ids: ['c-gone', 'c1'] },
+    }));
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () =>
+        HttpResponse.json({
+          ...block,
+          buckets: [
+            ...block.buckets,
+            { id: 'disc', bucket_type: 'DISCARD', inactive: false, track_count: 0 },
+          ],
+        }),
+      ),
+      http.get('http://localhost/triage/blocks/b1/buckets/src/tracks', () =>
+        HttpResponse.json({ ...page, items }),
+      ),
+    );
+    renderSession();
+    const discard = await screen.findByRole('button', { name: 'Assign to DISCARD, suggested' });
+    expect(discard).toHaveAttribute('data-suggested', 'primary');
+    expect(
+      screen.getByRole('button', { name: 'Assign to Big Room, second suggestion' }),
+    ).toHaveAttribute('data-suggested', 'secondary');
+  });
+});

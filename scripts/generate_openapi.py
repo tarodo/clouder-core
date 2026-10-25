@@ -441,6 +441,16 @@ TRIAGE_BLOCK_DETAIL = {
         "compilations_to_not": {"type": "boolean"},
         "include_favorites": {"type": "boolean"},
         "ai_to_discard": {"type": "boolean"},
+        "model": {
+            "type": ["object", "null"],
+            "required": ["trained_at", "n_labels", "first_hit", "first_n"],
+            "properties": {
+                "trained_at": {"type": "string"},
+                "n_labels": {"type": "integer"},
+                "first_hit": {"type": ["number", "null"]},
+                "first_n": {"type": "integer"},
+            },
+        },
         "buckets": {
             "type": "array",
             "items": TRIAGE_BUCKET_ROW,
@@ -518,6 +528,14 @@ BUCKET_TRACK_ROW = {
         "ai_verdict": AI_VERDICT,
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
+        "prediction": {
+            "type": ["object", "null"],
+            "required": ["keep", "category_ids"],
+            "properties": {
+                "keep": {"type": ["boolean", "null"]},
+                "category_ids": {"type": "array", "items": {"type": "string"}},
+            },
+        },
     },
 }
 
