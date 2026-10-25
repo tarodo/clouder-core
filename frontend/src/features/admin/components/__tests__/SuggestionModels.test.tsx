@@ -65,6 +65,7 @@ const ITEMS: Item[] = [
     max_rss_mb: 1200,
   }),
   item('House', { retrain_pending: true }),
+  item('Garage', { version: 1, trained_at: new Date().toISOString(), labels_since_training: null }),
   item('Trance', { labels_since_training: 37 }),
 ];
 
@@ -110,11 +111,11 @@ describe('SuggestionModels', () => {
 
   it('shows a queued retrain and a pair waiting for labels', async () => {
     renderWith(ITEMS);
-    expect(await row('House')).toHaveTextContent('queued');
-    const trance = await row('Trance');
-    expect(trance).toHaveTextContent('waiting for labels: 37 / 150');
-    // no first-button taps yet reads as 0 of 20, like a fresh model
-    expect(trance).toHaveTextContent('RomanTrancewaiting for labels: 37 / 150———— (0 of 20)0—');
+    // no model: a bare dash in every metric cell, the first button too
+    expect(await row('House')).toHaveTextContent('RomanHousequeued————0—');
+    expect(await row('Trance')).toHaveTextContent('RomanTrancewaiting for labels: 37 / 150————0—');
+    // a model without first-button taps yet: 0 of 20
+    expect(await row('Garage')).toHaveTextContent('— (0 of 20)');
   });
 
   it('says so when there are no models', async () => {

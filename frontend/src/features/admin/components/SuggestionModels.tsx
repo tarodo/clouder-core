@@ -49,7 +49,8 @@ export function SuggestionModels() {
   };
 
   const first = (m: Item) => {
-    const n = m.first_n ?? 0; // no taps scored yet reads as 0 of 20
+    if (m.version === 0) return DASH;
+    const n = m.first_n ?? 0; // a model with no taps scored yet reads as 0 of 20
     return n >= FIRST_MIN
       ? k('first_hit', { pct: Math.round((m.first_hit ?? 0) * 100), n: fmt(n) })
       : k('first_few', { n });
