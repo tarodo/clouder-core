@@ -241,21 +241,27 @@ class SpotifySearchMixin(RepositoryBase):
         return int(rows[0]["cnt"]) if rows else 0
 
     def spotify_search_counts(self, since: datetime) -> dict[str, int]:
-        """Tracks waiting for the Spotify search, searched without a match, and
-        claimed or searched since *since* (a batch in progress counts as searched)."""
+        """The catalog split into found / not_found / waiting / no_isrc (the
+        search needs an ISRC; errors hand rows back, so there is no error
+        bucket), plus tracks claimed or searched since *since* (a batch in
+        progress counts as searched)."""
         (row,) = self._data_api.execute(
             """
             SELECT
-                count(*) FILTER (WHERE spotify_searched_at IS NULL) AS waiting,
-                count(*) FILTER (WHERE spotify_searched_at IS NOT NULL AND spotify_id IS NULL)
+                count(*) AS total,
+                count(*) FILTER (WHERE spotify_id IS NOT NULL) AS found,
+                count(*) FILTER (WHERE spotify_id IS NULL AND spotify_searched_at IS NOT NULL)
                     AS not_found,
+                count(*) FILTER (WHERE spotify_id IS NULL AND spotify_searched_at IS NULL
+                                   AND isrc IS NOT NULL) AS waiting,
+                count(*) FILTER (WHERE spotify_id IS NULL AND spotify_searched_at IS NULL
+                                   AND isrc IS NULL) AS no_isrc,
                 count(*) FILTER (WHERE spotify_searched_at >= :since) AS searched_recently
             FROM clouder_tracks
-            WHERE isrc IS NOT NULL
             """,
             {"since": since},
         )
-        return {key: int(row[key] or 0) for key in ("waiting", "not_found", "searched_recently")}
+        return {key: int(value or 0) for key, value in row.items()}
 
     def batch_update_spotify_results(
         self,

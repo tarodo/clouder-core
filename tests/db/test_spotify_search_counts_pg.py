@@ -18,7 +18,7 @@ def _track(pg, tid, *, isrc="ISRC", searched_at=None, spotify_id=None):
     )
 
 
-def test_waiting_not_found_and_recent(pg) -> None:
+def test_counts_split_the_catalog(pg) -> None:
     pg.execute(
         "INSERT INTO clouder_styles (id, name, normalized_name, created_at, updated_at)"
         " VALUES ('st', 'S', 's', now(), now())"
@@ -32,4 +32,12 @@ def test_waiting_not_found_and_recent(pg) -> None:
 
     counts = ClouderRepository(pg).spotify_search_counts(since=NOW - timedelta(minutes=10))
 
-    assert counts == {"waiting": 2, "not_found": 2, "searched_recently": 2}
+    # Every catalog track lands in exactly one of found / not_found / waiting / no_isrc.
+    assert counts == {
+        "total": 6,
+        "found": 1,
+        "not_found": 2,
+        "waiting": 2,
+        "no_isrc": 1,
+        "searched_recently": 2,
+    }

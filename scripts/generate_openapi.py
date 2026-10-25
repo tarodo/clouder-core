@@ -740,15 +740,30 @@ SPOTIFY_SEARCH_STATUS = {
         },
         "tracks": {
             "type": "object",
-            "required": ["waiting", "not_found", "searched_last_10_min"],
+            "description": "The catalog split into found + not_found + waiting + no_isrc = total. "
+            "A search error hands the track back, so there is no error bucket.",
+            "required": [
+                "total",
+                "found",
+                "not_found",
+                "waiting",
+                "no_isrc",
+                "searched_last_10_min",
+            ],
             "properties": {
+                "total": {"type": "integer", "description": "Catalog (Beatport) tracks."},
+                "found": {"type": "integer", "description": "Tracks with a Spotify id."},
+                "not_found": {
+                    "type": "integer",
+                    "description": "Searched without a Spotify match.",
+                },
                 "waiting": {
                     "type": "integer",
                     "description": "Tracks with an ISRC never searched yet.",
                 },
-                "not_found": {
+                "no_isrc": {
                     "type": "integer",
-                    "description": "Searched without a Spotify match.",
+                    "description": "No ISRC, so never searched.",
                 },
                 "searched_last_10_min": {"type": "integer"},
             },
@@ -778,23 +793,29 @@ YOUTUBE_SEARCH_STATUS = {
         },
         "tracks": {
             "type": "object",
-            "required": ["waiting", "searched_last_10_min", "searched_total"],
+            "required": ["total", "waiting", "searched_last_10_min"],
             "properties": {
+                "total": {"type": "integer", "description": "Catalog (Beatport) tracks."},
                 "waiting": {
                     "type": "integer",
                     "description": "Catalog tracks not searched yet (newest releases go first).",
                 },
                 "searched_last_10_min": {"type": "integer"},
-                "searched_total": {"type": "integer"},
             },
         },
         "results": {
             "type": "object",
-            "required": ["matched", "needs_review", "not_found", "videos"],
+            "description": "Each catalog track in one bucket: matched + needs_review + not_found "
+            "+ error + tracks.waiting = tracks.total.",
+            "required": ["matched", "needs_review", "not_found", "error", "videos"],
             "properties": {
                 "matched": {"type": "integer", "description": "Tracks with a YT Music match."},
-                "needs_review": {"type": "integer", "description": "Pending match reviews."},
-                "not_found": {"type": "integer", "description": "YT Music returned no candidate."},
+                "needs_review": {"type": "integer", "description": "Unmatched, review pending."},
+                "not_found": {"type": "integer", "description": "Not on YT Music."},
+                "error": {
+                    "type": "integer",
+                    "description": "Searched, but the outcome was never stored.",
+                },
                 "videos": {"type": "integer", "description": "Tracks with a video for comments."},
             },
         },
@@ -946,7 +967,8 @@ ANALYSIS_STATUS = {
         "last_result_at": {"type": ["string", "null"], "format": "date-time"},
         "pair": {
             "type": "object",
-            "description": "Tracks per AI level (ai_lofcz + ai_deezer).",
+            "description": "YT Music matches per AI level (ai_lofcz + ai_deezer); a flag "
+            "counts even when the other detector failed, as the badge does.",
             "required": ["high", "medium", "low", "clean"],
             "properties": {
                 "high": {"type": "integer", "description": "Both flagged."},
@@ -957,30 +979,32 @@ ANALYSIS_STATUS = {
         },
         "queue": {
             "type": "object",
-            "description": "Tracks in the pair's queue (ai_lofcz + ai_deezer).",
-            "required": ["waiting", "analyzed", "failed", "unusable"],
+            "description": "The YT Music matches the pair (ai_lofcz + ai_deezer) has not "
+            "settled: pair levels + waiting + in_progress + failed + unusable = total.",
+            "required": ["total", "waiting", "in_progress", "failed", "unusable"],
             "properties": {
-                "waiting": {
-                    "type": "integer",
-                    "description": "YT Music matches a claim for both would hand out.",
-                },
-                "analyzed": {"type": "integer", "description": "Both ok."},
-                "failed": {"type": "integer", "description": "Either failed."},
+                "total": {"type": "integer", "description": "Tracks with a YT Music match."},
+                "waiting": {"type": "integer", "description": "Not settled, no live lease."},
+                "in_progress": {"type": "integer", "description": "Under a live lease."},
+                "failed": {"type": "integer", "description": "Unflagged, either failed."},
                 "unusable": {
                     "type": "integer",
-                    "description": "Either unusable_source, neither failed.",
+                    "description": "Unflagged, either unusable_source, neither failed.",
                 },
             },
         },
         "profile": {
             "type": "object",
-            "description": "Tracks per light_profile (audio feature) state.",
-            "required": ["waiting", "profiled", "failed", "unusable"],
+            "description": "The YT Music matches per light_profile state; the buckets sum "
+            "to total.",
+            "required": ["total", "waiting", "in_progress", "profiled", "failed", "unusable"],
             "properties": {
+                "total": {"type": "integer", "description": "Tracks with a YT Music match."},
                 "waiting": {
                     "type": "integer",
-                    "description": "YT Music matches with no held light_profile row.",
+                    "description": "No light_profile row or an expired lease.",
                 },
+                "in_progress": {"type": "integer", "description": "Under a live lease."},
                 "profiled": {"type": "integer", "description": "light_profile ok."},
                 "failed": {"type": "integer", "description": "light_profile failed."},
                 "unusable": {"type": "integer", "description": "light_profile unusable_source."},

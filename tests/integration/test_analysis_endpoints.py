@@ -52,8 +52,15 @@ class FakeRepo:
             "last_result_at": None,
             "analyzers": [],
             "pair": {"high": 2, "medium": 5, "low": 3, "clean": 40},
-            "queue": {"waiting": 9, "analyzed": 50, "failed": 4, "unusable": 1},
-            "profile": {"waiting": 6, "profiled": 20, "failed": 2, "unusable": 1},
+            "queue": {"total": 64, "waiting": 9, "in_progress": 0, "failed": 4, "unusable": 1},
+            "profile": {
+                "total": 30,
+                "waiting": 6,
+                "in_progress": 1,
+                "profiled": 20,
+                "failed": 2,
+                "unusable": 1,
+            },
             "models": {"count": 2, "last_trained_at": NOW},
         }
 
@@ -164,8 +171,15 @@ def test_admin_status(monkeypatch):
         "last_result_at": None,
         "analyzers": [],
         "pair": {"high": 2, "medium": 5, "low": 3, "clean": 40},
-        "queue": {"waiting": 9, "analyzed": 50, "failed": 4, "unusable": 1},
-        "profile": {"waiting": 6, "profiled": 20, "failed": 2, "unusable": 1},
+        "queue": {"total": 64, "waiting": 9, "in_progress": 0, "failed": 4, "unusable": 1},
+        "profile": {
+            "total": 30,
+            "waiting": 6,
+            "in_progress": 1,
+            "profiled": 20,
+            "failed": 2,
+            "unusable": 1,
+        },
         "models": {"count": 2, "last_trained_at": NOW.isoformat()},
     }
 

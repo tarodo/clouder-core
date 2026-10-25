@@ -147,8 +147,11 @@ def _handle_spotify_search_status(
             "paused_until": paused_until.isoformat() if paused_until else None,
             "queue": queue,
             "tracks": {
-                "waiting": counts["waiting"],
+                "total": counts["total"],
+                "found": counts["found"],
                 "not_found": counts["not_found"],
+                "waiting": counts["waiting"],
+                "no_isrc": counts["no_isrc"],
                 "searched_last_10_min": counts["searched_recently"],
             },
         },

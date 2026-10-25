@@ -86,22 +86,42 @@ class YoutubeSearchMixin(RepositoryBase):
         return len(rows)
 
     def youtube_search_counts(self, recent_since: datetime) -> dict[str, int]:
-        """Backlog and outcomes behind the admin YouTube search status."""
+        """Backlog and outcomes behind the admin YouTube search status. Each
+        catalog track lands in one bucket (a match wins over a review, a review
+        over no_match), so matched + needs_review + not_found + error + waiting
+        = total. A stamped track with no outcome row lost its write: an error."""
         rows = self._data_api.execute(
             """
+            WITH t AS (
+                SELECT t.youtube_searched_at,
+                       m.clouder_track_id IS NOT NULL AS found,
+                       coalesce(q.review, false) AS review,
+                       coalesce(q.no_match, false) AS no_match
+                FROM clouder_tracks t
+                LEFT JOIN vendor_track_map m
+                  ON m.clouder_track_id = t.id AND m.vendor = 'ytmusic'
+                -- joins, not per-row EXISTS: hash joins over the catalog (6 s -> 1 s on prod)
+                LEFT JOIN (
+                    SELECT clouder_track_id,
+                           bool_or(status = 'pending') AS review,
+                           bool_or(status = 'no_match') AS no_match
+                    FROM match_review_queue WHERE vendor = 'ytmusic'
+                    GROUP BY clouder_track_id
+                ) q ON q.clouder_track_id = t.id
+            )
             SELECT
-                (SELECT count(*) FROM clouder_tracks
-                 WHERE youtube_searched_at IS NULL) AS waiting,
-                (SELECT count(*) FROM clouder_tracks
-                 WHERE youtube_searched_at >= :recent_since) AS searched_recently,
-                (SELECT count(*) FROM clouder_tracks
-                 WHERE youtube_searched_at IS NOT NULL) AS searched_total,
-                (SELECT count(*) FROM vendor_track_map WHERE vendor = 'ytmusic') AS matched,
-                (SELECT count(*) FROM match_review_queue
-                 WHERE vendor = 'ytmusic' AND status = 'pending') AS needs_review,
-                (SELECT count(*) FROM match_review_queue
-                 WHERE vendor = 'ytmusic' AND status = 'no_match') AS not_found,
+                count(*) AS total,
+                count(*) FILTER (WHERE found) AS matched,
+                count(*) FILTER (WHERE NOT found AND review) AS needs_review,
+                count(*) FILTER (WHERE NOT found AND NOT review AND no_match) AS not_found,
+                count(*) FILTER (WHERE NOT (found OR review OR no_match)
+                                   AND youtube_searched_at IS NOT NULL) AS error,
+                count(*) FILTER (WHERE NOT (found OR review OR no_match)
+                                   AND youtube_searched_at IS NULL) AS waiting,
+                count(*) FILTER (WHERE youtube_searched_at >= :recent_since)
+                    AS searched_recently,
                 (SELECT count(*) FROM vendor_track_map WHERE vendor = 'youtube') AS videos
+            FROM t
             """,
             {"recent_since": recent_since},
         )

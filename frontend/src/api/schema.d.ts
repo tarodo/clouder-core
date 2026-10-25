@@ -9244,11 +9244,18 @@ export interface components {
                 in_flight: number;
                 delayed: number;
             };
+            /** @description The catalog split into found + not_found + waiting + no_isrc = total. A search error hands the track back, so there is no error bucket. */
             tracks: {
-                /** @description Tracks with an ISRC never searched yet. */
-                waiting: number;
+                /** @description Catalog (Beatport) tracks. */
+                total: number;
+                /** @description Tracks with a Spotify id. */
+                found: number;
                 /** @description Searched without a Spotify match. */
                 not_found: number;
+                /** @description Tracks with an ISRC never searched yet. */
+                waiting: number;
+                /** @description No ISRC, so never searched. */
+                no_isrc: number;
                 searched_last_10_min: number;
             };
         };
@@ -9266,18 +9273,22 @@ export interface components {
                 delayed: number;
             };
             tracks: {
+                /** @description Catalog (Beatport) tracks. */
+                total: number;
                 /** @description Catalog tracks not searched yet (newest releases go first). */
                 waiting: number;
                 searched_last_10_min: number;
-                searched_total: number;
             };
+            /** @description Each catalog track in one bucket: matched + needs_review + not_found + error + tracks.waiting = tracks.total. */
             results: {
                 /** @description Tracks with a YT Music match. */
                 matched: number;
-                /** @description Pending match reviews. */
+                /** @description Unmatched, review pending. */
                 needs_review: number;
-                /** @description YT Music returned no candidate. */
+                /** @description Not on YT Music. */
                 not_found: number;
+                /** @description Searched, but the outcome was never stored. */
+                error: number;
                 /** @description Tracks with a video for comments. */
                 videos: number;
             };
@@ -9344,7 +9355,7 @@ export interface components {
             last_claim_at: string | null;
             /** Format: date-time */
             last_result_at: string | null;
-            /** @description Tracks per AI level (ai_lofcz + ai_deezer). */
+            /** @description YT Music matches per AI level (ai_lofcz + ai_deezer); a flag counts even when the other detector failed, as the badge does. */
             pair: {
                 /** @description Both flagged. */
                 high: number;
@@ -9355,21 +9366,27 @@ export interface components {
                 /** @description Both ok, neither flagged. */
                 clean: number;
             };
-            /** @description Tracks in the pair's queue (ai_lofcz + ai_deezer). */
+            /** @description The YT Music matches the pair (ai_lofcz + ai_deezer) has not settled: pair levels + waiting + in_progress + failed + unusable = total. */
             queue: {
-                /** @description YT Music matches a claim for both would hand out. */
+                /** @description Tracks with a YT Music match. */
+                total: number;
+                /** @description Not settled, no live lease. */
                 waiting: number;
-                /** @description Both ok. */
-                analyzed: number;
-                /** @description Either failed. */
+                /** @description Under a live lease. */
+                in_progress: number;
+                /** @description Unflagged, either failed. */
                 failed: number;
-                /** @description Either unusable_source, neither failed. */
+                /** @description Unflagged, either unusable_source, neither failed. */
                 unusable: number;
             };
-            /** @description Tracks per light_profile (audio feature) state. */
+            /** @description The YT Music matches per light_profile state; the buckets sum to total. */
             profile: {
-                /** @description YT Music matches with no held light_profile row. */
+                /** @description Tracks with a YT Music match. */
+                total: number;
+                /** @description No light_profile row or an expired lease. */
                 waiting: number;
+                /** @description Under a live lease. */
+                in_progress: number;
                 /** @description light_profile ok. */
                 profiled: number;
                 /** @description light_profile failed. */

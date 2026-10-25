@@ -148,16 +148,30 @@ def _outcomes(pg, repo) -> None:
     )
 
 
-def test_status_counts(pg) -> None:
+def test_status_counts_split_the_catalog(pg) -> None:
     repo = _world(pg)
     _outcomes(pg, repo)
+    # w01 was matched by hand before the sweep reached it: matched, not waiting.
+    pg.execute(
+        "INSERT INTO vendor_track_map (clouder_track_id, vendor, vendor_track_id, match_type,"
+        " confidence, matched_at, payload) VALUES"
+        " ('w01', 'ytmusic', 's2', 'manual', 1.0, now(), '{}'::jsonb)"
+    )
+    # w41 keeps an old no_match row next to its match: counted once, as matched.
+    pg.execute(
+        "INSERT INTO match_review_queue (id, clouder_track_id, vendor, candidates, status, created_at)"
+        " VALUES ('r3', 'w41', 'ytmusic', '[]'::jsonb, 'no_match', now())"
+    )
+    # "undated" was stamped but its outcome never landed: an error.
+    repo.mark_youtube_searched(track_id="undated", at=T0)
     assert repo.youtube_search_counts(recent_since=T0) == {
-        "waiting": 2,
-        "searched_recently": 3,
-        "searched_total": 3,
-        "matched": 1,
+        "total": 5,
+        "matched": 2,
         "needs_review": 1,
         "not_found": 1,
+        "error": 1,
+        "waiting": 0,
+        "searched_recently": 4,
         "videos": 1,
     }
 

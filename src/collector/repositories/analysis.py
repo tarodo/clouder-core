@@ -332,49 +332,53 @@ class AnalysisMixin(RepositoryBase):
                 }
             )
         lofcz, deezer = PAIR_ANALYZERS
-        # The pair in one pass: one row per analyzed track, then the YT Music
-        # matches that a claim for both analyzers would still hand out.
+        # Both funnels split the YT Music matches: every match lands in exactly one
+        # bucket, so the buckets sum to total. For the pair a flag wins (it is what
+        # the badge shows), then clean (both ok), failed, unusable, a live lease.
         (pair,) = self._data_api.execute(
             f"""
             WITH per_track AS (
-                SELECT a.track_id,
-                       bool_or(a.analyzer = :lofcz AND a.status = 'ok') AS lofcz_ok,
-                       bool_or(a.analyzer = :deezer AND a.status = 'ok') AS deezer_ok,
-                       bool_or(a.analyzer = :lofcz AND {_FLAG}) AS lofcz,
-                       bool_or(a.analyzer = :deezer AND {_FLAG}) AS deezer,
-                       bool_or(a.status = 'failed') AS failed,
-                       bool_or(a.status = 'unusable_source') AS unusable,
-                       count(*) FILTER (WHERE {_HELD}) AS held
-                FROM track_analyses a
-                WHERE a.analyzer IN (:lofcz, :deezer)
-                GROUP BY a.track_id
+                SELECT coalesce(bool_or(a.analyzer = :lofcz AND {_FLAG}), false) AS lofcz,
+                       coalesce(bool_or(a.analyzer = :deezer AND {_FLAG}), false) AS deezer,
+                       count(*) FILTER (WHERE a.status = 'ok') = 2 AS both_ok,
+                       coalesce(bool_or(a.status = 'failed'), false) AS failed,
+                       coalesce(bool_or(a.status = 'unusable_source'), false) AS unusable,
+                       coalesce(bool_or(a.status = 'leased' AND {_HELD}), false) AS live
+                FROM vendor_track_map v
+                LEFT JOIN track_analyses a
+                  ON a.track_id = v.clouder_track_id AND a.analyzer IN (:lofcz, :deezer)
+                WHERE v.vendor = 'ytmusic'
+                GROUP BY v.clouder_track_id
+            ), t AS (
+                SELECT *, NOT (lofcz OR deezer OR both_ok) AS unflagged FROM per_track
             )
-            SELECT count(*) FILTER (WHERE lofcz AND deezer) AS high,
+            SELECT count(*) AS total,
+                   count(*) FILTER (WHERE lofcz AND deezer) AS high,
                    count(*) FILTER (WHERE lofcz AND NOT deezer) AS medium,
                    count(*) FILTER (WHERE deezer AND NOT lofcz) AS low,
-                   count(*) FILTER (WHERE lofcz_ok AND deezer_ok AND NOT (lofcz OR deezer))
-                       AS clean,
-                   count(*) FILTER (WHERE lofcz_ok AND deezer_ok) AS analyzed,
-                   count(*) FILTER (WHERE failed) AS failed,
-                   count(*) FILTER (WHERE unusable AND NOT failed) AS unusable,
-                   (SELECT count(*) FROM vendor_track_map v
-                    LEFT JOIN per_track p ON p.track_id = v.clouder_track_id
-                    WHERE v.vendor = 'ytmusic' AND coalesce(p.held, 0) < 2) AS waiting
-            FROM per_track
+                   count(*) FILTER (WHERE both_ok AND NOT (lofcz OR deezer)) AS clean,
+                   count(*) FILTER (WHERE unflagged AND failed) AS failed,
+                   count(*) FILTER (WHERE unflagged AND NOT failed AND unusable) AS unusable,
+                   count(*) FILTER (WHERE unflagged AND NOT failed AND NOT unusable AND live)
+                       AS in_progress,
+                   count(*) FILTER (WHERE unflagged AND NOT (failed OR unusable OR live))
+                       AS waiting
+            FROM t
             """,
             {"lofcz": lofcz, "deezer": deezer, "now": now},
         )
         (prof,) = self._data_api.execute(
             f"""
-            SELECT count(*) FILTER (WHERE a.status = 'ok') AS profiled,
+            SELECT count(*) AS total,
+                   count(*) FILTER (WHERE a.status = 'ok') AS profiled,
                    count(*) FILTER (WHERE a.status = 'failed') AS failed,
                    count(*) FILTER (WHERE a.status = 'unusable_source') AS unusable,
-                   (SELECT count(*) FROM vendor_track_map v
-                    WHERE v.vendor = 'ytmusic' AND NOT EXISTS (
-                        SELECT 1 FROM track_analyses a
-                        WHERE a.track_id = v.clouder_track_id
-                          AND a.analyzer = 'light_profile' AND {_HELD})) AS waiting
-            FROM track_analyses a WHERE a.analyzer = 'light_profile'
+                   count(*) FILTER (WHERE a.status = 'leased' AND {_HELD}) AS in_progress,
+                   count(*) FILTER (WHERE a.status IS NULL OR NOT ({_HELD})) AS waiting
+            FROM vendor_track_map v
+            LEFT JOIN track_analyses a
+              ON a.track_id = v.clouder_track_id AND a.analyzer = 'light_profile'
+            WHERE v.vendor = 'ytmusic'
             """,
             {"now": now},
         )
@@ -386,8 +390,13 @@ class AnalysisMixin(RepositoryBase):
             "last_result_at": as_utc_datetime(state[0]["last_result_at"]) if state else None,
             "analyzers": analyzers,
             "pair": {k: int(pair[k]) for k in ("high", "medium", "low", "clean")},
-            "queue": {k: int(pair[k]) for k in ("waiting", "analyzed", "failed", "unusable")},
-            "profile": {k: int(prof[k]) for k in ("waiting", "profiled", "failed", "unusable")},
+            "queue": {
+                k: int(pair[k]) for k in ("total", "waiting", "in_progress", "failed", "unusable")
+            },
+            "profile": {
+                k: int(prof[k])
+                for k in ("total", "waiting", "in_progress", "profiled", "failed", "unusable")
+            },
             "models": {
                 "count": int(models["n"]),
                 "last_trained_at": as_utc_datetime(models["last"]) if models["last"] else None,
