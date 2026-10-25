@@ -13,7 +13,7 @@ CLOUDER stores only what a signed-in DJ needs to curate and publish tracks. Ever
 | Aurora audit columns `*_by_user_id` (enrichment runs, auto-enrich and auto-ingest settings) | Which admin started a run or changed a setting | Operations | Set to NULL on deletion; the run or setting stays |
 | Aurora automated backups | All of the above | Point-in-time recovery | 7 days |
 | S3 raw bucket `covers/<user_id>/` | Playlist cover images the user uploaded | Playlist covers | Until the user is deleted (every version is removed) |
-| S3 feature bucket `models/<user_id>/` | The user's triage-suggestion models (`.npz`), trained on their keep / discard decisions per style | Suggested buttons in triage | Until the user is deleted (every version is removed); a replaced model's old version expires after 30 days |
+| S3 feature bucket `models/<user_id>/` | The user's triage-suggestion models (`.npz`), trained on their keep / discard decisions per style | Suggested buttons in triage | Until the user is deleted (every version is removed); older models of the same user stay until then |
 | S3 lake `bronze/events/` (Firehose, Parquet) | Pseudonymous telemetry: user id, session id, event, track, timestamps — no name, email or IP | Listening analytics on the Home cards | 400 days (lifecycle rule; infrequent access after 90) |
 | S3 lake `bronze/_errors/` | Records Firehose could not convert (may include the same pseudonymous fields) | Debugging a delivery | 30 days |
 | S3 lake `bronze/catalog_export/` | Nightly snapshot that includes `categories` and `category_tracks` | Lakehouse dimensions | 14 days (lifecycle rule) |

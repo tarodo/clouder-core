@@ -729,7 +729,7 @@ variable "ml_jobs_queue_max_receive_count" {
 }
 
 variable "ml_worker_max_concurrency" {
-  description = "SQS event-source maximum_concurrency for the ML worker (range 2-1000). Each run takes 10 GB for up to 15 min; retrains are rare."
+  description = "SQS event-source maximum_concurrency for the ML worker (range 2-1000). Each run takes up to 3008 MB (the account cap) for up to 15 min; retrains are rare."
   type        = number
   default     = 2
 
