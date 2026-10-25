@@ -9,6 +9,7 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "delete_user.py"
 UID = "3f2b8c1e-0000-4000-8000-000000000001"
+HEX = "3f2b8c1e000040008000000000000001"  # users.id: auth mints uuid4().hex
 ARGS = ["--user-id", UID, "--cluster-arn", "c", "--secret-arn", "s", "--raw-bucket", "raw"]
 
 
@@ -23,10 +24,13 @@ def script(monkeypatch):
     monkeypatch.setattr(
         mod,
         "delete_user",
-        lambda db, uid, dry_run=False: calls.append(("aurora", dry_run)) or {"users": 1},
+        lambda db, uid, dry_run=False: calls.append(("aurora", dry_run, uid)) or {"users": 1},
     )
     monkeypatch.setattr(
         mod, "delete_covers", lambda s3, bucket, uid: calls.append(("covers", bucket)) or 2
+    )
+    monkeypatch.setattr(
+        mod, "delete_models", lambda s3, bucket, uid: calls.append(("models", bucket)) or 3
     )
     monkeypatch.setattr(
         mod, "purge_lake", lambda s3, athena, **kw: calls.append(("lake", kw["lake_bucket"]))
@@ -37,22 +41,23 @@ def script(monkeypatch):
 
 def test_dry_run_changes_nothing(script) -> None:
     assert script.main([*ARGS, "--dry-run"]) == 0
-    assert script.calls == [("aurora", True)]
+    assert script.calls == [("aurora", True, HEX)]  # the stored spelling, whichever was typed
 
 
 def test_wrong_confirmation_aborts_before_any_delete(script, monkeypatch) -> None:
     monkeypatch.setattr("builtins.input", lambda _: "someone-else")
     assert script.main(ARGS) == 1
-    assert script.calls == [("aurora", True)]
+    assert script.calls == [("aurora", True, HEX)]
 
 
-def test_confirmed_run_deletes_aurora_then_covers_then_lake(script, monkeypatch) -> None:
-    monkeypatch.setattr("builtins.input", lambda _: UID)
-    assert script.main([*ARGS, "--lake-bucket", "lake"]) == 0
+def test_confirmed_run_deletes_aurora_covers_models_then_lake(script, monkeypatch) -> None:
+    monkeypatch.setattr("builtins.input", lambda _: HEX)
+    assert script.main([*ARGS, "--lake-bucket", "lake", "--features-bucket", "features"]) == 0
     assert script.calls == [
-        ("aurora", True),
-        ("aurora", False),
+        ("aurora", True, HEX),
+        ("aurora", False, HEX),
         ("covers", "raw"),
+        ("models", "features"),
         ("lake", "lake"),
     ]
 

@@ -145,6 +145,7 @@ ALLOWED_LOG_FIELDS = {
     "failed_checks",
     # ML worker (collector.ml_worker_handler).
     "model_version",
+    "max_rss_mb",
 }
 
 

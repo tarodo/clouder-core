@@ -94,12 +94,23 @@ def delete_user(data_api: Any, user_id: str, *, dry_run: bool = False) -> dict[s
 
 
 def _checked(user_id: str) -> str:
-    return str(uuid.UUID(user_id))  # ValueError for anything else: ids go into S3 prefixes
+    """The id as stored: auth mints `uuid4().hex`, and covers, models and telemetry carry that spelling.
+    Either spelling in; ValueError for anything else: ids go into S3 prefixes and Athena SQL."""
+    return uuid.UUID(user_id).hex
 
 
 def delete_covers(s3: Any, bucket: str, user_id: str) -> int:
     """Delete every version (and delete marker) of the user's playlist covers."""
-    prefix = f"covers/{_checked(user_id)}/"
+    return _delete_versions(s3, bucket, f"covers/{_checked(user_id)}/")
+
+
+def delete_models(s3: Any, bucket: str, user_id: str) -> int:
+    """Delete every version (and delete marker) of the user's triage models (the feature bucket's
+    `models/<user_id>/<style_id>/`, written by ml_worker_handler)."""
+    return _delete_versions(s3, bucket, f"models/{_checked(user_id)}/")
+
+
+def _delete_versions(s3: Any, bucket: str, prefix: str) -> int:
     objects = [
         {"Key": v["Key"], "VersionId": v["VersionId"]}
         for page in s3.get_paginator("list_object_versions").paginate(Bucket=bucket, Prefix=prefix)
@@ -112,7 +123,9 @@ def delete_covers(s3: Any, bucket: str, user_id: str) -> int:
         )
         failed += [f"{e['Key']} ({e.get('Code')})" for e in resp.get("Errors", [])]
     if failed:  # per-key failures come back with HTTP 200
-        raise RuntimeError(f"S3 kept {len(failed)} cover object versions: {', '.join(failed[:10])}")
+        raise RuntimeError(
+            f"S3 kept {len(failed)} object versions under {prefix}: {', '.join(failed[:10])}"
+        )
     return len(objects)
 
 

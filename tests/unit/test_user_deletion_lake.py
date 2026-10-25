@@ -7,9 +7,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from collector.user_deletion import delete_covers, purge_lake
+from collector.user_deletion import delete_covers, delete_models, purge_lake
 
 UID = "3f2b8c1e-0000-4000-8000-000000000001"
+HEX = "3f2b8c1e000040008000000000000001"  # how users.id stores it: auth mints uuid4().hex
 
 
 class FakeS3:
@@ -57,20 +58,41 @@ class FakeAthena:
         return {"QueryExecution": {"Status": {"State": self.state}}}
 
 
-def test_delete_covers_removes_every_version_and_marker_of_this_user_only() -> None:
+@pytest.mark.parametrize("uid", [UID, HEX, UID.upper()])
+def test_delete_covers_removes_every_version_and_marker_of_this_user_only(uid: str) -> None:
     s3 = FakeS3(
         [
-            {"Key": f"covers/{UID}/p1/1.jpg", "VersionId": "v1"},
-            {"Key": f"covers/{UID}/p1/1.jpg", "VersionId": "v2", "marker": True},
-            {"Key": "covers/someone-else/p9/1.jpg", "VersionId": "v3"},
+            {"Key": f"covers/{HEX}/p1/1.jpg", "VersionId": "v1"},
+            {"Key": f"covers/{HEX}/p1/1.jpg", "VersionId": "v2", "marker": True},
+            {"Key": f"covers/{HEX}0/p9/1.jpg", "VersionId": "v3"},  # a longer id, same prefix
         ]
     )
 
-    assert delete_covers(s3, "raw", UID) == 2
+    assert delete_covers(s3, "raw", uid) == 2
     assert s3.deleted == [
-        {"Key": f"covers/{UID}/p1/1.jpg", "VersionId": "v1"},
-        {"Key": f"covers/{UID}/p1/1.jpg", "VersionId": "v2"},
+        {"Key": f"covers/{HEX}/p1/1.jpg", "VersionId": "v1"},
+        {"Key": f"covers/{HEX}/p1/1.jpg", "VersionId": "v2"},
     ]
+
+
+@pytest.mark.parametrize("uid", [UID, HEX])
+def test_delete_models_removes_every_version_of_this_users_models_only(uid: str) -> None:
+    s3 = FakeS3(
+        [
+            {"Key": f"models/{HEX}/st1/v1-0a1b2c3d4e5f.npz", "VersionId": "v1"},
+            {"Key": f"models/{HEX}/st1/v1-0a1b2c3d4e5f.npz", "VersionId": "v2", "marker": True},
+            {"Key": f"models/{HEX}/st2/v3-ffffffffffff.npz", "VersionId": "v3"},
+            {"Key": "models/someoneelse/st1/v1-000000000000.npz", "VersionId": "v4"},
+            {"Key": f"features/light-1/{HEX}.f16", "VersionId": "v5"},
+        ]
+    )
+
+    assert delete_models(s3, "features", uid) == 3
+    assert {(o["Key"], o["VersionId"]) for o in s3.deleted} == {
+        (f"models/{HEX}/st1/v1-0a1b2c3d4e5f.npz", "v1"),
+        (f"models/{HEX}/st1/v1-0a1b2c3d4e5f.npz", "v2"),
+        (f"models/{HEX}/st2/v3-ffffffffffff.npz", "v3"),
+    }
 
 
 def test_purge_lake_writes_the_tombstone_before_deleting_derived_rows() -> None:
@@ -81,13 +103,14 @@ def test_purge_lake_writes_the_tombstone_before_deleting_derived_rows() -> None:
         s3, athena, user_id=UID, lake_bucket="lake", workgroup="wg", now=now, sleep=lambda _: None
     )
 
-    assert s3.put["Key"] == f"governance/deleted_users/{UID}.json"
-    assert json.loads(s3.put["Body"]) == {"user_id": UID, "deleted_at": "2026-10-08T12:00:00+00:00"}
+    # Telemetry carries the stored id (the authorizer's), so the tombstone and the deletes use it too.
+    assert s3.put["Key"] == f"governance/deleted_users/{HEX}.json"
+    assert json.loads(s3.put["Body"]) == {"user_id": HEX, "deleted_at": "2026-10-08T12:00:00+00:00"}
     # Athena takes ExecutionParameters only for SELECT/INSERT/CTAS/UNLOAD: the
     # (UUID-validated) id is inlined.
     assert [q["QueryString"] for q in athena.queries] == [
-        f"DELETE FROM clouder_silver.events WHERE user_id = '{UID}'",
-        f"DELETE FROM clouder_gold.fct_play WHERE user_id = '{UID}'",
+        f"DELETE FROM clouder_silver.events WHERE user_id = '{HEX}'",
+        f"DELETE FROM clouder_gold.fct_play WHERE user_id = '{HEX}'",
     ]
     assert all("ExecutionParameters" not in q and q["WorkGroup"] == "wg" for q in athena.queries)
 
@@ -107,7 +130,7 @@ def test_purge_lake_fails_loudly_when_athena_fails() -> None:
 
 def test_delete_covers_fails_when_s3_refuses_a_version() -> None:
     # DeleteObjects answers 200 and lists per-key failures in Errors.
-    s3 = FakeS3([{"Key": f"covers/{UID}/p1/locked.jpg", "VersionId": "v1"}])
+    s3 = FakeS3([{"Key": f"covers/{HEX}/p1/locked.jpg", "VersionId": "v1"}])
     with pytest.raises(RuntimeError, match=r"locked\.jpg"):
         delete_covers(s3, "raw", UID)
 
@@ -115,3 +138,5 @@ def test_delete_covers_fails_when_s3_refuses_a_version() -> None:
 def test_lake_steps_refuse_an_id_that_is_not_a_uuid() -> None:
     with pytest.raises(ValueError):
         delete_covers(FakeS3([]), "raw", "../")
+    with pytest.raises(ValueError):
+        delete_models(FakeS3([]), "features", "")

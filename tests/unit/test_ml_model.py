@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tracemalloc
 from datetime import UTC, datetime
 
 import numpy as np
@@ -65,7 +66,10 @@ def test_collapsed_head_matches_pipeline(task: str, k: int, n: int, offset: floa
         y = np.array(labels)
     X, Xt = _awkward(X + np.float32(offset)), _awkward(Xt + np.float32(offset))
     Xt[::5, 7] = np.nan  # a column with no NaN at fit time
+    X0 = X.copy()
     pipe = ml.fit_pipeline(X, y, w, task)
+    np.testing.assert_array_equal(X, X0)  # PCA(copy=False) centres a pipeline temporary, not X
+    assert pipe[:-2].transform(X).dtype == np.float32  # the PCA input: float32 end to end
     head = ml.collapse(pipe)
     want = pipe.predict_proba(Xt)
     if task == "keep":
@@ -76,6 +80,23 @@ def test_collapsed_head_matches_pipeline(task: str, k: int, n: int, offset: floa
     got = head.proba(Xt)
     assert got.shape == want.shape
     assert np.abs(got - want).max() <= 1e-5
+
+
+def test_training_peak_stays_under_four_matrices() -> None:
+    """The 3008 MB Lambda: the keep head's numpy peak, beyond X itself, in copies of X (float32). ma.median's
+    whole-matrix argsort took ~5.8, a float64 weighted matrix and its PCA copies ~8.4."""
+    n, d = 400, 1500  # the production shape's d/n (16 778 / 4 500)
+    rng = np.random.default_rng(0)
+    X = rng.standard_normal((n, d), dtype=np.float32)
+    X[::9, 3] = np.nan
+    keep = rng.random(n) < 0.4
+    tracemalloc.start()
+    try:
+        ml.train(X, keep, [None] * n, blocks=(("a", 0, d),))
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak / X.nbytes < 4
 
 
 def test_train_none_below_thresholds() -> None:
@@ -139,6 +160,25 @@ def test_category_head_only_classes_with_30() -> None:
     preds = ml.predict(m, X[:3])
     assert all(p.keep is None and p.keep_score is None for p in preds)
     assert all({c for c, _ in p.categories or ()} == {"a", "b"} for p in preds)
+
+
+def test_keep_head_trains_on_the_newest_rows(monkeypatch) -> None:
+    """Over MAX_TRAIN_ROWS rows (oldest first), the keep head fits the newest ones, keeps and discards
+    together; the category head fits every keep."""
+    monkeypatch.setattr(ml, "MAX_TRAIN_ROWS", 140)
+    X, keep = _keep_data(200, 100, seed=6)
+    category = [("a" if i % 2 else "b") if k else None for i, k in enumerate(keep)]
+    fits: list[tuple[np.ndarray, np.ndarray]] = []
+    fit = ml.fit_pipeline
+    monkeypatch.setattr(ml, "fit_pipeline", lambda X, y, *a: fits.append((X, y)) or fit(X, y, *a))
+    m = ml.train(X, keep, category, blocks=BLOCKS)
+    assert m is not None and m.keep is not None and m.category is not None
+    (Xk, yk), (Xc, yc) = fits
+    np.testing.assert_array_equal(Xk, X[-140:])
+    assert yk.tolist() == keep[-140:].tolist()
+    np.testing.assert_array_equal(Xc, X[keep])
+    assert len(yc) == 100
+    assert (m.n_labels, m.n_keep) == (140, int(keep[-140:].sum()))
 
 
 def test_keep_threshold_matches_share() -> None:

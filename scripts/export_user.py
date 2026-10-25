@@ -63,7 +63,7 @@ def main(
     args = parser.parse_args(argv)
 
     try:
-        user_id = str(uuid.UUID(args.user_id))
+        user_id = uuid.UUID(args.user_id).hex  # as stored: auth mints uuid4().hex
     except ValueError:
         print(f"--user-id must be a UUID, got {args.user_id!r}", file=sys.stderr)
         return 2

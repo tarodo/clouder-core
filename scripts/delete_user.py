@@ -2,8 +2,9 @@
 """Delete one CLOUDER user from every store (docs/privacy.md).
 
 Aurora rows in one transaction (tables found from the catalog), every version
-of the user's playlist covers in the raw bucket, a tombstone in the lake, and
-the user's rows in the Iceberg silver/gold tables. Always prints the dry run
+of the user's playlist covers in the raw bucket and of their triage models in
+the feature bucket, a tombstone in the lake, and the user's rows in the Iceberg
+silver/gold tables. Always prints the dry run
 first and asks for the user id again before deleting. Every step is
 idempotent: after a partial failure, run it again.
 
@@ -23,7 +24,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from collector.user_deletion import delete_covers, delete_user, purge_lake
+from collector.user_deletion import delete_covers, delete_models, delete_user, purge_lake
 
 REGION = "us-east-1"
 
@@ -73,6 +74,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--database", default="clouder")
     parser.add_argument("--raw-bucket")
     parser.add_argument(
+        "--features-bucket",
+        default=os.environ.get("AUDIO_FEATURES_BUCKET", "clouder-prod-audio-features"),
+    )
+    parser.add_argument(
         "--lake-bucket",
         default=os.environ.get("ANALYTICS_LAKE_BUCKET", "clouder-prod-analytics-lake"),
     )
@@ -82,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        user_id = str(uuid.UUID(args.user_id))
+        user_id = uuid.UUID(args.user_id).hex  # as stored: auth mints uuid4().hex
     except ValueError:
         print(f"--user-id must be a UUID, got {args.user_id!r}", file=sys.stderr)
         return 2
@@ -93,7 +98,8 @@ def main(argv: list[str] | None = None) -> int:
     db = _data_api(cluster_arn, secret_arn, args.database)
     _print_counts("Aurora (dry run, rolled back):", delete_user(db, user_id, dry_run=True))
     print(
-        f"Then: every version under s3://{raw_bucket}/covers/{user_id}/, a tombstone in "
+        f"Then: every version under s3://{raw_bucket}/covers/{user_id}/ and "
+        f"s3://{args.features_bucket}/models/{user_id}/, a tombstone in "
         f"s3://{args.lake_bucket}/governance/deleted_users/, and Athena DELETE from "
         "clouder_silver.events and clouder_gold.fct_play."
     )
@@ -106,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     _print_counts("Aurora (committed):", delete_user(db, user_id))
     s3, athena = _clients()
     print(f"Cover object versions deleted: {delete_covers(s3, raw_bucket, user_id)}")
+    print(f"Model object versions deleted: {delete_models(s3, args.features_bucket, user_id)}")
     purge_lake(
         s3,
         athena,

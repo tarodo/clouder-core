@@ -112,7 +112,7 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 
 | Service | How it is used |
 |---|---|
-| **Lambda** (Python 3.12) | 18 functions: API handlers and a JWT authorizer, SQS workers with per-queue concurrency caps, scheduled jobs, backfill steps, DB migrations; the six API functions serve through a versioned `live` alias for instant rollback |
+| **Lambda** (Python 3.12) | 20 Lambda functions: API handlers and a JWT authorizer, SQS workers with per-queue concurrency caps, scheduled jobs, backfill steps, DB migrations; the six API functions serve through a versioned `live` alias for instant rollback |
 | **API Gateway** (HTTP API) | 114 operations; everything except the auth routes (`/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/logout`) goes through a Lambda authorizer |
 | **SQS** | 9 work queues, each with a dead-letter queue and redrive policy |
 | **Step Functions** | Backfill (plan → map over runs → summarize → DQ check) and the nightly dbt transform |

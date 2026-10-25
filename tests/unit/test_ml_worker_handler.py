@@ -12,6 +12,7 @@ import pytest
 
 from collector import audio_profile
 from collector import ml_worker_handler as worker
+from collector.logging_utils import ALLOWED_LOG_FIELDS
 from collector.ml import model as ml
 
 T = datetime(2026, 10, 1, tzinfo=UTC)
@@ -227,8 +228,9 @@ def test_retrain_saves_artifact_and_enqueues_scoring(run, previous: bool) -> Non
         for r in labels:
             if r["track_id"] in ("d000", "d001", "k000", "k035"):
                 r["added_at"] = later
-        repo.predictions = {  # none for d001: it does not count
+        repo.predictions = {  # d001's row is from v1 (a scoring chain that died): it does not count
             "d000": _pred(0.25, 0.5),  # DISCARD lit: hit
+            "d001": {**_pred(0.75, 0.5), "model_version": 1},  # would count as a miss
             "k000": _pred(0.75, 0.875),  # ca lit: hit
             "k035": _pred(0.625, 0.625),  # ca lit for a cb keep: miss, top-2 hit
         }
@@ -250,6 +252,7 @@ def test_retrain_saves_artifact_and_enqueues_scoring(run, previous: bool) -> Non
     assert repo.clock_at_labels == 1  # trained_at is the labels' snapshot time
     stored = saved.pop("metrics")
     assert set(stored.pop("cv")) == {"keep_auc", "category_bacc"}
+    assert stored.pop("rows_total") == 140
     assert stored == metrics
     threshold = saved.pop("keep_threshold")
     assert 0 < threshold < 1
@@ -275,6 +278,20 @@ def test_retrain_saves_artifact_and_enqueues_scoring(run, previous: bool) -> Non
             "after_track_id": None,
         }
     ]
+
+
+def test_retrain_caps_rows_and_logs_peak_memory(run, monkeypatch) -> None:
+    """Over MAX_TRAIN_ROWS the keep head trains on the newest rows; the metrics keep the full count."""
+    monkeypatch.setattr(ml, "MAX_TRAIN_ROWS", 130)
+    events: list[tuple[str, dict]] = []
+    monkeypatch.setattr(worker, "log_event", lambda level, msg, **kw: events.append((msg, kw)))
+    labels, features = _world()
+    repo = FakeRepo(labels=labels)
+    run(repo, FakeS3(features), RETRAIN)
+    (saved,) = repo.saved
+    assert (saved["n_labels"], saved["n_keep"], saved["metrics"]["rows_total"]) == (130, 70, 140)
+    ((_, logged),) = [e for e in events if e[0] == "ml_retrain_saved"]
+    assert logged["max_rss_mb"] > 0 and "max_rss_mb" in ALLOWED_LOG_FIELDS
 
 
 def test_retrain_superseded_save_enqueues_nothing(run) -> None:

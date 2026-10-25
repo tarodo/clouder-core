@@ -65,7 +65,7 @@ Check `processing_outcome` and `processing_reason` on the affected records:
 
 **Symptom**
 
-CloudWatch alarm fires on DLQ depth. The live DLQs are `clouder-prod-canonicalization-dlq`, `clouder-prod-spotify-search-dlq`, `clouder-prod-vendor-match-dlq`, `clouder-prod-label-enrichment-dlq`, `clouder-prod-artist-enrichment-dlq`, `clouder-prod-auto-enrich-dispatch-dlq`, and `clouder-prod-comments-collect-dlq`.
+CloudWatch alarm fires on DLQ depth. The live DLQs are `clouder-prod-canonicalization-dlq`, `clouder-prod-spotify-search-dlq`, `clouder-prod-vendor-match-dlq`, `clouder-prod-label-enrichment-dlq`, `clouder-prod-artist-enrichment-dlq`, `clouder-prod-auto-enrich-dispatch-dlq`, `clouder-prod-comments-collect-dlq`, and `clouder-prod-ml-jobs-dlq` (see [ML worker](#ml-worker-triage-suggestions)).
 
 **Diagnosis**
 
@@ -456,6 +456,51 @@ Restart the analyzer (`docker compose up -d`). It takes up to 10 minutes for a n
 **Revoke.** `aws ssm delete-parameter --name /clouder/auth/analysis_service_token_sha256`.
 
 **Requeue.** `POST /admin/analysis/requeue` with an admin JWT, for example `{"analyzer": "ai_lofcz", "scope": "recent", "days": 7}`. The scope is `all`, `categories` or `recent`; add `"include_failed": true` to also retry final failures. The next claim hands those tracks out again; live leases are never touched. The requeue deletes the old results, so their AI badges disappear until the analyzer's next daily run re-analyzes them.
+
+---
+
+## ML worker (triage suggestions)
+
+**What runs**
+
+`clouder-prod-ml-worker` takes one message at a time from `clouder-prod-ml-jobs` (Lambda timeout 900 s, visibility 960 s; after 3 receives a message moves to `clouder-prod-ml-jobs-dlq`).
+
+- `retrain {user_id, style_id}` comes from triage, best-effort: a finalize, or the 150th STAGING / DISCARD placement since the model trained. At most one request per pair per hour (`ml_models.retrain_requested_at`). The worker trains on the labels' profiles (`s3://clouder-prod-audio-features/features/`), writes `models/<user_id>/<style_id>/v<n>-<hex>.npz`, saves the `ml_models` row and queues `score_style`. Logs `ml_retrain_saved` (`model_version`, `count` = rows the keep head used, `duration_ms`, `max_rss_mb`), `ml_retrain_superseded` or `ml_retrain_too_few_labels`.
+- `score_style` scores the style's profiled tracks, 2 000 per message, each queueing the next page; a page for an older model version is dropped.
+- `score {video_ids}` comes from `POST /v1/analysis/features` (new analyzer profiles): every model of the videos' styles scores them.
+
+**Retrain by hand** (skips the hourly dedupe; `user_id` is `users.id`, 32 hex digits without dashes):
+
+```bash
+aws sqs send-message \
+  --queue-url "$(aws sqs get-queue-url --queue-name clouder-prod-ml-jobs --query QueueUrl --output text)" \
+  --message-body '{"type":"retrain","user_id":"<users.id>","style_id":"<style id>"}'
+```
+
+**Redrive the DLQ** after the fix is deployed. Without `--destination-arn` the messages go back to `clouder-prod-ml-jobs`; a stale `score_style` is dropped by the worker.
+
+```bash
+DLQ=$(aws sqs get-queue-url --queue-name clouder-prod-ml-jobs-dlq --query QueueUrl --output text)
+aws sqs start-message-move-task --source-arn \
+  "$(aws sqs get-queue-attributes --queue-url "$DLQ" --attribute-names QueueArn --query Attributes.QueueArn --output text)"
+```
+
+**Memory.** The account caps Lambda memory at 3008 MB; Terraform cannot raise it. A run killed for memory has no Python traceback, only:
+
+```
+Error: Runtime exited with error: signal: killed Runtime.ExitError
+REPORT RequestId: ... Memory Size: 3008 MB Max Memory Used: 3008 MB
+```
+
+`Max Memory Used` at (or within a few MB of) `Memory Size` is the sign; SQS retries the message and then moves it to the DLQ. The first retrain (3 229 rows × 16 778 features, float64 then) peaked at 3 001 MB. Training is now float32 throughout and the keep head takes at most the newest `MAX_TRAIN_ROWS` = 4 500 rows (`src/collector/ml/model.py`; `ml_models.metrics.rows_total` keeps the uncapped count), an estimated 2.1–2.3 GB peak. The profile buffer still holds every labelled video (67 KB each), about 67 MB more per 1 000 rows past the cap. Watch it in Logs Insights on `/aws/lambda/clouder-prod-ml-worker`; `max_rss_mb` is the container's peak so far, so a warm container reports the largest run it has served:
+
+```
+filter message = "ml_retrain_saved" | fields @timestamp, count, max_rss_mb, duration_ms
+```
+
+If it nears 3008, lower `MAX_TRAIN_ROWS`. The real fix is an AWS Support request to raise the account's Lambda memory limit to 10 240 MB, then a larger `memory_size` and no cap.
+
+**Analyzer GPU.** The analyzer's `compose.yaml` reserves the NVIDIA GPU for the whole `analyzer` service. Without a working NVIDIA container runtime on the PC (after a driver or Docker Desktop update, or with WSL GPU support off), the container does not start at all: no light profiles, so no new suggestions, and no AI-detector results either (the `ai_lofcz` pair runs in the same container). Docker reports `could not select device driver "nvidia" with capabilities: [[gpu]]`. Check the runtime with `docker run --rm --gpus all ubuntu nvidia-smi`, fix it, then `docker compose up -d`.
 
 ---
 

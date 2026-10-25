@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import resource
 import time
 import uuid
 from collections.abc import Callable, Mapping
@@ -72,10 +73,12 @@ def _metrics(
     repo: ClouderRepository,
     user_id: str,
     style_id: str,
+    version: int,
     trained_at: datetime | None,
     labels: list[Label],
 ) -> dict[str, Any]:
-    """The previous model's stored predictions against the labels added since it trained."""
+    """The previous model's (version's) stored predictions against the labels added since it trained.
+    Only its own rows: a scoring chain that died partway leaves an older version's rows behind."""
     since = [x for x in labels if trained_at is not None and x.added_at > trained_at]
     stored = (
         repo.ml_predictions(
@@ -84,7 +87,7 @@ def _metrics(
         if since
         else {}
     )
-    known = [x for x in since if x.track_id in stored]
+    known = [x for x in since if stored.get(x.track_id, {}).get("model_version") == version]
     alive = set(repo.ml_alive_categories(user_id=user_id, style_id=style_id)) if known else set()
     return evaluate_previous([_stored(stored[x.track_id]) for x in known], known, alive)
 
@@ -112,7 +115,11 @@ def _retrain(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, An
         return
     # Version 0 has no model, so no predictions to score (its trained_at only restarts the count).
     trained_at = previous["trained_at"] if previous and version > 0 else None
-    metrics = {**_metrics(repo, user_id, style_id, trained_at, labels), "cv": model.cv}
+    metrics = {
+        **_metrics(repo, user_id, style_id, version, trained_at, labels),
+        "cv": model.cv,
+        "rows_total": len(rows),  # n_labels counts the keep head's rows (MAX_TRAIN_ROWS)
+    }
     # A per-attempt key: a duplicate retrain of the pair racing this one writes its own file, so the
     # row the save below keeps always names its own model.
     # ponytail: the losing attempt's file stays in S3 as an orphan (~1 MB); a cleanup if races recur.
@@ -138,6 +145,8 @@ def _retrain(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, An
         model_version=version + 1,
         count=model.n_labels,
         duration_ms=int((time.monotonic() - started) * 1000),
+        # The container's peak so far (ru_maxrss is KB on Linux), against the 3008 MB cap.
+        max_rss_mb=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024,
     )
     if saved:
         ml_jobs.enqueue_score_style(
