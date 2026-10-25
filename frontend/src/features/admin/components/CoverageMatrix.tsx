@@ -3,10 +3,16 @@ import './CoverageMatrix.module.css';
 import { useMemo } from 'react';
 import { useStore } from 'zustand';
 import { runsTrackerStore } from '../lib/runsTracker';
-import type { CoveragePayload, SpotifyWeekStats, YoutubeWeekStats } from '../hooks/useCoverage';
+import type {
+  AnalysisWeekStats,
+  CoveragePayload,
+  SpotifyWeekStats,
+  YoutubeWeekStats,
+} from '../hooks/useCoverage';
 import { cellState, type CoverageCell } from '../lib/cellState';
 import { formatSpotifyStats } from '../lib/spotifyStats';
 import { formatYoutubeStats } from '../lib/youtubeStats';
+import { formatAnalysisStats } from '../lib/analysisStats';
 import { CoverageMatrixCell } from './CoverageMatrixCell';
 
 interface Props {
@@ -52,6 +58,8 @@ export function CoverageMatrix({ data, onCellClick }: Props) {
           for (const s of style.spotify_weeks ?? []) statsByWeek.set(s.week_number, s);
           const youtubeByWeek = new Map<number, YoutubeWeekStats>();
           for (const s of style.youtube_weeks ?? []) youtubeByWeek.set(s.week_number, s);
+          const analysisByWeek = new Map<number, AnalysisWeekStats>();
+          for (const s of style.analysis_weeks ?? []) analysisByWeek.set(s.week_number, s);
           return (
             <Row
               key={style.style_id}
@@ -62,6 +70,7 @@ export function CoverageMatrix({ data, onCellClick }: Props) {
               byWeek={byWeek}
               statsByWeek={statsByWeek}
               youtubeByWeek={youtubeByWeek}
+              analysisByWeek={analysisByWeek}
               tracker={tracker}
               onCellClick={onCellClick}
             />
@@ -80,6 +89,7 @@ function Row({
   byWeek,
   statsByWeek,
   youtubeByWeek,
+  analysisByWeek,
   tracker,
   onCellClick,
 }: {
@@ -90,6 +100,7 @@ function Row({
   byWeek: Map<number, CoverageCell>;
   statsByWeek: Map<number, SpotifyWeekStats>;
   youtubeByWeek: Map<number, YoutubeWeekStats>;
+  analysisByWeek: Map<number, AnalysisWeekStats>;
   tracker: ReturnType<typeof runsTrackerStore.getState>;
   onCellClick: (styleId: number, weekNumber: number) => void;
 }) {
@@ -124,9 +135,11 @@ function Row({
           : `Wk ${w} · empty`;
         const spotify = statsByWeek.get(w);
         const youtube = youtubeByWeek.get(w);
+        const analysis = analysisByWeek.get(w);
         const statLines = [
           ...(spotify ? [formatSpotifyStats(spotify)] : []),
           ...(youtube ? [formatYoutubeStats(youtube)] : []),
+          ...(analysis ? formatAnalysisStats(analysis) : []),
         ];
         const tooltip = statLines.length ? (
           <>

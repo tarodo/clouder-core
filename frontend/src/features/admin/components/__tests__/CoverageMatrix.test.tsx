@@ -46,6 +46,7 @@ const sample: CoveragePayload = {
           week_number: 7, total: 6, found: 0, review: 0, not_found: 0, pending: 6,
         },
       ],
+      analysis_weeks: [{ week_number: 1, total: 40, checked: 30, ai: 6, profiled: 12 }],
     },
   ],
 };
@@ -104,6 +105,13 @@ describe('CoverageMatrix', () => {
       await screen.findByText(/YouTube: 40\/50 found · 4 review · 2 not found · 4 pending/),
     ).toBeInTheDocument();
     expect(screen.getByText(/Spotify: 45\/50 found/)).toBeInTheDocument();
+  });
+
+  it('shows the AI check and the profile under youtube in the tooltip', async () => {
+    render(ui({ data: sample, onCellClick: vi.fn() }));
+    await userEvent.hover(screen.getByLabelText('Tech House week 1 loaded'));
+    expect(await screen.findByText(/AI: 30\/40 checked · 6 AI/)).toBeInTheDocument();
+    expect(screen.getByText(/Profile: 12\/40 profiled/)).toBeInTheDocument();
   });
 
   it('shows youtube stats on a week only youtube has numbers for', async () => {

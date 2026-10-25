@@ -113,6 +113,8 @@ export function sampleCoverage(weekYear = 2026): CoveragePayload {
     youtube_weeks: [
       { week_number: 39, total: 40, found: 31, review: 3, not_found: 1, pending: 5 },
     ],
+    // Over the 31 matches: the analyzer checked most, profiled fewer.
+    analysis_weeks: [{ week_number: 39, total: 31, checked: 28, ai: 5, profiled: 20 }],
   }));
   return { week_year: weekYear, weeks_in_year: 52, styles } as CoveragePayload;
 }
