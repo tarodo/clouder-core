@@ -9,6 +9,7 @@ import { YearNavigator } from '../components/YearNavigator';
 import { StyleVisibilityPopover } from '../components/StyleVisibilityPopover';
 import { AutoIngestPanel } from '../components/AutoIngestPanel';
 import { PipelineStatus } from '../components/PipelineStatus';
+import { SuggestionModels } from '../components/SuggestionModels';
 import { cellState, type CoverageCell } from '../lib/cellState';
 import { runsTrackerStore } from '../lib/runsTracker';
 import { PageHeader } from '../../../components/PageHeader';
@@ -59,6 +60,7 @@ export function AdminCoveragePage() {
         styleNames={new Map((q.data?.styles ?? []).map((s) => [s.style_id, s.style_name]))}
       />
       <PipelineStatus />
+      <SuggestionModels />
       <CellDetailDrawer
         open={active !== null}
         onClose={() => setActive(null)}

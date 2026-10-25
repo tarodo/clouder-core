@@ -253,6 +253,7 @@ def test_retrain_saves_artifact_and_enqueues_scoring(run, previous: bool) -> Non
     stored = saved.pop("metrics")
     assert set(stored.pop("cv")) == {"keep_auc", "category_bacc"}
     assert stored.pop("rows_total") == 140
+    assert stored.pop("max_rss_mb") > 0
     assert stored == metrics
     threshold = saved.pop("keep_threshold")
     assert 0 < threshold < 1
@@ -292,6 +293,7 @@ def test_retrain_caps_rows_and_logs_peak_memory(run, monkeypatch) -> None:
     assert (saved["n_labels"], saved["n_keep"], saved["metrics"]["rows_total"]) == (130, 70, 140)
     ((_, logged),) = [e for e in events if e[0] == "ml_retrain_saved"]
     assert logged["max_rss_mb"] > 0 and "max_rss_mb" in ALLOWED_LOG_FIELDS
+    assert saved["metrics"]["max_rss_mb"] == logged["max_rss_mb"]  # the admin table shows it
 
 
 def test_retrain_superseded_save_enqueues_nothing(run) -> None:

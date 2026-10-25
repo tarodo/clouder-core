@@ -166,6 +166,66 @@ class MlMixin(RepositoryBase):
         )
         return [_model(r) for r in rows]
 
+    def ml_models_overview(self, *, now: datetime) -> list[dict[str, Any]]:
+        """The admin table: a row per (user, style) with an ml_models row or a live block, the
+        model's metrics flattened; labels_since_training only for pairs without a model. One query:
+        the admin page polls it every 30 s."""
+        rows = self._data_api.execute(
+            f"""
+            WITH pairs AS (
+                SELECT user_id, style_id FROM ml_models
+                UNION
+                SELECT user_id, style_id FROM triage_blocks WHERE deleted_at IS NULL
+            ), predictions AS (
+                SELECT p.user_id, p.style_id, count(*) AS n
+                FROM pairs p
+                JOIN track_predictions tp ON tp.user_id = p.user_id AND tp.style_id = p.style_id
+                GROUP BY 1, 2
+            ), since AS (
+                -- ml_labels_since_training, grouped over the model-less pairs
+                SELECT tb.user_id, tb.style_id, count(*) AS n
+                FROM triage_blocks tb
+                LEFT JOIN ml_models m ON m.user_id = tb.user_id AND m.style_id = tb.style_id
+                JOIN triage_buckets b ON b.triage_block_id = tb.id
+                 AND b.bucket_type IN ('STAGING', 'DISCARD')
+                JOIN triage_bucket_tracks x ON x.triage_bucket_id = b.id
+                JOIN clouder_tracks t ON t.id = x.track_id
+                WHERE tb.deleted_at IS NULL AND coalesce(m.version, 0) = 0
+                  AND x.added_at > coalesce(m.trained_at, '-infinity')
+                  AND NOT {AI_FLAGGED_SQL}
+                GROUP BY tb.user_id, tb.style_id
+            )
+            SELECT p.user_id,
+                   coalesce(nullif(u.display_name, ''), nullif(u.email, ''), left(p.user_id, 8))
+                       AS user_name,
+                   p.style_id, s.name AS style_name, coalesce(m.version, 0) AS version,
+                   m.trained_at,
+                   coalesce(m.retrain_requested_at > coalesce(m.trained_at, '-infinity')
+                            AND m.retrain_requested_at > :cutoff, false) AS retrain_pending,
+                   m.n_labels, m.n_keep,
+                   (m.metrics->>'rows_total')::int AS rows_total,
+                   (m.metrics->'cv'->>'keep_auc')::float8 AS keep_auc,
+                   (m.metrics->'cv'->>'category_bacc')::float8 AS category_bacc,
+                   CASE WHEN jsonb_typeof(m.classes) = 'array'
+                        THEN jsonb_array_length(m.classes) END AS n_classes,
+                   (m.metrics->>'first_hit')::float8 AS first_hit,
+                   (m.metrics->>'first_n')::int AS first_n,
+                   (m.metrics->>'max_rss_mb')::int AS max_rss_mb,
+                   coalesce(pr.n, 0) AS predictions,
+                   CASE WHEN coalesce(m.version, 0) = 0 THEN coalesce(sc.n, 0) END
+                       AS labels_since_training
+            FROM pairs p
+            JOIN users u ON u.id = p.user_id
+            JOIN clouder_styles s ON s.id = p.style_id
+            LEFT JOIN ml_models m ON m.user_id = p.user_id AND m.style_id = p.style_id
+            LEFT JOIN predictions pr ON pr.user_id = p.user_id AND pr.style_id = p.style_id
+            LEFT JOIN since sc ON sc.user_id = p.user_id AND sc.style_id = p.style_id
+            ORDER BY user_name, style_name, p.user_id, p.style_id
+            """,
+            {"cutoff": now - RETRAIN_PENDING},
+        )
+        return [{**r, "trained_at": as_utc_datetime(r["trained_at"])} for r in rows]
+
     def ml_alive_categories(self, *, user_id: str, style_id: str) -> list[str]:
         rows = self._data_api.execute(
             "SELECT id FROM categories WHERE user_id = :user_id AND style_id = :style_id"

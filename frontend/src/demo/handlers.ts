@@ -3,6 +3,7 @@ import { DemoDb, DemoError, type LibraryQuery } from './db';
 import {
   sampleAutoIngest,
   sampleCoverage,
+  sampleSuggestionModels,
   sampleYoutubeReview,
   sampleFunnel,
   sampleListening,
@@ -320,7 +321,11 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
         pair: { high: 41, medium: 17, low: 55, clean: 3241 },
         queue: { total: 3400, waiting: 30, in_progress: 1, failed: 12, unusable: 3 },
         profile: { total: 3400, waiting: 1240, in_progress: 20, profiled: 2135, failed: 4, unusable: 1 },
-        models: { count: 3, last_trained_at: new Date(Date.now() - 2 * 86_400_000).toISOString() },
+        models: {
+          count: 3,
+          last_trained_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+          items: sampleSuggestionModels(),
+        },
       }),
     },
     {

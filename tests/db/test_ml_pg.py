@@ -422,3 +422,111 @@ def test_triage_exposes_only_own_prediction_and_model(repo, pg) -> None:
     )
     model = triage.get_block(user_id=U, block_id="ob").model
     assert (model["n_labels"], model["first_hit"], model["first_n"]) == (200, 0.5, 30)
+
+
+def test_models_overview(repo, pg) -> None:
+    """A row per pair with a model row or a live block: a trained model with its metrics, a
+    never-trained pair with its label count, a pair with blocks only."""
+    metrics = {
+        "cv": {"keep_auc": 0.8125, "category_bacc": 0.625},
+        "first_hit": 0.5,
+        "first_n": 24,
+        "rows_total": 150,
+        "max_rss_mb": 2600,
+    }
+    assert _save(repo, 0, at(1), metrics=metrics)  # u1/st v1, classes ca + cb
+    assert repo.ml_request_retrain(user_id=U, style_id=S, now=at(1.5))  # pending at 2
+    assert repo.ml_request_retrain(user_id="u2", style_id=S, now=at(0))  # an hour old at 2
+    for t, style in (("a", "st"), ("b", "st2"), ("c", "st")):
+        _track(pg, t, f"v_{t}", style=style)
+    _put(pg, "ub-DISCARD", "a", at(1))
+    _put(pg, "s2-DISCARD", "b", at(1))
+    _upsert(repo, 1, [_pred(0.75) | {"track_id": t} for t in ("a", "c")], at(1))
+    repo.ml_upsert_predictions(
+        user_id="u2", style_id=S, model_version=1, rows=[_pred(0.5) | {"track_id": "a"}], now=at(1)
+    )
+    _block(pg, "x2", user="u2", style="st2", deleted=True)  # a deleted block alone: no row
+    pg.execute("UPDATE users SET display_name = NULL WHERE id = 'u2'")
+    none = dict.fromkeys(
+        ("rows_total", "keep_auc", "category_bacc", "n_classes", "first_hit", "first_n"), None
+    ) | {"max_rss_mb": None, "trained_at": None, "retrain_pending": False}
+    assert repo.ml_models_overview(now=at(2)) == [
+        {
+            "user_id": U,
+            "user_name": "N",
+            "style_id": S,
+            "style_name": "st",
+            "version": 1,
+            "trained_at": at(1),
+            "retrain_pending": True,
+            "labels_since_training": None,
+            "n_labels": 140,
+            "n_keep": 70,
+            "rows_total": 150,
+            "keep_auc": 0.8125,
+            "category_bacc": 0.625,
+            "n_classes": 2,
+            "first_hit": 0.5,
+            "first_n": 24,
+            "max_rss_mb": 2600,
+            "predictions": 2,
+        },
+        none
+        | {
+            "user_id": U,
+            "user_name": "N",
+            "style_id": "st2",
+            "style_name": "st2",
+            "version": 0,
+            "labels_since_training": 1,
+            "n_labels": None,
+            "n_keep": None,
+            "predictions": 0,
+        },
+        none
+        | {
+            "user_id": "u2",
+            "user_name": "u2@example.com",
+            "style_id": S,
+            "style_name": "st",
+            "version": 0,
+            "labels_since_training": 1,
+            "n_labels": 0,
+            "n_keep": 0,
+            "predictions": 1,
+        },
+    ]
+
+
+def test_models_overview_counts_labels_in_one_query(repo, pg, monkeypatch) -> None:
+    """The grouped count of the model-less pairs equals the trigger's per-pair count, filters and
+    all, and the whole overview is a single query (it is polled every 30 s)."""
+    for t in ("a", "b", "c", "d", "e", "ai", "f"):
+        _track(pg, t, f"v_{t}")
+    repo.ml_mark_too_few_labels(user_id="u2", style_id=S, now=at(1))  # u2/st counts from at(1)
+    _put(pg, "ub-DISCARD", "a", at(0.5))  # before the restart
+    _put(pg, "ub-DISCARD", "b", at(2))
+    _put(pg, "ub-cx", "c", at(2))
+    _put(pg, "ub-NEW", "d", at(2))  # auto bucket
+    _put(pg, "ub-DISCARD", "ai", at(2))
+    pg.execute(
+        "INSERT INTO track_analyses (track_id, analyzer, status, version, result)"
+        " VALUES ('ai', 'ai_lofcz', 'ok', 'v1', CAST('{\"ai_detected\": true}' AS jsonb))"
+    )
+    _put(pg, "ob-ca", "a", at(1))  # u1/st: no ml_models row
+    _put(pg, "fb-DISCARD", "b", at(1))
+    _put(pg, "ob-cd", "e", at(1))  # an inactive staging bucket counts here too
+    _put(pg, "xb-DISCARD", "f", at(1))  # deleted block
+    _put(pg, "s2-DISCARD", "f", at(1))
+    calls: list[str] = []
+    execute = pg.execute
+    monkeypatch.setattr(
+        pg, "execute", lambda sql, *a, **kw: calls.append(sql) or execute(sql, *a, **kw)
+    )
+    rows = repo.ml_models_overview(now=at(3))
+    assert len(calls) == 1
+    monkeypatch.undo()
+    got = {(r["user_id"], r["style_id"]): r["labels_since_training"] for r in rows}
+    assert got == {(U, S): 3, (U, "st2"): 1, ("u2", S): 2}
+    for (user, style), n in got.items():
+        assert n == repo.ml_labels_since_training(user_id=user, style_id=style)

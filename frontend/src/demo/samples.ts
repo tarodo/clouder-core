@@ -195,3 +195,84 @@ export function sampleAutoIngest() {
     stuck: [],
   };
 }
+
+const DAY_MS = 86_400_000;
+const NO_MODEL = {
+  version: 0,
+  trained_at: null,
+  n_labels: null,
+  n_keep: null,
+  rows_total: null,
+  keep_auc: null,
+  category_bacc: null,
+  n_classes: null,
+  first_hit: null,
+  first_n: null,
+  max_rss_mb: null,
+  predictions: 0,
+};
+
+/** The admin "Suggestion models" table: three trained models (one near the memory cap, one
+ * capped at the training row limit), a queued retrain and a pair still collecting labels. */
+export function sampleSuggestionModels() {
+  const ago = (days: number) => new Date(Date.now() - days * DAY_MS).toISOString();
+  const pair = (user: [string, string], style: [string, string]) => ({
+    user_id: user[0],
+    user_name: user[1],
+    style_id: style[0],
+    style_name: style[1],
+    retrain_pending: false,
+    labels_since_training: null,
+  });
+  const demo: [string, string] = ['u-demo', 'Demo DJ'];
+  const mara: [string, string] = ['u-mara', 'Mara K'];
+  return [
+    {
+      ...pair(demo, ['s-afro', 'Afro House']),
+      version: 2,
+      trained_at: ago(5),
+      n_labels: 310,
+      n_keep: 122,
+      rows_total: 310,
+      keep_auc: 0.776,
+      category_bacc: 0.534,
+      n_classes: 3,
+      first_hit: 0.5,
+      first_n: 14,
+      max_rss_mb: 1460,
+      predictions: 2050,
+    },
+    {
+      ...pair(demo, ['s-melodic', 'Melodic House & Techno']),
+      version: 4,
+      trained_at: ago(2),
+      n_labels: 1200,
+      n_keep: 410,
+      rows_total: 1840,
+      keep_auc: 0.842,
+      category_bacc: 0.611,
+      n_classes: 3,
+      first_hit: 0.58,
+      first_n: 64,
+      max_rss_mb: 2710,
+      predictions: 3120,
+    },
+    { ...pair(demo, ['s-deep', 'Minimal / Deep Tech']), ...NO_MODEL, labels_since_training: 62 },
+    { ...pair(mara, ['s-prog', 'Progressive House']), ...NO_MODEL, retrain_pending: true },
+    {
+      ...pair(mara, ['s-techno', 'Techno (Peak Time)']),
+      version: 1,
+      trained_at: ago(9),
+      n_labels: 180,
+      n_keep: 64,
+      rows_total: 180,
+      keep_auc: 0.701,
+      category_bacc: null,
+      n_classes: null,
+      first_hit: null,
+      first_n: 0,
+      max_rss_mb: 1210,
+      predictions: 980,
+    },
+  ];
+}
