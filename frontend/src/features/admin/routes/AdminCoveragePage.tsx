@@ -1,4 +1,4 @@
-import { Alert, Group, SimpleGrid, Stack } from '@mantine/core';
+import { Alert, Group, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCoverage } from '../hooks/useCoverage';
@@ -8,9 +8,7 @@ import { CellDetailDrawer } from '../components/CellDetailDrawer';
 import { YearNavigator } from '../components/YearNavigator';
 import { StyleVisibilityPopover } from '../components/StyleVisibilityPopover';
 import { AutoIngestPanel } from '../components/AutoIngestPanel';
-import { YoutubeSearchStatus } from '../components/YoutubeSearchStatus';
-import { AnalysisStatus } from '../components/AnalysisStatus';
-import { AudioProfileStatus } from '../components/AudioProfileStatus';
+import { PipelineStatus } from '../components/PipelineStatus';
 import { cellState, type CoverageCell } from '../lib/cellState';
 import { runsTrackerStore } from '../lib/runsTracker';
 import { PageHeader } from '../../../components/PageHeader';
@@ -60,11 +58,7 @@ export function AdminCoveragePage() {
       <AutoIngestPanel
         styleNames={new Map((q.data?.styles ?? []).map((s) => [s.style_id, s.style_name]))}
       />
-      <YoutubeSearchStatus />
-      <SimpleGrid cols={{ base: 1, md: 2 }}>
-        <AnalysisStatus />
-        <AudioProfileStatus />
-      </SimpleGrid>
+      <PipelineStatus />
       <CellDetailDrawer
         open={active !== null}
         onClose={() => setActive(null)}
