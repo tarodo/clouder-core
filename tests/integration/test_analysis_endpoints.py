@@ -50,7 +50,18 @@ class FakeRepo:
         return {
             "last_claim_at": NOW,
             "last_result_at": None,
-            "analyzers": [],
+            "analyzers": [
+                {
+                    "name": "ai_lofcz",
+                    "due": 3,
+                    "leased": 0,
+                    "ok": 50,
+                    "ai_detected": 7,
+                    "failed": 4,
+                    "unusable_source": 1,
+                    "last_result_at": NOW,
+                }
+            ],
             "pair": {"high": 2, "medium": 5, "low": 3, "clean": 40},
             "queue": {"total": 64, "waiting": 9, "in_progress": 0, "failed": 4, "unusable": 1},
             "profile": {
@@ -169,7 +180,18 @@ def test_admin_status(monkeypatch):
     assert body == {
         "last_claim_at": NOW.isoformat(),
         "last_result_at": None,
-        "analyzers": [],
+        "analyzers": [
+            {
+                "name": "ai_lofcz",
+                "due": 3,
+                "leased": 0,
+                "ok": 50,
+                "ai_detected": 7,
+                "failed": 4,
+                "unusable_source": 1,
+                "last_result_at": NOW.isoformat(),
+            }
+        ],
         "pair": {"high": 2, "medium": 5, "low": 3, "clean": 40},
         "queue": {"total": 64, "waiting": 9, "in_progress": 0, "failed": 4, "unusable": 1},
         "profile": {

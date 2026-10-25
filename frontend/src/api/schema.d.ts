@@ -9409,6 +9409,11 @@ export interface components {
                 /** @description AI analyzers only. */
                 ai_detected: number;
                 failed: number;
+                /**
+                 * Format: date-time
+                 * @description When this analyzer last stored a result.
+                 */
+                last_result_at: string | null;
                 unusable_source: number;
             }[];
         };

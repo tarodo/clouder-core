@@ -296,7 +296,8 @@ class AnalysisMixin(RepositoryBase):
                    count(*) AS n,
                    count(*) FILTER (WHERE status = 'ok'
                                     AND analyzer = ANY (string_to_array(:ai, ','))
-                                    AND (result->>'ai_detected')::boolean) AS ai_detected
+                                    AND (result->>'ai_detected')::boolean) AS ai_detected,
+                   max(analyzed_at) AS last_result_at
             FROM track_analyses GROUP BY 1, 2
             """,
             {"now": now, "ai": ",".join(AI_ANALYZERS)},
@@ -323,12 +324,15 @@ class AnalysisMixin(RepositoryBase):
         for name in sorted(names):
             by = {r["status"]: r for r in counts if r["analyzer"] == name}
             n = {s: int(by[s]["n"]) if s in by else 0 for s in _COUNTED}
+            stamps = [as_utc_datetime(r["last_result_at"]) for r in by.values()]
+            last = max((t for t in stamps if t is not None), default=None)
             analyzers.append(
                 {
                     "name": name,
                     "due": due.get(name, 0),
                     **n,
                     "ai_detected": int(by["ok"]["ai_detected"]) if "ok" in by else 0,
+                    "last_result_at": last,
                 }
             )
         lofcz, deezer = PAIR_ANALYZERS

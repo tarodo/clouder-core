@@ -16,7 +16,8 @@ const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString
 const idleQueue = { waiting_messages: 0, in_flight: 0, delayed: 0 };
 
 // A prod snapshot (2026-10-25): every stage's rows add up to its total, and the YT Music
-// matches are the base of both stages after the search.
+// matches are the base of both stages after the search. The analyzer profiles the tracks it
+// already checked for AI, so AI has been quiet for hours while profiles keep coming.
 const spotify = (over: Partial<Spotify> = {}): Spotify => ({
   status: 'idle',
   paused_until: null,
@@ -53,6 +54,7 @@ const analysis = (over: Partial<Analysis> = {}): Analysis => ({
       ai_detected: 5705,
       failed: 133,
       unusable_source: 30,
+      last_result_at: hoursAgo(5),
     },
     {
       name: 'ai_detect',
@@ -62,6 +64,7 @@ const analysis = (over: Partial<Analysis> = {}): Analysis => ({
       ai_detected: 300,
       failed: 0,
       unusable_source: 0,
+      last_result_at: hoursAgo(200),
     },
     {
       name: 'ai_lofcz',
@@ -71,6 +74,17 @@ const analysis = (over: Partial<Analysis> = {}): Analysis => ({
       ai_detected: 5629,
       failed: 133,
       unusable_source: 30,
+      last_result_at: hoursAgo(5),
+    },
+    {
+      name: 'light_profile',
+      due: 66819,
+      leased: 20,
+      ok: 3927,
+      ai_detected: 0,
+      failed: 1,
+      unusable_source: 0,
+      last_result_at: hoursAgo(0.05),
     },
   ],
   pair: { high: 5395, medium: 234, low: 310, clean: 20816 },
@@ -143,13 +157,14 @@ describe('PipelineStatus', () => {
     expect(row(sp, 'Found')).toHaveTextContent('Found215,51397.1%');
     expect(row(sp, 'Not found')).toHaveTextContent('Not found6,4852.9%');
     expect(row(sp, 'No ISRC')).toHaveTextContent('No ISRC00.0%');
-    expect(row(sp, 'Waiting')).toHaveTextContent('Waiting00.0%');
+    expect(row(sp, 'Waiting')).toHaveTextContent(/^Waiting0$/);
+    // a done row is a share of the searched tracks, not of the catalog
     const yt = await stage('YouTube Music');
-    expect(row(yt, 'Matched')).toHaveTextContent('Matched70,76731.9%');
-    expect(row(yt, 'Needs review')).toHaveTextContent('Needs review2,6841.2%');
-    expect(row(yt, 'Not on YT Music')).toHaveTextContent('Not on YT Music4,1331.9%');
+    expect(row(yt, 'Matched')).toHaveTextContent('Matched70,76791.2%');
+    expect(row(yt, 'Needs review')).toHaveTextContent('Needs review2,6843.5%');
+    expect(row(yt, 'Not on YT Music')).toHaveTextContent('Not on YT Music4,1335.3%');
     expect(row(yt, 'Error')).toHaveTextContent('Error4<0.1%');
-    expect(row(yt, 'Waiting')).toHaveTextContent('Waiting144,41065.1%');
+    expect(row(yt, 'Waiting')).toHaveTextContent(/^Waiting144,410$/);
     expect(yt).toHaveTextContent('19,667 with a comments video');
     expect(yt).toHaveTextContent('250 searched in the last 10 min');
   });
@@ -158,28 +173,42 @@ describe('PipelineStatus', () => {
     renderWith();
     const ai = await stage('AI detection');
     for (const [label, text, level] of [
-      ['Both detectors', 'AIBoth detectors5,3957.6%', 'high'],
-      ['lofcz only', 'AIlofcz only2340.3%', 'medium'],
-      ['Deezer only', 'AIDeezer only3100.4%', 'low'],
+      ['Both detectors', 'AIBoth detectors5,39520.0%', 'high'],
+      ['lofcz only', 'AIlofcz only2340.9%', 'medium'],
+      ['Deezer only', 'AIDeezer only3101.2%', 'low'],
     ] as const) {
       expect(row(ai, label)).toHaveTextContent(text);
       expect(row(ai, label)?.querySelector('[data-level]')).toHaveAttribute('data-level', level);
     }
-    expect(row(ai, 'Clean')).toHaveTextContent('Clean20,81629.4%');
-    expect(row(ai, 'Unavailable')).toHaveTextContent('Unavailable1330.2%');
-    expect(row(ai, 'No usable audio')).toHaveTextContent('No usable audio30<0.1%');
-    expect(row(ai, 'In progress')).toHaveTextContent('In progress00.0%');
-    expect(row(ai, 'Waiting')).toHaveTextContent('Waiting43,84962.0%');
+    // shares of the 26,918 checked tracks
+    expect(row(ai, 'Clean')).toHaveTextContent('Clean20,81677.3%');
+    expect(row(ai, 'Unavailable')).toHaveTextContent('Unavailable1330.5%');
+    expect(row(ai, 'No usable audio')).toHaveTextContent('No usable audio300.1%');
+    expect(row(ai, 'In progress')).toHaveTextContent(/^In progress0$/);
+    expect(row(ai, 'Waiting')).toHaveTextContent(/^Waiting43,849$/);
   });
 
   it('sums up the AI verdicts and each detector, never ArtifactNet', async () => {
     renderWith();
     const ai = await stage('AI detection');
-    expect(ai).toHaveTextContent('Any AI: 5,939 · 22.2% of verdicts');
+    expect(ai).toHaveTextContent('Any AI: 5,939 · 22.1% of checked');
     expect(ai).toHaveTextContent('lofcz: 5,629 AI · 21,117 clean');
     expect(ai).toHaveTextContent('Deezer: 5,705 AI · 21,078 clean');
     expect(ai).not.toHaveTextContent(/ai_detect|ArtifactNet/);
-    expect(ai).toHaveTextContent(/Last result .*ago/);
+  });
+
+  it('badges each analysis stage by its own last result', async () => {
+    renderWith();
+    const badge = (el: HTMLElement) => el.querySelector('[data-tone]');
+    // AI waits for the profile backfill: quiet for 5 hours (ArtifactNet's 200 do not count)
+    const ai = await stage('AI detection');
+    expect(badge(ai)).toHaveTextContent('Idle');
+    expect(badge(ai)).toHaveAttribute('data-tone', 'gray');
+    expect(ai).toHaveTextContent('Last result 5 hours ago');
+    const profile = await stage('Audio profile');
+    expect(badge(profile)).toHaveTextContent('Running');
+    expect(badge(profile)).toHaveAttribute('data-tone', 'green');
+    expect(profile).toHaveTextContent(/Last result .*minutes? ago/);
   });
 
   it('splits the audio profile and shows the models', async () => {
@@ -187,9 +216,10 @@ describe('PipelineStatus', () => {
       analysis: analysis({ models: { count: 3, last_trained_at: hoursAgo(30) } }),
     });
     const profile = await stage('Audio profile');
-    expect(row(profile, 'Profiled')).toHaveTextContent('Profiled3,9275.5%');
-    expect(row(profile, 'In progress')).toHaveTextContent('In progress20<0.1%');
-    expect(row(profile, 'Waiting')).toHaveTextContent('Waiting66,81994.4%');
+    expect(row(profile, 'Profiled')).toHaveTextContent('Profiled3,927100.0%');
+    expect(row(profile, 'Unavailable')).toHaveTextContent('Unavailable1<0.1%');
+    expect(row(profile, 'In progress')).toHaveTextContent(/^In progress20$/);
+    expect(row(profile, 'Waiting')).toHaveTextContent(/^Waiting66,819$/);
     expect(profile).toHaveTextContent(/Models: 3 · last retrain .*ago/);
   });
 
@@ -205,22 +235,28 @@ describe('PipelineStatus', () => {
     expect(await screen.findByText(/^Paused until/)).toBeInTheDocument();
   });
 
-  it('warns when the analyzer has not called in for days', async () => {
+  it('warns on both analysis stages when the analyzer has not called in for days', async () => {
     renderWith({ analysis: analysis({ last_claim_at: hoursAgo(4 * 24 + 1) }) });
-    expect(await screen.findByText('No run for 4 days')).toBeInTheDocument();
+    expect(await screen.findAllByText('No run for 4 days')).toHaveLength(2);
   });
 
   it('says so when the analyzer never ran', async () => {
     renderWith({
       analysis: analysis({ last_claim_at: null, last_result_at: null, analyzers: [] }),
     });
-    expect(await screen.findByText('Never ran')).toBeInTheDocument();
+    expect(await screen.findAllByText('Never ran')).toHaveLength(2);
     expect(screen.queryByText(/^Last result|No results yet/)).toBeNull();
     expect(screen.queryByText(/^lofcz:|^Deezer:/)).toBeNull();
   });
 
-  it('says when the analyzer claims but has not posted a result yet', async () => {
-    renderWith({ analysis: analysis({ last_result_at: null }) });
-    expect(await screen.findByText('No results yet')).toBeInTheDocument();
+  it('says when a stage has no result yet', async () => {
+    const quiet = analysis().analyzers.map((a) =>
+      a.name === 'light_profile' ? { ...a, last_result_at: null } : a,
+    );
+    renderWith({ analysis: analysis({ analyzers: quiet }) });
+    const profile = await stage('Audio profile');
+    expect(profile.querySelector('[data-tone]')).toHaveTextContent('Idle');
+    expect(profile).toHaveTextContent('No results yet');
+    expect(await stage('AI detection')).toHaveTextContent('Last result 5 hours ago');
   });
 });
