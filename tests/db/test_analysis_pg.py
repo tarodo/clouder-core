@@ -152,6 +152,7 @@ def test_status_counts_and_heartbeat(repo) -> None:
             "ai_detected": 1,
             "failed": 1,
             "unusable_source": 0,
+            "last_result_at": T0,
         }
     ]
     # an ai_detect flag is no part of the AI level
@@ -190,7 +191,7 @@ def test_status_counts_tracks_per_ai_level(repo, pg) -> None:
 def test_status_counts_due_and_expired_leases(repo) -> None:
     repo.claim_analysis(limit=1, analyzers=["ai_detect"], lease_id=L1, now=T0)
     (ai,) = repo.analysis_status(now=T0)["analyzers"]
-    assert (ai["due"], ai["leased"]) == (2, 1)
+    assert (ai["due"], ai["leased"], ai["last_result_at"]) == (2, 1, None)
     (ai,) = repo.analysis_status(now=T0 + timedelta(minutes=31))["analyzers"]
     assert (ai["due"], ai["leased"]) == (3, 0)
 

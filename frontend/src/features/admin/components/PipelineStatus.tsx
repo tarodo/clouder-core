@@ -19,6 +19,8 @@ type Analysis = components['schemas']['AnalysisStatus'];
 const POLL_MS = 30_000;
 // The analyzer calls in every few minutes while it runs; days of silence mean it is off.
 const STALE_DAYS = 3;
+// A stage is busy while its results keep coming; the analyzer posts every few minutes.
+const ACTIVE_MINUTES = 60;
 
 const SEARCH_COLOR: Record<Youtube['status'], string> = {
   running: 'green',
@@ -58,7 +60,8 @@ function Swatch({ color }: { color?: string }) {
   );
 }
 
-/** One funnel stage: its buckets split `total` exactly, so the rows always add up. */
+/** One funnel stage: its buckets split `total` exactly, so the rows always add up. A done
+ * row shows its share of what is done; open rows have none, the header holds their share. */
 function Stage(props: {
   title: string;
   status?: ReactNode;
@@ -112,7 +115,7 @@ function Stage(props: {
                   {fmt(b.value)}
                 </Text>
                 <Text size="xs" c="dimmed" w={44} ta="right">
-                  {pct(b.value, total)}
+                  {b.open ? '' : pct(b.value, done)}
                 </Text>
               </Group>
             </Group>
@@ -150,22 +153,50 @@ function SearchBadge({ data }: { data: Spotify | Youtube }) {
   );
 }
 
-function AnalyzerBadge({ data }: { data: Analysis }) {
+/** When any of *names* last stored a result. */
+function lastResult(data: Analysis, names: readonly string[]): dayjs.Dayjs | null {
+  return data.analyzers
+    .flatMap((a) => (names.includes(a.name) && a.last_result_at ? [dayjs(a.last_result_at)] : []))
+    .reduce<dayjs.Dayjs | null>((max, d) => (max && max.isAfter(d) ? max : d), null);
+}
+
+/** The analyzer is one service, but its stages move apart (one can wait on the other), so
+ * each stage is Running or Idle by its own results; a silent service wins over both. */
+function StageBadge({ data, names }: { data: Analysis; names: readonly string[] }) {
   const { t } = useTranslation();
-  const last = data.last_claim_at ? dayjs(data.last_claim_at) : null;
-  const silentDays = last ? dayjs().diff(last, 'day') : null;
+  const claim = data.last_claim_at ? dayjs(data.last_claim_at) : null;
+  const silentDays = claim ? dayjs().diff(claim, 'day') : null;
+  const last = lastResult(data, names);
   const [color, label] =
-    last === null
+    claim === null
       ? ['gray', t('admin.pipeline.never')]
       : silentDays !== null && silentDays >= STALE_DAYS
         ? ['orange', t('admin.pipeline.stale', { days: silentDays })]
-        : ['green', t('admin.pipeline.last_run', { ago: last.fromNow() })];
+        : last !== null && dayjs().diff(last, 'minute') < ACTIVE_MINUTES
+          ? ['green', t('admin.pipeline.analyzing')]
+          : ['gray', t('admin.pipeline.idle')];
   return (
-    <Badge color={color} variant="light">
+    <Badge color={color} variant="light" data-tone={color}>
       {label}
     </Badge>
   );
 }
+
+function LastResult({ data, names }: { data: Analysis; names: readonly string[] }) {
+  const { t } = useTranslation();
+  if (!data.last_claim_at) return null;
+  const last = lastResult(data, names);
+  return (
+    <Note>
+      {last
+        ? t('admin.pipeline.last_result', { ago: last.fromNow() })
+        : t('admin.pipeline.no_results')}
+    </Note>
+  );
+}
+
+const AI_ANALYZERS = ['ai_lofcz', 'ai_deezer'] as const;
+const PROFILE_ANALYZERS = ['light_profile'] as const;
 
 const MODELS = [
   ['ai_lofcz', 'lofcz'],
@@ -248,7 +279,7 @@ export function PipelineStatus() {
         {an && (
           <Stage
             title={p('ai')}
-            status={<AnalyzerBadge data={an} />}
+            status={<StageBadge data={an} names={AI_ANALYZERS} />}
             total={an.queue.total}
             doneLabel={p('checked')}
             base={p('of_matches')}
@@ -267,11 +298,13 @@ export function PipelineStatus() {
             ]}
           >
             <AiSummary data={an} />
+            <LastResult data={an} names={AI_ANALYZERS} />
           </Stage>
         )}
         {an && (
           <Stage
             title={p('profile')}
+            status={<StageBadge data={an} names={PROFILE_ANALYZERS} />}
             total={an.profile.total}
             doneLabel={p('profiled')}
             base={p('of_matches')}
@@ -291,6 +324,7 @@ export function PipelineStatus() {
                   })
                 : p('models_none')}
             </Note>
+            <LastResult data={an} names={PROFILE_ANALYZERS} />
           </Stage>
         )}
       </SimpleGrid>
@@ -298,14 +332,16 @@ export function PipelineStatus() {
   );
 }
 
-/** The AI share of the verdicts, each detector on its own, and when results last came in. */
+/** All AI levels together, as a share of the checked tracks (like the rows), and each
+ * detector on its own. */
 function AiSummary({ data }: { data: Analysis }) {
   const { t } = useTranslation();
   const { high, medium, low, clean } = data.pair;
   const ai = high + medium + low;
+  const checked = ai + clean + data.queue.failed + data.queue.unusable;
   return (
     <>
-      <Note>{t('admin.pipeline.ai_share', { count: fmt(ai), pct: pct(ai, ai + clean) })}</Note>
+      <Note>{t('admin.pipeline.ai_share', { count: fmt(ai), pct: pct(ai, checked) })}</Note>
       {MODELS.map(([name, label]) => {
         const row = data.analyzers.find((a) => a.name === name);
         return (
@@ -320,13 +356,6 @@ function AiSummary({ data }: { data: Analysis }) {
           )
         );
       })}
-      {data.last_claim_at && (
-        <Note>
-          {data.last_result_at
-            ? t('admin.pipeline.last_result', { ago: dayjs(data.last_result_at).fromNow() })
-            : t('admin.pipeline.no_results')}
-        </Note>
-      )}
     </>
   );
 }

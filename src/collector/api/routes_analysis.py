@@ -145,6 +145,9 @@ def _handle_analysis_status(
             **status,
             "last_claim_at": _iso(status["last_claim_at"]),
             "last_result_at": _iso(status["last_result_at"]),
+            "analyzers": [
+                {**a, "last_result_at": _iso(a["last_result_at"])} for a in status["analyzers"]
+            ],
             "models": {
                 **status["models"],
                 "last_trained_at": _iso(status["models"]["last_trained_at"]),

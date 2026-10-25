@@ -1031,6 +1031,7 @@ ANALYSIS_STATUS = {
                     "ai_detected",
                     "failed",
                     "unusable_source",
+                    "last_result_at",
                 ],
                 "properties": {
                     "name": {"type": "string"},
@@ -1042,6 +1043,11 @@ ANALYSIS_STATUS = {
                     "ok": {"type": "integer"},
                     "ai_detected": {"type": "integer", "description": "AI analyzers only."},
                     "failed": {"type": "integer"},
+                    "last_result_at": {
+                        "type": ["string", "null"],
+                        "format": "date-time",
+                        "description": "When this analyzer last stored a result.",
+                    },
                     "unusable_source": {"type": "integer"},
                 },
             },

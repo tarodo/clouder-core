@@ -310,11 +310,12 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
       method: 'get',
       path: '/admin/analysis/status',
       resolve: () => ({
-        last_claim_at: new Date(Date.now() - 6 * 3_600_000).toISOString(),
-        last_result_at: new Date(Date.now() - 6 * 3_600_000).toISOString(),
+        last_claim_at: new Date(Date.now() - 2 * 60_000).toISOString(),
+        last_result_at: new Date(Date.now() - 4 * 60_000).toISOString(),
         analyzers: [
-          { name: 'ai_deezer', due: 46, leased: 0, ok: 3354, ai_detected: 96, failed: 12, unusable_source: 3 },
-          { name: 'ai_lofcz', due: 46, leased: 0, ok: 3354, ai_detected: 58, failed: 12, unusable_source: 3 },
+          { name: 'ai_deezer', due: 46, leased: 0, ok: 3354, ai_detected: 96, failed: 12, unusable_source: 3, last_result_at: new Date(Date.now() - 4 * 60_000).toISOString() },
+          { name: 'ai_lofcz', due: 46, leased: 0, ok: 3354, ai_detected: 58, failed: 12, unusable_source: 3, last_result_at: new Date(Date.now() - 4 * 60_000).toISOString() },
+          { name: 'light_profile', due: 1260, leased: 20, ok: 2135, ai_detected: 0, failed: 4, unusable_source: 1, last_result_at: new Date(Date.now() - 9 * 60_000).toISOString() },
         ],
         pair: { high: 41, medium: 17, low: 55, clean: 3241 },
         queue: { total: 3400, waiting: 30, in_progress: 1, failed: 12, unusable: 3 },
