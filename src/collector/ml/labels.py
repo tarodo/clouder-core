@@ -21,11 +21,17 @@ class Label:
 def training_rows(
     labels: Iterable[Label],
 ) -> tuple[list[str], np.ndarray, list[str | None]]:
-    """One row per video; a video whose tracks disagree on keep or on category is dropped."""
+    """One row per video, oldest first by its newest label; a video whose tracks disagree on keep or on
+    category is dropped."""
     decisions: dict[str, set[tuple[bool, str | None]]] = {}
+    newest: dict[str, datetime] = {}
     for label in labels:
         decisions.setdefault(label.video_id, set()).add((label.keep, label.category_id))
-    rows = [(video_id, *d.pop()) for video_id, d in decisions.items() if len(d) == 1]
+        newest[label.video_id] = max(label.added_at, newest.get(label.video_id, label.added_at))
+    rows = sorted(
+        ((video_id, *d.pop()) for video_id, d in decisions.items() if len(d) == 1),
+        key=lambda r: newest[r[0]],
+    )
     return (
         [r[0] for r in rows],
         np.array([r[1] for r in rows], dtype=bool),

@@ -3,7 +3,8 @@
 Training ports the lab: median impute, standardise, block weights 1/sqrt(width), PCA onto the train rows (an exact
 rotation of the row space: L2 logistic regression predicts the same, and each fit is ~n_train-dimensional), then
 LogisticRegressionCV. Unlike the lab's `matrix()`, constant and all-NaN columns stay, so the layout keeps every column:
-the imputer keeps empty features (as 0) and the scaler leaves zero-variance columns at scale 1.
+the imputer keeps empty features (as 0) and the scaler leaves zero-variance columns at scale 1. The matrix stays
+float32 end to end (the 3008 MB Lambda); `collapse` folds the steps in float64.
 """
 
 from __future__ import annotations
@@ -35,6 +36,10 @@ KEEP_MIN_LABELS = 130
 KEEP_MIN_EACH = 35  # keeps and discards
 CATEGORY_MIN = 30  # rows per class; a category head needs >= 2 such classes
 DISCARD = "DISCARD"
+# ponytail: a hard ceiling for the 3008 MB Lambda (the account's cap): 4 500 rows x 16 778 float32 features
+# peak near 2.3 GB (docs/ops/runbook.md). Upgrade: ask AWS Support to raise the account's Lambda memory limit
+# to 10 240 MB, raise the worker's memory_size, then lift the cap.
+MAX_TRAIN_ROWS = 4500  # keep-head rows, the newest; the category head trains on every keep
 
 
 @dataclass(frozen=True, eq=False)
@@ -75,10 +80,16 @@ class Prediction:
 
 
 def block_weights(blocks: Sequence[tuple[str, int, int]], d: int) -> np.ndarray:
-    w = np.zeros(d)
+    w = np.zeros(d, dtype=np.float32)  # float32 * float32: the weighted matrix stays float32
     for _name, offset, width in blocks:
         w[offset : offset + width] = 1 / np.sqrt(width)
     return w
+
+
+def _median(column: np.ndarray) -> float:
+    """The imputer's statistic, column by column: ma.median (strategy="median") argsorts the whole matrix,
+    ~5 copies of it. An all-NaN column gets 0, as keep_empty_features gives the built-in strategies."""
+    return float(np.median(column)) if column.size else 0.0
 
 
 def _weigh(Z: np.ndarray, w: np.ndarray) -> np.ndarray:
@@ -91,10 +102,10 @@ def _folds(seed: int) -> StratifiedKFold:
 
 def _preprocess(w: np.ndarray) -> list[Any]:
     return [
-        SimpleImputer(strategy="median", keep_empty_features=True),
+        SimpleImputer(strategy=_median, keep_empty_features=True),
         StandardScaler(),
         FunctionTransformer(_weigh, kw_args={"w": w}),
-        PCA(),
+        PCA(copy=False),  # centres the weighted matrix in place: a pipeline temporary
     ]
 
 
@@ -139,26 +150,30 @@ def train(
     blocks: Sequence[tuple[str, int, int]] = audio_profile.BLOCKS,
     seed: int = 0,
 ) -> Model | None:
-    """Rows are videos (`labels.training_rows`). None when neither head reaches its threshold."""
+    """Rows are videos, oldest first (`labels.training_rows`). The keep head trains on the newest MAX_TRAIN_ROWS,
+    keeps and discards together (the keep share stays the real one); n_labels and n_keep count them.
+    None when neither head reaches its threshold."""
     # A bool target is what makes `collapse` build the keep head.
     keep = np.asarray(keep, dtype=bool)
     w = block_weights(blocks, X.shape[1])
-    n, n_keep = len(keep), int(keep.sum())
+    Xk, yk = X[-MAX_TRAIN_ROWS:], keep[-MAX_TRAIN_ROWS:]  # views: no copy of the matrix
+    n, n_keep = len(yk), int(yk.sum())
     cv: dict[str, float] = {}
     keep_head: Head | None = None
     threshold: float | None = None
     if n >= KEEP_MIN_LABELS and min(n_keep, n - n_keep) >= KEEP_MIN_EACH:
-        pipe = fit_pipeline(X, keep, w, "keep", seed)
-        keep_head, cv["keep_auc"] = collapse(pipe), _best_score(pipe[-1])
+        pipe = fit_pipeline(Xk, yk, w, "keep", seed)
+        keep_head, cv["keep_auc"], C = collapse(pipe), _best_score(pipe[-1]), pipe[-1].C_[0]
+        del pipe  # its PCA basis is another (n, d) matrix: free it before the out-of-fold fits
         # Out-of-fold P(keep) at the chosen C; its (1 - keep share) quantile predicts keeps at the label share.
         oof = cross_val_predict(
-            make_pipeline(*_preprocess(w), LogisticRegression(C=pipe[-1].C_[0], max_iter=MAX_ITER)),
-            X,
-            keep,
+            make_pipeline(*_preprocess(w), LogisticRegression(C=C, max_iter=MAX_ITER)),
+            Xk,
+            yk,
             cv=_folds(seed),
             method="predict_proba",
         )[:, 1]
-        threshold = float(np.quantile(oof, 1 - keep.mean()))
+        threshold = float(np.quantile(oof, 1 - yk.mean()))
     counts = Counter(c for c in category if c is not None)
     classes = {c for c, k in counts.items() if k >= CATEGORY_MIN}
     category_head: Head | None = None

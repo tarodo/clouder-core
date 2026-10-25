@@ -22,3 +22,18 @@ def test_training_rows_drop_conflicting_video() -> None:
     assert keep.dtype == bool
     assert keep.tolist() == [True, False]
     assert cats == ["c1", None]
+
+
+def test_training_rows_oldest_first() -> None:
+    """By each video's newest label: the keep head's row cap keeps the newest rows."""
+    day = [datetime(2026, 10, d, tzinfo=UTC) for d in range(1, 6)]
+    labels = [
+        Label("t1", "v1", True, "c1", day[4]),
+        Label("t2", "v2", False, None, day[1]),
+        Label("t3", "v1", True, "c1", day[0]),
+        Label("t4", "v3", False, None, day[2]),
+    ]
+    ids, keep, cats = training_rows(labels)
+    assert ids == ["v2", "v3", "v1"]  # v1's newest label is the last
+    assert keep.tolist() == [False, False, True]
+    assert cats == [None, None, "c1"]
