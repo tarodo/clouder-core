@@ -19,6 +19,15 @@ export interface YoutubeWeekStats {
   pending: number;
 }
 
+/** Over the week's YT Music matches (`total`): checked by the AI pair, flagged AI, profiled. */
+export interface AnalysisWeekStats {
+  week_number: number;
+  total: number;
+  checked: number;
+  ai: number;
+  profiled: number;
+}
+
 export interface CoveragePayload {
   week_year: number;
   weeks_in_year: number;
@@ -40,6 +49,7 @@ export interface CoveragePayload {
     }>;
     spotify_weeks: SpotifyWeekStats[];
     youtube_weeks?: YoutubeWeekStats[];
+    analysis_weeks?: AnalysisWeekStats[];
   }>;
 }
 

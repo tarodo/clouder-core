@@ -587,3 +587,37 @@ def test_status_models_block(repo, pg) -> None:
         {"t": T0, "u": T0 + timedelta(days=1)},
     )
     assert repo.analysis_status(now=T0)["models"] == {"count": 1, "last_trained_at": T0}
+
+
+def test_analysis_week_stats_count_the_yt_music_matches(repo, pg) -> None:
+    pg.execute(
+        "INSERT INTO identity_map (source, entity_type, external_id, clouder_entity_type,"
+        " clouder_id, match_type, confidence, first_seen_at, last_seen_at) VALUES"
+        " ('beatport', 'style', '90', 'style', 'st', 'auto_create', 1.0, now(), now())"
+    )
+    for tid, day in (("new", "2026-10-12"), ("mid", "2026-10-12"), ("old", "2026-10-05")):
+        pg.execute(
+            "UPDATE clouder_tracks SET publish_date = CAST(:p AS date) WHERE id = :id",
+            {"p": day, "id": tid},
+        )
+    # no YT Music match: outside the base even in the week
+    pg.execute("UPDATE clouder_tracks SET publish_date = '2026-10-12' WHERE id = 'no-yt'")
+    _row(pg, "new", "ai_lofcz", "ok", ai=True)  # checked, AI
+    _row(pg, "new", "ai_deezer", "ok")
+    _row(pg, "new", "light_profile", "ok")
+    _row(pg, "mid", "ai_lofcz", "ok")  # the other detector still leased: not checked
+    _row(pg, "mid", "ai_deezer", "leased", until=T0 + timedelta(minutes=30))
+    _row(pg, "mid", "light_profile", "failed")  # a final profile state is done
+    _row(pg, "old", "ai_lofcz", "failed")  # checked, no verdict
+    rows = sorted(repo.analysis_stats_for_year(2026), key=lambda r: r["week_number"])
+    assert [
+        (
+            r["beatport_style_id"],
+            int(r["week_number"]),
+            r["total"],
+            r["checked"],
+            r["ai"],
+            r["profiled"],
+        )
+        for r in rows
+    ] == [("90", 40, 1, 1, 0, 0), ("90", 41, 2, 1, 1, 2)]

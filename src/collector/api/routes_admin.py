@@ -100,7 +100,25 @@ def _handle_admin_coverage(
                 "pending": int(row["pending"]),
             }
         )
+    analysis_by_style: dict[int, list[dict[str, Any]]] = {}
+    for row in repository.analysis_stats_for_year(week_year):
+        try:
+            sid = int(row["beatport_style_id"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        analysis_by_style.setdefault(sid, []).append(
+            {
+                "week_number": int(row["week_number"]),
+                "total": int(row["total"]),
+                "checked": int(row["checked"]),
+                "ai": int(row["ai"]),
+                "profiled": int(row["profiled"]),
+            }
+        )
     for sid, style_entry in grouped.items():
+        style_entry["analysis_weeks"] = sorted(
+            analysis_by_style.get(sid, []), key=lambda w: w["week_number"]
+        )
         style_entry["spotify_weeks"] = sorted(
             spotify_by_style.get(sid, []), key=lambda w: w["week_number"]
         )

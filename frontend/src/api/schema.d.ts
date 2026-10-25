@@ -793,7 +793,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Coverage payload (per-style cells + spotify_weeks and youtube_weeks per-week match stats). Hidden styles are included with is_hidden=true. */
+                /** @description Coverage payload (per-style cells + spotify_weeks, youtube_weeks and analysis_weeks per-week stats). Hidden styles are included with is_hidden=true. */
                 200: {
                     headers: {
                         [name: string]: unknown;

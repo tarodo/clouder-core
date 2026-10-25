@@ -7,6 +7,7 @@ from pathlib import Path
 PKG = Path(__file__).resolve().parents[2] / "src" / "collector" / "repositories"
 
 API = [
+    "analysis_stats_for_year",
     "analysis_status",
     "analytics_funnel",
     "batch_conservative_update_tracks",

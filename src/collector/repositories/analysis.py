@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
+from ..saturday_week import first_saturday, weeks_in_year
 from ..schemas import AI_ANALYZERS
 from ._base import RepositoryBase, as_utc_datetime
 
@@ -406,6 +407,56 @@ class AnalysisMixin(RepositoryBase):
                 "last_trained_at": as_utc_datetime(models["last"]) if models["last"] else None,
             },
         }
+
+    def analysis_stats_for_year(self, week_year: int) -> list[dict[str, Any]]:
+        """Per (beatport style, Saturday week of publish_date) the YT Music matches (total),
+        those the AI pair checked (a flag, both ok, or a final failure: the pipeline block's
+        done), the AI-flagged ones, and those with a final light_profile state."""
+        year_start = first_saturday(week_year)
+        year_end = year_start + timedelta(days=weeks_in_year(week_year) * 7 - 1)
+        lofcz, deezer = PAIR_ANALYZERS
+        return self._data_api.execute(
+            f"""
+            WITH per_track AS (
+                SELECT t.style_id, t.publish_date,
+                       coalesce(bool_or(a.analyzer IN (:lofcz, :deezer) AND {_FLAG}), false)
+                           AS ai,
+                       count(*) FILTER (WHERE a.analyzer IN (:lofcz, :deezer)
+                                          AND a.status = 'ok') = 2 AS both_ok,
+                       coalesce(bool_or(a.analyzer IN (:lofcz, :deezer)
+                                        AND a.status IN ('failed', 'unusable_source')), false)
+                           AS dead,
+                       coalesce(bool_or(a.analyzer = 'light_profile'
+                                        AND a.status IN ('ok', 'failed', 'unusable_source')),
+                                false) AS profiled
+                FROM clouder_tracks t
+                JOIN vendor_track_map v ON v.clouder_track_id = t.id AND v.vendor = 'ytmusic'
+                LEFT JOIN track_analyses a
+                  ON a.track_id = t.id AND a.analyzer IN (:lofcz, :deezer, 'light_profile')
+                WHERE t.publish_date BETWEEN :year_start AND :year_end
+                GROUP BY t.id, t.style_id, t.publish_date
+            )
+            SELECT im.external_id AS beatport_style_id,
+                   (p.publish_date - :year_start) / 7 + 1 AS week_number,
+                   count(*) AS total,
+                   count(*) FILTER (WHERE p.ai OR p.both_ok OR p.dead) AS checked,
+                   count(*) FILTER (WHERE p.ai) AS ai,
+                   count(*) FILTER (WHERE p.profiled) AS profiled
+            FROM per_track p
+            JOIN identity_map im
+              ON im.source = 'beatport'
+              AND im.entity_type = 'style'
+              AND im.clouder_entity_type = 'style'
+              AND im.clouder_id = p.style_id
+            GROUP BY 1, 2
+            """,
+            {
+                "lofcz": lofcz,
+                "deezer": deezer,
+                "year_start": year_start,
+                "year_end": year_end,
+            },
+        )
 
     def requeue_analysis(
         self,
