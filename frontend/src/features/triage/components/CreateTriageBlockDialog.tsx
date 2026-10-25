@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { zodResolver } from 'mantine-form-zod-resolver';
+import { zod4Resolver } from 'mantine-form-zod-resolver';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -93,7 +93,7 @@ export function CreateTriageBlockDialog({
       includeFavorites: true,
       aiToDiscard: true,
     },
-    validate: zodResolver(createTriageBlockSchema),
+    validate: zod4Resolver(createTriageBlockSchema),
   });
 
   const setWeek = ([year, week]: SaturdayWeek) => {

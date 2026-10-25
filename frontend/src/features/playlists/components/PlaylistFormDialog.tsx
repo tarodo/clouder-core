@@ -9,7 +9,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { zodResolver } from 'mantine-form-zod-resolver';
+import { zod4Resolver } from 'mantine-form-zod-resolver';
 import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -57,10 +57,10 @@ export function PlaylistFormDialog({
 
   const resolver =
     mode === 'create'
-      ? zodResolver(createPlaylistSchema)
+      ? zod4Resolver(createPlaylistSchema)
       : mode === 'rename'
-        ? zodResolver(renameSchema)
-        : zodResolver(editDescriptionSchema);
+        ? zod4Resolver(renameSchema)
+        : zod4Resolver(editDescriptionSchema);
 
   const form = useForm<FormValues>({
     initialValues: {

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Button, Drawer, Group, Modal, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { zodResolver } from 'mantine-form-zod-resolver';
+import { zod4Resolver } from 'mantine-form-zod-resolver';
 import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
 import { createCategorySchema, type CreateCategoryInput } from '../lib/categorySchemas';
@@ -31,7 +31,7 @@ export function CategoryFormDialog({
   const isMobile = useMediaQuery('(max-width: 64em)');
   const form = useForm<CreateCategoryInput>({
     initialValues: { name: initialName },
-    validate: zodResolver(createCategorySchema),
+    validate: zod4Resolver(createCategorySchema),
   });
 
   useEffect(() => {
