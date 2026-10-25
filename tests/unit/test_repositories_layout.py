@@ -55,6 +55,7 @@ API = [
     "ml_mark_too_few_labels",
     "ml_model",
     "ml_models_for_style",
+    "ml_models_overview",
     "ml_predictions",
     "ml_request_retrain",
     "ml_save_model",

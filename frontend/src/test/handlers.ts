@@ -124,7 +124,7 @@ export const handlers = [
       pair: { high: 0, medium: 0, low: 0, clean: 0 },
       queue: { total: 0, waiting: 0, in_progress: 0, failed: 0, unusable: 0 },
       profile: { total: 0, waiting: 0, in_progress: 0, profiled: 0, failed: 0, unusable: 0 },
-      models: { count: 0, last_trained_at: null },
+      models: { count: 0, last_trained_at: null, items: [] },
     }),
   ),
   http.get('http://localhost/admin/coverage', ({ request }) => {

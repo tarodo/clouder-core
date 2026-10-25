@@ -9399,6 +9399,34 @@ export interface components {
                 count: number;
                 /** Format: date-time */
                 last_trained_at: string | null;
+                /** @description One row per (user, style) with an ml_models row or a non-deleted triage block; metrics are null without a model. */
+                items: {
+                    user_id: string;
+                    /** @description display_name, else email, else the id's first 8 chars. */
+                    user_name: string;
+                    style_id: string;
+                    style_name: string;
+                    /** @description 0 = no model yet. */
+                    version: number;
+                    /** Format: date-time */
+                    trained_at: string | null;
+                    /** @description A retrain request newer than trained_at and under an hour old. */
+                    retrain_pending: boolean;
+                    /** @description Labels toward the first model (150); null once a model exists. */
+                    labels_since_training: number | null;
+                    n_labels: number | null;
+                    n_keep: number | null;
+                    /** @description Labelled rows before the training cap. */
+                    rows_total: number | null;
+                    keep_auc: number | null;
+                    category_bacc: number | null;
+                    n_classes: number | null;
+                    first_hit: number | null;
+                    first_n: number | null;
+                    /** @description The worker's peak memory at the last retrain. */
+                    max_rss_mb: number | null;
+                    predictions: number;
+                }[];
             };
             analyzers: {
                 name: string;

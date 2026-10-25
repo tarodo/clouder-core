@@ -138,7 +138,9 @@ def _iso(value: Any) -> str | None:
 def _handle_analysis_status(
     event: Mapping[str, Any], context: Any, correlation_id: str
 ) -> dict[str, Any]:
-    status = _repository().analysis_status(now=deps.utc_now())
+    repository, now = _repository(), deps.utc_now()
+    status = repository.analysis_status(now=now)
+    items = repository.ml_models_overview(now=now)
     return _json_response(
         200,
         {
@@ -148,6 +150,7 @@ def _handle_analysis_status(
             "models": {
                 **status["models"],
                 "last_trained_at": _iso(status["models"]["last_trained_at"]),
+                "items": [{**i, "trained_at": _iso(i["trained_at"])} for i in items],
             },
         },
         correlation_id,

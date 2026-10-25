@@ -64,6 +64,10 @@ class FakeRepo:
             "models": {"count": 2, "last_trained_at": NOW},
         }
 
+    def ml_models_overview(self, **kw):
+        self.calls.append(("models", kw))
+        return [{"user_id": "u1", "version": 2, "trained_at": NOW}]
+
     def requeue_analysis(self, **kw):
         self.calls.append(("requeue", kw))
         return 7
@@ -180,7 +184,11 @@ def test_admin_status(monkeypatch):
             "failed": 2,
             "unusable": 1,
         },
-        "models": {"count": 2, "last_trained_at": NOW.isoformat()},
+        "models": {
+            "count": 2,
+            "last_trained_at": NOW.isoformat(),
+            "items": [{"user_id": "u1", "version": 2, "trained_at": NOW.isoformat()}],
+        },
     }
 
 

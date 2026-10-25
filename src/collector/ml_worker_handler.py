@@ -115,10 +115,13 @@ def _retrain(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, An
         return
     # Version 0 has no model, so no predictions to score (its trained_at only restarts the count).
     trained_at = previous["trained_at"] if previous and version > 0 else None
+    # The container's peak so far (ru_maxrss is KB on Linux), against the 3008 MB cap.
+    max_rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
     metrics = {
         **_metrics(repo, user_id, style_id, version, trained_at, labels),
         "cv": model.cv,
         "rows_total": len(rows),  # n_labels counts the keep head's rows (MAX_TRAIN_ROWS)
+        "max_rss_mb": max_rss_mb,
     }
     # A per-attempt key: a duplicate retrain of the pair racing this one writes its own file, so the
     # row the save below keeps always names its own model.
@@ -145,8 +148,7 @@ def _retrain(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, An
         model_version=version + 1,
         count=model.n_labels,
         duration_ms=int((time.monotonic() - started) * 1000),
-        # The container's peak so far (ru_maxrss is KB on Linux), against the 3008 MB cap.
-        max_rss_mb=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024,
+        max_rss_mb=max_rss_mb,
     )
     if saved:
         ml_jobs.enqueue_score_style(

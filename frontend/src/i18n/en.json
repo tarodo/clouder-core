@@ -874,6 +874,28 @@
       "models": "Models: {{count}} · last retrain {{ago}}",
       "models_none": "No models yet"
     },
+    "suggestion_models": {
+      "title": "Suggestion models",
+      "user": "User",
+      "style": "Style",
+      "model": "Model",
+      "labels": "Labels",
+      "keep_auc": "Keep AUC",
+      "categories": "Categories",
+      "first_button": "First button",
+      "predictions": "Predictions",
+      "memory": "Memory",
+      "version": "v{{version}} · {{ago}}",
+      "queued": "queued",
+      "waiting": "waiting for labels: {{since}} / 150",
+      "labels_value": "{{n}} ({{keep}} keep)",
+      "labels_capped": "{{n}} of {{total}} ({{keep}} keep)",
+      "categories_value": "{{bacc}} · {{n}} cat.",
+      "first_hit": "{{pct}} % of {{n}}",
+      "first_few": "— ({{n}} of 20)",
+      "memory_value": "{{gb}} / 3.0 GB",
+      "empty": "No models yet"
+    },
     "spotify_status": {
       "title": "Spotify search",
       "running": "Searching",

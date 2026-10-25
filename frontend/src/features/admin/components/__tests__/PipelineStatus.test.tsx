@@ -83,7 +83,7 @@ const analysis = (over: Partial<Analysis> = {}): Analysis => ({
     failed: 1,
     unusable: 0,
   },
-  models: { count: 0, last_trained_at: null },
+  models: { count: 0, last_trained_at: null, items: [] },
   ...over,
 });
 
@@ -184,7 +184,7 @@ describe('PipelineStatus', () => {
 
   it('splits the audio profile and shows the models', async () => {
     renderWith({
-      analysis: analysis({ models: { count: 3, last_trained_at: hoursAgo(30) } }),
+      analysis: analysis({ models: { count: 3, last_trained_at: hoursAgo(30), items: [] } }),
     });
     const profile = await stage('Audio profile');
     expect(row(profile, 'Profiled')).toHaveTextContent('Profiled3,9275.5%');

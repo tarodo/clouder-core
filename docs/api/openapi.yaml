@@ -7286,6 +7286,7 @@ components:
           required:
           - count
           - last_trained_at
+          - items
           properties:
             count:
               type: integer
@@ -7294,6 +7295,99 @@ components:
               - string
               - 'null'
               format: date-time
+            items:
+              type: array
+              description: One row per (user, style) with an ml_models row or a non-deleted
+                triage block; metrics are null without a model.
+              items:
+                type: object
+                required:
+                - user_id
+                - user_name
+                - style_id
+                - style_name
+                - version
+                - trained_at
+                - retrain_pending
+                - labels_since_training
+                - n_labels
+                - n_keep
+                - rows_total
+                - keep_auc
+                - category_bacc
+                - n_classes
+                - first_hit
+                - first_n
+                - max_rss_mb
+                - predictions
+                properties:
+                  user_id:
+                    type: string
+                  user_name:
+                    type: string
+                    description: display_name, else email, else the id's first 8 chars.
+                  style_id:
+                    type: string
+                  style_name:
+                    type: string
+                  version:
+                    type: integer
+                    description: 0 = no model yet.
+                  trained_at:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+                  retrain_pending:
+                    type: boolean
+                    description: A retrain request newer than trained_at and under
+                      an hour old.
+                  labels_since_training:
+                    type:
+                    - integer
+                    - 'null'
+                    description: Labels toward the first model (150); null once a
+                      model exists.
+                  n_labels:
+                    type:
+                    - integer
+                    - 'null'
+                  n_keep:
+                    type:
+                    - integer
+                    - 'null'
+                  rows_total:
+                    type:
+                    - integer
+                    - 'null'
+                    description: Labelled rows before the training cap.
+                  keep_auc:
+                    type:
+                    - number
+                    - 'null'
+                  category_bacc:
+                    type:
+                    - number
+                    - 'null'
+                  n_classes:
+                    type:
+                    - integer
+                    - 'null'
+                  first_hit:
+                    type:
+                    - number
+                    - 'null'
+                  first_n:
+                    type:
+                    - integer
+                    - 'null'
+                  max_rss_mb:
+                    type:
+                    - integer
+                    - 'null'
+                    description: The worker's peak memory at the last retrain.
+                  predictions:
+                    type: integer
         analyzers:
           type: array
           items:

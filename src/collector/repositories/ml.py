@@ -166,6 +166,59 @@ class MlMixin(RepositoryBase):
         )
         return [_model(r) for r in rows]
 
+    def ml_models_overview(self, *, now: datetime) -> list[dict[str, Any]]:
+        """The admin table: a row per (user, style) with an ml_models row or a live block, the
+        model's metrics flattened; labels_since_training only for pairs without a model."""
+        rows = self._data_api.execute(
+            """
+            WITH pairs AS (
+                SELECT user_id, style_id FROM ml_models
+                UNION
+                SELECT user_id, style_id FROM triage_blocks WHERE deleted_at IS NULL
+            ), predictions AS (
+                SELECT user_id, style_id, count(*) AS n FROM track_predictions GROUP BY 1, 2
+            )
+            SELECT p.user_id,
+                   coalesce(nullif(u.display_name, ''), nullif(u.email, ''), left(p.user_id, 8))
+                       AS user_name,
+                   p.style_id, s.name AS style_name, coalesce(m.version, 0) AS version,
+                   m.trained_at,
+                   coalesce(m.retrain_requested_at > coalesce(m.trained_at, '-infinity')
+                            AND m.retrain_requested_at > :cutoff, false) AS retrain_pending,
+                   m.n_labels, m.n_keep,
+                   (m.metrics->>'rows_total')::int AS rows_total,
+                   (m.metrics->'cv'->>'keep_auc')::float8 AS keep_auc,
+                   (m.metrics->'cv'->>'category_bacc')::float8 AS category_bacc,
+                   CASE WHEN jsonb_typeof(m.classes) = 'array'
+                        THEN jsonb_array_length(m.classes) END AS n_classes,
+                   (m.metrics->>'first_hit')::float8 AS first_hit,
+                   (m.metrics->>'first_n')::int AS first_n,
+                   (m.metrics->>'max_rss_mb')::int AS max_rss_mb,
+                   coalesce(pr.n, 0) AS predictions
+            FROM pairs p
+            JOIN users u ON u.id = p.user_id
+            JOIN clouder_styles s ON s.id = p.style_id
+            LEFT JOIN ml_models m ON m.user_id = p.user_id AND m.style_id = p.style_id
+            LEFT JOIN predictions pr ON pr.user_id = p.user_id AND pr.style_id = p.style_id
+            ORDER BY user_name, style_name, p.user_id, p.style_id
+            """,
+            {"cutoff": now - RETRAIN_PENDING},
+        )
+        # ponytail: one count query per model-less pair (a small circle of users); a set-based
+        # count if the table grows past a few dozen such pairs.
+        return [
+            {
+                **r,
+                "trained_at": as_utc_datetime(r["trained_at"]),
+                "labels_since_training": (
+                    self.ml_labels_since_training(user_id=r["user_id"], style_id=r["style_id"])
+                    if r["version"] == 0
+                    else None
+                ),
+            }
+            for r in rows
+        ]
+
     def ml_alive_categories(self, *, user_id: str, style_id: str) -> list[str]:
         rows = self._data_api.execute(
             "SELECT id FROM categories WHERE user_id = :user_id AND style_id = :style_id"
