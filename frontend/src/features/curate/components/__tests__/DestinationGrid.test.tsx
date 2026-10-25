@@ -223,4 +223,47 @@ describe('DestinationGrid', () => {
     fireEvent.click(screen.getByRole('button', { name: /Force mode (on|off)/ }));
     expect(onToggleForce).toHaveBeenCalledTimes(1);
   });
+  it('lights only the suggested buttons it renders', () => {
+    render(
+      wrap(
+        <DestinationGrid
+          buckets={buckets}
+          currentBucketId="b-current"
+          lastTappedBucketId={null}
+          forceMode={false}
+          suggested={{ primary: 'b-disc', secondary: 's3' }}
+          onAssign={() => {}}
+          onToggleForce={vi.fn()}
+        />,
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Assign to DISCARD, suggested' })).toHaveAttribute(
+      'data-suggested',
+      'primary',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Assign to Tech House, second suggestion' }),
+    ).toHaveAttribute('data-suggested', 'secondary');
+    expect(document.querySelectorAll('[data-suggested]')).toHaveLength(2);
+  });
+
+  it('does not light the disabled source bucket', () => {
+    render(
+      wrap(
+        <DestinationGrid
+          buckets={buckets}
+          currentBucketId="b-disc"
+          lastTappedBucketId={null}
+          forceMode={false}
+          suggested={{ primary: 'b-disc', secondary: 's1' }}
+          onAssign={() => {}}
+          onToggleForce={vi.fn()}
+        />,
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Assign to DISCARD' })).not.toHaveAttribute(
+      'data-suggested',
+    );
+    expect(screen.getByRole('button', { name: /Assign to Big Room, second suggestion/ })).toBeInTheDocument();
+  });
 });

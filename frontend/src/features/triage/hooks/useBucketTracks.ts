@@ -25,6 +25,8 @@ export interface BucketTrack {
   key_camelot?: string | null;
   /** Release artwork when the API has it (the demo does; production rows carry none yet). */
   cover_url?: string | null;
+  /** The recommender's call: keep (null = no keep head yet) and the user's category ids, best first. */
+  prediction?: { keep: boolean | null; category_ids: string[] } | null;
 }
 
 export interface PaginatedBucketTracks {

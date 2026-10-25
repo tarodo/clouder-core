@@ -147,6 +147,20 @@ describe('DemoDb', () => {
     for (const level of ['high', 'medium', 'low', null]) expect(verdicts).toContain(level);
   });
 
+  it('gives some tracks a model suggestion and the open blocks a model', () => {
+    const db = new DemoDb();
+    const block = db.block(firstOpenBlock(db).id);
+    const categories = new Set(block.buckets.map((b) => b.category_id).filter(Boolean));
+    const predictions = block.buckets.flatMap((bk) =>
+      db.bucketTracks(block.id, bk.id).map((t) => t.prediction),
+    );
+    for (const keep of [true, false, null]) expect(predictions.map((p) => p?.keep)).toContain(keep);
+    expect(predictions).toContain(null);
+    for (const p of predictions)
+      for (const id of p?.category_ids ?? []) expect(categories.has(id), id).toBe(true);
+    expect(block.model?.n_labels).toBeGreaterThan(0);
+  });
+
   it('describes the label and artists of every track', () => {
     const db = new DemoDb();
     const block = db.block(firstOpenBlock(db).id);

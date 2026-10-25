@@ -15,6 +15,7 @@ import { useFireTag } from '../hooks/useFireTag';
 import { stagingOverflow } from '../lib/destinationMap';
 import { IconArrowLeft, IconKeyboard } from '../../../components/icons';
 import { bucketLabel, type TriageBucket } from '../../triage/lib/bucketLabels';
+import { suggestedDestinations } from '../../triage/lib/suggestedDestinations';
 import { usePlayback } from '../../playback/usePlayback';
 import { usePlaybackHotkeys } from '../../playback/usePlaybackHotkeys';
 import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
@@ -334,6 +335,10 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
           currentBucketId={bucketId}
           lastTappedBucketId={session.lastTappedBucketId}
           forceMode={session.forceMode}
+          suggested={suggestedDestinations(
+            session.currentTrack.prediction,
+            session.block.buckets,
+          )}
           onAssign={session.assign}
           onToggleForce={session.toggleForce}
         />

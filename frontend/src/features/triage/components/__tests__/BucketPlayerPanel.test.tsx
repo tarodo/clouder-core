@@ -121,6 +121,29 @@ describe('BucketPlayerPanel', () => {
     expect(screen.queryByText('Cur')).not.toBeInTheDocument();
   });
 
+  it("lights the playing track's suggestions, skipping the bucket it sits in", () => {
+    current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
+    // c1 is the current bucket (not a button): it stays unlit and c2 does not move up.
+    const predicted = { ...item, prediction: { keep: true, category_ids: ['c1', 'c2'] } };
+    r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[predicted]} />);
+    expect(screen.getByRole('button', { name: 'Techno, second suggestion' })).toHaveAttribute(
+      'data-variant',
+      'light',
+    );
+    expect(screen.queryByRole('button', { name: /, suggested$/ })).not.toBeInTheDocument();
+  });
+
+  it('lights DISCARD when the model calls the playing track trash', () => {
+    current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
+    const predicted = { ...item, prediction: { keep: false, category_ids: ['c2'] } };
+    r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[predicted]} />);
+    expect(screen.getByRole('button', { name: 'DISCARD, suggested' })).toHaveAttribute(
+      'data-variant',
+      'filled',
+    );
+    expect(screen.getByRole('button', { name: 'Techno, second suggestion' })).toBeInTheDocument();
+  });
+
   it('hides distribute buttons when the block is FINALIZED', () => {
     current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
     mockBlock = { ...mockBlock!, status: 'FINALIZED' };

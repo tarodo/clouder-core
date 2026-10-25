@@ -597,6 +597,12 @@
         "search_miss_clear": "Clear search"
       }
     },
+    "model_line": "Suggestions: model of {{date}} · {{labels}} labels",
+    "model_line_hit": " · first button right {{pct}} %",
+    "suggested": {
+      "primary_aria": "suggested",
+      "secondary_aria": "second suggestion"
+    },
     "bucket_player": {
       "empty": {
         "pick_track": "Pick a track to start playing"

@@ -10,6 +10,7 @@ import { useTriageBlock } from '../hooks/useTriageBlock';
 import { useBucketDistribute } from '../hooks/useBucketDistribute';
 import { BucketDistributeButtons } from './BucketDistributeButtons';
 import { moveDestinationsFor } from '../lib/bucketLabels';
+import { suggestedDestinations } from '../lib/suggestedDestinations';
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
 
@@ -156,7 +157,11 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
         onOpenDevicePicker={() => playback.devices.open(null)}
         onSeekMs={(ms) => void playback.controls.seekMs(ms)}
       />
-      <BucketDistributeButtons destinations={destinations} onDistribute={distribute} />
+      <BucketDistributeButtons
+        destinations={destinations}
+        suggested={suggestedDestinations(effectiveRich?.prediction, blockBuckets)}
+        onDistribute={distribute}
+      />
       <LabelTile
         labelId={effectiveRich?.label_id ?? null}
         labelName={effectiveRich?.label_name ?? null}

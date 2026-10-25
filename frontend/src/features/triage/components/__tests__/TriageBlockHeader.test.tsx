@@ -87,3 +87,30 @@ describe('TriageBlockHeader Finalize CTA', () => {
     expect(screen.queryByRole('button', { name: 'Finalize' })).not.toBeInTheDocument();
   });
 });
+
+describe('TriageBlockHeader model line', () => {
+  const model = { trained_at: '2026-10-24T12:00:00Z', n_labels: 3235, first_hit: 0.714, first_n: 42 };
+
+  it('shows the model date, label count and hit rate', () => {
+    r(<TriageBlockHeader block={block({ model })} onDelete={() => {}} onFinalize={() => {}} />);
+    expect(
+      screen.getByText('Suggestions: model of 24 Oct · 3,235 labels · first button right 71 %'),
+    ).toBeInTheDocument();
+  });
+
+  it('leaves out the hit rate under 20 scored tracks', () => {
+    r(
+      <TriageBlockHeader
+        block={block({ model: { ...model, first_n: 19 } })}
+        onDelete={() => {}}
+        onFinalize={() => {}}
+      />,
+    );
+    expect(screen.getByText('Suggestions: model of 24 Oct · 3,235 labels')).toBeInTheDocument();
+  });
+
+  it('is absent without a model', () => {
+    r(<TriageBlockHeader block={block({ model: null })} onDelete={() => {}} onFinalize={() => {}} />);
+    expect(screen.queryByText(/^Suggestions:/)).not.toBeInTheDocument();
+  });
+});

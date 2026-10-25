@@ -37,10 +37,20 @@ import { clipOf } from './clips';
 import { demoCover } from './covers';
 import { LABEL_PROFILES } from './profiles';
 
+const idHash = (id: string): number => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+
 // A few demo tracks carry each AI level so every badge color shows up.
 const aiVerdict = (id: string): 'high' | 'medium' | 'low' | null => {
-  const h = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 12;
+  const h = idHash(id) % 12;
   return h === 0 ? 'high' : h === 1 ? 'medium' : h === 2 ? 'low' : null;
+};
+
+// The demo user's recommender, so the block page shows its model line.
+const DEMO_MODEL: NonNullable<TriageBlock['model']> = {
+  trained_at: '2026-10-09T03:00:00Z',
+  n_labels: 1240,
+  first_hit: 0.68,
+  first_n: 57,
 };
 
 export interface LibraryQuery {
@@ -169,6 +179,7 @@ export class DemoDb {
     return {
       ...rest,
       style_name: this.styleName(rest.style_id),
+      model: DEMO_MODEL,
       buckets: buckets.map((bucket) => ({
         id: bucket.id,
         bucket_type: bucket.bucket_type,
@@ -207,7 +218,20 @@ export class DemoDb {
         key_name: t.key_name,
         key_camelot: t.key_camelot,
         cover_url: coverOf(t),
+        prediction: this.prediction(t),
       }));
+  }
+
+  // Most tracks get a suggestion and some a discard call, so lit buttons show on both screens.
+  private prediction(t: DemoTrack): BucketTrack['prediction'] {
+    const h = idHash(t.id);
+    if (h % 5 === 4) return null;
+    const ids = this.s.categories.filter((c) => c.style_id === t.style_id).map((c) => c.id);
+    const k = h % ids.length;
+    return {
+      keep: h % 5 === 0 ? false : h % 5 === 3 ? null : true,
+      category_ids: [...ids.slice(k), ...ids.slice(0, k)],
+    };
   }
 
   move(blockId: string, fromId: string, toId: string, trackIds: string[]): number {

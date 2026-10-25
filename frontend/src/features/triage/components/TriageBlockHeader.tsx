@@ -27,6 +27,7 @@ export interface TriageBlockHeaderProps {
 export function TriageBlockHeader({ block, onDelete, onFinalize }: TriageBlockHeaderProps) {
   const { t } = useTranslation();
   const isFinalized = block.status === 'FINALIZED';
+  const model = block.model;
 
   return (
     <Stack gap="sm">
@@ -58,6 +59,17 @@ export function TriageBlockHeader({ block, onDelete, onFinalize }: TriageBlockHe
               </Text>
             )}
           </Group>
+          {model && (
+            <Text c="dimmed" size="sm">
+              {t('triage.model_line', {
+                date: dayjs(model.trained_at).format('D MMM'),
+                labels: model.n_labels.toLocaleString('en-US'),
+              })}
+              {model.first_n >= 20 && model.first_hit != null
+                ? t('triage.model_line_hit', { pct: Math.round(model.first_hit * 100) })
+                : null}
+            </Text>
+          )}
         </Stack>
         {!isFinalized && (
           <Group gap="xs">
