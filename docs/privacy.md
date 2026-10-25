@@ -13,6 +13,7 @@ CLOUDER stores only what a signed-in DJ needs to curate and publish tracks. Ever
 | Aurora audit columns `*_by_user_id` (enrichment runs, auto-enrich and auto-ingest settings) | Which admin started a run or changed a setting | Operations | Set to NULL on deletion; the run or setting stays |
 | Aurora automated backups | All of the above | Point-in-time recovery | 7 days |
 | S3 raw bucket `covers/<user_id>/` | Playlist cover images the user uploaded | Playlist covers | Until the user is deleted (every version is removed) |
+| S3 feature bucket `models/<user_id>/` | The user's triage-suggestion models (`.npz`), trained on their keep / discard decisions per style | Suggested buttons in triage | Until the user is deleted (every version is removed); a replaced model's old version expires after 30 days |
 | S3 lake `bronze/events/` (Firehose, Parquet) | Pseudonymous telemetry: user id, session id, event, track, timestamps — no name, email or IP | Listening analytics on the Home cards | 400 days (lifecycle rule; infrequent access after 90) |
 | S3 lake `bronze/_errors/` | Records Firehose could not convert (may include the same pseudonymous fields) | Debugging a delivery | 30 days |
 | S3 lake `bronze/catalog_export/` | Nightly snapshot that includes `categories` and `category_tracks` | Lakehouse dimensions | 14 days (lifecycle rule) |
@@ -25,7 +26,7 @@ Public YouTube comments collected for tracks (`external_comments`) belong to thi
 
 ## Deleting a user
 
-`scripts/delete_user.py` removes a user from every store above that holds per-user rows. It runs from an operator machine with AWS credentials for the account.
+`scripts/delete_user.py` removes a user from every store above that holds per-user rows. It runs from an operator machine with AWS credentials for the account. `--user-id` takes either spelling of the UUID; the script uses the stored one (32 hex digits, no dashes), as every store keys by it.
 
 ```bash
 export AURORA_CLUSTER_ARN=... AURORA_SECRET_ARN=... RAW_BUCKET_NAME=...
@@ -36,7 +37,7 @@ PYTHONPATH=src .venv/bin/python scripts/delete_user.py --user-id <uuid>
 1. **Dry run.** Runs the real Aurora deletes inside a transaction and rolls it back, then prints the exact row counts per table. Every run starts with it.
 2. **Confirmation.** The real run asks for the user id again (`--yes` skips the prompt).
 3. **Aurora.** One transaction (`collector.user_deletion.delete_user`). The tables come from the catalog: every `*user_id` column marks rows the user owns, foreign keys lead to their children, children go before parents, and the `users` row goes last. Audit columns are set to NULL. A new user-owned table is picked up without code changes, and `tests/db/test_user_deletion_pg.py` fails until its seed covers it.
-4. **Covers.** Every version and delete marker under `covers/<user_id>/` in the raw bucket.
+4. **Covers and models.** Every version and delete marker under `covers/<user_id>/` in the raw bucket and under `models/<user_id>/` in the feature bucket (`--features-bucket`, default `clouder-prod-audio-features`). The audio profiles under `features/` are per video, not per user, and stay.
 5. **Lake.** A tombstone `{"user_id", "deleted_at"}` is written to `s3://<lake>/governance/deleted_users/` (Glue table `clouder_analytics.deleted_users`, no expiry). Then Athena deletes the user's rows from `clouder_silver.events` and `clouder_gold.fct_play`. `stg_events` drops tombstoned users, so neither the nightly build nor a full refresh can bring the rows back; the dbt test `assert_deleted_users_absent` checks this on every build.
 
 Each step can be run again: after a partial failure, run the script again.
@@ -75,7 +76,7 @@ CLOUDER is run by one person for a closed group of DJs who asked to use it.
 | Right | How |
 |---|---|
 | Access, portability (Art. 15, 20) | `scripts/export_user.py` — one JSON file |
-| Erasure (Art. 17) | `scripts/delete_user.py` — Aurora, covers, lake (tombstone and Iceberg deletes) |
+| Erasure (Art. 17) | `scripts/delete_user.py` — Aurora, covers, triage models, lake (tombstone and Iceberg deletes) |
 | Rectification (Art. 16) | Display name and email are copied from Spotify at every sign-in: the user corrects them in their Spotify account, and CLOUDER picks the change up at the next sign-in |
 | Objection to analytics (Art. 21) | No in-app switch yet. On request the owner tombstones the user (`collector.user_deletion.purge_lake`): their events leave silver and gold and stay out of them. Collection itself does not stop — new events still reach bronze (kept 400 days) and the cards' 3-day live tail; stopping it needs a switch in the telemetry handler |
 

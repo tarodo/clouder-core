@@ -5,6 +5,7 @@ import pytest
 from collector import user_export
 
 UID = "11111111-1111-1111-1111-111111111111"
+HEX = "11111111111111111111111111111111"  # users.id: auth mints uuid4().hex
 
 
 def test_credentials_are_redacted() -> None:
@@ -59,7 +60,7 @@ def test_events_page_through_athena_results() -> None:
         {"event_id": "e2", "event_name": "playback_pause"},
     ]
     sql = athena.queries[0]["QueryString"]
-    assert f"user_id = '{UID}'" in sql and "clouder_silver.events" in sql
+    assert f"user_id = '{HEX}'" in sql and "clouder_silver.events" in sql  # telemetry's spelling
     assert athena.queries[0]["WorkGroup"] == "wg"
 
 
@@ -110,7 +111,7 @@ def test_cli_writes_a_private_file_and_prints_no_personal_data(tmp_path, monkeyp
     assert code == 0
     assert stat.S_IMODE(out.stat().st_mode) == 0o600
     data = json.loads(out.read_text())
-    assert data["user_id"] == UID and data["aurora"]["users"][0]["email"] == "me@x.io"
+    assert data["user_id"] == HEX and data["aurora"]["users"][0]["email"] == "me@x.io"
     assert data["covers"] == ["covers/a/1.jpg"] and data["events"] == [{"event_id": "e1"}]
     printed = capsys.readouterr().out
     assert "me@x.io" not in printed and str(out) in printed
