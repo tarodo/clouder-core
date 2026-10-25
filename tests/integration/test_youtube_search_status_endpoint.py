@@ -13,12 +13,13 @@ from collector.settings import reset_settings_cache
 
 QUEUE = "https://sqs.test/youtube-search"
 COUNTS = {
+    "total": 4465,
     "waiting": 120,
     "searched_recently": 210,
-    "searched_total": 4600,
     "matched": 3400,
     "needs_review": 940,
     "not_found": 3,
+    "error": 2,
     "videos": 1200,
 }
 
@@ -97,8 +98,14 @@ def test_running_with_counts_and_outcomes(monkeypatch):
     assert status == 200
     assert body["status"] == "running"
     assert body["queue"] == {"waiting_messages": 0, "in_flight": 1, "delayed": 0}
-    assert body["tracks"] == {"waiting": 120, "searched_last_10_min": 210, "searched_total": 4600}
-    assert body["results"] == {"matched": 3400, "needs_review": 940, "not_found": 3, "videos": 1200}
+    assert body["tracks"] == {"total": 4465, "waiting": 120, "searched_last_10_min": 210}
+    assert body["results"] == {
+        "matched": 3400,
+        "needs_review": 940,
+        "not_found": 3,
+        "error": 2,
+        "videos": 1200,
+    }
     assert sqs.asked == QUEUE
     assert datetime.now(UTC) - repo.recent_since == pytest.approx(
         timedelta(minutes=10), abs=timedelta(seconds=5)

@@ -56,7 +56,14 @@ class FakeRepo:
 
     def spotify_search_counts(self, since):
         self.since = since
-        return {"waiting": 4120, "not_found": 3051, "searched_recently": 600}
+        return {
+            "total": 9000,
+            "found": 1800,
+            "not_found": 3051,
+            "waiting": 4120,
+            "no_isrc": 29,
+            "searched_recently": 600,
+        }
 
 
 class FakeSqs:
@@ -86,7 +93,14 @@ def test_running_when_a_worker_holds_a_message(monkeypatch):
 
     assert status == 200
     assert body["status"] == "running"
-    assert body["tracks"] == {"waiting": 4120, "not_found": 3051, "searched_last_10_min": 600}
+    assert body["tracks"] == {
+        "total": 9000,
+        "found": 1800,
+        "not_found": 3051,
+        "waiting": 4120,
+        "no_isrc": 29,
+        "searched_last_10_min": 600,
+    }
     assert body["queue"] == {"waiting_messages": 0, "in_flight": 1, "delayed": 0}
     assert body["paused_until"] is None
     assert sqs.asked[0] == QUEUE

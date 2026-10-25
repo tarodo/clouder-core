@@ -15,7 +15,14 @@ function status(over: Partial<Status> = {}): Status {
     status: 'running',
     paused_until: null,
     queue: { waiting_messages: 0, in_flight: 1, delayed: 0 },
-    tracks: { waiting: 4120, not_found: 3051, searched_last_10_min: 600 },
+    tracks: {
+      total: 9000,
+      found: 1800,
+      not_found: 3051,
+      waiting: 4120,
+      no_isrc: 29,
+      searched_last_10_min: 600,
+    },
     ...over,
   };
 }

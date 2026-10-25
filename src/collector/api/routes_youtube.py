@@ -68,14 +68,15 @@ def _handle_youtube_search_status(
             "paused_until": paused_until.isoformat() if paused_until else None,
             "queue": queue,
             "tracks": {
+                "total": counts["total"],
                 "waiting": counts["waiting"],
                 "searched_last_10_min": counts["searched_recently"],
-                "searched_total": counts["searched_total"],
             },
             "results": {
                 "matched": counts["matched"],
                 "needs_review": counts["needs_review"],
                 "not_found": counts["not_found"],
+                "error": counts["error"],
                 "videos": counts["videos"],
             },
         },

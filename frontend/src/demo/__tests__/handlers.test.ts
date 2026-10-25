@@ -94,10 +94,27 @@ describe('demo handlers', () => {
     expect(res.status).toBe(404);
   });
 
-  it('serves the AI analysis card: pair levels and queue', async () => {
-    const status = await (await get('/admin/analysis/status')).json();
-    expect(Object.keys(status.pair).sort()).toEqual(['clean', 'high', 'low', 'medium']);
-    expect(Object.keys(status.queue).sort()).toEqual(['analyzed', 'failed', 'unusable', 'waiting']);
-    expect(status.queue.waiting).toBeGreaterThan(0);
+  it('serves a track pipeline whose stages add up', async () => {
+    // a missing key turns the sum into NaN, so a renamed bucket fails here
+    const sum = (o: Record<string, number>, keys: string[]) =>
+      keys.reduce((n, k) => n + (o[k] ?? NaN), 0);
+    const sp = await (await get('/admin/spotify/search-status')).json();
+    const yt = await (await get('/admin/youtube/search-status')).json();
+    const an = await (await get('/admin/analysis/status')).json();
+    expect(sum(sp.tracks, ['found', 'not_found', 'waiting', 'no_isrc'])).toBe(sp.tracks.total);
+    expect(
+      sum(yt.results, ['matched', 'needs_review', 'not_found', 'error']) + yt.tracks.waiting,
+    ).toBe(yt.tracks.total);
+    expect(sp.tracks.total).toBe(yt.tracks.total);
+    // the YT Music matches are the base of both analysis stages
+    expect(an.queue.total).toBe(yt.results.matched);
+    expect(
+      sum(an.pair, ['high', 'medium', 'low', 'clean']) +
+        sum(an.queue, ['waiting', 'in_progress', 'failed', 'unusable']),
+    ).toBe(an.queue.total);
+    expect(an.profile.total).toBe(yt.results.matched);
+    expect(sum(an.profile, ['waiting', 'in_progress', 'profiled', 'failed', 'unusable'])).toBe(
+      an.profile.total,
+    );
   });
 });

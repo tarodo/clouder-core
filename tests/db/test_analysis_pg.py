@@ -202,8 +202,15 @@ def test_status_before_any_claim(repo) -> None:
         "last_result_at": None,
         "analyzers": [],
         "pair": {"high": 0, "medium": 0, "low": 0, "clean": 0},
-        "queue": {"waiting": 3, "analyzed": 0, "failed": 0, "unusable": 0},
-        "profile": {"waiting": 3, "profiled": 0, "failed": 0, "unusable": 0},
+        "queue": {"total": 3, "waiting": 3, "in_progress": 0, "failed": 0, "unusable": 0},
+        "profile": {
+            "total": 3,
+            "waiting": 3,
+            "in_progress": 0,
+            "profiled": 0,
+            "failed": 0,
+            "unusable": 0,
+        },
         "models": {"count": 0, "last_trained_at": None},
     }
 
@@ -223,7 +230,7 @@ def _row(pg, track_id: str, analyzer: str, status: str, *, ai: bool = False, unt
 
 
 def test_status_pair_clean_and_queue(repo, pg) -> None:
-    for tid in ("one", "unus", "unfail", "exp", "live", "none", "detect"):
+    for tid in ("one", "unus", "unfail", "flagunus", "exp", "live", "none", "detect"):
         _track(pg, tid, T0 - timedelta(days=5), ytmusic=f"vid_{tid}")
     rows = [
         ("new", "ai_lofcz", "ok", False),  # clean, analyzed
@@ -239,6 +246,8 @@ def test_status_pair_clean_and_queue(repo, pg) -> None:
         ("unfail", "ai_lofcz", "unusable_source", False),  # failed wins
         ("unfail", "ai_deezer", "failed", False),
         ("detect", "ai_detect", "ok", False),  # no pair row: waiting
+        ("flagunus", "ai_lofcz", "ok", True),  # a flag wins: medium, like its badge
+        ("flagunus", "ai_deezer", "unusable_source", False),
     ]
     for tid, analyzer, st, ai in rows:
         _row(pg, tid, analyzer, st, ai=ai)
@@ -248,11 +257,15 @@ def test_status_pair_clean_and_queue(repo, pg) -> None:
     _row(pg, "live", "ai_deezer", "leased", until=T0 + timedelta(minutes=30))
 
     status = repo.analysis_status(now=T0)
-    assert status["pair"] == {"high": 0, "medium": 0, "low": 1, "clean": 1}
-    # one, exp, none, detect; no-yt has no YT Music match
-    assert status["queue"] == {"waiting": 4, "analyzed": 2, "failed": 2, "unusable": 1}
+    assert status["pair"] == {"high": 0, "medium": 1, "low": 1, "clean": 1}
+    # one, exp, none, detect wait; live is in progress; no-yt has no YT Music match.
+    # Every YT Music match lands in exactly one bucket.
+    queue = {"total": 11, "waiting": 4, "in_progress": 1, "failed": 2, "unusable": 1}
+    assert status["queue"] == queue
+    rest = sum(v for k, v in queue.items() if k != "total")
+    assert sum(status["pair"].values()) + rest == queue["total"]
     later = repo.analysis_status(now=T0 + timedelta(minutes=31))
-    assert later["queue"]["waiting"] == 5
+    assert (later["queue"]["waiting"], later["queue"]["in_progress"]) == (5, 0)
 
 
 def _finish_all(repo) -> None:
@@ -543,16 +556,18 @@ def test_status_profile_counts(repo) -> None:
     repo.record_analysis_results(
         lease_id=L1, items=[_ok("new", analyzer="light_profile"), failed], now=T0
     )
-    # "old" keeps a live lease, so it is held; no mapped track is left waiting
+    # "old" keeps a live lease: in progress, not waiting
     assert repo.analysis_status(now=T0)["profile"] == {
+        "total": 3,
         "waiting": 0,
+        "in_progress": 1,
         "profiled": 1,
         "failed": 1,
         "unusable": 0,
     }
     # once the lease runs out, "old" is waiting again
-    later = T0 + timedelta(days=1)
-    assert repo.analysis_status(now=later)["profile"]["waiting"] == 1
+    later = repo.analysis_status(now=T0 + timedelta(days=1))["profile"]
+    assert (later["waiting"], later["in_progress"]) == (1, 0)
 
 
 def test_status_models_block(repo, pg) -> None:
