@@ -35,18 +35,33 @@ export function BucketDistributeButtons({
           const level = suggestionLevel(suggested, b.id);
           // Secondary is light in the theme's primary colour, never DISCARD's light red. The
           // monochrome theme's light fill is near-white, so the accent border carries it.
+          const softDiscard = discard && level === 'primary';
           const variant =
-            level === 'primary' ? 'filled' : level === 'secondary' || discard ? 'light' : 'default';
+            softDiscard ? 'light' : level === 'primary' ? 'filled' : level === 'secondary' || discard ? 'light' : 'default';
           return (
             <Button
               key={b.id}
               variant={variant}
               color={discard ? 'red' : undefined}
-              bd={level === 'secondary' ? '1px solid var(--color-accent)' : undefined}
+              bd={
+                softDiscard
+                  ? '1px solid var(--color-danger)'
+                  : level === 'secondary'
+                    ? '1px solid var(--color-accent)'
+                    : undefined
+              }
+              styles={{
+                root: softDiscard
+                  ? {
+                      background: 'var(--color-danger-suggest-bg)',
+                      color: 'var(--color-danger-suggest-fg)',
+                    }
+                  : undefined,
+                label: { whiteSpace: 'normal' },
+              }}
               size="sm"
               onClick={() => onDistribute(b.id)}
               aria-label={level ? `${label}, ${t(`triage.suggested.${level}_aria`)}` : label}
-              styles={{ label: { whiteSpace: 'normal' } }}
             >
               {label}
             </Button>

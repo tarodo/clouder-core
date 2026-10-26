@@ -19,8 +19,9 @@
   color: var(--color-accent-fg);
 }
 .button[data-suggested='primary'][data-bucket-type='DISCARD'] {
-  background: var(--color-danger);
+  background: var(--color-danger-suggest-bg);
   border-color: var(--color-danger);
+  color: var(--color-danger-suggest-fg);
 }
 .button[data-suggested='secondary'] {
   background: var(--color-accent-soft);
