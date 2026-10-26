@@ -137,9 +137,8 @@ describe('BucketPlayerPanel', () => {
     current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
     const predicted = { ...item, prediction: { keep: false, category_ids: ['c2'] } };
     r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[predicted]} />);
-    expect(screen.getByRole('button', { name: 'DISCARD, suggested' })).toHaveAttribute(
-      'data-variant',
-      'filled',
+    expect(screen.getByRole('button', { name: 'DISCARD, suggested' }).style.background).toBe(
+      'var(--color-danger-suggest-bg)',
     );
     expect(screen.getByRole('button', { name: 'Techno, second suggestion' })).toBeInTheDocument();
   });

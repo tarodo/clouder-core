@@ -61,7 +61,7 @@ describe('BucketDistributeButtons', () => {
     expect(screen.getByRole('button', { name: 'DISCARD' })).toHaveAttribute('data-variant', 'light');
   });
 
-  it('lights DISCARD as a filled red primary', () => {
+  it('lights DISCARD as a soft red primary with a danger border', () => {
     r(
       <BucketDistributeButtons
         destinations={[staging, discard]}
@@ -70,7 +70,6 @@ describe('BucketDistributeButtons', () => {
       />,
     );
     const btn = screen.getByRole('button', { name: 'DISCARD, suggested' });
-    expect(btn).toHaveAttribute('data-variant', 'filled');
-    expect(btn.style.getPropertyValue('--button-bg')).toContain('red');
+    expect(btn.style.background).toBe('var(--color-danger-suggest-bg)');
   });
 });

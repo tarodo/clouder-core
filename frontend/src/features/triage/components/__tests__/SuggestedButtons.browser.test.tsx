@@ -34,10 +34,20 @@ const hasDarkBorder = (name: string) => {
   return a > 200 && Math.max(r, g, b) < 80;
 };
 
+/** Lit DISCARD: tinted (not solid danger, not the unlit pale fill) with a danger border. */
+function expectSoftDiscard(lit: string, unlit: string) {
+  const solid = rgba(getComputedStyle(document.documentElement).getPropertyValue('--color-danger'));
+  const bgLit = bg(lit);
+  expect(bgLit).not.toBe(unlit);
+  expect(rgba(bgLit)).not.toEqual(solid);
+  expect(rgba(style(lit).borderTopColor)).toEqual(solid);
+  expect(style(lit).borderTopWidth).toBe('1px');
+}
+
 const wrap = (ui: ReactNode) => render(<MantineProvider theme={clouderTheme}>{ui}</MantineProvider>);
 
 describe('suggested buttons, real styles', () => {
-  test('bucket player: filled primary, pale non-red secondary, red DISCARD primary', () => {
+  test('bucket player: filled primary, pale non-red secondary, soft red DISCARD primary', () => {
     wrap(
       <>
         <BucketDistributeButtons destinations={buckets} suggested={{ primary: 's2', secondary: 's1' }}
@@ -53,10 +63,10 @@ describe('suggested buttons, real styles', () => {
     expect(isRed(secondary)).toBe(false);
     expect(hasDarkBorder('Warm-up, second suggestion')).toBe(true);
     expect(hasDarkBorder('Closing')).toBe(false);
-    expect(isRed(bg('DISCARD, suggested'))).toBe(true);
+    expectSoftDiscard('DISCARD, suggested', bg('DISCARD'));
   });
 
-  test('curate: filled primary, pale non-red secondary, red DISCARD primary', () => {
+  test('curate: filled primary, pale non-red secondary, soft red DISCARD primary', () => {
     wrap(
       <>
         <DestinationGrid buckets={buckets} currentBucketId="new" lastTappedBucketId={null} forceMode={false}
@@ -72,6 +82,6 @@ describe('suggested buttons, real styles', () => {
     expect(isRed(secondary)).toBe(false);
     expect(hasDarkBorder('Assign to Warm-up, second suggestion')).toBe(true);
     expect(hasDarkBorder('Assign to Closing')).toBe(false);
-    expect(isRed(bg('Assign to DISCARD, suggested'))).toBe(true);
+    expectSoftDiscard('Assign to DISCARD, suggested', bg('Assign to DISCARD'));
   });
 });
