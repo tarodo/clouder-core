@@ -975,6 +975,7 @@
       "run_failed": "Failed to start the run",
       "planned": "Next runs",
       "none_planned": "Nothing planned.",
+      "next_plan": "new runs planned {{ago}}",
       "last_run": "Last run",
       "running": "Running",
       "done": "Done",

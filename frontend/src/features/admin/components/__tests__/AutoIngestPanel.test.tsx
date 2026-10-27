@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { testTheme } from '../../../../test/theme';
 import { server } from '../../../../test/setup';
-import { AutoIngestPanel, autoIngestPollInterval } from '../AutoIngestPanel';
+import { AutoIngestPanel, autoIngestPollInterval, nextPlan } from '../AutoIngestPanel';
 import type { AutoIngestState } from '../../../../api/autoIngest';
 
 const PLANNED = '2026-10-08T14:30:00+00:00';
@@ -133,6 +133,25 @@ describe('AutoIngestPanel', () => {
     renderPanel();
     await userEvent.click(await screen.findByRole('button', { name: 'Run now' }));
     await waitFor(() => expect(calls.run).toBe(1));
+  });
+
+  it('after the day\'s last run points at the next plan, not at nothing', async () => {
+    serve(state()); // its one planned run is long past
+    renderPanel();
+    expect(await screen.findByText(/^new runs planned in/)).toBeInTheDocument();
+    expect(screen.queryByText('Nothing planned.')).not.toBeInTheDocument();
+  });
+
+  it('a disabled schedule plans nothing', async () => {
+    serve({ ...state({ enabled: false }), planned_runs: [] });
+    renderPanel();
+    expect(await screen.findByText('Nothing planned.')).toBeInTheDocument();
+  });
+
+  it('the planner runs daily at 00:05 UTC', () => {
+    expect(nextPlan(new Date('2026-10-27T16:40:00Z')).toISOString()).toBe('2026-10-28T00:05:00.000Z');
+    expect(nextPlan(new Date('2026-10-27T00:01:00Z')).toISOString()).toBe('2026-10-27T00:05:00.000Z');
+    expect(nextPlan(new Date('2026-10-27T00:05:00Z')).toISOString()).toBe('2026-10-28T00:05:00.000Z');
   });
 
   it('shows planned runs, last run outcomes and stuck pairs', async () => {

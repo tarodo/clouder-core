@@ -71,6 +71,16 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const fmt = (n: number) => n.toLocaleString('en-US');
 
+/** The planner's next run: daily at 00:05 UTC it plans the runs up to the one after
+ * (auto_ingest_schedule.PLANNER_AT), so after the day's last run nothing is planned until then. */
+export function nextPlan(now: Date): Date {
+  const at = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 5));
+  if (at <= now) at.setUTCDate(at.getUTCDate() + 1);
+  return at;
+}
+
+const hhmm = (at: Date) => at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
 const POLL_MS = 10_000;
 // Run now is asynchronous: keep polling until the run has taken its lease (Aurora may be waking).
 const START_WINDOW_MS = 90_000;
@@ -183,6 +193,7 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
   const inProgress = !!last?.in_progress;
   const now = dayjs();
   const next = data.planned_runs.map((at) => dayjs(at)).find((at) => at.isAfter(now));
+  const plan = data.settings.enabled && !next ? dayjs(nextPlan(now.toDate())) : null;
   const released = (last?.pairs ?? []).reduce(
     (sum, p) => sum + (p.ok ? (p.item_count ?? 0) : 0),
     0,
@@ -314,12 +325,14 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
               {a(data.settings.enabled ? 'on' : 'off')}
             </Badge>
           }
-          value={
+          value={next ? hhmm(next.toDate()) : plan ? hhmm(plan.toDate()) : '—'}
+          caption={
             next
-              ? next.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              : '—'
+              ? next.fromNow()
+              : plan
+                ? a('next_plan', { ago: plan.fromNow() })
+                : a('none_planned')
           }
-          caption={next ? next.fromNow() : a('none_planned')}
         >
           <Stack gap={2}>
             {data.planned_runs.map((at) => (
