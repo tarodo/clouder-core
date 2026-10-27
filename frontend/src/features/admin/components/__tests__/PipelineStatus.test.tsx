@@ -211,6 +211,18 @@ describe('PipelineStatus', () => {
     expect(profile).toHaveTextContent(/Last result .*minutes? ago/);
   });
 
+  it('badges a stage running while it holds leases, however old its last result', async () => {
+    // a batch run posts its results at the end: hours of leases and no new result
+    renderWith({
+      analysis: analysis({
+        queue: { total: 70767, waiting: 42349, in_progress: 1500, failed: 133, unusable: 30 },
+      }),
+    });
+    const ai = await stage('AI detection');
+    expect(ai.querySelector('[data-tone]')).toHaveTextContent('Running');
+    expect(ai).toHaveTextContent('Last result 5 hours ago');
+  });
+
   it('splits the audio profile and shows the models', async () => {
     renderWith({
       analysis: analysis({ models: { count: 3, last_trained_at: hoursAgo(30), items: [] } }),
@@ -251,9 +263,10 @@ describe('PipelineStatus', () => {
 
   it('says when a stage has no result yet', async () => {
     const quiet = analysis().analyzers.map((a) =>
-      a.name === 'light_profile' ? { ...a, last_result_at: null } : a,
+      a.name === 'light_profile' ? { ...a, leased: 0, last_result_at: null } : a,
     );
-    renderWith({ analysis: analysis({ analyzers: quiet }) });
+    const profile0 = { ...analysis().profile, waiting: 66839, in_progress: 0 };
+    renderWith({ analysis: analysis({ analyzers: quiet, profile: profile0 }) });
     const profile = await stage('Audio profile');
     expect(profile.querySelector('[data-tone]')).toHaveTextContent('Idle');
     expect(profile).toHaveTextContent('No results yet');

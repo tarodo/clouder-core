@@ -3008,7 +3008,8 @@ ROUTES: list[dict[str, Any]] = [
         "method": "post",
         "path": "/v1/analysis/claim",
         "auth": SERVICE,
-        "summary": "Analyzer: lease tracks that miss any of the given analyzers (30 min).",
+        "summary": "Analyzer: lease tracks that miss any of the given analyzers "
+        "(30 min by default, up to 24 h).",
         "requestBody": {
             "required": True,
             "content": {

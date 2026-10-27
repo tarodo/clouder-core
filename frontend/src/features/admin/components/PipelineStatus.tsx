@@ -161,8 +161,17 @@ function lastResult(data: Analysis, names: readonly string[]): dayjs.Dayjs | nul
 }
 
 /** The analyzer is one service, but its stages move apart (one can wait on the other), so
- * each stage is Running or Idle by its own results; a silent service wins over both. */
-function StageBadge({ data, names }: { data: Analysis; names: readonly string[] }) {
+ * each stage is Running or Idle by its own leases and results; a silent service wins over
+ * both. A batch run holds its leases for hours and posts at the end. */
+function StageBadge({
+  data,
+  names,
+  inProgress,
+}: {
+  data: Analysis;
+  names: readonly string[];
+  inProgress: number;
+}) {
   const { t } = useTranslation();
   const claim = data.last_claim_at ? dayjs(data.last_claim_at) : null;
   const silentDays = claim ? dayjs().diff(claim, 'day') : null;
@@ -172,7 +181,7 @@ function StageBadge({ data, names }: { data: Analysis; names: readonly string[] 
       ? ['gray', t('admin.pipeline.never')]
       : silentDays !== null && silentDays >= STALE_DAYS
         ? ['orange', t('admin.pipeline.stale', { days: silentDays })]
-        : last !== null && dayjs().diff(last, 'minute') < ACTIVE_MINUTES
+        : inProgress > 0 || (last !== null && dayjs().diff(last, 'minute') < ACTIVE_MINUTES)
           ? ['green', t('admin.pipeline.analyzing')]
           : ['gray', t('admin.pipeline.idle')];
   return (
@@ -279,7 +288,9 @@ export function PipelineStatus() {
         {an && (
           <Stage
             title={p('ai')}
-            status={<StageBadge data={an} names={AI_ANALYZERS} />}
+            status={
+              <StageBadge data={an} names={AI_ANALYZERS} inProgress={an.queue.in_progress} />
+            }
             total={an.queue.total}
             doneLabel={p('checked')}
             base={p('of_matches')}
@@ -304,7 +315,13 @@ export function PipelineStatus() {
         {an && (
           <Stage
             title={p('profile')}
-            status={<StageBadge data={an} names={PROFILE_ANALYZERS} />}
+            status={
+              <StageBadge
+                data={an}
+                names={PROFILE_ANALYZERS}
+                inProgress={an.profile.in_progress}
+              />
+            }
             total={an.profile.total}
             doneLabel={p('profiled')}
             base={p('of_matches')}

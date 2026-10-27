@@ -14,7 +14,6 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .. import audio_profile, ml_jobs
 from ..errors import AppError, ValidationError
-from ..repositories.analysis import LEASE_SECONDS
 from ..schemas import (
     AnalysisClaimRequest,
     AnalysisFeaturesRequest,
@@ -49,13 +48,17 @@ def _handle_analysis_claim(
     request = _parse(event, AnalysisClaimRequest)
     now, lease_id = deps.utc_now(), str(uuid4())
     tracks = _repository().claim_analysis(
-        limit=request.limit, analyzers=request.analyzers, lease_id=lease_id, now=now
+        limit=request.limit,
+        analyzers=request.analyzers,
+        lease_id=lease_id,
+        now=now,
+        lease_seconds=request.lease_seconds,
     )
     return _json_response(
         200,
         {
             "lease_id": lease_id,
-            "lease_expires_at": (now + timedelta(seconds=LEASE_SECONDS)).isoformat(),
+            "lease_expires_at": (now + timedelta(seconds=request.lease_seconds)).isoformat(),
             "tracks": tracks,
         },
         correlation_id,
