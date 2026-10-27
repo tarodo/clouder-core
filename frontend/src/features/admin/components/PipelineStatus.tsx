@@ -1,4 +1,4 @@
-import { Badge, Box, Group, Paper, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Badge, Box, Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { api } from '../../../api/client';
 import type { components } from '../../../api/schema';
 import { AiBadge } from '../../playback/AiBadge';
+import { Note, StatCard } from './StatCard';
 
 dayjs.extend(relativeTime);
 
@@ -74,64 +75,43 @@ function Stage(props: {
   const { title, status, total, doneLabel, base, buckets, children } = props;
   const done = total - buckets.filter((b) => b.open).reduce((sum, b) => sum + b.value, 0);
   return (
-    <Paper withBorder p="md" radius="md" data-stage={title}>
-      <Stack gap="xs">
-        <Group justify="space-between" wrap="nowrap" mih={22}>
-          <Text fw={600}>{title}</Text>
-          {status}
-        </Group>
-        <div>
-          <Group gap={6} align="baseline">
-            <Text fw={700} size="xl" lh={1.2}>
-              {fmt(done)}
-            </Text>
-            <Text size="sm" c="dimmed">
-              / {fmt(total)}
-            </Text>
-          </Group>
-          <Text size="xs" c="dimmed">
-            {doneLabel} · {pct(done, total)} {base}
-          </Text>
-        </div>
-        <Progress.Root size="sm">
-          {buckets
-            .filter((b) => b.color && b.value > 0)
-            .map((b) => (
-              <Progress.Section key={b.label} value={(b.value / total) * 100} color={b.color} />
-            ))}
-        </Progress.Root>
-        <Stack gap={2}>
-          {buckets.map((b) => (
-            <Group key={b.label} justify="space-between" wrap="nowrap" data-bucket={b.label}>
-              <Group gap={4} wrap="nowrap">
-                {/* one marker column: an AI badge is wider than a swatch */}
-                <Box w={24} style={{ display: 'flex', flexShrink: 0 }}>
-                  {b.marker ?? <Swatch color={b.color} />}
-                </Box>
-                <Text size="sm">{b.label}</Text>
-              </Group>
-              <Group gap="xs" wrap="nowrap">
-                <Text size="sm" fw={600}>
-                  {fmt(b.value)}
-                </Text>
-                <Text size="xs" c="dimmed" w={44} ta="right">
-                  {b.open ? '' : pct(b.value, done)}
-                </Text>
-              </Group>
-            </Group>
+    <StatCard
+      title={title}
+      status={status}
+      value={fmt(done)}
+      total={fmt(total)}
+      caption={`${doneLabel} · ${pct(done, total)} ${base}`}
+    >
+      <Progress.Root size="sm">
+        {buckets
+          .filter((b) => b.color && b.value > 0)
+          .map((b) => (
+            <Progress.Section key={b.label} value={(b.value / total) * 100} color={b.color} />
           ))}
-        </Stack>
-        {children && <Stack gap={2}>{children}</Stack>}
+      </Progress.Root>
+      <Stack gap={2}>
+        {buckets.map((b) => (
+          <Group key={b.label} justify="space-between" wrap="nowrap" data-bucket={b.label}>
+            <Group gap={4} wrap="nowrap">
+              {/* one marker column: an AI badge is wider than a swatch */}
+              <Box w={24} style={{ display: 'flex', flexShrink: 0 }}>
+                {b.marker ?? <Swatch color={b.color} />}
+              </Box>
+              <Text size="sm">{b.label}</Text>
+            </Group>
+            <Group gap="xs" wrap="nowrap">
+              <Text size="sm" fw={600}>
+                {fmt(b.value)}
+              </Text>
+              <Text size="xs" c="dimmed" w={44} ta="right">
+                {b.open ? '' : pct(b.value, done)}
+              </Text>
+            </Group>
+          </Group>
+        ))}
       </Stack>
-    </Paper>
-  );
-}
-
-function Note({ children }: { children: ReactNode }) {
-  return (
-    <Text size="xs" c="dimmed">
-      {children}
-    </Text>
+      {children && <Stack gap={2}>{children}</Stack>}
+    </StatCard>
   );
 }
 
@@ -288,9 +268,7 @@ export function PipelineStatus() {
         {an && (
           <Stage
             title={p('ai')}
-            status={
-              <StageBadge data={an} names={AI_ANALYZERS} inProgress={an.queue.in_progress} />
-            }
+            status={<StageBadge data={an} names={AI_ANALYZERS} inProgress={an.queue.in_progress} />}
             total={an.queue.total}
             doneLabel={p('checked')}
             base={p('of_matches')}
@@ -316,11 +294,7 @@ export function PipelineStatus() {
           <Stage
             title={p('profile')}
             status={
-              <StageBadge
-                data={an}
-                names={PROFILE_ANALYZERS}
-                inProgress={an.profile.in_progress}
-              />
+              <StageBadge data={an} names={PROFILE_ANALYZERS} inProgress={an.profile.in_progress} />
             }
             total={an.profile.total}
             doneLabel={p('profiled')}

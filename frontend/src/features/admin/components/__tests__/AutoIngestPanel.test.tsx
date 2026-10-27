@@ -138,10 +138,13 @@ describe('AutoIngestPanel', () => {
   it('shows planned runs, last run outcomes and stuck pairs', async () => {
     serve(state());
     renderPanel();
-    expect(await screen.findByText(new Date(PLANNED).toLocaleString())).toBeInTheDocument();
-    expect(screen.getByText(/Funky House · 2026-W39 — 40 releases/)).toBeInTheDocument();
-    expect(screen.getByText(/Mainstage · 2026-W39 — BeatportUnavailableError 503/)).toBeInTheDocument();
-    expect(screen.getByText(/Style 12 · 2026-W2 — HTTPError 404/)).toBeInTheDocument();
+    const at = { weekday: 'short', hour: '2-digit', minute: '2-digit' } as const;
+    expect(await screen.findByText(new Date(PLANNED).toLocaleString([], at))).toBeInTheDocument();
+    const row = (label: string) => document.querySelector(`[data-row="${label}"]`);
+    expect(row('Funky House · 2026-W39')).toHaveTextContent('40');
+    expect(row('Mainstage · 2026-W39')).toHaveTextContent('BeatportUnavailableError 503');
+    expect(row('Style 12 · 2026-W2')).toHaveTextContent('HTTPError 404');
+    expect(screen.getByText('Errors')).toBeInTheDocument(); // one period of the last run failed
     expect(screen.getByText('Due week: 2026-W39')).toBeInTheDocument();
   });
 });

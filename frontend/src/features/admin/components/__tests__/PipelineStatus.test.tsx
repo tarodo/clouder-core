@@ -125,7 +125,7 @@ function renderWith(bodies: { spotify?: Spotify; youtube?: Youtube; analysis?: A
 
 async function stage(title: string): Promise<HTMLElement> {
   await screen.findByText(title);
-  const el = document.querySelector<HTMLElement>(`[data-stage="${title}"]`);
+  const el = document.querySelector<HTMLElement>(`[data-card="${title}"]`);
   if (!el) throw new Error(`no stage ${title}`);
   return el;
 }

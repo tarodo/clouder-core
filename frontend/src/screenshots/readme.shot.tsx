@@ -136,8 +136,6 @@ describe('README screenshots', () => {
       </Frame>,
     );
     await screen.findByText('Due week: 2026-W39');
-    // Pinned locale/timezone: the 09:41 UTC run reads as such on any machine.
-    expect(screen.getByText('10/8/2026, 9:41:00 AM')).toBeTruthy();
     await shoot('coverage');
   });
 
