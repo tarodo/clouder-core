@@ -454,7 +454,7 @@ def test_list_bucket_tracks_validates_block_and_bucket() -> None:
 def test_list_bucket_tracks_search_lowers_term() -> None:
     api = _api_with_responses(
         [
-            [{"block_id": "b-1", "bucket_id": "bk-1", "style_id": "s-1"}],
+            [{"block_id": "b-1", "bucket_id": "bk-1", "bucket_type": "NEW", "style_id": "s-1"}],
             [],
             [{"total": 0}],
         ]
@@ -1073,7 +1073,11 @@ _TRACK_ROW = {
 
 def _tracks_repo(row: dict) -> tuple[TriageRepository, MagicMock]:
     api = _api_with_responses(
-        [[{"block_id": "b-1", "bucket_id": "bk-1", "style_id": "s-1"}], [row], [{"total": 1}]]
+        [
+            [{"block_id": "b-1", "bucket_id": "bk-1", "bucket_type": "NEW", "style_id": "s-1"}],
+            [row],
+            [{"total": 1}],
+        ]
     )
     return TriageRepository(api), api
 
