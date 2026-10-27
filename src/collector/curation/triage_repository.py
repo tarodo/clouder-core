@@ -25,6 +25,7 @@ from collector.curation.triage_service import (
     BUCKET_TYPE_NEW,
     BUCKET_TYPE_NOT,
     BUCKET_TYPE_OLD,
+    BUCKET_TYPE_STAGING,
     BUCKET_TYPE_UNCLASSIFIED,
     TECHNICAL_BUCKET_TYPES,
 )
@@ -996,7 +997,7 @@ class TriageRepository:
     ) -> tuple[list[BucketTrackRowOut], int]:
         guard = self._data_api.execute(
             """
-            SELECT tb.id AS block_id, tbk.id AS bucket_id, tb.style_id
+            SELECT tb.id AS block_id, tbk.id AS bucket_id, tbk.bucket_type, tb.style_id
             FROM triage_blocks tb
             JOIN triage_buckets tbk ON tbk.triage_block_id = tb.id
             WHERE tb.id = :block_id
@@ -1028,6 +1029,15 @@ class TriageRepository:
             term = "%" + search.strip().lower() + "%"
             params["search"] = term
             search_clause = " AND t.normalized_title ILIKE :search"
+        # A bucket still being sorted plays the model's keeps first and its discards next (the
+        # keep threshold splits keep_score), surest first, then the unscored. Predictions land
+        # after the block is created, so the order shifts as they come. A decided bucket lists
+        # the latest move first.
+        order = (
+            "tbt.added_at DESC, t.id ASC"
+            if guard[0]["bucket_type"] in (BUCKET_TYPE_STAGING, BUCKET_TYPE_DISCARD)
+            else "p.keep_score DESC NULLS LAST, p.track_id IS NULL, tbt.added_at DESC, t.id ASC"
+        )
 
         rows = self._data_api.execute(
             f"""
@@ -1064,8 +1074,8 @@ class TriageRepository:
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type,
                 tbt.added_at, cl.id, cl.name,
-                p.track_id, p.keep, p.categories
-            ORDER BY tbt.added_at DESC, t.id ASC
+                p.track_id, p.keep, p.keep_score, p.categories
+            ORDER BY {order}
             LIMIT :limit OFFSET :offset
             """,
             params,
