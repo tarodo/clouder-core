@@ -2568,7 +2568,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Analyzer: lease tracks that miss any of the given analyzers (30 min). */
+        /** Analyzer: lease tracks that miss any of the given analyzers (30 min by default, up to 24 h). */
         post: {
             parameters: {
                 query?: never;
@@ -8918,6 +8918,11 @@ export interface components {
             limit: number;
             /** Analyzers */
             analyzers: string[];
+            /**
+             * Lease Seconds
+             * @default 1800
+             */
+            lease_seconds: number;
         };
         /** AnalysisFeatureItem */
         AnalysisFeatureItem: {

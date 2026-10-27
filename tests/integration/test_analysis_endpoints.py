@@ -133,6 +133,29 @@ def test_claim_leases_for_the_service(monkeypatch):
     (_, kw), *_ = repo.calls
     assert (kw["limit"], kw["analyzers"], kw["now"]) == (5, ["ai_detect"], NOW)
     assert kw["lease_id"] == body["lease_id"]
+    assert kw["lease_seconds"] == 1800
+
+
+def test_claim_takes_a_longer_lease_for_a_batch(monkeypatch):
+    repo = FakeRepo()
+    status, body = _call(
+        monkeypatch,
+        repo,
+        "POST /v1/analysis/claim",
+        SERVICE,
+        {"limit": 50, "analyzers": ["ai_detect"], "lease_seconds": 43200},
+    )
+    assert status == 200
+    assert body["lease_expires_at"] == "2026-10-16T15:00:00+00:00"
+    (_, kw), *_ = repo.calls
+    assert kw["lease_seconds"] == 43200
+
+
+@pytest.mark.parametrize("lease_seconds", [59, 86401])
+def test_claim_bounds_the_lease(monkeypatch, lease_seconds):
+    body = {"analyzers": ["ai_detect"], "lease_seconds": lease_seconds}
+    status, body = _call(monkeypatch, FakeRepo(), "POST /v1/analysis/claim", SERVICE, body)
+    assert (status, body["error_code"]) == (400, "validation_error")
 
 
 @pytest.mark.parametrize("ctx", [USER, ADMIN, {}])

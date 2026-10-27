@@ -141,6 +141,8 @@ class AnalysisClaimRequest(BaseModel):
 
     limit: StrictInt = Field(default=20, ge=1, le=50)
     analyzers: list[AnalyzerName] = Field(min_length=1, max_length=8)
+    # 30 min for a claim posted right away; a batch run holds its tracks for hours.
+    lease_seconds: StrictInt = Field(default=1800, ge=60, le=86400)
 
     @field_validator("analyzers")
     @classmethod

@@ -1679,7 +1679,8 @@ paths:
       - admin
   /v1/analysis/claim:
     post:
-      summary: 'Analyzer: lease tracks that miss any of the given analyzers (30 min).'
+      summary: 'Analyzer: lease tracks that miss any of the given analyzers (30 min
+        by default, up to 24 h).'
       responses:
         '200':
           description: Leased tracks.
@@ -6211,6 +6212,12 @@ components:
           minItems: 1
           title: Analyzers
           type: array
+        lease_seconds:
+          default: 1800
+          maximum: 86400
+          minimum: 60
+          title: Lease Seconds
+          type: integer
       required:
       - analyzers
       title: AnalysisClaimRequest
