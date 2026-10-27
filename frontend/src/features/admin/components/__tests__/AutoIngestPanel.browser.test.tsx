@@ -67,8 +67,8 @@ describe('AutoIngestPanel layout', () => {
       </QueryClientProvider>,
     );
     const times = await screen.findByLabelText('Times');
-    // One field per row on a phone: the inputs take the column's width.
-    expect(times.getBoundingClientRect().width).toBeGreaterThan(280);
+    // Two fields a row, as in a desktop card (a phone column is about as wide): still readable.
+    expect(times.getBoundingClientRect().width).toBeGreaterThan(140);
     const column = screen.getByTestId('column');
     const card = column.firstElementChild as HTMLElement;
     expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth);

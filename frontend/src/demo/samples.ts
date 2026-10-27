@@ -159,6 +159,8 @@ export function sampleYoutubeReview(styleId: number, weekYear: number, weekNumbe
 }
 
 export function sampleAutoIngest() {
+  // Today's three random runs: the first went 4 hours ago, two are ahead.
+  const at = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
   return {
     running: false,
     settings: {
@@ -171,13 +173,9 @@ export function sampleAutoIngest() {
       backfill_floor: '2026-01-03',
       updated_at: '2026-10-08T06:00:00+00:00',
     },
-    planned_runs: [
-      '2026-10-08T09:41:00+00:00',
-      '2026-10-08T15:12:00+00:00',
-      '2026-10-08T22:37:00+00:00',
-    ],
+    planned_runs: [at(-4), at(3), at(9)],
     last_run: {
-      at: '2026-10-08T03:50:00+00:00',
+      at: at(-4),
       manual: false,
       ok: true,
       pairs: [

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ActionIcon,
   Alert,
+  Badge,
   Button,
-  Card,
   Group,
-  List,
   Loader,
   NumberInput,
   SegmentedControl,
@@ -15,14 +15,20 @@ import {
   Switch,
   Text,
   TextInput,
-  Title,
+  Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import type { AutoIngestSettingsBody, AutoIngestState } from '../../../api/autoIngest';
 import { useAutoIngest } from '../hooks/useAutoIngest';
 import { useSaveAutoIngest } from '../hooks/useSaveAutoIngest';
 import { useRunAutoIngest } from '../hooks/useRunAutoIngest';
+import { Note, StatCard } from './StatCard';
+
+dayjs.extend(relativeTime);
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -37,7 +43,10 @@ interface Form {
 }
 
 function parseTimes(raw: string): string[] {
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function timesValid(times: string[]): boolean {
@@ -59,6 +68,8 @@ function week(y: number, n: number): string {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+const fmt = (n: number) => n.toLocaleString('en-US');
 
 const POLL_MS = 10_000;
 // Run now is asynchronous: keep polling until the run has taken its lease (Aurora may be waking).
@@ -100,11 +111,12 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
   }, [saved]);
 
   const zones = useMemo(
-    () => Array.from(new Set(['UTC', form?.timezone ?? 'UTC', ...Intl.supportedValuesOf('timeZone')])),
+    () =>
+      Array.from(new Set(['UTC', form?.timezone ?? 'UTC', ...Intl.supportedValuesOf('timeZone')])),
     [form?.timezone],
   );
 
-  if (query.isLoading || (query.data && !form)) return <Skeleton height={320} />;
+  if (query.isLoading || (query.data && !form)) return <Skeleton height={300} />;
   if (query.isError || !query.data || !form) {
     return <Alert color="red">{t('admin.auto_ingest.load_failed')}</Alert>;
   }
@@ -117,7 +129,8 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
   const timesOk = timesValid(times);
   const runsPerDay = intIn(form.runsPerDay, 1, 12);
   const periodsPerRun = intIn(form.periodsPerRun, 1, 10);
-  const floorOk = /^\d{4}-\d{2}-\d{2}$/.test(form.floor) && form.floor >= '2000-01-01' && form.floor <= today();
+  const floorOk =
+    /^\d{4}-\d{2}-\d{2}$/.test(form.floor) && form.floor >= '2000-01-01' && form.floor <= today();
   const valid =
     (form.mode === 'random' || timesOk) && runsPerDay !== null && periodsPerRun !== null && floorOk;
 
@@ -149,7 +162,11 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
     try {
       await run.mutateAsync();
       setAwaitingSince(Date.now());
-      notifications.show({ color: 'green', title: t('admin.auto_ingest.run_started'), message: '' });
+      notifications.show({
+        color: 'green',
+        title: t('admin.auto_ingest.run_started'),
+        message: '',
+      });
     } catch (err) {
       notifications.show({
         color: 'red',
@@ -159,174 +176,257 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
     }
   };
 
+  const a = (key: string, opts?: Record<string, unknown>) => t(`admin.auto_ingest.${key}`, opts);
+  const pair = (p: { style_id: number; week_year: number; week_number: number }) =>
+    `${styleName(p.style_id)} · ${week(p.week_year, p.week_number)}`;
   const last = data.last_run;
   const inProgress = !!last?.in_progress;
+  const now = dayjs();
+  const next = data.planned_runs.map((at) => dayjs(at)).find((at) => at.isAfter(now));
+  const released = (last?.pairs ?? []).reduce(
+    (sum, p) => sum + (p.ok ? (p.item_count ?? 0) : 0),
+    0,
+  );
+  const [tone, status] = !last
+    ? [null, null]
+    : inProgress
+      ? data.running
+        ? ['green', a('running')]
+        : ['red', a('interrupted')]
+      : last.failed_step
+        ? ['red', a('login_failed_badge')]
+        : last.pairs.some((p) => !p.ok)
+          ? ['orange', a('errors')]
+          : ['gray', a('done')];
 
   return (
-    <Card withBorder>
-      <Stack gap="md">
-        <Group justify="space-between">
-          <Title order={4}>{t('admin.auto_ingest.title')}</Title>
-          <Text size="sm" c="dimmed">
-            {t('admin.auto_ingest.due_week', {
-              week: week(data.due_week.week_year, data.due_week.week_number),
-            })}
-          </Text>
-        </Group>
-        <Text size="sm" c="dimmed">{t('admin.auto_ingest.hint')}</Text>
-
-        <Switch
-          label={t('admin.auto_ingest.enabled')}
-          checked={form.enabled}
-          onChange={(e) => set({ enabled: e.currentTarget.checked })}
-        />
-        <SegmentedControl
-          value={form.mode}
-          onChange={(v) => set({ mode: v as Form['mode'] })}
-          data={[
-            { value: 'fixed', label: t('admin.auto_ingest.mode_fixed') },
-            { value: 'random', label: t('admin.auto_ingest.mode_random') },
-          ]}
-        />
-        <SimpleGrid cols={{ base: 1, sm: 2 }}>
-          {form.mode === 'fixed' ? (
-            <TextInput
-              label={t('admin.auto_ingest.times')}
-              placeholder="09:00, 15:00, 21:00"
-              value={form.times}
-              onChange={(e) => set({ times: e.currentTarget.value })}
-              error={timesOk ? null : t('admin.auto_ingest.times_invalid')}
+    <Stack gap="sm">
+      <Group gap="xs" align="center">
+        <Text fw={600}>{a('title')}</Text>
+        <Tooltip
+          label={a('hint')}
+          multiline
+          w={340}
+          withArrow
+          events={{ hover: true, focus: true, touch: true }}
+        >
+          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={a('about')}>
+            <IconInfoCircle size={16} />
+          </ActionIcon>
+        </Tooltip>
+        <Text size="sm" c="dimmed">
+          {a('due_week', { week: week(data.due_week.week_year, data.due_week.week_number) })}
+        </Text>
+      </Group>
+      <SimpleGrid type="container" cols={{ base: 1, '560px': 2, '1100px': 4 }}>
+        <StatCard
+          title={a('schedule')}
+          status={
+            <Switch
+              size="xs"
+              labelPosition="left"
+              label={a('enabled')}
+              checked={form.enabled}
+              onChange={(e) => set({ enabled: e.currentTarget.checked })}
             />
-          ) : (
+          }
+        >
+          <SegmentedControl
+            size="xs"
+            fullWidth
+            value={form.mode}
+            onChange={(v) => set({ mode: v as Form['mode'] })}
+            data={[
+              { value: 'fixed', label: a('mode_fixed') },
+              { value: 'random', label: a('mode_random') },
+            ]}
+          />
+          <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
+            {form.mode === 'fixed' ? (
+              <TextInput
+                size="xs"
+                label={a('times')}
+                placeholder="09:00, 15:00, 21:00"
+                value={form.times}
+                onChange={(e) => set({ times: e.currentTarget.value })}
+                error={timesOk ? null : a('times_invalid')}
+              />
+            ) : (
+              <NumberInput
+                size="xs"
+                label={a('runs_per_day')}
+                min={1}
+                max={12}
+                allowDecimal={false}
+                value={form.runsPerDay}
+                onChange={(v) => set({ runsPerDay: v })}
+              />
+            )}
+            <Select
+              size="xs"
+              label={a('timezone')}
+              data={zones}
+              searchable
+              allowDeselect={false}
+              value={form.timezone}
+              onChange={(v) => v && set({ timezone: v })}
+            />
             <NumberInput
-              label={t('admin.auto_ingest.runs_per_day')}
+              size="xs"
+              label={a('periods_per_run')}
               min={1}
-              max={12}
+              max={10}
               allowDecimal={false}
-              value={form.runsPerDay}
-              onChange={(v) => set({ runsPerDay: v })}
+              value={form.periodsPerRun}
+              onChange={(v) => set({ periodsPerRun: v })}
             />
-          )}
-          <Select
-            label={t('admin.auto_ingest.timezone')}
-            data={zones}
-            searchable
-            allowDeselect={false}
-            value={form.timezone}
-            onChange={(v) => v && set({ timezone: v })}
-          />
-          <NumberInput
-            label={t('admin.auto_ingest.periods_per_run')}
-            min={1}
-            max={10}
-            allowDecimal={false}
-            value={form.periodsPerRun}
-            onChange={(v) => set({ periodsPerRun: v })}
-          />
-          <TextInput
-            type="date"
-            label={t('admin.auto_ingest.floor')}
-            min="2000-01-01"
-            max={today()}
-            value={form.floor}
-            onChange={(e) => set({ floor: e.currentTarget.value })}
-            error={floorOk ? null : t('admin.auto_ingest.floor_invalid')}
-          />
-        </SimpleGrid>
-        <Group>
-          <Button onClick={submit} loading={save.isPending} disabled={!valid}>
-            {t('admin.auto_ingest.save')}
-          </Button>
-          <Button variant="default" onClick={runNow} loading={run.isPending} disabled={data.running}>
-            {t('admin.auto_ingest.run_now')}
-          </Button>
-        </Group>
+            <TextInput
+              size="xs"
+              type="date"
+              label={a('floor')}
+              min="2000-01-01"
+              max={today()}
+              value={form.floor}
+              onChange={(e) => set({ floor: e.currentTarget.value })}
+              error={floorOk ? null : a('floor_invalid')}
+            />
+          </SimpleGrid>
+          <Group gap="xs">
+            <Button size="xs" onClick={submit} loading={save.isPending} disabled={!valid}>
+              {a('save')}
+            </Button>
+            <Button
+              size="xs"
+              variant="default"
+              onClick={runNow}
+              loading={run.isPending}
+              disabled={data.running}
+            >
+              {a('run_now')}
+            </Button>
+          </Group>
+        </StatCard>
 
-        <SimpleGrid cols={{ base: 1, md: 3 }}>
-          <Stack gap={4}>
-            <Text fw={600} size="sm">{t('admin.auto_ingest.planned')}</Text>
-            {data.planned_runs.length === 0 ? (
-              <Text size="sm" c="dimmed">{t('admin.auto_ingest.none_planned')}</Text>
-            ) : (
-              <List size="sm">
-                {data.planned_runs.map((at) => (
-                  <List.Item key={at}>{new Date(at).toLocaleString()}</List.Item>
-                ))}
-              </List>
-            )}
+        <StatCard
+          title={a('planned')}
+          status={
+            <Badge color={data.settings.enabled ? 'green' : 'gray'} variant="light">
+              {a(data.settings.enabled ? 'on' : 'off')}
+            </Badge>
+          }
+          value={
+            next
+              ? next.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : '—'
+          }
+          caption={next ? next.fromNow() : a('none_planned')}
+        >
+          <Stack gap={2}>
+            {data.planned_runs.map((at) => (
+              <Row
+                key={at}
+                label={new Date(at).toLocaleString([], {
+                  weekday: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                value={dayjs(at).fromNow()}
+                dimmed={!dayjs(at).isAfter(now)}
+              />
+            ))}
           </Stack>
-          <Stack gap={4}>
-            <Text fw={600} size="sm">
-              {inProgress && data.running ? t('admin.auto_ingest.current_run') : t('admin.auto_ingest.last_run')}
-            </Text>
-            {inProgress && (
-              data.running ? (
-                <Group gap={6} wrap="nowrap">
-                  <Loader size="xs" />
-                  <Text size="sm">
-                    {last?.current
-                      ? t('admin.auto_ingest.fetching', {
-                          pair: `${styleName(last.current.style_id)} · ${week(last.current.week_year, last.current.week_number)}`,
-                          n: (last.pairs?.length ?? 0) + 1,
-                          total: last.total ?? '?',
-                        })
-                      : t('admin.auto_ingest.logging_in')}
-                  </Text>
-                </Group>
-              ) : (
-                <Text size="sm" c="red">{t('admin.auto_ingest.interrupted')}</Text>
-              )
-            )}
-            {!last ? (
-              <Text size="sm" c="dimmed">{t('admin.auto_ingest.never_run')}</Text>
-            ) : (
-              <>
+        </StatCard>
+
+        <StatCard
+          title={a('last_run')}
+          status={
+            tone && (
+              <Badge color={tone} variant="light">
+                {status}
+              </Badge>
+            )
+          }
+          value={last ? fmt(released) : '—'}
+          caption={
+            last
+              ? [a('releases'), dayjs(last.at).fromNow(), last.manual && a('manual')]
+                  .filter(Boolean)
+                  .join(' · ')
+              : a('never_run')
+          }
+        >
+          {last?.failed_step && (
+            <Note c="red">
+              {a('login_failed', { step: last.failed_step, status: last.status ?? '—' })}
+            </Note>
+          )}
+          {last && last.pairs.length === 0 && !last.failed_step && !inProgress && (
+            <Note>{a('nothing_due')}</Note>
+          )}
+          <Stack gap={2}>
+            {last?.pairs.map((p) => (
+              <Row
+                key={`${p.style_id}-${p.week_year}-${p.week_number}`}
+                label={pair(p)}
+                value={p.ok ? fmt(p.item_count ?? 0) : (p.error ?? '')}
+                error={!p.ok}
+              />
+            ))}
+            {inProgress && data.running && (
+              <Group gap={6} wrap="nowrap">
+                <Loader size="xs" />
                 <Text size="sm">
-                  {new Date(last.at).toLocaleString()}
-                  {last.manual ? ` · ${t('admin.auto_ingest.manual')}` : ''}
+                  {last?.current
+                    ? a('fetching', {
+                        pair: pair(last.current),
+                        n: (last.pairs?.length ?? 0) + 1,
+                        total: last.total ?? '?',
+                      })
+                    : a('logging_in')}
                 </Text>
-                {last.failed_step && (
-                  <Text size="sm" c="red">
-                    {t('admin.auto_ingest.login_failed', {
-                      step: last.failed_step,
-                      status: last.status ?? '—',
-                    })}
-                  </Text>
-                )}
-                {last.pairs.length === 0 && !last.failed_step && !inProgress && (
-                  <Text size="sm" c="dimmed">{t('admin.auto_ingest.nothing_due')}</Text>
-                )}
-                <List size="sm">
-                  {last.pairs.map((p) => (
-                    <List.Item key={`${p.style_id}-${p.week_year}-${p.week_number}`}>
-                      <Text size="sm" c={p.ok ? undefined : 'red'}>
-                        {styleName(p.style_id)} · {week(p.week_year, p.week_number)} —{' '}
-                        {p.ok
-                          ? t('admin.auto_ingest.releases', { count: p.item_count ?? 0 })
-                          : p.error}
-                      </Text>
-                    </List.Item>
-                  ))}
-                </List>
-              </>
+              </Group>
             )}
           </Stack>
-          <Stack gap={4}>
-            <Text fw={600} size="sm">{t('admin.auto_ingest.stuck')}</Text>
-            {data.stuck.length === 0 ? (
-              <Text size="sm" c="dimmed">{t('admin.auto_ingest.none_stuck')}</Text>
-            ) : (
-              <List size="sm">
-                {data.stuck.map((p) => (
-                  <List.Item key={`${p.style_id}-${p.week_year}-${p.week_number}`}>
-                    {styleName(p.style_id)} · {week(p.week_year, p.week_number)} — {p.last_error}
-                  </List.Item>
-                ))}
-              </List>
-            )}
+        </StatCard>
+
+        <StatCard title={a('stuck')} value={fmt(data.stuck.length)} caption={a('stuck_caption')}>
+          <Stack gap={2}>
+            {data.stuck.map((p) => (
+              <Row
+                key={`${p.style_id}-${p.week_year}-${p.week_number}`}
+                label={pair(p)}
+                value={p.last_error ?? ''}
+                error
+              />
+            ))}
           </Stack>
-        </SimpleGrid>
-      </Stack>
-    </Card>
+        </StatCard>
+      </SimpleGrid>
+    </Stack>
+  );
+}
+
+/** A card row: what on the left, how it went on the right. The label wraps; a long error
+ * truncates and keeps its full text in the title. */
+function Row(props: { label: string; value: string; error?: boolean; dimmed?: boolean }) {
+  const { label, value, error, dimmed } = props;
+  const c = error ? 'red' : dimmed ? 'dimmed' : undefined;
+  return (
+    <Group justify="space-between" wrap="nowrap" gap="xs" data-row={label}>
+      <Text size="sm" c={c} style={{ minWidth: 0 }}>
+        {label}
+      </Text>
+      <Text
+        size="sm"
+        fw={600}
+        c={c}
+        truncate="end"
+        title={value}
+        maw="50%"
+        style={{ flexShrink: 0 }}
+      >
+        {value}
+      </Text>
+    </Group>
   );
 }
