@@ -27,6 +27,7 @@ vi.mock('../useMoveTracks', async (importOriginal) => {
 });
 
 import { useBucketDistribute } from '../useBucketDistribute';
+import { telemetry } from '../../../../lib/telemetry/sdk';
 
 const T = (id: string): PlaybackTrack => ({
   id, title: id, artists: '', cover_url: null, duration_ms: 0, spotify_id: `sp-${id}`,
@@ -86,5 +87,22 @@ describe('useBucketDistribute', () => {
     distribute.current('dst');
     expect(moveMutate).toHaveBeenCalledTimes(1);
     expect(playSpy).not.toHaveBeenCalled();
+  });
+
+  it('reports the decision with the lit level of the tapped button', () => {
+    const trackSpy = vi.spyOn(telemetry, 'track');
+    current = T('t1');
+    queueTracks = [T('t1'), T('t2')];
+    const distribute = renderDistribute();
+    distribute.current('dst', 'first');
+    moveMutate.mock.calls[0]![1].onSuccess();
+    expect(trackSpy).toHaveBeenCalledWith('track_categorized', {
+      track_id: 't1',
+      decision_ms: expect.any(Number),
+      category_key: 'STAGING',
+      action: 'moved_to_bucket',
+      surface: 'bucket_player',
+      suggestion: 'first',
+    });
   });
 });

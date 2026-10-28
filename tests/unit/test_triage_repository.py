@@ -1097,7 +1097,11 @@ def test_bucket_tracks_include_own_prediction() -> None:
             "p_categories": '[["c-2", 0.6], ["c-1", 0.3]]',
         }
     )
-    assert _list(repo).prediction == {"keep": True, "category_ids": ["c-2", "c-1"]}
+    assert _list(repo).prediction == {
+        "keep": True,
+        "category_ids": ["c-2", "c-1"],
+        "unsure": False,
+    }
     call = api.execute.call_args_list[1]
     assert "p.user_id = :user_id" in call.args[0]
     assert call.args[1]["user_id"] == "u-1"
@@ -1113,7 +1117,7 @@ def test_bucket_tracks_never_show_other_users_prediction() -> None:
 
 def test_bucket_tracks_prediction_without_categories() -> None:
     repo, _ = _tracks_repo({**_TRACK_ROW, "p_scored": True, "p_keep": None, "p_categories": None})
-    assert _list(repo).prediction == {"keep": None, "category_ids": []}
+    assert _list(repo).prediction == {"keep": None, "category_ids": [], "unsure": False}
 
 
 _BLOCK_ROW = {

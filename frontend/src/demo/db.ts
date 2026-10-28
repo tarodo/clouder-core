@@ -222,7 +222,8 @@ export class DemoDb {
       }));
   }
 
-  // Most tracks get a suggestion and some a discard call, so lit buttons show on both screens.
+  // Most tracks get a suggestion, some a discard call and some an unsure one, so every way the
+  // buttons light shows on both screens.
   private prediction(t: DemoTrack): BucketTrack['prediction'] {
     const h = idHash(t.id);
     if (h % 5 === 4) return null;
@@ -231,6 +232,7 @@ export class DemoDb {
     return {
       keep: h % 5 === 0 ? false : h % 5 === 3 ? null : true,
       category_ids: [...ids.slice(k), ...ids.slice(0, k)],
+      unsure: h % 5 === 2,
     };
   }
 

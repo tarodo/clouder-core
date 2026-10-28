@@ -601,7 +601,7 @@
     "model_line_hit": " · first button right {{pct}} %",
     "suggested": {
       "primary_aria": "suggested",
-      "secondary_aria": "second suggestion"
+      "secondary_aria": "weaker suggestion"
     },
     "bucket_player": {
       "empty": {

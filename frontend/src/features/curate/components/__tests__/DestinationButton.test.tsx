@@ -211,7 +211,7 @@ describe('DestinationButton', () => {
       'primary',
     );
     expect(
-      screen.getByRole('button', { name: 'Assign to NEW, second suggestion' }),
+      screen.getByRole('button', { name: 'Assign to NEW, weaker suggestion' }),
     ).toHaveAttribute('data-suggested', 'secondary');
   });
 

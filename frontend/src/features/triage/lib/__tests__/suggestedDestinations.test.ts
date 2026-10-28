@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { suggestedDestinations } from '../suggestedDestinations';
+import { suggestedDestinations, suggestionLevel, suggestionTag } from '../suggestedDestinations';
 import type { TriageBucket } from '../bucketLabels';
 
 const stage = (id: string, category_id: string, inactive = false): TriageBucket => ({
@@ -45,5 +45,36 @@ describe('suggestedDestinations', () => {
   it('only one category alive: no secondary', () => {
     expect(suggestedDestinations({ keep: true, category_ids: ['c-gone', 'c-a'] }, buckets))
       .toEqual({ primary: 's-a', secondary: null });
+  });
+});
+
+describe('a score near the keep threshold (unsure)', () => {
+  it('lights the first category and DISCARD, whichever side it fell on', () => {
+    const lit = { primary: 's-b', secondary: 'disc', unsure: true };
+    expect(suggestedDestinations({ keep: true, category_ids: ['c-b', 'c-a'], unsure: true }, buckets))
+      .toEqual(lit);
+    expect(suggestedDestinations({ keep: false, category_ids: ['c-b', 'c-a'], unsure: true }, buckets))
+      .toEqual(lit);
+  });
+
+  it('lights both pale', () => {
+    const suggested = { primary: 's-b', secondary: 'disc', unsure: true };
+    expect(suggestionLevel(suggested, 's-b')).toBe('secondary');
+    expect(suggestionLevel(suggested, 'disc')).toBe('secondary');
+    expect(suggestionLevel(suggested, 's-a')).toBeNull();
+  });
+});
+
+describe('suggestionTag: what the tapped button was, for telemetry', () => {
+  const sure = { primary: 's-b', secondary: 's-a' };
+  it('names the lit level', () => {
+    expect(suggestionTag(sure, 's-b')).toBe('first');
+    expect(suggestionTag(sure, 's-a')).toBe('second');
+    expect(suggestionTag(sure, 's-c')).toBe('unlit');
+    expect(suggestionTag({ primary: 's-b', secondary: 'disc', unsure: true }, 'disc')).toBe('unsure');
+  });
+
+  it('is absent when nothing was lit', () => {
+    expect(suggestionTag({ primary: null, secondary: null }, 's-b')).toBeUndefined();
   });
 });

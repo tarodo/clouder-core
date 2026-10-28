@@ -57,11 +57,11 @@ describe('suggested buttons, real styles', () => {
       </>,
     );
     const primary = bg('Peak time, suggested');
-    const secondary = bg('Warm-up, second suggestion');
+    const secondary = bg('Warm-up, weaker suggestion');
     const unlit = bg('Closing');
     expect(new Set([primary, secondary, unlit]).size).toBe(3);
     expect(isRed(secondary)).toBe(false);
-    expect(hasDarkBorder('Warm-up, second suggestion')).toBe(true);
+    expect(hasDarkBorder('Warm-up, weaker suggestion')).toBe(true);
     expect(hasDarkBorder('Closing')).toBe(false);
     expectSoftDiscard('DISCARD, suggested', bg('DISCARD'));
   });
@@ -76,12 +76,33 @@ describe('suggested buttons, real styles', () => {
       </>,
     );
     const primary = bg('Assign to Peak time, suggested');
-    const secondary = bg('Assign to Warm-up, second suggestion');
+    const secondary = bg('Assign to Warm-up, weaker suggestion');
     const unlit = bg('Assign to Closing');
     expect(new Set([primary, secondary, unlit]).size).toBe(3);
     expect(isRed(secondary)).toBe(false);
-    expect(hasDarkBorder('Assign to Warm-up, second suggestion')).toBe(true);
+    expect(hasDarkBorder('Assign to Warm-up, weaker suggestion')).toBe(true);
     expect(hasDarkBorder('Assign to Closing')).toBe(false);
     expectSoftDiscard('Assign to DISCARD, suggested', bg('Assign to DISCARD'));
+  });
+
+  test('unsure: the category and DISCARD both pale, nothing filled or soft red', () => {
+    const unsure = { primary: 's2', secondary: 'disc', unsure: true };
+    wrap(
+      <>
+        <BucketDistributeButtons destinations={buckets} suggested={unsure} onDistribute={() => {}} />
+        <DestinationGrid buckets={buckets} currentBucketId="new" lastTappedBucketId={null} forceMode={false}
+          suggested={unsure} onAssign={() => {}} onToggleForce={() => {}} />
+      </>,
+    );
+    for (const name of [
+      'Peak time, weaker suggestion',
+      'DISCARD, weaker suggestion',
+      'Assign to Peak time, weaker suggestion',
+      'Assign to DISCARD, weaker suggestion',
+    ]) {
+      expect(hasDarkBorder(name)).toBe(true);
+    }
+    expect(screen.queryByRole('button', { name: /, suggested$/ })).toBeNull();
+    expect(bg('Assign to DISCARD, weaker suggestion')).toBe(bg('Assign to Peak time, weaker suggestion'));
   });
 });

@@ -4616,6 +4616,7 @@ export interface paths {
                                 prediction?: {
                                     keep: boolean | null;
                                     category_ids: string[];
+                                    unsure: boolean;
                                 } | null;
                             }[];
                             total: number;

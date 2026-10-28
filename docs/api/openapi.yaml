@@ -3093,6 +3093,7 @@ paths:
                           required:
                           - keep
                           - category_ids
+                          - unsure
                           properties:
                             keep:
                               type:
@@ -3102,6 +3103,8 @@ paths:
                               type: array
                               items:
                                 type: string
+                            unsure:
+                              type: boolean
                   total:
                     type: integer
                   limit:

@@ -47,7 +47,7 @@ PROP_ALLOWLIST: dict[str, frozenset[str]] = {
     ),
     "track_view": frozenset({"track_id", "dwell_ms"}),
     "track_categorized": frozenset(
-        {"track_id", "decision_ms", "category_key", "action", "surface"}
+        {"track_id", "decision_ms", "category_key", "action", "surface", "suggestion"}
     ),
     "playback_play": frozenset({"track_id", "position_ms", "duration_ms", "source"}),
     "playback_pause": frozenset({"track_id", "position_ms", "duration_ms", "seek_count"}),

@@ -21,6 +21,7 @@ import {
 } from '../lib/lastCurateLocation';
 import { usePlayback } from '../../playback/usePlayback';
 import { toPlaybackTrack } from '../../triage/lib/toPlaybackTrack';
+import { suggestedDestinations, suggestionTag } from '../../triage/lib/suggestedDestinations';
 import { useTelemetry } from '../../../lib/telemetry/hooks';
 
 export interface UseCurateSessionArgs {
@@ -229,10 +230,11 @@ export function useCurateSession({
     if (currentTrackId) telemetry.markShown(currentTrackId);
   }, [currentTrackId, telemetry]);
 
-  const destinations = useMemo<TriageBucket[]>(() => {
-    if (!blockQuery.data) return [];
-    return blockQuery.data.buckets.filter((b) => b.id !== bucketId);
-  }, [blockQuery.data, bucketId]);
+  const blockBuckets = useMemo(() => blockQuery.data?.buckets ?? [], [blockQuery.data]);
+  const destinations = useMemo<TriageBucket[]>(
+    () => blockBuckets.filter((b) => b.id !== bucketId),
+    [blockBuckets, bucketId],
+  );
 
   const status: CurateStatus = useMemo(() => {
     if (blockQuery.isError || tracksQuery.isError) return 'error';
@@ -394,6 +396,11 @@ export function useCurateSession({
   const { mutate: removeFromCategoryMutate } = useRemoveTrackFromCategory();
   const fireMutation = useCallback(
     (input: MoveInput, lastOp: LastOp, categoryKey: string) => {
+      // How the tapped button was lit: the grid lights from the block's full bucket list.
+      const suggestion = suggestionTag(
+        suggestedDestinations(lastOp.track.prediction, blockBuckets),
+        input.toBucketId,
+      );
       moveMutate(input, {
         onSuccess: () => {
           writeLastCurateLocation(styleId, blockId, bucketId);
@@ -405,6 +412,7 @@ export function useCurateSession({
               decision_ms: telemetry.msSinceShown(trackId),
               category_key: categoryKey,
               action: 'categorized_curate',
+              ...(suggestion && { suggestion }),
             });
           }
           // Race guard: if user undid (UNDO_WITHIN clears lastOp) or replaced
@@ -437,7 +445,17 @@ export function useCurateSession({
         },
       });
     },
-    [moveMutate, addToCategoryMutate, blockId, bucketId, styleId, emitErrorToast, t, telemetry],
+    [
+      moveMutate,
+      addToCategoryMutate,
+      blockId,
+      bucketId,
+      styleId,
+      emitErrorToast,
+      t,
+      telemetry,
+      blockBuckets,
+    ],
   );
 
   const assign = useCallback(
