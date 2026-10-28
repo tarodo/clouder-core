@@ -1,4 +1,5 @@
 import { Container, Stack, Tabs } from '@mantine/core';
+import { useEffect, useRef } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { RunProgressToast } from '../components/RunProgressToast';
@@ -35,12 +36,28 @@ export function AdminLayout() {
 
   const active =
     TAB_VALUES.find((v) => location.pathname.startsWith(v)) ?? '/admin/coverage';
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    listRef.current
+      ?.querySelector('[data-active]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [active]);
 
   return (
     <Container size="xl" py="md">
       <Stack gap="md">
-        <Tabs value={active} onChange={(v) => v && navigate(v)} keepMounted={false}>
-          <Tabs.List>
+        {/* Eight tabs: one row that scrolls sideways on a phone, never wrapped rows. The root
+            scrolls, so the list stays as wide as its tabs and its baseline runs under all of them. */}
+        <Tabs
+          value={active}
+          onChange={(v) => v && navigate(v)}
+          keepMounted={false}
+          styles={{
+            root: { overflowX: 'auto', scrollbarWidth: 'none' },
+            list: { flexWrap: 'nowrap', width: 'max-content', minWidth: '100%' },
+          }}
+        >
+          <Tabs.List ref={listRef}>
             {TABS.map((tab) => (
               <Tabs.Tab key={tab.value} value={tab.value}>
                 {tab.label}
