@@ -88,6 +88,37 @@ describe('useCurateSession telemetry', () => {
     expect(Number.isInteger(props.decision_ms)).toBe(true);
   });
 
+  it('assign reports how the tapped button was lit', async () => {
+    server.use(
+      http.get('http://localhost/triage/blocks/blk1', () =>
+        HttpResponse.json({
+          ...BLOCK,
+          buckets: [
+            ...BLOCK.buckets,
+            { id: 'disc', bucket_type: 'DISCARD', category_id: null, category_name: null, inactive: false, track_count: 0 },
+          ],
+        })),
+      http.get('http://localhost/triage/blocks/blk1/buckets/src/tracks', () =>
+        HttpResponse.json({
+          items: [{ ...TRACK, prediction: { keep: false, category_ids: [], unsure: false } }],
+          total: 1, limit: 50, offset: 0,
+        })),
+    );
+    const spy = vi.spyOn(telemetry, 'track');
+    const { result } = renderHook(
+      () => useCurateSession({ blockId: 'blk1', bucketId: 'src', styleId: 'sty1' }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.currentTrack?.track_id).toBe('tr-1'));
+    act(() => result.current.assign('disc'));
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith(
+        'track_categorized',
+        expect.objectContaining({ action: 'categorized_curate', suggestion: 'first' }),
+      ),
+    );
+  });
+
   it('undo emits track_categorized(undo, surface=curate)', async () => {
     const spy = vi.spyOn(telemetry, 'track');
     const { result } = renderHook(

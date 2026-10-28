@@ -10,7 +10,7 @@ import { useTriageBlock } from '../hooks/useTriageBlock';
 import { useBucketDistribute } from '../hooks/useBucketDistribute';
 import { BucketDistributeButtons } from './BucketDistributeButtons';
 import { moveDestinationsFor } from '../lib/bucketLabels';
-import { suggestedDestinations } from '../lib/suggestedDestinations';
+import { suggestedDestinations, suggestionTag } from '../lib/suggestedDestinations';
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
 
@@ -56,6 +56,8 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
   const effectiveRich =
     richTrack ??
     (lastRichRef.current?.track_id === current?.id ? lastRichRef.current : null);
+
+  const suggested = suggestedDestinations(effectiveRich?.prediction, blockBuckets);
 
   const playerState: PlayerCardState = (() => {
     if (playback.sdk.error?.kind === 'init') return 'disconnected';
@@ -159,8 +161,8 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
       />
       <BucketDistributeButtons
         destinations={destinations}
-        suggested={suggestedDestinations(effectiveRich?.prediction, blockBuckets)}
-        onDistribute={distribute}
+        suggested={suggested}
+        onDistribute={(id) => distribute(id, suggestionTag(suggested, id))}
       />
       <LabelTile
         labelId={effectiveRich?.label_id ?? null}

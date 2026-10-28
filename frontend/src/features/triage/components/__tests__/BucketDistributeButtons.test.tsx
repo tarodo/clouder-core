@@ -54,7 +54,7 @@ describe('BucketDistributeButtons', () => {
     );
     const primary = screen.getByRole('button', { name: 'House, suggested' });
     expect(primary).toHaveAttribute('data-variant', 'filled');
-    const secondary = screen.getByRole('button', { name: 'Techno, second suggestion' });
+    const secondary = screen.getByRole('button', { name: 'Techno, weaker suggestion' });
     expect(secondary).toHaveAttribute('data-variant', 'light');
     expect(secondary.style.getPropertyValue('--button-bg')).not.toContain('red');
     // DISCARD keeps its unlit look.

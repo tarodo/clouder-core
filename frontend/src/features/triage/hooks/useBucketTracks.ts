@@ -26,7 +26,7 @@ export interface BucketTrack {
   /** Release artwork when the API has it (the demo does; production rows carry none yet). */
   cover_url?: string | null;
   /** The recommender's call: keep (null = no keep head yet) and the user's category ids, best first. */
-  prediction?: { keep: boolean | null; category_ids: string[] } | null;
+  prediction?: { keep: boolean | null; category_ids: string[]; unsure?: boolean } | null;
 }
 
 export interface PaginatedBucketTracks {

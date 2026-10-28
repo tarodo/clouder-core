@@ -246,7 +246,7 @@ describe('CurateSession suggestions', () => {
     const discard = await screen.findByRole('button', { name: 'Assign to DISCARD, suggested' });
     expect(discard).toHaveAttribute('data-suggested', 'primary');
     expect(
-      screen.getByRole('button', { name: 'Assign to Big Room, second suggestion' }),
+      screen.getByRole('button', { name: 'Assign to Big Room, weaker suggestion' }),
     ).toHaveAttribute('data-suggested', 'secondary');
   });
 });

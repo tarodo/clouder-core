@@ -242,7 +242,7 @@ describe('DestinationGrid', () => {
       'primary',
     );
     expect(
-      screen.getByRole('button', { name: 'Assign to Tech House, second suggestion' }),
+      screen.getByRole('button', { name: 'Assign to Tech House, weaker suggestion' }),
     ).toHaveAttribute('data-suggested', 'secondary');
     expect(document.querySelectorAll('[data-suggested]')).toHaveLength(2);
   });
@@ -264,6 +264,6 @@ describe('DestinationGrid', () => {
     expect(screen.getByRole('button', { name: 'Assign to DISCARD' })).not.toHaveAttribute(
       'data-suggested',
     );
-    expect(screen.getByRole('button', { name: /Assign to Big Room, second suggestion/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Assign to Big Room, weaker suggestion/ })).toBeInTheDocument();
   });
 });

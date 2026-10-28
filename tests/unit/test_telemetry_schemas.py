@@ -53,6 +53,15 @@ def test_tail_props_go_to_props_extra():
     assert out["props_extra"] == {"from_position_ms": 1, "to_position_ms": 9}
 
 
+def test_track_categorized_keeps_the_suggestion_tag():
+    ev = _envelope(
+        event_name="track_categorized",
+        props={"track_id": "t", "action": "moved_to_bucket", "suggestion": "unsure"},
+    )
+    out = validate_event(ev, user_id="u-1", ts_server=TS_SERVER)
+    assert out["props_extra"] == {"suggestion": "unsure"}
+
+
 def test_no_props_extra_key_when_tail_empty():
     out = validate_event(_envelope(), user_id="u-1", ts_server=TS_SERVER)
     assert "props_extra" not in out

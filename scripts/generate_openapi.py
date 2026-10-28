@@ -530,10 +530,11 @@ BUCKET_TRACK_ROW = {
         "added_at": {"type": "string"},
         "prediction": {
             "type": ["object", "null"],
-            "required": ["keep", "category_ids"],
+            "required": ["keep", "category_ids", "unsure"],
             "properties": {
                 "keep": {"type": ["boolean", "null"]},
                 "category_ids": {"type": "array", "items": {"type": "string"}},
+                "unsure": {"type": "boolean"},
             },
         },
     },

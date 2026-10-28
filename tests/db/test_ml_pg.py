@@ -405,7 +405,7 @@ def test_triage_exposes_only_own_prediction_and_model(repo, pg) -> None:
         )
         return rows[0].prediction
 
-    assert first(U) == {"keep": True, "category_ids": ["cb", "ca"]}
+    assert first(U) == {"keep": True, "category_ids": ["cb", "ca"], "unsure": False}
     pg.execute("DELETE FROM track_predictions WHERE user_id = 'u1'")
     assert first(U) is None  # u2's row for the same track/style never leaks
 

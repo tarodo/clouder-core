@@ -81,3 +81,19 @@ def test_pages_follow_the_same_order(world) -> None:
 def test_staging_keeps_the_latest_move_on_top(world) -> None:
     # moved_early is a sure keep, yet a category lists what was moved last first
     assert _order(world, "stg") == ["moved_late", "moved_early"]
+
+
+def test_scores_near_the_keep_threshold_are_unsure(world) -> None:
+    world.execute("UPDATE ml_models SET keep_threshold = 0.42 WHERE user_id = 'u1'")
+    rows, _ = TriageRepository(world).list_bucket_tracks(
+        user_id="u1", block_id="blk", bucket_id="new", limit=10, offset=0
+    )
+    unsure = {r.track_id: r.prediction["unsure"] for r in rows if r.prediction is not None}
+    # discard_hi (0.4) sits within the band; no_head has no keep_score to judge
+    assert unsure == {
+        "keep_hi": False,
+        "keep_lo": False,
+        "discard_hi": True,
+        "discard_lo": False,
+        "no_head": False,
+    }

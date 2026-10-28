@@ -126,7 +126,7 @@ describe('BucketPlayerPanel', () => {
     // c1 is the current bucket (not a button): it stays unlit and c2 does not move up.
     const predicted = { ...item, prediction: { keep: true, category_ids: ['c1', 'c2'] } };
     r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[predicted]} />);
-    expect(screen.getByRole('button', { name: 'Techno, second suggestion' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Techno, weaker suggestion' })).toHaveAttribute(
       'data-variant',
       'light',
     );
@@ -140,7 +140,7 @@ describe('BucketPlayerPanel', () => {
     expect(screen.getByRole('button', { name: 'DISCARD, suggested' }).style.background).toBe(
       'var(--color-danger-suggest-bg)',
     );
-    expect(screen.getByRole('button', { name: 'Techno, second suggestion' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Techno, weaker suggestion' })).toBeInTheDocument();
   });
 
   it('hides distribute buttons when the block is FINALIZED', () => {
@@ -155,7 +155,17 @@ describe('BucketPlayerPanel', () => {
     current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
     r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[item]} />);
     await userEvent.click(screen.getByText('Techno'));
-    expect(distributeSpy).toHaveBeenCalledWith('bk2');
+    expect(distributeSpy).toHaveBeenCalledWith('bk2', undefined);
+  });
+
+  it('near the keep threshold lights the category and DISCARD pale, and tags the tap', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default;
+    current = { id: 't1', title: 'Test Track', artists: 'A', duration_ms: 1, spotify_id: 'sp1', cover_url: null };
+    const predicted = { ...item, prediction: { keep: true, category_ids: ['c2'], unsure: true } };
+    r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[predicted]} />);
+    expect(screen.getByRole('button', { name: 'DISCARD, weaker suggestion' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Techno, weaker suggestion' }));
+    expect(distributeSpy).toHaveBeenCalledWith('bk2', 'unsure');
   });
 
   it('renders the LabelTile after the distribute buttons when playing', () => {

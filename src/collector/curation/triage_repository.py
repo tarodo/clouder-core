@@ -32,6 +32,11 @@ from collector.curation.triage_service import (
 from collector.data_api import DataAPIClient
 from collector.repositories.analysis import AI_FLAGGED_SQL, AI_VERDICT_SQL
 
+# A keep_score this close to the model's keep threshold is a coin flip (live check of model v3,
+# 2026-10-27: 8 of 22 such calls right), so the UI lights its buttons pale.
+# ponytail: fixed band, ~9% of tracks; derive it from each model's calibration if that drifts.
+UNSURE_BAND = 0.05
+
 
 @dataclass(frozen=True)
 class TriageBucketRow:
@@ -106,7 +111,8 @@ class BucketTrackRowOut:
     label_name: str | None
     label_id: str | None
     added_at: str
-    prediction: dict | None = None  # {"keep": bool | None, "category_ids": [...]}; None = unscored
+    # {"keep": bool | None, "category_ids": [...], "unsure": bool}; None = unscored
+    prediction: dict | None = None
 
 
 # style_id and the target's bucket_type ride along from the guard query, for the retrain trigger
@@ -1023,6 +1029,7 @@ class TriageRepository:
             "style_id": guard[0]["style_id"],
             "limit": limit,
             "offset": offset,
+            "unsure_band": UNSURE_BAND,
         }
         search_clause = ""
         if search and search.strip():
@@ -1050,6 +1057,7 @@ class TriageRepository:
                 tbt.added_at,
                 p.keep AS p_keep, p.categories AS p_categories,
                 (p.track_id IS NOT NULL) AS p_scored,
+                COALESCE(abs(p.keep_score - m.keep_threshold) < :unsure_band, FALSE) AS p_unsure,
                 cl.id AS label_id,
                 cl.name AS label_name,
                 COALESCE(
@@ -1066,6 +1074,7 @@ class TriageRepository:
             LEFT JOIN clouder_labels cl ON cl.id = cab.label_id
             LEFT JOIN track_predictions p
               ON p.user_id = :user_id AND p.style_id = :style_id AND p.track_id = t.id
+            LEFT JOIN ml_models m ON m.user_id = :user_id AND m.style_id = :style_id
             WHERE tbt.triage_bucket_id = :bucket_id
               {search_clause}
             GROUP BY
@@ -1074,7 +1083,7 @@ class TriageRepository:
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type,
                 tbt.added_at, cl.id, cl.name,
-                p.track_id, p.keep, p.keep_score, p.categories
+                p.track_id, p.keep, p.keep_score, p.categories, m.keep_threshold
             ORDER BY {order}
             LIMIT :limit OFFSET :offset
             """,
@@ -1101,7 +1110,11 @@ class TriageRepository:
             cats = r.get("p_categories")
             cats = json.loads(cats) if isinstance(cats, str) else (cats or [])
             prediction = (
-                {"keep": r.get("p_keep"), "category_ids": [c[0] for c in cats]}
+                {
+                    "keep": r.get("p_keep"),
+                    "category_ids": [c[0] for c in cats],
+                    "unsure": bool(r.get("p_unsure")),
+                }
                 if r.get("p_scored")
                 else None
             )
