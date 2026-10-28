@@ -24,7 +24,8 @@ import { ProfilePage } from '../profile';
 // module-scope `let`.
 const { apiMock } = vi.hoisted(() => ({ apiMock: vi.fn() }));
 
-vi.mock('../../api/client', () => ({ api: apiMock }));
+// AuthProvider (imported for AuthContext) also imports refreshSession from the client.
+vi.mock('../../api/client', () => ({ api: apiMock, refreshSession: vi.fn() }));
 
 const catalog = {
   items: [
