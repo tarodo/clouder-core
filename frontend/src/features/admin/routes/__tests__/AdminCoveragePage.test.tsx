@@ -74,5 +74,5 @@ describe('AdminCoveragePage style visibility', () => {
     await waitFor(() =>
       expect(screen.queryByLabelText('Tech House week 1 empty')).not.toBeInTheDocument(),
     );
-  });
+  }, 15_000); // the whole page, a popover and a refetch: slow CI runners took over 5 s
 });
