@@ -4619,6 +4619,10 @@ export interface paths {
                                  * @enum {string|null}
                                  */
                                 ai_verdict: "high" | "medium" | "low" | null;
+                                /** @description The AI detector pair checked the track (an ok result from either). */
+                                ai_checked: boolean;
+                                /** @description The light audio profile read the track. */
+                                profiled: boolean;
                                 artists: string[];
                                 added_at: string;
                                 /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
@@ -9589,6 +9593,12 @@ export interface components {
                 checked: number;
                 total: number;
             } | null;
+            /** @description The catalog tracks of a label / an artist, and how many of them the caller put in their categories and playlists (live, not deleted; a track counts once). */
+            stats?: {
+                tracks: number;
+                in_categories: number;
+                in_playlists: number;
+            };
         } & {
             [key: string]: unknown;
         };
@@ -9750,6 +9760,12 @@ export interface components {
                 checked: number;
                 total: number;
             } | null;
+            /** @description The catalog tracks of a label / an artist, and how many of them the caller put in their categories and playlists (live, not deleted; a track counts once). */
+            stats?: {
+                tracks: number;
+                in_categories: number;
+                in_playlists: number;
+            };
         } & {
             [key: string]: unknown;
         };

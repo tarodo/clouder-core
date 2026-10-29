@@ -465,6 +465,22 @@ def test_get_label_info_for_user_returns_decoded_merged_blob():
     assert "user_id" in params  # new: preference join param
 
 
+def test_get_label_info_for_user_adds_the_users_stats_to_an_enriched_label():
+    repo, data_api = _repo_with_fake()
+    data_api.execute.return_value = [
+        {
+            "merged": '{"label_name": "Fokuz"}',
+            "stat_tracks": 412,
+            "stat_in_categories": 9,
+            "stat_in_playlists": 3,
+        }
+    ]
+    row = repo.get_label_info_for_user("lbl-1", "u1")
+    assert row["stats"] == {"tracks": 412, "in_categories": 9, "in_playlists": 3}
+    sql, params = data_api.execute.call_args[0]
+    assert "stat_in_categories" in sql and params["user_id"] == "u1"
+
+
 def test_get_label_info_for_user_returns_none_when_no_row():
     repo, data_api = _repo_with_fake()
     data_api.execute.return_value = []

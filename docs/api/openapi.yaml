@@ -3050,6 +3050,8 @@ paths:
                       - title
                       - artists
                       - ai_verdict
+                      - ai_checked
+                      - profiled
                       - added_at
                       properties:
                         track_id:
@@ -3098,6 +3100,13 @@ paths:
                           - string
                           - 'null'
                         ai_verdict: *id014
+                        ai_checked:
+                          type: boolean
+                          description: The AI detector pair checked the track (an
+                            ok result from either).
+                        profiled:
+                          type: boolean
+                          description: The light audio profile read the track.
                         artists:
                           type: array
                           items:
@@ -4072,7 +4081,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: &id024
+                    items: &id025
                       type: object
                       required:
                       - track_id
@@ -4272,14 +4281,14 @@ paths:
           description: Per-track comments for the playlist.
           content:
             application/json:
-              schema: &id026
+              schema: &id027
                 type: object
                 required:
                 - tracks
                 properties:
                   tracks:
                     type: array
-                    items: &id025
+                    items: &id026
                       type: object
                       required:
                       - track_id
@@ -7647,6 +7656,22 @@ components:
           - disliked
           - null
         ai: *id022
+        stats: &id024
+          type: object
+          description: The catalog tracks of a label / an artist, and how many of
+            them the caller put in their categories and playlists (live, not deleted;
+            a track counts once).
+          required:
+          - tracks
+          - in_categories
+          - in_playlists
+          properties:
+            tracks:
+              type: integer
+            in_categories:
+              type: integer
+            in_playlists:
+              type: integer
       additionalProperties: true
     MyLabelPreferencesResponse:
       type: object
@@ -7945,6 +7970,7 @@ components:
           - disliked
           - null
         ai: *id022
+        stats: *id024
       additionalProperties: true
     MyArtistPreferencesResponse:
       type: object
@@ -8100,9 +8126,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ArtistHistoryCell'
-    PlaylistTrackResponse: *id024
-    PlaylistTrackComments: *id025
-    PlaylistCommentsResponse: *id026
+    PlaylistTrackResponse: *id025
+    PlaylistTrackComments: *id026
+    PlaylistCommentsResponse: *id027
     TelemetryEnvelope:
       type: object
       required:

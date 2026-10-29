@@ -30,6 +30,15 @@ AI_VERDICT_SQL = f"""CASE WHEN {_LOFCZ} THEN CASE WHEN {_DEEZER} THEN 'high' ELS
     WHEN {_DEEZER} THEN 'low' END AS ai_verdict"""
 # Any badge level: the owner's rule sends such a track to DISCARD.
 AI_FLAGGED_SQL = f"({_LOFCZ} OR {_DEEZER})"
+# The player's meta line: the pair checked the track (an ok row from either), and the light
+# profile read it.
+AI_CHECKED_SQL = """EXISTS (
+    SELECT 1 FROM track_analyses ta
+    WHERE ta.track_id = t.id AND ta.analyzer IN ('ai_lofcz', 'ai_deezer') AND ta.status = 'ok')
+    AS ai_checked"""
+PROFILED_SQL = """EXISTS (
+    SELECT 1 FROM track_analyses ta
+    WHERE ta.track_id = t.id AND ta.analyzer = 'light_profile' AND ta.status = 'ok') AS profiled"""
 
 # AI reputation (spec 2026-10-29): a label / artist counts its tracks, the ones the pair checked (an ok
 # row) and the flagged ones; the generated ai_level reads the share. Migration 46 backfills with the

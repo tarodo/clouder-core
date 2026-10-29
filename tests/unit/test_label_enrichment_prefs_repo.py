@@ -219,7 +219,12 @@ def test_get_label_info_for_user_returns_minimal_payload_when_info_missing():
 
     out = repo.get_label_info_for_user("lbl-2", user_id="u-1")
 
-    assert out == {"label_name": "Drumcode", "my_preference": None, "ai": None}
+    assert out == {
+        "label_name": "Drumcode",
+        "my_preference": None,
+        "ai": None,
+        "stats": {"tracks": 0, "in_categories": 0, "in_playlists": 0},
+    }
 
 
 def test_get_label_info_for_user_returns_none_when_label_missing():

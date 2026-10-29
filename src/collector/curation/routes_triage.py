@@ -130,6 +130,8 @@ def _serialize_bucket_track(row) -> dict[str, Any]:
         "spotify_id": row.spotify_id,
         "release_type": row.release_type,
         "ai_verdict": row.ai_verdict,
+        "ai_checked": row.ai_checked,
+        "profiled": row.profiled,
         "artists": row.artists,
         "label_name": row.label_name,
         "label_id": row.label_id,

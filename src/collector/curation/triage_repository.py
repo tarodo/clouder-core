@@ -32,8 +32,10 @@ from collector.curation.triage_service import (
 )
 from collector.data_api import DataAPIClient
 from collector.repositories.analysis import (
+    AI_CHECKED_SQL,
     AI_FLAGGED_SQL,
     AI_VERDICT_SQL,
+    PROFILED_SQL,
     ai_rep_sql,
     parse_ai_rep,
 )
@@ -116,6 +118,8 @@ class BucketTrackRowOut:
     spotify_id: str | None
     release_type: str | None
     ai_verdict: str | None
+    ai_checked: bool
+    profiled: bool
     artists: list[dict]
     label_name: str | None
     label_id: str | None
@@ -1053,6 +1057,7 @@ class TriageRepository:
                 t.key_name, t.key_camelot,
                 t.publish_date, t.spotify_release_date,
                 t.spotify_id, t.release_type, {AI_VERDICT_SQL},
+                {AI_CHECKED_SQL}, {PROFILED_SQL},
                 tbt.added_at,
                 p.keep AS p_keep, p.categories AS p_categories,
                 (p.track_id IS NOT NULL) AS p_scored,
@@ -1140,6 +1145,8 @@ class TriageRepository:
                     spotify_id=r.get("spotify_id"),
                     release_type=r.get("release_type"),
                     ai_verdict=r.get("ai_verdict"),
+                    ai_checked=bool(r.get("ai_checked")),
+                    profiled=bool(r.get("profiled")),
                     artists=artists,
                     label_name=r.get("label_name"),
                     label_id=r.get("label_id"),

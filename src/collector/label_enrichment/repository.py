@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from ..data_api import DataAPIClient
+from ..entity_stats import label_stats_sql, parse_stats
 from ..repositories.analysis import ai_rep_sql, parse_ai_rep
 
 if TYPE_CHECKING:
@@ -974,7 +975,8 @@ class LabelEnrichmentRepository:
         """
         rows = self._data_api.execute(
             f"""
-            SELECT li.merged, ulp.status AS my_preference, {ai_rep_sql("lbl")} AS ai_rep
+            SELECT li.merged, ulp.status AS my_preference, {ai_rep_sql("lbl")} AS ai_rep,
+                   {label_stats_sql("lbl")}
             FROM clouder_label_info li
             JOIN clouder_labels lbl ON lbl.id = li.label_id
             LEFT JOIN clouder_user_label_prefs ulp
@@ -993,12 +995,13 @@ class LabelEnrichmentRepository:
             out = {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
             out["my_preference"] = rows[0].get("my_preference")
             out["ai"] = parse_ai_rep(rows[0].get("ai_rep"))
+            out["stats"] = parse_stats(rows[0])
             return out
 
         fallback = self._data_api.execute(
             f"""
             SELECT lbl.name AS label_name, ulp.status AS my_preference,
-                   {ai_rep_sql("lbl")} AS ai_rep
+                   {ai_rep_sql("lbl")} AS ai_rep, {label_stats_sql("lbl")}
             FROM clouder_labels lbl
             LEFT JOIN clouder_user_label_prefs ulp
                 ON ulp.label_id = lbl.id AND ulp.user_id = :user_id
@@ -1014,6 +1017,7 @@ class LabelEnrichmentRepository:
             "label_name": row.get("label_name"),
             "my_preference": row.get("my_preference"),
             "ai": parse_ai_rep(row.get("ai_rep")),
+            "stats": parse_stats(row),
         }
 
     def increment_run_counters(

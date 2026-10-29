@@ -131,6 +131,18 @@ AI_VERDICT = {
     ),
 }
 
+ENTITY_STATS = {
+    "type": "object",
+    "description": "The catalog tracks of a label / an artist, and how many of them the caller put "
+    "in their categories and playlists (live, not deleted; a track counts once).",
+    "required": ["tracks", "in_categories", "in_playlists"],
+    "properties": {
+        "tracks": {"type": "integer"},
+        "in_categories": {"type": "integer"},
+        "in_playlists": {"type": "integer"},
+    },
+}
+
 AI_REP = {
     "type": ["object", "null"],
     "description": (
@@ -528,6 +540,8 @@ BUCKET_TRACK_ROW = {
         "title",
         "artists",
         "ai_verdict",
+        "ai_checked",
+        "profiled",
         "added_at",
     ],
     "properties": {
@@ -544,6 +558,11 @@ BUCKET_TRACK_ROW = {
         "spotify_id": {"type": ["string", "null"]},
         "release_type": {"type": ["string", "null"]},
         "ai_verdict": AI_VERDICT,
+        "ai_checked": {
+            "type": "boolean",
+            "description": "The AI detector pair checked the track (an ok result from either).",
+        },
+        "profiled": {"type": "boolean", "description": "The light audio profile read the track."},
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
         "label_ai": AI_REP,
@@ -1478,6 +1497,7 @@ LABEL_DETAIL_RESPONSE = {
             "enum": ["liked", "disliked", None],
         },
         "ai": AI_REP,
+        "stats": ENTITY_STATS,
     },
     "additionalProperties": True,
 }
@@ -1807,6 +1827,7 @@ ARTIST_DETAIL_RESPONSE = {
             "enum": ["liked", "disliked", None],
         },
         "ai": AI_REP,
+        "stats": ENTITY_STATS,
     },
     "additionalProperties": True,
 }
