@@ -35,6 +35,8 @@ export interface CreateTriageBlockInput {
   compilations_to_not?: boolean;
   include_favorites?: boolean;
   ai_to_discard?: boolean;
+  ai_labels_min_level?: 1 | 2 | 3 | null;
+  ai_artists_min_level?: 1 | 2 | 3 | null;
 }
 
 export interface TriageBlockDetail {
