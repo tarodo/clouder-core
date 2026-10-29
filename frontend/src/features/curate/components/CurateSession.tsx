@@ -363,8 +363,9 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
           position: 'absolute',
           top: 'var(--mantine-spacing-md)',
           left: '50%',
-          // up to the right edge: the cards are 320px at most, narrower on a narrow desktop
+          // up to the right edge, 360px at most: narrower on a narrow desktop
           right: 'var(--mantine-spacing-md)',
+          maxWidth: 360,
           marginLeft: 'calc(360px + var(--mantine-spacing-md))',
         }}
       >
