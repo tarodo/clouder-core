@@ -140,3 +140,13 @@ def test_clean_result_lowers_level(leased, pg) -> None:
     leased.record_analysis_results(lease_id=LEASE, items=[_result("x", True)], now=T0)
     leased.record_analysis_results(lease_id=LEASE, items=[_result("y", False)], now=T0)
     assert _rep(pg, "clouder_labels", "lbl") == (2, 2, 1, 2)
+
+
+def test_non_ok_result_after_a_requeue_recounts(leased, pg) -> None:
+    leased.record_analysis_results(lease_id=LEASE, items=[_result("x", True)], now=T0)
+    pg.execute("DELETE FROM track_analyses WHERE track_id = 'x'")  # an admin requeue
+    again = "22222222-2222-2222-2222-222222222222"
+    leased.claim_analysis(limit=10, analyzers=["ai_lofcz"], lease_id=again, now=T0)
+    failed = {**_result("x", False), "status": "failed", "result": None, "error": "boom"}
+    leased.record_analysis_results(lease_id=again, items=[failed], now=T0)
+    assert _rep(pg, "clouder_labels", "lbl") == (2, 0, 0, None)

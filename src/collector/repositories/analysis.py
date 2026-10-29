@@ -305,17 +305,17 @@ class AnalysisMixin(RepositoryBase):
         )
         if flagged:
             self.discard_ai_tracks(track_ids=flagged, now=now)
-        checked = sorted(
+        # Any stored pair result recounts, ok or not: after an admin requeue a failed re-run must
+        # still clear the deleted ok row from its label's / artists' counts.
+        recount = sorted(
             {
                 i["track_id"]
                 for i in items
-                if (i["track_id"], i["analyzer"]) in accepted
-                and i["analyzer"] in PAIR_ANALYZERS
-                and i.get("status") == "ok"
+                if (i["track_id"], i["analyzer"]) in accepted and i["analyzer"] in PAIR_ANALYZERS
             }
         )
-        if checked:
-            self.recount_ai_reputation(track_ids=checked)
+        if recount:
+            self.recount_ai_reputation(track_ids=recount)
         return [
             {"track_id": i["track_id"], "analyzer": i["analyzer"], "reason": "lease_lost"}
             for i in items
