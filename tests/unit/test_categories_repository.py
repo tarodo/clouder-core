@@ -884,7 +884,7 @@ def test_list_tracks_returns_rows_and_total() -> None:
         {"id": "a1", "name": "Artist A"},
         {"id": "a2", "name": "Artist B"},
     ]
-    assert item.track["label"] == {"id": "l1", "name": "Cool Label"}
+    assert item.track["label"] == {"id": "l1", "name": "Cool Label", "ai": None}
     assert item.track["spotify_release_date"] == "2026-01-15"
     assert item.added_at == "2026-04-27T12:00:00Z"
     assert item.source_triage_block_id is None

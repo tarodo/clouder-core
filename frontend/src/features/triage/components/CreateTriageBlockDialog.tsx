@@ -8,6 +8,7 @@ import {
   Group,
   Modal,
   NumberInput,
+  Select,
   Stack,
   Switch,
   Text,
@@ -51,6 +52,9 @@ function localToday(): Date {
 
 const utcDay = (day: string) => new Date(`${day}T00:00:00Z`);
 
+/** The form's AI level choice as the API field: 'off' -> null. */
+const aiLevel = (v?: 'off' | '1' | '2' | '3') => (!v || v === 'off' ? null : (Number(v) as 1 | 2 | 3));
+
 const weekStartMs = ([year, week]: SaturdayWeek) => saturdayWeekRange(year, week)[0].getTime();
 
 function fmtDay(day: string, withYear = false): string {
@@ -76,6 +80,13 @@ export function CreateTriageBlockDialog({
   styleName,
 }: CreateTriageBlockDialogProps) {
   const { t } = useTranslation();
+  const aiLevelOptions = [
+    { value: 'off', label: t('triage.form.ai_level_off') },
+    ...(['1', '2', '3'] as const).map((level) => ({
+      value: level,
+      label: t('triage.form.ai_level_from', { level }),
+    })),
+  ];
   const isMobile = useMediaQuery('(max-width: 64em)');
   const userEditedName = useRef(false);
   const [advancedOpen, advanced] = useDisclosure(false);
@@ -92,6 +103,8 @@ export function CreateTriageBlockDialog({
       compilationsToNot: true,
       includeFavorites: true,
       aiToDiscard: true,
+      aiLabelsMinLevel: 'off',
+      aiArtistsMinLevel: 'off',
     },
     validate: zod4Resolver(createTriageBlockSchema),
   });
@@ -184,6 +197,8 @@ export function CreateTriageBlockDialog({
         compilations_to_not: values.compilationsToNot,
         include_favorites: values.includeFavorites,
         ai_to_discard: values.aiToDiscard,
+        ai_labels_min_level: aiLevel(values.aiLabelsMinLevel),
+        ai_artists_min_level: aiLevel(values.aiArtistsMinLevel),
       });
       remember();
       notifications.show({
@@ -313,6 +328,20 @@ export function CreateTriageBlockDialog({
               label={t('triage.form.include_disliked_artists_label')}
               description={t('triage.form.include_disliked_artists_description')}
               {...form.getInputProps('includeDislikedArtists', { type: 'checkbox' })}
+            />
+            <Select
+              label={t('triage.form.ai_labels_min_level_label')}
+              description={t('triage.form.ai_labels_min_level_description')}
+              data={aiLevelOptions}
+              allowDeselect={false}
+              {...form.getInputProps('aiLabelsMinLevel')}
+            />
+            <Select
+              label={t('triage.form.ai_artists_min_level_label')}
+              description={t('triage.form.ai_artists_min_level_description')}
+              data={aiLevelOptions}
+              allowDeselect={false}
+              {...form.getInputProps('aiArtistsMinLevel')}
             />
             <Switch
               label={t('triage.form.compilations_to_not_label')}

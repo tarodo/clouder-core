@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from collector.data_api import DataAPIClient
 from collector.models import normalize_text
-from collector.repositories.analysis import AI_VERDICT_SQL
+from collector.repositories.analysis import AI_VERDICT_SQL, ai_rep_sql, parse_ai_rep
 from collector.settings import get_data_api_settings
 
 if TYPE_CHECKING:
@@ -617,13 +617,14 @@ class PlaylistsRepository:
                 {AI_VERDICT_SQL},
                 COALESCE(
                     JSON_AGG(
-                        JSON_BUILD_OBJECT('id', a.id, 'name', a.name)
+                        JSON_BUILD_OBJECT('id', a.id, 'name', a.name, 'ai', {ai_rep_sql("a")})
                         ORDER BY cta.role, a.name
                     ) FILTER (WHERE a.id IS NOT NULL),
                     '[]'::json
                 ) AS artists_json,
                 l.id   AS label_id,
                 l.name AS label_name,
+                {ai_rep_sql("l")} AS label_ai,
                 MAX(im.external_id)            AS beatport_track_id,
                 MAX(se.payload->>'slug')       AS beatport_slug
             FROM playlist_tracks pt
@@ -660,7 +661,11 @@ class PlaylistsRepository:
                 json.loads(artists_raw) if isinstance(artists_raw, str) else (artists_raw or [])
             )
             label_id = r.get("label_id")
-            label = {"id": label_id, "name": r.get("label_name")} if label_id else None
+            label = (
+                {"id": label_id, "name": r.get("label_name"), "ai": parse_ai_rep(r.get("label_ai"))}
+                if label_id
+                else None
+            )
             spot = r.get("spotify_release_date")
             out.append(
                 PlaylistTrackRow(

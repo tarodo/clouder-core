@@ -16,6 +16,7 @@ import { YtMusicBadge } from './YtMusicBadge';
 import { TrackKey } from '../../playback/TrackKey';
 import { PlayPauseButton } from '../../playback/PlayPauseButton';
 import { AiBadge } from '../../playback/AiBadge';
+import { AiRepBadge, NamesWithAi } from '../../library/components/AiRepBadge';
 
 export interface PlaylistTrackRowProps {
   track: PlaylistTrack;
@@ -121,15 +122,17 @@ export function PlaylistTrackRowView({
           )}
           {artistNames && (
             <Text size="sm" c="dimmed" truncate>
-              {artistNames}
+              <NamesWithAi items={track.artists} />
             </Text>
           )}
         </Group>
         <Group gap="xs" wrap="wrap" align="center">
           <TrackKey camelot={track.key_camelot} name={track.key_name} size="xs" />
           <Text size="xs" c="dimmed">
+            {track.label?.name ?? '—'}
+            <AiRepBadge rep={track.label?.ai} ml={4} />
             {[
-              track.label?.name ?? '—',
+              '',
               track.bpm != null ? `${track.bpm} BPM` : null,
               // formatLength/formatReleaseDate return '—' for null, so guard
               // here to truly omit missing parts (no "| — | —" gaps).
@@ -138,7 +141,7 @@ export function PlaylistTrackRowView({
                 ? formatReleaseDate(track.spotify_release_date)
                 : null,
             ]
-              .filter(Boolean)
+              .filter((part, i) => i === 0 || part)
               .join(' | ')}
           </Text>
           {/* Read-only in the list — tags are edited in the player. */}

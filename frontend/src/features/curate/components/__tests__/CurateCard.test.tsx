@@ -92,3 +92,14 @@ describe('CurateCard AI badge', () => {
     expect(screen.queryByText('AI')).not.toBeInTheDocument();
   });
 });
+
+describe('CurateCard AI reputation', () => {
+  it('marks the artist and the label', () => {
+    render(wrap(<CurateCard track={mkTrack({
+      artists: [{ id: 'a-1', name: 'Artist A', role: 'artist', ai: { level: 1 as const, ai: 2, checked: 41, total: 300 } }],
+      label_ai: { level: 3 as const, ai: 80, checked: 87, total: 869 },
+    })} />));
+    expect(screen.getByLabelText('AI level 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('AI level 3')).toBeInTheDocument();
+  });
+});

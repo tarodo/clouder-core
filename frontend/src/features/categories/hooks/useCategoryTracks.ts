@@ -4,15 +4,18 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import { api } from '../../../api/client';
+import type { AiRep } from '../../library/components/AiRepBadge';
 
 export interface TrackArtist {
   id: string;
   name: string;
+  ai?: AiRep | null;
 }
 
 export interface TrackLabel {
   id: string;
   name: string;
+  ai?: AiRep | null;
 }
 
 export type CategoryTrackSort = 'title' | 'spotify_release_date' | 'added_at';

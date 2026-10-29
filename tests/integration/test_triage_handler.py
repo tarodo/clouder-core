@@ -168,6 +168,8 @@ class FakeTriageRepo:
         compilations_to_not: bool = True,
         include_favorites: bool = True,
         ai_to_discard: bool = True,
+        ai_labels_min_level: int | None = None,
+        ai_artists_min_level: int | None = None,
     ) -> TriageBlockRow:
         if style_id not in self.styles:
             raise NotFoundError(

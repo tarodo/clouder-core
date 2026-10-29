@@ -49,6 +49,9 @@ class CreateTriageBlockIn(BaseModel):
     compilations_to_not: bool = Field(default=True)
     include_favorites: bool = Field(default=True)
     ai_to_discard: bool = Field(default=True)
+    # the AI level (1-3) from which a label's / an artist's tracks go to NOT; None = off
+    ai_labels_min_level: int | None = Field(default=None, ge=1, le=3)
+    ai_artists_min_level: int | None = Field(default=None, ge=1, le=3)
 
     @field_validator("name")
     @classmethod

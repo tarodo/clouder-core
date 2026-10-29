@@ -12,6 +12,7 @@ import type { ArtistSummary } from '../../../api/artists';
 import { EmptyState } from '../../../components/EmptyState';
 import { truncateTagline } from '../lib/formatLabel';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
+import { AiRepBadge } from './AiRepBadge';
 
 interface Props {
   items: ArtistSummary[];
@@ -54,6 +55,7 @@ export function ArtistsTable(p: Props) {
                   <Anchor component={Link} to={`/artists/${it.id}`} fw={500}>
                     {it.name}
                   </Anchor>
+                  <AiRepBadge rep={it.ai} ml={6} />
                 </Table.Td>
                 <Table.Td>
                   {info?.country ? (

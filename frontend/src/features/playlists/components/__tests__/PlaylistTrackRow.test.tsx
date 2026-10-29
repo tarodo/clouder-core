@@ -222,3 +222,16 @@ describe('PlaylistTrackRow AI badge', () => {
     ).toEqual(levels);
   });
 });
+
+describe('PlaylistTrackRow AI reputation', () => {
+  it('marks the artist and the label', () => {
+    const track: PlaylistTrack = {
+      ...richTrack,
+      artists: [{ id: 'a', name: 'Artist', ai: { level: 1 as const, ai: 2, checked: 41, total: 300 } }],
+      label: { id: 'l1', name: 'Ostgut Ton', ai: { level: 3 as const, ai: 80, checked: 87, total: 869 } },
+    };
+    render(<W><PlaylistTrackRow track={track} position={1} onRemove={vi.fn()} onPlay={vi.fn()} playlistId="pl1" /></W>);
+    expect(screen.getByLabelText('AI level 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('AI level 3')).toBeInTheDocument();
+  });
+});

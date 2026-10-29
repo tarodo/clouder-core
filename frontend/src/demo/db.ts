@@ -36,8 +36,18 @@ import { slugifyStyle } from '../features/library/lib/slugifyStyle';
 import { clipOf } from './clips';
 import { demoCover } from './covers';
 import { LABEL_PROFILES } from './profiles';
+import type { AiRep } from '../features/library/components/AiRepBadge';
 
 const idHash = (id: string): number => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+
+// Some labels and artists carry each AI reputation level, so every badge shows in the demo.
+const aiRep = (id: string): AiRep | null =>
+  ({
+    0: { level: 3 as const, ai: 9, checked: 11, total: 40 },
+    1: { level: 2 as const, ai: 3, checked: 10, total: 25 },
+    2: { level: 1 as const, ai: 1, checked: 14, total: 30 },
+  })[idHash(id) % 6] ?? null;
+const withAi = <T extends { id: string }>(x: T) => ({ ...x, ai: aiRep(x.id) });
 
 // A few demo tracks carry each AI level so every badge color shows up.
 const aiVerdict = (id: string): 'high' | 'medium' | 'low' | null => {
@@ -211,9 +221,10 @@ export class DemoDb {
         ai_verdict: aiVerdict(t.id),
         spotify_id: t.spotify_id,
         release_type: 'single',
-        artists: t.artists.map((a) => ({ ...a, role: 'main' })),
+        artists: t.artists.map((a) => ({ ...withAi(a), role: 'main' })),
         label_id: t.label.id,
         label_name: t.label.name,
+        label_ai: aiRep(t.label.id),
         added_at: e.added_at,
         key_name: t.key_name,
         key_camelot: t.key_camelot,
@@ -320,8 +331,8 @@ export class DemoDb {
         id: t.id,
         title: t.title,
         mix_name: t.mix_name,
-        artists: t.artists,
-        label: t.label,
+        artists: t.artists.map(withAi),
+        label: withAi(t.label),
         bpm: t.bpm,
         length_ms: t.length_ms,
         publish_date: t.publish_date,
@@ -509,8 +520,8 @@ export class DemoDb {
         length_ms: t.length_ms,
         origin: 'beatport',
         mix_name: t.mix_name,
-        artists: t.artists,
-        label: t.label,
+        artists: t.artists.map(withAi),
+        label: withAi(t.label),
         bpm: t.bpm,
         spotify_release_date: t.publish_date,
         ai_verdict: aiVerdict(t.id),
@@ -639,6 +650,7 @@ export class DemoDb {
           updated_at: PROFILE_UPDATED,
         },
         my_preference: this.labelPrefs.get(who.id) ?? null,
+        ai: aiRep(who.id),
       };
     });
     return { items, ...pageInfo };
@@ -663,6 +675,7 @@ export class DemoDb {
       primary_styles: this.stylesOf(tracks),
       secondary_styles: profile.secondary_styles,
       my_preference: this.labelPrefs.get(id) ?? null,
+      ai: aiRep(id),
     };
   }
 
@@ -701,6 +714,7 @@ export class DemoDb {
           updated_at: PROFILE_UPDATED,
         },
         my_preference: this.artistPrefs.get(who.id) ?? null,
+        ai: aiRep(who.id),
       };
     });
     return { items, ...pageInfo };
@@ -724,6 +738,7 @@ export class DemoDb {
       primary_styles: this.stylesOf(tracks),
       secondary_styles: [],
       my_preference: this.artistPrefs.get(id) ?? null,
+      ai: aiRep(id),
     };
   }
 

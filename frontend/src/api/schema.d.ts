@@ -4237,6 +4237,10 @@ export interface paths {
                             compilations_to_not?: boolean;
                             include_favorites?: boolean;
                             ai_to_discard?: boolean;
+                            /** @enum {integer|null} */
+                            ai_labels_min_level?: 1 | 2 | 3 | null;
+                            /** @enum {integer|null} */
+                            ai_artists_min_level?: 1 | 2 | 3 | null;
                             model?: {
                                 trained_at: string;
                                 n_labels: number;
@@ -4448,6 +4452,10 @@ export interface paths {
                             compilations_to_not?: boolean;
                             include_favorites?: boolean;
                             ai_to_discard?: boolean;
+                            /** @enum {integer|null} */
+                            ai_labels_min_level?: 1 | 2 | 3 | null;
+                            /** @enum {integer|null} */
+                            ai_artists_min_level?: 1 | 2 | 3 | null;
                             model?: {
                                 trained_at: string;
                                 n_labels: number;
@@ -4613,6 +4621,14 @@ export interface paths {
                                 ai_verdict: "high" | "medium" | "low" | null;
                                 artists: string[];
                                 added_at: string;
+                                /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                label_ai?: {
+                                    /** @enum {integer} */
+                                    level: 1 | 2 | 3;
+                                    ai: number;
+                                    checked: number;
+                                    total: number;
+                                } | null;
                                 prediction?: {
                                     keep: boolean | null;
                                     category_ids: string[];
@@ -4929,6 +4945,10 @@ export interface paths {
                                 compilations_to_not?: boolean;
                                 include_favorites?: boolean;
                                 ai_to_discard?: boolean;
+                                /** @enum {integer|null} */
+                                ai_labels_min_level?: 1 | 2 | 3 | null;
+                                /** @enum {integer|null} */
+                                ai_artists_min_level?: 1 | 2 | 3 | null;
                                 model?: {
                                     trained_at: string;
                                     n_labels: number;
@@ -9102,6 +9122,16 @@ export interface components {
              * @default true
              */
             ai_to_discard: boolean;
+            /**
+             * Ai Labels Min Level
+             * @default null
+             */
+            ai_labels_min_level: number | null;
+            /**
+             * Ai Artists Min Level
+             * @default null
+             */
+            ai_artists_min_level: number | null;
         };
         /** MoveTracksIn */
         MoveTracksIn: {
@@ -9527,6 +9557,14 @@ export interface components {
             } | null;
             /** @enum {string|null} */
             my_preference?: "liked" | "disliked" | null;
+            /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+            ai?: {
+                /** @enum {integer} */
+                level: 1 | 2 | 3;
+                ai: number;
+                checked: number;
+                total: number;
+            } | null;
         };
         LabelsListResponse: {
             items: components["schemas"]["LabelSummary"][];
@@ -9538,6 +9576,14 @@ export interface components {
         LabelDetail: {
             /** @enum {string|null} */
             my_preference?: "liked" | "disliked" | null;
+            /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+            ai?: {
+                /** @enum {integer} */
+                level: 1 | 2 | 3;
+                ai: number;
+                checked: number;
+                total: number;
+            } | null;
         } & {
             [key: string]: unknown;
         };
@@ -9672,6 +9718,14 @@ export interface components {
             } | null;
             /** @enum {string|null} */
             my_preference?: "liked" | "disliked" | null;
+            /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+            ai?: {
+                /** @enum {integer} */
+                level: 1 | 2 | 3;
+                ai: number;
+                checked: number;
+                total: number;
+            } | null;
         };
         ArtistsListResponse: {
             items: components["schemas"]["ArtistSummary"][];
@@ -9683,6 +9737,14 @@ export interface components {
         ArtistDetail: {
             /** @enum {string|null} */
             my_preference?: "liked" | "disliked" | null;
+            /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+            ai?: {
+                /** @enum {integer} */
+                level: 1 | 2 | 3;
+                ai: number;
+                checked: number;
+                total: number;
+            } | null;
         } & {
             [key: string]: unknown;
         };

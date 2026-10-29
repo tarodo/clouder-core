@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -29,6 +30,65 @@ AI_VERDICT_SQL = f"""CASE WHEN {_LOFCZ} THEN CASE WHEN {_DEEZER} THEN 'high' ELS
     WHEN {_DEEZER} THEN 'low' END AS ai_verdict"""
 # Any badge level: the owner's rule sends such a track to DISCARD.
 AI_FLAGGED_SQL = f"({_LOFCZ} OR {_DEEZER})"
+
+# AI reputation (spec 2026-10-29): a label / artist counts its tracks, the ones the pair checked (an ok
+# row) and the flagged ones; the generated ai_level reads the share. Migration 46 backfills with the
+# same counting; a results POST recounts the labels and artists of its tracks ({ids}: placeholders).
+_PER_TRACK = """
+    CROSS JOIN LATERAL (
+        SELECT bool_or(ta.status = 'ok') AS checked,
+               bool_or(ta.status = 'ok' AND (ta.result->>'ai_detected')::boolean) AS ai
+        FROM track_analyses ta
+        WHERE ta.track_id = t.id AND ta.analyzer IN ('ai_lofcz', 'ai_deezer')
+    ) x"""
+_RECOUNT_LABELS = f"""
+UPDATE clouder_labels l
+SET ai_total = c.total, ai_checked = c.checked, ai_tracks = c.ai
+FROM (
+    SELECT a.label_id, count(*) AS total, count(*) FILTER (WHERE x.checked) AS checked,
+           count(*) FILTER (WHERE x.ai) AS ai
+    FROM clouder_albums a
+    JOIN clouder_tracks t ON t.album_id = a.id
+    {_PER_TRACK}
+    WHERE a.label_id IN (
+        SELECT a2.label_id FROM clouder_tracks t2 JOIN clouder_albums a2 ON a2.id = t2.album_id
+        WHERE t2.id IN ({{ids}}))
+    GROUP BY a.label_id
+) c
+WHERE l.id = c.label_id
+"""
+_RECOUNT_ARTISTS = f"""
+UPDATE clouder_artists ar
+SET ai_total = c.total, ai_checked = c.checked, ai_tracks = c.ai
+FROM (
+    SELECT p.artist_id, count(*) AS total, count(*) FILTER (WHERE x.checked) AS checked,
+           count(*) FILTER (WHERE x.ai) AS ai
+    FROM (SELECT DISTINCT artist_id, track_id FROM clouder_track_artists
+          WHERE artist_id IN (SELECT artist_id FROM clouder_track_artists WHERE track_id IN ({{ids}}))) p
+    JOIN clouder_tracks t ON t.id = p.track_id
+    {_PER_TRACK}
+    GROUP BY p.artist_id
+) c
+WHERE ar.id = c.artist_id
+"""
+
+
+def parse_ai_rep(value: Any) -> dict[str, int] | None:
+    """An ai_rep_sql column as returned by the Data API (JSON text) or psycopg (already decoded)."""
+    if value is None:
+        return None
+    return json.loads(value) if isinstance(value, str) else value
+
+
+def ai_rep_sql(alias: str) -> str:
+    """The AI reputation of a clouder_labels / clouder_artists row as a JSON object, NULL without a level."""
+    return (
+        f"CASE WHEN {alias}.ai_level IS NULL THEN NULL ELSE json_build_object("
+        f"'level', {alias}.ai_level, 'ai', {alias}.ai_tracks, 'checked', {alias}.ai_checked, "
+        f"'total', {alias}.ai_total) END"
+    )
+
+
 LEASE_SECONDS = 1800
 
 # The owner's rule (2026-10-23): an AI-flagged track never stays in play. In every open block that keeps
@@ -245,11 +305,31 @@ class AnalysisMixin(RepositoryBase):
         )
         if flagged:
             self.discard_ai_tracks(track_ids=flagged, now=now)
+        # Any stored pair result recounts, ok or not: after an admin requeue a failed re-run must
+        # still clear the deleted ok row from its label's / artists' counts.
+        recount = sorted(
+            {
+                i["track_id"]
+                for i in items
+                if (i["track_id"], i["analyzer"]) in accepted and i["analyzer"] in PAIR_ANALYZERS
+            }
+        )
+        if recount:
+            self.recount_ai_reputation(track_ids=recount)
         return [
             {"track_id": i["track_id"], "analyzer": i["analyzer"], "reason": "lease_lost"}
             for i in items
             if (i["track_id"], i["analyzer"]) not in accepted
         ]
+
+    def recount_ai_reputation(self, *, track_ids: list[str]) -> None:
+        """Recount the AI reputation of every label and artist of *track_ids* from all their tracks."""
+        if not track_ids:
+            return
+        placeholders = ", ".join(f":t{i}" for i in range(len(track_ids)))
+        ids = {f"t{i}": t for i, t in enumerate(track_ids)}
+        self._data_api.execute(_RECOUNT_LABELS.format(ids=placeholders), ids)
+        self._data_api.execute(_RECOUNT_ARTISTS.format(ids=placeholders), ids)
 
     def discard_ai_tracks(self, *, track_ids: list[str], now: datetime) -> dict[str, int]:
         """Apply the AI rule (_DISCARD_AI) to those of *track_ids* that a detector flags, then drop

@@ -12,6 +12,7 @@ import type { LabelSummary } from '../../../api/labels';
 import { EmptyState } from '../../../components/EmptyState';
 import { truncateTagline } from '../lib/formatLabel';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
+import { AiRepBadge } from './AiRepBadge';
 
 interface Props {
   items: LabelSummary[];
@@ -58,6 +59,7 @@ export function LabelsTable(p: Props) {
                   <Anchor component={Link} to={`/labels/${it.id}`} fw={500}>
                     {it.name}
                   </Anchor>
+                  <AiRepBadge rep={it.ai} ml={6} />
                 </Table.Td>
                 <Table.Td>
                   {info?.country ? (

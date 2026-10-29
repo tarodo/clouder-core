@@ -359,6 +359,26 @@ describe('CreateTriageBlockDialog', () => {
     });
   });
 
+  it('sends AI-label and AI-artist levels, off by default', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const bodies = capturePost();
+    renderDialog({ onClose });
+    await screen.findByText('W40 · Oct 3 – Oct 9, 2026');
+
+    await user.click(screen.getByText(/advanced options/i));
+    const labels = screen.getByLabelText('Send AI-label tracks to NOT');
+    expect(labels).toHaveValue('Off');
+    expect(screen.getByLabelText('Send AI-artist tracks to NOT')).toHaveValue('Off');
+    await waitFor(() => expect(labels).toBeVisible()); // the advanced section expands first
+    await user.click(labels);
+    await user.click(await screen.findByRole('option', { name: 'From level 2' }));
+    await user.click(screen.getByRole('button', { name: /create/i }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(bodies[0]).toMatchObject({ ai_labels_min_level: 2, ai_artists_min_level: null });
+  });
+
   it('shows yellow toast on 503 and closes modal', async () => {
     const onClose = vi.fn();
     server.use(

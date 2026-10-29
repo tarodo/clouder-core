@@ -52,3 +52,14 @@ describe('LabelsTable My column', () => {
     expect(screen.getByRole('button', { name: /^remove preference$/i })).toBeInTheDocument();
   });
 });
+
+describe('LabelsTable AI reputation', () => {
+  beforeEach(() => tokenStore.set('TOK'));
+  it('marks a label with a level', () => {
+    renderTable([
+      { id: 'lbl-1', name: 'Fokuz', style: 'dnb', status: 'none', track_count: 1, info: null,
+        my_preference: null, ai: { level: 3 as const, ai: 80, checked: 87, total: 869 } },
+    ]);
+    expect(screen.getByLabelText('AI level 3')).toBeInTheDocument();
+  });
+});

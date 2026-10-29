@@ -4,6 +4,7 @@ import {
   type UseInfiniteQueryResult,
 } from '@tanstack/react-query';
 import { api } from '../../../api/client';
+import type { AiRep } from '../../library/components/AiRepBadge';
 
 export interface BucketTrack {
   track_id: string;
@@ -17,9 +18,11 @@ export interface BucketTrack {
   spotify_id: string | null;
   release_type: string | null;
   ai_verdict?: 'high' | 'medium' | 'low' | null;
-  artists: { id: string; name: string; role: string }[];
+  artists: { id: string; name: string; role: string; ai?: AiRep | null }[];
   label_id: string | null;
   label_name: string | null;
+  /** The label's AI reputation; null/absent = no level. */
+  label_ai?: AiRep | null;
   added_at: string;
   key_name?: string | null;
   key_camelot?: string | null;

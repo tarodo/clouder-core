@@ -5,6 +5,7 @@ import type { ArtistDetail } from '../../../api/artists';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
 import { useAuth } from '../../../auth/useAuth';
 import { useEnrichArtistAuto } from '../hooks/useEnrichArtistAuto';
+import { AiRepBadge, type AiRep } from './AiRepBadge';
 
 interface Props {
   info: ArtistDetail;
@@ -34,6 +35,7 @@ export function ArtistDetailHeader({ info, artistId }: Props) {
           {t('library.detail.back')}
         </Anchor>
         <Title order={2}>{artistName}</Title>
+        <AiRepBadge rep={(info as { ai?: AiRep | null }).ai} />
         <ArtistPreferenceButtons artistId={artistId} current={myPreference} size="md" />
         {isAdmin && (
           <Button

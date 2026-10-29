@@ -34,6 +34,9 @@ export const createTriageBlockSchema = z.object({
   compilationsToNot: z.boolean().default(true),
   includeFavorites: z.boolean().default(true),
   aiToDiscard: z.boolean().default(true),
+  // The AI reputation level from which a label's / an artist's tracks go to NOT ('off' = never).
+  aiLabelsMinLevel: z.enum(['off', '1', '2', '3']).default('off'),
+  aiArtistsMinLevel: z.enum(['off', '1', '2', '3']).default('off'),
 });
 
 // Use `z.input` (not `z.infer`) so the form's value type matches what Mantine

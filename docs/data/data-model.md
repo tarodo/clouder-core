@@ -118,18 +118,20 @@ erDiagram
 | id | String(36) PK | |
 | name / normalized_name | Text | `normalized_name` = lower + trim + collapsed whitespace |
 | is_ai_suspected | Boolean default FALSE | Set by label enrichment (ADR-0008, ADR-0016) |
+| ai_total / ai_checked / ai_tracks | Integer default 0 | AI reputation (migration 46): its tracks in CLOUDER, the ones `ai_lofcz` or `ai_deezer` checked (an `ok` row), the flagged ones. Recounted by `record_analysis_results` → `recount_ai_reputation` for the labels and artists of each results POST |
+| ai_level | SmallInteger, generated | NULL without a flagged track; 1 = share of checked under 25%, 2 = 25–50%, 3 = over half. The SPA's monochrome AI badge; `ai_rep_sql` serves it as `{level, ai, checked, total}` |
 | created_at / updated_at | TIMESTAMPTZ | |
 
 ### clouder_styles
 
-Same shape as `clouder_labels` without `is_ai_suspected`, plus `is_hidden`
+Same shape as `clouder_labels` without `is_ai_suspected` and the `ai_*` columns, plus `is_hidden`
 (Boolean default FALSE). An admin hides a style from the coverage matrix
 popover (`PATCH /admin/styles/{style_id}`); hidden styles never come back
 from `GET /styles`, but their tracks, runs and user selections are kept.
 
 ### clouder_artists
 
-Same shape as `clouder_labels` including `is_ai_suspected`.
+Same shape as `clouder_labels` including `is_ai_suspected` and the `ai_*` columns (an artist counts every track it is credited on, any role, once).
 
 ### clouder_albums
 
@@ -238,6 +240,8 @@ PK `(triage_bucket_id, track_id)`. `ON CONFLICT DO NOTHING` makes moves idempote
 - A flagged result from the analyzer (`record_analysis_results` → `discard_ai_tracks`) moves it to `DISCARD` in every open block that keeps the option, from any bucket (`STAGING` too).
 - A flagged track kept in a category leaves the category for the `DISCARD` bucket of its `source_triage_block_id` block, unless that block opted out (nowhere when it was added by hand). That user's tags on it go with the membership.
 - Finalized blocks and playlists are not touched.
+
+**AI labels / artists → NOT (migration 46).** `triage_blocks.ai_labels_min_level` / `ai_artists_min_level` (1–3, NULL = off, the create dialog's "From level N" selects, default off): at creation a track whose label, or any of whose artists, has `ai_level` ≥ that level goes to `NOT`, in the dislikes' tier (after the AI → `DISCARD` rule and likes → `FAV`). Only at creation; a later level change moves nothing. SQL fragments: `curation/triage_classify.py`.
 - Migration 43 applied the rule once to the existing rows.
 
 ### categories

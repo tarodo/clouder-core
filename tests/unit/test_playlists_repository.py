@@ -881,7 +881,7 @@ def test_list_tracks_enrich_returns_artists_label_bpm_and_tags() -> None:
     assert row.bpm == 140
     assert row.spotify_release_date == "2026-01-15"
     assert row.artists == ({"id": "a1", "name": "Artist"},)
-    assert row.label == {"id": "l1", "name": "Label"}
+    assert row.label == {"id": "l1", "name": "Label", "ai": None}
     assert len(row.tags) == 1
     assert row.tags[0].tag_id == "tg1"
     assert row.tags[0].name == "acid"
