@@ -564,6 +564,8 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         return;
       }
       await playerRef.current?.seek(clamped);
+      // Move the marker now; the SDK's next state event re-anchors.
+      setTrack((s) => ({ ...s, positionMs: clamped }));
     },
     [track, onAuthExpired],
   );

@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act } from '@testing-library/react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
@@ -203,5 +204,21 @@ describe('PlayerCard AI badge', () => {
   it('shows nothing for a track without a verdict', () => {
     render(wrap(<PlayerCard {...baseProps} state="playing" />));
     expect(screen.queryByText('AI')).not.toBeInTheDocument();
+  });
+
+  describe('live progress', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('slider advances while playing, stays while paused', () => {
+      const { rerender } = render(wrap(<PlayerCard {...baseProps} state="playing" positionMs={1000} />));
+      const thumb = () => screen.getByRole('slider');
+      expect(Number(thumb().getAttribute('aria-valuenow'))).toBe(1000);
+      act(() => { vi.advanceTimersByTime(2000); });
+      expect(Number(thumb().getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(2900);
+      rerender(wrap(<PlayerCard {...baseProps} state="paused" positionMs={3000} />));
+      act(() => { vi.advanceTimersByTime(2000); });
+      expect(Number(thumb().getAttribute('aria-valuenow'))).toBe(3000);
+    });
   });
 });
