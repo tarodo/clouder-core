@@ -10,6 +10,7 @@ from sqlalchemy import (
     REAL,
     Boolean,
     CheckConstraint,
+    Computed,
     Date,
     DateTime,
     ForeignKey,
@@ -18,6 +19,7 @@ from sqlalchemy import (
     LargeBinary,
     Numeric,
     PrimaryKeyConstraint,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -29,6 +31,14 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 class Base(DeclarativeBase):
     pass
+
+
+# The AI level of a label / artist from its counts (migration 46): 1 = at least one flagged track,
+# 2 = 25-50% of the checked ones, 3 = over half.
+AI_LEVEL = (
+    "CASE WHEN ai_tracks = 0 THEN NULL WHEN ai_tracks * 2 > ai_checked THEN 3"
+    " WHEN ai_tracks * 4 >= ai_checked THEN 2 ELSE 1 END"
+)
 
 
 class IngestRun(Base):
@@ -111,6 +121,11 @@ class ClouderArtist(Base):
     is_ai_suspected: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("FALSE")
     )
+    # AI reputation (migration 46): track counts and the level generated from them
+    ai_total: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    ai_checked: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    ai_tracks: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    ai_level: Mapped[int | None] = mapped_column(SmallInteger, Computed(AI_LEVEL, persisted=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -124,6 +139,11 @@ class ClouderLabel(Base):
     is_ai_suspected: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("FALSE")
     )
+    # AI reputation (migration 46): track counts and the level generated from them
+    ai_total: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    ai_checked: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    ai_tracks: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    ai_level: Mapped[int | None] = mapped_column(SmallInteger, Computed(AI_LEVEL, persisted=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -385,6 +405,9 @@ class TriageBlock(Base):
     ai_to_discard: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("TRUE")
     )
+    # the AI level from which creation sends a label's / an artist's tracks to NOT; NULL = off
+    ai_labels_min_level: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    ai_artists_min_level: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
