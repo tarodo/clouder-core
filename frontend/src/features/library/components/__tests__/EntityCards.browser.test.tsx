@@ -14,7 +14,7 @@ vi.mock('../../../../api/client', () => ({ api: vi.fn(() => new Promise(() => {}
 
 const stats = { tracks: 412, in_categories: 9, in_playlists: 3 };
 
-function renderPanel() {
+function renderPanel(width = 320) {
   const qc = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
   qc.setQueryData(labelInfoKey('l1'), { label_name: 'Exit Strategy', my_preference: null, stats });
   qc.setQueryData(['artistInfo', 'a1'], { artist_name: 'Ivory (IT)', my_preference: 'liked', stats });
@@ -29,7 +29,7 @@ function renderPanel() {
     <MantineProvider theme={clouderTheme}>
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <div style={{ width: 320 }}>
+          <div style={{ width }} data-testid="panel">
             <LabelTile labelId="l1" labelName="Exit Strategy" />
             <ArtistsPanel
               artists={[
@@ -67,4 +67,11 @@ test('the label and every artist card share one look: name type, buttons, width'
     Math.round(dislikes[i]!.getBoundingClientRect().top - c.getBoundingClientRect().top),
   );
   expect(new Set(tops).size).toBe(1);
+});
+
+test('in a player panel the cards are as wide as the player (442px)', () => {
+  renderPanel(442);
+  const cards = [...document.querySelectorAll('[data-entity]')];
+  expect(cards).toHaveLength(3);
+  for (const card of cards) expect(card.getBoundingClientRect().width).toBe(442);
 });
