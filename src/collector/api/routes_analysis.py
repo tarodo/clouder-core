@@ -46,7 +46,7 @@ def _handle_analysis_claim(
 ) -> dict[str, Any]:
     _require_service(event)
     request = _parse(event, AnalysisClaimRequest)
-    now, lease_id = deps.utc_now(), str(uuid4())
+    now, lease_id = deps.utc_now(), str(request.lease_id or uuid4())
     tracks = _repository().claim_analysis(
         limit=request.limit,
         analyzers=request.analyzers,

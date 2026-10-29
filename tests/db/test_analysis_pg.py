@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from pg_data_api import PgDataAPIClient
 
 from collector.repositories import ClouderRepository
 from collector.user_deletion import delete_user
@@ -87,6 +91,45 @@ def test_live_lease_blocks_a_second_claim_until_it_expires(repo) -> None:
     later = T0 + timedelta(minutes=31)
     again = repo.claim_analysis(limit=10, analyzers=["ai_detect"], lease_id=L2, now=later)
     assert {r["track_id"] for r in again} == {"old", "mid", "new"}
+
+
+def _leased(pg) -> int:
+    return pg.execute("SELECT count(*) AS n FROM track_analyses WHERE status = 'leased'")[0]["n"]
+
+
+def test_a_retried_claim_gets_the_same_tracks_back(repo, pg) -> None:
+    first = repo.claim_analysis(limit=2, analyzers=["ai_detect"], lease_id=L1, now=T0)
+    retry = repo.claim_analysis(limit=2, analyzers=["ai_detect"], lease_id=L1, now=T0)
+    assert retry == first
+    assert _leased(pg) == 2
+
+
+class _InTransaction:
+    """A Data API client whose statements stay uncommitted in one transaction."""
+
+    def __init__(self, client) -> None:
+        self.client, self.tx = client, client.begin_transaction()
+
+    def execute(self, sql, params=None):
+        return self.client.execute(sql, params, transaction_id=self.tx)
+
+
+def test_a_retry_racing_the_first_claim_gets_its_tracks(repo, pg) -> None:
+    """The gateway gave up on the first claim (a cold Aurora) while it still ran: the retry
+    picks the same tracks, waits on their rows and must get them, not an empty claim."""
+    first_api = _InTransaction(PgDataAPIClient(os.environ["TEST_DATABASE_URL"]))
+    first = ClouderRepository(first_api).claim_analysis(
+        limit=2, analyzers=["ai_detect"], lease_id=L1, now=T0
+    )
+    with ThreadPoolExecutor(1) as pool:
+        retry = pool.submit(
+            repo.claim_analysis, limit=2, analyzers=["ai_detect"], lease_id=L1, now=T0
+        )
+        time.sleep(0.5)  # the retry is now blocked on the first claim's rows
+        first_api.client.commit_transaction(first_api.tx)
+        assert retry.result(timeout=10) == first
+    first_api.client.close()
+    assert _leased(pg) == 2
 
 
 def test_claim_returns_only_the_missing_analyzers(repo) -> None:

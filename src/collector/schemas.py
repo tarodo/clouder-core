@@ -143,6 +143,9 @@ class AnalysisClaimRequest(BaseModel):
     analyzers: list[AnalyzerName] = Field(min_length=1, max_length=8)
     # 30 min for a claim posted right away; a batch run holds its tracks for hours.
     lease_seconds: StrictInt = Field(default=1800, ge=60, le=86400)
+    # The client's id for this claim, the same on its retries: a retry gets the tracks the
+    # first attempt leased (a gateway timeout does not stop the Lambda). None = server mints one.
+    lease_id: UUID | None = None
 
     @field_validator("analyzers")
     @classmethod

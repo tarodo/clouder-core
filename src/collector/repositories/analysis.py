@@ -150,11 +150,16 @@ RETURNING 1
 _HELD = "NOT (a.status = 'leased' AND a.leased_until < :now)"
 # An ok row of track_analyses `a` that flags AI.
 _FLAG = "a.status = 'ok' AND coalesce((a.result->>'ai_detected')::boolean, false)"
+# A claim takes a pair over from an expired lease or from its own lease: a retry of a claim
+# the gateway timed out on (a cold Aurora) gets the first attempt's tracks back.
+_CLAIM_HELD = (
+    "NOT (a.status = 'leased' AND (a.leased_until < :now OR a.lease_id = CAST(:lease_id AS uuid)))"
+)
 # A track (`t`) misses one of the wanted analyzers (`wanted` CTE).
 _MISSING = f"""EXISTS (
     SELECT 1 FROM wanted w WHERE NOT EXISTS (
         SELECT 1 FROM track_analyses a
-        WHERE a.track_id = t.id AND a.analyzer = w.analyzer AND {_HELD}))"""
+        WHERE a.track_id = t.id AND a.analyzer = w.analyzer AND {_CLAIM_HELD}))"""
 
 _COUNTED = ("leased", "ok", "failed", "unusable_source")
 
@@ -178,7 +183,8 @@ class AnalysisMixin(RepositoryBase):
         but DISCARD, any user: the owner's target number one), then the rest of
         the catalog; newest release first within each (the order the YouTube
         sweep finds them in). One statement: the ON CONFLICT guard lets only an
-        expired lease be taken over, so two claimers never share a pair."""
+        expired lease or the same *lease_id* take a pair over, so two claimers never
+        share a pair and a retried claim (the client's own *lease_id*) is idempotent."""
         names = ",".join(analyzers)
         rows = self._data_api.execute(
             f"""
@@ -222,13 +228,14 @@ class AnalysisMixin(RepositoryBase):
                 FROM picked p CROSS JOIN wanted w
                 WHERE NOT EXISTS (
                     SELECT 1 FROM track_analyses a
-                    WHERE a.track_id = p.id AND a.analyzer = w.analyzer AND {_HELD})
+                    WHERE a.track_id = p.id AND a.analyzer = w.analyzer AND {_CLAIM_HELD})
                 ON CONFLICT (track_id, analyzer) DO UPDATE
                     SET lease_id = EXCLUDED.lease_id,
                         leased_until = EXCLUDED.leased_until,
                         updated_at = EXCLUDED.updated_at
                     WHERE track_analyses.status = 'leased'
-                      AND track_analyses.leased_until < :now
+                      AND (track_analyses.leased_until < :now
+                           OR track_analyses.lease_id = EXCLUDED.lease_id)
                 RETURNING track_id, analyzer
             )
             SELECT p.id AS track_id, p.video_id, p.length_ms,

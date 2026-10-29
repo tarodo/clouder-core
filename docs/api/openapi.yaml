@@ -6266,6 +6266,13 @@ components:
           minimum: 60
           title: Lease Seconds
           type: integer
+        lease_id:
+          anyOf:
+          - format: uuid
+            type: string
+          - type: 'null'
+          default: null
+          title: Lease Id
       required:
       - analyzers
       title: AnalysisClaimRequest
