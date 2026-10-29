@@ -8,4 +8,6 @@
   padding: var(--mantine-spacing-md);
   border-right: 1px solid var(--mantine-color-default-border);
   overflow-y: auto;
+  /* at the end of the panel the wheel stays here, it does not scroll the track list */
+  overscroll-behavior: contain;
 }

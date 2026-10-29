@@ -14,6 +14,7 @@ import { suggestedDestinations, suggestionTag } from '../lib/suggestedDestinatio
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
 import { AnalysisMeta } from './AnalysisMeta';
+import classes from './BucketPlayerPanel.module.css';
 
 export interface BucketPlayerPanelProps {
   blockId: string;
@@ -83,16 +84,7 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
     return (
       <Stack
       gap="md"
-      style={{
-        width: 442,
-        flexShrink: 0,
-        minWidth: 0,
-        alignSelf: 'flex-start',
-        position: 'sticky',
-        top: 'calc(var(--app-shell-header-offset, 3.5rem) + var(--mantine-spacing-sm))',
-        maxHeight: 'calc(100vh - var(--app-shell-header-offset, 3.5rem) - var(--mantine-spacing-md))',
-        overflowY: 'auto',
-      }}
+      className={classes.root}
     >
         <Text c="dimmed">{t('triage.bucket_player.empty.pick_track')}</Text>
       </Stack>
@@ -129,16 +121,7 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
   return (
     <Stack
       gap="md"
-      style={{
-        width: 442,
-        flexShrink: 0,
-        minWidth: 0,
-        alignSelf: 'flex-start',
-        position: 'sticky',
-        top: 'calc(var(--app-shell-header-offset, 3.5rem) + var(--mantine-spacing-sm))',
-        maxHeight: 'calc(100vh - var(--app-shell-header-offset, 3.5rem) - var(--mantine-spacing-md))',
-        overflowY: 'auto',
-      }}
+      className={classes.root}
     >
       <PlayerCard
         variant="full"

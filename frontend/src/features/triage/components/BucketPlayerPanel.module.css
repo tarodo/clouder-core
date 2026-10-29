@@ -1,0 +1,12 @@
+.root {
+  width: 442px;
+  flex-shrink: 0;
+  min-width: 0;
+  align-self: flex-start;
+  position: sticky;
+  top: calc(var(--app-shell-header-offset, 3.5rem) + var(--mantine-spacing-sm));
+  max-height: calc(100vh - var(--app-shell-header-offset, 3.5rem) - var(--mantine-spacing-md));
+  overflow-y: auto;
+  /* at the end of the panel the wheel stays here, it does not scroll the track list */
+  overscroll-behavior: contain;
+}
