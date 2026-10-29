@@ -363,9 +363,10 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
           position: 'absolute',
           top: 'var(--mantine-spacing-md)',
           left: '50%',
-          // up to the right edge, 360px at most: narrower on a narrow desktop
-          right: 'var(--mantine-spacing-md)',
-          maxWidth: 360,
+          // Up to the window's right edge, 420px at most. The wrapper is shifted left by half
+          // the navbar (see above), so its own right edge stops that much short of the window.
+          right: 'calc(var(--mantine-spacing-md) - var(--app-shell-navbar-offset, 0px) / 2)',
+          maxWidth: 420,
           marginLeft: 'calc(360px + var(--mantine-spacing-md))',
         }}
       >
