@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { api } from '../../../api/client';
 import type { components } from '../../../api/schema';
+import { Ghost, GhostScope } from '../../../components/Ghost';
 import { AiBadge } from '../../playback/AiBadge';
 import { Note, StatCard } from './StatCard';
 
@@ -31,6 +32,41 @@ const SEARCH_COLOR: Record<Youtube['status'], string> = {
 };
 
 const fmt = (n: number) => n.toLocaleString('en-US');
+
+// What a stage's ghost shows while its status loads: same rows and notes as a live one.
+const QUEUE = { waiting_messages: 0, in_flight: 0, delayed: 0 };
+const SPOTIFY_GHOST: Spotify = {
+  status: 'idle',
+  paused_until: null,
+  queue: QUEUE,
+  tracks: { total: 4_600, found: 4_410, not_found: 180, waiting: 0, no_isrc: 10, searched_last_10_min: 0 },
+};
+const YOUTUBE_GHOST: Youtube = {
+  status: 'idle',
+  paused_until: null,
+  queue: QUEUE,
+  tracks: { total: 4_600, waiting: 255, searched_last_10_min: 0 },
+  results: { matched: 3_400, needs_review: 940, not_found: 3, error: 2, videos: 1_200 },
+};
+const ghostAnalyzer = (name: string) => ({
+  name,
+  due: 0,
+  leased: 0,
+  ok: 3_300,
+  ai_detected: 60,
+  failed: 12,
+  unusable_source: 3,
+  last_result_at: '2026-10-29T00:00:00Z',
+});
+const ANALYSIS_GHOST: Analysis = {
+  last_claim_at: '2026-10-29T00:00:00Z',
+  last_result_at: '2026-10-29T00:00:00Z',
+  analyzers: ['ai_deezer', 'ai_lofcz', 'light_profile'].map(ghostAnalyzer),
+  pair: { high: 41, medium: 17, low: 55, clean: 3_241 },
+  queue: { total: 3_400, waiting: 30, in_progress: 1, failed: 12, unusable: 3 },
+  profile: { total: 3_400, waiting: 1_240, in_progress: 20, profiled: 2_135, failed: 4, unusable: 1 },
+  models: { count: 1, last_trained_at: '2026-10-27T00:00:00Z', items: [] },
+};
 
 function pct(n: number, of: number): string {
   if (!of) return '—';
@@ -70,48 +106,55 @@ function Stage(props: {
   doneLabel: string;
   base: string;
   buckets: Bucket[];
+  ghost: boolean;
   children?: ReactNode;
 }) {
-  const { title, status, total, doneLabel, base, buckets, children } = props;
+  const { title, status, total, doneLabel, base, buckets, ghost, children } = props;
   const done = total - buckets.filter((b) => b.open).reduce((sum, b) => sum + b.value, 0);
   return (
-    <StatCard
-      title={title}
-      status={status}
-      value={fmt(done)}
-      total={fmt(total)}
-      caption={`${doneLabel} · ${pct(done, total)} ${base}`}
-    >
-      <Progress.Root size="sm">
-        {buckets
-          .filter((b) => b.color && b.value > 0)
-          .map((b) => (
-            <Progress.Section key={b.label} value={(b.value / total) * 100} color={b.color} />
+    <GhostScope on={ghost}>
+      <StatCard
+        title={title}
+        status={status}
+        value={fmt(done)}
+        total={fmt(total)}
+        caption={`${doneLabel} · ${pct(done, total)} ${base}`}
+      >
+        <Ghost block>
+          <Progress.Root size="sm">
+            {buckets
+              .filter((b) => b.color && b.value > 0)
+              .map((b) => (
+                <Progress.Section key={b.label} value={(b.value / total) * 100} color={b.color} />
+              ))}
+          </Progress.Root>
+        </Ghost>
+        <Stack gap={2}>
+          {buckets.map((b) => (
+            <Group key={b.label} justify="space-between" wrap="nowrap" data-bucket={b.label}>
+              <Group gap={4} wrap="nowrap">
+                {/* one marker column: an AI badge is wider than a swatch */}
+                <Box w={24} style={{ display: 'flex', flexShrink: 0 }}>
+                  {b.marker ?? <Swatch color={b.color} />}
+                </Box>
+                <Text size="sm">{b.label}</Text>
+              </Group>
+              <Ghost>
+                <Group gap="xs" wrap="nowrap">
+                  <Text size="sm" fw={600}>
+                    {fmt(b.value)}
+                  </Text>
+                  <Text size="xs" c="dimmed" w={44} ta="right">
+                    {b.open ? '' : pct(b.value, done)}
+                  </Text>
+                </Group>
+              </Ghost>
+            </Group>
           ))}
-      </Progress.Root>
-      <Stack gap={2}>
-        {buckets.map((b) => (
-          <Group key={b.label} justify="space-between" wrap="nowrap" data-bucket={b.label}>
-            <Group gap={4} wrap="nowrap">
-              {/* one marker column: an AI badge is wider than a swatch */}
-              <Box w={24} style={{ display: 'flex', flexShrink: 0 }}>
-                {b.marker ?? <Swatch color={b.color} />}
-              </Box>
-              <Text size="sm">{b.label}</Text>
-            </Group>
-            <Group gap="xs" wrap="nowrap">
-              <Text size="sm" fw={600}>
-                {fmt(b.value)}
-              </Text>
-              <Text size="xs" c="dimmed" w={44} ta="right">
-                {b.open ? '' : pct(b.value, done)}
-              </Text>
-            </Group>
-          </Group>
-        ))}
-      </Stack>
-      {children && <Stack gap={2}>{children}</Stack>}
-    </StatCard>
+        </Stack>
+        {children && <Stack gap={2}>{children}</Stack>}
+      </StatCard>
+    </GhostScope>
   );
 }
 
@@ -214,24 +257,32 @@ export function PipelineStatus() {
   });
   const p = (key: string, opts?: Record<string, unknown>) => t(`admin.pipeline.${key}`, opts);
   const catalog = youtube.data?.tracks.total ?? spotify.data?.tracks.total;
-  const sp = spotify.data;
-  const yt = youtube.data;
-  const an = analysis.data;
+  // Each stage keeps its slot while it loads (a ghost), so none moves when another lands; a
+  // failed query drops its stage.
+  const sp = spotify.data ?? (spotify.isPending ? SPOTIFY_GHOST : undefined);
+  const yt = youtube.data ?? (youtube.isPending ? YOUTUBE_GHOST : undefined);
+  const an = analysis.data ?? (analysis.isPending ? ANALYSIS_GHOST : undefined);
+  const catalogGhost = catalog === undefined && (spotify.isPending || youtube.isPending);
 
   return (
     <Stack gap="sm">
       <Group gap="xs" align="baseline">
         <Text fw={600}>{p('title')}</Text>
-        {catalog !== undefined && (
-          <Text size="sm" c="dimmed">
-            {p('catalog', { count: fmt(catalog) })}
-          </Text>
+        {(catalog !== undefined || catalogGhost) && (
+          <GhostScope on={catalogGhost}>
+            <Ghost>
+              <Text size="sm" c="dimmed">
+                {p('catalog', { count: fmt(catalog ?? SPOTIFY_GHOST.tracks.total) })}
+              </Text>
+            </Ghost>
+          </GhostScope>
         )}
       </Group>
       <SimpleGrid type="container" cols={{ base: 1, '560px': 2, '1100px': 4 }}>
         {sp && (
           <Stage
             title="Spotify"
+            ghost={!spotify.data}
             status={<SearchBadge data={sp} />}
             total={sp.tracks.total}
             doneLabel={p('searched')}
@@ -249,6 +300,7 @@ export function PipelineStatus() {
         {yt && (
           <Stage
             title="YouTube Music"
+            ghost={!youtube.data}
             status={<SearchBadge data={yt} />}
             total={yt.tracks.total}
             doneLabel={p('searched')}
@@ -268,6 +320,7 @@ export function PipelineStatus() {
         {an && (
           <Stage
             title={p('ai')}
+            ghost={!analysis.data}
             status={<StageBadge data={an} names={AI_ANALYZERS} inProgress={an.queue.in_progress} />}
             total={an.queue.total}
             doneLabel={p('checked')}
@@ -293,6 +346,7 @@ export function PipelineStatus() {
         {an && (
           <Stage
             title={p('profile')}
+            ghost={!analysis.data}
             status={
               <StageBadge data={an} names={PROFILE_ANALYZERS} inProgress={an.profile.in_progress} />
             }

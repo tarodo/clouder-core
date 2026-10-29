@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { api } from '../../../api/client';
 import type { components } from '../../../api/schema';
+import { Ghost, GhostScope, useRemembered } from '../../../components/Ghost';
 
 dayjs.extend(relativeTime);
 
@@ -20,18 +21,41 @@ const DASH = '—';
 
 const fmt = (n: number) => n.toLocaleString('en-US');
 
+/** The table's ghost while the status loads: as many rows as last time. */
+const ghostItem = (i: number): Item => ({
+  user_id: `ghost-${i}`,
+  user_name: 'Placeholder',
+  style_id: `ghost-${i}`,
+  style_name: 'Placeholder style name',
+  version: 2,
+  trained_at: '2026-10-27T00:00:00Z',
+  retrain_pending: false,
+  labels_since_training: 0,
+  n_labels: 1_200,
+  rows_total: 1_200,
+  n_keep: 410,
+  keep_auc: 0.842,
+  category_bacc: 0.611,
+  n_classes: 3,
+  first_hit: 0.58,
+  first_n: 64,
+  predictions: 3_120,
+  max_rss_mb: 1_400,
+});
+
 /** Admin table of the triage suggestion models: one row per (user, style) with a model row or a
  * live block. Reads the analysis status the pipeline block polls, so it adds no request. */
 export function SuggestionModels() {
   const { t } = useTranslation();
   const k = (key: string, opts?: Record<string, unknown>) =>
     t(`admin.suggestion_models.${key}`, opts);
-  const { data } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: ['admin', 'analysisStatus'],
     queryFn: () => api<Analysis>('/admin/analysis/status'),
   });
-  if (!data) return null;
-  const items = data.models.items;
+  const rows = useRemembered('admin.suggestion_models', data?.models.items.length, 3);
+  if (!data && !isPending) return null;
+  const items = data?.models.items ?? Array.from({ length: rows }, (_, i) => ghostItem(i));
 
   const model = (m: Item) =>
     m.version > 0
@@ -66,13 +90,15 @@ export function SuggestionModels() {
     );
   };
 
-  return (
+  const table = (
     <Stack gap="sm">
       <Text fw={600}>{k('title')}</Text>
       {items.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          {k('empty')}
-        </Text>
+        <Ghost>
+          <Text size="sm" c="dimmed">
+            {k('empty')}
+          </Text>
+        </Ghost>
       ) : (
         <Paper withBorder radius="md">
           <Table.ScrollContainer minWidth={900}>
@@ -97,22 +123,26 @@ export function SuggestionModels() {
               <Table.Tbody>
                 {items.map((m) => (
                   <Table.Tr key={`${m.user_id}/${m.style_id}`}>
-                    <Table.Td>{m.user_name}</Table.Td>
-                    <Table.Td>{m.style_name}</Table.Td>
-                    <Table.Td>{model(m)}</Table.Td>
-                    <Table.Td>{labels(m)}</Table.Td>
-                    <Table.Td>{m.keep_auc === null ? DASH : m.keep_auc.toFixed(3)}</Table.Td>
-                    <Table.Td>
-                      {m.category_bacc === null
+                    {[
+                      m.user_name,
+                      m.style_name,
+                      model(m),
+                      labels(m),
+                      m.keep_auc === null ? DASH : m.keep_auc.toFixed(3),
+                      m.category_bacc === null
                         ? DASH
                         : k('categories_value', {
                             bacc: m.category_bacc.toFixed(3),
                             n: m.n_classes ?? 0,
-                          })}
-                    </Table.Td>
-                    <Table.Td>{first(m)}</Table.Td>
-                    <Table.Td>{fmt(m.predictions)}</Table.Td>
-                    <Table.Td>{memory(m.max_rss_mb)}</Table.Td>
+                          }),
+                      first(m),
+                      fmt(m.predictions),
+                      memory(m.max_rss_mb),
+                    ].map((cell, i) => (
+                      <Table.Td key={i}>
+                        <Ghost>{cell}</Ghost>
+                      </Table.Td>
+                    ))}
                   </Table.Tr>
                 ))}
               </Table.Tbody>
@@ -122,4 +152,5 @@ export function SuggestionModels() {
       )}
     </Stack>
   );
+  return <GhostScope on={!data}>{table}</GhostScope>;
 }
