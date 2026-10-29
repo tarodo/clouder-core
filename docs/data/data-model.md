@@ -278,6 +278,7 @@ PK `(category_id, track_id)`. `source_triage_block_id` is set when the track was
 | Table | Key | Notes |
 |---|---|---|
 | `audio_features` | `video_id` | Marks a YouTube video whose `light-1` profile (16 778 float16, `features/light-1/<video_id>.f16` in S3) exists. `version`, `audio_sha256`, `created_at`. |
+| `audio_waveforms` | `video_id` | The player's waveform of a YouTube video (migration 48), posted by the analyzer for every video it downloads; `POST /v1/analysis/waveforms` also marks the video's tracks `waveform ok` in `track_analyses` (a re-match moves the row like `light_profile`), so tracks without one can be claimed later. `data` is base64 of `wave-1`: 3 bands (20–250 Hz, 250 Hz–4 kHz, 4–16 kHz) × 600 time bins of u8 dB against the band's loudest bin (0 = 36 dB below). `duration_ms` is the decoded length: `GET /tracks/{track_id}/waveform` returns the waveform only when the Spotify track's `duration_ms` is within 3 s of it. `version`, `audio_sha256`, `created_at`. |
 | `ml_models` | `(user_id, style_id)` | One model per user and style. `version = 0` means requested, never trained. Also `trained_at`, `retrain_requested_at`, `n_labels`, `n_keep`, `keep_threshold`, `classes jsonb`, `metrics jsonb`, `artifact_key`. Cascades on user delete. |
 | `track_predictions` | `(user_id, style_id, track_id)` | Scores of the current model: `model_version`, `keep_score`, `keep`, `categories jsonb`, `scored_at`. Cascades on user and track delete. |
 

@@ -25,6 +25,7 @@ def test_service_routes_use_the_analysis_authorizer() -> None:
         "POST /v1/analysis/claim",
         "POST /v1/analysis/results",
         "POST /v1/analysis/features",
+        "POST /v1/analysis/waveforms",
     ):
         assert "aws_apigatewayv2_authorizer.analysis_service.id" in routes[key]
         assert "collector_lambda" in routes[key]
@@ -43,7 +44,11 @@ def test_only_analysis_routes_use_the_analysis_authorizer() -> None:
 
 def test_admin_routes_use_the_jwt_authorizer() -> None:
     routes = _routes()
-    for key in ("GET /admin/analysis/status", "POST /admin/analysis/requeue"):
+    for key in (
+        "GET /admin/analysis/status",
+        "POST /admin/analysis/requeue",
+        "GET /tracks/{track_id}/waveform",
+    ):
         assert "aws_apigatewayv2_authorizer.jwt.id" in routes[key]
 
 

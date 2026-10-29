@@ -1785,6 +1785,84 @@ paths:
       - ServiceToken: []
       tags:
       - service
+  /v1/analysis/waveforms:
+    post:
+      summary: 'Analyzer: upload wave-1 waveforms (one per video); bad data comes
+        back rejected.'
+      responses:
+        '200':
+          description: Stored waveforms; the same version and sha again is a no-op.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisWaveformsResponse'
+        '400':
+          description: validation_error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid service token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisWaveformsRequest'
+      security:
+      - ServiceToken: []
+      tags:
+      - service
+  /tracks/{track_id}/waveform:
+    get:
+      summary: The player's waveform of a track (null when there is none to draw).
+      responses:
+        '200':
+          description: The track's waveform.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - waveform
+                properties:
+                  waveform:
+                    description: Null until the analyzer has read the track's video,
+                      or when the Spotify track differs from it in length by more
+                      than 3 s.
+                    type:
+                    - object
+                    - 'null'
+                    required:
+                    - duration_ms
+                    - data
+                    properties:
+                      duration_ms:
+                        type: integer
+                        description: Length of the analyzed audio.
+                      data:
+                        type: string
+                        description: Base64 of 3 bands (20-250 Hz, 250 Hz-4 kHz, 4-16
+                          kHz) x 600 time bins of u8 dB against the band's loudest
+                          bin (0 = 36 dB below it), band after band.
+        '401': *id001
+        '403': *id002
+      parameters:
+      - name: track_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      security:
+      - BearerAuth: []
+      tags:
+      - user
   /admin/auto-ingest/run:
     post:
       summary: 'Admin: start an auto-ingest run now (asynchronous, also when disabled).'
@@ -6460,6 +6538,54 @@ components:
       - results
       title: AnalysisResultsRequest
       type: object
+    AnalysisWaveformItem:
+      additionalProperties: false
+      properties:
+        video_id:
+          pattern: ^[A-Za-z0-9_-]{6,32}$
+          title: Video Id
+          type: string
+        version:
+          const: wave-1
+          title: Version
+          type: string
+        audio_sha256:
+          pattern: ^[0-9a-f]{64}$
+          title: Audio Sha256
+          type: string
+        duration_ms:
+          maximum: 86400000
+          minimum: 1
+          title: Duration Ms
+          type: integer
+        data_b64:
+          maxLength: 2400
+          title: Data B64
+          type: string
+      required:
+      - video_id
+      - version
+      - audio_sha256
+      - duration_ms
+      - data_b64
+      title: AnalysisWaveformItem
+      type: object
+    AnalysisWaveformsRequest:
+      additionalProperties: false
+      description: 'POST /v1/analysis/waveforms: wave-1 waveforms, one per YouTube
+        video.'
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AnalysisWaveformItem'
+          maxItems: 100
+          minItems: 1
+          title: Items
+          type: array
+      required:
+      - items
+      title: AnalysisWaveformsRequest
+      type: object
     AutoIngestSettingsIn:
       additionalProperties: false
       description: PUT /admin/auto-ingest (docs/data/auto-ingest.md).
@@ -7268,6 +7394,28 @@ components:
                 type: string
                 enum:
                 - bad_vector
+    AnalysisWaveformsResponse:
+      type: object
+      required:
+      - accepted
+      - rejected
+      properties:
+        accepted:
+          type: integer
+        rejected:
+          type: array
+          items:
+            type: object
+            required:
+            - video_id
+            - reason
+            properties:
+              video_id:
+                type: string
+              reason:
+                type: string
+                enum:
+                - bad_waveform
     AnalysisStatus:
       type: object
       required:

@@ -1,0 +1,79 @@
+.wave {
+  position: relative;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  cursor: pointer;
+  /* a vertical swipe still scrolls the page; a horizontal one scrubs */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+
+.wave[data-disabled] {
+  cursor: default;
+}
+
+.wave:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.bar {
+  flex: none;
+  width: 3px;
+  border-radius: 1px;
+  background: var(--color-border-strong);
+  transform: scaleY(var(--grow, 1));
+  /* no color transition: it flickered the bars at the played edge on every tick */
+  transition:
+    transform 140ms ease-out,
+    height 240ms ease-out;
+}
+
+.bar[data-ahead] {
+  background: var(--color-fg-subtle);
+}
+
+.bar[data-played] {
+  background: var(--color-fg);
+}
+
+.tip {
+  position: absolute;
+  top: -22px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-fg);
+  color: var(--color-fg-inverse);
+  font: 500 11px/16px var(--mantine-font-family-monospace);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* the short placeholder bars: keep the time close to them */
+.tip[data-flat] {
+  top: 4px;
+}
+
+.empty {
+  position: absolute;
+  inset: auto 0 0;
+  text-align: center;
+  pointer-events: none;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--color-fg-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+    transform: none;
+  }
+}

@@ -646,6 +646,17 @@ class AudioFeature(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class AudioWaveform(Base):
+    __tablename__ = "audio_waveforms"
+
+    video_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    version: Mapped[str] = mapped_column(String(16), nullable=False)
+    audio_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    data: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class MlModel(Base):
     """Per-(user, style) model. version 0 = requested, never trained."""
 

@@ -141,7 +141,7 @@ _YT_CMD = UpsertVendorMatchCmd(
 )
 
 
-def test_ytmusic_upsert_moves_the_light_profile_in_the_same_transaction() -> None:
+def test_ytmusic_upsert_moves_the_light_profile_and_waveform_in_the_same_transaction() -> None:
     repo, data_api = _make_repo()
 
     repo.upsert_vendor_match(_YT_CMD, transaction_id="tx-1")
@@ -149,13 +149,17 @@ def test_ytmusic_upsert_moves_the_light_profile_in_the_same_transaction() -> Non
     data_api.transaction.assert_not_called()
 
     calls = data_api.execute.call_args_list
-    assert len(calls) == 3
+    assert len(calls) == 5
     assert all(c.kwargs == {"transaction_id": "tx-1"} for c in calls)
-    assert "DELETE FROM track_analyses" in calls[1].args[0]
-    assert "FROM audio_features" in calls[2].args[0]
-    assert calls[1].args[1]["video"] == calls[2].args[1]["video"] == "vid-new"
-
-    assert "status <> 'leased'" in calls[1].args[0]
+    for delete, insert, analyzer, table in (
+        (calls[1], calls[2], "light_profile", "audio_features"),
+        (calls[3], calls[4], "waveform", "audio_waveforms"),
+    ):
+        assert "DELETE FROM track_analyses" in delete.args[0]
+        assert f"analyzer = '{analyzer}'" in delete.args[0]
+        assert "status <> 'leased'" in delete.args[0]
+        assert f"FROM {table}" in insert.args[0]
+        assert delete.args[1]["video"] == insert.args[1]["video"] == "vid-new"
 
 
 def test_ytmusic_upsert_without_a_transaction_opens_one() -> None:
@@ -166,7 +170,7 @@ def test_ytmusic_upsert_without_a_transaction_opens_one() -> None:
 
     data_api.transaction.assert_called_once_with()
     calls = data_api.execute.call_args_list
-    assert len(calls) == 3
+    assert len(calls) == 5
     assert all(c.kwargs == {"transaction_id": "tx-own"} for c in calls)
 
 

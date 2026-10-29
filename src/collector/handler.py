@@ -110,6 +110,8 @@ _ROUTE_TABLE: dict[str, Route] = {
     "POST /v1/analysis/claim": routes_analysis._handle_analysis_claim,
     "POST /v1/analysis/features": routes_analysis._handle_analysis_features,
     "POST /v1/analysis/results": routes_analysis._handle_analysis_results,
+    "POST /v1/analysis/waveforms": routes_analysis._handle_analysis_waveforms,
+    "GET /tracks/{track_id}/waveform": routes_analysis._handle_track_waveform,
     "GET /tracks": routes_catalog._handle_list,
     "GET /albums": routes_catalog._handle_list,
     "GET /v1/analytics/funnel": routes_catalog._handle_analytics_funnel,

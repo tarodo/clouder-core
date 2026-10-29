@@ -8,7 +8,7 @@ import {
   IconPlayerSkipForwardFilled,
   IconExternalLink,
 } from '@tabler/icons-react';
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import classes from './PlayerCard.module.css';
 import type { PlaybackTrack } from './lib/types';
@@ -17,6 +17,9 @@ import { pctToMs } from './lib/seekHotkeys';
 import { formatLength } from '../../lib/formatters';
 import { AiBadge } from './AiBadge';
 import { useLivePosition } from './useLivePosition';
+import { usePlayerScrubber } from './usePlayerScrubber';
+import { useWaveform } from './useWaveform';
+import { Waveform } from './Waveform';
 
 export type PlayerCardState =
   | 'idle'
@@ -97,6 +100,31 @@ const SCRUB_OPACITY: Record<PlayerCardState, number> = {
   disconnected: 0.3,
   'empty-bucket': 0.0,
 };
+
+/** The scrub bar as the track's waveform; its own component so only it reads the query. */
+function TrackWaveform({
+  trackId,
+  ...rest
+}: {
+  trackId: string | undefined;
+  positionMs: number;
+  durationMs: number;
+  disabled: boolean;
+  style: CSSProperties;
+  onSeek: (ms: number) => void;
+}) {
+  const { t } = useTranslation();
+  const { data, isPending } = useWaveform(trackId);
+  return (
+    <Waveform
+      loudness={data ?? null}
+      loading={!!trackId && isPending}
+      ariaLabel={t('playback.controls.scrub_aria')}
+      emptyLabel={t('playback.waveform_none')}
+      {...rest}
+    />
+  );
+}
 
 export function PlayerCard(props: PlayerCardProps) {
   const { t } = useTranslation();
@@ -179,6 +207,7 @@ export function PlayerCard(props: PlayerCardProps) {
   // While dragging, the slider follows the pointer rather than the ticker.
   const [dragMs, setDragMs] = useState<number | null>(null);
   const positionMs = dragMs ?? livePos;
+  const [scrubber] = usePlayerScrubber();
 
   return (
     <Paper
@@ -286,26 +315,37 @@ export function PlayerCard(props: PlayerCardProps) {
         <div style={{ marginTop: 8 }}>{belowMainRow}</div>
       ) : null}
 
-      <Slider
-        className={classes.scrub}
-        value={positionMs}
-        min={0}
-        max={progressMax}
-        size="xs"
-        thumbSize={isMini ? 0 : 12}
-        label={null}
-        disabled={scrubDisabled}
-        onChange={(ms) => {
-          setDragMs(ms);
-          scrub.onChange(ms);
-        }}
-        onChangeEnd={(ms) => {
-          setDragMs(null);
-          scrub.onChangeEnd(ms);
-        }}
-        style={{ opacity: SCRUB_OPACITY[state], marginTop: isMini ? 4 : mobileSeekChips ? 8 : 16 }}
-        aria-label={t('playback.controls.scrub_aria')}
-      />
+      {scrubber === 'waveform' && !isMini ? (
+        <TrackWaveform
+          trackId={track?.id}
+          positionMs={livePos}
+          durationMs={progressMax}
+          disabled={scrubDisabled}
+          style={{ opacity: SCRUB_OPACITY[state], marginTop: mobileSeekChips ? 8 : 12 }}
+          onSeek={onSeekMs}
+        />
+      ) : (
+        <Slider
+          className={classes.scrub}
+          value={positionMs}
+          min={0}
+          max={progressMax}
+          size="xs"
+          thumbSize={isMini ? 0 : 12}
+          label={null}
+          disabled={scrubDisabled}
+          onChange={(ms) => {
+            setDragMs(ms);
+            scrub.onChange(ms);
+          }}
+          onChangeEnd={(ms) => {
+            setDragMs(null);
+            scrub.onChangeEnd(ms);
+          }}
+          style={{ opacity: SCRUB_OPACITY[state], marginTop: isMini ? 4 : mobileSeekChips ? 8 : 16 }}
+          aria-label={t('playback.controls.scrub_aria')}
+        />
+      )}
       {showTimes && !isMini ? (
         <Group justify="space-between" mt={4}>
           <Text size="xs" c="dimmed" className="font-mono">

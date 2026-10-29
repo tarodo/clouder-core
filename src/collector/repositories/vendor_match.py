@@ -8,7 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from ._base import RepositoryBase
-from .audio_features import LIGHT_PROFILE, OK_ON_CONFLICT
+from .audio_features import LIGHT_PROFILE, OK_ON_CONFLICT, WAVEFORM
 from .commands import UpsertVendorMatchCmd, VendorTrackMatch
 
 
@@ -87,8 +87,8 @@ class VendorMatchMixin(RepositoryBase):
         )
         if cmd.vendor != "ytmusic":
             return
-        # A profile follows the track's current video: drop the claim gate of the old
-        # one, then reopen it as ok when the new video is profiled already. A live lease
+        # A profile and a waveform follow the track's current video: drop the claim gate of
+        # the old one, then reopen it as ok when the new video has one already. A live lease
         # (video_id NULL) stays: deleting it would let a second claim download the track
         # again; if the video changed, the lease just runs out and the next claim sends
         # the new one.
@@ -97,28 +97,29 @@ class VendorMatchMixin(RepositoryBase):
             "video": cmd.vendor_track_id,
             "now": cmd.matched_at,
         }
-        self._data_api.execute(
-            f"""
-            DELETE FROM track_analyses
-            WHERE track_id = :clouder_track_id AND analyzer = '{LIGHT_PROFILE}'
-              AND status <> 'leased' AND video_id IS DISTINCT FROM :video
-            """,
-            params,
-            transaction_id=transaction_id,
-        )
-        self._data_api.execute(
-            f"""
-            INSERT INTO track_analyses
-                (track_id, analyzer, status, version, video_id, audio_sha256,
-                 analyzed_at, created_at, updated_at)
-            SELECT :clouder_track_id, '{LIGHT_PROFILE}', 'ok', f.version, f.video_id,
-                   f.audio_sha256, f.created_at, :now, :now
-            FROM audio_features f WHERE f.video_id = :video
-            {OK_ON_CONFLICT}
-            """,
-            params,
-            transaction_id=transaction_id,
-        )
+        for analyzer, table in ((LIGHT_PROFILE, "audio_features"), (WAVEFORM, "audio_waveforms")):
+            self._data_api.execute(
+                f"""
+                DELETE FROM track_analyses
+                WHERE track_id = :clouder_track_id AND analyzer = '{analyzer}'
+                  AND status <> 'leased' AND video_id IS DISTINCT FROM :video
+                """,
+                params,
+                transaction_id=transaction_id,
+            )
+            self._data_api.execute(
+                f"""
+                INSERT INTO track_analyses
+                    (track_id, analyzer, status, version, video_id, audio_sha256,
+                     analyzed_at, created_at, updated_at)
+                SELECT :clouder_track_id, '{analyzer}', 'ok', f.version, f.video_id,
+                       f.audio_sha256, f.created_at, :now, :now
+                FROM {table} f WHERE f.video_id = :video
+                {OK_ON_CONFLICT}
+                """,
+                params,
+                transaction_id=transaction_id,
+            )
 
     def insert_review_candidate(
         self,

@@ -2750,6 +2750,128 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/analysis/waveforms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Analyzer: upload wave-1 waveforms (one per video); bad data comes back rejected. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AnalysisWaveformsRequest"];
+                };
+            };
+            responses: {
+                /** @description Stored waveforms; the same version and sha again is a no-op. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnalysisWaveformsResponse"];
+                    };
+                };
+                /** @description validation_error. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid service token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tracks/{track_id}/waveform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The player's waveform of a track (null when there is none to draw). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The track's waveform. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @description Null until the analyzer has read the track's video, or when the Spotify track differs from it in length by more than 3 s. */
+                            waveform: {
+                                /** @description Length of the analyzed audio. */
+                                duration_ms: number;
+                                /** @description Base64 of 3 bands (20-250 Hz, 250 Hz-4 kHz, 4-16 kHz) x 600 time bins of u8 dB against the band's loudest bin (0 = 36 dB below it), band after band. */
+                                data: string;
+                            } | null;
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/auto-ingest/run": {
         parameters: {
             query?: never;
@@ -9048,6 +9170,30 @@ export interface components {
             /** Results */
             results: components["schemas"]["AnalysisResultItem"][];
         };
+        /** AnalysisWaveformItem */
+        AnalysisWaveformItem: {
+            /** Video Id */
+            video_id: string;
+            /**
+             * Version
+             * @constant
+             */
+            version: "wave-1";
+            /** Audio Sha256 */
+            audio_sha256: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Data B64 */
+            data_b64: string;
+        };
+        /**
+         * AnalysisWaveformsRequest
+         * @description POST /v1/analysis/waveforms: wave-1 waveforms, one per YouTube video.
+         */
+        AnalysisWaveformsRequest: {
+            /** Items */
+            items: components["schemas"]["AnalysisWaveformItem"][];
+        };
         /**
          * AutoIngestSettingsIn
          * @description PUT /admin/auto-ingest (docs/data/auto-ingest.md).
@@ -9393,6 +9539,14 @@ export interface components {
                 video_id: string;
                 /** @enum {string} */
                 reason: "bad_vector";
+            }[];
+        };
+        AnalysisWaveformsResponse: {
+            accepted: number;
+            rejected: {
+                video_id: string;
+                /** @enum {string} */
+                reason: "bad_waveform";
             }[];
         };
         AnalysisStatus: {
