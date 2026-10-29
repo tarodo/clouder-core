@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from ..data_api import DataAPIClient
+from ..repositories.analysis import ai_rep_sql, parse_ai_rep
 
 if TYPE_CHECKING:
     from ..label_enrichment.vendors.base import VendorResponse
@@ -452,9 +453,10 @@ class ArtistEnrichmentRepository:
         itself does not exist.
         """
         rows = self._data_api.execute(
-            """
-            SELECT ai.merged, uap.status AS my_preference
+            f"""
+            SELECT ai.merged, uap.status AS my_preference, {ai_rep_sql("art")} AS ai_rep
             FROM clouder_artist_info ai
+            JOIN clouder_artists art ON art.id = ai.artist_id
             LEFT JOIN clouder_user_artist_prefs uap
                 ON uap.artist_id = ai.artist_id AND uap.user_id = :user_id
             WHERE ai.artist_id = :id
@@ -470,11 +472,13 @@ class ArtistEnrichmentRepository:
                 return None
             out = {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
             out["my_preference"] = rows[0].get("my_preference")
+            out["ai"] = parse_ai_rep(rows[0].get("ai_rep"))
             return out
 
         fallback = self._data_api.execute(
-            """
-            SELECT art.name AS artist_name, uap.status AS my_preference
+            f"""
+            SELECT art.name AS artist_name, uap.status AS my_preference,
+                   {ai_rep_sql("art")} AS ai_rep
             FROM clouder_artists art
             LEFT JOIN clouder_user_artist_prefs uap
                 ON uap.artist_id = art.id AND uap.user_id = :user_id
@@ -489,6 +493,7 @@ class ArtistEnrichmentRepository:
         return {
             "artist_name": row.get("artist_name"),
             "my_preference": row.get("my_preference"),
+            "ai": parse_ai_rep(row.get("ai_rep")),
         }
 
     # ── runs (read) ──────────────────────────────────────────────────
@@ -763,7 +768,8 @@ class ArtistEnrichmentRepository:
                    ai.artist_type, ai.ai_content, ai.updated_at,
                    ads.style_slug AS dominant_style,
                    COALESCE(atc.cnt, 0) AS track_count,
-                   uap.status AS my_preference
+                   uap.status AS my_preference,
+                   {ai_rep_sql("art")} AS ai_rep
             FROM clouder_artists art
             LEFT JOIN clouder_artist_info ai ON ai.artist_id = art.id
             LEFT JOIN artist_dominant_style ads ON ads.artist_id = art.id
@@ -799,6 +805,7 @@ class ArtistEnrichmentRepository:
                     "track_count": int(r.get("track_count") or 0),
                     "info": info,
                     "my_preference": r.get("my_preference"),
+                    "ai": parse_ai_rep(r.get("ai_rep")),
                 }
             )
 

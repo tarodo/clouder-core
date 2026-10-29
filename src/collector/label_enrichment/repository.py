@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from ..data_api import DataAPIClient
+from ..repositories.analysis import ai_rep_sql, parse_ai_rep
 
 if TYPE_CHECKING:
     from .schemas import LabelInfo
@@ -254,7 +255,8 @@ class LabelEnrichmentRepository:
                    li.activity, li.ai_content, li.updated_at,
                    lds.style_slug AS dominant_style,
                    COALESCE(ltc.cnt, 0) AS track_count,
-                   ulp.status AS my_preference
+                   ulp.status AS my_preference,
+                   {ai_rep_sql("lbl")} AS ai_rep
             FROM clouder_labels lbl
             LEFT JOIN clouder_label_info li ON li.label_id = lbl.id
             LEFT JOIN label_dominant_style lds ON lds.label_id = lbl.id
@@ -291,6 +293,7 @@ class LabelEnrichmentRepository:
                     "track_count": int(r.get("track_count") or 0),
                     "info": info,
                     "my_preference": r.get("my_preference"),
+                    "ai": parse_ai_rep(r.get("ai_rep")),
                 }
             )
 
@@ -970,9 +973,10 @@ class LabelEnrichmentRepository:
         itself does not exist.
         """
         rows = self._data_api.execute(
-            """
-            SELECT li.merged, ulp.status AS my_preference
+            f"""
+            SELECT li.merged, ulp.status AS my_preference, {ai_rep_sql("lbl")} AS ai_rep
             FROM clouder_label_info li
+            JOIN clouder_labels lbl ON lbl.id = li.label_id
             LEFT JOIN clouder_user_label_prefs ulp
                 ON ulp.label_id = li.label_id AND ulp.user_id = :user_id
             WHERE li.label_id = :id
@@ -988,11 +992,13 @@ class LabelEnrichmentRepository:
                 return None
             out = {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
             out["my_preference"] = rows[0].get("my_preference")
+            out["ai"] = parse_ai_rep(rows[0].get("ai_rep"))
             return out
 
         fallback = self._data_api.execute(
-            """
-            SELECT lbl.name AS label_name, ulp.status AS my_preference
+            f"""
+            SELECT lbl.name AS label_name, ulp.status AS my_preference,
+                   {ai_rep_sql("lbl")} AS ai_rep
             FROM clouder_labels lbl
             LEFT JOIN clouder_user_label_prefs ulp
                 ON ulp.label_id = lbl.id AND ulp.user_id = :user_id
@@ -1007,6 +1013,7 @@ class LabelEnrichmentRepository:
         return {
             "label_name": row.get("label_name"),
             "my_preference": row.get("my_preference"),
+            "ai": parse_ai_rep(row.get("ai_rep")),
         }
 
     def increment_run_counters(

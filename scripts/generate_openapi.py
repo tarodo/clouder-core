@@ -131,6 +131,22 @@ AI_VERDICT = {
     ),
 }
 
+AI_REP = {
+    "type": ["object", "null"],
+    "description": (
+        "AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones"
+        " ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one,"
+        " 2 = 25-50% of the checked, 3 = over half; null = no flagged track."
+    ),
+    "required": ["level", "ai", "checked", "total"],
+    "properties": {
+        "level": {"type": "integer", "enum": [1, 2, 3]},
+        "ai": {"type": "integer"},
+        "checked": {"type": "integer"},
+        "total": {"type": "integer"},
+    },
+}
+
 CATEGORY_TRACK_RESPONSE = {
     "type": "object",
     "description": (
@@ -528,6 +544,7 @@ BUCKET_TRACK_ROW = {
         "ai_verdict": AI_VERDICT,
         "artists": {"type": "array", "items": {"type": "string"}},
         "added_at": {"type": "string"},
+        "label_ai": AI_REP,
         "prediction": {
             "type": ["object", "null"],
             "required": ["keep", "category_ids", "unsure"],
@@ -1432,6 +1449,7 @@ LABEL_SUMMARY = {
             "type": ["string", "null"],
             "enum": ["liked", "disliked", None],
         },
+        "ai": AI_REP,
     },
 }
 
@@ -1457,6 +1475,7 @@ LABEL_DETAIL_RESPONSE = {
             "type": ["string", "null"],
             "enum": ["liked", "disliked", None],
         },
+        "ai": AI_REP,
     },
     "additionalProperties": True,
 }
@@ -1759,6 +1778,7 @@ ARTIST_SUMMARY = {
             "type": ["string", "null"],
             "enum": ["liked", "disliked", None],
         },
+        "ai": AI_REP,
     },
 }
 
@@ -1784,6 +1804,7 @@ ARTIST_DETAIL_RESPONSE = {
             "type": ["string", "null"],
             "enum": ["liked", "disliked", None],
         },
+        "ai": AI_REP,
     },
     "additionalProperties": True,
 }

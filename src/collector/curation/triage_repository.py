@@ -30,7 +30,12 @@ from collector.curation.triage_service import (
     TECHNICAL_BUCKET_TYPES,
 )
 from collector.data_api import DataAPIClient
-from collector.repositories.analysis import AI_FLAGGED_SQL, AI_VERDICT_SQL
+from collector.repositories.analysis import (
+    AI_FLAGGED_SQL,
+    AI_VERDICT_SQL,
+    ai_rep_sql,
+    parse_ai_rep,
+)
 
 # A keep_score this close to the model's keep threshold is a coin flip (live check of model v3,
 # 2026-10-27: 8 of 22 such calls right), so the UI lights its buttons pale.
@@ -113,6 +118,7 @@ class BucketTrackRowOut:
     added_at: str
     # {"keep": bool | None, "category_ids": [...], "unsure": bool}; None = unscored
     prediction: dict | None = None
+    label_ai: dict | None = None  # the label's AI reputation (ai_rep_sql); None = no level
 
 
 # style_id and the target's bucket_type ride along from the guard query, for the retrain trigger
@@ -1060,8 +1066,10 @@ class TriageRepository:
                 COALESCE(abs(p.keep_score - m.keep_threshold) < :unsure_band, FALSE) AS p_unsure,
                 cl.id AS label_id,
                 cl.name AS label_name,
+                {ai_rep_sql("cl")} AS label_ai,
                 COALESCE(
-                    json_agg(json_build_object('id', ca.id, 'name', ca.name, 'role', cta.role)
+                    json_agg(json_build_object('id', ca.id, 'name', ca.name, 'role', cta.role,
+                                               'ai', {ai_rep_sql("ca")})
                              ORDER BY cta.role, ca.name)
                     FILTER (WHERE ca.id IS NOT NULL),
                     '[]'
@@ -1144,6 +1152,7 @@ class TriageRepository:
                     label_id=r.get("label_id"),
                     added_at=str(r["added_at"]),
                     prediction=prediction,
+                    label_ai=parse_ai_rep(r.get("label_ai")),
                 )
             )
         return items, total

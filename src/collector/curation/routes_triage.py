@@ -131,6 +131,7 @@ def _serialize_bucket_track(row) -> dict[str, Any]:
         "label_id": row.label_id,
         "added_at": row.added_at,
         "prediction": row.prediction,
+        "label_ai": row.label_ai,
     }
 
 

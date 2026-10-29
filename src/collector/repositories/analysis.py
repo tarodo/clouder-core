@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -70,6 +71,13 @@ FROM (
 ) c
 WHERE ar.id = c.artist_id
 """
+
+
+def parse_ai_rep(value: Any) -> dict[str, int] | None:
+    """An ai_rep_sql column as returned by the Data API (JSON text) or psycopg (already decoded)."""
+    if value is None:
+        return None
+    return json.loads(value) if isinstance(value, str) else value
 
 
 def ai_rep_sql(alias: str) -> str:

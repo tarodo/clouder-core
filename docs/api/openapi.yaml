@@ -3086,6 +3086,33 @@ paths:
                             type: string
                         added_at:
                           type: string
+                        label_ai: &id022
+                          type:
+                          - object
+                          - 'null'
+                          description: 'AI reputation of a label or artist: of its
+                            tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer
+                            checked and the flagged ones (ai). level 1 = at least
+                            one, 2 = 25-50% of the checked, 3 = over half; null =
+                            no flagged track.'
+                          required:
+                          - level
+                          - ai
+                          - checked
+                          - total
+                          properties:
+                            level:
+                              type: integer
+                              enum:
+                              - 1
+                              - 2
+                              - 3
+                            ai:
+                              type: integer
+                            checked:
+                              type: integer
+                            total:
+                              type: integer
                         prediction:
                           type:
                           - object
@@ -4027,7 +4054,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: &id023
+                    items: &id024
                       type: object
                       required:
                       - track_id
@@ -4227,14 +4254,14 @@ paths:
           description: Per-track comments for the playlist.
           content:
             application/json:
-              schema: &id025
+              schema: &id026
                 type: object
                 required:
                 - tracks
                 properties:
                   tracks:
                     type: array
-                    items: &id024
+                    items: &id025
                       type: object
                       required:
                       - track_id
@@ -5319,7 +5346,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id022
+              schema: &id023
                 type: object
                 required:
                 - id
@@ -7547,6 +7574,7 @@ components:
           - liked
           - disliked
           - null
+        ai: *id022
     LabelsListResponse:
       type: object
       required:
@@ -7577,6 +7605,7 @@ components:
           - liked
           - disliked
           - null
+        ai: *id022
       additionalProperties: true
     MyLabelPreferencesResponse:
       type: object
@@ -7766,7 +7795,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
-    ArtistEnrichRunResponse: *id022
+    ArtistEnrichRunResponse: *id023
     ArtistSummary:
       type: object
       required:
@@ -7843,6 +7872,7 @@ components:
           - liked
           - disliked
           - null
+        ai: *id022
     ArtistsListResponse:
       type: object
       required:
@@ -7873,6 +7903,7 @@ components:
           - liked
           - disliked
           - null
+        ai: *id022
       additionalProperties: true
     MyArtistPreferencesResponse:
       type: object
@@ -8028,9 +8059,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ArtistHistoryCell'
-    PlaylistTrackResponse: *id023
-    PlaylistTrackComments: *id024
-    PlaylistCommentsResponse: *id025
+    PlaylistTrackResponse: *id024
+    PlaylistTrackComments: *id025
+    PlaylistCommentsResponse: *id026
     TelemetryEnvelope:
       type: object
       required:

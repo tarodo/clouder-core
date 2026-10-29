@@ -67,6 +67,7 @@ API = [
     "read_track_state",
     "record_analysis_results",
     "record_audio_features",
+    "recount_ai_reputation",
     "release_spotify_search_claim",
     "release_youtube_search_claim",
     "reopen_youtube_for_spotify_found",
