@@ -8,7 +8,7 @@ import {
   IconPlayerSkipForwardFilled,
   IconExternalLink,
 } from '@tabler/icons-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import classes from './PlayerCard.module.css';
 import type { PlaybackTrack } from './lib/types';
@@ -16,6 +16,7 @@ import { useScrubDebounce } from './useScrubDebounce';
 import { pctToMs } from './lib/seekHotkeys';
 import { formatLength } from '../../lib/formatters';
 import { AiBadge } from './AiBadge';
+import { useLivePosition } from './useLivePosition';
 
 export type PlayerCardState =
   | 'idle'
@@ -103,7 +104,7 @@ export function PlayerCard(props: PlayerCardProps) {
     variant,
     state,
     track,
-    positionMs,
+    positionMs: anchoredMs,
     showText = true,
     metaRow,
     mixName,
@@ -174,6 +175,10 @@ export function PlayerCard(props: PlayerCardProps) {
   const scrubDisabled = state === 'error' || state === 'disconnected' || state === 'empty-bucket';
   const progressMax = track?.duration_ms || 1;
   const scrub = useScrubDebounce(onSeekMs, 100);
+  const livePos = useLivePosition(anchoredMs, state === 'playing', track?.duration_ms ?? 0);
+  // While dragging, the slider follows the pointer rather than the ticker.
+  const [dragMs, setDragMs] = useState<number | null>(null);
+  const positionMs = dragMs ?? livePos;
 
   return (
     <Paper
@@ -290,8 +295,14 @@ export function PlayerCard(props: PlayerCardProps) {
         thumbSize={isMini ? 0 : 12}
         label={null}
         disabled={scrubDisabled}
-        onChange={scrub.onChange}
-        onChangeEnd={scrub.onChangeEnd}
+        onChange={(ms) => {
+          setDragMs(ms);
+          scrub.onChange(ms);
+        }}
+        onChangeEnd={(ms) => {
+          setDragMs(null);
+          scrub.onChangeEnd(ms);
+        }}
         style={{ opacity: SCRUB_OPACITY[state], marginTop: isMini ? 4 : mobileSeekChips ? 8 : 16 }}
         aria-label={t('playback.controls.scrub_aria')}
       />

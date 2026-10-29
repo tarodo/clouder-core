@@ -545,6 +545,8 @@ describe('PlaybackProvider SDK lifecycle', () => {
     expect(handle.getLatest()?.seek).toHaveBeenLastCalledWith(0);
     await act(async () => { await result.current.controls.seekMs(99999); });
     expect(handle.getLatest()?.seek).toHaveBeenLastCalledWith(60000);
+    await act(async () => { await result.current.controls.seekMs(24000); });
+    expect(result.current.track.positionMs).toBe(24000);
   });
 
   it('seekPct(0.6) of 360s == 216000ms', async () => {

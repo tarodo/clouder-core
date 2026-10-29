@@ -464,14 +464,14 @@ describe('F6 integration · batch 2', () => {
       expect(player.seek).toHaveBeenCalledWith(90_000);
     });
 
-    // Shift+K → +10s → seek(110_000).
+    // Shift+K → +10s from the optimistic 90s → seek(100_000).
     await act(async () => {
       window.dispatchEvent(
         new KeyboardEvent('keydown', { code: 'KeyK', shiftKey: true, bubbles: true }),
       );
     });
     await waitFor(() => {
-      expect(player.seek).toHaveBeenCalledWith(110_000);
+      expect(player.seek).toHaveBeenCalledWith(100_000);
     });
 
     // Edge: position at 0 → Shift+J clamps to 0.
