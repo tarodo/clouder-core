@@ -5,7 +5,6 @@ import {
   Progress,
   SegmentedControl,
   SimpleGrid,
-  Skeleton,
   Stack,
   Table,
   Text,
@@ -13,11 +12,15 @@ import {
 import { BarChart } from '@mantine/charts';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Ghost, GhostScope, useRemembered } from '../../../components/Ghost';
 import {
   useFunnel,
   useListening,
   useTimePerTrack,
+  type FunnelResponse,
+  type ListeningResponse,
   type Stage,
+  type TimePerTrackResponse,
   type TptCell,
   type TptRow,
 } from '../hooks/useAnalytics';
@@ -25,11 +28,33 @@ import {
 type Period = 'day' | 'week' | 'month';
 const PERIODS: Period[] = ['day', 'week', 'month'];
 
-// Loaded card heights (measured in the browser test) so the gray placeholder
-// blocks, like HomeSkeleton's, don't make the page jump when data lands.
-const LISTENING_H = 292;
-const FUNNEL_H = 220;
-const TPT_H = 240;
+// Placeholder data a loading card renders as its ghost (components/Ghost): the same markup,
+// so the card is as tall as the loaded one.
+const GHOST_TOTAL = { listened_ms: 442 * 60_000, tracks: 138 };
+const LISTENING_GHOST: ListeningResponse = {
+  today: '',
+  totals: { day: GHOST_TOTAL, week: GHOST_TOTAL, month: GHOST_TOTAL },
+  daily: Array.from({ length: 30 }, (_, i) => ({ dt: `2026-09-${i + 1}`, ...GHOST_TOTAL })),
+};
+const FUNNEL_GHOST: FunnelResponse = {
+  today: '',
+  stages: (['triaged', 'categorized', 'playlisted'] as const).map((stage) => ({
+    stage,
+    day: 100,
+    week: 100,
+    month: 100,
+  })),
+};
+const GHOST_CELL = { n: 1_000, p50_ms: 42_000, p90_ms: 118_000 };
+const tptGhost = (rows: number): TimePerTrackResponse => ({
+  days: 30,
+  stages: ['triage', 'category', 'playlist'],
+  rows: Array.from({ length: rows }, (_, i) => ({
+    style_id: i === 0 ? '*' : `ghost-${i}`,
+    style_name: 'Placeholder',
+    cells: { triage: GHOST_CELL, category: GHOST_CELL, playlist: GHOST_CELL },
+  })),
+});
 
 /** 280 min → "4h 40m"; under an hour → "42m". Compact so three fit a phone row. */
 export function fmtMinutes(ms: number): string {
@@ -39,20 +64,24 @@ export function fmtMinutes(ms: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-/** Same chrome as the other home blocks: bordered card + small caps title. */
-function AnalyticsCard({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+/** Same chrome as the other home blocks: bordered card + small caps title. A `ghost` card is
+ * still loading: its content is the placeholder data under Ghost bars. */
+function AnalyticsCard(props: { title: string; action?: ReactNode; ghost: boolean; children: ReactNode }) {
+  const { title, action, ghost, children } = props;
   return (
-    <Card withBorder padding="md" radius="md">
-      <Stack gap="sm">
-        <Group justify="space-between" wrap="wrap" gap="xs">
-          <Text size="xs" c="dimmed" tt="uppercase" lts={1.2}>
-            {title}
-          </Text>
-          {action}
-        </Group>
-        {children}
-      </Stack>
-    </Card>
+    <GhostScope on={ghost}>
+      <Card withBorder padding="md" radius="md">
+        <Stack gap="sm">
+          <Group justify="space-between" wrap="wrap" gap="xs">
+            <Text size="xs" c="dimmed" tt="uppercase" lts={1.2}>
+              {title}
+            </Text>
+            {action}
+          </Group>
+          {children}
+        </Stack>
+      </Card>
+    </GhostScope>
   );
 }
 
@@ -68,11 +97,11 @@ function LoadFailed() {
 export function ListeningCard({ userId = '' }: { userId?: string }) {
   const { t } = useTranslation();
   const q = useListening(userId);
-  if (q.isLoading) return <Skeleton height={LISTENING_H} radius="md" data-testid="listening-skeleton" />;
+  const data = q.isLoading ? LISTENING_GHOST : q.data;
 
   return (
-    <AnalyticsCard title={t('analytics.listening.title')}>
-      {!q.data ? (
+    <AnalyticsCard title={t('analytics.listening.title')} ghost={q.isLoading}>
+      {!data ? (
         <LoadFailed />
       ) : (
         <>
@@ -82,24 +111,30 @@ export function ListeningCard({ userId = '' }: { userId?: string }) {
                 <Text size="xs" c="dimmed">
                   {t(`analytics.period.${p}`)}
                 </Text>
-                <Text ff="monospace" fz={{ base: 'lg', sm: 24 }} fw={600} lh={1.1}>
-                  {fmtMinutes(q.data.totals[p].listened_ms)}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {t('analytics.listening.tracks', { count: q.data.totals[p].tracks })}
-                </Text>
+                <Ghost>
+                  <Text ff="monospace" fz={{ base: 'lg', sm: 24 }} fw={600} lh={1.1}>
+                    {fmtMinutes(data.totals[p].listened_ms)}
+                  </Text>
+                </Ghost>
+                <Ghost>
+                  <Text size="xs" c="dimmed">
+                    {t('analytics.listening.tracks', { count: data.totals[p].tracks })}
+                  </Text>
+                </Ghost>
               </Stack>
             ))}
           </SimpleGrid>
-          <BarChart
-            h={160}
-            data={q.data.daily.map((d) => ({
-              dt: d.dt.slice(5),
-              minutes: Math.round(d.listened_ms / 60_000),
-            }))}
-            dataKey="dt"
-            series={[{ name: 'minutes', label: t('analytics.listening.minutes'), color: 'indigo.6' }]}
-          />
+          <Ghost block>
+            <BarChart
+              h={160}
+              data={data.daily.map((d) => ({
+                dt: d.dt.slice(5),
+                minutes: Math.round(d.listened_ms / 60_000),
+              }))}
+              dataKey="dt"
+              series={[{ name: 'minutes', label: t('analytics.listening.minutes'), color: 'indigo.6' }]}
+            />
+          </Ghost>
         </>
       )}
     </AnalyticsCard>
@@ -114,13 +149,14 @@ export function FunnelCard({ userId = '' }: { userId?: string }) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>('week');
   const q = useFunnel(userId);
-  const stages = q.data?.stages ?? [];
+  const data = q.isLoading ? FUNNEL_GHOST : q.data;
+  const stages = data?.stages ?? [];
   const top = stages[0]?.[period] ?? 0;
-  if (q.isLoading) return <Skeleton height={FUNNEL_H} radius="md" data-testid="funnel-skeleton" />;
 
   return (
     <AnalyticsCard
       title={t('analytics.funnel.title')}
+      ghost={q.isLoading}
       action={
         <SegmentedControl
           size="xs"
@@ -130,7 +166,7 @@ export function FunnelCard({ userId = '' }: { userId?: string }) {
         />
       }
     >
-      {!q.data ? (
+      {!data ? (
         <LoadFailed />
       ) : (
         <Stack gap="md">
@@ -141,18 +177,22 @@ export function FunnelCard({ userId = '' }: { userId?: string }) {
               <Stack key={s.stage} gap={4} data-testid={`funnel-${s.stage}`}>
                 <Group justify="space-between" wrap="nowrap">
                   <Text size="sm">{t(`analytics.funnel.${s.stage}`)}</Text>
-                  <Group gap="xs" wrap="nowrap">
-                    <Text ff="monospace" fw={600}>
-                      {n}
-                    </Text>
-                    {prev !== null && (
-                      <Text size="xs" c="dimmed">
-                        {t('analytics.funnel.of_prev', { pct: pct(n, prev) })}
+                  <Ghost>
+                    <Group gap="xs" wrap="nowrap">
+                      <Text ff="monospace" fw={600}>
+                        {n}
                       </Text>
-                    )}
-                  </Group>
+                      {prev !== null && (
+                        <Text size="xs" c="dimmed">
+                          {t('analytics.funnel.of_prev', { pct: pct(n, prev) })}
+                        </Text>
+                      )}
+                    </Group>
+                  </Ghost>
                 </Group>
-                <Progress value={top > 0 ? Math.min(100, (n / top) * 100) : 0} />
+                <Ghost block>
+                  <Progress value={top > 0 ? Math.min(100, (n / top) * 100) : 0} />
+                </Ghost>
               </Stack>
             );
           })}
@@ -188,12 +228,16 @@ function TptValue({ cell }: { cell: TptCell | null }) {
   }
   return (
     <Stack gap={0} align="flex-end">
-      <Text size="sm" ff="monospace" fw={600}>
-        {fmtSec(cell.p50_ms)}
-      </Text>
-      <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-        {cell.n >= MIN_N_P90 ? fmtSec(cell.p90_ms) : '—'} · {fmtCount(cell.n)}
-      </Text>
+      <Ghost>
+        <Text size="sm" ff="monospace" fw={600}>
+          {fmtSec(cell.p50_ms)}
+        </Text>
+      </Ghost>
+      <Ghost>
+        <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+          {cell.n >= MIN_N_P90 ? fmtSec(cell.p90_ms) : '—'} · {fmtCount(cell.n)}
+        </Text>
+      </Ghost>
     </Stack>
   );
 }
@@ -202,7 +246,8 @@ export function TimePerTrackCard({ userId = '' }: { userId?: string }) {
   const { t } = useTranslation();
   const [days, setDays] = useState<30 | 90>(30);
   const q = useTimePerTrack(userId, days);
-  if (q.isLoading) return <Skeleton height={TPT_H} radius="md" data-testid="tpt-skeleton" />;
+  const rows = useRemembered(`analytics.tpt.${userId}`, q.data?.rows.length, 2);
+  const data = q.isLoading ? tptGhost(rows) : q.data;
 
   const styleLabel = (r: TptRow) =>
     r.style_id === '*'
@@ -214,6 +259,7 @@ export function TimePerTrackCard({ userId = '' }: { userId?: string }) {
   return (
     <AnalyticsCard
       title={t('analytics.tpt.title')}
+      ghost={q.isLoading}
       action={
         <SegmentedControl
           size="xs"
@@ -226,12 +272,14 @@ export function TimePerTrackCard({ userId = '' }: { userId?: string }) {
         />
       }
     >
-      {!q.data ? (
+      {!data ? (
         <LoadFailed />
-      ) : q.data.rows.length === 0 ? (
-        <Text size="sm" c="dimmed">
-          {t('analytics.tpt.empty')}
-        </Text>
+      ) : data.rows.length === 0 ? (
+        <Ghost>
+          <Text size="sm" c="dimmed">
+            {t('analytics.tpt.empty')}
+          </Text>
+        </Ghost>
       ) : (
         <>
           <Table layout="fixed" withRowBorders={false} verticalSpacing={4} horizontalSpacing="xs">
@@ -248,12 +296,14 @@ export function TimePerTrackCard({ userId = '' }: { userId?: string }) {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {q.data.rows.map((r) => (
+              {data.rows.map((r) => (
                 <Table.Tr key={r.style_id ?? 'unknown'}>
                   <Table.Td>
-                    <Text size="sm" truncate fw={r.style_id === '*' ? 600 : 400} title={styleLabel(r)}>
-                      {styleLabel(r)}
-                    </Text>
+                    <Ghost>
+                      <Text size="sm" truncate fw={r.style_id === '*' ? 600 : 400} title={styleLabel(r)}>
+                        {styleLabel(r)}
+                      </Text>
+                    </Ghost>
                   </Table.Td>
                   {STAGES.map((s) => (
                     <Table.Td key={s} ta="right" data-testid={`tpt-${r.style_id ?? 'unknown'}-${s}`}>

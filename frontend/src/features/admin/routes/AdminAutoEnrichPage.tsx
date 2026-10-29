@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Tabs, Stack, Switch, Button, Skeleton, Alert, Text } from '@mantine/core';
+import { Tabs, Stack, Switch, Button, Alert, Text } from '@mantine/core';
 import { PageHeader } from '../../../components/PageHeader';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,74 @@ import { useSaveAutoEnrichConfig } from '../hooks/useSaveAutoEnrichConfig';
 import { useArtistAutoEnrichConfig } from '../hooks/useArtistAutoEnrichConfig';
 import { useSaveArtistAutoEnrichConfig } from '../hooks/useSaveArtistAutoEnrichConfig';
 import { EnrichConfigForm, type EnrichConfigValue } from '../components/enrichment/EnrichConfigForm';
+import { Ghost, GhostScope, useRemembered } from '../../../components/Ghost';
+import type { EnrichmentOptions } from '../../../api/labels';
+
+/** A tab's settings: the switch, the vendor form and Save. */
+function ConfigBody(props: {
+  options: EnrichmentOptions;
+  enabled: boolean;
+  onEnabled: (next: boolean) => void;
+  form: EnrichConfigValue;
+  onForm: (next: EnrichConfigValue) => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Stack gap="md" mt="md">
+      <Ghost>
+        <Switch
+          label={t('admin_auto_enrich.enabled_label')}
+          checked={props.enabled}
+          onChange={(e) => props.onEnabled(e.currentTarget.checked)}
+        />
+      </Ghost>
+      <EnrichConfigForm options={props.options} value={props.form} onChange={props.onForm} />
+      <Ghost block>
+        <Button
+          onClick={props.onSave}
+          loading={props.saving}
+          disabled={props.enabled && props.form.vendors.length === 0}
+        >
+          {t('admin_auto_enrich.save')}
+        </Button>
+      </Ghost>
+    </Stack>
+  );
+}
+
+const VENDORS = ['gemini', 'openai', 'tavily_deepseek'];
+const noop = () => {};
+
+/** A tab's ghost while its config loads: as many vendors (and picked ones) as last time. */
+function ConfigGhost({ vendors, picked }: { vendors: number; picked: number }) {
+  const options = {
+    vendors: VENDORS.slice(0, vendors),
+    prompt_versions: [{ slug: 'placeholder', version: 'v1', is_default: true }],
+    default_models: {},
+    merge: { vendor: 'deepseek', default_model: 'placeholder' },
+  } as EnrichmentOptions;
+  const form = {
+    vendors: VENDORS.slice(0, Math.min(picked, vendors)),
+    promptSlug: 'placeholder',
+    models: {},
+    mergeModel: 'placeholder',
+  };
+  return (
+    <GhostScope on>
+      <ConfigBody
+        options={options}
+        enabled
+        onEnabled={noop}
+        form={form}
+        onForm={noop}
+        onSave={noop}
+        saving={false}
+      />
+    </GhostScope>
+  );
+}
 
 function LabelsTab() {
   const { t } = useTranslation();
@@ -31,7 +99,17 @@ function LabelsTab() {
     });
   }, [query.data]);
 
-  if (query.isLoading) return <Skeleton height={240} />;
+  const vendors = useRemembered(
+    'admin.auto_enrich.labels.vendors',
+    query.data?.options.vendors.length,
+    3,
+  );
+  const picked = useRemembered(
+    'admin.auto_enrich.labels.picked',
+    query.data && (query.data.config.vendors ?? []).length,
+    1,
+  );
+  if (query.isLoading) return <ConfigGhost vendors={vendors} picked={picked} />;
   if (query.isError || !query.data) return <Alert color="red">{String(query.error)}</Alert>;
 
   const promptVersion =
@@ -61,21 +139,15 @@ function LabelsTab() {
   };
 
   return (
-    <Stack gap="md" mt="md">
-      <Switch
-        label={t('admin_auto_enrich.enabled_label')}
-        checked={enabled}
-        onChange={(e) => setEnabled(e.currentTarget.checked)}
-      />
-      <EnrichConfigForm options={query.data.options} value={form} onChange={setForm} />
-      <Button
-        onClick={submit}
-        loading={save.isPending}
-        disabled={enabled && form.vendors.length === 0}
-      >
-        {t('admin_auto_enrich.save')}
-      </Button>
-    </Stack>
+    <ConfigBody
+      options={query.data.options}
+      enabled={enabled}
+      onEnabled={setEnabled}
+      form={form}
+      onForm={setForm}
+      onSave={submit}
+      saving={save.isPending}
+    />
   );
 }
 
@@ -101,7 +173,17 @@ function ArtistsTab() {
     });
   }, [query.data]);
 
-  if (query.isLoading) return <Skeleton height={240} />;
+  const vendors = useRemembered(
+    'admin.auto_enrich.artists.vendors',
+    query.data?.options.vendors.length,
+    3,
+  );
+  const picked = useRemembered(
+    'admin.auto_enrich.artists.picked',
+    query.data && (query.data.config.vendors ?? []).length,
+    1,
+  );
+  if (query.isLoading) return <ConfigGhost vendors={vendors} picked={picked} />;
   if (query.isError || !query.data) return <Alert color="red">{String(query.error)}</Alert>;
 
   const promptVersion =
@@ -131,21 +213,15 @@ function ArtistsTab() {
   };
 
   return (
-    <Stack gap="md" mt="md">
-      <Switch
-        label={t('admin_auto_enrich.enabled_label')}
-        checked={enabled}
-        onChange={(e) => setEnabled(e.currentTarget.checked)}
-      />
-      <EnrichConfigForm options={query.data.options} value={form} onChange={setForm} />
-      <Button
-        onClick={submit}
-        loading={save.isPending}
-        disabled={enabled && form.vendors.length === 0}
-      >
-        {t('admin_auto_enrich.save')}
-      </Button>
-    </Stack>
+    <ConfigBody
+      options={query.data.options}
+      enabled={enabled}
+      onEnabled={setEnabled}
+      form={form}
+      onForm={setForm}
+      onSave={submit}
+      saving={save.isPending}
+    />
   );
 }
 

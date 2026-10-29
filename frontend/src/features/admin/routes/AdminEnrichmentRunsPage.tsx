@@ -1,8 +1,9 @@
-import { Stack, Select, Center, Group, SegmentedControl, Text, Alert, Button, Skeleton } from '@mantine/core';
+import { Stack, Select, Center, Group, SegmentedControl, Text, Alert, Button } from '@mantine/core';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEnrichmentRuns } from '../hooks/useEnrichmentRuns';
-import { RunsTable } from '../components/enrichment/RunsTable';
+import { RunsTable, ghostRuns } from '../components/enrichment/RunsTable';
+import { Ghost, GhostScope, useRemembered } from '../../../components/Ghost';
 import { PageHeader } from '../../../components/PageHeader';
 import { EmptyState } from '../../../components/EmptyState';
 
@@ -14,7 +15,11 @@ export function AdminEnrichmentRunsPage() {
     status,
     source: source === 'all' ? undefined : source,
   });
-  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const loaded = query.data?.pages.flatMap((p) => p.items);
+  // While the first page loads: the table's ghost, as long as it was last time.
+  const rows = useRemembered('admin.labels.runs', loaded?.length, 10);
+  const more = useRemembered('admin.labels.runs.more', loaded && Number(!!query.hasNextPage), 0);
+  const items = query.isLoading ? ghostRuns(rows) : (loaded ?? []);
 
   return (
     <Stack gap="md">
@@ -50,20 +55,25 @@ export function AdminEnrichmentRunsPage() {
 
       {query.isError ? (
         <Alert color="red">{t('admin_enrichment.runs.load_failed')}</Alert>
-      ) : query.isLoading ? (
-        <Skeleton height={320} radius="md" />
-      ) : items.length === 0 ? (
-        <EmptyState variant="inline" title={t('admin_enrichment.runs.empty')} />
       ) : (
-        <RunsTable items={items} />
-      )}
-
-      {query.hasNextPage && (
-        <Center mt="md">
-          <Button variant="default" loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
-            {t('admin_enrichment.backlog.load_more')}
-          </Button>
-        </Center>
+        <GhostScope on={query.isLoading}>
+          {items.length === 0 ? (
+            <Ghost block>
+              <EmptyState variant="inline" title={t('admin_enrichment.runs.empty')} />
+            </Ghost>
+          ) : (
+            <RunsTable items={items} />
+          )}
+          {(query.isLoading ? more > 0 : query.hasNextPage) && (
+            <Center mt="md">
+              <Ghost>
+                <Button variant="default" loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
+                  {t('admin_enrichment.backlog.load_more')}
+                </Button>
+              </Ghost>
+            </Center>
+          )}
+        </GhostScope>
       )}
     </Stack>
   );

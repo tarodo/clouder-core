@@ -1,4 +1,4 @@
-import { Button, Group, Pagination, Skeleton, Stack, Table, Text, TextInput } from '@mantine/core';
+import { Button, Group, Pagination, Stack, Table, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
@@ -6,6 +6,7 @@ import { notifications } from '@mantine/notifications';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../api/client';
+import { Ghost, GhostScope, GhostTd, useRemembered } from '../../../components/Ghost';
 import { useRetrySpotifySearch } from '../hooks/useRetrySpotifySearch';
 import { useSpotifyNotFound } from '../hooks/useSpotifyNotFound';
 
@@ -27,6 +28,12 @@ export function SpotifyNotFoundTable() {
     publishDateTo: dates[1],
   });
   const retry = useRetrySpotifySearch();
+  const rows = useRemembered('admin.spotify_not_found.rows', q.data?.items.length, 10);
+  const pages = useRemembered(
+    'admin.spotify_not_found.pages',
+    q.data && Math.max(1, Math.ceil(q.data.total / LIMIT)),
+    1,
+  );
 
   const canRetry = Boolean(dates[0] && dates[1]);
 
@@ -88,11 +95,20 @@ export function SpotifyNotFoundTable() {
     });
   }
 
-  if (q.isLoading) return <Skeleton h={400} />;
   if (q.isError) return <Text c="red">{t('admin.spotify_not_found.load_failed')}</Text>;
-  if (!q.data) return null;
+  // Loading: the filters stay live, the list below them is a ghost as long as last time.
+  const ghost = q.isLoading;
+  const data = q.data ?? {
+    total: pages * LIMIT,
+    items: Array.from({ length: rows }, (_, i) => ({
+      track_id: `ghost-${i}`,
+      title: 'Placeholder title',
+      artists: ['Placeholder artist'],
+      isrc: 'GBXXX0000000',
+    })),
+  };
 
-  const totalPages = Math.max(1, Math.ceil(q.data.total / LIMIT));
+  const totalPages = Math.max(1, Math.ceil(data.total / LIMIT));
 
   return (
     <Stack>
@@ -121,28 +137,34 @@ export function SpotifyNotFoundTable() {
           {t('admin.spotify_not_found.retry_button')}
         </Button>
       </Group>
-      <Text size="sm" c="dimmed">
-        {t('admin.spotify_not_found.total_label', { count: q.data.total })}
-      </Text>
-      <Table striped withTableBorder>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Title</Table.Th>
-            <Table.Th>Artists</Table.Th>
-            <Table.Th>ISRC</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {q.data.items.map((t) => (
-            <Table.Tr key={t.track_id}>
-              <Table.Td>{t.title}</Table.Td>
-              <Table.Td>{t.artists.join(', ')}</Table.Td>
-              <Table.Td>{t.isrc ?? '—'}</Table.Td>
+      <GhostScope on={ghost}>
+        <Ghost>
+          <Text size="sm" c="dimmed">
+            {t('admin.spotify_not_found.total_label', { count: data.total })}
+          </Text>
+        </Ghost>
+        <Table striped withTableBorder>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Title</Table.Th>
+              <Table.Th>Artists</Table.Th>
+              <Table.Th>ISRC</Table.Th>
             </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-      <Pagination value={page} onChange={setPage} total={totalPages} />
+          </Table.Thead>
+          <Table.Tbody>
+            {data.items.map((t) => (
+              <Table.Tr key={t.track_id}>
+                <GhostTd>{t.title}</GhostTd>
+                <GhostTd>{t.artists.join(', ')}</GhostTd>
+                <GhostTd>{t.isrc ?? '—'}</GhostTd>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+        <Ghost>
+          <Pagination value={page} onChange={setPage} total={totalPages} />
+        </Ghost>
+      </GhostScope>
     </Stack>
   );
 }

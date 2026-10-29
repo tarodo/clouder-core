@@ -10,8 +10,8 @@ export interface PageHeaderProps {
   badges?: ReactNode;
   /** Right-aligned slot (primary actions). */
   actions?: ReactNode;
-  /** Muted description / metadata line under the title. */
-  subtitle?: string;
+  /** Muted description / metadata line under the title; a node is rendered as is (a ghost). */
+  subtitle?: ReactNode;
   /** Bottom slot: Tabs / Filters / Toolbar. */
   children?: ReactNode;
 }
@@ -31,10 +31,14 @@ export function PageHeader({ title, backLink, badges, actions, subtitle, childre
         </Group>
         {actions && <Group gap="xs">{actions}</Group>}
       </Group>
-      {subtitle && (
-        <Text c="dimmed" size="sm">
-          {subtitle}
-        </Text>
+      {typeof subtitle === 'string' ? (
+        subtitle && (
+          <Text c="dimmed" size="sm">
+            {subtitle}
+          </Text>
+        )
+      ) : (
+        subtitle
       )}
       {children}
     </Stack>

@@ -10,7 +10,6 @@ import {
   SegmentedControl,
   Select,
   SimpleGrid,
-  Skeleton,
   Stack,
   Switch,
   Text,
@@ -23,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import type { AutoIngestSettingsBody, AutoIngestState } from '../../../api/autoIngest';
+import { Ghost, GhostScope, useRemembered } from '../../../components/Ghost';
 import { useAutoIngest } from '../hooks/useAutoIngest';
 import { useSaveAutoIngest } from '../hooks/useSaveAutoIngest';
 import { useRunAutoIngest } from '../hooks/useRunAutoIngest';
@@ -81,6 +81,57 @@ export function nextPlan(now: Date): Date {
 
 const hhmm = (at: Date) => at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+function formFrom(s: AutoIngestState['settings']): Form {
+  return {
+    enabled: s.enabled,
+    mode: s.mode,
+    times: s.fixed_times.join(', '),
+    runsPerDay: s.runs_per_day,
+    // Never saved: start from the admin's own timezone rather than the UTC default.
+    timezone: s.updated_at ? s.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone,
+    periodsPerRun: s.periods_per_run,
+    floor: s.backfill_floor,
+  };
+}
+
+/** What the panel's ghost shows while it loads: the cards with as many rows as last time. */
+function ghostState(rows: { planned: number; pairs: number; stuck: number }): AutoIngestState {
+  const pair = { style_id: 0, week_year: 2026, week_number: 40 };
+  return {
+    settings: {
+      enabled: true,
+      mode: 'random',
+      fixed_times: ['09:00'],
+      runs_per_day: 3,
+      timezone: 'UTC',
+      periods_per_run: 3,
+      backfill_floor: '2026-01-03',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+    planned_runs: Array.from({ length: rows.planned }, (_, i) =>
+      new Date(Date.now() + (i + 1) * 6 * 3_600_000).toISOString(),
+    ),
+    last_run: {
+      at: new Date(Date.now() - 4 * 3_600_000).toISOString(),
+      manual: false,
+      ok: true,
+      pairs: Array.from({ length: rows.pairs }, (_, i) => ({
+        ...pair,
+        week_number: i + 1,
+        ok: true,
+        item_count: 300,
+      })),
+    },
+    due_week: { week_year: 2026, week_number: 40 },
+    stuck: Array.from({ length: rows.stuck }, (_, i) => ({
+      ...pair,
+      week_number: i + 1,
+      last_error: 'BeatportUnavailableError',
+    })),
+    running: false,
+  };
+}
+
 const POLL_MS = 10_000;
 // Run now is asynchronous: keep polling until the run has taken its lease (Aurora may be waking).
 const START_WINDOW_MS = 90_000;
@@ -100,38 +151,33 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
   const query = useAutoIngest((data) => autoIngestPollInterval(data, awaitingSince, Date.now()));
   const save = useSaveAutoIngest();
   const run = useRunAutoIngest();
-  const [form, setForm] = useState<Form | null>(null);
+  const [formState, setForm] = useState<Form | null>(null);
 
   // Re-init only when the saved settings change: polling refreshes last_run every 10 s, and
   // structural sharing keeps `settings` the same object while it is unchanged.
   const saved = query.data?.settings;
   useEffect(() => {
-    if (!saved) return;
-    const s = saved;
-    setForm({
-      enabled: s.enabled,
-      mode: s.mode,
-      times: s.fixed_times.join(', '),
-      runsPerDay: s.runs_per_day,
-      // Never saved: start from the admin's own timezone rather than the UTC default.
-      timezone: s.updated_at ? s.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone,
-      periodsPerRun: s.periods_per_run,
-      floor: s.backfill_floor,
-    });
+    if (saved) setForm(formFrom(saved));
   }, [saved]);
 
+  const rows = {
+    planned: useRemembered('admin.auto_ingest.planned', query.data?.planned_runs.length, 3),
+    pairs: useRemembered('admin.auto_ingest.pairs', query.data?.last_run?.pairs.length, 3),
+    stuck: useRemembered('admin.auto_ingest.stuck', query.data?.stuck.length, 0),
+  };
+  const ghost = !query.data;
+  const data = query.data ?? ghostState(rows);
+  const form = formState ?? formFrom(data.settings);
+
   const zones = useMemo(
-    () =>
-      Array.from(new Set(['UTC', form?.timezone ?? 'UTC', ...Intl.supportedValuesOf('timeZone')])),
-    [form?.timezone],
+    () => Array.from(new Set(['UTC', form.timezone, ...Intl.supportedValuesOf('timeZone')])),
+    [form.timezone],
   );
 
-  if (query.isLoading || (query.data && !form)) return <Skeleton height={300} />;
-  if (query.isError || !query.data || !form) {
+  if (!query.data && !query.isPending) {
     return <Alert color="red">{t('admin.auto_ingest.load_failed')}</Alert>;
   }
 
-  const data = query.data;
   const set = (patch: Partial<Form>) => setForm({ ...form, ...patch });
   const styleName = (id: number) => styleNames?.get(id) ?? t('admin.auto_ingest.style', { id });
 
@@ -210,7 +256,7 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
           ? ['orange', a('errors')]
           : ['gray', a('done')];
 
-  return (
+  const panel = (
     <Stack gap="sm">
       <Group gap="xs" align="center">
         <Text fw={600}>{a('title')}</Text>
@@ -225,9 +271,11 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
             <IconInfoCircle size={16} />
           </ActionIcon>
         </Tooltip>
-        <Text size="sm" c="dimmed">
-          {a('due_week', { week: week(data.due_week.week_year, data.due_week.week_number) })}
-        </Text>
+        <Ghost>
+          <Text size="sm" c="dimmed">
+            {a('due_week', { week: week(data.due_week.week_year, data.due_week.week_number) })}
+          </Text>
+        </Ghost>
       </Group>
       <SimpleGrid type="container" cols={{ base: 1, '560px': 2, '1100px': 4 }}>
         <StatCard
@@ -242,79 +290,93 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
             />
           }
         >
-          <SegmentedControl
-            size="xs"
-            fullWidth
-            value={form.mode}
-            onChange={(v) => set({ mode: v as Form['mode'] })}
-            data={[
-              { value: 'fixed', label: a('mode_fixed') },
-              { value: 'random', label: a('mode_random') },
-            ]}
-          />
+          <Ghost block>
+            <SegmentedControl
+              size="xs"
+              fullWidth
+              value={form.mode}
+              onChange={(v) => set({ mode: v as Form['mode'] })}
+              data={[
+                { value: 'fixed', label: a('mode_fixed') },
+                { value: 'random', label: a('mode_random') },
+              ]}
+            />
+          </Ghost>
           <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
-            {form.mode === 'fixed' ? (
-              <TextInput
+            <Ghost block>
+              {form.mode === 'fixed' ? (
+                <TextInput
+                  size="xs"
+                  label={a('times')}
+                  placeholder="09:00, 15:00, 21:00"
+                  value={form.times}
+                  onChange={(e) => set({ times: e.currentTarget.value })}
+                  error={timesOk ? null : a('times_invalid')}
+                />
+              ) : (
+                <NumberInput
+                  size="xs"
+                  label={a('runs_per_day')}
+                  min={1}
+                  max={12}
+                  allowDecimal={false}
+                  value={form.runsPerDay}
+                  onChange={(v) => set({ runsPerDay: v })}
+                />
+              )}
+            </Ghost>
+            <Ghost block>
+              <Select
                 size="xs"
-                label={a('times')}
-                placeholder="09:00, 15:00, 21:00"
-                value={form.times}
-                onChange={(e) => set({ times: e.currentTarget.value })}
-                error={timesOk ? null : a('times_invalid')}
+                label={a('timezone')}
+                data={zones}
+                searchable
+                allowDeselect={false}
+                value={form.timezone}
+                onChange={(v) => v && set({ timezone: v })}
               />
-            ) : (
+            </Ghost>
+            <Ghost block>
               <NumberInput
                 size="xs"
-                label={a('runs_per_day')}
+                label={a('periods_per_run')}
                 min={1}
-                max={12}
+                max={10}
                 allowDecimal={false}
-                value={form.runsPerDay}
-                onChange={(v) => set({ runsPerDay: v })}
+                value={form.periodsPerRun}
+                onChange={(v) => set({ periodsPerRun: v })}
               />
-            )}
-            <Select
-              size="xs"
-              label={a('timezone')}
-              data={zones}
-              searchable
-              allowDeselect={false}
-              value={form.timezone}
-              onChange={(v) => v && set({ timezone: v })}
-            />
-            <NumberInput
-              size="xs"
-              label={a('periods_per_run')}
-              min={1}
-              max={10}
-              allowDecimal={false}
-              value={form.periodsPerRun}
-              onChange={(v) => set({ periodsPerRun: v })}
-            />
-            <TextInput
-              size="xs"
-              type="date"
-              label={a('floor')}
-              min="2000-01-01"
-              max={today()}
-              value={form.floor}
-              onChange={(e) => set({ floor: e.currentTarget.value })}
-              error={floorOk ? null : a('floor_invalid')}
-            />
+            </Ghost>
+            <Ghost block>
+              <TextInput
+                size="xs"
+                type="date"
+                label={a('floor')}
+                min="2000-01-01"
+                max={today()}
+                value={form.floor}
+                onChange={(e) => set({ floor: e.currentTarget.value })}
+                error={floorOk ? null : a('floor_invalid')}
+              />
+            </Ghost>
           </SimpleGrid>
           <Group gap="xs">
-            <Button size="xs" onClick={submit} loading={save.isPending} disabled={!valid}>
-              {a('save')}
-            </Button>
-            <Button
-              size="xs"
-              variant="default"
-              onClick={runNow}
-              loading={run.isPending}
-              disabled={data.running}
-            >
-              {a('run_now')}
-            </Button>
+            <Ghost>
+              <Button size="xs" onClick={submit} loading={save.isPending} disabled={!valid}>
+                {a('save')}
+              </Button>
+            </Ghost>
+            <Ghost>
+              <Button
+                size="xs"
+                variant="default"
+                onClick={runNow}
+                loading={run.isPending}
+                disabled={data.running}
+              >
+                {a('run_now')}
+              </Button>
+            </Ghost>
           </Group>
         </StatCard>
 
@@ -417,6 +479,7 @@ export function AutoIngestPanel({ styleNames }: { styleNames?: Map<number, strin
       </SimpleGrid>
     </Stack>
   );
+  return <GhostScope on={ghost}>{panel}</GhostScope>;
 }
 
 /** A card row: what on the left, how it went on the right. The label wraps; a long error
@@ -426,20 +489,24 @@ function Row(props: { label: string; value: string; error?: boolean; dimmed?: bo
   const c = error ? 'red' : dimmed ? 'dimmed' : undefined;
   return (
     <Group justify="space-between" wrap="nowrap" gap="xs" data-row={label}>
-      <Text size="sm" c={c} style={{ minWidth: 0 }}>
-        {label}
-      </Text>
-      <Text
-        size="sm"
-        fw={600}
-        c={c}
-        truncate="end"
-        title={value}
-        maw="50%"
-        style={{ flexShrink: 0 }}
-      >
-        {value}
-      </Text>
+      <Ghost>
+        <Text size="sm" c={c} style={{ minWidth: 0 }}>
+          {label}
+        </Text>
+      </Ghost>
+      <Ghost>
+        <Text
+          size="sm"
+          fw={600}
+          c={c}
+          truncate="end"
+          title={value}
+          maw="50%"
+          style={{ flexShrink: 0 }}
+        >
+          {value}
+        </Text>
+      </Ghost>
     </Group>
   );
 }

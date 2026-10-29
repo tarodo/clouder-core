@@ -59,6 +59,9 @@ function serve(initial: AutoIngestState) {
   return calls;
 }
 
+/** Past the panel's ghost: it has the same fields, inert, while the state loads. */
+const loaded = () => waitFor(() => expect(document.querySelector('[aria-busy]')).toBeNull());
+
 function renderPanel(qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
     <QueryClientProvider client={qc}>
@@ -91,6 +94,7 @@ describe('AutoIngestPanel', () => {
   it('saves the edited settings', async () => {
     const calls = serve(state());
     renderPanel();
+    await loaded();
     const periods = await screen.findByLabelText('Periods per run');
     await userEvent.clear(periods);
     await userEvent.type(periods, '5');
@@ -223,6 +227,7 @@ describe('AutoIngestPanel progress', () => {
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     renderPanel(qc);
+    await loaded();
     const periods = await screen.findByLabelText('Periods per run');
     await userEvent.clear(periods);
     await userEvent.type(periods, '7');

@@ -14,7 +14,7 @@ export interface PageSkeletonProps {
   cols?: number;
 }
 
-/** Gray pulsing page placeholder while the first query loads — same look as HomeSkeleton. */
+/** Gray pulsing page placeholder while the first query loads. */
 export function PageSkeleton({
   breadcrumbs = false,
   header = 'title',

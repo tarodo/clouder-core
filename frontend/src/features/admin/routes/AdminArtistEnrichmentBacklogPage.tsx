@@ -1,9 +1,10 @@
-import { Stack, Button, Center, Skeleton } from '@mantine/core';
+import { Stack, Button, Center } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useArtistBacklog, type ArtistStatusFilter } from '../hooks/useArtistBacklog';
 import { BacklogToolbar, type StyleFilterOption } from '../components/enrichment/BacklogToolbar';
-import { BacklogTable } from '../components/enrichment/BacklogTable';
+import { BacklogTable, ghostBacklog } from '../components/enrichment/BacklogTable';
+import { Ghost, GhostScope, useRemembered } from '../../../components/Ghost';
 import { ArtistEnqueueDrawer } from '../components/enrichment/ArtistEnqueueDrawer';
 import { ArtistHistoryDrawer } from '../components/enrichment/ArtistHistoryDrawer';
 import { useAllStyles } from '../../../hooks/useAllStyles';
@@ -37,7 +38,12 @@ export function AdminArtistEnrichmentBacklogPage() {
   }, [stylesQuery.data]);
 
   const query = useArtistBacklog({ style, status });
-  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const loaded = query.data?.pages.flatMap((p) => p.items);
+  // While the first page loads: the table's ghost, as long as it was last time.
+  const rows = useRemembered('admin.artists.backlog', loaded?.length, 10);
+  const more = useRemembered('admin.artists.backlog.more', loaded && Number(!!query.hasNextPage), 0);
+  const items = loaded ?? [];
+  const shown = query.isLoading ? ghostBacklog(rows) : items;
 
   const toggleAll = (next: boolean) =>
     setSelected((cur) => {
@@ -73,31 +79,35 @@ export function AdminArtistEnrichmentBacklogPage() {
           stylesLoading={stylesQuery.isLoading}
         />
       </PageHeader>
-      {query.isLoading ? (
-        <Skeleton height={320} radius="md" />
-      ) : items.length === 0 ? (
-        <EmptyState variant="inline" title={t('admin_enrichment.backlog.empty')} />
-      ) : (
-        <BacklogTable
-          items={items as Parameters<typeof BacklogTable>[0]['items']}
-          selected={selected}
-          onToggle={toggle}
-          onToggleAll={toggleAll}
-          styleNames={styleNames}
-          onShowHistory={(row) => setHistoryFor({ id: row.id, name: row.name })}
-        />
-      )}
-      {query.hasNextPage && (
-        <Center mt="md">
-          <Button
-            variant="default"
-            loading={query.isFetchingNextPage}
-            onClick={() => query.fetchNextPage()}
-          >
-            {t('admin_enrichment.backlog.load_more')}
-          </Button>
-        </Center>
-      )}
+      <GhostScope on={query.isLoading}>
+        {shown.length === 0 ? (
+          <Ghost block>
+            <EmptyState variant="inline" title={t('admin_enrichment.backlog.empty')} />
+          </Ghost>
+        ) : (
+          <BacklogTable
+            items={shown as Parameters<typeof BacklogTable>[0]['items']}
+            selected={selected}
+            onToggle={toggle}
+            onToggleAll={toggleAll}
+            styleNames={styleNames}
+            onShowHistory={(row) => setHistoryFor({ id: row.id, name: row.name })}
+          />
+        )}
+        {(query.isLoading ? more > 0 : query.hasNextPage) && (
+          <Center mt="md">
+            <Ghost>
+              <Button
+                variant="default"
+                loading={query.isFetchingNextPage}
+                onClick={() => query.fetchNextPage()}
+              >
+                {t('admin_enrichment.backlog.load_more')}
+              </Button>
+            </Ghost>
+          </Center>
+        )}
+      </GhostScope>
       <ArtistEnqueueDrawer
         opened={drawerOpen}
         onClose={() => {

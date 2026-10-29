@@ -4,6 +4,21 @@ import { useTranslation } from 'react-i18next';
 import { IconCopy } from '@tabler/icons-react';
 import type { RunSummary } from '../../../../api/labels';
 import { RunStatusBadge } from './RunStatusBadge';
+import { GhostTd } from '../../../../components/Ghost';
+
+/** Rows of a loading runs list's ghost. */
+export function ghostRuns(n: number): RunSummary[] {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `ghost-${i}-0000-0000-0000-000000000000`,
+    status: 'completed',
+    source: 'manual',
+    created_at: '2026-01-01T00:00:00Z',
+    cells_ok: 3,
+    cells_error: 0,
+    cells_total: 3,
+    cost_usd: 0.0042,
+  }));
+}
 
 export function RunsTable({ items }: { items: RunSummary[] }) {
   const { t } = useTranslation();
@@ -22,8 +37,8 @@ export function RunsTable({ items }: { items: RunSummary[] }) {
       <Table.Tbody>
         {items.map((r) => (
           <Table.Tr key={r.id}>
-            <Table.Td>{r.created_at ?? '—'}</Table.Td>
-            <Table.Td>
+            <GhostTd>{r.created_at ?? '—'}</GhostTd>
+            <GhostTd>
               <Group gap={4}>
                 <Anchor component={Link} to={`/admin/labels/enrich/runs/${r.id}`}>
                   {r.id.slice(0, 8)}
@@ -36,17 +51,17 @@ export function RunsTable({ items }: { items: RunSummary[] }) {
                   )}
                 </CopyButton>
               </Group>
-            </Table.Td>
-            <Table.Td><RunStatusBadge status={r.status} /></Table.Td>
-            <Table.Td>
+            </GhostTd>
+            <GhostTd><RunStatusBadge status={r.status} /></GhostTd>
+            <GhostTd>
               {r.source ? (
                 <Badge variant="light" color={r.source === 'auto' ? 'blue' : 'gray'}>
                   {r.source}
                 </Badge>
               ) : '—'}
-            </Table.Td>
-            <Table.Td>{r.cells_ok}/{r.cells_error}/{r.cells_total}</Table.Td>
-            <Table.Td>{typeof r.cost_usd === 'number' ? `$${r.cost_usd.toFixed(4)}` : '—'}</Table.Td>
+            </GhostTd>
+            <GhostTd>{r.cells_ok}/{r.cells_error}/{r.cells_total}</GhostTd>
+            <GhostTd>{typeof r.cost_usd === 'number' ? `$${r.cost_usd.toFixed(4)}` : '—'}</GhostTd>
           </Table.Tr>
         ))}
       </Table.Tbody>
