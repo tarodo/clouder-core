@@ -8,7 +8,6 @@ import {
 } from '../../analytics/components/AnalyticsCards';
 import { ActiveBlocksList } from '../components/ActiveBlocksList';
 import { CountersGrid } from '../components/CountersGrid';
-import { HomeSkeleton } from '../components/HomeSkeleton';
 import { NoStylesEmpty } from '../components/NoStylesEmpty';
 import { ResumeHero } from '../components/ResumeHero';
 import { useHomeData, type HomeData } from '../hooks/useHomeData';
@@ -16,12 +15,11 @@ import { useResumeTarget } from '../hooks/useResumeTarget';
 
 export function HomePage() {
   const { data, isLoading, isError, error, refetchAll } = useHomeData();
-  if (isLoading) return <HomeSkeleton />;
-  if (isError || !data) {
+  if (!isLoading && (isError || !data)) {
     return <HomeError refetchAll={refetchAll} error={error} />;
   }
-  if (data.styles.length === 0) return <NoStylesEmpty />;
-  return <HomeReady data={data} refetchAll={refetchAll} />;
+  if (data?.styles.length === 0) return <NoStylesEmpty />;
+  return <HomeBlocks data={data} refetchAll={refetchAll} />;
 }
 
 function HomeError({ refetchAll, error }: { refetchAll: () => void; error?: unknown }) {
@@ -40,27 +38,34 @@ function HomeError({ refetchAll, error }: { refetchAll: () => void; error?: unkn
   );
 }
 
-function HomeReady({ data, refetchAll }: { data: HomeData; refetchAll: () => void }) {
+/** One layout loading or loaded: each block is its own ghost until its data lands, so the
+ * page never jumps (the analytics cards load on their own). */
+function HomeBlocks({ data, refetchAll }: { data: HomeData | undefined; refetchAll: () => void }) {
   const { t } = useTranslation();
-  const target = useResumeTarget(data.activeBlocks, data.blocksByStyle);
   return (
     <Stack gap="md" maw={720} mx="auto" px="md">
-      {data.partialError && (
+      {data?.partialError && (
         <Alert color="yellow" variant="light" title={t('home.error.partial')}>
           <Button size="xs" variant="default" onClick={refetchAll}>
             {t('home.error.partial_retry')}
           </Button>
         </Alert>
       )}
-      <ResumeHero target={target} />
+      {data ? <Resume data={data} /> : <ResumeHero target={undefined} />}
       <CountersGrid
-        awaitingTriage={data.awaitingTriageCount}
-        activeBlocks={data.activeBlocksCount}
+        awaitingTriage={data?.awaitingTriageCount}
+        activeBlocks={data?.activeBlocksCount}
       />
-      <ActiveBlocksList blocks={data.topActiveBlocks} total={data.activeBlocksCount} />
+      <ActiveBlocksList blocks={data?.topActiveBlocks} total={data?.activeBlocksCount ?? 0} />
       <ListeningCard />
       <FunnelCard />
       <TimePerTrackCard />
     </Stack>
   );
+}
+
+/** Only with the blocks loaded: the target check clears a stale curate location. */
+function Resume({ data }: { data: HomeData }) {
+  const target = useResumeTarget(data.activeBlocks, data.blocksByStyle);
+  return <ResumeHero target={target} />;
 }

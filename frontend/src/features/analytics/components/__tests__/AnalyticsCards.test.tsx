@@ -82,16 +82,17 @@ describe('analytics cards', () => {
     state.loading = false;
   });
 
-  it('shows gray skeleton blocks, not a spinner, while loading', () => {
+  it('shows the cards as ghosts, titles in place, not a spinner, while loading', () => {
     state.loading = true;
-    wrap(
+    const { container } = wrap(
       <>
         <ListeningCard />
         <FunnelCard />
       </>,
     );
-    expect(screen.getByTestId('listening-skeleton')).toBeDefined();
-    expect(screen.getByTestId('funnel-skeleton')).toBeDefined();
+    expect(container.querySelectorAll('[aria-busy]')).toHaveLength(2);
+    expect(screen.getByText('Listening')).toBeDefined();
+    expect(screen.getByText('Funnel')).toBeDefined();
     expect(screen.queryByTestId('loader')).toBeNull();
   });
 

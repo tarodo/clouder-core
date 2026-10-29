@@ -14,11 +14,11 @@ vi.mock('../../../../api/client', () => ({ api: vi.fn() }));
 const qs = `tz_offset_min=${tzOffsetMin()}`;
 const big = { listened_ms: 99_999 * 60_000, tracks: 12_345 }; // worst-case widths
 
-function renderInColumn(width: number) {
+function renderInColumn(width: number, listening = big) {
   const qc = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
   qc.setQueryData(['analytics', 'listening', qs], {
     today: '2026-10-05',
-    totals: { day: big, week: big, month: big },
+    totals: { day: listening, week: listening, month: listening },
     daily: Array.from({ length: 30 }, (_, i) => ({ dt: `2026-09-${String(i + 1).padStart(2, '0')}`, ...big })),
   });
   qc.setQueryData(['analytics', 'funnel', qs], {
@@ -67,26 +67,32 @@ function cardOf(testId: string): HTMLElement {
   return screen.getByTestId(testId).closest('.mantine-Card-root') as HTMLElement;
 }
 
-test('skeletons are as tall as the loaded cards (no jump on load)', () => {
-  const loaded = renderInColumn(720);
-  const h = (el: Element | null) => Math.round(el!.getBoundingClientRect().height);
-  const listening = h(cardOf('listening-day'));
-  const funnel = h(cardOf('funnel-triaged'));
+// A ghost holds placeholder numbers: it matches real-sized ones ("27h 56m", 525 tracks); the
+// worst-case widths above wrap at 343px and stand taller, which no placeholder can foresee.
+const usual = { listened_ms: 1_676 * 60_000, tracks: 525 };
+
+test.each([720, 343])('each card loads in place of a ghost as tall as itself at %ipx', (width) => {
+  const loaded = renderInColumn(width, usual); // also remembers the time-per-track row count
+  const h = (id: string) => cardOf(id).getBoundingClientRect().height;
+  const want = [h('listening-day'), h('funnel-triaged'), h('tpt-x-triage')];
   loaded.unmount();
   render(
     <MantineProvider>
       <I18nextProvider i18n={i18n}>
         <QueryClientProvider client={new QueryClient()}>
-          <div style={{ width: 720 }}>
-            <ListeningCard />
-            <FunnelCard />
+          <div style={{ width }}>
+            <Stack gap="md" maw={720}>
+              <ListeningCard />
+              <FunnelCard />
+              <TimePerTrackCard />
+            </Stack>
           </div>
         </QueryClientProvider>
       </I18nextProvider>
     </MantineProvider>,
   );
-  expect(Math.abs(h(screen.getByTestId('listening-skeleton')) - listening)).toBeLessThanOrEqual(4);
-  expect(Math.abs(h(screen.getByTestId('funnel-skeleton')) - funnel)).toBeLessThanOrEqual(4);
+  const ghosts = [...document.querySelectorAll('[aria-busy] .mantine-Card-root')];
+  expect(ghosts.map((c) => c.getBoundingClientRect().height)).toEqual(want);
 });
 
 describe.each([720, 343])('analytics cards in a %ipx home column', (width) => {
