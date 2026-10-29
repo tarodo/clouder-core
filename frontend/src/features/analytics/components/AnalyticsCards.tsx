@@ -51,7 +51,7 @@ const tptGhost = (rows: number): TimePerTrackResponse => ({
   stages: ['triage', 'category', 'playlist'],
   rows: Array.from({ length: rows }, (_, i) => ({
     style_id: i === 0 ? '*' : `ghost-${i}`,
-    style_name: 'Melodic House',
+    style_name: 'Placeholder',
     cells: { triage: GHOST_CELL, category: GHOST_CELL, playlist: GHOST_CELL },
   })),
 });

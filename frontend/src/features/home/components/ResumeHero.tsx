@@ -53,7 +53,7 @@ export function ResumeHero({ target }: ResumeHeroProps) {
       <GhostScope on>
         <BlockCard
           label={t('home.resume.triage.title')}
-          title={t('home.resume.triage.context', { style: 'Afro House', block: 'Week 40' })}
+          title={t('home.resume.triage.context', { style: 'Placeholder', block: 'Week 00' })}
           tracks={30}
           cta={t('home.resume.triage.cta')}
           to="/triage"

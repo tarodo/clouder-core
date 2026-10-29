@@ -14,7 +14,7 @@ export interface ActiveBlocksListProps {
 const ghostBlock = (i: number): TriageBlockSummary => ({
   id: `ghost-${i}`,
   style_id: '',
-  style_name: 'Melodic House & Techno',
+  style_name: 'Placeholder style name',
   name: '',
   date_from: '2026-10-03',
   date_to: '2026-10-09',
