@@ -457,6 +457,8 @@ TRIAGE_BLOCK_DETAIL = {
         "compilations_to_not": {"type": "boolean"},
         "include_favorites": {"type": "boolean"},
         "ai_to_discard": {"type": "boolean"},
+        "ai_labels_min_level": {"type": ["integer", "null"], "enum": [1, 2, 3, None]},
+        "ai_artists_min_level": {"type": ["integer", "null"], "enum": [1, 2, 3, None]},
         "model": {
             "type": ["object", "null"],
             "required": ["trained_at", "n_labels", "first_hit", "first_n"],

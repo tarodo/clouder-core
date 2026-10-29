@@ -150,6 +150,8 @@ def test_create_triage_block_invokes_repo(monkeypatch, context) -> None:
             compilations_to_not=True,
             include_favorites=True,
             ai_to_discard=True,
+            ai_labels_min_level=None,
+            ai_artists_min_level=None,
         ):
             captured.update(
                 user_id=user_id,
@@ -1167,3 +1169,45 @@ def test_create_triage_block_forwards_and_serializes_flags() -> None:
     assert body["compilations_to_not"] is False
     assert body["include_favorites"] is False
     assert body["ai_to_discard"] is False
+
+
+def test_create_triage_block_forwards_and_serializes_ai_levels() -> None:
+    from collector.curation.triage_repository import TriageBlockRow
+    from collector.curation_handler import _create_triage_block
+
+    captured = {}
+
+    class _Repo:
+        def create_block(self, **kwargs):
+            captured.update(kwargs)
+            return TriageBlockRow(
+                id="b-1",
+                user_id="u-1",
+                style_id="00000000-0000-0000-0000-000000000001",
+                style_name="House",
+                name="X",
+                date_from="2026-04-20",
+                date_to="2026-04-26",
+                status="IN_PROGRESS",
+                old_offset_weeks=0,
+                include_disliked_labels=True,
+                include_disliked_artists=True,
+                compilations_to_not=True,
+                include_favorites=True,
+                created_at="2026-04-28T00:00:00+00:00",
+                updated_at="2026-04-28T00:00:00+00:00",
+                finalized_at=None,
+                ai_labels_min_level=kwargs["ai_labels_min_level"],
+                ai_artists_min_level=kwargs["ai_artists_min_level"],
+            )
+
+    event = {
+        "body": (
+            '{"style_id":"00000000-0000-0000-0000-000000000001",'
+            '"name":"X","date_from":"2026-04-20","date_to":"2026-04-26",'
+            '"ai_labels_min_level":2}'
+        )
+    }
+    body = json.loads(_create_triage_block(event, _Repo(), "u-1", "corr-1")["body"])
+    assert (captured["ai_labels_min_level"], captured["ai_artists_min_level"]) == (2, None)
+    assert (body["ai_labels_min_level"], body["ai_artists_min_level"]) == (2, None)

@@ -75,6 +75,9 @@ class TriageBlockRow:
     ai_to_discard: bool = (
         True  # AI-flagged tracks go to DISCARD (the owner's rule; a block may opt out)
     )
+    # the AI level from which creation sent a label's / an artist's tracks to NOT; None = off
+    ai_labels_min_level: int | None = None
+    ai_artists_min_level: int | None = None
     # trained model for the block's (user, style); None when never trained
     model: dict | None = None
 
@@ -163,6 +166,8 @@ class TriageRepository:
         compilations_to_not: bool = True,
         include_favorites: bool = True,
         ai_to_discard: bool = True,
+        ai_labels_min_level: int | None = None,
+        ai_artists_min_level: int | None = None,
     ) -> TriageBlockRow:
         now = utc_now()
         old_cutoff = date_from - timedelta(weeks=old_offset_weeks)
@@ -192,6 +197,7 @@ class TriageRepository:
                     old_offset_weeks, include_disliked_labels,
                     include_disliked_artists, compilations_to_not,
                     include_favorites, ai_to_discard,
+                    ai_labels_min_level, ai_artists_min_level,
                     created_at, updated_at
                 ) VALUES (
                     :id, :user_id, :style_id, :name,
@@ -199,6 +205,7 @@ class TriageRepository:
                     :old_offset_weeks, :include_disliked_labels,
                     :include_disliked_artists, :compilations_to_not,
                     :include_favorites, :ai_to_discard,
+                    :ai_labels_min_level, :ai_artists_min_level,
                     :now, :now
                 )
                 """,
@@ -215,6 +222,8 @@ class TriageRepository:
                     "compilations_to_not": compilations_to_not,
                     "include_favorites": include_favorites,
                     "ai_to_discard": ai_to_discard,
+                    "ai_labels_min_level": ai_labels_min_level,
+                    "ai_artists_min_level": ai_artists_min_level,
                     "now": now,
                 },
                 transaction_id=tx_id,
@@ -281,7 +290,8 @@ class TriageRepository:
 
             # 5. Classify and insert tracks (one INSERT FROM SELECT).
             #    Branch order (first match wins): DISCARD (AI-flagged, when
-            #    ai_to_discard), FAV, NOT(disliked), date branches,
+            #    ai_to_discard), FAV, NOT(disliked or AI label/artist at the
+            #    block's level), date branches,
             #    NOT(compilation), else NEW. Likes beat dislikes. Optional
             #    branches are emitted as SQL fragments so disabled toggles
             #    bind no parameters.
@@ -351,6 +361,28 @@ class TriageRepository:
                               AND uap.status = 'disliked'
                         )"""
                 )
+            if ai_labels_min_level is not None:
+                disliked_terms.append(
+                    """EXISTS (
+                            SELECT 1
+                            FROM clouder_albums a
+                            JOIN clouder_labels l ON l.id = a.label_id
+                            WHERE a.id = t.album_id
+                              AND l.ai_level >= :ai_labels_min_level
+                        )"""
+                )
+                classify_params["ai_labels_min_level"] = ai_labels_min_level
+            if ai_artists_min_level is not None:
+                disliked_terms.append(
+                    """EXISTS (
+                            SELECT 1
+                            FROM clouder_track_artists cta
+                            JOIN clouder_artists ar ON ar.id = cta.artist_id
+                            WHERE cta.track_id = t.id
+                              AND ar.ai_level >= :ai_artists_min_level
+                        )"""
+                )
+                classify_params["ai_artists_min_level"] = ai_artists_min_level
             disliked_when = ""
             if disliked_terms:
                 disliked_when = "WHEN " + " OR ".join(disliked_terms) + " THEN :not_bucket_id"
@@ -1177,6 +1209,7 @@ class TriageRepository:
                 tb.old_offset_weeks, tb.include_disliked_labels,
                 tb.include_disliked_artists, tb.compilations_to_not,
                 tb.include_favorites, tb.ai_to_discard,
+                tb.ai_labels_min_level, tb.ai_artists_min_level,
                 tb.created_at, tb.updated_at, tb.finalized_at,
                 m.version AS m_version, m.trained_at AS m_trained_at,
                 m.n_labels AS m_n_labels, m.metrics AS m_metrics
@@ -1276,6 +1309,8 @@ class TriageRepository:
             finalized_at=(str(b["finalized_at"]) if b["finalized_at"] is not None else None),
             buckets=buckets,
             ai_to_discard=bool(b.get("ai_to_discard", True)),  # the column default
+            ai_labels_min_level=b.get("ai_labels_min_level"),
+            ai_artists_min_level=b.get("ai_artists_min_level"),
             model=model,
         )
 

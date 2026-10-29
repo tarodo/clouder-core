@@ -4237,6 +4237,10 @@ export interface paths {
                             compilations_to_not?: boolean;
                             include_favorites?: boolean;
                             ai_to_discard?: boolean;
+                            /** @enum {integer|null} */
+                            ai_labels_min_level?: 1 | 2 | 3 | null;
+                            /** @enum {integer|null} */
+                            ai_artists_min_level?: 1 | 2 | 3 | null;
                             model?: {
                                 trained_at: string;
                                 n_labels: number;
@@ -4448,6 +4452,10 @@ export interface paths {
                             compilations_to_not?: boolean;
                             include_favorites?: boolean;
                             ai_to_discard?: boolean;
+                            /** @enum {integer|null} */
+                            ai_labels_min_level?: 1 | 2 | 3 | null;
+                            /** @enum {integer|null} */
+                            ai_artists_min_level?: 1 | 2 | 3 | null;
                             model?: {
                                 trained_at: string;
                                 n_labels: number;
@@ -4937,6 +4945,10 @@ export interface paths {
                                 compilations_to_not?: boolean;
                                 include_favorites?: boolean;
                                 ai_to_discard?: boolean;
+                                /** @enum {integer|null} */
+                                ai_labels_min_level?: 1 | 2 | 3 | null;
+                                /** @enum {integer|null} */
+                                ai_artists_min_level?: 1 | 2 | 3 | null;
                                 model?: {
                                     trained_at: string;
                                     n_labels: number;
@@ -9110,6 +9122,16 @@ export interface components {
              * @default true
              */
             ai_to_discard: boolean;
+            /**
+             * Ai Labels Min Level
+             * @default null
+             */
+            ai_labels_min_level: number | null;
+            /**
+             * Ai Artists Min Level
+             * @default null
+             */
+            ai_artists_min_level: number | null;
         };
         /** MoveTracksIn */
         MoveTracksIn: {

@@ -2725,6 +2725,24 @@ paths:
                     type: boolean
                   ai_to_discard:
                     type: boolean
+                  ai_labels_min_level:
+                    type:
+                    - integer
+                    - 'null'
+                    enum:
+                    - 1
+                    - 2
+                    - 3
+                    - null
+                  ai_artists_min_level:
+                    type:
+                    - integer
+                    - 'null'
+                    enum:
+                    - 1
+                    - 2
+                    - 3
+                    - null
                   model:
                     type:
                     - object
@@ -6549,6 +6567,22 @@ components:
           default: true
           title: Ai To Discard
           type: boolean
+        ai_labels_min_level:
+          anyOf:
+          - maximum: 3
+            minimum: 1
+            type: integer
+          - type: 'null'
+          default: null
+          title: Ai Labels Min Level
+        ai_artists_min_level:
+          anyOf:
+          - maximum: 3
+            minimum: 1
+            type: integer
+          - type: 'null'
+          default: null
+          title: Ai Artists Min Level
       required:
       - style_id
       - name

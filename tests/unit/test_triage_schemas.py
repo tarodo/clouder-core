@@ -145,6 +145,21 @@ class TestCreateTriageBlockInPopulateOptions:
         assert m.include_favorites is False
         assert m.ai_to_discard is False
 
+    def test_ai_levels_default_off_and_stay_within_1_to_3(self) -> None:
+        base = {
+            "style_id": "00000000-0000-0000-0000-000000000001",
+            "name": "House",
+            "date_from": "2026-04-20",
+            "date_to": "2026-04-26",
+        }
+        m = CreateTriageBlockIn.model_validate(base)
+        assert (m.ai_labels_min_level, m.ai_artists_min_level) == (None, None)
+        m = CreateTriageBlockIn.model_validate({**base, "ai_artists_min_level": 3})
+        assert m.ai_artists_min_level == 3
+        for bad in (0, 4):
+            with pytest.raises(ValidationError):
+                CreateTriageBlockIn.model_validate({**base, "ai_labels_min_level": bad})
+
     def test_accepts_populate_options(self) -> None:
         m = CreateTriageBlockIn.model_validate(
             {

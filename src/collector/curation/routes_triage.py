@@ -48,6 +48,8 @@ def _serialize_triage_block(row, correlation_id: str) -> dict[str, Any]:
         "compilations_to_not": row.compilations_to_not,
         "include_favorites": row.include_favorites,
         "ai_to_discard": row.ai_to_discard,
+        "ai_labels_min_level": row.ai_labels_min_level,
+        "ai_artists_min_level": row.ai_artists_min_level,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
         "finalized_at": row.finalized_at,
@@ -81,6 +83,8 @@ def _create_triage_block(event, triage_repo: TriageRepository, user_id: str, cor
         compilations_to_not=schema.compilations_to_not,
         include_favorites=schema.include_favorites,
         ai_to_discard=schema.ai_to_discard,
+        ai_labels_min_level=schema.ai_labels_min_level,
+        ai_artists_min_level=schema.ai_artists_min_level,
     )
     log_event(
         "INFO",
