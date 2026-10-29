@@ -161,7 +161,10 @@ class ClouderStyle(Base):
 
 class ClouderAlbum(Base):
     __tablename__ = "clouder_albums"
-    __table_args__ = (Index("idx_album_match", "normalized_title", "release_date", "label_id"),)
+    __table_args__ = (
+        Index("idx_album_match", "normalized_title", "release_date", "label_id"),
+        Index("ix_clouder_albums_label", "label_id"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
@@ -194,6 +197,7 @@ class ClouderTrack(Base):
             "id",
             postgresql_where=text("youtube_searched_at IS NULL"),
         ),
+        Index("ix_clouder_tracks_album", "album_id"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -223,7 +227,10 @@ class ClouderTrack(Base):
 
 class ClouderTrackArtist(Base):
     __tablename__ = "clouder_track_artists"
-    __table_args__ = (PrimaryKeyConstraint("track_id", "artist_id", "role"),)
+    __table_args__ = (
+        PrimaryKeyConstraint("track_id", "artist_id", "role"),
+        Index("ix_clouder_track_artists_artist", "artist_id"),
+    )
 
     track_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("clouder_tracks.id"), nullable=False
