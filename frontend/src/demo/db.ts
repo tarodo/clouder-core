@@ -55,6 +55,10 @@ const aiVerdict = (id: string): 'high' | 'medium' | 'low' | null => {
   return h === 0 ? 'high' : h === 1 ? 'medium' : h === 2 ? 'low' : null;
 };
 
+// The analyzer's progress on a demo track: most are AI-checked and profiled, a few not yet.
+const aiChecked = (id: string): boolean => aiVerdict(id) !== null || idHash(id) % 5 !== 3;
+const profiled = (id: string): boolean => idHash(id) % 4 !== 1;
+
 // The demo user's recommender, so the block page shows its model line.
 const DEMO_MODEL: NonNullable<TriageBlock['model']> = {
   trained_at: '2026-10-09T03:00:00Z',
@@ -219,6 +223,8 @@ export class DemoDb {
         publish_date: t.publish_date,
         spotify_release_date: t.publish_date,
         ai_verdict: aiVerdict(t.id),
+        ai_checked: aiChecked(t.id),
+        profiled: profiled(t.id),
         spotify_id: t.spotify_id,
         release_type: 'single',
         artists: t.artists.map((a) => ({ ...withAi(a), role: 'main' })),
@@ -676,6 +682,20 @@ export class DemoDb {
       secondary_styles: profile.secondary_styles,
       my_preference: this.labelPrefs.get(id) ?? null,
       ai: aiRep(id),
+      stats: this.statsOf(tracks.map((t) => t.id)),
+    };
+  }
+
+  /** A label's / an artist's tracks, and how many of them sit in categories and playlists. */
+  private statsOf(ids: string[]) {
+    const inAny = (lists: { tracks: { track_id: string }[] }[]) => {
+      const held = new Set(lists.flatMap((l) => l.tracks.map((e) => e.track_id)));
+      return ids.filter((id) => held.has(id)).length;
+    };
+    return {
+      tracks: ids.length,
+      in_categories: inAny(this.s.categories),
+      in_playlists: inAny(this.s.playlists),
     };
   }
 
@@ -739,6 +759,7 @@ export class DemoDb {
       secondary_styles: [],
       my_preference: this.artistPrefs.get(id) ?? null,
       ai: aiRep(id),
+      stats: this.statsOf(tracks.map((t) => t.id)),
     };
   }
 

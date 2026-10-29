@@ -23,6 +23,7 @@ import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import { spotifyApi } from '../../playback/api/spotifyWebApi';
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { AnalysisMeta } from '../../triage/components/AnalysisMeta';
 
 export interface CurateSessionProps {
   styleId: string;
@@ -264,6 +265,11 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
                   </Text>
                 </Group>
               </Group>
+              <AnalysisMeta
+                aiVerdict={session.currentTrack.ai_verdict}
+                aiChecked={session.currentTrack.ai_checked}
+                profiled={session.currentTrack.profiled}
+              />
             </Stack>
           ) : undefined
         }
@@ -351,11 +357,14 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
       />
     </Stack>
     {!isMobile && (
-      <div
+      <Stack
+        gap="sm"
         style={{
           position: 'absolute',
           top: 'var(--mantine-spacing-md)',
           left: '50%',
+          // up to the right edge: the cards are 320px at most, narrower on a narrow desktop
+          right: 'var(--mantine-spacing-md)',
           marginLeft: 'calc(360px + var(--mantine-spacing-md))',
         }}
       >
@@ -363,10 +372,8 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
           labelId={session.currentTrack?.label_id ?? null}
           labelName={session.currentTrack?.label_name ?? null}
         />
-        <ArtistsPanel
-          artists={session.currentTrack?.artists ?? []}
-        />
-      </div>
+        <ArtistsPanel artists={session.currentTrack?.artists ?? []} />
+      </Stack>
     )}
     </div>
   );
