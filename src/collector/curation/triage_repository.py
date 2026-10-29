@@ -19,6 +19,7 @@ from collector.curation import (
     TracksNotInSourceError,
     utc_now,
 )
+from collector.curation.triage_classify import not_tier_terms
 from collector.curation.triage_service import (
     BUCKET_TYPE_DISCARD,
     BUCKET_TYPE_FAV,
@@ -336,53 +337,13 @@ class TriageRepository:
                 """
                 classify_params["fav_bucket_id"] = tech_bucket_id_by_type[BUCKET_TYPE_FAV]
 
-            disliked_terms: list[str] = []
-            if include_disliked_labels:
-                disliked_terms.append(
-                    """EXISTS (
-                            SELECT 1
-                            FROM clouder_albums a
-                            JOIN clouder_user_label_prefs ulp
-                              ON ulp.label_id = a.label_id
-                            WHERE a.id = t.album_id
-                              AND ulp.user_id = :user_id
-                              AND ulp.status = 'disliked'
-                        )"""
-                )
-            if include_disliked_artists:
-                disliked_terms.append(
-                    """EXISTS (
-                            SELECT 1
-                            FROM clouder_track_artists cta
-                            JOIN clouder_user_artist_prefs uap
-                              ON uap.artist_id = cta.artist_id
-                            WHERE cta.track_id = t.id
-                              AND uap.user_id = :user_id
-                              AND uap.status = 'disliked'
-                        )"""
-                )
-            if ai_labels_min_level is not None:
-                disliked_terms.append(
-                    """EXISTS (
-                            SELECT 1
-                            FROM clouder_albums a
-                            JOIN clouder_labels l ON l.id = a.label_id
-                            WHERE a.id = t.album_id
-                              AND l.ai_level >= :ai_labels_min_level
-                        )"""
-                )
-                classify_params["ai_labels_min_level"] = ai_labels_min_level
-            if ai_artists_min_level is not None:
-                disliked_terms.append(
-                    """EXISTS (
-                            SELECT 1
-                            FROM clouder_track_artists cta
-                            JOIN clouder_artists ar ON ar.id = cta.artist_id
-                            WHERE cta.track_id = t.id
-                              AND ar.ai_level >= :ai_artists_min_level
-                        )"""
-                )
-                classify_params["ai_artists_min_level"] = ai_artists_min_level
+            disliked_terms = not_tier_terms(
+                include_disliked_labels=include_disliked_labels,
+                include_disliked_artists=include_disliked_artists,
+                ai_labels_min_level=ai_labels_min_level,
+                ai_artists_min_level=ai_artists_min_level,
+                params=classify_params,
+            )
             disliked_when = ""
             if disliked_terms:
                 disliked_when = "WHEN " + " OR ".join(disliked_terms) + " THEN :not_bucket_id"
