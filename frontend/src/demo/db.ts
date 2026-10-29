@@ -320,6 +320,36 @@ export class DemoDb {
     return this.s.playlists.some((p) => p.tracks.some((t) => t.track_id === trackId));
   }
 
+  /** A label's / an artist's tracks, newest release first, with this user's categories and playlists. */
+  entityTracks(kind: 'label' | 'artist', id: string, limit: number, offset: number) {
+    const all = this.s.tracks
+      .filter((t) => (kind === 'label' ? t.label.id === id : t.artists.some((a) => a.id === id)))
+      .sort((a, b) => b.publish_date.localeCompare(a.publish_date) || a.id.localeCompare(b.id));
+    const items = all.slice(offset, offset + limit).map((t) => ({
+      id: t.id,
+      title: t.title,
+      mix_name: t.mix_name,
+      artists: t.artists.map(withAi),
+      label: withAi(t.label),
+      style: { id: t.style_id, name: this.styleName(t.style_id) },
+      bpm: t.bpm,
+      length_ms: t.length_ms,
+      key_name: t.key_name,
+      key_camelot: t.key_camelot,
+      release_date: t.publish_date,
+      spotify_id: t.spotify_id,
+      ai_verdict: aiVerdict(t.id),
+      categories: this.s.categories
+        .filter((c) => c.tracks.some((e) => e.track_id === t.id))
+        .sort((a, b) => a.position - b.position)
+        .map((c) => ({ id: c.id, name: c.name })),
+      playlists: this.s.playlists
+        .filter((pl) => pl.tracks.some((e) => e.track_id === t.id))
+        .map((pl) => ({ id: pl.id, name: pl.name })),
+    }));
+    return { items, total: all.length, limit, offset };
+  }
+
   categoryTracks(id: string, q: CategoryTrackQuery): CategoryTrack[] {
     const tagged = (trackId: string) => {
       if (!q.tags?.length) return true;

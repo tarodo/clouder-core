@@ -145,6 +145,7 @@ _ROUTE_TABLE: dict[str, Route] = {
     ),
     "GET /labels": _delegate("label_enrichment.routes", "handle_get_labels_list"),
     "GET /labels/{label_id}": _delegate("label_enrichment.routes", "handle_get_label_user"),
+    "GET /labels/{label_id}/tracks": _delegate("entity_tracks", "handle_label_tracks"),
     "POST /admin/artists/enrich": _delegate("artist_enrichment.routes", "handle_post_enrich"),
     "POST /admin/artists/{artist_id}/enrich-auto": _delegate(
         "artist_enrichment.routes", "handle_post_enrich_auto"
@@ -175,6 +176,7 @@ _ROUTE_TABLE: dict[str, Route] = {
     ),
     "GET /artists": _delegate("artist_enrichment.routes", "handle_get_artists_list"),
     "GET /artists/{artist_id}": _delegate("artist_enrichment.routes", "handle_get_artist_user"),
+    "GET /artists/{artist_id}/tracks": _delegate("entity_tracks", "handle_artist_tracks"),
 }
 
 

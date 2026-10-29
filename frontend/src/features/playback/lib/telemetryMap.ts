@@ -1,7 +1,7 @@
 import { clampMs } from './seekHotkeys';
 import type { PlaybackSource, QueueSource, QueueStatus } from './types';
 
-const SOURCE_BY_QUEUE: Record<QueueSource['type'], PlaybackSource> = {
+const SOURCE_BY_QUEUE: Record<Exclude<QueueSource['type'], 'entity'>, PlaybackSource> = {
   bucket: 'triage_player',
   category: 'category_player',
   playlist: 'playlist_player',
@@ -12,7 +12,9 @@ export function resolvePlaybackSource(
   queueSource: QueueSource | null,
 ): PlaybackSource {
   if (explicit) return explicit;
-  return queueSource ? SOURCE_BY_QUEUE[queueSource.type] : 'triage_player';
+  if (!queueSource) return 'triage_player';
+  if (queueSource.type === 'entity') return `${queueSource.kind}_player`;
+  return SOURCE_BY_QUEUE[queueSource.type];
 }
 
 export function seekEventProps(

@@ -18,6 +18,14 @@ describe('resolvePlaybackSource', () => {
       'playlist_player',
     );
   });
+  it('maps a label or artist page player to label_player / artist_player', () => {
+    expect(resolvePlaybackSource(undefined, { type: 'entity', kind: 'label', entityId: 'l' })).toBe(
+      'label_player',
+    );
+    expect(resolvePlaybackSource(undefined, { type: 'entity', kind: 'artist', entityId: 'a' })).toBe(
+      'artist_player',
+    );
+  });
   it('falls back to triage_player when no queue source is bound', () => {
     expect(resolvePlaybackSource(undefined, null)).toBe('triage_player');
   });

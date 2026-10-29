@@ -217,6 +217,15 @@ resource "aws_apigatewayv2_route" "label_detail_user" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+# The player on the entity page: its tracks with the user's own categories and playlists.
+resource "aws_apigatewayv2_route" "label_tracks_user" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /labels/{label_id}/tracks"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_route" "labels_backlog" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /admin/labels/backlog"
@@ -427,6 +436,15 @@ resource "aws_apigatewayv2_route" "auto_enrich_artists_put" {
 resource "aws_apigatewayv2_route" "artist_detail_user" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "GET /artists/{artist_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+# The player on the entity page: its tracks with the user's own categories and playlists.
+resource "aws_apigatewayv2_route" "artist_tracks_user" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /artists/{artist_id}/tracks"
   target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id

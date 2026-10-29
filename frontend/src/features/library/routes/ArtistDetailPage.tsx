@@ -1,4 +1,4 @@
-import { Container, Grid, Card, Title, Stack, Divider } from '@mantine/core';
+import { Grid, Card, Title, Stack, Divider } from '@mantine/core';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
@@ -7,6 +7,7 @@ import { ArtistDetailHeader } from '../components/ArtistDetailHeader';
 import { ArtistChannelLinks } from '../components/ArtistChannelLinks';
 import { ArtistOverviewTab } from '../components/ArtistOverviewTab';
 import { ArtistStylesTab } from '../components/ArtistStylesTab';
+import { EntityTracksSection } from '../components/EntityTracksSection';
 import { PageSkeleton } from '../../../components/PageSkeleton';
 import { EmptyState } from '../../../components/EmptyState';
 
@@ -33,13 +34,15 @@ export function ArtistDetailPage() {
   if (!query.data) return null;
   const info = query.data;
 
+  // Full width like the category page: the player and the track list sit side by side.
   return (
-    <Container size="lg" py="md">
+    <Stack gap="lg" py="md">
+      <ArtistDetailHeader info={info} artistId={artistId} />
+      <EntityTracksSection kind="artist" entityId={artistId} />
+      <Divider />
       <Grid>
         <Grid.Col span={{ base: 12, lg: 9 }}>
-          <Stack gap="md">
-            <ArtistDetailHeader info={info} artistId={artistId} />
-            <Divider />
+          <Stack gap="md" maw={900}>
             <ArtistOverviewTab info={info} />
             <Divider />
             <ArtistStylesTab info={info} />
@@ -54,6 +57,6 @@ export function ArtistDetailPage() {
           </Card>
         </Grid.Col>
       </Grid>
-    </Container>
+    </Stack>
   );
 }

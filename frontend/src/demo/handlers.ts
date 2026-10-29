@@ -370,6 +370,17 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
     { method: 'get', path: '/labels', resolve: ({ query }) => db.labels(libraryQuery(query)) },
     {
       method: 'get',
+      path: '/labels/:labelId/tracks',
+      resolve: ({ param, query }) =>
+        db.entityTracks(
+          'label',
+          param('labelId'),
+          Number(query.get('limit') ?? 50),
+          Number(query.get('offset') ?? 0),
+        ),
+    },
+    {
+      method: 'get',
       path: '/labels/:labelId',
       resolve: ({ param }) => db.labelDetail(param('labelId')),
     },
@@ -380,6 +391,17 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
       resolve: ({ param, body }) => db.setLabelPreference(param('labelId'), body.status),
     },
     { method: 'get', path: '/artists', resolve: ({ query }) => db.artists(libraryQuery(query)) },
+    {
+      method: 'get',
+      path: '/artists/:artistId/tracks',
+      resolve: ({ param, query }) =>
+        db.entityTracks(
+          'artist',
+          param('artistId'),
+          Number(query.get('limit') ?? 50),
+          Number(query.get('offset') ?? 0),
+        ),
+    },
     {
       method: 'get',
       path: '/artists/:artistId',

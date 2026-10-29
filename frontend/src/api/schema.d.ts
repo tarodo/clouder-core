@@ -1746,6 +1746,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/labels/{label_id}/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The label's tracks for its page's player, newest release first.
+         * @description Each track carries the caller's own live categories and playlists it sits in. Query: `limit` (default 50, max 200), `offset`.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path: {
+                    label_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description A page of the label's tracks. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                id: string;
+                                title: string;
+                                mix_name: string | null;
+                                artists: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                }[];
+                                label: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                } | null;
+                                style: {
+                                    id: string;
+                                    name: string;
+                                } | null;
+                                bpm: number | null;
+                                length_ms: number | null;
+                                key_name: string | null;
+                                key_camelot: string | null;
+                                /**
+                                 * Format: date
+                                 * @description Beatport publish date, else the Spotify release date.
+                                 */
+                                release_date: string | null;
+                                spotify_id: string | null;
+                                /** @enum {string|null} */
+                                ai_verdict: "high" | "medium" | "low" | null;
+                                /** @description The caller's live categories holding the track. */
+                                categories: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                                /** @description The caller's live playlists holding the track. */
+                                playlists: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                            }[];
+                            total: number;
+                            limit: number;
+                            offset: number;
+                        };
+                    };
+                };
+                /** @description validation_error (limit, offset). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/labels/backlog": {
         parameters: {
             query?: never;
@@ -8558,6 +8688,136 @@ export interface paths {
                 };
                 /** @description artist_not_found. */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artists/{artist_id}/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The artist's tracks for its page's player, newest release first.
+         * @description Each track carries the caller's own live categories and playlists it sits in. Query: `limit` (default 50, max 200), `offset`.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path: {
+                    artist_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description A page of the artist's tracks. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                id: string;
+                                title: string;
+                                mix_name: string | null;
+                                artists: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                }[];
+                                label: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                } | null;
+                                style: {
+                                    id: string;
+                                    name: string;
+                                } | null;
+                                bpm: number | null;
+                                length_ms: number | null;
+                                key_name: string | null;
+                                key_camelot: string | null;
+                                /**
+                                 * Format: date
+                                 * @description Beatport publish date, else the Spotify release date.
+                                 */
+                                release_date: string | null;
+                                spotify_id: string | null;
+                                /** @enum {string|null} */
+                                ai_verdict: "high" | "medium" | "low" | null;
+                                /** @description The caller's live categories holding the track. */
+                                categories: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                                /** @description The caller's live playlists holding the track. */
+                                playlists: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                            }[];
+                            total: number;
+                            limit: number;
+                            offset: number;
+                        };
+                    };
+                };
+                /** @description validation_error (limit, offset). */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };

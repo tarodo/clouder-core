@@ -1,4 +1,4 @@
-import { Container, Grid, Card, Title, Stack, Divider } from '@mantine/core';
+import { Grid, Card, Title, Stack, Divider } from '@mantine/core';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
@@ -7,6 +7,7 @@ import { LabelDetailHeader } from '../components/LabelDetailHeader';
 import { LabelChannelLinks } from '../components/LabelChannelLinks';
 import { LabelOverviewTab } from '../components/LabelOverviewTab';
 import { LabelStylesTab } from '../components/LabelStylesTab';
+import { EntityTracksSection } from '../components/EntityTracksSection';
 import { PageSkeleton } from '../../../components/PageSkeleton';
 import { EmptyState } from '../../../components/EmptyState';
 
@@ -33,13 +34,15 @@ export function LabelDetailPage() {
   if (!query.data) return null;
   const info = query.data;
 
+  // Full width like the category page: the player and the track list sit side by side.
   return (
-    <Container size="lg" py="md">
+    <Stack gap="lg" py="md">
+      <LabelDetailHeader info={info} labelId={labelId} />
+      <EntityTracksSection kind="label" entityId={labelId} />
+      <Divider />
       <Grid>
         <Grid.Col span={{ base: 12, lg: 9 }}>
-          <Stack gap="md">
-            <LabelDetailHeader info={info} labelId={labelId} />
-            <Divider />
+          <Stack gap="md" maw={900}>
             <LabelOverviewTab info={info} />
             <Divider />
             <LabelStylesTab info={info} />
@@ -54,6 +57,6 @@ export function LabelDetailPage() {
           </Card>
         </Grid.Col>
       </Grid>
-    </Container>
+    </Stack>
   );
 }
