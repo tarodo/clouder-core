@@ -1,10 +1,12 @@
-import { Anchor, ActionIcon, Group, Stack, Text } from '@mantine/core';
-import { Link } from 'react-router';
+import { ActionIcon, Group, Stack, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { useLabelInfo } from '../hooks/useLabelInfo';
 import { CHANNELS } from '../lib/channelMeta';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
-import { AiRepBadge, type AiRep } from './AiRepBadge';
+import { type AiRep } from './AiRepBadge';
+import { Clamped, EntityCard, type EntityStats } from './EntityCard';
+
+const NO_STATS: EntityStats = { tracks: 0, in_categories: 0, in_playlists: 0 };
 
 interface Props {
   labelId: string | null | undefined;
@@ -22,6 +24,7 @@ interface LabelInfoView {
   ai_content?: string | null;
   ai_reasoning?: string | null;
   my_preference?: 'liked' | 'disliked' | null;
+  stats?: EntityStats;
 }
 
 function pickPreference(value: unknown): 'liked' | 'disliked' | null {
@@ -40,8 +43,8 @@ export function LabelTile({ labelId, labelName }: Props) {
 
   // The user-facing detail endpoint now always returns 200 once a label
   // exists, but the response is `{label_name, my_preference}` when no
-  // enrichment row exists. Treat such a response as "info missing" so
-  // the tile stays in minimal mode (name + buttons only).
+  // enrichment row exists. Treat such a response as "info missing": the
+  // card shows the numbers and says the info is not there yet.
   const hasEnrichment = !!info && (
     !!info.summary ||
     !!info.tagline ||
@@ -63,63 +66,55 @@ export function LabelTile({ labelId, labelName }: Props) {
     : [];
 
   return (
-    <Stack gap="sm" maw={320}>
-      <Group gap="sm" align="center" wrap="wrap">
-        <Anchor component={Link} to={`/labels/${labelId}`} fw={600} size="lg">
-          {displayName || labelId}
-        </Anchor>
-        <AiRepBadge rep={info?.ai} />
-        <LabelPreferenceButtons labelId={labelId} current={preference} size="sm" />
-      </Group>
-      {showFullCard && (info?.country || info?.founded_year != null) && (
-        <Group gap="xs">
-          {info?.country && (
-            <Text size="sm">
-              {info.country}
-            </Text>
-          )}
-          {info?.founded_year != null && (
-            <Text size="sm" c="dimmed">
-              · {t('library.detail.founded', { year: info.founded_year })}
-            </Text>
-          )}
-        </Group>
-      )}
-      {showFullCard && info?.tagline && (
-        <Text size="sm" fw={500}>
-          {info.tagline}
-        </Text>
-      )}
-      {showFullCard && info?.summary && (
-        <Text size="sm" className="prewrap">
-          {info.summary}
-        </Text>
-      )}
-      {showFullCard && notable.length > 0 && (
-        <Stack gap={2}>
-          <Text size="xs" fw={600} c="dimmed">
-            {t('library.detail.notable_artists')}
+    <EntityCard
+      role={t('library.entity.label')}
+      name={displayName || labelId}
+      href={`/labels/${labelId}`}
+      ai={info?.ai}
+      preferences={<LabelPreferenceButtons labelId={labelId} current={preference} size="sm" />}
+      stats={query.isLoading ? undefined : (info?.stats ?? NO_STATS)}
+      hasInfo={showFullCard}
+    >
+      <Stack gap="xs">
+        {(info?.country || info?.founded_year != null) && (
+          <Text size="sm" c="dimmed">
+            {[info?.country, info?.founded_year != null && t('library.detail.founded', { year: info.founded_year })]
+              .filter(Boolean)
+              .join(' · ')}
           </Text>
-          <Text size="sm">{notable.join(', ')}</Text>
-        </Stack>
-      )}
-      {channels.length > 0 && (
-        <Group gap={6}>
-          {channels.map((ch) => (
-            <ActionIcon
-              key={ch.kind}
-              component="a"
-              href={ch.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              variant="subtle"
-              aria-label={t(ch.i18nKey)}
-            >
-              <ch.Icon size={16} />
-            </ActionIcon>
-          ))}
-        </Group>
-      )}
-    </Stack>
+        )}
+        {info?.tagline && (
+          <Text size="sm" fw={500}>
+            {info.tagline}
+          </Text>
+        )}
+        {info?.summary && <Clamped text={info.summary} />}
+        {notable.length > 0 && (
+          <Stack gap={2}>
+            <Text size="xs" fw={600} c="dimmed">
+              {t('library.detail.notable_artists')}
+            </Text>
+            <Text size="sm">{notable.join(', ')}</Text>
+          </Stack>
+        )}
+        {channels.length > 0 && (
+          <Group gap={6}>
+            {channels.map((ch) => (
+              <ActionIcon
+                key={ch.kind}
+                component="a"
+                href={ch.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="subtle"
+                aria-label={t(ch.i18nKey)}
+              >
+                <ch.Icon size={16} />
+              </ActionIcon>
+            ))}
+          </Group>
+        )}
+      </Stack>
+    </EntityCard>
   );
 }

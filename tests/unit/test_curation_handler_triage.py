@@ -372,6 +372,8 @@ def _fake_bucket_track_row(track_id: str = "trk-1") -> BucketTrackRowOut:
         spotify_id="spot-1",
         release_type="single",
         ai_verdict="low",
+        ai_checked=False,
+        profiled=False,
         artists=[
             {"id": "a-alice", "name": "Alice", "role": "artist"},
             {"id": "a-bob", "name": "Bob", "role": "artist"},

@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from ..data_api import DataAPIClient
+from ..entity_stats import artist_stats_sql, parse_stats
 from ..repositories.analysis import ai_rep_sql, parse_ai_rep
 
 if TYPE_CHECKING:
@@ -454,7 +455,8 @@ class ArtistEnrichmentRepository:
         """
         rows = self._data_api.execute(
             f"""
-            SELECT ai.merged, uap.status AS my_preference, {ai_rep_sql("art")} AS ai_rep
+            SELECT ai.merged, uap.status AS my_preference, {ai_rep_sql("art")} AS ai_rep,
+                   {artist_stats_sql("art")}
             FROM clouder_artist_info ai
             JOIN clouder_artists art ON art.id = ai.artist_id
             LEFT JOIN clouder_user_artist_prefs uap
@@ -473,12 +475,13 @@ class ArtistEnrichmentRepository:
             out = {k: v for k, v in merged.items() if k not in _USER_FACING_FORBIDDEN}
             out["my_preference"] = rows[0].get("my_preference")
             out["ai"] = parse_ai_rep(rows[0].get("ai_rep"))
+            out["stats"] = parse_stats(rows[0])
             return out
 
         fallback = self._data_api.execute(
             f"""
             SELECT art.name AS artist_name, uap.status AS my_preference,
-                   {ai_rep_sql("art")} AS ai_rep
+                   {ai_rep_sql("art")} AS ai_rep, {artist_stats_sql("art")}
             FROM clouder_artists art
             LEFT JOIN clouder_user_artist_prefs uap
                 ON uap.artist_id = art.id AND uap.user_id = :user_id
@@ -494,6 +497,7 @@ class ArtistEnrichmentRepository:
             "artist_name": row.get("artist_name"),
             "my_preference": row.get("my_preference"),
             "ai": parse_ai_rep(row.get("ai_rep")),
+            "stats": parse_stats(row),
         }
 
     # ── runs (read) ──────────────────────────────────────────────────

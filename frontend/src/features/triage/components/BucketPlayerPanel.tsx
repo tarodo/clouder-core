@@ -13,6 +13,7 @@ import { moveDestinationsFor } from '../lib/bucketLabels';
 import { suggestedDestinations, suggestionTag } from '../lib/suggestedDestinations';
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { AnalysisMeta } from './AnalysisMeta';
 
 export interface BucketPlayerPanelProps {
   blockId: string;
@@ -104,18 +105,25 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
 
   const metaRow =
     effectiveRich != null ? (
-      <Group gap="md" wrap="wrap" mt={4} style={{ minWidth: 0 }}>
-        {effectiveRich.label_name ? (
-          <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1 }}>
-            {effectiveRich.label_name}
-          </Text>
-        ) : null}
-        {effectiveRich.bpm != null ? (
-          <Text size="sm" c="var(--color-fg-muted)" className="font-mono">
-            {effectiveRich.bpm} BPM
-          </Text>
-        ) : null}
-      </Group>
+      <Stack gap={4} mt={4}>
+        <Group gap="md" wrap="wrap" style={{ minWidth: 0 }}>
+          {effectiveRich.label_name ? (
+            <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1 }}>
+              {effectiveRich.label_name}
+            </Text>
+          ) : null}
+          {effectiveRich.bpm != null ? (
+            <Text size="sm" c="var(--color-fg-muted)" className="font-mono">
+              {effectiveRich.bpm} BPM
+            </Text>
+          ) : null}
+        </Group>
+        <AnalysisMeta
+          aiVerdict={effectiveRich.ai_verdict}
+          aiChecked={effectiveRich.ai_checked}
+          profiled={effectiveRich.profiled}
+        />
+      </Stack>
     ) : null;
 
   return (

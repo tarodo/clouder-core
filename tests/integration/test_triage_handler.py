@@ -626,6 +626,8 @@ def test_bucket_tracks_serialize_prediction(fake_triage_repo, context):
             spotify_id=None,
             release_type=None,
             ai_verdict=None,
+            ai_checked=False,
+            profiled=False,
             artists=[],
             label_name=None,
             label_id=None,

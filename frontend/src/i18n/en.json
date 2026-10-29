@@ -737,7 +737,18 @@
       "length_label": "Length",
       "no_spotify_id": "No Spotify match",
       "fire": "Fire",
-      "fire_title": "Mark as 🔥 — shows as a tag in categories (H)"
+      "fire_title": "Mark as 🔥 — shows as a tag in categories (H)",
+      "ai_check_label": "AI check",
+      "ai_check": {
+        "clean": "clean",
+        "flagged": "flagged",
+        "pending": "not yet"
+      },
+      "profile_label": "Profile",
+      "profile": {
+        "done": "done",
+        "pending": "not yet"
+      }
     },
     "destination": {
       "group_staging": "Staging",
@@ -1176,6 +1187,20 @@
     "ai_rep": {
       "aria": "AI level {{level}}",
       "tooltip": "AI: {{ai}} of {{checked}} checked · {{total}} in CLOUDER"
+    },
+    "entity": {
+      "label": "Label",
+      "role": {
+        "main": "Artist",
+        "remixer": "Remixer",
+        "featured": "Featuring"
+      },
+      "in_clouder": "in CLOUDER",
+      "in_categories": "in categories",
+      "in_playlists": "in playlists",
+      "no_info": "No description yet",
+      "more": "More",
+      "less": "Less"
     }
   },
   "admin_auto_enrich": {

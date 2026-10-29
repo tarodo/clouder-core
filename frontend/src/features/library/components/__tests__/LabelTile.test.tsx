@@ -46,6 +46,23 @@ describe('LabelTile', () => {
     expect(screen.queryByText('soulful d&b')).not.toBeInTheDocument();
   });
 
+  it("shows the user's numbers and that there is no description yet", async () => {
+    server.use(
+      http.get('http://localhost/labels/bare', () =>
+        HttpResponse.json({
+          label_name: 'Exit Strategy',
+          my_preference: null,
+          stats: { tracks: 412, in_categories: 9, in_playlists: 0 },
+        }),
+      ),
+    );
+    renderTile('bare');
+    expect(await screen.findByText('412')).toBeInTheDocument();
+    expect(screen.getByText('9')).toBeInTheDocument();
+    expect(screen.getByText('in categories')).toBeInTheDocument();
+    expect(screen.getByText('No description yet')).toBeInTheDocument();
+  });
+
   it('renders the label name + full content when fetch succeeds', async () => {
     server.use(
       http.get('http://localhost/labels/abc', () =>

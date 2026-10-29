@@ -18,6 +18,9 @@ export interface BucketTrack {
   spotify_id: string | null;
   release_type: string | null;
   ai_verdict?: 'high' | 'medium' | 'low' | null;
+  /** The AI detector pair checked it / the audio profile read it (the player's meta line). */
+  ai_checked?: boolean;
+  profiled?: boolean;
   artists: { id: string; name: string; role: string; ai?: AiRep | null }[];
   label_id: string | null;
   label_name: string | null;
