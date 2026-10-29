@@ -77,3 +77,15 @@ describe('LabelTile', () => {
     expect(screen.getByRole('link', { name: 'Linked' })).toHaveAttribute('href', '/labels/linked');
   });
 });
+
+describe('LabelTile AI reputation', () => {
+  it('marks the label', async () => {
+    server.use(
+      http.get('http://localhost/labels/ai', () =>
+        HttpResponse.json({ label_name: 'Abstrato', my_preference: null, ai: { level: 3 as const, ai: 80, checked: 87, total: 869 } }),
+      ),
+    );
+    renderTile('ai', 'fallback');
+    expect(await screen.findByLabelText('AI level 3')).toBeInTheDocument();
+  });
+});

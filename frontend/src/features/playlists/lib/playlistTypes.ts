@@ -1,3 +1,4 @@
+import type { AiRep } from '../../library/components/AiRepBadge';
 // frontend/src/features/playlists/lib/playlistTypes.ts
 
 export type PlaylistTrackOrigin = 'beatport' | 'spotify_user_import';
@@ -25,8 +26,8 @@ export interface Playlist {
   updated_at: string;
 }
 
-export interface PlaylistTrackArtist { id: string; name: string }
-export interface PlaylistTrackLabel { id: string; name: string }
+export interface PlaylistTrackArtist { id: string; name: string; ai?: AiRep | null }
+export interface PlaylistTrackLabel { id: string; name: string; ai?: AiRep | null }
 export interface PlaylistTrackTag { id: string; name: string; color: string | null }
 
 export type YtMusicMatchStatus = 'matched' | 'pending' | 'needs_review' | 'not_found';

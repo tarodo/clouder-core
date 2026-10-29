@@ -8,10 +8,7 @@ import { UsedInPlaylistBadge } from './UsedInPlaylistBadge';
 import { TrackKey } from '../../playback/TrackKey';
 import { PlayPauseButton } from '../../playback/PlayPauseButton';
 import { AiBadge } from '../../playback/AiBadge';
-
-function joinArtists(artists: CategoryTrack['artists']): string {
-  return artists.map((a) => a.name).join(', ');
-}
+import { AiRepBadge, NamesWithAi } from '../../library/components/AiRepBadge';
 
 export interface TrackRowProps {
   track: CategoryTrack;
@@ -67,8 +64,8 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying
             {track.used_in_playlist && <UsedInPlaylistBadge />}
           </Group>
         </Table.Td>
-        <Table.Td>{joinArtists(track.artists)}</Table.Td>
-        <Table.Td>{track.label?.name ?? '—'}</Table.Td>
+        <Table.Td><NamesWithAi items={track.artists} /></Table.Td>
+        <Table.Td><NamesWithAi items={track.label ? [track.label] : []} /></Table.Td>
         <Table.Td><TrackKey camelot={track.key_camelot} name={track.key_name} /></Table.Td>
         <Table.Td className="font-mono">{track.bpm ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{formatLength(track.length_ms)}</Table.Td>
@@ -102,9 +99,9 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying
         {track.mix_name && (
           <Text size="xs" c="dimmed">{track.mix_name}</Text>
         )}
-        <Text size="sm">{joinArtists(track.artists)}</Text>
+        <Text size="sm"><NamesWithAi items={track.artists} /></Text>
         {track.label && (
-          <Text size="xs" c="dimmed">{track.label.name}</Text>
+          <Text size="xs" c="dimmed">{track.label.name}<AiRepBadge rep={track.label.ai} ml={4} /></Text>
         )}
         <div>{tagsCell}</div>
         <Group gap="md" mt={4}>

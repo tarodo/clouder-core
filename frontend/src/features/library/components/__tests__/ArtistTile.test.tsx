@@ -57,3 +57,11 @@ describe('ArtistTile', () => {
     expect(screen.getByRole('link', { name: 'NoStyle' })).toHaveAttribute('href', '/artists/a1');
   });
 });
+
+describe('ArtistTile AI reputation', () => {
+  test('marks the artist', () => {
+    vi.spyOn(client, 'api').mockResolvedValue(undefined as never);
+    renderTile({ artistId: 'a1', artistName: 'A1' }, { artist_name: 'Sus', my_preference: null, ai: { level: 1 as const, ai: 2, checked: 41, total: 300 } });
+    expect(screen.getByLabelText('AI level 1')).toBeInTheDocument();
+  });
+});

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useArtistInfo } from '../hooks/useArtistInfo';
 import { ARTIST_CHANNELS } from '../lib/artistChannelMeta';
 import { ArtistPreferenceButtons } from './ArtistPreferenceButtons';
+import { AiRepBadge, type AiRep } from './AiRepBadge';
 
 interface Props {
   artistId: string | null | undefined;
@@ -12,6 +13,7 @@ interface Props {
 
 interface ArtistInfoView {
   artist_name?: string;
+  ai?: AiRep | null;
   country?: string | null;
   active_since?: number | null;
   tagline?: string | null;
@@ -68,6 +70,7 @@ export function ArtistTile({ artistId, artistName }: Props) {
     <Stack gap="sm" maw={320}>
       <Group gap="sm" align="center" wrap="wrap">
         {nameNode}
+        <AiRepBadge rep={info?.ai} />
         <ArtistPreferenceButtons artistId={artistId} current={preference} size="sm" />
       </Group>
       {showFullCard && (info?.country || info?.active_since != null) && (

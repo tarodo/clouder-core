@@ -8,6 +8,7 @@ import { MoveToMenu } from './MoveToMenu';
 import { TrackKey } from '../../playback/TrackKey';
 import { useTrackView } from '../../../lib/telemetry/hooks';
 import { AiBadge } from '../../playback/AiBadge';
+import { AiRepBadge, NamesWithAi } from '../../library/components/AiRepBadge';
 
 export interface BucketTrackRowProps {
   track: BucketTrack;
@@ -83,8 +84,10 @@ export function BucketTrackRow({
             </Stack>
           </Group>
         </Table.Td>
-        <Table.Td>{track.artists.map(a => a.name).join(', ') || '—'}</Table.Td>
-        <Table.Td>{track.label_name ?? '—'}</Table.Td>
+        <Table.Td><NamesWithAi items={track.artists} /></Table.Td>
+        <Table.Td>
+          <NamesWithAi items={track.label_name ? [{ name: track.label_name, ai: track.label_ai }] : []} />
+        </Table.Td>
         <Table.Td><TrackKey camelot={track.key_camelot} name={track.key_name} /></Table.Td>
         <Table.Td className="font-mono">{track.bpm ?? '—'}</Table.Td>
         <Table.Td className="font-mono">{formatLength(track.length_ms)}</Table.Td>
@@ -110,10 +113,11 @@ export function BucketTrackRow({
             {track.mix_name}
           </Text>
         )}
-        <Text size="sm">{track.artists.map(a => a.name).join(', ') || '—'}</Text>
+        <Text size="sm"><NamesWithAi items={track.artists} /></Text>
         {track.label_name && (
           <Text size="xs" c="dimmed">
             {track.label_name}
+            <AiRepBadge rep={track.label_ai} ml={4} />
           </Text>
         )}
         <Group gap="md" mt={4}>

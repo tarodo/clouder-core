@@ -37,3 +37,13 @@ describe('ArtistsTable — preference column', () => {
     expect(screen.getByRole('button', { name: 'Dislike artist' })).toBeInTheDocument();
   });
 });
+
+describe('ArtistsTable AI reputation', () => {
+  test('marks an artist with a level', () => {
+    renderTable([
+      { id: 'a1', name: 'Noisia', style: 'dnb', status: 'none', track_count: 1, info: null,
+        my_preference: null, ai: { level: 1 as const, ai: 2, checked: 41, total: 300 } },
+    ]);
+    expect(screen.getByLabelText('AI level 1')).toBeInTheDocument();
+  });
+});

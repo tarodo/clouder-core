@@ -26,6 +26,7 @@ const MOCK_ARTIST = {
   spotify_url: 'https://open.spotify.com/artist/123',
   instagram_url: 'https://instagram.com/noisia',
   my_preference: null,
+  ai: { level: 2, ai: 5, checked: 12, total: 40 },
 };
 
 vi.mock('../../hooks/useArtistDetail', () => ({
@@ -131,5 +132,14 @@ describe('ArtistDetailPage', () => {
     const btn = await screen.findByRole('button', { name: /search now/i });
     await userEvent.click(btn);
     await waitFor(() => expect(posted).toBe(true));
+  });
+});
+
+describe('ArtistDetailPage AI reputation', () => {
+  beforeEach(() => tokenStore.set('TOK'));
+  it('marks the artist next to the heading', () => {
+    renderPage();
+    expect(screen.getByLabelText('AI level 2')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Noisia' })).toBeInTheDocument();
   });
 });

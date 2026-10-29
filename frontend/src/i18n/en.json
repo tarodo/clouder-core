@@ -1166,6 +1166,10 @@
       "steady": "Steady",
       "high": "High activity",
       "fire_hose": "Fire hose"
+    },
+    "ai_rep": {
+      "aria": "AI level {{level}}",
+      "tooltip": "AI: {{ai}} of {{checked}} checked · {{total}} in CLOUDER"
     }
   },
   "admin_auto_enrich": {

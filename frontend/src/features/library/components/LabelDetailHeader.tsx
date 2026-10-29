@@ -5,6 +5,7 @@ import type { LabelDetail } from '../../../api/labels';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
 import { useAuth } from '../../../auth/useAuth';
 import { useEnrichLabelAuto } from '../hooks/useEnrichLabelAuto';
+import { AiRepBadge, type AiRep } from './AiRepBadge';
 
 interface Props {
   info: LabelDetail;
@@ -31,6 +32,7 @@ export function LabelDetailHeader({ info, labelId }: Props) {
           {t('library.detail.back')}
         </Anchor>
         <Title order={2}>{labelName}</Title>
+        <AiRepBadge rep={(info as { ai?: AiRep | null }).ai} />
         <LabelPreferenceButtons labelId={labelId} current={myPreference} size="md" />
         {isAdmin && (
           <Button

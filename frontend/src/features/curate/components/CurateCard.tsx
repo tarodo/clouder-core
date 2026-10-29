@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useMediaQuery } from '@mantine/hooks';
 import type { BucketTrack } from '../../triage/hooks/useBucketTracks';
 import { AiBadge } from '../../playback/AiBadge';
+import { AiRepBadge, NamesWithAi } from '../../library/components/AiRepBadge';
 
 export interface CurateCardProps {
   track: BucketTrack;
@@ -37,7 +38,7 @@ export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateC
 
   const titleSize = isMobile ? 'h2' : 'h1';
   const titleOrder: 1 | 2 = isMobile ? 2 : 1;
-  const artists = track.artists.map(a => a.name).join(', ') || '—';
+  const artists = <NamesWithAi items={track.artists} />;
 
   return (
     <Stack
@@ -76,6 +77,7 @@ export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateC
               <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.label_label')}:</Text>
               <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1, minWidth: 0 }}>
                 {track.label_name ?? '—'}
+                <AiRepBadge rep={track.label_ai} ml={4} />
               </Text>
             </Group>
             <Group gap="md" wrap="wrap">

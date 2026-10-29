@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useLabelInfo } from '../hooks/useLabelInfo';
 import { CHANNELS } from '../lib/channelMeta';
 import { LabelPreferenceButtons } from './LabelPreferenceButtons';
+import { AiRepBadge, type AiRep } from './AiRepBadge';
 
 interface Props {
   labelId: string | null | undefined;
@@ -12,6 +13,7 @@ interface Props {
 
 interface LabelInfoView {
   label_name?: string;
+  ai?: AiRep | null;
   country?: string | null;
   founded_year?: number | null;
   tagline?: string | null;
@@ -66,6 +68,7 @@ export function LabelTile({ labelId, labelName }: Props) {
         <Anchor component={Link} to={`/labels/${labelId}`} fw={600} size="lg">
           {displayName || labelId}
         </Anchor>
+        <AiRepBadge rep={info?.ai} />
         <LabelPreferenceButtons labelId={labelId} current={preference} size="sm" />
       </Group>
       {showFullCard && (info?.country || info?.founded_year != null) && (

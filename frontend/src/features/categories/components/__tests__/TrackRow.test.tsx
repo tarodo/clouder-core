@@ -304,3 +304,16 @@ describe('TrackRow — AI badge', () => {
     expect(screen.queryByText('AI')).not.toBeInTheDocument();
   });
 });
+
+describe('TrackRow AI reputation', () => {
+  it('marks the artist and the label', () => {
+    const track: CategoryTrack = {
+      ...baseTrack,
+      artists: [{ id: 'a', name: 'Artist', ai: { level: 1 as const, ai: 2, checked: 41, total: 300 } }],
+      label: { id: 'l', name: 'Label', ai: { level: 3 as const, ai: 80, checked: 87, total: 869 } },
+    };
+    render(<W><TrackRow track={track} variant="desktop" /></W>);
+    expect(screen.getByLabelText('AI level 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('AI level 3')).toBeInTheDocument();
+  });
+});
