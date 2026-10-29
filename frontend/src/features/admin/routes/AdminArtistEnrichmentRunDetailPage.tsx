@@ -2,11 +2,27 @@ import { Stack, Tabs, SimpleGrid, Card, Text } from '@mantine/core';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useArtistEnrichmentRunDetail } from '../hooks/useArtistEnrichmentRunDetail';
-import { PageSkeleton } from '../../../components/PageSkeleton';
+import { Ghost, GhostScope } from '../../../components/Ghost';
+import type { RunDetail } from '../../../api/artists';
 import { EmptyState } from '../../../components/EmptyState';
 import { ArtistRunDetailHeader } from '../components/enrichment/ArtistRunDetailHeader';
 import { ArtistRunDetailCellsTable } from '../components/enrichment/ArtistRunDetailCellsTable';
 import { RunJsonViewer } from '../components/enrichment/RunJsonViewer';
+
+const RUN_GHOST: RunDetail = {
+  id: 'ghost000-0000-0000-0000-000000000000',
+  status: 'completed',
+  source: 'manual',
+  created_at: '2026-01-01T00:00:00Z',
+  cells_total: 3,
+  cells_ok: 3,
+  cells_error: 0,
+  cost_usd: 0.0042,
+  prompt_slug: 'placeholder',
+  prompt_version: 'v1',
+  vendors: ['placeholder'],
+  cells: [],
+};
 
 export function AdminArtistEnrichmentRunDetailPage() {
   const { t } = useTranslation();
@@ -14,13 +30,12 @@ export function AdminArtistEnrichmentRunDetailPage() {
   const query = useArtistEnrichmentRunDetail(runId ?? null);
   if (!runId) return <Navigate to="/admin/artists/enrich/runs" replace />;
 
-  if (query.isLoading) return <PageSkeleton cols={3} rows={3} rowHeight={72} />;
-  if (query.isError || !query.data) return <EmptyState variant="page" title={t('admin_enrichment.run_detail.not_found')} />;
-
-  const run = query.data;
+  // Loading: the page itself as a ghost of a typical run.
+  const run = query.data ?? (query.isLoading ? RUN_GHOST : undefined);
+  if (!run) return <EmptyState variant="page" title={t('admin_enrichment.run_detail.not_found')} />;
   const cells = run.cells ?? [];
 
-  return (
+  const page = (
     <Stack gap="md">
       <ArtistRunDetailHeader run={run} />
       <Tabs defaultValue="summary">
@@ -31,9 +46,9 @@ export function AdminArtistEnrichmentRunDetailPage() {
         </Tabs.List>
         <Tabs.Panel value="summary" pt="md">
           <SimpleGrid cols={3}>
-            <Card withBorder><Text size="sm">{t('admin_enrichment.run_detail.counters_total')}</Text><Text fw={700}>{run.cells_total}</Text></Card>
-            <Card withBorder><Text size="sm">{t('admin_enrichment.run_detail.counters_ok')}</Text><Text fw={700}>{run.cells_ok}</Text></Card>
-            <Card withBorder><Text size="sm">{t('admin_enrichment.run_detail.counters_err')}</Text><Text fw={700}>{run.cells_error}</Text></Card>
+            <Card withBorder><Text size="sm">{t('admin_enrichment.run_detail.counters_total')}</Text><Ghost><Text fw={700}>{run.cells_total}</Text></Ghost></Card>
+            <Card withBorder><Text size="sm">{t('admin_enrichment.run_detail.counters_ok')}</Text><Ghost><Text fw={700}>{run.cells_ok}</Text></Ghost></Card>
+            <Card withBorder><Text size="sm">{t('admin_enrichment.run_detail.counters_err')}</Text><Ghost><Text fw={700}>{run.cells_error}</Text></Ghost></Card>
           </SimpleGrid>
         </Tabs.Panel>
         <Tabs.Panel value="cells" pt="md">
@@ -45,4 +60,5 @@ export function AdminArtistEnrichmentRunDetailPage() {
       </Tabs>
     </Stack>
   );
+  return <GhostScope on={!query.data}>{page}</GhostScope>;
 }

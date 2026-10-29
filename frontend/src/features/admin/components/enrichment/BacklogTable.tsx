@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { IconHistory } from '@tabler/icons-react';
 import type { BacklogLabel } from '../../../../api/labels';
 import { RunStatusBadge } from './RunStatusBadge';
+import { GhostTd } from '../../../../components/Ghost';
 
 interface Props {
   items: BacklogLabel[];
@@ -13,6 +14,18 @@ interface Props {
   /** Map of style slug → display name, for the Style column rendering. */
   styleNames?: Readonly<Record<string, string>>;
   onShowHistory?: (label: BacklogLabel) => void;
+}
+
+/** Rows of a loading backlog's ghost. */
+export function ghostBacklog(n: number): BacklogLabel[] {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `ghost-${i}`,
+    name: 'Placeholder name',
+    style: 'Placeholder',
+    status: 'none',
+    track_count: 10,
+    last_attempted_at: null,
+  }));
 }
 
 export function BacklogTable(p: Props) {
@@ -41,25 +54,25 @@ export function BacklogTable(p: Props) {
       <Table.Tbody>
         {p.items.map((row) => (
           <Table.Tr key={row.id}>
-            <Table.Td>
+            <GhostTd>
               <Checkbox
                 checked={p.selected.has(row.id)}
                 onChange={() => p.onToggle(row.id)}
                 aria-label={`select ${row.name}`}
               />
-            </Table.Td>
-            <Table.Td>
+            </GhostTd>
+            <GhostTd>
               <Anchor component={Link} to={`/labels/${row.id}`}>
                 {row.name}
               </Anchor>
-            </Table.Td>
-            <Table.Td>{displayStyle(row.style)}</Table.Td>
-            <Table.Td>
+            </GhostTd>
+            <GhostTd>{displayStyle(row.style)}</GhostTd>
+            <GhostTd>
               <RunStatusBadge status={row.status} />
-            </Table.Td>
-            <Table.Td>{row.track_count}</Table.Td>
-            <Table.Td>{row.last_attempted_at ?? '—'}</Table.Td>
-            <Table.Td>
+            </GhostTd>
+            <GhostTd>{row.track_count}</GhostTd>
+            <GhostTd>{row.last_attempted_at ?? '—'}</GhostTd>
+            <GhostTd>
               {p.onShowHistory && (
                 <Tooltip label={t('admin_enrichment.history.title')}>
                   <ActionIcon
@@ -71,7 +84,7 @@ export function BacklogTable(p: Props) {
                   </ActionIcon>
                 </Tooltip>
               )}
-            </Table.Td>
+            </GhostTd>
           </Table.Tr>
         ))}
       </Table.Tbody>

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { MantineProvider } from '@mantine/core';
@@ -55,7 +55,9 @@ describe('SpotifySearchStatus', () => {
 
   it('shows idle and queued states', async () => {
     renderWith(status({ status: 'idle' }));
-    expect(await screen.findByText('Idle')).toBeInTheDocument();
+    // past the card's ghost, which shows a placeholder status of its own
+    await waitFor(() => expect(document.querySelector('[aria-busy]')).toBeNull());
+    expect(screen.getByText('Idle')).toBeInTheDocument();
   });
 
   it('refreshes every 10 seconds', () => {

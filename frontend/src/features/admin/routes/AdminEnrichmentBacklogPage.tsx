@@ -1,9 +1,10 @@
-import { Stack, Button, Center, Skeleton } from '@mantine/core';
+import { Stack, Button, Center } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLabelBacklog, type LabelStatusFilter } from '../hooks/useLabelBacklog';
 import { BacklogToolbar, type StyleFilterOption } from '../components/enrichment/BacklogToolbar';
-import { BacklogTable } from '../components/enrichment/BacklogTable';
+import { BacklogTable, ghostBacklog } from '../components/enrichment/BacklogTable';
+import { Ghost, GhostScope, useRemembered } from '../../../components/Ghost';
 import { EnqueueDrawer } from '../components/enrichment/EnqueueDrawer';
 import { LabelHistoryDrawer } from '../components/enrichment/LabelHistoryDrawer';
 import { useAllStyles } from '../../../hooks/useAllStyles';
@@ -37,7 +38,12 @@ export function AdminEnrichmentBacklogPage() {
   }, [stylesQuery.data]);
 
   const query = useLabelBacklog({ style, status });
-  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const loaded = query.data?.pages.flatMap((p) => p.items);
+  // While the first page loads: the table's ghost, as long as it was last time.
+  const rows = useRemembered('admin.labels.backlog', loaded?.length, 10);
+  const more = useRemembered('admin.labels.backlog.more', loaded && Number(!!query.hasNextPage), 0);
+  const items = loaded ?? [];
+  const shown = query.isLoading ? ghostBacklog(rows) : items;
 
   const toggleAll = (next: boolean) =>
     setSelected((cur) => {
@@ -73,31 +79,35 @@ export function AdminEnrichmentBacklogPage() {
           stylesLoading={stylesQuery.isLoading}
         />
       </PageHeader>
-      {query.isLoading ? (
-        <Skeleton height={320} radius="md" />
-      ) : items.length === 0 ? (
-        <EmptyState variant="inline" title={t('admin_enrichment.backlog.empty')} />
-      ) : (
-        <BacklogTable
-          items={items}
-          selected={selected}
-          onToggle={toggle}
-          onToggleAll={toggleAll}
-          styleNames={styleNames}
-          onShowHistory={(row) => setHistoryFor({ id: row.id, name: row.name })}
-        />
-      )}
-      {query.hasNextPage && (
-        <Center mt="md">
-          <Button
-            variant="default"
-            loading={query.isFetchingNextPage}
-            onClick={() => query.fetchNextPage()}
-          >
-            {t('admin_enrichment.backlog.load_more')}
-          </Button>
-        </Center>
-      )}
+      <GhostScope on={query.isLoading}>
+        {shown.length === 0 ? (
+          <Ghost block>
+            <EmptyState variant="inline" title={t('admin_enrichment.backlog.empty')} />
+          </Ghost>
+        ) : (
+          <BacklogTable
+            items={shown}
+            selected={selected}
+            onToggle={toggle}
+            onToggleAll={toggleAll}
+            styleNames={styleNames}
+            onShowHistory={(row) => setHistoryFor({ id: row.id, name: row.name })}
+          />
+        )}
+        {(query.isLoading ? more > 0 : query.hasNextPage) && (
+          <Center mt="md">
+            <Ghost>
+              <Button
+                variant="default"
+                loading={query.isFetchingNextPage}
+                onClick={() => query.fetchNextPage()}
+              >
+                {t('admin_enrichment.backlog.load_more')}
+              </Button>
+            </Ghost>
+          </Center>
+        )}
+      </GhostScope>
       <EnqueueDrawer
         opened={drawerOpen}
         onClose={() => {

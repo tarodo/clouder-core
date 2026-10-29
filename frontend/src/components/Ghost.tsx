@@ -1,4 +1,4 @@
-import { Skeleton } from '@mantine/core';
+import { Skeleton, Table, type TableTdProps } from '@mantine/core';
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 
 const GhostContext = createContext(false);
@@ -19,22 +19,32 @@ export function GhostScope({ on, children }: { on: boolean; children: ReactNode 
 }
 
 /** Data-dependent content: a bar of its own size inside an active GhostScope, else itself.
- * `block` for content that fills its row (inputs, progress bars). */
-export function Ghost({ children, block = false }: { children: ReactNode; block?: boolean }) {
+ * `block` for content that fills its row (inputs, progress bars); `grow` for content that
+ * takes the rest of a Group row (flex: 1). */
+export function Ghost(props: { children: ReactNode; block?: boolean; grow?: boolean }) {
   const on = useContext(GhostContext);
-  if (!on) return children;
+  if (!on) return props.children;
   // A flex box, like the Stack / Group the content sits in: an inline child (a link, a
   // button) is laid out as a block there too, margins and all, with no line box around it.
   return (
     <Skeleton
       visible
-      width={block ? '100%' : 'fit-content'}
+      width={props.grow ? 'auto' : props.block ? '100%' : 'fit-content'}
       radius="sm"
       aria-hidden
-      style={{ display: 'flex', flexDirection: 'column' }}
+      style={{ display: 'flex', flexDirection: 'column', flex: props.grow ? 1 : undefined }}
     >
-      {children}
+      {props.children}
     </Skeleton>
+  );
+}
+
+/** A table cell of data: its content is a ghost bar inside an active GhostScope. */
+export function GhostTd({ children, ...props }: TableTdProps) {
+  return (
+    <Table.Td {...props}>
+      <Ghost>{children}</Ghost>
+    </Table.Td>
   );
 }
 
