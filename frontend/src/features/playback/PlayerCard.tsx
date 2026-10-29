@@ -59,7 +59,7 @@ export interface PlayerCardProps {
    */
   deviceIndicator?: ReactNode;
   /**
-   * Optional full-width slot rendered AFTER the main Group (cover + text +
+   * Optional full-width slot rendered AFTER the main row (cover + text +
    * controls) and BEFORE the scrubber. Useful when the meta you want to show
    * is wider than the text Stack next to the cover can fit (e.g. category
    * player's label + BPM band).
@@ -180,6 +180,7 @@ export function PlayerCard(props: PlayerCardProps) {
       className={classes.root}
       data-state={state}
       data-variant={variant}
+      data-actions={(!isMini && (spotifyHref || topActions)) || undefined}
       p={isMini ? 'sm' : 'lg'}
       pb={mobileSeekChips ? 'sm' : undefined}
       radius="md"
@@ -209,7 +210,7 @@ export function PlayerCard(props: PlayerCardProps) {
           ) : null}
         </Group>
       ) : null}
-      <Group align="center" gap="lg" wrap="nowrap">
+      <div className={classes.main}>
         <div className={classes.cover} data-mini={isMini || undefined}>
           {track?.cover_url ? (
             <img src={track.cover_url} alt="" className={classes.coverImg} />
@@ -217,17 +218,9 @@ export function PlayerCard(props: PlayerCardProps) {
         </div>
 
         {showText ? (
-          <Stack gap={4} flex={1} miw={0}>
+          <Stack gap={4} flex={1} miw={0} className={classes.text}>
             <Group gap={8} wrap="nowrap" miw={0}>
-              <Title
-                order={isMini ? 5 : 3}
-                miw={0}
-                style={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <Title order={isMini ? 5 : 3} className={classes.title}>
                 {track?.title ?? '—'}
               </Title>
               <AiBadge verdict={track?.ai_verdict} />
@@ -245,42 +238,44 @@ export function PlayerCard(props: PlayerCardProps) {
           <div style={{ flex: 1 }} />
         )}
 
-        {!isMini ? (
-          <ActionIcon
-            size="lg"
-            radius="xl"
-            variant="subtle"
-            onClick={onPrev}
-            aria-label={t('playback.controls.prev_aria')}
-          >
-            <IconPlayerSkipBackFilled />
-          </ActionIcon>
-        ) : null}
+        <div className={classes.controls}>
+          {!isMini ? (
+            <ActionIcon
+              size="lg"
+              radius="xl"
+              variant="subtle"
+              onClick={onPrev}
+              aria-label={t('playback.controls.prev_aria')}
+            >
+              <IconPlayerSkipBackFilled />
+            </ActionIcon>
+          ) : null}
 
-        <ActionIcon
-          size={isMini ? 'lg' : 44}
-          radius="xl"
-          variant="filled"
-          color="dark.9"
-          onClick={onPlayPause}
-          disabled={state === 'error' || state === 'disconnected' || state === 'empty-bucket'}
-          aria-label={centerAriaLabel}
-        >
-          {centerIcon}
-        </ActionIcon>
-
-        {!isMini ? (
           <ActionIcon
-            size="lg"
+            size={isMini ? 'lg' : 44}
             radius="xl"
-            variant="subtle"
-            onClick={onNext}
-            aria-label={t('playback.controls.next_aria')}
+            variant="filled"
+            color="dark.9"
+            onClick={onPlayPause}
+            disabled={state === 'error' || state === 'disconnected' || state === 'empty-bucket'}
+            aria-label={centerAriaLabel}
           >
-            <IconPlayerSkipForwardFilled />
+            {centerIcon}
           </ActionIcon>
-        ) : null}
-      </Group>
+
+          {!isMini ? (
+            <ActionIcon
+              size="lg"
+              radius="xl"
+              variant="subtle"
+              onClick={onNext}
+              aria-label={t('playback.controls.next_aria')}
+            >
+              <IconPlayerSkipForwardFilled />
+            </ActionIcon>
+          ) : null}
+        </div>
+      </div>
 
       {belowMainRow && !isMini ? (
         <div style={{ marginTop: 8 }}>{belowMainRow}</div>

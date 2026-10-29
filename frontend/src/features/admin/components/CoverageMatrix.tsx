@@ -1,4 +1,4 @@
-import { Box, ScrollArea, Text } from '@mantine/core';
+import { Box, ScrollArea, Skeleton, Text } from '@mantine/core';
 import './CoverageMatrix.module.css';
 import { useMemo } from 'react';
 import { useStore } from 'zustand';
@@ -14,7 +14,7 @@ import { formatSpotifyStats } from '../lib/spotifyStats';
 import { formatYoutubeStats } from '../lib/youtubeStats';
 import { formatAnalysisStats } from '../lib/analysisStats';
 import { CoverageMatrixCell } from './CoverageMatrixCell';
-import { Ghost } from '../../../components/Ghost';
+import { Ghost, useGhost } from '../../../components/Ghost';
 
 interface Props {
   data: CoveragePayload;
@@ -105,6 +105,8 @@ function Row({
   tracker: ReturnType<typeof runsTrackerStore.getState>;
   onCellClick: (styleId: number, weekNumber: number) => void;
 }) {
+  // A loading matrix: a plain 24px square per cell, not a button with its tooltip (300+ of them).
+  const ghost = useGhost();
   return (
     <>
       <Box
@@ -129,6 +131,7 @@ function Row({
         </Ghost>
       </Box>
       {weeks.map((w) => {
+        if (ghost) return <Skeleton key={w} width={24} height={24} radius={4} />;
         const cell = byWeek.get(w);
         const running = tracker.isRunning(styleIdNum, weekYear, w);
         const baseLine = cell
@@ -158,16 +161,15 @@ function Row({
           baseLine
         );
         return (
-          <Ghost key={w}>
-            <CoverageMatrixCell
-              styleId={styleIdNum}
-              styleName={styleName}
-              weekNumber={w}
-              state={cellState(cell, running)}
-              tooltip={tooltip}
-              onClick={onCellClick}
-            />
-          </Ghost>
+          <CoverageMatrixCell
+            key={w}
+            styleId={styleIdNum}
+            styleName={styleName}
+            weekNumber={w}
+            state={cellState(cell, running)}
+            tooltip={tooltip}
+            onClick={onCellClick}
+          />
         );
       })}
     </>
