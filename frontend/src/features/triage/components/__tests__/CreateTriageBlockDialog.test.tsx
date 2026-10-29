@@ -22,13 +22,7 @@ vi.mock('@mantine/dates', async () => {
     description?: React.ReactNode;
     placeholder?: string;
   };
-  const DatePickerInput = ({
-    label,
-    onChange,
-    error,
-    description,
-    placeholder,
-  }: Props) => {
+  const DatePickerInput = ({ label, onChange, error, description, placeholder }: Props) => {
     // Track raw typed text locally so userEvent.type works key-by-key without
     // each intermediate value being clobbered by the parent form state.
     const [text, setText] = React.useState('');
@@ -47,10 +41,7 @@ vi.mock('@mantine/dates', async () => {
               if (parts.length === 2 && parts[0] && parts[1]) {
                 const a = new Date(parts[0].trim());
                 const b = new Date(parts[1].trim());
-                if (
-                  !Number.isNaN(a.getTime()) &&
-                  !Number.isNaN(b.getTime())
-                ) {
+                if (!Number.isNaN(a.getTime()) && !Number.isNaN(b.getTime())) {
                   onChange?.([parts[0].trim(), parts[1].trim()]);
                   return;
                 }
@@ -367,10 +358,11 @@ describe('CreateTriageBlockDialog', () => {
     await screen.findByText('W40 · Oct 3 – Oct 9, 2026');
 
     await user.click(screen.getByText(/advanced options/i));
-    const labels = screen.getByLabelText('Send AI-label tracks to NOT');
+    // by role (a mounted dropdown carries the input's label too), once the section expands
+    const labels = await screen.findByRole('combobox', { name: 'Send AI-label tracks to NOT' });
     expect(labels).toHaveValue('Off');
-    expect(screen.getByLabelText('Send AI-artist tracks to NOT')).toHaveValue('Off');
-    await waitFor(() => expect(labels).toBeVisible()); // the advanced section expands first
+    const artists = screen.getByRole('combobox', { name: 'Send AI-artist tracks to NOT' });
+    expect(artists).toHaveValue('Off');
     await user.click(labels);
     await user.click(await screen.findByRole('option', { name: 'From level 2' }));
     await user.click(screen.getByRole('button', { name: /create/i }));
@@ -390,8 +382,6 @@ describe('CreateTriageBlockDialog', () => {
     await screen.findByText('W40 · Oct 3 – Oct 9, 2026');
     await userEvent.click(screen.getByRole('button', { name: 'Create' }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(
-      await screen.findByText(/Creation is taking longer than usual/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Creation is taking longer than usual/i)).toBeInTheDocument();
   });
 });

@@ -151,6 +151,23 @@ def test_claim_takes_a_longer_lease_for_a_batch(monkeypatch):
     assert kw["lease_seconds"] == 43200
 
 
+def test_claim_leases_under_the_client_lease_id(monkeypatch):
+    """The client's id survives its retries: the repository makes a retried claim idempotent."""
+    lease = "6f1c2b0e-8a37-4c55-9a51-0b8f4b1e2d3c"
+    repo = FakeRepo()
+    body = {"analyzers": ["ai_detect"], "lease_id": lease}
+    status, body = _call(monkeypatch, repo, "POST /v1/analysis/claim", SERVICE, body)
+    assert (status, body["lease_id"]) == (200, lease)
+    (_, kw), *_ = repo.calls
+    assert kw["lease_id"] == lease
+
+
+def test_claim_refuses_a_malformed_lease_id(monkeypatch):
+    body = {"analyzers": ["ai_detect"], "lease_id": "not-a-uuid"}
+    status, body = _call(monkeypatch, FakeRepo(), "POST /v1/analysis/claim", SERVICE, body)
+    assert (status, body["error_code"]) == (400, "validation_error")
+
+
 @pytest.mark.parametrize("lease_seconds", [59, 86401])
 def test_claim_bounds_the_lease(monkeypatch, lease_seconds):
     body = {"analyzers": ["ai_detect"], "lease_seconds": lease_seconds}

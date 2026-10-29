@@ -8944,6 +8944,11 @@ export interface components {
              * @default 1800
              */
             lease_seconds: number;
+            /**
+             * Lease Id
+             * @default null
+             */
+            lease_id: string | null;
         };
         /** AnalysisFeatureItem */
         AnalysisFeatureItem: {
