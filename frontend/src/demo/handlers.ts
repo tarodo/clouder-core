@@ -8,6 +8,7 @@ import {
   sampleFunnel,
   sampleListening,
   sampleTimePerTrack,
+  sampleWaveform,
 } from './samples';
 
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
@@ -272,6 +273,11 @@ export function demoRoutes(db: DemoDb, origin: string): DemoRoute[] {
       path: '/tracks/:trackId/tags/:tagId',
       status: 204,
       resolve: ({ param }) => db.untagTrack(param('trackId'), param('tagId')),
+    },
+    {
+      method: 'get',
+      path: '/tracks/:trackId/waveform',
+      resolve: ({ param }) => sampleWaveform(param('trackId')),
     },
     {
       method: 'get',

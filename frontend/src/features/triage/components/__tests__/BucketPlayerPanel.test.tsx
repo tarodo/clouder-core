@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '../../../../i18n';
 import type { BucketTrack } from '../../hooks/useBucketTracks';
 import type { PlaybackTrack } from '../../../playback/lib/types';
@@ -56,7 +57,12 @@ vi.mock('../../../library/components/ArtistsPanel', () => ({
 import { BucketPlayerPanel } from '../BucketPlayerPanel';
 
 function r(ui: React.ReactNode) {
-  return render(<MantineProvider>{ui}</MantineProvider>);
+  // the player's waveform reads the query cache
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MantineProvider>{ui}</MantineProvider>
+    </QueryClientProvider>,
+  );
 }
 
 const item: BucketTrack = {

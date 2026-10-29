@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/useAuth';
 import { IconLogout } from '../components/icons';
 import { MyStylesSection } from '../features/profile/components/MyStylesSection';
+import { PlayerSection } from '../features/profile/components/PlayerSection';
 
 export function ProfilePage() {
   const { t } = useTranslation();
@@ -31,6 +32,10 @@ export function ProfilePage() {
         <Divider />
 
         <MyStylesSection />
+
+        <Divider />
+
+        <PlayerSection />
       </Stack>
     </Container>
   );

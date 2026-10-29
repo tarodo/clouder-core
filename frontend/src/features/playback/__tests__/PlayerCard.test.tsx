@@ -3,6 +3,9 @@ import { act } from '@testing-library/react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
+import { server } from '../../../test/setup';
 import { testTheme } from '../../../test/theme';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../../../i18n';
@@ -19,11 +22,15 @@ const sampleTrack = {
   spotify_id: 'sp1',
 };
 
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
 function wrap(ui: ReactElement) {
   return (
-    <MantineProvider theme={testTheme}>
-      <I18nextProvider i18n={i18n}>{ui}</I18nextProvider>
-    </MantineProvider>
+    <QueryClientProvider client={queryClient}>
+      <MantineProvider theme={testTheme}>
+        <I18nextProvider i18n={i18n}>{ui}</I18nextProvider>
+      </MantineProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -219,6 +226,47 @@ describe('PlayerCard AI badge', () => {
       rerender(wrap(<PlayerCard {...baseProps} state="paused" positionMs={3000} />));
       act(() => { vi.advanceTimersByTime(2000); });
       expect(Number(thumb().getAttribute('aria-valuenow'))).toBe(3000);
+    });
+  });
+
+  describe('scrub bar', () => {
+    const KEY = 'clouder.player_scrubber';
+    beforeEach(() => queryClient.clear());
+    afterEach(() => window.localStorage.removeItem(KEY));
+
+    it('is the waveform by default, drawn from the track\'s data', async () => {
+      const bytes = Array.from({ length: 1800 }, (_, i) => (i < 300 ? 30 : 240));
+      server.use(
+        http.get('http://localhost/tracks/t1/waveform', () =>
+          HttpResponse.json({
+            waveform: { duration_ms: 180_000, data: btoa(String.fromCharCode(...bytes)) },
+          }),
+        ),
+      );
+      render(wrap(<PlayerCard {...baseProps} state="paused" />));
+      const wave = screen.getByRole('slider', { name: 'Scrub bar' });
+      expect(wave.closest('.mantine-Slider-root')).toBeNull();
+      await vi.waitFor(() => {
+        const heights = new Set([...wave.querySelectorAll('i')].map((b) => b.style.height));
+        expect(heights).toEqual(new Set(['10%', '100%']));
+      });
+      expect(screen.queryByText('No waveform')).not.toBeInTheDocument();
+    });
+
+    it('a track without one shows the flat bar and its caption', async () => {
+      render(wrap(<PlayerCard {...baseProps} state="paused" />));
+      expect(await screen.findByText('No waveform')).toBeInTheDocument();
+    });
+
+    it('is the plain progress bar when the user chose it', () => {
+      window.localStorage.setItem(KEY, JSON.stringify('progress'));
+      render(wrap(<PlayerCard {...baseProps} state="paused" />));
+      expect(screen.getByRole('slider').closest('.mantine-Slider-root')).not.toBeNull();
+    });
+
+    it('the mini player keeps the progress bar', () => {
+      render(wrap(<PlayerCard {...baseProps} variant="mini" state="paused" />));
+      expect(screen.getByRole('slider').closest('.mantine-Slider-root')).not.toBeNull();
     });
   });
 });

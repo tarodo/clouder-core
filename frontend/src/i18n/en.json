@@ -1047,6 +1047,7 @@
     "open_device_picker": "Open device picker",
     "empty_bucket_title": "No Spotify match",
     "empty_bucket_body": "В этом ведре нет треков с Spotify match",
+    "waveform_none": "No waveform",
     "controls": {
       "play_aria": "Play",
       "pause_aria": "Pause",
@@ -1304,6 +1305,13 @@
     }
   },
   "profile": {
+    "player": {
+      "title": "Player",
+      "description": "The waveform shows where the breaks and drops are. A track the analyzer hasn't read yet, or whose Spotify version is another edit, gets a flat bar.",
+      "scrubber_aria": "Scrub bar",
+      "waveform": "Waveform",
+      "progress": "Progress bar"
+    },
     "styles": {
       "title": "My styles",
       "description": "Only these styles appear in style pickers. Drag to reorder — the first one is the default.",

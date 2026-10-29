@@ -99,6 +99,7 @@ export const handlers = [
     HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
   ),
   http.get('http://localhost/tracks/:track_id/tags', () => HttpResponse.json({ tags: [] })),
+  http.get('http://localhost/tracks/:track_id/waveform', () => HttpResponse.json({ waveform: null })),
   http.get('http://localhost/admin/youtube/search-status', () =>
     HttpResponse.json({
       status: 'idle',

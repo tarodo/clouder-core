@@ -15,10 +15,12 @@ from pydantic import ValidationError as PydanticValidationError
 from .. import audio_profile, ml_jobs
 from ..errors import AppError, ValidationError
 from ..schemas import (
+    WAVEFORM_BYTES,
     AnalysisClaimRequest,
     AnalysisFeaturesRequest,
     AnalysisRequeueRequest,
     AnalysisResultsRequest,
+    AnalysisWaveformsRequest,
     validation_error_message,
 )
 from . import deps
@@ -132,6 +134,36 @@ def _handle_analysis_features(
         )
         ml_jobs.enqueue_score(video_ids=[i.video_id for i in accepted])
     return _json_response(200, {"accepted": len(accepted), "rejected": rejected}, correlation_id)
+
+
+def _handle_analysis_waveforms(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
+    _require_service(event)
+    request = _parse(event, AnalysisWaveformsRequest)
+    accepted, rejected = [], []
+    for item in request.items:
+        try:
+            size = len(base64.b64decode(item.data_b64, validate=True))
+        except ValueError:  # binascii.Error included
+            size = -1
+        if size != WAVEFORM_BYTES:
+            rejected.append({"video_id": item.video_id, "reason": "bad_waveform"})
+            continue
+        accepted.append(item.model_dump())
+    if accepted:
+        _repository().record_audio_waveforms(items=accepted, now=deps.utc_now())
+    return _json_response(200, {"accepted": len(accepted), "rejected": rejected}, correlation_id)
+
+
+def _handle_track_waveform(
+    event: Mapping[str, Any], context: Any, correlation_id: str
+) -> dict[str, Any]:
+    track_id = (event.get("pathParameters") or {}).get("track_id")
+    if not track_id:
+        raise ValidationError("track_id is required in path")
+    waveform = _repository().track_waveform(track_id=track_id)
+    return _json_response(200, {"waveform": waveform}, correlation_id)
 
 
 def _iso(value: Any) -> str | None:

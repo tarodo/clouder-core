@@ -276,3 +276,36 @@ export function sampleSuggestionModels() {
     },
   ];
 }
+
+/**
+ * A made-up wave-1 waveform (GET /tracks/{id}/waveform), the same for a track every time:
+ * intro, groove, break, drop, breakdown, outro, with the edges moved per track. Every
+ * fourth track has none, like a track the analyzer has not read yet.
+ */
+export function sampleWaveform(trackId: string) {
+  let seed = [...trackId].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  if (seed % 4 === 0) return { waveform: null };
+  const n = 600;
+  const at = (x: number) => Math.round(x * n);
+  const breakStart = at(0.3 + 0.1 * rand());
+  const dropStart = breakStart + at(0.08 + 0.05 * rand());
+  const downStart = at(0.72 + 0.08 * rand());
+  const outroStart = at(0.88);
+  const bass = (i: number) => {
+    if (i < at(0.08)) return 150;
+    if (i < breakStart) return 232;
+    if (i < dropStart) return 40 + (60 * (i - breakStart)) / (dropStart - breakStart);
+    if (i < downStart) return 250;
+    if (i < outroStart) return 120;
+    return 220 - (160 * (i - outroStart)) / (n - outroStart);
+  };
+  const low = Array.from({ length: n }, (_, i) => bass(i) + 10 * (rand() - 0.5));
+  const mid = low.map((v) => 0.6 * v + 60 + 20 * rand());
+  const high = mid.map((v) => 0.8 * v);
+  const bytes = [...low, ...mid, ...high].map((v) => Math.max(0, Math.min(255, Math.round(v))));
+  return { waveform: { duration_ms: 360_000, data: btoa(String.fromCharCode(...bytes)) } };
+}

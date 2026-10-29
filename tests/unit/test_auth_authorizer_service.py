@@ -58,7 +58,12 @@ def _jwt() -> str:
 
 @pytest.mark.parametrize(
     "route",
-    ["POST /v1/analysis/claim", "POST /v1/analysis/results", "POST /v1/analysis/features"],
+    [
+        "POST /v1/analysis/claim",
+        "POST /v1/analysis/results",
+        "POST /v1/analysis/features",
+        "POST /v1/analysis/waveforms",
+    ],
 )
 def test_service_token_opens_the_analysis_routes(ssm, route) -> None:
     assert _call(route, f"Bearer {TOKEN}") == {

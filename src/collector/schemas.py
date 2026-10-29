@@ -259,6 +259,38 @@ class AnalysisFeaturesRequest(BaseModel):
         return value
 
 
+# wave-1: 3 bands (20-250 Hz, 250 Hz-4 kHz, 4-16 kHz), each 600 time bins of u8 dB
+# against the band's loudest bin (0 = 36 dB below it or quieter), band after band.
+WAVEFORM_BANDS, WAVEFORM_BINS = 3, 600
+WAVEFORM_BYTES = WAVEFORM_BANDS * WAVEFORM_BINS
+
+
+class AnalysisWaveformItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    video_id: str = Field(pattern=r"^[A-Za-z0-9_-]{6,32}$")
+    version: Literal["wave-1"]
+    audio_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    duration_ms: StrictInt = Field(ge=1, le=86_400_000)
+    # 1 800 bytes are 2 400 base64 chars.
+    data_b64: str = Field(max_length=2_400)
+
+
+class AnalysisWaveformsRequest(BaseModel):
+    """POST /v1/analysis/waveforms: wave-1 waveforms, one per YouTube video."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[AnalysisWaveformItem] = Field(min_length=1, max_length=100)
+
+    @field_validator("items")
+    @classmethod
+    def _unique_videos(cls, value: list[AnalysisWaveformItem]) -> list[AnalysisWaveformItem]:
+        if len({i.video_id for i in value}) != len(value):
+            raise ValueError("each video_id may appear once")
+        return value
+
+
 class AnalysisRequeueRequest(BaseModel):
     """POST /admin/analysis/requeue: hand finished tracks out again."""
 

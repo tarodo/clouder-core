@@ -33,6 +33,7 @@ from collector.schemas import (
     AnalysisFeaturesRequest,
     AnalysisRequeueRequest,
     AnalysisResultsRequest,
+    AnalysisWaveformsRequest,
     AutoIngestSettingsIn,
     CollectRequestIn,
 )
@@ -984,6 +985,51 @@ ANALYSIS_FEATURES_RESPONSE = {
                 "properties": {
                     "video_id": {"type": "string"},
                     "reason": {"type": "string", "enum": ["bad_vector"]},
+                },
+            },
+        },
+    },
+}
+
+ANALYSIS_WAVEFORMS_RESPONSE = {
+    "type": "object",
+    "required": ["accepted", "rejected"],
+    "properties": {
+        "accepted": {"type": "integer"},
+        "rejected": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["video_id", "reason"],
+                "properties": {
+                    "video_id": {"type": "string"},
+                    "reason": {"type": "string", "enum": ["bad_waveform"]},
+                },
+            },
+        },
+    },
+}
+
+TRACK_WAVEFORM_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["waveform"],
+    "properties": {
+        "waveform": {
+            "description": (
+                "Null until the analyzer has read the track's video, or when the Spotify "
+                "track differs from it in length by more than 3 s."
+            ),
+            "type": ["object", "null"],
+            "required": ["duration_ms", "data"],
+            "properties": {
+                "duration_ms": {"type": "integer", "description": "Length of the analyzed audio."},
+                "data": {
+                    "type": "string",
+                    "description": (
+                        "Base64 of 3 bands (20-250 Hz, 250 Hz-4 kHz, 4-16 kHz) x 600 time bins "
+                        "of u8 dB against the band's loudest bin (0 = 36 dB below it), band "
+                        "after band."
+                    ),
                 },
             },
         },
@@ -3115,6 +3161,47 @@ ROUTES: list[dict[str, Any]] = [
             "400": _error(400, "validation_error."),
             "401": _error(401, "Missing or invalid service token."),
             "503": _error(503, "features_not_configured (no AUDIO_FEATURES_BUCKET)."),
+        },
+    },
+    {
+        "method": "post",
+        "path": "/v1/analysis/waveforms",
+        "auth": SERVICE,
+        "summary": "Analyzer: upload wave-1 waveforms (one per video); bad data comes back rejected.",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/AnalysisWaveformsRequest"}
+                }
+            },
+        },
+        "responses": {
+            "200": _make_response(
+                200,
+                "Stored waveforms; the same version and sha again is a no-op.",
+                {"$ref": "#/components/schemas/AnalysisWaveformsResponse"},
+            ),
+            "400": _error(400, "validation_error."),
+            "401": _error(401, "Missing or invalid service token."),
+        },
+    },
+    {
+        "method": "get",
+        "path": "/tracks/{track_id}/waveform",
+        "auth": AUTH,
+        "summary": "The player's waveform of a track (null when there is none to draw).",
+        "parameters": [
+            {
+                "name": "track_id",
+                "in": "path",
+                "required": True,
+                "schema": {"type": "string", "format": "uuid"},
+            },
+        ],
+        "responses": {
+            "200": _make_response(200, "The track's waveform.", TRACK_WAVEFORM_RESPONSE),
+            **COMMON_AUTH_ERRORS,
         },
     },
     {
@@ -5560,6 +5647,7 @@ def _collect_pydantic_schemas() -> dict[str, Any]:
         ("AnalysisFeaturesRequest", AnalysisFeaturesRequest),
         ("AnalysisRequeueRequest", AnalysisRequeueRequest),
         ("AnalysisResultsRequest", AnalysisResultsRequest),
+        ("AnalysisWaveformsRequest", AnalysisWaveformsRequest),
         ("AutoIngestSettingsIn", AutoIngestSettingsIn),
         ("CollectRequestIn", CollectRequestIn),
         ("CreateTriageBlockIn", CreateTriageBlockIn),
@@ -5679,6 +5767,7 @@ def build_openapi() -> dict[str, Any]:
                 "AnalysisClaimResponse": ANALYSIS_CLAIM_RESPONSE,
                 "AnalysisResultsResponse": ANALYSIS_RESULTS_RESPONSE,
                 "AnalysisFeaturesResponse": ANALYSIS_FEATURES_RESPONSE,
+                "AnalysisWaveformsResponse": ANALYSIS_WAVEFORMS_RESPONSE,
                 "AnalysisStatus": ANALYSIS_STATUS,
                 "AnalysisRequeueResponse": ANALYSIS_REQUEUE_RESPONSE,
                 "CollectResponse": COLLECT_RESPONSE,
