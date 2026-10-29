@@ -75,3 +75,14 @@ test('in a player panel the cards are as wide as the player (442px)', () => {
   expect(cards).toHaveLength(3);
   for (const card of cards) expect(card.getBoundingClientRect().width).toBe(442);
 });
+
+test('the card text sits off the border like the player: the theme lg padding', () => {
+  renderPanel();
+  const card = document.querySelector('[data-entity]')!;
+  const md = getComputedStyle(document.documentElement).getPropertyValue('--mantine-spacing-lg').trim();
+  const probe = document.createElement('div');
+  probe.style.width = md;
+  document.body.append(probe);
+  expect(getComputedStyle(card).paddingLeft).toBe(getComputedStyle(probe).width);
+  expect(parseFloat(getComputedStyle(card).paddingLeft)).toBeGreaterThanOrEqual(14);
+});

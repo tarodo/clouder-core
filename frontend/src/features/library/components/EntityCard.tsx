@@ -81,7 +81,7 @@ export function EntityCard(props: {
   const loading = props.stats === undefined;
   const stats = props.stats ?? GHOST_STATS;
   return (
-    <Paper withBorder radius="md" p="sm" data-entity={props.role}>
+    <Paper withBorder radius="md" p="lg" data-entity={props.role}>
       <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap" gap="xs" mih={28}>
           <Text size="xs" c="dimmed" tt="uppercase" lts={1.2}>
