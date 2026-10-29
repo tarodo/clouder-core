@@ -1202,6 +1202,30 @@
       "no_info": "No description yet",
       "more": "More",
       "less": "Less"
+    },
+    "entity_tracks": {
+      "title": "Tracks",
+      "title_count": "Tracks · {{count}}",
+      "empty": "No tracks in CLOUDER yet.",
+      "more": "Show more",
+      "in_playlists_one": "In {{count}} playlist",
+      "in_playlists_other": "In {{count}} playlists",
+      "col_title": "Track",
+      "col_artists": "Artists",
+      "col_label": "Label",
+      "col_style": "Style",
+      "col_key": "Key",
+      "col_length": "Length",
+      "col_released": "Released",
+      "col_mine": "In my lists"
+    },
+    "entity_player": {
+      "pick_track": "Pick a track to start playing",
+      "categories": "Categories · {{style}}",
+      "categories_title": "Categories",
+      "no_style": "This track has no style, so no category fits it.",
+      "no_categories": "No categories in {{style}} yet.",
+      "save_failed": "Could not save. Try again."
     }
   },
   "admin_auto_enrich": {

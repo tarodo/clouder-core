@@ -1036,6 +1036,121 @@ TRACK_WAVEFORM_RESPONSE: dict[str, Any] = {
     },
 }
 
+_NAMED_REF = {
+    "type": "object",
+    "required": ["id", "name"],
+    "properties": {"id": {"type": "string"}, "name": {"type": "string"}},
+}
+
+ENTITY_TRACKS_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["items", "total", "limit", "offset"],
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "title",
+                    "mix_name",
+                    "artists",
+                    "label",
+                    "style",
+                    "bpm",
+                    "length_ms",
+                    "key_name",
+                    "key_camelot",
+                    "release_date",
+                    "spotify_id",
+                    "ai_verdict",
+                    "categories",
+                    "playlists",
+                ],
+                "properties": {
+                    "id": {"type": "string"},
+                    "title": {"type": "string"},
+                    "mix_name": {"type": ["string", "null"]},
+                    "artists": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["id", "name", "ai"],
+                            "properties": {
+                                "id": {"type": "string"},
+                                "name": {"type": "string"},
+                                "ai": AI_REP,
+                            },
+                        },
+                    },
+                    "label": {
+                        "type": ["object", "null"],
+                        "required": ["id", "name", "ai"],
+                        "properties": {
+                            "id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "ai": AI_REP,
+                        },
+                    },
+                    "style": {**_NAMED_REF, "type": ["object", "null"]},
+                    "bpm": {"type": ["integer", "null"]},
+                    "length_ms": {"type": ["integer", "null"]},
+                    "key_name": {"type": ["string", "null"]},
+                    "key_camelot": {"type": ["string", "null"]},
+                    "release_date": {
+                        "type": ["string", "null"],
+                        "format": "date",
+                        "description": "Beatport publish date, else the Spotify release date.",
+                    },
+                    "spotify_id": {"type": ["string", "null"]},
+                    "ai_verdict": {
+                        "type": ["string", "null"],
+                        "enum": ["high", "medium", "low", None],
+                    },
+                    "categories": {
+                        "type": "array",
+                        "description": "The caller's live categories holding the track.",
+                        "items": _NAMED_REF,
+                    },
+                    "playlists": {
+                        "type": "array",
+                        "description": "The caller's live playlists holding the track.",
+                        "items": _NAMED_REF,
+                    },
+                },
+            },
+        },
+        "total": {"type": "integer"},
+        "limit": {"type": "integer"},
+        "offset": {"type": "integer"},
+    },
+}
+
+
+def _entity_tracks_route(kind: str) -> dict[str, Any]:
+    param = f"{kind}_id"
+    return {
+        "method": "get",
+        "path": f"/{kind}s/{{{param}}}/tracks",
+        "auth": AUTH,
+        "summary": f"The {kind}'s tracks for its page's player, newest release first.",
+        "description": (
+            "Each track carries the caller's own live categories and playlists it sits in. "
+            "Query: `limit` (default 50, max 200), `offset`."
+        ),
+        "parameters": [
+            {"name": param, "in": "path", "required": True, "schema": {"type": "string"}},
+            {"name": "limit", "in": "query", "required": False, "schema": {"type": "integer"}},
+            {"name": "offset", "in": "query", "required": False, "schema": {"type": "integer"}},
+        ],
+        "responses": {
+            "200": _make_response(200, f"A page of the {kind}'s tracks.", ENTITY_TRACKS_RESPONSE),
+            "400": _error(400, "validation_error (limit, offset)."),
+            **COMMON_AUTH_ERRORS,
+        },
+    }
+
+
 ANALYSIS_STATUS = {
     "type": "object",
     "required": [
@@ -2749,6 +2864,7 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
+    _entity_tracks_route("label"),
     {
         "method": "get",
         "path": "/admin/labels/backlog",
@@ -5402,6 +5518,7 @@ ROUTES: list[dict[str, Any]] = [
             **COMMON_AUTH_ERRORS,
         },
     },
+    _entity_tracks_route("artist"),
     # ── user artist preferences ───────────────────────────────────────
     {
         "method": "put",

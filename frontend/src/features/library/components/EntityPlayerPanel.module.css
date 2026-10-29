@@ -1,0 +1,26 @@
+/* Desktop: a sticky column beside the track list, like the category player. */
+.root {
+  width: 442px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  position: sticky;
+  top: calc(var(--app-shell-header-offset, 3.5rem) + var(--mantine-spacing-sm));
+  max-height: calc(100vh - var(--app-shell-header-offset, 3.5rem) - var(--mantine-spacing-md));
+  padding: var(--mantine-spacing-md);
+  border-right: 1px solid var(--mantine-color-default-border);
+  overflow-y: auto;
+  /* at the end of the panel the wheel stays here, it does not scroll the page */
+  overscroll-behavior: contain;
+}
+
+/* Phone and narrow tablet: full width above the list, scrolling with the page. */
+@media (max-width: 62em) {
+  .root {
+    width: 100%;
+    position: static;
+    max-height: none;
+    padding: 0;
+    border-right: 0;
+    overflow-y: visible;
+  }
+}

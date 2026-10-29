@@ -29,6 +29,13 @@ const MOCK_ARTIST = {
   ai: { level: 2, ai: 5, checked: 12, total: 40 },
 };
 
+// The tracks player has its own tests (and needs the PlaybackProvider): here only its place.
+vi.mock('../../components/EntityTracksSection', () => ({
+  EntityTracksSection: ({ kind, entityId }: { kind: string; entityId: string }) => (
+    <div data-testid="entity-tracks" data-kind={kind} data-id={entityId} />
+  ),
+}));
+
 vi.mock('../../hooks/useArtistDetail', () => ({
   useArtistDetail: () => ({
     data: MOCK_ARTIST,
@@ -79,6 +86,16 @@ describe('ArtistDetailPage', () => {
   it('renders the artist name', () => {
     renderPage();
     expect(screen.getByRole('heading', { name: 'Noisia' })).toBeInTheDocument();
+  });
+
+  it("puts the artist's tracks player right under the header", () => {
+    renderPage();
+    const tracks = screen.getByTestId('entity-tracks');
+    expect(tracks).toHaveAttribute('data-kind', 'artist');
+    expect(tracks).toHaveAttribute('data-id', 'artist-1');
+    const header = screen.getByRole('heading', { name: 'Noisia' });
+    expect(header.compareDocumentPosition(tracks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tracks.compareDocumentPosition(screen.getByText('Dutch neurofunk trio')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('renders a back control', () => {

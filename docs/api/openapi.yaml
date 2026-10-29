@@ -853,7 +853,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id021
+              schema: &id026
                 type: object
                 required:
                 - id
@@ -1175,6 +1175,200 @@ paths:
         required: true
         schema:
           type: string
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /labels/{label_id}/tracks:
+    get:
+      summary: The label's tracks for its page's player, newest release first.
+      responses:
+        '200':
+          description: A page of the label's tracks.
+          content:
+            application/json:
+              schema: &id024
+                type: object
+                required:
+                - items
+                - total
+                - limit
+                - offset
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - id
+                      - title
+                      - mix_name
+                      - artists
+                      - label
+                      - style
+                      - bpm
+                      - length_ms
+                      - key_name
+                      - key_camelot
+                      - release_date
+                      - spotify_id
+                      - ai_verdict
+                      - categories
+                      - playlists
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        mix_name:
+                          type:
+                          - string
+                          - 'null'
+                        artists:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                            - id
+                            - name
+                            - ai
+                            properties:
+                              id:
+                                type: string
+                              name:
+                                type: string
+                              ai: &id004
+                                type:
+                                - object
+                                - 'null'
+                                description: 'AI reputation of a label or artist:
+                                  of its tracks in CLOUDER (total), the ones ai_lofcz
+                                  or ai_deezer checked and the flagged ones (ai).
+                                  level 1 = at least one, 2 = 25-50% of the checked,
+                                  3 = over half; null = no flagged track.'
+                                required:
+                                - level
+                                - ai
+                                - checked
+                                - total
+                                properties:
+                                  level:
+                                    type: integer
+                                    enum:
+                                    - 1
+                                    - 2
+                                    - 3
+                                  ai:
+                                    type: integer
+                                  checked:
+                                    type: integer
+                                  total:
+                                    type: integer
+                        label:
+                          type:
+                          - object
+                          - 'null'
+                          required:
+                          - id
+                          - name
+                          - ai
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            ai: *id004
+                        style:
+                          type:
+                          - object
+                          - 'null'
+                          required: &id005
+                          - id
+                          - name
+                          properties: &id006
+                            id:
+                              type: string
+                            name:
+                              type: string
+                        bpm:
+                          type:
+                          - integer
+                          - 'null'
+                        length_ms:
+                          type:
+                          - integer
+                          - 'null'
+                        key_name:
+                          type:
+                          - string
+                          - 'null'
+                        key_camelot:
+                          type:
+                          - string
+                          - 'null'
+                        release_date:
+                          type:
+                          - string
+                          - 'null'
+                          format: date
+                          description: Beatport publish date, else the Spotify release
+                            date.
+                        spotify_id:
+                          type:
+                          - string
+                          - 'null'
+                        ai_verdict:
+                          type:
+                          - string
+                          - 'null'
+                          enum:
+                          - high
+                          - medium
+                          - low
+                          - null
+                        categories:
+                          type: array
+                          description: The caller's live categories holding the track.
+                          items: &id007
+                            type: object
+                            required: *id005
+                            properties: *id006
+                        playlists:
+                          type: array
+                          description: The caller's live playlists holding the track.
+                          items: *id007
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '400':
+          description: validation_error (limit, offset).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: 'Each track carries the caller''s own live categories and playlists
+        it sits in. Query: `limit` (default 50, max 200), `offset`.'
+      parameters:
+      - name: label_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
       security:
       - BearerAuth: []
       tags:
@@ -1897,7 +2091,7 @@ paths:
           description: Paginated items.
           content:
             application/json:
-              schema: &id004
+              schema: &id008
                 type: object
                 required:
                 - items
@@ -1931,8 +2125,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401': *id001
         '403': *id002
-      parameters: &id005
-      - &id006
+      parameters: &id009
+      - &id010
         name: limit
         in: query
         schema:
@@ -1940,14 +2134,14 @@ paths:
           minimum: 1
           maximum: 200
           default: 50
-      - &id007
+      - &id011
         name: offset
         in: query
         schema:
           type: integer
           minimum: 0
           default: 0
-      - &id008
+      - &id012
         name: search
         in: query
         schema:
@@ -1965,7 +2159,7 @@ paths:
           description: Paginated items.
           content:
             application/json:
-              schema: *id004
+              schema: *id008
         '400':
           description: validation_error (limit/offset out of range).
           content:
@@ -1980,7 +2174,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401': *id001
         '403': *id002
-      parameters: *id005
+      parameters: *id009
       security:
       - BearerAuth: []
       tags:
@@ -1993,7 +2187,7 @@ paths:
           description: Paginated items.
           content:
             application/json:
-              schema: *id004
+              schema: *id008
         '400':
           description: validation_error (limit/offset/scope).
           content:
@@ -2013,9 +2207,9 @@ paths:
         returns the whole catalog annotated with `selected` and `position`. Styles
         hidden by an admin are never returned.
       parameters:
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       - name: scope
         in: query
         required: false
@@ -2077,7 +2271,7 @@ paths:
           description: Paginated items.
           content:
             application/json:
-              schema: *id004
+              schema: *id008
         '401': *id001
         '403':
           description: admin_required.
@@ -2086,9 +2280,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
       parameters:
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       - name: publish_date_from
         in: query
         required: false
@@ -2113,7 +2307,7 @@ paths:
           description: Category created.
           content:
             application/json:
-              schema: &id009
+              schema: &id013
                 type: object
                 required:
                 - id
@@ -2201,7 +2395,7 @@ paths:
           description: Paginated categories.
           content:
             application/json:
-              schema: &id010
+              schema: &id014
                 type: object
                 required:
                 - items
@@ -2211,7 +2405,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: *id009
+                    items: *id013
                   total:
                     type: integer
                   limit:
@@ -2241,9 +2435,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       security:
       - BearerAuth: []
       tags:
@@ -2263,7 +2457,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: *id009
+                    items: *id013
                   correlation_id:
                     type: string
         '404':
@@ -2321,7 +2515,7 @@ paths:
           description: Paginated categories.
           content:
             application/json:
-              schema: *id010
+              schema: *id014
         '422':
           description: validation_error (limit/offset out of range).
           content:
@@ -2330,7 +2524,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401': *id001
         '403': *id002
-      parameters: *id005
+      parameters: *id009
       security:
       - BearerAuth: []
       tags:
@@ -2343,7 +2537,7 @@ paths:
           description: Category.
           content:
             application/json:
-              schema: *id009
+              schema: *id013
         '404':
           description: category_not_found.
           content:
@@ -2370,7 +2564,7 @@ paths:
           description: Renamed category.
           content:
             application/json:
-              schema: *id009
+              schema: *id013
         '404':
           description: category_not_found.
           content:
@@ -2506,7 +2700,7 @@ paths:
                           type:
                           - string
                           - 'null'
-                        ai_verdict: &id014
+                        ai_verdict: &id018
                           type:
                           - string
                           - 'null'
@@ -2589,9 +2783,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       - name: search
         in: query
         schema:
@@ -2633,7 +2827,7 @@ paths:
           description: Track added.
           content:
             application/json:
-              schema: &id011
+              schema: &id015
                 type: object
                 required:
                 - result
@@ -2656,7 +2850,7 @@ paths:
           description: Track already in category (no change).
           content:
             application/json:
-              schema: *id011
+              schema: *id015
         '404':
           description: category_not_found, track_not_found or triage_block_not_found.
           content:
@@ -2748,7 +2942,7 @@ paths:
           description: Block created.
           content:
             application/json:
-              schema: &id013
+              schema: &id017
                 type: object
                 required:
                 - id
@@ -2922,7 +3116,7 @@ paths:
           description: Paginated triage block summaries.
           content:
             application/json:
-              schema: &id012
+              schema: &id016
                 type: object
                 required:
                 - items
@@ -2994,9 +3188,9 @@ paths:
         '401': *id001
         '403': *id002
       parameters:
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       - name: status
         in: query
         schema:
@@ -3017,7 +3211,7 @@ paths:
           description: Paginated triage block summaries.
           content:
             application/json:
-              schema: *id012
+              schema: *id016
         '422':
           description: validation_error (limit/offset/status invalid).
           content:
@@ -3033,9 +3227,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       - name: status
         in: query
         schema:
@@ -3056,7 +3250,7 @@ paths:
           description: Triage block detail.
           content:
             application/json:
-              schema: *id013
+              schema: *id017
         '404':
           description: triage_block_not_found.
           content:
@@ -3177,7 +3371,7 @@ paths:
                           type:
                           - string
                           - 'null'
-                        ai_verdict: *id014
+                        ai_verdict: *id018
                         ai_checked:
                           type: boolean
                           description: The AI detector pair checked the track (an
@@ -3191,33 +3385,7 @@ paths:
                             type: string
                         added_at:
                           type: string
-                        label_ai: &id022
-                          type:
-                          - object
-                          - 'null'
-                          description: 'AI reputation of a label or artist: of its
-                            tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer
-                            checked and the flagged ones (ai). level 1 = at least
-                            one, 2 = 25-50% of the checked, 3 = over half; null =
-                            no flagged track.'
-                          required:
-                          - level
-                          - ai
-                          - checked
-                          - total
-                          properties:
-                            level:
-                              type: integer
-                              enum:
-                              - 1
-                              - 2
-                              - 3
-                            ai:
-                              type: integer
-                            checked:
-                              type: integer
-                            total:
-                              type: integer
+                        label_ai: *id004
                         prediction:
                           type:
                           - object
@@ -3272,9 +3440,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       security:
       - BearerAuth: []
       tags:
@@ -3418,7 +3586,7 @@ paths:
                 - block
                 - promoted
                 properties:
-                  block: *id013
+                  block: *id017
                   promoted:
                     type: object
                     additionalProperties:
@@ -3470,7 +3638,7 @@ paths:
           description: Tag created.
           content:
             application/json:
-              schema: &id015
+              schema: &id019
                 type: object
                 required:
                 - id
@@ -3552,7 +3720,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: *id015
+                    items: *id019
                   total:
                     type: integer
                   limit:
@@ -3562,9 +3730,9 @@ paths:
         '401': *id001
         '403': *id002
       parameters:
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       - name: search
         in: query
         schema:
@@ -3582,7 +3750,7 @@ paths:
           description: Tag updated.
           content:
             application/json:
-              schema: *id015
+              schema: *id019
         '400':
           description: invalid_name, invalid_color, or invalid_payload.
           content:
@@ -3709,14 +3877,14 @@ paths:
           description: Updated tag set.
           content:
             application/json:
-              schema: &id016
+              schema: &id020
                 type: object
                 required:
                 - tags
                 properties:
                   tags:
                     type: array
-                    items: *id015
+                    items: *id019
         '400':
           description: invalid_tag_ids or too_many_tags.
           content:
@@ -3780,7 +3948,7 @@ paths:
           description: Updated tag set (idempotent on conflict).
           content:
             application/json:
-              schema: *id016
+              schema: *id020
         '400':
           description: invalid_tag_ids.
           content:
@@ -3859,7 +4027,7 @@ paths:
                     nullable: true
                   comments:
                     type: array
-                    items: &id017
+                    items: &id021
                       type: object
                       required:
                       - author_name
@@ -4002,13 +4170,13 @@ paths:
           description: Paginated playlists.
           content:
             application/json:
-              schema: *id004
+              schema: *id008
         '401': *id001
         '403': *id002
       parameters:
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       - name: status
         in: query
         required: false
@@ -4159,7 +4327,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: &id025
+                    items: &id029
                       type: object
                       required:
                       - track_id
@@ -4209,7 +4377,7 @@ paths:
                           - 'null'
                         origin:
                           type: string
-                        ai_verdict: *id014
+                        ai_verdict: *id018
                         artists:
                           type: array
                           items:
@@ -4293,9 +4461,9 @@ paths:
         schema:
           type: string
           format: uuid
-      - *id006
-      - *id007
-      - *id008
+      - *id010
+      - *id011
+      - *id012
       security:
       - BearerAuth: []
       tags:
@@ -4359,14 +4527,14 @@ paths:
           description: Per-track comments for the playlist.
           content:
             application/json:
-              schema: &id027
+              schema: &id031
                 type: object
                 required:
                 - tracks
                 properties:
                   tracks:
                     type: array
-                    items: &id026
+                    items: &id030
                       type: object
                       required:
                       - track_id
@@ -4392,7 +4560,7 @@ paths:
                           nullable: true
                         comments:
                           type: array
-                          items: *id017
+                          items: *id021
                   correlation_id:
                     type: string
         '404':
@@ -4497,7 +4665,7 @@ paths:
                                 nullable: true
                   artists:
                     type: array
-                    items: &id018
+                    items: &id022
                       type: object
                       required:
                       - id
@@ -4517,7 +4685,7 @@ paths:
                             Null when the entity has no enrichment row.
                   labels:
                     type: array
-                    items: *id018
+                    items: *id022
                   correlation_id:
                     type: string
         '404':
@@ -5307,7 +5475,7 @@ paths:
           description: Enrichment run accepted and queued.
           content:
             application/json:
-              schema: &id019
+              schema: &id023
                 type: object
                 required:
                 - run_id
@@ -5409,7 +5577,7 @@ paths:
           description: Enrichment run accepted and queued.
           content:
             application/json:
-              schema: *id019
+              schema: *id023
         '404':
           description: artist_not_found.
           content:
@@ -5451,7 +5619,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id023
+              schema: &id027
                 type: object
                 required:
                 - id
@@ -6001,6 +6169,45 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /artists/{artist_id}/tracks:
+    get:
+      summary: The artist's tracks for its page's player, newest release first.
+      responses:
+        '200':
+          description: A page of the artist's tracks.
+          content:
+            application/json:
+              schema: *id024
+        '400':
+          description: validation_error (limit, offset).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401': *id001
+        '403': *id002
+      description: 'Each track carries the caller''s own live categories and playlists
+        it sits in. Query: `limit` (default 50, max 200), `offset`.'
+      parameters:
+      - name: artist_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+      security:
+      - BearerAuth: []
+      tags:
+      - user
   /artists/{artist_id}/preference:
     put:
       summary: Set or clear the current user's artist preference.
@@ -6169,7 +6376,7 @@ paths:
       description: Read live from bronze_events. Per-play time = gap to the next play,
         capped at track duration. Returns `totals.{day,week,month}` and a zero-filled
         30-day `daily` series.
-      parameters: &id020
+      parameters: &id025
       - name: tz_offset_min
         in: query
         required: false
@@ -6274,7 +6481,7 @@ paths:
       description: 'Distinct tracks per stage, dated by when the work happened: `triaged`
         (moved out of NEW in triage), `categorized` (staged to a category, open or
         finalized block, or added outside triage), `playlisted` (added to a playlist).'
-      parameters: *id020
+      parameters: *id025
       security:
       - BearerAuth: []
       tags:
@@ -7694,7 +7901,7 @@ components:
         processing_reason:
           type: string
           nullable: true
-    LabelEnrichRunResponse: *id021
+    LabelEnrichRunResponse: *id026
     LabelSummary:
       type: object
       required:
@@ -7772,7 +7979,7 @@ components:
           - liked
           - disliked
           - null
-        ai: *id022
+        ai: *id004
     LabelsListResponse:
       type: object
       required:
@@ -7803,8 +8010,8 @@ components:
           - liked
           - disliked
           - null
-        ai: *id022
-        stats: &id024
+        ai: *id004
+        stats: &id028
           type: object
           description: The catalog tracks of a label / an artist, and how many of
             them the caller put in their categories and playlists (live, not deleted;
@@ -8009,7 +8216,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
-    ArtistEnrichRunResponse: *id023
+    ArtistEnrichRunResponse: *id027
     ArtistSummary:
       type: object
       required:
@@ -8086,7 +8293,7 @@ components:
           - liked
           - disliked
           - null
-        ai: *id022
+        ai: *id004
     ArtistsListResponse:
       type: object
       required:
@@ -8117,8 +8324,8 @@ components:
           - liked
           - disliked
           - null
-        ai: *id022
-        stats: *id024
+        ai: *id004
+        stats: *id028
       additionalProperties: true
     MyArtistPreferencesResponse:
       type: object
@@ -8274,9 +8481,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ArtistHistoryCell'
-    PlaylistTrackResponse: *id025
-    PlaylistTrackComments: *id026
-    PlaylistCommentsResponse: *id027
+    PlaylistTrackResponse: *id029
+    PlaylistTrackComments: *id030
+    PlaylistCommentsResponse: *id031
     TelemetryEnvelope:
       type: object
       required:
