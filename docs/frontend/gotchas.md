@@ -112,6 +112,19 @@ Or use Mantine `<Anchor>`, which respects `theme.primaryColor` automatically.
 
 If a future iteration reintroduces the colour flash, the body-class lifecycle in `CurateSessionPage` and the `background: var(--color-selected-bg)` rule in `DestinationButton.module.css` must be restored together — they form a pair. Neither works without the other.
 
+## Loading placeholders (ghosts)
+
+### A loading block is its own ghost, not a gray slab
+
+A fixed-height `Skeleton` never matches the loaded block, so the page jumps when data lands. Home and admin render the real markup with placeholder data inside `GhostScope` (`components/Ghost.tsx`); data-dependent nodes sit in `<Ghost>` (or `GhostTd` in a table) and show as bars of their own size; titles and labels stay. Lists draw as many rows as last time (`useRemembered`, stored per browser). The browser tests (`*.browser.test.tsx` for Home, Coverage, the table pages) assert ghost height = loaded height.
+
+- Wrap inputs and progress bars in `<Ghost block>`, a `flex: 1` input in `<Ghost grow>`.
+- A narrow table sizes its columns by their text: on a phone a ghost table only comes close.
+
+### Tests can find the ghost's text before the real block
+
+The ghost renders placeholder text (and the same labels and inputs, inert) while the query loads. `findByText` / `findByLabelText` may resolve to the ghost, which is then replaced. Wait past it first: `await waitFor(() => expect(document.querySelector('[aria-busy]')).toBeNull())`.
+
 ## Hook rules and early Navigate
 
 ### Hooks after an early conditional return = lint error
