@@ -52,7 +52,11 @@ export function Waveform({
 
   const duration = Math.max(1, durationMs);
   const shownMs = Math.min(dragMs ?? positionMs, duration);
-  const played = Math.floor((shownMs / duration) * count);
+  // The bar under the playhead is played up to it (--cut): a whole-bar step would hold the
+  // edge up to a bar behind the sound.
+  const at = (shownMs / duration) * count;
+  const played = Math.floor(at);
+  const cut = at - played;
   const hoverBar = hoverMs === null ? null : Math.min(count - 1, Math.floor((hoverMs / duration) * count));
 
   const msAt = (e: PointerEvent<HTMLDivElement>) => {
@@ -112,16 +116,19 @@ export function Waveform({
       {Array.from({ length: count }, (_, i) => {
         const d = hoverBar === null ? Infinity : i - hoverBar;
         const glow = Math.abs(d) <= REACH ? Math.exp(-(d * d) / (2 * SPREAD * SPREAD)) : null;
+        const edge = i === played && cut > 0;
         return (
           <i
             key={i}
             className={classes.bar}
             data-played={i < played || undefined}
             data-ahead={(hoverBar !== null && i >= played && i <= hoverBar) || undefined}
+            data-edge={edge || undefined}
             style={
               {
                 height: heights ? `${heights[i]}%` : '22%',
                 ...(glow === null ? {} : { '--glow': String(glow) }),
+                ...(edge ? { '--cut': `${cut * 100}%` } : {}),
               } as CSSProperties
             }
           />

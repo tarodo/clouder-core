@@ -25,7 +25,11 @@ const track = {
   spotify_id: 'x',
 };
 
-function renderAt(width: number, waveform: { duration_ms: number; data: string } | null = null) {
+function renderAt(
+  width: number,
+  waveform: { duration_ms: number; data: string } | null = null,
+  positionMs = 0,
+) {
   apiMock.mockResolvedValue({ waveform });
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -35,7 +39,7 @@ function renderAt(width: number, waveform: { duration_ms: number; data: string }
             variant="full"
             state="paused"
             track={track as never}
-            positionMs={0}
+            positionMs={positionMs}
             mixName="Original Mix"
             showTimes
             spotifyHref="https://open.spotify.com/track/x"
@@ -144,6 +148,26 @@ test('hover: the bars past the pointer fade from its shade, no cut at the pointe
   const scale = (i: number) => box(bars[i]!).height / (bars[i] as HTMLElement).offsetHeight;
   await waitFor(() => expect(scale(k)).toBeCloseTo(1.18, 1));
   expect(scale(k + 12)).toBeCloseTo(1, 1); // offsetHeight rounds to whole px
+});
+
+test('the bar under the playhead is played up to it, hovered past or not', async () => {
+  renderAt(442, { duration_ms: 214_000, data: WAVE }, 41_000);
+  const wave = screen.getByRole('slider', { name: 'Scrub bar' });
+  await waitFor(() => expect(wave.querySelectorAll('i').length).toBeGreaterThan(60));
+  const bars = [...wave.querySelectorAll('i')];
+  const at = (41_000 / 214_000) * bars.length;
+  const [k, cut] = [Math.floor(at), (at % 1) * 100];
+  const stop = () => {
+    const m = /linear-gradient\(.+ ([\d.]+)%, .+ ([\d.]+)%\)/.exec(
+      getComputedStyle(bars[k]!).backgroundImage,
+    );
+    return m ? [Number(m[1]), Number(m[2])] : null;
+  };
+  expect(stop()).toEqual([expect.closeTo(cut, 1), expect.closeTo(cut, 1)]);
+  expect(getComputedStyle(bars[k + 1]!).backgroundImage).toBe('none');
+  await hover(wave, bars[k + 10]!); // the bars up to the pointer take the "ahead" shade
+  expect(bars[k]).toHaveAttribute('data-ahead');
+  expect(stop()).toEqual([expect.closeTo(cut, 1), expect.closeTo(cut, 1)]);
 });
 
 test('hover on the flat bars: a smooth hump of a few px, the time clear above it', async () => {

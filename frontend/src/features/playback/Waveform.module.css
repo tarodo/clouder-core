@@ -53,6 +53,11 @@
   background: var(--color-fg);
 }
 
+/* last: [data-ahead]'s shorthand would reset the image */
+.bar[data-edge] {
+  background-image: linear-gradient(to right, var(--color-fg) var(--cut), transparent var(--cut));
+}
+
 .tip {
   position: absolute;
   top: -22px;
