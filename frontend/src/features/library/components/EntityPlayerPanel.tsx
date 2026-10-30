@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Button, Divider, Group, SimpleGrid, Stack, Text } from '@mantine/core';
+import { useCallback, useMemo } from 'react';
+import { Button, Divider, SimpleGrid, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { usePlayback } from '../../playback/usePlayback';
 import { usePlayerHotkeys } from '../../playback/hooks/usePlayerHotkeys';
-import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
-import { DeviceIndicator } from '../../playback/DeviceIndicator';
-import { TrackKey } from '../../playback/TrackKey';
+import { TrackPlayer, transportHotkeys, usePlayingRow } from '../../playback/TrackPlayer';
 import { useCategoriesByStyle } from '../../categories/hooks/useCategoriesByStyle';
 import { useAddTrackToCategory } from '../../categories/hooks/useAddTrackToCategory';
 import { useRemoveTrackOptimistic } from '../../categories/hooks/useRemoveTrackOptimistic';
@@ -21,7 +19,6 @@ import {
   type EntityTrack,
   type NamedRef,
 } from '../hooks/useEntityTracks';
-import { EntityLink } from './EntityLinks';
 import classes from './EntityPlayerPanel.module.css';
 
 export interface EntityPlayerPanelProps {
@@ -50,15 +47,9 @@ export function EntityPlayerPanel({ kind, entityId, items }: EntityPlayerPanelPr
   const removeFromPlaylist = useRemoveTrackFromPlaylist();
   const playlistsQuery = usePlaylists({ status: 'active', limit: 100 });
 
-  const current = playback.track.current;
-  const trackId = current?.id ?? null;
-  // The playing row; the last one seen while a new page replaces the list.
-  const row = useMemo(() => items.find((it) => it.id === trackId) ?? null, [items, trackId]);
-  const lastRow = useRef<EntityTrack | null>(null);
-  useEffect(() => {
-    if (row || !current) lastRow.current = row;
-  }, [row, current]);
-  const rich = row ?? lastRow.current;
+  const trackId = playback.track.current?.id ?? null;
+  // Kept while a new page replaces the list.
+  const rich = usePlayingRow(items, (it) => it.id);
 
   const style = rich?.style ?? null;
   const categoriesQuery = useCategoriesByStyle(style?.id ?? '');
@@ -107,11 +98,7 @@ export function EntityPlayerPanel({ kind, entityId, items }: EntityPlayerPanelPr
       playback.queue.source.kind === kind &&
       playback.queue.source.entityId === entityId,
     playlistCount: Math.min(10, playlistsQuery.data?.items.length ?? 0),
-    onTogglePlayPause: () => void playback.controls.togglePlayPause(),
-    onPrev: () => void playback.controls.prev(),
-    onNext: () => void playback.controls.next(),
-    onSeekRelative: (delta) => void playback.controls.seekMs(playback.track.positionMs + delta),
-    onSeekPct: (p) => void playback.controls.seekPct(p),
+    ...transportHotkeys(playback),
     onTogglePlaylist: (index) => {
       const pl = playlistsQuery.data?.items[index];
       if (pl) togglePlaylist(pl.id, !playlistIds.includes(pl.id));
@@ -119,123 +106,71 @@ export function EntityPlayerPanel({ kind, entityId, items }: EntityPlayerPanelPr
     onUndo: () => {},
   });
 
-  const playerState: PlayerCardState = (() => {
-    if (playback.sdk.error?.kind === 'init') return 'disconnected';
-    const status = playback.queue.status;
-    if (status === 'error') return 'error';
-    if (status === 'idle' || status === 'ended') return 'idle';
-    if (status === 'loading' || status === 'buffering') return 'buffering';
-    if (status === 'disconnected') return 'disconnected';
-    return status;
-  })();
-
-  if (!current) {
-    return (
-      <Stack className={classes.root} gap="md" data-entity-player>
-        <Text c="dimmed">{t('library.entity_player.pick_track')}</Text>
-      </Stack>
-    );
-  }
-
   const inCategory = new Set(rich?.categories.map((c) => c.id) ?? []);
-  const meta = rich ? (
-    <Group gap="md" wrap="wrap" mt={4}>
-      {kind === 'artist' && rich.label ? (
-        <Text size="sm" c="var(--color-fg-muted)" truncate maw="100%">
-          {t('curate.card.label_label')}:{' '}
-          <EntityLink kind="label" id={rich.label.id} name={rich.label.name} />
-        </Text>
-      ) : null}
-      {rich.bpm != null ? (
-        <Text size="sm" c="var(--color-fg-muted)" className="font-mono">
-          {rich.bpm} BPM
-        </Text>
-      ) : null}
-      <TrackKey camelot={rich.key_camelot} name={rich.key_name} size="sm" />
-      {rich.release_date ? (
-        <Text size="sm" c="var(--color-fg-muted)" className="font-mono">
-          {rich.release_date}
-        </Text>
-      ) : null}
-    </Group>
-  ) : null;
+  const info = rich && {
+    mixName: rich.mix_name,
+    artists: rich.artists,
+    // a label's own page names it already
+    label: kind === 'artist' ? rich.label : null,
+    bpm: rich.bpm,
+    key: { camelot: rich.key_camelot, name: rich.key_name },
+    releaseDate: rich.release_date,
+  };
 
   return (
-    <Stack className={classes.root} gap="md" data-entity-player>
-      <PlayerCard
-        variant="full"
-        state={playerState}
-        track={current}
-        positionMs={playback.track.positionMs}
-        mixName={rich?.mix_name ?? null}
-        artistLinks={rich?.id === current.id ? rich.artists : undefined}
-        belowMainRow={meta}
-        showTimes
-        spotifyHref={
-          current.spotify_id ? `https://open.spotify.com/track/${current.spotify_id}` : undefined
-        }
-        spotifyAriaLabel={t('category_player.actions.open_in_spotify_aria', {
-          title: current.title,
-        })}
-        deviceIndicator={
-          <DeviceIndicator
-            mode="full"
-            active={playback.devices.active}
-            cloderTabId={playback.devices.cloderTabId}
-            onOpen={(anchor) => playback.devices.open(anchor)}
+    <TrackPlayer
+      className={classes.root}
+      info={info}
+      empty={t('library.entity_player.pick_track')}
+    >
+      {(track) => (
+        <>
+          <Divider />
+          <Text fw={500} size="sm">
+            {style
+              ? t('library.entity_player.categories', { style: style.name })
+              : t('library.entity_player.categories_title')}
+          </Text>
+          {!style ? (
+            <Text c="dimmed" size="sm">
+              {t('library.entity_player.no_style')}
+            </Text>
+          ) : categoriesQuery.isSuccess && categories.length === 0 ? (
+            <Text c="dimmed" size="sm">
+              {t('library.entity_player.no_categories', { style: style.name })}
+            </Text>
+          ) : (
+            <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
+              {categories.map((c) => {
+                const on = inCategory.has(c.id);
+                return (
+                  <Button
+                    key={c.id}
+                    fullWidth
+                    size="sm"
+                    variant={on ? 'filled' : 'default'}
+                    aria-pressed={on}
+                    onClick={() => void toggle('categories', { id: c.id, name: c.name }, !on)}
+                    styles={{ label: { whiteSpace: 'normal' }, inner: { justifyContent: 'flex-start' } }}
+                  >
+                    {c.name}
+                  </Button>
+                );
+              })}
+            </SimpleGrid>
+          )}
+          <Divider />
+          <Text fw={500} size="sm">
+            {t('category_player.sections.playlists')}
+          </Text>
+          <PlayerPanelPlaylistCloud
+            trackId={track.id}
+            trackPlaylistIds={playlistIds}
+            onAdd={(id) => togglePlaylist(id, true)}
+            onRemove={(id) => togglePlaylist(id, false)}
           />
-        }
-        onPlayPause={() => void playback.controls.togglePlayPause()}
-        onPrev={() => void playback.controls.prev()}
-        onNext={() => void playback.controls.next()}
-        onRetry={() => void playback.controls.play()}
-        onOpenDevicePicker={() => playback.devices.open(null)}
-        onSeekMs={(ms) => void playback.controls.seekMs(ms)}
-      />
-      <Divider />
-      <Text fw={500} size="sm">
-        {style
-          ? t('library.entity_player.categories', { style: style.name })
-          : t('library.entity_player.categories_title')}
-      </Text>
-      {!style ? (
-        <Text c="dimmed" size="sm">
-          {t('library.entity_player.no_style')}
-        </Text>
-      ) : categoriesQuery.isSuccess && categories.length === 0 ? (
-        <Text c="dimmed" size="sm">
-          {t('library.entity_player.no_categories', { style: style.name })}
-        </Text>
-      ) : (
-        <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
-          {categories.map((c) => {
-            const on = inCategory.has(c.id);
-            return (
-              <Button
-                key={c.id}
-                fullWidth
-                size="sm"
-                variant={on ? 'filled' : 'default'}
-                aria-pressed={on}
-                onClick={() => void toggle('categories', { id: c.id, name: c.name }, !on)}
-                styles={{ label: { whiteSpace: 'normal' }, inner: { justifyContent: 'flex-start' } }}
-              >
-                {c.name}
-              </Button>
-            );
-          })}
-        </SimpleGrid>
+        </>
       )}
-      <Divider />
-      <Text fw={500} size="sm">
-        {t('category_player.sections.playlists')}
-      </Text>
-      <PlayerPanelPlaylistCloud
-        trackId={current.id}
-        trackPlaylistIds={playlistIds}
-        onAdd={(id) => togglePlaylist(id, true)}
-        onRemove={(id) => togglePlaylist(id, false)}
-      />
-    </Stack>
+    </TrackPlayer>
   );
 }

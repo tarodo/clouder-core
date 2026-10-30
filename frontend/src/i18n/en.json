@@ -229,7 +229,6 @@
     "actions": {
       "back_aria": "Back to tracks",
       "open_player_aria": "Open player",
-      "open_in_spotify_aria": "Open {{title}} in Spotify (new tab)",
       "remove_from_category": "Remove from category"
     },
     "empty": {
@@ -614,7 +613,6 @@
         "pick_track": "Pick a track to start playing"
       },
       "back_aria": "Back to tracks",
-      "open_in_spotify_aria": "Open {{title}} in Spotify (new tab)",
       "distribute": {
         "heading": "Move current track to"
       }
@@ -1026,6 +1024,7 @@
     }
   },
   "playback": {
+    "open_in_spotify_aria": "Open {{title}} in Spotify (new tab)",
     "devices": {
       "title": "Playback devices",
       "active_aria": "Active device",

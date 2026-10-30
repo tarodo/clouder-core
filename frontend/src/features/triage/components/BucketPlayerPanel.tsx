@@ -1,19 +1,19 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { Group, Stack, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { usePlayback } from '../../playback/usePlayback';
 import { usePlaybackHotkeys } from '../../playback/usePlaybackHotkeys';
-import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
-import { DeviceIndicator } from '../../playback/DeviceIndicator';
+import {
+  TrackCards,
+  TrackPlayer,
+  transportHotkeys,
+  usePlayingRow,
+} from '../../playback/TrackPlayer';
 import type { BucketTrack } from '../hooks/useBucketTracks';
 import { useTriageBlock } from '../hooks/useTriageBlock';
 import { useBucketDistribute } from '../hooks/useBucketDistribute';
 import { BucketDistributeButtons } from './BucketDistributeButtons';
 import { moveDestinationsFor } from '../lib/bucketLabels';
 import { suggestedDestinations, suggestionTag } from '../lib/suggestedDestinations';
-import { LabelTile } from '../../library/components/LabelTile';
-import { ArtistsPanel } from '../../library/components/ArtistsPanel';
-import { EntityLink } from '../../library/components/EntityLinks';
+import { bucketTrackInfo } from '../lib/toPlaybackTrack';
 import { AnalysisMeta } from './AnalysisMeta';
 import classes from './BucketPlayerPanel.module.css';
 
@@ -27,7 +27,6 @@ export interface BucketPlayerPanelProps {
 export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPanelProps) {
   const { t } = useTranslation();
   const playback = usePlayback();
-  const current = playback.track.current;
 
   const { data: block } = useTriageBlock(blockId);
   const blockBuckets = block?.buckets ?? [];
@@ -44,128 +43,37 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
         )
       : [];
 
-  const richTrack = useMemo<BucketTrack | null>(() => {
-    const id = current?.id;
-    if (!id) return null;
-    return items.find((it) => it.track_id === id) ?? null;
-  }, [items, current?.id]);
-  const lastRichRef = useRef<BucketTrack | null>(null);
-  useEffect(() => {
-    if (richTrack) lastRichRef.current = richTrack;
-  }, [richTrack]);
-  useEffect(() => {
-    if (!current) lastRichRef.current = null;
-  }, [current]);
-  const effectiveRich =
-    richTrack ??
-    (lastRichRef.current?.track_id === current?.id ? lastRichRef.current : null);
+  const row = usePlayingRow(items, (it) => it.track_id);
+  const info = row && bucketTrackInfo(row);
+  const suggested = suggestedDestinations(row?.prediction, blockBuckets);
 
-  const suggested = suggestedDestinations(effectiveRich?.prediction, blockBuckets);
-
-  const playerState: PlayerCardState = (() => {
-    if (playback.sdk.error?.kind === 'init') return 'disconnected';
-    const status = playback.queue.status;
-    if (status === 'error') return 'error';
-    if (status === 'idle' || status === 'ended') return 'idle';
-    if (status === 'loading' || status === 'buffering') return 'buffering';
-    if (status === 'disconnected') return 'disconnected';
-    return status; // 'playing' | 'paused'
-  })();
-
-  usePlaybackHotkeys({
-    onTogglePlayPause: () => void playback.controls.togglePlayPause(),
-    onPrev: () => void playback.controls.prev(),
-    onNext: () => void playback.controls.next(),
-    onSeekRelative: (deltaMs) =>
-      void playback.controls.seekMs(playback.track.positionMs + deltaMs),
-    onSeekPct: (p) => void playback.controls.seekPct(p),
-  });
-
-  if (!current) {
-    return (
-      <Stack
-      gap="md"
-      className={classes.root}
-    >
-        <Text c="dimmed">{t('triage.bucket_player.empty.pick_track')}</Text>
-      </Stack>
-    );
-  }
-
-  const spotifyHref = current.spotify_id
-    ? `https://open.spotify.com/track/${current.spotify_id}`
-    : undefined;
-
-  const metaRow =
-    effectiveRich != null ? (
-      <Stack gap={4} mt={4}>
-        <Group gap="md" wrap="wrap" style={{ minWidth: 0 }}>
-          {effectiveRich.label_name ? (
-            <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1 }}>
-              {effectiveRich.label_id ? (
-                <EntityLink kind="label" id={effectiveRich.label_id} name={effectiveRich.label_name} />
-              ) : (
-                effectiveRich.label_name
-              )}
-            </Text>
-          ) : null}
-          {effectiveRich.bpm != null ? (
-            <Text size="sm" c="var(--color-fg-muted)" className="font-mono">
-              {effectiveRich.bpm} BPM
-            </Text>
-          ) : null}
-        </Group>
-        <AnalysisMeta
-          aiVerdict={effectiveRich.ai_verdict}
-          aiChecked={effectiveRich.ai_checked}
-          profiled={effectiveRich.profiled}
-        />
-      </Stack>
-    ) : null;
+  usePlaybackHotkeys(transportHotkeys(playback));
 
   return (
-    <Stack
-      gap="md"
+    <TrackPlayer
       className={classes.root}
-    >
-      <PlayerCard
-        variant="full"
-        state={playerState}
-        track={current}
-        positionMs={playback.track.positionMs}
-        mixName={effectiveRich?.mix_name ?? null}
-        artistLinks={effectiveRich?.artists}
-        belowMainRow={metaRow}
-        showTimes
-        spotifyHref={spotifyHref}
-        spotifyAriaLabel={t('triage.bucket_player.open_in_spotify_aria', {
-          title: current.title,
-        })}
-        deviceIndicator={
-          <DeviceIndicator
-            mode="full"
-            active={playback.devices.active}
-            cloderTabId={playback.devices.cloderTabId}
-            onOpen={(anchor) => playback.devices.open(anchor)}
+      info={info}
+      empty={t('triage.bucket_player.empty.pick_track')}
+      meta={
+        row && (
+          <AnalysisMeta
+            aiVerdict={row.ai_verdict}
+            aiChecked={row.ai_checked}
+            profiled={row.profiled}
           />
-        }
-        onPlayPause={() => void playback.controls.togglePlayPause()}
-        onPrev={() => void playback.controls.prev()}
-        onNext={() => void playback.controls.next()}
-        onRetry={() => void playback.controls.play()}
-        onOpenDevicePicker={() => playback.devices.open(null)}
-        onSeekMs={(ms) => void playback.controls.seekMs(ms)}
-      />
-      <BucketDistributeButtons
-        destinations={destinations}
-        suggested={suggested}
-        onDistribute={(id) => distribute(id, suggestionTag(suggested, id))}
-      />
-      <LabelTile
-        labelId={effectiveRich?.label_id ?? null}
-        labelName={effectiveRich?.label_name ?? null}
-      />
-      <ArtistsPanel artists={effectiveRich?.artists ?? []} />
-    </Stack>
+        )
+      }
+    >
+      {() => (
+        <>
+          <BucketDistributeButtons
+            destinations={destinations}
+            suggested={suggested}
+            onDistribute={(id) => distribute(id, suggestionTag(suggested, id))}
+          />
+          <TrackCards info={info} />
+        </>
+      )}
+    </TrackPlayer>
   );
 }

@@ -157,6 +157,20 @@ describe('CategoryPlayerPanel', () => {
     expect(screen.getByRole('link', { name: 'Lbl' })).toHaveAttribute('href', '/labels/l1');
   });
 
+  it("a track missing from the list never shows the previous track's label", () => {
+    const { rerender } = render(ui([{ ...placedTrack, label: { id: 'l1', name: 'Lbl' } }]));
+    expect(screen.getByRole('link', { name: 'Lbl' })).toBeInTheDocument();
+    const prev = playback.track.current;
+    playback.track.current = { ...prev, id: 't2', title: 'Y' };
+    try {
+      rerender(ui([]));
+      expect(screen.getByText('Y')).toBeInTheDocument();
+      expect(screen.queryByText('Lbl')).not.toBeInTheDocument();
+    } finally {
+      playback.track.current = prev;
+    }
+  });
+
   it('renders the playlist cloud (with mock playlist)', () => {
     render(ui());
     // "Acid" appears both as tag and playlist; require at least one match.
