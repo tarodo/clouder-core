@@ -106,7 +106,7 @@ describe('demo handlers', () => {
       sum(yt.results, ['matched', 'needs_review', 'not_found', 'error']) + yt.tracks.waiting,
     ).toBe(yt.tracks.total);
     expect(sp.tracks.total).toBe(yt.tracks.total);
-    // the YT Music matches are the base of both analysis stages
+    // the matched tracks are the base of both analysis stages
     expect(an.queue.total).toBe(yt.results.matched);
     expect(
       sum(an.pair, ['high', 'medium', 'low', 'clean']) +

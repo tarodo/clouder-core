@@ -84,7 +84,7 @@ class MlMixin(RepositoryBase):
         limit: int = PAGE,
     ) -> list[dict[str, Any]]:
         """One page of U's labels in S (spec §4), keyset on track_id: {track_id, video_id, keep,
-        category_id, added_at}, through the track's current YouTube video to its profile."""
+        category_id, added_at}, through the track's current matched video to its profile."""
         rows = self._data_api.execute(
             _LABELS,
             {

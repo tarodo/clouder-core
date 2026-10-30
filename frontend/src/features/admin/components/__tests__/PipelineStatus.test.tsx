@@ -146,7 +146,7 @@ describe('PipelineStatus', () => {
     expect(yt).toHaveTextContent('Searched · 34.9% of the Beatport catalog');
     const ai = await stage('AI detection');
     expect(ai).toHaveTextContent('26,918/ 70,767');
-    expect(ai).toHaveTextContent('Checked · 38.0% of YT Music matches');
+    expect(ai).toHaveTextContent('Checked · 38.0% of matched tracks');
     const profile = await stage('Audio profile');
     expect(profile).toHaveTextContent('3,928/ 70,767');
   });

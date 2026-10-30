@@ -9352,7 +9352,7 @@ export interface components {
         };
         /**
          * AnalysisFeaturesRequest
-         * @description POST /v1/analysis/features: light-1 profiles, one per YouTube video.
+         * @description POST /v1/analysis/features: light-1 profiles, one per video.
          */
         AnalysisFeaturesRequest: {
             /** Items */
@@ -9448,7 +9448,7 @@ export interface components {
         };
         /**
          * AnalysisWaveformsRequest
-         * @description POST /v1/analysis/waveforms: wave-1 waveforms, one per YouTube video.
+         * @description POST /v1/analysis/waveforms: wave-1 waveforms, one per video.
          */
         AnalysisWaveformsRequest: {
             /** Items */
@@ -9777,7 +9777,7 @@ export interface components {
             /** @description Empty = no work left. Newest tracks first. */
             tracks: {
                 track_id: string;
-                /** @description YouTube video id of the track's YT Music match. */
+                /** @description Id of the track's matched video. */
                 video_id: string;
                 length_ms: number | null;
                 /** @description The requested analyzers this track still lacks. */
@@ -9814,7 +9814,7 @@ export interface components {
             last_claim_at: string | null;
             /** Format: date-time */
             last_result_at: string | null;
-            /** @description YT Music matches per AI level (ai_lofcz + ai_deezer); a flag counts even when the other detector failed, as the badge does. */
+            /** @description Matched tracks per AI level (ai_lofcz + ai_deezer); a flag counts even when the other detector failed, as the badge does. */
             pair: {
                 /** @description Both flagged. */
                 high: number;
@@ -9825,9 +9825,9 @@ export interface components {
                 /** @description Both ok, neither flagged. */
                 clean: number;
             };
-            /** @description The YT Music matches the pair (ai_lofcz + ai_deezer) has not settled: pair levels + waiting + in_progress + failed + unusable = total. */
+            /** @description The matched tracks the pair (ai_lofcz + ai_deezer) has not settled: pair levels + waiting + in_progress + failed + unusable = total. */
             queue: {
-                /** @description Tracks with a YT Music match. */
+                /** @description Tracks with a matched video. */
                 total: number;
                 /** @description Not settled, no live lease. */
                 waiting: number;
@@ -9838,9 +9838,9 @@ export interface components {
                 /** @description Unflagged, either unusable_source, neither failed. */
                 unusable: number;
             };
-            /** @description The YT Music matches per light_profile state; the buckets sum to total. */
+            /** @description The matched tracks per light_profile state; the buckets sum to total. */
             profile: {
-                /** @description Tracks with a YT Music match. */
+                /** @description Tracks with a matched video. */
                 total: number;
                 /** @description No light_profile row or an expired lease. */
                 waiting: number;
@@ -9889,7 +9889,7 @@ export interface components {
             };
             analyzers: {
                 name: string;
-                /** @description Tracks with a YT Music match still lacking this analyzer. */
+                /** @description Tracks with a matched video still lacking this analyzer. */
                 due: number;
                 leased: number;
                 ok: number;

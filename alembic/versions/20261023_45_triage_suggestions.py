@@ -1,6 +1,6 @@
 """triage suggestions: audio_features, ml_models, track_predictions
 
-audio_features marks which YouTube videos have a light-1 profile in S3. ml_models is
+audio_features marks which videos have a light-1 profile in S3. ml_models is
 one row per (user, style); version 0 means requested, never trained. track_predictions
 holds the scores of the current model version.
 

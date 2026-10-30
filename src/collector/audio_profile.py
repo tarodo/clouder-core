@@ -1,4 +1,4 @@
-"""Layout of the `light-1` audio profile: 16 778 little-endian float16 per YouTube video.
+"""Layout of the `light-1` audio profile: 16 778 little-endian float16 per video.
 
 Stdlib only: the collector zip has no numpy.
 """

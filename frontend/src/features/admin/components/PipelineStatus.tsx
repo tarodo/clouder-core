@@ -236,7 +236,7 @@ const MODELS = [
 ] as const;
 
 /** Admin funnel: the Beatport catalog → Spotify and YouTube search → AI detection and the
- * audio profile on the YT Music matches. Each stage splits its base, so YT Music "Matched"
+ * audio profile on the matched tracks. Each stage splits its base, so "Matched"
  * is the total of both stages after it. */
 export function PipelineStatus() {
   const { t } = useTranslation();

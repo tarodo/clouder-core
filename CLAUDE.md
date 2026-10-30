@@ -67,6 +67,7 @@ These bite almost any session. Read the linked topical doc when you need the ful
 11. **Verify visual/CSS/layout/focus changes in a real browser:** `cd frontend && pnpm test:browser` (`@vitest/browser` + Playwright, `*.browser.test.tsx`). jsdom (`pnpm test`) applies no stylesheets. Browser tests are excluded from `pnpm test` and CI (runners have no browser) — run them locally.
 12. **Smooth dnd-kit reorder:** sortable lists (`PlaylistTracksList`, `CategoriesList`) need `DragOverlay` + `dropAnimation={null}` + `animateLayoutChanges={() => false}`. The default drop animation snaps/springs back — worse on pages that re-render (e.g. playback-subscribed).
 13. **Analytics SQL: live Athena in the Lambda + dbt models nightly.** Athena `ExecutionParameters` mis-parse `'YYYY-MM-DD'` as arithmetic → inline validated date literals, never bind them (binding `user_id` is fine). Order events by `ts_client` + `event_id`, never `ts_server`: the server stamps `ts_server` once per SDK batch, so events flushed together tie and window functions go non-deterministic. Card SQL lives in `src/collector/analytics_handler.py` (Trino prod / DuckDB tests via a dialect shim); silver/gold models live in `dbt/` (Athena prod / DuckDB CI with seed fixtures).
+14. **The analyzer is a black box (ADR-0030).** Code, comments and docs here never say how clouder-analyzer gets its audio: no source site or tool names, no download, cache, pacing or bot-check details. Write "the analyzer analyzes the track"; the claim's `video_id` is an opaque reference.
 
 ## Where to go next
 

@@ -4,7 +4,7 @@ Date: 2026-10-15. Status: draft for owner review.
 
 ## Goal
 
-An external worker, [clouder-analyzer](https://github.com/tarodo/clouder-analyzer) (private repo, runs on the owner's Windows PC), pulls batches of tracks that have a YouTube Music video, analyzes the audio and posts the results back. clouder-core stores the results and shows an **AI** badge on tracks whose audio the detector flags.
+An external worker, [clouder-analyzer](https://github.com/tarodo/clouder-analyzer) (private repo, runs on the owner's Windows PC), claims batches of tracks that have a matched video, analyzes them and posts the results back. clouder-core stores the results and shows an **AI** badge on tracks whose audio the detector flags.
 
 The first analyzer was `ai_detect` (ArtifactNet). Update 2026-10-16: the badge now comes from `ai_lofcz` ([lofcz/ai-music-detector](https://github.com/lofcz/ai-music-detector), MIT); `ai_detect` rows stay as a second opinion. The claim hands out every track missing `ai_lofcz`, so the switch re-analyzes the catalog with no data deletion.
 
@@ -14,11 +14,11 @@ The first analyzer was `ai_detect` (ArtifactNet). Update 2026-10-16: the badge n
 
 Embeddings come later, for "similar tracks" and for training an in-house classifier. This design must not block them, but it builds nothing for them now.
 
-clouder-core knows the worker only through the contract below: which tracks to hand out, and what a result looks like. It knows nothing about the model, yt-dlp, the cache or the host.
+clouder-core knows the worker only through the contract below: which tracks to hand out, and what a result looks like. It knows nothing about the model, how the worker obtains the audio, or the host ([ADR-0030](../../adr/0030-analyzer-black-box.md)).
 
 ### Non-goals
 
-- Analysis, download and model code. These belong to the worker's own spec.
+- Audio acquisition, analysis and model code. These belong to the worker's own spec.
 - Embedding storage and vector search. That will be a `track_embeddings` table with pgvector, in its own spec.
 - Filters or sorting by the AI flag, tooltips, and a score shown in the UI. The owner wants to look at real results first.
 - Automatic re-analysis when an analyzer's version changes. Re-analysis is admin-only (`requeue`).
@@ -29,9 +29,9 @@ clouder-core knows the worker only through the contract below: which tracks to h
 | Topic | Decision |
 |---|---|
 | Exchange | The worker pulls work over HTTPS. It claims a batch with a lease and posts results. There are no inbound ports and no AWS keys on the PC. |
-| Unit of work | One track. A claim returns the track's video plus every requested analyzer the track still lacks. The worker downloads once and runs them all. |
-| Source | Only the `ytmusic` `vendor_track_map` row: the official Art Track, matched on duration and album. A track without one is not handed out. |
-| Which tracks | Every track that has a `ytmusic` row. Those rows exist only for new tracks, curated tracks (YouTube sweep), playlist tracks and manually reviewed matches. The archive has none, so this is the sweep's set plus playlist tracks, with no extra filter. |
+| Unit of work | One track. A claim returns the track's video plus every requested analyzer the track still lacks. The worker reads the audio once and runs them all. |
+| Source | The track's matched video in `vendor_track_map`. A track without one is not handed out. |
+| Which tracks | Every track that has a matched video. Matches exist only for new tracks, curated tracks, playlist tracks and manually reviewed matches; the archive has none. No extra filter. |
 | Failure | `failed` is final: the track is never handed out again for that analyzer. Only `requeue` with `include_failed` brings it back. |
 | Version change | It is recorded and does nothing on its own. `requeue` re-analyzes. |
 | Storage | One generic table, `track_analyses`, keyed by `(track_id, analyzer)`. The analyzer type is a column. |
@@ -72,7 +72,7 @@ Response `200`:
 ```
 
 - **Empty `tracks`:** there is no work.
-- **`length_ms`:** the catalog length, or null. The worker uses it to catch truncated downloads.
+- **`length_ms`:** the catalog length, or null. The worker uses it to catch truncated audio.
 - **`analyzers`:** for each track, the subset of the requested names it lacks.
 - **Which analyzers a track lacks:** an analyzer is missing when the track has no `track_analyses` row for it, or only a `leased` row whose lease has expired.
 - **Lease:** the lease lasts 30 minutes. A track whose lease expires without a result goes back to the pool.
@@ -104,7 +104,7 @@ Request: 1–100 items.
 **Fields:**
 - `status` is one of:
   - `ok` — analyzed;
-  - `failed` — the download or the analysis failed for good: the video was removed, is region-locked or age-gated;
+  - `failed` — the analysis failed for good, for example the audio is unavailable;
   - `unusable_source` — the audio cannot carry a verdict, for example a wrong format or no usable segments.
 - `version`: 1–64 printable characters.
 - `error`: ≤ 500 characters, required unless `status` is `ok`.
@@ -158,15 +158,15 @@ CREATE TABLE analysis_service_state (
 ```
 
 **Claim, in one statement (Data API, no transaction):**
-- Candidates are the `vendor_track_map` rows with `vendor = 'ytmusic'`, ordered by `clouder_tracks.created_at DESC`, that lack at least one requested analyzer.
+- Candidates are the tracks' matched videos in `vendor_track_map`, ordered by `clouder_tracks.created_at DESC`, that lack at least one requested analyzer.
 - The statement inserts `(track, analyzer)` as `leased` with this `lease_id` and `leased_until`.
 - On conflict it updates the row only `WHERE status = 'leased' AND leased_until < now()`.
 - `RETURNING` reports what was actually leased. Two concurrent claimers therefore never lease the same pair.
-- The candidate pick is a `MATERIALIZED` CTE with `LIMIT :limit` (see the YouTube sweep note on `IN (... LIMIT)` re-execution).
+- The candidate pick is a `MATERIALIZED` CTE with `LIMIT :limit` (an `IN (... LIMIT)` subquery can be re-executed).
 
 **Results:** `UPDATE … SET status, version, result, error, audio_sha256, video_id, analyzed_at = now(), lease_id = NULL, leased_until = NULL WHERE track_id, analyzer, status = 'leased', lease_id = :lease_id`. The affected row count tells accepted from `lease_lost`.
 
-A later `ytmusic` re-match to another video does not invalidate a result. `video_id` in the row shows what was analyzed, and `requeue` redoes it.
+A later re-match to another video does not invalidate a result. `video_id` in the row shows what was analyzed, and `requeue` redoes it.
 
 ## Admin
 
@@ -185,10 +185,10 @@ A later `ytmusic` re-match to another video does not invalidate a result. `video
 ```
 
 - The `analyzers` list covers `claim_analyzers` plus every name present in the table.
-- `due`: tracks with a `ytmusic` row and no row for that analyzer, plus expired leases.
+- `due`: tracks with a matched video and no row for that analyzer, plus expired leases.
 - `ai_detected`: counted only for the AI analyzers (`ai_detect`, `ai_lofcz`, `ai_deezer`).
 - `pair`: tracks per AI level, `high` (both `ai_lofcz` and `ai_deezer` flagged), `medium` (only `ai_lofcz`) and `low` (only `ai_deezer`); `clean`: both `ok`, neither flagged.
-- `queue`, over the same pair: `waiting` (`ytmusic` tracks a claim for both would hand out: a pair analyzer has no row or only an expired lease), `analyzed` (both `ok`), `failed` (either failed), `unusable` (either `unusable_source`, neither failed). One query computes `pair` and `queue`.
+- `queue`, over the same pair: `waiting` (matched tracks a claim for both would hand out: a pair analyzer has no row or only an expired lease), `analyzed` (both `ok`), `failed` (either failed), `unusable` (either `unusable_source`, neither failed). One query computes `pair` and `queue`.
 
 ### `POST /admin/analysis/requeue` (admin JWT)
 
@@ -202,7 +202,7 @@ A later `ytmusic` re-match to another video does not invalidate a result. `video
 
 ### Card
 
-"AI analysis" sits on Admin → Coverage, below "YouTube search", in the same style. It shows:
+"AI analysis" sits on Admin → Coverage, below the vendor search cards, in the same style. It shows:
 - last claim and last result as relative times; it turns into a warning after 3 days without a claim, meaning the PC has not run;
 - one compact card over the pair only (2026-10-23; no per-analyzer blocks, no `ai_detect`): the levels "Both detectors", "lofcz only", "Deezer only" (each marked with the track's `AiBadge` color) plus "Clean", then "Queue: Waiting · Analyzed · Unavailable (failed) · No usable audio". `analyzers` stays in the API.
 
@@ -243,7 +243,7 @@ The card polls every 30 seconds, but only while the tab is visible. It must not 
 ## Testing
 
 - **Postgres tests** (`tests/db`, real PG):
-  - claim leases only tracks with a `ytmusic` row, newest first, respecting `limit`;
+  - claim leases only tracks with a matched video, newest first, respecting `limit`;
   - a second claim gets nothing while the lease is live, and takes the track again after expiry;
   - partial analyzers: a track with `ai_detect` ok is claimed only for `embed`;
   - `failed` is never re-claimed;
@@ -260,4 +260,4 @@ The card polls every 30 seconds, but only while the tab is visible. It must not 
 ## Open risks
 
 - **Detector quality.** Recall is 56% overall and 27–40% on modern Suno, so "no badge" does not mean the track is human-made. The owner reviews real results before adding filters.
-- **Coverage.** Only tracks with a `ytmusic` match get a verdict. Tracks without one never show the badge.
+- **Coverage.** Only tracks with a matched video get a verdict. Tracks without one never show the badge.

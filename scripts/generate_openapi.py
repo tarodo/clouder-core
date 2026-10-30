@@ -939,7 +939,7 @@ ANALYSIS_CLAIM_RESPONSE = {
                     "track_id": {"type": "string"},
                     "video_id": {
                         "type": "string",
-                        "description": "YouTube video id of the track's YT Music match.",
+                        "description": "Id of the track's matched video.",
                     },
                     "length_ms": {"type": ["integer", "null"]},
                     "analyzers": {
@@ -1167,7 +1167,7 @@ ANALYSIS_STATUS = {
         "last_result_at": {"type": ["string", "null"], "format": "date-time"},
         "pair": {
             "type": "object",
-            "description": "YT Music matches per AI level (ai_lofcz + ai_deezer); a flag "
+            "description": "Matched tracks per AI level (ai_lofcz + ai_deezer); a flag "
             "counts even when the other detector failed, as the badge does.",
             "required": ["high", "medium", "low", "clean"],
             "properties": {
@@ -1179,11 +1179,11 @@ ANALYSIS_STATUS = {
         },
         "queue": {
             "type": "object",
-            "description": "The YT Music matches the pair (ai_lofcz + ai_deezer) has not "
+            "description": "The matched tracks the pair (ai_lofcz + ai_deezer) has not "
             "settled: pair levels + waiting + in_progress + failed + unusable = total.",
             "required": ["total", "waiting", "in_progress", "failed", "unusable"],
             "properties": {
-                "total": {"type": "integer", "description": "Tracks with a YT Music match."},
+                "total": {"type": "integer", "description": "Tracks with a matched video."},
                 "waiting": {"type": "integer", "description": "Not settled, no live lease."},
                 "in_progress": {"type": "integer", "description": "Under a live lease."},
                 "failed": {"type": "integer", "description": "Unflagged, either failed."},
@@ -1195,11 +1195,11 @@ ANALYSIS_STATUS = {
         },
         "profile": {
             "type": "object",
-            "description": "The YT Music matches per light_profile state; the buckets sum "
+            "description": "The matched tracks per light_profile state; the buckets sum "
             "to total.",
             "required": ["total", "waiting", "in_progress", "profiled", "failed", "unusable"],
             "properties": {
-                "total": {"type": "integer", "description": "Tracks with a YT Music match."},
+                "total": {"type": "integer", "description": "Tracks with a matched video."},
                 "waiting": {
                     "type": "integer",
                     "description": "No light_profile row or an expired lease.",
@@ -1306,7 +1306,7 @@ ANALYSIS_STATUS = {
                     "name": {"type": "string"},
                     "due": {
                         "type": "integer",
-                        "description": "Tracks with a YT Music match still lacking this analyzer.",
+                        "description": "Tracks with a matched video still lacking this analyzer.",
                     },
                     "leased": {"type": "integer"},
                     "ok": {"type": "integer"},

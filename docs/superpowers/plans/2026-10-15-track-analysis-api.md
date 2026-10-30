@@ -29,7 +29,7 @@
   - The authorizer caches the hash for `JWT_KEY_TTL_SECONDS`, and caches a miss too, so a missing parameter does not hammer SSM.
 - **Never log the token or its hash.**
 - **Lease length:** 30 minutes. **Status values:** `leased | ok | failed | unusable_source`.
-- **Candidate tracks:** those with a `vendor_track_map` row whose `vendor = 'ytmusic'`. The `video_id` is that row's `vendor_track_id`.
+- **Candidate tracks:** those with a matched video in `vendor_track_map`. The `video_id` is that row's `vendor_track_id`.
 - **Process.** Commits go through `caveman:caveman-commit` and use Conventional Commits. README counts, the OpenAPI spec and `schema.d.ts` are regenerated and committed.
 
 ## Review focus
@@ -111,7 +111,7 @@ ORDER BY p.created_at DESC, p.id
 
 **Results.** One `UPDATE … WHERE track_id = :t AND analyzer = :a AND status = 'leased' AND lease_id = CAST(:lease AS uuid) RETURNING 1` per item. The Data API has no executemany-with-returning, and a batch is at most 100 items. A miss means `lease_lost`. `result` is passed as jsonb, the same way vendor_match passes payloads. When at least one item is accepted, upsert `last_result_at`.
 
-**Status.** Read the `analysis_service_state` row. Read `analyzer, status, count(*)` grouped, plus the `ai_detected` count for `ai_detect` ok rows. For each known analyzer, `due` is the number of ytmusic tracks with no non-expired row for that analyzer. The known analyzers are `claim_analyzers` plus the distinct analyzers in the table.
+**Status.** Read the `analysis_service_state` row. Read `analyzer, status, count(*)` grouped, plus the `ai_detected` count for `ai_detect` ok rows. For each known analyzer, `due` is the number of matched tracks with no non-expired row for that analyzer. The known analyzers are `claim_analyzers` plus the distinct analyzers in the table.
 
 **Requeue.**
 - `DELETE FROM track_analyses WHERE analyzer = :a AND status IN ('ok','unusable_source'[, 'failed']) AND <scope>`.
@@ -122,7 +122,7 @@ ORDER BY p.created_at DESC, p.id
 - Return the deleted count (`RETURNING 1`, then `len`).
 
 - [ ] **pg tests** (real Postgres; seed like `test_youtube_search_pg.py`: style, tracks, `vendor_track_map` rows):
-  - a claim leases only ytmusic tracks, newest first, and honours `limit`;
+  - a claim leases only matched tracks, newest first, and honours `limit`;
   - the returned rows carry `video_id` and `length_ms`;
   - **(RF 2)** a second claim with a different lease while the first is live returns nothing; after `now + 31 min` it returns the track again;
   - partial analyzers: an `ai_detect` ok row exists, so a claim for `["ai_detect","embed"]` returns the track with `["embed"]` only;

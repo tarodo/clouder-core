@@ -89,7 +89,7 @@ class VendorMatchMixin(RepositoryBase):
             return
         # A profile and a waveform follow the track's current video: drop the claim gate of
         # the old one, then reopen it as ok when the new video has one already. A live lease
-        # (video_id NULL) stays: deleting it would let a second claim download the track
+        # (video_id NULL) stays: deleting it would let a second claim hand the track out
         # again; if the video changed, the lease just runs out and the next claim sends
         # the new one.
         params = {

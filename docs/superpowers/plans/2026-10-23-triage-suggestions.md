@@ -64,7 +64,7 @@ first retrain.
 
 ## Review Focus
 
-1. **Re-matched track.** A track whose ytmusic video changed after profiling must be labelled and scored by its
+1. **Re-matched track.** A track whose matched video changed after profiling must be labelled and scored by its
    *current* video, or not at all. Tests: Task 2 (re-match hook) and Task 7 (`ml_labels` joins the current
    `vendor_track_map`).
 2. **Two tracks on one video in one claim.** One feature post, both tracks `light_profile ok`. Tests: Task 2
@@ -151,7 +151,7 @@ first retrain.
   - `known_audio_features(*, video_ids: list[str]) -> dict[str, tuple[str, str]]`, video → (version, sha);
   - `record_audio_features(*, items: list[dict], now: datetime) -> int`: upserts `audio_features`, then upserts
     `track_analyses(track_id, 'light_profile', status 'ok', version, video_id, audio_sha256, analyzed_at=now,
-    lease cleared)` for every track whose `vendor_track_map` (vendor `ytmusic`) video is in the items. Returns the number of
+    lease cleared)` for every track whose matched video in `vendor_track_map` is in the items. Returns the number of
     track rows.
 - Produces `collector.ml_jobs`:
   - `enqueue_score(*, video_ids: list[str]) -> None`, best-effort like `enqueue_block_auto_enrich`;
@@ -207,7 +207,7 @@ first retrain.
 
 **Interfaces:**
 - `analysis_status` also returns:
-  - `profile: {waiting, profiled, failed, unusable}`, the `light_profile` counts. `waiting` = ytmusic-mapped tracks with
+  - `profile: {waiting, profiled, failed, unusable}`, the `light_profile` counts. `waiting` = matched tracks with
     no held `light_profile` row (`_HELD`).
   - `models: {count: int, last_trained_at: datetime | None}` over `ml_models` with `version > 0`.
 - i18n `admin.profile_status`:
@@ -336,7 +336,7 @@ first retrain.
   - all other items are posted exactly as today;
   - rejected features are logged as `features_rejected` and counted in `RunSummary.rejected`.
 - **`profile-dir`:** `clouder-analyzer profile-dir DIR [DIR ...] [--limit N]`.
-  - It takes `*.opus` recursively, unique by stem, which is the video id.
+  - It takes the audio files recursively, unique by stem, which is the video id.
   - It skips ids listed in `STATE_DIR/profile-dir.done` and appends accepted ids to that file, so the run can resume.
   - It decodes with `audio.decode` + `sha256_file`, with no `.duration` sidecar needed. It builds the profile with
     `LightProfile` regardless of `LIGHT_PROFILE`, and posts batches of 50.
@@ -369,8 +369,8 @@ first retrain.
 4. **Backfill.** First `profile-dir --limit 5` on `/lab/audio`: the 5 `audio_features` rows and S3 objects are there,
    checked through the RO role and `aws s3 ls`. Then run `profile-dir /lab/audio /lab/ablation /lab/ablation_more`
    detached, a one-off container with `--gpus all` and `lab-data:/lab:ro`. 3 339 unique videos at ~8–12 s each is ~8–11 h.
-   - *Ruling vs spec:* the analyzer cache `/data/cache` is left out of the backfill. The claim hands the cached tracks out
-     early (newest first), and a cache hit skips the download anyway.
+   - *Ruling vs spec:* audio outside the lab set is left out of the backfill. The claim hands those tracks out early
+     (newest first) anyway.
    - **Gate:** `audio_features` count ≥ 3 339 lab videos, and the admin card shows the Profiled count.
 5. **Enable the claim.** Set `LIGHT_PROFILE=1` in the PC `.env` (alpine sed) and recreate the container.
    - **Gate:** the first claims post accepted features, the logs show per-track profile time, throughput stays near
@@ -453,7 +453,7 @@ first retrain.
 - `MlMixin`. Every method that can return more than 2 000 rows pages with keyset on `track_id` and a limit of 2 000.
   - `ml_labels(*, user_id, style_id, after_track_id=None, limit=2000) -> list[dict]`:
     - rows `{track_id, video_id, keep, category_id, added_at}` per spec §4;
-    - joins the current `vendor_track_map` (ytmusic) to `audio_features`;
+    - joins the track's current matched video (`vendor_track_map`) to `audio_features`;
     - excludes `AI_FLAGGED_SQL`;
     - keep wins; the latest category wins.
   - `ml_style_tracks(*, style_id, after_track_id=None, limit=2000) -> list[dict]`: profiled tracks of the style as
