@@ -23,6 +23,7 @@ import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import { spotifyApi } from '../../playback/api/spotifyWebApi';
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { EntityLink } from '../../library/components/EntityLinks';
 import { AnalysisMeta } from '../../triage/components/AnalysisMeta';
 
 export interface CurateSessionProps {
@@ -214,6 +215,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
           title: session.currentTrack.title,
         })}
         mixName={!isMobile ? session.currentTrack.mix_name : undefined}
+        artistLinks={session.currentTrack.artists}
         metaRow={
           !isMobile ? (
             <Stack gap={2} mt={4}>
@@ -227,7 +229,15 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
                   truncate
                   style={{ flex: 1, minWidth: 0 }}
                 >
-                  {session.currentTrack.label_name ?? '—'}
+                  {session.currentTrack.label_id && session.currentTrack.label_name ? (
+                    <EntityLink
+                      kind="label"
+                      id={session.currentTrack.label_id}
+                      name={session.currentTrack.label_name}
+                    />
+                  ) : (
+                    (session.currentTrack.label_name ?? '—')
+                  )}
                 </Text>
               </Group>
               <Group gap="md" wrap="wrap">

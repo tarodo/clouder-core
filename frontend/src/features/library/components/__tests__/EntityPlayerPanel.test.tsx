@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
@@ -141,7 +142,9 @@ function renderPanel(row: EntityTrack = track()) {
     <QueryClientProvider client={qc}>
       <MantineProvider theme={testTheme}>
         <Notifications />
-        <Page />
+        <MemoryRouter>
+          <Page />
+        </MemoryRouter>
       </MantineProvider>
     </QueryClientProvider>,
   );
@@ -164,6 +167,12 @@ describe('EntityPlayerPanel', () => {
     expect(await screen.findByText('Categories · Melodic')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Peak' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Opening' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('the player links the label and the artists to their pages', async () => {
+    renderPanel();
+    expect(await screen.findByRole('link', { name: 'Hinterland' })).toHaveAttribute('href', '/labels/lbl');
+    expect(screen.getByRole('link', { name: 'Art' })).toHaveAttribute('href', '/artists/art');
   });
 
   it('a tap puts the track into a category, a second takes it out', async () => {

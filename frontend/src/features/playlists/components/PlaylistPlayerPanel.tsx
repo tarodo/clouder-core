@@ -11,6 +11,7 @@ import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
 import { DeviceIndicator } from '../../playback/DeviceIndicator';
 import { PlayerPanelTagCloud } from '../../categories/components/PlayerPanelTagCloud';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { EntityLink } from '../../library/components/EntityLinks';
 import { CommentsPanel } from './CommentsPanel';
 import { LabelTile } from '../../library/components/LabelTile';
 import type { PlaylistTrack } from '../lib/playlistTypes';
@@ -170,7 +171,7 @@ export function PlaylistPlayerPanel({ playlistId, items }: PlaylistPlayerPanelPr
                 {t('curate.card.label_label')}:
               </Text>
               <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1 }}>
-                {effectiveRich.label.name}
+                <EntityLink kind="label" id={effectiveRich.label.id} name={effectiveRich.label.name} />
               </Text>
             </Group>
           ) : null}
@@ -191,6 +192,7 @@ export function PlaylistPlayerPanel({ playlistId, items }: PlaylistPlayerPanelPr
         track={current}
         positionMs={playback.track.positionMs}
         mixName={effectiveRich?.mix_name ?? null}
+        artistLinks={effectiveRich?.track_id === current.id ? effectiveRich.artists : undefined}
         belowMainRow={metaRow}
         showTimes
         spotifyHref={spotifyHref}

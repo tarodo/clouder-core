@@ -148,9 +148,10 @@ describe('CurateSession — artist tile', () => {
     tokenStore.set(null);
   });
 
-  it('renders the artist tile for the current track', async () => {
+  it('renders the artist tile for the current track, the player links the artist too', async () => {
     renderSession();
-    expect(await screen.findByText('Joja')).toBeInTheDocument();
+    const links = await screen.findAllByRole('link', { name: 'Joja' });
+    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/artists/a1', '/artists/a1']);
     expect(screen.getByRole('button', { name: /^like artist$/i })).toBeInTheDocument();
   });
 });

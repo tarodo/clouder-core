@@ -1,7 +1,7 @@
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { BucketTrack } from '../../hooks/useBucketTracks';
 import * as client from '../../../../api/client';
@@ -57,7 +57,15 @@ describe('BucketPlayerPanel — artists', () => {
 
   test('renders every artist as a tile up front', () => {
     renderPanel();
-    expect(screen.getByRole('link', { name: 'Main Artist' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Second' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Main Artist' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Second' })).toHaveLength(2);
+  });
+
+  test('the player names the artists and the label as links to their pages', () => {
+    const { container } = renderPanel();
+    const player = within(container.querySelector<HTMLElement>('[data-state]')!);
+    expect(player.getByRole('link', { name: 'Main Artist' })).toHaveAttribute('href', '/artists/a1');
+    expect(player.getByRole('link', { name: 'Second' })).toHaveAttribute('href', '/artists/a2');
+    expect(player.getByRole('link', { name: 'Label' })).toHaveAttribute('href', '/labels/l1');
   });
 });

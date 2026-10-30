@@ -180,7 +180,7 @@ describe('PlaylistPlayerPanel', () => {
     expect(playbackWithTrack.controls.next).not.toHaveBeenCalled();
   });
 
-  it('renders the LabelTile label name as a link to the label page', async () => {
+  it('the player and the LabelTile name the label as a link to its page', async () => {
     const fokuzTrack: PlaylistTrack = {
       ...seedTrack,
       label: { id: 'lbl-1', name: 'Fokuz Recordings' },
@@ -191,7 +191,7 @@ describe('PlaylistPlayerPanel', () => {
       ),
     );
     render(ui([fokuzTrack]));
-    const link = await screen.findByRole('link', { name: 'Fokuz Recordings' });
-    expect(link).toHaveAttribute('href', '/labels/lbl-1');
+    const links = await screen.findAllByRole('link', { name: 'Fokuz Recordings' });
+    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/labels/lbl-1', '/labels/lbl-1']);
   });
 });
