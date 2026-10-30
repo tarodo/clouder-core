@@ -1,5 +1,5 @@
 import { Group, Stack, Text } from '@mantine/core';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AiRepBadge, type AiRep } from '../library/components/AiRepBadge';
 import { ArtistsPanel } from '../library/components/ArtistsPanel';
@@ -168,26 +168,63 @@ export interface TrackPlayerProps {
   children?: (track: PlaybackTrack) => ReactNode;
 }
 
+/**
+ * How far a sticky column still sits below its stuck place, as `--sticky-shift`: the page header
+ * above it pushes it down until the page scrolls past, and its max-height takes that off, so its
+ * end stays on screen (its wheel never scrolls the page to reveal it).
+ */
+function useStickyShift(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const style = getComputedStyle(el);
+      // a phone layout drops the stickiness: nothing to fit
+      const shift =
+        style.position === 'sticky' ? el.getBoundingClientRect().top - (parseFloat(style.top) || 0) : 0;
+      el.style.setProperty('--sticky-shift', `${Math.max(0, shift)}px`);
+    };
+    const schedule = () => {
+      frame ||= requestAnimationFrame(update);
+    };
+    update();
+    // the header growing (a longer description) moves the column without a scroll
+    const ro = new ResizeObserver(schedule);
+    ro.observe(document.body);
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
+  }, [ref]);
+}
+
 /** A page's player column: the playing track's card and meta, then the page's own modules. */
 export function TrackPlayer({ className, info, empty, meta, children }: TrackPlayerProps) {
   const current = usePlayback().track.current;
-  if (!current) {
-    return (
-      <Stack className={className} gap="md" data-player>
-        <Text c="dimmed">{empty}</Text>
-      </Stack>
-    );
-  }
+  const ref = useRef<HTMLDivElement>(null);
+  useStickyShift(ref);
   return (
-    <Stack className={className} gap="md" data-player>
-      <ConnectedPlayerCard
-        track={current}
-        mixName={info?.mixName ?? null}
-        artistLinks={info?.artists}
-        belowMainRow={info ? <TrackMeta info={info}>{meta}</TrackMeta> : null}
-        showTimes
-      />
-      {children?.(current)}
+    <Stack ref={ref} className={className} gap="md" data-player>
+      {current ? (
+        <>
+          <ConnectedPlayerCard
+            track={current}
+            mixName={info?.mixName ?? null}
+            artistLinks={info?.artists}
+            belowMainRow={info ? <TrackMeta info={info}>{meta}</TrackMeta> : null}
+            showTimes
+          />
+          {children?.(current)}
+        </>
+      ) : (
+        <Text c="dimmed">{empty}</Text>
+      )}
     </Stack>
   );
 }

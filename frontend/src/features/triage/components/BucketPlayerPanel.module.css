@@ -5,7 +5,12 @@
   align-self: flex-start;
   position: sticky;
   top: calc(var(--app-shell-header-offset, 3.5rem) + var(--mantine-spacing-sm));
-  max-height: calc(100vh - var(--app-shell-header-offset, 3.5rem) - var(--mantine-spacing-md));
+  /* --sticky-shift: the page header's room above it while the page is not scrolled past
+     (TrackPlayer). The margin gives it back, so the page keeps its length as the panel grows. */
+  max-height: calc(
+    100vh - var(--app-shell-header-offset, 3.5rem) - var(--mantine-spacing-md) - var(--sticky-shift, 0px)
+  );
+  margin-bottom: var(--sticky-shift, 0px);
   overflow-y: auto;
   /* at the end of the panel the wheel stays here, it does not scroll the track list */
   overscroll-behavior: contain;
