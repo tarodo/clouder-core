@@ -110,6 +110,15 @@ describe('BucketPlayerPanel', () => {
     expect(screen.getByText('124 BPM')).toBeInTheDocument();
   });
 
+  it('shows the key of the playing track', () => {
+    current = {
+      id: 't1', title: 'Test Track', artists: 'Artist A',
+      duration_ms: 200000, spotify_id: 'sp1', cover_url: null,
+    };
+    r(<BucketPlayerPanel blockId="b1" bucketId="bk1" items={[{ ...item, key_camelot: '8A' }]} />);
+    expect(screen.getByText('8A')).toBeInTheDocument();
+  });
+
   it('does not show stale label meta when the playing track is not in items', () => {
     current = {
       id: 'other', title: 'Other Track', artists: 'Z',

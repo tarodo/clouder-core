@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 import { ActionIcon, Button, Group, Stack, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
-import { CurateCard } from './CurateCard';
+import { CurateCard, CurateStats } from './CurateCard';
 import { DestinationGrid } from './DestinationGrid';
 import { HotkeyOverlay } from './HotkeyOverlay';
 import { EndOfQueue } from './EndOfQueue';
@@ -24,6 +24,7 @@ import {
   transportHotkeys,
 } from '../../playback/TrackPlayer';
 import { spotifyApi } from '../../playback/api/spotifyWebApi';
+import { AiRepBadge } from '../../library/components/AiRepBadge';
 import { EntityLink } from '../../library/components/EntityLinks';
 import { bucketTrackInfo } from '../../triage/lib/toPlaybackTrack';
 import { AnalysisMeta } from '../../triage/components/AnalysisMeta';
@@ -186,8 +187,9 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
 
       <ConnectedPlayerCard
         emptyBucket={allNullSpotifyId}
+        // A phone keeps the text beside the cover to title, artists and label.
+        {...(isMobile && { deviceIndicator: null })}
         track={playerTrack}
-        showText={!isMobile}
         mobileSeekChips={isMobile}
         spotifyHref={
           session.currentTrack.spotify_id
@@ -197,74 +199,44 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         spotifyAriaLabel={t('curate.card.open_in_spotify_aria', {
           title: session.currentTrack.title,
         })}
-        mixName={!isMobile ? session.currentTrack.mix_name : undefined}
+        mixName={session.currentTrack.mix_name}
         artistLinks={session.currentTrack.artists}
         metaRow={
-          !isMobile ? (
-            <Stack gap={2} mt={4}>
-              <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
-                <Text size="sm" c="var(--color-fg-muted)">
-                  {t('curate.card.label_label')}:
-                </Text>
-                <Text
-                  size="sm"
-                  c="var(--color-fg-muted)"
-                  truncate
-                  style={{ flex: 1, minWidth: 0 }}
-                >
-                  {session.currentTrack.label_id && session.currentTrack.label_name ? (
-                    <EntityLink
-                      kind="label"
-                      id={session.currentTrack.label_id}
-                      name={session.currentTrack.label_name}
-                    />
-                  ) : (
-                    (session.currentTrack.label_name ?? '—')
-                  )}
-                </Text>
-              </Group>
-              <Group gap="md" wrap="wrap">
-                <Group gap={4} wrap="nowrap">
-                  <Text size="sm" c="var(--color-fg-muted)">
-                    {t('curate.card.bpm_label')}:
-                  </Text>
-                  <Text size="sm" c="var(--color-fg-muted)">
-                    {session.currentTrack.bpm ?? '—'}
-                  </Text>
-                </Group>
-                {session.currentTrack.length_ms != null && (
-                  <Group gap={4} wrap="nowrap">
-                    <Text size="sm" c="var(--color-fg-muted)">
-                      {t('curate.card.length_label')}:
-                    </Text>
-                    <Text size="sm" c="var(--color-fg-muted)">
-                      {(() => {
-                        const total = Math.round((session.currentTrack.length_ms ?? 0) / 1000);
-                        const m = Math.floor(total / 60);
-                        const s = total % 60;
-                        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-                      })()}
-                    </Text>
-                  </Group>
+          <Stack gap={2} mt={4}>
+            <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
+              <Text size="sm" c="var(--color-fg-muted)">
+                {t('curate.card.label_label')}:
+              </Text>
+              <Text
+                size="sm"
+                c="var(--color-fg-muted)"
+                truncate
+                style={{ flex: 1, minWidth: 0 }}
+              >
+                {session.currentTrack.label_id && session.currentTrack.label_name ? (
+                  <EntityLink
+                    kind="label"
+                    id={session.currentTrack.label_id}
+                    name={session.currentTrack.label_name}
+                  />
+                ) : (
+                  (session.currentTrack.label_name ?? '—')
                 )}
-                <Group gap={4} wrap="nowrap">
-                  <Text size="sm" c="var(--color-fg-muted)">
-                    {t('curate.card.released_label')}:
-                  </Text>
-                  <Text size="sm" c="var(--color-fg-muted)">
-                    {session.currentTrack.spotify_release_date ??
-                      session.currentTrack.publish_date ??
-                      '—'}
-                  </Text>
-                </Group>
-              </Group>
-              <AnalysisMeta
-                aiVerdict={session.currentTrack.ai_verdict}
-                aiChecked={session.currentTrack.ai_checked}
-                profiled={session.currentTrack.profiled}
-              />
-            </Stack>
-          ) : undefined
+                <AiRepBadge rep={session.currentTrack.label_ai} ml={4} />
+              </Text>
+            </Group>
+            {/* On a phone the stats go in the card under the player. */}
+            {!isMobile && (
+              <>
+                <CurateStats track={session.currentTrack} />
+                <AnalysisMeta
+                  aiVerdict={session.currentTrack.ai_verdict}
+                  aiChecked={session.currentTrack.ai_checked}
+                  profiled={session.currentTrack.profiled}
+                />
+              </>
+            )}
+          </Stack>
         }
         topActions={
           <Button
@@ -284,6 +256,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
       {isMobile && (
         <CurateCard
           track={session.currentTrack}
+          hideText
           onPlay={() => void playback.controls.play(session.currentIndex)}
         />
       )}

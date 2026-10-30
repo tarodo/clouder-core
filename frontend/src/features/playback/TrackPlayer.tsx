@@ -1,6 +1,7 @@
 import { Group, Stack, Text } from '@mantine/core';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AiRepBadge, type AiRep } from '../library/components/AiRepBadge';
 import { ArtistsPanel } from '../library/components/ArtistsPanel';
 import { EntityLink } from '../library/components/EntityLinks';
 import { LabelTile } from '../library/components/LabelTile';
@@ -14,9 +15,9 @@ import { usePlayback } from './usePlayback';
 /** The playing track as every player shows it, mapped from the page's own row. */
 export interface PlayerTrackInfo {
   mixName: string | null;
-  artists: ReadonlyArray<{ id: string; name: string; role?: string }>;
+  artists: ReadonlyArray<{ id: string; name: string; role?: string; ai?: AiRep | null }>;
   /** A label without an id is named, not linked. */
-  label: { id: string | null; name: string } | null;
+  label: { id: string | null; name: string; ai?: AiRep | null } | null;
   bpm: number | null;
   /** Shown only when given: the key's Camelot code, its name in the tooltip. */
   key?: { camelot: string | null; name: string | null };
@@ -124,6 +125,7 @@ export function TrackMeta({ info, children }: { info: PlayerTrackInfo; children?
             </Text>
             <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1 }}>
               {label.id ? <EntityLink kind="label" id={label.id} name={label.name} /> : label.name}
+              <AiRepBadge rep={label.ai} ml={4} />
             </Text>
           </Group>
         ) : null}

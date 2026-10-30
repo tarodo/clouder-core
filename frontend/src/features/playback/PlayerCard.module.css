@@ -42,6 +42,14 @@
   .root[data-actions] .text {
     padding-right: 36px;
   }
+  /* Wider top actions (curate's Fire) would cover the title: the text starts below them. */
+  .root[data-top-actions] .main {
+    align-items: flex-start;
+  }
+  .root[data-top-actions] .text {
+    padding-right: 0;
+    padding-top: 28px;
+  }
 }
 .cover {
   width: 108px;

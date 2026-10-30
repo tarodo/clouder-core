@@ -4,14 +4,15 @@ import { useTranslation } from 'react-i18next';
 import { useMediaQuery } from '@mantine/hooks';
 import type { BucketTrack } from '../../triage/hooks/useBucketTracks';
 import { AiBadge } from '../../playback/AiBadge';
+import { TrackKey } from '../../playback/TrackKey';
 import { AiRepBadge, NamesWithAi } from '../../library/components/AiRepBadge';
 
 export interface CurateCardProps {
   track: BucketTrack;
   onPlay?: (track: BucketTrack) => void;
   /**
-   * If true, hides the title / mix / artists / metadata block. Used on
-   * desktop where PlayerCard already shows title + artists + metaRow.
+   * If true, hides the title, mix, artists and label: the phone's PlayerCard
+   * shows them beside the cover, the card keeps BPM · key · length · release.
    */
   hideText?: boolean;
 }
@@ -30,6 +31,33 @@ function formatBpm(bpm: number | null): string {
 
 function formatReleaseDate(track: BucketTrack): string {
   return track.spotify_release_date ?? track.publish_date ?? '—';
+}
+
+/** BPM · key · length · release date of *track*. */
+export function CurateStats({ track }: { track: BucketTrack }) {
+  const { t } = useTranslation();
+  return (
+    <Group gap="md" wrap="wrap">
+      <Group gap={4} wrap="nowrap">
+        <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.bpm_label')}:</Text>
+        <Text size="sm" c="var(--color-fg-muted)">{formatBpm(track.bpm)}</Text>
+      </Group>
+      <Group gap={4} wrap="nowrap">
+        <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.key_label')}:</Text>
+        <TrackKey camelot={track.key_camelot} name={track.key_name} />
+      </Group>
+      {track.length_ms !== null && (
+        <Group gap={4} wrap="nowrap">
+          <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.length_label')}:</Text>
+          <Text size="sm" c="var(--color-fg-muted)">{formatLengthMs(track.length_ms)}</Text>
+        </Group>
+      )}
+      <Group gap={4} wrap="nowrap">
+        <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.released_label')}:</Text>
+        <Text size="sm" c="var(--color-fg-muted)">{formatReleaseDate(track)}</Text>
+      </Group>
+    </Group>
+  );
 }
 
 export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateCardProps) {
@@ -52,53 +80,38 @@ export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateC
       data-testid="curate-card"
     >
       {!hideText ? (
-        <>
-          <Group justify="space-between" align="flex-start" wrap="nowrap">
-            <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-              <Group gap={8} wrap="nowrap">
-                <Title order={titleOrder} size={titleSize}>
-                  {track.title}
-                </Title>
-                <AiBadge verdict={track.ai_verdict} />
-              </Group>
-              {track.mix_name && (
-                <Text c="var(--color-fg-muted)" size={isMobile ? 'sm' : 'md'}>
-                  {track.mix_name}
-                </Text>
-              )}
-              <Text size={isMobile ? 'sm' : 'md'} c="var(--color-fg)">
-                {artists}
-              </Text>
-            </Stack>
-          </Group>
-
-          <Stack gap={2}>
-            <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
-              <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.label_label')}:</Text>
-              <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1, minWidth: 0 }}>
-                {track.label_name ?? '—'}
-                <AiRepBadge rep={track.label_ai} ml={4} />
-              </Text>
+        <Group justify="space-between" align="flex-start" wrap="nowrap">
+          <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+            <Group gap={8} wrap="nowrap">
+              <Title order={titleOrder} size={titleSize}>
+                {track.title}
+              </Title>
+              <AiBadge verdict={track.ai_verdict} />
             </Group>
-            <Group gap="md" wrap="wrap">
-              <Group gap={4} wrap="nowrap">
-                <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.bpm_label')}:</Text>
-                <Text size="sm" c="var(--color-fg-muted)">{formatBpm(track.bpm)}</Text>
-              </Group>
-              {track.length_ms !== null && (
-                <Group gap={4} wrap="nowrap">
-                  <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.length_label')}:</Text>
-                  <Text size="sm" c="var(--color-fg-muted)">{formatLengthMs(track.length_ms)}</Text>
-                </Group>
-              )}
-              <Group gap={4} wrap="nowrap">
-                <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.released_label')}:</Text>
-                <Text size="sm" c="var(--color-fg-muted)">{formatReleaseDate(track)}</Text>
-              </Group>
-            </Group>
+            {track.mix_name && (
+              <Text c="var(--color-fg-muted)" size={isMobile ? 'sm' : 'md'}>
+                {track.mix_name}
+              </Text>
+            )}
+            <Text size={isMobile ? 'sm' : 'md'} c="var(--color-fg)">
+              {artists}
+            </Text>
           </Stack>
-        </>
+        </Group>
       ) : null}
+
+      <Stack gap={2}>
+        {!hideText ? (
+          <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
+            <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.label_label')}:</Text>
+            <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1, minWidth: 0 }}>
+              {track.label_name ?? '—'}
+              <AiRepBadge rep={track.label_ai} ml={4} />
+            </Text>
+          </Group>
+        ) : null}
+        <CurateStats track={track} />
+      </Stack>
 
       {!hideText && !track.spotify_id && (
         <Text size="sm" c="var(--color-fg-subtle)">

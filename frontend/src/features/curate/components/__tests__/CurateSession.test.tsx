@@ -1,6 +1,6 @@
 // frontend/src/features/curate/components/__tests__/CurateSession.test.tsx
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -101,9 +101,10 @@ function tracksPage(ids: string[]) {
       spotify_release_date: '2026-04-15',
       spotify_id: `sp-${id}`,
       release_type: 'single',
-      artists: ['Artist A'],
+      artists: [{ id: 'a-1', name: 'Artist A', role: 'artist' }],
       label_id: null,
       label_name: 'Label X',
+      label_ai: { level: 1, ai: 1, checked: 4, total: 9 },
       added_at: '2026-04-21T00:00:00Z',
     })),
     total: ids.length,
@@ -161,6 +162,19 @@ describe('CurateSession with PlayerCard', () => {
     expect(document.querySelector('[data-state="idle"]')).toBeInTheDocument();
     // Sanity: the curate-session container is mounted.
     expect(screen.getByTestId('curate-session')).toBeInTheDocument();
+  });
+
+  it('phone: title, artists and label sit beside the cover; the card below keeps the stats', async () => {
+    renderSession();
+    const card = await screen.findByTestId('curate-card');
+    const player = document.querySelector('[data-state]') as HTMLElement;
+    // The title comes from playback, empty in this mock: the heading is there, not hidden.
+    expect(within(player).getByRole('heading', { level: 3 })).toBeInTheDocument();
+    expect(within(player).getByRole('link', { name: 'Artist A' })).toBeInTheDocument();
+    expect(within(player).getByText('Label X')).toBeInTheDocument();
+    expect(within(player).getByLabelText('AI level 1')).toBeInTheDocument();
+    expect(within(card).queryByText('Track t1')).toBeNull();
+    expect(within(card).getByText('124')).toBeInTheDocument();
   });
 
   it('fire toggle tags the current track and reflects it', async () => {
