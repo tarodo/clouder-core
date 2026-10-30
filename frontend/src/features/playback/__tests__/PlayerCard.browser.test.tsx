@@ -101,6 +101,20 @@ test('no waveform: the flat bars keep the same height box, no caption', async ()
   expect(wave.textContent).toBe('');
 });
 
+/** Moves the mouse onto *bar*; resolves once the bars by it have lit up. */
+async function hover(wave: HTMLElement, bar: Element) {
+  const r = box(bar);
+  wave.dispatchEvent(
+    new PointerEvent('pointermove', {
+      bubbles: true,
+      clientX: r.left + 1.5,
+      clientY: r.top,
+      pointerType: 'mouse',
+    }),
+  );
+  await waitFor(() => expect((bar as HTMLElement).style.getPropertyValue('--glow')).toBe('1'));
+}
+
 // average channel, 0..255, of an element's background (tokens are oklch, color-mix gives
 // color(srgb ...)): a 1px canvas converts either
 const level = (el: Element) => {
@@ -121,16 +135,7 @@ test('hover: the bars past the pointer fade from its shade, no cut at the pointe
   });
   const bars = [...wave.querySelectorAll('i')];
   const k = 40;
-  const r = box(bars[k]!);
-  wave.dispatchEvent(
-    new PointerEvent('pointermove', {
-      bubbles: true,
-      clientX: r.left + 1.5,
-      clientY: r.top,
-      pointerType: 'mouse',
-    }),
-  );
-  await waitFor(() => expect(bars[k]!.style.getPropertyValue('--glow')).toBe('1'));
+  await hover(wave, bars[k]!);
   const [at, next, mid, far] = [k, k + 1, k + 5, k + 12].map((i) => level(bars[i]!));
   expect(Math.abs(next! - at!)).toBeLessThan(12); // the neighbour keeps nearly the pointer's shade
   expect(next).toBeLessThan(mid!);
@@ -139,4 +144,21 @@ test('hover: the bars past the pointer fade from its shade, no cut at the pointe
   const scale = (i: number) => box(bars[i]!).height / (bars[i] as HTMLElement).offsetHeight;
   await waitFor(() => expect(scale(k)).toBeCloseTo(1.18, 1));
   expect(scale(k + 12)).toBeCloseTo(1, 1); // offsetHeight rounds to whole px
+});
+
+test('hover on the flat bars: a smooth hump of a few px, the time clear above it', async () => {
+  renderAt(442);
+  await waitFor(() => expect(apiMock).toHaveBeenCalled());
+  const wave = screen.getByRole('slider', { name: 'Scrub bar' });
+  await waitFor(() => expect(wave.querySelectorAll('i').length).toBeGreaterThan(60));
+  const bars = [...wave.querySelectorAll('i')];
+  const k = 40;
+  await hover(wave, bars[k]!);
+  await new Promise((r) => setTimeout(r, 300)); // the 140ms grow transition
+  const rest = box(bars[k + 12]!).height;
+  const rise = (i: number) => (box(bars[i]!).height - rest) / 2; // px each way
+  expect(rise(k)).toBeGreaterThan(2.5); // a 1px bump reads as a step, not a hump
+  for (let i = k; i < k + 9; i++) expect(rise(i) - rise(i + 1)).toBeLessThan(0.8);
+  const tip = wave.querySelector('span')!;
+  expect(box(tip).bottom).toBeLessThanOrEqual(box(bars[k]!).top - 3);
 });

@@ -73,6 +73,7 @@ export function Waveform({
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : 0}
       data-disabled={disabled || undefined}
+      data-flat={!heights || undefined}
       style={style}
       onPointerMove={(e) => {
         if (disabled) return;
@@ -129,7 +130,6 @@ export function Waveform({
       {hoverMs !== null && !disabled ? (
         <span
           className={classes.tip}
-          data-flat={!heights || undefined}
           style={{ left: Math.min(span - 18, Math.max(18, (hoverMs / duration) * span)) }}
         >
           {clock(hoverMs)}

@@ -67,13 +67,19 @@
   white-space: nowrap;
 }
 
-/* the short placeholder bars: keep the time close to them */
-.tip[data-flat] {
-  top: 4px;
+/* The short placeholder bars (12px): +18% would be a 1px step, +50% is a hump. The time sits
+   close above it. */
+.wave[data-flat] .bar {
+  transform: scaleY(calc(1 + 0.5 * var(--glow, 0)));
+}
+
+.wave[data-flat] .tip {
+  top: -4px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bar {
+  .bar,
+  .wave[data-flat] .bar {
     transition: none;
     transform: none;
   }
