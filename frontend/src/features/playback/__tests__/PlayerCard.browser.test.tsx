@@ -72,11 +72,20 @@ test('a side-panel player (442px) gives the title and artists room: controls go 
   expect(artists.scrollWidth).toBeLessThanOrEqual(artists.clientWidth); // fits, no ellipsis
 });
 
-test('a phone player with top actions (curate: Fire) starts the text below them', () => {
-  const { title } = renderAt(351, null, 0, <button type="button" style={{ width: 90 }}>Fire</button>);
+test('a phone player with top actions (curate: Fire) puts them in the transport row', () => {
+  const { title, play, cover } = renderAt(351, null, 0, <button type="button" style={{ width: 50 }}>Fire</button>);
   const fire = screen.getByRole('button', { name: 'Fire' });
-  expect(box(title).top).toBeGreaterThanOrEqual(box(fire).bottom);
-  expect(box(title).width).toBeGreaterThan(150);
+  const link = screen.getByRole('link', { name: /spotify/i });
+  const prev = screen.getByRole('button', { name: /previous/i });
+  const next = screen.getByRole('button', { name: /next/i });
+  const midY = (el: Element) => box(el).top + box(el).height / 2;
+  const midX = (el: Element) => box(el).left + box(el).width / 2;
+  expect(Math.abs(midY(fire) - midY(play))).toBeLessThan(2);
+  expect(Math.abs(midY(link) - midY(play))).toBeLessThan(2);
+  expect(box(fire).right).toBeLessThanOrEqual(box(prev).left);
+  expect(box(link).left).toBeGreaterThanOrEqual(box(next).right);
+  expect(Math.abs(midX(play) - midX(title.closest('.mantine-Paper-root')!))).toBeLessThan(2);
+  expect(box(title).top).toBeLessThan(box(cover).top + 8); // beside the cover, not pushed down
 });
 
 test('a long title wraps onto a second line in a narrow player instead of an ellipsis', () => {
