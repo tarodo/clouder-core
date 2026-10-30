@@ -1195,8 +1195,7 @@ ANALYSIS_STATUS = {
         },
         "profile": {
             "type": "object",
-            "description": "The matched tracks per light_profile state; the buckets sum "
-            "to total.",
+            "description": "The matched tracks per light_profile state; the buckets sum to total.",
             "required": ["total", "waiting", "in_progress", "profiled", "failed", "unusable"],
             "properties": {
                 "total": {"type": "integer", "description": "Tracks with a matched video."},
