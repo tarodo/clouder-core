@@ -1,5 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
@@ -118,7 +119,9 @@ function ui(items: CategoryTrack[] = []) {
     <QueryClientProvider client={qc}>
       <MantineProvider>
         <Notifications />
-        <CategoryPlayerPanel categoryId="c1" items={items} />
+        <MemoryRouter>
+          <CategoryPlayerPanel categoryId="c1" items={items} />
+        </MemoryRouter>
       </MantineProvider>
     </QueryClientProvider>
   );
@@ -146,6 +149,12 @@ describe('CategoryPlayerPanel', () => {
   it('renders the current track title', () => {
     render(ui());
     expect(screen.getByText('X')).toBeInTheDocument();
+  });
+
+  it('the player links the artists and the label to their pages', () => {
+    render(ui([{ ...placedTrack, label: { id: 'l1', name: 'Lbl' } }]));
+    expect(screen.getByRole('link', { name: 'A' })).toHaveAttribute('href', '/artists/a1');
+    expect(screen.getByRole('link', { name: 'Lbl' })).toHaveAttribute('href', '/labels/l1');
   });
 
   it('renders the playlist cloud (with mock playlist)', () => {

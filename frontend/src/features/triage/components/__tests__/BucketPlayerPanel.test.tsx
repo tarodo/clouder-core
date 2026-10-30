@@ -1,5 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router';
 import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -60,7 +61,9 @@ function r(ui: React.ReactNode) {
   // the player's waveform reads the query cache
   return render(
     <QueryClientProvider client={new QueryClient()}>
-      <MantineProvider>{ui}</MantineProvider>
+      <MantineProvider>
+        <MemoryRouter>{ui}</MemoryRouter>
+      </MantineProvider>
     </QueryClientProvider>,
   );
 }

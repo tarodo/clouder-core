@@ -21,6 +21,7 @@ import {
   type EntityTrack,
   type NamedRef,
 } from '../hooks/useEntityTracks';
+import { EntityLink } from './EntityLinks';
 import classes from './EntityPlayerPanel.module.css';
 
 export interface EntityPlayerPanelProps {
@@ -141,7 +142,8 @@ export function EntityPlayerPanel({ kind, entityId, items }: EntityPlayerPanelPr
     <Group gap="md" wrap="wrap" mt={4}>
       {kind === 'artist' && rich.label ? (
         <Text size="sm" c="var(--color-fg-muted)" truncate maw="100%">
-          {t('curate.card.label_label')}: {rich.label.name}
+          {t('curate.card.label_label')}:{' '}
+          <EntityLink kind="label" id={rich.label.id} name={rich.label.name} />
         </Text>
       ) : null}
       {rich.bpm != null ? (
@@ -166,6 +168,7 @@ export function EntityPlayerPanel({ kind, entityId, items }: EntityPlayerPanelPr
         track={current}
         positionMs={playback.track.positionMs}
         mixName={rich?.mix_name ?? null}
+        artistLinks={rich?.id === current.id ? rich.artists : undefined}
         belowMainRow={meta}
         showTimes
         spotifyHref={

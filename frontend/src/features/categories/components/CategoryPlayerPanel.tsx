@@ -21,6 +21,7 @@ import { PlayerPanelTagCloud } from './PlayerPanelTagCloud';
 import { PlayerPanelPlaylistCloud } from './PlayerPanelPlaylistCloud';
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { EntityLink } from '../../library/components/EntityLinks';
 import { CommentsPanel } from '../../playlists/components/CommentsPanel';
 import classes from './CategoryPlayerPanel.module.css';
 
@@ -262,7 +263,7 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
                 {t('curate.card.label_label')}:
               </Text>
               <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1 }}>
-                {effectiveRich.label.name}
+                <EntityLink kind="label" id={effectiveRich.label.id} name={effectiveRich.label.name} />
               </Text>
             </Group>
           ) : null}
@@ -283,6 +284,7 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
         track={current}
         positionMs={playback.track.positionMs}
         mixName={effectiveRich?.mix_name ?? null}
+        artistLinks={effectiveRich?.id === current.id ? effectiveRich.artists : undefined}
         belowMainRow={metaRow}
         showTimes
         spotifyHref={spotifyHref}

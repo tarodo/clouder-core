@@ -13,6 +13,7 @@ import { moveDestinationsFor } from '../lib/bucketLabels';
 import { suggestedDestinations, suggestionTag } from '../lib/suggestedDestinations';
 import { LabelTile } from '../../library/components/LabelTile';
 import { ArtistsPanel } from '../../library/components/ArtistsPanel';
+import { EntityLink } from '../../library/components/EntityLinks';
 import { AnalysisMeta } from './AnalysisMeta';
 import classes from './BucketPlayerPanel.module.css';
 
@@ -101,7 +102,11 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
         <Group gap="md" wrap="wrap" style={{ minWidth: 0 }}>
           {effectiveRich.label_name ? (
             <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1 }}>
-              {effectiveRich.label_name}
+              {effectiveRich.label_id ? (
+                <EntityLink kind="label" id={effectiveRich.label_id} name={effectiveRich.label_name} />
+              ) : (
+                effectiveRich.label_name
+              )}
             </Text>
           ) : null}
           {effectiveRich.bpm != null ? (
@@ -129,6 +134,7 @@ export function BucketPlayerPanel({ blockId, bucketId, items }: BucketPlayerPane
         track={current}
         positionMs={playback.track.positionMs}
         mixName={effectiveRich?.mix_name ?? null}
+        artistLinks={effectiveRich?.artists}
         belowMainRow={metaRow}
         showTimes
         spotifyHref={spotifyHref}

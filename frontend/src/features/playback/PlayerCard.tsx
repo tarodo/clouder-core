@@ -15,6 +15,7 @@ import type { PlaybackTrack } from './lib/types';
 import { useScrubDebounce } from './useScrubDebounce';
 import { pctToMs } from './lib/seekHotkeys';
 import { formatLength } from '../../lib/formatters';
+import { ArtistLinks } from '../library/components/EntityLinks';
 import { AiBadge } from './AiBadge';
 import { useLivePosition } from './useLivePosition';
 import { usePlayerScrubber } from './usePlayerScrubber';
@@ -74,6 +75,8 @@ export interface PlayerCardProps {
    * below the scrubber. Opt-in so curate's denser layout stays unchanged.
    */
   showTimes?: boolean;
+  /** The track's artists with ids: the subline names them as links to their pages. */
+  artistLinks?: ReadonlyArray<{ id: string; name: string }>;
   /** Extra controls in the top-right row, left of the Spotify link (full variant). */
   topActions?: ReactNode;
   /** Spotify external open href; when set, renders an icon button at top-right. */
@@ -141,6 +144,7 @@ export function PlayerCard(props: PlayerCardProps) {
     spotifyHref,
     spotifyAriaLabel,
     topActions,
+    artistLinks,
     onPlayPause,
     onPrev,
     onNext,
@@ -194,7 +198,7 @@ export function PlayerCard(props: PlayerCardProps) {
       </Text>
     ) : (
       <Text size="sm" c="dimmed" truncate>
-        {track?.artists ?? ''}
+        {artistLinks?.length ? <ArtistLinks artists={artistLinks} /> : (track?.artists ?? '')}
       </Text>
     );
 
