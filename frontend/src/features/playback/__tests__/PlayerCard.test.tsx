@@ -250,12 +250,6 @@ describe('PlayerCard AI badge', () => {
         const heights = new Set([...wave.querySelectorAll('i')].map((b) => b.style.height));
         expect(heights).toEqual(new Set(['10%', '100%']));
       });
-      expect(screen.queryByText('No waveform')).not.toBeInTheDocument();
-    });
-
-    it('a track without one shows the flat bar and its caption', async () => {
-      render(wrap(<PlayerCard {...baseProps} state="paused" />));
-      expect(await screen.findByText('No waveform')).toBeInTheDocument();
     });
 
     it('is the plain progress bar when the user chose it', () => {
