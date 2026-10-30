@@ -56,9 +56,22 @@ describe('CurateCard', () => {
     expect(screen.queryByText(/No Spotify match/i)).toBeNull();
   });
 
+  it('hideText leaves the stats: the player names the track, artists and label', () => {
+    render(wrap(<CurateCard track={mkTrack({ key_camelot: '8A' })} hideText />));
+    expect(screen.queryByText('Sunset Drive')).toBeNull();
+    expect(screen.queryByText('Big Room Records')).toBeNull();
+    expect(screen.getByText('124')).toBeInTheDocument();
+    expect(screen.getByText('8A')).toBeInTheDocument();
+  });
+
+  it('shows the key', () => {
+    render(wrap(<CurateCard track={mkTrack({ key_camelot: '8A' })} />));
+    expect(screen.getByText('8A')).toBeInTheDocument();
+  });
+
   it('formats unknown BPM and length gracefully', () => {
     render(wrap(<CurateCard track={mkTrack({ bpm: null, length_ms: null })} />));
-    expect(screen.getByText(/—/)).toBeInTheDocument();
+    expect(screen.getAllByText('—')).toHaveLength(2); // BPM and the missing key
   });
 
   // F6: the in-card Play ActionIcon was removed; the PlayerCard's center

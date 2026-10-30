@@ -212,6 +212,7 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
     artists: row.artists,
     label: row.label,
     bpm: row.bpm,
+    key: { camelot: row.key_camelot ?? null, name: row.key_name ?? null },
   };
 
   return (

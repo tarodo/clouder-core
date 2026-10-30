@@ -732,6 +732,7 @@
       "released_label": "Released",
       "label_label": "Label",
       "bpm_label": "BPM",
+      "key_label": "Key",
       "length_label": "Length",
       "no_spotify_id": "No Spotify match",
       "fire": "Fire",

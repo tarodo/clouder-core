@@ -19,7 +19,8 @@ export function bucketTrackInfo(t: BucketTrack): PlayerTrackInfo {
   return {
     mixName: t.mix_name,
     artists: t.artists,
-    label: t.label_name ? { id: t.label_id, name: t.label_name } : null,
+    label: t.label_name ? { id: t.label_id, name: t.label_name, ai: t.label_ai } : null,
     bpm: t.bpm,
+    key: { camelot: t.key_camelot ?? null, name: t.key_name ?? null },
   };
 }

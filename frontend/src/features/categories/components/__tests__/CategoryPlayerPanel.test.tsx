@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
@@ -155,6 +155,23 @@ describe('CategoryPlayerPanel', () => {
     render(ui([{ ...placedTrack, label: { id: 'l1', name: 'Lbl' } }]));
     expect(screen.getByRole('link', { name: 'A' })).toHaveAttribute('href', '/artists/a1');
     expect(screen.getByRole('link', { name: 'Lbl' })).toHaveAttribute('href', '/labels/l1');
+  });
+
+  it('marks the AI reputation of the artists and the label in the player', () => {
+    const rep = (level: 1 | 2 | 3) => ({ level, ai: 1, checked: 2, total: 3 });
+    render(ui([{
+      ...placedTrack,
+      artists: [{ id: 'a1', name: 'A', ai: rep(2) }],
+      label: { id: 'l1', name: 'Lbl', ai: rep(3) },
+    }]));
+    const player = document.querySelector('[data-state]') as HTMLElement;
+    expect(within(player).getByLabelText('AI level 2')).toBeInTheDocument();
+    expect(within(player).getByLabelText('AI level 3')).toBeInTheDocument();
+  });
+
+  it('shows the key of the playing track', () => {
+    render(ui([{ ...placedTrack, key_camelot: '8A' }]));
+    expect(screen.getByText('8A')).toBeInTheDocument();
   });
 
   it("a track missing from the list never shows the previous track's label", () => {

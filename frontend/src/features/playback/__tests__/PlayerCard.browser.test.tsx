@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { expect, test, vi } from 'vitest';
 import '../../../i18n';
 import { clouderTheme } from '../../../theme';
@@ -29,6 +30,7 @@ function renderAt(
   width: number,
   waveform: { duration_ms: number; data: string } | null = null,
   positionMs = 0,
+  topActions?: ReactNode,
 ) {
   apiMock.mockResolvedValue({ waveform });
   render(
@@ -49,6 +51,7 @@ function renderAt(
             onRetry={noop}
             onOpenDevicePicker={noop}
             onSeekMs={noop}
+            topActions={topActions}
           />
         </div>
       </MantineProvider>
@@ -67,6 +70,13 @@ test('a side-panel player (442px) gives the title and artists room: controls go 
   expect(box(play).top).toBeGreaterThanOrEqual(box(cover).bottom);
   expect(box(title).width).toBeGreaterThan(200);
   expect(artists.scrollWidth).toBeLessThanOrEqual(artists.clientWidth); // fits, no ellipsis
+});
+
+test('a phone player with top actions (curate: Fire) starts the text below them', () => {
+  const { title } = renderAt(351, null, 0, <button type="button" style={{ width: 90 }}>Fire</button>);
+  const fire = screen.getByRole('button', { name: 'Fire' });
+  expect(box(title).top).toBeGreaterThanOrEqual(box(fire).bottom);
+  expect(box(title).width).toBeGreaterThan(150);
 });
 
 test('a long title wraps onto a second line in a narrow player instead of an ellipsis', () => {

@@ -97,6 +97,7 @@ function tracksPageWithArtists() {
         artists: [{ id: 'a1', name: 'Joja', role: 'main' }],
         label_id: null,
         label_name: null,
+        key_camelot: '8A',
         added_at: '2026-04-21T00:00:00Z',
       },
     ],
@@ -153,5 +154,10 @@ describe('CurateSession — artist tile', () => {
     const links = await screen.findAllByRole('link', { name: 'Joja' });
     expect(links.map((l) => l.getAttribute('href'))).toEqual(['/artists/a1', '/artists/a1']);
     expect(screen.getByRole('button', { name: /^like artist$/i })).toBeInTheDocument();
+  });
+
+  it('the desktop meta row shows the key', async () => {
+    renderSession();
+    expect(await screen.findByText('8A')).toBeInTheDocument();
   });
 });

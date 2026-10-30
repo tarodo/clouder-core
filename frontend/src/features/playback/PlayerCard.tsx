@@ -15,6 +15,7 @@ import type { PlaybackTrack } from './lib/types';
 import { useScrubDebounce } from './useScrubDebounce';
 import { pctToMs } from './lib/seekHotkeys';
 import { formatLength } from '../../lib/formatters';
+import type { AiRep } from '../library/components/AiRepBadge';
 import { ArtistLinks } from '../library/components/EntityLinks';
 import { AiBadge } from './AiBadge';
 import { useLivePosition } from './useLivePosition';
@@ -36,11 +37,6 @@ export interface PlayerCardProps {
   state: PlayerCardState;
   track: PlaybackTrack | null;
   positionMs: number;
-  /**
-   * If false, hides the title/subline Stack entirely. Used by mobile
-   * CurateSession to avoid duplicating CurateCard's metadata.
-   */
-  showText?: boolean;
   /**
    * Optional metadata row (BPM · key · label · length etc.) rendered below
    * the subline on desktop. CurateSession passes a custom node so PlayerCard
@@ -76,7 +72,7 @@ export interface PlayerCardProps {
    */
   showTimes?: boolean;
   /** The track's artists with ids: the subline names them as links to their pages. */
-  artistLinks?: ReadonlyArray<{ id: string; name: string }>;
+  artistLinks?: ReadonlyArray<{ id: string; name: string; ai?: AiRep | null }>;
   /** Extra controls in the top-right row, left of the Spotify link (full variant). */
   topActions?: ReactNode;
   /** Spotify external open href; when set, renders an icon button at top-right. */
@@ -134,7 +130,6 @@ export function PlayerCard(props: PlayerCardProps) {
     state,
     track,
     positionMs: anchoredMs,
-    showText = true,
     metaRow,
     mixName,
     deviceIndicator,
@@ -217,6 +212,7 @@ export function PlayerCard(props: PlayerCardProps) {
       data-state={state}
       data-variant={variant}
       data-actions={(!isMini && (spotifyHref || topActions)) || undefined}
+      data-top-actions={(!isMini && topActions) || undefined}
       p={isMini ? 'sm' : 'lg'}
       pb={mobileSeekChips ? 'sm' : undefined}
       radius="md"
@@ -253,8 +249,7 @@ export function PlayerCard(props: PlayerCardProps) {
           ) : null}
         </div>
 
-        {showText ? (
-          <Stack gap={4} flex={1} miw={0} className={classes.text}>
+        <Stack gap={4} flex={1} miw={0} className={classes.text}>
             <Group gap={8} wrap="nowrap" miw={0}>
               <Title order={isMini ? 5 : 3} className={classes.title}>
                 {track?.title ?? '—'}
@@ -269,10 +264,7 @@ export function PlayerCard(props: PlayerCardProps) {
             {subline}
             {deviceIndicator}
             {metaRow}
-          </Stack>
-        ) : (
-          <div style={{ flex: 1 }} />
-        )}
+        </Stack>
 
         <div className={classes.controls}>
           {!isMini ? (

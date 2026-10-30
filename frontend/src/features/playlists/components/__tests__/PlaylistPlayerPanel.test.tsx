@@ -180,6 +180,11 @@ describe('PlaylistPlayerPanel', () => {
     expect(playbackWithTrack.controls.next).not.toHaveBeenCalled();
   });
 
+  it('shows the key of the playing track', () => {
+    render(ui([{ ...seedTrack, key_camelot: '8A' }]));
+    expect(screen.getByText('8A')).toBeInTheDocument();
+  });
+
   it('the player and the LabelTile name the label as a link to its page', async () => {
     const fokuzTrack: PlaylistTrack = {
       ...seedTrack,
