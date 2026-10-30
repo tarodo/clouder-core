@@ -18,12 +18,14 @@ import { bucketLabel, type TriageBucket } from '../../triage/lib/bucketLabels';
 import { suggestedDestinations } from '../../triage/lib/suggestedDestinations';
 import { usePlayback } from '../../playback/usePlayback';
 import { usePlaybackHotkeys } from '../../playback/usePlaybackHotkeys';
-import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
-import { DeviceIndicator } from '../../playback/DeviceIndicator';
+import {
+  ConnectedPlayerCard,
+  TrackCards,
+  transportHotkeys,
+} from '../../playback/TrackPlayer';
 import { spotifyApi } from '../../playback/api/spotifyWebApi';
-import { LabelTile } from '../../library/components/LabelTile';
-import { ArtistsPanel } from '../../library/components/ArtistsPanel';
 import { EntityLink } from '../../library/components/EntityLinks';
+import { bucketTrackInfo } from '../../triage/lib/toPlaybackTrack';
 import { AnalysisMeta } from '../../triage/components/AnalysisMeta';
 
 export interface CurateSessionProps {
@@ -53,28 +55,11 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
     onToggleFire: fire.toggle,
   });
 
-  usePlaybackHotkeys({
-    onTogglePlayPause: () => void playback.controls.togglePlayPause(),
-    onPrev: () => void playback.controls.prev(),
-    onNext: () => void playback.controls.next(),
-    onSeekRelative: (delta) =>
-      void playback.controls.seekMs(playback.track.positionMs + delta),
-    onSeekPct: (p) => void playback.controls.seekPct(p),
-  });
+  usePlaybackHotkeys(transportHotkeys(playback));
 
   const allNullSpotifyId =
     playback.queue.tracks.length > 0 &&
     playback.queue.tracks.every((t) => t.spotify_id == null || t.spotify_id === '');
-
-  const playerState: PlayerCardState = (() => {
-    if (allNullSpotifyId) return 'empty-bucket';
-    if (playback.sdk.error?.kind === 'init') return 'disconnected';
-    const status = playback.queue.status;
-    if (status === 'error') return 'error';
-    if (status === 'idle' || status === 'ended') return 'idle';
-    if (status === 'loading' || status === 'buffering') return 'buffering';
-    return status; // 'playing' | 'paused'
-  })();
 
   const baseTrack =
     playback.track.current ??
@@ -199,11 +184,9 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         </ActionIcon>
       </Group>
 
-      <PlayerCard
-        variant="full"
-        state={playerState}
+      <ConnectedPlayerCard
+        emptyBucket={allNullSpotifyId}
         track={playerTrack}
-        positionMs={playback.track.positionMs}
         showText={!isMobile}
         mobileSeekChips={isMobile}
         spotifyHref={
@@ -283,20 +266,6 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
             </Stack>
           ) : undefined
         }
-        onPlayPause={() => void playback.controls.togglePlayPause()}
-        onPrev={() => void playback.controls.prev()}
-        onNext={() => void playback.controls.next()}
-        onRetry={() => void playback.controls.play()}
-        deviceIndicator={
-          <DeviceIndicator
-            mode="full"
-            active={playback.devices.active}
-            cloderTabId={playback.devices.cloderTabId}
-            onOpen={(anchor) => playback.devices.open(anchor)}
-          />
-        }
-        onOpenDevicePicker={() => playback.devices.open(null)}
-        onSeekMs={(ms) => void playback.controls.seekMs(ms)}
         topActions={
           <Button
             size="compact-xs"
@@ -380,11 +349,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
           marginLeft: 'calc(360px + var(--mantine-spacing-md))',
         }}
       >
-        <LabelTile
-          labelId={session.currentTrack?.label_id ?? null}
-          labelName={session.currentTrack?.label_name ?? null}
-        />
-        <ArtistsPanel artists={session.currentTrack?.artists ?? []} />
+        <TrackCards info={bucketTrackInfo(session.currentTrack)} />
       </Stack>
     )}
     </div>

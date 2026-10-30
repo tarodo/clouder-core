@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import '../../../../i18n';
@@ -70,7 +71,9 @@ function renderSection(width?: number) {
     <QueryClientProvider client={new QueryClient()}>
       <MantineProvider theme={clouderTheme}>
         <div style={{ width }}>
-          <EntityTracksSection kind="artist" entityId="a" />
+          <MemoryRouter>
+            <EntityTracksSection kind="artist" entityId="a" />
+          </MemoryRouter>
         </div>
       </MantineProvider>
     </QueryClientProvider>,
@@ -92,7 +95,7 @@ describe('EntityTracksSection layout', () => {
     renderSection(1100);
     const table = await screen.findByRole('table');
     const date = within(table).getAllByText('2026-10-09')[0]!;
-    const panel = (await screen.findByText('Categories · Melodic House & Techno')).closest('[data-entity-player]')!;
+    const panel = (await screen.findByText('Categories · Melodic House & Techno')).closest('[data-player]')!;
     expect(box(panel).right).toBeLessThanOrEqual(box(table).left);
     expect(box(panel).width).toBe(442);
     expect(lines(date)).toBe(1);
@@ -103,7 +106,7 @@ describe('EntityTracksSection layout', () => {
     await page.viewport(375, 800);
     const { container } = renderSection();
     await screen.findAllByText('2026-10-09');
-    const panel = (await screen.findByText('Categories · Melodic House & Techno')).closest('[data-entity-player]')!;
+    const panel = (await screen.findByText('Categories · Melodic House & Techno')).closest('[data-player]')!;
     expect(screen.queryByRole('table')).toBeNull();
     expect(box(panel).width).toBeCloseTo(box(container).width, 0);
     const firstCard = screen.getAllByText(/^Track number/)[0]!;

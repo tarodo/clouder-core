@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Divider, Group, Stack, Text } from '@mantine/core';
+import { Divider, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { usePlayback } from '../../playback/usePlayback';
@@ -14,14 +14,15 @@ import { undoStack, useUndoStack } from '../hooks/useUndoStack';
 import { useRemoveTrackOptimistic } from '../hooks/useRemoveTrackOptimistic';
 import { useAddTrackToCategory } from '../hooks/useAddTrackToCategory';
 import { useTelemetry } from '../../../lib/telemetry/hooks';
-import { PlayerCard, type PlayerCardState } from '../../playback/PlayerCard';
-import { DeviceIndicator } from '../../playback/DeviceIndicator';
+import {
+  TrackCards,
+  TrackPlayer,
+  transportHotkeys,
+  usePlayingRow,
+} from '../../playback/TrackPlayer';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
 import { PlayerPanelTagCloud } from './PlayerPanelTagCloud';
 import { PlayerPanelPlaylistCloud } from './PlayerPanelPlaylistCloud';
-import { LabelTile } from '../../library/components/LabelTile';
-import { ArtistsPanel } from '../../library/components/ArtistsPanel';
-import { EntityLink } from '../../library/components/EntityLinks';
 import { CommentsPanel } from '../../playlists/components/CommentsPanel';
 import classes from './CategoryPlayerPanel.module.css';
 
@@ -66,32 +67,15 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
     return map;
   }, [tagsQuery.data]);
 
-  // Rich metadata lookup: find the currently playing track inside `items`.
-  // When the playing track was just shrunk out of the list (e.g. assigned to
-  // a playlist with fresh-on), we fall back to the last-seen rich row so the
-  // PlayerCard keeps showing label/BPM until natural-end → next track.
-  const richTrack = useMemo<CategoryTrack | null>(() => {
-    const id = current?.id;
-    if (!id) return null;
-    return items.find((it) => it.id === id) ?? null;
-  }, [items, current?.id]);
-  const lastRichRef = useRef<CategoryTrack | null>(null);
-  useEffect(() => {
-    if (richTrack) lastRichRef.current = richTrack;
-  }, [richTrack]);
-  const effectiveRich = richTrack ?? lastRichRef.current;
-  // Drop the cached rich row when playback stops entirely so the empty state
-  // doesn't show metadata from the previous session.
-  useEffect(() => {
-    if (!current) lastRichRef.current = null;
-  }, [current]);
+  // Kept while the track drops out of the list (e.g. added to a playlist with fresh-on).
+  const row = usePlayingRow(items, (it) => it.id);
 
   // The playing track's tag and playlist assignments are sourced from the
   // rich CategoryTrack row (which carries `tags`). Playlist membership is
   // not projected today — that stays as an empty list.
   const assignedTagIds = useMemo<readonly string[]>(
-    () => effectiveRich?.tags.map((tg) => tg.id) ?? [],
-    [effectiveRich?.tags],
+    () => row?.tags.map((tg) => tg.id) ?? [],
+    [row?.tags],
   );
   const trackPlaylistIds = useMemo<readonly string[]>(() => [], []);
 
@@ -168,10 +152,10 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
     if (!trackId || removing.current) return;
     removing.current = true;
     // The row's own values let U put it back in its old place.
-    const restore = effectiveRich
+    const restore = row
       ? {
-          added_at: effectiveRich.added_at,
-          source_triage_block_id: effectiveRich.source_triage_block_id,
+          added_at: row.added_at,
+          source_triage_block_id: row.source_triage_block_id,
         }
       : undefined;
     try {
@@ -193,7 +177,7 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
   }, [
     categoryId,
     trackId,
-    effectiveRich,
+    row,
     removeFromCategory,
     addToCategory,
     telemetry,
@@ -217,123 +201,51 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
       playback.queue.source?.type === 'category' &&
       playback.queue.source.categoryId === categoryId,
     playlistCount: Math.min(10, playlistsQuery.data?.items?.length ?? 0),
-    onTogglePlayPause: () => void playback.controls.togglePlayPause(),
-    onPrev: () => void playback.controls.prev(),
-    onNext: () => void playback.controls.next(),
-    onSeekRelative: (delta) =>
-      void playback.controls.seekMs(playback.track.positionMs + delta),
-    onSeekPct: (p) => void playback.controls.seekPct(p),
+    ...transportHotkeys(playback),
     onTogglePlaylist: onTogglePlaylistByIndex,
     onUndo: () => void undoStack.popAndRun(),
     onRemove: () => void onRemoveFromCategory(),
   });
 
-  // Map the queue status to a PlayerCardState (the card has a richer state
-  // machine including error / disconnected / empty-bucket which the bucket
-  // session uses; for category playback we collapse to the basics).
-  const playerState: PlayerCardState = (() => {
-    if (playback.sdk.error?.kind === 'init') return 'disconnected';
-    const status = playback.queue.status;
-    if (status === 'error') return 'error';
-    if (status === 'idle' || status === 'ended') return 'idle';
-    if (status === 'loading' || status === 'buffering') return 'buffering';
-    if (status === 'disconnected') return 'disconnected';
-    return status; // 'playing' | 'paused'
-  })();
-
-  if (!current) {
-    return (
-      <Stack className={classes.root} gap="md">
-        <Text c="dimmed">{t('category_player.empty.pick_track')}</Text>
-      </Stack>
-    );
-  }
-
-  const spotifyHref = current.spotify_id
-    ? `https://open.spotify.com/track/${current.spotify_id}`
-    : undefined;
-
-  const metaRow =
-    effectiveRich != null ? (
-      <Stack gap={2} mt={4}>
-        <Group gap="md" wrap="wrap" style={{ minWidth: 0 }}>
-          {effectiveRich.label?.name ? (
-            <Group gap={4} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-              <Text size="sm" c="var(--color-fg-muted)">
-                {t('curate.card.label_label')}:
-              </Text>
-              <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1 }}>
-                <EntityLink kind="label" id={effectiveRich.label.id} name={effectiveRich.label.name} />
-              </Text>
-            </Group>
-          ) : null}
-          {effectiveRich.bpm != null ? (
-            <Text size="sm" c="var(--color-fg-muted)" className="font-mono">
-              {effectiveRich.bpm} BPM
-            </Text>
-          ) : null}
-        </Group>
-      </Stack>
-    ) : null;
+  const info = row && {
+    mixName: row.mix_name,
+    artists: row.artists,
+    label: row.label,
+    bpm: row.bpm,
+  };
 
   return (
-    <Stack className={classes.root} gap="md">
-      <PlayerCard
-        variant="full"
-        state={playerState}
-        track={current}
-        positionMs={playback.track.positionMs}
-        mixName={effectiveRich?.mix_name ?? null}
-        artistLinks={effectiveRich?.id === current.id ? effectiveRich.artists : undefined}
-        belowMainRow={metaRow}
-        showTimes
-        spotifyHref={spotifyHref}
-        spotifyAriaLabel={t('category_player.actions.open_in_spotify_aria', {
-          title: current.title,
-        })}
-        deviceIndicator={
-          <DeviceIndicator
-            mode="full"
-            active={playback.devices.active}
-            cloderTabId={playback.devices.cloderTabId}
-            onOpen={(anchor) => playback.devices.open(anchor)}
+    <TrackPlayer
+      className={classes.root}
+      info={info}
+      empty={t('category_player.empty.pick_track')}
+    >
+      {(track) => (
+        <>
+          <Divider />
+          <Text fw={500} size="sm">
+            {t('category_player.sections.tags')}
+          </Text>
+          <PlayerPanelTagCloud
+            trackId={track.id}
+            assignedTagIds={assignedTagIds}
+            onAdd={(id) => void onAddTag(id)}
+            onRemove={(id) => void onRemoveTag(id)}
           />
-        }
-        onPlayPause={() => void playback.controls.togglePlayPause()}
-        onPrev={() => void playback.controls.prev()}
-        onNext={() => void playback.controls.next()}
-        onRetry={() => void playback.controls.play()}
-        onOpenDevicePicker={() => playback.devices.open(null)}
-        onSeekMs={(ms) => void playback.controls.seekMs(ms)}
-      />
-      <Divider />
-      <Text fw={500} size="sm">
-        {t('category_player.sections.tags')}
-      </Text>
-      <PlayerPanelTagCloud
-        trackId={current.id}
-        assignedTagIds={assignedTagIds}
-        onAdd={(id) => void onAddTag(id)}
-        onRemove={(id) => void onRemoveTag(id)}
-      />
-      <Divider />
-      <Text fw={500} size="sm">
-        {t('category_player.sections.playlists')}
-      </Text>
-      <PlayerPanelPlaylistCloud
-        trackId={current.id}
-        trackPlaylistIds={trackPlaylistIds}
-        onAdd={(id) => void onAddPlaylist(id)}
-        onRemove={(id) => void onRemovePlaylist(id)}
-      />
-      {effectiveRich?.label?.id && (
-        <LabelTile
-          labelId={effectiveRich.label.id}
-          labelName={effectiveRich.label.name ?? null}
-        />
+          <Divider />
+          <Text fw={500} size="sm">
+            {t('category_player.sections.playlists')}
+          </Text>
+          <PlayerPanelPlaylistCloud
+            trackId={track.id}
+            trackPlaylistIds={trackPlaylistIds}
+            onAdd={(id) => void onAddPlaylist(id)}
+            onRemove={(id) => void onRemovePlaylist(id)}
+          />
+          <TrackCards info={info} />
+          <CommentsPanel trackId={track.id} />
+        </>
       )}
-      <ArtistsPanel artists={effectiveRich?.artists ?? []} />
-      <CommentsPanel trackId={current.id} />
-    </Stack>
+    </TrackPlayer>
   );
 }
