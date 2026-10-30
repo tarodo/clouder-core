@@ -56,6 +56,14 @@ describe('Waveform', () => {
     expect(bars()[8]).not.toHaveAttribute('data-played');
   });
 
+  it('the bar under the playhead fills up to it: the played edge is where the sound is', () => {
+    // 63.75 s of 300 s = 8.5 of 40 bars: 8 played, the 9th half
+    const { bars } = renderWave({ positionMs: 63_750 });
+    expect(bars().filter((b) => b.hasAttribute('data-played'))).toHaveLength(8);
+    expect(bars()[8]!.style.getPropertyValue('--cut')).toBe('50%');
+    expect(bars()[9]!.style.getPropertyValue('--cut')).toBe('');
+  });
+
   it('a click seeks to where it lands', () => {
     const { wave, onSeek } = renderWave();
     fireEvent.pointerDown(wave, { clientX: 79.5, pointerId: 1 });
