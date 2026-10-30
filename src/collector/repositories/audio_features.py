@@ -1,4 +1,4 @@
-"""Per-video audio artifacts: which YouTube videos have a light-1 profile in S3 or a waveform,
+"""Per-video audio artifacts: which videos have a light-1 profile in S3 or a waveform,
 and the claim gates they open."""
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ _ITEMS = """jsonb_to_recordset(CAST(:items AS jsonb))
 
 
 def _mark_ok(analyzer: str) -> str:
-    """Marks every track whose ytmusic match is one of :items' videos `<analyzer> ok`."""
+    """Marks every track whose matched video is one of :items' videos `<analyzer> ok`."""
     # ponytail: vendor_track_map has no (vendor, vendor_track_id) index, so this join
     # scans it; add one if the upload batches get slow.
     return f"""
@@ -61,7 +61,7 @@ class AudioFeaturesMixin(RepositoryBase):
 
     def record_audio_features(self, *, items: list[dict[str, Any]], now: datetime) -> int:
         """Upsert the profiles of *items* ({video_id, version, audio_sha256}), then mark every
-        track whose ytmusic match is one of those videos `light_profile ok`. Returns the
+        track whose matched video is one of those videos `light_profile ok`. Returns the
         number of track rows written."""
         self._data_api.execute(
             f"""

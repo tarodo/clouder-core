@@ -19,10 +19,10 @@ first block.
 
 ## Goals
 
-1. **The light profile for every downloaded track.** clouder-analyzer computes it when it downloads a track. The profile goes
+1. **The light profile for every analyzed track.** clouder-analyzer computes it next to the AI detectors. The profile goes
    straight to S3; nothing accumulates on the PC.
-2. **Re-read audio already on the PC with no re-download.** This covers the lab videos in `lab-data` (781 + 2 462 ablation, 105 dev) and the analyzer's
-   own cache.
+2. **Profile the audio the analyzer already holds without fetching it again.** This covers the lab set (781 + 2 462
+   ablation, 105 dev).
 3. **One model per (user, style), trained in AWS.** It has a keep/discard head and a category head. It retrains when a block
    is finalized and after every 150 new labels.
 4. **A stored prediction for every profiled track of the style, per user.** It holds keep / discard and the full category ranking.
@@ -47,8 +47,8 @@ first block.
   DISCARD.
 - **Nothing hidden** (the owner's rule for the AI switch). A lit button is visible, and the block shows which model is lit and
   how it scored.
-- **The lab videos must not be downloaded again.**
-- **Audio is not kept** beyond the analyzer's 7-day cache TTL, as today.
+- **The lab audio must not be fetched again.**
+- **No audio reaches AWS.** Only profiles leave the analyzer.
 - **No periodic schedule that wakes Aurora.** Aurora runs with min ACU 0. All new work is event-driven: finalize, label count,
   new profiles.
 
@@ -59,7 +59,7 @@ The table lists the owner's decisions from the 2026-10-23 conversation, then my 
 | Topic | Decision |
 |---|---|
 | Profile | Light only: MuLan, MuQ, EffNet, MusiCNN. Heavy blocks come in the next iteration. |
-| Storage | S3 is the feature store. The PC only downloads and computes, and keeps nothing beyond the audio TTL. |
+| Storage | S3 is the feature store. The PC only computes and keeps no profiles. |
 | Training and scoring | In AWS (a new ML worker Lambda), so models retrain even with the PC off. |
 | Retrain triggers | Block finalize, and every 150 new labels of a (user, style). |
 | Prediction scope | Every track of the style that has a profile, for every user × style with a model. Not only open blocks. |
@@ -68,7 +68,7 @@ The table lists the owner's decisions from the 2026-10-23 conversation, then my 
 | Similar tracks | Not in v1. |
 | Anchoring | Buttons light from the first model on, with no shadow period and no per-block switch (owner, option A). The owner accepts that later labels and the "first button right" number are made with the suggestion in view. |
 | Admin | An "Audio profile" card next to the "AI analysis" card (§6). |
-| Old tracks without audio | Analyzed before the profile existed, audio evicted (~16 k): re-downloaded once, after open blocks and new releases (claim order). |
+| Old tracks without a profile | Analyzed before the profile existed (~16 k): handed out once more, after open blocks and new releases (claim order). |
 | Who gets models | Every user with enough labels in a style, automatically. |
 | Keep threshold | *Mine:* predicted keep share equals the labelled keep share (~27 % for DnB), set on out-of-fold predictions. |
 | Labels | *Mine:* AI-flagged tracks are not labels, so the model doesn't learn the AI rule as taste. Details in "Labels". |
@@ -81,9 +81,9 @@ The table lists the owner's decisions from the 2026-10-23 conversation, then my 
 PC (clouder-analyzer, GPU)                       AWS
 ──────────────────────────                       ──────────────────────────────────────────────
 claim (+ light_profile) ──► POST /v1/analysis/claim
-download → decode → AI detectors → results ──► POST /v1/analysis/results              (unchanged)
+audio in → decode → AI detectors → results ──► POST /v1/analysis/results              (unchanged)
             └──► light profile ──────────► POST /v1/analysis/features ──► S3 features/light-1/<video>.f16
-profile-dir DIR (lab / cache backfill) ──►          │                       + audio_features row
+profile-dir DIR (lab backfill) ──►                  │                       + audio_features row
                                                     │                       + track_analyses light_profile ok
                                                     └──► SQS ml-jobs {score, video_ids}
 triage finalize ───────────────────────────────────► SQS ml-jobs {retrain, user, style}
@@ -147,24 +147,23 @@ concatenation below, 16 778 values, stored as raw little-endian float16 (33 556 
   - The image's layers should match `lab-base` so Docker shares them: the PC's C: drive is tight. Check free space before the
     build.
 - **Speed.** On the lab run the profile costs ~6 s of model time per track (~12 s with decode). The pipeline must keep up with
-  `DOWNLOADS_PER_HOUR=250`, about 14 s per track.
+  the analyzer's pace, about 14 s per track.
   - Measure in the first pass, and log per-track profile time.
   - If the profile becomes the bottleneck, it runs in its own worker thread, not inline.
 
 ### Backfill command
 
 `clouder-analyzer profile-dir DIR [--recursive]`:
-- Takes every `<video_id>.opus` under DIR, computes the profile and posts it to `/v1/analysis/features`. No download, no claim,
-  no lease.
+- Takes every audio file under DIR (named by video id), computes the profile and posts it to `/v1/analysis/features`. No
+  claim, no lease.
 - Skips videos the server already has. The server answers "already have" per item, and the command may batch a check first.
 - Runs as a one-off container with the lab volume mounted read-only (`-v lab-data:/lab:ro`) on:
   - `/lab/audio` (105 videos);
   - `/lab/ablation` (781);
-  - `/lab/ablation_more` (2 462);
-  - the analyzer's `/data/cache`.
+  - `/lab/ablation_more` (2 462).
 - Lab files have no `.duration` sidecar, so the command must not need one.
 - **Rollout order matters:** run this backfill **before** the claim asks for `light_profile`. Otherwise the claim would hand
-  the lab tracks out and the analyzer would re-download them. Lab tracks are old, so they come last in claim order anyway, but
+  the lab tracks out and the analyzer would fetch them again. Lab tracks are old, so they come last in claim order anyway, but
   don't rely on that.
 
 ### PC constraints
@@ -200,7 +199,7 @@ days.
   - put the S3 object;
   - upsert `audio_features`;
   - upsert `track_analyses (track_id, 'light_profile', status 'ok', version, video_id, audio_sha256, analyzed_at)` for every
-    track whose `vendor_track_map` ytmusic video is this one. This overrides a lease, so a later claim skips those tracks.
+    track whose matched video in `vendor_track_map` is this one. This overrides a lease, so a later claim skips those tracks.
 - Then one SQS message `{type: "score", video_ids: [...]}` for the accepted videos.
 - Response: `{accepted: [...], rejected: [{video_id, reason}]}`. An already-stored video with the same version and
   `audio_sha256` is accepted as a no-op.
@@ -209,17 +208,17 @@ days.
 
 **A profile follows the track's current match.** *My call:* the lab found every manual re-match among the keeps, so losing
 re-matched tracks would skew the labels.
-- `upsert_vendor_match` can replace a track's ytmusic `vendor_track_id`.
+- `upsert_vendor_match` can replace a track's matched `vendor_track_id`.
 - When it does, the same write deletes the track's `light_profile` row in `track_analyses`, unless `audio_features` already
   has the new video; in that case the row is set `ok` for the new video.
 - Labels and scoring always join track → current `vendor_track_map` video → `audio_features`, never `track_analyses.video_id`.
 - The AI analyzers' rows are out of scope here.
 
 **Claim** is otherwise unchanged: `light_profile` is just one more analyzer name. Tracks analyzed before the profile existed miss it, so
-the claim hands them out in its existing order: open blocks first, then newest release. That is the one-time re-download of
+the claim hands them out in its existing order: open blocks first, then newest release. That is a one-time pass over
 ~16 k tracks, ~3 days at 250/h.
-- **One download serves every analyzer.** A new track comes out with all three names missing, and one download runs the AI
-  pair and the profile.
+- **One pass serves every analyzer.** A new track comes out with all three names missing, and one read of its audio runs the
+  AI pair and the profile.
 - **A track the AI pair already checked** (~19.8 k on 2026-10-23) comes out with `analyzers: ["light_profile"]` only. The
   analyzer runs only what the claim lists, so the AI pair does not re-run on it. The owner allowed a re-run, but nothing needs
   one.
@@ -385,7 +384,7 @@ Owner request, 2026-10-23. The current card is on `/admin/coverage` (`AnalysisSt
 ## Rollout order and gates
 
 1. **clouder-core:** migration 45, bucket, the features endpoint, the admin "Audio profile" card, deploy. *Gate:* a contract
-   test posting a real 33 556-byte vector. The card then tracks the backfill and the re-download from step 3 on.
+   test posting a real 33 556-byte vector. The card then tracks the backfill and the second pass from step 3 on.
 2. **Analyzer:** the `light_profile` analyzer, CUDA image, `profile-dir`. *Gate:* parity with the lab hot tables (§1). Deploy
    with `light_profile` **not yet claimed**.
 3. **Backfill:** `profile-dir` over the four directories. *Gate:* `audio_features` holds every lab video, and every labelled

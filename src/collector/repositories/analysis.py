@@ -187,13 +187,13 @@ class AnalysisMixin(RepositoryBase):
         now: datetime,
         lease_seconds: int = LEASE_SECONDS,
     ) -> list[dict[str, Any]]:
-        """Lease up to *limit* tracks with a YT Music match that miss any of
+        """Lease up to *limit* tracks with a matched video that miss any of
         *analyzers*: first the tracks waiting in an open triage block (any bucket
         but DISCARD, any user: the owner's target number one), then the rest of
-        the catalog; newest release first within each (the order the YouTube
-        sweep finds them in). One statement: the ON CONFLICT guard lets only an
-        expired lease or the same *lease_id* take a pair over, so two claimers never
-        share a pair and a retried claim (the client's own *lease_id*) is idempotent."""
+        the catalog; newest release first within each. One statement: the ON CONFLICT
+        guard lets only an expired lease or the same *lease_id* take a pair over, so two
+        claimers never share a pair and a retried claim (the client's own *lease_id*) is
+        idempotent."""
         names = ",".join(analyzers)
         rows = self._data_api.execute(
             f"""
@@ -433,7 +433,7 @@ class AnalysisMixin(RepositoryBase):
                 }
             )
         lofcz, deezer = PAIR_ANALYZERS
-        # Both funnels split the YT Music matches: every match lands in exactly one
+        # Both funnels split the matched tracks: every match lands in exactly one
         # bucket, so the buckets sum to total. For the pair a flag wins (it is what
         # the badge shows), then clean (both ok), failed, unusable, a live lease.
         (pair,) = self._data_api.execute(
@@ -505,7 +505,7 @@ class AnalysisMixin(RepositoryBase):
         }
 
     def analysis_stats_for_year(self, week_year: int) -> list[dict[str, Any]]:
-        """Per (beatport style, Saturday week of publish_date) the YT Music matches (total),
+        """Per (beatport style, Saturday week of publish_date) the matched tracks (total),
         those the AI pair checked (a flag, both ok, or a final failure: the pipeline block's
         done), the AI-flagged ones, and those with a final light_profile state."""
         year_start = first_saturday(week_year)

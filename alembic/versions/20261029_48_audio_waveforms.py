@@ -1,6 +1,6 @@
-"""audio_waveforms: the player's waveform, one per YouTube video
+"""audio_waveforms: the player's waveform, one per video
 
-The analyzer posts one for every video it downloads (new tracks; tracks without one can be
+The analyzer posts one for every video it analyzes (new tracks; tracks without one can be
 handed out again later by claiming the `waveform` analyzer). `data` is base64 of 3 bands x
 600 bins of u8 dB; `duration_ms` is the decoded length, so the player draws the waveform
 only over a Spotify track of the same length (within 3 s).

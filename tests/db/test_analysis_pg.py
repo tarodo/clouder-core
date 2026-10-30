@@ -302,8 +302,8 @@ def test_status_pair_clean_and_queue(repo, pg) -> None:
 
     status = repo.analysis_status(now=T0)
     assert status["pair"] == {"high": 0, "medium": 1, "low": 1, "clean": 1}
-    # one, exp, none, detect wait; live is in progress; no-yt has no YT Music match.
-    # Every YT Music match lands in exactly one bucket.
+    # one, exp, none, detect wait; live is in progress; no-yt has no matched video.
+    # Every matched track lands in exactly one bucket.
     queue = {"total": 11, "waiting": 4, "in_progress": 1, "failed": 2, "unusable": 1}
     assert status["queue"] == queue
     rest = sum(v for k, v in queue.items() if k != "total")
@@ -643,7 +643,7 @@ def test_analysis_week_stats_count_the_yt_music_matches(repo, pg) -> None:
             "UPDATE clouder_tracks SET publish_date = CAST(:p AS date) WHERE id = :id",
             {"p": day, "id": tid},
         )
-    # no YT Music match: outside the base even in the week
+    # no matched video: outside the base even in the week
     pg.execute("UPDATE clouder_tracks SET publish_date = '2026-10-12' WHERE id = 'no-yt'")
     _row(pg, "new", "ai_lofcz", "ok", ai=True)  # checked, AI
     _row(pg, "new", "ai_deezer", "ok")

@@ -6599,8 +6599,7 @@ components:
       type: object
     AnalysisFeaturesRequest:
       additionalProperties: false
-      description: 'POST /v1/analysis/features: light-1 profiles, one per YouTube
-        video.'
+      description: 'POST /v1/analysis/features: light-1 profiles, one per video.'
       properties:
         items:
           items:
@@ -6779,8 +6778,7 @@ components:
       type: object
     AnalysisWaveformsRequest:
       additionalProperties: false
-      description: 'POST /v1/analysis/waveforms: wave-1 waveforms, one per YouTube
-        video.'
+      description: 'POST /v1/analysis/waveforms: wave-1 waveforms, one per video.'
       properties:
         items:
           items:
@@ -7544,7 +7542,7 @@ components:
                 type: string
               video_id:
                 type: string
-                description: YouTube video id of the track's YT Music match.
+                description: Id of the track's matched video.
               length_ms:
                 type:
                 - integer
@@ -7646,7 +7644,7 @@ components:
           format: date-time
         pair:
           type: object
-          description: YT Music matches per AI level (ai_lofcz + ai_deezer); a flag
+          description: Matched tracks per AI level (ai_lofcz + ai_deezer); a flag
             counts even when the other detector failed, as the badge does.
           required:
           - high
@@ -7668,7 +7666,7 @@ components:
               description: Both ok, neither flagged.
         queue:
           type: object
-          description: 'The YT Music matches the pair (ai_lofcz + ai_deezer) has not
+          description: 'The matched tracks the pair (ai_lofcz + ai_deezer) has not
             settled: pair levels + waiting + in_progress + failed + unusable = total.'
           required:
           - total
@@ -7679,7 +7677,7 @@ components:
           properties:
             total:
               type: integer
-              description: Tracks with a YT Music match.
+              description: Tracks with a matched video.
             waiting:
               type: integer
               description: Not settled, no live lease.
@@ -7694,7 +7692,7 @@ components:
               description: Unflagged, either unusable_source, neither failed.
         profile:
           type: object
-          description: The YT Music matches per light_profile state; the buckets sum
+          description: The matched tracks per light_profile state; the buckets sum
             to total.
           required:
           - total
@@ -7706,7 +7704,7 @@ components:
           properties:
             total:
               type: integer
-              description: Tracks with a YT Music match.
+              description: Tracks with a matched video.
             waiting:
               type: integer
               description: No light_profile row or an expired lease.
@@ -7848,7 +7846,7 @@ components:
                 type: string
               due:
                 type: integer
-                description: Tracks with a YT Music match still lacking this analyzer.
+                description: Tracks with a matched video still lacking this analyzer.
               leased:
                 type: integer
               ok:

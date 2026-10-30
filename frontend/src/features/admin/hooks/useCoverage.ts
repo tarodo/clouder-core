@@ -19,7 +19,7 @@ export interface YoutubeWeekStats {
   pending: number;
 }
 
-/** Over the week's YT Music matches (`total`): checked by the AI pair, flagged AI, profiled. */
+/** Over the week's matched tracks (`total`): checked by the AI pair, flagged AI, profiled. */
 export interface AnalysisWeekStats {
   week_number: number;
   total: number;

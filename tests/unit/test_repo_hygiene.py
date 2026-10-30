@@ -25,6 +25,17 @@ def test_tracked_markdown_has_no_local_paths() -> None:
     assert hits == [], hits[:10]
 
 
+def test_tracked_text_does_not_name_the_analyzer_audio_tool() -> None:
+    # ADR-0030: how the analyzer obtains audio stays out of this repository.
+    hits = subprocess.run(
+        ["git", "grep", "-n", "-i", "-E", r"yt[-_]?dlp", "--", ".", ":!graphify-out"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    assert hits == [], hits[:10]
+
+
 def test_pytest_pythonpath_entries_exist() -> None:
     ini = configparser.ConfigParser()
     ini.read(ROOT / "pytest.ini")

@@ -851,7 +851,7 @@
       "title": "Track pipeline",
       "catalog": "{{count}} Beatport tracks",
       "of_catalog": "of the Beatport catalog",
-      "of_matches": "of YT Music matches",
+      "of_matches": "of matched tracks",
       "ai": "AI detection",
       "profile": "Audio profile",
       "searched": "Searched",

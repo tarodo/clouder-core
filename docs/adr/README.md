@@ -8,7 +8,7 @@ ADRs capture the *why* behind load-bearing architectural choices in CLOUDER. The
 
 ## Numbering
 
-Four-digit, monotonic, never reused. The next free number is `0027`.
+Four-digit, monotonic, never reused. The next free number is `0031`.
 
 ## Template
 
@@ -60,3 +60,4 @@ Trade-offs accepted. What becomes harder. Cross-references to topical docs.
 | 0027 | [Auto-ingest with a per-run Beatport login and EventBridge Scheduler](0027-auto-ingest.md) |
 | 0028 | [A read-only plan role for pull requests, an environment-gated deploy role](0028-ci-roles.md) |
 | 0029 | [API Lambdas behind a live alias, a smoke test, and automatic rollback](0029-api-aliases-smoke-rollback.md) |
+| 0030 | [The analyzer is a black box behind its contract](0030-analyzer-black-box.md) |

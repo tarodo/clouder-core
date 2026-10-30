@@ -245,7 +245,7 @@ class AnalysisFeatureItem(BaseModel):
 
 
 class AnalysisFeaturesRequest(BaseModel):
-    """POST /v1/analysis/features: light-1 profiles, one per YouTube video."""
+    """POST /v1/analysis/features: light-1 profiles, one per video."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -277,7 +277,7 @@ class AnalysisWaveformItem(BaseModel):
 
 
 class AnalysisWaveformsRequest(BaseModel):
-    """POST /v1/analysis/waveforms: wave-1 waveforms, one per YouTube video."""
+    """POST /v1/analysis/waveforms: wave-1 waveforms, one per video."""
 
     model_config = ConfigDict(extra="forbid")
 
