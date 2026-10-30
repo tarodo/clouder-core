@@ -27,11 +27,22 @@
   width: 3px;
   border-radius: 1px;
   background: var(--color-border-strong);
-  transform: scaleY(var(--grow, 1));
+  transform: scaleY(calc(1 + 0.18 * var(--glow, 0)));
   /* no color transition: it flickered the bars at the played edge on every tick */
   transition:
     transform 140ms ease-out,
     height 240ms ease-out;
+}
+
+/* behind @supports: without color-mix the var() would void the background, not fall back */
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  .bar {
+    background: color-mix(
+      in srgb,
+      var(--color-fg-subtle) calc(var(--glow, 0) * 100%),
+      var(--color-border-strong)
+    );
+  }
 }
 
 .bar[data-ahead] {
@@ -59,16 +70,6 @@
 /* the short placeholder bars: keep the time close to them */
 .tip[data-flat] {
   top: 4px;
-}
-
-.empty {
-  position: absolute;
-  inset: auto 0 0;
-  text-align: center;
-  pointer-events: none;
-  font-size: 11px;
-  line-height: 14px;
-  color: var(--color-fg-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

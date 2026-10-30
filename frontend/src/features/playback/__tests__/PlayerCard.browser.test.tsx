@@ -92,11 +92,51 @@ test('the waveform: whole-pixel bars, 3px each on a 4px pitch, filling the width
   expect(box(wave).height).toBe(56);
 });
 
-test('no waveform: the flat bars keep the same height box, the caption sits below them', async () => {
+test('no waveform: the flat bars keep the same height box, no caption', async () => {
   renderAt(442);
-  const caption = await screen.findByText('No waveform');
+  await waitFor(() => expect(apiMock).toHaveBeenCalled());
+  await new Promise((r) => setTimeout(r, 100)); // the query settles on "none"
   const wave = screen.getByRole('slider', { name: 'Scrub bar' });
   expect(box(wave).height).toBe(56);
-  const bar = wave.querySelector('i')!.getBoundingClientRect();
-  expect(box(caption).top).toBeGreaterThanOrEqual(bar.bottom);
+  expect(wave.textContent).toBe('');
+});
+
+// average channel, 0..255, of an element's background (tokens are oklch, color-mix gives
+// color(srgb ...)): a 1px canvas converts either
+const level = (el: Element) => {
+  const ctx = document.createElement('canvas').getContext('2d')!;
+  ctx.fillStyle = getComputedStyle(el).backgroundColor;
+  ctx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+  return (r! + g! + b!) / 3;
+};
+
+test('hover: the bars past the pointer fade from its shade, no cut at the pointer', async () => {
+  renderAt(442, { duration_ms: 214_000, data: WAVE });
+  const wave = screen.getByRole('slider', { name: 'Scrub bar' });
+  await waitFor(() => {
+    const heights = new Set([...wave.querySelectorAll('i')].map((b) => b.style.height));
+    expect(heights.size).toBeGreaterThan(10);
+    expect(wave.querySelectorAll('i').length).toBeGreaterThan(60); // sized to the 442px box
+  });
+  const bars = [...wave.querySelectorAll('i')];
+  const k = 40;
+  const r = box(bars[k]!);
+  wave.dispatchEvent(
+    new PointerEvent('pointermove', {
+      bubbles: true,
+      clientX: r.left + 1.5,
+      clientY: r.top,
+      pointerType: 'mouse',
+    }),
+  );
+  await waitFor(() => expect(bars[k]!.style.getPropertyValue('--glow')).toBe('1'));
+  const [at, next, mid, far] = [k, k + 1, k + 5, k + 12].map((i) => level(bars[i]!));
+  expect(Math.abs(next! - at!)).toBeLessThan(12); // the neighbour keeps nearly the pointer's shade
+  expect(next).toBeLessThan(mid!);
+  expect(mid).toBeLessThan(far!);
+  // and the bar under the pointer grows (+18%), one out of reach does not
+  const scale = (i: number) => box(bars[i]!).height / (bars[i] as HTMLElement).offsetHeight;
+  await waitFor(() => expect(scale(k)).toBeCloseTo(1.18, 1));
+  expect(scale(k + 12)).toBeCloseTo(1, 1); // offsetHeight rounds to whole px
 });

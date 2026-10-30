@@ -29,7 +29,6 @@ function renderWave(over: Partial<Parameters<typeof Waveform>[0]> = {}) {
         positionMs={60_000}
         durationMs={300_000}
         ariaLabel="Scrub bar"
-        emptyLabel="No waveform"
         onSeek={onSeek}
         {...over}
       />
@@ -91,28 +90,28 @@ describe('Waveform', () => {
     expect(onSeek.mock.calls).toEqual([[65_000], [55_000]]);
   });
 
-  it('hovering grows the bars under the pointer, at most +18%', () => {
+  it('hovering lights the bars around the pointer: most at it, fading the same both ways', () => {
     const { wave, bars } = renderWave();
     fireEvent.pointerMove(wave, { clientX: 79.5, pointerType: 'mouse' });
-    const grow = bars().map((b) => Number(b.style.getPropertyValue('--grow') || 1));
-    expect(Math.max(...grow)).toBeCloseTo(1.18);
-    expect(grow[0]).toBe(1);
+    const glow = bars().map((b) => Number(b.style.getPropertyValue('--glow') || 0));
+    // 150 s of 300 s: bar 20 of 40
+    expect(glow[20]).toBe(1);
+    expect(glow[21]).toBeCloseTo(glow[19]!);
+    expect(glow[21]).toBeGreaterThan(glow[24]!);
+    expect(glow[24]).toBeGreaterThan(glow[28]!);
+    expect(glow[28]).toBeGreaterThan(0);
+    expect(glow[29]).toBe(0);
     fireEvent.pointerLeave(wave);
-    expect(bars().every((b) => !b.style.getPropertyValue('--grow'))).toBe(true);
+    expect(bars().every((b) => !b.style.getPropertyValue('--glow'))).toBe(true);
   });
 
-  it('without a waveform: even short bars and a caption, still seekable', () => {
+  it('without a waveform: even short bars, no caption, still seekable', () => {
     const { wave, bars, onSeek } = renderWave({ loudness: null });
     expect(new Set(bars().map((b) => b.style.height))).toEqual(new Set(['22%']));
-    expect(screen.getByText('No waveform')).toBeInTheDocument();
+    expect(wave.textContent).toBe('');
     fireEvent.pointerDown(wave, { clientX: 79.5, pointerId: 1 });
     fireEvent.pointerUp(wave, { clientX: 79.5, pointerId: 1 });
     expect(onSeek).toHaveBeenCalledWith(150_000);
-  });
-
-  it('while loading: the short bars, no caption', () => {
-    renderWave({ loudness: null, loading: true });
-    expect(screen.queryByText('No waveform')).not.toBeInTheDocument();
   });
 
   it('disabled: no seeking', () => {

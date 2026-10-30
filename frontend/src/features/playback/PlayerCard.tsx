@@ -114,13 +114,11 @@ function TrackWaveform({
   onSeek: (ms: number) => void;
 }) {
   const { t } = useTranslation();
-  const { data, isPending } = useWaveform(trackId);
+  const { data } = useWaveform(trackId);
   return (
     <Waveform
       loudness={data ?? null}
-      loading={!!trackId && isPending}
       ariaLabel={t('playback.controls.scrub_aria')}
-      emptyLabel={t('playback.waveform_none')}
       {...rest}
     />
   );

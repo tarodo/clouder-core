@@ -6,8 +6,9 @@ import { barHeights } from './lib/waveform';
 // A 3px bar every 4px, whole pixels: no bar renders thicker than its neighbours.
 const PITCH = 4;
 const MIN_BARS = 40;
-// Bars under the pointer grow a little: most at the pointer (+18%), fading over ~8 bars a side.
-const GROW = 0.18;
+// Bars by the pointer light up and grow (CSS: up to +18%), most at the pointer, fading over
+// ~8 bars a side. The fade also tints the bars past it, so the shaded run up to the pointer
+// does not end in a cut.
 const REACH = 8;
 const SPREAD = 3;
 const KEY_STEP_MS = 5000;
@@ -20,13 +21,10 @@ const clock = (ms: number) => {
 export interface WaveformProps {
   /** Loudness per bin, 0..1 (decodeWaveform). null = no waveform: an even row of short bars. */
   loudness: readonly number[] | null;
-  /** The short bars without the caption, while the waveform loads. */
-  loading?: boolean;
   positionMs: number;
   durationMs: number;
   disabled?: boolean;
   ariaLabel: string;
-  emptyLabel: string;
   style?: CSSProperties;
   /** Commits a seek: on release of a click or a drag, or per arrow key. */
   onSeek: (ms: number) => void;
@@ -38,12 +36,10 @@ export interface WaveformProps {
  */
 export function Waveform({
   loudness,
-  loading = false,
   positionMs,
   durationMs,
   disabled = false,
   ariaLabel,
-  emptyLabel,
   style,
   onSeek,
 }: WaveformProps) {
@@ -114,8 +110,7 @@ export function Waveform({
     >
       {Array.from({ length: count }, (_, i) => {
         const d = hoverBar === null ? Infinity : i - hoverBar;
-        const grow =
-          Math.abs(d) <= REACH ? 1 + GROW * Math.exp(-(d * d) / (2 * SPREAD * SPREAD)) : null;
+        const glow = Math.abs(d) <= REACH ? Math.exp(-(d * d) / (2 * SPREAD * SPREAD)) : null;
         return (
           <i
             key={i}
@@ -125,7 +120,7 @@ export function Waveform({
             style={
               {
                 height: heights ? `${heights[i]}%` : '22%',
-                ...(grow === null ? {} : { '--grow': String(grow) }),
+                ...(glow === null ? {} : { '--glow': String(glow) }),
               } as CSSProperties
             }
           />
@@ -140,7 +135,6 @@ export function Waveform({
           {clock(hoverMs)}
         </span>
       ) : null}
-      {!loudness && !loading ? <span className={classes.empty}>{emptyLabel}</span> : null}
     </div>
   );
 }
