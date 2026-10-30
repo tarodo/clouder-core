@@ -37,6 +37,7 @@ import { AddTracksModal } from '../components/AddTracksModal';
 import { ImportSpotifyModal } from '../components/ImportSpotifyModal';
 import { playlistTracksKey } from '../lib/queryKeys';
 import type { PaginatedPlaylistTracks, PlaylistTrack } from '../lib/playlistTypes';
+import classes from './PlaylistDetailPage.module.css';
 
 export function toPlaybackTrack(t: PlaylistTrack): PlaybackTrack {
   return {
@@ -227,31 +228,33 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   );
 
   const tilesList = (
-    <Stack gap="md">
+    <Stack gap="md" className={classes.column}>
       {controls}
-      {tracks.length === 0 ? (
-        <EmptyState
-          title={t('playlists.detail.empty_tracks_title')}
-          body={t('playlists.detail.empty_tracks_body')}
-        />
-      ) : (
-        <PlaylistTracksList
-          tracks={filtered}
-          onReorder={search.trim() === '' ? handleReorder : () => {}}
-          onRemove={handleRemoveTrack}
-          reorderDisabled={search.trim() !== ''}
-          onPlayTrack={onPlay}
-          currentTrackId={playback.track.current?.id ?? null}
-          playing={playback.queue.status === 'playing'}
-          onTogglePlay={playback.controls.togglePlayPause}
-          playlistId={id}
-        />
-      )}
+      <div className={classes.tracks}>
+        {tracks.length === 0 ? (
+          <EmptyState
+            title={t('playlists.detail.empty_tracks_title')}
+            body={t('playlists.detail.empty_tracks_body')}
+          />
+        ) : (
+          <PlaylistTracksList
+            tracks={filtered}
+            onReorder={search.trim() === '' ? handleReorder : () => {}}
+            onRemove={handleRemoveTrack}
+            reorderDisabled={search.trim() !== ''}
+            onPlayTrack={onPlay}
+            currentTrackId={playback.track.current?.id ?? null}
+            playing={playback.queue.status === 'playing'}
+            onTogglePlay={playback.controls.togglePlayPause}
+            playlistId={id}
+          />
+        )}
+      </div>
     </Stack>
   );
 
   return (
-    <Stack gap="lg">
+    <Stack gap="lg" className={isDesktop ? classes.page : undefined}>
       <Breadcrumbs>
         <Anchor component={Link} to="/playlists">
           {t('playlists.page_title')}
@@ -313,10 +316,9 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
       />
 
       {isDesktop ? (
-        <Flex gap="lg" align="flex-start" wrap="nowrap">
+        <Flex gap="lg" align="flex-start" wrap="nowrap" className={classes.split}>
           <PlaylistPlayerPanel playlistId={id} items={tracks} />
-          {/* List capped at ~2× the player width (player .root is 442px). */}
-          <div style={{ flex: 1, minWidth: 0, maxWidth: 884 }}>{tilesList}</div>
+          {tilesList}
         </Flex>
       ) : (
         tilesList
