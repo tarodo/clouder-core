@@ -219,29 +219,6 @@ export function PlayerCard(props: PlayerCardProps) {
       withBorder={isMini}
       style={{ position: 'relative' }}
     >
-      {!isMini && (spotifyHref || topActions) ? (
-        <Group
-          gap={6}
-          wrap="nowrap"
-          style={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}
-        >
-          {topActions}
-          {spotifyHref ? (
-            <ActionIcon
-              component="a"
-              href={spotifyHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              variant="subtle"
-              radius="xl"
-              size="md"
-              aria-label={spotifyAriaLabel ?? 'Open in Spotify'}
-            >
-              <IconExternalLink size={16} />
-            </ActionIcon>
-          ) : null}
-        </Group>
-      ) : null}
       <div className={classes.main}>
         <div className={classes.cover} data-mini={isMini || undefined}>
           {track?.cover_url ? (
@@ -301,6 +278,26 @@ export function PlayerCard(props: PlayerCardProps) {
             >
               <IconPlayerSkipForwardFilled />
             </ActionIcon>
+          ) : null}
+          {/* Top-right of the card; a phone curate player puts them in this row (see the CSS). */}
+          {!isMini && (spotifyHref || topActions) ? (
+            <Group gap={6} wrap="nowrap" className={classes.actions}>
+              {topActions}
+              {spotifyHref ? (
+                <ActionIcon
+                  component="a"
+                  href={spotifyHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="subtle"
+                  radius="xl"
+                  size="md"
+                  aria-label={spotifyAriaLabel ?? 'Open in Spotify'}
+                >
+                  <IconExternalLink size={16} />
+                </ActionIcon>
+              ) : null}
+            </Group>
           ) : null}
         </div>
       </div>
