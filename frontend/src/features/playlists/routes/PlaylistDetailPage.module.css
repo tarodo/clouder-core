@@ -1,0 +1,31 @@
+/* Desktop: the page does not scroll. The header stays put; below it the player and the track
+   list each scroll on their own. */
+.page {
+  height: calc(
+    100dvh - var(--app-shell-header-offset, 3.5rem) - 2 * var(--app-shell-padding, var(--mantine-spacing-md))
+  );
+}
+.split {
+  flex: 1;
+  min-height: 0;
+}
+/* The player fills its column under the header; nothing scrolls past it to stick to. */
+.split > [data-player] {
+  align-self: stretch;
+  max-height: none;
+  margin-bottom: 0;
+}
+.split > .column {
+  flex: 1;
+  min-width: 0;
+  /* ~2× the player (442px) */
+  max-width: 884px;
+  align-self: stretch;
+}
+/* The list's tools stay above it; only the tracks scroll. */
+.page .tracks {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
