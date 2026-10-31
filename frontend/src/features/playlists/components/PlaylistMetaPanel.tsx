@@ -94,52 +94,51 @@ export function PlaylistMetaPanel({
       <div className={classes.cover}>
         <CoverPicker playlistId={playlist.id} coverUrl={playlist.cover_url} size={COVER_SIZE} />
       </div>
-      <div className={classes.title}>
-        {editingName ? (
-          <Group gap="xs" wrap="nowrap" maw={520}>
-            <TextInput
-              value={nameDraft}
-              onChange={(e) => setNameDraft(e.currentTarget.value)}
-              maxLength={100}
-              error={nameError}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              flex={1}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void commitName();
-                if (e.key === 'Escape') cancelName();
-              }}
-            />
-            <ActionIcon variant="subtle" onClick={() => void commitName()} aria-label="Save name">
-              <IconCheck size={18} />
-            </ActionIcon>
-            <ActionIcon variant="subtle" onClick={cancelName} aria-label="Cancel">
-              <IconX size={18} />
-            </ActionIcon>
-          </Group>
-        ) : (
-          <Group gap="xs" wrap="wrap" align="center">
-            {/* an h2's size on a phone: the h1 wraps the name beside the cover */}
-            <Title
-              order={1}
-              fz={{ base: 'var(--mantine-h2-font-size)', md: 'var(--mantine-h1-font-size)' }}
-            >
-              {playlist.name}
-            </Title>
-            <Tooltip label={t('playlists.form.rename_title')} withinPortal>
-              <ActionIcon
-                variant="subtle"
-                onClick={() => setEditingName(true)}
-                aria-label={t('playlists.form.rename_title')}
-              >
-                <IconPencil size={16} />
+      <div className={classes.head}>
+        <div className={classes.title}>
+          {editingName ? (
+            <Group gap="xs" wrap="nowrap" maw={520}>
+              <TextInput
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.currentTarget.value)}
+                maxLength={100}
+                error={nameError}
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                flex={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void commitName();
+                  if (e.key === 'Escape') cancelName();
+                }}
+              />
+              <ActionIcon variant="subtle" onClick={() => void commitName()} aria-label="Save name">
+                <IconCheck size={18} />
               </ActionIcon>
-            </Tooltip>
-            {titleSlot}
-          </Group>
-        )}
+              <ActionIcon variant="subtle" onClick={cancelName} aria-label="Cancel">
+                <IconX size={18} />
+              </ActionIcon>
+            </Group>
+          ) : (
+            // nowrap: the pencil stays beside a long name, the name wraps on its own
+            <Group gap="xs" wrap="nowrap" align="center">
+              <Title order={1} size="h2" miw={0}>
+                {playlist.name}
+              </Title>
+              <Tooltip label={t('playlists.form.rename_title')} withinPortal>
+                <ActionIcon
+                  variant="subtle"
+                  onClick={() => setEditingName(true)}
+                  aria-label={t('playlists.form.rename_title')}
+                >
+                  <IconPencil size={16} />
+                </ActionIcon>
+              </Tooltip>
+              {titleSlot}
+            </Group>
+          )}
+        </div>
+        {publishSlot ? <div className={classes.actions}>{publishSlot}</div> : null}
       </div>
-      {publishSlot ? <div className={classes.actions}>{publishSlot}</div> : null}
       <Group gap="md" wrap="wrap" className={classes.meta}>
         <Text c="dimmed" size="sm">
           {t('playlists.detail.stats', {

@@ -1,13 +1,13 @@
-/* Desktop: the name with the publish actions beside a small cover, then the stats and the
+/* Desktop: beside a small cover, the name with the publish actions, then the stats and the
    description. Phone: the actions take a full-width row under it all, not a narrow column. */
 .root {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto 1fr;
   grid-template-areas:
-    'cover title actions'
-    'cover meta meta'
-    'cover desc desc';
+    'cover head'
+    'cover meta'
+    'cover desc';
   column-gap: var(--mantine-spacing-md);
   row-gap: 6px;
   align-items: center;
@@ -16,11 +16,17 @@
   grid-area: cover;
   align-self: start;
 }
-.title {
-  grid-area: title;
+/* The actions drop under a long name instead of running off the edge. */
+.head {
+  grid-area: head;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
 }
-.actions {
-  grid-area: actions;
+.title {
+  min-width: 0;
 }
 .meta {
   grid-area: meta;
@@ -31,7 +37,6 @@
 }
 @media (max-width: 62em) {
   .root {
-    grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: auto auto 1fr auto;
     grid-template-areas:
       'cover title'
@@ -39,7 +44,14 @@
       'cover desc'
       'actions actions';
   }
+  .head {
+    display: contents;
+  }
+  .title {
+    grid-area: title;
+  }
   .actions {
+    grid-area: actions;
     margin-top: var(--mantine-spacing-xs);
   }
 }
