@@ -30,6 +30,7 @@ import { CategoryPlayerPanel } from '../components/CategoryPlayerPanel';
 import { TracksTab } from '../components/TracksTab';
 import { PageSkeleton } from '../../../components/PageSkeleton';
 import { EmptyState } from '../../../components/EmptyState';
+import { PageCrumbs } from '../../../components/PageCrumbs';
 import { usePlayback } from '../../playback/usePlayback';
 import type { PlaybackTrack } from '../../playback/lib/types';
 import { readTagsUrlState } from '../../tags';
@@ -220,14 +221,16 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
 
   return (
     <Stack gap="lg">
-      <Breadcrumbs>
-        <Anchor component={Link} to="/categories">
-          {t('categories.page_title')}
-        </Anchor>
-        <Anchor component={Link} to={`/categories/${styleId}`}>
-          {data.style_name}
-        </Anchor>
-      </Breadcrumbs>
+      <PageCrumbs>
+        <Breadcrumbs>
+          <Anchor component={Link} to="/categories">
+            {t('categories.page_title')}
+          </Anchor>
+          <Anchor component={Link} to={`/categories/${styleId}`}>
+            {data.style_name}
+          </Anchor>
+        </Breadcrumbs>
+      </PageCrumbs>
       <CategoryDetailHeader
         name={data.name}
         trackCountLabel={trackCountLabel}

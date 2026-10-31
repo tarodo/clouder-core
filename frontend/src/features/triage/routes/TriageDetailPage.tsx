@@ -6,6 +6,7 @@ import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { ApiError } from '../../../api/error';
 import { EmptyState } from '../../../components/EmptyState';
+import { PageCrumbs } from '../../../components/PageCrumbs';
 import { PageSkeleton } from '../../../components/PageSkeleton';
 import { useTriageBlock } from '../hooks/useTriageBlock';
 import { useDeleteTriageBlock } from '../hooks/useDeleteTriageBlock';
@@ -94,9 +95,11 @@ function TriageDetailInner({ styleId, blockId }: InnerProps) {
 
   return (
     <Stack gap="lg">
-      <Anchor component={Link} to={`/triage/${styleId}`} c="var(--color-fg)" td="none">
-        {t('triage.detail.back_to_list')}
-      </Anchor>
+      <PageCrumbs>
+        <Anchor component={Link} to={`/triage/${styleId}`} c="var(--color-fg)" td="none">
+          {t('triage.detail.back_to_list')}
+        </Anchor>
+      </PageCrumbs>
       <TriageBlockHeader
         block={data}
         onDelete={handleDelete}

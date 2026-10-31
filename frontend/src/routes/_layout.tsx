@@ -2,7 +2,7 @@ import { AppShell, Burger, Group, NavLink, Stack, Text, useMantineTheme } from '
 import { Outlet, NavLink as RouterLink, useLocation } from 'react-router';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { useTranslation } from 'react-i18next';
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
 import {
   IconHome,
@@ -16,6 +16,8 @@ import {
 } from '../components/icons';
 import { AuthContext } from '../auth/AuthProvider';
 import { UserMenu } from '../components/UserMenu';
+import { PageCrumbsSlot } from '../components/PageCrumbs';
+import crumbsClasses from '../components/PageCrumbs.module.css';
 import { PlaybackProvider } from '../features/playback/PlaybackProvider';
 import { DevicePickerSurface } from '../features/playback/DevicePickerSurface';
 
@@ -50,6 +52,7 @@ export function AppShellInner() {
   const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
   const [navCollapsed, { toggle: toggleNav }] = useDisclosure(false);
   const location = useLocation();
+  const [crumbsSlot, setCrumbsSlot] = useState<HTMLDivElement | null>(null);
   const auth = useContext(AuthContext);
   const isAdmin =
     auth?.state.status === 'authenticated' && auth.state.user.is_admin === true;
@@ -62,91 +65,94 @@ export function AppShellInner() {
   );
 
   return (
-    <AppShell
-      header={{ height: 56 }}
-      navbar={
-        isDesktop
-          ? { width: 240, breakpoint: 'md', collapsed: { desktop: navCollapsed, mobile: true } }
-          : undefined
-      }
-      footer={isDesktop ? undefined : { height: 64 }}
-      padding="md"
-    >
-      <AppShell.Header>
-        <Group h="100%" px="md" justify="space-between">
-          <Group gap="sm">
-            {isDesktop && (
-              <Burger
-                opened={!navCollapsed}
-                onClick={toggleNav}
-                size="sm"
-                aria-label={t('appshell.toggle_nav')}
-                aria-expanded={!navCollapsed}
-              />
-            )}
-            <Text fw={700} size="lg">
-              {t('appshell.wordmark')}
-            </Text>
+    <PageCrumbsSlot.Provider value={crumbsSlot}>
+      <AppShell
+        header={{ height: 56 }}
+        navbar={
+          isDesktop
+            ? { width: 240, breakpoint: 'md', collapsed: { desktop: navCollapsed, mobile: true } }
+            : undefined
+        }
+        footer={isDesktop ? undefined : { height: 64 }}
+        padding="md"
+      >
+        <AppShell.Header>
+          <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+            <Group gap="sm" wrap="nowrap">
+              {isDesktop && (
+                <Burger
+                  opened={!navCollapsed}
+                  onClick={toggleNav}
+                  size="sm"
+                  aria-label={t('appshell.toggle_nav')}
+                  aria-expanded={!navCollapsed}
+                />
+              )}
+              <Text fw={700} size="lg">
+                {t('appshell.wordmark')}
+              </Text>
+            </Group>
+            <div ref={setCrumbsSlot} className={crumbsClasses.slot} />
+            <UserMenu />
           </Group>
-          <UserMenu />
-        </Group>
-      </AppShell.Header>
+        </AppShell.Header>
 
-      {isDesktop && (
-        <AppShell.Navbar p="sm">
-          <Stack gap="xs">
-            {navItems.map(({ path, labelKey, Icon }) => (
-              <NavLink
-                key={path}
-                component={RouterLink}
-                to={path}
-                end={path === '/'}
-                label={t(labelKey)}
-                leftSection={<Icon size={18} />}
-                active={
-                  path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
-                }
-              />
-            ))}
-          </Stack>
-        </AppShell.Navbar>
-      )}
-
-      <AppShell.Main>
-        <Outlet />
-      </AppShell.Main>
-
-      {!isDesktop && (
-        <AppShell.Footer p={0}>
-          <Group h="100%" justify="space-around" align="center" gap={0}>
-            {navItems.map(({ path, labelKey, Icon }) => {
-              const active =
-                path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
-              return (
-                <RouterLink
+        {isDesktop && (
+          <AppShell.Navbar p="sm">
+            <Stack gap="xs">
+              {navItems.map(({ path, labelKey, Icon }) => (
+                <NavLink
                   key={path}
+                  component={RouterLink}
                   to={path}
                   end={path === '/'}
-                  style={{
-                    flex: 1,
-                    textAlign: 'center',
-                    padding: '8px 0',
-                    color: active ? 'var(--color-fg)' : 'var(--color-fg-muted)',
-                    textDecoration: 'none',
-                  }}
-                  aria-label={t(labelKey)}
-                >
-                  <Stack gap={2} align="center">
-                    <Icon size={20} />
-                    <Text size="xs">{t(labelKey)}</Text>
-                  </Stack>
-                </RouterLink>
-              );
-            })}
-          </Group>
-        </AppShell.Footer>
-      )}
-    </AppShell>
+                  label={t(labelKey)}
+                  leftSection={<Icon size={18} />}
+                  active={
+                    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
+                  }
+                />
+              ))}
+            </Stack>
+          </AppShell.Navbar>
+        )}
+
+        <AppShell.Main>
+          <Outlet />
+        </AppShell.Main>
+
+        {!isDesktop && (
+          <AppShell.Footer p={0}>
+            <Group h="100%" justify="space-around" align="center" gap={0}>
+              {navItems.map(({ path, labelKey, Icon }) => {
+                const active =
+                  path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+                return (
+                  <RouterLink
+                    key={path}
+                    to={path}
+                    end={path === '/'}
+                    style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      padding: '8px 0',
+                      color: active ? 'var(--color-fg)' : 'var(--color-fg-muted)',
+                      textDecoration: 'none',
+                    }}
+                    aria-label={t(labelKey)}
+                  >
+                    <Stack gap={2} align="center">
+                      <Icon size={20} />
+                      <Text size="xs">{t(labelKey)}</Text>
+                    </Stack>
+                  </RouterLink>
+                );
+              })}
+            </Group>
+          </AppShell.Footer>
+        )}
+      </AppShell>
+    </PageCrumbsSlot.Provider>
   );
 }
 
