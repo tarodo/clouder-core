@@ -190,7 +190,7 @@ psycopg-binary==3.3.6 ; implementation_name != 'pypy'
     #   psycopg
 py-serializable==2.1.0
     # via cyclonedx-python-lib
-pyasn1==0.6.4
+pyasn1==0.6.5
     # via
     #   -c requirements-lambda.txt
     #   pyasn1-modules
