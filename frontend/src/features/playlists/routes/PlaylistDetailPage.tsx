@@ -35,6 +35,7 @@ import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
 import { EmptyState } from '../../../components/EmptyState';
 import { PageSkeleton } from '../../../components/PageSkeleton';
+import { PageCrumbs } from '../../../components/PageCrumbs';
 import { usePlayback } from '../../playback/usePlayback';
 import type { PlaybackTrack } from '../../playback/lib/types';
 import { usePlaylistDetail } from '../hooks/usePlaylistDetail';
@@ -274,12 +275,14 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
 
   return (
     <Stack gap="md" className={isDesktop ? classes.page : undefined}>
-      <Breadcrumbs>
-        <Anchor component={Link} to="/playlists">
-          {t('playlists.page_title')}
-        </Anchor>
-        <span>{playlist.name}</span>
-      </Breadcrumbs>
+      <PageCrumbs>
+        <Breadcrumbs>
+          <Anchor component={Link} to="/playlists">
+            {t('playlists.page_title')}
+          </Anchor>
+          <span>{playlist.name}</span>
+        </Breadcrumbs>
+      </PageCrumbs>
 
       <PlaylistMetaPanel
         playlist={playlist}

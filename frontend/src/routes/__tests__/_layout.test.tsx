@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { I18nextProvider } from 'react-i18next';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -7,6 +7,7 @@ import i18n from '../../i18n';
 import { testTheme } from '../../test/theme';
 import { AuthContext } from '../../auth/AuthProvider';
 import { AppShellLayout } from '../_layout';
+import { PageCrumbs } from '../../components/PageCrumbs';
 
 const auth = {
   state: {
@@ -28,6 +29,14 @@ function renderAt(url: string) {
         children: [
           { path: '/', element: <div data-testid="outlet">HOME</div> },
           { path: '/tracks', element: <div data-testid="outlet">TRACKS</div> },
+          {
+            path: '/crumbs',
+            element: (
+              <PageCrumbs>
+                <a href="/up">Up</a>
+              </PageCrumbs>
+            ),
+          },
           {
             path: '/curate/:styleId/:blockId/:bucketId',
             element: <div data-testid="outlet">CURATE</div>,
@@ -54,6 +63,21 @@ describe('AppShellLayout', () => {
     expect(screen.getByText('CLOUDER')).toBeInTheDocument();
     expect(screen.getByText('Roman')).toBeInTheDocument();
     expect(screen.getByTestId('outlet')).toBeInTheDocument();
+  });
+
+  // The page's breadcrumbs / back link live in the app header, not a row of the page.
+  it('puts the page crumbs into the app header', async () => {
+    renderAt('/crumbs');
+    expect(await within(screen.getByRole('banner')).findByRole('link', { name: 'Up' })).toBeInTheDocument();
+  });
+
+  it('renders the crumbs in place outside the app shell', () => {
+    render(
+      <PageCrumbs>
+        <a href="/up">Up</a>
+      </PageCrumbs>,
+    );
+    expect(screen.getByRole('link', { name: 'Up' })).toBeInTheDocument();
   });
 
   it('renders navigation items', () => {

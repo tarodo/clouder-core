@@ -1,0 +1,29 @@
+/* The app header's middle: the page's breadcrumbs / back link, cut short rather than wrapped. */
+.slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+  padding-left: var(--mantine-spacing-lg);
+}
+.slot > *,
+.slot :global(.mantine-Breadcrumbs-root) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slot :global(.mantine-Breadcrumbs-root) {
+  flex-wrap: nowrap;
+}
+/* the links stay whole; the page's own name gives way */
+.slot :global(.mantine-Breadcrumbs-breadcrumb) {
+  flex-shrink: 0;
+}
+.slot :global(.mantine-Breadcrumbs-breadcrumb:last-child) {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

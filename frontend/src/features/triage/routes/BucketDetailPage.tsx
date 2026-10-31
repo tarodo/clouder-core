@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { ApiError } from '../../../api/error';
 import { EmptyState } from '../../../components/EmptyState';
+import { PageCrumbs } from '../../../components/PageCrumbs';
 import { PageSkeleton } from '../../../components/PageSkeleton';
 import { IconArrowsExchange } from '../../../components/icons';
 import { useTriageBlock } from '../hooks/useTriageBlock';
@@ -312,20 +313,25 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
 
   return (
     <Stack gap="md">
-      <Anchor
-        component={Link}
-        to={`/triage/${styleId}/${blockId}`}
-        c="var(--color-fg)"
-        td="none"
-      >
-        {t('triage.bucket.back_to_block', { name: block.name })}
-      </Anchor>
+      <PageCrumbs>
+        <Anchor
+          component={Link}
+          to={`/triage/${styleId}/${blockId}`}
+          c="var(--color-fg)"
+          td="none"
+        >
+          {t('triage.bucket.back_to_block', { name: block.name })}
+        </Anchor>
+      </PageCrumbs>
       <Group justify="space-between" wrap="nowrap" align="center">
         {/* the style first: categories repeat across styles */}
         <Group gap="xs" align="baseline" wrap="wrap">
           <Title order={2}>{bucketLabel(bucket, t)}</Title>
-          <Text fw={500}>{block.style_name}</Text>
+          {/* one text, so a phone wraps it like text, not a "·" leading a line */}
           <Text c="dimmed" size="sm">
+            <Text span inherit fw={500} c="var(--color-fg)">
+              {block.style_name}
+            </Text>{' '}
             ·{' '}
             {t('triage.bucket.header.subtitle', {
               count: bucket.track_count,
