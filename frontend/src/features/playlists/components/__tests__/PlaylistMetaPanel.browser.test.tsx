@@ -40,7 +40,7 @@ describe('PlaylistMetaPanel — compact header (browser)', () => {
     const { container } = render(
       <QueryClientProvider client={qc}>
         <MantineProvider defaultColorScheme="light">
-          <div style={{ width: 1200 }}>
+          <div style={{ width: 1200 }} data-testid="box">
             <PlaylistMetaPanel
               playlist={playlist}
               onPatch={vi.fn(async () => {})}
@@ -51,7 +51,7 @@ describe('PlaylistMetaPanel — compact header (browser)', () => {
       </QueryClientProvider>,
     );
 
-    const header = container.querySelector('.mantine-Group-root') as HTMLElement; // the panel's root
+    const header = screen.getByTestId('box').firstElementChild as HTMLElement; // the panel's root
     const cover = container.querySelector('.mantine-Avatar-root')!.getBoundingClientRect();
     expect(Math.abs(cover.width - cover.height)).toBeLessThan(2); // square
     expect(cover.height).toBeLessThanOrEqual(100);
@@ -63,6 +63,43 @@ describe('PlaylistMetaPanel — compact header (browser)', () => {
     const mid = publish.top + publish.height / 2;
     expect(mid).toBeGreaterThan(title.top);
     expect(mid).toBeLessThan(title.bottom);
+  });
+
+  // A long name next to wide publish buttons: the buttons drop under the name instead of running
+  // off the edge, and the rename pencil stays beside the name instead of taking a row.
+  test('a long name: one line, the pencil beside it, the actions wrap inside the header', async () => {
+    await page.viewport(1440, 900);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MantineProvider defaultColorScheme="light">
+          <div style={{ width: 1000 }} data-testid="box">
+            <PlaylistMetaPanel
+              playlist={{ ...playlist, name: 'cLoudER : S6 :: DnB :: 032 :: Red Shift' }}
+              onPatch={vi.fn(async () => {})}
+              publishSlot={
+                <div style={{ display: 'flex', gap: 12 }}>
+                  {['Re-publish to Spotify', 'Re-publish to YT Music', 'Copy playlist'].map((n) => (
+                    <button key={n} type="button" style={{ width: 250, flexShrink: 0 }}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              }
+            />
+          </div>
+        </MantineProvider>
+      </QueryClientProvider>,
+    );
+    const box = screen.getByTestId('box').getBoundingClientRect();
+    const title = screen.getByRole('heading', { level: 1 }).getBoundingClientRect();
+    const pencil = screen.getByRole('button', { name: /rename/i }).getBoundingClientRect();
+    expect(title.height).toBeLessThan(45); // one line
+    const mid = pencil.top + pencil.height / 2;
+    expect(mid).toBeGreaterThan(title.top);
+    expect(mid).toBeLessThan(title.bottom);
+    expect(screen.getByRole('button', { name: 'Copy playlist' }).getBoundingClientRect().right).toBeLessThanOrEqual(
+      box.right,
+    );
   });
 
   test('phone: the actions take a full-width row under the cover, not a narrow column', async () => {
