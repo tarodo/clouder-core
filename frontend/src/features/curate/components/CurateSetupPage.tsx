@@ -90,7 +90,10 @@ export function CurateSetupPage({ styleId }: CurateSetupPageProps) {
   return (
     <Center p="xl">
       <Stack gap="md" style={{ width: 480, maxWidth: '100%' }}>
-        <Title order={2}>{t('curate.setup.title')}</Title>
+        <Stack gap={2}>
+          <Title order={2}>{t('curate.setup.title')}</Title>
+          <Text c="dimmed">{styleName}</Text>
+        </Stack>
 
         <Select
           label={t('curate.setup.block_select_label')}

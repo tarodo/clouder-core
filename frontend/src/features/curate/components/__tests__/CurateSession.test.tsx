@@ -152,6 +152,11 @@ describe('CurateSession with PlayerCard', () => {
     tokenStore.set(null);
   });
 
+  it('the session line names the style first', async () => {
+    renderSession();
+    expect(await screen.findByText(/tracks? left/)).toHaveTextContent(/^House · NEW · W17 · /);
+  });
+
   it('renders PlayerCard at the top of the session', async () => {
     renderSession();
     // CurateCard appears on mobile once data loads.

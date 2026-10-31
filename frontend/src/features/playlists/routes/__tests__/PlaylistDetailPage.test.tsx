@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
@@ -131,6 +132,17 @@ beforeEach(() => {
 });
 
 describe('PlaylistDetailPage', () => {
+  it('Delete sits in the actions menu and asks to confirm', async () => {
+    render(
+      <Wrapper>
+        <PlaylistDetailPage />
+      </Wrapper>,
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Playlist actions' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
   it('renders title, stats, and the single track row', async () => {
     render(
       <Wrapper>

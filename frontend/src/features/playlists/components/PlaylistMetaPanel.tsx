@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   ActionIcon,
-  Box,
   Group,
-  Stack,
   Switch,
   Text,
   TextInput,
@@ -17,6 +15,9 @@ import type { Playlist } from '../lib/playlistTypes';
 import { playlistNameSchema, playlistDescriptionSchema } from '../lib/playlistSchemas';
 import { translateFieldError } from '../lib/errorMessages';
 import { CoverPicker } from './CoverPicker';
+import classes from './PlaylistMetaPanel.module.css';
+
+const COVER_SIZE = 96;
 
 export interface PlaylistMetaPanelProps {
   playlist: Playlist;
@@ -42,21 +43,6 @@ export function PlaylistMetaPanel({
   const [editingDescription, setEditingDescription] = useState(false);
   const [descDraft, setDescDraft] = useState(playlist.description ?? '');
   const [descError, setDescError] = useState<string | undefined>();
-
-  // Size the (square) cover to match the content block's height. The
-  // description is width-capped (520px), so the content height doesn't depend
-  // on the cover width → no resize feedback loop.
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [coverSize, setCoverSize] = useState(200);
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => {
-      setCoverSize(Math.min(280, Math.max(160, Math.round(el.getBoundingClientRect().height))));
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   async function commitName() {
     const parsed = playlistNameSchema.safeParse(nameDraft);
@@ -101,12 +87,16 @@ export function PlaylistMetaPanel({
     setEditingDescription(false);
   }
 
+  // Beside a small cover: the name with the publish actions, the stats with the status, the
+  // description. The track list below gets the room.
   return (
-    <Group align="flex-start" gap="lg" wrap="nowrap">
-      <CoverPicker playlistId={playlist.id} coverUrl={playlist.cover_url} size={coverSize} />
-      <Stack gap="sm" flex={1} ref={contentRef}>
+    <div className={classes.root}>
+      <div className={classes.cover}>
+        <CoverPicker playlistId={playlist.id} coverUrl={playlist.cover_url} size={COVER_SIZE} />
+      </div>
+      <div className={classes.title}>
         {editingName ? (
-          <Group gap="xs" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap" maw={520}>
             <TextInput
               value={nameDraft}
               onChange={(e) => setNameDraft(e.currentTarget.value)}
@@ -129,7 +119,13 @@ export function PlaylistMetaPanel({
           </Group>
         ) : (
           <Group gap="xs" wrap="wrap" align="center">
-            <Title order={1}>{playlist.name}</Title>
+            {/* an h2's size on a phone: the h1 wraps the name beside the cover */}
+            <Title
+              order={1}
+              fz={{ base: 'var(--mantine-h2-font-size)', md: 'var(--mantine-h1-font-size)' }}
+            >
+              {playlist.name}
+            </Title>
             <Tooltip label={t('playlists.form.rename_title')} withinPortal>
               <ActionIcon
                 variant="subtle"
@@ -142,85 +138,75 @@ export function PlaylistMetaPanel({
             {titleSlot}
           </Group>
         )}
-
-        {editingDescription ? (
-          <Group gap="xs" wrap="nowrap" align="flex-start" style={{ maxWidth: 520 }}>
-            <Textarea
-              value={descDraft}
-              onChange={(e) => setDescDraft(e.currentTarget.value)}
-              maxLength={300}
-              autosize
-              minRows={2}
-              maxRows={6}
-              error={descError}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              flex={1}
-            />
-            <ActionIcon variant="subtle" onClick={() => void commitDescription()} aria-label="Save description">
-              <IconCheck size={18} />
-            </ActionIcon>
-            <ActionIcon variant="subtle" onClick={cancelDescription} aria-label="Cancel">
-              <IconX size={18} />
-            </ActionIcon>
-          </Group>
-        ) : (
-          <Box
-            onClick={() => setEditingDescription(true)}
-            style={{
-              position: 'relative',
-              cursor: 'pointer',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--mantine-radius-sm)',
-              padding: '8px 40px 8px 12px',
-              minHeight: 40,
-              maxWidth: 520,
-            }}
-          >
-            <Text c={playlist.description ? undefined : 'dimmed'} size="sm">
-              {playlist.description ?? t('playlists.detail.description_empty')}
-            </Text>
-            <Tooltip label={t('playlists.form.edit_description_title')} withinPortal>
-              <ActionIcon
-                variant="subtle"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingDescription(true);
-                }}
-                aria-label={t('playlists.form.edit_description_title')}
-                style={{ position: 'absolute', top: 4, right: 4 }}
-              >
-                <IconPencil size={16} />
-              </ActionIcon>
-            </Tooltip>
-          </Box>
-        )}
-
-        <Group gap="md" wrap="wrap">
-          <Switch
-            label={
-              playlist.status === 'completed'
-                ? t('playlists.status.completed')
-                : t('playlists.status.active')
-            }
-            checked={playlist.status === 'completed'}
-            onChange={(e) =>
-              void onPatch({ status: e.currentTarget.checked ? 'completed' : 'active' }).catch(
-                () => undefined,
-              )
-            }
-          />
-        </Group>
-
+      </div>
+      {publishSlot ? <div className={classes.actions}>{publishSlot}</div> : null}
+      <Group gap="md" wrap="wrap" className={classes.meta}>
         <Text c="dimmed" size="sm">
           {t('playlists.detail.stats', {
             count: playlist.track_count,
             when: playlist.updated_at.slice(0, 10),
           })}
         </Text>
+        <Switch
+          size="xs"
+          label={
+            playlist.status === 'completed'
+              ? t('playlists.status.completed')
+              : t('playlists.status.active')
+          }
+          checked={playlist.status === 'completed'}
+          onChange={(e) =>
+            void onPatch({ status: e.currentTarget.checked ? 'completed' : 'active' }).catch(
+              () => undefined,
+            )
+          }
+        />
+      </Group>
 
-        {publishSlot ? <div>{publishSlot}</div> : null}
-      </Stack>
-    </Group>
+      {editingDescription ? (
+        <Group gap="xs" wrap="nowrap" align="flex-start" maw={640} className={classes.desc}>
+          <Textarea
+            value={descDraft}
+            onChange={(e) => setDescDraft(e.currentTarget.value)}
+            maxLength={300}
+            autosize
+            minRows={2}
+            maxRows={6}
+            error={descError}
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
+            flex={1}
+          />
+          <ActionIcon variant="subtle" onClick={() => void commitDescription()} aria-label="Save description">
+            <IconCheck size={18} />
+          </ActionIcon>
+          <ActionIcon variant="subtle" onClick={cancelDescription} aria-label="Cancel">
+            <IconX size={18} />
+          </ActionIcon>
+        </Group>
+      ) : (
+        <Group gap={4} wrap="nowrap" align="flex-start" maw={640} className={classes.desc}>
+          <Text
+            size="sm"
+            c={playlist.description ? undefined : 'dimmed'}
+            lineClamp={2}
+            style={{ cursor: 'pointer' }}
+            onClick={() => setEditingDescription(true)}
+          >
+            {playlist.description ?? t('playlists.detail.description_empty')}
+          </Text>
+          <Tooltip label={t('playlists.form.edit_description_title')} withinPortal>
+            <ActionIcon
+              variant="subtle"
+              size="sm"
+              onClick={() => setEditingDescription(true)}
+              aria-label={t('playlists.form.edit_description_title')}
+            >
+              <IconPencil size={14} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      )}
+    </div>
   );
 }

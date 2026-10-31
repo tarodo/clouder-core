@@ -88,12 +88,17 @@ export function CoverPicker({ playlistId, coverUrl, size = 200 }: CoverPickerPro
               >
                 <Stack gap={4} align="center" justify="center" px="xs">
                   <IconPhoto size={36} />
-                  <Text size="xs" c="dimmed" ta="center">
-                    {t('playlists.cover.help_text')}
-                  </Text>
-                  <Text size="xs" c="dimmed" ta="center">
-                    {t('playlists.cover.upload_hint')}
-                  </Text>
+                  {/* a small cover has no room for the hints: the button's label says it */}
+                  {size >= 160 && (
+                    <>
+                      <Text size="xs" c="dimmed" ta="center">
+                        {t('playlists.cover.help_text')}
+                      </Text>
+                      <Text size="xs" c="dimmed" ta="center">
+                        {t('playlists.cover.upload_hint')}
+                      </Text>
+                    </>
+                  )}
                 </Stack>
               </Avatar>
             </UnstyledButton>

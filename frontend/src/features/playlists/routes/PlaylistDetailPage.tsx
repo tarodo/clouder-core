@@ -1,9 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActionIcon, Anchor, Breadcrumbs, Button, Flex, Group, Stack, TextInput, Tooltip, useMantineTheme } from '@mantine/core';
+import {
+  ActionIcon,
+  Anchor,
+  Breadcrumbs,
+  Button,
+  Flex,
+  Group,
+  Menu,
+  Stack,
+  TextInput,
+  Tooltip,
+  useMantineTheme,
+} from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
-import { IconBrandSpotify, IconBrandYoutube, IconPlus, IconSearch } from '@tabler/icons-react';
+import {
+  IconBrandSpotify,
+  IconBrandYoutube,
+  IconDotsVertical,
+  IconPlus,
+  IconSearch,
+} from '@tabler/icons-react';
 import {
   Link,
   Navigate,
@@ -222,7 +240,8 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
         leftSection={<IconSearch size={16} />}
         value={search}
         onChange={(e) => setSearch(e.currentTarget.value)}
-        style={{ width: 280 }}
+        // shrinks before it wraps onto a row of its own
+        style={{ flex: 1, minWidth: 180, maxWidth: 280 }}
       />
     </Group>
   );
@@ -254,7 +273,7 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
   );
 
   return (
-    <Stack gap="lg" className={isDesktop ? classes.page : undefined}>
+    <Stack gap="md" className={isDesktop ? classes.page : undefined}>
       <Breadcrumbs>
         <Anchor component={Link} to="/playlists">
           {t('playlists.page_title')}
@@ -266,13 +285,10 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
         playlist={playlist}
         onPatch={handlePatch}
         titleSlot={
-          <Group gap="xs" align="center">
+          <>
             {playlist.needs_republish ? <DriftBadge /> : null}
             {playlist.ytmusic_needs_republish ? <DriftBadge target="ytmusic" /> : null}
-            <Button color="red" variant="subtle" size="xs" onClick={openDelete}>
-              {t('playlists.detail.delete_cta')}
-            </Button>
-          </Group>
+          </>
         }
         publishSlot={
           <Group gap="sm" align="center">
@@ -311,6 +327,19 @@ function PlaylistDetailPageInner({ id }: { id: string }) {
                 </ActionIcon>
               </Tooltip>
             ) : null}
+            {/* rare and destructive: off the title row */}
+            <Menu position="bottom-end">
+              <Menu.Target>
+                <ActionIcon variant="subtle" color="gray" size="lg" aria-label={t('playlists.detail.actions_aria')}>
+                  <IconDotsVertical size={18} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item color="red" onClick={openDelete}>
+                  {t('playlists.detail.delete_cta')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
           </Group>
         }
       />

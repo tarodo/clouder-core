@@ -1,13 +1,12 @@
 /**
- * Browser-mode layout check: the cover must be a square sized to the meta
- * panel's content-column height (Group align="stretch" + a square cover that
- * fills the row height). flexbox + aspect-ratio + height:100% interactions only
- * resolve in a real layout engine, so this lives in the browser harness.
+ * Browser-mode layout check: the header is two rows beside a small square cover, so the track
+ * list below gets the room. Only a real layout engine measures this.
  */
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
+import { page } from 'vitest/browser';
 import '../../../../i18n';
 import { PlaylistMetaPanel } from '../PlaylistMetaPanel';
 import type { Playlist } from '../../lib/playlistTypes';
@@ -34,32 +33,56 @@ const playlist: Playlist = {
   updated_at: '2026-05-01T00:00:00Z',
 };
 
-describe('PlaylistMetaPanel — cover matches content height (browser)', () => {
-  test('cover is square and as tall as the content block', async () => {
+describe('PlaylistMetaPanel — compact header (browser)', () => {
+  test('a small square cover; publish actions share the title row', async () => {
+    await page.viewport(1440, 900);
     const qc = new QueryClient();
     const { container } = render(
       <QueryClientProvider client={qc}>
         <MantineProvider defaultColorScheme="light">
-          <div style={{ width: 700 }}>
-            <PlaylistMetaPanel playlist={playlist} onPatch={vi.fn(async () => {})} />
+          <div style={{ width: 1200 }}>
+            <PlaylistMetaPanel
+              playlist={playlist}
+              onPatch={vi.fn(async () => {})}
+              publishSlot={<button type="button">Publish</button>}
+            />
           </div>
         </MantineProvider>
       </QueryClientProvider>,
     );
 
-    const group = container.querySelector('.mantine-Group-root') as HTMLElement;
-    expect(group).not.toBeNull();
-    const content = group.children[1] as HTMLElement; // the content Stack column
+    const header = container.querySelector('.mantine-Group-root') as HTMLElement; // the panel's root
+    const cover = container.querySelector('.mantine-Avatar-root')!.getBoundingClientRect();
+    expect(Math.abs(cover.width - cover.height)).toBeLessThan(2); // square
+    expect(cover.height).toBeLessThanOrEqual(100);
+    // was ~200px (cover sized to five rows); now the name, the stats, a two-line description
+    expect(header.getBoundingClientRect().height).toBeLessThanOrEqual(120);
 
-    // The cover is sized via a ResizeObserver on the content block, so wait for
-    // it to settle, then assert it is square and matches the content height.
-    await vi.waitFor(() => {
-      const cover = container.querySelector('.mantine-Avatar-root') as HTMLElement;
-      const c = cover.getBoundingClientRect();
-      const k = content.getBoundingClientRect();
-      expect(c.height).toBeGreaterThan(160); // taller than the old fixed 160px cover
-      expect(Math.abs(c.width - c.height)).toBeLessThan(2); // square
-      expect(Math.abs(c.height - k.height)).toBeLessThan(4); // matches content height
-    });
+    const title = screen.getByRole('heading', { level: 1 }).getBoundingClientRect();
+    const publish = screen.getByRole('button', { name: 'Publish' }).getBoundingClientRect();
+    const mid = publish.top + publish.height / 2;
+    expect(mid).toBeGreaterThan(title.top);
+    expect(mid).toBeLessThan(title.bottom);
+  });
+
+  test('phone: the actions take a full-width row under the cover, not a narrow column', async () => {
+    await page.viewport(390, 844);
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MantineProvider defaultColorScheme="light">
+          <div style={{ width: 358 }}>
+            <PlaylistMetaPanel
+              playlist={playlist}
+              onPatch={vi.fn(async () => {})}
+              publishSlot={<button type="button">Publish</button>}
+            />
+          </div>
+        </MantineProvider>
+      </QueryClientProvider>,
+    );
+    const cover = container.querySelector('.mantine-Avatar-root')!.getBoundingClientRect();
+    const publish = screen.getByRole('button', { name: 'Publish' }).getBoundingClientRect();
+    expect(publish.top).toBeGreaterThanOrEqual(cover.bottom);
+    expect(publish.left).toBeLessThanOrEqual(cover.left + 1);
   });
 });

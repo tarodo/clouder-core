@@ -1,0 +1,45 @@
+/* Desktop: the name with the publish actions beside a small cover, then the stats and the
+   description. Phone: the actions take a full-width row under it all, not a narrow column. */
+.root {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    'cover title actions'
+    'cover meta meta'
+    'cover desc desc';
+  column-gap: var(--mantine-spacing-md);
+  row-gap: 6px;
+  align-items: center;
+}
+.cover {
+  grid-area: cover;
+  align-self: start;
+}
+.title {
+  grid-area: title;
+}
+.actions {
+  grid-area: actions;
+}
+.meta {
+  grid-area: meta;
+}
+.desc {
+  grid-area: desc;
+  align-self: start;
+}
+@media (max-width: 62em) {
+  .root {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas:
+      'cover title'
+      'cover meta'
+      'cover desc'
+      'actions actions';
+  }
+  .actions {
+    margin-top: var(--mantine-spacing-xs);
+  }
+}

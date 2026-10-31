@@ -78,4 +78,15 @@ describe('ArtistDetailHeader — back-link inline layout (browser)', () => {
 
     expect(back.getBoundingClientRect().left).toBeLessThan(title.getBoundingClientRect().left);
   });
+
+  test('country and active-since sit on the title row', () => {
+    renderHeader();
+    const title = screen.getByRole('heading', { level: 2, name: 'Test Artist' }).getBoundingClientRect();
+    for (const text of ['DE', /Active since 2010/]) {
+      const r = screen.getByText(text).getBoundingClientRect();
+      const mid = r.top + r.height / 2;
+      expect(mid).toBeGreaterThan(title.top);
+      expect(mid).toBeLessThan(title.bottom);
+    }
+  });
 });
