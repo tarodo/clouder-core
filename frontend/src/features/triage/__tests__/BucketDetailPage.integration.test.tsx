@@ -43,6 +43,7 @@ vi.mock('../../playback/usePlayback', () => ({
 }));
 
 import { BucketDetailPage } from '../routes/BucketDetailPage';
+import { BucketPlayerPage } from '../routes/BucketPlayerPage';
 
 function renderAt(path: string) {
   const qc = new QueryClient({
@@ -114,6 +115,37 @@ describe('BucketDetailPage integration', () => {
     playbackState.track.current = null;
   });
   afterEach(() => notifications.clean());
+
+  // Categories repeat across styles: the header says which style this triage runs in.
+  it('header names the style of the triage', async () => {
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(inProgressBlock)),
+      http.get('http://localhost/triage/blocks/b1/buckets/bk1/tracks', () =>
+        HttpResponse.json({ items: [track('t1')], total: 1, limit: 50, offset: 0 }),
+      ),
+    );
+    renderAt('/triage/s1/b1/buckets/bk1');
+    expect(await screen.findByText('House')).toBeInTheDocument();
+  });
+
+  it('phone player names the style and the bucket', async () => {
+    server.use(
+      http.get('http://localhost/triage/blocks/b1', () => HttpResponse.json(inProgressBlock)),
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const router = createMemoryRouter(
+      [{ path: '/triage/:styleId/:id/buckets/:bucketId/player', element: <BucketPlayerPage /> }],
+      { initialEntries: ['/triage/s1/b1/buckets/bk3/player'] },
+    );
+    render(
+      <QueryClientProvider client={qc}>
+        <MantineProvider>
+          <RouterProvider router={router} />
+        </MantineProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('House · Tech')).toBeInTheDocument();
+  });
 
   it('renders track list and load-more', async () => {
     server.use(

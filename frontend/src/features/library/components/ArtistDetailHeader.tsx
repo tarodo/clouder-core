@@ -29,37 +29,30 @@ export function ArtistDetailHeader({ info, artistId }: Props) {
       : null;
 
   return (
-    <>
-      <Group gap="sm" align="center" wrap="wrap">
-        <Anchor component="button" type="button" onClick={goBack} size="sm">
-          {t('library.detail.back')}
-        </Anchor>
-        <Title order={2}>{artistName}</Title>
-        <AiRepBadge rep={(info as { ai?: AiRep | null }).ai} />
-        <ArtistPreferenceButtons artistId={artistId} current={myPreference} size="md" />
-        {isAdmin && (
-          <Button
-            size="xs"
-            variant="light"
-            loading={enrich.isPending}
-            onClick={() => enrich.mutate({ artistId })}
-          >
-            {t('library.detail.admin_search_now')}
-          </Button>
-        )}
-      </Group>
-      <Group gap="xs" mt="xs">
-        {country && (
-          <Text>
-            {country}
-          </Text>
-        )}
-        {activeSince !== null && (
-          <Text c="dimmed">
-            · {t('library.detail.active_since', { year: activeSince })}
-          </Text>
-        )}
-      </Group>
-    </>
+    <Group gap="sm" align="center" wrap="wrap">
+      <Anchor component="button" type="button" onClick={goBack} size="sm">
+        {t('library.detail.back')}
+      </Anchor>
+      <Title order={2}>{artistName}</Title>
+      <AiRepBadge rep={(info as { ai?: AiRep | null }).ai} />
+      <ArtistPreferenceButtons artistId={artistId} current={myPreference} size="md" />
+      {/* on the title row: no row of its own above the tracks */}
+      {country && <Text>{country}</Text>}
+      {activeSince !== null && (
+        <Text c="dimmed">
+          · {t('library.detail.active_since', { year: activeSince })}
+        </Text>
+      )}
+      {isAdmin && (
+        <Button
+          size="xs"
+          variant="light"
+          loading={enrich.isPending}
+          onClick={() => enrich.mutate({ artistId })}
+        >
+          {t('library.detail.admin_search_now')}
+        </Button>
+      )}
+    </Group>
   );
 }

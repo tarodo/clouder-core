@@ -1,9 +1,11 @@
-import { Stack, ActionIcon, Group } from '@mantine/core';
+import { Stack, ActionIcon, Group, Text } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useNavigate, useOutletContext, useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { BucketPlayerPanel } from '../components/BucketPlayerPanel';
 import type { BucketTrack } from '../hooks/useBucketTracks';
+import { useTriageBlock } from '../hooks/useTriageBlock';
+import { bucketLabel } from '../lib/bucketLabels';
 
 export interface BucketDetailOutletContext {
   items: BucketTrack[];
@@ -34,6 +36,8 @@ function BucketPlayerPageInner({
   const { t } = useTranslation();
   const ctx = useOutletContext<BucketDetailOutletContext | undefined>();
   const items = ctx?.items ?? [];
+  const { data: block } = useTriageBlock(blockId);
+  const bucket = block?.buckets.find((b) => b.id === bucketId);
   return (
     <Stack gap="md" p="md">
       <Group>
@@ -44,6 +48,12 @@ function BucketPlayerPageInner({
         >
           <IconArrowLeft />
         </ActionIcon>
+        {/* which style's triage this is: categories repeat across styles */}
+        {block && bucket && (
+          <Text size="sm" c="dimmed">
+            {block.style_name} · {bucketLabel(bucket, t)}
+          </Text>
+        )}
       </Group>
       <BucketPlayerPanel blockId={blockId} bucketId={bucketId} items={items} />
     </Stack>

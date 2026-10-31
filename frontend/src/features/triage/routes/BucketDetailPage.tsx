@@ -311,7 +311,7 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
   );
 
   return (
-    <Stack gap="lg">
+    <Stack gap="md">
       <Anchor
         component={Link}
         to={`/triage/${styleId}/${blockId}`}
@@ -320,41 +320,43 @@ function BucketDetailInner({ styleId, blockId, bucketId }: InnerProps) {
       >
         {t('triage.bucket.back_to_block', { name: block.name })}
       </Anchor>
-      <Stack gap="xs">
-        <Group justify="space-between" wrap="nowrap" align="center">
+      <Group justify="space-between" wrap="nowrap" align="center">
+        {/* the style first: categories repeat across styles */}
+        <Group gap="xs" align="baseline" wrap="wrap">
           <Title order={2}>{bucketLabel(bucket, t)}</Title>
-          {block?.status === 'IN_PROGRESS' &&
-            bucket.bucket_type !== 'STAGING' &&
-            bucket.track_count > 0 && (
-              <Button
-                component={Link}
-                to={`/curate/${block.style_id}/${block.id}/${bucket.id}`}
-                variant="default"
-              >
-                {t('curate.triage_cta.from_bucket')}
-              </Button>
-            )}
-          {showBulkTransfer && (
+          <Text fw={500}>{block.style_name}</Text>
+          <Text c="dimmed" size="sm">
+            ·{' '}
+            {t('triage.bucket.header.subtitle', {
+              count: bucket.track_count,
+              from: block.date_from,
+              to: block.date_to,
+            })}
+          </Text>
+        </Group>
+        {block?.status === 'IN_PROGRESS' &&
+          bucket.bucket_type !== 'STAGING' &&
+          bucket.track_count > 0 && (
             <Button
-              variant="light"
-              leftSection={<IconArrowsExchange size={14} />}
-              onClick={handleOpenBulk}
-              loading={collecting}
-              disabled={collecting}
+              component={Link}
+              to={`/curate/${block.style_id}/${block.id}/${bucket.id}`}
+              variant="default"
             >
-              {t('triage.transfer.bulk.cta')}
+              {t('curate.triage_cta.from_bucket')}
             </Button>
           )}
-        </Group>
-        <Text c="dimmed" size="sm">
-          {t('triage.bucket.header.subtitle', {
-            count: bucket.track_count,
-            block_name: block.name,
-            from: block.date_from,
-            to: block.date_to,
-          })}
-        </Text>
-      </Stack>
+        {showBulkTransfer && (
+          <Button
+            variant="light"
+            leftSection={<IconArrowsExchange size={14} />}
+            onClick={handleOpenBulk}
+            loading={collecting}
+            disabled={collecting}
+          >
+            {t('triage.transfer.bulk.cta')}
+          </Button>
+        )}
+      </Group>
       {isDesktop && isStagingBucket ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
           <BucketPlayerPanel blockId={blockId} bucketId={bucketId} items={playerItems} />

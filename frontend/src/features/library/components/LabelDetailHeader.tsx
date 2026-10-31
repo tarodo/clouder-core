@@ -26,35 +26,28 @@ export function LabelDetailHeader({ info, labelId }: Props) {
     rec.my_preference === 'liked' || rec.my_preference === 'disliked' ? rec.my_preference : null;
 
   return (
-    <>
-      <Group gap="sm" align="center" wrap="wrap">
-        <Anchor component="button" type="button" onClick={goBack} size="sm">
-          {t('library.detail.back')}
-        </Anchor>
-        <Title order={2}>{labelName}</Title>
-        <AiRepBadge rep={(info as { ai?: AiRep | null }).ai} />
-        <LabelPreferenceButtons labelId={labelId} current={myPreference} size="md" />
-        {isAdmin && (
-          <Button
-            size="xs"
-            variant="light"
-            loading={enrich.isPending}
-            onClick={() => enrich.mutate({ labelId })}
-          >
-            {t('library.detail.admin_search_now')}
-          </Button>
-        )}
-      </Group>
-      <Group gap="xs" mt="xs">
-        {country && (
-          <Text>
-            {country}
-          </Text>
-        )}
-        {foundedYear !== null && (
-          <Text c="dimmed">· {t('library.detail.founded', { year: foundedYear })}</Text>
-        )}
-      </Group>
-    </>
+    <Group gap="sm" align="center" wrap="wrap">
+      <Anchor component="button" type="button" onClick={goBack} size="sm">
+        {t('library.detail.back')}
+      </Anchor>
+      <Title order={2}>{labelName}</Title>
+      <AiRepBadge rep={(info as { ai?: AiRep | null }).ai} />
+      <LabelPreferenceButtons labelId={labelId} current={myPreference} size="md" />
+      {/* on the title row: no row of its own above the tracks */}
+      {country && <Text>{country}</Text>}
+      {foundedYear !== null && (
+        <Text c="dimmed">· {t('library.detail.founded', { year: foundedYear })}</Text>
+      )}
+      {isAdmin && (
+        <Button
+          size="xs"
+          variant="light"
+          loading={enrich.isPending}
+          onClick={() => enrich.mutate({ labelId })}
+        >
+          {t('library.detail.admin_search_now')}
+        </Button>
+      )}
+    </Group>
   );
 }

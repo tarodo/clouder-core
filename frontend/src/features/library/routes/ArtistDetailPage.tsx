@@ -36,7 +36,7 @@ export function ArtistDetailPage() {
 
   // Full width like the category page: the player and the track list sit side by side.
   return (
-    <Stack gap="lg" py="md">
+    <Stack gap="lg">
       <ArtistDetailHeader info={info} artistId={artistId} />
       <EntityTracksSection kind="artist" entityId={artistId} />
       <Divider />

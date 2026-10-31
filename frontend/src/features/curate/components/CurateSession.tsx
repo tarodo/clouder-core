@@ -130,6 +130,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
   const remaining = currentBucket?.track_count ?? 0;
   const counter = t('curate.footer.tracks_left', {
     count: remaining,
+    style: session.block.style_name,
     label: currentLabel,
     block: session.block.name,
   });
@@ -163,7 +164,7 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         minHeight: '100%',
       }}
     >
-      <Group justify="space-between" align="center" gap="xs">
+      <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
         <ActionIcon
           variant="subtle"
           size="sm"
@@ -172,7 +173,8 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
         >
           <IconArrowLeft size={16} />
         </ActionIcon>
-        <Text size="xs" c="var(--color-fg-muted)">
+        {/* a phone wraps the line between the two icons, not the icons under it */}
+        <Text size="xs" c="var(--color-fg-muted)" ta="center" style={{ flex: 1, minWidth: 0 }}>
           {counter}
         </Text>
         <ActionIcon

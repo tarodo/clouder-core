@@ -283,6 +283,7 @@
       "back_to_list": "Back to playlists",
       "stats": "{{count}} tracks · Updated {{when}}",
       "delete_cta": "Delete",
+      "actions_aria": "Playlist actions",
       "open_spotify": "Open on Spotify",
       "open_ytmusic": "Open on YouTube Music",
       "clear_cover_cta": "Remove cover",
@@ -586,7 +587,8 @@
     "bucket": {
       "back_to_block": "← Back to {{name}}",
       "header": {
-        "subtitle": "{{count}} tracks · {{block_name}} · {{from}} → {{to}}"
+        "subtitle_one": "{{count}} track · {{from}} → {{to}}",
+        "subtitle_other": "{{count}} tracks · {{from}} → {{to}}"
       },
       "search_placeholder": "Search tracks…",
       "load_more": "Load more",
@@ -760,8 +762,8 @@
       "inactive_disabled_title": "Category inactive — re-activate in Categories"
     },
     "footer": {
-      "tracks_left_one": "1 track left · {{label}} · {{block}}",
-      "tracks_left_other": "{{count}} tracks left · {{label}} · {{block}}",
+      "tracks_left_one": "{{style}} · {{label}} · {{block}} · 1 track left",
+      "tracks_left_other": "{{style}} · {{label}} · {{block}} · {{count}} tracks left",
       "shortcut_prev": "Prev",
       "shortcut_skip": "Skip",
       "shortcut_undo": "Undo",

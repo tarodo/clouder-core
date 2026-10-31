@@ -105,5 +105,7 @@ describe('CurateSetupPage', () => {
         '/curate/s1/b1/b-new',
       ),
     );
+    // the picker names the style its blocks belong to
+    expect(screen.getByText('Tech House')).toBeInTheDocument();
   });
 });

@@ -36,7 +36,7 @@ export function LabelDetailPage() {
 
   // Full width like the category page: the player and the track list sit side by side.
   return (
-    <Stack gap="lg" py="md">
+    <Stack gap="lg">
       <LabelDetailHeader info={info} labelId={labelId} />
       <EntityTracksSection kind="label" entityId={labelId} />
       <Divider />

@@ -10,7 +10,7 @@
  * (jsdom can't measure getBoundingClientRect / vertical centering).
  */
 import { MantineProvider } from '@mantine/core';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import '../../../../i18n';
 import { CategoryDetailHeader } from '../CategoryDetailHeader';
@@ -51,5 +51,12 @@ describe('CategoryDetailHeader — layout (browser)', () => {
       // vertically centered to the title (within 2px)
       expect(Math.abs(mid(btn) - mid(title))).toBeLessThan(2);
     }
+  });
+
+  test('the track count sits on the title row, not a row of its own', () => {
+    const { container } = renderHeader();
+    const title = container.querySelector('h1')!.getBoundingClientRect();
+    const count = screen.getByText('42 tracks');
+    expect(Math.abs(mid(count) - (title.top + title.height / 2))).toBeLessThan(4);
   });
 });
