@@ -1127,6 +1127,109 @@ ENTITY_TRACKS_RESPONSE: dict[str, Any] = {
 }
 
 
+ENTITY_TRACK: dict[str, Any] = ENTITY_TRACKS_RESPONSE["properties"]["items"]["items"]
+SIMILAR_TRACK: dict[str, Any] = {
+    **ENTITY_TRACK,
+    "required": [*ENTITY_TRACK["required"], "discarded"],
+    "properties": {
+        **ENTITY_TRACK["properties"],
+        "discarded": {
+            "type": "boolean",
+            "description": "The caller put it in DISCARD and never kept it.",
+        },
+    },
+}
+_SIMILAR_ORDER = (
+    "Up to 50 tracks of the same style, never AI-flagged, one per recording (video): the caller's "
+    "keeps first (in a category or staged, else not discarded and predicted keep by the caller's "
+    "model of the style), then by sound similarity."
+)
+TRACK_SIMILAR_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["seed", "profiled", "items"],
+    "properties": {
+        "seed": {
+            **SIMILAR_TRACK,
+            "type": ["object", "null"],
+            "description": "Null: no such track.",
+        },
+        "profiled": {
+            "type": "boolean",
+            "description": "False: the seed has no sound profile yet, or no style; no items.",
+        },
+        "items": {"type": "array", "items": SIMILAR_TRACK},
+    },
+}
+ARTIST_SIMILAR_RESPONSE: dict[str, Any] = {
+    "type": "object",
+    "required": ["profiled", "style", "styles", "items"],
+    "properties": {
+        "profiled": {
+            "type": "boolean",
+            "description": "False: the artist has no profiled tracks in the style; no items.",
+        },
+        "style": {**_NAMED_REF, "type": ["object", "null"], "description": "The style used."},
+        "styles": {
+            "type": "array",
+            "description": "The artist's styles with profiled non-AI tracks, most first.",
+            "items": {
+                "type": "object",
+                "required": ["id", "name", "count"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "count": {"type": "integer"},
+                },
+            },
+        },
+        "items": {"type": "array", "items": SIMILAR_TRACK},
+    },
+}
+
+
+def _similar_routes() -> list[dict[str, Any]]:
+    return [
+        {
+            "method": "get",
+            "path": "/tracks/{track_id}/similar",
+            "auth": AUTH,
+            "summary": "Tracks that sound like this one, for the similar page's player.",
+            "description": _SIMILAR_ORDER + " The seed comes back with its own row.",
+            "parameters": [
+                {"name": "track_id", "in": "path", "required": True, "schema": {"type": "string"}}
+            ],
+            "responses": {
+                "200": _make_response(
+                    200, "The seed and its similar tracks.", TRACK_SIMILAR_RESPONSE
+                ),
+                **COMMON_AUTH_ERRORS,
+            },
+        },
+        {
+            "method": "get",
+            "path": "/artists/{artist_id}/similar",
+            "auth": AUTH,
+            "summary": "Tracks that sound like this artist (the centroid of its tracks), in one style.",
+            "description": _SIMILAR_ORDER
+            + " The artist's own tracks are left out. Query: `style_id` (default: the artist's most "
+            "profiled style).",
+            "parameters": [
+                {"name": "artist_id", "in": "path", "required": True, "schema": {"type": "string"}},
+                {
+                    "name": "style_id",
+                    "in": "query",
+                    "required": False,
+                    "schema": {"type": "string"},
+                },
+            ],
+            "responses": {
+                "200": _make_response(200, "The artist's similar tracks.", ARTIST_SIMILAR_RESPONSE),
+                **COMMON_AUTH_ERRORS,
+            },
+        },
+    ]
+
+
 def _entity_tracks_route(kind: str) -> dict[str, Any]:
     param = f"{kind}_id"
     return {
@@ -5518,6 +5621,7 @@ ROUTES: list[dict[str, Any]] = [
         },
     },
     _entity_tracks_route("artist"),
+    *_similar_routes(),
     # ── user artist preferences ───────────────────────────────────────
     {
         "method": "put",

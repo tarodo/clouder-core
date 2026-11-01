@@ -450,6 +450,22 @@ resource "aws_apigatewayv2_route" "artist_tracks_user" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "artist_similar_user" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /artists/{artist_id}/similar"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "track_similar_user" {
+  api_id             = aws_apigatewayv2_api.collector.id
+  route_key          = "GET /tracks/{track_id}/similar"
+  target             = "integrations/${aws_apigatewayv2_integration.collector_lambda.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 resource "aws_apigatewayv2_route" "artist_preference_put" {
   api_id             = aws_apigatewayv2_api.collector.id
   route_key          = "PUT /artists/{artist_id}/preference"

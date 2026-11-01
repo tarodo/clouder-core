@@ -853,7 +853,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id026
+              schema: &id044
                 type: object
                 required:
                 - id
@@ -1216,15 +1216,15 @@ paths:
                       - categories
                       - playlists
                       properties:
-                        id:
+                        id: &id025
                           type: string
-                        title:
+                        title: &id026
                           type: string
-                        mix_name:
+                        mix_name: &id027
                           type:
                           - string
                           - 'null'
-                        artists:
+                        artists: &id028
                           type: array
                           items:
                             type: object
@@ -1264,7 +1264,7 @@ paths:
                                     type: integer
                                   total:
                                     type: integer
-                        label:
+                        label: &id029
                           type:
                           - object
                           - 'null'
@@ -1278,7 +1278,7 @@ paths:
                             name:
                               type: string
                             ai: *id004
-                        style:
+                        style: &id030
                           type:
                           - object
                           - 'null'
@@ -1290,34 +1290,34 @@ paths:
                               type: string
                             name:
                               type: string
-                        bpm:
+                        bpm: &id031
                           type:
                           - integer
                           - 'null'
-                        length_ms:
+                        length_ms: &id032
                           type:
                           - integer
                           - 'null'
-                        key_name:
+                        key_name: &id033
                           type:
                           - string
                           - 'null'
-                        key_camelot:
+                        key_camelot: &id034
                           type:
                           - string
                           - 'null'
-                        release_date:
+                        release_date: &id035
                           type:
                           - string
                           - 'null'
                           format: date
                           description: Beatport publish date, else the Spotify release
                             date.
-                        spotify_id:
+                        spotify_id: &id036
                           type:
                           - string
                           - 'null'
-                        ai_verdict:
+                        ai_verdict: &id037
                           type:
                           - string
                           - 'null'
@@ -1326,14 +1326,14 @@ paths:
                           - medium
                           - low
                           - null
-                        categories:
+                        categories: &id038
                           type: array
                           description: The caller's live categories holding the track.
                           items: &id007
                             type: object
                             required: *id005
                             properties: *id006
-                        playlists:
+                        playlists: &id039
                           type: array
                           description: The caller's live playlists holding the track.
                           items: *id007
@@ -4327,7 +4327,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: &id029
+                    items: &id047
                       type: object
                       required:
                       - track_id
@@ -4527,14 +4527,14 @@ paths:
           description: Per-track comments for the playlist.
           content:
             application/json:
-              schema: &id031
+              schema: &id049
                 type: object
                 required:
                 - tracks
                 properties:
                   tracks:
                     type: array
-                    items: &id030
+                    items: &id048
                       type: object
                       required:
                       - track_id
@@ -5619,7 +5619,7 @@ paths:
           description: Run row with progress counters.
           content:
             application/json:
-              schema: &id027
+              schema: &id045
                 type: object
                 required:
                 - id
@@ -6208,6 +6208,158 @@ paths:
       - BearerAuth: []
       tags:
       - user
+  /tracks/{track_id}/similar:
+    get:
+      summary: Tracks that sound like this one, for the similar page's player.
+      responses:
+        '200':
+          description: The seed and its similar tracks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - seed
+                - profiled
+                - items
+                properties:
+                  seed:
+                    type:
+                    - object
+                    - 'null'
+                    required: &id040
+                    - id
+                    - title
+                    - mix_name
+                    - artists
+                    - label
+                    - style
+                    - bpm
+                    - length_ms
+                    - key_name
+                    - key_camelot
+                    - release_date
+                    - spotify_id
+                    - ai_verdict
+                    - categories
+                    - playlists
+                    - discarded
+                    properties: &id041
+                      id: *id025
+                      title: *id026
+                      mix_name: *id027
+                      artists: *id028
+                      label: *id029
+                      style: *id030
+                      bpm: *id031
+                      length_ms: *id032
+                      key_name: *id033
+                      key_camelot: *id034
+                      release_date: *id035
+                      spotify_id: *id036
+                      ai_verdict: *id037
+                      categories: *id038
+                      playlists: *id039
+                      discarded:
+                        type: boolean
+                        description: The caller put it in DISCARD and never kept it.
+                    description: 'Null: no such track.'
+                  profiled:
+                    type: boolean
+                    description: 'False: the seed has no sound profile yet, or no
+                      style; no items.'
+                  items:
+                    type: array
+                    items: &id042
+                      type: object
+                      required: *id040
+                      properties: *id041
+        '401': *id001
+        '403': *id002
+      description: 'Up to 50 tracks of the same style, never AI-flagged, one per recording
+        (video): the caller''s keeps first (in a category or staged, else not discarded
+        and predicted keep by the caller''s model of the style), then by sound similarity.
+        The seed comes back with its own row.'
+      parameters:
+      - name: track_id
+        in: path
+        required: true
+        schema:
+          type: string
+      security:
+      - BearerAuth: []
+      tags:
+      - user
+  /artists/{artist_id}/similar:
+    get:
+      summary: Tracks that sound like this artist (the centroid of its tracks), in
+        one style.
+      responses:
+        '200':
+          description: The artist's similar tracks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - profiled
+                - style
+                - styles
+                - items
+                properties:
+                  profiled:
+                    type: boolean
+                    description: 'False: the artist has no profiled tracks in the
+                      style; no items.'
+                  style:
+                    type:
+                    - object
+                    - 'null'
+                    required: *id005
+                    properties: *id006
+                    description: The style used.
+                  styles:
+                    type: array
+                    description: The artist's styles with profiled non-AI tracks,
+                      most first.
+                    items:
+                      type: object
+                      required:
+                      - id
+                      - name
+                      - count
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        count:
+                          type: integer
+                  items:
+                    type: array
+                    items: *id042
+        '401': *id001
+        '403': *id002
+      description: 'Up to 50 tracks of the same style, never AI-flagged, one per recording
+        (video): the caller''s keeps first (in a category or staged, else not discarded
+        and predicted keep by the caller''s model of the style), then by sound similarity.
+        The artist''s own tracks are left out. Query: `style_id` (default: the artist''s
+        most profiled style).'
+      parameters:
+      - name: artist_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: style_id
+        in: query
+        required: false
+        schema:
+          type: string
+      security:
+      - BearerAuth: []
+      tags:
+      - user
   /artists/{artist_id}/preference:
     put:
       summary: Set or clear the current user's artist preference.
@@ -6376,7 +6528,7 @@ paths:
       description: Read live from bronze_events. Per-play time = gap to the next play,
         capped at track duration. Returns `totals.{day,week,month}` and a zero-filled
         30-day `daily` series.
-      parameters: &id025
+      parameters: &id043
       - name: tz_offset_min
         in: query
         required: false
@@ -6481,7 +6633,7 @@ paths:
       description: 'Distinct tracks per stage, dated by when the work happened: `triaged`
         (moved out of NEW in triage), `categorized` (staged to a category, open or
         finalized block, or added outside triage), `playlisted` (added to a playlist).'
-      parameters: *id025
+      parameters: *id043
       security:
       - BearerAuth: []
       tags:
@@ -7899,7 +8051,7 @@ components:
         processing_reason:
           type: string
           nullable: true
-    LabelEnrichRunResponse: *id026
+    LabelEnrichRunResponse: *id044
     LabelSummary:
       type: object
       required:
@@ -8009,7 +8161,7 @@ components:
           - disliked
           - null
         ai: *id004
-        stats: &id028
+        stats: &id046
           type: object
           description: The catalog tracks of a label / an artist, and how many of
             them the caller put in their categories and playlists (live, not deleted;
@@ -8214,7 +8366,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabelHistoryCell'
-    ArtistEnrichRunResponse: *id027
+    ArtistEnrichRunResponse: *id045
     ArtistSummary:
       type: object
       required:
@@ -8323,7 +8475,7 @@ components:
           - disliked
           - null
         ai: *id004
-        stats: *id028
+        stats: *id046
       additionalProperties: true
     MyArtistPreferencesResponse:
       type: object
@@ -8479,9 +8631,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ArtistHistoryCell'
-    PlaylistTrackResponse: *id029
-    PlaylistTrackComments: *id030
-    PlaylistCommentsResponse: *id031
+    PlaylistTrackResponse: *id047
+    PlaylistTrackComments: *id048
+    PlaylistCommentsResponse: *id049
     TelemetryEnvelope:
       type: object
       required:

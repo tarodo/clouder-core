@@ -8835,6 +8835,315 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tracks/{track_id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tracks that sound like this one, for the similar page's player.
+         * @description Up to 50 tracks of the same style, never AI-flagged, one per recording (video): the caller's keeps first (in a category or staged, else not discarded and predicted keep by the caller's model of the style), then by sound similarity. The seed comes back with its own row.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The seed and its similar tracks. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @description Null: no such track. */
+                            seed: {
+                                id: string;
+                                title: string;
+                                mix_name: string | null;
+                                artists: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                }[];
+                                label: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                } | null;
+                                style: {
+                                    id: string;
+                                    name: string;
+                                } | null;
+                                bpm: number | null;
+                                length_ms: number | null;
+                                key_name: string | null;
+                                key_camelot: string | null;
+                                /**
+                                 * Format: date
+                                 * @description Beatport publish date, else the Spotify release date.
+                                 */
+                                release_date: string | null;
+                                spotify_id: string | null;
+                                /** @enum {string|null} */
+                                ai_verdict: "high" | "medium" | "low" | null;
+                                /** @description The caller's live categories holding the track. */
+                                categories: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                                /** @description The caller's live playlists holding the track. */
+                                playlists: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                                /** @description The caller put it in DISCARD and never kept it. */
+                                discarded: boolean;
+                            } | null;
+                            /** @description False: the seed has no sound profile yet, or no style; no items. */
+                            profiled: boolean;
+                            items: {
+                                id: string;
+                                title: string;
+                                mix_name: string | null;
+                                artists: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                }[];
+                                label: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                } | null;
+                                style: {
+                                    id: string;
+                                    name: string;
+                                } | null;
+                                bpm: number | null;
+                                length_ms: number | null;
+                                key_name: string | null;
+                                key_camelot: string | null;
+                                /**
+                                 * Format: date
+                                 * @description Beatport publish date, else the Spotify release date.
+                                 */
+                                release_date: string | null;
+                                spotify_id: string | null;
+                                /** @enum {string|null} */
+                                ai_verdict: "high" | "medium" | "low" | null;
+                                /** @description The caller's live categories holding the track. */
+                                categories: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                                /** @description The caller's live playlists holding the track. */
+                                playlists: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                                /** @description The caller put it in DISCARD and never kept it. */
+                                discarded: boolean;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artists/{artist_id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tracks that sound like this artist (the centroid of its tracks), in one style.
+         * @description Up to 50 tracks of the same style, never AI-flagged, one per recording (video): the caller's keeps first (in a category or staged, else not discarded and predicted keep by the caller's model of the style), then by sound similarity. The artist's own tracks are left out. Query: `style_id` (default: the artist's most profiled style).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    style_id?: string;
+                };
+                header?: never;
+                path: {
+                    artist_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The artist's similar tracks. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @description False: the artist has no profiled tracks in the style; no items. */
+                            profiled: boolean;
+                            /** @description The style used. */
+                            style: {
+                                id: string;
+                                name: string;
+                            } | null;
+                            /** @description The artist's styles with profiled non-AI tracks, most first. */
+                            styles: {
+                                id: string;
+                                name: string;
+                                count: number;
+                            }[];
+                            items: {
+                                id: string;
+                                title: string;
+                                mix_name: string | null;
+                                artists: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                }[];
+                                label: {
+                                    id: string;
+                                    name: string;
+                                    /** @description AI reputation of a label or artist: of its tracks in CLOUDER (total), the ones ai_lofcz or ai_deezer checked and the flagged ones (ai). level 1 = at least one, 2 = 25-50% of the checked, 3 = over half; null = no flagged track. */
+                                    ai: {
+                                        /** @enum {integer} */
+                                        level: 1 | 2 | 3;
+                                        ai: number;
+                                        checked: number;
+                                        total: number;
+                                    } | null;
+                                } | null;
+                                style: {
+                                    id: string;
+                                    name: string;
+                                } | null;
+                                bpm: number | null;
+                                length_ms: number | null;
+                                key_name: string | null;
+                                key_camelot: string | null;
+                                /**
+                                 * Format: date
+                                 * @description Beatport publish date, else the Spotify release date.
+                                 */
+                                release_date: string | null;
+                                spotify_id: string | null;
+                                /** @enum {string|null} */
+                                ai_verdict: "high" | "medium" | "low" | null;
+                                /** @description The caller's live categories holding the track. */
+                                categories: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                                /** @description The caller's live playlists holding the track. */
+                                playlists: {
+                                    id: string;
+                                    name: string;
+                                }[];
+                                /** @description The caller put it in DISCARD and never kept it. */
+                                discarded: boolean;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Missing or invalid bearer token. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authenticated but lacks required role (admin). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/artists/{artist_id}/preference": {
         parameters: {
             query?: never;
