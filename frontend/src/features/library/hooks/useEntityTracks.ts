@@ -5,7 +5,8 @@ import type { paths } from '../../../api/schema';
 export type EntityKind = 'label' | 'artist';
 export type EntityTracksPage =
   paths['/labels/{label_id}/tracks']['get']['responses'][200]['content']['application/json'];
-export type EntityTrack = EntityTracksPage['items'][number];
+/** A similar list's rows also say whether the user discarded the track, and which is the seed. */
+export type EntityTrack = EntityTracksPage['items'][number] & { discarded?: boolean; seed?: boolean };
 export type NamedRef = EntityTrack['categories'][number];
 
 const PAGE_SIZE = 50;
