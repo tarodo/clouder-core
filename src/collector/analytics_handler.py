@@ -27,14 +27,14 @@ from .logging_utils import log_event
 # Dialect fragments. {} is the single positional arg (add_min: {0}=minutes, {1}=ts;
 # pctl: {0}=value, {1}=fraction).
 TRINO: Mapping[str, str] = {
-    "to_ts": "from_iso8601_timestamp({})",
+    "to_ts": "try(from_iso8601_timestamp({}))",
     "epoch": "to_unixtime({})",
     "to_date": "date({})",
     "add_min": "date_add('minute', {0}, {1})",
     "pctl": "approx_percentile({0}, {1})",
 }
 DUCKDB: Mapping[str, str] = {
-    "to_ts": "CAST({} AS TIMESTAMP)",
+    "to_ts": "TRY_CAST({} AS TIMESTAMP)",
     "epoch": "epoch({})",
     "to_date": "CAST({} AS DATE)",
     "add_min": "({1} + to_minutes({0}))",
@@ -126,8 +126,11 @@ def _plays_cte(d: Mapping[str, str], *, scan_from: str, table: str = "bronze_eve
     event (pause / resume / ended / next play); stretches after a pause or end
     don't count. Plays without pause/ended events (older data) fall back to
     play -> next play. Ordered by ts_client (+ ULID event_id): ts_server is
-    stamped once per SDK batch, so events flushed together would tie. user_id
-    binds as the single `?`; scan_from is validated by the caller (gotcha #13).
+    stamped once per SDK batch, so events flushed together would tie. An
+    unparsable ts_client drops the event, as dbt's stg_events does; the rule is
+    pinned against gold.fct_play by tests/unit/test_analytics_play_contract.py.
+    user_id binds as the single `?`; scan_from is validated by the caller
+    (gotcha #13).
     """
     ts = d["to_ts"].format("ts_client")
     gap_ms = f"({d['epoch'].format('lead(ts) OVER (ORDER BY ts, event_id)')} - {d['epoch'].format('ts')}) * 1000"
@@ -136,7 +139,7 @@ def _plays_cte(d: Mapping[str, str], *, scan_from: str, table: str = "bronze_eve
          CAST(coalesce(nullif(duration_ms, 0), {_FALLBACK_TRACK_MS}) AS DOUBLE) AS dur_ms
   FROM {table}
   WHERE event_name IN ('playback_play', 'playback_pause', 'playback_resume', 'playback_ended')
-    AND user_id = ? AND dt >= '{scan_from}'
+    AND user_id = ? AND dt >= '{scan_from}' AND {ts} IS NOT NULL
 ),
 seq AS (
   SELECT *,
