@@ -22,15 +22,10 @@ _TRACKS: dict[Kind, str] = {
     "artist": """FROM clouder_tracks t WHERE t.id IN (
         SELECT track_id FROM clouder_track_artists WHERE artist_id = :entity_id)""",
 }
-# The page first, the per-track lookups only for its rows. The user's categories / playlists come
+# The player's row of each `page` track (a CTE of id, release_date and any {extra} columns, read as
+# p.<col>): the per-track lookups run only for the page's rows. The user's categories / playlists come
 # first in each lookup so the (category_id, track_id) / (playlist_id, track_id) keys serve it.
-_PAGE = """
-WITH page AS (
-    SELECT t.id, coalesce(t.publish_date, t.spotify_release_date) AS release_date
-    {tracks}
-    ORDER BY release_date DESC NULLS LAST, t.id
-    LIMIT :limit OFFSET :offset
-)
+_ROW_SELECT = """
 SELECT t.id, t.title, t.mix_name, t.bpm, t.length_ms, t.key_name, t.key_camelot, t.spotify_id,
        p.release_date, t.style_id, s.name AS style_name, {ai_verdict},
        l.id AS label_id, l.name AS label_name, {label_ai} AS label_ai,
@@ -45,17 +40,38 @@ SELECT t.id, t.title, t.mix_name, t.bpm, t.length_ms, t.key_name, t.key_camelot,
        (SELECT coalesce(json_agg(json_build_object('id', pl.id, 'name', pl.name)
                                  ORDER BY pl.name), '[]'::json)
         FROM playlists pl JOIN playlist_tracks pt ON pt.playlist_id = pl.id AND pt.track_id = t.id
-        WHERE pl.user_id = :user_id AND pl.deleted_at IS NULL) AS playlists_json
+        WHERE pl.user_id = :user_id AND pl.deleted_at IS NULL) AS playlists_json{extra}
 FROM page p
 JOIN clouder_tracks t ON t.id = p.id
 LEFT JOIN clouder_styles s ON s.id = t.style_id
 LEFT JOIN clouder_albums alb ON alb.id = t.album_id
 LEFT JOIN clouder_labels l ON l.id = alb.label_id
-ORDER BY p.release_date DESC NULLS LAST, t.id
+ORDER BY {order}
 """
 
 
-def _json(value: Any) -> Any:
+def row_select(*, order: str, extra: str = "") -> str:
+    """The SELECT after a `page` CTE: one player row per page track, ordered by *order*."""
+    return _ROW_SELECT.format(
+        ai_verdict=AI_VERDICT_SQL,
+        label_ai=ai_rep_sql("l"),
+        artist_ai=ai_rep_sql("a"),
+        extra=extra,
+        order=order,
+    )
+
+
+_PAGE = """
+WITH page AS (
+    SELECT t.id, coalesce(t.publish_date, t.spotify_release_date) AS release_date
+    {tracks}
+    ORDER BY release_date DESC NULLS LAST, t.id
+    LIMIT :limit OFFSET :offset
+)
+"""
+
+
+def json_value(value: Any) -> Any:
     """A json column as the Data API (text) or psycopg (decoded) returns it."""
     return json.loads(value) if isinstance(value, str) else value
 
@@ -64,12 +80,12 @@ def _date(value: Any) -> str | None:
     return value.isoformat() if hasattr(value, "isoformat") else value
 
 
-def _track(r: Mapping[str, Any]) -> dict[str, Any]:
+def track_row(r: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "id": r["id"],
         "title": r["title"],
         "mix_name": r["mix_name"],
-        "artists": [{**a, "ai": parse_ai_rep(a.get("ai"))} for a in _json(r["artists_json"])],
+        "artists": [{**a, "ai": parse_ai_rep(a.get("ai"))} for a in json_value(r["artists_json"])],
         "label": (
             {"id": r["label_id"], "name": r["label_name"], "ai": parse_ai_rep(r["label_ai"])}
             if r["label_id"]
@@ -83,8 +99,8 @@ def _track(r: Mapping[str, Any]) -> dict[str, Any]:
         "release_date": _date(r["release_date"]),
         "spotify_id": r["spotify_id"],
         "ai_verdict": r["ai_verdict"],
-        "categories": _json(r["categories_json"]),
-        "playlists": _json(r["playlists_json"]),
+        "categories": json_value(r["categories_json"]),
+        "playlists": json_value(r["playlists_json"]),
     }
 
 
@@ -97,34 +113,31 @@ class EntityTracksRepository:
     ) -> tuple[list[dict[str, Any]], int]:
         tracks = _TRACKS[kind]
         rows = self._data_api.execute(
-            _PAGE.format(
-                tracks=tracks,
-                ai_verdict=AI_VERDICT_SQL,
-                label_ai=ai_rep_sql("l"),
-                artist_ai=ai_rep_sql("a"),
-            ),
+            _PAGE.format(tracks=tracks) + row_select(order="p.release_date DESC NULLS LAST, t.id"),
             {"entity_id": entity_id, "user_id": user_id, "limit": limit, "offset": offset},
         )
         (count,) = self._data_api.execute(
             f"SELECT count(*) AS n {tracks}", {"entity_id": entity_id}
         )
-        return [_track(r) for r in rows], int(count["n"])
+        return [track_row(r) for r in rows], int(count["n"])
 
 
-def _build_repository() -> EntityTracksRepository:
+def data_api_client() -> DataAPIClient:
     settings = get_data_api_settings()
     if not settings.is_configured:
         raise RuntimeError("Aurora Data API not configured")
-    return EntityTracksRepository(
-        create_default_data_api_client(
-            resource_arn=str(settings.aurora_cluster_arn),
-            secret_arn=str(settings.aurora_secret_arn),
-            database=settings.aurora_database,
-        )
+    return create_default_data_api_client(
+        resource_arn=str(settings.aurora_cluster_arn),
+        secret_arn=str(settings.aurora_secret_arn),
+        database=settings.aurora_database,
     )
 
 
-def _user_id(event: Mapping[str, Any]) -> str:
+def _build_repository() -> EntityTracksRepository:
+    return EntityTracksRepository(data_api_client())
+
+
+def caller_id(event: Mapping[str, Any]) -> str:
     ctx = ((event.get("requestContext") or {}).get("authorizer") or {}).get("lambda") or {}
     return str(ctx.get("user_id") or "")
 
@@ -135,7 +148,7 @@ def _handle(event: Mapping[str, Any], kind: Kind, param: str) -> tuple[int, dict
         raise ValidationError(f"{param} is required")
     limit, offset, _ = _parse_pagination_params(event)
     items, total = _build_repository().list_tracks(
-        kind=kind, entity_id=entity_id, user_id=_user_id(event), limit=limit, offset=offset
+        kind=kind, entity_id=entity_id, user_id=caller_id(event), limit=limit, offset=offset
     )
     return 200, {"items": items, "total": total, "limit": limit, "offset": offset}
 
