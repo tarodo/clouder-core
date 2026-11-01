@@ -2,20 +2,15 @@ import {
   createContext,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { useNavigate } from 'react-router';
-import type {
-  BindQueueArgs,
-  PlaybackTrack,
-  QueueSource,
-  QueueStatus,
-  SdkError,
-} from './lib/types';
+import { useNavigate, useNavigationType } from 'react-router';
+import type { BindQueueArgs, PlaybackTrack, QueueSource, QueueStatus, SdkError } from './lib/types';
 import { loadSpotifySdk } from './lib/sdkLoader';
 import { clampMs, pctToMs } from './lib/seekHotkeys';
 import { findNextPlayable } from './lib/skipNullSpotifyId';
@@ -101,7 +96,12 @@ type QueueAction =
 function queueReducer(state: QueueState, action: QueueAction): QueueState {
   switch (action.type) {
     case 'BIND':
-      return { source: action.source, tracks: action.tracks, cursor: action.cursor, status: state.status };
+      return {
+        source: action.source,
+        tracks: action.tracks,
+        cursor: action.cursor,
+        status: state.status,
+      };
     case 'CURSOR':
       return { ...state, cursor: action.cursor };
     case 'STATUS':
@@ -135,6 +135,28 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   }>({ current: null, positionMs: 0, durationMs: 0 });
 
   const onCursorChangeRef = useRef<((next: number) => void) | null>(null);
+
+  // Back to a page (from similar tracks, an artist page…) lands on the track it left. A queue's
+  // last track is kept as its page leaves: on clearQueue, or when another page's queue replaces it
+  // (Curate never clears). The first bind of that queue with tracks after a Back/Forward puts the
+  // cursor there, playing it when music was playing as the previous page left. Layout effects: the
+  // pages bind in passive effects, which run after these in the same commit.
+  // ponytail: one entry per queue left in this tab, never pruned.
+  const lastTrackRef = useRef(new Map<string, string>());
+  const leftPlayingRef = useRef(false);
+  const latestRef = useRef({ queue, track });
+  const navigationType = useNavigationType();
+  const navigationTypeRef = useRef(navigationType);
+  useLayoutEffect(() => {
+    latestRef.current = { queue, track };
+    navigationTypeRef.current = navigationType;
+  });
+  const rememberLeaving = useCallback(() => {
+    const { queue: left, track: was } = latestRef.current;
+    if (!left.source) return;
+    if (was.current) lastTrackRef.current.set(JSON.stringify(left.source), was.current.id);
+    leftPlayingRef.current = ['loading', 'buffering', 'playing'].includes(left.status);
+  }, []);
 
   // Listen-time telemetry: pause / resume / end of queue, derived from status
   // changes so every path (SDK, remote Web API, hotkeys) is covered once.
@@ -299,12 +321,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         // playing — otherwise initial transferMyPlayback state events
         // (which report the user's pre-existing remote-queue track) cause
         // an infinite advance loop through the whole queue.
-        if (
-          currentUri &&
-          expected &&
-          !sdkMatchesExpected &&
-          playbackConfirmedRef.current
-        ) {
+        if (currentUri && expected && !sdkMatchesExpected && playbackConfirmedRef.current) {
           // Reset both before advancing — advance() will set expected to
           // the next track's id, and confirmation must happen anew.
           expectedSpotifyIdRef.current = null;
@@ -480,10 +497,33 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     await playerRef.current?.togglePlay();
   }, [ensureSdk, queue.status, play, onAuthExpired]);
 
-  const bindQueue = useCallback((args: BindQueueArgs) => {
-    onCursorChangeRef.current = args.onCursorChange;
-    queueDispatch({ type: 'BIND', source: args.source, tracks: args.tracks, cursor: args.cursor });
-  }, []);
+  const playRef = useRef(play);
+  useLayoutEffect(() => {
+    playRef.current = play;
+  });
+
+  const bindQueue = useCallback(
+    (args: BindQueueArgs) => {
+      onCursorChangeRef.current = args.onCursorChange;
+      let cursor = args.cursor;
+      const key = JSON.stringify(args.source);
+      const { queue: was } = latestRef.current;
+      if (was.source && JSON.stringify(was.source) !== key) rememberLeaving();
+      const left = lastTrackRef.current.get(key);
+      // a page still loading binds an empty list first: wait for its tracks
+      if (left && args.tracks.length > 0) {
+        lastTrackRef.current.delete(key);
+        const idx = args.tracks.findIndex((t) => t.id === left);
+        if (idx >= 0 && navigationTypeRef.current === 'POP') {
+          cursor = idx;
+          args.onCursorChange(idx);
+          if (leftPlayingRef.current) void playRef.current(idx, args.tracks[idx]);
+        }
+      }
+      queueDispatch({ type: 'BIND', source: args.source, tracks: args.tracks, cursor });
+    },
+    [rememberLeaving],
+  );
 
   const advance = useCallback(
     async (direction: 1 | -1) => {
@@ -598,6 +638,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   );
 
   const clearQueue = useCallback(() => {
+    rememberLeaving();
     cancelPendingAdvance();
     void playerRef.current?.pause();
     queueDispatch({ type: 'CLEAR' });
@@ -606,7 +647,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     expectedSpotifyIdRef.current = null;
     playbackConfirmedRef.current = false;
     wasPlayingExpectedRef.current = false;
-  }, [cancelPendingAdvance]);
+  }, [cancelPendingAdvance, rememberLeaving]);
 
   // --- Devices slice (stub — real logic lands in Tasks 6–9) ---
   const [devicesList, setDevicesList] = useState<readonly SpotifyDevice[]>([]);
@@ -667,35 +708,38 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     }
   }, [onAuthExpired]);
 
-  const pickDevice = useCallback(async (deviceId: string): Promise<void> => {
-    try {
-      // play: true keeps audio going on the new device when the user
-      // switches mid-playback. Spotify treats it as "ensure playback
-      // happens" — if there is nothing to play, it is a no-op.
-      await spotifyApi.transferMyPlayback({ deviceId, play: true }, { onAuthExpired });
-      setActive(deviceId);
-      lastDeviceStore.set(deviceId);
-      setPickerOpen(false);
-      setPickerAnchor(null);
-      // After transferMyPlayback({play:true}), Spotify resumes playback on
-      // the new device. SDK on the CLOUDER tab is now observer-only and
-      // its paused=true state events should not override our authoritative
-      // status (gated in player_state_changed listener). Set 'playing'
-      // explicitly so togglePlayPause's status-branch routes to pause API.
-      const cloderId = cloderTabIdRef.current;
-      if (cloderId && deviceId !== cloderId) {
-        queueDispatch({ type: 'STATUS', status: 'playing' });
+  const pickDevice = useCallback(
+    async (deviceId: string): Promise<void> => {
+      try {
+        // play: true keeps audio going on the new device when the user
+        // switches mid-playback. Spotify treats it as "ensure playback
+        // happens" — if there is nothing to play, it is a no-op.
+        await spotifyApi.transferMyPlayback({ deviceId, play: true }, { onAuthExpired });
+        setActive(deviceId);
+        lastDeviceStore.set(deviceId);
+        setPickerOpen(false);
+        setPickerAnchor(null);
+        // After transferMyPlayback({play:true}), Spotify resumes playback on
+        // the new device. SDK on the CLOUDER tab is now observer-only and
+        // its paused=true state events should not override our authoritative
+        // status (gated in player_state_changed listener). Set 'playing'
+        // explicitly so togglePlayPause's status-branch routes to pause API.
+        const cloderId = cloderTabIdRef.current;
+        if (cloderId && deviceId !== cloderId) {
+          queueDispatch({ type: 'STATUS', status: 'playing' });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        if (message.includes('spotify_api_404')) {
+          // Device went offline between poll and tap. Refresh and keep picker open.
+          void refreshDevices();
+        }
+        // 5xx: surface via toast in caller (UI layer); leave picker open.
+        throw err;
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '';
-      if (message.includes('spotify_api_404')) {
-        // Device went offline between poll and tap. Refresh and keep picker open.
-        void refreshDevices();
-      }
-      // 5xx: surface via toast in caller (UI layer); leave picker open.
-      throw err;
-    }
-  }, [onAuthExpired, refreshDevices, setActive]);
+    },
+    [onAuthExpired, refreshDevices, setActive],
+  );
 
   const activeDevice = useMemo(
     () => devicesList.find((d) => d.id === activeDeviceId) ?? null,
