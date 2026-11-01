@@ -65,10 +65,14 @@ user's events; the data test `assert_deleted_users_absent` checks it on every bu
 
 **`gold.fct_play`.** One row per play — the analytics Lambda's rule (playing stretches capped at
 the track's duration, 10-minute fallback) — with the track's style as of the play date; plays
-before history starts take the earliest known version.
+before history starts take the earliest known version. The rule is written twice, in the Lambda's
+SQL for the cards and in this model; the dbt unit test `fct_play_follows_the_play_rule` is their
+shared contract. `tests/unit/test_analytics_play_contract.py` runs its rows through the Lambda's
+SQL, so a rule changed in one place alone fails CI. An unparsable `ts_client` drops the event in
+both.
 
 **Tests.** dbt unit tests (dedup, lookback window, SCD2 first build / incremental fold / no-op
-rerun / revert, play capping, point-in-time style), data tests (`unique`, `not_null`,
+rerun / revert, the play rule contract, point-in-time style), data tests (`unique`, `not_null`,
 `accepted_values`, one open version per track, non-overlapping versions) and source freshness:
 the catalog export must carry a complete snapshot for today (`clouder_styles`, its last table,
 is present; `error_after` one day), telemetry only warns —

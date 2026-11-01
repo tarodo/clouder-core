@@ -1,7 +1,8 @@
 {{ config(materialized='table', table_type='iceberg', format='parquet') }}
 
-{#- Same rule as collector/analytics_handler.py:_plays_cte; 10-minute fallback
-    for unknown durations (_FALLBACK_TRACK_MS). -#}
+{#- Same rule as collector/analytics_handler.py:_plays_cte, pinned for both by the
+    unit test fct_play_follows_the_play_rule (_gold.yml); 10-minute fallback for
+    unknown durations (_FALLBACK_TRACK_MS). -#}
 {%- set fallback_ms = 600000 -%}
 
 with ev as (
