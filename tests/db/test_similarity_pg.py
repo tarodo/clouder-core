@@ -94,8 +94,12 @@ WORLD = {
     "bot": ("st", "v_bot", _planar(0.6), "2024-01-01", ("abot",)),  # flagged, abot's only track
     "np": ("st", "v_np", None, "2024-01-01", ("a2",)),  # matched, never embedded
     "nostyle": (None, "v_nostyle", _planar(0.9), "2024-01-01", ("a2",)),
+    # AI audio under an unchecked sibling: a flag on any track of a video drops the whole video
+    "sib_ai": ("st", "v_sib", _planar(0.97), "2024-01-01", ("a2",)),
+    "sib_ok": ("st", "v_sib", None, "2024-06-01", ("a2",)),
+    "a1_sib": ("st", "v_a1_ai", None, "2024-06-01", ("a1",)),  # would pull a1's centroid off-plane
 }
-AI = ("t_ai", "a1_ai", "bot")
+AI = ("t_ai", "a1_ai", "bot", "sib_ai")
 
 
 @pytest.fixture

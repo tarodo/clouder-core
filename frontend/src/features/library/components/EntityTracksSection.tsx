@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { Flex, Group, SegmentedControl, Stack, Text, Title, useMantineTheme } from '@mantine/core';
+import {
+  Button,
+  Flex,
+  Group,
+  SegmentedControl,
+  Stack,
+  Text,
+  Title,
+  useMantineTheme,
+} from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
@@ -86,23 +95,33 @@ export function TracksSection({
     [playback.controls, playback.queue.tracks, isDesktop],
   );
 
-  const list = (
-    <EntityTrackList
-      showLabel={showLabel}
-      showStyle={showStyle}
-      items={items}
-      variant={isDesktop ? 'desktop' : 'mobile'}
-      loading={query.isPending}
-      hasMore={!!query.hasNextPage}
-      loadingMore={query.isFetchingNextPage}
-      onMore={() => void query.fetchNextPage()}
-      currentTrackId={playback.track.current?.id ?? null}
-      playing={playback.queue.status === 'playing'}
-      onPlay={play}
-      onToggle={() => void playback.controls.togglePlayPause()}
-      empty={empty}
-    />
-  );
+  const { t } = useTranslation();
+  // a failed load (an Aurora cold start, say) is not an empty list
+  const list =
+    query.isError && items.length === 0 ? (
+      <Group gap="sm">
+        <Text c="dimmed">{t('library.entity_tracks.load_failed')}</Text>
+        <Button size="xs" variant="default" onClick={() => void query.refetch()}>
+          {t('library.entity_tracks.retry')}
+        </Button>
+      </Group>
+    ) : (
+      <EntityTrackList
+        showLabel={showLabel}
+        showStyle={showStyle}
+        items={items}
+        variant={isDesktop ? 'desktop' : 'mobile'}
+        loading={query.isPending}
+        hasMore={!!query.hasNextPage}
+        loadingMore={query.isFetchingNextPage}
+        onMore={() => void query.fetchNextPage()}
+        currentTrackId={playback.track.current?.id ?? null}
+        playing={playback.queue.status === 'playing'}
+        onPlay={play}
+        onToggle={() => void playback.controls.togglePlayPause()}
+        empty={empty}
+      />
+    );
   const panel = <EntityPlayerPanel source={source} showLabel={showLabel} items={items} />;
 
   return (

@@ -50,12 +50,20 @@ def test_npz_round_trip() -> None:
 def test_embed_drops_degenerate_rows() -> None:
     X = _profiles(300)
     art = sim.fit(X)
-    Y = X[:4].copy()
+    Y = X[:5].copy()
     Y[1, 1680:2192] = art.mulan_mean  # MuLan at its mean: zero after centring
     Y[2, 500] = np.nan
+    Y[4, 400:1680] = 0  # an all-zero EffNet block: centring alone would make it -mean, a fake point
     keep, V = sim.embed(art, Y)
-    assert keep.tolist() == [True, False, False, True]
+    assert keep.tolist() == [True, False, False, True, False]
     np.testing.assert_array_equal(V, sim.embed(art, Y[[0, 3]])[1])
+
+
+def test_fit_ignores_degenerate_rows() -> None:
+    X = _profiles(300)
+    Y = X.copy()
+    Y[:50, 1680:2192] = 0  # zero MuLan blocks must not drag the mean
+    np.testing.assert_allclose(sim.fit(Y).mulan_mean, X[50:, 1680:2192].mean(axis=0), atol=1e-6)
 
 
 def test_as_text_parses_back() -> None:

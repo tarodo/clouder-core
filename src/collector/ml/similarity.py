@@ -45,11 +45,17 @@ def _unit(X: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return X / np.where(ok[:, None], norms, 1), ok
 
 
+def _raw_ok(U: np.ndarray) -> np.ndarray:
+    """Rows whose two blocks are finite and non-zero before centring: centring would turn a zero
+    block into -mean, one shared fake point."""
+    return _unit(U[:, :512])[1] & _unit(U[:, 512:])[1]
+
+
 def _concat(U: np.ndarray, mulan_mean: np.ndarray, effnet_mean: np.ndarray):
     m, ok_m = _unit(U[:, :512] - mulan_mean)
     e, ok_e = _unit(U[:, 512:] - effnet_mean)
     z, ok_z = _unit(np.concatenate([m, e], axis=1))
-    return z, ok_m & ok_e & ok_z
+    return z, _raw_ok(U) & ok_m & ok_e & ok_z
 
 
 def _used(X: np.ndarray) -> np.ndarray:
@@ -59,8 +65,9 @@ def _used(X: np.ndarray) -> np.ndarray:
 def fit(X: np.ndarray) -> Artifact:
     """The artifact from a sample of profiles (n, DIMS) or of their used columns (n, 1792)."""
     U = _used(X)
-    mulan_mean = U[:, :512].mean(axis=0)
-    effnet_mean = U[:, 512:].mean(axis=0)
+    good = U[_raw_ok(U)]
+    mulan_mean = good[:, :512].mean(axis=0)
+    effnet_mean = good[:, 512:].mean(axis=0)
     Z, ok = _concat(U, mulan_mean, effnet_mean)
     Z = Z[ok]
     mean = Z.mean(axis=0)

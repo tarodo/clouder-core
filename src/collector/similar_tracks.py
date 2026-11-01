@@ -39,10 +39,12 @@ _TRACK_SEED_ROW = """UNION ALL
 
 _ARTIST_SEED = f"""
 mine AS (
-    SELECT DISTINCT v.vendor_track_id AS video_id
+    SELECT v.vendor_track_id AS video_id
     FROM {_PROFILED}
     JOIN clouder_track_artists cta ON cta.track_id = t.id AND cta.artist_id = :artist_id
-    WHERE t.style_id = :style_id AND NOT {AI_FLAGGED_SQL}
+    WHERE t.style_id = :style_id
+    GROUP BY v.vendor_track_id
+    HAVING NOT bool_or({AI_FLAGGED_SQL})
 ), seed AS (
     SELECT avg(e.embedding) AS embedding
     FROM mine m JOIN audio_embeddings e ON e.video_id = m.video_id AND e.version = :version
@@ -52,6 +54,9 @@ _ARTIST_EXCLUDE = """NOT EXISTS (
         SELECT 1 FROM clouder_track_artists x WHERE x.track_id = t.id AND x.artist_id = :artist_id)
       AND v.vendor_track_id NOT IN (SELECT video_id FROM mine)"""
 
+# AI flags are per track, vectors per video: a flag on any of the style's tracks on a video drops the
+# video (the same audio under an unchecked compilation copy). ponytail: a flagged sibling in another
+# style is not seen; widen to all of the video's tracks if that shows up.
 # ponytail: an exact scan of the style (DnB ~10 k vectors, 2026-11); an HNSW index with the iterative
 # scan once a style passes ~100 k. ponytail: one row per video; collapse by ISRC if the same
 # recording on two videos starts showing (79 of 44 k ISRCs, 2026-11).
@@ -59,14 +64,14 @@ _RANKED = """
 WITH {seed},
 cand AS (
     SELECT t.id, v.vendor_track_id AS video_id, e.embedding <=> s.embedding AS distance,
-           coalesce(t.publish_date, t.spotify_release_date) AS release_date
+           coalesce(t.publish_date, t.spotify_release_date) AS release_date, {ai} AS flagged
     FROM seed s
     CROSS JOIN {profiled}
     WHERE s.embedding IS NOT NULL AND t.style_id = :style_id AND {exclude}
-      AND NOT {ai}
 ), near AS (
     SELECT video_id, min(distance) AS distance FROM cand
-    GROUP BY video_id ORDER BY 2, 1 LIMIT :limit
+    GROUP BY video_id HAVING NOT bool_or(flagged)
+    ORDER BY 2, 1 LIMIT :limit
 ), marks AS (
     SELECT track_id, bool_or(keep) AS kept, bool_or(NOT keep) AS put_in_discard
     FROM ({placements}) pl GROUP BY track_id
@@ -160,12 +165,17 @@ class SimilarTracksRepository:
             {"id": r["id"], "name": r["name"], "count": int(r["count"])}
             for r in self._data_api.execute(
                 f"""
-                SELECT t.style_id AS id, st.name, count(DISTINCT v.vendor_track_id) AS count
-                FROM {_PROFILED}
-                JOIN clouder_track_artists cta ON cta.track_id = t.id AND cta.artist_id = :artist_id
-                JOIN clouder_styles st ON st.id = t.style_id
-                WHERE NOT {AI_FLAGGED_SQL}
-                GROUP BY t.style_id, st.name
+                SELECT x.style_id AS id, st.name, count(*) AS count
+                FROM (
+                    SELECT t.style_id, v.vendor_track_id
+                    FROM {_PROFILED}
+                    JOIN clouder_track_artists cta
+                      ON cta.track_id = t.id AND cta.artist_id = :artist_id
+                    GROUP BY t.style_id, v.vendor_track_id
+                    HAVING NOT bool_or({AI_FLAGGED_SQL})
+                ) x
+                JOIN clouder_styles st ON st.id = x.style_id
+                GROUP BY x.style_id, st.name
                 ORDER BY 3 DESC, st.name
                 """,
                 {"artist_id": artist_id, "version": VERSION},

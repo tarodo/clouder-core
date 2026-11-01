@@ -1220,6 +1220,8 @@
       "title": "Tracks",
       "title_count": "Tracks · {{count}}",
       "empty": "No tracks in CLOUDER yet.",
+      "load_failed": "Couldn't load these tracks.",
+      "retry": "Retry",
       "more": "Show more",
       "in_playlists_one": "In {{count}} playlist",
       "in_playlists_other": "In {{count}} playlists",

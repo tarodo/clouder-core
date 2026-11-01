@@ -127,6 +127,23 @@ describe('SimilarTracksPage', () => {
     expect(await screen.findByText('No similar tracks in this style yet.')).toBeInTheDocument();
   });
 
+  it('a failed load says so and retries, instead of "nothing similar"', async () => {
+    let calls = 0;
+    server.use(
+      http.get('http://localhost/tracks/boom/similar', () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json({ error_code: 'db_unavailable' }, { status: 503 })
+          : HttpResponse.json(BODIES.s!);
+      }),
+    );
+    renderAt('boom');
+    expect(await screen.findByText("Couldn't load these tracks.")).toBeInTheDocument();
+    expect(screen.queryByText('No similar tracks in this style yet.')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Title k1')).toBeInTheDocument();
+  });
+
   it('a new seed re-mounts the page and rebinds the queue', async () => {
     renderAt('s');
     await screen.findByText('Title k1');
