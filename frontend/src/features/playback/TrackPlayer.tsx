@@ -5,6 +5,7 @@ import { AiRepBadge, type AiRep } from '../library/components/AiRepBadge';
 import { ArtistsPanel } from '../library/components/ArtistsPanel';
 import { EntityLink } from '../library/components/EntityLinks';
 import { LabelTile } from '../library/components/LabelTile';
+import { SimilarLink } from '../similar/SimilarLink';
 import { DeviceIndicator } from './DeviceIndicator';
 import type { PlaybackTrack } from './lib/types';
 import { PlayerCard, type PlayerCardProps, type PlayerCardState } from './PlayerCard';
@@ -72,7 +73,8 @@ type Wired =
   | 'onSeekMs';
 
 /**
- * The full PlayerCard wired to playback: transport, seek, devices and the Spotify link of *track*.
+ * The full PlayerCard wired to playback: transport, seek, devices, and the similar-tracks and Spotify
+ * links of *track*.
  * Any card prop given overrides the wiring.
  */
 export function ConnectedPlayerCard({
@@ -90,6 +92,7 @@ export function ConnectedPlayerCard({
       variant="full"
       state={cardState(playback, emptyBucket)}
       positionMs={playback.track.positionMs}
+      links={track ? <SimilarLink trackId={track.id} title={track.title} /> : undefined}
       spotifyHref={track?.spotify_id ? `https://open.spotify.com/track/${track.spotify_id}` : undefined}
       spotifyAriaLabel={track ? t('playback.open_in_spotify_aria', { title: track.title }) : undefined}
       deviceIndicator={

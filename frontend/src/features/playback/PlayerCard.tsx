@@ -75,6 +75,8 @@ export interface PlayerCardProps {
   artistLinks?: ReadonlyArray<{ id: string; name: string; ai?: AiRep | null }>;
   /** Extra controls in the top-right row, left of the Spotify link (full variant). */
   topActions?: ReactNode;
+  /** Icon links grouped with the Spotify link, left of it (full variant): similar tracks. */
+  links?: ReactNode;
   /** Spotify external open href; when set, renders an icon button at top-right. */
   spotifyHref?: string;
   /** Tooltip / aria text for the Spotify external icon. */
@@ -139,6 +141,7 @@ export function PlayerCard(props: PlayerCardProps) {
     spotifyHref,
     spotifyAriaLabel,
     topActions,
+    links,
     artistLinks,
     onPlayPause,
     onPrev,
@@ -211,7 +214,8 @@ export function PlayerCard(props: PlayerCardProps) {
       className={classes.root}
       data-state={state}
       data-variant={variant}
-      data-actions={(!isMini && (spotifyHref || topActions)) || undefined}
+      data-actions={(!isMini && (spotifyHref || topActions || links)) || undefined}
+      data-links={(!isMini && links && spotifyHref) || undefined}
       data-top-actions={(!isMini && topActions) || undefined}
       p={isMini ? 'sm' : 'lg'}
       pb={mobileSeekChips ? 'sm' : undefined}
@@ -280,22 +284,27 @@ export function PlayerCard(props: PlayerCardProps) {
             </ActionIcon>
           ) : null}
           {/* Top-right of the card; a phone curate player puts them in this row (see the CSS). */}
-          {!isMini && (spotifyHref || topActions) ? (
+          {!isMini && (spotifyHref || topActions || links) ? (
             <Group gap={6} wrap="nowrap" className={classes.actions}>
               {topActions}
-              {spotifyHref ? (
-                <ActionIcon
-                  component="a"
-                  href={spotifyHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="subtle"
-                  radius="xl"
-                  size="md"
-                  aria-label={spotifyAriaLabel ?? 'Open in Spotify'}
-                >
-                  <IconExternalLink size={16} />
-                </ActionIcon>
+              {spotifyHref || links ? (
+                <Group gap={6} wrap="nowrap" className={classes.links}>
+                  {links}
+                  {spotifyHref ? (
+                    <ActionIcon
+                      component="a"
+                      href={spotifyHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="subtle"
+                      radius="xl"
+                      size="md"
+                      aria-label={spotifyAriaLabel ?? 'Open in Spotify'}
+                    >
+                      <IconExternalLink size={16} />
+                    </ActionIcon>
+                  ) : null}
+                </Group>
               ) : null}
             </Group>
           ) : null}

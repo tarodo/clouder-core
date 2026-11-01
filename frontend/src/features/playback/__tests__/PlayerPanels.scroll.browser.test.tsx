@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import '../../../i18n';
@@ -25,7 +26,14 @@ const playback = vi.hoisted(() => ({
   },
   queue: { source: null, tracks: [], cursor: 0, status: 'paused' },
   track: {
-    current: { id: 't1', title: 'Drive Thunder', artists: 'Odessa Marlo', duration_ms: 314000, spotify_id: 'sp1', cover_url: null },
+    current: {
+      id: 't1',
+      title: 'Drive Thunder',
+      artists: 'Odessa Marlo',
+      duration_ms: 314000,
+      spotify_id: 'sp1',
+      cover_url: null,
+    },
     positionMs: 0,
     durationMs: 314000,
   },
@@ -54,29 +62,34 @@ test.each(panels)('the %s player panel keeps its scroll to itself', async (_name
 describe('a player panel under the page header', () => {
   // Without the page scrolling along, the panel's own end must be reachable: it fits the
   // screen below the header, and grows into the header's room as the page scrolls past it.
-  test.each(panels)('the %s panel ends on screen at every page scroll', async (_name, className) => {
-    await page.viewport(1280, 800);
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <MantineProvider theme={clouderTheme}>
-          <div style={{ height: 300 }}>Playlist header</div>
-          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-            <TrackPlayer className={className} info={null} empty="pick">
-              {() => <div style={{ height: 3000 }}>Comments</div>}
-            </TrackPlayer>
-            <div style={{ height: 5000 }}>Track list</div>
-          </div>
-        </MantineProvider>
-      </QueryClientProvider>,
-    );
-    const panel = document.querySelector('[data-player]')!;
-    const bottom = () => panel.getBoundingClientRect().bottom;
-    for (const y of [0, 150, 1000]) {
-      window.scrollTo(0, y);
-      // the panel's end stays at the screen's bottom edge: never below it, never far above
-      await expect.poll(bottom).toBeGreaterThan(window.innerHeight - 20);
-      expect(bottom()).toBeLessThanOrEqual(window.innerHeight);
-    }
-    window.scrollTo(0, 0);
-  });
+  test.each(panels)(
+    'the %s panel ends on screen at every page scroll',
+    async (_name, className) => {
+      await page.viewport(1280, 800);
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <MantineProvider theme={clouderTheme}>
+            <MemoryRouter>
+              <div style={{ height: 300 }}>Playlist header</div>
+              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                <TrackPlayer className={className} info={null} empty="pick">
+                  {() => <div style={{ height: 3000 }}>Comments</div>}
+                </TrackPlayer>
+                <div style={{ height: 5000 }}>Track list</div>
+              </div>
+            </MemoryRouter>
+          </MantineProvider>
+        </QueryClientProvider>,
+      );
+      const panel = document.querySelector('[data-player]')!;
+      const bottom = () => panel.getBoundingClientRect().bottom;
+      for (const y of [0, 150, 1000]) {
+        window.scrollTo(0, y);
+        // the panel's end stays at the screen's bottom edge: never below it, never far above
+        await expect.poll(bottom).toBeGreaterThan(window.innerHeight - 20);
+        expect(bottom()).toBeLessThanOrEqual(window.innerHeight);
+      }
+      window.scrollTo(0, 0);
+    },
+  );
 });
