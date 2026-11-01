@@ -34,6 +34,7 @@ from .commands import (
 from .lineage import LineageMixin, _identity_params
 from .ml import MlMixin
 from .runs import IngestRunsMixin
+from .similarity import SimilarityMixin
 from .spotify import SpotifySearchMixin
 from .vendor_match import VendorMatchMixin
 from .youtube_search import YoutubeSearchMixin
@@ -44,6 +45,7 @@ class ClouderRepository(
     AnalysisMixin,
     AudioFeaturesMixin,
     MlMixin,
+    SimilarityMixin,
     LineageMixin,
     CatalogWritesMixin,
     SpotifySearchMixin,
