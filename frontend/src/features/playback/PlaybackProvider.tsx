@@ -136,10 +136,11 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
 
   const onCursorChangeRef = useRef<((next: number) => void) | null>(null);
 
-  // Back to a page (from similar tracks, an artist page…) lands on the track it left: clearQueue
-  // keeps each queue's last track, and the first bind of that queue with tracks after a Back/Forward
-  // puts the cursor there, playing it when music was playing as the previous page left. Layout
-  // effects: the pages bind in passive effects, which run after these in the same commit.
+  // Back to a page (from similar tracks, an artist page…) lands on the track it left. A queue's
+  // last track is kept as its page leaves: on clearQueue, or when another page's queue replaces it
+  // (Curate never clears). The first bind of that queue with tracks after a Back/Forward puts the
+  // cursor there, playing it when music was playing as the previous page left. Layout effects: the
+  // pages bind in passive effects, which run after these in the same commit.
   // ponytail: one entry per queue left in this tab, never pruned.
   const lastTrackRef = useRef(new Map<string, string>());
   const leftPlayingRef = useRef(false);
@@ -150,6 +151,12 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     latestRef.current = { queue, track };
     navigationTypeRef.current = navigationType;
   });
+  const rememberLeaving = useCallback(() => {
+    const { queue: left, track: was } = latestRef.current;
+    if (!left.source) return;
+    if (was.current) lastTrackRef.current.set(JSON.stringify(left.source), was.current.id);
+    leftPlayingRef.current = ['loading', 'buffering', 'playing'].includes(left.status);
+  }, []);
 
   // Listen-time telemetry: pause / resume / end of queue, derived from status
   // changes so every path (SDK, remote Web API, hotkeys) is covered once.
@@ -495,23 +502,28 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     playRef.current = play;
   });
 
-  const bindQueue = useCallback((args: BindQueueArgs) => {
-    onCursorChangeRef.current = args.onCursorChange;
-    let cursor = args.cursor;
-    const key = JSON.stringify(args.source);
-    const left = lastTrackRef.current.get(key);
-    // a page still loading binds an empty list first: wait for its tracks
-    if (left && args.tracks.length > 0) {
-      lastTrackRef.current.delete(key);
-      const idx = args.tracks.findIndex((t) => t.id === left);
-      if (idx >= 0 && navigationTypeRef.current === 'POP') {
-        cursor = idx;
-        args.onCursorChange(idx);
-        if (leftPlayingRef.current) void playRef.current(idx, args.tracks[idx]);
+  const bindQueue = useCallback(
+    (args: BindQueueArgs) => {
+      onCursorChangeRef.current = args.onCursorChange;
+      let cursor = args.cursor;
+      const key = JSON.stringify(args.source);
+      const { queue: was } = latestRef.current;
+      if (was.source && JSON.stringify(was.source) !== key) rememberLeaving();
+      const left = lastTrackRef.current.get(key);
+      // a page still loading binds an empty list first: wait for its tracks
+      if (left && args.tracks.length > 0) {
+        lastTrackRef.current.delete(key);
+        const idx = args.tracks.findIndex((t) => t.id === left);
+        if (idx >= 0 && navigationTypeRef.current === 'POP') {
+          cursor = idx;
+          args.onCursorChange(idx);
+          if (leftPlayingRef.current) void playRef.current(idx, args.tracks[idx]);
+        }
       }
-    }
-    queueDispatch({ type: 'BIND', source: args.source, tracks: args.tracks, cursor });
-  }, []);
+      queueDispatch({ type: 'BIND', source: args.source, tracks: args.tracks, cursor });
+    },
+    [rememberLeaving],
+  );
 
   const advance = useCallback(
     async (direction: 1 | -1) => {
@@ -626,10 +638,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   );
 
   const clearQueue = useCallback(() => {
-    const { queue: left, track: was } = latestRef.current;
-    if (left.source && was.current)
-      lastTrackRef.current.set(JSON.stringify(left.source), was.current.id);
-    leftPlayingRef.current = ['loading', 'buffering', 'playing'].includes(left.status);
+    rememberLeaving();
     cancelPendingAdvance();
     void playerRef.current?.pause();
     queueDispatch({ type: 'CLEAR' });
@@ -638,7 +647,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     expectedSpotifyIdRef.current = null;
     playbackConfirmedRef.current = false;
     wasPlayingExpectedRef.current = false;
-  }, [cancelPendingAdvance]);
+  }, [cancelPendingAdvance, rememberLeaving]);
 
   // --- Devices slice (stub — real logic lands in Tasks 6–9) ---
   const [devicesList, setDevicesList] = useState<readonly SpotifyDevice[]>([]);

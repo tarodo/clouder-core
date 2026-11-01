@@ -716,7 +716,9 @@ describe('PlaybackProvider SDK lifecycle', () => {
       spotify_id: `sp${id}`,
     });
 
-    async function leaveTriageOnB(paused: boolean) {
+    /** *clears*: the page clears its queue as it leaves (bucket page); Curate never does, the next
+     * page's queue simply replaces it. */
+    async function leaveTriageOnB(paused: boolean, clears = true) {
       const uris: string[] = [];
       sdkServer.use(
         http.put('https://api.spotify.com/v1/me/player/play', async ({ request }) => {
@@ -740,7 +742,7 @@ describe('PlaybackProvider SDK lifecycle', () => {
       // triage: B plays, then the similar icon leaves the page
       bind(triage, [t('A'), t('B'), t('C')]);
       await playAndEmitReady(() => result.current.controls.play(1), handle);
-      act(() => result.current.controls.clearQueue());
+      if (clears) act(() => result.current.controls.clearQueue());
       // the similar page: Y plays (or is paused), then Back leaves it
       bind(similar, [t('B'), t('Y')]);
       await act(async () => {
@@ -768,6 +770,14 @@ describe('PlaybackProvider SDK lifecycle', () => {
       bind(triage, [t('A'), t('B'), t('C')], onCursorChange);
       expect(result.current.queue.cursor).toBe(1);
       expect(onCursorChange).toHaveBeenCalledWith(1);
+      await waitFor(() => expect(result.current.track.current?.id).toBe('B'));
+      expect(uris.at(-1)).toBe('spotify:track:spB');
+    });
+
+    it('works for a page that never clears its queue (Curate)', async () => {
+      const { result, uris, bind } = await leaveTriageOnB(false, false);
+      bind(triage, [t('A'), t('B'), t('C')]);
+      expect(result.current.queue.cursor).toBe(1);
       await waitFor(() => expect(result.current.track.current?.id).toBe('B'));
       expect(uris.at(-1)).toBe('spotify:track:spB');
     });
