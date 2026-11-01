@@ -14,6 +14,7 @@ from collector import audio_profile
 from collector import ml_worker_handler as worker
 from collector.logging_utils import ALLOWED_LOG_FIELDS
 from collector.ml import model as ml
+from collector.ml import similarity as sim
 
 T = datetime(2026, 10, 1, tzinfo=UTC)
 NOW = datetime(2026, 10, 23, tzinfo=UTC)
@@ -77,6 +78,9 @@ class FakeRepo:
         self.marked: list[tuple[str, str, datetime]] = []
         self.clock_at_labels: int | None = None
         self.upserts: list[tuple[str, str, int, list[dict]]] = []
+        self.videos: list[str] = []  # profiled video ids (audio_features)
+        self.embeddings: list[tuple[str, list[str]]] = []  # (version, video ids) per upsert
+        self.embed_fails = False
 
     def ml_model(self, *, user_id, style_id):
         return self.model
@@ -118,6 +122,15 @@ class FakeRepo:
         self.upserts.append((user_id, style_id, model_version, rows))
         return len(rows)
 
+    def similarity_videos(self, *, after_video_id, limit):
+        return sorted(v for v in self.videos if v > (after_video_id or ""))[:limit]
+
+    def similarity_upsert(self, *, version, rows):
+        if self.embed_fails:
+            raise RuntimeError("data api down")
+        assert all(e.startswith("[") and e.count(",") == sim.DIMS - 1 for _, e in rows)
+        self.embeddings.append((version, [v for v, _ in rows]))
+
 
 def _blob(x: np.ndarray) -> bytes:
     return x.astype("<f2").tobytes()
@@ -139,6 +152,7 @@ def run(monkeypatch):
     monkeypatch.setenv("AUDIO_FEATURES_BUCKET", BUCKET)
     monkeypatch.setenv("ML_JOBS_QUEUE_URL", "https://sqs/ml-jobs")
     monkeypatch.setattr(worker, "_MODELS", {})
+    monkeypatch.setattr(worker, "_SIMILARITY", None)
     CLOCK.clear()
     monkeypatch.setattr(worker, "utc_now", _now)
     sqs = FakeSQS()
@@ -414,9 +428,105 @@ def test_score_new_videos_uses_style_models(run) -> None:
         (U, S, 1, ["t1"]),
         ("u2", S, 3, ["t1"]),
     ] * 2
-    assert [k for k in s3.gets if k.startswith("models/")] == [k1, k2]  # cached per container
+    # cached per container
+    assert [k for k in s3.gets if k.startswith("models/") and k != sim.ARTIFACT_KEY] == [k1, k2]
 
 
 def test_bad_record_raises(run) -> None:
     with pytest.raises(KeyError):
         run(FakeRepo(), FakeS3({}), {"type": "nope"})
+
+
+_SIM_RNG = np.random.default_rng(3)
+
+
+def _random_profiles(ids: list[str]) -> dict[str, np.ndarray]:
+    return {v: _SIM_RNG.standard_normal(audio_profile.DIMS).astype(np.float32) for v in ids}
+
+
+def _artifact() -> bytes:
+    return sim.to_npz(
+        sim.fit(np.stack(list(_random_profiles([str(i) for i in range(300)]).values())))
+    )
+
+
+def test_score_embeds_even_without_models(run) -> None:
+    s3 = FakeS3({sim.ARTIFACT_KEY: _artifact(), **_features(_random_profiles(["v_t1", "v_t2"]))})
+    repo = FakeRepo(tracks=[_track("t1"), _track("t2"), _track("t3")])  # t3: no profile
+    run(repo, s3, {"type": "score", "video_ids": ["v_t1", "v_t2", "v_t3"]})
+    assert repo.upserts == []
+    assert repo.embeddings == [(sim.VERSION, ["v_t1", "v_t2"])]
+
+
+def test_score_skips_embeddings_without_artifact(run) -> None:
+    repo = FakeRepo(tracks=[_track("t1")])
+    run(
+        repo,
+        FakeS3(_features(_random_profiles(["v_t1"]))),
+        {"type": "score", "video_ids": ["v_t1"]},
+    )
+    assert repo.embeddings == []
+
+
+def test_score_upserts_predictions_before_embeddings(run) -> None:
+    key = f"models/{U}/{S}/v1.npz"
+    s3 = FakeS3(
+        {
+            key: ml.to_npz(_tiny_model()),
+            sim.ARTIFACT_KEY: _artifact(),
+            **_features(_random_profiles(["v_t1"])),
+        }
+    )
+    repo = FakeRepo(
+        tracks=[_track("t1")], models={S: [{"user_id": U, "version": 1, "artifact_key": key}]}
+    )
+    repo.embed_fails = True
+    with pytest.raises(RuntimeError, match="data api down"):
+        run(repo, s3, {"type": "score", "video_ids": ["v_t1"]})
+    assert [rows[0]["track_id"] for *_, rows in repo.upserts] == ["t1"]
+
+
+def test_fit_writes_artifact_once_and_starts_chain(run) -> None:
+    ids = [f"v{i:03}" for i in range(300)]
+    s3 = FakeS3(_features(_random_profiles(ids)))
+    repo = FakeRepo()
+    repo.videos = ids
+    fit = {"type": "similarity_fit", "version": sim.VERSION}
+    sqs = run(repo, s3, fit)
+    blob = s3.objects[sim.ARTIFACT_KEY]
+    assert sim.from_npz(blob).components.shape == (sim.DIMS, 1792)
+    run(repo, s3, fit)
+    assert s3.objects[sim.ARTIFACT_KEY] is blob  # write-once
+    embed = {"type": "similarity_embed", "version": sim.VERSION, "after_video_id": None}
+    assert sqs.messages == [embed, embed]
+
+
+def test_embed_chain_pages_until_short_page(run, monkeypatch) -> None:
+    monkeypatch.setattr(worker, "PAGE", 2)
+    s3 = FakeS3({sim.ARTIFACT_KEY: _artifact(), **_features(_random_profiles(["v1", "v2", "v3"]))})
+    repo = FakeRepo()
+    repo.videos = ["v1", "v2", "v3"]
+    page = {"type": "similarity_embed", "version": sim.VERSION, "after_video_id": None}
+    sqs = run(repo, s3, page)
+    assert sqs.messages == [{**page, "after_video_id": "v2"}]
+    run(repo, s3, sqs.messages[0])
+    assert sqs.messages == [{**page, "after_video_id": "v2"}]  # a short page ends the chain
+    assert repo.embeddings == [(sim.VERSION, ["v1", "v2"]), (sim.VERSION, ["v3"])]
+
+
+def test_artifact_cached_only_once_found(run) -> None:
+    s3 = FakeS3(_features(_random_profiles(["v_t1"])))
+    repo = FakeRepo(tracks=[_track("t1")])
+    score = {"type": "score", "video_ids": ["v_t1"]}
+    run(repo, s3, score)
+    s3.objects[sim.ARTIFACT_KEY] = _artifact()
+    run(repo, s3, score, score)
+    assert repo.embeddings == [(sim.VERSION, ["v_t1"])] * 2
+    assert s3.gets.count(sim.ARTIFACT_KEY) == 2  # the miss, then one hit kept
+
+
+@pytest.mark.parametrize("job", ["similarity_fit", "similarity_embed"])
+def test_similarity_jobs_reject_another_version(run, job) -> None:
+    msg = {"type": job, "version": "sim-0", "after_video_id": None}
+    with pytest.raises(ValueError, match="sim-0"):
+        run(FakeRepo(), FakeS3({sim.ARTIFACT_KEY: _artifact()}), msg)

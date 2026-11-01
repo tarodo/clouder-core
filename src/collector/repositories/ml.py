@@ -16,7 +16,7 @@ RETRAIN_PENDING = timedelta(hours=1)
 # Every decision of U in S, one row per placement. Keeps: active STAGING buckets of U's non-deleted blocks
 # (open or finalized) and every category_tracks row of U's categories (a soft-deleted category's tracks stay
 # keeps without a class). Discards: the DISCARD buckets of those blocks. Auto buckets are not decisions.
-_PLACEMENTS = """
+PLACEMENTS_SQL = """
     SELECT x.track_id, b.bucket_type = 'STAGING' AS keep,
            CASE WHEN c.deleted_at IS NULL THEN c.id END AS category_id, x.added_at
     FROM triage_blocks tb
@@ -37,7 +37,7 @@ _PLACEMENTS = """
 _LABELS = f"""
 WITH decisions AS (
     SELECT track_id, keep, category_id, min(added_at) AS added_at, max(added_at) AS last_at
-    FROM ({_PLACEMENTS}) p
+    FROM ({PLACEMENTS_SQL}) p
     WHERE track_id > :after
     GROUP BY track_id, keep, category_id
 ), labels AS (

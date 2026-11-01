@@ -61,3 +61,8 @@ def enqueue_score_style(
             "after_track_id": after_track_id,
         }
     )
+
+
+def enqueue_similarity_embed(*, version: str, after_video_id: str | None) -> None:
+    """The similar-tracks backfill chain: raises like enqueue_score_style."""
+    _send({"type": "similarity_embed", "version": version, "after_video_id": after_video_id})

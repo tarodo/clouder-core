@@ -2,8 +2,10 @@ import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { expect, test, vi } from 'vitest';
 import '../../../i18n';
+import { SimilarLink } from '../../similar/SimilarLink';
 import { clouderTheme } from '../../../theme';
 import { PlayerCard } from '../PlayerCard';
 
@@ -31,29 +33,33 @@ function renderAt(
   waveform: { duration_ms: number; data: string } | null = null,
   positionMs = 0,
   topActions?: ReactNode,
+  links?: ReactNode,
 ) {
   apiMock.mockResolvedValue({ waveform });
   render(
     <QueryClientProvider client={new QueryClient()}>
       <MantineProvider theme={clouderTheme}>
-        <div style={{ width }}>
-          <PlayerCard
-            variant="full"
-            state="paused"
-            track={track as never}
-            positionMs={positionMs}
-            mixName="Original Mix"
-            showTimes
-            spotifyHref="https://open.spotify.com/track/x"
-            onPlayPause={noop}
-            onPrev={noop}
-            onNext={noop}
-            onRetry={noop}
-            onOpenDevicePicker={noop}
-            onSeekMs={noop}
-            topActions={topActions}
-          />
-        </div>
+        <MemoryRouter>
+          <div style={{ width }}>
+            <PlayerCard
+              variant="full"
+              state="paused"
+              track={track as never}
+              positionMs={positionMs}
+              mixName="Original Mix"
+              showTimes
+              spotifyHref="https://open.spotify.com/track/x"
+              onPlayPause={noop}
+              onPrev={noop}
+              onNext={noop}
+              onRetry={noop}
+              onOpenDevicePicker={noop}
+              onSeekMs={noop}
+              topActions={topActions}
+              links={links}
+            />
+          </div>
+        </MemoryRouter>
       </MantineProvider>
     </QueryClientProvider>,
   );
@@ -73,7 +79,14 @@ test('a side-panel player (442px) gives the title and artists room: controls go 
 });
 
 test('a phone player with top actions (curate: Fire) puts them in the transport row', () => {
-  const { title, play, cover } = renderAt(351, null, 0, <button type="button" style={{ width: 50 }}>Fire</button>);
+  const { title, play, cover } = renderAt(
+    351,
+    null,
+    0,
+    <button type="button" style={{ width: 50 }}>
+      Fire
+    </button>,
+  );
   const fire = screen.getByRole('button', { name: 'Fire' });
   const link = screen.getByRole('link', { name: /spotify/i });
   const prev = screen.getByRole('button', { name: /previous/i });
@@ -86,6 +99,38 @@ test('a phone player with top actions (curate: Fire) puts them in the transport 
   expect(box(link).left).toBeGreaterThanOrEqual(box(next).right);
   expect(Math.abs(midX(play) - midX(title.closest('.mantine-Paper-root')!))).toBeLessThan(2);
   expect(box(title).top).toBeLessThan(box(cover).top + 8); // beside the cover, not pushed down
+});
+
+const similar = <SimilarLink trackId="t1" title={track.title} />;
+
+test('a side-panel player (442px) keeps similar + Spotify top-right, clear of the title', () => {
+  const { title } = renderAt(442, null, 0, undefined, similar);
+  const sim = screen.getByRole('link', { name: /similar tracks/i });
+  const link = screen.getByRole('link', { name: /spotify/i });
+  expect(Math.abs(box(sim).top - box(link).top)).toBeLessThan(1);
+  expect(box(sim).right).toBeLessThanOrEqual(box(link).left);
+  expect(box(title).right).toBeLessThanOrEqual(box(sim).left);
+});
+
+test('a phone curate player (351px): Fire left, similar + Spotify right of next, no overflow', () => {
+  const fire = (
+    <button type="button" style={{ width: 50 }}>
+      Fire
+    </button>
+  );
+  const { title } = renderAt(351, null, 0, fire, similar);
+  const paper = title.closest('.mantine-Paper-root')!;
+  const sim = screen.getByRole('link', { name: /similar tracks/i });
+  const link = screen.getByRole('link', { name: /spotify/i });
+  const next = screen.getByRole('button', { name: /next/i });
+  const prev = screen.getByRole('button', { name: /previous/i });
+  expect(box(screen.getByRole('button', { name: 'Fire' })).right).toBeLessThanOrEqual(
+    box(prev).left,
+  );
+  expect(box(sim).left).toBeGreaterThanOrEqual(box(next).right);
+  expect(box(link).left).toBeGreaterThanOrEqual(box(sim).right);
+  expect(box(link).right).toBeLessThanOrEqual(box(paper).right);
+  expect(paper.scrollWidth).toBeLessThanOrEqual(paper.clientWidth);
 });
 
 test('a long title wraps onto a second line in a narrow player instead of an ellipsis', () => {

@@ -22,6 +22,7 @@ import { PlaylistsListPage } from '../features/playlists/routes/PlaylistsListPag
 import { PlaylistDetailPage } from '../features/playlists/routes/PlaylistDetailPage';
 import { PlaylistPlayerPage } from '../features/playlists/routes/PlaylistPlayerPage';
 import { ProfilePage } from './profile';
+import { SimilarTracksPage } from '../features/similar/SimilarTracksPage';
 import { NotFoundPage } from './not-found';
 import { RouteErrorBoundary } from '../components/RouteErrorBoundary';
 import { requireAuth, redirectIfAuthenticated } from '../auth/requireAuth';
@@ -103,6 +104,7 @@ export const router = createBrowserRouter([
       },
       { path: 'artists/:artistId', element: <ArtistDetailPage /> },
       { path: 'labels/:labelId', element: <LabelDetailPage /> },
+      { path: 'similar/:trackId', element: <SimilarTracksPage /> },
       {
         path: 'playlists',
         children: [

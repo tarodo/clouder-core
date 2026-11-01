@@ -123,8 +123,8 @@ function Page() {
   const query = useEntityTracks('artist', 'art');
   return (
     <EntityPlayerPanel
-      kind="artist"
-      entityId="art"
+      source={{ type: 'entity', kind: 'artist', entityId: 'art' }}
+      showLabel
       items={query.data?.pages.flatMap((p) => p.items) ?? []}
     />
   );

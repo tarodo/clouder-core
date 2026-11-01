@@ -13,17 +13,15 @@ import { PlayerPanelPlaylistCloud } from '../../categories/components/PlayerPane
 import { usePlaylists } from '../../playlists/hooks/usePlaylists';
 import { useAddTracksToPlaylist } from '../../playlists/hooks/useAddTracksToPlaylist';
 import { useRemoveTrackFromPlaylist } from '../../playlists/hooks/useRemoveTrackFromPlaylist';
-import {
-  patchEntityTrack,
-  type EntityKind,
-  type EntityTrack,
-  type NamedRef,
-} from '../hooks/useEntityTracks';
+import { patchEntityTrack, type EntityTrack, type NamedRef } from '../hooks/useEntityTracks';
+import type { EntitySource } from './EntityTracksSection';
 import classes from './EntityPlayerPanel.module.css';
 
 export interface EntityPlayerPanelProps {
-  kind: EntityKind;
-  entityId: string;
+  /** The list's queue: the hotkeys work while it is the playing one. */
+  source: EntitySource;
+  /** The track's label in the player (a label's own page names it already). */
+  showLabel: boolean;
   /** The loaded tracks: the playing one's row carries its style, categories and playlists. */
   items: EntityTrack[];
 }
@@ -33,11 +31,11 @@ type Field = 'categories' | 'playlists';
 const without = (refs: NamedRef[], id: string) => refs.filter((r) => r.id !== id);
 
 /**
- * The player of a label's / an artist's page. A track goes straight into a category of its own
+ * The player of a label's / an artist's page and of similar tracks. A track goes straight into a category of its own
  * style (the suggestion model learns per style) and into any active playlist; a second tap takes
  * it out again.
  */
-export function EntityPlayerPanel({ kind, entityId, items }: EntityPlayerPanelProps) {
+export function EntityPlayerPanel({ source, showLabel, items }: EntityPlayerPanelProps) {
   const { t } = useTranslation();
   const playback = usePlayback();
   const qc = useQueryClient();
@@ -95,8 +93,8 @@ export function EntityPlayerPanel({ kind, entityId, items }: EntityPlayerPanelPr
   usePlayerHotkeys({
     active:
       playback.queue.source?.type === 'entity' &&
-      playback.queue.source.kind === kind &&
-      playback.queue.source.entityId === entityId,
+      playback.queue.source.kind === source.kind &&
+      playback.queue.source.entityId === source.entityId,
     playlistCount: Math.min(10, playlistsQuery.data?.items.length ?? 0),
     ...transportHotkeys(playback),
     onTogglePlaylist: (index) => {
@@ -110,19 +108,14 @@ export function EntityPlayerPanel({ kind, entityId, items }: EntityPlayerPanelPr
   const info = rich && {
     mixName: rich.mix_name,
     artists: rich.artists,
-    // a label's own page names it already
-    label: kind === 'artist' ? rich.label : null,
+    label: showLabel ? rich.label : null,
     bpm: rich.bpm,
     key: { camelot: rich.key_camelot, name: rich.key_name },
     releaseDate: rich.release_date,
   };
 
   return (
-    <TrackPlayer
-      className={classes.root}
-      info={info}
-      empty={t('library.entity_player.pick_track')}
-    >
+    <TrackPlayer className={classes.root} info={info} empty={t('library.entity_player.pick_track')}>
       {(track) => (
         <>
           <Divider />
@@ -151,7 +144,10 @@ export function EntityPlayerPanel({ kind, entityId, items }: EntityPlayerPanelPr
                     variant={on ? 'filled' : 'default'}
                     aria-pressed={on}
                     onClick={() => void toggle('categories', { id: c.id, name: c.name }, !on)}
-                    styles={{ label: { whiteSpace: 'normal' }, inner: { justifyContent: 'flex-start' } }}
+                    styles={{
+                      label: { whiteSpace: 'normal' },
+                      inner: { justifyContent: 'flex-start' },
+                    }}
                   >
                     {c.name}
                   </Button>

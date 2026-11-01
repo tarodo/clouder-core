@@ -5,12 +5,16 @@ import { AiBadge } from '../../playback/AiBadge';
 import { PlayPauseButton } from '../../playback/PlayPauseButton';
 import { TrackKey } from '../../playback/TrackKey';
 import { AiRepBadge, NamesWithAi } from './AiRepBadge';
-import type { EntityKind, EntityTrack } from '../hooks/useEntityTracks';
+import type { ReactNode } from 'react';
+import type { EntityTrack } from '../hooks/useEntityTracks';
 
 const NOWRAP = { whiteSpace: 'nowrap' } as const;
 
 export interface EntityTrackListProps {
-  kind: EntityKind;
+  /** The label column: the tracks come from many labels. */
+  showLabel: boolean;
+  /** The style column; off for a one-style list (similar tracks). */
+  showStyle?: boolean;
   items: EntityTrack[];
   variant: 'desktop' | 'mobile';
   loading: boolean;
@@ -21,14 +25,32 @@ export interface EntityTrackListProps {
   playing: boolean;
   onPlay: (track: EntityTrack) => void;
   onToggle: () => void;
+  /** In place of the list when it is empty. */
+  empty?: ReactNode;
 }
 
-/** Where the user already put the track: category names, and a mark for playlists. */
+/** Where the user already put the track: category names, DISCARD, a mark for playlists; the seed. */
 function Mine({ track }: { track: EntityTrack }) {
   const { t } = useTranslation();
-  if (track.categories.length === 0 && track.playlists.length === 0) return null;
+  if (
+    !track.seed &&
+    !track.discarded &&
+    track.categories.length === 0 &&
+    track.playlists.length === 0
+  )
+    return null;
   return (
     <Group gap={4} wrap="wrap">
+      {track.seed ? (
+        <Badge size="sm" variant="filled" color="gray" radius="sm">
+          {t('similar.seed')}
+        </Badge>
+      ) : null}
+      {track.discarded ? (
+        <Badge size="sm" variant="outline" color="gray" radius="sm">
+          {t('similar.discard')}
+        </Badge>
+      ) : null}
       {track.categories.map((c) => (
         <Badge key={c.id} size="sm" variant="light" color="gray" radius="sm">
           {c.name}
@@ -45,7 +67,8 @@ function Mine({ track }: { track: EntityTrack }) {
 
 export function EntityTrackList(props: EntityTrackListProps) {
   const { t } = useTranslation();
-  const { kind, items, variant, loading, currentTrackId, playing, onPlay, onToggle } = props;
+  const { showLabel, items, variant, loading, currentTrackId, playing, onPlay, onToggle } = props;
+  const showStyle = props.showStyle ?? true;
 
   if (loading) {
     return (
@@ -57,7 +80,7 @@ export function EntityTrackList(props: EntityTrackListProps) {
     );
   }
   if (items.length === 0) {
-    return <Text c="dimmed">{t('library.entity_tracks.empty')}</Text>;
+    return props.empty ?? <Text c="dimmed">{t('library.entity_tracks.empty')}</Text>;
   }
 
   const play = (track: EntityTrack) => {
@@ -117,7 +140,7 @@ export function EntityTrackList(props: EntityTrackListProps) {
                 <Text size="sm" truncate>
                   <NamesWithAi items={track.artists} />
                 </Text>
-                {kind === 'artist' && track.label ? (
+                {showLabel && track.label ? (
                   <Text size="xs" c="dimmed" truncate>
                     {track.label.name}
                     <AiRepBadge rep={track.label.ai} ml={4} />
@@ -150,8 +173,8 @@ export function EntityTrackList(props: EntityTrackListProps) {
             <Table.Tr>
               <Table.Th>{t('library.entity_tracks.col_title')}</Table.Th>
               <Table.Th>{t('library.entity_tracks.col_artists')}</Table.Th>
-              {kind === 'artist' ? <Table.Th>{t('library.entity_tracks.col_label')}</Table.Th> : null}
-              <Table.Th>{t('library.entity_tracks.col_style')}</Table.Th>
+              {showLabel ? <Table.Th>{t('library.entity_tracks.col_label')}</Table.Th> : null}
+              {showStyle ? <Table.Th>{t('library.entity_tracks.col_style')}</Table.Th> : null}
               <Table.Th>{t('library.entity_tracks.col_key')}</Table.Th>
               <Table.Th>BPM</Table.Th>
               <Table.Th>{t('library.entity_tracks.col_length')}</Table.Th>
@@ -175,12 +198,12 @@ export function EntityTrackList(props: EntityTrackListProps) {
                 <Table.Td>
                   <NamesWithAi items={track.artists} />
                 </Table.Td>
-                {kind === 'artist' ? (
+                {showLabel ? (
                   <Table.Td>
                     <NamesWithAi items={track.label ? [track.label] : []} />
                   </Table.Td>
                 ) : null}
-                <Table.Td>{track.style?.name ?? '—'}</Table.Td>
+                {showStyle ? <Table.Td>{track.style?.name ?? '—'}</Table.Td> : null}
                 <Table.Td>
                   <TrackKey camelot={track.key_camelot} name={track.key_name} />
                 </Table.Td>

@@ -4,7 +4,10 @@ Messages, by `type`:
 - `retrain` {user_id, style_id}: labels -> profiles -> train -> artifact -> ml_models, then scoring;
 - `score_style` {user_id, style_id, model_version, after_track_id}: one page of the style's profiled
   tracks, then the next page as a new message, until the model row moves past model_version;
-- `score` {video_ids}: freshly profiled videos, by every trained model of their tracks' styles.
+- `score` {video_ids}: freshly profiled videos, by every trained model of their tracks' styles, then
+  their similar-tracks vectors (once the artifact exists);
+- `similarity_fit` {version}: fit the similar-tracks artifact once (write-once), then start the chain;
+- `similarity_embed` {version, after_video_id}: one page of profiled videos' vectors, then the next.
 A bad record raises, so SQS redrives it to the DLQ. Needs numpy and scikit-learn (the ML package).
 """
 
@@ -24,6 +27,7 @@ import numpy as np
 
 from . import ml_jobs
 from .logging_utils import log_event
+from .ml import similarity
 from .ml.features import s3_fetcher, vectors
 from .ml.labels import Label, training_rows
 from .ml.model import Model, Prediction, evaluate_previous, from_npz, predict, to_npz, train
@@ -34,6 +38,8 @@ PAGE = 2000  # tracks per scoring message: ~67 MB of profiles
 # ponytail: unbounded, one entry per (user, style, version) a container has scored; a small circle of
 # users. An LRU if containers ever hold many.
 _MODELS: dict[str, Model] = {}
+# The similar-tracks artifact, kept once found: a container that saw it missing looks again.
+_SIMILARITY: similarity.Artifact | None = None
 
 
 def _build_s3_client() -> Any:
@@ -202,6 +208,27 @@ def _score_style(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str
         )
 
 
+def _similarity(s3: Any, bucket: str) -> similarity.Artifact | None:
+    global _SIMILARITY
+    if _SIMILARITY is None:
+        try:
+            blob = s3.get_object(Bucket=bucket, Key=similarity.ARTIFACT_KEY)["Body"].read()
+        except s3.exceptions.NoSuchKey:
+            return None
+        _SIMILARITY = similarity.from_npz(blob)
+    return _SIMILARITY
+
+
+def _embed(
+    repo: ClouderRepository, art: similarity.Artifact, present: list[str], X: np.ndarray
+) -> None:
+    keep, V = similarity.embed(art, X)
+    videos = [v for v, k in zip(present, keep, strict=True) if k]
+    if videos:
+        rows = [(v, similarity.as_text(e)) for v, e in zip(videos, V, strict=True)]
+        repo.similarity_upsert(version=similarity.VERSION, rows=rows)
+
+
 def _score(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, Any]) -> None:
     tracks = repo.ml_tracks_for_videos(video_ids=msg["video_ids"])
     present, X = _profiles(s3, bucket, tracks)
@@ -212,12 +239,56 @@ def _score(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, Any]
         for m in repo.ml_models_for_style(style_id=style_id):
             model = _model(s3, bucket, m["artifact_key"])
             _upsert(repo, model, m["user_id"], style_id, m["version"], rows, present, X)
+    # After the predictions: a failed write here redrives a message whose predictions are stored.
+    # Before the artifact exists the backfill chain covers these videos.
+    art = _similarity(s3, bucket)
+    if art is not None:
+        _embed(repo, art, present, X)
+
+
+def _live_version(msg: Mapping[str, Any]) -> None:
+    """A message for another artifact version would write vectors under this one's."""
+    if msg["version"] != similarity.VERSION:
+        raise ValueError(
+            f"similarity version {msg['version']} is not the live {similarity.VERSION}"
+        )
+
+
+def _similarity_fit(repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, Any]) -> None:
+    global _SIMILARITY
+    _live_version(msg)
+    if _similarity(s3, bucket) is None:
+        # ponytail: full f32 profiles, ~670 MB at SAMPLE of the 3008 MB cap; slice per page past that
+        _, X = vectors(
+            repo.similarity_videos(after_video_id=None, limit=similarity.SAMPLE),
+            s3_fetcher(s3, bucket),
+        )
+        art = similarity.fit(similarity.used(X))
+        s3.put_object(Bucket=bucket, Key=similarity.ARTIFACT_KEY, Body=similarity.to_npz(art))
+        _SIMILARITY = art
+        log_event("INFO", "ml_similarity_fitted", count=len(X))
+    ml_jobs.enqueue_similarity_embed(version=msg["version"], after_video_id=None)
+
+
+def _similarity_embed(
+    repo: ClouderRepository, s3: Any, bucket: str, msg: Mapping[str, Any]
+) -> None:
+    _live_version(msg)
+    art = _similarity(s3, bucket)
+    if art is None:
+        raise RuntimeError("similarity artifact missing: run similarity_fit first")
+    videos = repo.similarity_videos(after_video_id=msg["after_video_id"], limit=PAGE)
+    _embed(repo, art, *vectors(videos, s3_fetcher(s3, bucket)))
+    if len(videos) == PAGE:
+        ml_jobs.enqueue_similarity_embed(version=msg["version"], after_video_id=videos[-1])
 
 
 _JOBS: dict[str, Callable[[ClouderRepository, Any, str, Mapping[str, Any]], None]] = {
     "retrain": _retrain,
     "score_style": _score_style,
     "score": _score,
+    "similarity_fit": _similarity_fit,
+    "similarity_embed": _similarity_embed,
 }
 
 

@@ -207,7 +207,7 @@ describe('CurateSession with PlayerCard', () => {
     expect(btn).toHaveAttribute('aria-pressed', 'false');
     // Sits in the Spotify-link row above the transport, not in a row of its own.
     const spotify = screen.getByRole('link', { name: /in spotify/i });
-    expect(btn.parentElement).toBe(spotify.parentElement);
+    expect(btn.parentElement).toContainElement(spotify);
     await waitFor(() => expect(btn).toBeEnabled());
 
     await userEvent.click(btn);

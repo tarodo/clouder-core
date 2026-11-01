@@ -1100,6 +1100,18 @@
       "no_spotify_match": "Нет Spotify match — слушай вручную"
     }
   },
+  "similar": {
+    "open_aria": "Similar tracks to {{title}}",
+    "title": "Similar tracks",
+    "seed": "Seed",
+    "not_found": "This track is not in CLOUDER.",
+    "unprofiled": "This track has no sound profile yet; similar tracks appear once it is analyzed.",
+    "none": "No similar tracks in this style yet.",
+    "artist_unprofiled": "None of this artist's tracks in this style have a sound profile yet.",
+    "view_tracks": "Tracks",
+    "view_similar": "Similar",
+    "discard": "DISCARD"
+  },
   "library": {
     "page_title": "Library",
     "list": {
@@ -1208,6 +1220,8 @@
       "title": "Tracks",
       "title_count": "Tracks · {{count}}",
       "empty": "No tracks in CLOUDER yet.",
+      "load_failed": "Couldn't load these tracks.",
+      "retry": "Retry",
       "more": "Show more",
       "in_playlists_one": "In {{count}} playlist",
       "in_playlists_other": "In {{count}} playlists",

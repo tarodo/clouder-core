@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
+import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
@@ -73,7 +74,10 @@ function renderSection() {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MantineProvider theme={testTheme}>
-        <EntityTracksSection kind="artist" entityId="art" />
+        {/* the artist's section reads its view from the URL */}
+        <MemoryRouter>
+          <EntityTracksSection kind="artist" entityId="art" />
+        </MemoryRouter>
       </MantineProvider>
     </QueryClientProvider>,
   );

@@ -177,6 +177,8 @@ _ROUTE_TABLE: dict[str, Route] = {
     "GET /artists": _delegate("artist_enrichment.routes", "handle_get_artists_list"),
     "GET /artists/{artist_id}": _delegate("artist_enrichment.routes", "handle_get_artist_user"),
     "GET /artists/{artist_id}/tracks": _delegate("entity_tracks", "handle_artist_tracks"),
+    "GET /artists/{artist_id}/similar": _delegate("similar_tracks", "handle_artist_similar"),
+    "GET /tracks/{track_id}/similar": _delegate("similar_tracks", "handle_track_similar"),
 }
 
 

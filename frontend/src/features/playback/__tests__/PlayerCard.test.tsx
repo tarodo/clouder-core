@@ -192,7 +192,7 @@ describe('PlayerCard', () => {
     );
     const link = screen.getByRole('link', { name: 'Open in Spotify' });
     const fire = screen.getByRole('button', { name: 'Fire' });
-    expect(link.parentElement).toBe(fire.parentElement);
+    expect(fire.parentElement).toContainElement(link);
   });
 
   it('renders topActions even without a Spotify link', () => {

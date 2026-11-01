@@ -48,6 +48,10 @@
   .root[data-actions] .text {
     padding-right: 36px;
   }
+  /* similar tracks + Spotify: two icons */
+  .root[data-links] .text {
+    padding-right: 70px;
+  }
   /* Wider top actions (curate's Fire) would cover the title: they join the transport row,
      Fire left of it, the Spotify link right, play stays centered. */
   .root[data-top-actions] .main {
@@ -68,7 +72,7 @@
     grid-column: 1;
     justify-self: start;
   }
-  .root[data-top-actions] .actions > a {
+  .root[data-top-actions] .actions > .links {
     grid-column: 5;
     justify-self: end;
   }

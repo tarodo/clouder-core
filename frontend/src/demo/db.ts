@@ -38,7 +38,8 @@ import { demoCover } from './covers';
 import { LABEL_PROFILES } from './profiles';
 import type { AiRep } from '../features/library/components/AiRepBadge';
 
-const idHash = (id: string): number => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+const idHash = (id: string): number =>
+  [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 
 // Some labels and artists carry each AI reputation level, so every badge shows in the demo.
 const aiRep = (id: string): AiRep | null =>
@@ -320,12 +321,9 @@ export class DemoDb {
     return this.s.playlists.some((p) => p.tracks.some((t) => t.track_id === trackId));
   }
 
-  /** A label's / an artist's tracks, newest release first, with this user's categories and playlists. */
-  entityTracks(kind: 'label' | 'artist', id: string, limit: number, offset: number) {
-    const all = this.s.tracks
-      .filter((t) => (kind === 'label' ? t.label.id === id : t.artists.some((a) => a.id === id)))
-      .sort((a, b) => b.publish_date.localeCompare(a.publish_date) || a.id.localeCompare(b.id));
-    const items = all.slice(offset, offset + limit).map((t) => ({
+  /** The entity player's row of *t*, with this user's categories and playlists. */
+  private entityRow(t: DemoTrack) {
+    return {
       id: t.id,
       title: t.title,
       mix_name: t.mix_name,
@@ -346,8 +344,83 @@ export class DemoDb {
       playlists: this.s.playlists
         .filter((pl) => pl.tracks.some((e) => e.track_id === t.id))
         .map((pl) => ({ id: pl.id, name: pl.name })),
-    }));
+    };
+  }
+
+  /** A label's / an artist's tracks, newest release first, with this user's categories and playlists. */
+  entityTracks(kind: 'label' | 'artist', id: string, limit: number, offset: number) {
+    const all = this.s.tracks
+      .filter((t) => (kind === 'label' ? t.label.id === id : t.artists.some((a) => a.id === id)))
+      .sort((a, b) => b.publish_date.localeCompare(a.publish_date) || a.id.localeCompare(b.id));
+    const items = all.slice(offset, offset + limit).map((t) => this.entityRow(t));
     return { items, total: all.length, limit, offset };
+  }
+
+  // ── similar tracks ────────────────────────────────────────────────────────
+
+  private kept(trackId: string): boolean {
+    return (
+      this.s.categories.some((c) => c.tracks.some((e) => e.track_id === trackId)) ||
+      this.s.blocks.some((b) =>
+        b.buckets.some(
+          (k) =>
+            k.bucket_type === 'STAGING' &&
+            !k.inactive &&
+            k.tracks.some((e) => e.track_id === trackId),
+        ),
+      )
+    );
+  }
+
+  private similarRow(t: DemoTrack) {
+    const discarded =
+      !this.kept(t.id) &&
+      this.s.blocks.some((b) =>
+        b.buckets.some(
+          (k) => k.bucket_type === 'DISCARD' && k.tracks.some((e) => e.track_id === t.id),
+        ),
+      );
+    return { ...this.entityRow(t), discarded };
+  }
+
+  /** No sound in the demo: "similar" = the style's other tracks nearest in BPM, keeps first. */
+  private nearest(styleId: string, bpm: number | null, skip: (t: DemoTrack) => boolean) {
+    return this.s.tracks
+      .filter((t) => t.style_id === styleId && !skip(t) && !aiVerdict(t.id))
+      .map((t) => ({ t, d: Math.abs((t.bpm ?? 0) - (bpm ?? 0)) }))
+      .sort((a, b) => a.d - b.d || a.t.id.localeCompare(b.t.id))
+      .slice(0, 50)
+      .sort((a, b) => Number(this.kept(b.t.id)) - Number(this.kept(a.t.id)) || a.d - b.d)
+      .map(({ t }) => this.similarRow(t));
+  }
+
+  similarTo(trackId: string) {
+    const seed = this.tracks.get(trackId);
+    if (!seed) return { seed: null, profiled: false, items: [] };
+    return {
+      seed: this.similarRow(seed),
+      profiled: true,
+      items: this.nearest(seed.style_id, seed.bpm, (t) => t.id === seed.id),
+    };
+  }
+
+  artistSimilar(artistId: string, styleId: string | null) {
+    const own = this.s.tracks.filter((t) => t.artists.some((a) => a.id === artistId));
+    const counts = new Map<string, number>();
+    for (const t of own) counts.set(t.style_id, (counts.get(t.style_id) ?? 0) + 1);
+    const styles = [...counts]
+      .map(([id, count]) => ({ id, name: this.styleName(id), count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    const style = styles.find((x) => x.id === (styleId ?? styles[0]?.id));
+    if (!style) return { profiled: false, style: null, styles, items: [] };
+    const mine = own.filter((t) => t.style_id === style.id);
+    const bpm = mine.reduce((n, t) => n + (t.bpm ?? 0), 0) / mine.length;
+    return {
+      profiled: true,
+      style: { id: style.id, name: style.name },
+      styles,
+      items: this.nearest(style.id, bpm, (t) => t.artists.some((a) => a.id === artistId)),
+    };
   }
 
   categoryTracks(id: string, q: CategoryTrackQuery): CategoryTrack[] {
