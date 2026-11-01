@@ -69,7 +69,7 @@ before history starts take the earliest known version. The rule is written twice
 SQL for the cards and in this model; the dbt unit test `fct_play_follows_the_play_rule` is their
 shared contract. `tests/unit/test_analytics_play_contract.py` runs its rows through the Lambda's
 SQL, so a rule changed in one place alone fails CI. An unparsable `ts_client` drops the event in
-both.
+both. Why two copies and not one: [ADR-0031](../adr/0031-play-rule-contract.md).
 
 **Tests.** dbt unit tests (dedup, lookback window, SCD2 first build / incremental fold / no-op
 rerun / revert, the play rule contract, point-in-time style), data tests (`unique`, `not_null`,
