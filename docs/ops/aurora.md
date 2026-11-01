@@ -149,3 +149,16 @@ The cluster has `deletion_protection = true`, keeps automated backups for 7 days
 1. Rename the damaged cluster and writer out of the way: `aws rds modify-db-cluster --db-cluster-identifier clouder-prod-aurora --new-db-cluster-identifier clouder-prod-aurora-broken --apply-immediately` and the same with `modify-db-instance` for `clouder-prod-aurora-writer`.
 2. Restore to the time before the damage (`--restore-to-time`, not the latest time) under the identifiers `clouder-prod-aurora` / `clouder-prod-aurora-writer`, with the managed master secret and the Data API, as the drill script does.
 3. Deploy: the refresh picks up the new master secret, and the apply updates the Lambdas that read it. Keep `-broken` until the data is checked; it keeps deletion protection.
+
+## pgvector extension
+
+Similar tracks (`audio_embeddings`, migration `20261101_49`) need pgvector. On Aurora it is superuser-only (`trusted = false`), and the migrator is not `rds_superuser`, so the master user creates it once before the migration reaches production:
+
+```bash
+aws rds-data execute-statement --database clouder \
+  --resource-arn "$(aws rds describe-db-clusters --db-cluster-identifier clouder-prod-aurora --query 'DBClusters[0].DBClusterArn' --output text)" \
+  --secret-arn "$(aws rds describe-db-clusters --db-cluster-identifier clouder-prod-aurora --query 'DBClusters[0].MasterUserSecret.SecretArn' --output text)" \
+  --sql "CREATE EXTENSION IF NOT EXISTS vector"
+```
+
+Done on prod 2026-11-01 (0.8.0, owner `rdsadmin`). The migration's own `CREATE EXTENSION IF NOT EXISTS vector` is then a no-op: PostgreSQL checks for the extension before it checks privileges. CI and `docker-compose.yml` use `pgvector/pgvector:pg16`.

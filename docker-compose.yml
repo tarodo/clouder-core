@@ -2,7 +2,7 @@
 # Same major version as CI (.github/workflows/pr.yml) and close to Aurora.
 services:
   db:
-    image: postgres:16
+    image: pgvector/pgvector:pg16  # postgres:16 + pgvector (similar tracks)
     ports: ["${PG_PORT:-55433}:5432"]  # export PG_PORT=… before make when 55433 is taken
     environment:
       POSTGRES_PASSWORD: postgres
