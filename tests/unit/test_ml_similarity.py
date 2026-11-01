@@ -56,7 +56,8 @@ def test_embed_drops_degenerate_rows() -> None:
     Y[4, 400:1680] = 0  # an all-zero EffNet block: centring alone would make it -mean, a fake point
     keep, V = sim.embed(art, Y)
     assert keep.tolist() == [True, False, False, True, False]
-    np.testing.assert_array_equal(V, sim.embed(art, Y[[0, 3]])[1])
+    # BLAS rounds a 5-row and a 2-row product differently in the last bits (OpenBLAS on CI)
+    np.testing.assert_allclose(V, sim.embed(art, Y[[0, 3]])[1], atol=1e-6)
 
 
 def test_fit_ignores_degenerate_rows() -> None:
