@@ -1,9 +1,12 @@
 import type { CSSProperties, HTMLAttributes } from 'react';
-import { ActionIcon, Button, Group, Stack, Text } from '@mantine/core';
+import { ActionIcon, Button, Group, Menu, Stack, Text } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { useSortable, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
   IconBrandSpotify,
+  IconBrandYoutube,
+  IconDotsVertical,
   IconGripVertical,
   IconLink,
 } from '@tabler/icons-react';
@@ -60,18 +63,27 @@ export function PlaylistTrackRowView({
   overlay = false,
 }: ViewProps) {
   const { t } = useTranslation();
+  // phone: title, artists and tags get the width; links and Remove go behind ⋮
+  const isMobile = useMediaQuery('(max-width: 64em)');
   const canPlay = !!onPlay && !!track.spotify_id;
   const artistNames = track.artists.map((a) => a.name).join(', ');
+  const spotifyUrl = track.spotify_id ? `https://open.spotify.com/track/${track.spotify_id}` : null;
+  const beatportUrl = track.beatport_track_id
+    ? beatportTrackUrl(track.beatport_track_id, track.beatport_slug)
+    : null;
+  const yt = track.ytmusic;
+  const ytUrl = yt?.status === 'matched' ? yt.url : null;
+  const tags = track.tags.map((tag) => <TagPill key={tag.id} name={tag.name} color={tag.color} />);
   const groupStyle: CSSProperties = overlay
     ? { ...rootStyle, boxShadow: 'var(--mantine-shadow-md)', cursor: 'grabbing' }
-    : rootStyle ?? {};
+    : (rootStyle ?? {});
 
   return (
     <Group
       ref={rootRef}
       style={groupStyle}
       data-current={isCurrent ? 'true' : undefined}
-      gap="sm"
+      gap={isMobile ? 6 : 'sm'}
       wrap="nowrap"
       p="xs"
       bg={isCurrent ? 'var(--mantine-color-default-hover)' : 'var(--color-bg-elevated)'}
@@ -90,7 +102,7 @@ export function PlaylistTrackRowView({
       </ActionIcon>
 
       {/* Position number */}
-      <Text fw={500} size="sm" style={{ minWidth: 32 }}>
+      <Text fw={500} size="sm" style={{ minWidth: isMobile ? 22 : 32 }}>
         {position}.
       </Text>
 
@@ -108,86 +120,179 @@ export function PlaylistTrackRowView({
         />
       )}
 
-      {/* Track info — two lines: title/mix/artists, then meta + editable tags */}
-      <Stack gap={2} flex={1} style={{ minWidth: 0 }}>
-        <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-          <Text fw={500} truncate>
-            {track.title}
-          </Text>
-          <AiBadge verdict={track.ai_verdict} />
-          {track.mix_name && (
-            <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-              {track.mix_name}
-            </Text>
+      {isMobile ? (
+        <>
+          <Stack gap={2} flex={1} style={{ minWidth: 0 }}>
+            <Group gap={4} wrap="nowrap" align="flex-start">
+              <Text fw={500} size="sm" lineClamp={2}>
+                <span>{track.title}</span>
+                {track.mix_name && (
+                  <Text span size="xs" c="dimmed">
+                    {' '}
+                    {track.mix_name}
+                  </Text>
+                )}
+              </Text>
+              <AiBadge verdict={track.ai_verdict} />
+            </Group>
+            {artistNames && (
+              <Text size="xs" c="dimmed" lineClamp={2}>
+                <NamesWithAi items={track.artists} />
+              </Text>
+            )}
+            {tags.length > 0 && (
+              <Group gap={4} wrap="wrap">
+                {tags}
+              </Group>
+            )}
+          </Stack>
+
+          {/* A match to review is a task, not a link: it stays in the row */}
+          {(yt?.status === 'needs_review' || yt?.status === 'not_found') && (
+            <YtMusicBadge
+              match={yt}
+              playlistId={playlistId}
+              trackId={track.track_id}
+              track={track}
+            />
           )}
-          {artistNames && (
-            <Text size="sm" c="dimmed" truncate>
-              <NamesWithAi items={track.artists} />
-            </Text>
+
+          <Menu position="bottom-end" withinPortal>
+            <Menu.Target>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                aria-label={t('categories.row_actions.trigger_aria')}
+              >
+                <IconDotsVertical size={16} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              {spotifyUrl && (
+                <Menu.Item
+                  component="a"
+                  href={spotifyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  leftSection={<IconBrandSpotify size={14} />}
+                >
+                  {t('playlists.publish.open_in_spotify')}
+                </Menu.Item>
+              )}
+              {beatportUrl && (
+                <Menu.Item
+                  component="a"
+                  href={beatportUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  leftSection={<IconLink size={14} />}
+                >
+                  {t('playlists.detail.open_beatport')}
+                </Menu.Item>
+              )}
+              {ytUrl && (
+                <Menu.Item
+                  component="a"
+                  href={ytUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  leftSection={<IconBrandYoutube size={14} />}
+                >
+                  {t('playlists.ytmusic.openOnYt', 'Open on YT Music')}
+                </Menu.Item>
+              )}
+              {(spotifyUrl || beatportUrl || ytUrl) && <Menu.Divider />}
+              <Menu.Item color="red" onClick={() => onRemove(track)}>
+                {t('playlists.detail.remove_track_cta')}
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </>
+      ) : (
+        <>
+          {/* Track info — two lines: title/mix/artists, then meta + editable tags */}
+          <Stack gap={2} flex={1} style={{ minWidth: 0 }}>
+            <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+              <Text fw={500} truncate>
+                {track.title}
+              </Text>
+              <AiBadge verdict={track.ai_verdict} />
+              {track.mix_name && (
+                <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                  {track.mix_name}
+                </Text>
+              )}
+              {artistNames && (
+                <Text size="sm" c="dimmed" truncate>
+                  <NamesWithAi items={track.artists} />
+                </Text>
+              )}
+            </Group>
+            <Group gap="xs" wrap="wrap" align="center">
+              <TrackKey camelot={track.key_camelot} name={track.key_name} size="xs" />
+              <Text size="xs" c="dimmed">
+                {track.label?.name ?? '—'}
+                <AiRepBadge rep={track.label?.ai} ml={4} />
+                {[
+                  '',
+                  track.bpm != null ? `${track.bpm} BPM` : null,
+                  // formatLength/formatReleaseDate return '—' for null, so guard
+                  // here to truly omit missing parts (no "| — | —" gaps).
+                  track.length_ms ? formatLength(track.length_ms) : null,
+                  track.spotify_release_date ? formatReleaseDate(track.spotify_release_date) : null,
+                ]
+                  .filter((part, i) => i === 0 || part)
+                  .join(' | ')}
+              </Text>
+              {/* Read-only in the list — tags are edited in the player. */}
+              {tags}
+            </Group>
+          </Stack>
+
+          {/* Spotify external link */}
+          {spotifyUrl && (
+            <ActionIcon
+              component="a"
+              href={spotifyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="subtle"
+              color="gray"
+              aria-label={t('playlists.publish.open_in_spotify')}
+            >
+              <IconBrandSpotify size={16} />
+            </ActionIcon>
           )}
-        </Group>
-        <Group gap="xs" wrap="wrap" align="center">
-          <TrackKey camelot={track.key_camelot} name={track.key_name} size="xs" />
-          <Text size="xs" c="dimmed">
-            {track.label?.name ?? '—'}
-            <AiRepBadge rep={track.label?.ai} ml={4} />
-            {[
-              '',
-              track.bpm != null ? `${track.bpm} BPM` : null,
-              // formatLength/formatReleaseDate return '—' for null, so guard
-              // here to truly omit missing parts (no "| — | —" gaps).
-              track.length_ms ? formatLength(track.length_ms) : null,
-              track.spotify_release_date
-                ? formatReleaseDate(track.spotify_release_date)
-                : null,
-            ]
-              .filter((part, i) => i === 0 || part)
-              .join(' | ')}
-          </Text>
-          {/* Read-only in the list — tags are edited in the player. */}
-          {track.tags.map((tag) => (
-            <TagPill key={tag.id} name={tag.name} color={tag.color} />
-          ))}
-        </Group>
-      </Stack>
 
-      {/* Spotify external link */}
-      {track.spotify_id && (
-        <ActionIcon
-          component="a"
-          href={`https://open.spotify.com/track/${track.spotify_id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          variant="subtle"
-          color="gray"
-          aria-label={t('playlists.publish.open_in_spotify')}
-        >
-          <IconBrandSpotify size={16} />
-        </ActionIcon>
+          {/* Beatport external link */}
+          {beatportUrl && (
+            <ActionIcon
+              component="a"
+              href={beatportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="subtle"
+              color="gray"
+              aria-label={t('playlists.detail.open_beatport')}
+            >
+              <IconLink size={16} />
+            </ActionIcon>
+          )}
+
+          {/* YT Music match badge */}
+          <YtMusicBadge
+            match={track.ytmusic}
+            playlistId={playlistId}
+            trackId={track.track_id}
+            track={track}
+          />
+
+          {/* Remove track — pale-red text, low emphasis */}
+          <Button variant="subtle" color="red" size="xs" onClick={() => onRemove(track)}>
+            {t('playlists.detail.remove_track_cta')}
+          </Button>
+        </>
       )}
-
-      {/* Beatport external link */}
-      {track.beatport_track_id && (
-        <ActionIcon
-          component="a"
-          href={beatportTrackUrl(track.beatport_track_id, track.beatport_slug) ?? undefined}
-          target="_blank"
-          rel="noopener noreferrer"
-          variant="subtle"
-          color="gray"
-          aria-label={t('playlists.detail.open_beatport')}
-        >
-          <IconLink size={16} />
-        </ActionIcon>
-      )}
-
-      {/* YT Music match badge */}
-      <YtMusicBadge match={track.ytmusic} playlistId={playlistId} trackId={track.track_id} track={track} />
-
-      {/* Remove track — pale-red text, low emphasis */}
-      <Button variant="subtle" color="red" size="xs" onClick={() => onRemove(track)}>
-        {t('playlists.detail.remove_track_cta')}
-      </Button>
     </Group>
   );
 }

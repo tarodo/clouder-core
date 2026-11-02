@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -24,9 +24,7 @@ function W({ children }: { children: React.ReactNode }) {
     <MantineProvider theme={testTheme}>
       <QueryClientProvider client={qc}>
         <DndContext>
-          <SortableContext items={['track-1']}>
-            {children}
-          </SortableContext>
+          <SortableContext items={['track-1']}>{children}</SortableContext>
         </DndContext>
       </QueryClientProvider>
     </MantineProvider>
@@ -218,7 +216,9 @@ describe('PlaylistTrackRow AI badge', () => {
       </W>,
     );
     expect(
-      screen.queryAllByText('AI').map((el) => el.closest('[data-level]')?.getAttribute('data-level')),
+      screen
+        .queryAllByText('AI')
+        .map((el) => el.closest('[data-level]')?.getAttribute('data-level')),
     ).toEqual(levels);
   });
 });
@@ -227,11 +227,113 @@ describe('PlaylistTrackRow AI reputation', () => {
   it('marks the artist and the label', () => {
     const track: PlaylistTrack = {
       ...richTrack,
-      artists: [{ id: 'a', name: 'Artist', ai: { level: 1 as const, ai: 2, checked: 41, total: 300 } }],
-      label: { id: 'l1', name: 'Ostgut Ton', ai: { level: 3 as const, ai: 80, checked: 87, total: 869 } },
+      artists: [
+        { id: 'a', name: 'Artist', ai: { level: 1 as const, ai: 2, checked: 41, total: 300 } },
+      ],
+      label: {
+        id: 'l1',
+        name: 'Ostgut Ton',
+        ai: { level: 3 as const, ai: 80, checked: 87, total: 869 },
+      },
     };
-    render(<W><PlaylistTrackRow track={track} position={1} onRemove={vi.fn()} onPlay={vi.fn()} playlistId="pl1" /></W>);
+    render(
+      <W>
+        <PlaylistTrackRow
+          track={track}
+          position={1}
+          onRemove={vi.fn()}
+          onPlay={vi.fn()}
+          playlistId="pl1"
+        />
+      </W>,
+    );
     expect(screen.getByLabelText('AI level 1')).toBeInTheDocument();
     expect(screen.getByLabelText('AI level 3')).toBeInTheDocument();
+  });
+});
+
+describe('PlaylistTrackRow on a phone', () => {
+  let media: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    media = vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === '(max-width: 64em)',
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+  });
+  afterEach(() => media.mockRestore());
+
+  const phoneTrack: PlaylistTrack = {
+    ...richTrack,
+    beatport_track_id: '123456',
+    beatport_slug: 'deep-horizon',
+    ytmusic: { status: 'matched', url: 'https://music.youtube.com/watch?v=yt1' },
+  };
+
+  it('keeps title, mix, artists and tags; links and Remove go behind the menu', async () => {
+    const onRemove = vi.fn();
+    render(
+      <W>
+        <PlaylistTrackRow
+          track={phoneTrack}
+          position={1}
+          onRemove={onRemove}
+          onPlay={vi.fn()}
+          playlistId="pl1"
+        />
+      </W>,
+    );
+
+    const menu = await screen.findByRole('button', { name: /track actions/i });
+    expect(screen.getByText('Deep Horizon')).toBeInTheDocument();
+    expect(screen.getByText('Original Mix')).toBeInTheDocument();
+    expect(screen.getByText('Ben Klock, Blawan')).toBeInTheDocument();
+    expect(screen.getByText('Dark')).toBeInTheDocument();
+    // no key / label / BPM / length / date line
+    expect(screen.queryByText(/Ostgut Ton/)).toBeNull();
+    expect(screen.queryByText(/140 BPM/)).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^remove$/i })).toBeNull();
+
+    await userEvent.click(menu);
+    const dropdown = await screen.findByRole('menu');
+    expect(within(dropdown).getByRole('menuitem', { name: /open in spotify/i })).toHaveAttribute(
+      'href',
+      'https://open.spotify.com/track/sp123',
+    );
+    expect(within(dropdown).getByRole('menuitem', { name: /open on beatport/i })).toHaveAttribute(
+      'href',
+      'https://www.beatport.com/track/deep-horizon/123456',
+    );
+    expect(within(dropdown).getByRole('menuitem', { name: /yt music/i })).toHaveAttribute(
+      'href',
+      'https://music.youtube.com/watch?v=yt1',
+    );
+    await userEvent.click(within(dropdown).getByRole('menuitem', { name: /remove/i }));
+    expect(onRemove).toHaveBeenCalledWith(phoneTrack);
+  });
+
+  it('keeps a YT Music match that needs review in the row', async () => {
+    render(
+      <W>
+        <PlaylistTrackRow
+          track={{ ...phoneTrack, ytmusic: { status: 'needs_review' } }}
+          position={1}
+          onRemove={vi.fn()}
+          onPlay={vi.fn()}
+          playlistId="pl1"
+        />
+      </W>,
+    );
+    await screen.findByRole('button', { name: /track actions/i });
+    expect(screen.getByRole('button', { name: /review yt music match/i })).toBeInTheDocument();
   });
 });
