@@ -113,4 +113,22 @@ describe('EntityTracksSection layout', () => {
     expect(box(firstCard).top).toBeGreaterThan(box(panel).bottom);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   });
+
+  test('phone: a card is three lines — title + mix, artists + label, BPM/key/date + marks', async () => {
+    await page.viewport(375, 800);
+    renderSection();
+    await screen.findAllByText('2026-10-09');
+    // the player shows the playing title too: take the card's
+    const title = screen.getAllByText('Drive Thunder').find((el) => el.closest('.mantine-Card-root'))!;
+    const card = title.closest('.mantine-Card-root')!;
+    const mix = within(card as HTMLElement).getByText('Extended Mix');
+    const label = within(card as HTMLElement).getByText('Hinterland');
+    const date = within(card as HTMLElement).getByText('2026-10-09');
+    const mark = within(card as HTMLElement).getByText('Opening');
+    expect(Math.abs(box(mix).bottom - box(title).bottom)).toBeLessThan(4);
+    expect(Math.abs(box(label).top - box(within(card as HTMLElement).getByText('Odessa Marlo')).top)).toBeLessThan(4);
+    expect(Math.abs(box(mark).top - box(date).top)).toBeLessThan(6);
+    expect(within(card as HTMLElement).getByText(/121/)).toBeVisible();
+    expect(box(card).height).toBeLessThan(100);
+  });
 });
