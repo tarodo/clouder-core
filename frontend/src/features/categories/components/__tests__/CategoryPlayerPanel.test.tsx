@@ -15,6 +15,10 @@ const categoryMut = vi.hoisted(() => ({
   add: vi.fn((_: { categoryId: string; trackId: string }) => Promise.resolve()),
 }));
 
+const moveMut = vi.hoisted(() =>
+  vi.fn((_: { trackId: string; fromCategoryId: string; toCategoryId: string }) => Promise.resolve()),
+);
+
 const playback = {
   controls: {
     togglePlayPause: vi.fn(),
@@ -101,6 +105,22 @@ vi.mock('../../hooks/useRemoveTrackOptimistic', () => ({
 vi.mock('../../hooks/useAddTrackToCategory', () => ({
   useAddTrackToCategory: () => ({ mutateAsync: categoryMut.add }),
 }));
+vi.mock('../../hooks/useMoveTrackBetweenCategories', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useMoveTrackBetweenCategories: () => ({ mutateAsync: moveMut }),
+}));
+vi.mock('../../hooks/useCategoriesByStyle', () => ({
+  useCategoriesByStyle: () => ({
+    data: {
+      items: [
+        { id: 'c1', name: 'Opening' },
+        { id: 'c2', name: 'Journey' },
+        { id: 'c3', name: 'Afterhours' },
+      ],
+    },
+    isLoading: false,
+  }),
+}));
 vi.mock('../../../library/components/LabelTile', () => ({
   LabelTile: () => <div data-testid="label-tile" />,
 }));
@@ -113,14 +133,14 @@ vi.mock('../../../playlists/components/CommentsPanel', () => ({
   ),
 }));
 
-function ui(items: CategoryTrack[] = []) {
+function ui(items: CategoryTrack[] = [], phone = false) {
   const qc = new QueryClient();
   return (
     <QueryClientProvider client={qc}>
       <MantineProvider>
         <Notifications />
         <MemoryRouter>
-          <CategoryPlayerPanel categoryId="c1" items={items} />
+          <CategoryPlayerPanel categoryId="c1" styleId="s1" items={items} phone={phone} />
         </MemoryRouter>
       </MantineProvider>
     </QueryClientProvider>
@@ -140,6 +160,7 @@ beforeEach(() => {
   undoStack.clear();
   categoryMut.remove.mockClear();
   categoryMut.add.mockClear();
+  moveMut.mockClear();
   Object.values(playback.controls).forEach((m) => {
     if ('mockReset' in m) (m as { mockReset: () => void }).mockReset();
   });
@@ -194,7 +215,7 @@ describe('CategoryPlayerPanel', () => {
     expect(screen.getAllByText('Acid').length).toBeGreaterThan(0);
   });
 
-  it('does not render a Remove-from-category button (UI removed)', () => {
+  it('desktop: no Remove-from-category button (Z does it)', () => {
     render(ui());
     expect(
       screen.queryByRole('button', { name: /remove from category/i }),
@@ -251,5 +272,53 @@ describe('CategoryPlayerPanel', () => {
     expect(
       playlistsHeading.compareDocumentPosition(labelTile) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+});
+
+describe('CategoryPlayerPanel on a phone', () => {
+  it('drops the label and artist cards', () => {
+    render(ui([{ ...placedTrack, label: { id: 'l1', name: 'Lbl' } }], true));
+    expect(screen.queryByTestId('label-tile')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('artists-panel')).not.toBeInTheDocument();
+  });
+
+  it('a tap on another category moves the track there and plays the next; U moves it back', async () => {
+    render(ui([placedTrack], true));
+    // its own category is not offered
+    expect(screen.queryByRole('button', { name: 'Opening' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Journey' }));
+    await waitFor(() =>
+      expect(moveMut).toHaveBeenCalledWith({ trackId: 't1', fromCategoryId: 'c1', toCategoryId: 'c2' }),
+    );
+    await waitFor(() => expect(playback.controls.next).toHaveBeenCalledOnce());
+    expect(await screen.findByText('Moved to Journey.')).toBeInTheDocument();
+
+    await userEvent.keyboard('u');
+    await waitFor(() =>
+      expect(moveMut).toHaveBeenLastCalledWith({ trackId: 't1', fromCategoryId: 'c2', toCategoryId: 'c1' }),
+    );
+  });
+
+  it('a failed move says so and stays on the track', async () => {
+    moveMut.mockRejectedValueOnce(new Error('boom'));
+    render(ui([placedTrack], true));
+    await userEvent.click(screen.getByRole('button', { name: 'Afterhours' }));
+    expect(await screen.findByText('Move failed.')).toBeInTheDocument();
+    expect(playback.controls.next).not.toHaveBeenCalled();
+  });
+
+  it('Remove from category drops the track and plays the next', async () => {
+    render(ui([placedTrack], true));
+    await userEvent.click(screen.getByRole('button', { name: /remove from category/i }));
+    await waitFor(() =>
+      expect(categoryMut.remove).toHaveBeenCalledWith({ categoryId: 'c1', trackId: 't1' }),
+    );
+    await waitFor(() => expect(playback.controls.next).toHaveBeenCalledOnce());
+  });
+
+  it('a track that is not in this list gets no category buttons', () => {
+    render(ui([], true));
+    expect(screen.queryByRole('button', { name: /remove from category/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Journey' })).not.toBeInTheDocument();
   });
 });

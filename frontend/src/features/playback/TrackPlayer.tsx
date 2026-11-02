@@ -167,6 +167,8 @@ export interface TrackPlayerProps {
   empty: string;
   /** Under the label/BPM line. */
   meta?: ReactNode;
+  /** A phone player above its list: the compact card. */
+  dense?: boolean;
   /** The page's own modules under the card. */
   children?: (track: PlaybackTrack) => ReactNode;
 }
@@ -208,7 +210,7 @@ function useStickyShift(ref: RefObject<HTMLElement | null>) {
 }
 
 /** A page's player column: the playing track's card and meta, then the page's own modules. */
-export function TrackPlayer({ className, info, empty, meta, children }: TrackPlayerProps) {
+export function TrackPlayer({ className, info, empty, meta, dense, children }: TrackPlayerProps) {
   const current = usePlayback().track.current;
   const ref = useRef<HTMLDivElement>(null);
   useStickyShift(ref);
@@ -222,6 +224,7 @@ export function TrackPlayer({ className, info, empty, meta, children }: TrackPla
             artistLinks={info?.artists}
             belowMainRow={info ? <TrackMeta info={info}>{meta}</TrackMeta> : null}
             showTimes
+            dense={dense}
           />
           {children?.(current)}
         </>

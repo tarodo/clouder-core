@@ -1,17 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Anchor, Breadcrumbs, Flex, Stack, useMantineTheme } from '@mantine/core';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
-import {
-  Link,
-  Navigate,
-  Outlet,
-  useMatch,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api/error';
 import { useCategoryDetail } from '../hooks/useCategoryDetail';
@@ -48,10 +40,6 @@ export function toPlaybackTrack(t: CategoryTrack): PlaybackTrack {
   };
 }
 
-export type CategoryDetailOutletContext = {
-  items: CategoryTrack[];
-};
-
 export function CategoryDetailPage() {
   const { styleId, id } = useParams<{ styleId: string; id: string }>();
   if (!styleId || !id) return <Navigate to="/categories" replace />;
@@ -71,13 +59,16 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
   const playback = usePlayback();
   const theme = useMantineTheme();
   const isDesktop = useMediaQuery(`(min-width: ${theme.breakpoints.md})`);
-  // Mobile uses a fullscreen player route nested under this one. When the
-  // nested /player route is active, render <Outlet> instead of the
-  // split/single layout — but parent stays mounted so queue + filter state
-  // survive the navigation.
-  const onPlayerSubpath = useMatch(
-    { path: '/categories/:styleId/:id/player', end: false },
-  );
+  // phone: the player sits above the list once something plays; a tap brings it under the app
+  // header when it shows the tapped track (an auto-advance leaves the scroll alone)
+  const playerTop = useRef<HTMLDivElement>(null);
+  const scrollToPlayer = useRef(false);
+  const currentId = playback.track.current?.id;
+  useEffect(() => {
+    if (!scrollToPlayer.current || !currentId) return;
+    scrollToPlayer.current = false;
+    playerTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [currentId]);
 
   // Filter state hoisted from TracksTab so the queue binding can mirror what
   // the user actually sees (search + sort + tags + fresh). URL state owns
@@ -125,11 +116,9 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
       } else {
         void playback.controls.play(undefined, toPlaybackTrack(track));
       }
-      if (!isDesktop) {
-        navigate(`/categories/${styleId}/${id}/player`);
-      }
+      if (!isDesktop) scrollToPlayer.current = true;
     },
-    [playback.controls, playback.queue.tracks, isDesktop, navigate, styleId, id],
+    [playback.controls, playback.queue.tracks, isDesktop],
   );
 
   if (isLoading) return <PageSkeleton breadcrumbs aside rows={10} rowHeight={48} />;
@@ -186,15 +175,6 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
     }
   }
 
-  // When the nested /player route is active (mobile only), render just the
-  // outlet — the queue + filter state above already includes the user's
-  // visible list, so the player has the right context. Items are forwarded
-  // via outlet context so the child page can pass them to CategoryPlayerPanel
-  // for rich metadata (label/BPM/mix_name) lookup.
-  if (onPlayerSubpath) {
-    return <Outlet context={{ items } satisfies CategoryDetailOutletContext} />;
-  }
-
   const tracksTab = (
     <TracksTab
       categoryId={id}
@@ -239,11 +219,22 @@ function CategoryDetailPageInner({ styleId, id }: { styleId: string; id: string 
       />
       {isDesktop ? (
         <Flex gap="lg" align="flex-start" wrap="nowrap">
-          <CategoryPlayerPanel categoryId={id} items={items} />
+          <CategoryPlayerPanel categoryId={id} styleId={styleId} items={items} />
           <div style={{ flex: 1, minWidth: 0 }}>{tracksTab}</div>
         </Flex>
       ) : (
-        tracksTab
+        <Stack
+          ref={playerTop}
+          gap="lg"
+          style={{
+            scrollMarginTop: 'calc(var(--app-shell-header-offset, 3.5rem) + var(--mantine-spacing-sm))',
+          }}
+        >
+          {playback.track.current ? (
+            <CategoryPlayerPanel categoryId={id} styleId={styleId} items={items} phone />
+          ) : null}
+          {tracksTab}
+        </Stack>
       )}
       <CategoryFormDialog
         mode="rename"

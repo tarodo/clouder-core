@@ -76,6 +76,14 @@
     grid-column: 5;
     justify-self: end;
   }
+  /* Without top actions (a dense player) the first column stays empty: prev keeps its place. */
+  .root[data-top-actions] .controls > :first-child {
+    grid-column: 2;
+  }
+  .root[data-dense] .main {
+    column-gap: var(--mantine-spacing-md);
+    row-gap: var(--mantine-spacing-xs);
+  }
 }
 .cover {
   width: 108px;
@@ -83,6 +91,10 @@
   background: var(--color-bg-muted);
   border-radius: var(--radius-md);
   flex-shrink: 0;
+}
+.root[data-dense] .cover {
+  width: 64px;
+  height: 64px;
 }
 .cover[data-mini] {
   width: 40px;

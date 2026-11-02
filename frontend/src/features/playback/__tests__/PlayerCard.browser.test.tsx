@@ -34,6 +34,7 @@ function renderAt(
   positionMs = 0,
   topActions?: ReactNode,
   links?: ReactNode,
+  dense = false,
 ) {
   apiMock.mockResolvedValue({ waveform });
   render(
@@ -57,6 +58,7 @@ function renderAt(
               onSeekMs={noop}
               topActions={topActions}
               links={links}
+              dense={dense}
             />
           </div>
         </MemoryRouter>
@@ -130,6 +132,28 @@ test('a phone curate player (351px): Fire left, similar + Spotify right of next,
   expect(box(sim).left).toBeGreaterThanOrEqual(box(next).right);
   expect(box(link).left).toBeGreaterThanOrEqual(box(sim).right);
   expect(box(link).right).toBeLessThanOrEqual(box(paper).right);
+  expect(paper.scrollWidth).toBeLessThanOrEqual(paper.clientWidth);
+});
+
+test('a dense phone player (358px): a 64px cover at the frame, similar + Spotify by next', () => {
+  const { title, play, cover } = renderAt(358, null, 0, undefined, similar, true);
+  const paper = title.closest('.mantine-Paper-root')!;
+  const sim = screen.getByRole('link', { name: /similar tracks/i });
+  const link = screen.getByRole('link', { name: /spotify/i });
+  const next = screen.getByRole('button', { name: /next/i });
+  const midY = (el: Element) => box(el).top + box(el).height / 2;
+  const midX = (el: Element) => box(el).left + box(el).width / 2;
+  expect(box(cover).width).toBe(64);
+  // nothing above or left of the cover: no frame padding
+  expect(box(cover).top).toBe(box(paper).top);
+  expect(box(cover).left).toBe(box(paper).left);
+  expect(Math.abs(midY(sim) - midY(play))).toBeLessThan(2);
+  expect(box(sim).left).toBeGreaterThanOrEqual(box(next).right);
+  expect(box(link).right).toBeLessThanOrEqual(box(paper).right);
+  expect(Math.abs(midX(play) - midX(paper))).toBeLessThan(2);
+  // the title takes the row up to the frame: the links left it
+  expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth);
+  expect(box(paper).height).toBeLessThan(240);
   expect(paper.scrollWidth).toBeLessThanOrEqual(paper.clientWidth);
 });
 
