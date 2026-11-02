@@ -129,24 +129,41 @@ export function EntityTrackList(props: EntityTrackListProps) {
           <Card
             key={track.id}
             withBorder
-            padding="sm"
+            padding="xs"
             data-current={track.id === currentTrackId || undefined}
             bg={track.id === currentTrackId ? 'var(--mantine-color-default-hover)' : undefined}
           >
-            <Group gap="xs" wrap="nowrap" align="flex-start">
+            {/* three lines: title + mix, artists + label, BPM / key / date + marks */}
+            <Group gap="xs" wrap="nowrap">
               {play(track)}
-              <Stack gap={4} miw={0} style={{ flex: 1 }}>
-                {title(track)}
-                <Text size="sm" truncate>
-                  <NamesWithAi items={track.artists} />
-                </Text>
-                {showLabel && track.label ? (
-                  <Text size="xs" c="dimmed" truncate>
-                    {track.label.name}
-                    <AiRepBadge rep={track.label.ai} ml={4} />
+              <Stack gap={2} miw={0} style={{ flex: 1 }}>
+                <Group gap={6} wrap="nowrap">
+                  <Text size="sm" truncate>
+                    <Text span fw={500} inherit>
+                      {track.title}
+                    </Text>
+                    {track.mix_name ? (
+                      <>
+                        {' '}
+                        <Text span size="xs" c="dimmed">
+                          {track.mix_name}
+                        </Text>
+                      </>
+                    ) : null}
                   </Text>
-                ) : null}
-                <Group gap="md">
+                  <AiBadge verdict={track.ai_verdict} />
+                </Group>
+                <Text size="xs" truncate>
+                  <NamesWithAi items={track.artists} />
+                  {showLabel && track.label ? (
+                    <Text span c="dimmed" inherit>
+                      {' · '}
+                      <span>{track.label.name}</span>
+                      <AiRepBadge rep={track.label.ai} ml={4} />
+                    </Text>
+                  ) : null}
+                </Text>
+                <Group gap={8} wrap="wrap">
                   <Text size="xs" c="dimmed" className="font-mono">
                     {track.bpm ?? '—'} BPM
                   </Text>
@@ -154,8 +171,8 @@ export function EntityTrackList(props: EntityTrackListProps) {
                   <Text size="xs" c="dimmed" className="font-mono">
                     {formatReleaseDate(track.release_date)}
                   </Text>
+                  <Mine track={track} />
                 </Group>
-                <Mine track={track} />
               </Stack>
             </Group>
           </Card>
