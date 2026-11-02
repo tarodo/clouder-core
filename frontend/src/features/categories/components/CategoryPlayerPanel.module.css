@@ -16,3 +16,16 @@
   /* at the end of the panel the wheel stays here, it does not scroll the track list */
   overscroll-behavior: contain;
 }
+
+/* Phone and narrow tablet: full width above the list, scrolling with the page. */
+@media (max-width: 62em) {
+  .root {
+    width: 100%;
+    position: static;
+    max-height: none;
+    margin-bottom: 0;
+    padding: 0;
+    border-right: 0;
+    overflow-y: visible;
+  }
+}

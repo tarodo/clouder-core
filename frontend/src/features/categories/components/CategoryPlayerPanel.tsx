@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Divider, Text } from '@mantine/core';
+import { Button, Divider, SimpleGrid, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { usePlayback } from '../../playback/usePlayback';
@@ -13,6 +13,11 @@ import { usePlayerHotkeys } from '../../playback/hooks/usePlayerHotkeys';
 import { undoStack, useUndoStack } from '../hooks/useUndoStack';
 import { useRemoveTrackOptimistic } from '../hooks/useRemoveTrackOptimistic';
 import { useAddTrackToCategory } from '../hooks/useAddTrackToCategory';
+import { useCategoriesByStyle } from '../hooks/useCategoriesByStyle';
+import {
+  MovePartialError,
+  useMoveTrackBetweenCategories,
+} from '../hooks/useMoveTrackBetweenCategories';
 import { useTelemetry } from '../../../lib/telemetry/hooks';
 import {
   TrackCards,
@@ -28,6 +33,13 @@ import classes from './CategoryPlayerPanel.module.css';
 
 export interface CategoryPlayerPanelProps {
   categoryId: string;
+  /** The category's style: its other categories are where a track moves. */
+  styleId: string;
+  /**
+   * Above the list on a phone: a compact card, no label / artist cards, and buttons that move the
+   * track to another category or take it out (desktop has Z and the row menu for that).
+   */
+  phone?: boolean;
   /**
    * Visible tracks list from the parent page. Used to look up rich metadata
    * (label, BPM, mix_name, AI flag) for the currently playing track so the
@@ -38,7 +50,12 @@ export interface CategoryPlayerPanelProps {
 
 const TOAST_ID = 'category-player-undo';
 
-export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelProps) {
+export function CategoryPlayerPanel({
+  categoryId,
+  styleId,
+  phone = false,
+  items,
+}: CategoryPlayerPanelProps) {
   const { t } = useTranslation();
   const playback = usePlayback();
   const playlistsQuery = usePlaylists({ status: 'active', limit: 100 });
@@ -49,6 +66,8 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
   const removeFromPlaylist = useRemoveTrackFromPlaylist();
   const removeFromCategory = useRemoveTrackOptimistic();
   const addToCategory = useAddTrackToCategory();
+  const moveToCategory = useMoveTrackBetweenCategories();
+  const categoriesQuery = useCategoriesByStyle(styleId);
   const telemetry = useTelemetry();
   const { entry } = useUndoStack();
   // One removal at a time: a double Z before the first lands would skip twice.
@@ -186,6 +205,37 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
     playback,
   ]);
 
+  // A tap on another category: the track goes there and the next one plays; U brings it back.
+  const onMove = useCallback(
+    async (to: { id: string; name: string }) => {
+      if (!trackId || removing.current) return;
+      removing.current = true;
+      try {
+        await moveToCategory.mutateAsync({ trackId, fromCategoryId: categoryId, toCategoryId: to.id });
+        pushUndo(t('categories.toast.track_moved', { name: to.name }), async () => {
+          await moveToCategory.mutateAsync({
+            trackId,
+            fromCategoryId: to.id,
+            toCategoryId: categoryId,
+          });
+        });
+        void playback.controls.next();
+      } catch (err) {
+        notifications.show({
+          message: t(
+            err instanceof MovePartialError
+              ? 'categories.toast.track_moved_partial'
+              : 'categories.toast.track_move_failed',
+          ),
+          color: 'red',
+        });
+      } finally {
+        removing.current = false;
+      }
+    },
+    [categoryId, trackId, moveToCategory, pushUndo, t, playback],
+  );
+
   const onTogglePlaylistByIndex = useCallback(
     (index: number) => {
       const pl = playlistsQuery.data?.items?.[index];
@@ -215,11 +265,14 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
     key: { camelot: row.key_camelot ?? null, name: row.key_name ?? null },
   };
 
+  const otherCategories = (categoriesQuery.data?.items ?? []).filter((c) => c.id !== categoryId);
+
   return (
     <TrackPlayer
       className={classes.root}
       info={info}
       empty={t('category_player.empty.pick_track')}
+      dense={phone}
     >
       {(track) => (
         <>
@@ -243,7 +296,42 @@ export function CategoryPlayerPanel({ categoryId, items }: CategoryPlayerPanelPr
             onAdd={(id) => void onAddPlaylist(id)}
             onRemove={(id) => void onRemovePlaylist(id)}
           />
-          <TrackCards info={info} />
+          {/* only for a track of this list: another one has no place here to leave */}
+          {phone && row ? (
+            <>
+              <Divider />
+              <Text fw={500} size="sm">
+                {t('categories.row_actions.move_label')}
+              </Text>
+              <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
+                {otherCategories.map((c) => (
+                  <Button
+                    key={c.id}
+                    fullWidth
+                    size="sm"
+                    variant="default"
+                    onClick={() => void onMove(c)}
+                    styles={{
+                      label: { whiteSpace: 'normal' },
+                      inner: { justifyContent: 'flex-start' },
+                    }}
+                  >
+                    {c.name}
+                  </Button>
+                ))}
+                <Button
+                  fullWidth
+                  size="sm"
+                  variant="light"
+                  color="red"
+                  onClick={() => void onRemoveFromCategory()}
+                >
+                  {t('category_player.actions.remove_from_category')}
+                </Button>
+              </SimpleGrid>
+            </>
+          ) : null}
+          {phone ? null : <TrackCards info={info} />}
           <CommentsPanel trackId={track.id} />
         </>
       )}

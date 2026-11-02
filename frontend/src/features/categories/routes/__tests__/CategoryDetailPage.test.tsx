@@ -13,14 +13,29 @@ import { tokenStore } from '../../../../auth/tokenStore';
 
 // CategoryDetailPage now calls usePlayback() + useCategoryPlayerQueue() on
 // mount (T17). The PlaybackProvider lives in the authenticated layout, not
-// in this test harness, so stub usePlayback with a minimal noop value. The
-// desktop CategoryPlayerPanel branch is unreachable here because jsdom's
-// matchMedia stub returns matches:false → isDesktop is false → only TracksTab
-// is rendered, matching pre-T17 behaviour.
+// in this test harness, so stub usePlayback with a minimal noop value; `now`
+// sets the playing track. jsdom's matchMedia stub returns matches:false →
+// isDesktop is false → the phone layout: the player (a stub here) above the
+// list while a track plays.
+const now = vi.hoisted(() => ({
+  current: null as null | {
+    id: string;
+    title: string;
+    artists: string;
+    duration_ms: number;
+    spotify_id: string | null;
+    cover_url: null;
+  },
+}));
+vi.mock('../../components/CategoryPlayerPanel', () => ({
+  CategoryPlayerPanel: ({ phone }: { phone?: boolean }) => (
+    <div data-testid="player-panel" data-phone={String(!!phone)} />
+  ),
+}));
 vi.mock('../../../playback/usePlayback', () => ({
   usePlayback: () => ({
     queue: { source: null, tracks: [], cursor: 0, status: 'idle' as const },
-    track: { current: null, positionMs: 0, durationMs: 0 },
+    track: { current: now.current, positionMs: 0, durationMs: 0 },
     sdk: { ready: false, error: null },
     controls: {
       prewarm: async () => {},
@@ -75,7 +90,10 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-afterEach(() => notifications.clean());
+afterEach(() => {
+  notifications.clean();
+  now.current = null;
+});
 
 beforeEach(() => {
   tokenStore.set('TOK');
@@ -111,6 +129,7 @@ describe('CategoryDetailPage', () => {
     );
     await waitFor(() => expect(screen.getByText('Deep')).toBeInTheDocument());
     expect(screen.getByText(/no fresh tracks/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('player-panel')).not.toBeInTheDocument(); // nothing plays
   });
 
   it('shows not-found on 404', async () => {
@@ -130,7 +149,7 @@ describe('CategoryDetailPage', () => {
     await waitFor(() => expect(screen.getByText(/not found/i)).toBeInTheDocument());
   });
 
-  function trackPayload(items: Array<{ id: string; title: string }>) {
+  function trackPayload(items: Array<{ id: string; title: string; spotify_id?: string }>) {
     return {
       items: items.map((tr) => ({
         id: tr.id,
@@ -143,7 +162,7 @@ describe('CategoryDetailPage', () => {
         publish_date: null,
         spotify_release_date: null,
         isrc: null,
-        spotify_id: null,
+        spotify_id: tr.spotify_id ?? null,
         release_type: null,
         added_at: '2026-01-01T00:00:00Z',
         source_triage_block_id: null,
@@ -172,6 +191,73 @@ describe('CategoryDetailPage', () => {
       offset: 0,
     };
   }
+
+  it('phone: the player sits above the list on the same page; a play stays there', async () => {
+    now.current = {
+      id: 't1',
+      title: 'Lift Off',
+      artists: '',
+      duration_ms: 0,
+      spotify_id: 'sp1',
+      cover_url: null,
+    };
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', () =>
+        HttpResponse.json(trackPayload([{ id: 't1', title: 'Lift Off', spotify_id: 'sp1' }])),
+      ),
+    );
+    render(
+      <Wrapper>
+        <CategoryDetailPage />
+      </Wrapper>,
+    );
+    await screen.findByText('Lift Off');
+    const panel = screen.getByTestId('player-panel');
+    expect(panel).toHaveAttribute('data-phone', 'true');
+    const search = screen.getByPlaceholderText(/search/i);
+    expect(panel.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: /play/i }));
+    // no separate player page: the list and the player stay
+    expect(screen.getByText('Lift Off')).toBeInTheDocument();
+    expect(screen.getByTestId('player-panel')).toBeInTheDocument();
+  });
+
+  it('phone: a tap brings the player under the app header once it shows the track; an auto-advance does not', async () => {
+    // each scroll: did the player show when it ran
+    const shown: boolean[] = [];
+    const scroll = vi
+      .spyOn(Element.prototype, 'scrollIntoView')
+      .mockImplementation(function (this: Element) {
+        shown.push(!!this.querySelector('[data-testid="player-panel"]'));
+      });
+    const track = { title: 'Lift Off', artists: '', duration_ms: 0, spotify_id: 'sp1', cover_url: null };
+    server.use(
+      http.get('http://localhost/categories/c1/tracks', () =>
+        HttpResponse.json(trackPayload([{ id: 't1', title: 'Lift Off', spotify_id: 'sp1' }])),
+      ),
+    );
+    try {
+      render(
+        <Wrapper>
+          <CategoryDetailPage />
+        </Wrapper>,
+      );
+      await screen.findByText('Lift Off');
+      await userEvent.click(screen.getByRole('button', { name: /play/i }));
+      // the track starts: the next render shows the player
+      now.current = { id: 't1', ...track };
+      await userEvent.type(screen.getByPlaceholderText(/search/i), 'l');
+      await waitFor(() => expect(shown).toEqual([true]));
+      expect(scroll).toHaveBeenLastCalledWith({ behavior: 'smooth', block: 'start' });
+
+      now.current = { id: 't2', ...track, title: 'Next' };
+      await userEvent.type(screen.getByPlaceholderText(/search/i), 'i');
+      expect(shown).toEqual([true]);
+    } finally {
+      scroll.mockRestore();
+    }
+  });
 
   it('move flow: kebab → pick destination → success toast', async () => {
     let postHit = false;

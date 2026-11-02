@@ -1,7 +1,7 @@
 // frontend/src/features/categories/__tests__/integration.player.test.tsx
 //
 // Cross-module integration test for the Category Player flow:
-//   render SPA at category player route → hotkey "1" adds current track to first
+//   render the category player → hotkey "1" adds current track to first
 //   playlist → toast appears → hotkey "U" undoes → toast hides.
 //
 // Pragmatic fallback (acknowledged in the Task 20 plan): jsdom can't drive the
@@ -9,7 +9,7 @@
 // so `playback.track.current` never gets populated from a real `play()` chain.
 // Instead, we mock `usePlayback` to provide a stable `track.current = t1` and
 // `queue.source = { type: 'category', categoryId: 'cat-1' }` so the panel's
-// hotkey gate is `active = true`. Everything else is real: the SPA route, the
+// hotkey gate is `active = true`. Everything else is real: the
 // CategoryPlayerPanel component, useCategoryPlayerHotkeys, the undoStack, the
 // mutation hooks (useAddTracksToPlaylist / useRemoveTrackFromPlaylist), MSW-
 // backed network IO, and Mantine notifications.
@@ -83,7 +83,7 @@ vi.mock('../../playback/usePlayback', () => ({
 }));
 
 // Now we can import the route — its imports of usePlayback resolve to the mock.
-import { CategoryPlayerPage } from '../routes/CategoryPlayerPage';
+import { CategoryPlayerPanel } from '../components/CategoryPlayerPanel';
 
 interface AddTracksBody {
   track_ids: string[];
@@ -97,8 +97,8 @@ function Wrapper({ children }: { children: React.ReactNode }) {
     },
   });
   const router = createMemoryRouter(
-    [{ path: '/categories/:styleId/:id/player', element: children }],
-    { initialEntries: ['/categories/s1/cat-1/player'] },
+    [{ path: '/categories/:styleId/:id', element: children }],
+    { initialEntries: ['/categories/s1/cat-1'] },
   );
   return (
     <QueryClientProvider client={qc}>
@@ -175,6 +175,9 @@ describe('Category player — integration', () => {
           offset: 0,
         }),
       ),
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
+      ),
       http.get('http://localhost/tags', () =>
         HttpResponse.json({ items: [], total: 0, limit: 200, offset: 0 }),
       ),
@@ -197,7 +200,7 @@ describe('Category player — integration', () => {
 
     render(
       <Wrapper>
-        <CategoryPlayerPage />
+        <CategoryPlayerPanel categoryId="cat-1" styleId="s1" items={[]} />
       </Wrapper>,
     );
 

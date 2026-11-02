@@ -8,12 +8,15 @@
  * The tags barrel is stubbed so the row renders without React Query / network.
  */
 import { MantineProvider, Table } from '@mantine/core';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
+import { page } from 'vitest/browser';
 import '../../../../i18n';
 
 vi.mock('../../tags', () => ({
-  TrackTagsCell: () => null,
+  TrackTagsCell: ({ tags }: { tags: { id: string; name: string }[] }) => (
+    <span>{tags.map((t) => t.name).join(' ')}</span>
+  ),
 }));
 
 import { TrackRow } from '../TrackRow';
@@ -60,5 +63,39 @@ describe('TrackRow — browser smoke', () => {
     const pause = getByRole('button', { name: /pause track/i });
     expect(pause).toBeVisible();
     expect(pause.getBoundingClientRect().width).toBeGreaterThan(0);
+  });
+
+  test('phone: a card is three lines — title + mix, artists + label, BPM/key/date + tags', async () => {
+    await page.viewport(390, 844);
+    render(
+      <MantineProvider defaultColorScheme="light">
+        <div style={{ width: 358 }}>
+          <TrackRow
+            track={{
+              ...track,
+              key_camelot: '8A',
+              tags: [{ id: 'g', name: 'Groovy', color: null }],
+            }}
+            variant="mobile"
+            onPlay={vi.fn()}
+            // the row menu's ActionIcon is 28px
+            actions={
+              <button type="button" aria-label="Track actions" style={{ width: 28, height: 28 }} />
+            }
+          />
+        </div>
+      </MantineProvider>,
+    );
+    const box = (text: string | RegExp) => screen.getByText(text).getBoundingClientRect();
+    const card = screen.getByText('Deep Horizon').closest('.mantine-Card-root')!;
+    expect(Math.abs(box('Original Mix').bottom - box('Deep Horizon').bottom)).toBeLessThan(4);
+    expect(Math.abs(box('Ostgut Ton').top - box('Ben Klock').top)).toBeLessThan(4);
+    expect(Math.abs(box('8A').top - box('140 BPM').top)).toBeLessThan(6);
+    expect(Math.abs(box('Groovy').top - box('140 BPM').top)).toBeLessThan(6);
+    // the actions sit at the title's end, not over it
+    const actions = screen.getByRole('button', { name: 'Track actions' }).getBoundingClientRect();
+    expect(actions.left).toBeGreaterThanOrEqual(box('Deep Horizon').right);
+    expect(card.getBoundingClientRect().height).toBeLessThan(100);
+    expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth);
   });
 });

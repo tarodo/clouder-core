@@ -33,7 +33,7 @@ Route tree summary:
 | `/` (index) | `HomePage` | — |
 | `/categories/:styleId` | `CategoriesListPage` | — |
 | `/categories/:styleId/:id` | `CategoryDetailPage` | — |
-| `/categories/:styleId/:id/player` | `CategoryPlayerPage` (nested child) | — |
+| `/categories/:styleId/:id/player` | redirect to `/categories/:styleId/:id` (old links) | — |
 | `/triage/:styleId` | `TriageListPage` | — |
 | `/triage/:styleId/:id` | `TriageDetailPage` | — |
 | `/triage/:styleId/:id/buckets/:bucketId` | `BucketDetailPage` | — |
@@ -44,7 +44,7 @@ Route tree summary:
 | `/admin/spotify-not-found` | `AdminSpotifyNotFoundPage` | — |
 | `*` | `NotFoundPage` | — |
 
-`CategoryPlayerPage` is a nested child of `CategoryDetailPage`: the parent stays mounted across the `/player` subroute, preserving filter state and the bound playback queue.
+`CategoryDetailPage` has no player page of its own: on desktop the player sits beside the list, on a phone (`CategoryPlayerPanel phone`) above it once a track plays, as a compact card with buttons that move the track to another category of the style or take it out. A tap on a track scrolls the player under the app header; an auto-advance leaves the scroll alone.
 
 ### `requireAuth` loader
 

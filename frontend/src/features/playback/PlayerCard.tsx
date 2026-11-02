@@ -77,6 +77,11 @@ export interface PlayerCardProps {
   topActions?: ReactNode;
   /** Icon links grouped with the Spotify link, left of it (full variant): similar tracks. */
   links?: ReactNode;
+  /**
+   * A phone player above a list: no frame padding, a smaller cover and title, the links in the
+   * transport row (full variant).
+   */
+  dense?: boolean;
   /** Spotify external open href; when set, renders an icon button at top-right. */
   spotifyHref?: string;
   /** Tooltip / aria text for the Spotify external icon. */
@@ -143,6 +148,7 @@ export function PlayerCard(props: PlayerCardProps) {
     topActions,
     links,
     artistLinks,
+    dense = false,
     onPlayPause,
     onPrev,
     onNext,
@@ -216,8 +222,9 @@ export function PlayerCard(props: PlayerCardProps) {
       data-variant={variant}
       data-actions={(!isMini && (spotifyHref || topActions || links)) || undefined}
       data-links={(!isMini && links && spotifyHref) || undefined}
-      data-top-actions={(!isMini && topActions) || undefined}
-      p={isMini ? 'sm' : 'lg'}
+      data-top-actions={(!isMini && (topActions || dense)) || undefined}
+      data-dense={(!isMini && dense) || undefined}
+      p={isMini ? 'sm' : dense ? 0 : 'lg'}
       pb={mobileSeekChips ? 'sm' : undefined}
       radius="md"
       withBorder={isMini}
@@ -232,7 +239,7 @@ export function PlayerCard(props: PlayerCardProps) {
 
         <Stack gap={4} flex={1} miw={0} className={classes.text}>
             <Group gap={8} wrap="nowrap" miw={0}>
-              <Title order={isMini ? 5 : 3} className={classes.title}>
+              <Title order={isMini ? 5 : dense ? 4 : 3} className={classes.title}>
                 {track?.title ?? '—'}
               </Title>
               <AiBadge verdict={track?.ai_verdict} />

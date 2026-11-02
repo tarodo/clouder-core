@@ -81,45 +81,54 @@ export function TrackRow({ track, variant, actions, onPlay, isCurrent, isPlaying
   return (
     <Card
       withBorder
-      padding="sm"
-      style={{ position: 'relative' }}
+      padding="xs"
       data-current={isCurrent ? 'true' : undefined}
       bg={isCurrent ? 'var(--mantine-color-default-hover)' : undefined}
     >
-      {actions && (
-        <div style={{ position: 'absolute', top: 8, right: 8 }}>{actions}</div>
-      )}
-      <Stack gap={4}>
-        <Group gap="xs">
-          {playButton}
-          <Text fw={500}>{track.title}</Text>
-          <AiBadge verdict={track.ai_verdict} />
-          {track.used_in_playlist && <UsedInPlaylistBadge />}
-        </Group>
-        {track.mix_name && (
-          <Text size="xs" c="dimmed">{track.mix_name}</Text>
-        )}
-        <Text size="sm"><NamesWithAi items={track.artists} /></Text>
-        {track.label && (
-          <Text size="xs" c="dimmed">{track.label.name}<AiRepBadge rep={track.label.ai} ml={4} /></Text>
-        )}
-        <div>{tagsCell}</div>
-        <Group gap="md" mt={4}>
-          <Text size="xs" c="dimmed" className="font-mono">
-            {track.bpm ?? '—'} BPM
-          </Text>
-          <TrackKey camelot={track.key_camelot} name={track.key_name} size="xs" />
-          <Text size="xs" c="dimmed" className="font-mono">
-            {formatLength(track.length_ms)}
-          </Text>
-          {track.spotify_release_date && (
-            <Text size="xs" c="dimmed" className="font-mono">
-              {track.spotify_release_date}
+      {/* three lines: title + mix, artists + label, BPM / key / date + tags */}
+      <Group gap="xs" wrap="nowrap">
+        {playButton}
+        <Stack gap={2} miw={0} style={{ flex: 1 }}>
+          <Group gap={6} wrap="nowrap">
+            <Text size="sm" truncate>
+              <Text span fw={500} inherit>
+                {track.title}
+              </Text>
+              {track.mix_name ? (
+                <>
+                  {' '}
+                  <Text span size="xs" c="dimmed">
+                    {track.mix_name}
+                  </Text>
+                </>
+              ) : null}
             </Text>
-          )}
-          <Text size="xs" c="dimmed">{formatAdded(track.added_at)}</Text>
-        </Group>
-      </Stack>
+            <AiBadge verdict={track.ai_verdict} />
+          </Group>
+          <Text size="xs" truncate>
+            <NamesWithAi items={track.artists} />
+            {track.label ? (
+              <Text span c="dimmed" inherit>
+                {' · '}
+                <span>{track.label.name}</span>
+                <AiRepBadge rep={track.label.ai} ml={4} />
+              </Text>
+            ) : null}
+          </Text>
+          <Group gap={8} wrap="wrap">
+            <Text size="xs" c="dimmed" className="font-mono">
+              {track.bpm ?? '—'} BPM
+            </Text>
+            <TrackKey camelot={track.key_camelot} name={track.key_name} size="xs" />
+            <Text size="xs" c="dimmed" className="font-mono">
+              {formatReleaseDate(track.spotify_release_date)}
+            </Text>
+            {track.used_in_playlist && <UsedInPlaylistBadge />}
+            {tagsCell}
+          </Group>
+        </Stack>
+        {actions}
+      </Group>
     </Card>
   );
 }
