@@ -7,13 +7,11 @@ export function formatLength(ms: number | null): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+/** The local calendar date as YYYY-MM-DD: reads like the release date beside it. */
 export function formatAdded(iso: string): string {
-  const date = new Date(iso);
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export function formatReleaseDate(iso: string | null): string {

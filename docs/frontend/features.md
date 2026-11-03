@@ -46,6 +46,8 @@ Route tree summary:
 
 `CategoryDetailPage` has no player page of its own: on desktop the player sits beside the list, on a phone (`CategoryPlayerPanel phone`) above it once a track plays, as a compact card with buttons that move the track to another category of the style or take it out. A tap on a track scrolls the player under the app header; an auto-advance leaves the scroll alone.
 
+The desktop list (`TracksTab`) is a table of one-line rows: names truncate, tags show the first four and a "+N", artists and labels link to their pages, both dates read `YYYY-MM-DD`. A red × removes a track from the category (the row menu keeps playlists and Move to). The columns icon in the header picks the optional columns, per device in `localStorage` (`clouder.category_columns_hidden`, Length off by default); too many for the width scroll sideways inside the table.
+
 ### `requireAuth` loader
 
 `frontend/src/auth/requireAuth.ts:5`

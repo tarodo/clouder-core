@@ -203,6 +203,32 @@ describe('TrackRowActions', () => {
     expect(screen.getByRole('button', { name: /Undo/ })).toBeInTheDocument();
   });
 
+  it('inlineRemove: a red × beside the menu removes the track; the menu has no Remove', async () => {
+    let deleteHit = false;
+    server.use(
+      http.get('http://localhost/styles/s1/categories', () =>
+        HttpResponse.json(categoriesPayload([{ id: 'c1', name: 'Energetic' }])),
+      ),
+      http.delete('http://localhost/categories/c1/tracks/t1', () => {
+        deleteHit = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    render(
+      <Wrapper>
+        <TrackRowActions track={TRACK} currentCategoryId="c1" styleId="s1" inlineRemove />
+      </Wrapper>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Track actions/i }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: /Move to/ })).toBeInTheDocument();
+    expect(within(menu).queryByRole('menuitem', { name: /Remove from category/ })).toBeNull();
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(screen.getByRole('button', { name: 'Remove from category' }));
+    await waitFor(() => expect(deleteHit).toBe(true));
+    expect(await screen.findByText(/Removed from category/)).toBeInTheDocument();
+  });
+
   it('undo puts the track back with its original added_at and triage block', async () => {
     let restoreBody: unknown = null;
     server.use(

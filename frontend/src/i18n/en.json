@@ -206,7 +206,8 @@
       "added": "Added",
       "play_aria": "Play track",
       "pause_aria": "Pause track",
-      "play_unavailable": "No Spotify match"
+      "play_unavailable": "No Spotify match",
+      "columns": "Columns"
     },
     "row_actions": {
       "trigger_aria": "Track actions",
