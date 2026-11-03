@@ -1,5 +1,5 @@
 import type { CSSProperties, HTMLAttributes } from 'react';
-import { ActionIcon, Button, Group, Menu, Stack, Text } from '@mantine/core';
+import { ActionIcon, Button, Group, Menu, Stack, Text, Tooltip } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useSortable, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -9,11 +9,12 @@ import {
   IconDotsVertical,
   IconGripVertical,
   IconLink,
+  IconMessageCircle,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { PlaylistTrack } from '../lib/playlistTypes';
 import { beatportTrackUrl } from '../lib/playlistExport';
-import { formatLength, formatReleaseDate } from '../../../lib/formatters';
+import { formatCommentCount, formatLength, formatReleaseDate } from '../../../lib/formatters';
 import { TagPill } from '../../tags';
 import { YtMusicBadge } from './YtMusicBadge';
 import { TrackKey } from '../../playback/TrackKey';
@@ -244,6 +245,21 @@ export function PlaylistTrackRowView({
                   .filter((part, i) => i === 0 || part)
                   .join(' | ')}
               </Text>
+              {track.comment_count != null && (
+                <Tooltip label={t('categories.tracks_table.comments_hint')} withArrow>
+                  <Group
+                    gap={2}
+                    wrap="nowrap"
+                    c="dimmed"
+                    aria-label={t('categories.tracks_table.comments_hint')}
+                  >
+                    <IconMessageCircle size={12} />
+                    <Text size="xs" className="font-mono">
+                      {formatCommentCount(track.comment_count)}
+                    </Text>
+                  </Group>
+                </Tooltip>
+              )}
               {/* Read-only in the list — tags are edited in the player. */}
               {tags}
             </Group>

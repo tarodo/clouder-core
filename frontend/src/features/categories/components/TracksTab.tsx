@@ -12,7 +12,13 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
-import { IconColumns, IconSearch, IconSettings, IconX } from '@tabler/icons-react';
+import {
+  IconColumns,
+  IconMessageCircle,
+  IconSearch,
+  IconSettings,
+  IconX,
+} from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import {
@@ -241,6 +247,18 @@ export function TracksTab({
     label: plainTh('label'),
     key: plainTh('key'),
     bpm: plainTh('bpm'),
+    // an icon: the numbers are short, a word would widen the table beside the player
+    comments: (
+      <Table.Th style={{ whiteSpace: 'nowrap' }}>
+        <Tooltip label={t('categories.tracks_table.comments_hint')} withArrow>
+          <IconMessageCircle
+            size={16}
+            aria-label={t('categories.tracks_table.comments_hint')}
+            style={{ display: 'block' }}
+          />
+        </Tooltip>
+      </Table.Th>
+    ),
     length: plainTh('length'),
     released: (
       <SortableTh

@@ -64,6 +64,31 @@ beforeEach(() => {
 });
 
 describe('PlaylistTrackRow', () => {
+  it('shows the YouTube comment count on the meta line, none when it is unknown', () => {
+    const { rerender } = render(
+      <W>
+        <PlaylistTrackRow
+          track={{ ...richTrack, comment_count: 12 }}
+          position={1}
+          onRemove={vi.fn()}
+          playlistId="p1"
+        />
+      </W>,
+    );
+    expect(screen.getByLabelText('YouTube comments')).toHaveTextContent('12');
+    rerender(
+      <W>
+        <PlaylistTrackRow
+          track={{ ...richTrack, comment_count: null }}
+          position={1}
+          onRemove={vi.fn()}
+          playlistId="p1"
+        />
+      </W>,
+    );
+    expect(screen.queryByLabelText('YouTube comments')).not.toBeInTheDocument();
+  });
+
   it('renders position, play button (enabled), artists, meta line, tag pills (read-only), and Remove button', async () => {
     const onRemove = vi.fn();
     const onPlay = vi.fn();

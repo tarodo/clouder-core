@@ -14,6 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal
 
+from collector.comments.repository import COMMENT_COUNT_SQL
 from collector.data_api import DataAPIClient
 from collector.models import normalize_text
 from collector.repositories.analysis import AI_VERDICT_SQL, ai_rep_sql, parse_ai_rep
@@ -153,6 +154,7 @@ class PlaylistTrackRow:
     beatport_slug: str | None = None
     tags: tuple[TrackTagRow, ...] = ()
     ytmusic: dict | None = None
+    comment_count: int | None = None
 
 
 @dataclass(frozen=True)
@@ -614,7 +616,7 @@ class PlaylistsRepository:
                 t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.key_name, t.key_camelot,
                 t.spotify_id, t.spotify_release_date, t.origin,
-                {AI_VERDICT_SQL},
+                {AI_VERDICT_SQL}, {COMMENT_COUNT_SQL},
                 COALESCE(
                     JSON_AGG(
                         JSON_BUILD_OBJECT('id', a.id, 'name', a.name, 'ai', {ai_rep_sql("a")})
@@ -687,6 +689,7 @@ class PlaylistsRepository:
                     label=label,
                     beatport_track_id=r.get("beatport_track_id"),
                     beatport_slug=r.get("beatport_slug"),
+                    comment_count=r.get("comment_count"),
                 )
             )
 

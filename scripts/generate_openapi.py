@@ -186,6 +186,13 @@ CATEGORY_TRACK_RESPONSE = {
             "type": "boolean",
             "description": "True if this track is already in at least one of the user's playlists.",
         },
+        "comment_count": {
+            "type": ["integer", "null"],
+            "description": (
+                "YouTube comments collected for the track's video (one page: 100 means 100 or more);"
+                " null when not collected, disabled or failed."
+            ),
+        },
         "tags": {
             "type": "array",
             "description": "User-tags attached to this track (always present, may be empty).",
@@ -622,6 +629,13 @@ PLAYLIST_TRACK_RESPONSE = {
         },
         "beatport_track_id": {"type": ["string", "null"]},
         "beatport_slug": {"type": ["string", "null"]},
+        "comment_count": {
+            "type": ["integer", "null"],
+            "description": (
+                "YouTube comments collected for the track's video (one page: 100 means 100 or more);"
+                " null when not collected, disabled or failed."
+            ),
+        },
         "tags": {
             "type": "array",
             "description": "User-tags attached to this track (always present, may be empty).",

@@ -59,6 +59,11 @@ const aiVerdict = (id: string): 'high' | 'medium' | 'low' | null => {
 // The analyzer's progress on a demo track: most are AI-checked and profiled, a few not yet.
 const aiChecked = (id: string): boolean => aiVerdict(id) !== null || idHash(id) % 5 !== 3;
 const profiled = (id: string): boolean => idHash(id) % 4 !== 1;
+// YouTube comments collected for a demo track: mostly a handful, some none yet, one in ten a full page.
+const commentCount = (id: string): number | null => {
+  const h = idHash(id) % 10;
+  return h === 0 ? null : h === 1 ? 100 : (idHash(id) >> 4) % 40;
+};
 
 // The demo user's recommender, so the block page shows its model line.
 const DEMO_MODEL: NonNullable<TriageBlock['model']> = {
@@ -456,6 +461,7 @@ export class DemoDb {
         tags: this.trackTags(t.id),
         key_name: t.key_name,
         key_camelot: t.key_camelot,
+        comment_count: commentCount(t.id),
         cover_url: coverOf(t),
       }));
     const key = q.sort ?? 'added_at';
@@ -638,6 +644,7 @@ export class DemoDb {
         ytmusic: null,
         key_name: t.key_name,
         key_camelot: t.key_camelot,
+        comment_count: commentCount(t.id),
         cover_url: coverOf(t),
       };
     });

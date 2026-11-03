@@ -358,7 +358,18 @@ describe('TrackRow links and columns', () => {
       <W><TrackRow track={track} variant="desktop" hidden={['label', 'added']} /></W>,
     );
     expect(screen.queryByText('Fokuz Recordings')).not.toBeInTheDocument();
-    expect(container.querySelectorAll('td')).toHaveLength(8);
+    expect(container.querySelectorAll('td')).toHaveLength(9);
+  });
+
+  it('desktop: the YouTube comment count, a full page as 100+', () => {
+    const { rerender } = render(
+      <W><TrackRow track={{ ...track, comment_count: 100 }} variant="desktop" /></W>,
+    );
+    expect(screen.getByText('100+')).toBeInTheDocument();
+    rerender(
+      <W><TrackRow track={{ ...track, comment_count: 7 }} variant="desktop" hidden={['comments']} /></W>,
+    );
+    expect(screen.queryByText('7')).not.toBeInTheDocument();
   });
 
   it('desktop: the added date reads like the release date', () => {

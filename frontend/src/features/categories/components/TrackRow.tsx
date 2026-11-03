@@ -1,7 +1,12 @@
 import { Card, Group, Stack, Table, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { Fragment, type ReactNode } from 'react';
-import { formatAdded, formatLength, formatReleaseDate } from '../../../lib/formatters';
+import {
+  formatAdded,
+  formatCommentCount,
+  formatLength,
+  formatReleaseDate,
+} from '../../../lib/formatters';
 import type { CategoryTrack } from '../hooks/useCategoryTracks';
 import { TrackTagsCell } from '../../tags';
 import { UsedInPlaylistBadge } from './UsedInPlaylistBadge';
@@ -18,6 +23,7 @@ export const TRACK_COLUMNS = [
   'label',
   'key',
   'bpm',
+  'comments',
   'length',
   'released',
   'added',
@@ -89,14 +95,14 @@ export function TrackRow({
         </Table.Td>
       ),
       artists: (
-        <Table.Td style={fill(80)}>
+        <Table.Td style={fill(70)}>
           <Text inherit truncate>
             {artists}
           </Text>
         </Table.Td>
       ),
       label: (
-        <Table.Td style={fill(80)}>
+        <Table.Td style={fill(70)}>
           <Text inherit truncate>
             {label ?? '—'}
           </Text>
@@ -110,6 +116,11 @@ export function TrackRow({
       bpm: (
         <Table.Td className="font-mono" style={nowrap}>
           {track.bpm ?? '—'}
+        </Table.Td>
+      ),
+      comments: (
+        <Table.Td className="font-mono" style={nowrap}>
+          {formatCommentCount(track.comment_count)}
         </Table.Td>
       ),
       length: (
@@ -133,7 +144,7 @@ export function TrackRow({
         data-current={isCurrent ? 'true' : undefined}
         bg={isCurrent ? 'var(--mantine-color-default-hover)' : undefined}
       >
-        <Table.Td style={fill(180)}>
+        <Table.Td style={fill(170)}>
           <Group gap="xs" wrap="nowrap">
             {playButton}
             {/* the mix line is always there, so a row without a mix is as high as the rest */}

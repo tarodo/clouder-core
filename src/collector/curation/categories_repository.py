@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from collector.comments.repository import COMMENT_COUNT_SQL
 from collector.data_api import DataAPIClient
 from collector.logging_utils import log_event
 from collector.repositories.analysis import AI_VERDICT_SQL, ai_rep_sql, parse_ai_rep
@@ -730,7 +731,7 @@ class CategoriesRepository:
                 t.id, t.title, t.mix_name, t.isrc, t.bpm, t.length_ms,
                 t.key_name, t.key_camelot,
                 t.publish_date, t.spotify_id, t.release_type,
-                t.spotify_release_date, {AI_VERDICT_SQL},
+                t.spotify_release_date, {AI_VERDICT_SQL}, {COMMENT_COUNT_SQL},
                 COALESCE(
                     JSON_AGG(
                         JSON_BUILD_OBJECT('id', a.id, 'name', a.name, 'ai', {ai_rep_sql("a")})
