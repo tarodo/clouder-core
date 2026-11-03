@@ -60,6 +60,8 @@ export interface PlaylistTrack {
   key_camelot?: string | null;
   beatport_track_id?: string | null;
   beatport_slug?: string | null;
+  /** YouTube comments collected for the track's video (100 = 100 or more); null when unknown. */
+  comment_count?: number | null;
   /** Release artwork when the API has it (the demo does; production rows carry none yet). */
   cover_url?: string | null;
 }

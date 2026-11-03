@@ -11,6 +11,13 @@ from ..data_api import DataAPIClient, create_default_data_api_client
 from ..providers.base import CollectedComment
 from ..settings import get_data_api_settings
 
+# A track list's YouTube comment count, for a query that aliases clouder_tracks as t: a collected or
+# empty collection's count (one page, 100 at most), else NULL (disabled, failed, pending, none).
+COMMENT_COUNT_SQL = """(
+    SELECT CASE WHEN cc.status IN ('collected', 'empty') THEN cc.comment_count END
+    FROM comment_collections cc WHERE cc.track_id = t.id AND cc.platform = 'youtube'
+) AS comment_count"""
+
 
 @dataclass(frozen=True)
 class CollectionRow:

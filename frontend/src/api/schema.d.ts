@@ -4115,6 +4115,8 @@ export interface paths {
                                 source_triage_block_id?: string | null;
                                 /** @description True if this track is already in at least one of the user's playlists. */
                                 used_in_playlist?: boolean;
+                                /** @description YouTube comments collected for the track's video (one page: 100 means 100 or more); null when not collected, disabled or failed. */
+                                comment_count?: number | null;
                                 /** @description User-tags attached to this track (always present, may be empty). */
                                 tags?: {
                                     /** Format: uuid */
@@ -6362,6 +6364,8 @@ export interface paths {
                                 label?: Record<string, never> | null;
                                 beatport_track_id?: string | null;
                                 beatport_slug?: string | null;
+                                /** @description YouTube comments collected for the track's video (one page: 100 means 100 or more); null when not collected, disabled or failed. */
+                                comment_count?: number | null;
                                 /** @description User-tags attached to this track (always present, may be empty). */
                                 tags?: {
                                     /** Format: uuid */
@@ -10573,6 +10577,8 @@ export interface components {
             label?: Record<string, never> | null;
             beatport_track_id?: string | null;
             beatport_slug?: string | null;
+            /** @description YouTube comments collected for the track's video (one page: 100 means 100 or more); null when not collected, disabled or failed. */
+            comment_count?: number | null;
             /** @description User-tags attached to this track (always present, may be empty). */
             tags?: {
                 /** Format: uuid */

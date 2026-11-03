@@ -107,6 +107,7 @@ def _playlist_track_response(row) -> dict[str, Any]:
             {"id": t.tag_id, "name": t.name, "color": t.color} for t in getattr(row, "tags", ())
         ],
         "ytmusic": getattr(row, "ytmusic", None),
+        "comment_count": getattr(row, "comment_count", None),
     }
 
 

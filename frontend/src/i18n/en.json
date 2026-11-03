@@ -202,6 +202,8 @@
       "key": "Key",
       "bpm": "BPM",
       "length": "Length",
+      "comments": "Comments",
+      "comments_hint": "YouTube comments",
       "released": "Released",
       "added": "Added",
       "play_aria": "Play track",

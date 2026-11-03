@@ -1,5 +1,5 @@
 /**
- * Browser-mode layout of the desktop category table beside the player (~800px): every row is one
+ * Browser-mode layout of the desktop category table beside the player (792px: a 1274px window, sidebar collapsed): every row is one
  * title-and-mix high whatever it holds (long names truncate, tags stay on one line); the default
  * columns fit, more scroll sideways in the table's own box. jsdom applies no stylesheets, so this
  * lives here (gotcha #11).
@@ -47,6 +47,7 @@ function mk(i: number, over: Partial<CategoryTrack>): CategoryTrack {
     source_triage_block_id: null,
     key_camelot: '4A',
     key_name: 'F Minor',
+    comment_count: 12,
     tags: [],
     ...over,
   };
@@ -64,6 +65,7 @@ const items = [
     label: { id: 'l2', name: 'Abstract Logic Recordings International' },
     used_in_playlist: true,
     ai_verdict: 'high',
+    comment_count: 100,
     tags: ['5', 'p5', 'RG', 'VM', 'JZ', 'U'].map((name, i) => ({ id: `g${i}`, name, color: null })),
   }),
   mk(1, { mix_name: null, tags: [] }),
@@ -92,13 +94,13 @@ function props(rows: CategoryTrack[]): TracksTabProps {
   };
 }
 
-async function renderAt800(rows: CategoryTrack[]) {
+async function renderBesidePlayer(rows: CategoryTrack[]) {
   await page.viewport(1280, 900);
   const { container } = render(
     <MantineProvider theme={clouderTheme} defaultColorScheme="light">
       <QueryClientProvider client={new QueryClient()}>
         <MemoryRouter initialEntries={['/categories/s1/c1?fresh=0']}>
-          <div style={{ width: 800 }}>
+          <div style={{ width: 792 }}>
             <TracksTab {...props(rows)} />
           </div>
         </MemoryRouter>
@@ -119,7 +121,7 @@ describe('TracksTab desktop table — layout (browser)', () => {
   beforeEach(() => localStorage.clear());
 
   test('rows are one height whatever they hold: names truncate, tags stay on one line', async () => {
-    const table = await renderAt800(items);
+    const table = await renderBesidePlayer(items);
     const rows = [...table.querySelectorAll('tbody tr')];
     expect(rows).toHaveLength(3);
     const heights = rows.map((r) => r.getBoundingClientRect().height);
@@ -147,22 +149,27 @@ describe('TracksTab desktop table — layout (browser)', () => {
     )!;
     expect(badge.scrollWidth).toBeLessThanOrEqual(badge.clientWidth);
 
-    // too wide for 800px: the table scrolls in its own box, the page does not
+    // too wide for 792px: the table scrolls in its own box, the page does not
     const box = table.parentElement!;
-    expect(box.getBoundingClientRect().width).toBeLessThanOrEqual(800.5);
+    expect(box.getBoundingClientRect().width).toBeLessThanOrEqual(792.5);
     expect(box.scrollWidth).toBeGreaterThan(box.clientWidth);
     expect(spilling(table)).toEqual([]);
   });
 
   test('typical rows with the default columns fit beside the player', async () => {
-    const table = await renderAt800([
-      mk(0, { tags: ['5', 'p2'].map((name, i) => ({ id: `g${i}`, name, color: null })) }),
+    const table = await renderBesidePlayer([
+      // in a playlist, with a full page of comments: the widest tags and comments cells
+      mk(0, {
+        used_in_playlist: true,
+        comment_count: 100,
+        tags: ['Groovy'].map((name, i) => ({ id: `g${i}`, name, color: null })),
+      }),
       mk(1, { tags: ['5', 'p3', 'U'].map((name, i) => ({ id: `g${i}`, name, color: null })) }),
     ]);
     const headers = [...table.querySelectorAll('thead th')].map((th) => th.textContent);
     expect(headers).not.toContain('Length');
     expect(headers.some((h) => h?.startsWith('Added'))).toBe(true);
-    expect(table.getBoundingClientRect().width).toBeLessThanOrEqual(800.5);
+    expect(table.getBoundingClientRect().width).toBeLessThanOrEqual(792.5);
     expect(spilling(table)).toEqual([]);
   });
 });

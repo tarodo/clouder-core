@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatLength, formatAdded, formatReleaseDate } from '../formatters';
+import { formatLength, formatAdded, formatReleaseDate, formatCommentCount } from '../formatters';
 
 describe('formatLength', () => {
   it('returns m:ss for whole seconds', () => {
@@ -28,5 +28,15 @@ describe('formatReleaseDate', () => {
   });
   it('returns em-dash for null', () => {
     expect(formatReleaseDate(null)).toBe('—');
+  });
+});
+
+describe('formatCommentCount', () => {
+  it('shows the count, 100 (a full page) as 100+, and a dash when there is none', () => {
+    expect(formatCommentCount(0)).toBe('0');
+    expect(formatCommentCount(12)).toBe('12');
+    expect(formatCommentCount(100)).toBe('100+');
+    expect(formatCommentCount(null)).toBe('—');
+    expect(formatCommentCount(undefined)).toBe('—');
   });
 });

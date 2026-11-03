@@ -287,6 +287,7 @@ def _track_row(**overrides) -> MagicMock:
         tags=(tag,),
         ytmusic=None,
         ai_verdict="high",
+        comment_count=None,
     )
     base.update(overrides)
     m = MagicMock()
@@ -367,3 +368,21 @@ def test_playlist_track_response_includes_beatport_fields() -> None:
 
     assert body["beatport_track_id"] == "123456"
     assert body["beatport_slug"] == "strobe"
+
+
+def test_playlist_track_response_includes_comment_count() -> None:
+    from collector.curation.playlists_repository import PlaylistTrackRow
+
+    row = PlaylistTrackRow(
+        track_id="t1",
+        position=0,
+        added_at="2026-01-01T00:00:00Z",
+        title="Strobe",
+        spotify_id=None,
+        isrc=None,
+        length_ms=None,
+        origin="beatport",
+        comment_count=12,
+    )
+
+    assert _playlist_track_response(row)["comment_count"] == 12

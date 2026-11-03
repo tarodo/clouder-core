@@ -18,3 +18,9 @@ export function formatReleaseDate(iso: string | null): string {
   if (!iso) return '—';
   return iso;
 }
+
+/** A YouTube comment count: the collector reads one page, so 100 means 100 or more. */
+export function formatCommentCount(n: number | null | undefined): string {
+  if (n == null) return '—';
+  return n >= 100 ? '100+' : String(n);
+}
