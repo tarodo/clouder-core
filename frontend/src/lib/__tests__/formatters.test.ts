@@ -17,10 +17,8 @@ describe('formatLength', () => {
 });
 
 describe('formatAdded', () => {
-  it('returns a formatted date string', () => {
-    const out = formatAdded('2026-04-15T12:00:00Z');
-    expect(out).toMatch(/2026/);
-    expect(out).toMatch(/Apr/i);
+  it('returns the local calendar date as YYYY-MM-DD, like a release date', () => {
+    expect(formatAdded('2026-04-15T12:00:00Z')).toBe('2026-04-15');
   });
 });
 

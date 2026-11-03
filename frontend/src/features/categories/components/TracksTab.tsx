@@ -1,7 +1,18 @@
-import { useState } from 'react';
-import { Button, Group, Stack, Switch, Table, TextInput, Tooltip } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
-import { IconSearch, IconSettings, IconX } from '@tabler/icons-react';
+import { Fragment, useState, type ReactNode } from 'react';
+import {
+  ActionIcon,
+  Button,
+  Checkbox,
+  Group,
+  Popover,
+  Stack,
+  Switch,
+  Table,
+  TextInput,
+  Tooltip,
+} from '@mantine/core';
+import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
+import { IconColumns, IconSearch, IconSettings, IconX } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import {
@@ -9,7 +20,7 @@ import {
   type CategoryTrackSort,
   type SortOrder,
 } from '../hooks/useCategoryTracks';
-import { TrackRow } from './TrackRow';
+import { TRACK_COLUMNS, TrackRow, type TrackColumn } from './TrackRow';
 import { TrackRowActions } from './TrackRowActions';
 import { SortableTh } from './SortableTh';
 import { EmptyState } from '../../../components/EmptyState';
@@ -75,6 +86,15 @@ export function TracksTab({
   };
 
   const [managerOpen, setManagerOpen] = useState(false);
+  // per device, like the player's scrubber; length is off until asked for, so the table fits
+  // beside the player
+  const [hidden, setHidden] = useLocalStorage<TrackColumn[]>({
+    key: 'clouder.category_columns_hidden',
+    defaultValue: ['length'],
+    getInitialValueInEffect: false,
+  });
+  const toggleColumn = (c: TrackColumn) =>
+    setHidden((h) => (h.includes(c) ? h.filter((x) => x !== c) : [...h, c]));
 
   const handleSort = (key: CategoryTrackSort) => {
     if (key === sortKey) {
@@ -137,9 +157,7 @@ export function TracksTab({
     </Group>
   );
 
-  const modal = (
-    <TagsManagerModal opened={managerOpen} onClose={() => setManagerOpen(false)} />
-  );
+  const modal = <TagsManagerModal opened={managerOpen} onClose={() => setManagerOpen(false)} />;
 
   if (!isLoading && items.length === 0) {
     if (debounced) {
@@ -200,11 +218,7 @@ export function TracksTab({
             isPlaying={!!playing && currentTrackId != null && tr.id === currentTrackId}
             onToggle={onTogglePlay}
             actions={
-              <TrackRowActions
-                track={tr}
-                currentCategoryId={categoryId}
-                styleId={styleId}
-              />
+              <TrackRowActions track={tr} currentCategoryId={categoryId} styleId={styleId} />
             }
           />
         ))}
@@ -218,63 +232,105 @@ export function TracksTab({
     );
   }
 
+  const plainTh = (c: TrackColumn) => (
+    <Table.Th style={{ whiteSpace: 'nowrap' }}>{t(`categories.tracks_table.${c}`)}</Table.Th>
+  );
+  const headers: Record<TrackColumn, ReactNode> = {
+    tags: plainTh('tags'),
+    artists: plainTh('artists'),
+    label: plainTh('label'),
+    key: plainTh('key'),
+    bpm: plainTh('bpm'),
+    length: plainTh('length'),
+    released: (
+      <SortableTh
+        active={sortKey === 'spotify_release_date'}
+        dir={sortDir}
+        onClick={() => handleSort('spotify_release_date')}
+      >
+        {t('categories.tracks_table.released')}
+      </SortableTh>
+    ),
+    added: (
+      <SortableTh
+        active={sortKey === 'added_at'}
+        dir={sortDir}
+        onClick={() => handleSort('added_at')}
+      >
+        {t('categories.tracks_table.added')}
+      </SortableTh>
+    ),
+  };
+
   return (
     <Stack gap="md">
       {filterRow}
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <SortableTh
-              active={sortKey === 'title'}
-              dir={sortDir}
-              onClick={() => handleSort('title')}
-            >
-              {t('categories.tracks_table.title')}
-            </SortableTh>
-            <Table.Th>{t('categories.tracks_table.tags')}</Table.Th>
-            <Table.Th>{t('categories.tracks_table.artists')}</Table.Th>
-            <Table.Th>{t('categories.tracks_table.label')}</Table.Th>
-            <Table.Th>{t('categories.tracks_table.key')}</Table.Th>
-            <Table.Th>{t('categories.tracks_table.bpm')}</Table.Th>
-            <Table.Th>{t('categories.tracks_table.length')}</Table.Th>
-            <SortableTh
-              active={sortKey === 'spotify_release_date'}
-              dir={sortDir}
-              onClick={() => handleSort('spotify_release_date')}
-            >
-              {t('categories.tracks_table.released')}
-            </SortableTh>
-            <SortableTh
-              active={sortKey === 'added_at'}
-              dir={sortDir}
-              onClick={() => handleSort('added_at')}
-            >
-              {t('categories.tracks_table.added')}
-            </SortableTh>
-            <Table.Th aria-hidden style={{ width: 40 }} />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {items.map((track) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              variant="desktop"
-              onPlay={() => onPlay(track)}
-              isCurrent={currentTrackId != null && track.id === currentTrackId}
-              isPlaying={!!playing && currentTrackId != null && track.id === currentTrackId}
-              onToggle={onTogglePlay}
-              actions={
-                <TrackRowActions
-                  track={track}
-                  currentCategoryId={categoryId}
-                  styleId={styleId}
-                />
-              }
-            />
-          ))}
-        </Table.Tbody>
-      </Table>
+      {/* more columns than the width holds: the table scrolls sideways, the rows stay one line */}
+      <Table.ScrollContainer minWidth={0} type="native">
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              <SortableTh
+                active={sortKey === 'title'}
+                dir={sortDir}
+                onClick={() => handleSort('title')}
+              >
+                {t('categories.tracks_table.title')}
+              </SortableTh>
+              {TRACK_COLUMNS.filter((c) => !hidden.includes(c)).map((c) => (
+                <Fragment key={c}>{headers[c]}</Fragment>
+              ))}
+              <Table.Th style={{ width: 1 }}>
+                <Popover position="bottom-end" shadow="md" withinPortal>
+                  <Popover.Target>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      aria-label={t('categories.tracks_table.columns')}
+                    >
+                      <IconColumns size={16} />
+                    </ActionIcon>
+                  </Popover.Target>
+                  <Popover.Dropdown>
+                    <Stack gap="xs">
+                      {TRACK_COLUMNS.map((c) => (
+                        <Checkbox
+                          key={c}
+                          label={t(`categories.tracks_table.${c}`)}
+                          checked={!hidden.includes(c)}
+                          onChange={() => toggleColumn(c)}
+                        />
+                      ))}
+                    </Stack>
+                  </Popover.Dropdown>
+                </Popover>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {items.map((track) => (
+              <TrackRow
+                key={track.id}
+                track={track}
+                variant="desktop"
+                hidden={hidden}
+                onPlay={() => onPlay(track)}
+                isCurrent={currentTrackId != null && track.id === currentTrackId}
+                isPlaying={!!playing && currentTrackId != null && track.id === currentTrackId}
+                onToggle={onTogglePlay}
+                actions={
+                  <TrackRowActions
+                    track={track}
+                    currentCategoryId={categoryId}
+                    styleId={styleId}
+                    inlineRemove
+                  />
+                }
+              />
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
       {hasNextPage && (
         <Group justify="center">
           <Button onClick={fetchNextPage} loading={isFetchingNextPage} variant="default">

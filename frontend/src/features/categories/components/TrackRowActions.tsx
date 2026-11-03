@@ -1,9 +1,10 @@
 import { useContext, useState } from 'react';
-import { ActionIcon, Anchor, Group, Menu, Skeleton, Text } from '@mantine/core';
+import { ActionIcon, Anchor, Group, Menu, Skeleton, Text, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconChevronLeft,
   IconChevronRight,
+  IconCircleX,
   IconDotsVertical,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -25,9 +26,16 @@ export interface TrackRowActionsProps {
   track: CategoryTrack;
   currentCategoryId: string;
   styleId: string;
+  /** Remove as a red × beside the menu instead of a menu item (the desktop table). */
+  inlineRemove?: boolean;
 }
 
-export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowActionsProps) {
+export function TrackRowActions({
+  track,
+  currentCategoryId,
+  styleId,
+  inlineRemove = false,
+}: TrackRowActionsProps) {
   const { t } = useTranslation();
   // 'main' = primary actions (playlists + Move-to + Remove).
   // 'move' = expanded category list. Move-to is deprioritised vs Add-to-playlist
@@ -187,12 +195,8 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
     }
   };
 
-  return (
-    <Menu
-      position="bottom-end"
-      withinPortal
-      onClose={() => setMode('main')}
-    >
+  const menu = (
+    <Menu position="bottom-end" withinPortal onClose={() => setMode('main')}>
       <Menu.Target>
         <ActionIcon variant="subtle" aria-label={t('categories.row_actions.trigger_aria')}>
           <IconDotsVertical size={16} />
@@ -210,10 +214,14 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
             >
               {t('categories.row_actions.move_label')}
             </Menu.Item>
-            <Menu.Divider />
-            <Menu.Item color="red" onClick={handleRemove}>
-              {t('categories.row_actions.remove_label')}
-            </Menu.Item>
+            {inlineRemove ? null : (
+              <>
+                <Menu.Divider />
+                <Menu.Item color="red" onClick={handleRemove}>
+                  {t('categories.row_actions.remove_label')}
+                </Menu.Item>
+              </>
+            )}
           </>
         ) : (
           <>
@@ -253,5 +261,21 @@ export function TrackRowActions({ track, currentCategoryId, styleId }: TrackRowA
         )}
       </Menu.Dropdown>
     </Menu>
+  );
+  if (!inlineRemove) return menu;
+  return (
+    <Group gap={4} wrap="nowrap">
+      <Tooltip label={t('categories.row_actions.remove_label')} withArrow>
+        <ActionIcon
+          variant="subtle"
+          color="red"
+          aria-label={t('categories.row_actions.remove_label')}
+          onClick={() => void handleRemove()}
+        >
+          <IconCircleX size={18} />
+        </ActionIcon>
+      </Tooltip>
+      {menu}
+    </Group>
   );
 }

@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider, Table } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../test/setup';
 import { tokenStore } from '../../../../auth/tokenStore';
@@ -20,7 +21,9 @@ function W({ children }: { children: React.ReactNode }) {
     <MantineProvider theme={testTheme}>
       <Notifications />
       <QueryClientProvider client={qc}>
-        <Table><Table.Tbody>{children}</Table.Tbody></Table>
+        <MemoryRouter>
+          <Table><Table.Tbody>{children}</Table.Tbody></Table>
+        </MemoryRouter>
       </QueryClientProvider>
     </MantineProvider>
   );
@@ -33,7 +36,9 @@ function WMobile({ children }: { children: React.ReactNode }) {
   return (
     <MantineProvider theme={testTheme}>
       <Notifications />
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </QueryClientProvider>
     </MantineProvider>
   );
 }
@@ -315,5 +320,57 @@ describe('TrackRow AI reputation', () => {
     render(<W><TrackRow track={track} variant="desktop" /></W>);
     expect(screen.getByLabelText('AI level 1')).toBeInTheDocument();
     expect(screen.getByLabelText('AI level 3')).toBeInTheDocument();
+  });
+});
+
+describe('TrackRow links and columns', () => {
+  const track: CategoryTrack = {
+    ...baseTrack,
+    artists: [{ id: 'a1', name: 'Alkali' }, { id: 'a2', name: 'Matt View' }],
+    label: { id: 'l1', name: 'Fokuz Recordings' },
+  };
+
+  it.each(['desktop', 'mobile'] as const)('%s: artists and the label open their pages', (variant) => {
+    const Wrap = variant === 'desktop' ? W : WMobile;
+    render(<Wrap><TrackRow track={track} variant={variant} /></Wrap>);
+    expect(screen.getByRole('link', { name: 'Alkali' })).toHaveAttribute('href', '/artists/a1');
+    expect(screen.getByRole('link', { name: 'Matt View' })).toHaveAttribute('href', '/artists/a2');
+    expect(screen.getByRole('link', { name: 'Fokuz Recordings' })).toHaveAttribute(
+      'href',
+      '/labels/l1',
+    );
+  });
+
+  it('desktop: one line of tags, the first four and the rest as +N', () => {
+    const tags = ['5', 'p5', 'RG', 'VM', 'JZ', 'U'].map((name, i) => ({
+      id: `tg${i}`,
+      name,
+      color: null,
+    }));
+    render(<W><TrackRow track={{ ...baseTrack, tags }} variant="desktop" /></W>);
+    for (const name of ['5', 'p5', 'RG', 'VM']) expect(screen.getByText(name)).toBeInTheDocument();
+    expect(screen.queryByText('JZ')).not.toBeInTheDocument();
+    expect(screen.getByText('+2')).toBeInTheDocument();
+  });
+
+  it('desktop: a hidden column has no cell', () => {
+    const { container } = render(
+      <W><TrackRow track={track} variant="desktop" hidden={['label', 'added']} /></W>,
+    );
+    expect(screen.queryByText('Fokuz Recordings')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('td')).toHaveLength(8);
+  });
+
+  it('desktop: the added date reads like the release date', () => {
+    render(
+      <W>
+        <TrackRow
+          track={{ ...track, spotify_release_date: '2026-10-02', added_at: '2026-10-29T12:00:00Z' }}
+          variant="desktop"
+        />
+      </W>,
+    );
+    expect(screen.getByText('2026-10-02')).toBeInTheDocument();
+    expect(screen.getByText('2026-10-29')).toBeInTheDocument();
   });
 });

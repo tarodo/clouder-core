@@ -9,6 +9,7 @@
  */
 import { MantineProvider, Table } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import '../../../../i18n';
@@ -45,18 +46,20 @@ describe('TrackRow — browser smoke', () => {
   test('active, playing row shows the Pause control', () => {
     const { getByRole } = render(
       <MantineProvider defaultColorScheme="light">
-        <Table>
-          <Table.Tbody>
-            <TrackRow
-              track={track}
-              variant="desktop"
-              onPlay={vi.fn()}
-              onToggle={vi.fn()}
-              isCurrent
-              isPlaying
-            />
-          </Table.Tbody>
-        </Table>
+        <MemoryRouter>
+          <Table>
+            <Table.Tbody>
+              <TrackRow
+                track={track}
+                variant="desktop"
+                onPlay={vi.fn()}
+                onToggle={vi.fn()}
+                isCurrent
+                isPlaying
+              />
+            </Table.Tbody>
+          </Table>
+        </MemoryRouter>
       </MantineProvider>,
     );
 
@@ -69,21 +72,27 @@ describe('TrackRow — browser smoke', () => {
     await page.viewport(390, 844);
     render(
       <MantineProvider defaultColorScheme="light">
-        <div style={{ width: 358 }}>
-          <TrackRow
-            track={{
-              ...track,
-              key_camelot: '8A',
-              tags: [{ id: 'g', name: 'Groovy', color: null }],
-            }}
-            variant="mobile"
-            onPlay={vi.fn()}
-            // the row menu's ActionIcon is 28px
-            actions={
-              <button type="button" aria-label="Track actions" style={{ width: 28, height: 28 }} />
-            }
-          />
-        </div>
+        <MemoryRouter>
+          <div style={{ width: 358 }}>
+            <TrackRow
+              track={{
+                ...track,
+                key_camelot: '8A',
+                tags: [{ id: 'g', name: 'Groovy', color: null }],
+              }}
+              variant="mobile"
+              onPlay={vi.fn()}
+              // the row menu's ActionIcon is 28px
+              actions={
+                <button
+                  type="button"
+                  aria-label="Track actions"
+                  style={{ width: 28, height: 28 }}
+                />
+              }
+            />
+          </div>
+        </MemoryRouter>
       </MantineProvider>,
     );
     const box = (text: string | RegExp) => screen.getByText(text).getBoundingClientRect();

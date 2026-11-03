@@ -243,6 +243,32 @@ describe('TracksTab', () => {
     await screen.findByText('Track 0');
     const triggers = screen.getAllByRole('button', { name: /track actions/i });
     expect(triggers).toHaveLength(3);
+    // Remove sits beside the menu as a red ×
+    expect(screen.getAllByRole('button', { name: 'Remove from category' })).toHaveLength(3);
+  });
+
+  it('the Columns menu hides a column and remembers it', async () => {
+    localStorage.clear();
+    const ui = (
+      <Wrapper initialUrl="/categories/c1?fresh=0">
+        <TracksTab {...mkProps({ items: mkTracks(0, 1), total: 1 })} />
+      </Wrapper>
+    );
+    const { unmount } = render(ui);
+    await screen.findByText('Track 0');
+    expect(screen.getByRole('columnheader', { name: 'Label' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Columns' }));
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Label' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('columnheader', { name: 'Label' })).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText('Cool Label')).not.toBeInTheDocument();
+    unmount();
+    render(ui);
+    await screen.findByText('Track 0');
+    expect(screen.queryByRole('columnheader', { name: 'Label' })).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Artists' })).toBeInTheDocument();
+    localStorage.clear();
   });
 
   it('opens the manage-tags modal when the button is clicked', async () => {
