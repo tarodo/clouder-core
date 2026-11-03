@@ -14,8 +14,9 @@ UPSERT_CHUNK = 200
 RETRAIN_PENDING = timedelta(hours=1)
 
 # Every decision of U in S, one row per placement. Keeps: active STAGING buckets of U's non-deleted blocks
-# (open or finalized) and every category_tracks row of U's categories (a soft-deleted category's tracks stay
-# keeps without a class). Discards: the DISCARD buckets of those blocks. Auto buckets are not decisions.
+# (open, or finalized while the track is still in that category: one the owner removed is no label) and every
+# category_tracks row of U's categories (a soft-deleted category's tracks stay keeps without a class).
+# Discards: the DISCARD buckets of those blocks. Auto buckets are not decisions.
 PLACEMENTS_SQL = """
     SELECT x.track_id, b.bucket_type = 'STAGING' AS keep,
            CASE WHEN c.deleted_at IS NULL THEN c.id END AS category_id, x.added_at
@@ -25,6 +26,8 @@ PLACEMENTS_SQL = """
     LEFT JOIN categories c ON c.id = b.category_id
     JOIN triage_bucket_tracks x ON x.triage_bucket_id = b.id
     WHERE tb.user_id = :user_id AND tb.style_id = :style_id AND tb.deleted_at IS NULL
+      AND (b.bucket_type = 'DISCARD' OR tb.status <> 'FINALIZED' OR EXISTS (
+          SELECT 1 FROM category_tracks ct WHERE ct.category_id = b.category_id AND ct.track_id = x.track_id))
     UNION ALL
     SELECT ct.track_id, TRUE, CASE WHEN c.deleted_at IS NULL THEN c.id END, ct.added_at
     FROM categories c JOIN category_tracks ct ON ct.category_id = c.id

@@ -228,6 +228,8 @@ the claim hands them out in its existing order: open blocks first, then newest r
 For user U and style S, computed by the ML worker from Aurora:
 - **Keep, with category c:**
   - every track in an active STAGING bucket (category c) of U's non-deleted blocks of style S, open or finalized;
+    a finalized block's track counts only while it is still in c (2026-11-03, owner: a track removed from the
+    category is no label; a discard elsewhere then stands, a move to another category labels it there);
   - plus every row in `category_tracks` of U's live categories in S (this includes tracks added outside triage);
   - a track in several categories takes the one with the latest `added_at`.
 - **Discard:** every track in a DISCARD bucket of those blocks, unless it is also a keep. Keep wins: the owner kept it

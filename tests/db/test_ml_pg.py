@@ -147,6 +147,20 @@ def test_labels_keep_wins_and_latest_category(repo, pg) -> None:
     ]
 
 
+def test_labels_drop_tracks_removed_from_the_category(repo, pg) -> None:
+    for t in ("gone", "moved", "back"):
+        _track(pg, t, f"v_{t}")
+    _put(pg, "fb-ca", "gone", at(0))  # finalized, then removed from ca: no label
+    _put(pg, "fb-ca", "moved", at(0))
+    _cat(pg, "cb", "moved", at(4))  # removed from ca, added to cb: a cb keep
+    _put(pg, "ob-DISCARD", "back", at(1))
+    _put(pg, "fb-ca", "back", at(2))  # removed from ca: the discard elsewhere stands
+    assert _labels(repo) == [
+        ("back", "v_back", False, None, at(1)),
+        ("moved", "v_moved", True, "cb", at(4)),
+    ]
+
+
 def test_labels_exclude_ai_and_auto_buckets(repo, pg) -> None:
     for t in ("ok", "auto", "ai", "del", "ina", "oth", "sty", "nop"):
         _track(pg, t, f"v_{t}", profiled=t != "nop")
