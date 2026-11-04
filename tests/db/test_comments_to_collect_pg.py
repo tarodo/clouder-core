@@ -1,5 +1,5 @@
 """A finalized block's comment fan-out: the block's promoted tracks plus every other track in the
-user's categories with no collection yet (added directly, or before collection existed)."""
+user's live categories with no collection yet (added directly, or before collection existed)."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def world(pg):
         " ('u2', 'sp2', 'B', 'u2@example.com', now(), now())",
         "INSERT INTO clouder_tracks (id, title, normalized_title, style_id, created_at, updated_at)"
         " SELECT t, t, t, 'st', now(), now() FROM unnest(ARRAY['blk', 'direct', 'done', 'twice',"
-        " 'theirs']) AS t",
+        " 'theirs', 'binned']) AS t",
         "INSERT INTO triage_blocks (id, user_id, style_id, name, date_from, date_to, status,"
         " created_at, updated_at) VALUES ('b1', 'u1', 'st', 'W', '2026-01-03', '2026-01-09',"
         " 'FINALIZED', now(), now())",
@@ -27,10 +27,13 @@ def world(pg):
         " updated_at) VALUES ('c1', 'u1', 'st', 'C1', 'c1', now(), now()),"
         " ('c2', 'u1', 'st', 'C2', 'c2', now(), now()),"
         " ('c3', 'u2', 'st', 'C3', 'c3', now(), now())",
+        "INSERT INTO categories (id, user_id, style_id, name, normalized_name, created_at,"
+        " updated_at, deleted_at) VALUES ('c4', 'u1', 'st', 'C4', 'c4', now(), now(), now())",
         "INSERT INTO category_tracks (category_id, track_id, added_at, source_triage_block_id)"
         " VALUES ('c1', 'blk', now(), 'b1'), ('c1', 'direct', now(), NULL),"
         " ('c1', 'done', now(), NULL), ('c1', 'twice', now(), NULL),"
-        " ('c2', 'twice', now(), NULL), ('c3', 'theirs', now(), NULL)",
+        " ('c2', 'twice', now(), NULL), ('c3', 'theirs', now(), NULL),"
+        " ('c4', 'binned', now(), NULL)",
         # the block's own track is re-sent even with a collection: start_collection skips it
         "INSERT INTO comment_collections (id, track_id, platform, external_video_id, status,"
         " comment_count, created_at, updated_at) VALUES"
