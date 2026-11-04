@@ -2,9 +2,9 @@
 
 Runs in the auto-enrich-dispatch worker (off the finalize request path), mirroring
 label_enrichment.auto_dispatch.try_dispatch_for_triage_block. For each track the
-block promoted into the user's categories, enqueue a comment-collection job with no
-seed video — the comment worker resolves the video from track metadata. Best-effort:
-never breaks the worker.
+block promoted into the user's categories, and each of the user's category tracks with
+no collection yet, enqueue a comment-collection job with no seed video — the comment
+worker resolves the video from track metadata. Best-effort: never breaks the worker.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def try_dispatch_comments_for_triage_block(*, block_id: str, user_id: str | None
         if not user_id:
             return
         repo = _build_repository()
-        track_ids = repo.promoted_track_ids_for_block(block_id=block_id, user_id=user_id)
+        track_ids = repo.track_ids_to_collect(block_id=block_id, user_id=user_id)
         for track_id in track_ids:
             try_dispatch_comment_collection(track_id=track_id, platform="youtube")
 

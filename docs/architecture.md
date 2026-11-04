@@ -99,7 +99,7 @@ All functions share one Python package (`src/collector/`); each has its own entr
 | `vendor-match-worker` | `collector.vendor_match_handler` | SQS | YouTube Music matching with fuzzy scoring and a review queue |
 | `label-enricher-worker` | `collector.label_enrichment_handler` | SQS | Multi-vendor LLM research on labels |
 | `artist-enricher-worker` | `collector.artist_enrichment_handler` | SQS | Multi-vendor LLM research on artists |
-| `auto-enrich-dispatch-worker` | `collector.auto_enrich_dispatch_handler` | SQS | Fans out label, artist and comment enrichment for a finalized triage block |
+| `auto-enrich-dispatch-worker` | `collector.auto_enrich_dispatch_handler` | SQS | Fans out label, artist and comment enrichment for a finalized triage block; comments also sweep up the user's category tracks never collected |
 | `comments-collect-worker` | `collector.comments_collect_handler` | SQS | Collects YouTube comments for one video per message |
 | `ml-worker` | `collector.ml_worker_handler` | SQS (`ml-jobs`) | Trains a user's triage-suggestion model of a style and scores its tracks; writes the similar-tracks vectors ([`docs/data/similar-tracks.md`](data/similar-tracks.md)); own zip via S3 (`scripts/package_ml_lambda.sh`) |
 | `backfill` | `collector.backfill_handler` | Step Functions | Plans and replays stored raw runs (dry run or apply) |

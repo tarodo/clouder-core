@@ -9,6 +9,7 @@ from typing import Any
 from ..artist_enrichment.auto_dispatch import (
     try_dispatch_artists_for_track,
 )
+from ..comments.dispatch import try_dispatch_comment_collection
 from ..label_enrichment.auto_dispatch import (
     try_dispatch_for_track,
 )
@@ -311,6 +312,7 @@ def _handle_add_track(event, repo, user_id, correlation_id):
     if was_new:
         try_dispatch_for_track(track_id=body.track_id, user_id=user_id)
         try_dispatch_artists_for_track(track_id=body.track_id, user_id=user_id)
+        try_dispatch_comment_collection(track_id=body.track_id, platform="youtube")
     payload = {
         "result": "added" if was_new else "already_present",
         "added_at": result["added_at"],

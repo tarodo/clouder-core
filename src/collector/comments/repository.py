@@ -283,14 +283,19 @@ class CommentsRepository:
             )
         return out
 
-    def promoted_track_ids_for_block(self, *, block_id: str, user_id: str) -> list[str]:
-        """Track ids promoted into the user's categories by finalizing this block."""
+    def track_ids_to_collect(self, *, block_id: str, user_id: str) -> list[str]:
+        """Track ids promoted into the user's categories by finalizing this block, plus the
+        user's other category tracks with no collection yet (added directly, or before
+        collection existed): each finalize sweeps up what was missed."""
         rows = self._data_api.execute(
             """
-            SELECT ct.track_id
+            SELECT DISTINCT ct.track_id
             FROM category_tracks ct
             JOIN categories c ON c.id = ct.category_id
-            WHERE ct.source_triage_block_id = :block_id AND c.user_id = :user_id
+            WHERE c.user_id = :user_id
+              AND (ct.source_triage_block_id = :block_id OR NOT EXISTS (
+                  SELECT 1 FROM comment_collections cc
+                  WHERE cc.track_id = ct.track_id AND cc.platform = 'youtube'))
             ORDER BY ct.track_id
             """,
             {"block_id": block_id, "user_id": user_id},
