@@ -206,11 +206,13 @@ resource "aws_lambda_event_source_mapping" "youtube_search_queue" {
   }
 }
 
-# One batch an hour, newest releases first; the rule is the queue's only
-# producer (no post-ingest start, no self-chaining).
+# One batch every 30 minutes, newest releases first; the rule is the queue's
+# only producer (no post-ingest start, no self-chaining). A batch takes ~13 min,
+# so runs never overlap and Aurora still pauses between them. The name predates
+# the 30-minute rate: renaming would replace the rule.
 resource "aws_cloudwatch_event_rule" "youtube_search_hourly" {
   name                = "${local.name_prefix}-youtube-search-hourly"
-  schedule_expression = "rate(1 hour)"
+  schedule_expression = "rate(30 minutes)"
 }
 
 resource "aws_cloudwatch_event_target" "youtube_search_hourly" {

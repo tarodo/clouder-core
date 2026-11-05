@@ -306,9 +306,9 @@ Nothing: the resume message starts the search when the ban ends. If bans repeat,
 
 **What runs**
 
-`clouder-prod-youtube-search-worker` searches the catalog on YouTube Music, one batch an hour. The EventBridge rule `clouder-prod-youtube-search-hourly` queues `{"batch_size": 250}` (`youtube_search_batch_size`); nothing else queues searches, neither ingest nor the worker itself. A batch claims the newest releases not yet searched (`publish_date` descending), so a fresh ingest is searched within the hour and the rest of the catalog follows, newest to oldest. At the 2 s pace a batch takes about 12 minutes; what the deadline cuts off waits for the next hour. The audio analyzer follows the same order over tracks with a YT Music match. Each run first reconciles YouTube with Spotify, in the database only (`youtube_reviews_reconciled`, `closed` / `reopened`). It closes the reviews of tracks Spotify could not find, reopens for search those Spotify found later, and searches once more the tracks first searched within 4 days of release, 4 days on (`second_chance`). Per track it logs `youtube_search_result` (`outcome`: `auto` / `review` / `no_match` / `video_only` / `error`, `request_count`, `video_found`), per batch `youtube_search_completed`.
+`clouder-prod-youtube-search-worker` searches the catalog on YouTube Music, one batch every 30 minutes. The EventBridge rule `clouder-prod-youtube-search-hourly` (the name predates the 30-minute rate) queues `{"batch_size": 250}` (`youtube_search_batch_size`); nothing else queues searches, neither ingest nor the worker itself. A batch claims the newest releases not yet searched (`publish_date` descending), so a fresh ingest is searched within the next runs and the rest of the catalog follows, newest to oldest. At the 2 s pace a batch takes about 13 minutes (12k tracks a day); what the deadline cuts off waits for the next run. A bigger batch would outrun the 15-minute Lambda timeout; a faster rate would overlap runs and keep Aurora from pausing. The audio analyzer follows the same order over tracks with a YT Music match. Each run first reconciles YouTube with Spotify, in the database only (`youtube_reviews_reconciled`, `closed` / `reopened`). It closes the reviews of tracks Spotify could not find, reopens for search those Spotify found later, and searches once more the tracks first searched within 4 days of release, 4 days on (`second_chance`). Per track it logs `youtube_search_result` (`outcome`: `auto` / `review` / `no_match` / `video_only` / `error`, `request_count`, `video_found`), per batch `youtube_search_completed`.
 
-**Run a batch now** (without waiting for the hour):
+**Run a batch now** (without waiting for the schedule):
 
 ```bash
 aws sqs send-message \
@@ -316,7 +316,7 @@ aws sqs send-message \
   --message-body '{"batch_size":250}'
 ```
 
-**Ban.** On HTTP 429/403 or a "not a bot" gate the worker logs `youtube_search_paused reason=banned` and writes `vendor_rate_limits` (`vendor = 'ytmusic'`) for `youtube_search_ban_seconds`; hourly batches are dropped (`reason=trigger_dropped`) until it is over. If bans repeat, raise `youtube_search_min_interval_ms` (Terraform variable; 2000 = 0.5 req/s).
+**Ban.** On HTTP 429/403 or a "not a bot" gate the worker logs `youtube_search_paused reason=banned` and writes `vendor_rate_limits` (`vendor = 'ytmusic'`) for `youtube_search_ban_seconds`; scheduled batches are dropped (`reason=trigger_dropped`) until it is over. If bans repeat, raise `youtube_search_min_interval_ms` (Terraform variable; 2000 = 0.5 req/s).
 
 **Stop it:** `aws events disable-rule --name clouder-prod-youtube-search-hourly` (`enable-rule` to resume; the next `terraform apply` enables it again). Claimed tracks stay safe.
 

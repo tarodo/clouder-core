@@ -105,7 +105,7 @@ def run(monkeypatch, repo, client, *, body=None, remaining_ms=900_000):
     return h.lambda_handler(event, ctx, client_factory=lambda: client, sleep=lambda s: None)
 
 
-def test_hourly_batch_stores_outcomes(monkeypatch) -> None:
+def test_scheduled_batch_stores_outcomes(monkeypatch) -> None:
     repo = Repo([track("t1"), track("t2")])
     client = Client([[song("s1"), video("v1")], [], [], []])
     out = run(monkeypatch, repo, client)
@@ -125,7 +125,7 @@ def test_ban_mid_batch_releases_rest_and_pauses(monkeypatch) -> None:
     assert repo.blocks and repo.blocks[0][0] == "ytmusic"
 
 
-def test_hourly_trigger_is_dropped_while_paused(monkeypatch) -> None:
+def test_scheduled_trigger_is_dropped_while_paused(monkeypatch) -> None:
     until = datetime.now(UTC) + timedelta(minutes=5)
     repo = Repo([track("t1")], blocked_until=until)
     assert run(monkeypatch, repo, Client([])) == {"processed": 1}

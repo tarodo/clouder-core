@@ -285,7 +285,7 @@ variable "youtube_search_ban_seconds" {
 }
 
 variable "youtube_search_batch_size" {
-  description = "Tracks the hourly YouTube search takes per run, newest releases first (~12 min at the 2 s pace)."
+  description = "Tracks each YouTube search run (every 30 min) takes, newest releases first (~13 min at the 2 s pace; the 15-min Lambda timeout caps it)."
   type        = number
   default     = 250
 }

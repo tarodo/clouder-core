@@ -1,10 +1,10 @@
-"""SQS worker: search the catalog on YouTube, one batch an hour.
+"""SQS worker: search the catalog on YouTube, one batch every 30 minutes.
 
-An hourly EventBridge rule queues one batch (250 tracks). The worker claims the
+An EventBridge rule queues one batch (250 tracks) every 30 minutes. The worker claims the
 newest releases not yet searched (clouder_tracks.youtube_searched_at), searches
 each at a fixed pace, stores the YT Music match / review / no_match and the
 comments video, and hands back what a ban or the deadline cut off for the next
-hour. A ban pauses the sweep: hourly batches are dropped until it is over.
+run. A ban pauses the sweep: scheduled batches are dropped until it is over.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ _REQUEST_TIMEOUT_S = 10
 # recognise (ytmusicapi parses JSON before the status: an HTML 429 page is a
 # JSONDecodeError, a throttled socket a ReadTimeout).
 _ERROR_STREAK = 5
-# Aurora (min_acu=0) auto-pauses after 5 min idle, so an hourly batch (or an
+# Aurora (min_acu=0) auto-pauses after 5 min idle, so a scheduled batch (or an
 # SQS redelivery) often meets a paused cluster, and waking takes longer than the
 # Data API retry budget: wait up to ~2 min more before giving the message back.
 _DB_WAKE_ATTEMPTS = 12
@@ -158,7 +158,7 @@ def _sweep(
     )
     now = utc_now()
     if blocked_until is not None and blocked_until > now:
-        # YouTube refused us: leave it alone; a later hourly batch goes on.
+        # YouTube refused us: leave it alone; a later scheduled batch goes on.
         log_event(
             "INFO",
             "youtube_search_paused",

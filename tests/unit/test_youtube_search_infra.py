@@ -31,9 +31,9 @@ def test_worker_gets_its_pace_and_queue() -> None:
         assert env in body
 
 
-def test_an_hourly_rule_queues_one_batch() -> None:
+def test_a_half_hourly_rule_queues_one_batch() -> None:
     rule = _block("aws_cloudwatch_event_rule", "youtube_search_hourly")
-    assert 'schedule_expression = "rate(1 hour)"' in rule
+    assert 'schedule_expression = "rate(30 minutes)"' in rule
     target = _block("aws_cloudwatch_event_target", "youtube_search_hourly")
     assert "arn       = aws_sqs_queue.youtube_search.arn" in target
     assert "batch_size = var.youtube_search_batch_size" in target
@@ -43,7 +43,7 @@ def test_an_hourly_rule_queues_one_batch() -> None:
 
 
 def test_neither_ingest_nor_the_worker_queues_searches() -> None:
-    # The hourly rule is the only producer: no post-ingest start, no chaining.
+    # The scheduled rule is the only producer: no post-ingest start, no chaining.
     assert "YOUTUBE_SEARCH_QUEUE_URL" not in _block(
         "aws_lambda_function", "canonicalization_worker"
     )
