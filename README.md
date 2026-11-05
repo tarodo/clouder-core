@@ -10,11 +10,11 @@
 
 *Sample data, sped up: a week of new releases cleared one keystroke per track.*
 
-**At a glance:** ~143k canonical tracks, 3–5k new every week · 20 Lambda functions, 2 Step Functions workflows · 11 nightly data-quality SLOs · ~3,500 automated tests · every merge to `main` deploys to production behind a smoke test; a failure rolls the API back automatically.
+**At a glance:** ~267k canonical tracks across 17 styles · 20 Lambda functions, 2 Step Functions workflows · 11 nightly data-quality SLOs · ~4,400 automated tests · every merge to `main` deploys to production behind a smoke test; a failure rolls the API back automatically.
 
-Every week brings a new wave of electronic-music releases on Beatport. For a DJ, turning "what came out this week" into "what goes into my set" means pulling the releases, matching each track across Spotify and YouTube Music, checking labels and artists, auditioning, and sorting into playlists. CLOUDER automates the data side of that workflow and gives a small group of DJs a fast, keyboard-first app for the human side.
+Every week brings a new wave of electronic-music releases on Beatport. For a DJ, turning "what came out this week" into "what goes into my set" means pulling the releases, matching each track across Spotify and YouTube Music, checking labels and artists, weeding out AI-generated music, auditioning, and sorting into playlists. CLOUDER automates the data side of that workflow and gives a small group of DJs a fast, keyboard-first app for the human side, where each DJ's own model suggests where a track belongs.
 
-Under the hood it is a real data system: scheduled batch ingestion into an S3 raw zone, a canonical catalog in Aurora PostgreSQL built by entity resolution, data contracts and nightly data-quality checks, asynchronous enrichment workers, and an Iceberg lakehouse built by dbt on Athena. Everything is defined in Terraform and deployed by GitHub Actions on every merge to `main`.
+Under the hood it is a real data system: scheduled batch ingestion into an S3 raw zone, a canonical catalog in Aurora PostgreSQL built by entity resolution, data contracts and nightly data-quality checks, asynchronous enrichment workers, audio analysis feeding a feature store on S3, per-user models trained in Lambda, vector search in PostgreSQL, and an Iceberg lakehouse built by dbt on Athena. Everything is defined in Terraform and deployed by GitHub Actions on every merge to `main`.
 
 > **Status:** in production for a small closed group of DJs (access goes through a Spotify allow-list). **[Try the app on sample data](https://tarodo.github.io/clouder-core/demo/)** — the same code in your browser, no login; the screenshots below are rendered from its components.
 
@@ -24,13 +24,16 @@ The engineering decisions behind the system and what each one bought, measured o
 
 | Decision | Result | Details |
 |---|---|---|
-| Set-based SQL canonicalization instead of row-by-row Data API calls | 55 calls for an average week; 9.9–14.8 s per 1,000 tracks (16–24× faster) | [benchmark](docs/benchmarks/canonicalization.md), [ADR-0022](docs/adr/0022-set-based-canonicalization.md) |
+| Set-based SQL canonicalization instead of row-by-row Data API calls | 9.9–14.8 s per 1,000 tracks in production, where the row-by-row version took a median 241 s; an average week takes 55 Data API calls | [benchmark](docs/benchmarks/canonicalization.md), [ADR-0022](docs/adr/0022-set-based-canonicalization.md) |
 | Replay-safe writes keyed on observation time, previewed as a dry-run diff | 153 runs / 100,268 tracks replayed in 7 min 56 s; a second run changes nothing | [backfill](docs/ops/backfill.md), [ADR-0024](docs/adr/0024-replayable-canonicalization-backfill.md) |
-| Iceberg silver/gold built by dbt on Athena | Aggregate query in 0.77 s (~8× faster), SCD2 track history, deduplicated events | [lakehouse](docs/data/lakehouse.md), [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md), [lineage](https://tarodo.github.io/clouder-core/lineage/) |
+| Iceberg silver/gold built by dbt on Athena | A full-table aggregate runs in 0.77 s on silver; the same query over the raw bronze files (1,243 small Parquet files) took 6.1–7.0 s. SCD2 track history, deduplicated events | [lakehouse](docs/data/lakehouse.md), [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md), [lineage](https://tarodo.github.io/clouder-core/lineage/) |
 | A data contract on every raw record, with quarantine and drift alarms | Bad records never reach the catalog; on replayed history the drift alarm would have fired on 2026-09-13 | [contracts](docs/data/contracts.md), [ADR-0026](docs/adr/0026-raw-data-contract.md) |
 | 11 nightly SQL data-quality checks with SLOs | The first run caught two styles lagging a week behind | [data quality](docs/data/data-quality.md), [ADR-0023](docs/adr/0023-sql-data-quality-checks.md) |
 | The YouTube Music matcher measured on human decisions and a labelled sample | 100 of 100 automatic matches correct (error < ~3 % at 95 % confidence); the 0.92 threshold stays, since 0.90 would publish 27 wrong videos | [entity resolution](docs/data/entity-resolution.md) |
-| Scheduled ingest (EventBridge Scheduler) with a Beatport login per run | Two styles a week behind caught up the next day (`styles_behind` 2 → 0); 45 style-weeks in the first three days, 0 failed, no manual step | [auto-ingest](docs/data/auto-ingest.md), [ADR-0027](docs/adr/0027-auto-ingest.md) |
+| A version rule for matches below the threshold: Original, Extended and Radio mixes are one recording, a remix is another | 85 of the 85 matches it accepted on owner-labelled rows were the right recording; lowering the threshold to 0.85 instead would have been right 73 % of the time | [entity resolution](docs/data/entity-resolution.md) |
+| Scheduled ingest (EventBridge Scheduler) with a Beatport login per run | Two styles that had fallen a week behind caught up the next day, and the nightly check of styles behind has read 0 since; 45 style-weeks in the first three days, 0 failed, no manual step | [auto-ingest](docs/data/auto-ingest.md), [ADR-0027](docs/adr/0027-auto-ingest.md) |
+| Triage suggestions: a model per user and style, trained on audio embeddings and that user's own decisions | Keep-or-discard ROC AUC 0.81 in cross-validation on 3,589 of the owner's Drum & Bass decisions (0.5 is guessing). On 130 live decisions the first suggested button was the one pressed 63 % of the time, and the category the track went to was one of the two suggested 97 % of the time | [design](docs/superpowers/specs/2026-10-23-triage-suggestions-design.md) |
+| Similar tracks: nearest neighbours by sound in pgvector, re-ranked by the user's model | Of a track's 10 nearest neighbours, 61 % sit in the same category of the owner's library; for 10 random tracks of the same style it is 19 % | [similar tracks](docs/data/similar-tracks.md) |
 
 ## Architecture
 
@@ -44,10 +47,14 @@ flowchart LR
   API & AI --> DB
   Q --> CAN["canonicalization λ<br/>contract · set-based upserts"]
   RAW --> CAN
-  CAN --> DB[("Aurora PostgreSQL<br/>via RDS Data API")]
+  CAN --> DB[("Aurora PostgreSQL + pgvector<br/>via RDS Data API")]
   CAN -->|SQS| ENR["enrichment workers<br/>Spotify · YouTube Music · LLM research"]
   API -->|SQS| ENR
   ENR --> DB
+  ANZ["audio analyzer<br/>external worker"] -->|"claim · results<br/>service token"| APIGW
+  API --> FS[("S3 audio features")]
+  API -->|SQS| ML["ML worker λ<br/>suggestions · similarity"]
+  FS --> ML --> DB
   BF["Step Functions backfill"] --> RAW & DB
   DQ["nightly DQ checks"] --> DB
   API -->|telemetry| FH["Kinesis Firehose"] --> BRZ[("S3 bronze")]
@@ -56,7 +63,7 @@ flowchart LR
   SIL & BRZ --> ATH["Athena"] --> API
 ```
 
-The full diagram and the list of all 20 Lambda functions are in [`docs/architecture.md`](docs/architecture.md); [`docs/engineering-highlights.md`](docs/engineering-highlights.md) points to the code worth reading first. Key decisions (all 29 in [`docs/adr/`](docs/adr/README.md)):
+The full diagram and the list of all 20 Lambda functions are in [`docs/architecture.md`](docs/architecture.md); [`docs/engineering-highlights.md`](docs/engineering-highlights.md) points to the code worth reading first. Key decisions (all 31 in [`docs/adr/`](docs/adr/README.md)):
 
 | Decision | Why | ADR |
 |---|---|---|
@@ -67,6 +74,7 @@ The full diagram and the list of all 20 Lambda functions are in [`docs/architect
 | Plain SQL checks + CloudWatch, not a DQ framework | Eleven checks did not justify a framework's dependencies | [0023](docs/adr/0023-sql-data-quality-checks.md) |
 | Iceberg + dbt only where live queries fell short | Deduplication, history and small files were real problems | [0025](docs/adr/0025-iceberg-dbt-lakehouse.md) |
 | Login per run for scheduled ingest | No long-lived Beatport token stored anywhere | [0027](docs/adr/0027-auto-ingest.md) |
+| Audio analysis as an external worker behind a claim / results contract | The catalog depends only on the results; the worker runs on a GPU machine outside AWS, in 6-hour passes so Aurora can pause between them | [0030](docs/adr/0030-analyzer-black-box.md) |
 
 ### Where the data lives
 
@@ -84,10 +92,17 @@ s3://<analytics-lake>/
   bronze/catalog_export/snapshot_dt=<date>/<table>/  nightly catalog snapshot (14 days)
   lakehouse/                                         Iceberg silver/gold, built by dbt on Athena
   governance/deleted_users/                          erasure tombstones (see docs/privacy.md)
+
+s3://<audio-features>/
+  features/light-1/<video_id>.f16       one audio profile per analyzed recording (float16 embeddings)
+  models/<user_id>/<style_id>/          a user's suggestion model of a style, one artifact per retrain
+  models/similarity/sim-1.npz           the projection behind the similar-tracks vectors
 ```
 
 Aurora PostgreSQL holds the operational model: source entities → identity map
 (`source × entity_type × external_id → canonical id`) → canonical catalog → per-user overlay.
+Next to the catalog it keeps the analysis results, each user's model predictions and a
+256-dimension sound vector per recording (pgvector).
 
 ## What this project demonstrates
 
@@ -98,27 +113,33 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 - Data contracts with record-level quarantine and drift alarms; nightly data-quality checks with SLOs.
 - An event lakehouse: schema-validated telemetry → Firehose → Parquet bronze → dbt (incremental MERGE, SCD2) → Iceberg silver/gold on Athena, with unit and data tests and published lineage.
 
+**Applied machine learning**
+- An audio feature store: an external worker posts pretrained audio embeddings for each track; the API stores them on S3 and queues scoring.
+- A model per user and style (scikit-learn: keep or discard, then which category), trained inside a Lambda on that user's own decisions and retrained when a triage block is finalized or after 150 new decisions. Predictions light the suggested buttons and play the likely keeps first.
+- Similar-track search: embeddings reduced to 256 dimensions by PCA, stored in pgvector, ranked by cosine distance within a style.
+- AI-generated music screening: two detectors' verdicts set a three-level badge, flagged tracks go to DISCARD in open triage blocks, and labels and artists carry an AI reputation level.
+
 **Cloud & infrastructure**
 - 20 AWS Lambda functions, 9 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 278 Terraform resource definitions.
 - GitHub Actions with OIDC and two roles: pull requests plan Terraform under a read-only role, and only the `production` environment can assume the deploy role ([ADR-0028](docs/adr/0028-ci-roles.md)). Deploys land DB migrations before API code, smoke-test the result and roll the API back to the previous Lambda versions in seconds if it fails ([ADR-0029](docs/adr/0029-api-aliases-smoke-rollback.md)).
 - A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function plus throttle and 5xx alarms on the API, routed to email through SNS.
 
 **Software engineering**
-- About 3,500 automated tests: ~2,290 backend (including a suite against a real PostgreSQL 16), ~1,220 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
+- About 4,400 automated tests: ~2,850 backend (including a suite against a real PostgreSQL 16), ~1,550 frontend (unit and real-browser layout tests), plus dbt unit and data tests.
 - CI gates on every PR: ruff and mypy, an 80 % coverage floor, locked Python dependencies with pip-audit, a runtime `pnpm audit`, a route-consistency check (Terraform ↔ OpenAPI ↔ handler code); Dependabot for pip, npm, Actions and Terraform.
-- 29 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
+- 31 Architecture Decision Records, an incident runbook, and per-role documentation that is checked by tests (links, Lambda inventory, removed components).
 
 ## AWS services
 
 | Service | How it is used |
 |---|---|
-| **Lambda** (Python 3.12) | 20 Lambda functions: API handlers and a JWT authorizer, SQS workers with per-queue concurrency caps, scheduled jobs, backfill steps, DB migrations; the six API functions serve through a versioned `live` alias for instant rollback |
-| **API Gateway** (HTTP API) | 120 operations; everything except the auth routes (`/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/logout`) goes through a Lambda authorizer |
+| **Lambda** (Python 3.12) | 20 Lambda functions: API handlers and a JWT authorizer, SQS workers with per-queue concurrency caps, a scikit-learn model worker packaged separately through S3, scheduled jobs, backfill steps, DB migrations; the six API functions serve through a versioned `live` alias for instant rollback |
+| **API Gateway** (HTTP API) | 120 operations; everything except the auth routes (`/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/logout`) goes through a Lambda authorizer; the audio-analysis routes accept only the analyzer's service token |
 | **SQS** | 9 work queues, each with a dead-letter queue and redrive policy |
 | **Step Functions** | Backfill (plan → map over runs → summarize → DQ check) and the nightly dbt transform |
-| **EventBridge / Scheduler** | Nightly catalog export and data-quality checks; daily auto-ingest planning with one-time run schedules |
-| **S3** | Versioned raw zone with a quarantine prefix; analytics lake; SPA hosting |
-| **Aurora PostgreSQL Serverless v2** | Canonical catalog and user data via the RDS Data API; auto-pause |
+| **EventBridge / Scheduler** | Nightly catalog export and data-quality checks; YouTube Music search every 30 minutes; daily auto-ingest planning with one-time run schedules |
+| **S3** | Versioned raw zone with a quarantine prefix; analytics lake; audio feature store and model artifacts; SPA hosting |
+| **Aurora PostgreSQL Serverless v2** | Canonical catalog and user data via the RDS Data API; pgvector for similar tracks; auto-pause |
 | **Kinesis Data Firehose** | Telemetry ingest with JSON → Parquet conversion and dynamic partitioning |
 | **Glue Data Catalog + Athena** | Bronze tables with partition projection; Iceberg silver/gold; per-user analytics |
 | **CodeBuild** | Runs `dbt build` for the nightly transform |
@@ -127,21 +148,22 @@ Aurora PostgreSQL holds the operational model: source entities → identity map
 | **CloudFront** | SPA delivery with Origin Access Control |
 | **IAM** | A least-privilege execution role per Lambda (its own log group and only what its code uses); a read-only role for pull-request plans and an environment-gated deploy role, both through GitHub OIDC |
 
-**Deliberately not used:** Redshift, EMR/Spark, Kinesis Data Streams/MSK, ECS/EKS, Glue ETL jobs. At this scale (~143k tracks, a few hundred events a day) they would add cost and moving parts without solving a problem this system has; where an alternative was weighed, the trade-off is recorded — Redshift Serverless and Kafka in [`docs/design/data-platform.md`](docs/design/data-platform.md#alternatives-considered), Glue ETL and Spark in [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md) — and [`docs/scalability.md`](docs/scalability.md) says what changes at 10× and 100×.
+**Deliberately not used:** Redshift, EMR/Spark, Kinesis Data Streams/MSK, ECS/EKS, Glue ETL jobs, SageMaker. At this scale (~267k tracks, a few hundred events a day, a user's model trains in about two minutes inside a Lambda) they would add cost and moving parts without solving a problem this system has; where an alternative was weighed, the trade-off is recorded — Redshift Serverless and Kafka in [`docs/design/data-platform.md`](docs/design/data-platform.md#alternatives-considered), Glue ETL and Spark in [ADR-0025](docs/adr/0025-iceberg-dbt-lakehouse.md) — and [`docs/scalability.md`](docs/scalability.md) says what changes at 10× and 100×.
 
 ## Data pipeline
 
 1. **Ingest.** The auto-ingest Lambda runs at times set in the admin (fixed, or N random per day). It logs in to Beatport, picks the due Saturday-week of every visible style first and then backfills missing weeks evenly, and for each one writes `releases.json.gz` + `meta.json` to the S3 raw zone, records an `ingest_runs` row and enqueues canonicalization. An admin can run the same path on demand.
 2. **Screen and canonicalize.** An SQS worker screens every raw record against the data contract (failures go to quarantine with reasons, drift raises an alarm), normalizes it into typed entities and upserts them set-based. Writes use the observation time, so replaying an older run never overwrites newer data.
-3. **Enrich.** Workers look tracks up on Spotify (ISRC, then metadata), match them to YouTube Music with fuzzy scoring and a review queue, and research labels and artists across several LLM and search vendors.
-4. **Curate.** Users triage the week's tracks with one keystroke per destination; categories, tags and playlists form a private overlay on the shared catalog and can be published to Spotify or YouTube Music.
-5. **Check.** Every night eleven SQL checks measure freshness, volume, completeness, integrity and plausibility and publish CloudWatch metrics with an alarm.
-6. **Analyze.** Telemetry flows through Firehose into the bronze lake; a nightly export snapshots catalog dimensions; a nightly dbt build turns both into Iceberg silver/gold, which the analytics API reads together with the live bronze tail.
-7. **Reprocess.** When canonicalization changes, the backfill state machine replays stored raw runs — first as a dry run that reports what would change, then for real.
+3. **Enrich.** Workers look tracks up on Spotify (ISRC, then metadata); search YouTube Music every 30 minutes, newest releases first, matching with fuzzy scoring, a version rule and a review queue; collect the YouTube comment count of tracks in DJs' categories; and research labels and artists across several LLM and search vendors.
+4. **Analyze audio.** An external worker claims tracks over the API in 6-hour batches under a lease and posts back the verdicts of two AI-music detectors and an audio profile. The profile goes to the S3 feature store; the ML worker scores it with each user's model of that style and writes its sound vector.
+5. **Curate.** Users triage the week's tracks with one keystroke per destination. Their model lights the likely destination and plays the likely keeps first, AI-flagged tracks go to DISCARD, and any track or artist opens a list of tracks that sound like it. Categories, tags and playlists form a private overlay on the shared catalog and can be published to Spotify or YouTube Music; finalizing a triage block retrains the user's model.
+6. **Check.** Every night eleven SQL checks measure freshness, volume, completeness, integrity and plausibility and publish CloudWatch metrics with an alarm.
+7. **Measure usage.** Telemetry flows through Firehose into the bronze lake; a nightly export snapshots catalog dimensions; a nightly dbt build turns both into Iceberg silver/gold, which the analytics API reads together with the live bronze tail.
+8. **Reprocess.** When canonicalization changes, the backfill state machine replays stored raw runs — first as a dry run that reports what would change, then for real.
 
-**When something fails.** Each worker has its own queue and dead-letter queue, so a vendor outage delays one kind of enrichment and nothing else. Bad upstream records go to quarantine instead of failing the run. A failed nightly dbt build leaves the analytics cards correct for two more nights, because they read the last three days straight from bronze. Every failure mode, its alarm and its recovery are listed in [`docs/ops/failure-modes.md`](docs/ops/failure-modes.md).
+**When something fails.** Each worker has its own queue and dead-letter queue, so a vendor outage delays one kind of enrichment and nothing else. Bad upstream records go to quarantine instead of failing the run. A failed nightly dbt build leaves the analytics cards correct for two more nights, because they read the last three days straight from bronze. While the audio analyzer is offline, new tracks wait for their profile and suggestions; ingest, matching and curation go on. Every failure mode, its alarm and its recovery are listed in [`docs/ops/failure-modes.md`](docs/ops/failure-modes.md).
 
-**When the data outgrows a shortcut.** The nightly catalog export timed out two nights running (2026-10-10, 10-11) as scheduled ingestion filled the catalog. Paging by primary key instead of `OFFSET` bought 6 %; the time was CPU spent parsing Data API JSON, and 1024 MB instead of 256 MB took a run from 296 s to 124 s for 433k rows. Keyset paging stayed for correctness: rows written during the export no longer shift the pages ([lakehouse](docs/data/lakehouse.md)).
+**When the data outgrows a shortcut.** The nightly catalog export timed out two nights running (2026-10-10, 10-11) as scheduled ingestion filled the catalog. Paging by primary key instead of `OFFSET` cut the run time by only 6 %: the time was CPU spent parsing Data API JSON. Giving the function 1024 MB instead of 256 MB, which also gives it more CPU, took a run over 433k rows from 296 s to 124 s. Keyset paging stayed for correctness: rows written during the export no longer shift the pages ([lakehouse](docs/data/lakehouse.md)).
 
 ## Screenshots
 
@@ -177,12 +199,13 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 
 | | |
 |---|---|
-| Canonical catalog | ~143k canonical tracks (catalog export, 2026-10-11) |
-| Spotify match rate | 96.85 % of recent tracks (nightly data-quality check) |
-| Lambda invocations | 159k in 30 days (2026-09-11 → 10-11), 0.041 % errors |
+| Canonical catalog | ~267k canonical tracks across 17 styles (2026-11-05) |
+| Spotify match rate | 96.7 % of recent tracks (nightly data-quality check, 2026-11-04) |
+| Audio analysis | 86.6k tracks profiled (2026-11-05), about 9k a day |
+| Lambda invocations | 41k in the 30 days to 2026-11-05, 0.14 % errors |
 | Infrastructure | 20 Lambda functions · 9 SQS queues + DLQs · 2 state machines · 278 Terraform resource definitions |
 | API | 120 operations |
-| Delivery | 300+ merged pull requests; every merge to `main` deploys to production. Last 90 days to 2026-10-11, [DORA](https://dora.dev)-style ([`scripts/dora.py`](scripts/dora.py)): 7.2 deploys a week, median lead time 11 min from first commit to production, 2 of 94 deploy runs failed (recovered in 8 min); one green deploy caused a production incident — 2 min 40 s of errors on one route ([postmortem](docs/postmortems/2026-09-20-deploy-before-migration.md)) |
+| Delivery | 400+ merged pull requests; every merge to `main` deploys to production. Last 90 days to 2026-11-05, [DORA](https://dora.dev)-style ([`scripts/dora.py`](scripts/dora.py)): 14.6 deploys a week, median lead time 11 min from first commit to production, 3 of 191 deploy runs failed (median recovery 11 min); one green deploy caused a production incident — 2 min 40 s of errors on one route ([postmortem](docs/postmortems/2026-09-20-deploy-before-migration.md)) |
 
 ## Production readiness
 
@@ -247,7 +270,9 @@ Deployment runs only through GitHub Actions ([`docs/ops/deploy.md`](docs/ops/dep
 - One production environment; changes are verified by CI, local real-PostgreSQL tests and dry runs rather than a staging stack.
 - Throughput limits are measured, not guessed: canonicalization fits a 10× week easily and reaches the Lambda timeout around 100× the largest week — see [scalability notes](docs/scalability.md).
 - Matching precision is measured for YouTube Music only. Next: a labelled sample for Spotify.
-- Built for a closed group of DJs: about 143k tracks, growing by 3–5k a week.
+- Built for a closed group of DJs: about 267k tracks in 17 styles.
+- Audio analysis runs on one GPU machine outside AWS. While it is offline, new tracks wait for their profile and suggestions; nothing else stops.
+- Suggestion models train inside a Lambda, and this account caps Lambda memory at 3,008 MB, so the keep-or-discard model of a style trains on its newest 4,500 decisions.
 - The deploy role is scoped, not administrator (since 2026-10-11): the services Terraform manages, IAM writes only on project roles that carry a permissions boundary, no assuming roles ([`infra/bootstrap/`](infra/bootstrap/README.md)). Inside those services it is still all-powerful, and project roles' trust policies are unconstrained ([security](docs/security.md#known-gaps)).
 
 ## How this was built
