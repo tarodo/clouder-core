@@ -4,7 +4,7 @@ import { formatLength, formatReleaseDate } from '../../../lib/formatters';
 import { AiBadge } from '../../playback/AiBadge';
 import { PlayPauseButton } from '../../playback/PlayPauseButton';
 import { TrackKey } from '../../playback/TrackKey';
-import { AiRepBadge, NamesWithAi } from './AiRepBadge';
+import { NameLine, NameWithAi, NamesWithAi } from './AiRepBadge';
 import type { ReactNode } from 'react';
 import type { EntityTrack } from '../hooks/useEntityTracks';
 
@@ -153,16 +153,17 @@ export function EntityTrackList(props: EntityTrackListProps) {
                   </Text>
                   <AiBadge verdict={track.ai_verdict} />
                 </Group>
-                <Text size="xs" truncate>
+                <NameLine size="xs">
                   <NamesWithAi items={track.artists} />
                   {showLabel && track.label ? (
-                    <Text span c="dimmed" inherit>
-                      {' · '}
-                      <span>{track.label.name}</span>
-                      <AiRepBadge rep={track.label.ai} ml={4} />
-                    </Text>
+                    // a no-break space: a flex item drops a leading plain one
+                    <NameWithAi
+                      c="dimmed"
+                      name={<>{'\u00a0· '}<span>{track.label.name}</span></>}
+                      ai={track.label.ai}
+                    />
                   ) : null}
-                </Text>
+                </NameLine>
                 <Group gap={8} wrap="wrap">
                   <Text size="xs" c="dimmed" className="font-mono">
                     {track.bpm ?? '—'} BPM

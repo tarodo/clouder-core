@@ -1,7 +1,7 @@
 import { Group, Stack, Text } from '@mantine/core';
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AiRepBadge, type AiRep } from '../library/components/AiRepBadge';
+import { NameLine, NameWithAi, type AiRep } from '../library/components/AiRepBadge';
 import { ArtistsPanel } from '../library/components/ArtistsPanel';
 import { EntityLink } from '../library/components/EntityLinks';
 import { LabelTile } from '../library/components/LabelTile';
@@ -126,10 +126,12 @@ export function TrackMeta({ info, children }: { info: PlayerTrackInfo; children?
             <Text size="sm" c="var(--color-fg-muted)">
               {t('curate.card.label_label')}:
             </Text>
-            <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1 }}>
-              {label.id ? <EntityLink kind="label" id={label.id} name={label.name} /> : label.name}
-              <AiRepBadge rep={label.ai} ml={4} />
-            </Text>
+            <NameLine size="sm" c="var(--color-fg-muted)" style={{ flex: 1 }}>
+              <NameWithAi
+                name={label.id ? <EntityLink kind="label" id={label.id} name={label.name} /> : label.name}
+                ai={label.ai}
+              />
+            </NameLine>
           </Group>
         ) : null}
         {bpm != null ? (

@@ -16,6 +16,7 @@ import { useScrubDebounce } from './useScrubDebounce';
 import { pctToMs } from './lib/seekHotkeys';
 import { formatLength } from '../../lib/formatters';
 import type { AiRep } from '../library/components/AiRepBadge';
+import { NameLine } from '../library/components/AiRepBadge';
 import { ArtistLinks } from '../library/components/EntityLinks';
 import { AiBadge } from './AiBadge';
 import { useLivePosition } from './useLivePosition';
@@ -201,9 +202,15 @@ export function PlayerCard(props: PlayerCardProps) {
         {t('playback.empty_bucket_body')}
       </Text>
     ) : (
-      <Text size="sm" c="dimmed" truncate>
-        {artistLinks?.length ? <ArtistLinks artists={artistLinks} /> : (track?.artists ?? '')}
-      </Text>
+      artistLinks?.length ? (
+        <NameLine size="sm" c="dimmed">
+          <ArtistLinks artists={artistLinks} />
+        </NameLine>
+      ) : (
+        <Text size="sm" c="dimmed" truncate>
+          {track?.artists ?? ''}
+        </Text>
+      )
     );
 
   const scrubDisabled = state === 'error' || state === 'disconnected' || state === 'empty-bucket';

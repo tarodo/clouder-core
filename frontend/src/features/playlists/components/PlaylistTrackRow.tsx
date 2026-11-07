@@ -20,7 +20,7 @@ import { YtMusicBadge } from './YtMusicBadge';
 import { TrackKey } from '../../playback/TrackKey';
 import { PlayPauseButton } from '../../playback/PlayPauseButton';
 import { AiBadge } from '../../playback/AiBadge';
-import { AiRepBadge, NamesWithAi } from '../../library/components/AiRepBadge';
+import { AiRepBadge, NameLine, NamesWithAi } from '../../library/components/AiRepBadge';
 
 export interface PlaylistTrackRowProps {
   track: PlaylistTrack;
@@ -224,9 +224,9 @@ export function PlaylistTrackRowView({
                 </Text>
               )}
               {artistNames && (
-                <Text size="sm" c="dimmed" truncate>
+                <NameLine size="sm" c="dimmed">
                   <NamesWithAi items={track.artists} />
-                </Text>
+                </NameLine>
               )}
             </Group>
             <Group gap="xs" wrap="wrap" align="center">
