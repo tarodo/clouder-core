@@ -68,6 +68,66 @@ describe('TrackRow — browser smoke', () => {
     expect(pause.getBoundingClientRect().width).toBeGreaterThan(0);
   });
 
+  test('a long label ends in an ellipsis, its AI badge stays in the cell', () => {
+    const rep = { level: 3, ai: 9, checked: 10, total: 12 } as const;
+    render(
+      <MantineProvider defaultColorScheme="light">
+        <MemoryRouter>
+          <Table style={{ width: 640 }}>
+            <Table.Tbody>
+              <TrackRow
+                track={{
+                  ...track,
+                  artists: [{ id: 'a1', name: 'An Artist With A Very Long Name Indeed', ai: rep }],
+                  label: { id: 'l1', name: 'A Label Whose Name Is Far Too Long For Its Column', ai: rep },
+                }}
+                variant="desktop"
+              />
+            </Table.Tbody>
+          </Table>
+        </MemoryRouter>
+      </MantineProvider>,
+    );
+    for (const name of [/^An Artist/, /^A Label/]) {
+      const text = screen.getByText(name);
+      const cell = text.closest('td')!.getBoundingClientRect();
+      const badge = text.closest('td')!.querySelector('[data-level]')!.getBoundingClientRect();
+      expect(badge.width).toBeGreaterThan(0);
+      expect(badge.right).toBeLessThanOrEqual(cell.right);
+      // the name, not the badge, gave up the room
+      const box = text.closest('[data-name]')!;
+      expect(box.scrollWidth).toBeGreaterThan(box.clientWidth);
+    }
+  });
+
+  test('phone: the label AI badge stays on a line that ends in an ellipsis', async () => {
+    await page.viewport(390, 844);
+    render(
+      <MantineProvider defaultColorScheme="light">
+        <MemoryRouter>
+          <div style={{ width: 358 }}>
+            <TrackRow
+              track={{
+                ...track,
+                artists: [{ id: 'a1', name: 'An Artist With A Very Long Name Indeed' }],
+                label: {
+                  id: 'l1',
+                  name: 'A Label Whose Name Is Far Too Long',
+                  ai: { level: 2, ai: 3, checked: 10, total: 12 },
+                },
+              }}
+              variant="mobile"
+            />
+          </div>
+        </MemoryRouter>
+      </MantineProvider>,
+    );
+    const card = screen.getByText(/^An Artist/).closest('.mantine-Card-root')!.getBoundingClientRect();
+    const badge = screen.getByLabelText('AI level 2').getBoundingClientRect();
+    expect(badge.width).toBeGreaterThan(0);
+    expect(badge.right).toBeLessThanOrEqual(card.right);
+  });
+
   test('phone: a card is three lines — title + mix, artists + label, BPM/key/date + tags', async () => {
     await page.viewport(390, 844);
     render(

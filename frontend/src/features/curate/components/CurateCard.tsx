@@ -5,7 +5,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import type { BucketTrack } from '../../triage/hooks/useBucketTracks';
 import { AiBadge } from '../../playback/AiBadge';
 import { TrackKey } from '../../playback/TrackKey';
-import { AiRepBadge, NamesWithAi } from '../../library/components/AiRepBadge';
+import { NameLine, NameWithAi, NamesWithAi } from '../../library/components/AiRepBadge';
 
 export interface CurateCardProps {
   track: BucketTrack;
@@ -104,10 +104,9 @@ export function CurateCard({ track, onPlay: _onPlay, hideText = false }: CurateC
         {!hideText ? (
           <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
             <Text size="sm" c="var(--color-fg-muted)">{t('curate.card.label_label')}:</Text>
-            <Text size="sm" c="var(--color-fg-muted)" truncate style={{ flex: 1, minWidth: 0 }}>
-              {track.label_name ?? '—'}
-              <AiRepBadge rep={track.label_ai} ml={4} />
-            </Text>
+            <NameLine size="sm" c="var(--color-fg-muted)" style={{ flex: 1 }}>
+              <NameWithAi name={track.label_name ?? '—'} ai={track.label_ai} />
+            </NameLine>
           </Group>
         ) : null}
         <CurateStats track={track} />

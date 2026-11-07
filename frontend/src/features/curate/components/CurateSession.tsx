@@ -24,7 +24,7 @@ import {
   transportHotkeys,
 } from '../../playback/TrackPlayer';
 import { spotifyApi } from '../../playback/api/spotifyWebApi';
-import { AiRepBadge } from '../../library/components/AiRepBadge';
+import { NameLine, NameWithAi } from '../../library/components/AiRepBadge';
 import { EntityLink } from '../../library/components/EntityLinks';
 import { bucketTrackInfo } from '../../triage/lib/toPlaybackTrack';
 import { AnalysisMeta } from '../../triage/components/AnalysisMeta';
@@ -209,23 +209,22 @@ export function CurateSession({ styleId, blockId, bucketId }: CurateSessionProps
               <Text size="sm" c="var(--color-fg-muted)">
                 {t('curate.card.label_label')}:
               </Text>
-              <Text
-                size="sm"
-                c="var(--color-fg-muted)"
-                truncate
-                style={{ flex: 1, minWidth: 0 }}
-              >
-                {session.currentTrack.label_id && session.currentTrack.label_name ? (
-                  <EntityLink
-                    kind="label"
-                    id={session.currentTrack.label_id}
-                    name={session.currentTrack.label_name}
-                  />
-                ) : (
-                  (session.currentTrack.label_name ?? '—')
-                )}
-                <AiRepBadge rep={session.currentTrack.label_ai} ml={4} />
-              </Text>
+              <NameLine size="sm" c="var(--color-fg-muted)" style={{ flex: 1 }}>
+                <NameWithAi
+                  name={
+                    session.currentTrack.label_id && session.currentTrack.label_name ? (
+                      <EntityLink
+                        kind="label"
+                        id={session.currentTrack.label_id}
+                        name={session.currentTrack.label_name}
+                      />
+                    ) : (
+                      (session.currentTrack.label_name ?? '—')
+                    )
+                  }
+                  ai={session.currentTrack.label_ai}
+                />
+              </NameLine>
             </Group>
             {/* On a phone the stats go in the card under the player. */}
             {!isMobile && (

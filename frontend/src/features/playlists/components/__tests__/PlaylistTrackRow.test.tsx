@@ -119,8 +119,8 @@ describe('PlaylistTrackRow', () => {
     expect(screen.getByText('Deep Horizon')).toBeInTheDocument();
     expect(screen.getByText('Original Mix')).toBeInTheDocument();
 
-    // Artists
-    expect(screen.getByText('Ben Klock, Blawan')).toBeInTheDocument();
+    // Artists: each name in its own box, so a long one ends in an ellipsis before its AI badge
+    expect(screen.getByText('Ben Klock').parentElement).toHaveTextContent('Ben Klock, Blawan');
 
     // Meta line: single pipe-joined string
     expect(screen.getByText(/Ostgut Ton \| 140 BPM \| 6:30 \| 2024-03-15/)).toBeInTheDocument();

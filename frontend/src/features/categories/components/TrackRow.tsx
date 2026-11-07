@@ -13,7 +13,7 @@ import { UsedInPlaylistBadge } from './UsedInPlaylistBadge';
 import { TrackKey } from '../../playback/TrackKey';
 import { PlayPauseButton } from '../../playback/PlayPauseButton';
 import { AiBadge } from '../../playback/AiBadge';
-import { AiRepBadge } from '../../library/components/AiRepBadge';
+import { NameLine, NameWithAi } from '../../library/components/AiRepBadge';
 import { ArtistLinks, EntityLink } from '../../library/components/EntityLinks';
 
 /** The table's optional columns, in order; the title and the actions always show. */
@@ -61,11 +61,8 @@ export function TrackRow({
   const { t } = useTranslation();
   const tagsCell = <TrackTagsCell tags={track.tags} />;
   const artists = track.artists.length ? <ArtistLinks artists={track.artists} /> : '—';
-  const label = track.label ? (
-    <>
-      <EntityLink kind="label" id={track.label.id} name={track.label.name} />
-      <AiRepBadge rep={track.label.ai} ml={4} />
-    </>
+  const labelLink = track.label ? (
+    <EntityLink kind="label" id={track.label.id} name={track.label.name} />
   ) : null;
 
   const canPlay = !!onPlay && !!track.spotify_id;
@@ -96,16 +93,14 @@ export function TrackRow({
       ),
       artists: (
         <Table.Td style={fill(70)}>
-          <Text inherit truncate>
-            {artists}
-          </Text>
+          <NameLine inherit>{artists}</NameLine>
         </Table.Td>
       ),
       label: (
         <Table.Td style={fill(70)}>
-          <Text inherit truncate>
-            {label ?? '—'}
-          </Text>
+          <NameLine inherit>
+            {track.label ? <NameWithAi name={labelLink} ai={track.label.ai} /> : '—'}
+          </NameLine>
         </Table.Td>
       ),
       key: (
@@ -196,15 +191,17 @@ export function TrackRow({
             </Text>
             <AiBadge verdict={track.ai_verdict} />
           </Group>
-          <Text size="xs" truncate>
+          <NameLine size="xs">
             {artists}
-            {label ? (
-              <Text span c="dimmed" inherit>
-                {' · '}
-                {label}
-              </Text>
+            {track.label ? (
+              // a no-break space: a flex item drops a leading plain one
+              <NameWithAi
+                c="dimmed"
+                name={<>{'\u00a0· '}{labelLink}</>}
+                ai={track.label.ai}
+              />
             ) : null}
-          </Text>
+          </NameLine>
           <Group gap={8} wrap="wrap">
             <Text size="xs" c="dimmed" className="font-mono">
               {track.bpm ?? '—'} BPM

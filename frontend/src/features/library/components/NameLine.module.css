@@ -1,0 +1,13 @@
+/* One line of names that never wraps: each [data-name] shrinks to an ellipsis, the AI badges
+   (flex-shrink 0) keep their size. Bare text between them does not shrink. */
+.line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.line > [data-name] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -1,7 +1,6 @@
 import { Anchor } from '@mantine/core';
-import { Fragment } from 'react';
 import { Link } from 'react-router';
-import { AiRepBadge, type AiRep } from './AiRepBadge';
+import { NameWithAi, type AiRep } from './AiRepBadge';
 
 /** A name in running text that opens its artist or label page; keeps the text's size and color. */
 export function EntityLink({ kind, id, name }: { kind: 'artist' | 'label'; id: string; name: string }) {
@@ -19,10 +18,15 @@ export function ArtistLinks({
   artists: ReadonlyArray<{ id: string; name: string; ai?: AiRep | null }>;
 }) {
   return artists.map((a, i) => (
-    <Fragment key={i}>
-      {i > 0 && ', '}
-      <EntityLink kind="artist" id={a.id} name={a.name} />
-      <AiRepBadge rep={a.ai} ml={4} />
-    </Fragment>
+    <NameWithAi
+      key={i}
+      name={
+        <>
+          {i > 0 && ', '}
+          <EntityLink kind="artist" id={a.id} name={a.name} />
+        </>
+      }
+      ai={a.ai}
+    />
   ));
 }
