@@ -127,11 +127,26 @@ def wake_database(
     database instead of bad data. Other errors, and a resume that never ends,
     propagate so the Lambda fails and EventBridge retries it.
     """
+    wait_for_resume(
+        lambda: client.execute("SELECT 1"), deadline_s=deadline_s, sleep=sleep, clock=clock
+    )
+
+
+def wait_for_resume[T](
+    call: Callable[[], T],
+    *,
+    deadline_s: float = 60.0,
+    sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
+) -> T:
+    """Repeat *call* while Aurora is resuming, until it answers or the deadline passes.
+
+    Safe for any statement: DatabaseResumingException means it never ran.
+    """
     start = clock()
     while True:
         try:
-            client.execute("SELECT 1")
-            return
+            return call()
         except ClientError as exc:
             resuming = exc.response.get("Error", {}).get("Code") == "DatabaseResumingException"
             if not resuming or clock() - start >= deadline_s:
