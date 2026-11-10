@@ -327,43 +327,30 @@ def test_progress_is_visible_while_the_run_works(events) -> None:
 # ── paused Aurora ─────────────────────────────────────────────────────────────
 
 
-def _resuming_once():
+def test_a_resume_mid_run_is_waited_out(monkeypatch) -> None:
+    # 2026-11-10 06:28 UTC: Aurora began pausing just after a run took its lease. The next
+    # statement met the resume, and so did the lease release in `finally`: the run died with
+    # its lease held, and Lambda's own retry a minute later found it busy and gave up.
     from botocore.exceptions import ClientError
 
-    class DataApi:
-        def __init__(self):
-            self.calls = 0
+    class Aurora:
+        resuming = 0  # statements still to meet the resume
 
         def execute(self, sql, params=None, transaction_id=None):
-            self.calls += 1
-            if self.calls == 1:
+            if self.resuming:
+                self.resuming -= 1
                 raise ClientError(
                     {"Error": {"Code": "DatabaseResumingException", "Message": "resuming"}},
                     "ExecuteStatement",
                 )
             return []
 
-    return DataApi()
-
-
-@pytest.mark.parametrize("action", ["run", "plan"])
-def test_handler_waits_for_a_paused_aurora(monkeypatch, action) -> None:
-    # A scheduled run that meets a paused Aurora must not fail (and fire the errors alarm).
-    client = _resuming_once()
-    seen = []
+    client = Aurora()
     monkeypatch.setattr(handler, "_data_api_client", lambda: client)
     monkeypatch.setattr(handler, "_sleep", lambda s: None)
-    monkeypatch.setattr(
-        handler, "run", lambda ctx, *, repo, now, manual: seen.append(("run", repo)) or {}
-    )
-    monkeypatch.setattr(
-        handler, "plan", lambda ctx, *, repo, scheduler, now, rng: seen.append(("plan", repo)) or {}
-    )
-    monkeypatch.setitem(
-        __import__("sys").modules, "boto3", type("B", (), {"client": staticmethod(lambda n: None)})
-    )
+    repo = handler._repository()
 
-    handler.lambda_handler({"action": action}, Ctx())
+    client.resuming = 3
+    repo.release_lease()
 
-    assert client.calls == 2  # the probe retried once, then the action ran
-    assert [name for name, _ in seen] == [action]
+    assert client.resuming == 0

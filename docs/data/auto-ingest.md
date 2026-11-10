@@ -69,6 +69,11 @@ backfill floor (default 2026-01-03, week 1 of 2026).
 4. Save `last_run` (per-pair outcome) and log `auto_ingest_run_completed` (`count`,
    `runs_failed`); a run whose every pair failed also logs `auto_ingest_run_failed`.
 
+Aurora auto-pauses after 300 s idle, and a pause can begin mid-run: every statement of the
+run and the planner waits out a resume, up to 60 s (`wait_for_resume`). Without it, a run that
+met a pause right after taking its lease (2026-11-10) died with the lease held, and Lambda's
+own retry a minute later was skipped as busy.
+
 While it works, the run keeps a progress record in `last_run` (`in_progress`, the period being
 fetched, done/total); `GET /admin/auto-ingest` reports `running` while the lease is held, and
 the admin panel polls every 10 s then (and for 90 s after "Run now") to show it. A progress

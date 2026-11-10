@@ -25,7 +25,7 @@ from .auto_ingest_repository import AutoIngestRepository
 from .auto_ingest_schedule import apply_schedule, plan_times
 from .beatport_auth import BeatportAuthError, fetch_access_token
 from .beatport_auth import read_credentials as _read_credentials
-from .data_api_retry import wake_database
+from .data_api_retry import wait_for_resume
 from .errors import UpstreamAuthError
 from .logging_utils import log_event
 from .repositories import utc_now
@@ -272,12 +272,21 @@ def _data_api_client() -> Any:
 _sleep = time.sleep
 
 
+class _WaitsForResume:
+    """Scheduled runs often meet a paused Aurora (auto-pause after 300 s idle), and a pause can
+    begin mid-run, so every statement waits out a resume, not only the first. A run that died
+    on one kept its lease (the release met the same resume), and Lambda's own retry a minute
+    later found it busy and gave up (2026-11-10)."""
+
+    def __init__(self, client: Any) -> None:
+        self._client = client
+
+    def execute(self, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        return wait_for_resume(lambda: self._client.execute(*args, **kwargs), sleep=_sleep)
+
+
 def _repository() -> AutoIngestRepository:
-    # Scheduled runs often meet a paused Aurora (auto-pause after 300 s idle); wait for
-    # it instead of failing the first attempt and firing the errors alarm.
-    client = _data_api_client()
-    wake_database(client, sleep=_sleep)
-    return AutoIngestRepository(client)
+    return AutoIngestRepository(_WaitsForResume(_data_api_client()))
 
 
 def lambda_handler(event: Mapping[str, Any] | None, context: Any) -> dict[str, Any]:

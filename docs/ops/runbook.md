@@ -364,6 +364,7 @@ Alarm `clouder-prod-auto-ingest-failed`, or the admin's Auto-ingest panel shows 
 - `authorize` / `token`: first suspect a rotated client id — take the current one from the JS of `https://api.beatport.com/v4/docs/`, set the GitHub secret `BEATPORT_CLIENT_ID`, run Deploy by hand, rerun `auth_check`. If that does not help, Beatport changed its login flow — disable auto-ingest in the admin; manual ingest with a pasted token still works.
 - `catalog_auth`: login worked but the catalog API rejected the token (401/403) — check the account's catalog access; no pair was charged.
 - Every period failed with the same Beatport error: an upstream outage; the next planned run retries.
+- The panel shows **interrupted** and the log has a `[ERROR]` with no `auto_ingest_run_failed`: the Lambda died mid-run and left its progress record (e.g. `DatabaseResumingException` past the 60 s every statement waits out a resume). The lease lapses in 15 minutes; the next planned run, or "Run now", picks up its pairs.
 
 ---
 
