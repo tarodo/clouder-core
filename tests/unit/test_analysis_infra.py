@@ -175,3 +175,23 @@ def test_ml_worker_is_watched() -> None:
     assert re.search(r"ml_jobs\s*= aws_sqs_queue\.ml_jobs\.name", tf)  # dashboard queue age
     log_group = _resource("aws_cloudwatch_log_group", "ml_worker")
     assert "/aws/lambda/${local.ml_worker_lambda_name}" in log_group
+
+
+def _block(tf: str, kind: str, name: str) -> str:
+    return re.search(rf'resource "{kind}" "{name}" \{{(.*?)\n\}}', tf, re.S).group(1)
+
+
+def test_a_silent_analyzer_alarms() -> None:
+    # 2026-11-10: the PC went offline and no result arrived for four days, unnoticed.
+    tf = (INFRA / "analysis.tf").read_text()
+    accepted = _block(tf, "aws_cloudwatch_log_metric_filter", "analysis_results")
+    assert "aws_cloudwatch_log_group.api_access.name" in accepted
+    route = r"aws_apigatewayv2_route.analysis_results.route_key"
+    assert rf"$.routeKey = \"${{{route}}}\" && $.status = \"200\"" in accepted
+    alarm = _block(tf, "aws_cloudwatch_metric_alarm", "analyzer_silent")
+    period = int(re.search(r"period\s*=\s*(\d+)", alarm).group(1))
+    periods = int(re.search(r"evaluation_periods\s*=\s*(\d+)", alarm).group(1))
+    assert period * periods == 12 * 3600  # batches post up to ~11 h apart
+    assert re.search(r'treat_missing_data\s*=\s*"breaching"', alarm)  # silence writes no data
+    assert re.search(r'comparison_operator\s*=\s*"LessThanThreshold"', alarm)
+    assert "alarm_actions = local.alarm_actions" in alarm

@@ -73,3 +73,35 @@ resource "aws_apigatewayv2_route" "admin_analysis_requeue" {
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
+
+# ── Analyzer silence ─────────────────────────────────────────────
+# The analyzer posts its results when a batch ends, up to ~11 h apart while it works (2026-11).
+# Twelve hours without one: the PC is off or offline, or the container is down (2026-11-10: four
+# days offline, unnoticed). A quiet hour writes no datapoint, so missing data breaches.
+resource "aws_cloudwatch_log_metric_filter" "analysis_results" {
+  name           = "${local.name_prefix}-analysis-results"
+  log_group_name = aws_cloudwatch_log_group.api_access.name
+  pattern        = "{ $.routeKey = \"${aws_apigatewayv2_route.analysis_results.route_key}\" && $.status = \"200\" }"
+
+  metric_transformation {
+    name      = "AnalysisResultsAccepted"
+    namespace = "CLOUDER/Analysis"
+    value     = "1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "analyzer_silent" {
+  alarm_name          = "${local.name_prefix}-analyzer-silent"
+  alarm_description   = "No analyzer results for 12 h: check the PC — docs/ops/runbook.md#analyzer-silent"
+  namespace           = "CLOUDER/Analysis"
+  metric_name         = "AnalysisResultsAccepted"
+  statistic           = "Sum"
+  period              = 3600
+  evaluation_periods  = 12
+  threshold           = 1
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "breaching"
+
+  alarm_actions = local.alarm_actions
+  ok_actions    = local.alarm_actions
+}

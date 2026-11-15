@@ -42,7 +42,7 @@ The artifact is versioned. The live version is `repositories/similarity.VERSION`
 `audio_embeddings(video_id, version, embedding vector(256))`, one row per video and version (migration 49).
 
 - **Extension.** pgvector must be created by the master user once ([`docs/ops/aurora.md`](../ops/aurora.md#pgvector-extension)).
-- **Index.** None: a query scans one style exactly. DnB has ~10 k vectors (2026-11).
+- **Index.** None: a query scans one style exactly. The largest style has ~28 k vectors (2026-11-15): the track query runs in ~0.4 s in Postgres, ~0.9 s through the Data API, mostly the track → video → vector join, not the distances. Right after an Aurora resume (cold buffer cache) it takes ~5 s.
 - **When to add one.** Add HNSW with the iterative scan when a style passes ~100 k vectors.
 
 ## Writes

@@ -57,8 +57,8 @@ _ARTIST_EXCLUDE = """NOT EXISTS (
 # AI flags are per track, vectors per video: a flag on any of the style's tracks on a video drops the
 # video (the same audio under an unchecked compilation copy). ponytail: a flagged sibling in another
 # style is not seen; widen to all of the video's tracks if that shows up.
-# ponytail: an exact scan of the style (DnB ~10 k vectors, 2026-11); an HNSW index with the iterative
-# scan once a style passes ~100 k. ponytail: one row per video; collapse by ISRC if the same
+# ponytail: an exact scan of the style (largest ~28 k vectors, ~0.4 s, 2026-11-15); an HNSW index
+# with the iterative scan once a style passes ~100 k. ponytail: one row per video; collapse by ISRC if the same
 # recording on two videos starts showing (79 of 44 k ISRCs, 2026-11).
 _RANKED = """
 WITH {seed},

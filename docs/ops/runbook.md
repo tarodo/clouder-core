@@ -460,6 +460,23 @@ Restart the analyzer (`docker compose up -d`). It takes up to 10 minutes for a n
 
 ---
 
+## Analyzer silent
+
+Alarm `clouder-prod-analyzer-silent`: `POST /v1/analysis/results` accepted nothing for 12 hours. The analyzer posts its results when a batch ends, at most ~11 hours apart while it works, so half a quiet day means it stopped: the PC is off or offline, or the container is down. AWS itself is fine.
+
+On the PC:
+
+```powershell
+docker ps                                   # clouder-analyzer-analyzer-1 should be Up
+docker logs --since 1h clouder-analyzer-analyzer-1 2>&1 | Select-String '"analysis_'
+```
+
+`analysis_api_unavailable` with `ConnectError` means the PC has no network (2026-11-10: four days offline, until a hard reset). A container that is not running: `docker compose up -d` in the analyzer's checkout; if it does not start, see **Analyzer GPU** under [ML worker](#ml-worker-triage-suggestions).
+
+A stopped batch costs nothing: its leases expire after 12 hours and a later claim hands the tracks out again. The alarm clears with the next accepted results. Right after the alarm is created it fires once, until the first results arrive.
+
+---
+
 ## ML worker (triage suggestions)
 
 **What runs**
