@@ -164,17 +164,19 @@ resource "aws_cloudwatch_metric_alarm" "label_enricher_throttles" {
 }
 
 # ── Aurora alarms ────────────────────────────────────────────────
+# YouTube search runs and the nightly jobs hold the cap for up to 15 min (5-min averages,
+# 2026-11); only half an hour there is a shortage worth a mail.
 resource "aws_cloudwatch_metric_alarm" "aurora_acu_near_max" {
   alarm_name          = "${aws_rds_cluster.aurora.cluster_identifier}-acu-near-max"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
+  evaluation_periods  = 6
   metric_name         = "ServerlessDatabaseCapacity"
   namespace           = "AWS/RDS"
   period              = 300
   statistic           = "Average"
   threshold           = var.aurora_serverless_max_acu * 0.9
   treat_missing_data  = "notBreaching"
-  alarm_description   = "Aurora ACU > 90% of max — bump max_acu or optimize queries"
+  alarm_description   = "Aurora ACU > 90% of max for 30 min — bump max_acu or optimize queries"
 
   dimensions = {
     DBClusterIdentifier = aws_rds_cluster.aurora.cluster_identifier

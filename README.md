@@ -120,7 +120,7 @@ Next to the catalog it keeps the analysis results, each user's model predictions
 - AI-generated music screening: two detectors' verdicts set a three-level badge, flagged tracks go to DISCARD in open triage blocks, and labels and artists carry an AI reputation level.
 
 **Cloud & infrastructure**
-- 20 AWS Lambda functions, 9 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 278 Terraform resource definitions.
+- 20 AWS Lambda functions, 9 SQS work queues each with a dead-letter queue, 2 Step Functions state machines, EventBridge Scheduler, Aurora Serverless v2, S3, Kinesis Data Firehose, Glue, Athena, CodeBuild, API Gateway, CloudFront, KMS, SSM — 280 Terraform resource definitions.
 - GitHub Actions with OIDC and two roles: pull requests plan Terraform under a read-only role, and only the `production` environment can assume the deploy role ([ADR-0028](docs/adr/0028-ci-roles.md)). Deploys land DB migrations before API code, smoke-test the result and roll the API back to the previous Lambda versions in seconds if it fails ([ADR-0029](docs/adr/0029-api-aliases-smoke-rollback.md)).
 - A least-privilege IAM role per Lambda; API Gateway throttling and JSON access logs; Aurora deletion protection with 7-day backups; error alarms on every function plus throttle and 5xx alarms on the API, routed to email through SNS.
 
@@ -203,7 +203,7 @@ Data quality is charted next to the pipeline: one point per nightly check run ag
 | Spotify match rate | 96.7 % of recent tracks (nightly data-quality check, 2026-11-04) |
 | Audio analysis | 86.6k tracks profiled (2026-11-05), about 9k a day |
 | Lambda invocations | 41k in the 30 days to 2026-11-05, 0.14 % errors |
-| Infrastructure | 20 Lambda functions · 9 SQS queues + DLQs · 2 state machines · 278 Terraform resource definitions |
+| Infrastructure | 20 Lambda functions · 9 SQS queues + DLQs · 2 state machines · 280 Terraform resource definitions |
 | API | 120 operations |
 | Delivery | 400+ merged pull requests; every merge to `main` deploys to production. Last 90 days to 2026-11-05, [DORA](https://dora.dev)-style ([`scripts/dora.py`](scripts/dora.py)): 14.6 deploys a week, median lead time 11 min from first commit to production, 3 of 191 deploy runs failed (median recovery 11 min); one green deploy caused a production incident — 2 min 40 s of errors on one route ([postmortem](docs/postmortems/2026-09-20-deploy-before-migration.md)) |
 
